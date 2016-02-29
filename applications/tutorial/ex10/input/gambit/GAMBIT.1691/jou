@@ -1,0 +1,45 @@
+/ Journal File for GAMBIT 2.3.16, Database 2.3.14, lnamd64 SP2006033020
+/ Identifier "default_id"
+/ File opened for write Sun Feb 21 20:13:10 2016.
+face create "elli1" radius1 2 radius2 1.5 xyplane ellipse
+undo begingroup
+edge picklink "edge.1"
+edge mesh "edge.1" successive ratio1 1 intervals 100
+undo endgroup
+face mesh "elli1" pave size 1
+solver select "Generic"
+physics create "ellipse_domain" btype "NODE" edge "edge.1"
+solver select "Generic"
+export gambit "ellipse.neu"
+save name \
+  "/home/bhagya/devel/femus/applications/droplet_model/input/gambit/ellipse.dbs"
+save
+/ File closed at Sun Feb 21 20:32:12 2016, 0.89 cpu second(s), 2755232 maximum memory.
+/ Journal File for GAMBIT 2.3.16, Database 2.3.14, lnamd64 SP2006033020
+/ Identifier "ellipse"
+/ File opened for append Mon Feb 29 07:57:32 2016.
+identifier name \
+  "/home/bhagya/devel/femus/applications/tutorial/ex10/input/gambit/ellipse.dbs" \
+  old saveprevious
+default set "MESH.NODES.HEX" numeric 27
+undo begingroup
+face delete "elli1" onlymesh
+/ERROR occurred in the next command!
+face mesh "elli1" pave size 0.11051746
+undo endgroup
+/ERROR occurred in the next command!
+face mesh "elli1" pave size 0.11051746
+/ERROR occurred in the next command!
+face mesh "elli1" pave size 0.11051746
+undo begingroup
+edge delete "edge.1" keepsettings onlymesh
+edge mesh "edge.1" successive ratio1 1 size 0.11051746
+undo endgroup
+face mesh "elli1" pave size 0.11051746
+solver select "Generic"
+physics modify "ellipse_domain" btype "ELEMENT_SIDE" label "1" edge "edge.1"
+physics modify "1" btype edge "edge.1"
+physics create "5" ctype "FLUID" face "elli1"
+save
+export gambit \
+  "/home/bhagya/devel/femus/applications/tutorial/ex10/input/ellipse.neu"
