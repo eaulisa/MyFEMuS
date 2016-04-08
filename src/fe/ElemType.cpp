@@ -379,14 +379,15 @@ namespace femus {
 //----------------------------------------------------------------------------------------------------
 
   void elem_type::GetSparsityPatternSize(const Mesh& mesh, const int& iel, NumericVector* NNZ_d, NumericVector* NNZ_o, const unsigned& itype) const {
+    bool identity = ( _nlag[itype] == _nc ) ? true : false;
     for (int i = 0; i < _nlag[itype]; i++) {
       int irow = mesh.GetSolutionDof(i, iel, itype);
       int iproc = mesh.IsdomBisectionSearch(irow, itype);
-      int ncols = _prol_ind[i + 1] - _prol_ind[i];
+      int ncols = (identity)? 1 : _prol_ind[i + 1] - _prol_ind[i];
       unsigned counter_o = 0;
       for (int k = 0; k < ncols; k++) {
         int jj = _prol_ind[i][k];
-        int jcolumn = mesh.GetSolutionDof(jj, iel, _SolType);
+        int jcolumn = (identity) ? irow : mesh.GetSolutionDof(jj, iel, _SolType);
         if (jcolumn < mesh._dofOffset[_SolType][iproc] || jcolumn >= mesh._dofOffset[_SolType][iproc + 1]) counter_o++;
       }
       NNZ_d->set(irow, ncols - counter_o);
@@ -396,18 +397,20 @@ namespace femus {
 
   void elem_type::BuildProlongation(const Mesh& mesh, const int& iel, SparseMatrix* Projmat, NumericVector* NNZ_d, NumericVector* NNZ_o, const unsigned& itype) const {
     vector<int> cols(_nc);
+    vector<double> value(_nc);
+    bool identity = ( _nlag[itype] == _nc ) ? true : false;
     for (int i = 0; i < _nlag[itype]; i++) {
       int irow = mesh.GetSolutionDof(i, iel, itype);
-      int ncols = _prol_ind[i + 1] - _prol_ind[i];
+      int ncols = (identity) ? 1 : _prol_ind[i + 1] - _prol_ind[i];
       int ncols_stored = static_cast <int>(floor((*NNZ_d)(irow) + (*NNZ_o)(irow) + 0.5));
       if (ncols == ncols_stored) {
         cols.assign(ncols, 0);
         for (int k = 0; k < ncols; k++) {
           int jj = _prol_ind[i][k];
-          int jcolumn = mesh.GetSolutionDof(jj, iel, _SolType);
-          cols[k] = jcolumn;
+          cols[k]  = (identity) ? irow : mesh.GetSolutionDof( _prol_ind[i][k], iel, _SolType);
+          value[k] = (identity) ? 1.: _prol_val[i][k];
         }
-        Projmat->insert_row(irow, ncols, cols, _prol_val[i]);
+        Projmat->insert_row(irow, ncols, cols, &value[0]);
       }
     }
   }
@@ -437,9 +440,9 @@ namespace femus {
     }
 
     if (!strcmp(geom_elem, "line")) { //line
-      if (_SolType == 0) _pt_basis = new line1;
-      else if (_SolType == 1) _pt_basis = new line2;
-      else if (_SolType == 2) _pt_basis = new line2;
+      if (_SolType == 0) _pt_basis = new lineLinear;
+      else if (_SolType == 1) _pt_basis = new lineBiquadratic;
+      else if (_SolType == 2) _pt_basis = new lineBiquadratic;
       else if (_SolType == 3) _pt_basis = new line0;
       else if (_SolType == 4) _pt_basis = new linepwl;
       else {
@@ -572,9 +575,9 @@ namespace femus {
     }
 
     if (!strcmp(geom_elem, "quad")) { //QUAD
-      if (_SolType == 0) _pt_basis = new quad1;
-      else if (_SolType == 1) _pt_basis = new quadth;
-      else if (_SolType == 2) _pt_basis = new quad2;
+      if (_SolType == 0) _pt_basis = new quadLinear;
+      else if (_SolType == 1) _pt_basis = new quadQuadratic;
+      else if (_SolType == 2) _pt_basis = new quadBiquadratic;
       else if (_SolType == 3) _pt_basis = new quad0;
       else if (_SolType == 4) _pt_basis = new quadpwl;
       else {
@@ -584,9 +587,9 @@ namespace femus {
     }
     else if (!strcmp(geom_elem, "tri")) { //TRIANGLE
 
-      if (_SolType == 0) _pt_basis = new tri1;
-      else if (_SolType == 1) _pt_basis = new tri2;
-      else if (_SolType == 2) _pt_basis = new tri2;
+      if (_SolType == 0) _pt_basis = new triLinear;
+      else if (_SolType == 1) _pt_basis = new triQuadratic;
+      else if (_SolType == 2) _pt_basis = new triBiquadratic;
       else if (_SolType == 3) _pt_basis = new tri0;
       else if (_SolType == 4) _pt_basis = new tripwl;
       else {
@@ -642,6 +645,9 @@ namespace femus {
     pt_d = _mem_prol_val;
     pt_i = _mem_prol_ind;
     for (int i = 0; i < _nf; i++) {
+      // std::cout << "\n" << i << std::endl;
+      // double sum = 0;
+      
       _prol_val[i] = pt_d;
       _prol_ind[i] = pt_i;
       for (int j = 0; j < _nc; j++) {
@@ -652,9 +658,13 @@ namespace femus {
         }
         if (fabs(phi) >= 1.0e-14) {
           *(pt_d++) = phi;
+	  //sum += phi;
           *(pt_i++) = j;
+	  // std::cout << j <<" " << phi<<std::endl;
+	  
         }
       }
+      // std::cout<<sum<<std::endl;
     }
 
     _prol_val[_nf] = pt_d;
@@ -700,16 +710,46 @@ namespace femus {
         x[j] = *ptx[j];
         ptx[j]++;
       }
+      
+      //double phisum=0.;
+      //double dphidxisum=0.;
+      //double dphidetasum=0.;
+      //double d2phidxi2sum=0.;
+      //double d2phideta2sum=0.;
+      //double d2phidxidetasum=0.;
+      
+      
       for (int j = 0; j < _nc; j++) {
         _phi[i][j] = _pt_basis->eval_phi(_IND[j], x);
+	//phisum += _phi[i][j];
+	//std::cout << _phi[i][j] <<" ";
         _dphidxi[i][j] = _pt_basis->eval_dphidx(_IND[j], x);
+	//dphidxisum += _dphidxi[i][j];
+	//std::cout << _dphidxi[i][j] <<" ";
         _dphideta[i][j] = _pt_basis->eval_dphidy(_IND[j], x);
+	//_dphidxi[i][j] += _dphideta[i][j];
+	//std::cout << _dphideta[i][j] <<" ";
         _d2phidxi2[i][j] = _pt_basis->eval_d2phidx2(_IND[j], x);
+	//d2phidxi2sum += _d2phidxi2[i][j];
+	//std::cout << _d2phidxi2[i][j] <<" ";
         _d2phideta2[i][j] = _pt_basis->eval_d2phidy2(_IND[j], x);
+	//d2phideta2sum += _d2phideta2[i][j];
+	//std::cout << _d2phideta2[i][j] <<" ";
         _d2phidxideta[i][j] = _pt_basis->eval_d2phidxdy(_IND[j], x);
+	//d2phidxidetasum += _d2phidxideta[i][j];
+	//std::cout << _d2phidxideta[i][j] <<"\n";
       }
+//       std::cout<<std::endl;
+//       
+//       std::cout<< phisum <<" "<< 
+//       dphidxisum <<" "<<
+//       dphidetasum<<" "<<
+//       d2phidxi2sum<<" "<<
+//       d2phideta2sum<<" "<<
+//       d2phidxidetasum<<"\n\n";
+            
     }
-
+//     
 //=====================
     EvaluateShapeAtQP(geom_elem, order);
 
@@ -739,9 +779,9 @@ namespace femus {
 
     if (!strcmp(geom_elem, "hex")) { //HEX
 
-      if (_SolType == 0) _pt_basis = new hex1;
-      else if (_SolType == 1) _pt_basis = new hexth;
-      else if (_SolType == 2) _pt_basis = new hex2;
+      if (_SolType == 0) _pt_basis = new hexLinear;
+      else if (_SolType == 1) _pt_basis = new hexQuadratic;
+      else if (_SolType == 2) _pt_basis = new hexBiquadratic;
       else if (_SolType == 3) _pt_basis = new hex0;
       else if (_SolType == 4) _pt_basis = new hexpwl;
       else {
@@ -750,9 +790,9 @@ namespace femus {
       }
     }
     else if (!strcmp(geom_elem, "wedge")) { //WEDGE
-      if (_SolType == 0) _pt_basis = new wedge1;
-      else if (_SolType == 1) _pt_basis = new wedgeth;
-      else if (_SolType == 2) _pt_basis = new wedge2;
+      if (_SolType == 0) _pt_basis = new wedgeLinear;
+      else if (_SolType == 1) _pt_basis = new wedgeQuadratic;
+      else if (_SolType == 2) _pt_basis = new wedgeBiquadratic;
       else if (_SolType == 3) _pt_basis = new wedge0;
       else if (_SolType == 4) _pt_basis = new wedgepwl;
       else {
@@ -761,9 +801,9 @@ namespace femus {
       }
     }
     else if (!strcmp(geom_elem, "tet")) { //TETRAHEDRA
-      if (_SolType == 0) _pt_basis = new tet1;
-      else if (_SolType == 1) _pt_basis = new tet2;
-      else if (_SolType == 2) _pt_basis = new tet2;
+      if (_SolType == 0) _pt_basis = new tetLinear;
+      else if (_SolType == 1) _pt_basis = new tetQuadratic;
+      else if (_SolType == 2) _pt_basis = new tetBiquadratic;
       else if (_SolType == 3) _pt_basis = new tet0;
       else if (_SolType == 4) _pt_basis = new tetpwl;
       else {
@@ -894,19 +934,59 @@ namespace femus {
         x[j] = *ptx[j];
         ptx[j]++;
       }
+      
+      
+      double phisum=0.;
+      double dphidxisum=0.;
+      double dphidetasum=0.;
+      double dphidzetasum=0.;
+      double d2phidxi2sum=0.;
+      double d2phideta2sum=0.;
+      double d2phidzeta2sum=0.;
+      double d2phidxidetasum=0.;
+      double d2phidetadzetasum=0.;
+      double d2phidzetadxisum=0.;
+      
 
       for (int j = 0; j < _nc; j++) {
         _phi[i][j] = _pt_basis->eval_phi(_IND[j], x);
         _dphidxi[i][j] = _pt_basis->eval_dphidx(_IND[j], x);
         _dphideta[i][j] = _pt_basis->eval_dphidy(_IND[j], x);
-        _dphidzeta[i][j] = _pt_basis->eval_dphidz(_IND[j], x);
+	_dphidzeta[i][j] = _pt_basis->eval_dphidz(_IND[j], x);
+	
+	
+	
+	
         _d2phidxi2[i][j] = _pt_basis->eval_d2phidx2(_IND[j], x);
         _d2phideta2[i][j] = _pt_basis->eval_d2phidy2(_IND[j], x);
         _d2phidzeta2[i][j] = _pt_basis->eval_d2phidz2(_IND[j], x);
+	
+	//std::cout << j <<" "<<_d2phideta2[i][j]<< " " << _d2phidzeta2[i][j] <<std::endl;
+	
         _d2phidxideta[i][j] = _pt_basis->eval_d2phidxdy(_IND[j], x);
         _d2phidetadzeta[i][j] = _pt_basis->eval_d2phidydz(_IND[j], x);
         _d2phidzetadxi[i][j] = _pt_basis->eval_d2phidzdx(_IND[j], x);
+	
+	phisum += _phi[i][j];
+	
+        dphidxisum += _dphidxi[i][j];
+        dphidetasum += _dphideta[i][j];
+	dphidzetasum += _dphidzeta[i][j];
+	
+	d2phidxi2sum += _d2phidxi2[i][j];
+        d2phideta2sum += _d2phideta2[i][j];
+	d2phidzeta2sum += _d2phidzeta2[i][j];
+	
+        d2phidxidetasum +=_d2phidxideta[i][j];
+	d2phidetadzetasum +=  _d2phidetadzeta[i][j];
+	d2phidzetadxisum += _d2phidzetadxi[i][j];
       }
+      
+      std::cout << "gauss " << i <<" "<<_nc <<" "<<x[0] <<" "<<x[1]<<" "<<x[2] << std::endl;
+      std::cout << phisum << std::endl;
+      std::cout << dphidxisum  << " " <<dphidetasum    <<" "<< dphidzetasum << std::endl;
+      std::cout << d2phidxi2sum <<" " << d2phideta2sum <<" "<< d2phidzeta2sum << std::endl;
+      std::cout << d2phidxidetasum <<" "<< d2phidetadzetasum <<" "<< d2phidzetadxisum << std::endl << std::endl;
     }
 
 
