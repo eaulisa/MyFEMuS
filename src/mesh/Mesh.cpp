@@ -99,6 +99,8 @@ void Mesh::PrintInfo() {
  **/
 void Mesh::ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &type_elem_flag) {
 
+  SetIfHomogeneous(true);
+
   _coords.resize(3);
 
   _level = 0;
@@ -116,6 +118,7 @@ void Mesh::ReadCoarseMesh(const std::string& name, const double Lref, std::vecto
 	      << "\n   I understand the following:\n\n"
 	      << "     *.neu -- Gambit Neutral File\n"
               << std::endl;
+	      exit(1);
   }
 
   el->SharpMemoryAllocation();
@@ -199,6 +202,8 @@ void Mesh::GenerateCoarseBoxMesh(
         const double ymin, const double ymax,
         const double zmin, const double zmax,
         const ElemType elemType, std::vector<bool> &type_elem_flag) {
+
+  SetIfHomogeneous(true);
 
   _coords.resize(3);
 
@@ -321,8 +326,6 @@ void Mesh::Buildkel() {
 
 
 void Mesh::AllocateAndMarkStructureNode() {
-
-
 
   _topology->ResizeSolutionVector("solidMrk");
 
@@ -539,7 +542,7 @@ void Mesh::FillISvector(vector < int > &partition) {
     }
   }
 
-  el->SetElementOffsets(_elementOffset[_iproc], _elementOffset[_iproc+1], _iproc, _nprocs );
+  el->SetElementOffsets(_elementOffset, _iproc, _nprocs );
 
 }
 

@@ -1,5 +1,5 @@
 #############################################################################################
-### Build Applications 
+### Build Applications
 #############################################################################################
 
 IF(BUILD_NAVIERSTOKESAPPS)
@@ -9,10 +9,10 @@ IF(BUILD_NAVIERSTOKESAPPS)
 
   # Time-dependent BE NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/BackwardEulerNavierStokesParallel/)
- 
+
   # Time-dependent Generalized-alpha NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/TaylorGreenVortexFlowGeneralisedalpha/)
- 
+
   # Steady Stokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/SteadyStokes/)
 
@@ -24,18 +24,7 @@ ENDIF(BUILD_NAVIERSTOKESAPPS)
 
 IF(BUILD_FSIAPPS)
   set(FSI_FOLDER FSI/)
-# FSI Time Dependent Benchmarks
-  ADD_SUBDIRECTORY(${FSI_FOLDER}/FSITimeDependentBenchmarks/)
-
-# FSI SteadyState Benchmarks
-  ADD_SUBDIRECTORY(${FSI_FOLDER}/SteadyState/ML)
-  ADD_SUBDIRECTORY(${FSI_FOLDER}/SteadyState/MG)
-
-# FSI SteadyState Benchmark Turek3
-  ADD_SUBDIRECTORY(${FSI_FOLDER}/FSI_TUREK_3/)
-
-# FSI SteadyState in porous media
- ADD_SUBDIRECTORY(${FSI_FOLDER}/fsi_porous/)
+  ADD_SUBDIRECTORY(${FSI_FOLDER})
   unset(FSI_FOLDER)
 ENDIF(BUILD_FSIAPPS)
 
@@ -62,7 +51,7 @@ set(OPTCONTROL_FOLDER OptimalControl/)
   FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/applications/${OPTCONTROL_FOLDER}/${OPT_APPLICATION}/input/)
   FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/applications/${OPTCONTROL_FOLDER}/${OPT_APPLICATION}/output/)
   FILE(COPY ${OPTCONTROL_FOLDER}/${OPT_APPLICATION}/input/ DESTINATION ${PROJECT_BINARY_DIR}/applications/${OPTCONTROL_FOLDER}/${OPT_APPLICATION}/input/)
-  unset(OPT_APPLICATION)  
+  unset(OPT_APPLICATION)
 ENDIF(BUILD_OPTCONTROLAPPS)
 
 IF(BUILD_POISSON)
@@ -80,10 +69,6 @@ ENDIF(BUILD_TUTORIAL)
 IF(BUILD_WILLMORE)
   ADD_SUBDIRECTORY(Willmore/)
 ENDIF(BUILD_WILLMORE)
-
-IF(BUILD_WILLMORE_SURFACE)
-  ADD_SUBDIRECTORY(WillmoreSurface/)
-ENDIF(BUILD_WILLMORE_SURFACE)
 
 IF(BUILD_MGAMR)
   ADD_SUBDIRECTORY(MGAMR)

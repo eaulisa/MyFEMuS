@@ -21,6 +21,7 @@
 //----------------------------------------------------------------------------
 #include "MultiLevelProblem.hpp"
 #include "MgTypeEnum.hpp"
+#include "FieldSplitTree.hpp"
 
 
 namespace femus {
@@ -76,6 +77,7 @@ public:
     void SetAssembleFunction (AssembleFunctionType );
 
     AssembleFunctionType  GetAssembleFunction();
+
 
     virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE){
       _solverType = "MultiGrid";
@@ -157,6 +159,8 @@ protected:
 
     /** A name associated with this system. */
     const std::string _sys_name;
+
+    bool _buildSolver;
 
 };
 
