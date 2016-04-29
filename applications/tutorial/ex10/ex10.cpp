@@ -182,6 +182,8 @@ void AssembleDropletProblem_AD(MultiLevelProblem& ml_prob) {
 
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
+   
+  
   // element loop: each process loops only on the elements that owns
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -232,9 +234,10 @@ void AssembleDropletProblem_AD(MultiLevelProblem& ml_prob) {
 
       // variable parameter - Bhagya
       double lam = 1;
+      
 
       // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-
+      adept::adouble vol = 0; //Bhagya
       adept::adouble solu_gss = 0;
       vector < adept::adouble > gradSolu_gss(dim, 0.);
       //vector < double > x_gss(dim, 0.);
@@ -268,10 +271,14 @@ void AssembleDropletProblem_AD(MultiLevelProblem& ml_prob) {
         }
 
         // Bhagya - new sourse term and the Residual term
-        adept::adouble srcTerm =  ( (rho * g * solu_gss - lam) / gamma ) * phi[i]; // check the sign of lambda...
+        adept::adouble srcTerm =  ( (rho * g * solu_gss - lam) / gamma ) * phi[i]; // check the sign of lambda! 
         aRes[i] += (srcTerm + laplace / areaElem) * weight;
 
       } // end phi_i loop
+      
+      vol += solu_gss*solu_gss*weight; //Bhagya
+      double vol2 = vol.value();
+ 
     } // end gauss point loop
 
     //--------------------------------------------------------------------------------------------------------
@@ -372,7 +379,7 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
 
   double seminorm = 0.;
   double l2norm = 0.;
-
+  double vol = 0.;
   // element loop: each process loops only on the elements that owns
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
