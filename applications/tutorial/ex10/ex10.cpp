@@ -29,6 +29,8 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
   return dirichlet;
 }
 
+double GetVolume(MultiLevelSolution* mlSol);
+
 void AssembleDropletProblem_AD(MultiLevelProblem& ml_prob);
 
 std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol);
@@ -82,6 +84,8 @@ int main(int argc, char** args) {
   // initilaize and solve the system
   system.init();
   system.MLsolve();
+  
+  std::cout<< " Volume = " << GetVolume(&mlSol) << std::endl;
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
@@ -321,26 +325,7 @@ void AssembleDropletProblem_AD(MultiLevelProblem& ml_prob) {
 }
 
 
-
-
-double GetExactSolutionValue(const std::vector < double >& x) {
-  double pi = acos(-1.);
-  return cos(pi * x[0]) * cos(pi * x[1]);
-};
-
-void GetExactSolutionGradient(const std::vector < double >& x, vector < double >& solGrad) {
-  double pi = acos(-1.);
-  solGrad[0]  = -pi * sin(pi * x[0]) * cos(pi * x[1]);
-  solGrad[1] = -pi * cos(pi * x[0]) * sin(pi * x[1]);
-};
-
-double GetExactSolutionLaplace(const std::vector < double >& x) {
-  double pi = acos(-1.);
-  return -pi * pi * cos(pi * x[0]) * cos(pi * x[1]) - pi * pi * cos(pi * x[0]) * cos(pi * x[1]);
-};
-
-
-std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
+double GetVolume(MultiLevelSolution* mlSol) {
   unsigned level = mlSol->_mlMesh->GetNumberOfLevels() - 1u;
   //  extract pointers to the several objects that we are going to use
   Mesh*     msh = mlSol->_mlMesh->GetLevel(level);    // pointer to the mesh (level) object
@@ -376,9 +361,7 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
   phi_x.reserve(maxSize * dim);
   unsigned dim2 = (3 * (dim - 1) + !(dim - 1));        // dim2 is the number of second order partial derivatives (1,3,6 depending on the dimension)
   phi_xx.reserve(maxSize * dim2);
-
-  double seminorm = 0.;
-  double l2norm = 0.;
+  
   double vol = 0.;
   // element loop: each process loops only on the elements that owns
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -417,46 +400,25 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
 
       // evaluate the solution, the solution derivatives and the coordinates in the gauss point
       double solu_gss = 0;
-      vector < double > gradSolu_gss(dim, 0.);
-      vector < double > x_gss(dim, 0.);
-
+    
       for (unsigned i = 0; i < nDofu; i++) {
         solu_gss += phi[i] * solu[i];
-
-        for (unsigned jdim = 0; jdim < dim; jdim++) {
-          gradSolu_gss[jdim] += phi_x[i * dim + jdim] * solu[i];
-          x_gss[jdim] += x[jdim][i] * phi[i];
-        }
       }
 
-      vector <double> exactGradSol(dim);
-      GetExactSolutionGradient(x_gss, exactGradSol);
-
-      for (unsigned j = 0; j < dim ; j++) {
-        seminorm   += ((gradSolu_gss[j] - exactGradSol[j]) * (gradSolu_gss[j] - exactGradSol[j])) * weight;
-      }
-
-      double exactSol = GetExactSolutionValue(x_gss);
-      l2norm += (exactSol - solu_gss) * (exactSol - solu_gss) * weight;
+      vol += solu_gss * weight;
     } // end gauss point loop
   } //end element loop for each process
 
   // add the norms of all processes
-  NumericVector* norm_vec;
-  norm_vec = NumericVector::build().release();
-  norm_vec->init(msh->n_processors(), 1 , false, AUTOMATIC);
+  NumericVector* vol_vec;
+  vol_vec = NumericVector::build().release();
+  vol_vec->init(msh->n_processors(), 1 , false, AUTOMATIC);
 
-  norm_vec->set(iproc, l2norm);
-  norm_vec->close();
-  l2norm = norm_vec->l1_norm();
+  vol_vec->set(iproc, vol);
+  vol_vec->close();
+  vol = vol_vec->l1_norm();
 
-  norm_vec->set(iproc, seminorm);
-  norm_vec->close();
-  seminorm = norm_vec->l1_norm();
-
-  delete norm_vec;
-
-  return std::pair < double, double > (sqrt(l2norm), sqrt(seminorm));
+  return vol;
 
 }
 
