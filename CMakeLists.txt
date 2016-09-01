@@ -132,6 +132,9 @@ OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" ON)
 # Ask the user which executable have to be built
 OPTION(BUILD_FSIAPPS "Build the FSI applications" ON)
 
+# Ask the user which executable have to be built
+OPTION(BUILD_FOVAPPS "Build the FOV applications" ON)
+
 # --
 OPTION(BUILD_OPTCONTROLAPPS "Build the optimal control applications" ON)
 

@@ -234,6 +234,8 @@ namespace femus {
     }
     else {
       PCMGGetSmoother(pcMG, level , &subksp);
+      //KSPSetPCSide(subksp,PC_RIGHT);
+      //KSPSetNormType(subksp, KSP_NORM_PRECONDITIONED);
       KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npre);
     }
 
