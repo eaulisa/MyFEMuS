@@ -152,13 +152,13 @@ int main(int argc, char** args) {
 
   system.SetMgType(F_CYCLE);
 
-  system.SetNumberPreSmoothingStep(10);
+  system.SetNumberPreSmoothingStep(2);
   system.SetNumberPostSmoothingStep(10);
   // initilaize and solve the system
 
   system.init();
 
-  system.SetSolverFineGrids(GMRES);
+  system.SetSolverFineGrids(FGMRES);
   //system.SetSolverFineGrids(RICHARDSON);
   system.SetPreconditionerFineGrids(ILU_PRECOND);
 

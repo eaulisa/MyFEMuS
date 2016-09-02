@@ -234,14 +234,14 @@ namespace femus {
     }
     else {
       PCMGGetSmoother(pcMG, level , &subksp);
-      //KSPSetPCSide(subksp,PC_RIGHT);
-      //KSPSetNormType(subksp, KSP_NORM_PRECONDITIONED);
-      KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npre);
+      KSPSetPCSide(subksp,PC_RIGHT);
+      KSPSetNormType(subksp, KSP_NORM_UNPRECONDITIONED);
+      KSPSetTolerances(subksp, .99, PETSC_DEFAULT, PETSC_DEFAULT, npre);
     }
 
     this->SetPetscSolverType(subksp);
     std::ostringstream levelName;
-    levelName << "level-" << level;
+    levelName << "level_" << level<<"_";
     KSPSetOptionsPrefix(subksp, levelName.str().c_str());
     KSPSetFromOptions(subksp);
 
@@ -275,7 +275,7 @@ namespace femus {
       if(npre != npost) {
         KSP subkspUp;
         PCMGGetSmootherUp(pcMG, level , &subkspUp);
-        KSPSetTolerances(subkspUp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npost);
+        KSPSetTolerances(subkspUp, 0.99, PETSC_DEFAULT, PETSC_DEFAULT, npost);
         this->SetPetscSolverType(subkspUp);
         KSPSetPC(subkspUp, subpc);
         PC subpcUp;
