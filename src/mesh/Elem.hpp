@@ -20,10 +20,20 @@
 #include <map>
 
 #include "Mesh.hpp"
+#include "NumericVector.hpp"
+
+#include "MyVector.hpp"
+#include "MyMatrix.hpp"
+#include "Basis.hpp"
+#include "PolynomialBases.hpp"
 
 namespace femus {
 
+  class basis;
+  
   class Mesh;
+  
+  class NumericVector;
   /**
    * The elem class
   */
@@ -35,26 +45,20 @@ namespace femus {
       /** constructors */
       elem(const unsigned& other_nel);
 
-      elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal, const std::vector < double >& localizedElementType);
+      //elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal, const std::vector < double >& localizedElementType);
+      elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal);
 
-      void SharpMemoryAllocation();
+      void ShrinkToFit();
 
       /** destructor */
       ~elem();
 
-      void DeleteGroupAndMaterial();
-
-      void DeleteElementType();
-
-      void ScatterElementCanBeRefinedVector();
-
       void ScatterElementNearFace();
-      void LocalizeElementNearFaceFromOneToAll( const unsigned& jproc );
+      void LocalizeElementNearFace(const unsigned& jproc);
       void FreeLocalizedElementNearFace();
 
       void ScatterElementDof();
-      void LocalizeElementDofFromOneToAll( const unsigned &jproc);
-      void LocalizeElementDofFromOneToOne( const unsigned &jproc, const unsigned &kproc );
+      void LocalizeElementDof(const unsigned &jproc);
       void FreeLocalizedElementDof();
 
       // reorder the element according to the new element mapping
@@ -64,25 +68,25 @@ namespace femus {
       void ReorderMeshNodes(const std::vector < unsigned >& nodeMapping);
 
       /** To be Added */
-      unsigned GetElementDofNumber(const unsigned& iel, const unsigned& type) const;
+      unsigned GetElementDofNumber(const unsigned& iel, const unsigned& type);
 
       /** Return the local->global node number */
-      unsigned GetElementDofIndex(const unsigned& iel, const unsigned& inode)const;
+      unsigned GetElementDofIndex(const unsigned& iel, const unsigned& inode);
 
       /** To be Added */
       void SetElementDofIndex(const unsigned& iel, const unsigned& inode, const unsigned& value);
 
       /** To be Added */
-      unsigned GetFaceVertexIndex(const unsigned& iel, const unsigned& iface, const unsigned& inode) const;
+      unsigned GetFaceVertexIndex(const unsigned& iel, const unsigned& iface, const unsigned& inode);
 
       /** To be Added */
-      short unsigned GetElementType(const unsigned& iel) const;
+      short unsigned GetElementType(const unsigned& iel);
 
       /** To be Added */
       void SetElementType(const unsigned& iel, const short unsigned& value);
 
       /** To be Added */
-      short unsigned GetElementGroup(const unsigned& iel) const;
+      short unsigned GetElementGroup(const unsigned& iel);
 
       /** To be Added */
       void SetElementGroup(const unsigned& iel, const short unsigned& value);
@@ -91,7 +95,7 @@ namespace femus {
       void SetElementMaterial(const unsigned& iel, const short unsigned& value);
 
       /** To be Added */
-      short unsigned GetElementMaterial(const unsigned& iel) const;
+      short unsigned GetElementMaterial(const unsigned& iel);
 
       /** To be Added */
       unsigned GetElementGroupNumber() const;
@@ -100,9 +104,9 @@ namespace femus {
       void SetElementGroupNumber(const unsigned& value);
 
       /** To be Added */
-      int GetFaceElementIndex(const unsigned& iel, const unsigned& iface) const;
+      int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
-      int GetBoundaryIndex(const unsigned& iel, const unsigned& iface) const;
+      int GetBoundaryIndex(const unsigned& iel, const unsigned& iface);
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
@@ -125,18 +129,8 @@ namespace femus {
       };
 
       /** To be Added */
-      unsigned GetRefinedElementTypeNumber(const unsigned& ielt) const {
-        return _nelrt[ielt];
-      };
-
-      /** To be Added */
       void SetRefinedElementNumber(const unsigned& value) {
         _nelr = value;
-      };
-
-      /** To be Added */
-      void SetRefinedElemenTypeNumber(const unsigned& value, const unsigned& ielt) {
-        _nelrt[ielt] = value;
       };
 
       /** To be Added */
@@ -146,42 +140,69 @@ namespace femus {
       void SetNodeNumber(const unsigned& value);
 
       /** To be Added */
-      unsigned GetElementFaceNumber(const unsigned& iel, const unsigned& type = 1)const;
+      unsigned GetElementFaceNumber(const unsigned& iel, const unsigned& type = 1);
 
       /** To be Added */
       void BuildElementNearVertex();
 
       /** To be Added */
-      void SetChildElementDof(const unsigned& ref_index, Mesh* msh, const elem* elf);
+      void SetChildElementDof(elem* elf);
 
-      unsigned GetChildElementDof(const unsigned& iel, const unsigned& i0, const unsigned i1) const {
-        return _childElemDof[iel - _elementOffset[_iproc] ][i0][i1];
-      }
+      unsigned GetChildElementDof(const unsigned& iel, const unsigned& i0, const unsigned i1);
 
       void DeleteElementNearVertex();
 
       /** To be Added */
-      unsigned GetElementNearVertexNumber(const unsigned& inode)const;
+      unsigned GetElementNearVertexNumber(const unsigned& inode);
 
       /** To be Added */
-      unsigned GetElementNearVertex(const unsigned& inode, const unsigned& jnode)const;
+      unsigned GetElementNearVertex(const unsigned& inode, const unsigned& jnode);
 
-      void BuildLocalElementNearVertex();
+      void BuildElementNearElement();
 
-      const std::vector<unsigned>& GetLocalElementNearVertex(const unsigned& inode)  {
-        return _localElementNearVertexMap[inode];
+      const unsigned GetElementNearElementSize(const unsigned& iel, const unsigned &layers)  {
+        return (layers == 0) ? 1 : _elementNearElement.end(iel);
       };
 
-      /** To be Added */
-      void SetIfElementCanBeRefined(const unsigned& iel, const bool& refined);
+      const unsigned GetElementNearElement(const unsigned& iel, const unsigned &j)  {
+        return _elementNearElement[iel][j];
+      };
 
-      /** To be Added */
-      bool GetIfElementCanBeRefined(const unsigned& iel) const;
 
-      /** To be Added */
+      //BEGIN _ElementLevel functions
+      void SetElementLevel(const unsigned& iel, const short unsigned& level) {
+        _elementLevel[iel] = level;
+      }
+      short unsigned GetElementLevel(const unsigned &jel) {
+        return _elementLevel[jel];
+      }
+      void ScatterElementQuantities() {
+        _elementLevel.scatter(_elementOffset);
+        _elementType.scatter(_elementOffset);
+        _elementMaterial.scatter(_elementOffset);
+        _elementGroup.scatter(_elementOffset);
+      }
+      void LocalizeElementQuantities(const unsigned &lproc) {
+        _elementLevel.broadcast(lproc);
+        _elementType.broadcast(lproc);
+        _elementMaterial.broadcast(lproc);
+        _elementGroup.broadcast(lproc);
+      }
+      void FreeLocalizedElementQuantities() {
+        _elementLevel.clearBroadcast();
+        _elementType.clearBroadcast();
+        _elementMaterial.clearBroadcast();
+        _elementGroup.clearBroadcast();
+      }
+
+      bool GetIfElementCanBeRefined(const unsigned& iel) {
+        return (_elementLevel[iel] == _level) ? true : false;
+      }
       bool GetIfFatherHasBeenRefined(const unsigned& iel) {
         return GetIfElementCanBeRefined(iel);
       }
+      //END _ElementLevel functions
+
 
       /** To be Added */
       void AllocateChildrenElement(const unsigned& ref_index, Mesh* msh);
@@ -190,7 +211,7 @@ namespace femus {
       void SetChildElement(const unsigned& iel, const unsigned& json, const unsigned& value);
 
       /** To be Added */
-      unsigned GetChildElement(const unsigned& iel, const unsigned& json) const;
+      unsigned GetChildElement(const unsigned& iel, const unsigned& json);
 
       const unsigned GetNVE(const unsigned& elementType, const unsigned& doftype) const;
 
@@ -200,79 +221,44 @@ namespace femus {
 
       const unsigned GetIG(const unsigned& elementType, const unsigned& iface, const unsigned& jnode) const;
 
-      void SetElementOffsets( const std::vector < unsigned > & elementOffset, const unsigned &iproc, const unsigned &nprocs) {
+      void SetElementOffsets(const std::vector < unsigned > & elementOffset, const unsigned &iproc, const unsigned &nprocs) {
         _elementOffset = elementOffset;
         _elementOwned = elementOffset[iproc + 1] - elementOffset[iproc];
         _iproc = iproc;
         _nprocs = nprocs;
       }
 
+      void GetAMRRestriction(Mesh *msh);
+
     private:
+
+      elem* _coarseElem;
+            
       unsigned _iproc;
       unsigned _nprocs;
 
-
-      // member data
-      int** _elementNearFace;
-      int* _elementNearFaceMemory;
-      unsigned _elementNearFaceMemorySize;
-
-      unsigned _elementNearFaceOffset;
-      bool _elementNearFaceIsScattered;
-
-      bool _elementNearFaceIsLocalizedFromJproc;
-      unsigned _jprocElementNearFaceIsLocalizedFrom;
-
-      int** _localElementNearFace; //element -> nodes
-      int* _localElementNearFaceMemory;
-      unsigned _localElementNearFaceMemorySize;
-
-
-      std::map< unsigned, std::vector< unsigned > > _localElementNearVertexMap;
-      unsigned** _elementNearVertex; //node->element
-      unsigned* _elementNearVertexMemory;
-      unsigned* _elementNearVertexNumber;
-
-      unsigned** _elementDof; //element -> nodes
-      unsigned* _elementDofMemory;
-      unsigned _elementDofMemorySize;
-
-      unsigned _elementDofOffset;
-      bool _elementDofIsScattered;
-
-      bool _elementDofIsLocalizedFromJproc;
-      unsigned _jprocElementDofIsLocalizedFrom;
-
-      unsigned** _localElementDof; //element -> nodes
-      unsigned* _localElementDofMemory;
-      unsigned _localElementDofMemorySize;
-
-      unsigned** _childElem;
-      unsigned* _childElemMemory;
-      unsigned _childElemMemorySize;
-      bool _childElemFlag;
-
-      unsigned*** _childElemDof; //element -> nodes
-      unsigned** _childElemDofMemoryPointer; //element -> nodes
-      unsigned* _childElemDofMemory;
-      unsigned _childElemDofMemorySize;
+      unsigned _nvt;
+      unsigned _nel, _nelt[6];
+      unsigned _nelr;
+      unsigned _ngroup;
+      unsigned _level;
 
       std::vector < unsigned > _elementOffset;
       unsigned _elementOwned;
 
-      short unsigned* _elementType, *_elementGroup, *_elementMaterial; //element
+      MyVector< short unsigned> _elementLevel; //element
+      MyVector< short unsigned> _elementType;
+      MyVector< short unsigned> _elementGroup;
+      MyVector< short unsigned> _elementMaterial;
 
-      unsigned _nvt;
-      unsigned _nel, _nelt[6];
-      unsigned _nelr, _nelrt[6];
-      unsigned _ngroup;
+      MyMatrix <unsigned> _elementDof;
+      MyMatrix <int> _elementNearFace;
 
-      bool* _elementCanBeRefined; //element
-      bool _elementCanBeRefinedIsScattered;
+      MyMatrix <unsigned> _childElem;
+      MyMatrix <unsigned> _childElemDof;
 
-      unsigned _level;
-
-      elem* _coarseElem;
+      MyMatrix <unsigned> _elementNearVertex;
+      MyMatrix <unsigned> _elementNearElement;
 
   };
 
@@ -340,8 +326,7 @@ namespace femus {
   };
 
 
-  const unsigned NFACENODES[6][6][3] =
-  {
+  const unsigned NFACENODES[6][6][3] = {
     { {4, 8, 9}, // Hex
       {4, 8, 9},
       {4, 8, 9},

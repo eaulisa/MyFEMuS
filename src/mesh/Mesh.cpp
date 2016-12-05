@@ -144,7 +144,7 @@ namespace femus {
 
     BiquadraticNodesNotInGambit();
 
-    el->SharpMemoryAllocation();
+    el->ShrinkToFit();
 
     //el->SetNodeNumber(_nnodes);
 
@@ -183,41 +183,16 @@ namespace femus {
 
     _topology->ResizeSolutionVector("AMR");
 
-    _topology->AddSolution("Material", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-    _topology->AddSolution("Group", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-    _topology->AddSolution("Type", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-
-    _topology->ResizeSolutionVector("Material");
-    _topology->ResizeSolutionVector("Group");
-    _topology->ResizeSolutionVector("Type");
-
-    NumericVector &material =  _topology->GetSolutionName("Material");
-    NumericVector &group =  _topology->GetSolutionName("Group");
-    NumericVector &type =  _topology->GetSolutionName("Type");
-
-
-    for(int iel = _elementOffset[_iproc]; iel < _elementOffset[_iproc + 1]; iel++) {
-      group.set(iel, el->GetElementGroup(iel));
-      type.set(iel, el->GetElementType(iel));
-      material.set(iel, el->GetElementMaterial(iel));
-    }
-
-    material.close();
-    group.close();
-    type.close();
-
     _topology->AddSolution("solidMrk", LAGRANGE, SECOND, 1, 0);
+    AllocateAndMarkStructureNode();
 
+    el->BuildElementNearElement();
 
-    el->BuildLocalElementNearVertex();
-    el->DeleteElementNearVertex();
-
-    el->DeleteGroupAndMaterial();
-    el->DeleteElementType();
-
-    el->ScatterElementCanBeRefinedVector();
+    el->ScatterElementQuantities();
     el->ScatterElementDof();
     el->ScatterElementNearFace();
+
+    _amrRestriction.resize(3);
 
   };
 
@@ -239,7 +214,10 @@ namespace femus {
 
     MeshTools::Generation::BuildBox(*this, _coords, nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elemType, type_elem_flag);
 
-    el->SharpMemoryAllocation();
+
+    BiquadraticNodesNotInGambit();
+
+    el->ShrinkToFit();
 
     el->SetNodeNumber(_nnodes);
 
@@ -274,40 +252,17 @@ namespace femus {
 
     _topology->ResizeSolutionVector("AMR");
 
-
-    _topology->AddSolution("Material", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-    _topology->AddSolution("Group", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-    _topology->AddSolution("Type", DISCONTINOUS_POLYNOMIAL, ZERO, 1 , 0);
-
-    _topology->ResizeSolutionVector("Material");
-    _topology->ResizeSolutionVector("Group");
-    _topology->ResizeSolutionVector("Type");
-
-    NumericVector &material =  _topology->GetSolutionName("Material");
-    NumericVector &group =  _topology->GetSolutionName("Group");
-    NumericVector &type =  _topology->GetSolutionName("Type");
-
-    for(int iel = _elementOffset[_iproc]; iel < _elementOffset[_iproc + 1]; iel++) {
-      group.set(iel, el->GetElementGroup(iel));
-      type.set(iel, el->GetElementType(iel));
-      material.set(iel, el->GetElementMaterial(iel));
-    }
-
-    material.close();
-    group.close();
-    type.close();
-
     _topology->AddSolution("solidMrk", LAGRANGE, SECOND, 1 , 0);
+    AllocateAndMarkStructureNode();
 
-    el->BuildLocalElementNearVertex();
+    el->BuildElementNearElement();
     el->DeleteElementNearVertex();
 
-    el->DeleteGroupAndMaterial();
-    el->DeleteElementType();
-
-    el->ScatterElementCanBeRefinedVector();
+    el->ScatterElementQuantities();
     el->ScatterElementDof();
     el->ScatterElementNearFace();
+
+    _amrRestriction.resize(3);
 
   }
 
@@ -917,15 +872,15 @@ namespace femus {
   }
 
   short unsigned Mesh::GetElementGroup(const unsigned int& iel) const {
-    return static_cast <short unsigned>((*_topology->_Sol[_groupIndex])(iel) + 0.25);
+    return el->GetElementGroup(iel);
   }
 
   short unsigned Mesh::GetElementMaterial(const unsigned int& iel) const {
-    return static_cast <short unsigned>((*_topology->_Sol[_materialIndex])(iel) + 0.25);
+    return el->GetElementMaterial(iel);
   }
 
   short unsigned Mesh::GetElementType(const unsigned int& iel) const {
-    return static_cast <short unsigned>((*_topology->_Sol[_typeIndex])(iel) + 0.25);
+    return el->GetElementType(iel);
   }
 
   bool Mesh::GetSolidMark(const unsigned int& inode) const {
@@ -1078,7 +1033,9 @@ namespace femus {
     }
   }
 
-
+  basis * Mesh::GetBasis(const short unsigned &ielType, const short unsigned &solType) {
+    return _finiteElement[ielType][solType]->GetBasis();
+  }
 
 } //end namespace femus
 

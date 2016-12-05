@@ -181,6 +181,10 @@ public:
     unsigned GetSolutionPairIndex(const unsigned& i) const{
       return _solPairIndex[i];
     }
+    
+    unsigned GetSolutionPairInverseIndex(const unsigned& i) const{
+      return _solPairInverseIndex[i];
+    }
 
     void build();
 
@@ -216,7 +220,9 @@ public:
 
   // ********************************************
     
-    
+    Solution* GetLevel(const unsigned i) {
+      return _solution[i];
+    };
 private:
     /** boundary condition function pointer */
 
@@ -258,6 +264,7 @@ private:
     vector < bool >   _fixSolutionAtOnePoint;
 
     vector <unsigned> _solPairIndex;
+    vector <unsigned> _solPairInverseIndex;
 
     /** Multilevel solution writer */
     Writer* _writer;
