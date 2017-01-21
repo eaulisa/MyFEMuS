@@ -158,6 +158,10 @@ namespace femus {
       }
 
       KSPSetFromOptions(_ksp);
+      if(_solver_type == FGMRES) {
+        KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
+      }
+            
       KSPGMRESSetRestart(_ksp, _restart);
 
       SetPreconditioner(_ksp, _pc);
@@ -466,8 +470,9 @@ namespace femus {
       case FGMRES:
         ierr = KSPSetType(ksp, (char*) KSPFGMRES);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
+        KSPSetPCSide(ksp,PC_RIGHT);
+        KSPSetNormType(ksp, KSP_NORM_PRECONDITIONED);
         return;
-
       case RICHARDSON:
         KSPSetType(ksp, (char*) KSPRICHARDSON);
         KSPRichardsonSetScale(ksp, _richardsonScaleFactor);

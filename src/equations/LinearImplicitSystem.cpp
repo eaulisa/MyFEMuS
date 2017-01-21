@@ -357,7 +357,7 @@ namespace femus {
       }
 
       // ============== Direct Solver ==============
-      _LinSolver[0]->Solve(_VariablesToBeSolvedIndex, ksp_clean);
+      //_LinSolver[0]->Solve(_VariablesToBeSolvedIndex, ksp_clean);
 
       for(unsigned ig = 1; ig <= level; ig++) {
         // ============== Prolongation ==============

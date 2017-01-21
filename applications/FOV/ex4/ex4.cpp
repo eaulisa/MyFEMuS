@@ -83,12 +83,12 @@ int main(int argc, char** args) {
 //   unsigned numberOfSelectiveLevels = 0;
 //   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
-  unsigned numberOfUniformLevels = 7;
+  unsigned numberOfUniformLevels = 8;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
 
   // erase all the coarse mesh levels
-  //mlMsh.EraseCoarseLevels(numberOfUniformLevels - 3);
+  mlMsh.EraseCoarseLevels(numberOfUniformLevels - 2);
 
 
   MultiLevelSolution mlSol(&mlMsh);
@@ -106,7 +106,7 @@ int main(int argc, char** args) {
   MultiLevelProblem mlProb(&mlSol);
 
   // add system Poisson in mlProb as a Linear Implicit System
-  NonLinearImplicitSystem& system = mlProb.add_system < NonLinearImplicitSystem > ("NS");
+  LinearImplicitSystem& system = mlProb.add_system < LinearImplicitSystem > ("NS");
 
   // add solution "u" to system
   system.AddSolutionToSystemPDE("T");
@@ -116,19 +116,19 @@ int main(int argc, char** args) {
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleTemperature_AD);
 
-  system.SetMaxNumberOfNonLinearIterations(10);
-  system.SetNonLinearConvergenceTolerance(1.e-8);
+  //system.SetMaxNumberOfNonLinearIterations(10);
+  //system.SetNonLinearConvergenceTolerance(1.e-8);
 
-  system.SetMaxNumberOfLinearIterations(10);
-  system.SetAbsoluteLinearConvergenceTolerance(1.e-15);
+  system.SetMaxNumberOfLinearIterations(1);
+  system.SetAbsoluteLinearConvergenceTolerance(1.e-10);
 
 
 //   system.SetMaxNumberOfResidualUpdatesForNonlinearIteration(2);
 //   system.SetResidualUpdateConvergenceTolerance(1.e-15);
 
-  system.SetMgType(F_CYCLE);
+  system.SetMgType(V_CYCLE);
 
-  system.SetNumberPreSmoothingStep(1);
+  system.SetNumberPreSmoothingStep(0);
   system.SetNumberPostSmoothingStep(1);
   // initilaize and solve the system
 
@@ -136,19 +136,19 @@ int main(int argc, char** args) {
 
   system.SetSolverFineGrids(FGMRES);
   //system.SetSolverFineGrids(RICHARDSON);
-  system.SetPreconditionerFineGrids(ILU_PRECOND);
+  system.SetPreconditionerFineGrids(MLU_PRECOND);
 
-  system.SetTolerances(1.e-5, 1.e-20, 1.e+50, 20, 20);
+  system.SetTolerances(1.e-15, 1.e-10, 1.e+50, 1000, 1000);
 
   system.ClearVariablesToBeSolved();
   system.AddVariableToBeSolved("All");
   system.SetNumberOfSchurVariables(1);
-  system.SetElementBlockNumber(4);
+  system.SetElementBlockNumber(5);
 
 
   system.PrintSolverInfo(false);
 
-  system.MGsolve();
+  system.MLsolve();
 
 
   // print solutions
@@ -158,7 +158,7 @@ int main(int argc, char** args) {
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "quadratic", variablesToBePrinted);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted);
+  //vtkIO.Write(DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted);
 
   mlMsh.PrintInfo();
 
@@ -177,7 +177,7 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
 
 
   //  extract pointers to the several objects that we are going to use
-  NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
+  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*           msh         = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
