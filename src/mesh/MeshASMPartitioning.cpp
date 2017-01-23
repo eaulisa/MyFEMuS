@@ -61,8 +61,6 @@ void MeshASMPartitioning::DoPartition( const unsigned *block_size, vector < vect
       
       unsigned blocks = (0 == reminder)? counter[iblock]/block_size[iblock] : counter[iblock]/block_size[iblock] + 1 ;
       
-      std::cout << "reminder = "<< reminder << " number of sub_bloks = "<< block_start+blocks << std::endl;
-      
       block_elements.resize(block_start+blocks);
 
       for(int i = 0; i < blocks; i++)
@@ -76,13 +74,9 @@ void MeshASMPartitioning::DoPartition( const unsigned *block_size, vector < vect
 	unsigned flag_mat   = _mesh.GetElementMaterial(iel);
 	if( flag_block[iblock] == flag_mat || flag_block[iblock] + 1 == flag_mat){
 	  block_elements[ block_start + (counter / block_size[iblock]) ][ counter % block_size[iblock] ]=iel;
+	  short unsigned siblock =  static_cast <short unsigned> (block_start + (counter / block_size[iblock]));
 	  counter++;
-      
-      const short unsigned siblock =  block_start + (counter / block_size[iblock]);
-      
-      _mesh.el->SetElementGroup(iel, siblock);
-      
-      std::cout<<_mesh.el->GetElementGroup(iel)<<" ";
+          _mesh.el->SetElementGroup(iel, siblock);
 	}
       }
       block_type_range[iblock]=block_start+blocks;

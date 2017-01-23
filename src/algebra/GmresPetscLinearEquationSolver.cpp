@@ -154,13 +154,15 @@ namespace femus {
 
       if(_solver_type != PREONLY) {
         KSPSetInitialGuessKnoll(_ksp, PETSC_TRUE);
-        KSPSetNormType(_ksp, KSP_NORM_NONE);
+        //KSPSetNormType(_ksp, KSP_NORM_NONE);
       }
 
-      KSPSetFromOptions(_ksp);
       if(_solver_type == FGMRES) {
         KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
       }
+      
+      KSPSetFromOptions(_ksp);
+      
             
       KSPGMRESSetRestart(_ksp, _restart);
 
@@ -470,8 +472,6 @@ namespace femus {
       case FGMRES:
         ierr = KSPSetType(ksp, (char*) KSPFGMRES);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
-        KSPSetPCSide(ksp,PC_RIGHT);
-        KSPSetNormType(ksp, KSP_NORM_PRECONDITIONED);
         return;
       case RICHARDSON:
         KSPSetType(ksp, (char*) KSPRICHARDSON);

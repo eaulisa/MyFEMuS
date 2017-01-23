@@ -35,7 +35,7 @@
 using namespace femus;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int faceIndex, const double time) {
-  bool dirichlet = true; //dirichlet
+  bool dirichlet = false; //dirichlet
   value = 0.;
 
   return dirichlet;
@@ -83,7 +83,8 @@ int main(int argc, char** args) {
 //   unsigned numberOfSelectiveLevels = 0;
 //   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
-  unsigned numberOfUniformLevels = 8;
+  unsigned numberOfUniformLevels = 6;
+  unsigned sizeOfSubdomains = numberOfUniformLevels - 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
 
@@ -95,7 +96,8 @@ int main(int argc, char** args) {
 
   // add variables to mlSol
   mlSol.AddSolution("T", LAGRANGE, SECOND);//FIRST);;
-
+  //mlSol.FixSolutionAtOnePoint("T");
+  
   mlSol.Initialize("All");
 
   // attach the boundary condition function and generate boundary data
@@ -138,12 +140,12 @@ int main(int argc, char** args) {
   //system.SetSolverFineGrids(RICHARDSON);
   system.SetPreconditionerFineGrids(MLU_PRECOND);
 
-  system.SetTolerances(1.e-15, 1.e-10, 1.e+50, 1000, 1000);
+  system.SetTolerances(1.e-5, 1.e-15, 1.e+50, 1000, 1000);
 
   system.ClearVariablesToBeSolved();
   system.AddVariableToBeSolved("All");
-  system.SetNumberOfSchurVariables(1);
-  system.SetElementBlockNumber(5);
+  system.SetNumberOfSchurVariables(0);
+  system.SetElementBlockNumber(sizeOfSubdomains);
 
 
   system.PrintSolverInfo(false);
@@ -312,6 +314,7 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
           Temp +=  phiT_x[i * dim + j] * gradSolT_gss[j];
         }
 
+        Temp +=  -phiT[i] * solT_gss;
         aResT[i] += (phiT[i] - Temp) * weight;
       } // end phiT_i loop
 

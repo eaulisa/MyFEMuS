@@ -263,8 +263,8 @@ namespace femus {
     PetscPreconditioner::set_petsc_preconditioner_type(ASM_PRECOND, subpc);
 
     if(!_standardASM) {
-      PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_overlappingIs[0], &_localIs[0]);
-      //PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_localIs[0], &_localIs[0]);
+      //PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_overlappingIs[0], &_localIs[0]);
+      PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_localIs[0], &_localIs[0]);
     }
 
     PCASMSetOverlap(subpc, _overlap);
@@ -288,6 +288,10 @@ namespace femus {
       }
 
       for(int i = _blockTypeRange[0]; i < _blockTypeRange[1]; i++) {
+	
+// 	KSPSetType(subksps[i], (char*) KSPRICHARDSON);
+// 	KSPRichardsonSetScale(subksps[i], 1.0);
+	
         PC subpcs;
         KSPGetPC(subksps[i], &subpcs);
         KSPSetTolerances(subksps[i], PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 1);
