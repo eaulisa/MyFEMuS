@@ -260,20 +260,32 @@ namespace femus {
 
   void AsmPetscLinearEquationSolver::SetPreconditioner(KSP& subksp, PC& subpc) {
 
-    PetscPreconditioner::set_petsc_preconditioner_type(ASM_PRECOND, subpc);
-
-    if(!_standardASM) {
-      //PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_overlappingIs[0], &_localIs[0]);
-      PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_localIs[0], &_localIs[0]);
+    PetscPreconditioner::set_petsc_preconditioner_type(FIELDSPLIT_PRECOND, subpc);
+    for(unsigned i=0;i<_localIsIndex.size();i++){
+       PCFieldSplitSetIS(subpc,NULL,_localIs[i]);
+       //PCFieldSplitSetIS(subpc,NULL,_overlappingIs[i]);
     }
-
-    PCASMSetOverlap(subpc, _overlap);
-    //PCASMSetLocalType(subpc, PC_COMPOSITE_MULTIPLICATIVE);
-
+    //PCFieldSplitSetType(subpc, PC_COMPOSITE_ADDITIVE);
     KSPSetUp(subksp);
 
     KSP* subksps;
-    PCASMGetSubKSP(subpc, &_nlocal, PETSC_NULL, &subksps);
+    PCFieldSplitGetSubKSP(subpc, &_nlocal, &subksps);
+    
+//     PetscPreconditioner::set_petsc_preconditioner_type(ASM_PRECOND, subpc);
+// 
+//     if(!_standardASM) {
+//       //PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_overlappingIs[0], &_localIs[0]);
+//       PCASMSetLocalSubdomains(subpc, _localIsIndex.size(), &_localIs[0], &_localIs[0]);
+//     }
+// 
+//     PCASMSetOverlap(subpc, _overlap);
+//     //PCASMSetLocalType(subpc, PC_COMPOSITE_MULTIPLICATIVE);
+// 
+//     KSPSetUp(subksp);
+// 
+//     KSP* subksps;
+//     PCASMGetSubKSP(subpc, &_nlocal, PETSC_NULL, &subksps);
+    
     PetscReal epsilon = 1.e-16;
 
     if(!_standardASM) {
