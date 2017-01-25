@@ -302,7 +302,7 @@ namespace femus {
       for(int i = _blockTypeRange[0]; i < _blockTypeRange[1]; i++) {
 	
 // 	KSPSetType(subksps[i], (char*) KSPRICHARDSON);
-// 	KSPRichardsonSetScale(subksps[i], 1.0);
+// 	KSPRichardsonSetScale(subksps[i], 1.1);
 	
         PC subpcs;
         KSPGetPC(subksps[i], &subpcs);

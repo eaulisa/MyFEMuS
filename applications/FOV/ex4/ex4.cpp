@@ -35,7 +35,7 @@
 using namespace femus;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int faceIndex, const double time) {
-  bool dirichlet = true; //dirichlet
+  bool dirichlet = false;//true; //dirichlet
   value = 0.;
 
   return dirichlet;
@@ -84,7 +84,7 @@ int main(int argc, char** args) {
 //   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
   unsigned numberOfUniformLevels = 6;
-  unsigned sizeOfSubdomains = numberOfUniformLevels - 2;
+  unsigned sizeOfSubdomains = numberOfUniformLevels - 2; // each subdomain will have 4^sizeOfSubdomains elements
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
 
@@ -96,7 +96,7 @@ int main(int argc, char** args) {
 
   // add variables to mlSol
   mlSol.AddSolution("T", LAGRANGE, SECOND);//FIRST);;
-  //mlSol.FixSolutionAtOnePoint("T");
+  mlSol.FixSolutionAtOnePoint("T");
   
   mlSol.Initialize("All");
 
@@ -298,14 +298,20 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
       adept::adouble solT_gss = 0;
       vector < adept::adouble > gradSolT_gss(dim, 0.);
 
+      vector < adept::adouble > x(dim, 0.);
+      
+      
       for(unsigned i = 0; i < nDofsT; i++) {
         solT_gss += phiT[i] * solT[i];
 
         for(unsigned j = 0; j < dim; j++) {
           gradSolT_gss[j] += phiT_x[i * dim + j] * solT[i];
+	  x[j] += phiT[i] * coordX[j][i];
         }
       }
 
+      double PI = acos(-1.);
+      
       // *** phiT_i loop ***
       for(unsigned i = 0; i < nDofsT; i++) {
         adept::adouble Temp = 0.;
@@ -314,8 +320,8 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
           Temp +=  phiT_x[i * dim + j] * gradSolT_gss[j];
         }
 
-        Temp +=  -phiT[i] * solT_gss;
-        aResT[i] += (phiT[i] - Temp) * weight;
+        //Temp +=  -phiT[i] * solT_gss;
+        aResT[i] += (phiT[i]*(-2*PI*PI*( cos(2*PI*x[0])+cos(2*PI*x[1]) )) - Temp) * weight;
       } // end phiT_i loop
 
     } // end gauss point loop
