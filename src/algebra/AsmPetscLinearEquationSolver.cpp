@@ -39,8 +39,8 @@ namespace femus {
   // ==============================================
 
   void AsmPetscLinearEquationSolver::SetElementBlockNumber(const char all[], const unsigned& overlap) {
-    _elementBlockNumber[0] = _msh->GetNumberOfElements();
-    _elementBlockNumber[1] = _msh->GetNumberOfElements();
+    _elementBlockNumber[0] = _msh->GetNumberOfElements()*1.5;
+    _elementBlockNumber[1] = _msh->GetNumberOfElements()*1.5;
     _standardASM = 1;
     _overlap = overlap;
   }
@@ -48,8 +48,8 @@ namespace femus {
   // =================================================
 
   void AsmPetscLinearEquationSolver::SetElementBlockNumber(const unsigned& block_elemet_number) {
-    _elementBlockNumber[0] = block_elemet_number;
-    _elementBlockNumber[1] = block_elemet_number;
+    _elementBlockNumber[0] = block_elemet_number*1.5;
+    _elementBlockNumber[1] = block_elemet_number*1.5;
     _bdcIndexIsInitialized = 0;
     _standardASM = 0;
   }
@@ -57,7 +57,7 @@ namespace femus {
   // =================================================
 
   void AsmPetscLinearEquationSolver::SetElementBlockNumberSolid(const unsigned& block_elemet_number, const unsigned& overlap) {
-    _elementBlockNumber[0] = block_elemet_number;
+    _elementBlockNumber[0] = block_elemet_number*1.5;
     _bdcIndexIsInitialized = 0;
     _standardASM = 0;
     _overlap = overlap;
@@ -66,7 +66,7 @@ namespace femus {
   // =================================================
 
   void AsmPetscLinearEquationSolver::SetElementBlockNumberFluid(const unsigned& block_elemet_number, const unsigned& overlap) {
-    _elementBlockNumber[1] = block_elemet_number;
+    _elementBlockNumber[1] = block_elemet_number*1.5;
     _bdcIndexIsInitialized = 0;
     _standardASM = 0;
     _overlap = overlap;
@@ -246,7 +246,13 @@ namespace femus {
     _localIs.resize(_localIsIndex.size());
     _overlappingIs.resize(_overlappingIsIndex.size());
 
-    for(unsigned vb_index = 0; vb_index < _localIsIndex.size(); vb_index++) {
+    unsigned counter = 0;
+    for(unsigned vb_index = 0; vb_index < _localIsIndex.size(); vb_index++){
+      counter += _localIsIndex[vb_index].size();
+      std::cout <<counter<<std::endl;
+//       for(unsigned i=0; i<_localIsIndex[vb_index].size();i++){
+// 	std::cout << vb_index <<" "<<_localIsIndex[vb_index][i]<<std::endl;
+//       }
       ISCreateGeneral(MPI_COMM_SELF, _localIsIndex[vb_index].size(), &_localIsIndex[vb_index][0], PETSC_USE_POINTER, &_localIs[vb_index]);
       ISCreateGeneral(MPI_COMM_SELF, _overlappingIsIndex[vb_index].size(), &_overlappingIsIndex[vb_index][0], PETSC_USE_POINTER, &_overlappingIs[vb_index]);
     }
@@ -301,8 +307,8 @@ namespace femus {
 
       for(int i = _blockTypeRange[0]; i < _blockTypeRange[1]; i++) {
 	
-// 	KSPSetType(subksps[i], (char*) KSPRICHARDSON);
-// 	KSPRichardsonSetScale(subksps[i], 1.1);
+ 	KSPSetType(subksps[i], (char*) KSPRICHARDSON);
+ 	KSPRichardsonSetScale(subksps[i], 1.);
 	
         PC subpcs;
         KSPGetPC(subksps[i], &subpcs);
