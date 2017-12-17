@@ -22,12 +22,12 @@ SET(FEMUS_VERSION "${FEMTTU_MAJOR_VERSION}.${FEMTTU_MINOR_VERSION}.${FEMTTU_BUIL
 # If the user specifies -DCMAKE_BUILD_TYPE on the command line, take their definition
 # and dump it in the cache along with proper documentation, otherwise set CMAKE_BUILD_TYPE
 # to Debug prior to calling PROJECT()
-#SET(CMAKE_BUILD_TYPE "release")
+#SET(CMAKE_BUILD_TYPE "debug")
 
-IF(CMAKE_BUILD_TYPE MATCHES "debug")
+IF(CMAKE_BUILD_TYPE MATCHES "release")
   SET(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 ELSE()
-  SET(CMAKE_BUILD_TYPE "release")
+  SET(CMAKE_BUILD_TYPE "debug")
 ENDIF()
 
 #message("CMAKE_BUILD_TYPE = " ${CMAKE_BUILD_TYPE})

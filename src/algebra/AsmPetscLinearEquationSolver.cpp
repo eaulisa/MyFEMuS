@@ -316,14 +316,14 @@ namespace femus {
 // // 	ISGetSize(_overlappingIs[i],&size);
 // // 	std::cout << "["<<_iproc<<"] " << "split "<< i <<" "<<" size "<<size<<std::endl<<std::flush;
 // 	
-// 	ISView(_overlappingIs[i],PETSC_VIEWER_STDOUT_SELF);
-// 
+// 	if(_iproc==1){
+// 	  ISView(_overlappingIs[i],PETSC_VIEWER_STDOUT_SELF);
+// 	}
 // 	
 // 	PCFieldSplitSetIS(subpc, NULL, _overlappingIs[i]);
 //       }
 //     }
-//     double a;
-//     std::cin>>a;
+//    
 //     PCFieldSplitSetType(subpc, PC_COMPOSITE_ADDITIVE);
 // 
 //     KSPSetUp(subksp);
@@ -342,7 +342,8 @@ namespace femus {
     }
 
     PCASMSetOverlap(subpc, _overlap);
-    //PCASMSetLocalType(subpc, PC_COMPOSITE_MULTIPLICATIVE);
+    // PETSCDEBUG comment the following option
+    PCASMSetLocalType(subpc, PC_COMPOSITE_MULTIPLICATIVE);
 
     KSPSetUp(subksp);
 
