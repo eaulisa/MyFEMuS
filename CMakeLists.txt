@@ -82,13 +82,13 @@ IF(FPARSER_FOUND)
 ENDIF(FPARSER_FOUND)
 
 # Find HDF5 (optional)
-FIND_PACKAGE (HDF5)
-MESSAGE(STATUS "HDF5_FOUND = ${HDF5_FOUND}")
-
-SET(HAVE_HDF5 0)
-IF(HDF5_FOUND)
+# FIND_PACKAGE (HDF5)
+# MESSAGE(STATUS "HDF5_FOUND = ${HDF5_FOUND}")
+# 
+# SET(HAVE_HDF5 0)
+# IF(HDF5_FOUND)
   SET(HAVE_HDF5 1)
-ENDIF(HDF5_FOUND)
+# ENDIF(HDF5_FOUND)
 
 # # Find Metis (optional)
 # FIND_PACKAGE(METIS)
@@ -257,6 +257,9 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/physics)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/include)
 INCLUDE_DIRECTORIES(/opt/apps/local/mpi/gnu/openmpi/1.10.6/include/)
 INCLUDE_DIRECTORIES(/opt/apps/local/gnu/openmpi/boost/1.61.0/include/)
+
+#For BARRY try try to compile without this first and if not decomment it and specify where the include for hdf5 are
+#INCLUDE_DIRECTORIES(/usr.local/include/)
 
 # Include Fparser files
 IF(FPARSER_FOUND)

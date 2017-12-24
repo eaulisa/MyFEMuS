@@ -27,7 +27,7 @@
 #include "NumericVector.hpp"
 #include "VTKWriter.hpp"
 #include "GMVWriter.hpp"
-#include "XDMFWriter.hpp"
+//#include "XDMFWriter.hpp"
 
 
 
@@ -66,9 +66,9 @@ namespace femus {
       case GMV: {
 	std::auto_ptr<Writer>   ap(new GMVWriter(ml_sol)); return ap;
       }
-      case XDMF: {
-	std::auto_ptr<Writer>   ap(new XDMFWriter(ml_sol)); return ap;
-      }
+//       case XDMF: {
+// 	std::auto_ptr<Writer>   ap(new XDMFWriter(ml_sol)); return ap;
+//       }
       default: {
 	std::cout << "Format not supported" << std::endl;
 	abort();
@@ -86,9 +86,9 @@ namespace femus {
       case GMV: {
 	std::auto_ptr<Writer>   ap(new GMVWriter(ml_mesh)); return ap;
       }
-      case XDMF: {
-	std::auto_ptr<Writer>   ap(new XDMFWriter(ml_mesh)); return ap;
-      }
+//       case XDMF: {
+// 	std::auto_ptr<Writer>   ap(new XDMFWriter(ml_mesh)); return ap;
+//       }
       default: {
 	std::cout << "Format not supported" << std::endl;
 	abort();

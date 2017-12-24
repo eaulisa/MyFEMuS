@@ -18,7 +18,7 @@
 //----------------------------------------------------------------------------
 #include <fstream>  
 #include <sstream>  
-#include "hdf5.h"   
+//#include "hdf5.h"   
 #include "SparseMatrix.hpp"
 #include "FemusConfig.hpp"
 #include "NumericVector.hpp"
@@ -201,22 +201,22 @@ void SparseMatrix::read_len_hdf5(const std::string namefile,  // file name
                                   int len_off_row[]            // row off entry lengths
                                  ) {
 
-  hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR, H5P_DEFAULT);
-
-  // row lengths -------------------------------------------------------------
-  std::ostringstream name_dst;
-  name_dst.str("");
-  name_dst << "LEN" <<mode;
-  hid_t dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
-  hid_t status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,len_row);
-  // matrix row off entry lengths --------------------------------------------
-  name_dst.str("");
-  name_dst <<"OFFLEN" <<mode;
-  dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
-  status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,len_off_row);
-
-  H5Fclose(file_id);
-  return;
+//   hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR, H5P_DEFAULT);
+// 
+//   // row lengths -------------------------------------------------------------
+//   std::ostringstream name_dst;
+//   name_dst.str("");
+//   name_dst << "LEN" <<mode;
+//   hid_t dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
+//   hid_t status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,len_row);
+//   // matrix row off entry lengths --------------------------------------------
+//   name_dst.str("");
+//   name_dst <<"OFFLEN" <<mode;
+//   dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
+//   status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,len_off_row);
+// 
+//   H5Fclose(file_id);
+//   return;
 
 }
 
@@ -227,15 +227,15 @@ void SparseMatrix::read_pos_hdf5(const std::string namefile,  // file name
                                   int pos_row[]                // compressed row positions
                                  ) {
 
-  hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR, H5P_DEFAULT);
-
-  std::ostringstream name_dst;
-  name_dst.str("");
-  name_dst << "POS" <<mode;
-  hid_t dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
-  H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,pos_row);
-  H5Fclose(file_id);
-  return;
+//   hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR, H5P_DEFAULT);
+// 
+//   std::ostringstream name_dst;
+//   name_dst.str("");
+//   name_dst << "POS" <<mode;
+//   hid_t dataset=H5Dopen(file_id,name_dst.str().c_str(), H5P_DEFAULT);
+//   H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,pos_row);
+//   H5Fclose(file_id);
+//   return;
 }
 // =====================================================
 /// This function reads quad-linear matrix dimensions
@@ -243,27 +243,27 @@ void SparseMatrix::read_dim_hdf5(const std::string namefile, // file name
                                   int dim[]                   // dimensions
                                  ) {
 
-  hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR,H5P_DEFAULT);
-  int ldim[2];
-  // quadratic-quadratic -> dim[0]   ------------------------------------------------
-  hid_t dataset=H5Dopen(file_id,"DIM0", H5P_DEFAULT);
-  hid_t status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
-  dim[0]=ldim[0];
-  // linear-linear  -> dim[3]  ------------------------------------------------
-  dataset=H5Dopen(file_id,"DIM3", H5P_DEFAULT);
-  status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
-  dim[3]=ldim[0];
-  // quad-linear  -> dim[1]  ------------------------------------------------
-  dataset=H5Dopen(file_id,"DIM1", H5P_DEFAULT);
-  status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
-  dim[1]=ldim[0];
-  // linear-quad   -> dim[2] ------------------------------------------------
-  dataset=H5Dopen(file_id,"DIM2", H5P_DEFAULT);
-  status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
-  dim[2]=ldim[0];
-
-  H5Fclose(file_id);
-  return;
+//   hid_t  file_id = H5Fopen(namefile.c_str(),H5F_ACC_RDWR,H5P_DEFAULT);
+//   int ldim[2];
+//   // quadratic-quadratic -> dim[0]   ------------------------------------------------
+//   hid_t dataset=H5Dopen(file_id,"DIM0", H5P_DEFAULT);
+//   hid_t status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
+//   dim[0]=ldim[0];
+//   // linear-linear  -> dim[3]  ------------------------------------------------
+//   dataset=H5Dopen(file_id,"DIM3", H5P_DEFAULT);
+//   status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
+//   dim[3]=ldim[0];
+//   // quad-linear  -> dim[1]  ------------------------------------------------
+//   dataset=H5Dopen(file_id,"DIM1", H5P_DEFAULT);
+//   status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
+//   dim[1]=ldim[0];
+//   // linear-quad   -> dim[2] ------------------------------------------------
+//   dataset=H5Dopen(file_id,"DIM2", H5P_DEFAULT);
+//   status=H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT,ldim);
+//   dim[2]=ldim[0];
+// 
+//   H5Fclose(file_id);
+//   return;
 }
 
 
