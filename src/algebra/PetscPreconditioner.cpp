@@ -123,15 +123,15 @@ namespace femus {
           ierr = PCSetType(pc, (char*) PCLU);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-          ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
-          CHKERRABORT(MPI_COMM_WORLD, ierr);
-          ierr = PCFactorSetUpMatSolverPackage(pc);
-          CHKERRABORT(MPI_COMM_WORLD, ierr);
-          Mat       F;
-          ierr = PCFactorGetMatrix(pc, &F);
-          CHKERRABORT(MPI_COMM_WORLD, ierr);
-          ierr = MatMumpsSetIcntl(F, 14, 30);
-          CHKERRABORT(MPI_COMM_WORLD, ierr);
+//           ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
+//           CHKERRABORT(MPI_COMM_WORLD, ierr);
+//           ierr = PCFactorSetUpMatSolverPackage(pc);
+//           CHKERRABORT(MPI_COMM_WORLD, ierr);
+//           Mat       F;
+//           ierr = PCFactorGetMatrix(pc, &F);
+//           CHKERRABORT(MPI_COMM_WORLD, ierr);
+//           ierr = MatMumpsSetIcntl(F, 14, 30);
+//           CHKERRABORT(MPI_COMM_WORLD, ierr);
         }
         break;
       }
@@ -144,18 +144,42 @@ namespace femus {
         break;    //here we set the SuperLU_dist solver package
 
       case MLU_PRECOND: //here we set the MUMPS parallel direct solver package
-        ierr = PCSetType(pc, (char*) PCLU);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
+	
+	
+	        {
+//        But PETSc has no truly parallel ILU, instead you have to set
+//        an actual parallel preconditioner (e.g. block Jacobi (parlleloverlapping 0) or ASM (parlleloverlapping >0))
+//	  and then assign ILU sub-preconditioners.
 
-        ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = PCFactorSetUpMatSolverPackage(pc);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
-        Mat       F;
-        ierr = PCFactorGetMatrix(pc, &F);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = MatMumpsSetIcntl(F, 14, 30);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
+          set_petsc_preconditioner_type(ASM_PRECOND, pc);
+          PCASMSetOverlap(pc, parallelOverlapping);
+          PCSetUp(pc);
+
+          // Set ILU as the sub preconditioner type
+          set_petsc_subpreconditioner_type(PCLU, pc);
+        }
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/*
+        ierr = PCSetType(pc, (char*) PCLU);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);*/
+
+//         ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
+//         CHKERRABORT(MPI_COMM_WORLD, ierr);
+//         ierr = PCFactorSetUpMatSolverPackage(pc);
+//         CHKERRABORT(MPI_COMM_WORLD, ierr);
+//         Mat       F;
+//         ierr = PCFactorGetMatrix(pc, &F);
+//         CHKERRABORT(MPI_COMM_WORLD, ierr);
+//         ierr = MatMumpsSetIcntl(F, 14, 30);
+//         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;
 
       case ULU_PRECOND: //here we set the Umfpack serial direct solver package
