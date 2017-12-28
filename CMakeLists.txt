@@ -258,6 +258,14 @@ INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/include)
 INCLUDE_DIRECTORIES(/opt/apps/local/mpi/gnu/openmpi/1.10.6/include/)
 INCLUDE_DIRECTORIES(/opt/apps/local/gnu/openmpi/boost/1.61.0/include/)
 
+
+INCLUDE_DIRECTORIES(${PETSC_DIR}/${PETSC_ARCH}/include/)
+MESSAGE(STATUS "PETSC_INCLUDE= ${PETSC_DIR}/${PETSC_ARCH}/include/")
+
+INCLUDE_DIRECTORIES(${PETSC_DIR}/include/)
+MESSAGE(STATUS "PETSC_INCLUDE= ${PETSC_DIR}/include/")
+
+ 
 #For BARRY try try to compile without this first and if not decomment it and specify where the include for hdf5 are
 #INCLUDE_DIRECTORIES(/usr.local/include/)
 
