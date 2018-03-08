@@ -166,6 +166,8 @@ OPTION(BUILD_REFINEMENT "Build the Refiniment apps" ON)
 
 OPTION(BUILD_PETSC_DEBUG "Build the PETSC debug apps" ON)
 
+OPTION(BUILD_AD "Build the AD apps" ON)
+
 #############################################################################################
 ### Build documentation (Doxygen)
 #############################################################################################
