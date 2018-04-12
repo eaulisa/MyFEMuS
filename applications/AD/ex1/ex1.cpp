@@ -67,10 +67,10 @@ void example2()
 
   adept::Stack& s = FemusInit::_adeptStack;
 
-  unsigned n1 = 3;
+  const unsigned n1 = 3;
   std::vector < adept::adouble > f(n1);
 
-  unsigned n2 = 10;
+  const unsigned n2 = 10;
   std::vector < adept::adouble > x(n2);
   
 
@@ -95,13 +95,13 @@ void example2()
   s.dependent(&f[0], n1);
   s.independent(&x[0], n2);
 
-  std::vector < double > jac(n1*n2);
+  double jac[n1][n2];
 
-  s.jacobian(&jac[0], true);
+  s.jacobian(jac[0], true);
 
   for (unsigned i = 0; i < n1; i++) {
     for(unsigned j = 0; j < n2; j++) {
-      std::cout << jac[ i * n2 + j] << " ";
+      std::cout << jac[i][ j] << " ";
     }
     std::cout << std::endl;
   }
