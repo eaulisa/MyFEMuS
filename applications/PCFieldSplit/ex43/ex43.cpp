@@ -74,7 +74,7 @@ int main(int argc, char** args) {
   unsigned dim = mlMsh.GetDimension();
 
   unsigned numberOfUniformLevels = 2;
-  unsigned numberOfSelectiveLevels = 8;
+  unsigned numberOfSelectiveLevels = 2;
   // mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, SetRefinementFlag);
   // erase all the coarse mesh levels
@@ -85,7 +85,7 @@ int main(int argc, char** args) {
   
   mlMsh.PrintInfo();
   MultiLevelSolution mlSol(&mlMsh);
-  mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
+  mlSol.AddSolution("U", LAGRANGE, FIRST);
   mlSol.Initialize("All");
 
   // attach the boundary condition function and generate boundary data
@@ -109,14 +109,36 @@ int main(int argc, char** args) {
   system.SetAbsoluteLinearConvergenceTolerance(1.e-15);	
   system.SetMgType(V_CYCLE);
 
+ 
+  //TODO for the first reviewer change number of pre- post- smoothing here for example 2 or 4
+  
   system.SetNumberPreSmoothingStep(1);
   system.SetNumberPostSmoothingStep(1);
+    
+//   system.SetNumberPreSmoothingStep(2);
+//   system.SetNumberPostSmoothingStep(2);
+//     
+//   system.SetNumberPreSmoothingStep(4);
+//   system.SetNumberPostSmoothingStep(4);
+  
+  
   // initilaize and solve the system
   system.init();
 
   system.SetSolverFineGrids(RICHARDSON);
+  
+  //TODO for the second reviewer change level preconditioner to SOR and Jacobi
+
   system.SetPreconditionerFineGrids(ILU_PRECOND);
   system.SetRichardsonScaleFactor(.8);
+  
+//   system.SetPreconditionerFineGrids(SOR_PRECOND);
+//   system.SetRichardsonScaleFactor(1.);
+//   
+//   system.SetPreconditionerFineGrids(JACOBI_PRECOND);
+//   system.SetRichardsonScaleFactor(.5);
+  
+  
   system.SetTolerances(1.e-15, 1.e-20, 1.e+50, 200, 200); //GMRES tolerances (1.e-15, 1.e-20, 1.e+50, 200, 200);
   system.ClearVariablesToBeSolved();
   system.AddVariableToBeSolved("All");
