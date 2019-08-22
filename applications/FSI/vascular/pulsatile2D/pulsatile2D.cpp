@@ -52,7 +52,7 @@ int main(int argc, char **args)
   valve = false;
   twoPressure = true;
   
-  unsigned simulation = 5;
+  unsigned simulation = 0;
 
   if(argc >= 2) {
     if(!strcmp("0", args[1])) {       /** FSI Turek2D no stent */
@@ -368,7 +368,7 @@ int main(int argc, char **args)
 
   // time loop parameter
   system.AttachGetTimeIntervalFunction ( SetVariableTimeStep );
-  const unsigned int n_timesteps = 128;
+  const unsigned int n_timesteps = 32;
 
   std::vector < std::vector <double> > data(n_timesteps);
 
