@@ -36,7 +36,7 @@ double pi = acos (-1.);
 //double k_h = 1. / ( 10 * pi );
 double k_h = 0.0001 ;
 
-const unsigned NumberOfLayers = 40;
+const unsigned NumberOfLayers = 100;
 
 unsigned counter = 0;
 unsigned counter2 = 0;
@@ -56,15 +56,21 @@ std::vector < std::vector < std::vector < double > > > phi1A;
 // const double hRest[20] = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
 
 
-const double hRest[40] = {0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
-                          0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25
-                         };
+// const double hRest[40] = {0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+//                           0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25
+//                          };
 
 // const double hRest[80] = {0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
 //                           0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
 //                           0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
 //                           0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125
 //                          };
+                         
+const double hRest[100] = {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+                           0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                           0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                           0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
+                         };
 
 double InitalValueVi (const std::vector < double >& x , const unsigned &i)
 {
@@ -405,6 +411,86 @@ double InitalValueV79 (const std::vector < double >& x)
 {
   return InitalValueVi (x, 80);
 }
+double InitalValueV80 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 81);
+}
+double InitalValueV81 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 82);
+}
+double InitalValueV82 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 83);
+}
+double InitalValueV83 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 84);
+}
+double InitalValueV84 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 85);
+}
+double InitalValueV85 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 86);
+}
+double InitalValueV86 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 87);
+}
+double InitalValueV87 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 88);
+}
+double InitalValueV88 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 89);
+}
+double InitalValueV89 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 90);
+}
+double InitalValueV90 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 91);
+}
+double InitalValueV91 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 92);
+}
+double InitalValueV92 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 93);
+}
+double InitalValueV93 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 94);
+}
+double InitalValueV94 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 95);
+}
+double InitalValueV95 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 96);
+}
+double InitalValueV96 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 97);
+}
+double InitalValueV97 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 98);
+}
+double InitalValueV98 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 99);
+}
+double InitalValueV99 (const std::vector < double >& x)
+{
+  return InitalValueVi (x, 100);
+}
 
 
 double InitalValueH (const std::vector < double >& x)
@@ -539,7 +625,7 @@ int main (int argc, char** args)
   //unsigned nx = static_cast<unsigned> (floor (pow (2., 2) + 0.5));
   unsigned nx = static_cast<unsigned> (floor (pow (2.,/*5*/3) + 0.5));       //Grid cell size = 3.90625 m
   //nx += 8;
-  nx += 2;
+  nx += 4;
 
   double length = 10.; //2 * 1465700.;
 
@@ -631,48 +717,70 @@ int main (int argc, char** args)
     mlSol.Initialize ("v37", InitalValueV37);
     mlSol.Initialize ("v38", InitalValueV38);
     mlSol.Initialize ("v39", InitalValueV39);
-//       if(NumberOfLayers>79){
-//         mlSol.Initialize ( "v40", InitalValueV40 );
-//         mlSol.Initialize ( "v41", InitalValueV41 );
-//         mlSol.Initialize ( "v42", InitalValueV42 );
-//         mlSol.Initialize ( "v43", InitalValueV43 );
-//         mlSol.Initialize ( "v44", InitalValueV44 );
-//         mlSol.Initialize ( "v45", InitalValueV45 );
-//         mlSol.Initialize ( "v46", InitalValueV46 );
-//         mlSol.Initialize ( "v47", InitalValueV47 );
-//         mlSol.Initialize ( "v48", InitalValueV48 );
-//         mlSol.Initialize ( "v49", InitalValueV49 );
-//         mlSol.Initialize ( "v50", InitalValueV50 );
-//         mlSol.Initialize ( "v51", InitalValueV51 );
-//         mlSol.Initialize ( "v52", InitalValueV52 );
-//         mlSol.Initialize ( "v53", InitalValueV53 );
-//         mlSol.Initialize ( "v54", InitalValueV54 );
-//         mlSol.Initialize ( "v55", InitalValueV55 );
-//         mlSol.Initialize ( "v56", InitalValueV56 );
-//         mlSol.Initialize ( "v57", InitalValueV57 );
-//         mlSol.Initialize ( "v58", InitalValueV58 );
-//         mlSol.Initialize ( "v59", InitalValueV59 );
-//         mlSol.Initialize ( "v60", InitalValueV60 );
-//         mlSol.Initialize ( "v61", InitalValueV61 );
-//         mlSol.Initialize ( "v62", InitalValueV62 );
-//         mlSol.Initialize ( "v63", InitalValueV63 );
-//         mlSol.Initialize ( "v64", InitalValueV64 );
-//         mlSol.Initialize ( "v65", InitalValueV65 );
-//         mlSol.Initialize ( "v66", InitalValueV66 );
-//         mlSol.Initialize ( "v67", InitalValueV67 );
-//         mlSol.Initialize ( "v68", InitalValueV68 );
-//         mlSol.Initialize ( "v69", InitalValueV69 );
-//         mlSol.Initialize ( "v70", InitalValueV70 );
-//         mlSol.Initialize ( "v71", InitalValueV71 );
-//         mlSol.Initialize ( "v72", InitalValueV72 );
-//         mlSol.Initialize ( "v73", InitalValueV73 );
-//         mlSol.Initialize ( "v74", InitalValueV74 );
-//         mlSol.Initialize ( "v75", InitalValueV75 );
-//         mlSol.Initialize ( "v76", InitalValueV76 );
-//         mlSol.Initialize ( "v77", InitalValueV77 );
-//         mlSol.Initialize ( "v78", InitalValueV78 );
-//         mlSol.Initialize ( "v79", InitalValueV79 );
-//       }
+    if(NumberOfLayers>79){
+      mlSol.Initialize ( "v40", InitalValueV40 );
+      mlSol.Initialize ( "v41", InitalValueV41 );
+      mlSol.Initialize ( "v42", InitalValueV42 );
+      mlSol.Initialize ( "v43", InitalValueV43 );
+      mlSol.Initialize ( "v44", InitalValueV44 );
+      mlSol.Initialize ( "v45", InitalValueV45 );
+      mlSol.Initialize ( "v46", InitalValueV46 );
+      mlSol.Initialize ( "v47", InitalValueV47 );
+      mlSol.Initialize ( "v48", InitalValueV48 );
+      mlSol.Initialize ( "v49", InitalValueV49 );
+      mlSol.Initialize ( "v50", InitalValueV50 );
+      mlSol.Initialize ( "v51", InitalValueV51 );
+      mlSol.Initialize ( "v52", InitalValueV52 );
+      mlSol.Initialize ( "v53", InitalValueV53 );
+      mlSol.Initialize ( "v54", InitalValueV54 );
+      mlSol.Initialize ( "v55", InitalValueV55 );
+      mlSol.Initialize ( "v56", InitalValueV56 );
+      mlSol.Initialize ( "v57", InitalValueV57 );
+      mlSol.Initialize ( "v58", InitalValueV58 );
+      mlSol.Initialize ( "v59", InitalValueV59 );
+      mlSol.Initialize ( "v60", InitalValueV60 );
+      mlSol.Initialize ( "v61", InitalValueV61 );
+      mlSol.Initialize ( "v62", InitalValueV62 );
+      mlSol.Initialize ( "v63", InitalValueV63 );
+      mlSol.Initialize ( "v64", InitalValueV64 );
+      mlSol.Initialize ( "v65", InitalValueV65 );
+      mlSol.Initialize ( "v66", InitalValueV66 );
+      mlSol.Initialize ( "v67", InitalValueV67 );
+      mlSol.Initialize ( "v68", InitalValueV68 );
+      mlSol.Initialize ( "v69", InitalValueV69 );
+      mlSol.Initialize ( "v70", InitalValueV70 );
+      mlSol.Initialize ( "v71", InitalValueV71 );
+      mlSol.Initialize ( "v72", InitalValueV72 );
+      mlSol.Initialize ( "v73", InitalValueV73 );
+      mlSol.Initialize ( "v74", InitalValueV74 );
+      mlSol.Initialize ( "v75", InitalValueV75 );
+      mlSol.Initialize ( "v76", InitalValueV76 );
+      mlSol.Initialize ( "v77", InitalValueV77 );
+      mlSol.Initialize ( "v78", InitalValueV78 );
+      mlSol.Initialize ( "v79", InitalValueV79 );
+      if(NumberOfLayers>99){
+        mlSol.Initialize ( "v80", InitalValueV80 );
+        mlSol.Initialize ( "v81", InitalValueV81 );
+        mlSol.Initialize ( "v82", InitalValueV82 );
+        mlSol.Initialize ( "v83", InitalValueV83 );
+        mlSol.Initialize ( "v84", InitalValueV84 );
+        mlSol.Initialize ( "v85", InitalValueV85 );
+        mlSol.Initialize ( "v86", InitalValueV86 );
+        mlSol.Initialize ( "v87", InitalValueV87 );
+        mlSol.Initialize ( "v88", InitalValueV88 );
+        mlSol.Initialize ( "v89", InitalValueV89 );
+        mlSol.Initialize ( "v90", InitalValueV90 );
+        mlSol.Initialize ( "v91", InitalValueV91 );
+        mlSol.Initialize ( "v92", InitalValueV92 );
+        mlSol.Initialize ( "v93", InitalValueV93 );
+        mlSol.Initialize ( "v94", InitalValueV94 );
+        mlSol.Initialize ( "v95", InitalValueV95 );
+        mlSol.Initialize ( "v96", InitalValueV96 );
+        mlSol.Initialize ( "v97", InitalValueV97 );
+        mlSol.Initialize ( "v98", InitalValueV98 );
+        mlSol.Initialize ( "v99", InitalValueV99 );
+      }
+    }
   }
 
   for (unsigned i = 0; i < NumberOfLayers; i++) {
