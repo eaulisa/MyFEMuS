@@ -55,7 +55,6 @@ std::vector < std::vector < std::vector < double > > > phi1A;
 
 // const double hRest[20] = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
 
-
 // const double hRest[40] = {0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
 //                          0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25
 //                         };
@@ -652,7 +651,6 @@ int main (int argc, char** args)
   mlSol.Initialize ("v17", InitalValueV17);
   mlSol.Initialize ("v18", InitalValueV18);
   mlSol.Initialize ("v19", InitalValueV19);
-
   if (NumberOfLayers > 39) {
     mlSol.Initialize ("v20", InitalValueV20);
     mlSol.Initialize ("v21", InitalValueV21);
@@ -674,7 +672,6 @@ int main (int argc, char** args)
     mlSol.Initialize ("v37", InitalValueV37);
     mlSol.Initialize ("v38", InitalValueV38);
     mlSol.Initialize ("v39", InitalValueV39);
-
     if (NumberOfLayers > 79) {
       mlSol.Initialize ("v40", InitalValueV40);
       mlSol.Initialize ("v41", InitalValueV41);
@@ -716,7 +713,6 @@ int main (int argc, char** args)
       mlSol.Initialize ("v77", InitalValueV77);
       mlSol.Initialize ("v78", InitalValueV78);
       mlSol.Initialize ("v79", InitalValueV79);
-
       if (NumberOfLayers > 99) {
         mlSol.Initialize ("v80", InitalValueV80);
         mlSol.Initialize ("v81", InitalValueV81);
@@ -1510,7 +1506,7 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
       else if (phi_once) {
         clock_t phi1A_time = clock();
         create_phi1A (CFL_pow, Jac[i], phi1A[i]);
-        std::cout << " phi1A TIME :\t" << static_cast<double> (clock() - phi1A_time) / CLOCKS_PER_SEC << std::endl;
+        //std::cout << " phi1A TIME :\t" << static_cast<double> (clock() - phi1A_time) / CLOCKS_PER_SEC << std::endl;
 
 //         clock_t mult_time = clock();
         for (int ii = 0; ii < NumberOfLayers; ii++) {
@@ -2886,28 +2882,28 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 {
 
 // //   std::cout << "scaling factor = " << (dt / pow (2, CFL_pow)) << std::endl;
-//
+// 
 //   std::vector< std::vector <double > > A (NumberOfLayers);
 //   std::vector< std::vector <double > > AA (NumberOfLayers);
 //   std::vector< std::vector <double > > AAA (NumberOfLayers);
-//
+// 
 //   phi1A.resize (NumberOfLayers);
-//
+// 
 //   for (unsigned k2 = 0; k2 < NumberOfLayers; k2++) {
 //     A[k2].assign (NumberOfLayers, 0.);
 //     AA[k2].assign (NumberOfLayers, 0.);
 //     AAA[k2].assign (NumberOfLayers, 0.);
 //     phi1A[k2].assign (NumberOfLayers, 0.);
 //   }
-//
+// 
 //   for (unsigned k2 = 0; k2 < NumberOfLayers; k2++) {
 //     for (unsigned k1 = 0; k1 < NumberOfLayers; k1++) {
 //       A[k1][k2] = (dt / pow (2, CFL_pow)) * NodeJac[k1 * NumberOfLayers + k2]; //save the scaled jac in A
-//
+// 
 //       if (k1 == k2) phi1A[k1][k2] = 1.; //initialize phi1A to the identity
 //     }
 //   }
-//
+// 
 // //   std::cout << "A ------------------- " << std::endl;
 // //
 // //   for (unsigned k1 = 0; k1 < NumberOfLayers; k1++) {
@@ -2918,7 +2914,7 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 // //
 // //     std::cout << std::endl;
 // //   }
-//
+// 
 //   for (unsigned k1 = 0; k1 < NumberOfLayers; k1++) {
 //     for (unsigned k2 = 0; k2 < NumberOfLayers; k2++) {
 //       for (unsigned k3 = 0; k3 < NumberOfLayers; k3++) {
@@ -2926,7 +2922,7 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 //       }
 //     }
 //   }
-//
+// 
 //   for (unsigned k1 = 0; k1 < NumberOfLayers; k1++) {
 //     for (unsigned k2 = 0; k2 < NumberOfLayers; k2++) {
 //       for (unsigned k3 = 0; k3 < NumberOfLayers; k3++) {
@@ -2934,24 +2930,24 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 //       }
 //     }
 //   }
-//
+// 
 //   for (unsigned i = 0; i < NumberOfLayers; i++) {
 //     for (unsigned j = 0; j < NumberOfLayers; j++) {
 //       phi1A[i][j] += 0.5 * A[i][j] + 1. / 6. * AA[i][j] + 1. / 24. * AAA[i][j];
 //     }
 //   }
-//
+// 
 //   for (unsigned i = 0; i < CFL_pow; i++) {
-//
+// 
 //     std::vector< std::vector <double > > phi1ASquared (NumberOfLayers);
 //     std::vector< std::vector <double > > Temp (NumberOfLayers);
-//
-//
+// 
+// 
 //     for (unsigned ii = 0; ii < NumberOfLayers; ii++) {
 //       phi1ASquared[ii].assign (NumberOfLayers, 0.);
 //       Temp[ii].assign (NumberOfLayers, 0.);
 //     }
-//
+// 
 //     for (unsigned ii = 0; ii < NumberOfLayers; ii++) {
 //       for (unsigned jj = 0; jj < NumberOfLayers; jj++) {
 //         for (unsigned kk = 0; kk < NumberOfLayers; kk++) {
@@ -2959,7 +2955,7 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 //         }
 //       }
 //     }
-//
+// 
 //    for (unsigned ii = 0; ii < NumberOfLayers; ii++) {
 //       for (unsigned jj = 0; jj < NumberOfLayers; jj++) {
 //         for (unsigned kk = 0; kk < NumberOfLayers; kk++) {
@@ -2967,21 +2963,21 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 //         }
 //       }
 //     }
-//
+// 
 //     double power = 0.5;
-//
+// 
 //     if (i == 1) power = 1.;
-//
+// 
 //     else if (i > 1) power = pow (2, i - 1);
-//
+// 
 //     for (unsigned ii = 0; ii < NumberOfLayers; ii++) {
 //       for (unsigned jj = 0; jj < NumberOfLayers; jj++) {
 //         phi1A[ii][jj] += power * Temp[ii][jj];
 //       }
 //     }
-//
+// 
 //   }
-//
+
 // //   std::cout << "phi1A ------------------- " << std::endl;
 // //
 // //   for (unsigned k1 = 0; k1 < NumberOfLayers; k1++) {
