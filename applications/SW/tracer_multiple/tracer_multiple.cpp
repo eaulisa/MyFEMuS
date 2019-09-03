@@ -3010,50 +3010,31 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
   MatCreate (MPI_COMM_SELF, &A);
   MatSetSizes (A, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
   MatSetFromOptions (A);
-  MatSeqAIJSetPreallocation (A, 3, NULL);
+  MatSetUp(A);
 
   for (k1 = 0; k1 < NumberOfLayers; k1++) {
-    double value;
-
-    if (k1 > 0) {
-      value = (dt / pow (2, CFL_pow)) * NodeJac[k1 * NumberOfLayers + (k1 - 1)] ;
-      MatSetValue (A, k1, k1 - 1, value, INSERT_VALUES);
-    }
-
-    value = (dt / pow (2, CFL_pow)) * NodeJac[k1 * NumberOfLayers + k1] ;
-    MatSetValue (A, k1, k1, value, INSERT_VALUES);
-
-    if (k1 < NumberOfLayers) {
-      value = (dt / pow (2, CFL_pow)) * NodeJac[k1 * NumberOfLayers + (k1 + 1)] ;
-      MatSetValue (A, k1, k1 + 1, value, INSERT_VALUES);
+    for (k2 = 0; k2 < NumberOfLayers; k2++) {
+    double value= (dt / pow (2, CFL_pow)) * NodeJac[k1 * NumberOfLayers + k2] ;
+      MatSetValue (A, k1, k2, value, INSERT_VALUES);
     }
   }
-
 
   MatAssemblyBegin (A, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd (A, MAT_FINAL_ASSEMBLY);
 
-  MatCreate (MPI_COMM_SELF, &AA);
-  MatSetSizes (AA, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
-  MatSetFromOptions (AA);
-  MatSeqAIJSetPreallocation (AA, NumberOfLayers, NULL);
-
-  MatCreate (MPI_COMM_SELF, &AAA);
-  MatSetSizes (AAA, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
-  MatSetFromOptions (AAA);
-  MatSeqAIJSetPreallocation (AAA, NumberOfLayers, NULL);
-
-  MatCreate (MPI_COMM_SELF, &phi1APetsc);
-  MatSetSizes (phi1APetsc, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
-  MatSetFromOptions (phi1APetsc);
-  MatSeqAIJSetPreallocation (phi1APetsc, 1, NULL);
+  MatDuplicate (A, MAT_DO_NOT_COPY_VALUES, &AA);
+  MatDuplicate (A, MAT_DO_NOT_COPY_VALUES, &AAA);
+  MatDuplicate (A, MAT_DO_NOT_COPY_VALUES, &phi1APetsc);
 
   for (k1 = 0; k1 < NumberOfLayers; k1++) {
-    double value = 1.;
-    MatSetValues (phi1APetsc, 1, &k1, 1, &k1, &value, INSERT_VALUES);
+    for (k2 = 0; k2 < NumberOfLayers; k2++) {
+    double value = 0.;
+    if(k1 == k2) value = 1.;
+    MatSetValues (phi1APetsc, 1, &k1, 1, &k2, &value, INSERT_VALUES);
     //phi1A has been set has the identity matrix
+    }
   }
-
+  
   MatAssemblyBegin (phi1APetsc, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd (phi1APetsc, MAT_FINAL_ASSEMBLY);
 
@@ -3061,36 +3042,18 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
   
   MatMatMult (AA, A, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &AAA);
 
-
   MatAXPY (phi1APetsc, 1. / 2., A, DIFFERENT_NONZERO_PATTERN);
 
   MatAXPY (phi1APetsc, 1. / 6., AA, DIFFERENT_NONZERO_PATTERN);
 
   MatAXPY (phi1APetsc, 1. / 24., AAA, DIFFERENT_NONZERO_PATTERN);
 
-  Mat Temp;
-  Mat Temp2;
-//     MatDuplicate (phi1APetsc, MAT_DO_NOT_COPY_VALUES, &Temp);
-//     MatDuplicate (phi1APetsc, MAT_DO_NOT_COPY_VALUES, &Temp2);
-
-  MatCreate (MPI_COMM_SELF, &Temp);
-  MatSetSizes (Temp, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
-  MatSetFromOptions (Temp);
-  MatSeqAIJSetPreallocation (Temp, NumberOfLayers, NULL);
-  MatAssemblyBegin (Temp, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd (Temp, MAT_FINAL_ASSEMBLY);
-//
-  MatCreate (MPI_COMM_SELF, &Temp2);
-  MatSetSizes (Temp2, NumberOfLayers, NumberOfLayers, NumberOfLayers, NumberOfLayers);
-  MatSetFromOptions (Temp2);
-  MatSeqAIJSetPreallocation (Temp2, NumberOfLayers, NULL);
-  MatAssemblyBegin (Temp2, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd (Temp2, MAT_FINAL_ASSEMBLY);
-
   for (unsigned i = 0; i < CFL_pow; i++) {
 
-    MatZeroEntries (Temp);
-    MatZeroEntries (Temp2);
+    Mat Temp;
+    Mat Temp2;
+    MatDuplicate (phi1APetsc, MAT_DO_NOT_COPY_VALUES, &Temp);
+    MatDuplicate (phi1APetsc, MAT_DO_NOT_COPY_VALUES, &Temp2);
 
     MatMatMult (phi1APetsc, phi1APetsc, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Temp);
 
@@ -3104,6 +3067,10 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
 
     MatAXPY (phi1APetsc, power, Temp2, DIFFERENT_NONZERO_PATTERN);
     //phi1(2A) = (1 / 2) * (2 * I + 2^i * A * phi1A) * phi1A = phi1A + 2^(i-1)*A*(phi1A)^2;
+    
+    
+    MatDestroy (&Temp);
+    MatDestroy (&Temp2);
 
   }
 // 
@@ -3120,9 +3087,6 @@ void create_phi1A (const unsigned &CFL_pow, const std::vector < double > &NodeJa
   MatDestroy (&AAA);
   MatDestroy (&phi1APetsc);
 
-
-  MatDestroy (&Temp);
-  MatDestroy (&Temp2);
   //END
 
 }
