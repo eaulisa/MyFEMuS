@@ -121,9 +121,9 @@ void GetPressureNeighbor (MultiLevelSolution &mlSol, Line & solidLine, Line & fl
 void ProjectGridVelocity (MultiLevelSolution &mlSol);
 void ProjectGridVelocity2 (MultiLevelSolution &mlSol);
 
-bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const unsigned &previousElem, std::vector <std::vector <double>> & xElement, std::vector <double> & xToCheck);
-bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigned &previousElem, const std::vector <std::vector <double>> & xElement, const std::vector <double> & xToCheck);
-void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, MultiLevelSolution &  mlSol, const unsigned &elemToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement);
+bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> & xToCheck);
+bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> & xToCheck);
+void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, Solution* sol, const unsigned &elemToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement);
 
 void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
@@ -1092,8 +1092,11 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & solidLine, L
   }
   //END loop on fluid particles
 
+  clock_t project_time = clock();
   ProjectGridVelocity (*mlSol);
 //   ProjectGridVelocity2 (*mlSol);
+  std::cout << std::endl << " total projection time : " << std::setw (11) << std::setprecision (6) << std::fixed
+            << static_cast<double> ( (clock() - project_time)) / CLOCKS_PER_SEC << " s" << std::endl;
 
   //BEGIN loop on elements to update grid velocity and acceleration
   for (unsigned idof = msh->_dofOffset[solType][iproc]; idof < msh->_dofOffset[solType][iproc + 1]; idof++) {
@@ -1356,95 +1359,102 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
       }
     }
 
-    //BEGIN old
-//     bool aPIsInitialized = false;
-// 
-//     double r;
-//     std::vector <double> xc;
-//     GetConvexHullSphere (vx, xc, r, 0.0001); // get the ball that circumscribe the element
-//     double r2 = r * r;
-// 
-//     std::vector < std::vector< double > > xe; // get the box that encloses the element
-//     GetBoundingBox (vx, xe, 0.0001);
-// 
-//     for (unsigned i = 0; i < nDofs; i++) { // loop on the nodes of the reference elements now considered as independent points
+    //BEGIN faster part
+    bool aPIsInitialized = false;
+
+    double r;
+    std::vector <double> xc;
+    GetConvexHullSphere (vx, xc, r, 0.0001); // get the ball that circumscribe the element
+    double r2 = r * r;
+
+    std::vector < std::vector< double > > xe; // get the box that encloses the element
+    GetBoundingBox (vx, xe, 0.0001);
+
+    for (unsigned i = 0; i < nDofs; i++) { // loop on the nodes of the reference elements now considered as independent points
+      if (!nodeFlag[i]) {
+        double d2 = 0.;
+        for (int k = 0; k < dim; k++) {
+          d2 += (xp[i][k] - xc[k]) * (xp[i][k] - xc[k]);
+        }
+        bool insideHull = true;
+        if (d2 > r2) {
+          insideHull = false;
+        }
+        for (unsigned k = 0; k < dim; k++) {
+          if (xp[i][k] < xe[k][0] || xp[i][k] > xe[k][1]) {
+            insideHull = false;
+          }
+        }
+
+        if (insideHull) { //rough test
+          if (!aPIsInitialized) {
+            aPIsInitialized = true;
+            std::vector < std::vector <double> > x1 (dim);
+            for (unsigned jtype = 0; jtype < solType + 1; jtype++) {
+              ProjectNodalToPolynomialCoefficients (aP[jtype], vx, ielType, jtype) ;
+            }
+          }
+          std::vector <double> xi;
+          GetClosestPointInReferenceElement (vx, xp[i], ielType, xi);
+
+          bool inverseMapping = GetInverseMapping (solType, ielType, aP, xp[i], xi, 100);
+          if (!inverseMapping) {
+            std::cout << "InverseMapping failed at " << iel << " " << idof[i] << std::endl;
+          }
+
+
+          bool insideDomain = CheckIfPointIsInsideReferenceDomain (xi, ielType, 1.e-3); // fine testing
+
+          if (inverseMapping && insideDomain) {
+            sol->_Sol[indexNodeFlag]->add (idof[i], 1.);
+            msh->_finiteElement[ielType][solType]->GetPhi (phi, xi);
+            //std::cout << iel << " " << i << "  ";
+            counter++;
+            for (unsigned k = 0; k < dim; k++) {
+              double solVk = 0.;
+              for (unsigned j = 0; j < nDofs; j++)    {
+                solVk += phi[j] * solV[k][j];
+              }
+              sol->_Sol[indexSolV[k]]->add (idof[i], solVk);
+            }
+          }
+        }
+      }
+    }
+    //END faster part
+
+    //BEGIN a little slower part
+//     bool pcElemUpdate = true;
+//     for (unsigned i = 0; i < nDofs; i++) {
 //       if (!nodeFlag[i]) {
-//         double d2 = 0.;
-//         for (int k = 0; k < dim; k++) {
-//           d2 += (xp[i][k] - xc[k]) * (xp[i][k] - xc[k]);
-//         }
-//         bool insideHull = true;
-//         if (d2 > r2) {
-//           insideHull = false;
-//         }
-//         for (unsigned k = 0; k < dim; k++) {
-//           if (xp[i][k] < xe[k][0] || xp[i][k] > xe[k][1]) {
-//             insideHull = false;
-//           }
-//         }
-// 
-//         if (insideHull) { //rough test
-//           if (!aPIsInitialized) {
-//             aPIsInitialized = true;
-//             std::vector < std::vector <double> > x1 (dim);
+//         bool pointIsInDeformedElement = (dim == 2) ? CheckInclusion2D (sol, iel, vx, xp[i]) : CheckInclusion3D (sol, iel, vx, xp[i]);
+//         if (pointIsInDeformedElement) {
+//           sol->_Sol[indexNodeFlag]->add (idof[i], 1.);
+//           if (pcElemUpdate) {
+//             pcElemUpdate = false;
 //             for (unsigned jtype = 0; jtype < solType + 1; jtype++) {
 //               ProjectNodalToPolynomialCoefficients (aP[jtype], vx, ielType, jtype) ;
 //             }
 //           }
 //           std::vector <double> xi;
 //           GetClosestPointInReferenceElement (vx, xp[i], ielType, xi);
-// 
 //           bool inverseMapping = GetInverseMapping (solType, ielType, aP, xp[i], xi, 100);
 //           if (!inverseMapping) {
-//             std::cout << "InverseMapping failed at " << iel << " " << idof[i] << std::endl;
+//             std::cout << "----------------------------> InverseMapping failed at " << iel << " " << idof[i] << std::endl;
 //           }
-// 
-// 
-//           bool insideDomain = CheckIfPointIsInsideReferenceDomain (xi, ielType, 1.e-3); // fine testing
-// 
-//           if (inverseMapping && insideDomain) {
-//             sol->_Sol[indexNodeFlag]->add (idof[i], 1.);
-//             msh->_finiteElement[ielType][solType]->GetPhi (phi, xi);
-//             //std::cout << iel << " " << i << "  ";
-//             counter++;
-//             for (unsigned k = 0; k < dim; k++) {
-//               double solVk = 0.;
-//               for (unsigned j = 0; j < nDofs; j++)    {
-//                 solVk += phi[j] * solV[k][j];
-//               }
-//               sol->_Sol[indexSolV[k]]->add (idof[i], solVk);
+//           msh->_finiteElement[ielType][solType]->GetPhi (phi, xi);
+//           counter++;
+//           for (unsigned k = 0; k < dim; k++) {
+//             double solVk = 0.;
+//             for (unsigned j = 0; j < nDofs; j++)    {
+//               solVk += phi[j] * solV[k][j];
 //             }
+//             sol->_Sol[indexSolV[k]]->add (idof[i], solVk);
 //           }
 //         }
 //       }
 //     }
-    //END old
-
-    //BEGIN new
-    bool pcElemUpdate = true;
-    std::vector < std::vector < std::vector < double > > > aX;
-    for (unsigned i = 0; i < nDofs; i++) {
-      if (!nodeFlag[i]) {
-        bool pointIsInDeformedElement = (dim == 2) ? CheckInclusion2D (sol, iel, UINT_MAX, vx, xp[i]) : CheckInclusion3D (sol, iel, UINT_MAX, vx, xp[i]);
-        if (pointIsInDeformedElement) {
-          sol->_Sol[indexNodeFlag]->add (idof[i], 1.);
-          std::vector <double> xi;
-          clock_t local_coords_time = clock();
-          FindLocalCoordinates (xi, aX, pcElemUpdate, mlSol, iel, xp[i], vx);
-          pcElemUpdate = false;
-          msh->_finiteElement[ielType][solType]->GetPhi (phi, xi);
-          counter++;
-          for (unsigned k = 0; k < dim; k++) {
-            double solVk = 0.;
-            for (unsigned j = 0; j < nDofs; j++)    {
-              solVk += phi[j] * solV[k][j];
-            }
-            sol->_Sol[indexSolV[k]]->add (idof[i], solVk);
-          }
-        }
-      }
-    }
-    //END new
+    //END a little slower part
   }
 
   sol->_Sol[indexNodeFlag]->close();
@@ -1508,11 +1518,6 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
 //       MPI_Bcast (&xp2[c3[jproc] * dim], c2[jproc] * dim, MPI_DOUBLE, jproc, PETSC_COMM_WORLD);
 //     }
 //   }
-
-
-
-
-
 
 
   vector< double > xp1;
@@ -1713,13 +1718,12 @@ void ProjectGridVelocity2 (MultiLevelSolution & mlSol) {
   }
 }
 
-bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const unsigned &previousElem,  std::vector <std::vector <double>> & xElement,  std::vector <double> &xToCheck) {
+bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
 
   unsigned solXType = 2;
   const unsigned dim = sol->GetMesh()->GetDimension();
 
   bool markerIsInElement = false;
-  bool nextElementFound = false;
   short unsigned currentElementType = sol->GetMesh()->GetElementType (elemToCheck);
   double epsilon  = 10.e-10;
   double epsilon2  = epsilon * epsilon;
@@ -1835,14 +1839,8 @@ bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const unsigne
               break;
             }
             else {
-              unsigned nodeIndex = (solXType == 0) ? i : i / 2;
-              unsigned nextElem = (sol->GetMesh()->el->GetFaceElementIndex (elemToCheck, nodeIndex) - 1);
-              if (nextElem != previousElem) {
-                nextElementFound = true;
-              }
               break;
             }
-
           }
 
           else if (xvr[0][i]*xvr[0][i + 1] < 0 || xvr[1][i]*xvr[1][i + 1] < 0) {
@@ -1858,11 +1856,6 @@ bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const unsigne
               break;
             }
             else {
-              unsigned nodeIndex = (solXType == 0) ? i : i / 2;
-              unsigned nextElem = (sol->GetMesh()->el->GetFaceElementIndex (elemToCheck, nodeIndex) - 1);
-              if (nextElem != previousElem) {
-                nextElementFound = true;
-              }
               break;
             }
           }
@@ -1872,13 +1865,11 @@ bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const unsigne
     //END look for face intersection
   }// closes the else before the for
 
-  if (nextElementFound == true) markerIsInElement = false;
-
   return markerIsInElement;
 
 }
 
-bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigned &previousElem, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
+bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
 
   const unsigned dim = sol->GetMesh()->GetDimension();
   unsigned solXType = 2;
@@ -2028,10 +2019,9 @@ bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigne
                   }
                   else {
                     //     std::cout << "r is in triangle " << itri << std::endl;
-                    unsigned nextElem = (sol->GetMesh()->el->GetFaceElementIndex (elemToCheck, iface) - 1);
-                    if (nextElem != previousElem) {
-                      nextElementFound = true;
-                    }
+
+                    nextElementFound = true;
+
                     break;
                   }
                 }
@@ -2047,10 +2037,9 @@ bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigne
                   }
                   else {
                     //     std::cout << "r is in triangle " << itri << std::endl;
-                    unsigned nextElem = (sol->GetMesh()->el->GetFaceElementIndex (elemToCheck, iface) - 1);
-                    if (nextElem != previousElem) {
-                      nextElementFound = true;
-                    }
+
+                    nextElementFound = true;
+
                     break;
                   }
                 }
@@ -2075,10 +2064,9 @@ bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigne
           }
           else {
             //    std::cout << "r is in triangle " << itri << std::endl;
-            unsigned nextElem = (sol->GetMesh()->el->GetFaceElementIndex (elemToCheck, iface) - 1);
-            if (nextElem != previousElem) {
-              nextElementFound = true;
-            }
+
+            nextElementFound = true;
+
             break;
           }
         }
@@ -2099,20 +2087,14 @@ bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const unsigne
     } //end for on iface
   } // end of the first else
 
-  if (nextElementFound == true) {
-    markerIsInElement = false;
-  }
+  if (nextElementFound == true)  markerIsInElement = false;
 
   return markerIsInElement;
 
 }
 
-void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, MultiLevelSolution & mlSol, const unsigned &elementToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement) {
+void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, Solution* sol, const unsigned &elementToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement) {
 
-  const unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
-  Mesh* msh = mlSol._mlMesh->GetLevel (level);
-  Solution* sol  = mlSol.GetSolutionLevel (level);
-  const unsigned dim = msh->GetDimension();
   unsigned solXType = 2;
 
   short unsigned elemType = sol->GetMesh()->GetElementType (elementToCheck);
