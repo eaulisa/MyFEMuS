@@ -125,6 +125,7 @@ bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const std::ve
 bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> & xToCheck);
 void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, Solution* sol, const unsigned &elemToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement);
 
+
 void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
   // ml_prob is the global object from/to where get/set all the data
@@ -182,7 +183,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
   vector < adept::adouble> gradPhi;
   vector < double > gradPhiHat;
 
-  vector <vector < adept::adouble> > vx (dim); //vx is coordX in assembly of ex30
+  vector <vector < adept::adouble> > vx (dim);  //vx is coordX in assembly of ex30
   vector <vector < double> > vxHat (dim);
 
   adept::adouble weight;
@@ -195,7 +196,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
   double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
   double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
   double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-  double KMmp = EMpm / (3.* (1. - 2. * nuMpm)); //bulk modulus
+  double KMmp = EMpm / (3.* (1. - 2. * nuMpm));     //bulk modulus
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
@@ -285,8 +286,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned idof = msh->GetSolutionDof (i, iel, solType);
 
-      solidFlag[i] = ( (*mysolution->_Sol[indexSolM]) (idof) > 0.5) ? true : false; // sharp interface: divide fluid and solid dofs
-      solidFlag1[i] = ( (*mysolution->_Sol[indexSolM1]) (idof) > 0.5) ? true : false; // non-sharp interface: divide the dofs of cells that have at least one solid marker with the rest
+      solidFlag[i] = ( (*mysolution->_Sol[indexSolM]) (idof) > 0.5) ? true : false;     // sharp interface: divide fluid and solid dofs
+      solidFlag1[i] = ( (*mysolution->_Sol[indexSolM1]) (idof) > 0.5) ? true : false;     // non-sharp interface: divide the dofs of cells that have at least one solid marker with the rest
 
       for (unsigned  k = 0; k < dim; k++) {
         solD[k][i] = (*mysolution->_Sol[indexSolD[k]]) (idof);
@@ -358,10 +359,10 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (unsigned i = 0; i < nDofs; i++) {
         for (unsigned k = 0; k < dim; k++) {
-          if (solidFlag[i]) { //kinematic: v - dD/dt = 0 in the solid domain
+          if (solidFlag[i]) {  //kinematic: v - dD/dt = 0 in the solid domain
             aRhsV[k][i] += phiHat[i] * (solV[k][i] - (solD[k][i] - solDOld[k][i]) / dt) * weightHat;
           }
-          if (!solidFlag1[i]) { //ALE equation: smooth displacement of the fluid mesh
+          if (!solidFlag1[i]) {  //ALE equation: smooth displacement of the fluid mesh
             adept::adouble  wlaplaceD  = 0.;
             for (unsigned  j = 0; j < dim; j++) {
               wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
@@ -371,7 +372,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
         }
       }
 
-      if (MPMmaterial < nDofs) { //only cells that are not completely solid
+      if (MPMmaterial < nDofs) {  //only cells that are not completely solid
         for (unsigned i = 0; i < nDofs; i++) {
           for (unsigned k = 0; k < dim; k++) {
             adept::adouble wlaplace = 0.;
@@ -380,12 +381,12 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
               wlaplace  +=  gradPhi[i * dim + j] * (gradSolVg[k][j] + gradSolVg[j][k]);
               advection  +=  phi[i] * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j];
             }
-            if (!solidFlag[i]) { // contribution to a fluid momentum equation (solidFlag[i]) from fluid and interface cells
+            if (!solidFlag[i]) {  // contribution to a fluid momentum equation (solidFlag[i]) from fluid and interface cells
               aRhsV[k][i] += (- rhoFluid * phi[i] * (solVg[k] - solVgOld[k]) / dt
                               - rhoFluid * advection - muFluid * wlaplace
                               + gradPhi[i * dim + k] * solPg) * weight;
             }
-            if (MPMmaterial == 0 && solidFlag1[i]) { // contribution to a solid momentum equation (solidFlag1[i]) from a adjacent fluid cell
+            if (MPMmaterial == 0 && solidFlag1[i]) {  // contribution to a solid momentum equation (solidFlag1[i]) from a adjacent fluid cell
               aRhsD[k][i] += (- rhoFluid * phi[i] * (solVg[k] - solVgOld[k]) / dt
                               - rhoFluid * advection - muFluid * wlaplace
                               + gradPhi[i * dim + k] * solPg) * weight;
@@ -403,15 +404,15 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
             aRhsP[i] += phiP[i] *  gradSolVg[k][k] * weight;
           }
         }
-        else if (MPMmaterial < nDofs) {
-          double nu = 0.49; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
-          double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
-          aRhsP[i] += phiP[i] * solPg * lameFluidInverse * weight;
-          for (unsigned  k = 0; k < dim; k++) {
-            aRhsP[i] += phiP[i] *  gradSolVg[k][k] * weight;
-          }
-        }
-        else {  //all cells that are completely MPM solid
+//         else if (MPMmaterial < nDofs) {
+//           double nu = 0.49; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
+//           double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
+//           aRhsP[i] += phiP[i] * solPg * lameFluidInverse * weight;
+//           for (unsigned  k = 0; k < dim; k++) {
+//             aRhsP[i] += phiP[i] *  gradSolVg[k][k] * weight;
+//           }
+//         }
+        else if (MPMmaterial == nDofs) {  //all cells that are completely MPM solid
           aRhsP[i] += phiP[i] * solPg * weight;
         }
       }
@@ -419,7 +420,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
 
     //BEGIN SOLID PARTICLE
-    if (MPMmaterial > 0) { //solid markers
+    if (MPMmaterial > 0) {  //solid markers
       while (iSmarker < markerOffsetSolid[iproc + 1] && iel == particlesSolid[iSmarker]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
@@ -434,7 +435,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
         double mass = particlesSolid[iSmarker]->GetMarkerMass();
 
-        msh->_finiteElement[ielt][solType]->Jacobian (vx, xi, weight, phi, gradPhi); //function to evaluate at the particles
+        msh->_finiteElement[ielt][solType]->Jacobian (vx, xi, weight, phi, gradPhi);  //function to evaluate at the particles
 
         // displacement and velocity
         //BEGIN evaluates SolDp at the particle iSmarker
@@ -497,7 +498,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
         for (unsigned j = 0; j < 3; j++) {
           for (unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log (J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]); //alternative formulation
+            Cauchy[j][k] = lambdaMpm * log (J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);    //alternative formulation
           }
         }
         //END computation of the Cauchy Stress
@@ -518,13 +519,41 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
                            ) * mass;
           }
         }
+
+        if (MPMmaterial < nDofs) {
+
+          vector<vector < adept::adouble > > gradSolVp (dim);
+          for (int j = 0; j < dim; j++) {
+            gradSolVp[j].assign (dim, 0.);
+            for (unsigned i = 0; i < nDofs; i++) {
+              for (int k = 0; k < dim; k++) {
+                gradSolVp[j][k] +=  gradPhi[i * dim + k] * solV[j][i];
+              }
+            }
+          }
+
+          adept::adouble solPp = 0.;
+          msh->_finiteElement[ielt][solTypeP]->GetPhi (phiP, xi);
+          for (unsigned i = 0; i < nDofsP; i++) {
+            solPp += phiP[i] * solP[i];
+          }
+          double nu = 0.49;
+          double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
+          for (unsigned i = 0; i < nDofsP; i++) {
+            aRhsP[i] += phiP[i] * solPp * lameFluidInverse * mass / rhoMpm;
+            for (unsigned  k = 0; k < dim; k++) {
+              aRhsP[i] += phiP[i] *  gradSolVp[k][k] * mass / rhoMpm;
+            }
+          }
+        }
+
         iSmarker++;
       }
     }
     //END SOLID PARTICLE
 
     //BEGIN FLUID PARTICLE
-    if (MPMmaterial > 0 && MPMmaterial < nDofs) { //solid markers
+    if (MPMmaterial > 0 && MPMmaterial < nDofs) {  //solid markers
       while (iFmarker < markerOffsetFluid[iproc + 1] && iel > particlesFluid[iFmarker]->GetMarkerElement()) {
         iFmarker++;
       }
@@ -580,14 +609,21 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
               Dlaplace  +=  gradPhi[i * dim + j] * (gradSolDp[k][j] + gradSolDp[j][k]);
               advection  +=  phi[i] * (solVp[j] - (solDp[j] - solDpOld[j]) / dt) * gradSolVp[k][j];
             }
-            if (solidFlag1[i]) { // This is for the coupling with the solid
-              aRhsD[k][i] += (- phi[i] * (solVp[k] - solVpOld[k]) / dt - advection +
-                              muFluid / rhoFluid * (- Vlaplace) + gradPhi[i * dim + k] * solPp / rhoFluid
-                              + 0.0005 * muMpm / rhoFluid * (- Dlaplace) //softStiffness (this is the only trick in this formulation)
-                             ) * mass;
-            }
+            //if(solidFlag1[i]) {   // This is for the coupling with the solid
+            aRhsD[k][i] += (- phi[i] * (solVp[k] - solVpOld[k]) / dt - advection +
+                            muFluid / rhoFluid * (- Vlaplace) + gradPhi[i * dim + k] * solPp / rhoFluid
+                            + 0.01 * pow ( (nDofs - MPMmaterial) / 8., 2) * muMpm / rhoFluid * (- Dlaplace)   //softStiffness (this is the only trick in this formulation)
+                           ) * mass;
+            //}
           }
         }
+
+        for (unsigned i = 0; i < nDofsP; i++) {
+          for (unsigned  k = 0; k < dim; k++) {
+            aRhsP[i] += phiP[i] *  gradSolVp[k][k] * mass / rhoFluid;
+          }
+        }
+
         iFmarker++;
       }
     }
@@ -604,7 +640,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 //       while (imarker < markerOffsetInterface[iproc + 1] && iel == particlesInterface[imarker]->GetMarkerElement()) {
 //
 //         // the local coordinates of the particles are the Gauss points in this context
-//         std::vector <double> xi = particlesFluid[imarker]->GetMarkerLocalCoordinates();
+//         std::vector <double> xi = particlesInterface[imarker]->GetMarkerLocalCoordinates();
 //
 //         msh->_finiteElement[ielt][solType]->Jacobian (vxHat, xi, weightHat, phiHat, gradPhiHat);
 //         msh->_finiteElement[ielt][solType]->Jacobian (vx, xi, weight, phi, gradPhi);
@@ -741,7 +777,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     //END INTERFACE PARTICLES
 
     //copy the value of the adept::adoube aRes in double Res and store them in RES
-    rhs.resize (nDofsAll); //resize
+    rhs.resize (nDofsAll);  //resize
 
     for (int i = 0; i < nDofs; i++) {
       for (unsigned  k = 0; k < dim; k++) {
@@ -784,25 +820,25 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     s.clear_dependents();
 
   }
-  //END building "soft" stiffness matrix
+//END building "soft" stiffness matrix
 
   myRES->close();
   myKK->close();
 
 
-  //   PetscViewer    viewer1;
-  //   PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 1800, 1800, &viewer1);
-  //   PetscObjectSetName ( (PetscObject) viewer1, "FSI matrix");
-  //   PetscViewerPushFormat (viewer1, PETSC_VIEWER_DRAW_LG);
-  //   MatView ( (static_cast< PetscMatrix* > (myKK))->mat(), viewer1);
-  //
-  //   double a;
-  //   std::cin >> a;
+//   PetscViewer    viewer1;
+//   PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 1800, 1800, &viewer1);
+//   PetscObjectSetName ( (PetscObject) viewer1, "FSI matrix");
+//   PetscViewerPushFormat (viewer1, PETSC_VIEWER_DRAW_LG);
+//   MatView ( (static_cast< PetscMatrix* > (myKK))->mat(), viewer1);
+//
+//   double a;
+//   std::cin >> a;
 
-  // *************************************
+// *************************************
   end_time = clock();
   AssemblyTime += (end_time - start_time);
-  // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
+// ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
 
@@ -839,7 +875,7 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & solidLine, L
   vector < double > phiHat;
   vector < double > gradPhiHat;
 
-  vector <vector < double> > vxHat (dim); //vx is coordX in assembly of ex30
+  vector <vector < double> > vxHat (dim);  //vx is coordX in assembly of ex30
 
   double weightHat;
 
@@ -876,8 +912,8 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & solidLine, L
         }
 
         for (unsigned inode = 0; inode < nDofs; inode++) {
-          unsigned idof = msh->GetSolutionDof (inode, iel, solType); //local 2 global solution
-          unsigned idofX = msh->GetSolutionDof (inode, iel, 2); //local 2 global solution
+          unsigned idof = msh->GetSolutionDof (inode, iel, solType);  //local 2 global solution
+          unsigned idofX = msh->GetSolutionDof (inode, iel, 2);  //local 2 global solution
           for (int i = 0; i < dim; i++) {
             solDOld[i][inode] = (*mysolution->_SolOld[indexSolD[i]]) (idof);
             solD[i][inode] = (*mysolution->_Sol[indexSolD[i]]) (idof) - solDOld[i][inode];
@@ -975,8 +1011,8 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & solidLine, L
         }
 
         for (unsigned inode = 0; inode < nDofs; inode++) {
-          unsigned idof = msh->GetSolutionDof (inode, iel, solType); //local 2 global solution
-          unsigned idofX = msh->GetSolutionDof (inode, iel, 2); //local 2 global solution
+          unsigned idof = msh->GetSolutionDof (inode, iel, solType);  //local 2 global solution
+          unsigned idofX = msh->GetSolutionDof (inode, iel, 2);  //local 2 global solution
           for (int i = 0; i < dim; i++) {
             solDOld[i][inode] = (*mysolution->_SolOld[indexSolD[i]]) (idof);
             solD[i][inode] = (*mysolution->_Sol[indexSolD[i]]) (idof) - solDOld[i][inode];
@@ -1059,8 +1095,8 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & solidLine, L
         }
 
         for (unsigned inode = 0; inode < nDofs; inode++) {
-          unsigned idof = msh->GetSolutionDof (inode, iel, solType); //local 2 global solution
-          unsigned idofX = msh->GetSolutionDof (inode, iel, 2); //local 2 global solution
+          unsigned idof = msh->GetSolutionDof (inode, iel, solType);  //local 2 global solution
+          unsigned idofX = msh->GetSolutionDof (inode, iel, 2);  //local 2 global solution
           for (int i = 0; i < dim; i++) {
             solDOld[i][inode] = (*mysolution->_SolOld[indexSolD[i]]) (idof);
             solD[i][inode] = (*mysolution->_Sol[indexSolD[i]]) (idof) - solDOld[i][inode];
@@ -1191,7 +1227,7 @@ void GetParticlesToNodeFlag (MultiLevelSolution & mlSol, Line & solidLine, Line 
         for (unsigned i = 0; i < nDofs; i++) {
           idof[i] = msh->GetSolutionDof (i, iel, solType);
           sol->_Sol[solIndexNodeFlag]->set (idof[i], 1.);
-          unsigned idofX = msh->GetSolutionDof (i, iel, 2); //local 2 global solution
+          unsigned idofX = msh->GetSolutionDof (i, iel, 2);  //local 2 global solution
           for (int k = 0; k < dim; k++) {
             vxHat[k][i] = (*msh->_topology->_Sol[k]) (idofX);
           }
@@ -1235,7 +1271,7 @@ void GetParticlesToNodeFlag (MultiLevelSolution & mlSol, Line & solidLine, Line 
   for (unsigned iMarker = markerOffset[iproc]; iMarker < markerOffset[iproc + 1]; iMarker++) {
     unsigned iel = particlesFluid[iMarker]->GetMarkerElement();
     if (iel != UINT_MAX) {
-      if ( (*sol->_Sol[indexSolMat]) (iel) != 0) { //only if it is an interface element
+      if ( (*sol->_Sol[indexSolMat]) (iel) != 0) {    //only if it is an interface element
         short unsigned ielt;
         unsigned nDofs;
         if (iel != ielOld) {
@@ -1247,7 +1283,7 @@ void GetParticlesToNodeFlag (MultiLevelSolution & mlSol, Line & solidLine, Line 
           idof.resize (nDofs);
           for (unsigned i = 0; i < nDofs; i++) {
             idof[i] = msh->GetSolutionDof (i, iel, solType);
-            unsigned idofX = msh->GetSolutionDof (i, iel, 2); //local 2 global solution
+            unsigned idofX = msh->GetSolutionDof (i, iel, 2);  //local 2 global solution
             for (int k = 0; k < dim; k++) {
               vxHat[k][i] = (*msh->_topology->_Sol[k]) (idofX);
             }
@@ -1279,6 +1315,61 @@ void GetParticlesToNodeFlag (MultiLevelSolution & mlSol, Line & solidLine, Line 
   sol->_Sol[solIndexNodeFlag]->closeWithMinValues();
   //END
 
+
+  unsigned indexSolC = sol->GetIndex ("C");
+
+  std::vector<unsigned> markerOffsetSolid = solidLine.GetMarkerOffset();
+  std::vector<unsigned> markerOffsetFluid = fluidLine.GetMarkerOffset();
+
+
+  unsigned iSmarker = markerOffsetSolid[iproc];
+  unsigned iFmarker = markerOffsetFluid[iproc];
+
+  double rhos = 7850;
+  double rhof = 1000;
+
+  //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
+  for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    short unsigned ielt = msh->GetElementType (iel);
+    double  MPMmaterial = (*sol->_Sol[indexSolMat]) (iel);
+
+    unsigned nDofs = msh->GetElementDofNumber (iel, solType);   // number of solution element dofs
+
+    if (MPMmaterial == 0) {
+      sol->_Sol[indexSolC]->set (iel, 0.);
+    }
+    else if (MPMmaterial == nDofs) {
+      sol->_Sol[indexSolC]->set (iel, 1.);
+    }
+    else {
+      double volumef = 0.;
+      double volumes = 0.;
+
+      //BEGIN SOLID PARTICLE
+      while (iSmarker < markerOffsetSolid[iproc + 1] && iel > particlesSolid[iSmarker]->GetMarkerElement()) {
+        iSmarker++;
+      }
+      while (iSmarker < markerOffsetSolid[iproc + 1] && iel == particlesSolid[iSmarker]->GetMarkerElement()) {
+        volumes += particlesSolid[iSmarker]->GetMarkerMass() / rhos;
+        iSmarker++;
+      }
+      //END SOLID PARTICLE
+
+      //BEGIN FLUID PARTICLE
+      while (iFmarker < markerOffsetFluid[iproc + 1] && iel > particlesFluid[iFmarker]->GetMarkerElement()) {
+        iFmarker++;
+      }
+      while (iFmarker < markerOffsetFluid[iproc + 1] && iel == particlesFluid[iFmarker]->GetMarkerElement()) {
+        volumef += particlesFluid[iFmarker]->GetMarkerMass() / rhof;
+        iFmarker++;
+      }
+      //END FLUID PARTICLE
+
+      sol->_Sol[indexSolC]->set (iel, volumes / (volumes + volumef));
+    }
+  }
+  sol->_Sol[indexSolC]->close();
 }
 
 void ProjectGridVelocity (MultiLevelSolution &mlSol) {
@@ -1297,7 +1388,7 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
   vector< unsigned > idof;     // local solution (velocity)
 
   vector < double > phi;
-  vector <vector < double> > vx (dim); //vx is coordX in assembly of ex30
+  vector <vector < double> > vx (dim);  //vx is coordX in assembly of ex30
   vector <vector < double> > xp;
 
 
@@ -1352,12 +1443,13 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
       for (unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_SolOld[indexSolV[k]]) (idof[i]);
         for (unsigned  k = 0; k < dim; k++) {
-          xp[i][k] = (*msh->_topology->_Sol[k]) (idofX); // coordinates of the reference configuration;
-          vx[k][i] = xp[i][k] + (*sol->_Sol[indexSolD[k]]) (idof[i]); // coordinates of the deformed configuration
+          xp[i][k] = (*msh->_topology->_Sol[k]) (idofX);    // coordinates of the reference configuration;
+          vx[k][i] = xp[i][k] + (*sol->_Sol[indexSolD[k]]) (idof[i]);    // coordinates of the deformed configuration
         }
         nodeFlag[i] = ( (*sol->_Sol[indexNodeFlag]) (idof[i]) > 0.5) ? true : false;
       }
     }
+
 
     //BEGIN faster part
     bool aPIsInitialized = false;
@@ -1455,6 +1547,7 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
 //       }
 //     }
     //END a little slower part
+
   }
 
   sol->_Sol[indexNodeFlag]->close();
@@ -1556,8 +1649,8 @@ void ProjectGridVelocity (MultiLevelSolution &mlSol) {
             unsigned jdof = msh->GetSolutionDof (j, jel, solType);
             unsigned jdofX = msh->GetSolutionDof (j, jel, 2);
             for (unsigned  k = 0; k < dim; k++) {
-              solV[k][j] = (*sol->_SolOld[indexSolV[k]]) (jdof); //velocity to be projected
-              vx[k][j] = (*msh->_topology->_Sol[k]) (jdofX) + (*sol->_Sol[indexSolD[k]]) (jdof); // coordinates of the deformed configuration
+              solV[k][j] = (*sol->_SolOld[indexSolV[k]]) (jdof);    //velocity to be projected
+              vx[k][j] = (*msh->_topology->_Sol[k]) (jdofX) + (*sol->_Sol[indexSolD[k]]) (jdof);       // coordinates of the deformed configuration
             }
           }
           std::vector <double> xi = p.GetMarkerLocalCoordinates();
@@ -1718,412 +1811,415 @@ void ProjectGridVelocity2 (MultiLevelSolution & mlSol) {
   }
 }
 
+
 bool CheckInclusion2D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
+    unsigned solXType = 2;
+    const unsigned dim = sol->GetMesh()->GetDimension();
 
-  unsigned solXType = 2;
-  const unsigned dim = sol->GetMesh()->GetDimension();
+    bool markerIsInElement = false;
+    short unsigned currentElementType = sol->GetMesh()->GetElementType (elemToCheck);
+    double epsilon  = 10.e-10;
+    double epsilon2  = epsilon * epsilon;
+    double t;
 
-  bool markerIsInElement = false;
-  short unsigned currentElementType = sol->GetMesh()->GetElementType (elemToCheck);
-  double epsilon  = 10.e-10;
-  double epsilon2  = epsilon * epsilon;
-  double t;
-
-  std::vector<double> xc (dim, 0); //stores the coordinates of the face node of elemToCheck
-  unsigned faceNodeLocalIndex = (currentElementType == 3) ? 8 : 6;
-  for (unsigned k = 0; k < dim; k++) {
-    xc[k] = xElement[k][faceNodeLocalIndex] - xToCheck[k]; // coordinates are translated so that the point to check is the new origin
-  }
-
-  if (xc[0]*xc[0] < epsilon2 && xc[1]*xc[1] < epsilon2) {
-    //   std::cout << "the marker is the central face node" << std::endl;
-    markerIsInElement = true; //the marker is xc
-  }
-  else {
-    unsigned faceNodeNumber = facePointNumber[currentElementType][solXType];
-    std::vector< std::vector < double > > xv (dim);  //stores the coordinates of the vertices and midpoints of the element, the first and the last are the same
+    std::vector<double> xc (dim, 0);  //stores the coordinates of the face node of elemToCheck
+    unsigned faceNodeLocalIndex = (currentElementType == 3) ? 8 : 6;
     for (unsigned k = 0; k < dim; k++) {
-      xv[k].reserve (faceNodeNumber);
-      xv[k].resize (faceNodeNumber - 1);
+      xc[k] = xElement[k][faceNodeLocalIndex] - xToCheck[k]; // coordinates are translated so that the point to check is the new origin
     }
-    for (unsigned i = 0; i < faceNodeNumber - 1; i++) {
+
+    if (xc[0]*xc[0] < epsilon2 && xc[1]*xc[1] < epsilon2) {
+      //   std::cout << "the marker is the central face node" << std::endl;
+      markerIsInElement = true; //the marker is xc
+    }
+    else {
+      unsigned faceNodeNumber = facePointNumber[currentElementType][solXType];
+      std::vector< std::vector < double > > xv (dim);  //stores the coordinates of the vertices and midpoints of the element, the first and the last are the same
+      for (unsigned k = 0; k < dim; k++) {
+        xv[k].reserve (faceNodeNumber);
+        xv[k].resize (faceNodeNumber - 1);
+      }
+      for (unsigned i = 0; i < faceNodeNumber - 1; i++) {
 //       unsigned inodeDof  = sol->GetMesh()->GetSolutionDof (facePoints[currentElementType][solXType][i], elemToCheck, 2);
+        for (unsigned k = 0; k < dim; k++) {
+          xv[k][i] = xElement[k][facePoints[currentElementType][solXType][i]] - xToCheck[k];
+        }
+      }
+
+      std::vector<double> r (dim, 0);  //coordinates of the intersection point between the line of the edges and the line that connects the marker and the face node
       for (unsigned k = 0; k < dim; k++) {
-        xv[k][i] = xElement[k][facePoints[currentElementType][solXType][i]] - xToCheck[k];
+        xv[k].resize (faceNodeNumber);
+        xv[k][faceNodeNumber - 1] = xv[k][0];
       }
-    }
 
-    std::vector<double> r (dim, 0);  //coordinates of the intersection point between the line of the edges and the line that connects the marker and the face node
-    for (unsigned k = 0; k < dim; k++) {
-      xv[k].resize (faceNodeNumber);
-      xv[k][faceNodeNumber - 1] = xv[k][0];
-    }
+      //BEGIN look for face intersection
 
-    //BEGIN look for face intersection
+      // rescaling coordinates to properly handle different scales of meshes
 
-    // rescaling coordinates to properly handle different scales of meshes
+      double length = 0.;
+      double sum = 0.;
 
-    double length = 0.;
-    double sum = 0.;
+      for (unsigned i = 0; i < faceNodeNumber - 1; i++) {
+        for (unsigned k = 0; k < dim; k++) {
+          sum += (xv[k][i + 1] - xv[k][i]) * (xv[k][i + 1] - xv[k][i]);
+        }
 
-    for (unsigned i = 0; i < faceNodeNumber - 1; i++) {
+        length += sqrt (sum);
+      }
+
+      length /= faceNodeNumber;
+
       for (unsigned k = 0; k < dim; k++) {
-        sum += (xv[k][i + 1] - xv[k][i]) * (xv[k][i + 1] - xv[k][i]);
+        xc[k] /= length;
+        for (unsigned i = 0; i < faceNodeNumber; i++) {
+          xv[k][i] /= length;
+        }
       }
 
-      length += sqrt (sum);
-    }
+      for (unsigned i = 0 ; i < faceNodeNumber - 1; i++) {
 
-    length /= faceNodeNumber;
+        // let's find the plane passing through the points xv[][i], xv[][i+1] and xv[][2] = xv[][i] but with z = length .
+        double A = (xv[1][i + 1] - xv[1][i]);
+        double B = - (xv[0][i + 1] - xv[0][i]);
 
-    for (unsigned k = 0; k < dim; k++) {
-      xc[k] /= length;
-      for (unsigned i = 0; i < faceNodeNumber; i++) {
-        xv[k][i] /= length;
-      }
-    }
+        //std::cout << "A= " << A << " , " <<"B= " << B <<std::endl;
 
-    for (unsigned i = 0 ; i < faceNodeNumber - 1; i++) {
+        double tBottom = (A * xc[0] + B * xc[1]) ;
+        double tTop = A * xv[0][i] + B * xv[1][i];
+        //std::cout << "tBottom = " << tBottom << " , " << "A= " << A << " , " <<  "B= " << B << " , " << "xv[1][" << i << "] =" << xv[1][i] << " , " <<  "tTop = " <<   tTop << std::endl;
 
-      // let's find the plane passing through the points xv[][i], xv[][i+1] and xv[][2] = xv[][i] but with z = length .
-      double A = (xv[1][i + 1] - xv[1][i]);
-      double B = - (xv[0][i + 1] - xv[0][i]);
-
-      //std::cout << "A= " << A << " , " <<"B= " << B <<std::endl;
-
-      double tBottom = (A * xc[0] + B * xc[1]) ;
-      double tTop = A * xv[0][i] + B * xv[1][i];
-      //std::cout << "tBottom = " << tBottom << " , " << "A= " << A << " , " <<  "B= " << B << " , " << "xv[1][" << i << "] =" << xv[1][i] << " , " <<  "tTop = " <<   tTop << std::endl;
-
-      if (fabs (tBottom) >= epsilon || fabs (tTop) < epsilon) {
-        //now let's find the coordinates of the intersection point r
-        t = tTop / tBottom ;
-        //std::cout << "t = " << t << std::endl;
-
-        for (unsigned k = 0; k < dim; k++) {
-          r[k] = t * xc[k];
-          //std::cout << "r[" << k << "] = " << r[k] <<std::endl;
-        }
-
-        if (t < 1.) {  //if not, it means the point r is far away from the marker, and we don't want to go in that direction
-
-          std::vector< std::vector < double > > xvr (dim);
-
-          for (unsigned k = 0; k < dim; k++) {
-            xvr[k].reserve (9);
-          }
-
-          for (unsigned k = 0; k < dim; k++) {
-            xvr[k].resize (faceNodeNumber);
-          }
-
-          //now we have to determine if r is inside edge i
-          for (unsigned j = 0; j < faceNodeNumber; j++) {
-            for (unsigned k = 0; k < dim; k++) {
-              xvr[k][j] = xv[k][j] - r[k];     //transate again the reference frame so that the origin is r
-            }
-          }
-
-
-          if ( (xvr[0][i] * xvr[0][i]  + xvr[1][i] * xvr[1][i]) < epsilon2 ||
-               (xvr[0][i + 1]*xvr[0][i + 1] + xvr[1][i + 1]*xvr[1][i + 1]) < epsilon2) {
-            // std::cout << "intersection on a vertex of the edge" << std::endl;
-
-            if (fabs (t) < epsilon || t < 0) { //this means the marker is on one of the edges
-
-              // if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is one of the nodes" << std::endl;
-
-              // if(t < 0) std::cout << "setting markerIsInElement = true because r is one of the nodes" << std::endl;
-
-              markerIsInElement = true;
-              break;
-            }
-            else {
-              break;
-            }
-          }
-
-          else if (xvr[0][i]*xvr[0][i + 1] < 0 || xvr[1][i]*xvr[1][i + 1] < 0) {
-            // std::cout << "intersection on an edge" << std::endl;
-
-            if (fabs (t) < epsilon || t < 0) { //this means the marker is on one of the edges
-
-              //  if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges " << std::endl;
-
-              // if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges " << std::endl;
-
-              markerIsInElement = true;
-              break;
-            }
-            else {
-              break;
-            }
-          }
-        } // closes the " if t < 1 "
-      } // closes if
-    } //closes the for on the nodes
-    //END look for face intersection
-  }// closes the else before the for
-
-  return markerIsInElement;
-
-}
-
-bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
-
-  const unsigned dim = sol->GetMesh()->GetDimension();
-  unsigned solXType = 2;
-
-  unsigned nDofs = sol->GetMesh()->GetElementDofNumber (elemToCheck, solXType);
-  unsigned nFaceDofs = (solXType == 2) ? nDofs - 1 : nDofs;
-  bool markerIsInElement = false;
-  bool nextElementFound = false;
-  short unsigned currentElementType = sol->GetMesh()->GetElementType (elemToCheck);
-  double epsilon  = 10.e-10;
-  double epsilon2  = epsilon * epsilon;
-  double t;
-
-  std::vector<double> xc (dim, 0); //stores the coordinates of the central node of elemToCheck
-  unsigned centralNodeLocalIndex;
-
-  if (currentElementType == 0) centralNodeLocalIndex = 26;
-  else if (currentElementType == 1) centralNodeLocalIndex = 14;
-  else if (currentElementType == 2) centralNodeLocalIndex = 20;
-
-  for (unsigned k = 0; k < dim; k++) {
-    xc[k] = xElement[k][centralNodeLocalIndex] - xToCheck[k]; // coordinates are translated so that the marker is the new origin
-    //std::cout << " xc[" << k << "]= " <<xc[k] <<std::endl;
-  }
-
-  if (xc[0]*xc[0] < epsilon2 && xc[1]*xc[1] < epsilon2 && xc[2]*xc[2] < epsilon2) {
-    //   std::cout << "the marker is the central element node" << std::endl;
-    markerIsInElement = true; //the marker is xc
-  }
-
-  else {
-
-    for (unsigned iface = 0; iface < sol->GetMesh()->GetElementFaceNumber (elemToCheck); iface++) {
-
-      // std::cout << "iface = " << iface << std::endl;
-
-      for (unsigned itri = 0; itri < trianglesPerFace[currentElementType][solXType][iface]; itri ++) {
-
-        //  std::cout << "itri = " << itri << std::endl;
-
-        std::vector<double> xcc (dim, 0); // will store the coordinates of the center scaled
-
-        unsigned scalarCount = 0;
-        std::vector<double> r (dim, 0);  //coordinates of the intersection point between the plane of itri and the line through the element center point and the marker
-        std::vector< std::vector < double > > xv (dim);  //stores the coordinates of the nodes of the triangle itri
-
-        // fill in the coordinates of the vertices of itri
-        for (unsigned k = 0; k < dim; k++) {
-          xv[k].reserve (4);
-        }
-        for (unsigned k = 0; k < dim; k++) {
-          xv[k].resize (4);
-        }
-
-        for (unsigned i = 0; i < 4; i++) {
-//           unsigned itriDof  = sol->GetMesh()->GetSolutionDof (faceTriangleNodes[currentElementType][solXType][iface][itri][i], elemToCheck, 2);
-          // std::cout << "itriDof = " << itriDof << std::endl;
-          for (unsigned k = 0; k < dim; k++) {
-            xv[k][i] = xElement[k][faceTriangleNodes[currentElementType][solXType][iface][itri][i]] - xToCheck[k]; // coordinates are translated so that the marker is the new origin
-          }
-        }
-
-        // rescaling coordinates to properly handle different scales of meshes
-        double length = 0.;
-        double sum = 0.;
-        for (unsigned i = 0; i < 3; i++) {
-          for (unsigned k = 0; k < dim; k++) {
-            sum += (xv[k][i + 1] - xv[k][i]) * (xv[k][i + 1] - xv[k][i]);
-          }
-          length += sqrt (sum);
-        }
-
-        length /= 4;
-
-        for (unsigned k = 0; k < dim; k++) {
-          xcc[k] = xc[k] / length;
-          //std::cout << " xcc[" << k << "]= " <<xcc[k] <<std::endl;
-          for (unsigned i = 0; i < 4; i++) {
-            xv[k][i] /= length;
-          }
-        }
-
-
-        // let's find the plane passing through the vertices of the triangle itri
-        double A = - (xv[1][2] - xv[1][0]) * (xv[2][1] - xv[2][0]) + (xv[2][2] - xv[2][0]) * (xv[1][1] - xv[1][0]);
-        double B = - (xv[2][2] - xv[2][0]) * (xv[0][1] - xv[0][0]) + (xv[0][2] - xv[0][0]) * (xv[2][1] - xv[2][0]);
-        double C = - (xv[0][2] - xv[0][0]) * (xv[1][1] - xv[1][0]) + (xv[1][2] - xv[1][0]) * (xv[0][1] - xv[0][0]);
-
-        //std::cout << "A= " << A << " , " <<"B= " << B << " , " << "C = " << C << " , " <<std::endl;
-
-        double tBottom = (A * xcc[0] + B * xcc[1] + C * xcc[2]);
-        double tTop = A * xv[0][0] + B * xv[1][0] + C * xv[2][0];
-
-        //std::cout << " tTop = " << tTop <<std::endl;
-        //std::cout << " tBottom = " << tBottom <<std::endl;
-
-        if (fabs (tBottom) < epsilon && fabs (tTop) >= epsilon) {
-          // std::cout << "The plane of face" << itri << "does not intersect the line" <<std::endl;
-          break; // must exit the loop on itri
-        }
-
-        else { //now let's find the coordinates of the intersection point r
+        if (fabs (tBottom) >= epsilon || fabs (tTop) < epsilon) {
+          //now let's find the coordinates of the intersection point r
           t = tTop / tBottom ;
           //std::cout << "t = " << t << std::endl;
 
           for (unsigned k = 0; k < dim; k++) {
-            r[k] = t * xcc[k];
-            // std::cout << "r[" << k << "] = " << r[k] <<std::endl;
+            r[k] = t * xc[k];
+            //std::cout << "r[" << k << "] = " << r[k] <<std::endl;
           }
 
-          if (t < 1) {  //if not, it means the point r is far away from the marker, and we don't want to go in that direction
+          if (t < 1.) {  //if not, it means the point r is far away from the marker, and we don't want to go in that direction
 
-            for (unsigned i = 0; i < 4; i++) { //now we have to determine if r is inside itri
+            std::vector< std::vector < double > > xvr (dim);
+
+            for (unsigned k = 0; k < dim; k++) {
+              xvr[k].reserve (9);
+            }
+
+            for (unsigned k = 0; k < dim; k++) {
+              xvr[k].resize (faceNodeNumber);
+            }
+
+            //now we have to determine if r is inside edge i
+            for (unsigned j = 0; j < faceNodeNumber; j++) {
               for (unsigned k = 0; k < dim; k++) {
-                xv[k][i] = xv[k][i] - r[k];     //translate again the reference frame so that the origin is r
+                xvr[k][j] = xv[k][j] - r[k];     //transate again the reference frame so that the origin is r
               }
             }
 
-            for (unsigned i = 0; i < 3; i++) {
-              double q0 = xv[1][i] * (xv[2][i] - xv[2][i + 1]) + xv[2][i] * (xv[1][i + 1] - xv[1][i]);
-              double q1 = xv[2][i] * (xv[0][i] - xv[0][i + 1]) + xv[0][i] * (xv[2][i + 1] - xv[2][i]);
-              double q2 = xv[0][i] * (xv[1][i] - xv[1][i + 1]) + xv[1][i] * (xv[0][i + 1] - xv[0][i]);
 
-              // std::cout << "q0 = " << q0 << " , " << "q1 = " << q1 << " , " << " q2 = " << q2 <<  std::endl;
+            if ( (xvr[0][i] * xvr[0][i]  + xvr[1][i] * xvr[1][i]) < epsilon2 ||
+                 (xvr[0][i + 1]*xvr[0][i + 1] + xvr[1][i + 1]*xvr[1][i + 1]) < epsilon2) {
+              // std::cout << "intersection on a vertex of the edge" << std::endl;
 
-              double  scalarProduct = q0 * A + q1 * B + q2 * C;
+              if (fabs (t) < epsilon || t < 0) {   //this means the marker is on one of the edges
 
-              //   std::cout << "fabs(scalarProduct) = " << fabs(scalarProduct) << std::endl;
+                // if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is one of the nodes" << std::endl;
 
-              if (scalarProduct > epsilon) {
-                //   std::cout << "r is outside triangle " << itri <<  std::endl;
+                // if(t < 0) std::cout << "setting markerIsInElement = true because r is one of the nodes" << std::endl;
+
+                markerIsInElement = true;
                 break;
-
               }
-              else if (fabs (scalarProduct) < epsilon) {  //scalarProduct == 0
+              else {
+                break;
+              }
+            }
 
-                if ( (xv[0][i] * xv[0][i]  + xv[1][i] * xv[1][i] + xv[2][i] * xv[2][i]) < epsilon2 ||
-                     (xv[0][i + 1]*xv[0][i + 1] + xv[1][i + 1]*xv[1][i + 1] + xv[2][i + 1]*xv[2][i + 1]) < epsilon2) {
-                  //    std::cout << "intersection on a vertex of itri" << std::endl;
-                  if (fabs (t) < epsilon || t < 0) { //this means the marker is on one of the faces
+            else if (xvr[0][i]*xvr[0][i + 1] < 0 || xvr[1][i]*xvr[1][i + 1] < 0) {
+              // std::cout << "intersection on an edge" << std::endl;
 
-                    //     if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is one vertex of triangle " << itri << std::endl;
-                    //     if(t < 0) std::cout << "setting markerIsInElement = true because r is one vertex of triangle " << itri << std::endl;
+              if (fabs (t) < epsilon || t < 0) {   //this means the marker is on one of the edges
 
-                    markerIsInElement = true;
-                    break;
-                  }
-                  else {
-                    //     std::cout << "r is in triangle " << itri << std::endl;
+                //  if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges " << std::endl;
 
-                    nextElementFound = true;
+                // if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges " << std::endl;
 
-                    break;
+                markerIsInElement = true;
+                break;
+              }
+              else {
+                break;
+              }
+            }
+          } // closes the " if t < 1 "
+        } // closes if
+      } //closes the for on the nodes
+      //END look for face intersection
+    }// closes the else before the for
+
+    return markerIsInElement;
+
+  }
+
+bool CheckInclusion3D (Solution* sol, const unsigned &elemToCheck, const std::vector <std::vector <double>> & xElement, const std::vector <double> &xToCheck) {
+
+      const unsigned dim = sol->GetMesh()->GetDimension();
+      unsigned solXType = 2;
+
+      unsigned nDofs = sol->GetMesh()->GetElementDofNumber (elemToCheck, solXType);
+      unsigned nFaceDofs = (solXType == 2) ? nDofs - 1 : nDofs;
+      bool markerIsInElement = false;
+      bool nextElementFound = false;
+      short unsigned currentElementType = sol->GetMesh()->GetElementType (elemToCheck);
+      double epsilon  = 10.e-10;
+      double epsilon2  = epsilon * epsilon;
+      double t;
+
+      std::vector<double> xc (dim, 0);  //stores the coordinates of the central node of elemToCheck
+      unsigned centralNodeLocalIndex;
+
+      if (currentElementType == 0) centralNodeLocalIndex = 26;
+      else if (currentElementType == 1) centralNodeLocalIndex = 14;
+      else if (currentElementType == 2) centralNodeLocalIndex = 20;
+
+      for (unsigned k = 0; k < dim; k++) {
+        xc[k] = xElement[k][centralNodeLocalIndex] - xToCheck[k]; // coordinates are translated so that the marker is the new origin
+        //std::cout << " xc[" << k << "]= " <<xc[k] <<std::endl;
+      }
+
+      if (xc[0]*xc[0] < epsilon2 && xc[1]*xc[1] < epsilon2 && xc[2]*xc[2] < epsilon2) {
+        //   std::cout << "the marker is the central element node" << std::endl;
+        markerIsInElement = true; //the marker is xc
+      }
+
+      else {
+
+        for (unsigned iface = 0; iface < sol->GetMesh()->GetElementFaceNumber (elemToCheck); iface++) {
+
+          // std::cout << "iface = " << iface << std::endl;
+
+          for (unsigned itri = 0; itri < trianglesPerFace[currentElementType][solXType][iface]; itri ++) {
+
+            //  std::cout << "itri = " << itri << std::endl;
+
+            std::vector<double> xcc (dim, 0);  // will store the coordinates of the center scaled
+
+            unsigned scalarCount = 0;
+            std::vector<double> r (dim, 0);  //coordinates of the intersection point between the plane of itri and the line through the element center point and the marker
+            std::vector< std::vector < double > > xv (dim);  //stores the coordinates of the nodes of the triangle itri
+
+            // fill in the coordinates of the vertices of itri
+            for (unsigned k = 0; k < dim; k++) {
+              xv[k].reserve (4);
+            }
+            for (unsigned k = 0; k < dim; k++) {
+              xv[k].resize (4);
+            }
+
+            for (unsigned i = 0; i < 4; i++) {
+//           unsigned itriDof  = sol->GetMesh()->GetSolutionDof (faceTriangleNodes[currentElementType][solXType][iface][itri][i], elemToCheck, 2);
+              // std::cout << "itriDof = " << itriDof << std::endl;
+              for (unsigned k = 0; k < dim; k++) {
+                xv[k][i] = xElement[k][faceTriangleNodes[currentElementType][solXType][iface][itri][i]] - xToCheck[k]; // coordinates are translated so that the marker is the new origin
+              }
+            }
+
+            // rescaling coordinates to properly handle different scales of meshes
+            double length = 0.;
+            double sum = 0.;
+            for (unsigned i = 0; i < 3; i++) {
+              for (unsigned k = 0; k < dim; k++) {
+                sum += (xv[k][i + 1] - xv[k][i]) * (xv[k][i + 1] - xv[k][i]);
+              }
+              length += sqrt (sum);
+            }
+
+            length /= 4;
+
+            for (unsigned k = 0; k < dim; k++) {
+              xcc[k] = xc[k] / length;
+              //std::cout << " xcc[" << k << "]= " <<xcc[k] <<std::endl;
+              for (unsigned i = 0; i < 4; i++) {
+                xv[k][i] /= length;
+              }
+            }
+
+
+            // let's find the plane passing through the vertices of the triangle itri
+            double A = - (xv[1][2] - xv[1][0]) * (xv[2][1] - xv[2][0]) + (xv[2][2] - xv[2][0]) * (xv[1][1] - xv[1][0]);
+            double B = - (xv[2][2] - xv[2][0]) * (xv[0][1] - xv[0][0]) + (xv[0][2] - xv[0][0]) * (xv[2][1] - xv[2][0]);
+            double C = - (xv[0][2] - xv[0][0]) * (xv[1][1] - xv[1][0]) + (xv[1][2] - xv[1][0]) * (xv[0][1] - xv[0][0]);
+
+            //std::cout << "A= " << A << " , " <<"B= " << B << " , " << "C = " << C << " , " <<std::endl;
+
+            double tBottom = (A * xcc[0] + B * xcc[1] + C * xcc[2]);
+            double tTop = A * xv[0][0] + B * xv[1][0] + C * xv[2][0];
+
+            //std::cout << " tTop = " << tTop <<std::endl;
+            //std::cout << " tBottom = " << tBottom <<std::endl;
+
+            if (fabs (tBottom) < epsilon && fabs (tTop) >= epsilon) {
+              // std::cout << "The plane of face" << itri << "does not intersect the line" <<std::endl;
+              break; // must exit the loop on itri
+            }
+
+            else { //now let's find the coordinates of the intersection point r
+              t = tTop / tBottom ;
+              //std::cout << "t = " << t << std::endl;
+
+              for (unsigned k = 0; k < dim; k++) {
+                r[k] = t * xcc[k];
+                // std::cout << "r[" << k << "] = " << r[k] <<std::endl;
+              }
+
+              if (t < 1) {  //if not, it means the point r is far away from the marker, and we don't want to go in that direction
+
+                for (unsigned i = 0; i < 4; i++) {  //now we have to determine if r is inside itri
+                  for (unsigned k = 0; k < dim; k++) {
+                    xv[k][i] = xv[k][i] - r[k];     //translate again the reference frame so that the origin is r
                   }
                 }
-                else if (xv[0][i]*xv[0][i + 1] < 0 || xv[1][i]*xv[1][i + 1] < 0 || xv[2][i]*xv[2][i + 1] < 0) {
-                  //   std::cout << "intersection on an edge of itri" << std::endl;
-                  if (fabs (t) < epsilon || t < 0) { //this means the marker is on one of the faces
 
-                    //    if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges of triangle " << itri << std::endl;
-                    //    if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges of triangle " << itri << std::endl;
+                for (unsigned i = 0; i < 3; i++) {
+                  double q0 = xv[1][i] * (xv[2][i] - xv[2][i + 1]) + xv[2][i] * (xv[1][i + 1] - xv[1][i]);
+                  double q1 = xv[2][i] * (xv[0][i] - xv[0][i + 1]) + xv[0][i] * (xv[2][i + 1] - xv[2][i]);
+                  double q2 = xv[0][i] * (xv[1][i] - xv[1][i + 1]) + xv[1][i] * (xv[0][i + 1] - xv[0][i]);
 
-                    markerIsInElement = true;
+                  // std::cout << "q0 = " << q0 << " , " << "q1 = " << q1 << " , " << " q2 = " << q2 <<  std::endl;
+
+                  double  scalarProduct = q0 * A + q1 * B + q2 * C;
+
+                  //   std::cout << "fabs(scalarProduct) = " << fabs(scalarProduct) << std::endl;
+
+                  if (scalarProduct > epsilon) {
+                    //   std::cout << "r is outside triangle " << itri <<  std::endl;
                     break;
+
                   }
-                  else {
-                    //     std::cout << "r is in triangle " << itri << std::endl;
+                  else if (fabs (scalarProduct) < epsilon) {   //scalarProduct == 0
 
-                    nextElementFound = true;
+                    if ( (xv[0][i] * xv[0][i]  + xv[1][i] * xv[1][i] + xv[2][i] * xv[2][i]) < epsilon2 ||
+                         (xv[0][i + 1]*xv[0][i + 1] + xv[1][i + 1]*xv[1][i + 1] + xv[2][i + 1]*xv[2][i + 1]) < epsilon2) {
+                      //    std::cout << "intersection on a vertex of itri" << std::endl;
+                      if (fabs (t) < epsilon || t < 0) {   //this means the marker is on one of the faces
 
-                    break;
+                        //     if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is one vertex of triangle " << itri << std::endl;
+                        //     if(t < 0) std::cout << "setting markerIsInElement = true because r is one vertex of triangle " << itri << std::endl;
+
+                        markerIsInElement = true;
+                        break;
+                      }
+                      else {
+                        //     std::cout << "r is in triangle " << itri << std::endl;
+                        nextElementFound = true;
+
+                        break;
+                      }
+                    }
+                    else if (xv[0][i]*xv[0][i + 1] < 0 || xv[1][i]*xv[1][i + 1] < 0 || xv[2][i]*xv[2][i + 1] < 0) {
+                      //   std::cout << "intersection on an edge of itri" << std::endl;
+                      if (fabs (t) < epsilon || t < 0) {   //this means the marker is on one of the faces
+
+                        //    if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges of triangle " << itri << std::endl;
+                        //    if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges of triangle " << itri << std::endl;
+
+                        markerIsInElement = true;
+                        break;
+                      }
+                      else {
+                        //     std::cout << "r is in triangle " << itri << std::endl;
+                        nextElementFound = true;
+
+                        break;
+                      }
+                    }
                   }
-                }
+                  else if (scalarProduct < 0) {
+                    //    std::cout << " scalarProduct = " << scalarProduct << std::endl;
+                    scalarCount++;
+                  }
+                } // closes the for loop
+              } // closes " if t < 1 "
+            } // closes the "else" on tBottom = 0
+
+
+            if (scalarCount == 3) {
+              if (fabs (t) < epsilon || t < 0) {   //this means the marker is on one of the faces
+
+                //   if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges of triangle " << itri << std::endl;
+                //  if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges of triangle " << itri << std::endl;
+
+                markerIsInElement = true;
+                break;
               }
-              else if (scalarProduct < 0) {
-                //    std::cout << " scalarProduct = " << scalarProduct << std::endl;
-                scalarCount++;
+              else {
+                //    std::cout << "r is in triangle " << itri << std::endl;
+                nextElementFound = true;
+
+                break;
               }
-            } // closes the for loop
-          } // closes " if t < 1 "
-        } // closes the "else" on tBottom = 0
+            }
+            if (markerIsInElement == true) {
+              break;
+            }
+            if (nextElementFound == true) {
+              break;
+            }
+          } //end for on itri
 
-
-        if (scalarCount == 3) {
-          if (fabs (t) < epsilon || t < 0) { //this means the marker is on one of the faces
-
-            //   if(fabs(t) < epsilon) std::cout << "setting markerIsInElement = true because the marker is on one of the edges of triangle " << itri << std::endl;
-            //  if(t < 0) std::cout << "setting markerIsInElement = true because r is on one of the edges of triangle " << itri << std::endl;
-
-            markerIsInElement = true;
+          if (markerIsInElement == true) {
             break;
           }
-          else {
-            //    std::cout << "r is in triangle " << itri << std::endl;
-
-            nextElementFound = true;
-
+          if (nextElementFound == true) {
             break;
           }
-        }
-        if (markerIsInElement == true) {
-          break;
-        }
-        if (nextElementFound == true) {
-          break;
-        }
-      } //end for on itri
+        } //end for on iface
+      } // end of the first else
 
-      if (markerIsInElement == true) {
-        break;
-      }
-      if (nextElementFound == true) {
-        break;
-      }
-    } //end for on iface
-  } // end of the first else
+      if (nextElementFound == true)  markerIsInElement = false;
 
-  if (nextElementFound == true)  markerIsInElement = false;
+      return markerIsInElement;
 
-  return markerIsInElement;
-
-}
+    }
 
 void FindLocalCoordinates (std::vector<double> & xi, std::vector < std::vector < std::vector < double > > >  & aX, const bool & pcElemUpdate, Solution* sol, const unsigned &elementToCheck, const std::vector <double> &xToCheck, const std::vector<std::vector<double>> & xElement) {
 
-  unsigned solXType = 2;
+        unsigned solXType = 2;
 
-  short unsigned elemType = sol->GetMesh()->GetElementType (elementToCheck);
-  unsigned nDofs = sol->GetMesh()->GetElementDofNumber (elementToCheck, solXType);
+        short unsigned elemType = sol->GetMesh()->GetElementType (elementToCheck);
+        unsigned nDofs = sol->GetMesh()->GetElementDofNumber (elementToCheck, solXType);
 
-  if (pcElemUpdate) {
+        if (pcElemUpdate) {
 
-    //BEGIN projection nodal to polynomial coefficients
-    aX.resize (solXType + 1);
-    for (unsigned j = 0; j < solXType + 1; j++) {
-      ProjectNodalToPolynomialCoefficients (aX[j], xElement, elemType, j);
-    }
-    //END projection nodal to polynomial coefficients
-  }
+          //BEGIN projection nodal to polynomial coefficients
+          aX.resize (solXType + 1);
+          for (unsigned j = 0; j < solXType + 1; j++) {
+            ProjectNodalToPolynomialCoefficients (aX[j], xElement, elemType, j);
+          }
+          //END projection nodal to polynomial coefficients
+        }
 
-  GetClosestPointInReferenceElement (xElement, xToCheck, elemType, xi);
+        GetClosestPointInReferenceElement (xElement, xToCheck, elemType, xi);
 
-  //BEGIN Inverse mapping loop
-  for (unsigned j = 0; j < solXType; j++) {
+        //BEGIN Inverse mapping loop
+        for (unsigned j = 0; j < solXType; j++) {
 
-    std::vector < double > phi;
-    std::vector < std::vector < double > > gradPhi;
-    bool convergence = false;
-    while (!convergence) {
-      GetPolynomialShapeFunctionGradient (phi, gradPhi, xi, elemType, solXType);
-      convergence = GetNewLocalCoordinates (xi, xToCheck, phi, gradPhi, aX[solXType]);
-    }
-  }
-  //END Inverse mapping loop
+          std::vector < double > phi;
+          std::vector < std::vector < double > > gradPhi;
+          bool convergence = false;
+          while (!convergence) {
+            GetPolynomialShapeFunctionGradient (phi, gradPhi, xi, elemType, solXType);
+            convergence = GetNewLocalCoordinates (xi, xToCheck, phi, gradPhi, aX[solXType]);
+          }
+        }
+        //END Inverse mapping loop
 
-}
+      }
+
+
+
+
+
+
 

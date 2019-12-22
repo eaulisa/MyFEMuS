@@ -22,7 +22,7 @@ using namespace femus;
 
 
 double SetVariableTimeStep (const double time) {
-  double dt =  0.01/*0.008*/;
+  double dt =  0.005/*0.008*/;
   return dt;
 }
 
@@ -127,6 +127,7 @@ int main (int argc, char** args) {
 
   mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution ("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false); //TODO see who this is
   mlSol.AddSolution ("NodeDist", LAGRANGE, SECOND, 0, false); //TODO see who this is
 
@@ -268,8 +269,8 @@ int main (int argc, char** args) {
 
   if (fabs (H - H0) > 1.0e-10) {
 
-    //double factor = 1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
-    double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
+    double factor = 1.;//1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
+    //double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
     unsigned NL = getNumberOfLayers (0.5 * (H - H0) / DH, factor);
     std::cout << NL << std::endl;
 
@@ -327,7 +328,7 @@ int main (int argc, char** args) {
     totalMass += mass[i];
   }
 
-  std::cout << totalMass << " " << rhos * H * L << std::endl;
+  std::cout <<"SOLID MASS = " << totalMass << " " << rhos * H * L << std::endl;
 
   unsigned solType = 2;
   solidLine = new Line (x, mass, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
@@ -424,8 +425,8 @@ int main (int argc, char** args) {
   double H1 = 4. * H; //TODO tune the factor 4
   if (fabs (H - H0) > 1.0e-10) {
 
-//     double factor = 1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
-    double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
+    double factor = 1.; //1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
+    //double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
     unsigned NL = getNumberOfLayers (0.5 * (H1 - H0) / DH, factor, false);
     std::cout << NL << std::endl;
 
@@ -482,7 +483,7 @@ int main (int argc, char** args) {
   for (unsigned i = 0; i < mass.size(); i++) {
     totalMass += mass[i];
   }
-  std::cout << totalMass << " " << rhof * ( (H1 * (L + (H1 - H) * 0.5 * H)) - (H * L)) << std::endl;
+  std::cout <<"FLUID MASS = " << totalMass << " " << rhof * ( (H1 * (L + (H1 - H) * 0.5 * H)) - (H * L)) << std::endl;
 
   fluidLine = new Line (x, mass, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
 
@@ -517,7 +518,7 @@ int main (int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction (SetVariableTimeStep);
-  unsigned n_timesteps = 100;
+  unsigned n_timesteps = 200;
   for (unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     if (time_step >= 3) {
