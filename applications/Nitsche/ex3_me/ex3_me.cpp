@@ -920,9 +920,10 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
       unsigned sizeAll = dim * nDofu;
 
-      aM.assign(sizeAll * sizeAll, 0.);
-      bM[0].assign(sizeAll * sizeAll, 0.);
-      bM[1].assign(sizeAll * sizeAll, 0.);
+      // we solve Ax=LBx
+      aM.assign(sizeAll * sizeAll, 0.); //  one interface integral.
+      bM[0].assign(sizeAll * sizeAll, 0.); // and two bulks
+      bM[1].assign(sizeAll * sizeAll, 0.); 
 
       aL.assign(sizeAll * sizeAll, 0.);
       bL[0].assign(sizeAll * sizeAll, 0.);
