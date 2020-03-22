@@ -512,10 +512,8 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
               double cutOff = 1.;
               if (ielGroup == 7) cutOff = 0.5;
               for (unsigned i = 0; i < nDof1; i++) {
-                unsigned solDofu1 = msh->GetSolutionDof (i, iel, solu1Type);
-                unsigned solDofu2 = msh->GetSolutionDof (i, iel, solu2Type);
 
-                if (ielGroup == 6 || ielGroup == 7) {
+                if (ielGroup == 5 || ielGroup == 6 || ielGroup == 7) {
 //                                 Res1[i] -= 0. * weight[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                   Resu1_1[i] -=  cutOff * 1. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = 1)
 //                   double resValue = cos (xg1[ig][1]) * (- 0.5 * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] - kappa / 8. * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] + 11. / 2. * xg1[ig][0] * xg1[ig][0] + kappa / 16. * xg1[ig][0] * xg1[ig][0] + kappa * 5. / 8. * xg1[ig][0] + 1. - 1. / 16. * kappa);
@@ -580,9 +578,9 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
                 double cutOff = 1.;
                 if (ielGroup == 7 && jelGroup == 7) cutOff = 0.5;
 
-                bool ielU1 = (ielGroup == 6 || ielGroup == 7) ? true : false;
+                bool ielU1 = (ielGroup == 5 || ielGroup == 6 || ielGroup == 7) ? true : false;
                 bool ielU2 = (ielGroup == 7 || ielGroup == 8) ? true : false;
-                bool jelU1 = (jelGroup == 6 || jelGroup == 7) ? true : false;
+                bool jelU1 = (jelGroup == 5 || jelGroup == 6 || jelGroup == 7) ? true : false;
                 bool jelU2 = (jelGroup == 7 || jelGroup == 8) ? true : false;
 
                 for (unsigned i = 0; i < nDof1; i++) {
