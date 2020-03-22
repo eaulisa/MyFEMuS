@@ -2,7 +2,7 @@
 ** GAMBIT NEUTRAL FILE
 FETI_domain_floating
 PROGRAM:                Gambit     VERSION:  2.3.16
-21 Mar 2020    14:55:26 
+21 Mar 2020    15:33:53 
      NUMNP     NELEM     NGRPS    NBSETS     NDFCD     NDFVL
       4161      1008         4         1         2         2
 ENDOFSECTION
@@ -6310,7 +6310,7 @@ GROUP:          4 ELEMENTS:        128 MATERIAL:          2 NFLAGS:          1
      921     922     923     924     925     926     927     928
 ENDOFSECTION
  BOUNDARY CONDITIONS 2.3.16
-                 element_side.18       1     128       0       6
+                               1       1     128       0       6
        287    2    4
        285    2    4
        283    2    4

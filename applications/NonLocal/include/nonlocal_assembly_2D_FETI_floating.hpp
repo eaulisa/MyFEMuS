@@ -2,16 +2,15 @@
 #include <boost/random/normal_distribution.hpp>
 
 
-//THIS IS THE 2D ASSEMBLY FOR THE NONLOCAL FETI METHOD 2 SUBDOMAINS, DIRICHLET ON THE LEFT, THE LEFT NEUMANN
+//THIS IS THE 2D ASSEMBLY FOR THE NONLOCAL FETI METHOD 2 SUBDOMAINS, FLOATING INTERIOR SUBDOMAIN
 
 using namespace femus;
 
 bool nonLocalAssembly = true;
 
-//FETI_domain.neu: 2D domain with delta=0.25
-//FETI_domain_small_delta.neu: 2D domain with delta=0.05
+//FETI_domain_floating.neu: 2D domain with delta=0.25
 
-double delta = /*0.05*/0.25;
+double delta = 0.25;
 double kappa = 1.;
 
 void GetBoundaryFunctionValue (double &value, const std::vector < double >& x) {
@@ -65,8 +64,8 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
   unsigned solmuIndex = mlSol->GetIndex ("mu");   // get the position of "mu" in the ml_sol object
   unsigned solmuType = mlSol->GetSolutionType (solmuIndex);   // get the finite element type for "mu"
-  
-    unsigned u1FlagIndex = mlSol->GetIndex ("u1Flag");
+
+  unsigned u1FlagIndex = mlSol->GetIndex ("u1Flag");
   unsigned u1FlagType = mlSol->GetSolutionType (u1FlagIndex);
 
   unsigned u2FlagIndex = mlSol->GetIndex ("u2Flag");
@@ -140,7 +139,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
   l2GMapu2_1.reserve (maxSize);
   l2GMapu2_2.reserve (maxSize);
 
-  vector< int > l2GMapmu_1; // local to global mapping for mu  
+  vector< int > l2GMapmu_1; // local to global mapping for mu
   vector< int > l2GMapmu_2; // local to global mapping for mu
   l2GMapmu_1.reserve (maxSize);
   l2GMapmu_2.reserve (maxSize);
@@ -187,8 +186,8 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   //BEGIN nonlocal assembly
-  
-    //BEGIN creation of the flags for the assembly procedure
+
+  //BEGIN creation of the flags for the assembly procedure
 
   //flag = 1 assemble
   //flag = 0 don't assemble
@@ -200,22 +199,57 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
     unsigned nDof  = msh->GetElementDofNumber (iel, solu1Type); //NOTE here we are assuming that u1, u2 and mu are discretized with the same elements (only in ex3 you can do piece-wise constant mu)
 
     double epsilon = 1.e-7;
-    double rightBound = (delta * 0.5) + epsilon;
-    double leftBound = - (delta * 0.5) - epsilon;
+    double xminLeftU1 = - 2. + epsilon;
+    double xmaxLeftU1 = - 1. + epsilon;
+    double xminRightU1 = 1. - epsilon;
+    double xmaxRightU1 = 2. - epsilon;
+    double yminTopU1 = 0.5 - epsilon;
+    double ymaxTopU1 = 1.5 - epsilon;
+    double yminBottomU1 = - 1.5 + epsilon;
+    double ymaxBottomU1 = - 0.5 + epsilon;
+    double xminU2 = -1. - delta -  epsilon;
+    double xmaxU2 = 1. + delta +  epsilon;
+    double ymaxU2 = 0.5 + delta +  epsilon;
+    double yminU2 = - 0.5 - delta - epsilon;
 
     std::vector < double > xCoords (nDof);
+    std::vector < double > yCoords (nDof);
 
     for (unsigned i = 0; i < nDof; i++) {
       unsigned solDof  = msh->GetSolutionDof (i, iel, solu1Type);
       unsigned xDof  = msh->GetSolutionDof (i, iel, xType);
       xCoords[i] = (*msh->_topology->_Sol[0]) (xDof);
+      yCoords[i] = (*msh->_topology->_Sol[1]) (xDof);
 
-      if (xCoords[i] < rightBound) {
+      if ( (xminLeftU1 < xCoords[i]) && (xCoords[i] < xmaxLeftU1) && (yminBottomU1 < yCoords[i]) && (yCoords[i] < ymaxTopU1)) {
         sol->_Sol[u1FlagIndex]->add (solDof, 1.);
-        if (xCoords[i] > leftBound) sol->_Sol[muFlagIndex]->add (solDof, 1.);
+      }
+      else  if ( (xminRightU1 < xCoords[i]) && (xCoords[i] < xmaxRightU1) && (yminBottomU1 < yCoords[i]) && (yCoords[i] < ymaxTopU1)) {
+        sol->_Sol[u1FlagIndex]->add (solDof, 1.);
+      }
+      else  if ( (xmaxLeftU1 < xCoords[i]) && (xCoords[i] < xminRightU1) && (yminTopU1 < yCoords[i]) && (yCoords[i] < ymaxTopU1)) {
+        sol->_Sol[u1FlagIndex]->add (solDof, 1.);
+      }
+      else  if ( (xmaxLeftU1 < xCoords[i]) && (xCoords[i] < xminRightU1) && (yminBottomU1 < yCoords[i]) && (yCoords[i] < ymaxBottomU1)) {
+        sol->_Sol[u1FlagIndex]->add (solDof, 1.);
       }
 
-      if (xCoords[i] > leftBound) sol->_Sol[u2FlagIndex]->add (solDof, 1.);
+      if ( (xminU2 < xCoords[i]) && (xCoords[i] < xmaxU2) && (yminU2 < yCoords[i]) && (yCoords[i] < ymaxU2)) {
+        sol->_Sol[u2FlagIndex]->add (solDof, 1.);
+      }
+
+      if ( (xCoords[i] < xmaxLeftU1) && (xminU2 < xCoords[i]) && (yminU2 < yCoords[i]) && (yCoords[i] < ymaxU2)) {
+        sol->_Sol[muFlagIndex]->add (solDof, 1.);
+      }
+      else if ( (xCoords[i] < xmaxU2) && (xminRightU1 < xCoords[i]) && (yminU2 < yCoords[i]) && (yCoords[i] < ymaxU2)) {
+        sol->_Sol[muFlagIndex]->add (solDof, 1.);
+      }
+      else if ( (xCoords[i] < xmaxU2) && (xminU2 < xCoords[i]) && (yminU2 < yCoords[i]) && (yCoords[i] < ymaxBottomU1)) {
+        sol->_Sol[muFlagIndex]->add (solDof, 1.);
+      }
+      else if ( (xCoords[i] < xmaxU2) && (xminU2 < xCoords[i]) && (yminTopU1 < yCoords[i]) && (yCoords[i] < ymaxU2)) {
+        sol->_Sol[muFlagIndex]->add (solDof, 1.);
+      }
 
     }
   }
@@ -317,8 +351,8 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
         }
 
-        ReorderElement (l2GMapu1_2, solu1_2, x2); 
-        ReorderElement (l2GMapu2_2, solu2_2, x2Temp); 
+        ReorderElement (l2GMapu1_2, solu1_2, x2);
+        ReorderElement (l2GMapu2_2, solu2_2, x2Temp);
         ReorderElement (l2GMapmu_2, solmu_2, x2Tempp);
       }
 
@@ -476,23 +510,23 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
             if (iel == jel) {
               double cutOff = 1.;
-              if (ielGroup == 6 || ielGroup == 9) cutOff = 0.5;
+              if (ielGroup == 7) cutOff = 0.5;
               for (unsigned i = 0; i < nDof1; i++) {
                 unsigned solDofu1 = msh->GetSolutionDof (i, iel, solu1Type);
                 unsigned solDofu2 = msh->GetSolutionDof (i, iel, solu2Type);
 
-                if ( ielGroup == 5 || ielGroup == 6 || ielGroup == 8 || ielGroup == 9 || ielGroup == 11) {
+                if (ielGroup == 6 || ielGroup == 7) {
 //                                 Res1[i] -= 0. * weight[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                   Resu1_1[i] -=  cutOff * 1. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = 1)
 //                   double resValue = cos (xg1[ig][1]) * (- 0.5 * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] - kappa / 8. * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] + 11. / 2. * xg1[ig][0] * xg1[ig][0] + kappa / 16. * xg1[ig][0] * xg1[ig][0] + kappa * 5. / 8. * xg1[ig][0] + 1. - 1. / 16. * kappa);
 //                   Res1[i] -=  resValue * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = cos(y) * ( - 0.5 * x^4 - kappa / 8 * x^3 + 11. / 2. * x^2 + kappa / 16. * x^2 + kappa * 5. / 8. * x + 1. - 1. / 16. * k1))
                 }
 
-                if ( ielGroup == 6 || ielGroup == 7 || ielGroup == 9 || ielGroup == 10) {
+                if (ielGroup == 7 || ielGroup == 8) {
                   Resu2_1[i] -=  cutOff * 1. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = 1)
                 }
 
-                if (ielGroup == 6 || ielGroup == 9) {
+                if (ielGroup == 7) {
                   double Mlumped = phi1x[ig][i] * weight1[ig];
                   M1[ i * nDof1 + i ] +=  Mlumped;
                   M2[ i * nDof1 + i ] += - Mlumped;
@@ -544,12 +578,12 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
                 kernel = 0.75 * kappa / (delta * delta * delta * delta) ;
                 double cutOff = 1.;
-                if ( (ielGroup == 6 || ielGroup == 9) && (jelGroup == 6 || jelGroup == 9)) cutOff = 0.5;
+                if (ielGroup == 7 && jelGroup == 7) cutOff = 0.5;
 
-                bool ielU1 = ( ielGroup == 5 || ielGroup == 6 || ielGroup == 8 || ielGroup == 9 || ielGroup == 11) ? true : false;
-                bool ielU2 = ( ielGroup == 6 || ielGroup == 7 || ielGroup == 9 || ielGroup == 10) ? true : false;
-                bool jelU1 = ( jelGroup == 5 || jelGroup == 6 || jelGroup == 8 || jelGroup == 9 || jelGroup == 11) ? true : false;
-                bool jelU2 = ( jelGroup == 6 || jelGroup == 7 || jelGroup == 9 || jelGroup == 10) ? true : false;
+                bool ielU1 = (ielGroup == 6 || ielGroup == 7) ? true : false;
+                bool ielU2 = (ielGroup == 7 || ielGroup == 8) ? true : false;
+                bool jelU1 = (jelGroup == 6 || jelGroup == 7) ? true : false;
+                bool jelU2 = (jelGroup == 7 || jelGroup == 8) ? true : false;
 
                 for (unsigned i = 0; i < nDof1; i++) {
 
@@ -634,7 +668,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
             KK->add_matrix_blocked (Jacmu, l2GMapmu_1, l2GMapmu_1);
 
-            if ( (iel == jel) && (ielGroup == 6 || ielGroup == 9)) {
+            if ( (iel == jel) && (ielGroup == 7)) {
               KK->add_matrix_blocked (M1, l2GMapmu_1, l2GMapu1_1); //M1 (mu rows and u1 columns)
               KK->add_matrix_blocked (M1, l2GMapu1_1, l2GMapmu_1); //M1 transpose (u1 rows and mu columns)
               KK->add_matrix_blocked (M2, l2GMapmu_1, l2GMapu2_1); //M2 (mu rows and u2 columns)
@@ -651,7 +685,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
   RES->close();
 
   KK->close();
-  
+
   //   KK->print_matlab("matrix.txt", "ascii");
 
 //     Mat A = ( static_cast<PetscMatrix*> ( KK ) )->mat();

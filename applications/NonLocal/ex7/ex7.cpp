@@ -16,11 +16,11 @@
 
 #include "slepceps.h"
 
-#include "../include/nonlocal_assembly_2D_FETI_1Dir_3Neu.hpp"
+#include "../include/nonlocal_assembly_2D_FETI_floating.hpp"
 
 using namespace femus;
 
-//2D NONLOCAL DOMAIN DECOMPOSITION WITH FETI: Dirichlet on the left, Neumann everywhere else
+//2D NONLOCAL DOMAIN DECOMPOSITION WITH FETI: floating interior subdomain
 
 double InitalValueU (const std::vector < double >& x) {
   double value;
@@ -42,15 +42,10 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
 //     value = x[0] * x[0];
 //     value = x[0] * x[0] * x[0] ;
 
-  if (facename == 2) {
-    dirichlet = false; //Neumann
-    value = 0.;
-  }
-
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 3; 
+unsigned numberOfUniformLevels = 2; 
 
 // solver specifics (default is direct solver (MUMPS))
 bool Schur = false;
@@ -65,8 +60,7 @@ int main (int argc, char** argv) {
 
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-//   mlMsh.ReadCoarseMesh ("../input/FETI_domain.neu", "second", scalingFactor);
-  mlMsh.ReadCoarseMesh ("../input/FETI_domain_1Dir_3Neu.neu", "second", scalingFactor);
+  mlMsh.ReadCoarseMesh ("../input/FETI_domain_floating.neu", "second", scalingFactor);
   mlMsh.RefineMesh (numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
@@ -100,7 +94,7 @@ int main (int argc, char** argv) {
 
   // ******* Set volume constraints for the nonlocal *******
   std::vector< unsigned > volumeConstraintFlags (1);
-  volumeConstraintFlags[0] = 11;
+  volumeConstraintFlags[0] = 5;
 
   unsigned solu1Index = mlSol.GetIndex ("u1");
   mlSol.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, solu1Index, 0);
@@ -345,7 +339,7 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
       }
 
       double uFETI_gss;
-      if(ielGroup == 5 || ielGroup == 6 || ielGroup == 8 || ielGroup == 9 || ielGroup == 11) uFETI_gss =  solu1_gss;
+      if(ielGroup == 5 || ielGroup == 6 || ielGroup == 7) uFETI_gss =  solu1_gss;
       else  uFETI_gss = solu2_gss;          
     
       L2_error_FETI_global += (solu_gss - uFETI_gss) * (solu_gss - uFETI_gss) * weight;
