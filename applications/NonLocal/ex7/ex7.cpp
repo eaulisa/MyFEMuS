@@ -126,7 +126,7 @@ int main (int argc, char** argv) {
   fieldU1U2[0] = system.GetSolPdeIndex ("u1");
   fieldU1U2[1] = system.GetSolPdeIndex ("u2");
   FieldSplitTree FS_U1U2 (RICHARDSON, ILU_PRECOND, fieldU1U2, solutionTypeU1U2,  "u1u2");
-  FS_U1U2.SetTolerances (1.e-10, 1.e-20, 1.e+50, 6);
+  FS_U1U2.SetTolerances (1.e-10, 1.e-20, 1.e+50, 4);
   FS_U1U2.SetRichardsonScaleFactor (1.);
 
   std::vector < unsigned > solutionTypeMu (1);
