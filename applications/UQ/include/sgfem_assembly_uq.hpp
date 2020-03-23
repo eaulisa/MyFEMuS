@@ -10,7 +10,7 @@ using namespace femus;
 uq &myuq = FemusInit::_uqHermite;
 // uq &myuq = FemusInit::_uqLegendre;
 
-unsigned pIndex = 4;
+unsigned pIndex = 5;
 unsigned qIndex = 5;
 
 int  numberOfEigPairs = 2; //dimension of the stochastic variable
