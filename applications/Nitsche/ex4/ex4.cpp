@@ -180,7 +180,7 @@ int main(int argc, char** args) {
 
   double R = 0.125;
 
-  unsigned NTHETA = 300; // number of partitions on the outer circle
+  unsigned NTHETA = 1800; // number of partitions on the outer circle
   unsigned NR = NTHETA / (2 * M_PI); // number of partitions on the radial direction
   double DR = R / (NR + 0.5);
 
@@ -808,7 +808,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-//   PetscViewer    viewer;
+//   PetscViewer viewer;
 //   PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
 //   PetscObjectSetName ( (PetscObject) viewer, "FSI matrix");
 //   PetscViewerPushFormat (viewer, PETSC_VIEWER_DRAW_LG);
@@ -817,8 +817,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 // 
 //   double a;
 //   std::cin >> a;
-
-
 
   //***************** END ASSEMBLY *******************
 }
