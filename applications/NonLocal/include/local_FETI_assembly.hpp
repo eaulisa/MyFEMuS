@@ -6,8 +6,6 @@
 
 using namespace femus;
 
-double kappa = 1;
-
 const elem_type *fem = new const elem_type_2D ("quad", "linear", "second");   //to use a different quadrature rule in the inner integral
 
 const elem_type *femQuadrature = new const elem_type_2D ("quad", "linear", "eighth");   //to use a different quadrature rule in the inner integral
@@ -70,8 +68,8 @@ void AssembleLocalSys (MultiLevelProblem& ml_prob) {
   vector< double > Res1; // local redidual vector
   Res1.reserve (maxSize);
 
-  vector < double > Jac11;
-  Jac11.reserve (maxSize * maxSize);
+  vector < double > A;
+  A.reserve (maxSize * maxSize);
 
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
@@ -104,10 +102,10 @@ void AssembleLocalSys (MultiLevelProblem& ml_prob) {
 
     // local storage of coordinates
     for (unsigned i = 0; i < nDofx; i++) {
-      unsigned xDof  = msh->GetSolutionDof (i, iel, xType);   // global to global mapping between coordinates node and coordinate dof
+      unsigned xDof  = msh->GetSolutionDof (i, iel, xType);
 
       for (unsigned jdim = 0; jdim < dim; jdim++) {
-        x1[jdim][i] = (*msh->_topology->_Sol[jdim]) (xDof);     // global extraction and local storage for the element coordinates
+        x1[jdim][i] = (*msh->_topology->_Sol[jdim]) (xDof);
       }
     }
 
@@ -119,8 +117,6 @@ void AssembleLocalSys (MultiLevelProblem& ml_prob) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       msh->_finiteElement[ielGeom][soluType]->Jacobian (x1, ig, weight, phi, phi_x, boost::none);
 
-      // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-
       vector < adept::adouble > gradSolu_gss (dim, 0.);
       vector < double > x_gss (dim, 0.);
 
@@ -131,24 +127,22 @@ void AssembleLocalSys (MultiLevelProblem& ml_prob) {
         }
       }
 
-      // *** phi_i loop ***
       for (unsigned i = 0; i < nDofu; i++) {
 
         adept::adouble laplace = 0.;
 
         for (unsigned jdim = 0; jdim < dim; jdim++) {
-          laplace   +=  kappa * phi_x[i * dim + jdim] * gradSolu_gss[jdim];
+          laplace   +=  phi_x[i * dim + jdim] * gradSolu_gss[jdim];
         }
-        double srcTerm =  - 1. ; // so f = 1
+//         double srcTerm =  - 1. ; // so f = 1
+        double srcTerm =  2. ; // so f = - 2
         aRes[i] += (srcTerm * phi[i] + laplace) * weight;
 
       } // end phi_i loop
     } // end gauss point loop
 
     //--------------------------------------------------------------------------------------------------------
-    // Add the local Matrix/Vector into the global Matrix/Vector
 
-    //copy the value of the adept::adoube aRes in double Res and store
     Res1.resize (nDofu);   //resize
 
     for (int i = 0; i < nDofu; i++) {
@@ -164,11 +158,11 @@ void AssembleLocalSys (MultiLevelProblem& ml_prob) {
     s.independent (&solu[0], nDofu);
 
     // get the jacobian matrix (ordered by row major )
-    Jac11.resize (nDofu * nDofu);   //resize
-    s.jacobian (&Jac11[0], true);
+    A.resize (nDofu * nDofu);   //resize
+    s.jacobian (&A[0], true);
 
     //store K in the global matrix KK
-    KK->add_matrix_blocked (Jac11, l2GMap1, l2GMap1);
+    KK->add_matrix_blocked (A, l2GMap1, l2GMap1);
 
     s.clear_independents();
     s.clear_dependents();
@@ -441,10 +435,13 @@ void AssembleLocalSysFETI (MultiLevelProblem& ml_prob) {
       bool ielU1 = (ielGroup == 7) ? true : false;
       bool ielU2 = (ielGroup == 8) ? true : false;
 
-//       vector < vector < double > > laplace (nDofu);
-      double srcTerm =  1. ; // so f = 1
+//       double srcTerm =  1. ; // so f = 1
+      double srcTerm =  - 2. ; // so f = - 2
       for (unsigned i = 0; i < nDof1; i++) {
-//         laplace[i].assign (nDofu, 0.);
+
+        if (ielU1) Resu1[i] -= srcTerm * weight * phi[i];
+        if (ielU2) Resu2[i] -= srcTerm * weight * phi[i];
+
         for (unsigned j = 0; j < nDof1; j++) {
           double laplace = 0.;
           for (unsigned kdim = 0; kdim < dim; kdim++) {
@@ -452,30 +449,33 @@ void AssembleLocalSysFETI (MultiLevelProblem& ml_prob) {
           }
           if (ielU1) {
             Jacu1[i * nDof1 + j] -= laplace;
-            Resu1[i] +=  laplace * solu1[j] - srcTerm * weight * phi[i];
+            Resu1[i] +=  laplace * solu1[j];
           }
           if (ielU2) {
             Jacu2[i * nDof1 + j] -= laplace;
-            Resu2[i] +=  laplace * solu2[j] - srcTerm * weight * phi[i];
+            Resu2[i] +=  laplace * solu2[j];
           }
 
         }
-
-        if (interfaceElem) {
-          if (fabs (x1[0][i]) < 1.e-10) {
-            //lumped mass matrix
-            double Mlumped = phi[i] * weight;
-            M1[ i * nDof1 + i ] +=  Mlumped;
-            M2[ i * nDof1 + i ] += - Mlumped;
-            Resu1[i] -= Mlumped * solmu[i];
-            Resu2[i] -= - Mlumped * solmu[i];
-            Resmu[i] -= Mlumped * (solu1[i] - solu2[i]);
-          }
-        }
-
       }
 
     } // end gauss point loop
+
+    if (interfaceElem) {
+      double edgeLenght = fabs (x1[0][0] - x1[0][1]);
+      if (edgeLenght < 1.e-10) edgeLenght = fabs (x1[1][0] - x1[1][1]);
+      for (unsigned i = 0; i < nDof1; i++) {
+        if (fabs (x1[0][i]) < 1.e-10) {
+          //lumped mass matrix
+          double Mlumped = 0.5 * edgeLenght; //trapezoidal rule on the edge (interface integral)
+          M1[ i * nDof1 + i ] +=  Mlumped;
+          M2[ i * nDof1 + i ] += - Mlumped;
+          Resu1[i] -= Mlumped * solmu[i];
+          Resu2[i] -= - Mlumped * solmu[i];
+          Resmu[i] -= Mlumped * (solu1[i] - solu2[i]);
+        }
+      }
+    }
 
     KK->add_matrix_blocked (Jacu1, l2GMapu1, l2GMapu1);
     RES->add_vector_blocked (Resu1, l2GMapu1);

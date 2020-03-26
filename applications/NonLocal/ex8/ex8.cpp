@@ -30,9 +30,9 @@ bool Schur = false;
 double InitalValueU (const std::vector < double >& x) {
   double value;
 
-  value = 0.;
+//   value = 0.;
 //     value =  x[0];
-//     value =  x[0] * x[0];
+  value =  x[0] * x[0];
 //     value =  x[0] * x[0] * x[0] ;
   return value;
 }
@@ -42,20 +42,21 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal);
 bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
 
   bool dirichlet = true;
-  value = 0.;
+//   value = 0.;
 //     value = x[0];
-//     value = x[0] * x[0];
+  value = x[0] * x[0];
 //     value = x[0] * x[0] * x[0] ;
 
-  if (facename == 2) {
-    if (!strcmp (SolName, "u1")) {
-      dirichlet = false; //Neumann at the interface 
-      value = 0.;
-    }
-    if (!strcmp (SolName, "u2")) {
-      dirichlet = false; //Neumann at the interface 
-      value = 0.;
-    }
+  if ( (x[0] > 0.) && !strcmp (SolName, "u1")) {
+    value = 0.;
+  }
+
+  if ( (x[0] < 0.) && !strcmp (SolName, "u2")) {
+    value = 0.;
+  }
+
+  if (!strcmp (SolName, "mu")) {
+    value = 0.;
   }
 
   return dirichlet;
@@ -89,7 +90,8 @@ int main (int argc, char** argv) {
 
   mlSolGlobal.AddSolution ("u", LAGRANGE, FIRST, 2);
 
-//   mlSol.AddSolution ("u_exact", LAGRANGE, FIRST, 2);
+  mlSol.AddSolution ("u_exact", LAGRANGE, FIRST, 2);
+  mlSolGlobal.AddSolution ("u_exact", LAGRANGE, FIRST, 2);
 
   mlSol.AddSolution ("u1Flag", LAGRANGE, FIRST, 2);
   mlSol.AddSolution ("u2Flag", LAGRANGE, FIRST, 2);
@@ -98,7 +100,8 @@ int main (int argc, char** argv) {
   mlSol.Initialize ("All");
   mlSolGlobal.Initialize ("All");
 
-//   mlSol.Initialize ("u_exact", InitalValueU);
+  mlSol.Initialize ("u_exact", InitalValueU);
+  mlSolGlobal.Initialize ("u_exact", InitalValueU);
 
   // ******* Set boundary conditions *******
   mlSol.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
@@ -166,7 +169,6 @@ int main (int argc, char** argv) {
     system.SetOuterSolver (RICHARDSON);
     system.SetLinearEquationSolverType (FEMuS_FIELDSPLIT, INCLUDE_COARSE_LEVEL_TRUE);
   }
-  system.SetSparsityPatternMinimumSize (5000u);   //TODO tune
 
   system.init();
 
@@ -208,8 +210,6 @@ int main (int argc, char** argv) {
   systemGlobal.SetLinearEquationSolverType (FEMuS_DEFAULT);
   systemGlobal.SetOuterSolver (PREONLY);
 
-  systemGlobal.SetSparsityPatternMinimumSize (5000u);   //TODO tune
-
   systemGlobal.init();
 
   // ******* Set Smoother *******
@@ -236,7 +236,7 @@ int main (int argc, char** argv) {
   std::vector<std::string> print_vars;
   print_vars.push_back ("All");
   mlSol.GetWriter()->SetDebugOutput (true);
-  mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "local", print_vars, 0);
+  mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "FETI", print_vars, 0);
 
   mlSolGlobal.SetWriter (VTK);
   std::vector<std::string> print_vars2;
