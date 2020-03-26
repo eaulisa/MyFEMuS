@@ -429,16 +429,17 @@ void AssembleLocalSysFETI (MultiLevelProblem& ml_prob) {
       unsigned xDof  = msh->GetSolutionDof (i, iel, xType);
       for (unsigned k = 0; k < dim; k++) {
         x1[k][i] = (*msh->_topology->_Sol[k]) (xDof);
-        if (fabs (x1[0][i]) < 1.e-10) interfaceElem = true;
       }
+      if (fabs (x1[0][i]) < 1.e-10) interfaceElem = true;
+
     }
 
     for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solu1Type]->GetGaussPointNumber(); ig++) {
 
       msh->_finiteElement[ielGeom][solu1Type]->Jacobian (x1, ig, weight, phi, phi_x, boost::none);
 
-      bool ielU1 = (ielGroup == 5 || ielGroup == 7) ? true : false;
-      bool ielU2 = (ielGroup == 6 || ielGroup == 8) ? true : false;
+      bool ielU1 = (ielGroup == 7) ? true : false;
+      bool ielU2 = (ielGroup == 8) ? true : false;
 
 //       vector < vector < double > > laplace (nDofu);
       double srcTerm =  1. ; // so f = 1
@@ -509,7 +510,7 @@ void AssembleLocalSysFETI (MultiLevelProblem& ml_prob) {
 
 //     Vec v = ( static_cast< PetscVector* > ( RES ) )->vec();
 //     VecView(v,PETSC_VIEWER_STDOUT_WORLD);
-  
+
 //     PetscViewer    viewer;
 //   PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
 //   PetscObjectSetName ( (PetscObject) viewer, "Nonlocal FETI matrix");

@@ -20,7 +20,7 @@ using namespace femus;
 
 //2D LOCAL DOMAIN DECOMPOSITION WITH FETI: local diffusion with two subdomains
 
-unsigned numberOfUniformLevels = 2;
+unsigned numberOfUniformLevels = 4;
 
 // solver specifics (default is direct solver (MUMPS))
 bool Schur = false;
@@ -46,6 +46,17 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
 //     value = x[0];
 //     value = x[0] * x[0];
 //     value = x[0] * x[0] * x[0] ;
+
+  if (facename == 2) {
+    if (!strcmp (SolName, "u1")) {
+      dirichlet = false; //Neumann at the interface 
+      value = 0.;
+    }
+    if (!strcmp (SolName, "u2")) {
+      dirichlet = false; //Neumann at the interface 
+      value = 0.;
+    }
+  }
 
   return dirichlet;
 }
@@ -94,24 +105,6 @@ int main (int argc, char** argv) {
   mlSolGlobal.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
   mlSol.GenerateBdc ("All");
   mlSolGlobal.GenerateBdc ("All");
-
-  // ******* Set volume constraints for the nonlocal *******
-  std::vector < unsigned > volumeConstraintFlags (2);
-
-  volumeConstraintFlags[0] = 5;
-  volumeConstraintFlags[1] = 6;
-
-  unsigned solu1Index = mlSol.GetIndex ("u1");
-  mlSol.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, solu1Index, 0);
-
-  unsigned solu2Index = mlSol.GetIndex ("u2");
-  mlSol.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, solu2Index, 0);
-
-  unsigned solmuIndex = mlSol.GetIndex ("mu");
-  mlSol.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, solmuIndex, 0);
-
-  unsigned soluIndex = mlSolGlobal.GetIndex ("u");
-  mlSolGlobal.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, soluIndex, 0);
 
   //BEGIN assemble and solve nonlocal FETI problem
   MultiLevelProblem ml_prob (&mlSol);
