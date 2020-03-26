@@ -102,7 +102,7 @@ int main(int argc, char** args) {
   // define the multilevel solution and attach the mlMsh object to it
   MultiLevelSolution mlSol(&mlMsh);
 
-  FEOrder femOrder = SECOND;
+  FEOrder femOrder = FIRST;
 
   mlSol.AddSolution("VX1", LAGRANGE, femOrder);
   mlSol.AddSolution("VY1", LAGRANGE, femOrder);
@@ -180,7 +180,7 @@ int main(int argc, char** args) {
 
   double R = 0.125;
 
-  unsigned NTHETA = 1800; // number of partitions on the outer circle
+  unsigned NTHETA = 600; // number of partitions on the outer circle
   unsigned NR = NTHETA / (2 * M_PI); // number of partitions on the radial direction
   double DR = R / (NR + 0.5);
 
@@ -569,6 +569,8 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       double gammaM2 = iM2C2 / denM;
 
       double thetaM = 8. / denM;
+      
+      std::cout << thetaM <<" ";
 
       //double iL1C1 = 1. / (lambda1 * (*sol->_Sol[CLIndex[0]])(iel));
       //double iL2C2 = 1. / (lambda2 * (*sol->_Sol[CLIndex[1]])(iel));
