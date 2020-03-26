@@ -206,6 +206,7 @@ int main (int argc, char** argv) {
 
   // ******* Set Preconditioner *******
   systemGlobal.SetLinearEquationSolverType (FEMuS_DEFAULT);
+  systemGlobal.SetOuterSolver (PREONLY);
 
   systemGlobal.SetSparsityPatternMinimumSize (5000u);   //TODO tune
 
