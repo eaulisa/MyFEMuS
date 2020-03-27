@@ -148,7 +148,7 @@ int main (int argc, char** argv) {
   FS1.push_back (&FS_MU);
 
   FieldSplitTree FS_Nonlocal (PREONLY, FIELDSPLIT_SCHUR_PRECOND, FS1, "Nonlocal_FETI");
-  FS_Nonlocal.SetSchurFactorizationType (SCHUR_FACT_FULL); // SCHUR_FACT_UPPER, SCHUR_FACT_LOWER,SCHUR_FACT_FULL;
+//   FS_Nonlocal.SetSchurFactorizationType (SCHUR_FACT_UPPER); // SCHUR_FACT_UPPER, SCHUR_FACT_LOWER,SCHUR_FACT_FULL;
   FS_Nonlocal.SetSchurPreType (SCHUR_PRE_FULL); // SCHUR_PRE_SELF, SCHUR_PRE_SELFP, SCHUR_PRE_USER, SCHUR_PRE_A11,SCHUR_PRE_FULL;
   //END FIELD SPLIT
 
