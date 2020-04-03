@@ -167,9 +167,9 @@ double GetArea(const unsigned &level, const unsigned &levelMax, const std::vecto
     }
     else if(!oneNodeIsOutside) {
       for(unsigned ig = 0; ig < finiteElement->GetGaussPointNumber(); ig++) {
-        finiteElement->Jacobian(xv, ig, weight, phi, phi_x); 
+        finiteElement->Jacobian(xv, ig, weight, phi, phi_x);
         area += weight;
-      }  
+      }
     }
   }
   else { // integration rule for interface elements
@@ -181,8 +181,6 @@ double GetArea(const unsigned &level, const unsigned &levelMax, const std::vecto
     double C1 = distMax / 50.;
     double C2 = 1. / (0.5 * M_PI + atan(distMax / C1));
 
-  //  double areaE = 0.;
-
     for(unsigned ig = 0; ig < finiteElement->GetGaussPointNumber(); ig++) {
       finiteElement->Jacobian(xv, ig, weight, phi, phi_x);
       double dist_g = 0.;
@@ -190,15 +188,8 @@ double GetArea(const unsigned &level, const unsigned &levelMax, const std::vecto
         dist_g += dist[j] * phi[j];
       }
       double xig = 0.5 + C2 * atan(dist_g / C1);
-
-//       std::cout << xig << " " << weight << " " << xig * weight;
-//       std::cout << std::endl;
       area += xig * weight;
-
-//      areaE += xig * weight;
     }
-
-    //std::cout << areaE << std::endl;
   }
 
   return area;
@@ -247,23 +238,16 @@ void BuildPMat(std::vector<std::vector < std::vector < std::pair < unsigned, dou
   };
 
   std::vector< double > xiChild(_dim);
-
-
-
   std::vector <double> phi;
 
   for(unsigned i = 0; i < _numberOfChildren; i++) {
-
     double xi0b = _xi[_ChildBottomLeftVertex[i]][0];
     double xi1b = _xi[_ChildBottomLeftVertex[i]][1];
 
     for(unsigned j = 0; j < _numberOfNodes; j++) {
-
       _PMatrix[i][j].resize(_numberOfNodes);
-
       xiChild[0] = xi0b + 0.5 * (_xi[j][0] + 1.);
       xiChild[1] = xi1b + 0.5 * (_xi[j][1] + 1.);
-
       unsigned cnt = 0;
       finiteElement->GetPhi(phi, xiChild);
       for(unsigned jj = 0; jj < _numberOfNodes; jj++) {
