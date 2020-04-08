@@ -29,21 +29,23 @@
 
 using namespace femus;
 
+#include "RefineElement.hpp"
 
 
-void GetChildernQuadElements(const std::vector < std::vector <double>> &xv,
-                             const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix,
-                             std::vector<std::vector < std::vector <double>>> &xvChildren);
+double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
+               const RefineElement &refineElement);
 
-double GetArea(const unsigned &level, const unsigned &LevelMax, const std::vector<std::vector<double>>&xv,
-               const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix);
+double radius;
+double xc = -1;
+double yc = -1;
 
-void BuildPMat(std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix);
+double GetDistance(const double &x, const double &y) {
+  return radius - sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
+}
 
-double radius = 0.5001;
-bool printMesh = true;
+bool printMesh = false;
 std::ofstream fout;
-const elem_type *finiteElement;
+
 std::vector <double > dist;
 std::vector <double > phi;
 std::vector <double > phi_x;
@@ -53,99 +55,150 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   unsigned dim = 2;
-  std::vector <double> xg(dim);
-
-  xg[0] = 0.5;
-  xg[1] = 0.25;
-
+  
+  double dMax;
+  
   std::vector < std::vector <double> > xv(dim);
 
-  for(unsigned k = 0; k < dim; k++) xv[k].resize(9);
+  char geometry[] = "tri";
 
-  xv[0][0] = -1.;
-  xv[1][0] = -1.;
+  if(!strcmp(geometry, "quad")) {
+           
+    radius = 1.5;      
+      
+    for(unsigned k = 0; k < dim; k++) xv[k].resize(9);
+    
+    xv[0][0] = -1.;
+    xv[1][0] = -1.;
 
-  xv[0][1] =  1.;
-  xv[1][1] = -1.;
+    xv[0][1] =  1.;
+    xv[1][1] = -1.;
 
-  xv[0][2] =  1.;
-  xv[1][2] =  1.;
+    xv[0][2] =  1.;
+    xv[1][2] =  1.;
 
-  xv[0][3] = -1.;
-  xv[1][3] =  1.;
+    xv[0][3] = -1.;
+    xv[1][3] =  1.;
 
-  xv[0][4] =  0.;
-  xv[1][4] = -1.;
+    xv[0][4] =  0.;
+    xv[1][4] = -1.;
 
-  xv[0][5] =  1.;
-  xv[1][5] =  0.;
+    xv[0][5] =  1.;
+    xv[1][5] =  0.;
 
-  xv[0][6] =  0.;
-  xv[1][6] =  1.;
+    xv[0][6] =  0.;
+    xv[1][6] =  1.;
 
-  xv[0][7] = -1.;
-  xv[1][7] =  0.;
+    xv[0][7] = -1.;
+    xv[1][7] =  0.;
 
-  xv[0][8] =  0.25;
-  xv[1][8] =  -0.25;
+    xv[0][8] =  0.25;
+    xv[1][8] =  -0.25;
+    
+    dMax = sqrt(pow(xv[0][2] - xv[0][0],2) + pow(xv[1][2] - xv[1][0],2));
+  }
+  else if(!strcmp(geometry, "tri")) {
+    radius = 1.25;   
+    for(unsigned k = 0; k < dim; k++) xv[k].resize(7);
+      
+    xv[0][0] = -1.;
+    xv[1][0] = -1.;
+
+    xv[0][1] =  1.;
+    xv[1][1] = -1.;
+
+    xv[0][2] =  -1.;
+    xv[1][2] =  1.;
+
+    xv[0][3] =  0.;
+    xv[1][3] = -1.;
+
+    xv[0][4] =  0.;
+    xv[1][4] =  0.;
+    
+    xv[0][5] = -1.;
+    xv[1][5] =  0.;
+
+    xv[0][6] =  -1./3.;
+    xv[1][6] =  -1./3.;
+    
+    dMax = sqrt(pow(xv[0][2] - xv[0][1],2) + pow(xv[1][2] - xv[1][1],2));
+  }
+  
+
+  RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh");
+  const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix = refineElement.GetProlongationMatrix();
+
+  for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
 
 
-  finiteElement = new const elem_type_2D("quad", "biquadratic", "seventh");
-  std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > PMatrix;
-  BuildPMat(PMatrix);
   if(printMesh) {
     fout.open("mesh.txt");
     fout.close();
   }
 
-  double Area;
-  double AnalyticArea =  M_PI * radius * radius ;
-  Area = GetArea(0, 0, xv, PMatrix);
-  std::cout << "Computed Area level 0 = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
-  double Error0 = fabs(Area - AnalyticArea) / AnalyticArea;
-  std::cout << "Relative Error level 0 = " << Error0 << std::endl;
+  unsigned lmin = 0;
+  unsigned lmax = 18;
 
-  for(unsigned l = 1; l < 12; l++) {
-    Area = GetArea(0, l, xv, PMatrix);
+  
+  std::clock_t c_start = std::clock();
+  
+  double Area;
+  double AnalyticArea =  M_PI * radius * radius / 4.;
+  Area = GetArea(dMax, 0, lmin, lmin, xv, refineElement);
+  std::cout << "Computed Area level "<<lmin<<" = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
+  double Error0 = fabs(Area - AnalyticArea) / AnalyticArea;
+  std::cout << "Relative Error level "<<lmin<<" = " << Error0 << std::endl;
+
+  for(unsigned l = lmin + 1; l < lmax; l++) {
+    Area = GetArea(dMax, 0, lmin, l, xv, refineElement);
     std::cout << "Computed Area level " << l << " = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
 
     double Errorl = fabs(Area - AnalyticArea) / (M_PI * AnalyticArea);
-    std::cout << "Order of Convergence = " << log(Error0 / Errorl) / log(pow(2., l)) << std::endl;
+    std::cout << "Order of Convergence = " << log(Error0 / Errorl) / log(pow(2., l - lmin)) << std::endl;
     std::cout << "Relative Error level " << l + 1 << " = " << Errorl << std::endl;
 
   }
-  delete finiteElement;
+  
+  std::clock_t c_end = std::clock();
+
+  long double time_elapsed_ms = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
+  std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
+
   return 1;
 }
 
 
 
-double GetArea(const unsigned &level, const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
-               const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix) {
+double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
+               const RefineElement &refineElement) {
 
+  unsigned thisLevelMax = (levelMin > levelMax) ? levelMin : levelMax;  
+    
   double area = 0.;
+
+  const unsigned numberOfNodes = refineElement.GetNumberOfNodes();
 
   if(printMesh) {
     fout.open("mesh.txt", std::ios::app);
-    for(unsigned j = 0; j < 4; j++) {
+    for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
       fout << level << " " << j << " " << xv[0][j] << " " << xv[1][j] << std::endl;
     }
     fout << level << " " << 0 << " " << xv[0][0] << " " << xv[1][0] << std::endl;
     fout << std::endl;
     fout.close();
   }
-  const unsigned _numberOfNodes = 9;
-  if(level < levelMax) {
+
+  if(level < thisLevelMax) {
     bool oneNodeIsInside = false;
     bool oneNodeIsOutside = false;
-    for(unsigned j = 0; j < _numberOfNodes; j++) {
-      double rj = sqrt(xv[0][j] * xv[0][j] + xv[1][j] * xv[1][j]);
-      if(rj < radius) {
+    for(unsigned j = 0; j < numberOfNodes; j++) {
+      double d = GetDistance(xv[0][j], xv[1][j]);
+      if(d > -0.01 * dMax) {
         oneNodeIsInside = true;
         if(!oneNodeIsOutside) { //loop on the left nodes
-          for(unsigned jj = j + 1; jj < _numberOfNodes; jj++) {
-            double rjj = sqrt(xv[0][jj] * xv[0][jj] + xv[1][jj] * xv[1][jj]);
-            if(rjj >= radius) {
+          for(unsigned jj = j + 1; jj < numberOfNodes; jj++) {
+            if(GetDistance(xv[0][jj], xv[1][jj]) < 0.01 *dMax) {
               oneNodeIsOutside = true;
               break;
             }
@@ -153,38 +206,41 @@ double GetArea(const unsigned &level, const unsigned &levelMax, const std::vecto
         }
         break;
       }
-      else {
+      if(d < 0.01 * dMax){
         oneNodeIsOutside = true;
       }
     }
 
-    if((oneNodeIsInside * oneNodeIsOutside)) {
+    if((oneNodeIsInside * oneNodeIsOutside) || level < levelMin) {
       std::vector < std::vector < std::vector <double> > > xvChildren;
-      GetChildernQuadElements(xv, PMatrix, xvChildren);
+      refineElement.GetProlongation(xv, xvChildren);
       for(unsigned i = 0; i < xvChildren.size(); i++) {
-        area += GetArea(level + 1, levelMax, xvChildren[i], PMatrix);
+        area += GetArea(dMax/2., level + 1, levelMin, thisLevelMax, xvChildren[i], refineElement);
       }
     }
     else if(!oneNodeIsOutside) {
-      for(unsigned ig = 0; ig < finiteElement->GetGaussPointNumber(); ig++) {
-        finiteElement->Jacobian(xv, ig, weight, phi, phi_x);
+      const elem_type &finiteElement = refineElement.GetFEM();
+
+      for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
+        finiteElement.Jacobian(xv, ig, weight, phi, phi_x);
         area += weight;
       }
     }
   }
   else { // integration rule for interface elements
-    dist.resize(_numberOfNodes, 0.);
-    for(unsigned j = 0; j < _numberOfNodes; j++) {
-      dist[j] = radius - sqrt(xv[0][j] * xv[0][j] + xv[1][j] * xv[1][j]);
+    dist.resize(numberOfNodes);
+    for(unsigned j = 0; j < numberOfNodes; j++) {
+      dist[j] = GetDistance(xv[0][j], xv[1][j]);
     }
-    double distMax = 2. * sqrt(2.) / pow(2., levelMax);
-    double C1 = distMax / 50.;
-    double C2 = 1. / (0.5 * M_PI + atan(distMax / C1));
+    
+    double C1 = dMax / 50.;
+    double C2 = 1. / (0.5 * M_PI + atan(dMax / C1));
 
-    for(unsigned ig = 0; ig < finiteElement->GetGaussPointNumber(); ig++) {
-      finiteElement->Jacobian(xv, ig, weight, phi, phi_x);
+    const elem_type &finiteElement = refineElement.GetFEM();
+    for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
+      finiteElement.Jacobian(xv, ig, weight, phi, phi_x);
       double dist_g = 0.;
-      for(unsigned j = 0; j < _numberOfNodes; j++) {
+      for(unsigned j = 0; j < numberOfNodes; j++) {
         dist_g += dist[j] * phi[j];
       }
       double xig = 0.5 + C2 * atan(dist_g / C1);
@@ -193,71 +249,4 @@ double GetArea(const unsigned &level, const unsigned &levelMax, const std::vecto
   }
 
   return area;
-}
-
-const unsigned _dim = 2;
-const unsigned _numberOfChildren = 4;
-const unsigned _numberOfNodes = 9;
-
-void GetChildernQuadElements(const std::vector < std::vector <double>> &xv,
-                             const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix,
-                             std::vector<std::vector < std::vector <double>>> &xvChildren) {
-
-  xvChildren.resize(_numberOfChildren);
-  for(unsigned i = 0; i < _numberOfChildren; i++) {
-    xvChildren[i].resize(_dim);
-    for(unsigned k = 0; k < _dim; k++) {
-      xvChildren[i][k].resize(_numberOfNodes);
-    }
-  }
-
-  for(unsigned i = 0; i < _numberOfChildren; i++) {
-    for(unsigned j = 0; j < _numberOfNodes; j++) {
-      xvChildren[i][0][j] = 0.;
-      xvChildren[i][1][j] = 0.;
-      for(unsigned jj = 0; jj < _PMatrix[i][j].size(); jj++) {
-        xvChildren[i][0][j] += _PMatrix[i][j][jj].second * xv[0][_PMatrix[i][j][jj].first];
-        xvChildren[i][1][j] += _PMatrix[i][j][jj].second * xv[1][_PMatrix[i][j][jj].first];
-      }
-    }
-  }
-}
-
-
-void BuildPMat(std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix) {
-
-  _PMatrix.resize(_numberOfChildren);
-  for(unsigned i = 0; i < _numberOfChildren; i++) {
-    _PMatrix[i].resize(_numberOfNodes);
-  }
-
-  const unsigned _ChildBottomLeftVertex[4] = {0, 4, 8, 7};
-
-  const double _xi[9][2] = {{ -1., -1.}, {1., -1.}, {1., 1.}, { -1., 1.},
-    {0., -1.}, {1., 0.}, {0., 1,}, { -1., 0.},  {0., 0.}
-  };
-
-  std::vector< double > xiChild(_dim);
-  std::vector <double> phi;
-
-  for(unsigned i = 0; i < _numberOfChildren; i++) {
-    double xi0b = _xi[_ChildBottomLeftVertex[i]][0];
-    double xi1b = _xi[_ChildBottomLeftVertex[i]][1];
-
-    for(unsigned j = 0; j < _numberOfNodes; j++) {
-      _PMatrix[i][j].resize(_numberOfNodes);
-      xiChild[0] = xi0b + 0.5 * (_xi[j][0] + 1.);
-      xiChild[1] = xi1b + 0.5 * (_xi[j][1] + 1.);
-      unsigned cnt = 0;
-      finiteElement->GetPhi(phi, xiChild);
-      for(unsigned jj = 0; jj < _numberOfNodes; jj++) {
-        if(fabs(phi[jj]) > 1.0e-10) {
-          _PMatrix[i][j][cnt].first = jj;
-          _PMatrix[i][j][cnt].second = phi[jj];
-          cnt++;
-        }
-      }
-      _PMatrix[i][j].resize(cnt);
-    }
-  }
 }
