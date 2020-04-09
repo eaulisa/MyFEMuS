@@ -24,6 +24,7 @@ unsigned conformalTriangleType = 2;
 
 // const double normalSign = -1.;
 const bool O2conformal = true;
+const bool noLM = false;
 unsigned counter = 0;
 const double eps = 1.e-3;// * O2conformal;
 
@@ -40,7 +41,8 @@ void ProjectSolution(MultiLevelSolution& mlSol);
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
-    return sin(4.* M_PI * x[0]) * sin(4.* M_PI * x[1]) ;
+return cos(28*M_PI*(x[1]*x[1]+x[0]*x[0]));
+    // return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
 
 
@@ -48,22 +50,22 @@ double InitalValueCM(const std::vector < double >& x) {
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
 
-  bool dirichlet = true;
-  value = 0.;
-
-  if(!strcmp(solName, "Dx1")) {
-    if(3 == faceName || 3 == faceName) {
-      dirichlet = false;
-    }
-    if(4 == faceName) {
-      value = 0.75 * sin(x[1] / 0.5 * M_PI);
-    }
-  }
-  else if(!strcmp(solName, "Dx2")) {
-    if(2 == faceName) {
-      dirichlet = false;
-    }
-  }
+  // bool dirichlet = true;
+  // value = 0.;
+  //
+  // if(!strcmp(solName, "Dx1")) {
+  //   if(3 == faceName || 3 == faceName) {
+  //     dirichlet = false;
+  //   }
+  //   if(4 == faceName) {
+  //     value = 0.75 * sin(x[1] / 0.5 * M_PI);
+  //   }
+  // }
+  // else if(!strcmp(solName, "Dx2")) {
+  //   if(2 == faceName) {
+  //     dirichlet = false;
+  //   }
+  // }
 
 
 //   if (!strcmp (solName, "Dx1")) {
@@ -80,17 +82,17 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
 
 
 
-/*
+
   bool dirichlet = true;
   value = 0.;
 
   if(!strcmp(solName, "Dx1")) {
     if(1 == faceName) {
       //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
-      value = 0.4 * sin(x[1] / 0.5 * M_PI);
+      value = 0.6 * sin(x[1] / 0.5 * M_PI);
       //dirichlet = false;
     }
-  }*/
+  }
 
 //   else if(!strcmp(solName, "Dx2")) {
 //     if(1 == faceName) {
@@ -132,9 +134,10 @@ int main(int argc, char** args) {
   //mlMsh.GenerateCoarseBoxMesh(32, 32, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
 
   //mlMsh.ReadCoarseMesh("../input/squareReg3D.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
 
   unsigned numberOfUniformLevels = 6;
@@ -154,13 +157,13 @@ int main(int argc, char** args) {
 
   // Add variables X,Y,W to mlSol.
 
-  FEOrder feOrder = SECOND;
+  FEOrder feOrder = FIRST;
   mlSol.AddSolution("Dx1", LAGRANGE, feOrder, 0);
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 0);
   mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 0);
 
   mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
-  
+
   mlSol.AddSolution ("ENVN", LAGRANGE, feOrder, 0, false);
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -170,20 +173,20 @@ int main(int argc, char** args) {
   mlSol.AddSolution("mu1Edge", LAGRANGE, SECOND, 0, false);
   mlSol.AddSolution("mu2Edge", LAGRANGE, SECOND, 0, false);
   mlSol.AddSolution("cntEdge", LAGRANGE, SECOND, 0, false);
-  
+
   mlSol.AddSolution("cm", LAGRANGE, SECOND, 0, false);
-  
+
 
   // Initialize the variables and attach boundary conditions.
   mlSol.Initialize("All");
-  
+
   mlSol.Initialize("cm", InitalValueCM);
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
 
   GetElementNearVertexNumber (mlSol);
-  
+
   MultiLevelProblem mlProb(&mlSol);
 
   // Add system Conformal or Shear Minimization in mlProb.
@@ -202,7 +205,7 @@ int main(int argc, char** args) {
   system.init();
 
   mlSol.SetWriter(VTK);
- 
+
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
@@ -216,10 +219,10 @@ int main(int argc, char** args) {
   mov_vars.push_back("Dx2");
   mov_vars.push_back("Dx3");
   mlSol.GetWriter()->SetMovingMesh(mov_vars);
-  
-  
+
+
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
-  
+
   //ProjectSolution(mlSol);
 
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 2);

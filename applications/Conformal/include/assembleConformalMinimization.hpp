@@ -36,28 +36,15 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
   // Setting the reference elements to be equilateral triangles.
   std::vector < std::vector < double > > xT(2);
-  xT[0].resize(7);
+  xT[0].resize(3);
   xT[0][0] = -0.5;
   xT[0][1] = 0.5;
   xT[0][2] = 0.;
-  xT[0][3] = 0.5 * (xT[0][0] + xT[0][1]);
-  xT[0][4] = 0.5 * (xT[0][1] + xT[0][2]);
-  xT[0][5] = 0.5 * (xT[0][2] + xT[0][0]);
-  xT[0][6] = 0.33333333333333333333 * (xT[0][0] + xT[0][1] + xT[0][2]);
 
-  xT[1].resize(7);
+  xT[1].resize(3);
   xT[1][0] = 0.;
   xT[1][1] = 0.;
   xT[1][2] = sqrt(3.) / 2.;
-  xT[1][3] = 0.5 * (xT[1][0] + xT[1][1]);
-  xT[1][4] = 0.5 * (xT[1][1] + xT[1][2]);
-  xT[1][5] = 0.5 * (xT[1][2] + xT[1][0]);
-  xT[1][6] = 0.33333333333333333333 * (xT[1][0] + xT[1][1] + xT[1][2]);
-
-  unsigned solENVNIndex = mlSol->GetIndex("ENVN");
-  unsigned solENVNType = mlSol->GetSolutionType(solENVNIndex);
-
-
 
   std::vector<double> phi_uv0;
   std::vector<double> phi_uv1;
@@ -65,7 +52,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   std::vector< double > stdVectorPhi;
   std::vector< double > stdVectorPhi_uv;
 
-  
+//   unsigned solENVNIndex = mlSol->GetIndex("ENVN");
+//   unsigned solENVNType = mlSol->GetSolutionType(solENVNIndex);
 
   // Extract positions of Dx in ml_sol object.
 //   unsigned solDxIndex[DIM];
@@ -215,19 +203,19 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
     }
 
-//     if(ielGeom == TRI) {
-// 
+    if(ielGeom == TRI) {
+
 //       xT[0][1] = 0.5;
 //       std::vector < unsigned > ENVN(3);
 //       std::vector < double > angle(3);
-// 
+//
 //       for(unsigned j = 0; j < 3; j++) {
 //         unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
 //         ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
 //         angle[j] = 2 * M_PI / ENVN[j];
 //       }
-// 
-// 
+//
+//
 //       if(conformalTriangleType == 1) {  //this works with moo two levels
 //         ChangeTriangleConfiguration1(ENVN, angle);
 //       }
@@ -237,7 +225,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //       else { //no change
 //         angle.assign(3, M_PI / 3.);
 //       }
-// 
+//
 //       double l = xT[0][1] - xT[0][0];
 //       double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
 //       double scale = sqrt((sqrt(3.) / 2.) / (l * d));
@@ -246,19 +234,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //       xT[0][1] = xT[0][0] + l;
 //       xT[0][2] = xT[0][0] + d / tan(angle[0]);
 //       xT[1][2] = d;
-// 
-//       xT[0][3] = 0.5 * (xT[0][0] + xT[0][1]);
-//       xT[0][4] = 0.5 * (xT[0][1] + xT[0][2]);
-//       xT[0][5] = 0.5 * (xT[0][2] + xT[0][0]);
-//       xT[0][6] = 0.33333333333333333333 * (xT[0][0] + xT[0][1] + xT[0][2]);
-// 
-//       xT[1][3] = 0.5 * (xT[1][0] + xT[1][1]);
-//       xT[1][4] = 0.5 * (xT[1][1] + xT[1][2]);
-//       xT[1][5] = 0.5 * (xT[1][2] + xT[1][0]);
-//       xT[1][6] = 0.33333333333333333333 * (xT[1][0] + xT[1][1] + xT[1][2]);
-//       
-//       //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
-//     }
+
+      //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
+    }
 
 
     // *** Gauss point loop ***
@@ -279,7 +257,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         phix_uv[1] = msh->_finiteElement[ielGeom][solType]->GetDPhiDEta(ig);
 
         weight = msh->_finiteElement[ielGeom][solType]->GetGaussWeight(ig);
-
       }
 
       // Special adjustments for triangles.
@@ -302,7 +279,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         phix_uv[1] = &phi_uv1[0];
 
       }
-
 
       // Initialize and compute values of x, Dx, NDx, x_uv at the Gauss points.
       double solDxg[3] = {0., 0., 0.};
@@ -517,7 +493,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
               for(unsigned k = 0; k < dim; k++) {
                 term += DQ[K][J][k] * phix_uv[k][i];
               }
-              Jac[istart + J * nxDofs + j] += term * Area + O2conformal * solLg * phix[i] * DnormalMSqrtDetg[K][J] * Area2;
+              Jac[istart + J * nxDofs + j] += term * Area + (1 - noLM) * solLg * phix[i] * DnormalMSqrtDetg[K][J] * Area2;
               Res[K * nxDofs + i] -= term * Area * (xhat[J][j] + solNDx[J][j]);
             }
           }
@@ -530,9 +506,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           for(unsigned K = 0; K < DIM; K++) {
             double term = 0.;
             for(unsigned J = 0; J < DIM; J++) {
-              term += O2conformal * (solDxg[J] - solNDxg[J]) * DnormalMSqrtDetg[J][K];
+              term += (solDxg[J] - solNDxg[J]) * DnormalMSqrtDetg[J][K];
             }
-            Jac[istart + K * nxDofs + j] += phiL[i] * (term - phix[j] * normalMSqrtDetg[K]) * Area2;
+            Jac[istart + K * nxDofs + j] += (1 - noLM) * phiL[i] * (term - phix[j] * normalMSqrtDetg[K]) * Area2;
           }
         }
       }
@@ -541,7 +517,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nLDofs; i++) {
         unsigned irow = DIM * nxDofs + i;
         double term = phiL[i] * (DnXmDxdotNSqrtDetg * Area2 + eps * solLg * Area);
-        Res[irow] -= term;
+        Res[irow] -= (1 - noLM) * term;
         unsigned istart = irow * sizeAll;
         for(unsigned j = 0; j < nLDofs; j++) {
           Jac[istart + DIM * nxDofs + j] += eps * phiL[i] * phiL[j] *  Area;
