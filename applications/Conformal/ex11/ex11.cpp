@@ -41,7 +41,7 @@ void ProjectSolution(MultiLevelSolution& mlSol);
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
-return cos(28*M_PI*(x[1]*x[1]+x[0]*x[0]));
+return cos(28*M_PI*(x[1]));
     // return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
 
@@ -50,22 +50,22 @@ return cos(28*M_PI*(x[1]*x[1]+x[0]*x[0]));
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
 
-  // bool dirichlet = true;
-  // value = 0.;
-  //
-  // if(!strcmp(solName, "Dx1")) {
-  //   if(3 == faceName || 3 == faceName) {
-  //     dirichlet = false;
-  //   }
-  //   if(4 == faceName) {
-  //     value = 0.75 * sin(x[1] / 0.5 * M_PI);
-  //   }
-  // }
-  // else if(!strcmp(solName, "Dx2")) {
-  //   if(2 == faceName) {
-  //     dirichlet = false;
-  //   }
-  // }
+  bool dirichlet = true;
+  value = 0.;
+
+  if(!strcmp(solName, "Dx1")) {
+    if(3 == faceName || 3 == faceName) {
+      dirichlet = false;
+    }
+    if(4 == faceName) {
+      value = 0.75 * sin(x[1] / 0.5 * M_PI);
+    }
+  }
+  else if(!strcmp(solName, "Dx2")) {
+    if(2 == faceName) {
+      dirichlet = false;
+    }
+  }
 
 
 //   if (!strcmp (solName, "Dx1")) {
@@ -83,16 +83,16 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
 
 
 
-  bool dirichlet = true;
-  value = 0.;
-
-  if(!strcmp(solName, "Dx1")) {
-    if(1 == faceName) {
-      //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
-      value = 0.6 * sin(x[1] / 0.5 * M_PI);
-      //dirichlet = false;
-    }
-  }
+  // bool dirichlet = true;
+  // value = 0.;
+  //
+  // if(!strcmp(solName, "Dx1")) {
+  //   if(1 == faceName) {
+  //     //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
+  //     value = 0.6 * sin(x[1] / 0.5 * M_PI);
+  //     //dirichlet = false;
+  //   }
+  // }
 
 //   else if(!strcmp(solName, "Dx2")) {
 //     if(1 == faceName) {
@@ -134,13 +134,13 @@ int main(int argc, char** args) {
   //mlMsh.GenerateCoarseBoxMesh(32, 32, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
 
   //mlMsh.ReadCoarseMesh("../input/squareReg3D.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
 
-  unsigned numberOfUniformLevels = 6;
+  unsigned numberOfUniformLevels = 5;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
