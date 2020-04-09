@@ -32,8 +32,9 @@ using namespace femus;
 #include "RefineElement.hpp"
 
 
-double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
-               const RefineElement &refineElement);
+double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin,
+               const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
+               RefineElement &refineElement);
 
 double radius;
 double xc = -1;
@@ -47,7 +48,7 @@ bool printMesh = false;
 std::ofstream fout;
 
 std::vector <double > dist;
-std::vector <double > phi;
+const double *phi;
 std::vector <double > phi_x;
 double weight;
 
@@ -55,19 +56,19 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   unsigned dim = 2;
-  
+
   double dMax;
-  
+
   std::vector < std::vector <double> > xv(dim);
 
   char geometry[] = "tri";
 
   if(!strcmp(geometry, "quad")) {
-           
-    radius = 1.5;      
-      
+
+    radius = 1.5;
+
     for(unsigned k = 0; k < dim; k++) xv[k].resize(9);
-    
+
     xv[0][0] = -1.;
     xv[1][0] = -1.;
 
@@ -94,13 +95,13 @@ int main(int argc, char** args) {
 
     xv[0][8] =  0.25;
     xv[1][8] =  -0.25;
-    
-    dMax = sqrt(pow(xv[0][2] - xv[0][0],2) + pow(xv[1][2] - xv[1][0],2));
+
+    dMax = sqrt(pow(xv[0][2] - xv[0][0], 2) + pow(xv[1][2] - xv[1][0], 2));
   }
   else if(!strcmp(geometry, "tri")) {
-    radius = 1.25;   
+    radius = 1.25;
     for(unsigned k = 0; k < dim; k++) xv[k].resize(7);
-      
+
     xv[0][0] = -1.;
     xv[1][0] = -1.;
 
@@ -115,16 +116,16 @@ int main(int argc, char** args) {
 
     xv[0][4] =  0.;
     xv[1][4] =  0.;
-    
+
     xv[0][5] = -1.;
     xv[1][5] =  0.;
 
-    xv[0][6] =  -1./3.;
-    xv[1][6] =  -1./3.;
-    
-    dMax = sqrt(pow(xv[0][2] - xv[0][1],2) + pow(xv[1][2] - xv[1][1],2));
+    xv[0][6] =  -1. / 3.;
+    xv[1][6] =  -1. / 3.;
+
+    dMax = sqrt(pow(xv[0][2] - xv[0][1], 2) + pow(xv[1][2] - xv[1][1], 2));
   }
-  
+
 
   RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh");
   const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix = refineElement.GetProlongationMatrix();
@@ -140,15 +141,15 @@ int main(int argc, char** args) {
   unsigned lmin = 0;
   unsigned lmax = 18;
 
-  
+
   std::clock_t c_start = std::clock();
-  
+
   double Area;
   double AnalyticArea =  M_PI * radius * radius / 4.;
   Area = GetArea(dMax, 0, lmin, lmin, xv, refineElement);
-  std::cout << "Computed Area level "<<lmin<<" = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
+  std::cout << "Computed Area level " << lmin << " = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
   double Error0 = fabs(Area - AnalyticArea) / AnalyticArea;
-  std::cout << "Relative Error level "<<lmin<<" = " << Error0 << std::endl;
+  std::cout << "Relative Error level " << lmin << " = " << Error0 << std::endl;
 
   for(unsigned l = lmin + 1; l < lmax; l++) {
     Area = GetArea(dMax, 0, lmin, l, xv, refineElement);
@@ -159,10 +160,10 @@ int main(int argc, char** args) {
     std::cout << "Relative Error level " << l + 1 << " = " << Errorl << std::endl;
 
   }
-  
+
   std::clock_t c_end = std::clock();
 
-  long double time_elapsed_ms = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
+  long double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
   return 1;
@@ -170,11 +171,12 @@ int main(int argc, char** args) {
 
 
 
-double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const std::vector<std::vector<double>>&xv,
-               const RefineElement &refineElement) {
+double GetArea(const double &dMax, const unsigned &level,
+               const unsigned &levelMin, const unsigned &levelMax,
+               const std::vector<std::vector<double>>&xv, RefineElement &refineElement) {
 
-  unsigned thisLevelMax = (levelMin > levelMax) ? levelMin : levelMax;  
-    
+  unsigned thisLevelMax = (levelMin > levelMax) ? levelMin : levelMax;
+
   double area = 0.;
 
   const unsigned numberOfNodes = refineElement.GetNumberOfNodes();
@@ -190,40 +192,48 @@ double GetArea(const double &dMax, const unsigned &level, const unsigned &levelM
   }
 
   if(level < thisLevelMax) {
-    bool oneNodeIsInside = false;
-    bool oneNodeIsOutside = false;
-    for(unsigned j = 0; j < numberOfNodes; j++) {
-      double d = GetDistance(xv[0][j], xv[1][j]);
-      if(d > -0.01 * dMax) {
-        oneNodeIsInside = true;
-        if(!oneNodeIsOutside) { //loop on the left nodes
-          for(unsigned jj = j + 1; jj < numberOfNodes; jj++) {
-            if(GetDistance(xv[0][jj], xv[1][jj]) < 0.01 *dMax) {
-              oneNodeIsOutside = true;
-              break;
+
+    if(level < levelMin) {
+      refineElement.GetProlongation(xv, level);
+      const std::vector < std::vector < std::vector <double> > > &xvChildren = refineElement.GetChildern(level);
+      for(unsigned i = 0; i < xvChildren.size(); i++) {
+        area += GetArea(dMax / 2., level + 1, levelMin, thisLevelMax, xvChildren[i], refineElement);
+      }
+    }
+    else {
+      bool oneNodeIsInside = false;
+      bool oneNodeIsOutside = false;
+      for(unsigned j = 0; j < numberOfNodes; j++) {
+        double d = GetDistance(xv[0][j], xv[1][j]);
+        if(d > -0.01 * dMax) {
+          oneNodeIsInside = true;
+          if(!oneNodeIsOutside) { //loop on the left nodes
+            for(unsigned jj = j + 1; jj < numberOfNodes; jj++) {
+              if(GetDistance(xv[0][jj], xv[1][jj]) < 0.01 * dMax) {
+                oneNodeIsOutside = true;
+                break;
+              }
             }
           }
+          break;
         }
-        break;
+        if(d < 0.01 * dMax) {
+          oneNodeIsOutside = true;
+        }
       }
-      if(d < 0.01 * dMax){
-        oneNodeIsOutside = true;
+      if((oneNodeIsInside * oneNodeIsOutside)) {
+        refineElement.GetProlongation(xv, level);
+        const std::vector < std::vector < std::vector <double> > > &xvChildren = refineElement.GetChildern(level);
+        for(unsigned i = 0; i < xvChildren.size(); i++) {
+          area += GetArea(dMax / 2., level + 1, levelMin, thisLevelMax, xvChildren[i], refineElement);
+        }
       }
-    }
-
-    if((oneNodeIsInside * oneNodeIsOutside) || level < levelMin) {
-      std::vector < std::vector < std::vector <double> > > xvChildren;
-      refineElement.GetProlongation(xv, xvChildren);
-      for(unsigned i = 0; i < xvChildren.size(); i++) {
-        area += GetArea(dMax/2., level + 1, levelMin, thisLevelMax, xvChildren[i], refineElement);
-      }
-    }
-    else if(!oneNodeIsOutside) {
-      const elem_type &finiteElement = refineElement.GetFEM();
-
-      for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
-        finiteElement.Jacobian(xv, ig, weight, phi, phi_x);
-        area += weight;
+      else if(!oneNodeIsOutside) {
+        const elem_type &finiteElement = refineElement.GetFEM();
+        for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
+          finiteElement.GetGaussQuantities(xv, ig, weight);
+          area += weight;
+        }
       }
     }
   }
@@ -232,13 +242,15 @@ double GetArea(const double &dMax, const unsigned &level, const unsigned &levelM
     for(unsigned j = 0; j < numberOfNodes; j++) {
       dist[j] = GetDistance(xv[0][j], xv[1][j]);
     }
-    
+
     double C1 = dMax / 50.;
     double C2 = 1. / (0.5 * M_PI + atan(dMax / C1));
 
     const elem_type &finiteElement = refineElement.GetFEM();
     for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
-      finiteElement.Jacobian(xv, ig, weight, phi, phi_x);
+      finiteElement.GetGaussQuantities(xv, ig, weight);
+      phi = finiteElement.GetPhi(ig);
+
       double dist_g = 0.;
       for(unsigned j = 0; j < numberOfNodes; j++) {
         dist_g += dist[j] * phi[j];

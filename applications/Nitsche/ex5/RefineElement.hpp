@@ -7,7 +7,10 @@ class RefineElement {
     RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss);
     ~RefineElement();
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
-    void GetProlongation(const std::vector < std::vector < double > > &xvF, std::vector< std::vector < std::vector <double> > > &xvC) const;
+   
+    void GetProlongation(const std::vector < std::vector < double > > &xF,
+                         const unsigned &level);
+
     const elem_type &GetFEM() const {
       return *_finiteElement;
     }
@@ -20,6 +23,10 @@ class RefineElement {
     const unsigned &GetNumberOfChildren() const {
       return _numberOfChildren;
     }
+
+    const std::vector<std::vector<std::vector<double>>> & GetChildern(const unsigned &level) const {
+      return _xvlC[level];
+    }
   private:
     unsigned _dim;
     unsigned _numberOfChildren;
@@ -30,6 +37,8 @@ class RefineElement {
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
+    std::vector< std::vector < std::vector < std::vector <double> > > > _xvlC;
+
 };
 
 
@@ -59,6 +68,17 @@ RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const 
 
   BuildPMat();
   delete _finiteElementLinear;
+
+  _xvlC.resize(20);
+  for(unsigned l = 0; l < 20; l++) {
+    _xvlC[l].resize(_numberOfChildren);
+    for(unsigned i = 0; i < _numberOfChildren; i++) {
+      _xvlC[l][i].resize(_dim);
+      for(unsigned k = 0; k < _dim; k++) {
+        _xvlC[l][i][k].resize(_numberOfNodes);
+      }
+    }
+  }
 }
 
 RefineElement::~RefineElement() {
@@ -122,10 +142,10 @@ void RefineElement::BuildPMat() {
 }
 
 void RefineElement::GetProlongation(const std::vector < std::vector < double > > &xF,
-                                    std::vector< std::vector < std::vector <double> > > &xC) const {
+                                    const unsigned &level) {
 
   unsigned dimF = xF.size();
-  xC.resize(_numberOfChildren);
+
   std::vector< std::vector < std::vector <double> > >::iterator xCi;
   std::vector < std::vector<double>>::iterator xCik;
   std::vector<double>::iterator xCikj;
@@ -135,11 +155,9 @@ void RefineElement::GetProlongation(const std::vector < std::vector < double > >
   std::vector <std::vector <std::vector < std::pair<unsigned, double>>>>::const_iterator Pi;
   std::vector <std::vector < std::pair<unsigned, double>>>::const_iterator Pij;
   std::vector < std::pair<unsigned, double>>::const_iterator Pijl;
-
-  for(Pi = _PMatrix.begin(), xCi = xC.begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-    (*xCi).resize(dimF);
+    
+  for(Pi = _PMatrix.begin(), xCi = _xvlC[level].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
     for(xCik = (*xCi).begin(), xFk = xF.begin(); xCik != (*xCi).end(); xCik++, xFk++) {
-      (*xCik).resize(_numberOfNodes);
       for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
         *xCikj = 0.;
         for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
