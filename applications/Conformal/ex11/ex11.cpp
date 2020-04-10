@@ -43,8 +43,8 @@ void ProjectSolution(MultiLevelSolution& mlSol);
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
-return cos(28*M_PI*(x[1]));
-    // return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
+  return cos(28 * M_PI * (x[1]));
+  // return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
 
 
@@ -52,22 +52,26 @@ return cos(28*M_PI*(x[1]));
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
 
-  bool dirichlet = true;
+  bool dirichlet = false;
   value = 0.;
 
-  // if(!strcmp(solName, "Dx1")) {
-  //   if(3 == faceName || 3 == faceName) {
-  //     dirichlet = false;
-  //   }
-  //   if(4 == faceName) {
-  //     value = 0.75 * sin(x[1] / 0.5 * M_PI);
-  //   }
-  // }
-  // else if(!strcmp(solName, "Dx2")) {
-  //   if(2 == faceName) {
-  //     dirichlet = false;
-  //   }
-  // }
+  if(100 == faceName) {
+    dirichlet = true;
+  }
+
+//   if(!strcmp(solName, "Dx1")) {
+//     if(3 == faceName || 3 == faceName) {
+//       dirichlet = false;
+//     }
+//     if(4 == faceName) {
+//       value = 0.75 * sin(x[1] / 0.5 * M_PI);
+//     }
+//   }
+//   else if(!strcmp(solName, "Dx2")) {
+//     if(2 == faceName) {
+//       dirichlet = false;
+//     }
+//   }
 
 
 //   if (!strcmp (solName, "Dx1")) {
@@ -141,7 +145,7 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
-  mlMsh.ReadCoarseMesh ("../input/handbndry.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  mlMsh.ReadCoarseMesh("../input/handbndry.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
 
   unsigned numberOfUniformLevels = 1;
@@ -168,7 +172,7 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 
-  mlSol.AddSolution ("ENVN", LAGRANGE, feOrder, 0, false);
+  mlSol.AddSolution("ENVN", LAGRANGE, feOrder, 0, false);
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -189,7 +193,7 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
 
-  GetElementNearVertexNumber (mlSol);
+  GetElementNearVertexNumber(mlSol);
 
   MultiLevelProblem mlProb(&mlSol);
 

@@ -360,6 +360,13 @@ namespace femus {
         }
       }
     }
+    for(unsigned iel = 0; iel < el->GetElementNumber(); iel++) {
+      for(unsigned iface = 0; iface < el->GetElementFaceNumber(iel); iface++) {
+        if(el->GetFaceElementIndex(iel, iface) == -1) {
+          el->SetFaceElementIndex(iel, iface, -101);
+        }
+      }
+    }
   }
 
 
@@ -1174,7 +1181,7 @@ namespace femus {
         for(int i = 0; i < jstart; i++) {
           unsigned inode = el->GetElementDofIndex(iel, i);
 
-          for(int k = 0; k < GetDimension(); k++) {
+          for(int k = 0; k < 3; k++) {
             _coords[k][jnode] += _coords[k][inode] * _baricentricWeight[ elementType ][j - jstart][i];
           }
         }
