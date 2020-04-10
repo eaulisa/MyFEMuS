@@ -33,6 +33,48 @@ using std::endl;
 
 namespace femus {
 
+//BEGIN Base Class specialization for template and inheritance.
+
+  void elem_type::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
+                                     adept::adouble &weight,
+                                     boost::optional < vector < adept::adouble > & > gradphi,
+                                     boost::optional < vector < adept::adouble > & > nablaphi) const {
+
+//     GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+
+    if(_dim1) {
+      static_cast<const elem_type_1D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+    else if(_dim2) {
+      static_cast<const elem_type_2D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+    else {
+      static_cast<const elem_type_3D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+  }
+
+
+  void elem_type::GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
+                                     double& weight,
+                                     boost::optional < vector < double > & > gradphi,
+                                     boost::optional < vector < double > & > nablaphi) const {
+
+    if(_dim1) {
+      static_cast<const elem_type_1D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+    else if(_dim2) {
+      static_cast<const elem_type_2D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+    else {
+      static_cast<const elem_type_3D&>(*this).GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
+    }
+
+  }
+
+  //END Base Class specialization for template and inheritance.
+
+
+  //BEGIN Derived Class specialization for template and inheritance.
   template <class type>
   void elem_type_1D::GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig,
                                              type& weight,
@@ -65,24 +107,7 @@ namespace femus {
 
   }
 
-  /* mixed adept - double */
-  void elem_type_1D::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
-                                        adept::adouble &weight,
-                                        boost::optional < vector < adept::adouble > & > gradphi,
-                                        boost::optional < vector < adept::adouble > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
-
-  /* all double */
-  void elem_type_1D::GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
-                                        double& weight,
-                                        boost::optional < vector < double > & > gradphi,
-                                        boost::optional < vector < double > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
-
-
-/////////////////////////////////////////////
+  ///////////////////////////////////////////////////////
 
   template <class type>
   void elem_type_2D::GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig,
@@ -120,7 +145,7 @@ namespace femus {
       gradphi->resize(_nc * 2);
       dxi = _dphidxi[ig];
       deta = _dphideta[ig];
-      
+
       for(int inode = 0; inode < _nc; inode++, dxi++, deta++) {
         (*gradphi)[2 * inode + 0] = (*dxi) * JacI[0][0] + (*deta) * JacI[0][1];
         (*gradphi)[2 * inode + 1] = (*dxi) * JacI[1][0] + (*deta) * JacI[1][1];
@@ -148,24 +173,7 @@ namespace femus {
     }
   }
 
-
-  /* mixed adept - double */
-  void elem_type_2D::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
-                                        adept::adouble& weight,
-                                        boost::optional < vector < adept::adouble > & > gradphi,
-                                        boost::optional < vector < adept::adouble > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
-
-  /* all double */
-  void elem_type_2D::GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
-                                        double& weight,
-                                        boost::optional < vector < double > & > gradphi,
-                                        boost::optional < vector < double > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
-
-///////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////
 
   template <class type>
   void elem_type_3D::GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig,
@@ -258,22 +266,7 @@ namespace femus {
     }
 
   }
-
-  /* mixed adept - double */
-  void elem_type_3D::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
-                                        adept::adouble& weight,
-                                        boost::optional < vector < adept::adouble > & > gradphi,
-                                        boost::optional < vector < adept::adouble > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
-
-  /* all double */
-  void elem_type_3D::GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
-                                        double& weight,
-                                        boost::optional < vector < double > & > gradphi,
-                                        boost::optional < vector < double > & > nablaphi) const {
-    GetGaussQuantities_type(vt, ig, weight, gradphi, nablaphi);
-  }
+  //END Derived Class specialization for template and inheritance.
 
 } //end namespace femus
 

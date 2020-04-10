@@ -79,17 +79,17 @@ namespace femus {
 
 
       /* mixed adept - double */
-      virtual void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
+      void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
                                       adept::adouble& weight,
                                       boost::optional < vector < adept::adouble >& > gradphi = boost::none,
-                                      boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const = 0;
+                                      boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
 
 
       /* all double */
-      virtual void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
+      void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
                                       double& weight,
                                       boost::optional < vector < double >& > gradphi = boost::none,
-                                      boost::optional < vector < double > & > nablaphi = boost::none) const = 0;
+                                      boost::optional < vector < double > & > nablaphi = boost::none) const;
 
 
       /////////////////////////////////////
@@ -246,6 +246,8 @@ namespace femus {
       // ====================================
 
       unsigned _dim; /* Spatial dimension of the geometric element */
+      bool _dim1, _dim2, _dim3;
+
       int _nc, _nf, _nlag[4];  /* _nc: number of dofs of 1 element;  _nf: number of dofs in that element after refinement;
                                   _nlag[0] = number of linear dofs in 1 element;
                                   _nlag[1] = number of serendipity dofs in 1 element;
@@ -314,24 +316,11 @@ namespace femus {
 
       /////////////////////////////////////////
       
-      /* all type minus a double */
       template <class type>
       void GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig, 
                                    type& weight,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
-
-      /* mixed adept - double */
-      void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
-                              adept::adouble& weight,
-                              boost::optional < vector < adept::adouble >& > gradphi = boost::none,
-                              boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
-
-      /* all double */
-      void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
-                              double& Weight,
-                              boost::optional < vector < double >& > gradphi = boost::none,
-                              boost::optional < vector < double > & > nablaphi = boost::none) const;
 
       ////////////////////////////////////////////
 
@@ -487,18 +476,6 @@ namespace femus {
                                    type& weight,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
-
-      /* mixed adept - double */
-      void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
-                              adept::adouble& weight,
-                              boost::optional < vector < adept::adouble >& > gradphi = boost::none,
-                              boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
-
-      /* all double */
-      void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
-                              double& Weight,
-                              boost::optional < vector < double >& > gradphi = boost::none,
-                              boost::optional < vector < double > & > nablaphi = boost::none) const;
 
       /////////////////////////////////////
 
@@ -666,18 +643,6 @@ namespace femus {
                                    type& weight,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
-
-      /* mixed adept - double */
-      void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
-                              adept::adouble& weight,
-                              boost::optional < vector < adept::adouble >& > gradphi = boost::none,
-                              boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
-
-      /* all double */
-      void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
-                              double& Weight,
-                              boost::optional < vector < double >& > gradphi = boost::none,
-                              boost::optional < vector < double > & > nablaphi = boost::none) const;
 
       /////////////////////////////////////
 

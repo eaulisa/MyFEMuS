@@ -7,9 +7,8 @@ class RefineElement {
     RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss);
     ~RefineElement();
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
-   
-    void GetProlongation(const std::vector < std::vector < double > > &xF,
-                         const unsigned &level);
+
+    void BuildElementProlongation(const unsigned &level, const unsigned &i);
 
     const elem_type &GetFEM() const {
       return *_finiteElement;
@@ -24,9 +23,26 @@ class RefineElement {
       return _numberOfChildren;
     }
 
-    const std::vector<std::vector<std::vector<double>>> & GetChildern(const unsigned &level) const {
-      return _xvlC[level];
+    void InitElement(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
+
+      _xvl.resize(lMax);
+      for(unsigned l = 0; l < lMax; l++) {
+        _xvl[l].resize(_numberOfChildren);
+        for(unsigned i = 0; i < _numberOfChildren; i++) {
+          _xvl[l][i].resize(_dim);
+          for(unsigned k = 0; k < _dim; k++) {
+            _xvl[l][i][k].resize(_numberOfNodes);
+          }
+        }
+      }
+
+      _xvl[0][0] = xv;
+    };
+
+    const std::vector<std::vector<double>> & GetElement(const unsigned &level, const unsigned &i)const {
+      return _xvl[level][i];
     }
+
   private:
     unsigned _dim;
     unsigned _numberOfChildren;
@@ -37,7 +53,7 @@ class RefineElement {
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
-    std::vector< std::vector < std::vector < std::vector <double> > > > _xvlC;
+    std::vector< std::vector < std::vector < std::vector <double> > > > _xvl;
 
 };
 
@@ -64,21 +80,11 @@ RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const 
   _numberOfNodes = _finiteElement->GetNDofs();
   _basis = _finiteElement->GetBasis();
 
-  _numberOfLinearNodes = _finiteElementLinear->GetNDofs();;
+  _numberOfLinearNodes = _finiteElementLinear->GetNDofs();
 
   BuildPMat();
   delete _finiteElementLinear;
 
-  _xvlC.resize(20);
-  for(unsigned l = 0; l < 20; l++) {
-    _xvlC[l].resize(_numberOfChildren);
-    for(unsigned i = 0; i < _numberOfChildren; i++) {
-      _xvlC[l][i].resize(_dim);
-      for(unsigned k = 0; k < _dim; k++) {
-        _xvlC[l][i][k].resize(_numberOfNodes);
-      }
-    }
-  }
 }
 
 RefineElement::~RefineElement() {
@@ -141,10 +147,7 @@ void RefineElement::BuildPMat() {
   _PMatrix = PMatrix;
 }
 
-void RefineElement::GetProlongation(const std::vector < std::vector < double > > &xF,
-                                    const unsigned &level) {
-
-  unsigned dimF = xF.size();
+void RefineElement::BuildElementProlongation(const unsigned &level, const unsigned &i) {
 
   std::vector< std::vector < std::vector <double> > >::iterator xCi;
   std::vector < std::vector<double>>::iterator xCik;
@@ -155,9 +158,9 @@ void RefineElement::GetProlongation(const std::vector < std::vector < double > >
   std::vector <std::vector <std::vector < std::pair<unsigned, double>>>>::const_iterator Pi;
   std::vector <std::vector < std::pair<unsigned, double>>>::const_iterator Pij;
   std::vector < std::pair<unsigned, double>>::const_iterator Pijl;
-    
-  for(Pi = _PMatrix.begin(), xCi = _xvlC[level].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-    for(xCik = (*xCi).begin(), xFk = xF.begin(); xCik != (*xCi).end(); xCik++, xFk++) {
+
+  for(Pi = _PMatrix.begin(), xCi = _xvl[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
+    for(xCik = (*xCi).begin(), xFk = _xvl[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
       for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
         *xCikj = 0.;
         for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {

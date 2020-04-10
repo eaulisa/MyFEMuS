@@ -112,8 +112,6 @@ int main (int argc, char** args) {
   // Erase all the coarse mesh levels.
   mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
 
-
-
   // Define the multilevel solution and attach the mlMsh object to it.
   MultiLevelSolution mlSol (&mlMsh);
 
