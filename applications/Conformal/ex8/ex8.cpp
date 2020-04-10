@@ -24,6 +24,7 @@ unsigned conformalTriangleType = 2;
 double eps = 1.0e-5;
 // const double normalSign = -1.;
 bool O2conformal = false;
+const bool noLM = false;
 unsigned counter = 0;
 
 using namespace femus;
@@ -207,4 +208,3 @@ int main(int argc, char** args) {
 
   return 0;
 }
-

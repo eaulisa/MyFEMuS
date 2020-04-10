@@ -25,9 +25,9 @@ using namespace femus;
  * ap is the coefficient in front of the power of H. */
 
 
-const double c0 = .1;
+const double c0 = 0.;
 const double kc = 1.;
-const double gamma1 = 0.5;
+const double gamma1 = 0.;
 
 unsigned P[3] = {0, 1, 2};
 
@@ -38,8 +38,8 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = true;
-bool areaConstraint = false;
+bool volumeConstraint = false;
+bool areaConstraint = true;
 
 unsigned conformalTriangleType = 2;
 const double eps = 1e-5;
@@ -53,11 +53,11 @@ void AssemblePWillmore (MultiLevelProblem&);
 void AssemblePWillmore2 (MultiLevelProblem& ml_prob);
 
 
-//double dt0 = 3.2e-2; //P=2
+double dt0 = 3.2e-8; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
-double dt0 = 5.e-5; //P=2
+//double dt0 = 5.e-5; //P=2
 
 
 // Function to control the time stepping.
@@ -104,10 +104,14 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
-  mlMsh.ReadCoarseMesh ("../input/dog.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh ("../input/dog.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/virus3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidSphere.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/CliffordTorus.neu", "seventh", scalingFactor);
+
+  const bool read_groups = false;                        //by default, if no argument is given, this is "true"
+  const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
+  mlMsh.ReadCoarseMesh ("../input/spot.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   //mlMsh.ReadCoarseMesh ("../input/armadillo.med", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor);
@@ -297,7 +301,7 @@ int main (int argc, char** args) {
 
 
 
-    dt0 *= 1.02;
+    dt0 *= 1.1;
       //UNCOMMENT FOR P=4
       if (dt0 > 5e-3) dt0 = 5e-3;
 
