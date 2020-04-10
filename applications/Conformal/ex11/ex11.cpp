@@ -16,6 +16,8 @@
 #include "PetscMatrix.hpp"
 
 bool stopIterate = false;
+const bool read_groups = false;                       //by default, if no argument is given, this is "true"
+const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
 //unsigned muSmoothingType = 1; // the mesh should be logically structured and uniformly oriented
 unsigned muSmoothingType = 2; // invariant with respect to quad orientation
 
@@ -53,19 +55,19 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
   bool dirichlet = true;
   value = 0.;
 
-  if(!strcmp(solName, "Dx1")) {
-    if(3 == faceName || 3 == faceName) {
-      dirichlet = false;
-    }
-    if(4 == faceName) {
-      value = 0.75 * sin(x[1] / 0.5 * M_PI);
-    }
-  }
-  else if(!strcmp(solName, "Dx2")) {
-    if(2 == faceName) {
-      dirichlet = false;
-    }
-  }
+  // if(!strcmp(solName, "Dx1")) {
+  //   if(3 == faceName || 3 == faceName) {
+  //     dirichlet = false;
+  //   }
+  //   if(4 == faceName) {
+  //     value = 0.75 * sin(x[1] / 0.5 * M_PI);
+  //   }
+  // }
+  // else if(!strcmp(solName, "Dx2")) {
+  //   if(2 == faceName) {
+  //     dirichlet = false;
+  //   }
+  // }
 
 
 //   if (!strcmp (solName, "Dx1")) {
@@ -134,13 +136,15 @@ int main(int argc, char** args) {
   //mlMsh.GenerateCoarseBoxMesh(32, 32, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
 
   //mlMsh.ReadCoarseMesh("../input/squareReg3D.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
+  mlMsh.ReadCoarseMesh ("../input/handbndry.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
-  unsigned numberOfUniformLevels = 5;
+
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -199,7 +203,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(20);
+  system.SetMaxNumberOfNonLinearIterations(5);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
   system.init();
@@ -210,6 +214,7 @@ int main(int argc, char** args) {
   variablesToBePrinted.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  //mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted, 0);
 
   system.SetAssembleFunction(AssembleConformalMinimization);
   system.MGsolve();
@@ -222,10 +227,12 @@ int main(int argc, char** args) {
 
 
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
+  //mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted, 1);
 
   //ProjectSolution(mlSol);
 
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 2);
+  //mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted, 2);
 
   return 0;
 }

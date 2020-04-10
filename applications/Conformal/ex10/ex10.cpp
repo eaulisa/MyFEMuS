@@ -21,6 +21,7 @@ unsigned conformalTriangleType = 2;
 double eps = 1e-5;
 const double normalSign = -1.;
 bool O2conformal = false;
+const bool noLM = false;
 unsigned counter = 0;
 
 using namespace femus;
