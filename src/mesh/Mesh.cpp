@@ -360,10 +360,12 @@ namespace femus {
         }
       }
     }
-    for(unsigned iel = 0; iel < el->GetElementNumber(); iel++) {
-      for(unsigned iface = 0; iface < el->GetElementFaceNumber(iel); iface++) {
-        if(el->GetFaceElementIndex(iel, iface) == -1) {
-          el->SetFaceElementIndex(iel, iface, -101);
+    if(_level == 0) {
+      for(unsigned iel = 0; iel < el->GetElementNumber(); iel++) {
+        for(unsigned iface = 0; iface < el->GetElementFaceNumber(iel); iface++) {
+          if(el->GetFaceElementIndex(iel, iface) == -1) {
+            el->SetFaceElementIndex(iel, iface, -101);
+          }
         }
       }
     }
