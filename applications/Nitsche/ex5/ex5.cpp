@@ -32,19 +32,53 @@ using namespace femus;
 #include "RefineElement.hpp"
 
 
-double GetArea(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
-               RefineElement &refineElement, const unsigned iFather = 0);
+double GetIntegral(const double &dMax, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
+                   RefineElement &refineElement, const unsigned iFather = 0);
 
 double radius;
 double xc = -1;
 double yc = -1;
 
-double GetDistance(const double &x, const double &y) {
-  return radius - sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
+double a0;
+double a1;
+double a3;
+double a5;
+double a7;
+double a9;
+
+void SetConstants(const double &eps) {
+  a0 = 0.5; // 128./256.;
+  a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+  a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+}
+
+double GetDistance(const std::vector < double>  &x) {
+  return radius - sqrt((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
+}
+
+double GetIntegrand(const std::vector < double>  &x) {
+  return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
 }
 
 bool printMesh = false;
 std::ofstream fout;
+
+void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
+  fout.open("mesh.txt", std::ios::app);
+  double f;
+  for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
+    f = GetIntegrand({xv[0][j], xv[1][j]});
+    fout << xv[0][j] << " " << xv[1][j] << " " << f << std::endl;
+  }
+  f = GetIntegrand({xv[0][0], xv[1][0]});
+  fout << std::endl;
+  fout.close();
+}
+
+
 
 std::vector <double > dist;
 const double *phi;
@@ -125,144 +159,163 @@ int main(int argc, char** args) {
     dMax = sqrt(pow(xv[0][2] - xv[0][1], 2) + pow(xv[1][2] - xv[1][1], 2));
   }
 
+  dMax *= 0.025;
+
+  std::cout << dMax << std::endl;
 
   RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh");
   const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix = refineElement.GetProlongationMatrix();
 
-  
+
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
-
-
   if(printMesh) {
     fout.open("mesh.txt");
     fout.close();
   }
 
   unsigned lmin = 0;
-  unsigned lmax = 18;
-  refineElement.InitElement(xv,lmax);
+  unsigned lmax = 6;
+  refineElement.InitElement(xv, lmax);
 
   std::clock_t c_start = std::clock();
 
-  double Area;
-  double AnalyticArea =  M_PI * radius * radius / 4.;
-  Area = GetArea(dMax, 0, lmin, lmin, refineElement);
-  std::cout << "Computed Area level " << lmin << " = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
-  double Error0 = fabs(Area - AnalyticArea) / AnalyticArea;
-  std::cout << "Relative Error level " << lmin << " = " << Error0 << std::endl;
+  std::cout.precision(14);
+
+  double integral;
+  double analyticIntegral =  M_PI * pow(radius, 4.) / 8.;
+  double eps = dMax * pow(0.5, lmin);
+  SetConstants(eps);
+  integral = GetIntegral(eps, 0, lmin, lmin, refineElement);
+
+  std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
+  double Errorlm1 = fabs(integral - analyticIntegral) / analyticIntegral;
+  std::cout << "Relative Error level " << lmin << " = " << Errorlm1 << std::endl;
 
   for(unsigned l = lmin + 1; l < lmax; l++) {
-    Area = GetArea(dMax, 0, lmin, l, refineElement);
-    std::cout << "Computed Area level " << l << " = " << Area << " Analytic Area = " << AnalyticArea << std::endl;
-
-    double Errorl = fabs(Area - AnalyticArea) / (M_PI * AnalyticArea);
-    std::cout << "Order of Convergence = " << log(Error0 / Errorl) / log(pow(2., l - lmin)) << std::endl;
+    eps = dMax * pow(0.5, l);
+    SetConstants(eps);
+    integral = GetIntegral(eps, 0, lmin, l, refineElement);
+    double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
+    std::cout << "Order of Convergence = " << log(Errorlm1 / Errorl) / log(2) << std::endl;
+    std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
     std::cout << "Relative Error level " << l + 1 << " = " << Errorl << std::endl;
+    Errorlm1 = Errorl;
   }
 
   std::clock_t c_end = std::clock();
-
   long double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
   return 1;
 }
 
-double GetArea(const double &dMax, const unsigned &level,
-               const unsigned &levelMin, const unsigned &levelMax,
-               RefineElement &refineElement, const unsigned ii) {
+double GetIntegral(const double &eps, const unsigned &level,
+                   const unsigned &levelMin, const unsigned &levelMax,
+                   RefineElement &refineElement, const unsigned ii) {
 
-  double area = 0.;
-
+  double integral = 0.;
   const unsigned numberOfNodes = refineElement.GetNumberOfNodes();
   const unsigned numberOfChildren = refineElement.GetNumberOfChildren();
   const std::vector < std::vector <double> >  &xv = refineElement.GetElement(level, ii);
-  
+
   if(level < levelMax) {
 
     if(level < levelMin) {
-      refineElement.BuildElementProlongation(level,ii);
+      refineElement.BuildElementProlongation(level, ii);
       for(unsigned i = 0; i < numberOfChildren; i++) {
-        area += GetArea(dMax / 2., level + 1, levelMin, levelMax, refineElement, i);
+        integral += GetIntegral(eps, level + 1, levelMin, levelMax, refineElement, i);
       }
     }
     else {
+      double factor = 1.;
       bool oneNodeIsInside = false;
       bool oneNodeIsOutside = false;
       for(unsigned j = 0; j < numberOfNodes; j++) {
-        double d = GetDistance(xv[0][j], xv[1][j]);
-        if(d > -0.01 * dMax) {
+        double d = GetDistance({xv[0][j], xv[1][j]});
+        if(d > -factor * eps) {
           oneNodeIsInside = true;
           if(!oneNodeIsOutside) { //loop on the left nodes
-            for(unsigned jj = j + 1; jj < numberOfNodes; jj++) {
-              if(GetDistance(xv[0][jj], xv[1][jj]) < 0.01 * dMax) {
+            for(unsigned jj = j; jj < numberOfNodes; jj++) {
+              if(GetDistance({xv[0][jj], xv[1][jj]}) < factor * eps) {
                 oneNodeIsOutside = true;
                 break;
               }
             }
           }
-          break;
         }
-        if(d < 0.01 * dMax) {
+        if(d < factor * eps) {
           oneNodeIsOutside = true;
         }
       }
       if((oneNodeIsInside * oneNodeIsOutside)) {
         refineElement.BuildElementProlongation(level, ii);
         for(unsigned i = 0; i < numberOfChildren; i++) {
-          area += GetArea(dMax / 2., level + 1, levelMin, levelMax, refineElement, i);
+          integral += GetIntegral(eps, level + 1, levelMin, levelMax, refineElement, i);
         }
       }
       else if(!oneNodeIsOutside) {
-        
         const elem_type &finiteElement = refineElement.GetFEM();
+
         for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
           finiteElement.GetGaussQuantities(xv, ig, weight);
-          area += weight;
-        }
-        if(printMesh) {
-          fout.open("mesh.txt", std::ios::app);
-          for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
-            fout << level << " " << j << " " << xv[0][j] << " " << xv[1][j] << std::endl;
+
+          phi = finiteElement.GetPhi(ig);
+          std::vector < double> xg(2, 0.);
+          for(unsigned j = 0; j < numberOfNodes; j++) {
+            xg[0] += xv[0][j] * phi[j];
+            xg[1] += xv[1][j] * phi[j];
           }
-          fout << level << " " << 0 << " " << xv[0][0] << " " << xv[1][0] << std::endl;
-          fout << std::endl;
-          fout.close();
+          double f = GetIntegrand(xg);
+
+          integral += f * weight;
         }
+        if(printMesh) PrintElement(xv, refineElement);
       }
     }
   }
   else { // integration rule for interface elements
-    dist.resize(numberOfNodes);
-    for(unsigned j = 0; j < numberOfNodes; j++) {
-      dist[j] = GetDistance(xv[0][j], xv[1][j]);
-    }
-
-    double C1 = dMax / 50.;
-    double C2 = 1. / (0.5 * M_PI + atan(dMax / C1));
-
     const elem_type &finiteElement = refineElement.GetFEM();
     for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
       finiteElement.GetGaussQuantities(xv, ig, weight);
-      phi = finiteElement.GetPhi(ig);
 
-      double dist_g = 0.;
+      phi = finiteElement.GetPhi(ig);
+      std::vector < double> xg(2, 0.);
+
       for(unsigned j = 0; j < numberOfNodes; j++) {
-        dist_g += dist[j] * phi[j];
+        xg[0] += xv[0][j] * phi[j];
+        xg[1] += xv[1][j] * phi[j];
       }
-      double xig = 0.5 + C2 * atan(dist_g / C1);
-      area += xig * weight;
-    }
-    if(printMesh) {
-      fout.open("mesh.txt", std::ios::app);
-      for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
-        fout << level << " " << j << " " << xv[0][j] << " " << xv[1][j] << std::endl;
+
+      double f = GetIntegrand(xg);
+      double dg1 = GetDistance({xg[0], xg[1]});
+      double dg2 = dg1 * dg1;
+      double dg3 = dg1 * dg2;
+      double dg5 = dg3 * dg2;
+      double dg7 = dg5 * dg2;
+      double dg9 = dg7 * dg2;
+
+      /* Regularized Heaviside Function from
+       * Efficient adaptive integration of functions with sharp gradients
+       * and cusps in n-dimensional parallelepipeds, 1v1435.2021:viXra {sec 4.1 (1)}
+       * https://arxiv.org/abs/1202.5341
+       */
+      double phi;
+      if(dg1 < -eps)
+        phi = 0.;
+      else if(dg1 > eps) {
+        phi = 1.;
       }
-      fout << level << " " << 0 << " " << xv[0][0] << " " << xv[1][0] << std::endl;
-      fout << std::endl;
-      fout.close();
+      else {
+        phi = (a0 + a1 * dg1 + a3 * dg3 + a5 * dg5 + a7 * dg7 + a9 * dg9);
+      }
+      integral += phi * f * weight;
     }
+
+    if(printMesh) PrintElement(xv, refineElement);
   }
 
-  return area;
+  return integral;
 }
+
+
+
