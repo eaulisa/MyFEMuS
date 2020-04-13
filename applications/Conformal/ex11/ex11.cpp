@@ -28,7 +28,7 @@ unsigned conformalTriangleType = 2;
 const bool O2conformal = true;
 const bool noLM = false;
 unsigned counter = 0;
-const double eps = 1.e-3;// * O2conformal;
+const double eps = 1.e-4;// * O2conformal;
 
 using namespace femus;
 
@@ -43,8 +43,8 @@ void ProjectSolution(MultiLevelSolution& mlSol);
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
-  return cos(28 * M_PI * (x[1]));
-  // return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
+  return cos(20 * M_PI * x[0]) + sin(20 * M_PI * x[1]);
+   //return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
 
 
@@ -56,6 +56,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
   value = 0.;
 
   if(100 == faceName) {
+    //value = 0.6 * sin(x[1] / 0.5 * M_PI);
     dirichlet = true;
   }
 
@@ -145,7 +146,7 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
-  mlMsh.ReadCoarseMesh("../input/handbndry.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  mlMsh.ReadCoarseMesh("../input/cat.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
 
   unsigned numberOfUniformLevels = 1;
@@ -207,7 +208,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(5);
+  system.SetMaxNumberOfNonLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
   system.init();
