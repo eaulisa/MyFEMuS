@@ -65,32 +65,31 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
 
   // Local solution vectors for X, Dx, Xhat, XC.
-  std::vector < double > solx[DIM];
-  std::vector < double > solNx[DIM];
-  std::vector < double > solDx[DIM];
+  
   std::vector < double > xhat[DIM];
-  std::vector < double > xc[DIM];
+  std::vector < double > solDx[DIM];
+  std::vector < double > solDxOld[DIM];
 
   // Get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC).
   unsigned xType = 2;
 
   // Get the poitions of Y in the ml_sol object.
-  unsigned solNDxIndex[DIM];
-  solNDxIndex[0] = mlSol->GetIndex("Dx1");
-  solNDxIndex[1] = mlSol->GetIndex("Dx2");
-  solNDxIndex[2] = mlSol->GetIndex("Dx3");
+  unsigned solDxIndex[DIM];
+  solDxIndex[0] = mlSol->GetIndex("Dx1");
+  solDxIndex[1] = mlSol->GetIndex("Dx2");
+  solDxIndex[2] = mlSol->GetIndex("Dx3");
 
   unsigned solType;
-  solType = mlSol->GetSolutionType(solNDxIndex[0]);
+  solType = mlSol->GetSolutionType(solDxIndex[0]);
 
   // Get the positions of Y in the pdeSys object.
-  unsigned solNDxPdeIndex[DIM];
-  solNDxPdeIndex[0] = mlPdeSys->GetSolPdeIndex("Dx1");
-  solNDxPdeIndex[1] = mlPdeSys->GetSolPdeIndex("Dx2");
-  solNDxPdeIndex[2] = mlPdeSys->GetSolPdeIndex("Dx3");
+  unsigned solDxPdeIndex[DIM];
+  solDxPdeIndex[0] = mlPdeSys->GetSolPdeIndex("Dx1");
+  solDxPdeIndex[1] = mlPdeSys->GetSolPdeIndex("Dx2");
+  solDxPdeIndex[2] = mlPdeSys->GetSolPdeIndex("Dx3");
 
   // Local solution vectors for Nx and NDx.
-  std::vector < double > solNDx[DIM];
+ 
 
   // Get the position of "Lambda1" in the ml_sol object.
   unsigned solLIndex;
@@ -136,17 +135,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
     // Resize local arrays.
     for(unsigned K = 0; K < DIM; K++) {
-
       xhat[K].resize(nxDofs);
-
+      solDxOld[K].resize(nxDofs);
       solDx[K].resize(nxDofs);
-      solx[K].resize(nxDofs);
-
-      solNx[K].resize(nxDofs);
-
-      solNDx[K].resize(nxDofs);
-      solNx[K].resize(nxDofs);
-
       solL.resize(nLDofs);
     }
 
@@ -166,15 +157,13 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       for(unsigned K = 0; K < DIM; K++) {
         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof);
-        solDx[K][i] = 0.;//(*sol->_Sol[solDxIndex[K]])(iDDof);
-        solx[K][i] = xhat[K][i] + solDx[K][i];
-
-        solNDx[K][i] = (*sol->_Sol[solNDxIndex[K]])(iDDof);
-        solNx[K][i] = xhat[K][i] + solNDx[K][i];
-
+       
+        solDxOld[K][i] = (*sol->_SolOld[solDxIndex[K]])(iDDof);
+        solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof);
+       
         // Global-to-global mapping between NDx solution node and pdeSys dof.
         SYSDOF[ K * nxDofs + i] =
-          pdeSys->GetSystemDof(solNDxIndex[K], solNDxPdeIndex[K], i, iel);
+          pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
     }
 
@@ -281,23 +270,21 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
 
       // Initialize and compute values of x, Dx, NDx, x_uv at the Gauss points.
+      double solDxOldg[3] = {0., 0., 0.};
       double solDxg[3] = {0., 0., 0.};
-      double solNDxg[3] = {0., 0., 0.};
 
-      double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+      double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solMx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      double solNx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nxDofs; i++) {
+          solDxOldg[K] += phix[i] * solDxOld[K][i]; 
           solDxg[K] += phix[i] * solDx[K][i];
-          solNDxg[K] += phix[i] * solNDx[K][i];
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nxDofs; i++) {
-            solx_uv[K][j]    += phix_uv[j][i] * solx[K][i];
-            solMx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + 0.5 * ((1. + !O2conformal) * solDx[K][i] + O2conformal * solNDx[K][i]));
-            solNx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + solNDx[K][i]);
+            xhat_uv[K][j]    += phix_uv[j][i] * xhat[K][i];
+            solMx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + 0.5 * ((1. + !O2conformal) * solDxOld[K][i] + O2conformal * solDx[K][i]));
           }
         }
       }
@@ -313,7 +300,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < dim; i++) {
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned K = 0; K < DIM; K++) {
-            g[i][j] += solx_uv[K][i] * solx_uv[K][j];
+            g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
           }
         }
       }
@@ -330,9 +317,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       // Compute components of the unit normal N.
       double normal[DIM];
-      normal[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]) / sqrt(detg);
-      normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
-      normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
+      normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
+      normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
+      normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
 
       double normalMSqrtDetg[DIM];
       normalMSqrtDetg[0] = (solMx_uv[1][0] * solMx_uv[2][1] - solMx_uv[2][0] * solMx_uv[1][1]);
@@ -342,7 +329,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       // Compute new X minus old X dot N, for "reparametrization".
       double DnXmDxdotNSqrtDetg = 0.;
       for(unsigned K = 0; K < DIM; K++) {
-        DnXmDxdotNSqrtDetg += (solDxg[K] - solNDxg[K]) * normalMSqrtDetg[K];
+        DnXmDxdotNSqrtDetg += (solDxOldg[K] - solDxg[K]) * normalMSqrtDetg[K];
       }
 
       // Implement the Conformal Minimization equations.
@@ -490,7 +477,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
                 term += DQ[K][J][k] * phix_uv[k][i];
               }
               Jac[istart + J * nxDofs + j] += term * Area + (1 - noLM) * solLg * phix[i] * DnormalMSqrtDetg[K][J] * Area2;
-              Res[K * nxDofs + i] -= term * Area * (xhat[J][j] + solNDx[J][j]);
+              Res[K * nxDofs + i] -= term * Area * (xhat[J][j] + solDx[J][j]);
             }
           }
         }
@@ -502,7 +489,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           for(unsigned K = 0; K < DIM; K++) {
             double term = 0.;
             for(unsigned J = 0; J < DIM; J++) {
-              term += (solDxg[J] - solNDxg[J]) * DnormalMSqrtDetg[J][K];
+              term += (solDxOldg[J] - solDxg[J]) * DnormalMSqrtDetg[J][K];
             }
             Jac[istart + K * nxDofs + j] += (1 - noLM) * phiL[i] * (term - phix[j] * normalMSqrtDetg[K]) * Area2;
           }
