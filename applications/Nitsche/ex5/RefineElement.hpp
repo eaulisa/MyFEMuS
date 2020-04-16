@@ -22,6 +22,9 @@ class RefineElement {
     const unsigned &GetNumberOfChildren() const {
       return _numberOfChildren;
     }
+    const unsigned &GetDimension() const {
+      return _dim;
+    }
 
     void InitElement(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
 
