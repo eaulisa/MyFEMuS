@@ -151,7 +151,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //       //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
 //     }
 
-
 // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
 
@@ -203,7 +202,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
-            solx_uv[K][j]    += phix_uv[j][i] * solx[K][i];
+            solx_uv[K][j]    += phix_uv[j][i] * solNx[K][i] ;
             solNx_uv[K][j]    += phix_uv[j][i] * solNx[K][i];
           }
         }
@@ -231,21 +230,24 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //       normal[1] = solxg[1] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
 //       normal[2] = solxg[2] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
 
-      double dxPlus[DIM];
+      
+      
+      
+      double dxPlus[DIM];  //du+ = -*dv+
       dxPlus[0] = solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1];
       dxPlus[1] = solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2];
       dxPlus[2] = solNx_uv[2][0] + solNx_uv[0][1] * normal[1] - solNx_uv[1][1] * normal[0];
 
-      double sdxPlus[DIM];
+      double sdxPlus[DIM]; //*du+ = dv+
       sdxPlus[0] = solNx_uv[0][1] - solNx_uv[1][0] * normal[2] + solNx_uv[2][0] * normal[1];
       sdxPlus[1] = solNx_uv[1][1] - solNx_uv[2][0] * normal[0] + solNx_uv[0][0] * normal[2];
       sdxPlus[2] = solNx_uv[2][1] - solNx_uv[0][0] * normal[1] + solNx_uv[1][0] * normal[0];
 
-      double dxMinus[DIM];
+      double dxMinus[DIM];//du- = -*dv-
       dxMinus[0] = solNx_uv[0][0] - solNx_uv[1][1] * normal[2] + solNx_uv[2][1] * normal[1];
       dxMinus[1] = solNx_uv[1][0] - solNx_uv[2][1] * normal[0] + solNx_uv[0][1] * normal[2];
       dxMinus[2] = solNx_uv[2][0] - solNx_uv[0][1] * normal[1] + solNx_uv[1][1] * normal[0];
-
+     
       double norm2dxPlus = 0;
       double norm2sdxPlus = 0;
       double rhsmu1 = 0;
@@ -264,6 +266,40 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       mu[0] = rhsmu1 / norm2dxPlus;
       mu[1] = rhsmu2 / norm2sdxPlus;
 
+      
+//       double dvPlus[DIM]; //dv+ = *du+
+//       dvPlus[0] = solNx_uv[0][1] - solNx_uv[1][0] * normal[2] + solNx_uv[2][0] * normal[1];
+//       dvPlus[1] = solNx_uv[1][1] - solNx_uv[2][0] * normal[0] + solNx_uv[0][0] * normal[2];
+//       dvPlus[2] = solNx_uv[2][1] - solNx_uv[0][0] * normal[1] + solNx_uv[1][0] * normal[0];
+// 
+//       double sdvPlus[DIM]; //*dv+ = -du+
+//       sdvPlus[0] = -(solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1]);
+//       sdvPlus[1] = -(solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2]);
+//       sdvPlus[2] = -(solNx_uv[2][0] + solNx_uv[0][1] * normal[1] - solNx_uv[1][1] * normal[0]);
+// 
+//       double dvMinus[DIM]; //dv- = *du-
+//       dvMinus[0] = solNx_uv[0][1] + solNx_uv[1][0] * normal[2] - solNx_uv[2][0] * normal[1];
+//       dvMinus[1] = solNx_uv[1][1] + solNx_uv[2][0] * normal[0] - solNx_uv[0][0] * normal[2];
+//       dvMinus[2] = solNx_uv[2][1] + solNx_uv[0][0] * normal[1] - solNx_uv[1][0] * normal[0];
+// 
+//       double norm2dvPlus = 0;
+//       double norm2sdvPlus = 0;
+//       double rhsmu1v = 0;
+//       double rhsmu2v = 0;
+// 
+//       //double dxsdxp = 0.;
+//       for(unsigned K = 0; K < DIM; K++) {
+//         norm2dvPlus += dvPlus[K] * dvPlus[K];
+//         norm2sdvPlus += sdvPlus[K] * sdvPlus[K];
+//         rhsmu1v += dvPlus[K] * dvMinus[K];
+//         rhsmu2v += sdvPlus[K] * dvMinus[K];
+//       }
+// 
+//       // Comment out for working code
+//       double muv[2] = {0., 0.};
+//       muv[0] = rhsmu1v / norm2dvPlus;
+//       muv[1] = rhsmu2v / norm2sdvPlus;
+
       for(unsigned i = 0; i < nDofs1; i++) {
         sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
         for(unsigned k = 0; k < dim; k++) {
@@ -272,6 +308,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       } // end phi_i loop
     } // end gauss point loop
   } //end element loop for each process*/
+
+
 
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexMu[k]]->close();
@@ -318,7 +356,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   //if(smoothMax > 10) smoothMax = 10;
   std::cout << "Max Number of Smoothing = " << smoothMax << std::endl;
 
-  for(unsigned ismooth = 0; ismooth < 1 + 0 * smoothMax; ismooth++) {
+  for(unsigned ismooth = 0; ismooth < smoothMax; ismooth++) {
 
     for(unsigned k = 0; k < dim; k++) {
       sol->_Sol[indexMuEdge[k]]->zero();
@@ -372,12 +410,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //
 //       }
 
-
-//       if(iel == 4752|| iel == 5316) {
-      if(iel == 4860|| iel == 5328) {
-        std::cout << iel<<" ";
-      }
-      
       unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
 
@@ -393,20 +425,10 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         double mu0s = (a * a - b * b) * mu[0] + 2. * a * b * mu[1];
         double mu1s = (a * a - b * b) * mu[1] - 2. * a * b * mu[0];
 
-        if(iel == 4860|| iel == 5328) {
-//         if(iel == 4752 || iel == 5316) {
-          std::cout << mu[0] << " " << mu0s <<" "<< mu[1] << " " << mu1s << " ";
-        }
-
         sol->_Sol[indexMuEdge[0]]->add(idof, mu0s);
         sol->_Sol[indexMuEdge[1]]->add(idof, mu1s);
 
         sol->_Sol[indexCntEdge]->add(idof, 1);
-      }
-
-//       if(iel == 4752|| iel == 5316) {
-      if(iel == 4860|| iel == 5328) {
-        std::cout << std::endl;
       }
     }
     for(unsigned k = 0; k < 2; k++) {
@@ -480,15 +502,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
         mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;
 
-//         if(iel == 4752) {
-//           std::cout << (a * a - b * b) * mu0s - 2. * a * b * mu1s << " " << (a * a - b * b) * mu1s + 2. * a * b * mu0s << " ";
-//         }
-
         cnt += (*sol->_Sol[indexCntEdge])(idof);
       }
-//       if(iel == 4752) {
-//         std::cout << std::endl;
-//       }
 
       for(unsigned k = 0; k < 2; k++) {
         sol->_Sol[indexMu[k]]->set(iel, mu[k] / cnt);

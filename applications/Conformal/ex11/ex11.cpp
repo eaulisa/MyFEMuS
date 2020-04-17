@@ -62,13 +62,13 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
   value = 0.;
   
   if(1 == faceName || 2 == faceName ) {
-    if(!strcmp(solName, "Dx1")) {
-      if(1 == faceName)
-       value = 1;
-      else{
-       value = -1; 
-      }
-    }  
+//     if(!strcmp(solName, "Dx1")) {
+//       if(1 == faceName)
+//        value = 1;
+//       else{
+//        value = -1; 
+//       }
+//     }  
     if(!strcmp(solName, "Dx2")) {
       value = 0.5 * x[1]/0.5;
     }
@@ -261,7 +261,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(2);
+  system.SetMaxNumberOfNonLinearIterations(10);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
   
