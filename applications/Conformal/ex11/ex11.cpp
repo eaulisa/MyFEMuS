@@ -26,11 +26,11 @@ unsigned conformalTriangleType = 2;
 
 // const double normalSign = -1.;
 const bool O2conformal = true;
-const bool noLM = false;
+const bool noLM = true;
 unsigned counter = 0;
 const double eps = 1.0e-3;// * O2conformal;
 
-const unsigned numberOfIterations = 10;
+const unsigned numberOfIterations = 1;
 
 using namespace femus;
 
@@ -57,6 +57,47 @@ double GetTimeStep (const double t) {
 // IBVs.  No boundary, and IVs set to sphere (just need something).
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
+    
+  bool dirichlet = true;
+  value = 0.;
+  
+  if(1 == faceName || 2 == faceName ) {
+    if(!strcmp(solName, "Dx1")) {
+      if(1 == faceName)
+       value = 1;
+      else{
+       value = -1; 
+      }
+    }  
+    if(!strcmp(solName, "Dx2")) {
+      value = 0.5 * x[1]/0.5;
+    }
+    else if(!strcmp(solName, "Dx3")) {
+      value = 0.5 * x[2]/0.5;
+    }
+  }
+  else if(3 == faceName || 4 == faceName ) {
+    if(!strcmp(solName, "Dx1")) {
+      value = 0.5 * x[0]/0.5;
+    }
+    else if(!strcmp(solName, "Dx3")) {
+      value = 0.5 * x[2]/0.5;
+    }
+  }
+  else if(5 == faceName || 6 == faceName ) {
+    if(!strcmp(solName, "Dx1")) {
+      value = 0.5 * x[0]/0.5;
+    }
+    else if(!strcmp(solName, "Dx2")) {
+      value = 0.5 * x[1]/0.5;
+    }
+  }
+  
+
+  
+  
+  
+  
 
 //   bool dirichlet = false;
 //   value = 0.;
@@ -94,7 +135,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
 
 
 
-
+/*
 
   bool dirichlet = true;
   value = 0.;
@@ -105,7 +146,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
       value = time / numberOfIterations * 0.6 * sin(x[1] / 0.5 * M_PI);
       //dirichlet = false;
     }
-  }
+  }*/
 
 //   else if(!strcmp(solName, "Dx2")) {
 //     if(1 == faceName) {
@@ -149,13 +190,14 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("../input/squareReg3D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
+//   mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/intersection.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh("../input/cat.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -219,7 +261,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(100);
+  system.SetMaxNumberOfNonLinearIterations(2);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
   

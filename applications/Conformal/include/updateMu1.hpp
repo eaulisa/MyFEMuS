@@ -107,18 +107,18 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
 
 //     if(ielGeom == TRI) {
-// 
+//
 //       xT[0][1] = 0.5;
 //       std::vector < unsigned > ENVN(3);
 //       std::vector < double > angle(3);
-// 
+//
 //       for(unsigned j = 0; j < 3; j++) {
 //         unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
 //         ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
 //         angle[j] = 2 * M_PI / ENVN[j];
 //       }
-// 
-// 
+//
+//
 //       if(conformalTriangleType == 1) {  //this works with moo two levels
 //         ChangeTriangleConfiguration1(ENVN, angle);
 //       }
@@ -128,7 +128,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //       else { //no change
 //         angle.assign(3, M_PI / 3.);
 //       }
-// 
+//
 //       double l = xT[0][1] - xT[0][0];
 //       double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
 //       double scale = sqrt((sqrt(3.) / 2.) / (l * d));
@@ -137,17 +137,17 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //       xT[0][1] = xT[0][0] + l;
 //       xT[0][2] = xT[0][0] + d / tan(angle[0]);
 //       xT[1][2] = d;
-// 
+//
 //       xT[0][3] = 0.5 * (xT[0][0] + xT[0][1]);
 //       xT[0][4] = 0.5 * (xT[0][1] + xT[0][2]);
 //       xT[0][5] = 0.5 * (xT[0][2] + xT[0][0]);
 //       xT[0][6] = 0.33333333333333333333 * (xT[0][0] + xT[0][1] + xT[0][2]);
-// 
+//
 //       xT[1][3] = 0.5 * (xT[1][0] + xT[1][1]);
 //       xT[1][4] = 0.5 * (xT[1][1] + xT[1][2]);
 //       xT[1][5] = 0.5 * (xT[1][2] + xT[1][0]);
 //       xT[1][6] = 0.33333333333333333333 * (xT[1][0] + xT[1][1] + xT[1][2]);
-// 
+//
 //       //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
 //     }
 
@@ -318,7 +318,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   //if(smoothMax > 10) smoothMax = 10;
   std::cout << "Max Number of Smoothing = " << smoothMax << std::endl;
 
-  for(unsigned ismooth = 0; ismooth < smoothMax; ismooth++) {
+  for(unsigned ismooth = 0; ismooth < 1 + 0 * smoothMax; ismooth++) {
 
     for(unsigned k = 0; k < dim; k++) {
       sol->_Sol[indexMuEdge[k]]->zero();
@@ -336,18 +336,18 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       }
 
 //       if(ielGeom == TRI) {
-// 
+//
 //         xT[0][1] = 0.5;
 //         std::vector < unsigned > ENVN(3);
 //         std::vector < double > angle(3);
-// 
+//
 //         for(unsigned j = 0; j < 3; j++) {
 //           unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
 //           ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
 //           angle[j] = 2 * M_PI / ENVN[j];
 //         }
-// 
-// 
+//
+//
 //         if(conformalTriangleType == 1) {  //this works with moo two levels
 //           ChangeTriangleConfiguration1(ENVN, angle);
 //         }
@@ -357,7 +357,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //         else { //no change
 //           angle.assign(3, M_PI / 3.);
 //         }
-// 
+//
 //         double l = xT[0][1] - xT[0][0];
 //         double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
 //         double scale = sqrt((sqrt(3.) / 2.) / (l * d));
@@ -366,12 +366,18 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //         xT[0][1] = xT[0][0] + l;
 //         xT[0][2] = xT[0][0] + d / tan(angle[0]);
 //         xT[1][2] = d;
-// 
+//
 //         angles[idx][1] = atan2(xT[1][2], xT[0][2] - xT[0][1]);
 //         angles[idx][2] = atan2(-xT[1][2], -0.5 + xT[0][2]);
-// 
+//
 //       }
 
+
+//       if(iel == 4752|| iel == 5316) {
+      if(iel == 4860|| iel == 5328) {
+        std::cout << iel<<" ";
+      }
+      
       unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
 
@@ -387,10 +393,20 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         double mu0s = (a * a - b * b) * mu[0] + 2. * a * b * mu[1];
         double mu1s = (a * a - b * b) * mu[1] - 2. * a * b * mu[0];
 
+        if(iel == 4860|| iel == 5328) {
+//         if(iel == 4752 || iel == 5316) {
+          std::cout << mu[0] << " " << mu0s <<" "<< mu[1] << " " << mu1s << " ";
+        }
+
         sol->_Sol[indexMuEdge[0]]->add(idof, mu0s);
         sol->_Sol[indexMuEdge[1]]->add(idof, mu1s);
 
         sol->_Sol[indexCntEdge]->add(idof, 1);
+      }
+
+//       if(iel == 4752|| iel == 5316) {
+      if(iel == 4860|| iel == 5328) {
+        std::cout << std::endl;
       }
     }
     for(unsigned k = 0; k < 2; k++) {
@@ -398,24 +414,26 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     }
     sol->_Sol[indexCntEdge]->close();
 
+
+
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned idx = (ielGeom == QUAD) ? 0 : 1;
 
 //       if(ielGeom == TRI) {
-// 
+//
 //         xT[0][1] = 0.5;
 //         std::vector < unsigned > ENVN(3);
 //         std::vector < double > angle(3);
-// 
+//
 //         for(unsigned j = 0; j < 3; j++) {
 //           unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
 //           ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
 //           angle[j] = 2 * M_PI / ENVN[j];
 //         }
-// 
-// 
+//
+//
 //         if(conformalTriangleType == 1) {  //this works with moo two levels
 //           ChangeTriangleConfiguration1(ENVN, angle);
 //         }
@@ -425,7 +443,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //         else { //no change
 //           angle.assign(3, M_PI / 3.);
 //         }
-// 
+//
 //         double l = xT[0][1] - xT[0][0];
 //         double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
 //         double scale = sqrt((sqrt(3.) / 2.) / (l * d));
@@ -434,10 +452,10 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //         xT[0][1] = xT[0][0] + l;
 //         xT[0][2] = xT[0][0] + d / tan(angle[0]);
 //         xT[1][2] = d;
-// 
+//
 //         angles[idx][1] = atan2(xT[1][2], xT[0][2] - xT[0][1]);
 //         angles[idx][2] = atan2(-xT[1][2], -0.5 + xT[0][2]);
-// 
+//
 //       }
 
       double mu[2] = {0., 0.};
@@ -462,8 +480,15 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
         mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;
 
+//         if(iel == 4752) {
+//           std::cout << (a * a - b * b) * mu0s - 2. * a * b * mu1s << " " << (a * a - b * b) * mu1s + 2. * a * b * mu0s << " ";
+//         }
+
         cnt += (*sol->_Sol[indexCntEdge])(idof);
       }
+//       if(iel == 4752) {
+//         std::cout << std::endl;
+//       }
 
       for(unsigned k = 0; k < 2; k++) {
         sol->_Sol[indexMu[k]]->set(iel, mu[k] / cnt);

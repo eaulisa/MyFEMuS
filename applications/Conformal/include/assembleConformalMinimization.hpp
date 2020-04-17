@@ -65,7 +65,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
 
   // Local solution vectors for X, Dx, Xhat, XC.
-  
+
   std::vector < double > xhat[DIM];
   std::vector < double > solDx[DIM];
   std::vector < double > solDxOld[DIM];
@@ -89,7 +89,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   solDxPdeIndex[2] = mlPdeSys->GetSolPdeIndex("Dx3");
 
   // Local solution vectors for Nx and NDx.
- 
+
 
   // Get the position of "Lambda1" in the ml_sol object.
   unsigned solLIndex;
@@ -148,6 +148,11 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     Res.assign(sizeAll, 0.);
     Jac.assign(sizeAll * sizeAll, 0.);
 
+    //if(iel == 5316 || iel == 4752) {
+    if(iel == 4860|| iel == 5328) {    
+      std::cout << iel << " ";
+    }
+
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nxDofs; i++) {
 
@@ -155,16 +160,27 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       unsigned iDDof = msh->GetSolutionDof(i, iel, solType);
       unsigned iXDof  = msh->GetSolutionDof(i, iel, xType);
 
+      //if(iel == 5316 || iel == 4752) {
+      if(iel == 4860|| iel == 5328) {    
+        std::cout << iXDof << " ";
+      }
+
+
       for(unsigned K = 0; K < DIM; K++) {
         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof);
-       
+
         solDxOld[K][i] = (*sol->_SolOld[solDxIndex[K]])(iDDof);
         solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof);
-       
+
         // Global-to-global mapping between NDx solution node and pdeSys dof.
         SYSDOF[ K * nxDofs + i] =
           pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
+    }
+
+    //if(iel == 5316 || iel == 4752){
+    if(iel == 4860 || iel == 5328) {
+      std::cout << std::endl;
     }
 
     // Local storage of global mapping and solution.
@@ -278,7 +294,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nxDofs; i++) {
-          solDxOldg[K] += phix[i] * solDxOld[K][i]; 
+          solDxOldg[K] += phix[i] * solDxOld[K][i];
           solDxg[K] += phix[i] * solDx[K][i];
         }
         for(int j = 0; j < dim; j++) {
