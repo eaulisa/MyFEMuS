@@ -275,6 +275,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solMx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+      double solNx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nxDofs; i++) {
@@ -283,8 +284,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nxDofs; i++) {
-            xhat_uv[K][j]    += phix_uv[j][i] * xhat[K][i];
+            xhat_uv[K][j]    += phix_uv[j][i] * (xhat[K][i] + solDxOld[K][i]);
             solMx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + 0.5 * ((1. + !O2conformal) * solDxOld[K][i] + O2conformal * solDx[K][i]));
+            solNx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + solDx[K][i]);
           }
         }
       }
@@ -325,6 +327,17 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       normalMSqrtDetg[0] = (solMx_uv[1][0] * solMx_uv[2][1] - solMx_uv[2][0] * solMx_uv[1][1]);
       normalMSqrtDetg[1] = (solMx_uv[2][0] * solMx_uv[0][1] - solMx_uv[0][0] * solMx_uv[2][1]);
       normalMSqrtDetg[2] = (solMx_uv[0][0] * solMx_uv[1][1] - solMx_uv[1][0] * solMx_uv[0][1]);
+      
+      
+      double normalN[DIM];
+      normalN[0] = (solNx_uv[1][0] * solNx_uv[2][1] - solNx_uv[2][0] * solNx_uv[1][1]);
+      normalN[1] = (solNx_uv[2][0] * solNx_uv[0][1] - solNx_uv[0][0] * solNx_uv[2][1]);
+      normalN[2] = (solNx_uv[0][0] * solNx_uv[1][1] - solNx_uv[1][0] * solNx_uv[0][1]);
+      
+      double normN = sqrt(normalN[0]*normalN[0] + normalN[1]*normalN[1] +normalN[2]*normalN[2]);
+      normalN[0] /= normN; 
+      normalN[1] /= normN; 
+      normalN[2] /= normN; 
 
       // Compute new X minus old X dot N, for "reparametrization".
       double DnXmDxdotNSqrtDetg = 0.;
@@ -536,3 +549,4 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssembleO2ConformalMinimization.
+

@@ -26,11 +26,11 @@ unsigned conformalTriangleType = 2;
 
 // const double normalSign = -1.;
 const bool O2conformal = true;
-const bool noLM = true;
+const bool noLM = false;
 unsigned counter = 0;
-const double eps = 1.0e-3;// * O2conformal;
+const double eps = 1.e-5;// * O2conformal;
 
-const unsigned numberOfIterations = 1;
+const unsigned numberOfIterations = 10;
 
 using namespace femus;
 
@@ -46,62 +46,62 @@ void ProjectSolution(MultiLevelSolution& mlSol);
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
   return cos(20 * M_PI * x[0]) + sin(20 * M_PI * x[1]);
-   //return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
+  //return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
 
 
-double GetTimeStep (const double t) {
+double GetTimeStep(const double t) {
   return 1;
 }
 
 // IBVs.  No boundary, and IVs set to sphere (just need something).
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
-    
-  bool dirichlet = true;
-  value = 0.;
-  
-  if(1 == faceName || 2 == faceName ) {
+
+//   bool dirichlet = true;
+//   value = 0.;
+//
+//   if(1 == faceName || 2 == faceName ) {
 //     if(!strcmp(solName, "Dx1")) {
 //       if(1 == faceName)
 //        value = 1;
 //       else{
-//        value = -1; 
+//        value = -1;
 //       }
-//     }  
-    if(!strcmp(solName, "Dx2")) {
-      value = 0.5 * x[1]/0.5;
-    }
-    else if(!strcmp(solName, "Dx3")) {
-      value = 0.5 * x[2]/0.5;
-    }
-  }
-  else if(3 == faceName || 4 == faceName ) {
-    if(!strcmp(solName, "Dx1")) {
-      value = 0.5 * x[0]/0.5;
-    }
-    else if(!strcmp(solName, "Dx3")) {
-      value = 0.5 * x[2]/0.5;
-    }
-  }
-  else if(5 == faceName || 6 == faceName ) {
-    if(!strcmp(solName, "Dx1")) {
-      value = 0.5 * x[0]/0.5;
-    }
-    else if(!strcmp(solName, "Dx2")) {
-      value = 0.5 * x[1]/0.5;
-    }
-  }
-  
+//     }
+//     if(!strcmp(solName, "Dx2")) {
+//       value = time / numberOfIterations * 0.35 * x[1]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx3")) {
+//       value = time / numberOfIterations * 0.75 * x[2]/0.5;
+//     }
+//   }
+//   else if(3 == faceName || 4 == faceName ) {
+//     if(!strcmp(solName, "Dx1")) {
+//       value = time / numberOfIterations * 0.45 * x[0]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx3")) {
+//       value = time / numberOfIterations * 0.35 * x[2]/0.5;
+//     }
+//   }
+//   else if(5 == faceName || 6 == faceName ) {
+//     if(!strcmp(solName, "Dx1")) {
+//       value = time / numberOfIterations * 0.125 * x[0]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx2")) {
+//       value = time / numberOfIterations * 0.65 * x[1]/0.5;
+//     }
+//   }
+//
 
-  
-  
-  
-  
+
+
+
+
 
 //   bool dirichlet = false;
 //   value = 0.;
-// 
+//
 //   if(100 == faceName) {
 //     //value = 0.6 * sin(x[1] / 0.5 * M_PI);
 //     dirichlet = true;
@@ -135,37 +135,40 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
 
 
 
-/*
+
 
   bool dirichlet = true;
   value = 0.;
-  
+
   if(!strcmp(solName, "Dx1")) {
     if(1 == faceName) {
       //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
       value = time / numberOfIterations * 0.6 * sin(x[1] / 0.5 * M_PI);
       //dirichlet = false;
     }
-  }*/
+  }
 
 //   else if(!strcmp(solName, "Dx2")) {
 //     if(1 == faceName) {
-// 
+//
 //       //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
 //       value = 0.25 * x[1];
 //       //dirichlet = false;
 //     }
 //   }
-// 
+//
 //   else if(!strcmp(solName, "Dx3")) {
 //     if(1 == faceName) {
-// 
+//
 //       //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
 //       value = 0.25 * x[2];
 //       //dirichlet = false;
 //     }
 //   }
 
+  if(!strcmp(solName, "Lambda1")) {
+    dirichlet = false;
+  }
 
   return dirichlet;
 }
@@ -190,14 +193,14 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("../input/squareReg3D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/square13D.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
-//   mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/intersection.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/intersection.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/hand.med", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh("../input/cat.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -214,12 +217,14 @@ int main(int argc, char** args) {
 
   // Add variables X,Y,W to mlSol.
 
-  FEOrder feOrder = FIRST;
+  FEOrder feOrder = SECOND;
   mlSol.AddSolution("Dx1", LAGRANGE, feOrder, 2);
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 2);
   mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 2);
 
-  mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+  mlSol.AddSolution("Lambda1", LAGRANGE, feOrder, 0);
+
+//   mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 
   mlSol.AddSolution("ENVN", LAGRANGE, feOrder, 0, false);
 
@@ -241,11 +246,11 @@ int main(int argc, char** args) {
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
-  
-  mlSol.GenerateBdc("Dx1","Time_dependent");
-  mlSol.GenerateBdc("Dx2","Time_dependent");
-  mlSol.GenerateBdc("Dx3","Time_dependent");
- 
+
+  mlSol.GenerateBdc("Dx1", "Time_dependent");
+  mlSol.GenerateBdc("Dx2", "Time_dependent");
+  mlSol.GenerateBdc("Dx3", "Time_dependent");
+
 
   GetElementNearVertexNumber(mlSol);
 
@@ -261,11 +266,11 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(10);
+  system.SetMaxNumberOfNonLinearIterations(100);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
-  
-  system.AttachGetTimeIntervalFunction (GetTimeStep);
+
+  system.AttachGetTimeIntervalFunction(GetTimeStep);
   system.init();
 
   mlSol.SetWriter(VTK);
@@ -274,22 +279,22 @@ int main(int argc, char** args) {
   variablesToBePrinted.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
-  
+
   system.SetAssembleFunction(AssembleConformalMinimization);
-  
+
   std::vector<std::string> mov_vars;
   mov_vars.push_back("Dx1");
   mov_vars.push_back("Dx2");
   mov_vars.push_back("Dx3");
   mlSol.GetWriter()->SetMovingMesh(mov_vars);
-  
-  for (unsigned k = 0; k < numberOfIterations; k++) {
+
+  for(unsigned k = 0; k < numberOfIterations; k++) {
     system.CopySolutionToOldSolution();
     system.MGsolve();
     //ProjectSolution(mlSol);
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k + 1);
   }
-  
+
   return 0;
 }
 

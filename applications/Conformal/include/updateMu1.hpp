@@ -100,8 +100,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeDx);
       unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
       for(unsigned K = 0; K < DIM; K++) {
-        solx[K][i] = (*msh->_topology->_Sol[K])(xDof);
-        solNx[K][i] = solx[K][i]  + (*sol->_Sol[indexDx[K]])(idof);
+        solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
+        solNx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
       }
     }
 
@@ -202,7 +202,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
-            solx_uv[K][j]    += phix_uv[j][i] * solNx[K][i] ;
+            solx_uv[K][j]    += phix_uv[j][i] * solx[K][i] ;
             solNx_uv[K][j]    += phix_uv[j][i] * solNx[K][i];
           }
         }
@@ -224,15 +224,24 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
       normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
 
-
 //       //Analytic for the cylinder
 //       normal[0] = 0;
 //       normal[1] = solxg[1] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
 //       normal[2] = solxg[2] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
+    
+      
+      //BEGIN remove normal components of du and dv
+      double duDotN = solNx_uv[0][0] * normal[0] + solNx_uv[1][0] * normal[1] + solNx_uv[2][0] * normal[2];
+      solNx_uv[0][0] -= duDotN * normal[0];
+      solNx_uv[1][0] -= duDotN * normal[1];
+      solNx_uv[2][0] -= duDotN * normal[2];
 
-      
-      
-      
+      double dvDotN = solNx_uv[0][1] * normal[0] + solNx_uv[1][1] * normal[1] + solNx_uv[2][1] * normal[2];
+      solNx_uv[0][1] -= dvDotN * normal[0];
+      solNx_uv[1][1] -= dvDotN * normal[1];
+      solNx_uv[2][1] -= dvDotN * normal[2];
+      //END remove normal components of du and dv
+            
       double dxPlus[DIM];  //du+ = -*dv+
       dxPlus[0] = solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1];
       dxPlus[1] = solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2];
@@ -247,7 +256,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       dxMinus[0] = solNx_uv[0][0] - solNx_uv[1][1] * normal[2] + solNx_uv[2][1] * normal[1];
       dxMinus[1] = solNx_uv[1][0] - solNx_uv[2][1] * normal[0] + solNx_uv[0][1] * normal[2];
       dxMinus[2] = solNx_uv[2][0] - solNx_uv[0][1] * normal[1] + solNx_uv[1][1] * normal[0];
-     
+
       double norm2dxPlus = 0;
       double norm2sdxPlus = 0;
       double rhsmu1 = 0;
@@ -266,7 +275,15 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       mu[0] = rhsmu1 / norm2dxPlus;
       mu[1] = rhsmu2 / norm2sdxPlus;
 
-      
+
+      for(unsigned i = 0; i < nDofs1; i++) {
+        sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
+        for(unsigned k = 0; k < dim; k++) {
+          sol->_Sol[indexMu[k]]->add(dof1[i], mu[k] * phi1[i] * weight);
+        }
+      } // end phi_i loop
+
+
 //       double dvPlus[DIM]; //dv+ = *du+
 //       dvPlus[0] = solNx_uv[0][1] - solNx_uv[1][0] * normal[2] + solNx_uv[2][0] * normal[1];
 //       dvPlus[1] = solNx_uv[1][1] - solNx_uv[2][0] * normal[0] + solNx_uv[0][0] * normal[2];
@@ -295,17 +312,15 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 //         rhsmu2v += sdvPlus[K] * dvMinus[K];
 //       }
 // 
-//       // Comment out for working code
+//       //Comment out for working code
 //       double muv[2] = {0., 0.};
 //       muv[0] = rhsmu1v / norm2dvPlus;
 //       muv[1] = rhsmu2v / norm2sdvPlus;
+// 
+//       if(iel == 100 && ig == 0) {
+//         std::cout << mu[0] << " " << muv[0] << " " << mu[1] << " " << muv[1] << "\n";
+//       }
 
-      for(unsigned i = 0; i < nDofs1; i++) {
-        sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
-        for(unsigned k = 0; k < dim; k++) {
-          sol->_Sol[indexMu[k]]->add(dof1[i], mu[k] * phi1[i] * weight);
-        }
-      } // end phi_i loop
     } // end gauss point loop
   } //end element loop for each process*/
 
@@ -337,13 +352,23 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   {
     //Norm before the smoothing
     double MuNormLocalSum = 0.;
+    double muNormLocalMax = 0.;
     for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-      MuNormLocalSum += sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+      double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+      MuNormLocalSum += muNorm;
+      
+      muNormLocalMax = (muNorm > muNormLocalMax)? muNorm : muNormLocalMax;
     }
+    double muNormMax;
+    MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    std::cout << " max mu norm = " << muNormMax << std::endl;
+        
     MPI_Allreduce(&MuNormLocalSum, &MuNormAverageBefore, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MuNormAverageBefore /= msh->_dofOffset[solType1][nprocs];
 
-    std::cout << " before " << MuNormAverageBefore << std::endl;
+    std::cout << " average mu norm before smoothing = " << MuNormAverageBefore << std::endl;
+    std::cout << " relative difference = " << (muNormMax - MuNormAverageBefore)/MuNormAverageBefore << std::endl;
+    
   }
 
   std::vector < unsigned > indexMuEdge(dim);
@@ -526,7 +551,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     MPI_Allreduce(&MuNormLocalSum, &MuNormAverageAfter, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MuNormAverageAfter /= msh->_dofOffset[solType1][nprocs];
   }
-  std::cout << " after " << MuNormAverageAfter << std::endl;
+  std::cout << " average mu after smoothing " << MuNormAverageAfter << std::endl;
 
   for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
 
