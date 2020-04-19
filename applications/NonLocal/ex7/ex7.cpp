@@ -45,7 +45,7 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 1; 
+unsigned numberOfUniformLevels = 1;
 
 // solver specifics (default is direct solver (MUMPS))
 bool Schur = false;
@@ -295,12 +295,12 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
       x1[i].resize (nDofx);
     }
 
-   vector < double >  solu (nDofu);
+    vector < double >  solu (nDofu);
     vector < double >  solu1 (nDofu);
     vector < double >  solu2 (nDofu);
 
     for (unsigned i = 0; i < nDofu; i++) {
-      unsigned solDofu = msh->GetSolutionDof (i, iel, soluType); 
+      unsigned solDofu = msh->GetSolutionDof (i, iel, soluType);
       unsigned solDofu1 = msh->GetSolutionDof (i, iel, solu1Type);
       unsigned solDofu2 = msh->GetSolutionDof (i, iel, solu2Type);
       solu[i] = (*solGlobal->_Sol[soluIndex]) (solDofu);
@@ -316,14 +316,14 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
       }
     }
 
-    vector <double> phi;   
-    vector <double> phi_x;  
-    double weight; 
+    vector <double> phi;
+    vector <double> phi_x;
+    double weight;
 
     for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
-      
+
       msh->_finiteElement[ielGeom][soluType]->Jacobian (x1, ig, weight, phi, phi_x);
-      
+
       double solu_gss = 0.;
       double solu1_gss = 0.;
       double solu2_gss = 0.;
@@ -339,9 +339,9 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
       }
 
       double uFETI_gss;
-      if(ielGroup == 5 || ielGroup == 6 || ielGroup == 7) uFETI_gss =  solu1_gss;
-      else  uFETI_gss = solu2_gss;          
-    
+      if (ielGroup == 5 || ielGroup == 6 || ielGroup == 7) uFETI_gss =  solu1_gss;
+      else  uFETI_gss = solu2_gss;
+
       L2_error_FETI_global += (solu_gss - uFETI_gss) * (solu_gss - uFETI_gss) * weight;
 
     }
@@ -352,20 +352,29 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
   double norm = sqrt (norm2);
   std::cout.precision (16);
   std::cout << "L2 norm of ERROR: Global - FETI = " << norm << std::endl;
-  
-      double littleL2norm = 0.;
+
+  double littleL2norm = 0.;
+
+  double epsilon = 1.e-8;
+  double xminU2 = -1. - delta -  epsilon;
+  double xmaxU2 = 1. + delta +  epsilon;
+  double ymaxU2 = 0.5 + delta +  epsilon;
+  double yminU2 = - 0.5 - delta - epsilon;
 
   for (unsigned i =  msh->_dofOffset[soluType][iproc]; i <  msh->_dofOffset[soluType][iproc + 1]; i++) {
 
     double x1 = (*msh->_topology->_Sol[0]) (i);
-    double epsilon = 1.e-8;
+    double x2 = (*msh->_topology->_Sol[1]) (i);
+
 
     double u = (*solGlobal->_Sol[soluIndex]) (i);
     double value = 0.;
 
-    if (x1 < 0.125 + epsilon)   value = (*sol->_Sol[solu1Index]) (i);
+    if ( (xminU2 < x1) && (x1 < xmaxU2) && (yminU2 < x2) && (x2 < ymaxU2)) {
+     value = (*sol->_Sol[solu2Index]) (i);
+    }
 
-    else  value = (*sol->_Sol[solu2Index]) (i);
+    else  value = (*sol->_Sol[solu1Index]) (i);
 
     double difference = fabs (u - value);
 
