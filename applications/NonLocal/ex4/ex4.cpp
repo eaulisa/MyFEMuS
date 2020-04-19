@@ -48,7 +48,7 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 3;
+unsigned numberOfUniformLevels = 2;
 
 int main (int argc, char** argv) {
 
@@ -431,6 +431,38 @@ void GetL2Norm (MultiLevelSolution & mlSol, MultiLevelSolution & mlSolGlobal) {
   std::cout.precision (16);
   std::cout << "L2 norm of ERROR: Global - FETI = " << norm << std::endl;
 
+
+  double littleL2norm = 0.;
+
+  for (unsigned i =  msh->_dofOffset[soluType][iproc]; i <  msh->_dofOffset[soluType][iproc + 1]; i++) {
+
+    double x1 = (*msh->_topology->_Sol[0]) (i);
+    double x2 = (*msh->_topology->_Sol[1]) (i);
+    double epsilon = 1.e-8;
+
+    double u = (*solGlobal->_Sol[soluIndex]) (i);
+    double value = 0.;
+
+    if (x1 < 0.125 + epsilon && x2 > -0.125 - epsilon)   value = (*sol->_Sol[solu1Index]) (i);
+
+    else if (x1 > 0.125 && x2 > -0.125 - epsilon) value = (*sol->_Sol[solu2Index]) (i);
+
+    else if (x1 < 0.125 + epsilon && x2 < -0.125) value = (*sol->_Sol[solu3Index]) (i);
+
+    else if (x1 > 0.125 && x2 < -0.125) value = (*sol->_Sol[solu4Index]) (i);
+
+
+    double difference = fabs (u - value);
+
+    littleL2norm += difference * difference;
+
+  }
+
+  norm2 = 0.;
+  MPI_Allreduce (&littleL2norm, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  norm = sqrt (norm2);
+  std::cout.precision (14);
+  std::cout << "l2 norm of ERROR: Global - FETI = " << norm << std::endl;
 
 }
 
