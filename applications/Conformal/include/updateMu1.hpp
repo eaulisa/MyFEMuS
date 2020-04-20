@@ -1,4 +1,4 @@
-
+#include <boost/math/quaternion.hpp>
 
 
 void UpdateMu(MultiLevelSolution& mlSol) {
@@ -224,144 +224,25 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
       normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
 
-//       //Analytic for the cylinder
-//       normal[0] = 0;
-//       normal[1] = solxg[1] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
-//       normal[2] = solxg[2] / sqrt(solxg[1] * solxg[1] + solxg[2] * solxg[2]);
+      boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
 
+      boost::math::quaternion <double> du(0, solNx_uv[0][0], solNx_uv[1][0], solNx_uv[2][0]);
+      boost::math::quaternion <double> dv(0, solNx_uv[0][1], solNx_uv[1][1], solNx_uv[2][1]);
 
-      // //BEGIN remove normal components of du and dv
-      // double duDotN = solNx_uv[0][0] * normal[0] + solNx_uv[1][0] * normal[1] + solNx_uv[2][0] * normal[2];
-      // solNx_uv[0][0] -= duDotN * normal[0];
-      // solNx_uv[1][0] -= duDotN * normal[1];
-      // solNx_uv[2][0] -= duDotN * normal[2];
-      //
-      // double dvDotN = solNx_uv[0][1] * normal[0] + solNx_uv[1][1] * normal[1] + solNx_uv[2][1] * normal[2];
-      // solNx_uv[0][1] -= dvDotN * normal[0];
-      // solNx_uv[1][1] -= dvDotN * normal[1];
-      // solNx_uv[2][1] -= dvDotN * normal[2];
-      // //END remove normal components of du and dv
+      boost::math::quaternion <double> dup = du - N * dv;
+      boost::math::quaternion <double> dum = du + N * dv;
 
-      // double dxPlus[DIM];  //du+ = -*dv+
-      // dxPlus[0] = solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1];
-      // dxPlus[1] = solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2];
-      // dxPlus[2] = solNx_uv[2][0] + solNx_uv[0][1] * normal[1] - solNx_uv[1][1] * normal[0];
-      //
-      // double sdxPlus[DIM]; //*du+ = dv+
-      // sdxPlus[0] = solNx_uv[0][1] - solNx_uv[1][0] * normal[2] + solNx_uv[2][0] * normal[1];
-      // sdxPlus[1] = solNx_uv[1][1] - solNx_uv[2][0] * normal[0] + solNx_uv[0][0] * normal[2];
-      // sdxPlus[2] = solNx_uv[2][1] - solNx_uv[0][0] * normal[1] + solNx_uv[1][0] * normal[0];
-      //
-      // double dxMinus[DIM];//du- = -*dv-
-      // dxMinus[0] = solNx_uv[0][0] - solNx_uv[1][1] * normal[2] + solNx_uv[2][1] * normal[1];
-      // dxMinus[1] = solNx_uv[1][0] - solNx_uv[2][1] * normal[0] + solNx_uv[0][1] * normal[2];
-      // dxMinus[2] = solNx_uv[2][0] - solNx_uv[0][1] * normal[1] + solNx_uv[1][1] * normal[0];
-      //
-      // double norm2dxPlus = 0;
-      // double norm2sdxPlus = 0;
-      // double rhsmu1 = 0;
-      // double rhsmu2 = 0;
-      //
-      // //double dxsdxp = 0.;
-      // for(unsigned K = 0; K < DIM; K++) {
-      //   norm2dxPlus += dxPlus[K] * dxPlus[K];
-      //   norm2sdxPlus += sdxPlus[K] * sdxPlus[K];
-      //   rhsmu1 += dxPlus[K] * dxMinus[K];
-      //   rhsmu2 += sdxPlus[K] * dxMinus[K];
-      // }
-
-      // double mu[2] = {0., 0.};
-      // mu[0] = rhsmu1 / norm2dxPlus;
-      // mu[1] = rhsmu2 / norm2sdxPlus;
-
-
-      // TRYING QUATERNION STUFF
-      double duPlusIm[DIM];  //du+ = -*dv+
-      duPlusIm[0] = solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1];
-      duPlusIm[1] = solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2];
-      duPlusIm[2] = solNx_uv[2][0] + solNx_uv[0][1] * normal[1] - solNx_uv[1][1] * normal[0];
-
-      double duMinusIm[DIM];//du- = -*dv-
-      duMinusIm[0] = solNx_uv[0][0] - solNx_uv[1][1] * normal[2] + solNx_uv[2][1] * normal[1];
-      duMinusIm[1] = solNx_uv[1][0] - solNx_uv[2][1] * normal[0] + solNx_uv[0][1] * normal[2];
-      duMinusIm[2] = solNx_uv[2][0] - solNx_uv[0][1] * normal[1] + solNx_uv[1][1] * normal[0];
-
-      double dumXdup[DIM];
-      dumXdup[0] = duMinusIm[1] * duPlusIm[2] - duMinusIm[2] * duPlusIm[1];
-      dumXdup[1] = duMinusIm[2] * duPlusIm[0] - duMinusIm[0] * duPlusIm[2];
-      dumXdup[2] = duMinusIm[0] * duPlusIm[1] - duMinusIm[1] * duPlusIm[0];
-
-      double duPlusRe = 0;
-      double dumIPdup = 0;
-      double dupIPdup = 0;
-      for(unsigned K = 0; K < DIM; K++) {
-        duPlusRe += normal[K] * solNx_uv[K][1];
-        dumIPdup += duPlusIm[K] * duMinusIm[K];
-        dupIPdup += duPlusIm[K] * duPlusIm[K];
-      }
-      double norm2duPlus = duPlusRe * duPlusRe + dupIPdup;
-
-      double RHSmu2[3] = {0., 0., 0.};
-      for(unsigned K = 0; K < DIM; K++) {
-        RHSmu2[K] = duPlusRe * (duMinusIm[K] + duPlusIm[K]) - dumXdup[K];
-      }
-
-      double numMu2 = 0;
-      for(unsigned K = 0; K < DIM; K++) {
-        numMu2 += normal[K] * RHSmu2[K];
-      }
-
-      double mu[2] = {0., 0.};
-      mu[0] = (dumIPdup - duPlusRe * duPlusRe) / norm2duPlus;
-      mu[1] = numMu2 / norm2duPlus;
-      // END TRYING QUATERNION STUFF
-
-
-
+      boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
+      double mu[2];
+      mu[0] = MU.R_component_1();
+      mu[1] = (MU.unreal() * conj(N.unreal())).R_component_1();
+ 
       for(unsigned i = 0; i < nDofs1; i++) {
         sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
         for(unsigned k = 0; k < dim; k++) {
           sol->_Sol[indexMu[k]]->add(dof1[i], mu[k] * phi1[i] * weight);
         }
       } // end phi_i loop
-
-
-//       double dvPlus[DIM]; //dv+ = *du+
-//       dvPlus[0] = solNx_uv[0][1] - solNx_uv[1][0] * normal[2] + solNx_uv[2][0] * normal[1];
-//       dvPlus[1] = solNx_uv[1][1] - solNx_uv[2][0] * normal[0] + solNx_uv[0][0] * normal[2];
-//       dvPlus[2] = solNx_uv[2][1] - solNx_uv[0][0] * normal[1] + solNx_uv[1][0] * normal[0];
-//
-//       double sdvPlus[DIM]; //*dv+ = -du+
-//       sdvPlus[0] = -(solNx_uv[0][0] + solNx_uv[1][1] * normal[2] - solNx_uv[2][1] * normal[1]);
-//       sdvPlus[1] = -(solNx_uv[1][0] + solNx_uv[2][1] * normal[0] - solNx_uv[0][1] * normal[2]);
-//       sdvPlus[2] = -(solNx_uv[2][0] + solNx_uv[0][1] * normal[1] - solNx_uv[1][1] * normal[0]);
-//
-//       double dvMinus[DIM]; //dv- = *du-
-//       dvMinus[0] = solNx_uv[0][1] + solNx_uv[1][0] * normal[2] - solNx_uv[2][0] * normal[1];
-//       dvMinus[1] = solNx_uv[1][1] + solNx_uv[2][0] * normal[0] - solNx_uv[0][0] * normal[2];
-//       dvMinus[2] = solNx_uv[2][1] + solNx_uv[0][0] * normal[1] - solNx_uv[1][0] * normal[0];
-//
-//       double norm2dvPlus = 0;
-//       double norm2sdvPlus = 0;
-//       double rhsmu1v = 0;
-//       double rhsmu2v = 0;
-//
-//       //double dxsdxp = 0.;
-//       for(unsigned K = 0; K < DIM; K++) {
-//         norm2dvPlus += dvPlus[K] * dvPlus[K];
-//         norm2sdvPlus += sdvPlus[K] * sdvPlus[K];
-//         rhsmu1v += dvPlus[K] * dvMinus[K];
-//         rhsmu2v += sdvPlus[K] * dvMinus[K];
-//       }
-//
-//       //Comment out for working code
-//       double muv[2] = {0., 0.};
-//       muv[0] = rhsmu1v / norm2dvPlus;
-//       muv[1] = rhsmu2v / norm2sdvPlus;
-//
-//       if(iel == 100 && ig == 0) {
-//         std::cout << mu[0] << " " << muv[0] << " " << mu[1] << " " << muv[1] << "\n";
-//       }
 
     } // end gauss point loop
   } //end element loop for each process*/
@@ -399,7 +280,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
       MuNormLocalSum += muNorm;
 
-      muNormLocalMax = (muNorm > muNormLocalMax)? muNorm : muNormLocalMax;
+      muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
     }
     double muNormMax;
     MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -409,7 +290,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     MuNormAverageBefore /= msh->_dofOffset[solType1][nprocs];
 
     std::cout << " average mu norm before smoothing = " << MuNormAverageBefore << std::endl;
-    std::cout << " relative difference = " << (muNormMax - MuNormAverageBefore)/MuNormAverageBefore << std::endl;
+    std::cout << " relative difference = " << (muNormMax - MuNormAverageBefore) / MuNormAverageBefore << std::endl;
 
   }
 

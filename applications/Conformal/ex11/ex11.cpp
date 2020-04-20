@@ -58,40 +58,40 @@ double GetTimeStep(const double t) {
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
 
-  // bool dirichlet = true;
-  // value = 0.;
-  //
-  // if(1 == faceName || 2 == faceName ) {
-  //   // if(!strcmp(solName, "Dx1")) {
-  //   //   if(1 == faceName)
-  //   //    value = 1;
-  //   //   else{
-  //   //    value = -1;
-  //   //   }
-  //   // }
-  //   if(!strcmp(solName, "Dx2")) {
-  //     value = time / numberOfIterations * 0.35 * x[1]/0.5;
-  //   }
-  //   else if(!strcmp(solName, "Dx3")) {
-  //     value = time / numberOfIterations * 0.75 * x[2]/0.5;
-  //   }
-  // }
-  // else if(3 == faceName || 4 == faceName ) {
-  //   if(!strcmp(solName, "Dx1")) {
-  //     value = time / numberOfIterations * 0.45 * x[0]/0.5;
-  //   }
-  //   else if(!strcmp(solName, "Dx3")) {
-  //     value = time / numberOfIterations * 0.35 * x[2]/0.5;
-  //   }
-  // }
-  // else if(5 == faceName || 6 == faceName ) {
-  //   if(!strcmp(solName, "Dx1")) {
-  //     value = time / numberOfIterations * 0.125 * x[0]/0.5;
-  //   }
-  //   else if(!strcmp(solName, "Dx2")) {
-  //     value = time / numberOfIterations * 0.65 * x[1]/0.5;
-  //   }
-  // }
+//   bool dirichlet = true;
+//   value = 0.;
+//   
+//   if(1 == faceName || 2 == faceName ) {
+//     if(!strcmp(solName, "Dx1")) {
+//       if(1 == faceName)
+//        value = time / numberOfIterations * 1;
+//       else{
+//        value = - time / numberOfIterations * 1;
+//       }
+//     }
+//     if(!strcmp(solName, "Dx2")) {
+//       value = time / numberOfIterations * 0.35 * x[1]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx3")) {
+//       value = time / numberOfIterations * 0.75 * x[2]/0.5;
+//     }
+//   }
+//   else if(3 == faceName || 4 == faceName ) {
+//     if(!strcmp(solName, "Dx1")) {
+//       value = time / numberOfIterations * 0.45 * x[0]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx3")) {
+//       value = time / numberOfIterations * 0.35 * x[2]/0.5;
+//     }
+//   }
+//   else if(5 == faceName || 6 == faceName ) {
+//     if(!strcmp(solName, "Dx1")) {
+//       value = time / numberOfIterations * 0.125 * x[0]/0.5;
+//     }
+//     else if(!strcmp(solName, "Dx2")) {
+//       value = time / numberOfIterations * 0.65 * x[1]/0.5;
+//     }
+//   }
 
 
 
