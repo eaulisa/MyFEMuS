@@ -26,11 +26,11 @@ unsigned conformalTriangleType = 2;
 
 // const double normalSign = -1.;
 const bool O2conformal = true;
-const bool noLM = false;
+const bool noLM = true;
 unsigned counter = 0;
 const double eps = 1.e-5;// * O2conformal;
 
-const unsigned numberOfIterations = 10;
+const unsigned numberOfIterations = 1;
 
 using namespace femus;
 
@@ -58,41 +58,41 @@ double GetTimeStep(const double t) {
 bool SetBoundaryCondition(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time) {
 
 
-//   bool dirichlet = true;
-//   value = 0.;
-//
-//   if(1 == faceName || 2 == faceName ) {
-//     if(!strcmp(solName, "Dx1")) {
-//       if(1 == faceName)
-//        value = 1;
-//       else{
-//        value = -1;
-//       }
-//     }
-//     if(!strcmp(solName, "Dx2")) {
-//       value = time / numberOfIterations * 0.35 * x[1]/0.5;
-//     }
-//     else if(!strcmp(solName, "Dx3")) {
-//       value = time / numberOfIterations * 0.75 * x[2]/0.5;
-//     }
-//   }
-//   else if(3 == faceName || 4 == faceName ) {
-//     if(!strcmp(solName, "Dx1")) {
-//       value = time / numberOfIterations * 0.45 * x[0]/0.5;
-//     }
-//     else if(!strcmp(solName, "Dx3")) {
-//       value = time / numberOfIterations * 0.35 * x[2]/0.5;
-//     }
-//   }
-//   else if(5 == faceName || 6 == faceName ) {
-//     if(!strcmp(solName, "Dx1")) {
-//       value = time / numberOfIterations * 0.125 * x[0]/0.5;
-//     }
-//     else if(!strcmp(solName, "Dx2")) {
-//       value = time / numberOfIterations * 0.65 * x[1]/0.5;
-//     }
-//   }
-//
+  // bool dirichlet = true;
+  // value = 0.;
+  //
+  // if(1 == faceName || 2 == faceName ) {
+  //   // if(!strcmp(solName, "Dx1")) {
+  //   //   if(1 == faceName)
+  //   //    value = 1;
+  //   //   else{
+  //   //    value = -1;
+  //   //   }
+  //   // }
+  //   if(!strcmp(solName, "Dx2")) {
+  //     value = time / numberOfIterations * 0.35 * x[1]/0.5;
+  //   }
+  //   else if(!strcmp(solName, "Dx3")) {
+  //     value = time / numberOfIterations * 0.75 * x[2]/0.5;
+  //   }
+  // }
+  // else if(3 == faceName || 4 == faceName ) {
+  //   if(!strcmp(solName, "Dx1")) {
+  //     value = time / numberOfIterations * 0.45 * x[0]/0.5;
+  //   }
+  //   else if(!strcmp(solName, "Dx3")) {
+  //     value = time / numberOfIterations * 0.35 * x[2]/0.5;
+  //   }
+  // }
+  // else if(5 == faceName || 6 == faceName ) {
+  //   if(!strcmp(solName, "Dx1")) {
+  //     value = time / numberOfIterations * 0.125 * x[0]/0.5;
+  //   }
+  //   else if(!strcmp(solName, "Dx2")) {
+  //     value = time / numberOfIterations * 0.65 * x[1]/0.5;
+  //   }
+  // }
+
 
 
 
@@ -143,7 +143,12 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
   if(!strcmp(solName, "Dx1")) {
     if(1 == faceName) {
       //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
-      value = time / numberOfIterations * 0.6 * sin(x[1] / 0.5 * M_PI);
+      value = time / numberOfIterations * 0.8 * sin(x[1] / 0.5 * M_PI);
+      //dirichlet = false;
+    }
+    if(2 == faceName) {
+      //value = 0.04 * sin (4*(x[1] / 0.5 * acos (-1.)));
+      value = 0;// time / numberOfIterations * 0.8 * sin(x[1] / 0.5 * M_PI);
       //dirichlet = false;
     }
   }
@@ -266,7 +271,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(100);
+  system.SetMaxNumberOfNonLinearIterations(50);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
 
