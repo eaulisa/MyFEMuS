@@ -1,5 +1,34 @@
 #include <boost/math/quaternion.hpp>
 
+double qdot(const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) {
+  return a.R_component_1() * b.R_component_1() +
+         a.R_component_2() * b.R_component_2() +
+         a.R_component_3() * b.R_component_3() +
+         a.R_component_4() * b.R_component_4();
+}
+
+double operator % (const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) { //dot Product
+  return a.R_component_1() * b.R_component_1() +
+         a.R_component_2() * b.R_component_2() +
+         a.R_component_3() * b.R_component_3() +
+         a.R_component_4() * b.R_component_4();  
+}
+
+double qsetw(boost::math::quaternion <double> &a, const double &w) {
+  a = boost::math::quaternion <double> (w, a.R_component_2(), a.R_component_3(), a.R_component_4());
+}
+
+double qsetx(boost::math::quaternion <double> &a, const double &x) {
+  a = boost::math::quaternion <double> (a.R_component_1(), x, a.R_component_3(), a.R_component_4());
+}
+
+double qsety(boost::math::quaternion <double> &a, const double &y) {
+  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), y, a.R_component_4());
+}
+
+double qsetz(boost::math::quaternion <double> &a, const double &z) {
+  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), a.R_component_3(), z);
+}
 
 void UpdateMu(MultiLevelSolution& mlSol) {
 
@@ -233,10 +262,12 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       boost::math::quaternion <double> dum = du + N * dv;
 
       boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
+      
       double mu[2];
+      
       mu[0] = MU.R_component_1();
       mu[1] = (MU.unreal() * conj(N.unreal())).R_component_1();
- 
+
       for(unsigned i = 0; i < nDofs1; i++) {
         sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
         for(unsigned k = 0; k < dim; k++) {
