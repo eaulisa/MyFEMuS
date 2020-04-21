@@ -360,19 +360,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       a[2] = e2 - MU * e2;
       a[4] = e3 - MU * e3;
 
-
       a[1] = N * e1 + MU * N * e1;
       a[3] = N * e2 + MU * N * e2;
       a[5] = N * e3 + MU * N * e3;
-
-      boost::math::quaternion <double> ca[6];
-      ca[0] = -e1 + cMU * e1;
-      ca[2] = -e2 + cMU * e2;
-      ca[4] = -e3 + cMU * e3;
-
-      ca[1] = e1 * N + cMU * e1 * N;
-      ca[3] = e2 * N + cMU * e2 * N;
-      ca[5] = e3 * N + cMU * e3 * N;
 
       boost::math::quaternion <double> b[6];
       b[0] = -N * e1 + MU * N * e1;
@@ -382,15 +372,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       b[1] = e1 + MU * e1;
       b[3] = e2 + MU * e2;
       b[5] = e3 + MU * e3;
-
-      boost::math::quaternion <double> cb[6];
-      cb[0] = -e1 * N + cMU * e1 * N;
-      cb[2] = -e2 * N + cMU * e2 * N;
-      cb[4] = -e3 * N + cMU * e3 * N;
-
-      cb[1] = -e1 - cMU * e1;
-      cb[3] = -e2 - cMU * e2;
-      cb[5] = -e3 - cMU * e3;
 
 
       double D[6][6];
