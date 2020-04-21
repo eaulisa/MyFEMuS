@@ -30,13 +30,16 @@ const bool noLM = true;
 unsigned counter = 0;
 const double eps = 1.e-5;// * O2conformal;
 
+bool quaternion = true;
+
+
 const unsigned numberOfIterations = 1;
 
 using namespace femus;
 
 #include "../include/supportFunctions.hpp"
 #include "../include/updateMu1.hpp"
-#include "../include/assembleConformalMinimization.hpp"
+#include "../include/assembleConformalMinimization2.hpp"
 
 // Comment back in for working code
 //const double mu[2] = {0.8, 0.};
@@ -48,8 +51,6 @@ double InitalValueCM(const std::vector < double >& x) {
   return cos(20 * M_PI * x[0]) + sin(20 * M_PI * x[1]);
   //return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
 }
-
-
 double GetTimeStep(const double t) {
   return 1;
 }
@@ -271,7 +272,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(50);
+  system.SetMaxNumberOfNonLinearIterations(200);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
 
