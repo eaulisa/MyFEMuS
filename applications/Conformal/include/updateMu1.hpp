@@ -235,8 +235,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
       double mu[2];
       mu[0] = MU.R_component_1();
-      mu[1] = (MU.unreal() * conj(N.unreal())).R_component_1();
- 
+      mu[1] = (MU * conj(N)).R_component_1();
+
       for(unsigned i = 0; i < nDofs1; i++) {
         sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
         for(unsigned k = 0; k < dim; k++) {
