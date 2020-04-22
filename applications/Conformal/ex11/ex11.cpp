@@ -26,14 +26,13 @@ unsigned conformalTriangleType = 2;
 
 // const double normalSign = -1.;
 const bool O2conformal = true;
-const bool noLM = true;
+const bool noLM = false;
 unsigned counter = 0;
 const double eps = 1.e-5;// * O2conformal;
 
 bool quaternion = true;
 
-
-const unsigned numberOfIterations = 1;
+const unsigned numberOfIterations = 3;
 
 using namespace femus;
 
@@ -223,7 +222,7 @@ int main(int argc, char** args) {
 
   // Add variables X,Y,W to mlSol.
 
-  FEOrder feOrder = SECOND;
+  FEOrder feOrder = FIRST;
   mlSol.AddSolution("Dx1", LAGRANGE, feOrder, 2);
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 2);
   mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 2);
@@ -272,7 +271,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Lambda1");
 
   // Parameters for convergence and # of iterations.
-  system.SetMaxNumberOfNonLinearIterations(200);
+  system.SetMaxNumberOfNonLinearIterations(30);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
 

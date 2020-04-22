@@ -299,9 +299,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     sol->_Sol[indexMu[k]]->close();
   }
 
-
-
-
   double MuNormAverageBefore;
   {
     //Norm before the smoothing
@@ -331,8 +328,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   unsigned indexCntEdge = mlSol.GetIndex("cntEdge");
   unsigned solType2 = mlSol.GetSolutionType(indexMuEdge[0]);
 
-  unsigned smoothMax = 6;//2 + counter/10;
-  //if(smoothMax > 10) smoothMax = 10;
+  unsigned smoothMax = 12;
   std::cout << "Max Number of Smoothing = " << smoothMax << std::endl;
 
   for(unsigned ismooth = 0; ismooth < smoothMax; ismooth++) {
