@@ -1,38 +1,6 @@
-#include <boost/math/quaternion.hpp>
 
-double q_dot(const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) {
-  return a.R_component_1() * b.R_component_1() +
-         a.R_component_2() * b.R_component_2() +
-         a.R_component_3() * b.R_component_3() +
-         a.R_component_4() * b.R_component_4();
-}
-
-double operator % (const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) { //dot Product overloading
-  return a.R_component_1() * b.R_component_1() +
-         a.R_component_2() * b.R_component_2() +
-         a.R_component_3() * b.R_component_3() +
-         a.R_component_4() * b.R_component_4();
-}
-
-void  q_set_component_1(boost::math::quaternion <double> &a, const double &w) {
-  a = boost::math::quaternion <double> (w, a.R_component_2(), a.R_component_3(), a.R_component_4());
-}
-
-void  q_set_component_2(boost::math::quaternion <double> &a, const double &x) {
-  a = boost::math::quaternion <double> (a.R_component_1(), x, a.R_component_3(), a.R_component_4());
-}
-
-void  q_set_component_3(boost::math::quaternion <double> &a, const double &y) {
-  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), y, a.R_component_4());
-}
-
-void  q_set_component_4(boost::math::quaternion <double> &a, const double &z) {
-  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), a.R_component_3(), z);
-}
-
-void UpdateMu(MultiLevelSolution& mlSol) {
-
-  //MultiLevelSolution*  mlSol = ml_prob._ml_sol;
+double EvaluateMu(MultiLevelSolution& mlSol) {
+  
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
   Solution* sol = mlSol.GetSolutionLevel(level);
@@ -41,12 +9,12 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
   //unsigned  dim = msh->GetDimension();
   unsigned dim = 2;
-  unsigned DIM = (surface) ? 3 : 2;
+  unsigned DIM = (parameter.surface) ? 3 : 2;
 
   std::vector < unsigned > indexDx(DIM);
   indexDx[0] = mlSol.GetIndex("Dx1");
   indexDx[1] = mlSol.GetIndex("Dx2");
-  if(surface) indexDx[2] = mlSol.GetIndex("Dx3");
+  if(parameter.surface) indexDx[2] = mlSol.GetIndex("Dx3");
   unsigned solTypeDx = mlSol.GetSolutionType(indexDx[0]);
 
   std::vector < unsigned > indexMu(dim);
@@ -78,11 +46,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
   xT[1].resize(3);
   xT[1] = {0., 0., sqrt(3.) / 2., 0., sqrt(3.) / 4., sqrt(3.) / 4., sqrt(3.) / 6.};
-
-  double angles[2][4] = {
-    {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}, // for square
-    {0., 2. / 3. * M_PI, 4. / 3 * M_PI} // for equilateral triangle
-  };
 
   unsigned solENVNIndex = mlSol.GetIndex("ENVN");
   unsigned solENVNType = mlSol.GetSolutionType(solENVNIndex);
@@ -186,7 +149,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
       double normal[DIM] = {0., 0., 1.};
 
-      if(surface) {
+      if(parameter.surface) {
         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
         normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
         normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
@@ -238,28 +201,53 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     sol->_Sol[indexMu[k]]->close();
   }
 
-  double MuNormAverageBefore;
-  {
-    //Norm before the smoothing
-    double MuNormLocalSum = 0.;
-    double muNormLocalMax = 0.;
-    for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-      double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
-      MuNormLocalSum += muNorm;
+  double MuNormAverage;
 
-      muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
-    }
-    double muNormMax;
-    MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    std::cout << " max mu norm = " << muNormMax << std::endl;
+  double MuNormLocalSum = 0.;
+  double muNormLocalMax = 0.;
+  for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
+    double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+    MuNormLocalSum += muNorm;
 
-    MPI_Allreduce(&MuNormLocalSum, &MuNormAverageBefore, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MuNormAverageBefore /= msh->_dofOffset[solType1][nprocs];
-
-    std::cout << " average mu norm before smoothing = " << MuNormAverageBefore << std::endl;
-    std::cout << " relative difference = " << (muNormMax - MuNormAverageBefore) / MuNormAverageBefore << std::endl;
-
+    muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
   }
+  double muNormMax;
+  MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  std::cout << "\nun-smoothed mu infinity norm = " << muNormMax << std::endl;
+
+  MPI_Allreduce(&MuNormLocalSum, &MuNormAverage, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MuNormAverage /= msh->_dofOffset[solType1][nprocs];
+
+  std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
+  std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
+
+  return MuNormAverage;
+}
+
+
+void UpdateMu(MultiLevelSolution& mlSol) {
+
+  double MuNormAverageBefore = EvaluateMu(mlSol);  
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  Mesh* msh = mlSol._mlMesh->GetLevel(level);
+  
+  unsigned dim = 2;
+
+  std::vector < unsigned > indexMu(dim);
+  indexMu[0] = mlSol.GetIndex("mu1");
+  indexMu[1] = mlSol.GetIndex("mu2");
+  unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
+
+  unsigned iproc = msh->processor_id();
+  unsigned nprocs = msh->n_processors();
+
+  double angles[2][4] = {
+    {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}, // for square
+    {0., 2. / 3. * M_PI, 4. / 3 * M_PI} // for equilateral triangle
+  };
 
   std::vector < unsigned > indexMuEdge(dim);
   indexMuEdge[0] = mlSol.GetIndex("mu1Edge");
@@ -268,9 +256,9 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   unsigned solType2 = mlSol.GetSolutionType(indexMuEdge[0]);
 
 
-  std::cout << "Number of Smoothing steps = " << numberOfSmoothingSteps << std::endl;
+  std::cout << "\nNumber of Smoothing steps = " << parameter.numberOfSmoothingSteps << std::endl;
 
-  for(unsigned ismooth = 0; ismooth < numberOfSmoothingSteps; ismooth++) {
+  for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
     for(unsigned k = 0; k < dim; k++) {
       sol->_Sol[indexMuEdge[k]]->zero();
@@ -323,10 +311,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
 
         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-        //double sign = (iface % 2) ? -1. : 1.;
-//         mu[0] += sign * (*sol->_Sol[indexMuEdge[0]])(idof);
-//         mu[1] += sign * (*sol->_Sol[indexMuEdge[1]])(idof);
-
 
         double mu0s = (*sol->_Sol[indexMuEdge[0]])(idof);
         double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
@@ -354,28 +338,27 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
   double MuNormAverageAfter;
   {
-    //BEGIN mu update
     double MuNormLocalSum = 0.;
     double muNormLocalMax = 0.;
     for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
       double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
       MuNormLocalSum += muNorm;
+
       muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
     }
-    
     double muNormMax;
     MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    std::cout << " max mu norm after smoothing = " << muNormMax << std::endl;
-    
+    std::cout << "smoothed mu infinity norm = " << muNormMax << std::endl;
+
     MPI_Allreduce(&MuNormLocalSum, &MuNormAverageAfter, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MuNormAverageAfter /= msh->_dofOffset[solType1][nprocs];
-    
-    std::cout << " average mu after smoothing " << MuNormAverageAfter << std::endl;
-        
-  }
-  
 
-  if(finalSmoothIsOn) {
+    std::cout << "smoothed mu average norm = " << MuNormAverageAfter << std::endl;
+    std::cout << "relative difference = " << (muNormMax - MuNormAverageAfter) / MuNormAverageAfter << std::endl;
+
+  }
+
+  if(parameter.finalSmoothIsOn) {
     for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
 
       double mu[2];
@@ -395,8 +378,5 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       sol->_Sol[indexMu[k]]->close();
     }
   }
-
-
-
 
 }

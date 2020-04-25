@@ -1,34 +1,3 @@
-#include <boost/math/quaternion.hpp>
-
-double q_dot(const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) {
-  return a.R_component_1() * b.R_component_1() +
-         a.R_component_2() * b.R_component_2() +
-         a.R_component_3() * b.R_component_3() +
-         a.R_component_4() * b.R_component_4();
-}
-
-double operator % (const boost::math::quaternion <double> &a, const boost::math::quaternion <double> &b) { //dot Product overloading
-  return a.R_component_1() * b.R_component_1() +
-         a.R_component_2() * b.R_component_2() +
-         a.R_component_3() * b.R_component_3() +
-         a.R_component_4() * b.R_component_4();  
-}
-
-void q_set_component_1(boost::math::quaternion <double> &a, const double &w) {
-  a = boost::math::quaternion <double> (w, a.R_component_2(), a.R_component_3(), a.R_component_4());
-}
-
-void  q_set_component_2(boost::math::quaternion <double> &a, const double &x) {
-  a = boost::math::quaternion <double> (a.R_component_1(), x, a.R_component_3(), a.R_component_4());
-}
-
-void  q_set_component_3(boost::math::quaternion <double> &a, const double &y) {
-  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), y, a.R_component_4());
-}
-
-void  q_set_component_4(boost::math::quaternion <double> &a, const double &z) {
-  a = boost::math::quaternion <double> (a.R_component_1(), a.R_component_2(), a.R_component_3(), z);
-}
 
 void UpdateMu(MultiLevelSolution& mlSol) {
 
