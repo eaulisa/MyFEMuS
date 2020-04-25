@@ -1,7 +1,6 @@
 
-void UpdateMu(MultiLevelSolution& mlSol) {
-
-  //MultiLevelSolution*  mlSol = ml_prob._ml_sol;
+double EvaluateMu(MultiLevelSolution& mlSol) {
+  
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
   Solution* sol = mlSol.GetSolutionLevel(level);
@@ -10,27 +9,25 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
   //unsigned  dim = msh->GetDimension();
   unsigned dim = 2;
-  unsigned DIM = 3;
+  unsigned DIM = (parameter.surface) ? 3 : 2;
 
   std::vector < unsigned > indexDx(DIM);
   indexDx[0] = mlSol.GetIndex("Dx1");
   indexDx[1] = mlSol.GetIndex("Dx2");
-  indexDx[2] = mlSol.GetIndex("Dx3");
+  if(parameter.surface) indexDx[2] = mlSol.GetIndex("Dx3");
   unsigned solTypeDx = mlSol.GetSolutionType(indexDx[0]);
 
   std::vector < unsigned > indexMu(dim);
   indexMu[0] = mlSol.GetIndex("mu1");
   indexMu[1] = mlSol.GetIndex("mu2");
 
-
   unsigned indexW1 = mlSol.GetIndex("weight1");
   unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
 
-
   std::vector< double > dof1;
 
+  std::vector < std::vector < double > > xhat(DIM);
   std::vector < std::vector < double > > solx(DIM);
-  std::vector < std::vector < double > > solNx(DIM);
 
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexMu[k]]->zero();
@@ -44,28 +41,11 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
 // Setting the reference elements to be equilateral triangles.
   std::vector < std::vector < double > > xT(2);
-  xT[0].resize(7);
-  xT[0][0] = -0.5;
-  xT[0][1] = 0.5;
-  xT[0][2] = 0.;
-  xT[0][3] = 0.5 * (xT[0][0] + xT[0][1]);
-  xT[0][4] = 0.5 * (xT[0][1] + xT[0][2]);
-  xT[0][5] = 0.5 * (xT[0][2] + xT[0][0]);
-  xT[0][6] = 0.33333333333333333333 * (xT[0][0] + xT[0][1] + xT[0][2]);
+  xT[0].resize(3);
+  xT[0] = { -0.5, 0.5, 0., 0., 0.25, -0.25, 0. };
 
-  xT[1].resize(7);
-  xT[1][0] = 0.;
-  xT[1][1] = 0.;
-  xT[1][2] = sqrt(3.) / 2.;
-  xT[1][3] = 0.5 * (xT[1][0] + xT[1][1]);
-  xT[1][4] = 0.5 * (xT[1][1] + xT[1][2]);
-  xT[1][5] = 0.5 * (xT[1][2] + xT[1][0]);
-  xT[1][6] = 0.33333333333333333333 * (xT[1][0] + xT[1][1] + xT[1][2]);
-
-  double angles[2][4] = {
-    {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}, // for square
-    {0., 2. / 3. * M_PI, 4. / 3 * M_PI} // for equilateral triangle
-  };
+  xT[1].resize(3);
+  xT[1] = {0., 0., sqrt(3.) / 2., 0., sqrt(3.) / 4., sqrt(3.) / 4., sqrt(3.) / 6.};
 
   unsigned solENVNIndex = mlSol.GetIndex("ENVN");
   unsigned solENVNType = mlSol.GetSolutionType(solENVNIndex);
@@ -85,8 +65,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     dof1.resize(nDofs1);
 
     for(int K = 0; K < DIM; K++) {
+      xhat[K].resize(nDofsDx);
       solx[K].resize(nDofsDx);
-      solNx[K].resize(nDofsDx);
     }
 
     // local storage of global mapping and solution
@@ -98,56 +78,10 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeDx);
       unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
       for(unsigned K = 0; K < DIM; K++) {
-        solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
-        solNx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
+        xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
+        solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
       }
     }
-
-
-//     if(ielGeom == TRI) {
-//
-//       xT[0][1] = 0.5;
-//       std::vector < unsigned > ENVN(3);
-//       std::vector < double > angle(3);
-//
-//       for(unsigned j = 0; j < 3; j++) {
-//         unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
-//         ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
-//         angle[j] = 2 * M_PI / ENVN[j];
-//       }
-//
-//
-//       if(conformalTriangleType == 1) {  //this works with moo two levels
-//         ChangeTriangleConfiguration1(ENVN, angle);
-//       }
-//       else if(conformalTriangleType == 2) {  //this works with mao
-//         ChangeTriangleConfiguration2(ENVN, angle);
-//       }
-//       else { //no change
-//         angle.assign(3, M_PI / 3.);
-//       }
-//
-//       double l = xT[0][1] - xT[0][0];
-//       double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
-//       double scale = sqrt((sqrt(3.) / 2.) / (l * d));
-//       l = l * scale;
-//       d = d * scale;
-//       xT[0][1] = xT[0][0] + l;
-//       xT[0][2] = xT[0][0] + d / tan(angle[0]);
-//       xT[1][2] = d;
-//
-//       xT[0][3] = 0.5 * (xT[0][0] + xT[0][1]);
-//       xT[0][4] = 0.5 * (xT[0][1] + xT[0][2]);
-//       xT[0][5] = 0.5 * (xT[0][2] + xT[0][0]);
-//       xT[0][6] = 0.33333333333333333333 * (xT[0][0] + xT[0][1] + xT[0][2]);
-//
-//       xT[1][3] = 0.5 * (xT[1][0] + xT[1][1]);
-//       xT[1][4] = 0.5 * (xT[1][1] + xT[1][2]);
-//       xT[1][5] = 0.5 * (xT[1][2] + xT[1][0]);
-//       xT[1][6] = 0.33333333333333333333 * (xT[1][0] + xT[1][1] + xT[1][2]);
-//
-//       //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
-//     }
 
 // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
@@ -190,18 +124,14 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
 
       // Initialize and compute values of x, Dx, NDx, x_uv at the Gauss points.
-      double solxg[3] = {0., 0., 0.};
+      double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      double solNx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
-        for(unsigned i = 0; i < nDofsDx; i++) {
-          solxg[K] += phix[i] * solx[K][i];
-        }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
-            solx_uv[K][j]    += phix_uv[j][i] * solx[K][i] ;
-            solNx_uv[K][j]    += phix_uv[j][i] * solNx[K][i];
+            xhat_uv[K][j] += phix_uv[j][i] * xhat[K][i] ;
+            solx_uv[K][j] += phix_uv[j][i] * solx[K][i];
           }
         }
       }
@@ -211,29 +141,32 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       for(unsigned i = 0; i < dim; i++) {
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned K = 0; K < DIM; K++) {
-            g[i][j] += solx_uv[K][i] * solx_uv[K][j];
+            g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
           }
         }
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
 
-      double normal[DIM];
-      normal[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]) / sqrt(detg);
-      normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
-      normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
+      double normal[DIM] = {0., 0., 1.};
+
+      if(parameter.surface) {
+        normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
+        normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
+        normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
+      }
 
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
 
-      boost::math::quaternion <double> du(0, solNx_uv[0][0], solNx_uv[1][0], solNx_uv[2][0]);
-      boost::math::quaternion <double> dv(0, solNx_uv[0][1], solNx_uv[1][1], solNx_uv[2][1]);
+      boost::math::quaternion <double> du(0, solx_uv[0][0], solx_uv[1][0], solx_uv[2][0]);
+      boost::math::quaternion <double> dv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
 
       boost::math::quaternion <double> dup = du - N * dv;
       boost::math::quaternion <double> dum = du + N * dv;
 
       boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
-      
+
       double mu[2];
-      
+
       mu[0] = MU.R_component_1();
       mu[1] = (MU * conj(N)).R_component_1();
 
@@ -268,28 +201,53 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     sol->_Sol[indexMu[k]]->close();
   }
 
-  double MuNormAverageBefore;
-  {
-    //Norm before the smoothing
-    double MuNormLocalSum = 0.;
-    double muNormLocalMax = 0.;
-    for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-      double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
-      MuNormLocalSum += muNorm;
+  double MuNormAverage;
 
-      muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
-    }
-    double muNormMax;
-    MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    std::cout << " max mu norm = " << muNormMax << std::endl;
+  double MuNormLocalSum = 0.;
+  double muNormLocalMax = 0.;
+  for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
+    double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+    MuNormLocalSum += muNorm;
 
-    MPI_Allreduce(&MuNormLocalSum, &MuNormAverageBefore, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MuNormAverageBefore /= msh->_dofOffset[solType1][nprocs];
-
-    std::cout << " average mu norm before smoothing = " << MuNormAverageBefore << std::endl;
-    std::cout << " relative difference = " << (muNormMax - MuNormAverageBefore) / MuNormAverageBefore << std::endl;
-
+    muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
   }
+  double muNormMax;
+  MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  std::cout << "\nun-smoothed mu infinity norm = " << muNormMax << std::endl;
+
+  MPI_Allreduce(&MuNormLocalSum, &MuNormAverage, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MuNormAverage /= msh->_dofOffset[solType1][nprocs];
+
+  std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
+  std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
+
+  return MuNormAverage;
+}
+
+
+void UpdateMu(MultiLevelSolution& mlSol) {
+
+  double MuNormAverageBefore = EvaluateMu(mlSol);  
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  Mesh* msh = mlSol._mlMesh->GetLevel(level);
+  
+  unsigned dim = 2;
+
+  std::vector < unsigned > indexMu(dim);
+  indexMu[0] = mlSol.GetIndex("mu1");
+  indexMu[1] = mlSol.GetIndex("mu2");
+  unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
+
+  unsigned iproc = msh->processor_id();
+  unsigned nprocs = msh->n_processors();
+
+  double angles[2][4] = {
+    {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}, // for square
+    {0., 2. / 3. * M_PI, 4. / 3 * M_PI} // for equilateral triangle
+  };
 
   std::vector < unsigned > indexMuEdge(dim);
   indexMuEdge[0] = mlSol.GetIndex("mu1Edge");
@@ -297,10 +255,10 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   unsigned indexCntEdge = mlSol.GetIndex("cntEdge");
   unsigned solType2 = mlSol.GetSolutionType(indexMuEdge[0]);
 
-  unsigned smoothMax = 12;
-  std::cout << "Max Number of Smoothing = " << smoothMax << std::endl;
 
-  for(unsigned ismooth = 0; ismooth < smoothMax; ismooth++) {
+  std::cout << "\nNumber of Smoothing steps = " << parameter.numberOfSmoothingSteps << std::endl;
+
+  for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
     for(unsigned k = 0; k < dim; k++) {
       sol->_Sol[indexMuEdge[k]]->zero();
@@ -317,51 +275,10 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         mu[k] = (*sol->_Sol[indexMu[k]])(iel);
       }
 
-//       if(ielGeom == TRI) {
-//
-//         xT[0][1] = 0.5;
-//         std::vector < unsigned > ENVN(3);
-//         std::vector < double > angle(3);
-//
-//         for(unsigned j = 0; j < 3; j++) {
-//           unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
-//           ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
-//           angle[j] = 2 * M_PI / ENVN[j];
-//         }
-//
-//
-//         if(conformalTriangleType == 1) {  //this works with moo two levels
-//           ChangeTriangleConfiguration1(ENVN, angle);
-//         }
-//         else if(conformalTriangleType == 2) {  //this works with mao
-//           ChangeTriangleConfiguration2(ENVN, angle);
-//         }
-//         else { //no change
-//           angle.assign(3, M_PI / 3.);
-//         }
-//
-//         double l = xT[0][1] - xT[0][0];
-//         double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
-//         double scale = sqrt((sqrt(3.) / 2.) / (l * d));
-//         l = l * scale;
-//         d = d * scale;
-//         xT[0][1] = xT[0][0] + l;
-//         xT[0][2] = xT[0][0] + d / tan(angle[0]);
-//         xT[1][2] = d;
-//
-//         angles[idx][1] = atan2(xT[1][2], xT[0][2] - xT[0][1]);
-//         angles[idx][2] = atan2(-xT[1][2], -0.5 + xT[0][2]);
-//
-//       }
-
       unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
 
         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-
-        //double weight = (iface % 2) ? -1. : 1.;
-        //sol->_Sol[indexMuEdge[0]]->add(idof, weight * mu[0]);
-        //sol->_Sol[indexMuEdge[1]]->add(idof, weight * mu[1]);
 
         double a = cos(angles[idx][iface]);
         double b = sin(angles[idx][iface]);
@@ -387,43 +304,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned idx = (ielGeom == QUAD) ? 0 : 1;
 
-//       if(ielGeom == TRI) {
-//
-//         xT[0][1] = 0.5;
-//         std::vector < unsigned > ENVN(3);
-//         std::vector < double > angle(3);
-//
-//         for(unsigned j = 0; j < 3; j++) {
-//           unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
-//           ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
-//           angle[j] = 2 * M_PI / ENVN[j];
-//         }
-//
-//
-//         if(conformalTriangleType == 1) {  //this works with moo two levels
-//           ChangeTriangleConfiguration1(ENVN, angle);
-//         }
-//         else if(conformalTriangleType == 2) {  //this works with mao
-//           ChangeTriangleConfiguration2(ENVN, angle);
-//         }
-//         else { //no change
-//           angle.assign(3, M_PI / 3.);
-//         }
-//
-//         double l = xT[0][1] - xT[0][0];
-//         double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
-//         double scale = sqrt((sqrt(3.) / 2.) / (l * d));
-//         l = l * scale;
-//         d = d * scale;
-//         xT[0][1] = xT[0][0] + l;
-//         xT[0][2] = xT[0][0] + d / tan(angle[0]);
-//         xT[1][2] = d;
-//
-//         angles[idx][1] = atan2(xT[1][2], xT[0][2] - xT[0][1]);
-//         angles[idx][2] = atan2(-xT[1][2], -0.5 + xT[0][2]);
-//
-//       }
-
       double mu[2] = {0., 0.};
       double cnt = 0.;
 
@@ -431,10 +311,6 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
 
         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-        //double sign = (iface % 2) ? -1. : 1.;
-//         mu[0] += sign * (*sol->_Sol[indexMuEdge[0]])(idof);
-//         mu[1] += sign * (*sol->_Sol[indexMuEdge[1]])(idof);
-
 
         double mu0s = (*sol->_Sol[indexMuEdge[0]])(idof);
         double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
@@ -462,37 +338,45 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
   double MuNormAverageAfter;
   {
-    //BEGIN mu update
     double MuNormLocalSum = 0.;
+    double muNormLocalMax = 0.;
     for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-      MuNormLocalSum += sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+      double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
+      MuNormLocalSum += muNorm;
+
+      muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
     }
+    double muNormMax;
+    MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    std::cout << "smoothed mu infinity norm = " << muNormMax << std::endl;
+
     MPI_Allreduce(&MuNormLocalSum, &MuNormAverageAfter, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MuNormAverageAfter /= msh->_dofOffset[solType1][nprocs];
+
+    std::cout << "smoothed mu average norm = " << MuNormAverageAfter << std::endl;
+    std::cout << "relative difference = " << (muNormMax - MuNormAverageAfter) / MuNormAverageAfter << std::endl;
+
   }
-  std::cout << " average mu after smoothing " << MuNormAverageAfter << std::endl;
 
-  // for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-  //
-  //   double mu[2];
-  //   for(unsigned k = 0; k < 2; k++) {
-  //     mu[k] = (*sol->_Sol[indexMu[k]])(i);
-  //   }
-  //
-  //   double norm = sqrt(mu[0] * mu[0] + mu[1] * mu[1]);
-  //   double cosTheta = mu[0] / norm;
-  //   double sinTheta = mu[1] / norm;
-  //
-  //   sol->_Sol[indexMu[0]]->set(i, MuNormAverageBefore * cosTheta);
-  //   sol->_Sol[indexMu[1]]->set(i, MuNormAverageBefore * sinTheta);
-  //
-  // }
-  // for(unsigned k = 0; k < 2; k++) {
-  //   sol->_Sol[indexMu[k]]->close();
-  // }
+  if(parameter.finalSmoothIsOn) {
+    for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
 
+      double mu[2];
+      for(unsigned k = 0; k < 2; k++) {
+        mu[k] = (*sol->_Sol[indexMu[k]])(i);
+      }
 
+      double norm = sqrt(mu[0] * mu[0] + mu[1] * mu[1]);
+      double cosTheta = mu[0] / norm;
+      double sinTheta = mu[1] / norm;
 
+      sol->_Sol[indexMu[0]]->set(i, MuNormAverageBefore * cosTheta);
+      sol->_Sol[indexMu[1]]->set(i, MuNormAverageBefore * sinTheta);
 
+    }
+    for(unsigned k = 0; k < 2; k++) {
+      sol->_Sol[indexMu[k]]->close();
+    }
+  }
 
 }

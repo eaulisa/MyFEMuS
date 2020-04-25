@@ -25,8 +25,8 @@ using namespace femus;
 Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
-#include "../include/updateMu3.hpp"
-#include "../include/assembleConformalMinimization3.hpp"
+#include "../include/updateMu1.hpp"
+#include "../include/assembleConformalMinimization1.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -183,7 +183,7 @@ int main(int argc, char** args) {
   else if(parameter.simulation < 8) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
   }
-  else { // generic pick you boundary
+  else { // generic pick your boundary
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionSquare);
   }
   mlSol.GenerateBdc("All");
