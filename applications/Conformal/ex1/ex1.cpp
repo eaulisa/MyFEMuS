@@ -44,9 +44,11 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
 
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 500, 1, 0.868445);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
+//const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 90, 1, 0.729612);
 const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 12, false, 30, 3, 0.793786);
-const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
+const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
+//const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
 const Parameter cat = Parameter("cat", 5, true, true, 1, 12, false, 2, 1, 0.986943);
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
 const Parameter moo = Parameter("moo", 7, true, true, 2, 50, false, 50, 1, 0.654910);
@@ -337,6 +339,3 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
   }
   return dirichlet;
 }
-
-
-
