@@ -152,7 +152,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         // Compute the metric, metric determinant, and area element.
         double g[2][2] = {{0., 0.}, {0., 0.}};
         for(unsigned i = 0; i < 2; i++) {
-
           unsigned ii = (S + i) % DIM;
           for(unsigned j = 0; j < 2; j++) {
             unsigned jj = (S + j) % DIM;

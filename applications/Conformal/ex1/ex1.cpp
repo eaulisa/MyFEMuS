@@ -236,6 +236,7 @@ int main(int argc, char** args) {
   }
 
   EvaluateMu(mlSol);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, parameter.numberOfIterations);
   parameter.print();
 
   return 0;
