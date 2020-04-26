@@ -192,17 +192,15 @@ int main(int argc, char** args)
   unsigned size = rows * columns;
 
   std::vector < std::vector < double > > x; // marker
-  std::vector < MarkerType > markerType;
+  
 
   x.resize(size);
-  markerType.resize(size);
 
   std::vector < std::vector < std::vector < double > > > line(1);
   std::vector < std::vector < std::vector < double > > > line0(1);
 
   for (unsigned j = 0; j < size; j++) {
     x[j].assign(dim, 0.);
-    markerType[j] = VOLUME;
   }
 
   //BEGIN initialization
@@ -287,6 +285,7 @@ int main(int argc, char** args)
   
   std::cout << totalMass<<" "<< rhos * H * L << std::endl;
   
+  std::vector < MarkerType > markerType(mass.size(), VOLUME);
 
   unsigned solType = 2;
   linea = new Line(x, mass, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
