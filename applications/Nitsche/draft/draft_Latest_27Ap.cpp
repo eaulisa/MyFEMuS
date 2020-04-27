@@ -351,47 +351,47 @@ void  GetParticle(const double &a, const double &b, const unsigned &n1, const un
 
 
 
-void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
-  double h = (b - a) / n1;
-  x.resize(dim, pow(n1, dim));
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(n1, dim - k - 1);
-  }
-
-  
-  double q=0;
-  
-  
-  
-  
-  for(unsigned p = 0; p < pow(n1, dim) ; p++) {
-    I(0) = 1 + p / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = p % N(k - 1);
-      I(k) = 1 + pk / N(k);
-    }
-    //std::cout << I(0) << " " << I(1) << std::endl;
-
-    for(unsigned k = 0; k < dim ; k++) {
-      //std::srand(std::time(0));
-      //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
-      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
-
-    }
-  }
-
-
-  xL.resize(dim, pow(n1, dim));
-  Eigen::MatrixXd ID;
-  ID.resize(dim, pow(n1, dim));
-  ID.fill(1.);
-  xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
-
-
-}
+// void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
+//   double h = (b - a) / n1;
+//   x.resize(dim, pow(n1, dim));
+//   Eigen::VectorXi I(dim);
+//   Eigen::VectorXi N(dim);
+// 
+//   for(unsigned k = 0; k < dim ; k++) {
+//     N(k) = pow(n1, dim - k - 1);
+//   }
+// 
+//   
+//   double q=0;
+//   
+//   
+//   
+//   
+//   for(unsigned p = 0; p < pow(n1, dim) ; p++) {
+//     I(0) = 1 + p / N(0);
+//     for(unsigned k = 1; k < dim ; k++) {
+//       unsigned pk = p % N(k - 1);
+//       I(k) = 1 + pk / N(k);
+//     }
+//     //std::cout << I(0) << " " << I(1) << std::endl;
+// 
+//     for(unsigned k = 0; k < dim ; k++) {
+//       //std::srand(std::time(0));
+//       //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
+//       x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
+// 
+//     }
+//   }
+// 
+// 
+//   xL.resize(dim, pow(n1, dim));
+//   Eigen::MatrixXd ID;
+//   ID.resize(dim, pow(n1, dim));
+//   ID.fill(1.);
+//   xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
+// 
+// 
+// }
 
 
 
