@@ -4,7 +4,8 @@
 #include <ctime>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/unsupported/Eigen/KroneckerProduct>
-#include <eigen3/unsupported/Eigen//CXX11/Tensor>
+#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
+#include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #include <fstream>
 
 
@@ -14,8 +15,7 @@
 //first row-weights, second row: x-coordinates
 const std::vector<std::vector < double > > Gauss1 = { {2}, {0} };
 
-const std::vector<std::vector < double > > Gauss2 = {{1, 1},
-  { -0.57735026918963, 0.57735026918963}
+const std::vector<std::vector < double > > Gauss2 = {{1, 1}, { -0.57735026918963, 0.57735026918963}
 };
 
 const std::vector<std::vector < double > > Gauss3 = {{0.55555555555556, 0.88888888888889, 0.55555555555556},
@@ -89,7 +89,11 @@ double GetDistance(const Eigen::VectorXd &x);
 //void PrinVec(std::vector<double>& v);
 void Cheb(const unsigned & m, Eigen::VectorXd &xg, Eigen::MatrixXd &C);
 void GetParticle(const double & a, const double & b, const unsigned & n1, const unsigned& dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL);
+void GetParticleOnDisk(const double & a, const double & b, const unsigned & n1, const unsigned& dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL);
 void AssembleMatEigen(double& a, double& b, const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd &Pg, Eigen::VectorXd &w, Eigen::MatrixXd &A, Eigen::VectorXd &F);
+void AssembleMatEigenOnDisk(double& a, double& b, const unsigned& m, const unsigned& dim, const unsigned& np,
+                            Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd &Pg,
+                            const std::vector<std::vector<double>> &GaussP, Eigen::VectorXd &w, Eigen::MatrixXd &A, Eigen::VectorXd &F);
 void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp, Eigen::VectorXd &w_new);
 void GetGaussInfo(const unsigned& m, const unsigned& dim, const std::vector<std::vector<double>> &GaussP, Eigen::MatrixXd &Pg, Eigen::VectorXd &w);
 void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::MatrixXd &xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX);
@@ -113,7 +117,7 @@ int main(int argc, char** args) {
   unsigned dim = 2;
   double a = 0;
   double b = 1;
-  unsigned n1 = 20;
+  unsigned n1 = 40;
   unsigned np = pow(n1, dim);
   unsigned m = 4;
   //unsigned ng = GR[j][0].size();
@@ -121,26 +125,41 @@ int main(int argc, char** args) {
 
   Eigen::MatrixXd x;
   Eigen::MatrixXd xL;
-  GetParticle(a, b, n1, dim, x, xL);
+  GetParticleOnDisk(a, b, n1, dim, x, xL);
+
+  unsigned nq = x.row(0).size();
+
+//   for(unsigned p = 0; p < nq; p++) {
+//     for(unsigned k = 0; k < dim; k++) {
+//       std::cout << x(k, p) << " ";
+//     }
+//     std::cout << std::endl;
+//   }
+
+
 
 
   Eigen::MatrixXd Pg;
   Eigen::VectorXd w;
   //GetGaussInfo(m, dim, GR[j], Pg, w);
-  GetGaussInfo(m, dim, Gauss9, Pg, w);
+  GetGaussInfo(m, dim, Gauss10, Pg, w);
 
 
   Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
-  GetChebXInfo(m, dim, np, xL, PmX);
+
+  //GetChebXInfo(m, dim, np, xL, PmX);
+  GetChebXInfo(m, dim, nq, xL, PmX);
 
 
 
   Eigen::MatrixXd A;
   Eigen::VectorXd F;
-  AssembleMatEigen(a, b, m, dim, np, PmX, Pg, w, A, F);
+  //AssembleMatEigen(a, b, m, dim, np, PmX, Pg, w, A, F);
+  AssembleMatEigenOnDisk(a, b, m, dim, nq, PmX, Pg, Gauss10, w, A, F);
 
 
-  Eigen::VectorXd wp(np);
+  //Eigen::VectorXd wp(np);
+  Eigen::VectorXd wp(nq);
   wp.fill(pow(b - a, dim) / np);
 
   double AssembleTime = (clock() - begin1) / ((float)CLOCKS_PER_SEC);
@@ -162,10 +181,10 @@ int main(int argc, char** args) {
 //   double integral = 0.;
 //   double eps = 0.085;
 //   SetConstants(eps);
-// 
+//
 //   for(unsigned i = 0; i < w_new.size(); i++) {
 //     double dg1 = GetDistance(x);
-// 
+//
 //     double dg2 = dg1 * dg1;
 //     double xi = 0;
 //     if(dg1 < -eps){
@@ -179,7 +198,7 @@ int main(int argc, char** args) {
 //     }
 //     integral += xi * w_new(i);
 //   }
-//   
+//
 //   Eigen::VectorXd x1(2);
 //   x1 << 1.,0.;
 //   std::cout << GetDistance(x1) << std::endl;
@@ -272,6 +291,116 @@ void AssembleMatEigen(double& a, double& b, const unsigned& m, const unsigned& d
   }
 }
 
+void AssembleMatEigenOnDisk(double& a, double& b, const unsigned int& m, const unsigned int& dim, const unsigned int& np,
+                            Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX, Eigen::MatrixXd& Pg, const std::vector<std::vector<double>> &GaussP,
+                            Eigen::VectorXd& w, Eigen::MatrixXd& A, Eigen::VectorXd& F) {
+
+  A.resize(pow(m + 1, dim), np);
+  F.resize(pow(m + 1, dim));
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(m + 1, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+    }
+    for(unsigned j = 0; j < np; j++) {
+      double r = 1;
+      for(unsigned k = 0; k < dim; k++) {
+        r = r * PmX(k, I[k], j);
+      }
+      A(t, j) = r ;
+    }
+
+  }
+
+  double a0;
+  double a1;
+  double a3;
+  double a5;
+  double a7;
+  double a9;
+  double eps = (b - a) / 5.;
+
+  a0 = 0.5; // 128./256.;
+  a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+  a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+
+  Eigen::VectorXd xg = Eigen::VectorXd::Map(&GaussP[1][0], GaussP[1].size());
+  Eigen::VectorXd wg = Eigen::VectorXd::Map(&GaussP[0][0], GaussP[0].size());
+
+  unsigned ng = Pg.row(0).size();
+  Eigen::VectorXi J(dim);
+  Eigen::VectorXi NG(dim);
+  Eigen::VectorXd y(dim);
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    NG(k) = pow(ng, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+    }
+    F(t) = 0.;
+    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
+      J(0) = g / NG(0);
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = g % NG(k - 1);
+        J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
+      }
+      double value = 1.;
+      for(unsigned k = 0; k < dim ; k++) {
+        value *= (b - a) / 2. * Pg(I(k), J(k)) * wg(J(k)) ;
+        y[k] = a + ((xg(J[k]) + 1.) / 2.) * (b - a) ;
+      }
+      double dg1 = GetDistance(y);
+      double dg2 = dg1 * dg1;
+      double xi;
+      if(dg1 < -eps)
+        xi = 0.;
+      else if(dg1 > eps) {
+        xi = 1.;
+      }
+      else {
+        xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+      }
+      F(t) += xi * value;
+    }
+  }
+
+
+
+  /*
+  Eigen::VectorXi HS(Pg);
+
+
+  if(dim == 1) {
+    F = (1 / pow(2, dim)) * pow(b - a, dim) * Pg * w;
+  }
+  else {
+    Eigen::MatrixXd C ;
+    C =  Eigen::kroneckerProduct(Pg, Pg);
+    if(dim == 3) {
+      C = Eigen::kroneckerProduct(Pg, C).eval();
+    }
+    F = pow((b - a)/2, dim) * C * w;
+  }*/
+}
+
 
 void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp, Eigen::VectorXd &w_new) {
 
@@ -290,9 +419,11 @@ void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen
     for(unsigned k = 0; k < dim; k++) {
       r = r * x(k, i);
     }
-    s = s + pow(r, m) * w_new(i);
+    s = s + /*pow(r, m)* */  w_new(i);
   }
-  double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
+  //double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
+  std::cout << s <<" "<< M_PI * 0.75 * 0.75 / 4. <<std::endl;
+  double err = (s - M_PI * 0.75 * 0.75 / 4.) / s;
   std::cout << "Error is: " << err << std::endl;
 
 }
@@ -349,6 +480,20 @@ void  GetParticle(const double &a, const double &b, const unsigned &n1, const un
 }
 
 
+double GetDistance(const Eigen::VectorXd &x) {
+
+  double radius = 0.75;
+
+  Eigen::VectorXd xc(x.size());
+  xc.fill(0.);
+
+  double rx = 0;
+  for(unsigned i = 0; i < x.size(); i++) {
+    rx += (x[i] - xc[i]) * (x[i] - xc[i]);
+  }
+  return radius - sqrt(rx);
+
+}
 
 
 void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
@@ -360,13 +505,10 @@ void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, co
   for(unsigned k = 0; k < dim ; k++) {
     N(k) = pow(n1, dim - k - 1);
   }
+  double q = 0;
 
-  
-  double q=0;
-  
-  
-  
-  
+  Eigen::VectorXd y(dim);
+
   for(unsigned p = 0; p < pow(n1, dim) ; p++) {
     I(0) = 1 + p / N(0);
     for(unsigned k = 1; k < dim ; k++) {
@@ -376,20 +518,40 @@ void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, co
     //std::cout << I(0) << " " << I(1) << std::endl;
 
     for(unsigned k = 0; k < dim ; k++) {
+
       //std::srand(std::time(0));
       //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
-      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
 
+      y[k] = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
+
+    }
+
+    if(GetDistance(y) > 0) {
+
+      for(unsigned k = 0; k < dim ; k++) {
+        x(k, q) = y[k];
+      }
+      q++;
     }
   }
 
+//   for(unsigned p = 0; p < q; p++) {
+//     for(unsigned k = 0; k < dim; k++) {
+//       std::cout << x(k, p) << " ";
+//     }
+//     std::cout << std::endl;
+//   }
+
+//   for(unsigned k = 0; k < dim ; k++) {
+//     x.row(k).resize(q);
+//   }
+  x.conservativeResize(dim, q);
 
   xL.resize(dim, pow(n1, dim));
   Eigen::MatrixXd ID;
   ID.resize(dim, pow(n1, dim));
   ID.fill(1.);
   xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
-
 
 }
 
@@ -402,7 +564,7 @@ void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, co
 
 
 
-void SetConstants(const double &eps) {
+void SetConstants(const double & eps) {
   a0 = 0.5; // 128./256.;
   a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
   a3 = -pow(eps, -3.) * 1.640625; //420./256.;
@@ -411,10 +573,10 @@ void SetConstants(const double &eps) {
   a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
-double GetDistance(const Eigen::VectorXd &x) {
-  return (-x[0] + x[1] + 0.5) /sqrt(2.);
-
-}
+// double GetDistance(const Eigen::VectorXd &x) {
+//   return (-x[0] + x[1] + 0.5) /sqrt(2.);
+//
+// }
 
 
 
@@ -441,6 +603,7 @@ double GetDistance(const Eigen::VectorXd &x) {
 //   }
 //   std::cout << "\n" << std::endl;
 // }
+
 
 
 
