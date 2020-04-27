@@ -124,8 +124,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       unsigned iXDof  = msh->GetSolutionDof(i, iel, xType);
 
       for(unsigned K = 0; K < DIM; K++) {
-        xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
-        solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_SolOld[solDxIndex[K]])(iDDof);;
+        xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_Sol[solDxIndex[K]])(iDDof);
+        solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_Sol[solDxIndex[K]])(iDDof);;
         // Global-to-global mapping between NDx solution node and pdeSys dof.
         SYSDOF[ K * nxDofs + i] = pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
@@ -206,7 +206,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
-      double Area = weight;// * sqrt(detg);
+      double Area = weight * sqrt(detg);
       double Area2 = weight; // Trick to give equal weight to each element.
 
       // Compute the metric inverse.

@@ -25,8 +25,8 @@ using namespace femus;
 Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
-#include "../include/updateMu1.hpp"
-#include "../include/assembleConformalMinimization1.hpp"
+#include "../include/updateMu6.hpp"
+#include "../include/assembleConformalMinimization6.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -265,7 +265,7 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
       dirichlet = false;
     }
     if(4 == faceName) {
-      value = time / parameter.numberOfIterations * 0.75 * sin(x[1] / 0.5 * M_PI);
+      value = time / parameter.numberOfIterations * 0.95 * sin(x[1] / 0.5 * M_PI);
     }
   }
   else if(!strcmp(solName, "Dx2")) {
