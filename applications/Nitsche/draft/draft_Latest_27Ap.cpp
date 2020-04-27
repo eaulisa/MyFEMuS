@@ -538,7 +538,7 @@ double GetDistance(const Eigen::VectorXd &x) {
 // 
 // 
 // }
-=======
+
 void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
   double h = (b - a) / n1;
   x.resize(dim, pow(n1, dim));
@@ -597,7 +597,7 @@ void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, co
   xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
 
 }
->>>>>>> 2c36fb2b768a6b4faf750ebdf7584d973423a848:applications/Nitsche/draft/draft.cpp
+
 
 
 
