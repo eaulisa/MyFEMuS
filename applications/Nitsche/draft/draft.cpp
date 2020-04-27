@@ -9,7 +9,7 @@
 
 
 // valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./executable
-// 
+//
 
 //first row-weights, second row: x-coordinates
 const std::vector<std::vector < double > > Gauss1 = { {2}, {0} };
@@ -78,6 +78,12 @@ const std::vector<std::vector < double > > Gauss20 = {{0.152753387130726, 0.1491
 };
 
 
+double a0, a1, a3, a5, a7, a9;
+double exactInt = 0.8743332880;
+void SetConstants(const double &eps);
+double GetDistance(const Eigen::VectorXd &x);
+
+
 
 // void PrintMat(std::vector< std::vector<double> >& M);
 //void PrinVec(std::vector<double>& v);
@@ -95,67 +101,97 @@ int main(int argc, char** args) {
 //   GR = {Gauss3, Gauss4, Gauss5, Gauss6, Gauss7, Gauss8, Gauss9, Gauss10, Gauss11, Gauss12, Gauss13, Gauss14, Gauss15};
 //   Eigen::VectorXi N1(4);
 //   N1 << 40, 80, 120, 150;
-// 
+//
 //   std::ofstream fout;
 //   fout.open("PerformanceFullEigenLLT.txt", std::ofstream::app);
 //   fout << "NG  " << "," << "NP     " << "," << "AssembleTime%  " << "," << "SolverTime%    " << "," << "ExecutionTime%" << std::endl;
-// 
+//
 //   for(unsigned i = 0; i <  N1.size(); i++) {
 //     for(unsigned j = 0; j < GR.size(); j++) {
 
-    clock_t begin1 = clock();
-    unsigned dim = 3;
-    double a = 2;
-    double b = 5;
-    unsigned n1 = 20;
-    unsigned np = pow(n1, dim);
-    unsigned m = 4;
-    //unsigned ng = GR[j][0].size();
+  clock_t begin1 = clock();
+  unsigned dim = 2;
+  double a = 0;
+  double b = 1;
+  unsigned n1 = 20;
+  unsigned np = pow(n1, dim);
+  unsigned m = 4;
+  //unsigned ng = GR[j][0].size();
 
 
-    Eigen::MatrixXd x;
-    Eigen::MatrixXd xL;
-    GetParticle(a, b, n1, dim, x, xL);
+  Eigen::MatrixXd x;
+  Eigen::MatrixXd xL;
+  GetParticle(a, b, n1, dim, x, xL);
 
 
-    Eigen::MatrixXd Pg;
-    Eigen::VectorXd w;
-    //GetGaussInfo(m, dim, GR[j], Pg, w);
-    GetGaussInfo(m, dim, Gauss3, Pg, w);
+  Eigen::MatrixXd Pg;
+  Eigen::VectorXd w;
+  //GetGaussInfo(m, dim, GR[j], Pg, w);
+  GetGaussInfo(m, dim, Gauss9, Pg, w);
 
 
-    Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
-    GetChebXInfo(m, dim, np, xL, PmX);
+  Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
+  GetChebXInfo(m, dim, np, xL, PmX);
 
 
 
-    Eigen::MatrixXd A;
-    Eigen::VectorXd F;
-    AssembleMatEigen(a, b, m, dim, np, PmX, Pg, w, A, F);
+  Eigen::MatrixXd A;
+  Eigen::VectorXd F;
+  AssembleMatEigen(a, b, m, dim, np, PmX, Pg, w, A, F);
 
 
-    Eigen::VectorXd wp(np);
-    wp.fill(pow(b - a, dim) / np);
+  Eigen::VectorXd wp(np);
+  wp.fill(pow(b - a, dim) / np);
 
-    double AssembleTime = (clock() - begin1) / ((float)CLOCKS_PER_SEC);
+  double AssembleTime = (clock() - begin1) / ((float)CLOCKS_PER_SEC);
 
 
-    clock_t begin2 = clock();
+  clock_t begin2 = clock();
 
-    Eigen::VectorXd w_new;
-    SolWeightEigen(A, F, wp, w_new);
+  Eigen::VectorXd w_new;
+  SolWeightEigen(A, F, wp, w_new);
 
-    double SolverTime = (clock() - begin2) / ((float)CLOCKS_PER_SEC);
-    double TotalTime = AssembleTime + SolverTime;
+  double SolverTime = (clock() - begin2) / ((float)CLOCKS_PER_SEC);
+  double TotalTime = AssembleTime + SolverTime;
 
-    std::cout << "AssembleTime: " << (AssembleTime / TotalTime) * 100 << " SolverTime: " << (SolverTime / TotalTime) * 100 << "ExecutionTime: "<< TotalTime <<std::endl;
-    //fout << ng << ",   " << np << ",   " << (AssembleTime / TotalTime) * 100  << ",        " << (SolverTime / TotalTime) * 100 << ",        " << TotalTime << std::endl;
-    Testing(a, b, m, dim, x, w_new);
+  std::cout << "AssembleTime: " << (AssembleTime / TotalTime) * 100 << " SolverTime: " << (SolverTime / TotalTime) * 100 << "ExecutionTime: " << TotalTime << std::endl;
+  //fout << ng << ",   " << np << ",   " << (AssembleTime / TotalTime) * 100  << ",        " << (SolverTime / TotalTime) * 100 << ",        " << TotalTime << std::endl;
+  Testing(a, b, m, dim, x, w_new);
 
-    
+
+//   double integral = 0.;
+//   double eps = 0.085;
+//   SetConstants(eps);
+// 
+//   for(unsigned i = 0; i < w_new.size(); i++) {
+//     double dg1 = GetDistance(x);
+// 
+//     double dg2 = dg1 * dg1;
+//     double xi = 0;
+//     if(dg1 < -eps){
+//       xi = 0.;
+//     }
+//     else if(dg1 > eps) {
+//       xi = 1.;
+//     }
+//     else {
+//       xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+//     }
+//     integral += xi * w_new(i);
+//   }
+//   
+//   Eigen::VectorXd x1(2);
+//   x1 << 1.,0.;
+//   std::cout << GetDistance(x1) << std::endl;
+
+
+
+
+
+
 //         }
 //       }
-// 
+//
 //   fout.close();
   return 0;
 }
@@ -311,6 +347,79 @@ void  GetParticle(const double &a, const double &b, const unsigned &n1, const un
 
 
 }
+
+
+
+
+void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
+  double h = (b - a) / n1;
+  x.resize(dim, pow(n1, dim));
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(n1, dim - k - 1);
+  }
+
+  
+  double q=0;
+  
+  
+  
+  
+  for(unsigned p = 0; p < pow(n1, dim) ; p++) {
+    I(0) = 1 + p / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = p % N(k - 1);
+      I(k) = 1 + pk / N(k);
+    }
+    //std::cout << I(0) << " " << I(1) << std::endl;
+
+    for(unsigned k = 0; k < dim ; k++) {
+      //std::srand(std::time(0));
+      //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
+      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
+
+    }
+  }
+
+
+  xL.resize(dim, pow(n1, dim));
+  Eigen::MatrixXd ID;
+  ID.resize(dim, pow(n1, dim));
+  ID.fill(1.);
+  xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
+
+
+}
+
+
+
+
+
+
+
+
+
+
+void SetConstants(const double &eps) {
+  a0 = 0.5; // 128./256.;
+  a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+  a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+}
+
+double GetDistance(const Eigen::VectorXd &x) {
+  return (-x[0] + x[1] + 0.5) /sqrt(2.);
+
+}
+
+
+
+
+
 
 
 // void PrintMat(std::vector< std::vector<double> >& M) {
