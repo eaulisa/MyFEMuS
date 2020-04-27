@@ -4,8 +4,12 @@
 #include <ctime>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/unsupported/Eigen/KroneckerProduct>
+#include <eigen3/unsupported/Eigen//CXX11/Tensor>
 #include <fstream>
 
+
+// valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./executable
+//
 
 //first row-weights, second row: x-coordinates
 const std::vector<std::vector < double > > Gauss1 = { {2}, {0} };
@@ -74,586 +78,369 @@ const std::vector<std::vector < double > > Gauss20 = {{0.152753387130726, 0.1491
 };
 
 
-
-void PrintMat(std::vector< std::vector<double> >& M);
-void PrinVec(std::vector<double>& v);
-void  GetParticle(const double & a, const double & b, const unsigned & n1, const unsigned& dim, std::vector < std::vector < double > >& x, std::vector < std::vector < double > >& xL);
-void Cheb(const unsigned & m, const std::vector < double > &xg, std::vector< std::vector < double > > & C);
-void GetGaussPointsWeights(const unsigned dim, const std::vector<std::vector<double>> GaussP, std::vector<std::vector<double>>& xg, std::vector<double>& w);
-void Kron(std::vector<std::vector<double>>& A, std::vector<std::vector<double>>& B, std::vector<std::vector<double>>& C);
-
-// void AssembleMat(double& a, double& b, std::vector<std::vector< std::vector < double > >>&  PmX, std::vector<std::vector<double>>& Pg, std::vector<double>& w, const unsigned& dim, const unsigned& np, const unsigned& m, std::vector<std::vector<double>>& A, std::vector<double>& F);
-// void SolWeight(std::vector<std::vector<double>>& A1, std::vector<double>& F1, std::vector<double>& wp, std::vector<double>& w_new);
-
-void AssembleMatEigen(double& a, double& b, std::vector<std::vector< std::vector < double > >>&  PmX, std::vector<std::vector<double>>& Pg, std::vector<double>& w, const unsigned& dim, const unsigned& np, const unsigned& m, Eigen::MatrixXd &A, Eigen::VectorXd &F);
-void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, std::vector<double>& wp, std::vector<double>& w_new);
+double a0, a1, a3, a5, a7, a9;
+double exactInt = 0.8743332880;
+void SetConstants(const double &eps);
+double GetDistance(const Eigen::VectorXd &x);
 
 
-void newMatrix(const unsigned &n1, const unsigned &n2, double *&A_memory, double **&A) {
-  A_memory = new double [n1 * n2];
 
-  A = new double* [n1];
-  for(unsigned i = 0; i < n1; i++) {
-    A[i] = A_memory + n2 * i;
-  }
-}
-
-void deleteMatrix(double *&A_memory, double **&A) {
-  delete [] A;
-  delete [] A_memory;
-}
-
-extern "C" void dgemm_(const char *TRANSA, const char *TRANSB, const int *M, const int *N, const int *K, double *ALPHA, double *A, const int *LDA, double *B, const int *LDB, double *BETA, double *C, const int *LDC);
+// void PrintMat(std::vector< std::vector<double> >& M);
+//void PrinVec(std::vector<double>& v);
+void Cheb(const unsigned & m, Eigen::VectorXd &xg, Eigen::MatrixXd &C);
+void GetParticle(const double & a, const double & b, const unsigned & n1, const unsigned& dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL);
+void AssembleMatEigen(double& a, double& b, const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd &Pg, Eigen::VectorXd &w, Eigen::MatrixXd &A, Eigen::VectorXd &F);
+void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp, Eigen::VectorXd &w_new);
+void GetGaussInfo(const unsigned& m, const unsigned& dim, const std::vector<std::vector<double>> &GaussP, Eigen::MatrixXd &Pg, Eigen::VectorXd &w);
+void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::MatrixXd &xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX);
+void Testing(double& a, double& b, const unsigned& m, const unsigned& dim, Eigen::MatrixXd &x, Eigen::VectorXd &w_new);
 
 int main(int argc, char** args) {
 
-//   double *AA_memory;
-//   double **AA;
-// 
-//   double *BB_memory;
-//   double **BB;
-// 
-//   double *CC_memory;
-//   double **CC;
-// 
-//   int n1 = 500;
-//   int n2 = 5000;
-// 
-// 
-// 
-//   newMatrix(n1, n2, AA_memory, AA);
-//   newMatrix(n2, n1, BB_memory, BB);
-// 
-// 
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n2; j++) {
-//       AA[i][j] = i + j;
-//     }
-//   }
-// 
-//   for(unsigned i = 0; i < n2; i++) {
-//     for(unsigned j = 0; j < n1; j++) {
-//       BB[i][j] = i + j;
-//     }
-//   }
-// 
-//   clock_t start = clock();
-// 
-//   newMatrix(n1, n1, CC_memory, CC);
-// 
-//   char charN = 'T';
-//   double one = 1;
-//   double zero = 0;
-//   dgemm_(&charN, &charN, &n1, &n1, &n2, &one, AA_memory, &n2, BB_memory, &n1, &zero, CC_memory, &n1);
-
-//   double *ptA = AA_memory;
-//   double *ptB = BB_memory;
-//   double *ptC = CC_memory;
+//   std::vector<std::vector<std::vector<double>>> GR(13);
+//   GR = {Gauss3, Gauss4, Gauss5, Gauss6, Gauss7, Gauss8, Gauss9, Gauss10, Gauss11, Gauss12, Gauss13, Gauss14, Gauss15};
+//   Eigen::VectorXi N1(4);
+//   N1 << 40, 80, 120, 150;
 //
+//   std::ofstream fout;
+//   fout.open("PerformanceFullEigenLLT.txt", std::ofstream::app);
+//   fout << "NG  " << "," << "NP     " << "," << "AssembleTime%  " << "," << "SolverTime%    " << "," << "ExecutionTime%" << std::endl;
 //
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n1; j++, ptC++) {
-//       *ptC = 0.;
-//       for(unsigned k = 0; k < n1; k++) {
-//         *ptC += AA[i][k] * BB[k][j];
+//   for(unsigned i = 0; i <  N1.size(); i++) {
+//     for(unsigned j = 0; j < GR.size(); j++) {
+
+  clock_t begin1 = clock();
+  unsigned dim = 2;
+  double a = 0;
+  double b = 1;
+  unsigned n1 = 20;
+  unsigned np = pow(n1, dim);
+  unsigned m = 4;
+  //unsigned ng = GR[j][0].size();
+
+
+  Eigen::MatrixXd x;
+  Eigen::MatrixXd xL;
+  GetParticle(a, b, n1, dim, x, xL);
+
+
+  Eigen::MatrixXd Pg;
+  Eigen::VectorXd w;
+  //GetGaussInfo(m, dim, GR[j], Pg, w);
+  GetGaussInfo(m, dim, Gauss9, Pg, w);
+
+
+  Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
+  GetChebXInfo(m, dim, np, xL, PmX);
+
+
+
+  Eigen::MatrixXd A;
+  Eigen::VectorXd F;
+  AssembleMatEigen(a, b, m, dim, np, PmX, Pg, w, A, F);
+
+
+  Eigen::VectorXd wp(np);
+  wp.fill(pow(b - a, dim) / np);
+
+  double AssembleTime = (clock() - begin1) / ((float)CLOCKS_PER_SEC);
+
+
+  clock_t begin2 = clock();
+
+  Eigen::VectorXd w_new;
+  SolWeightEigen(A, F, wp, w_new);
+
+  double SolverTime = (clock() - begin2) / ((float)CLOCKS_PER_SEC);
+  double TotalTime = AssembleTime + SolverTime;
+
+  std::cout << "AssembleTime: " << (AssembleTime / TotalTime) * 100 << " SolverTime: " << (SolverTime / TotalTime) * 100 << "ExecutionTime: " << TotalTime << std::endl;
+  //fout << ng << ",   " << np << ",   " << (AssembleTime / TotalTime) * 100  << ",        " << (SolverTime / TotalTime) * 100 << ",        " << TotalTime << std::endl;
+  Testing(a, b, m, dim, x, w_new);
+
+
+//   double integral = 0.;
+//   double eps = 0.085;
+//   SetConstants(eps);
+// 
+//   for(unsigned i = 0; i < w_new.size(); i++) {
+//     double dg1 = GetDistance(x);
+// 
+//     double dg2 = dg1 * dg1;
+//     double xi = 0;
+//     if(dg1 < -eps){
+//       xi = 0.;
+//     }
+//     else if(dg1 > eps) {
+//       xi = 1.;
+//     }
+//     else {
+//       xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+//     }
+//     integral += xi * w_new(i);
+//   }
+//   
+//   Eigen::VectorXd x1(2);
+//   x1 << 1.,0.;
+//   std::cout << GetDistance(x1) << std::endl;
+
+
+
+
+
+
+//         }
 //       }
-//     }
-//   }
-
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n1; j++) {
-//       CC[i][j] = 0.;
-//       for(unsigned k = 0; k < n2; k++) {
-//         CC[i][j] += AA[i][k] * BB[k][j];
-//       }
-//     }
-//   }
-
-//   std::cout << (clock() - start) / ((float)CLOCKS_PER_SEC) << std::endl;
-// 
-//   double Csum = 0.;
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n1; j++) {
-//       Csum += CC[i][j];
-//     }
-//   }
-//   std::cout << Csum << std::endl;
-// 
-//   deleteMatrix(AA_memory, AA);
-//   deleteMatrix(BB_memory, BB);
-//   deleteMatrix(CC_memory, CC);
-// 
-// 
-// 
-// 
-//   Eigen::MatrixXd A1(n1, n2);
-//   Eigen::MatrixXd B1(n2, n1);
-// 
-// 
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n2; j++) {
-//       A1(i, j) = i + j;
-//     }
-//   }
-// 
-// 
-//   for(unsigned i = 0; i < n2; i++) {
-//     for(unsigned j = 0; j < n1; j++) {
-//       B1(i, j) = i + j;
-//     }
-//   }
-// 
-//   start = clock();
-// 
-//   Eigen::MatrixXd C1 = A1 * B1;
-// 
-//   std::cout << (clock() - start) / ((float)CLOCKS_PER_SEC) << std::endl;
-// 
-// 
-// 
-//   double C1sum = 0.;
-//   for(unsigned i = 0; i < n1; i++) {
-//     for(unsigned j = 0; j < n1; j++) {
-//       C1sum += C1(i, j);
-//     }
-//   }
-//   std::cout << C1sum << std::endl;
-// 
-// 
-//   return 1;
-
-
-
-
-
-
-
-  std::vector<std::vector<std::vector<double>>> GR(15);
-  GR = {Gauss3, Gauss4, Gauss5, Gauss6, Gauss7, Gauss8, Gauss9, Gauss10, Gauss11, Gauss12, Gauss13, Gauss14, Gauss15};
-
-  std::vector<double> N1 = {10, 20, 40, 80};
-
-  std::ofstream fout;
-  fout.open("Performance.txt", std::ofstream::app);
-  fout << "NG  " << "," << "NP     " << "," << "AssembleTime%  " << "," << "SolverTime%    " << "," << "ExecutionTime%" << std::endl;
-
-
-  for(unsigned i = 0; i < 1 + 0*N1.size(); i++) {
-    for(unsigned j = 0; j < 5 + 0*GR.size(); j++) {
-      clock_t begin1 = clock();
-      unsigned dim = 3;
-      double a = 2;
-      double b = 5;
-      unsigned n1 = N1[i];
-      unsigned np = pow(n1, dim);
-      unsigned ng = GR[j][0].size();
-      unsigned m = 4; // Note that m>=2*ng-1;
-
-      std::vector<double> wp;
-      wp.assign(np, pow(b - a, dim) / np);
-      std::vector < std::vector < double > > x;
-      std::vector<std::vector<double>> xL;
-      GetParticle(a, b, n1, dim, x, xL);
-      std::vector < std::vector < double > > xg;
-      std::vector<double> w;
-      GetGaussPointsWeights(dim, GR[j], xg, w);
-      std::vector<std::vector<double>> Pg;
-      Cheb(m, GR[j][1], Pg);
-      std::vector<std::vector< std::vector < double > >>  PmX(dim);
-      for(unsigned k = 0; k < dim; k++) {
-        Cheb(m, xL[k], PmX[k]);
-      }
-
-
-      std::vector<std::vector<double>> A1;
-      //std::vector<double> F1;
-      //AssembleMat(a, b, PmX, Pg, w, dim, np, m, A1, F1);
-      Eigen::MatrixXd A;
-      Eigen::VectorXd F;
-      AssembleMatEigen(a, b, PmX, Pg, w, dim, np, m, A, F);
-
-      clock_t stop1 = clock();
-      double AssembleTime = (stop1 - begin1) / ((float)CLOCKS_PER_SEC);
-
-      clock_t begin2 = clock();
-      std::vector<double> w_new;
-      //SolWeight(A1, F1, wp, w_new);
-      SolWeightEigen(A, F, wp, w_new);
-
-      clock_t stop2 = clock();
-      double SolverTime = (stop2 - begin2) / ((float)CLOCKS_PER_SEC);
-
-      double TotalTime = AssembleTime + SolverTime;
-
-      std::cout << "AssembleTime: " << (AssembleTime / TotalTime) * 100 << " SolverTime: " << (SolverTime / TotalTime) * 100 << std::endl;
-
-
-      double s = 0;
-      for(unsigned i = 0; i < w_new.size(); i++) {
-        double r = 1;
-        for(unsigned k = 0; k < dim; k++) {
-          r = r * x[k][i];
-        }
-        s = s + pow(r, m) * w_new[i];
-      }
-
-      double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
-      std::cout << "Eror is: " << err << std::endl;
-
-      fout << ng << ",   " << np << ",   " << (AssembleTime / TotalTime) * 100  << ",        " << (SolverTime / TotalTime) * 100 << ",        " << TotalTime << std::endl;
-
-    }
-  }
-  fout.close();
-
+//
+//   fout.close();
   return 0;
 }
 
 
+void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::MatrixXd &xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
 
-// void SolWeight(std::vector<std::vector<double>>& A1, std::vector<double>& F1, std::vector<double>& wp, std::vector<double>& w_new) {
-//
-//   Eigen::VectorXd F = Eigen::VectorXd::Map(&F1[0], F1.size());
-//   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
-//
-//   Eigen::MatrixXd A(A1.size(), A1[0].size());
-//   for(int i = 0; i < A1.size(); ++i) {
-//     A.row(i) = Eigen::VectorXd::Map(&A1[i][0], A1[0].size());
-//   }
-//
-//   Eigen::VectorXd y_temp = (A * A.transpose()).fullPivLu().solve(F - A * wP);
-//   Eigen::VectorXd w_new_temp = A.transpose() * y_temp + wP;
-//
-//   w_new.resize(w_new_temp.size());
-//   Eigen::VectorXd::Map(&w_new[0], w_new_temp.size()) = w_new_temp;
-//
-// }
+  PmX.resize(dim, m + 1, np);
+  Eigen::MatrixXd Ptemp;
+  Eigen::VectorXd xtemp;
+  for(unsigned k = 0; k < dim; k++) {
+    xtemp = xL.row(k);
+    Cheb(m, xtemp, Ptemp);
+    for(unsigned i = 0; i < m + 1; i++) {
+      for(unsigned j = 0; j < np; j++) {
+        PmX(k, i, j) = Ptemp(i, j);
+      }
+    }
+  }
+}
 
-
-// void AssembleMat(double& a, double& b, std::vector<std::vector< std::vector < double > >>&  PmX, std::vector<std::vector<double>>& Pg, std::vector<double>& w, const unsigned& dim, const unsigned& np, const unsigned& m, std::vector<std::vector<double>>& A, std::vector<double>& F) {
-//
-//   A.resize(pow(m + 1, dim));
-//   F.resize(pow(m + 1, dim));
-//   std::vector<unsigned> I(dim);
-//   std::vector<unsigned> J(dim);
-//   std::vector<unsigned> N(dim);
-//
-//
-//   for(unsigned k = 0; k < dim ; k++) {
-//     N[k] = pow(m + 1, dim - k - 1);
-//   }
-//
-//   unsigned ng = Pg[0].size();
-//   for(unsigned k = 0; k < dim ; k++) {
-//     J[k] = pow(ng + 1, dim - k - 1);
-//   }
-//
-//   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-//     A[t].resize(np);
-//     I[0] = t / N[0];
-//     for(unsigned k = 1; k < dim ; k++) {
-//       unsigned pk = t % N[k - 1];
-//       I[k] = pk / N[k]; // dimensional index over on the space of polynomaials
-//     }
-//     for(unsigned j = 0; j < np; j++) {
-//       double r = 1;
-//       for(unsigned k = 0; k < dim; k++) {
-//         r = r * PmX[k][I[k]][j];
-//       }
-//       A[t][j] = r ;
-//     }
-//
-//   }
-//
-//   Eigen::VectorXd wE = Eigen::VectorXd::Map(&w[0], w.size());
-//   Eigen::VectorXd F1(F.size());
-//   Eigen::MatrixXd C ;
-//   Eigen::MatrixXd PgE(Pg.size(), Pg[0].size());
-//
-//
-//   for(int i = 0; i < Pg.size(); ++i) {
-//     PgE.row(i) = Eigen::VectorXd::Map(&Pg[i][0], Pg[0].size());
-//   }
-//
-//
-//   if(dim == 1) {
-//     F1 = (1 / pow(2, dim)) * pow(b - a, dim) * PgE * wE;
-//   }
-//   else {
-//     C =  Eigen::kroneckerProduct(PgE, PgE);
-//     if(dim == 3) {
-//       C = Eigen::kroneckerProduct(PgE, C).eval();
-//     }
-//     F1 = (1 / pow(2, dim)) * pow(b - a, dim) * C * wE;
-//   }
-//
-//   Eigen::VectorXd::Map(&F[0], F1.size()) = F1;
-//
-// }
+void GetGaussInfo(const unsigned& m, const unsigned& dim, const std::vector<std::vector<double>> &GaussP, Eigen::MatrixXd &Pg, Eigen::VectorXd &w) {
+  Eigen::VectorXd xg = Eigen::VectorXd::Map(&GaussP[1][0], GaussP[1].size());
+  Cheb(m, xg, Pg);
+  Eigen::VectorXd wG = Eigen::VectorXd::Map(&GaussP[0][0], GaussP[0].size());
+  if(dim == 1) {
+    w = wG;
+  }
+  else {
+    w = Eigen::kroneckerProduct(wG, wG).eval();
+    if(dim == 3) {
+      w = Eigen::kroneckerProduct(wG, w).eval();
+    }
+  }
+}
 
 
 
 
-
-void AssembleMatEigen(double& a, double& b, std::vector<std::vector< std::vector < double > >>&  PmX, std::vector<std::vector<double>>& Pg, std::vector<double>& w, const unsigned& dim, const unsigned& np, const unsigned& m, Eigen::MatrixXd &A, Eigen::VectorXd &F) {
+void AssembleMatEigen(double& a, double& b, const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd &Pg, Eigen::VectorXd &w, Eigen::MatrixXd &A, Eigen::VectorXd &F) {
 
   A.resize(pow(m + 1, dim), np);
-  /*for(int i = 0; i < A1.size(); ++i) {
-    A.row(i) = Eigen::VectorXd::Map(&A1[i][0], A1[0].size());
-  }*/  
-
-//   std::vector<std::vector<double>> A1;
- // A1.resize(pow(m + 1, dim));
   F.resize(pow(m + 1, dim));
-  std::vector<unsigned> I(dim);
-  //std::vector<unsigned> J(dim);
-  std::vector<unsigned> N(dim);
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
 
 
   for(unsigned k = 0; k < dim ; k++) {
-    N[k] = pow(m + 1, dim - k - 1);
+    N(k) = pow(m + 1, dim - k - 1);
   }
 
-// unsigned ng = Pg[0].size();
-//   for(unsigned k = 0; k < dim ; k++) {
-//     J[k] = pow(ng + 1, dim - k - 1);
-//   }
-
   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    //A1[t].resize(np);
-    I[0] = t / N[0];
+    I(0) = t / N(0);
     for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N[k - 1];
-      I[k] = pk / N[k]; // dimensional index over on the space of polynomaials
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
     }
     for(unsigned j = 0; j < np; j++) {
       double r = 1;
       for(unsigned k = 0; k < dim; k++) {
-        r = r * PmX[k][I[k]][j];
+        r = r * PmX(k, I[k], j);
       }
-      //A1[t][j] = r ;
-      A(t,j) = r ;
+      A(t, j) = r ;
     }
 
   }
-
-
-//   A.resize(A1.size(), A1[0].size());
-//   for(int i = 0; i < A1.size(); ++i) {
-//     A.row(i) = Eigen::VectorXd::Map(&A1[i][0], A1[0].size());
-//   }
-
-
-
-  Eigen::VectorXd wE = Eigen::VectorXd::Map(&w[0], w.size());
-  Eigen::MatrixXd C ;
-
-  Eigen::MatrixXd PgE(Pg.size(), Pg[0].size());
-  for(int i = 0; i < Pg.size(); ++i) {
-    PgE.row(i) = Eigen::VectorXd::Map(&Pg[i][0], Pg[0].size());
-  }
-
 
   if(dim == 1) {
-    F = (1 / pow(2, dim)) * pow(b - a, dim) * PgE * wE;
+    F = (1 / pow(2, dim)) * pow(b - a, dim) * Pg * w;
   }
   else {
-    C =  Eigen::kroneckerProduct(PgE, PgE);
+    Eigen::MatrixXd C ;
+    C =  Eigen::kroneckerProduct(Pg, Pg);
     if(dim == 3) {
-      C = Eigen::kroneckerProduct(PgE, C).eval();
+      C = Eigen::kroneckerProduct(Pg, C).eval();
     }
-    F = (1 / pow(2, dim)) * pow(b - a, dim) * C * wE;
+    F = (1 / pow(2, dim)) * pow(b - a, dim) * C * w;
   }
 }
 
 
+void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp, Eigen::VectorXd &w_new) {
 
-
-void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, std::vector<double>& wp, std::vector<double>& w_new) {
-
-  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
-
-  Eigen::VectorXd y_temp = (A * A.transpose()).fullPivLu().solve(F - A * wP);
-  Eigen::VectorXd w_new_temp = A.transpose() * y_temp + wP;
-
-  w_new.resize(w_new_temp.size());
-  Eigen::VectorXd::Map(&w_new[0], w_new_temp.size()) = w_new_temp;
+  Eigen::VectorXd y_temp = (A * A.transpose()).partialPivLu().solve(F - A * wp);
+  Eigen::VectorXd w_new_temp = A.transpose() * y_temp;
+  w_new = w_new_temp + wp;
 
 }
 
 
+void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen::MatrixXd &x, Eigen::VectorXd &w_new) {
+
+  double s = 0;
+  for(unsigned i = 0; i < w_new.size(); i++) {
+    double r = 1;
+    for(unsigned k = 0; k < dim; k++) {
+      r = r * x(k, i);
+    }
+    s = s + pow(r, m) * w_new(i);
+  }
+  double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
+  std::cout << "Error is: " << err << std::endl;
+
+}
 
 
-void Cheb(const unsigned & m, const std::vector < double > &xg, std::vector< std::vector < double > > & C) {
-  // C1[i][j] = P_{j}(x_{i})
-  std::vector< std::vector < double > >  C1;
-  C1.resize(xg.size());
+void Cheb(const unsigned &m, Eigen::VectorXd &xg, Eigen::MatrixXd &C) {
+
+  C.resize(xg.size(), m + 1);
   for(unsigned i = 0; i < xg.size(); i++) {
-    C1[i].resize(m + 1);
-    C1[i][0] = 1;
-    C1[i][1] = xg[i];
+    C(i, 0) = 1;
+    C(i, 1) = xg(i);
     for(unsigned j = 2; j <= m; j++) {
-      C1[i][j] =  2 * xg[i] * C1[i][j - 1] - C1[i][j - 2];
+      C(i, j) =  2 * xg(i) * C(i, j - 1) - C(i, j - 2);
     }
   }
+  C.transposeInPlace();
 
-  C.resize(C1[0].size());
-  for(unsigned i = 0; i < m + 1; i++) {
-    C[i].resize(C1.size());
-    for(unsigned j = 0; j < C1.size(); j++) {
-      C[i][j] = C1[j][i];
-    }
-  }
 }
 
-void  GetParticle(const double & a, const double & b, const unsigned & n1, const unsigned& dim, std::vector < std::vector < double > >& x, std::vector < std::vector < double > >& xL) {
-  unsigned np = pow(n1, dim);
+void  GetParticle(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
   double h = (b - a) / n1;
-  x.resize(dim);
-  std::vector < unsigned > I(dim);
-  std::vector < unsigned > N(dim);
+  x.resize(dim, pow(n1, dim));
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
 
   for(unsigned k = 0; k < dim ; k++) {
-    N[k] = pow(n1, dim - k - 1);
-    x[k].resize(np);
+    N(k) = pow(n1, dim - k - 1);
   }
 
-  for(unsigned p = 0; p < np ; p++) {
-    I[0] = 1 + p / N[0];
+  for(unsigned p = 0; p < pow(n1, dim) ; p++) {
+    I(0) = 1 + p / N(0);
     for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = p % N[k - 1];
-      I[k] = 1 + pk / N[k];
+      unsigned pk = p % N(k - 1);
+      I(k) = 1 + pk / N(k);
     }
-    //std::cout << I[0] << " " << I[1] << std::endl;
+    //std::cout << I(0) << " " << I(1) << std::endl;
 
     for(unsigned k = 0; k < dim ; k++) {
       //std::srand(std::time(0));
       //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
-      x[k][p] = a + h / 2 + (I[k] - 1) * h;// + 0.1 * r;
+      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
 
     }
   }
 
-  xL.resize(dim);
-  for(unsigned i = 0; i < dim; i++) {
-    xL[i].resize(np);
-    for(unsigned j = 0; j < np; j++) {
-      xL[i][j] += (2 * x[i][j] - (b + a)) / (b - a);
-    }
-  }
+
+  xL.resize(dim, pow(n1, dim));
+  Eigen::MatrixXd ID;
+  ID.resize(dim, pow(n1, dim));
+  ID.fill(1.);
+  xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
 
 
 }
 
 
-void GetGaussPointsWeights(const unsigned dim, const std::vector<std::vector<double>> GaussP, std::vector<std::vector<double>>& xg, std::vector<double>& w) {
 
-  unsigned ng = GaussP[0].size();
-  xg.resize(dim);
-  w.resize(pow(ng, dim));
-  std::vector < unsigned > I(dim);
-  std::vector < unsigned > N(dim);
+
+void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
+  double h = (b - a) / n1;
+  x.resize(dim, pow(n1, dim));
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
 
   for(unsigned k = 0; k < dim ; k++) {
-    xg[k].resize(pow(ng, dim));
-    N[k] = pow(ng, dim - k - 1);
+    N(k) = pow(n1, dim - k - 1);
   }
 
-  for(unsigned p = 0; p < pow(ng, dim) ; p++) {
-    I[0] = p / N[0];
+  
+  double q=0;
+  
+  
+  
+  
+  for(unsigned p = 0; p < pow(n1, dim) ; p++) {
+    I(0) = 1 + p / N(0);
     for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = p % N[k - 1];
-      I[k] = pk / N[k];
+      unsigned pk = p % N(k - 1);
+      I(k) = 1 + pk / N(k);
     }
-    //std::cout<< I[0] << " " << I[1] << " " <<I[2] << std::endl;
-    for(unsigned i = 0; i < dim; i++) {
-      xg[i][p] = GaussP[1][I[i]];
-    }
-    double r = 1;
-    for(unsigned k = 0; k < dim; k++) {
-      r = r * GaussP[0][I[k]];
-      w[p] = r;
-    }
+    //std::cout << I(0) << " " << I(1) << std::endl;
 
+    for(unsigned k = 0; k < dim ; k++) {
+      //std::srand(std::time(0));
+      //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
+      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
+
+    }
   }
-  //PrinVec(w);
-  //PrintMat(xg);
+
+
+  xL.resize(dim, pow(n1, dim));
+  Eigen::MatrixXd ID;
+  ID.resize(dim, pow(n1, dim));
+  ID.fill(1.);
+  xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
+
 
 }
 
 
 
 
-// void Kron(std::vector<std::vector<double>>& A, std::vector<std::vector<double>>& B, std::vector<std::vector<double>>& C) {
-//   A:mxn, B:pxq, C--> pmxqn
+
+
+
+
+
+
+void SetConstants(const double &eps) {
+  a0 = 0.5; // 128./256.;
+  a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+  a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+}
+
+double GetDistance(const Eigen::VectorXd &x) {
+  return (-x[0] + x[1] + 0.5) /sqrt(2.);
+
+}
+
+
+
+
+
+
+
+// void PrintMat(std::vector< std::vector<double> >& M) {
 //
-//   unsigned rowA = A.size();
-//   unsigned colA = A[0].size();
-//   unsigned rowB = B.size();
-//   unsigned colB = B[0].size();
-//   C.resize(rowB * rowA);
-//   for(unsigned k = 0; k < rowB * rowA; k++) {
-//     C[k].resize(colA * colB);
-//   }
-//
-//   for(unsigned i = 0; i < rowA; i++) {
-//     for(unsigned j = 0; j < colA; j++) {
-//       unsigned startRow = i * rowB;
-//       unsigned startCol = j * colB;
-//       for(unsigned k = 0; k < rowB; k++) {
-//         for(unsigned l = 0; l < colB; l++) {
-//           C[startRow + k][startCol + l] = A[i][j] * B[k][l];
-//         }
-//       }
+//   for(unsigned i = 0; i < M.size(); i++) {
+//     for(unsigned j = 0; j < M[i].size(); j++) {
+//       std::cout << M[i][j] << " ";
 //     }
+//     std::cout << std::endl;
 //   }
-//
+//   std::cout << "\n" << std::endl;
 // }
-
-
-
-void PrintMat(std::vector< std::vector<double> >& M) {
-
-  for(unsigned i = 0; i < M.size(); i++) {
-    for(unsigned j = 0; j < M[i].size(); j++) {
-      std::cout << M[i][j] << " ";
-    }
-    std::cout << std::endl;
-  }
-  std::cout << "\n" << std::endl;
-}
-
-
-void PrinVec(std::vector<double>& v) {
-  for(unsigned i = 0; i < v.size(); i++) {
-
-    std::cout << v[i] << " ";
-  }
-  std::cout << "\n" << std::endl;
-}
-
-
-
-
-
-
-// void Cheb1D(const unsigned & m, const std::vector < double > &xg, std::vector< std::vector < double > > & C1) {
-//   // C1[i][j] = P_{j}(x_{i})
-//   C1.resize(xg.size());
-//   for(unsigned i = 0; i < xg.size(); i++) {
-//     C1[i].resize(m + 1);
-//     C1[i][0] = 1;
-//     C1[i][1] = xg[i];
-//     for(unsigned j = 2; j <= m; j++) {
-//       C1[i][j] =  2 * xg[i] * C1[i][j - 1] - C1[i][j - 2];
-//     }
+//
+//
+// void PrinVec(std::vector<double>& v) {
+//   for(unsigned i = 0; i < v.size(); i++) {
+//
+//     std::cout << v[i] << " ";
 //   }
-//
+//   std::cout << "\n" << std::endl;
 // }
-
-
-
-
 
 
 
