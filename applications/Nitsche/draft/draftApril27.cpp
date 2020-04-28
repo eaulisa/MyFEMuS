@@ -178,30 +178,7 @@ int main(int argc, char** args) {
   Testing(a, b, m, dim, x, w_new);
 
 
-//   double integral = 0.;
-//   double eps = 0.085;
-//   SetConstants(eps);
-//
-//   for(unsigned i = 0; i < w_new.size(); i++) {
-//     double dg1 = GetDistance(x);
-//
-//     double dg2 = dg1 * dg1;
-//     double xi = 0;
-//     if(dg1 < -eps){
-//       xi = 0.;
-//     }
-//     else if(dg1 > eps) {
-//       xi = 1.;
-//     }
-//     else {
-//       xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
-//     }
-//     integral += xi * w_new(i);
-//   }
-//
-//   Eigen::VectorXd x1(2);
-//   x1 << 1.,0.;
-//   std::cout << GetDistance(x1) << std::endl;
+
 
 
 
@@ -496,48 +473,7 @@ double GetDistance(const Eigen::VectorXd &x) {
 }
 
 
-<<<<<<< HEAD:applications/Nitsche/draft/draft_Latest_27Ap.cpp
-// void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
-//   double h = (b - a) / n1;
-//   x.resize(dim, pow(n1, dim));
-//   Eigen::VectorXi I(dim);
-//   Eigen::VectorXi N(dim);
-// 
-//   for(unsigned k = 0; k < dim ; k++) {
-//     N(k) = pow(n1, dim - k - 1);
-//   }
-// 
-//   
-//   double q=0;
-//   
-//   
-//   
-//   
-//   for(unsigned p = 0; p < pow(n1, dim) ; p++) {
-//     I(0) = 1 + p / N(0);
-//     for(unsigned k = 1; k < dim ; k++) {
-//       unsigned pk = p % N(k - 1);
-//       I(k) = 1 + pk / N(k);
-//     }
-//     //std::cout << I(0) << " " << I(1) << std::endl;
-// 
-//     for(unsigned k = 0; k < dim ; k++) {
-//       //std::srand(std::time(0));
-//       //double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
-//       x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
-// 
-//     }
-//   }
-// 
-// 
-//   xL.resize(dim, pow(n1, dim));
-//   Eigen::MatrixXd ID;
-//   ID.resize(dim, pow(n1, dim));
-//   ID.fill(1.);
-//   xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
-// 
-// 
-// }
+
 
 void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
   double h = (b - a) / n1;
