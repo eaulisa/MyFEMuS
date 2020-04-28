@@ -206,7 +206,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
-      double Area = weight;// * sqrt(detg);
+      double Area = weight * sqrt(detg);
       double Area2 = weight; // Trick to give equal weight to each element.
 
       // Compute the metric inverse.

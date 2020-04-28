@@ -78,7 +78,7 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeDx);
       unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
       for(unsigned K = 0; K < DIM; K++) {
-        xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
+        xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
         solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
       }
     }
@@ -124,36 +124,36 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
       const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
 
       // Initialize and compute values of x, Dx, NDx, x_uv at the Gauss points.
-     // double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+      double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
-          //  xhat_uv[K][j] += phix_uv[j][i] * xhat[K][i] ;
+            xhat_uv[K][j] += phix_uv[j][i] * xhat[K][i] ;
             solx_uv[K][j] += phix_uv[j][i] * solx[K][i];
           }
         }
       }
 
-//       // Compute the metric, metric determinant, and area element.
-//       double g[2][2] = {{0., 0.}, {0., 0.}};
-//       for(unsigned i = 0; i < dim; i++) {
-//         for(unsigned j = 0; j < dim; j++) {
-//           for(unsigned K = 0; K < DIM; K++) {
-//             g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
-//           }
-//         }
-//       }
-//       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
+      // Compute the metric, metric determinant, and area element.
+      double g[2][2] = {{0., 0.}, {0., 0.}};
+      for(unsigned i = 0; i < dim; i++) {
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned K = 0; K < DIM; K++) {
+            g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
+          }
+        }
+      }
+      double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
 
       double normal[DIM] = {0., 0., 1.};
 
-//       if(parameter.surface) {
-//         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
-//         normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
-//         normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
-//       }
+      if(parameter.surface) {
+        normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
+        normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
+        normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
+      }
 
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
 
