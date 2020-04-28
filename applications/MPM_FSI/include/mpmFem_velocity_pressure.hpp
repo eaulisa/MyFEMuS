@@ -54,9 +54,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
   vector <vector < double> > vx_hat (dim);
 
   vector< vector< adept::adouble > > SolVd (dim);
-  vector< vector< double > > SolDdOld (dim);
+  vector< vector< double > > SolDd (dim);
   vector< vector< double > > SolVdOld (dim);
-  vector< vector< double > > SolAdOld (dim);
 
   vector< vector< int > > dofsVAR (dim);
 
@@ -83,8 +82,9 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
   std::cout.precision (10);
   std::cout << "Scaling Factor 1 = " << scalingFactor1 << " Scaling Factor 2 = " << scalingFactor2 << std::endl;
 
-  const char varname[4][5] = {"VX", "VY", "VZ", "Mat"};
+  const char varname[7][5] = {"VX", "VY", "VZ", "DX", "DY", "DZ", "Mat"};
   vector <unsigned> indexSolV (dim);
+  vector <unsigned> indexSolD (dim);
   vector <unsigned> indexPdeV (dim);
   unsigned solType = ml_sol->GetSolutionType (&varname[0][0]);
 
@@ -93,6 +93,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
   for (unsigned ivar = 0; ivar < dim; ivar++) {
     indexSolV[ivar] = ml_sol->GetIndex (&varname[ivar][0]);
+    indexSolD[ivar] = ml_sol->GetIndex (&varname[ivar + 3][0]);
     indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex (&varname[ivar][0]);
   }
 
@@ -122,6 +123,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     solidFlag.resize (nDofsV);
     for (unsigned  k = 0; k < dim; k++) {
       SolVd[k].resize (nDofsV);
+      SolDd[k].resize (nDofsV);
       SolVdOld[k].resize (nDofsV);
       vx[k].resize (nDofsV);
       vx_hat[k].resize (nDofsV);
@@ -140,6 +142,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (unsigned  k = 0; k < dim; k++) {
         SolVd[k][i] = (*mysolution->_Sol[indexSolV[k]]) (idof);
+        SolDd[k][i] = (*mysolution->_Sol[indexSolD[k]]) (idof);
         SolVdOld[k][i] = (*mysolution->_SolOld[indexSolV[k]]) (idof);
         sysDof[i + k * nDofsV] = myLinEqSolver->GetSystemDof (indexSolV[k], indexPdeV[k], i, iel);
         vx_hat[k][i] = (*mymsh->_topology->_Sol[k]) (idofX);
@@ -154,10 +157,12 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       vector < double > Xg (dim, 0);
       vector < vector < adept::adouble > > GradSolVgssHat (dim);
+      vector < vector < double > > GradSolDgssHat (dim);
 
       for (unsigned  k = 0; k < dim; k++) {
         GradSolVgssHat[k].resize (dim);
         std::fill (GradSolVgssHat[k].begin(), GradSolVgssHat[k].end(), 0);
+        GradSolDgssHat[k].assign (dim,0.);
       }
 
       for (unsigned i = 0; i < nDofsV; i++) {
@@ -165,6 +170,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
           Xg[j] += phi[i] * vx_hat[j][i];
           for (unsigned  k = 0; k < dim; k++) {
             GradSolVgssHat[k][j] += gradphi_hat[i * dim + j] * SolVd[k][i];
+            GradSolDgssHat[k][j] += gradphi_hat[i * dim + j] * SolDd[k][i];
           }
         }
       }
@@ -180,7 +186,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
         for (unsigned k = 0; k < dim; k++) {
           for (unsigned  j = 0; j < dim; j++) {
-            softStiffness[k]   +=  mu_MPM * gradphi_hat[i * dim + j] * (GradSolVgssHat[k][j] + GradSolVgssHat[j][k]);
+            softStiffness[k]   +=  mu_MPM * gradphi_hat[i * dim + j] * (GradSolVgssHat[k][j] + GradSolVgssHat[j][k]) * dt; //TODO
+//               softStiffness[k]   +=  mu_MPM * gradphi_hat[i * dim + j] * (GradSolDgssHat[k][j] + GradSolDgssHat[j][k]); //note GradSolDgssHat is note an Adept variable as GradSolVgssHat
           }
         }
         for (unsigned  k = 0; k < dim; k++) {
@@ -246,6 +253,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
           dofsVAR[i].resize (nDofsV);
           SolVd[i].resize (nDofsV);
           SolVdOld[i].resize (nDofsV);
+          SolDd[i].resize (nDofsV);
           aRhs[i].resize (nDofsV);
           vx[i].resize (nDofsV);
           vx_hat[i].resize (nDofsV);
@@ -258,11 +266,12 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
           for (int j = 0; j < dim; j++) {
             SolVdOld[j][i] = (*mysolution->_SolOld[indexSolV[j]]) (idof);
             SolVd[j][i] = (*mysolution->_Sol[indexSolV[j]]) (idof);
+            SolDd[j][i] = (*mysolution->_Sol[indexSolD[j]]) (idof);
 
             dofsVAR[j][i] = myLinEqSolver->GetSystemDof (indexSolV[j], indexPdeV[j], i, iel);
             aRhs[j][i] = 0.;
 
-            vx_hat[j][i] = (*mymsh->_topology->_Sol[j]) (idofX) /*+ SolDdOld[j][i]*/; //TODO
+            vx_hat[j][i] = (*mymsh->_topology->_Sol[j]) (idofX);
           }
         }
 
@@ -288,7 +297,10 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
       for (int j = 0; j < dim; j++) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
 //           vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode]; //TODO
-            vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt; 
+          vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt;
+
+// std::cout <<"SolDd["<<j<<"]["<<inode<<"]= " << SolDd[j][inode] << " , " << "SolVd["<<j<<"]["<<inode<<"] * dt = " << SolVd[j][inode] * dt << std::endl;
+
         }
       }
 
@@ -296,16 +308,19 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       //BEGIN evaluates SolVp and GradSolVpHat at the particle iMarker
       vector<adept::adouble> SolVp (dim, 0.);
-      vector<vector < adept::adouble > > GradSolVpHat (dim);
+      vector<vector < adept::adouble > > GradSolVpHat (dim); 
+      vector<vector < double > > GradSolDpHat (dim);
       for (int i = 0; i < dim; i++) {
         GradSolVpHat[i].assign (dim, 0.);
+        GradSolDpHat[i].assign (dim, 0.);
       }
 
       for (int i = 0; i < dim; i++) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
           SolVp[i] += phi[inode] * SolVd[i][inode];
           for (int j = 0; j < dim; j++) {
-            GradSolVpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolVd[i][inode];
+            GradSolVpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolVd[i][inode]; 
+            GradSolDpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolDd[i][inode];
           }
         }
       }
@@ -324,7 +339,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
-          FpNew[i][j] += GradSolVpHat[i][j] * dt;
+          FpNew[i][j] += GradSolVpHat[i][j] * dt; //TODO
+//           FpNew[i][j] += GradSolDpHat[i][j]; // note: GradSolDpHat cannot be an Adept variable like GradSolVpHat
         }
       }
 
@@ -461,8 +477,6 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   vector< vector < double > > SolVd (dim);
   vector< vector < double > > SolVdOld (dim);
   vector< vector < double > > GradSolVpHat (dim);
-//   vector< vector < double > > SolDd (dim); //TODO
-//   vector< vector < double > > SolDdOld (dim); //TODO
 
   for (int i = 0; i < dim; i++) {
     GradSolVpHat[i].resize (dim);
@@ -476,10 +490,11 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
   double weight;
 
-  const char varname[3][3] = {"VX", "VY", "VZ"};
+  const char varname[4][3] = {"VX", "VY", "VZ", "gM"};
   vector <unsigned> indexSolV (dim);
   unsigned solType = ml_sol->GetSolutionType (&varname[0][0]);
 
+  unsigned indexGridMass = ml_sol->GetIndex (&varname[3][0]);
   for (unsigned ivar = 0; ivar < dim; ivar++) {
     indexSolV[ivar] = ml_sol->GetIndex (&varname[ivar][0]);
   }
@@ -520,7 +535,7 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
             SolVdOld[i][inode] = (*mysolution->_SolOld[indexSolV[i]]) (idof);
             SolVd[i][inode] = (*mysolution->_Sol[indexSolV[i]]) (idof);
 
-            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX) /*+ SolDdOld[i][inode]*/; //TODO I think SolDdOld should be zero
+            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX);
           }
         }
 
@@ -600,24 +615,183 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   }
   //END loop on particles
 
-//TODO do we need what's below??
-  //BEGIN loop on elements to set displacement to zero
-//   for (unsigned idof = mymsh->_dofOffset[solType][iproc]; idof < mymsh->_dofOffset[solType][iproc + 1]; idof++) {
-// 
-//     for (int i = 0; i < dim; i++) {
-//       mysolution->_Sol[indexSolD[i]]->set (idof, 0.);
-//     }
-// 
-//   }
-// 
-//   for (int i = 0; i < dim; i++) {
-//     mysolution->_Sol[indexSolD[i]]->close();
-//   }
-  //END loop on elements to set displacement to zero
-
   linea.UpdateLineMPM();
 
   linea.GetParticlesToGridMaterial();
+}
+
+void ParticlesToGridProjection (MultiLevelProblem & ml_prob, Line & linea) {
+
+  clock_t AssemblyTime = 0;
+  clock_t start_time, end_time;
+
+  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("MPM_FSI");
+  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
+  MultiLevelSolution* ml_sol = ml_prob._ml_sol;
+  Solution* mysolution = ml_sol->GetSolutionLevel (level);
+
+  Mesh* mymsh = ml_prob._ml_msh->GetLevel (level);
+  elem* myel = mymsh->el;
+
+  double dt =  my_nnlin_impl_sys.GetIntervalTime();
+  const unsigned dim = mymsh->GetDimension();
+
+  unsigned iproc  = mymsh->processor_id();
+
+  vector < double > phi_hat;
+  vector < double > gradphi_hat;
+  vector < double > nablaphi_hat;
+
+  vector <vector < double> > vx_hat (dim);
+
+  double weight;
+
+  const char varname[7][3] = {"VX", "VY", "VZ", "DX", "DY", "DZ", "gM"};
+  vector <unsigned> indexSolV (dim);
+  vector <unsigned> indexSolD (dim);
+  unsigned solType = ml_sol->GetSolutionType (&varname[0][0]);
+
+  unsigned indexGridMass = ml_sol->GetIndex (&varname[6][0]);
+  for (unsigned ivar = 0; ivar < dim; ivar++) {
+    indexSolV[ivar] = ml_sol->GetIndex (&varname[ivar][0]);
+    indexSolD[ivar] = ml_sol->GetIndex (&varname[ivar + 3][0]);
+  }
+
+  std::vector<unsigned> markerOffset = linea.GetMarkerOffset();
+  unsigned markerOffset1 = markerOffset[iproc];
+  unsigned markerOffset2 = markerOffset[iproc + 1];
+  std::vector<Marker*> particles = linea.GetParticles();
+
+  unsigned ielOld = UINT_MAX;
+
+  //BEGIN loop on elements to set grid mass and displacement to zero
+  for (unsigned idof = mymsh->_dofOffset[solType][iproc]; idof < mymsh->_dofOffset[solType][iproc + 1]; idof++) {
+    mysolution->_Sol[indexGridMass]->set (idof, 0.);
+    for (int i = 0; i < dim; i++) {
+      mysolution->_Sol[indexSolD[i]]->set (idof, 0.);
+    }
+  }
+  mysolution->_Sol[indexGridMass]->close();
+  for (int i = 0; i < dim; i++) {
+    mysolution->_Sol[indexSolD[i]]->close();
+  }
+  //END loop on elements to set grid mass and displacement to zero
+
+
+  //BEGIN loop on particles to build grid mass
+  for (unsigned iMarker = markerOffset1; iMarker < markerOffset2; iMarker++) {
+
+    unsigned iel = particles[iMarker]->GetMarkerElement();
+
+    if (iel != UINT_MAX) {
+
+      short unsigned ielt;
+      unsigned nve;
+
+      if (iel != ielOld) {
+
+        ielt = mymsh->GetElementType (iel);
+        nve = mymsh->GetElementDofNumber (iel, solType);
+
+        for (int i = 0; i < dim; i++) {
+          vx_hat[i].resize (nve);
+        }
+
+        for (unsigned inode = 0; inode < nve; inode++) {
+          unsigned idofX = mymsh->GetSolutionDof (inode, iel, 2);
+
+          for (int i = 0; i < dim; i++) {
+            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX);
+          }
+        }
+
+      }
+
+      std::vector <double> xi = particles[iMarker]->GetMarkerLocalCoordinates();
+
+      mymsh->_finiteElement[ielt][solType]->Jacobian (vx_hat, xi, weight, phi_hat, gradphi_hat, nablaphi_hat);
+
+      double particleMass = particles[iMarker]->GetMarkerMass();
+
+      for (unsigned inode = 0; inode < nve; inode++) {
+        unsigned idof = mymsh->GetSolutionDof (inode, iel, solType);
+        double massGridLocal = phi_hat[inode] * particleMass;
+        mysolution->_Sol[indexGridMass]->add (idof, massGridLocal);
+      }
+
+      ielOld = iel;
+
+    }
+
+    else {
+      break;
+    }
+  }
+
+  mysolution->_Sol[indexGridMass]->close();
+//END loop on particles to build grid mass
+
+//BEGIN loop on particles to build grid displacement
+  for (unsigned iMarker = markerOffset1; iMarker < markerOffset2; iMarker++) {
+
+    unsigned iel = particles[iMarker]->GetMarkerElement();
+
+    if (iel != UINT_MAX) {
+
+      short unsigned ielt;
+      unsigned nve;
+
+      if (iel != ielOld) {
+
+        ielt = mymsh->GetElementType (iel);
+        nve = mymsh->GetElementDofNumber (iel, solType);
+
+        for (int i = 0; i < dim; i++) {
+          vx_hat[i].resize (nve);
+        }
+
+        for (unsigned inode = 0; inode < nve; inode++) {
+          unsigned idofX = mymsh->GetSolutionDof (inode, iel, 2);
+
+          for (int i = 0; i < dim; i++) {
+            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX);
+          }
+        }
+
+      }
+
+      std::vector <double> xi = particles[iMarker]->GetMarkerLocalCoordinates();
+
+      mymsh->_finiteElement[ielt][solType]->Jacobian (vx_hat, xi, weight, phi_hat, gradphi_hat, nablaphi_hat);
+
+      double particleMass = particles[iMarker]->GetMarkerMass();
+
+      std::vector <double> particleDisp (dim);
+      particles[iMarker]->GetMarkerDisplacement (particleDisp);
+
+      for (unsigned inode = 0; inode < nve; inode++) {
+        unsigned idof = mymsh->GetSolutionDof (inode, iel, solType);
+        double inodeGridMass = (*mysolution->_Sol[indexGridMass]) (idof);
+        for (int i = 0; i < dim; i++) {
+          double dispLocal = (fabs(inodeGridMass) > 1.e-7) ? (phi_hat[inode] * particleMass * particleDisp[i]) / inodeGridMass : 0.;
+          mysolution->_Sol[indexSolD[i]]->add (idof, dispLocal);
+        }
+      }
+
+      ielOld = iel;
+
+    }
+
+    else {
+      break;
+    }
+  }
+
+  for (int i = 0; i < dim; i++) {
+    mysolution->_Sol[indexSolD[i]]->close();
+  }
+//END loop on particles to build grid displacement
+
 }
 
 
