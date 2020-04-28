@@ -462,11 +462,9 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   vector< vector < double > > GradSolVpHat (dim);
   vector< vector < double > > SolDd (dim); //TODO
   vector< vector < double > > SolDdOld (dim); //TODO
-  vector< vector < double > > GradSolDpHat (dim); //TODO
 
   for (int i = 0; i < dim; i++) {
     GradSolVpHat[i].resize (dim);
-    GradSolDpHat[i].resize (dim); //TODO
   }
 
   vector < double > phi_hat;
@@ -521,8 +519,7 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
             SolVdOld[i][inode] = (*mysolution->_SolOld[indexSolV[i]]) (idof);
             SolVd[i][inode] = (*mysolution->_Sol[indexSolV[i]]) (idof);
 
-            //moving domain
-            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX) /*+ SolDdOld[i][inode]*/; //TODO
+            vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX) /*+ SolDdOld[i][inode]*/; //TODO I think SolDdOld should be zero
           }
         }
 
