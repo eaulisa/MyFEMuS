@@ -287,7 +287,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (int j = 0; j < dim; j++) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
-          vx[j][inode] = vx_hat[j][inode] /*+ SolDd[j][inode]*/; //TODO
+//           vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode]; //TODO
+            vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt; 
         }
       }
 
@@ -460,8 +461,8 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   vector< vector < double > > SolVd (dim);
   vector< vector < double > > SolVdOld (dim);
   vector< vector < double > > GradSolVpHat (dim);
-  vector< vector < double > > SolDd (dim); //TODO
-  vector< vector < double > > SolDdOld (dim); //TODO
+//   vector< vector < double > > SolDd (dim); //TODO
+//   vector< vector < double > > SolDdOld (dim); //TODO
 
   for (int i = 0; i < dim; i++) {
     GradSolVpHat[i].resize (dim);
