@@ -159,7 +159,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
       for (unsigned  k = 0; k < dim; k++) {
         GradSolVgssHat[k].resize (dim);
         std::fill (GradSolVgssHat[k].begin(), GradSolVgssHat[k].end(), 0);
-        GradSolDgssHat[k].assign (dim,0.);
+        GradSolDgssHat[k].assign (dim, 0.);
       }
 
       for (unsigned i = 0; i < nDofsV; i++) {
@@ -291,8 +291,9 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (int j = 0; j < dim; j++) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
-          vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode]; //TODO
-//           vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt;
+          vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt; //TODO
+//           vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode];
+
 
 // std::cout <<"SolDd["<<j<<"]["<<inode<<"]= " << SolDd[j][inode] << " , " << "SolVd["<<j<<"]["<<inode<<"] * dt = " << SolVd[j][inode] * dt << std::endl;
 
@@ -303,7 +304,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       //BEGIN evaluates SolVp and GradSolVpHat at the particle iMarker
       vector<adept::adouble> SolVp (dim, 0.);
-      vector<vector < adept::adouble > > GradSolVpHat (dim); 
+      vector<vector < adept::adouble > > GradSolVpHat (dim);
       vector<vector < double > > GradSolDpHat (dim);
       for (int i = 0; i < dim; i++) {
         GradSolVpHat[i].assign (dim, 0.);
@@ -314,7 +315,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
           SolVp[i] += phi[inode] * SolVd[i][inode];
           for (int j = 0; j < dim; j++) {
-            GradSolVpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolVd[i][inode]; 
+            GradSolVpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolVd[i][inode];
             GradSolDpHat[i][j] +=  gradphi_hat[inode * dim + j] * SolDd[i][inode];
           }
         }
@@ -764,7 +765,7 @@ void ParticlesToGridProjection (MultiLevelProblem & ml_prob, Line & linea) {
         unsigned idof = mymsh->GetSolutionDof (inode, iel, solType);
         double inodeGridMass = (*mysolution->_Sol[indexGridMass]) (idof);
         for (int i = 0; i < dim; i++) {
-          double dispLocal = (fabs(inodeGridMass) > 1.e-7) ? (phi_hat[inode] * particleMass * particleDisp[i]) / inodeGridMass : 0.;
+          double dispLocal = (fabs (inodeGridMass) > 1.e-7) ? (phi_hat[inode] * particleMass * particleDisp[i]) / inodeGridMass : 0.;
           mysolution->_Sol[indexSolD[i]]->add (idof, dispLocal);
         }
       }
