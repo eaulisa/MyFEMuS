@@ -31,7 +31,147 @@ void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp,
 void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::MatrixXd &xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX);
 void Testing(double& a, double& b, const unsigned& m, const unsigned& dim, Eigen::MatrixXd &x, Eigen::VectorXd &w_new);
 
+void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl,
+                       const double &a, const double &b, const std::vector < double> &xc, const double & R,
+                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+
+
+  unsigned m1 = ceil(pow(5., 1. / dim) * (2 * ng - 1));
+  double dp = (b - a) / m1;
+  double deps = (b - a) * eps;
+
+  double dlb = sqrt((a - xc[0]) * (a - xc[0]) + (a - xc[1]) * (a - xc[1]));
+  double drb = sqrt((b - xc[0]) * (b - xc[0]) + (a - xc[1]) * (a - xc[1]));
+  double dlt = sqrt((a - xc[0]) * (a - xc[0]) + (b - xc[1]) * (b - xc[1]));
+  double drt = sqrt((b - xc[0]) * (b - xc[0]) + (b - xc[1]) * (b - xc[1]));
+
+  double R1 = dlb;
+  if(R1 > drb) R1 = drb;
+  if(R1 > dlt) R1 = dlt;
+  if(R1 > drt) R1 = drt;
+
+  double R2 = dlb;
+  if(R2 < drb) R2 = drb;
+  if(R2 < dlt) R2 = dlt;
+  if(R2 < drt) R2 = drt;
+
+  unsigned nr1 = ceil(((R - eps) - R1) / dp);
+  unsigned nr2 = ceil((R2 - (R + eps)) / dp);
+
+  double dr1 = (((R - eps) - R1)) / nr1;
+  double dr2 = ((R2 - (R + eps))) / nr2;
+
+  double dbl = (2. * eps) / nbl;
+
+  xp.resize(dim);
+  for(unsigned k = 0; k<dim; k++) {
+    xp[k].reserve(2 * pow(m1,dim));
+  }
+  wp.reserve(2 * pow(m1,dim));
+  dist.reserve(2 * pow(m1,dim));
+  unsigned cnt = 0;
+  for(unsigned i = 0; i < nr1; i++) {
+    double ri = R1 + (i + 0.5) * dr1;
+    unsigned nti = ceil(2 * M_PI * ri / dr1);
+    double dti = 2 * M_PI / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = j * dti;
+      double x = xc[0] + ri*cos(tj);
+      double y = xc[1] + ri *sin(tj);
+      if( x > a && x < b && y > a && y < b ){
+        for(unsigned k = 0; k<dim; k++) {
+          xp[k].resize(cnt + 1);
+        }        
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+                
+        xp[0][cnt] = x;
+        xp[1][cnt] = y;
+        wp[cnt] = ri * dti * dr1;
+        dist[cnt] = R - ri;
+        
+        std::cout << x << " " << y << " " <<dist[cnt] << " " << wp[cnt]<< std::endl;
+        
+        cnt++;
+        
+      }
+    }
+  }
+  
+  for(unsigned i = 0; i < nbl; i++) {
+    double ri = (R - eps) + (i + 0.5) * dbl;
+    unsigned nti = ceil(2 * M_PI * ri / dbl);
+    double dti = 2 * M_PI / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = j * dti;
+      double x = xc[0] + ri*cos(tj);
+      double y = xc[1] + ri *sin(tj);
+      if( x > a && x < b && y > a && y < b ){
+        for(unsigned k = 0; k<dim; k++) {
+          xp[k].resize(cnt + 1);
+        }        
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+                
+        xp[0][cnt] = x;
+        xp[1][cnt] = y;
+        wp[cnt] = ri * dti * dbl;
+        dist[cnt] = R - ri;
+        
+        std::cout << x << " " << y << " " <<dist[cnt] << " " << wp[cnt]<< std::endl;
+        
+        cnt++;
+        
+      }
+    }
+  }
+  
+  
+  
+  
+  for(unsigned i = 0; i < nr2; i++) {
+    double ri = (R + eps) + (i + 0.5) * dr2;
+    unsigned nti = ceil(2 * M_PI * ri / dr2);
+    double dti = 2 * M_PI / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = j * dti;
+      double x = xc[0] + ri*cos(tj);
+      double y = xc[1] + ri *sin(tj);
+      if( x > a && x < b && y > a && y < b ){
+        for(unsigned k = 0; k<dim; k++) {
+          xp[k].resize(cnt + 1);
+        }        
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+                
+        xp[0][cnt] = x;
+        xp[1][cnt] = y;
+        wp[cnt] = ri * dti * dr2;
+        dist[cnt] = R - ri;
+        
+        std::cout << x << " " << y << " " <<dist[cnt] << " " << wp[cnt]<< std::endl;
+        
+        cnt++;
+        
+      }
+    }
+  }
+  
+  
+  
+  
+
+
+}
+
 int main(int argc, char** args) {
+
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp1;
+  std::vector <double> dist;
+  InitParticlesDisk(2, 5, 0.01, 5, 1, 2.5, {0.1, 0.3}, 1.8, xp, wp1, dist);
+
+return 1;
 
   unsigned dim = 2;
   double a = 0;
@@ -39,6 +179,7 @@ int main(int argc, char** args) {
   unsigned n1 = 10;// particles in one direction
   unsigned np = pow(n1, dim);
   unsigned NG = 30; // Gauss points
+
   unsigned m = 4; // Polynomial degree
   Eigen::MatrixXd x;
   Eigen::MatrixXd xL;
