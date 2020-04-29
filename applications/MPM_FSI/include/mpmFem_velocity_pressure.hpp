@@ -55,7 +55,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
   vector< vector< adept::adouble > > SolVd (dim);
   vector< vector< double > > SolDd (dim);
-  vector< vector< double > > SolVdOld (dim);
 
   vector< vector< int > > dofsVAR (dim);
 
@@ -97,8 +96,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex (&varname[ivar][0]);
   }
 
-  unsigned indexSolMat = ml_sol->GetIndex (&varname[3][0]);
-  unsigned solTypeMat = ml_sol->GetSolutionType (&varname[3][0]);
+  unsigned indexSolMat = ml_sol->GetIndex (&varname[6][0]);
+  unsigned solTypeMat = ml_sol->GetSolutionType (&varname[6][0]);
 
   start_time = clock();
 
@@ -124,7 +123,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     for (unsigned  k = 0; k < dim; k++) {
       SolVd[k].resize (nDofsV);
       SolDd[k].resize (nDofsV);
-      SolVdOld[k].resize (nDofsV);
       vx[k].resize (nDofsV);
       vx_hat[k].resize (nDofsV);
     }
@@ -143,7 +141,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
       for (unsigned  k = 0; k < dim; k++) {
         SolVd[k][i] = (*mysolution->_Sol[indexSolV[k]]) (idof);
         SolDd[k][i] = (*mysolution->_Sol[indexSolD[k]]) (idof);
-        SolVdOld[k][i] = (*mysolution->_SolOld[indexSolV[k]]) (idof);
         sysDof[i + k * nDofsV] = myLinEqSolver->GetSystemDof (indexSolV[k], indexPdeV[k], i, iel);
         vx_hat[k][i] = (*mymsh->_topology->_Sol[k]) (idofX);
       }
@@ -252,7 +249,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
         for (int i = 0; i < dim; i++) {
           dofsVAR[i].resize (nDofsV);
           SolVd[i].resize (nDofsV);
-          SolVdOld[i].resize (nDofsV);
           SolDd[i].resize (nDofsV);
           aRhs[i].resize (nDofsV);
           vx[i].resize (nDofsV);
@@ -264,7 +260,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
           unsigned idof = mymsh->GetSolutionDof (i, iel, solType);
           unsigned idofX = mymsh->GetSolutionDof (i, iel, 2);
           for (int j = 0; j < dim; j++) {
-            SolVdOld[j][i] = (*mysolution->_SolOld[indexSolV[j]]) (idof);
             SolVd[j][i] = (*mysolution->_Sol[indexSolV[j]]) (idof);
             SolDd[j][i] = (*mysolution->_Sol[indexSolD[j]]) (idof);
 
@@ -296,8 +291,8 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
       for (int j = 0; j < dim; j++) {
         for (unsigned inode = 0; inode < nDofsV; inode++) {
-//           vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode]; //TODO
-          vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt;
+          vx[j][inode] = vx_hat[j][inode] + SolDd[j][inode]; //TODO
+//           vx[j][inode] = vx_hat[j][inode] + SolVd[j][inode] * dt;
 
 // std::cout <<"SolDd["<<j<<"]["<<inode<<"]= " << SolDd[j][inode] << " , " << "SolVd["<<j<<"]["<<inode<<"] * dt = " << SolVd[j][inode] * dt << std::endl;
 
@@ -475,7 +470,6 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   unsigned iproc  = mymsh->processor_id();
 
   vector< vector < double > > SolVd (dim);
-  vector< vector < double > > SolVdOld (dim);
   vector< vector < double > > GradSolVpHat (dim);
 
   for (int i = 0; i < dim; i++) {
@@ -523,7 +517,6 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
         for (int i = 0; i < dim; i++) {
           SolVd[i].resize (nve);
-          SolVdOld[i].resize (nve);
           vx_hat[i].resize (nve);
         }
 
@@ -532,9 +525,7 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
           unsigned idofX = mymsh->GetSolutionDof (inode, iel, 2);
 
           for (int i = 0; i < dim; i++) {
-            SolVdOld[i][inode] = (*mysolution->_SolOld[indexSolV[i]]) (idof);
             SolVd[i][inode] = (*mysolution->_Sol[indexSolV[i]]) (idof);
-
             vx_hat[i][inode] = (*mymsh->_topology->_Sol[i]) (idofX);
           }
         }
