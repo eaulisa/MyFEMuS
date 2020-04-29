@@ -394,7 +394,6 @@ double GetDistance(const Eigen::VectorXd &x) {
 
 }
 
-
 void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
   double h = (b - a) / n1;
   x.resize(dim, pow(n1, dim));
