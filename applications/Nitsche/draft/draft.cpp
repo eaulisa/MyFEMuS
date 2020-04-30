@@ -29,7 +29,8 @@ void AssembleMatEigenOnDisk(double& a, double& b, const unsigned int& m, const u
                             Eigen::MatrixXd& A, Eigen::VectorXd& F);
 void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp, Eigen::VectorXd &w_new);
 void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Eigen::MatrixXd &xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX);
-void Testing(double& a, double& b, const unsigned& m, const unsigned& dim, Eigen::MatrixXd &x, Eigen::VectorXd &w_new);
+void Testing(double& a, double& b, const unsigned& m, const unsigned& dim, Eigen::MatrixXd &x,
+             Eigen::VectorXd &w_new, std::vector<double> &dist, const double &eps);
 
 
 double get_g(const double &r, const double &T, const unsigned &n) {
@@ -50,21 +51,21 @@ double get_r(const double &T, const unsigned &n) {
 
 
 
-void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl,
+void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
                        const double &a, const double &b, const std::vector < double> &xc, const double & R,
                        std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
 
-  unsigned m1 = ceil(pow(2., 1. / dim) * (2 * ng - 1));
+  unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
   double dp = (b - a) / m1;
   double deps = (b - a) * eps;
-  
-  unsigned nr1 = ceil(((R - eps)) / dp);
-  unsigned nr2 = ceil((2 * R - (R + eps)) / dp);
 
-  double dr1 = ((R - eps)) / nr1;
-  double dr2 = (2 * R - (R + eps)) / nr2;
-  double dbl = (2. * eps) / nbl;
+  unsigned nr1 = ceil(((R - deps)) / dp);
+  unsigned nr2 = ceil((2 * R - (R + deps)) / dp);
+
+  double dr1 = ((R - deps)) / nr1;
+  double dr2 = (2 * R - (R + deps)) / nr2;
+  double dbl = (2. * deps) / nbl;
 
   xp.resize(dim);
   for(unsigned k = 0; k < dim; k++) {
@@ -74,7 +75,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
   dist.reserve(2 * pow(m1, dim));
   unsigned cnt = 0;
 
-  for(unsigned i = 0; i < nr1 - 2; i++) {
+  for(unsigned i = 0; i < nr1 - 2 * gradedbl; i++) {
     double ri = (i + 0.5) * dr1;
     unsigned nti = ceil(2 * M_PI * ri / dr1);
     double dti = 2 * M_PI / nti;
@@ -92,39 +93,37 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[0][cnt] = x;
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr1;
-        dist[cnt] = (R - ri)/eps;
-
+        dist[cnt] = (R - ri) / deps;
         std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
         cnt++;
 
       }
     }
-    std::cout <<std::endl;
+    std::cout << std::endl;
   }
 
-  {
+  if(gradedbl) {
     double T = 7.;
 
     double scale = (2.* dr1) / (T * dbl);
     unsigned n1 = 3;
-    
+
     if(n1 > 1 && scale < 1.) {
       T = T - 2;
       scale = (2.* dr1) / (T * dbl);
       n1--;
     }
 
-    double r =(n1 > 0)? get_r(T, n1): 1.;
-    double dri =(n1 > 0)? scale * dbl * pow(r, n1) : 2. * dr1;
-    
-    double ri = R - eps - 2. * dr1;
+    double r = (n1 > 0) ? get_r(T, n1) : 1.;
+    double dri = (n1 > 0) ? scale * dbl * pow(r, n1) : 2. * dr1;
+
+    double ri = R - deps - 2. * dr1;
     for(unsigned i = 0; i <= n1; i++) {
       ri += 0.5 * dri;
       unsigned nti = ceil(2.5 * M_PI * ri / dr1);
       double dti = 2 * M_PI / nti;
       for(unsigned j = 0; j < nti; j++) {
-        double tj = (i*dti)/(n1+1) + j * dti;
+        double tj = (i * dti) / (n1 + 1) + j * dti;
         double x = xc[0] + ri * cos(tj);
         double y = xc[1] + ri * sin(tj);
         if(x > a && x < b && y > a && y < b) {
@@ -137,7 +136,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[0][cnt] = x;
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
-          dist[cnt] = (R - ri)/eps;
+          dist[cnt] = (R - ri);
 
           std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
@@ -145,7 +144,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
         }
       }
-      std::cout <<std::endl;
+      std::cout << std::endl;
       //std::cout << ri <<" "<<dri << std::endl;
       ri += 0.5 * dri;
       dri /= r;
@@ -153,57 +152,62 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
   }
 
 
-  for(unsigned i = 0; i < nbl; i++) {
-    double ri = (R - eps) + (i + 0.5) * dbl;
-    unsigned nti = ceil(3 * M_PI * ri / (0.5 * ( dr1 + dr2 ) ));
-    double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
-      double tj = (i * dti)/(nbl) + j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > a && x < b && y > a && y < b) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dbl;
-        dist[cnt] = (R - ri)/eps;
-
-        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-        cnt++;
-
-      }
-    }
-    std::cout <<std::endl;
-  }
-  
   {
+    //for(unsigned j = 0; j < nti; j++) {
+    for(unsigned i = 0; i < nbl; i++) {
+      double ri = (R - deps) + (i + 0.5) * dbl;
+      unsigned nti = ceil(4 * M_PI * R / (0.5 * (dr1 + dr2)));
+      //unsigned nti = ceil(2 * M_PI * ri / (2 * eps) );
+      double dti = 2 * M_PI / nti;
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = /*(i * dti) / (nbl)*/ + j * dti;
+
+        double x = xc[0] + ri * cos(tj);
+        double y = xc[1] + ri * sin(tj);
+        if(x > a && x < b && y > a && y < b) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = x;
+          xp[1][cnt] = y;
+          wp[cnt] = ri * dti * dbl;
+
+          dist[cnt] = (R - ri);
+
+          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+          cnt++;
+
+        }
+      }
+      std::cout << std::endl;
+    }
+  }
+  if(gradedbl) {
     double T = 7.;
 
     double scale = (2.* dr2) / (T * dbl);
     unsigned n2 = 3;
-    
+
     if(n2 > 1 && scale < 1.) {
       T = T - 2;
       scale = (2.* dr1) / (T * dbl);
       n2--;
     }
 
-    double r =(n2 > 0)? get_r(T, n2): 1.;
-    double dri =(n2 > 0)? scale * dbl : 2. * dr2;
-    
-    double ri = R + eps;
+    double r = (n2 > 0) ? get_r(T, n2) : 1.;
+    double dri = (n2 > 0) ? scale * dbl : 2. * dr2;
+
+    double ri = R + deps;
     for(unsigned i = 0; i <= n2; i++) {
       ri += 0.5 * dri;
       unsigned nti = ceil(2.5 * M_PI * ri / dr2);
       double dti = 2 * M_PI / nti;
       for(unsigned j = 0; j < nti; j++) {
-        double tj = (i * dti)/(n2 + 1.) + j * dti;
+        double tj = (i * dti) / (n2 + 1.) + j * dti;
         double x = xc[0] + ri * cos(tj);
         double y = xc[1] + ri * sin(tj);
         if(x > a && x < b && y > a && y < b) {
@@ -216,7 +220,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[0][cnt] = x;
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
-          dist[cnt] = (R - ri)/eps;
+          dist[cnt] = (R - ri);
 
           std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
@@ -224,16 +228,17 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
         }
       }
-      std::cout <<std::endl;
+      std::cout << std::endl;
       //std::cout << ri <<" "<<dri << std::endl;
       ri += 0.5 * dri;
       dri *= r;
     }
   }
-  
-  
-  for(unsigned i = 2; i < nr2; i++) {
-    double ri = (R + eps) + (i + 0.5) * dr2;
+
+
+  for(unsigned i = 2 * gradedbl; i < nr2; i++) {
+
+    double ri = (R + deps) + (i + 0.5) * dr2;
     unsigned nti = ceil(2 * M_PI * ri / dr2);
     double dti = 2 * M_PI / nti;
     for(unsigned j = 0; j < nti; j++) {
@@ -250,44 +255,70 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[0][cnt] = x;
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr2;
-        dist[cnt] = (R - ri)/eps;
+        dist[cnt] = (R - ri);
 
         std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+        dist[cnt] = R - ri;
 
         cnt++;
 
       }
     }
-    std::cout <<std::endl;
+    std::cout << std::endl;
   }
-  
+
+
   std::cout << cnt << " " << pow(m1, dim) << std::endl;
+
+
+
+
+
 
 }
 
 int main(int argc, char** args) {
 
-  std::vector < std::vector <double> > xp;
-  std::vector <double> wp1;
-  std::vector <double> dist;
-  InitParticlesDisk(2, 5, 0.005, 4, 1, 2.5, {0.1, 0.3}, 1.8, xp, wp1, dist);
 
-  return 1;
 
   unsigned dim = 2;
-  double a = 0;
-  double b = 1;
-  unsigned n1 = 10;// particles in one direction
-  unsigned np = pow(n1, dim);
-  unsigned NG = 30; // Gauss points
-
+  double a = 0.;
+  double b = 1.;
+  //unsigned n1 = 10;// particles in one direction
+  //unsigned np = pow(n1, dim);
+  unsigned NG = 5; // Gauss points
   unsigned m = 4; // Polynomial degree
-  Eigen::MatrixXd x;
-  Eigen::MatrixXd xL;
-  //GetParticlesOnBox(a, b, n1, dim, x, xL);
 
-  GetParticleOnDisk(a, b, n1, dim, x, xL);
-  unsigned nq = x.row(0).size();
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  double eps = 0.001;
+  unsigned nbl = 5;
+  bool gradedbl = false;
+  InitParticlesDisk(dim, NG, eps, nbl, gradedbl, a, b, {0., 0.}, .75, xp, wp, dist);
+  
+  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
+
+  Eigen::MatrixXd xP(xp.size(), xp[0].size());
+  for(int i = 0; i < xp.size(); ++i) {
+    xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
+  }
+
+  unsigned nq = xP.row(0).size();
+  Eigen::MatrixXd xL;
+  xL.resize(dim, nq);
+  Eigen::MatrixXd ID;
+  ID.resize(dim, nq);
+  ID.fill(1.);
+  xL = (2. / (b - a)) * xP - ((b + a) / (b - a)) * ID;
+
+//   for(unsigned j = 0; j < xP.cols(); j++) {
+//     std::cout << xL(0, j) << " " << xL(1, j) << std::endl;
+//   }
+
+
+
 
   Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
   //GetChebXInfo(m, dim, np, xL, PmX);
@@ -296,24 +327,25 @@ int main(int argc, char** args) {
   Eigen::VectorXd xg;
   Eigen::VectorXd wg;
   GetGaussPointsWeights(NG, xg, wg);
-
   Eigen::MatrixXd Pg;
   Cheb(m, xg, Pg);
 
   Eigen::MatrixXd A;
   Eigen::VectorXd F;
-  //AssembleMatEigen(a, b, m, dim, np, PmX, Pg, wg, A, F);
-  AssembleMatEigenOnDisk(a, b, m, dim, nq, PmX, Pg, xg, wg, A, F);
+  AssembleMatEigen(a, b, m, dim, nq, PmX, Pg, wg, A, F);
+  //AssembleMatEigenOnDisk(a, b, m, dim, nq, PmX, Pg, xg, wg, A, F);
 
 
   //Eigen::VectorXd wp(np);
-  Eigen::VectorXd wp(nq);
-  wp.fill(pow(b - a, dim) / np);
+  //Eigen::VectorXd wp(nq);
+  //wp.fill(pow(b - a, dim) / np);
 
   Eigen::VectorXd w_new;
-  SolWeightEigen(A, F, wp, w_new);
+  SolWeightEigen(A, F, wP, w_new);
 
-  Testing(a, b, m, dim, x, w_new);
+
+
+  Testing(a, b, m, dim, xP, w_new, dist, eps);
 
 
   return 0;
@@ -497,20 +529,47 @@ void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp,
 }
 
 
-void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen::MatrixXd &x, Eigen::VectorXd &w_new) {
+void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen::MatrixXd &x,
+             Eigen::VectorXd &w_new, std::vector<double> &dist, const double &eps) {
+
+
+  double deps = (b - a) * eps;
+
+  double a0 = 0.5; // 128./256.;
+  double a1 = pow(deps, -1.) * 1.23046875; // 315/256.;
+  double a3 = -pow(deps, -3.) * 1.640625; //420./256.;
+  double a5 = pow(deps, -5.) * 1.4765625; // 378./256.;
+  double a7 = -pow(deps, -7.) * 0.703125; // 180./256.;
+  double a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
 
   double s = 0;
+  double area = 0;
+
   for(unsigned i = 0; i < w_new.size(); i++) {
+
+    double dg1 = dist[i];
+    double dg2 = dg1 * dg1;
+    double xi;
+    if(dg1 < -deps)
+      xi = 0.;
+    else if(dg1 > deps) {
+      xi = 1.;
+    }
+    else {
+      xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+    }
+    area = area + xi * w_new(i);
     double r = 1;
     for(unsigned k = 0; k < dim; k++) {
       r = r * x(k, i);
     }
-    s = s  /*pow(r, m)*/ + w_new(i);
+    s = s + pow(r, m) * w_new(i);
   }
-  //double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
-  std::cout << s << " " << M_PI * 0.75 * 0.75 / 4. << std::endl;
-  double err = (s - M_PI * 0.75 * 0.75 / 4.) / s;
-  std::cout << "Error is: " << err << std::endl;
+  double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
+  std::cout << "Quadrature Error is: " << err << std::endl;
+
+  err = (area - M_PI * 0.75 * 0.75 / 4.) / area;
+  std::cout << "Area Error is: " << err << std::endl;
 
 }
 
@@ -635,7 +694,6 @@ double GetDistance(const Eigen::VectorXd &x) {
   return radius - sqrt(rx);
 
 }
-
 
 void  GetParticleOnDisk(const double &a, const double &b, const unsigned &n1, const unsigned &dim, Eigen::MatrixXd &x, Eigen::MatrixXd &xL) {
   double h = (b - a) / n1;
