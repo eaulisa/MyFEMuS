@@ -1,4 +1,7 @@
 
+
+double surfaceArea0;
+
 // Building the Conformal Minimization system.
 void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
@@ -94,6 +97,48 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   KK->zero();  // Zero all the entries of the Global Matrix
   RES->zero(); // Zero all the entries of the Global Residual
 
+  double surfaceArea = 0.;
+
+  // Setting up solLambda1 (vol) and solLambda2 (area).
+  unsigned solLambda1PdeIndex;
+
+  double solLambda1 = 0.;
+  unsigned lambda1PdeDof;
+
+  if(areaConstraint) {
+    unsigned solLambda1Index;
+    solLambda1Index = mlSol->GetIndex("Lambda1");
+    solLambda1PdeIndex = mlPdeSys->GetSolPdeIndex("Lambda1");
+
+    if(areaConstraint) {
+      double lambda1;
+      if(iproc == 0) {
+        lambda1 = (*sol->_Sol[solLambda1Index])(0);  // global to local solution
+        lambda1PdeDof = pdeSys->GetSystemDof(solLambda1Index, solLambda1PdeIndex, 0, 0);
+      }
+      MPI_Bcast(&lambda1, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&lambda1PdeDof, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+      solLambda1 = lambda1;
+    }
+    std::vector < double > value(2);
+    std::vector < int > row(1);
+    std::vector < int > columns(2);
+    value[0] = 1;
+    value[1] = -1;
+    columns[1] = lambda1PdeDof;
+
+    // For equations other than Lagrange multiplier:
+    for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      if(iel > 0) {
+        row[0] = pdeSys->GetSystemDof(solLambda1Index, solLambda1PdeIndex, 0, iel);
+        columns[0] = row[0];
+        KK->add_matrix_blocked(value, row, columns);
+      }
+    }
+  }
+
+
+
   // ELEMENT LOOP: each process loops only on the elements that it owns.
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -110,7 +155,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     }
 
     // Resize local arrays
-    unsigned sizeAll = DIM * nxDofs + nLDofs;
+    unsigned sizeAll = DIM * nxDofs + nLDofs + areaConstraint;
 
     SYSDOF.resize(sizeAll);
     Res.assign(sizeAll, 0.);
@@ -125,7 +170,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       for(unsigned K = 0; K < DIM; K++) {
         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
-        solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_SolOld[solDxIndex[K]])(iDDof);;
+        solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_SolOld[solDxIndex[K]])(iDDof);
         // Global-to-global mapping between NDx solution node and pdeSys dof.
         SYSDOF[ K * nxDofs + i] = pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
@@ -142,6 +187,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         // Global-to-global mapping between Lambda solution node and pdeSys dof.
         SYSDOF[DIM * nxDofs + i] = pdeSys->GetSystemDof(solLIndex, solLPdeIndex, i, iel);
       }
+    }
+
+    if(areaConstraint) {
+      SYSDOF[sizeAll - 1u ] = lambda1PdeDof;
     }
 
 
@@ -225,13 +274,13 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
 
       double mu[2] = {0., 0.};
-      const double *phiMu = msh->_finiteElement[ielGeom][solTypeMu]->GetPhi(ig);  // local test function
-      for(unsigned i = 0; i < nDofsMu; i++) {
-        for(unsigned k = 0; k < 2; k++) {
-          mu[k] += phiMu[i] * solMu[k][i];
-        }
-      }
-
+//       const double *phiMu = msh->_finiteElement[ielGeom][solTypeMu]->GetPhi(ig);  // local test function
+//       for(unsigned i = 0; i < nDofsMu; i++) {
+//         for(unsigned k = 0; k < 2; k++) {
+//           mu[k] += phiMu[i] * solMu[k][i];
+//         }
+//       }
+      
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
       boost::math::quaternion <double> e1(0., 1., 0., 0.);
       boost::math::quaternion <double> e2(0., 0., 1., 0.);
@@ -393,6 +442,44 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           }
         }
       }
+
+
+      if(areaConstraint) {
+        unsigned irow = sizeAll - 1;
+        unsigned istart = irow * sizeAll;
+        for(unsigned J = 0; J < DIM; J++) {
+          for(unsigned j = 0; j < nxDofs; j++) {
+            double term = 0.;
+            for(unsigned ii = 0; ii < dim; ii++) {
+              for(unsigned jj = 0; jj < dim; jj++) {
+                term +=  gi[ii][jj] * xhat_uv[J][ii]  *  phix_uv[jj][j]  ;
+              }
+            }
+            Jac[istart + J * nxDofs + j] += term * Area;
+            Res[irow] -= term * solDx[J][j] * Area;
+          }
+        }
+
+
+        for(unsigned I = 0; I < DIM; I++) {
+          for(unsigned i = 0; i < nxDofs; i++) {
+            unsigned irow = I * nxDofs + i;
+            unsigned istart = irow * sizeAll;
+            double term = 0.;
+            for(unsigned ii = 0; ii < dim; ii++) {
+              for(unsigned jj = 0; jj < dim; jj++) {
+                term +=  gi[ii][jj] * xhat_uv[I][ii]  *  phix_uv[jj][i]  ;
+              }
+            }
+            Jac[istart + DIM * nxDofs] += term * Area;
+            Res[irow] -= term * solLambda1 * Area;
+          }
+        }
+
+        surfaceArea += Area;
+
+      }
+
     } // end GAUSS POINT LOOP
 
     //------------------------------------------------------------------------
@@ -408,9 +495,17 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
+  double surfaceAreaAll;
+  MPI_Reduce(&surfaceArea, &surfaceAreaAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if(counter == 0) surfaceArea0 = surfaceAreaAll;
+  std::cout << "SURFACE = " << surfaceAreaAll << " SURFACE0 = " << surfaceArea0
+            <<  " error = " << (surfaceArea0 - surfaceAreaAll) / surfaceArea0 << std::endl;
+
+
+
   counter++;
 
-//     //VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
+//   VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
 //     MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
 //
 //     PetscViewer    viewer;

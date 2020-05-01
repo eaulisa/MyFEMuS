@@ -17,6 +17,7 @@
 
 unsigned counter = 0;
 const double eps = 1.e-5;
+bool areaConstraint = true;
 
 using namespace femus;
 
@@ -26,7 +27,7 @@ Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
 #include "../include/updateMu1.hpp"
-#include "../include/assembleConformalMinimization1.hpp"
+#include "../include/assembleConformalMinimization6.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -157,6 +158,8 @@ int main(int argc, char** args) {
 
   if(parameter.constraintIsOn) mlSol.AddSolution("Lambda", LAGRANGE, feOrder, 0);
 
+  if(areaConstraint) mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+
   mlSol.AddSolution("ENVN", LAGRANGE, feOrder, 0, false);
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -206,6 +209,10 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Dx2");
   if(parameter.surface) system.AddSolutionToSystemPDE("Dx3");
   if(parameter.constraintIsOn) system.AddSolutionToSystemPDE("Lambda");
+  if(areaConstraint) {
+    system.AddSolutionToSystemPDE("Lambda1");
+    system.SetNumberOfGlobalVariables(1);
+  }
 
   // Parameters for convergence and # of iterations.
   system.SetMaxNumberOfNonLinearIterations(parameter.numberOfNonLinearSteps);
@@ -231,7 +238,7 @@ int main(int argc, char** args) {
   mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   system.CopySolutionToOldSolution();
-  for(unsigned k = 0; k < parameter.numberOfIterations + 2; k++) {
+  for(unsigned k = 0; k < parameter.numberOfIterations; k++) {
     system.MGsolve();
     //ProjectSolution(mlSol);
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k + 1);
@@ -239,7 +246,7 @@ int main(int argc, char** args) {
   }
 
   EvaluateMu(mlSol);
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, parameter.numberOfIterations + 2);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, parameter.numberOfIterations);
   parameter.print();
 
   return 0;
@@ -265,26 +272,12 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
       dirichlet = false;
     }
     if(4 == faceName) {
-      if(time == 0) {
-        value = 0;
-      }
-      else if(time <= parameter.numberOfIterations) {
-        value = (time - 1) / parameter.numberOfIterations * 0.75 * sin(x[1] / 0.5 * M_PI);
-      }
-      else {
-        value = 0.75 * sin(x[1] / 0.5 * M_PI);
-      }
+      value = time / parameter.numberOfIterations * 0.75 * sin(x[1] / 0.5 * M_PI);
     }
   }
-
   else if(!strcmp(solName, "Dx2")) {
     if(2 == faceName) {
       dirichlet = false;
-    }
-    if(time < 1.5) {
-      if(4 == faceName) {
-        dirichlet = false;
-      }
     }
   }
 
