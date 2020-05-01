@@ -32,6 +32,8 @@ void GetChebXInfo(const unsigned& m, const unsigned& dim, const unsigned& np, Ei
 void Testing(double& a, double& b, const unsigned& m, const unsigned& dim, Eigen::MatrixXd &x,
              Eigen::VectorXd &w_new, std::vector<double> &dist, const double &eps);
 
+void PrintMarkers(const unsigned &dim, const Eigen::MatrixXd &xP, const std::vector <double> &dist,
+                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new);
 
 double get_g(const double &r, const double &T, const unsigned &n) {
   double rn = pow(r, n);
@@ -67,6 +69,8 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
   double dr2 = (2 * R - (R + deps)) / nr2;
   double dbl = (2. * deps) / nbl;
 
+  double area = 0.;
+
   xp.resize(dim);
   for(unsigned k = 0; k < dim; k++) {
     xp[k].reserve(2 * pow(m1, dim));
@@ -94,12 +98,12 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr1;
         dist[cnt] = (R - ri) / deps;
-        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+        area += ri * dti * dr1;
         cnt++;
 
       }
     }
-    std::cout << std::endl;
   }
 
   if(gradedbl) {
@@ -138,14 +142,14 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
 
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          area += ri * dti * dri;
+
+         
 
           cnt++;
 
         }
       }
-      std::cout << std::endl;
-      //std::cout << ri <<" "<<dri << std::endl;
       ri += 0.5 * dri;
       dri /= r;
     }
@@ -177,13 +181,12 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
           dist[cnt] = (R - ri);
 
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          area += ri * dti * dbl;
 
           cnt++;
 
         }
       }
-      std::cout << std::endl;
     }
   }
   if(gradedbl) {
@@ -222,14 +225,12 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
 
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          area += ri * dti * dri;
 
           cnt++;
 
         }
       }
-      std::cout << std::endl;
-      //std::cout << ri <<" "<<dri << std::endl;
       ri += 0.5 * dri;
       dri *= r;
     }
@@ -257,7 +258,9 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         wp[cnt] = ri * dti * dr2;
         dist[cnt] = (R - ri);
 
-        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+        area += ri * dti * dr2;
+
+        
 
         dist[cnt] = R - ri;
 
@@ -265,12 +268,11 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
       }
     }
-    std::cout << std::endl;
   }
 
 
   std::cout << cnt << " " << pow(m1, dim) << std::endl;
-
+  std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
 
 
 
@@ -292,12 +294,13 @@ int main(int argc, char** args) {
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
-  std::vector <double> dist;
-  double eps = 0.001;
+
+  double eps = 0.0001;
   unsigned nbl = 5;
   bool gradedbl = false;
+  std::vector< double > dist;
   InitParticlesDisk(dim, NG, eps, nbl, gradedbl, a, b, {0., 0.}, .75, xp, wp, dist);
-  
+
   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 
   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -347,6 +350,7 @@ int main(int argc, char** args) {
 
   Testing(a, b, m, dim, xP, w_new, dist, eps);
 
+  PrintMarkers(dim, xP, dist, wP, w_new);
 
   return 0;
 }
@@ -528,6 +532,24 @@ void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wp,
 
 }
 
+void PrintMarkers(const unsigned &dim, const Eigen::MatrixXd &xP, const std::vector <double> &dist,
+                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new) {
+
+
+  std::ofstream fout;
+
+  fout.open("marker.txt");
+  for(unsigned i = 0; i < w_new.size(); i++) {
+      
+    for(unsigned k = 0; k < dim; k++) {
+      fout << xP(k, i) << " ";
+    }
+    fout <<  dist[i] << " " << wP[i] << " " << w_new[i] << std::endl;
+  }
+  
+  fout.close();
+
+}
 
 void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen::MatrixXd &x,
              Eigen::VectorXd &w_new, std::vector<double> &dist, const double &eps) {
@@ -543,7 +565,7 @@ void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen
   double a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
 
   double s = 0;
-  double area = 0;
+  double integral = 0;
 
   for(unsigned i = 0; i < w_new.size(); i++) {
 
@@ -558,18 +580,21 @@ void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen
     else {
       xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
     }
-    area = area + xi * w_new(i);
+    integral += xi * (0.75 * 0.75 - x(0, i) * x(0, i) - x(1, i) * x(1, i)) * w_new(i);
     double r = 1;
     for(unsigned k = 0; k < dim; k++) {
       r = r * x(k, i);
     }
-    s = s + pow(r, m) * w_new(i);
+    s += pow(r, m) * w_new(i);
   }
   double err = (s - pow((pow(b, m + 1) - pow(a, m + 1)) / (m + 1), dim)) / s;
   std::cout << "Quadrature Error is: " << err << std::endl;
 
-  err = (area - M_PI * 0.75 * 0.75 / 4.) / area;
-  std::cout << "Area Error is: " << err << std::endl;
+  double exactIntegral = M_PI * 0.75 * 0.75 * 0.75 * 0.75 / 8.;
+  std::cout << "Integral = " << integral <<  " exact Integral = " << exactIntegral << std::endl;
+
+  err = fabs((integral - exactIntegral) / exactIntegral);
+  std::cout << "Integral Error is: " << err << std::endl;
 
 }
 
