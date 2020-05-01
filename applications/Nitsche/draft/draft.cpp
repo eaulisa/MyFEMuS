@@ -295,7 +295,7 @@ int main(int argc, char** args) {
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
 
-  double eps = 0.0001;
+  double eps = 0.0005;
   unsigned nbl = 5;
   bool gradedbl = false;
   std::vector< double > dist;
@@ -319,9 +319,6 @@ int main(int argc, char** args) {
 //   for(unsigned j = 0; j < xP.cols(); j++) {
 //     std::cout << xL(0, j) << " " << xL(1, j) << std::endl;
 //   }
-
-
-
 
   Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
   //GetChebXInfo(m, dim, np, xL, PmX);
