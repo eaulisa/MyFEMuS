@@ -14,7 +14,7 @@
 #include "NumericVector.hpp"
 #include "adept.h"
 
-#include "../include/mpmFem.hpp"
+#include "../include/mpmFemVelocity.hpp"
 
 using namespace femus;
 
@@ -27,13 +27,13 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
   bool test = 1; //dirichlet
   value = 0.;
 
-  if (!strcmp (name, "DX")) {
+  if (!strcmp (name, "VX")) {
     if (2 == facename || 4 == facename) {
       test = 0;
       value = 0;
     }
   }
-  else if (!strcmp (name, "DY")) {
+  else if (!strcmp (name, "VY")) {
     if (3 == facename) {
       test = 0;
       value = 0;
@@ -87,10 +87,15 @@ int main (int argc, char** args) {
 
   MultiLevelSolution mlSol (&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
+//   mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
+//   if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
+//   if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
 
+  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 2);
+  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 2);
+  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 2);
+
+  
   mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
@@ -99,9 +104,14 @@ int main (int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
 
   // ******* Set boundary conditions *******
-  mlSol.GenerateBdc ("DX", "Steady");
-  if (dim > 1) mlSol.GenerateBdc ("DY", "Steady");
-  if (dim > 2) mlSol.GenerateBdc ("DZ", "Steady");
+//   mlSol.GenerateBdc ("DX", "Steady");
+//   if (dim > 1) mlSol.GenerateBdc ("DY", "Steady");
+//   if (dim > 2) mlSol.GenerateBdc ("DZ", "Steady");
+  
+  mlSol.GenerateBdc ("VX", "Steady");
+  if (dim > 1) mlSol.GenerateBdc ("VY", "Steady");
+  if (dim > 2) mlSol.GenerateBdc ("VZ", "Steady");
+  
   mlSol.GenerateBdc ("M", "Steady");
 
   MultiLevelProblem ml_prob (&mlSol);
@@ -111,16 +121,19 @@ int main (int argc, char** args) {
 
   // ******* Add MPM system to the MultiLevel problem *******
   TransientNonlinearImplicitSystem& system = ml_prob.add_system < TransientNonlinearImplicitSystem > ("MPM_FEM");
-  system.AddSolutionToSystemPDE ("DX");
-  if (dim > 1) system.AddSolutionToSystemPDE ("DY");
-  if (dim > 2) system.AddSolutionToSystemPDE ("DZ");
+//   system.AddSolutionToSystemPDE ("DX");
+//   if (dim > 1) system.AddSolutionToSystemPDE ("DY");
+//   if (dim > 2) system.AddSolutionToSystemPDE ("DZ");
 
+  system.AddSolutionToSystemPDE ("VX");
+  if (dim > 1) system.AddSolutionToSystemPDE ("VY");
+  if (dim > 2) system.AddSolutionToSystemPDE ("VZ");
+  
   // ******* System MPM Assembly *******
   system.SetAssembleFunction (AssembleMPMSys);
   //system.SetAssembleFunction(AssembleFEM);
   // ******* set MG-Solver *******
   system.SetMgType (V_CYCLE);
-
 
   system.SetAbsoluteLinearConvergenceTolerance (1.0e-10);
   system.SetMaxNumberOfLinearIterations (1);
@@ -141,37 +154,6 @@ int main (int argc, char** args) {
   system.SetPreconditionerFineGrids (ILU_PRECOND);
 
   system.SetTolerances (1.e-10, 1.e-15, 1.e+50, 40, 40);
-
-//   unsigned rows = 2*60;
-//   unsigned columns = 2*120;
-//   unsigned size = rows * columns;
-//
-//   std::vector < std::vector < double > > x; // marker
-//   std::vector < MarkerType > markerType;
-//
-//   x.resize(size);
-//   markerType.resize(size);
-//
-//   std::vector < std::vector < std::vector < double > > > line(1);
-//   std::vector < std::vector < std::vector < double > > > line0(1);
-//
-//   for (unsigned j = 0; j < size; j++) {
-//     x[j].assign(dim, 0.);
-//     markerType[j] = VOLUME;
-//   }
-//
-//   //BEGIN initialization
-//   for (unsigned i = 0; i < rows; i++) {
-//     for (unsigned j = 0; j < columns; j++) {
-//
-//       x[i * columns + j][0] = -0.5 + ((0.625 - 0.000001) / (columns - 1)) * j;
-//       x[i * columns + j][1] = -0.0625 + ((0.25 - 0.000001) / (rows - 1)) * i;
-//       if (dim == 3) {
-//         x[j][2] = 0.;
-//       }
-//     }
-//   }
-//   //END
 
 
   double L = 0.625;
@@ -299,11 +281,11 @@ int main (int argc, char** args) {
   // ******* Print solution *******
   mlSol.SetWriter (VTK);
 
-  std::vector<std::string> mov_vars;
-  mov_vars.push_back ("DX");
-  mov_vars.push_back ("DY");
+  //std::vector<std::string> mov_vars;
+  //mov_vars.push_back ("DX");
+  //mov_vars.push_back ("DY");
   //mov_vars.push_back("DZ");
-  mlSol.GetWriter()->SetMovingMesh (mov_vars);
+  //mlSol.GetWriter()->SetMovingMesh (mov_vars);
 
   std::vector<std::string> print_vars;
   print_vars.push_back ("All");
