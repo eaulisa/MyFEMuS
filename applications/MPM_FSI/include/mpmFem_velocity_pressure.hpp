@@ -97,7 +97,7 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
     indexSolD[ivar] = ml_sol->GetIndex (&varname[ivar][0]);
     indexSolV[ivar] = ml_sol->GetIndex (&varname[ivar + 3][0]);
     indexSolA[ivar] = ml_sol->GetIndex (&varname[ivar + 6][0]);
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex (&varname[ivar][0]);
+    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex (&varname[ivar + 3][0]);
   }
 
   unsigned indexSolMat = ml_sol->GetIndex (&varname[9][0]);
