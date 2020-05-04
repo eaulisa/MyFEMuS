@@ -463,9 +463,6 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
 void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
-  clock_t AssemblyTime = 0;
-  clock_t start_time, end_time;
-
   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("MPM_FSI");
   const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
   MultiLevelSolution* ml_sol = ml_prob._ml_sol;
@@ -686,20 +683,15 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   linea.GetParticlesToGridMaterial();
 }
 
-void ParticlesToGridProjection (MultiLevelProblem & ml_prob, Line & linea) {
+void ParticlesToGridProjection (MultiLevelSolution & mlSol, Line & linea) {
+    
+  const unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+  Mesh* msh = mlSol._mlMesh->GetLevel (level);
+  Solution* mysolution = mlSol.GetSolutionLevel (level);
 
-  clock_t AssemblyTime = 0;
-  clock_t start_time, end_time;
-
-  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("MPM_FSI");
-  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
-  MultiLevelSolution* ml_sol = ml_prob._ml_sol;
-  Solution* mysolution = ml_sol->GetSolutionLevel (level);
-
-  Mesh* mymsh = ml_prob._ml_msh->GetLevel (level);
+  Mesh* mymsh = mlSol._mlMesh->GetLevel (level);
   elem* myel = mymsh->el;
 
-  double dt =  my_nnlin_impl_sys.GetIntervalTime();
   const unsigned dim = mymsh->GetDimension();
 
   unsigned iproc  = mymsh->processor_id();
@@ -716,13 +708,13 @@ void ParticlesToGridProjection (MultiLevelProblem & ml_prob, Line & linea) {
   vector <unsigned> indexSolD (dim);
   vector <unsigned> indexSolV (dim);
   vector <unsigned> indexSolA (dim);
-  unsigned solType = ml_sol->GetSolutionType (&varname[3][0]);
+  unsigned solType = mlSol.GetSolutionType (&varname[3][0]);
 
-  unsigned indexGridMass = ml_sol->GetIndex (&varname[9][0]);
+  unsigned indexGridMass = mlSol.GetIndex (&varname[9][0]);
   for (unsigned ivar = 0; ivar < dim; ivar++) {
-    indexSolD[ivar] = ml_sol->GetIndex (&varname[ivar][0]);
-    indexSolV[ivar] = ml_sol->GetIndex (&varname[ivar + 3][0]);
-    indexSolA[ivar] = ml_sol->GetIndex (&varname[ivar + 6][0]);
+    indexSolD[ivar] = mlSol.GetIndex (&varname[ivar][0]);
+    indexSolV[ivar] = mlSol.GetIndex (&varname[ivar + 3][0]);
+    indexSolA[ivar] = mlSol.GetIndex (&varname[ivar + 6][0]);
   }
 
   std::vector<unsigned> markerOffset = linea.GetMarkerOffset();

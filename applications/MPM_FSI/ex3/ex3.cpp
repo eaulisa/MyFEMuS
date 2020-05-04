@@ -284,8 +284,8 @@ int main (int argc, char** args) {
 
     system.CopySolutionToOldSolution(); //TODO keep or erase?
     
-    ParticlesToGridProjection (ml_prob, *linea);
-
+    ParticlesToGridProjection (mlSol, *linea);
+    
     system.MGsolve();
 
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
