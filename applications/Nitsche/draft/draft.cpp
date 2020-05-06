@@ -14,12 +14,6 @@
 //
 
 
-void PrintMat(std::vector< std::vector<double> >& M);
-
-void PrintVec(std::vector<double>& v);
-
-
-
 double a0, a1, a3, a5, a7, a9;
 void SetConstants(const double &eps);
 double GetDistance(const Eigen::VectorXd &x);
@@ -789,29 +783,6 @@ void SetConstants(const double & eps) {
 }
 
 
-
-
-
-
-void PrintMat(std::vector< std::vector<double> >& M) {
-
-  for(unsigned i = 0; i < M.size(); i++) {
-    for(unsigned j = 0; j < M[i].size(); j++) {
-      std::cout << M[i][j] << " ";
-    }
-    std::cout << std::endl;
-  }
-  std::cout << "\n" << std::endl;
-}
-
-
-void PrintVec(std::vector<double>& v) {
-  for(unsigned i = 0; i < v.size(); i++) {
-
-    std::cout << v[i] << " ";
-  }
-  std::cout << "\n" << std::endl;
-}
 
 
 
