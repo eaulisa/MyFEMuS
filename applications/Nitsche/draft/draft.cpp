@@ -14,6 +14,11 @@
 //
 
 
+void PrintMat(std::vector< std::vector<double> >& M);
+
+void PrintVec(std::vector<double>& v);
+
+
 
 double a0, a1, a3, a5, a7, a9;
 void SetConstants(const double &eps);
@@ -98,6 +103,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr1;
         dist[cnt] = (R - ri) / deps;
+        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
         area += ri * dti * dr1;
         cnt++;
@@ -141,10 +147,11 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
+          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dri;
 
-         
+
 
           cnt++;
 
@@ -180,6 +187,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           wp[cnt] = ri * dti * dbl;
 
           dist[cnt] = (R - ri);
+          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dbl;
 
@@ -224,6 +232,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
+          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dri;
 
@@ -257,10 +266,11 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr2;
         dist[cnt] = (R - ri);
+        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
         area += ri * dti * dr2;
 
-        
+
 
         dist[cnt] = R - ri;
 
@@ -271,8 +281,8 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
   }
 
 
-  std::cout << cnt << " " << pow(m1, dim) << std::endl;
-  std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
+  //std::cout << cnt << " " << pow(m1, dim) << std::endl;
+  //std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
 
 
 
@@ -289,7 +299,7 @@ int main(int argc, char** args) {
   double b = 1.;
   //unsigned n1 = 10;// particles in one direction
   //unsigned np = pow(n1, dim);
-  unsigned NG = 5; // Gauss points
+  unsigned NG = 10; // Gauss points
   unsigned m = 4; // Polynomial degree
 
   std::vector < std::vector <double> > xp;
@@ -537,13 +547,13 @@ void PrintMarkers(const unsigned &dim, const Eigen::MatrixXd &xP, const std::vec
 
   fout.open("marker.txt");
   for(unsigned i = 0; i < w_new.size(); i++) {
-      
+
     for(unsigned k = 0; k < dim; k++) {
       fout << xP(k, i) << " ";
     }
     fout <<  dist[i] << " " << wP[i] << " " << w_new[i] << std::endl;
   }
-  
+
   fout.close();
 
 }
@@ -783,6 +793,25 @@ void SetConstants(const double & eps) {
 
 
 
+void PrintMat(std::vector< std::vector<double> >& M) {
+
+  for(unsigned i = 0; i < M.size(); i++) {
+    for(unsigned j = 0; j < M[i].size(); j++) {
+      std::cout << M[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+  std::cout << "\n" << std::endl;
+}
+
+
+void PrintVec(std::vector<double>& v) {
+  for(unsigned i = 0; i < v.size(); i++) {
+
+    std::cout << v[i] << " ";
+  }
+  std::cout << "\n" << std::endl;
+}
 
 
 
