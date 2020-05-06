@@ -96,8 +96,8 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[0][cnt] = x;
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr1;
-        dist[cnt] = (R - ri) / deps;
-        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+        dist[cnt] = (R - ri);
+        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
         area += ri * dti * dr1;
         cnt++;
@@ -141,7 +141,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dri;
 
@@ -181,7 +181,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           wp[cnt] = ri * dti * dbl;
 
           dist[cnt] = (R - ri);
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dbl;
 
@@ -226,7 +226,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
           xp[1][cnt] = y;
           wp[cnt] = ri * dti * dri;
           dist[cnt] = (R - ri);
-          std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
           area += ri * dti * dri;
 
@@ -260,7 +260,7 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
         xp[1][cnt] = y;
         wp[cnt] = ri * dti * dr2;
         dist[cnt] = (R - ri);
-        std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
         area += ri * dti * dr2;
 
@@ -299,7 +299,7 @@ int main(int argc, char** args) {
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
 
-  double eps = 0.0005;
+  double eps = 0.001;
   unsigned nbl = 5;
   bool gradedbl = false;
   std::vector< double > dist;
