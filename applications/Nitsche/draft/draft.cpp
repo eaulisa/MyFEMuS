@@ -50,26 +50,25 @@ double get_r(const double &T, const unsigned &n) {
 }
 
 
+void InitParticlesDiskOld(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
+                          const double &a, const double &b, const std::vector < double> &xc, const double & R,
+                          std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist);
 
 
-void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
-                       const double &a, const double &b, const std::vector < double> &xc, const double & R,
+void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const bool &gradedbl, const double &eps, const double &factor,
+                       const double &a, const double &b,
+                       const std::vector < double> &xc, const double & R,
                        std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
 
   unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
   double dp = (b - a) / m1;
-  double deps = (b - a) * eps;
-
-  unsigned nr1 = ceil(((R - deps)) / dp);
-  unsigned nr2 = ceil((2 * R - (R + deps)) / dp);
-
-  double dr1 = ((R - deps)) / nr1;
-  double dr2 = (2 * R - (R + deps)) / nr2;
-  double dbl = (2. * deps) / nbl;
+  double dr0 = (gradedbl) ? (b - a) * eps : dp;
 
   double area = 0.;
 
+  std::cout << dp <<std::endl;
+  
   xp.resize(dim);
   for(unsigned k = 0; k < dim; k++) {
     xp[k].reserve(2 * pow(m1, dim));
@@ -78,9 +77,11 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
   dist.reserve(2 * pow(m1, dim));
   unsigned cnt = 0;
 
-  for(unsigned i = 0; i < nr1 - 2 * gradedbl; i++) {
-    double ri = (i + 0.5) * dr1;
-    unsigned nti = ceil(2 * M_PI * ri / dr1);
+
+  {
+    double dr = dr0;
+    double ri = R;
+    unsigned nti = ceil(2 * M_PI * ri / dr);
     double dti = 2 * M_PI / nti;
     for(unsigned j = 0; j < nti; j++) {
       double tj = j * dti;
@@ -95,78 +96,29 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
         xp[0][cnt] = x;
         xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr1;
+        wp[cnt] = ri * dti * dr;
         dist[cnt] = (R - ri);
-        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
-        area += ri * dti * dr1;
+        area += ri * dti * dr;
         cnt++;
 
       }
-    }
-  }
-
-  if(gradedbl) {
-    double T = 7.;
-
-    double scale = (2.* dr1) / (T * dbl);
-    unsigned n1 = 3;
-
-    if(n1 > 1 && scale < 1.) {
-      T = T - 2;
-      scale = (2.* dr1) / (T * dbl);
-      n1--;
-    }
-
-    double r = (n1 > 0) ? get_r(T, n1) : 1.;
-    double dri = (n1 > 0) ? scale * dbl * pow(r, n1) : 2. * dr1;
-
-    double ri = R - deps - 2. * dr1;
-    for(unsigned i = 0; i <= n1; i++) {
-      ri += 0.5 * dri;
-      unsigned nti = ceil(2.5 * M_PI * ri / dr1);
-      double dti = 2 * M_PI / nti;
-      for(unsigned j = 0; j < nti; j++) {
-        double tj = (i * dti) / (n1 + 1) + j * dti;
-        double x = xc[0] + ri * cos(tj);
-        double y = xc[1] + ri * sin(tj);
-        if(x > a && x < b && y > a && y < b) {
-          for(unsigned k = 0; k < dim; k++) {
-            xp[k].resize(cnt + 1);
-          }
-          wp.resize(cnt + 1);
-          dist.resize(cnt + 1);
-
-          xp[0][cnt] = x;
-          xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dri;
-          dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-          area += ri * dti * dri;
-
-
-
-          cnt++;
-
-        }
-      }
-      ri += 0.5 * dri;
-      dri /= r;
     }
   }
 
 
   {
-    //for(unsigned j = 0; j < nti; j++) {
-    for(unsigned i = 0; i < nbl; i++) {
-      double ri = (R - deps) + (i + 0.5) * dbl;
-      unsigned nti = ceil(4 * M_PI * R / (0.5 * (dr1 + dr2)));
-      //unsigned nti = ceil(2 * M_PI * ri / (2 * eps) );
+    double dr = dr0;
+    double drm = (dr * factor <= dp) ? dr * factor : dp;
+    double ri = R - 0.5 * (dr + drm);
+
+    while(ri >= 0) {
+      dr = drm;
+      std::cout << dr <<std::endl;
+      unsigned nti = ceil(2 * M_PI * ri / dr);
       double dti = 2 * M_PI / nti;
       for(unsigned j = 0; j < nti; j++) {
-        double tj = /*(i * dti) / (nbl)*/ + j * dti;
-
+        double tj = j * dti;
         double x = xc[0] + ri * cos(tj);
         double y = xc[1] + ri * sin(tj);
         if(x > a && x < b && y > a && y < b) {
@@ -178,41 +130,31 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
           xp[0][cnt] = x;
           xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dbl;
-
+          wp[cnt] = ri * dti * dr;
           dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
-          area += ri * dti * dbl;
-
+          area += ri * dti * dr;
           cnt++;
 
         }
       }
+      drm = (dr * factor <= dp) ? dr * factor : dp;
+      ri -= 0.5 * (dr + drm);
     }
   }
-  if(gradedbl) {
-    double T = 7.;
 
-    double scale = (2.* dr2) / (T * dbl);
-    unsigned n2 = 3;
+  {
+    double dr = dr0;
+    double drp = (dr * factor <= dp) ? dr * factor : dp;
+    double ri = R + 0.5 * (dr + drp);
 
-    if(n2 > 1 && scale < 1.) {
-      T = T - 2;
-      scale = (2.* dr1) / (T * dbl);
-      n2--;
-    }
-
-    double r = (n2 > 0) ? get_r(T, n2) : 1.;
-    double dri = (n2 > 0) ? scale * dbl : 2. * dr2;
-
-    double ri = R + deps;
-    for(unsigned i = 0; i <= n2; i++) {
-      ri += 0.5 * dri;
-      unsigned nti = ceil(2.5 * M_PI * ri / dr2);
+    while(ri <= 2. * R) {
+      dr = drp;
+      std::cout << dr <<std::endl;
+      unsigned nti = ceil(2 * M_PI * ri / dr);
       double dti = 2 * M_PI / nti;
       for(unsigned j = 0; j < nti; j++) {
-        double tj = (i * dti) / (n2 + 1.) + j * dti;
+        double tj = j * dti;
         double x = xc[0] + ri * cos(tj);
         double y = xc[1] + ri * sin(tj);
         if(x > a && x < b && y > a && y < b) {
@@ -224,64 +166,20 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng, const double &ep
 
           xp[0][cnt] = x;
           xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dri;
+          wp[cnt] = ri * dti * dr;
           dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
 
-          area += ri * dti * dri;
-
+          area += ri * dti * dr;
           cnt++;
 
         }
       }
-      ri += 0.5 * dri;
-      dri *= r;
+      drp = (dr * factor <= dp) ? dr * factor : dp;
+      ri += 0.5 * (dr + drp);
     }
   }
-
-
-  for(unsigned i = 2 * gradedbl; i < nr2; i++) {
-
-    double ri = (R + deps) + (i + 0.5) * dr2;
-    unsigned nti = ceil(2 * M_PI * ri / dr2);
-    double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
-      double tj = j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > a && x < b && y > a && y < b) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr2;
-        dist[cnt] = (R - ri);
-        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-        area += ri * dti * dr2;
-
-
-
-        dist[cnt] = R - ri;
-
-        cnt++;
-
-      }
-    }
-  }
-
-
-  //std::cout << cnt << " " << pow(m1, dim) << std::endl;
-  //std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
-
-
-
-
-
+  
+  std::cout <<" AREA = " << area <<"\n";
 }
 
 int main(int argc, char** args) {
@@ -299,12 +197,15 @@ int main(int argc, char** args) {
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
 
-  double eps = 0.001;
+  double eps = 0.01;
   unsigned nbl = 5;
   bool gradedbl = false;
   std::vector< double > dist;
-  InitParticlesDisk(dim, NG, eps, nbl, gradedbl, a, b, {0., 0.}, .75, xp, wp, dist);
-
+  InitParticlesDiskOld(dim, NG, 0, 1, gradedbl, a, b, {0., 0.}, .75, xp, wp, dist);
+  //InitParticlesDisk(dim, NG, true, 0.2 * eps, 1.5, a, b, {0., 0.}, .75, xp, wp, dist);
+  
+  
+  
   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 
   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -596,7 +497,12 @@ void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen
 
   err = fabs((integral - exactIntegral) / exactIntegral);
   std::cout << "Integral Error is: " << err << std::endl;
+  exactIntegral = 0.124252 - 0.0803248 * deps * deps - 0.00823844 * deps * deps * deps* deps;
+  std::cout << "Integral = " << integral <<  " exact Eps Integral = " << exactIntegral << std::endl;
 
+  err = fabs((integral - exactIntegral) / exactIntegral);
+  std::cout << "Integral Eps Error is: " << err << std::endl;
+  
 }
 
 
@@ -786,6 +692,238 @@ void SetConstants(const double & eps) {
 
 
 
+
+void InitParticlesDiskOld(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
+                          const double &a, const double &b, const std::vector < double> &xc, const double & R,
+                          std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+
+
+  unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
+  double dp = (b - a) / m1;
+  double deps = (b - a) * eps;
+
+  unsigned nr1 = ceil(((R - deps)) / dp);
+  unsigned nr2 = ceil((2 * R - (R + deps)) / dp);
+
+  double dr1 = ((R - deps)) / nr1;
+  double dr2 = (2 * R - (R + deps)) / nr2;
+  double dbl = (2. * deps) / nbl;
+
+  double area = 0.;
+
+  xp.resize(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    xp[k].reserve(2 * pow(m1, dim));
+  }
+  wp.reserve(2 * pow(m1, dim));
+  dist.reserve(2 * pow(m1, dim));
+  unsigned cnt = 0;
+
+  for(unsigned i = 0; i < nr1 - 2 * gradedbl; i++) {
+    double ri = (i + 0.5) * dr1;
+    unsigned nti = ceil(2 * M_PI * ri / dr1);
+    double dti = 2 * M_PI / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = j * dti;
+      double x = xc[0] + ri * cos(tj);
+      double y = xc[1] + ri * sin(tj);
+      if(x > a && x < b && y > a && y < b) {
+        for(unsigned k = 0; k < dim; k++) {
+          xp[k].resize(cnt + 1);
+        }
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+
+        xp[0][cnt] = x;
+        xp[1][cnt] = y;
+        wp[cnt] = ri * dti * dr1;
+        dist[cnt] = (R - ri);
+        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+        area += ri * dti * dr1;
+        cnt++;
+
+      }
+    }
+  }
+
+  if(gradedbl) {
+    double T = 7.;
+
+    double scale = (2.* dr1) / (T * dbl);
+    unsigned n1 = 3;
+
+    if(n1 > 1 && scale < 1.) {
+      T = T - 2;
+      scale = (2.* dr1) / (T * dbl);
+      n1--;
+    }
+
+    double r = (n1 > 0) ? get_r(T, n1) : 1.;
+    double dri = (n1 > 0) ? scale * dbl * pow(r, n1) : 2. * dr1;
+
+    double ri = R - deps - 2. * dr1;
+    for(unsigned i = 0; i <= n1; i++) {
+      ri += 0.5 * dri;
+      unsigned nti = ceil(2.5 * M_PI * ri / dr1);
+      double dti = 2 * M_PI / nti;
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = (i * dti) / (n1 + 1) + j * dti;
+        double x = xc[0] + ri * cos(tj);
+        double y = xc[1] + ri * sin(tj);
+        if(x > a && x < b && y > a && y < b) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = x;
+          xp[1][cnt] = y;
+          wp[cnt] = ri * dti * dri;
+          dist[cnt] = (R - ri);
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+          area += ri * dti * dri;
+
+
+
+          cnt++;
+
+        }
+      }
+      ri += 0.5 * dri;
+      dri /= r;
+    }
+  }
+
+
+  {
+    //for(unsigned j = 0; j < nti; j++) {
+    for(unsigned i = 0; i < nbl; i++) {
+      double ri = (R - deps) + (i + 0.5) * dbl;
+      unsigned nti = ceil(2 * M_PI * R / (0.5 * (dr1 + dr2)));
+      //unsigned nti = ceil(2 * M_PI * ri / (2 * eps) );
+      double dti = 2 * M_PI / nti;
+      for(unsigned j = 0; j < nti+1; j++) {
+        double tj = /*(i * dti) / (nbl)*/ + (j-0.5) * dti;
+
+        double x = xc[0] + ri * cos(tj);
+        double y = xc[1] + ri * sin(tj);
+        if(x > a && x < b && y > a && y < b) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = x;
+          xp[1][cnt] = y;
+          wp[cnt] = ri * dti * dbl;
+
+          dist[cnt] = (R - ri);
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+          area += ri * dti * dbl;
+
+          cnt++;
+
+        }
+      }
+    }
+  }
+  if(gradedbl) {
+    double T = 7.;
+
+    double scale = (2.* dr2) / (T * dbl);
+    unsigned n2 = 3;
+
+    if(n2 > 1 && scale < 1.) {
+      T = T - 2;
+      scale = (2.* dr1) / (T * dbl);
+      n2--;
+    }
+
+    double r = (n2 > 0) ? get_r(T, n2) : 1.;
+    double dri = (n2 > 0) ? scale * dbl : 2. * dr2;
+
+    double ri = R + deps;
+    for(unsigned i = 0; i <= n2; i++) {
+      ri += 0.5 * dri;
+      unsigned nti = ceil(2.5 * M_PI * ri / dr2);
+      double dti = 2 * M_PI / nti;
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = (i * dti) / (n2 + 1.) + j * dti;
+        double x = xc[0] + ri * cos(tj);
+        double y = xc[1] + ri * sin(tj);
+        if(x > a && x < b && y > a && y < b) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = x;
+          xp[1][cnt] = y;
+          wp[cnt] = ri * dti * dri;
+          dist[cnt] = (R - ri);
+          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+          area += ri * dti * dri;
+
+          cnt++;
+
+        }
+      }
+      ri += 0.5 * dri;
+      dri *= r;
+    }
+  }
+
+
+  for(unsigned i = 2 * gradedbl; i < nr2; i++) {
+
+    double ri = (R + deps) + (i + 0.5) * dr2;
+    unsigned nti = ceil(2 * M_PI * ri / dr2);
+    double dti = 2 * M_PI / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = j * dti;
+      double x = xc[0] + ri * cos(tj);
+      double y = xc[1] + ri * sin(tj);
+      if(x > a && x < b && y > a && y < b) {
+        for(unsigned k = 0; k < dim; k++) {
+          xp[k].resize(cnt + 1);
+        }
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+
+        xp[0][cnt] = x;
+        xp[1][cnt] = y;
+        wp[cnt] = ri * dti * dr2;
+        dist[cnt] = (R - ri);
+        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
+
+        area += ri * dti * dr2;
+
+
+
+        dist[cnt] = R - ri;
+
+        cnt++;
+
+      }
+    }
+  }
+
+
+  //std::cout << cnt << " " << pow(m1, dim) << std::endl;
+  //std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
+
+
+
+
+
+}
 
 
 

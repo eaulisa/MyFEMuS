@@ -22,13 +22,13 @@ void PrintVec(std::vector<double>& v);
 double a0, a1, a3, a5, a7, a9;
 double get_g(const double &r, const double &T, const unsigned &n) ;
 double get_r(const double &T, const unsigned &n);
-void InitParticlesDisk(const unsigned &dim, const unsigned &ng,double &xL, double &xR, double &yL, double &yR, 
-                       const std::vector < double> &xc, const double & R, std::vector < std::vector <double> > &xp, 
+void InitParticlesDisk(const unsigned &dim, const unsigned &ng, double &xL, double &xR, double &yL, double &yR,
+                       const std::vector < double> &xc, const double & R, std::vector < std::vector <double> > &xp,
                        std::vector <double> &wp, std::vector <double> &dist);
 
 void InitParticlesDiskOld(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
-                       const double &a, const double &b, const std::vector < double> &xc, const double & R,
-                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist);
+                          const double &a, const double &b, const std::vector < double> &xc, const double & R,
+                          std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist);
 
 
 double GetDistance(const Eigen::VectorXd &x);
@@ -43,7 +43,7 @@ void Testing(double &a, double &b, const unsigned &m, const unsigned &dim, Eigen
              Eigen::VectorXd &w_new, std::vector<double> &dist, const double &eps, double &QuadSum, double &IntSum);
 
 void PrintMarkers(const unsigned &dim, const Eigen::MatrixXd &xP, const std::vector <double> &dist,
-                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new,const unsigned & l, const unsigned & t);
+                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new, const unsigned & l, const unsigned & t);
 int main(int argc, char** args) {
   unsigned dim = 2;
   unsigned NG = 10; // Gauss points
@@ -56,7 +56,7 @@ int main(int argc, char** args) {
   double a = 0.;
   double b = 1.;
   unsigned NP; // generic particle numbers
-  unsigned lmax = 3; // number of refinements
+  unsigned lmax = 4; // number of refinements
   std::vector<double> EQ; // quadrature errors
   std::vector<double> EI; // integral errors
   EQ.resize(lmax + 1);
@@ -310,12 +310,12 @@ void SolWeightEigen(Eigen::MatrixXd &A, Eigen::VectorXd &F, Eigen::VectorXd &wP,
 }
 
 void PrintMarkers(const unsigned &dim, const Eigen::MatrixXd &xP, const std::vector <double> &dist,
-                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new,const unsigned &l ,const unsigned &t) {
+                  const Eigen::VectorXd wP, const Eigen::VectorXd &w_new, const unsigned &l , const unsigned &t) {
 
   std::ofstream fout;
-  
+
   char filename[100];
-  sprintf(filename,"marker%d.txt",l);
+  sprintf(filename, "marker%d.txt", l);
 
   if(t == 0) {
     fout.open(filename);
@@ -479,9 +479,17 @@ double get_r(const double &T, const unsigned &n) {
 
 
 
-void InitParticlesDisk(const unsigned &dim, const unsigned &ng,double &xL, double &xR, double &yL, double &yR, 
-                       const std::vector < double> &xc, const double & R, std::vector < std::vector <double> > &xp, 
+void InitParticlesDisk(const unsigned &dim, const unsigned &ng, double &xL, double &xR, double &yL, double &yR,
+                       const std::vector < double> &xc, const double & R, std::vector < std::vector <double> > &xp,
                        std::vector <double> &wp, std::vector <double> &dist) {
+
+  double theta0 = atan2(yL - xc[1], xR - xc[0]);
+  double theta1 = atan2(yR - xc[1], xL - xc[0]);
+  if(theta0 < 0) theta0 += M_PI;
+  if(theta1 < 0) theta1 += M_PI;
+
+  double R0 = sqrt((xL - xc[0]) * (xL - xc[0]) + (yL - xc[1]) * (yL - xc[1]));
+  double R1 = sqrt((xR - xc[0]) * (xR - xc[0]) + (yR - xc[1]) * (yR - xc[1]));
 
   unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
   double dp = sqrt((xR - xL) * (yR - yL)) / m1;
@@ -497,11 +505,18 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng,double &xL, doubl
   dist.reserve(2 * pow(m1, dim));
   unsigned cnt = 0;
 
-  for(unsigned i = 0; i < nr; i++) {
+  int i0 = floor(R0 / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+  int i1 = ceil(R1 / dr - 0.5);
+  if(i1 > nr - 1) i1 = nr - 1;
+
+  for(unsigned i = i0; i <= i1; i++) {
     double ri = (i + 0.5) * dr;
     unsigned nti = ceil(2 * M_PI * ri / dr);
     double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
+    int j0 = floor(theta0 / dti);
+    int j1 = ceil(theta1 / dti);
+    for(unsigned j = j0; j <= j1; j++) {
       double tj = j * dti;
       double x = xc[0] + ri * cos(tj);
       double y = xc[1] + ri * sin(tj);
@@ -528,7 +543,9 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng,double &xL, doubl
     double ri = R;
     unsigned nti = ceil(2 * M_PI * R / dp); // controls the density of particles on the boundary
     double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
+    int j0 = floor(theta0 / dti);
+    int j1 = ceil(theta1 / dti);
+    for(unsigned j = j0; j <= j1; j++) {
       double tj = j * dti;
 
       double x = xc[0] + ri * cos(tj);
@@ -554,12 +571,22 @@ void InitParticlesDisk(const unsigned &dim, const unsigned &ng,double &xL, doubl
     }
   }
 
-  for(unsigned i = 0; i < nr; i++) {
+
+  i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+
+  i1 = floor((R1 - (R + 0.5 * dp)) / dr - 0.5);
+  if(i1 > nr - 1) i1 = nr - 1;
+
+  for(unsigned i = i0; i <= i1; i++) {
 
     double ri = (R + 0.5 * dp) + (i + 0.5) * dr;
     unsigned nti = ceil(2 * M_PI * ri / dr);
     double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
+
+    int j0 = floor(theta0 / dti);
+    int j1 = ceil(theta1 / dti);
+    for(unsigned j = j0; j <= j1; j++) {
       double tj = j * dti;
       double x = xc[0] + ri * cos(tj);
       double y = xc[1] + ri * sin(tj);
@@ -625,8 +652,8 @@ void PrintVec(std::vector<double>& v) {
 
 
 void InitParticlesDiskOld(const unsigned &dim, const unsigned &ng, const double &eps, const unsigned &nbl, const bool &gradedbl,
-                       const double &a, const double &b, const std::vector < double> &xc, const double & R,
-                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+                          const double &a, const double &b, const std::vector < double> &xc, const double & R,
+                          std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
 
   unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
@@ -855,3 +882,4 @@ void InitParticlesDiskOld(const unsigned &dim, const unsigned &ng, const double 
 
 
 }
+
