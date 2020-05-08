@@ -304,9 +304,9 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
         //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
 
-        angles[1][0] = 0.;
-        angles[1][1] = theta1 - theta0;
-        angles[1][2] = theta2 - theta0;
+        angles[1][0] = theta0;
+        angles[1][1] = theta1;// - theta0;
+        angles[1][2] = theta2;// - theta0;
 
         //std::cout << angles[1][0] / M_PI * 180 << " " << angles[1][1] / M_PI * 180 << " " << angles[1][2] / M_PI * 180 << std::endl;
 
@@ -369,9 +369,9 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
         //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
 
-        angles[1][0] = 0.;
-        angles[1][1] = theta1 - theta0;
-        angles[1][2] = theta2 - theta0;
+        angles[1][0] = theta0;
+        angles[1][1] = theta1;// - theta0;
+        angles[1][2] = theta2;//- theta0;
 
         //std::cout << angles[1][0] / M_PI * 180 << " " << angles[1][1] / M_PI * 180 << " " << angles[1][2] / M_PI * 180 << std::endl;
 

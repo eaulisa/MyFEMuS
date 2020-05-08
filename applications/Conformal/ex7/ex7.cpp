@@ -47,7 +47,7 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 300, 1, 0.811569);
-const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 30, 50, 0.868445);
+const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 30, 50, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 90, 1, 0.729612);
 const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 12, false, 30, 3, 0.793786);
@@ -255,9 +255,9 @@ int main(int argc, char** args) {
 
   system.CopySolutionToOldSolution();
   for(unsigned k = 0; k < parameter.numberOfIterations; k++) {
-    if(k == parameter.numberOfIterations - 1)  {
-      system.SetMaxNumberOfNonLinearIterations(10000);
-    }
+//     if(k == parameter.numberOfIterations - 1)  {
+//       system.SetMaxNumberOfNonLinearIterations(1000);
+//     }
     system.MGsolve();
     //ProjectSolution(mlSol);
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k + 1);
