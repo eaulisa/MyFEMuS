@@ -152,13 +152,13 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
       }
     }
 
+    if (assembleMatrix) s.new_recording();
+
     for (unsigned i = 0; i < nDofsV; i++) {
       for (unsigned  k = 0; k < dim; k++) {
         SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma);
       }
     }
-
-    if (assembleMatrix) s.new_recording();
 
     for (unsigned ig = 0; ig < mymsh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
 
@@ -277,17 +277,17 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
           }
         }
 
-        for (unsigned i = 0; i < nDofsV; i++) {
-          for (unsigned  k = 0; k < dim; k++) {
-            SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma);
-          }
-        }
-
         for (int idim = 0; idim < dim; idim++) {
           dofsAll.insert (dofsAll.end(), dofsVAR[idim].begin(), dofsVAR[idim].end());
         }
 
         if (assembleMatrix) s.new_recording();
+
+        for (unsigned i = 0; i < nDofsV; i++) {
+          for (unsigned  k = 0; k < dim; k++) {
+            SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma);
+          }
+        }
 
       }
 
@@ -684,7 +684,7 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 }
 
 void ParticlesToGridProjection (MultiLevelSolution & mlSol, Line & linea) {
-    
+
   const unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
   Mesh* msh = mlSol._mlMesh->GetLevel (level);
   Solution* mysolution = mlSol.GetSolutionLevel (level);
