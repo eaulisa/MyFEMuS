@@ -284,7 +284,8 @@ int main (int argc, char** args) {
 
     system.CopySolutionToOldSolution(); //TODO keep or erase?
     
-    ParticlesToGridProjection (mlSol, *linea);
+    //NOTE
+//     ParticlesToGridProjection (mlSol, *linea); 
     
     system.MGsolve();
 

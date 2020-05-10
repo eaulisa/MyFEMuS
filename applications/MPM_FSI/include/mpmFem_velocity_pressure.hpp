@@ -156,7 +156,9 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
     for (unsigned i = 0; i < nDofsV; i++) {
       for (unsigned  k = 0; k < dim; k++) {
-        SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma);
+          //NOTE
+//         SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma); 
+          SolDd[k][i] = SolVd[k][i] * dt;
       }
     }
 
@@ -285,7 +287,9 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
 
         for (unsigned i = 0; i < nDofsV; i++) {
           for (unsigned  k = 0; k < dim; k++) {
-            SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma);
+              //NOTE
+//             SolDd[k][i] = SolVdOld[k][i] * dt + (SolVd[k][i] - SolVdOld[k][i]) * beta * dt / Gamma + SolAdOld[k][i] * dt * dt * (0.5 - beta / Gamma); 
+              SolDd[k][i] = SolVd[k][i] * dt;
           }
         }
 
@@ -398,12 +402,13 @@ void AssembleMPMSys (MultiLevelProblem& ml_prob) {
         }
 
         for (int idim = 0; idim < dim; idim++) {
-          aRhs[idim][i] += (phi[i] * gravity[idim] - J_hat * CauchyDIR[idim] / density_MPM
-                            - phi[i] * ( (SolVp[idim] - SolVpOld[idim]) / (Gamma * dt) + (1. - 1. / Gamma) * SolApOld[idim])
-                           ) * mass;
+            //NOTE
 //           aRhs[idim][i] += (phi[i] * gravity[idim] - J_hat * CauchyDIR[idim] / density_MPM
-//                             - phi[i] * (1. / (beta * dt * dt) * SolDp[idim] - 1. / (beta * dt) * SolVpOld[idim] - (1. - 2.* beta) / (2. * beta) * SolApOld[idim])
+//                             - phi[i] * ( (SolVp[idim] - SolVpOld[idim]) / (Gamma * dt) + (1. - 1. / Gamma) * SolApOld[idim])
 //                            ) * mass;
+          aRhs[idim][i] += (phi[i] * gravity[idim] - J_hat * CauchyDIR[idim] / density_MPM
+                            - phi[i] * (1. / (beta * dt * dt) * SolDp[idim] - 1. / (beta * dt) * SolVpOld[idim] - (1. - 2.* beta) / (2. * beta) * SolApOld[idim])
+                           ) * mass;
         }
       }
       //END MPM contributions
@@ -550,7 +555,9 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
         for (unsigned inode = 0; inode < nve; inode++) {
           for (unsigned  i = 0; i < dim; i++) {
-            SolDd[i][inode] = SolVdOld[i][inode] * dt + (SolVd[i][inode] - SolVdOld[i][inode]) * beta * dt / Gamma + SolAdOld[i][inode] * dt * dt * (0.5 - beta / Gamma);
+              //NOTE
+//             SolDd[i][inode] = SolVdOld[i][inode] * dt + (SolVd[i][inode] - SolVdOld[i][inode]) * beta * dt / Gamma + SolAdOld[i][inode] * dt * dt * (0.5 - beta / Gamma); 
+              SolDd[i][inode] = SolVd[i][inode] * dt;
           }
         }
 
@@ -560,8 +567,9 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
       mymsh->_finiteElement[ielt][solType]->Jacobian (vx_hat, xi, weight, phi_hat, gradphi_hat, nablaphi_hat);
 
+      //NOTE
       //BEGIN
-
+/*
       std::vector <double> particleVelOld (dim);
       particles[iMarker]->GetMarkerVelocity (particleVelOld);
 
@@ -589,39 +597,39 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
 
       particles[iMarker]->SetMarkerAcceleration (particleAcc);
       particles[iMarker]->SetMarkerDisplacement (particleDisp);
-      particles[iMarker]->UpdateParticleCoordinates();
+      particles[iMarker]->UpdateParticleCoordinates();*/
 
       //END
 
+      //NOTE
+      //BEGIN will be removed eventually 
 
-      //BEGIN will be removed eventually
+      std::vector <double> particleVelOld (dim);
+      particles[iMarker]->GetMarkerVelocity (particleVelOld);
 
-//       std::vector <double> particleVelOld (dim);
-//       particles[iMarker]->GetMarkerVelocity (particleVelOld);
-//
-//       std::vector <double> particleAccOld (dim);
-//       particles[iMarker]->GetMarkerAcceleration (particleAccOld);
-//
-//       std::vector <double> particleDisp (dim, 0.);
-//       //update displacement and acceleration
-//       for (int i = 0; i < dim; i++) {
-//         for (unsigned inode = 0; inode < nve; inode++) {
-//           particleDisp[i] += phi_hat[inode] * SolVd[i][inode] * dt;
-//         }
-//       }
-//
-//       particles[iMarker]->SetMarkerDisplacement (particleDisp);
-//       particles[iMarker]->UpdateParticleCoordinates();
-//
-//       std::vector <double> particleAcc (dim);
-//       std::vector <double> particleVel (dim);
-//       for (unsigned i = 0; i < dim; i++) {
-//         particleAcc[i] = 1. / (beta * dt * dt) * particleDisp[i] - 1. / (beta * dt) * particleVelOld[i] - (1. - 2.* beta) / (2. * beta) * particleAccOld[i];
-//         particleVel[i] = particleVelOld[i] + dt * ( (1. - Gamma) * particleAccOld[i] + Gamma * particleAcc[i]);
-//       }
-//
-//       particles[iMarker]->SetMarkerVelocity (particleVel);
-//       particles[iMarker]->SetMarkerAcceleration (particleAcc);
+      std::vector <double> particleAccOld (dim);
+      particles[iMarker]->GetMarkerAcceleration (particleAccOld);
+
+      std::vector <double> particleDisp (dim, 0.);
+      //update displacement and acceleration
+      for (int i = 0; i < dim; i++) {
+        for (unsigned inode = 0; inode < nve; inode++) {
+          particleDisp[i] += phi_hat[inode] * SolVd[i][inode] * dt;
+        }
+      }
+
+      particles[iMarker]->SetMarkerDisplacement (particleDisp);
+      particles[iMarker]->UpdateParticleCoordinates();
+
+      std::vector <double> particleAcc (dim);
+      std::vector <double> particleVel (dim);
+      for (unsigned i = 0; i < dim; i++) {
+        particleAcc[i] = 1. / (beta * dt * dt) * particleDisp[i] - 1. / (beta * dt) * particleVelOld[i] - (1. - 2.* beta) / (2. * beta) * particleAccOld[i];
+        particleVel[i] = particleVelOld[i] + dt * ( (1. - Gamma) * particleAccOld[i] + Gamma * particleAcc[i]);
+      }
+
+      particles[iMarker]->SetMarkerVelocity (particleVel);
+      particles[iMarker]->SetMarkerAcceleration (particleAcc);
 
       //END
 
@@ -666,17 +674,18 @@ void GridToParticlesProjection (MultiLevelProblem & ml_prob, Line & linea) {
   }
   //END loop on particles
 
-//   //BEGIN  will be removed eventually
-//   for (unsigned idof = mymsh->_dofOffset[solType][iproc]; idof < mymsh->_dofOffset[solType][iproc + 1]; idof++) {
-//     for (int i = 0; i < dim; i++) {
-//       mysolution->_Sol[indexSolV[i]]->set (idof, 0.);
-//     }
-//   }
-//
-//   for (int i = 0; i < dim; i++) {
-//     mysolution->_Sol[indexSolV[i]]->close();
-//   }
-//   //END
+  //NOTE
+  //BEGIN  will be removed eventually
+  for (unsigned idof = mymsh->_dofOffset[solType][iproc]; idof < mymsh->_dofOffset[solType][iproc + 1]; idof++) {
+    for (int i = 0; i < dim; i++) {
+      mysolution->_Sol[indexSolV[i]]->set (idof, 0.);
+    }
+  }
+
+  for (int i = 0; i < dim; i++) {
+    mysolution->_Sol[indexSolV[i]]->close();
+  }
+  //END
 
   linea.UpdateLineMPM();
 
