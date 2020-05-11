@@ -1,5 +1,117 @@
 
-double EvaluateMu(MultiLevelSolution& mlSol) {
+
+
+// if(ielGeom == TRI) {
+// 
+//   xT[0][1] = 0.5;
+//   std::vector < unsigned > ENVN(3);
+//   std::vector < double > angle(3);
+// 
+//   for(unsigned j = 0; j < 3; j++) {
+//     unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
+//     ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
+//     angle[j] = 2 * M_PI / ENVN[j];
+//   }
+// 
+// 
+//   if(conformalTriangleType == 1) {  //this works with moo two levels
+//     ChangeTriangleConfiguration1(ENVN, angle);
+//   }
+//   else if(conformalTriangleType == 2) {  //this works with mao
+//     ChangeTriangleConfiguration2(ENVN, angle);
+//   }
+//   else { //no change
+//     angle.assign(3, M_PI / 3.);
+//   }
+// 
+//   double l = xT[0][1] - xT[0][0];
+//   double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
+//   double scale = sqrt((sqrt(3.) / 2.) / (l * d));
+//   l = l * scale;
+//   d = d * scale;
+//   xT[0][1] = xT[0][0] + l;
+//   xT[0][2] = xT[0][0] + d / tan(angle[0]);
+//   xT[1][2] = d;
+// 
+//   //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
+// }
+
+
+
+
+void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const unsigned &iel, const unsigned &solType, std::vector<std::vector<double>> &cX) {
+  //this works only for DIM == 2, if DIM == 3 we need to project the mesh coordinates on the tangent plane
+  cX.resize(2);
+  unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+  if(conformalType == 0) {
+  conformal_default:
+    short unsigned ielGeom = msh->GetElementType(iel);
+    if(ielGeom == QUAD) {
+      cX[0] = { -1., 1., 1., -1., 0., 1., 0., -1., 0.};
+      cX[1] = { -1., -1., 1., 1., -1., 0., 1., 0., 0.};
+    }
+    else {
+      cX[0] = { -0.5, 0.5, 0., 0., 0.25, -0.25, 0. };
+      cX[1] = {0., 0., sqrt(3.) / 2., 0., sqrt(3.) / 4., sqrt(3.) / 4., sqrt(3.) / 6.};
+    }
+    cX[0].resize(nDofs);
+    cX[1].resize(nDofs);
+  }
+  else if(conformalType == 1) {
+    cX[0].resize(nDofs);
+    cX[1].resize(nDofs);
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned iXDof  = msh->GetSolutionDof(i, iel, 2);
+      for(unsigned K = 0; K < 2; K++) {
+        cX[K][i] = (*msh->_topology->_Sol[K])(iXDof);
+      }
+    }
+    double scale = sqrt(2. / sqrt((cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) * (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) +
+                                  (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) * (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) +
+                                  (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0]) * (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0])));
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      for(unsigned K = 0; K < 2; K++) {
+        cX[K][i] *= scale;
+      }
+    }
+  }
+  else {
+    goto conformal_default;
+  }
+}
+
+void GetConformalAngles(Mesh *msh, const unsigned &conformalType, const unsigned &iel, std::vector<double> &cAngle) {
+
+  if(conformalType == 0) {
+  conformal_default:
+    short unsigned ielGeom = msh->GetElementType(iel);
+    if(ielGeom == QUAD) {
+      cAngle = {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}; //for square
+    }
+    else {
+      cAngle = {0., 2. / 3. * M_PI, 4. / 3. * M_PI}; // for equilateral triangle
+    }
+  }
+  else if(conformalType == 1) {
+    unsigned solType = 0;
+    unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+    std::vector<std::vector<double>> cX;
+
+    GetConformalCoordinates(msh, conformalType, iel, solType, cX);
+    cAngle.resize(nDofs);
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned ip = (i + 1) % nDofs;
+      cAngle[i] =  atan2(cX[1][ip] - cX[1][i], cX[0][ip] - cX[0][i]);
+    }
+  }
+  else {
+    goto conformal_default;
+  }
+}
+
+double EvaluateMu(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
@@ -39,13 +151,8 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
   unsigned iproc = msh->processor_id();
   unsigned nprocs = msh->n_processors();
 
-// Setting the reference elements to be equilateral triangles.
-  std::vector < std::vector < double > > xT(2);
-  xT[0].resize(3);
-  xT[0] = { -0.5, 0.5, 0., 0., 0.25, -0.25, 0. };
 
-  xT[1].resize(3);
-  xT[1] = {0., 0., sqrt(3.) / 2., 0., sqrt(3.) / 4., sqrt(3.) / 4., sqrt(3.) / 6.};
+  std::vector < std::vector < double > > cX(2);
 
   unsigned solENVNIndex = mlSol.GetIndex("ENVN");
   unsigned solENVNType = mlSol.GetSolutionType(solENVNIndex);
@@ -53,8 +160,8 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
   std::vector<double> phi_uv0;
   std::vector<double> phi_uv1;
 
-  std::vector< double > stdVectorPhi;
-  std::vector< double > stdVectorPhi_uv;
+  std::vector< double > phi;
+  std::vector< double > dphidu;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -80,69 +187,28 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
       for(unsigned K = 0; K < DIM; K++) {
         xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
         solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
-        xT[K][i] = (*msh->_topology->_Sol[K])(xDof);
       }
     }
 
-    double scale = sqrt(2. / sqrt((xT[0][1] * xT[1][2] - xT[0][2] * xT[1][1]) * (xT[0][1] * xT[1][2] - xT[0][2] * xT[1][1]) +
-                             (xT[0][2] * xT[1][0] - xT[0][0] * xT[1][2]) * (xT[0][2] * xT[1][0] - xT[0][0] * xT[1][2]) +
-                             (xT[0][0] * xT[1][1] - xT[0][1] * xT[1][0]) * (xT[0][0] * xT[1][1] - xT[0][1] * xT[1][0])));
+    GetConformalCoordinates(msh, conformalType, iel, solTypeDx, cX);
 
-    for(unsigned i = 0; i < nDofsDx; i++) {
-      for(unsigned K = 0; K < DIM; K++) {
-        xT[K][i] *= scale;
-      }
-    }
 
 // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
 
-      const double *phix;  // local test function
-
-      const double *phix_uv[dim]; // local test function first order partial derivatives
-
       double weight; // gauss point weight
-
-      // Get Gauss point weight, test function, and first order derivatives.
-      if(ielGeom == QUAD) {
-        phix = msh->_finiteElement[ielGeom][solTypeDx]->GetPhi(ig);
-
-
-        phix_uv[0] = msh->_finiteElement[ielGeom][solTypeDx]->GetDPhiDXi(ig);
-        phix_uv[1] = msh->_finiteElement[ielGeom][solTypeDx]->GetDPhiDEta(ig);
-
-        weight = msh->_finiteElement[ielGeom][solTypeDx]->GetGaussWeight(ig);
-      }
-
-      // Special adjustments for triangles.
-      else {
-        msh->_finiteElement[ielGeom][solTypeDx]->Jacobian(xT, ig, weight, stdVectorPhi, stdVectorPhi_uv);
-
-        phix = &stdVectorPhi[0];
-        phi_uv0.resize(nDofsDx);
-        phi_uv1.resize(nDofsDx);
-
-
-        for(unsigned i = 0; i < nDofsDx; i++) {
-          phi_uv0[i] = stdVectorPhi_uv[i * dim];
-          phi_uv1[i] = stdVectorPhi_uv[i * dim + 1];
-        }
-
-        phix_uv[0] = &phi_uv0[0];
-        phix_uv[1] = &phi_uv1[0];
-
-      }
+      msh->_finiteElement[ielGeom][solTypeDx]->Jacobian(cX, ig, weight, phi, dphidu);
       const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
 
-      // Initialize and compute values of x, Dx, NDx, x_uv at the Gauss points.
+      // Initialize and compute fields at the Gauss points.
       double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
-            xhat_uv[K][j] += phix_uv[j][i] * xhat[K][i] ;
-            solx_uv[K][j] += phix_uv[j][i] * solx[K][i];
+            xhat_uv[K][j] += dphidu[i * dim + j] * xhat[K][i];
+            solx_uv[K][j] += dphidu[i * dim + j] * solx[K][i];
           }
         }
       }
@@ -236,7 +302,7 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
 }
 
 
-void UpdateMu(MultiLevelSolution& mlSol) {
+void UpdateMu(MultiLevelSolution & mlSol) {
 
   double MuNormAverageBefore = EvaluateMu(mlSol);
 
@@ -255,17 +321,13 @@ void UpdateMu(MultiLevelSolution& mlSol) {
   unsigned iproc = msh->processor_id();
   unsigned nprocs = msh->n_processors();
 
-  double angles[2][4] = {
-    {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}, // for square
-    {0., 2. / 3. * M_PI, 4. / 3. * M_PI} // for equilateral triangle
-  };
+  std::vector<double> cAngle;
 
   std::vector < unsigned > indexMuEdge(dim);
   indexMuEdge[0] = mlSol.GetIndex("mu1Edge");
   indexMuEdge[1] = mlSol.GetIndex("mu2Edge");
   unsigned indexCntEdge = mlSol.GetIndex("cntEdge");
   unsigned solType2 = mlSol.GetSolutionType(indexMuEdge[0]);
-
 
   std::cout << "\nNumber of Smoothing steps = " << parameter.numberOfSmoothingSteps << std::endl;
 
@@ -278,39 +340,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-      short unsigned ielGeom = msh->GetElementType(iel);
-      unsigned idx = (ielGeom == QUAD) ? 0 : 1;
-
-      if(ielGeom == TRI) {
-
-        unsigned xdof0  = msh->GetSolutionDof(0, iel, 2);
-        unsigned xdof1  = msh->GetSolutionDof(1, iel, 2);
-        unsigned xdof2  = msh->GetSolutionDof(2, iel, 2);
-
-        double theta0 = atan2((*msh->_topology->_Sol[1])(xdof1) - (*msh->_topology->_Sol[1])(xdof0),
-                              (*msh->_topology->_Sol[0])(xdof1) - (*msh->_topology->_Sol[0])(xdof0));
-
-        double theta1 = atan2((*msh->_topology->_Sol[1])(xdof2) - (*msh->_topology->_Sol[1])(xdof1),
-                              (*msh->_topology->_Sol[0])(xdof2) - (*msh->_topology->_Sol[0])(xdof1));
-
-        double theta2 = atan2((*msh->_topology->_Sol[1])(xdof0) - (*msh->_topology->_Sol[1])(xdof2),
-                              (*msh->_topology->_Sol[0])(xdof0) - (*msh->_topology->_Sol[0])(xdof2));
-
-        //std::cout << std::endl;
-        //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
-
-        while(theta1 > theta2) theta1 -= 2.* M_PI;
-        while(theta0 > theta1) theta0 -= 2.* M_PI;
-
-        //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
-
-        angles[1][0] = theta0;
-        angles[1][1] = theta1;// - theta0;
-        angles[1][2] = theta2;// - theta0;
-
-        //std::cout << angles[1][0] / M_PI * 180 << " " << angles[1][1] / M_PI * 180 << " " << angles[1][2] / M_PI * 180 << std::endl;
-
-      }
+      GetConformalAngles(msh, conformalType, iel, cAngle);
 
       double mu[2];
       for(unsigned k = 0; k < 2; k++) {
@@ -322,8 +352,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
 
-        double a = cos(angles[idx][iface]);
-        double b = sin(angles[idx][iface]);
+        double a = cos(cAngle[iface]);
+        double b = sin(cAngle[iface]);
 
         double mu0s = (a * a - b * b) * mu[0] + 2. * a * b * mu[1];
         double mu1s = (a * a - b * b) * mu[1] - 2. * a * b * mu[0];
@@ -339,44 +369,9 @@ void UpdateMu(MultiLevelSolution& mlSol) {
     }
     sol->_Sol[indexCntEdge]->close();
 
-
-
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-      short unsigned ielGeom = msh->GetElementType(iel);
-      unsigned idx = (ielGeom == QUAD) ? 0 : 1;
-
-      if(ielGeom == TRI) {
-
-        unsigned xdof0  = msh->GetSolutionDof(0, iel, 2);
-        unsigned xdof1  = msh->GetSolutionDof(1, iel, 2);
-        unsigned xdof2  = msh->GetSolutionDof(2, iel, 2);
-
-        double theta0 = atan2((*msh->_topology->_Sol[1])(xdof1) - (*msh->_topology->_Sol[1])(xdof0),
-                              (*msh->_topology->_Sol[0])(xdof1) - (*msh->_topology->_Sol[0])(xdof0));
-
-        double theta1 = atan2((*msh->_topology->_Sol[1])(xdof2) - (*msh->_topology->_Sol[1])(xdof1),
-                              (*msh->_topology->_Sol[0])(xdof2) - (*msh->_topology->_Sol[0])(xdof1));
-
-        double theta2 = atan2((*msh->_topology->_Sol[1])(xdof0) - (*msh->_topology->_Sol[1])(xdof2),
-                              (*msh->_topology->_Sol[0])(xdof0) - (*msh->_topology->_Sol[0])(xdof2));
-
-        //std::cout << std::endl;
-        //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
-
-        while(theta1 > theta2) theta1 -= 2.* M_PI;
-        while(theta0 > theta1) theta0 -= 2.* M_PI;
-
-        //std::cout << theta0 / M_PI * 180 << " " << theta1 / M_PI * 180 << " " << theta2 / M_PI * 180 << std::endl;
-
-        angles[1][0] = theta0;
-        angles[1][1] = theta1;// - theta0;
-        angles[1][2] = theta2;//- theta0;
-
-        //std::cout << angles[1][0] / M_PI * 180 << " " << angles[1][1] / M_PI * 180 << " " << angles[1][2] / M_PI * 180 << std::endl;
-
-      }
-
+      GetConformalAngles(msh, conformalType, iel, cAngle);
 
       double mu[2] = {0., 0.};
       double cnt = 0.;
@@ -390,8 +385,8 @@ void UpdateMu(MultiLevelSolution& mlSol) {
         double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
 
 
-        double a = cos(angles[idx][iface]);
-        double b = sin(angles[idx][iface]);
+        double a = cos(cAngle[iface]);
+        double b = sin(cAngle[iface]);
 
         mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
         mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;
