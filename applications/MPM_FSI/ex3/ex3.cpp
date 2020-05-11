@@ -28,14 +28,14 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
 
   if (!strcmp (name, "VX")) {
     if (2 == facename || 4 == facename) {
-//       test = 0; //TODO
-//       value = 0;
+      test = 0; //TODO
+      value = 0;
     }
   }
   else if (!strcmp (name, "VY")) {
     if (3 == facename) {
-//       test = 0; //TODO
-//       value = 0;
+      test = 0; //TODO
+      value = 0;
     }
   }
   else if (!strcmp (name, "M")) {
@@ -84,13 +84,17 @@ int main (int argc, char** args) {
 
   MultiLevelSolution mlSol (&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 2);
-
   mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
   if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
   if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
+
+  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 2);
+  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 2);
+  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 2);
+  
+    mlSol.AddSolution ("AX", LAGRANGE, SECOND, 2);
+  if (dim > 1) mlSol.AddSolution ("AY", LAGRANGE, SECOND, 2);
+  if (dim > 2) mlSol.AddSolution ("AZ", LAGRANGE, SECOND, 2);
 
   mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -278,10 +282,11 @@ int main (int argc, char** args) {
       gravity[1]  = 0.;
     }
 
-    system.CopySolutionToOldSolution();
+    system.CopySolutionToOldSolution(); //TODO keep or erase?
     
-    ParticlesToGridProjection (ml_prob, *linea);
-
+    //NOTE
+//     ParticlesToGridProjection (mlSol, *linea); 
+    
     system.MGsolve();
 
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
