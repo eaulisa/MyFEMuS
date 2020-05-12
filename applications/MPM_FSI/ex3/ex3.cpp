@@ -84,21 +84,30 @@ int main (int argc, char** args) {
 
   MultiLevelSolution mlSol (&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 0, false);
 
-  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 2);
-  
-    mlSol.AddSolution ("AX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("AY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("AZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 0);
+  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 0);
+  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 0);
+
+  mlSol.AddSolution ("VXOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("VYOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("VZOld", LAGRANGE, SECOND, 0, false);
+
+  mlSol.AddSolution ("AX", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("AY", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("AZ", LAGRANGE, SECOND, 0, false);
+
+  mlSol.AddSolution ("AXOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("AYOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("AZOld", LAGRANGE, SECOND, 0, false);
 
   mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution ("gM", LAGRANGE, SECOND, 2);
+//   mlSol.AddSolution ("gM", LAGRANGE, SECOND, 0, false);
+  mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false);
 
   mlSol.Initialize ("All");
 
@@ -262,10 +271,10 @@ int main (int argc, char** args) {
   // ******* Print solution *******
   mlSol.SetWriter (VTK);
 
-  std::vector<std::string> mov_vars; 
-  mov_vars.push_back("DX");
-  mov_vars.push_back("DY");
-  mlSol.GetWriter()->SetMovingMesh(mov_vars);
+//   std::vector<std::string> mov_vars;
+//   mov_vars.push_back("DX");
+//   mov_vars.push_back("DY");
+//   mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   std::vector<std::string> print_vars;
   print_vars.push_back ("All");
@@ -282,16 +291,18 @@ int main (int argc, char** args) {
       gravity[1]  = 0.;
     }
 
-    system.CopySolutionToOldSolution(); //TODO keep or erase?
-    
-    //NOTE
-//     ParticlesToGridProjection (mlSol, *linea); 
-    
+//     ParticlesToGridProjection (mlSol, *linea);
+
     system.MGsolve();
+
+    GridToParticlesProjection (ml_prob, *linea);
+
+    //NOTE
+    ProjectVelAcc (ml_prob);
 
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
 
-    GridToParticlesProjection (ml_prob, *linea);
+    CopySolutionToSolutionOld (mlSol);
 
     linea->GetLine (line[0]);
     PrintLine (DEFAULT_OUTPUTDIR, "line", line, time_step);
