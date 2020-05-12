@@ -18,7 +18,7 @@
 unsigned counter = 0;
 const double eps = 1.e-5;
 bool areaConstraint = false;
-unsigned conformalType = 1;
+unsigned conformalType = 0;
 
 using namespace femus;
 
@@ -165,6 +165,7 @@ int main(int argc, char** args) {
   if(areaConstraint) mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 
   mlSol.AddSolution("ENVN", LAGRANGE, feOrder, 0, false);
+  mlSol.AddSolution("bAngle", LAGRANGE, feOrder, 0);  
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -301,9 +302,17 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
     }
   }
 
-  if(!strcmp(solName, "Lambda")) {
+  else if(!strcmp(solName, "Lambda")) {
     dirichlet = false;
   }
+  
+  else if(!strcmp(solName, "bAngle")) {
+    value = M_PI;
+    if(fabs(x[0]) > 0.49999 &&  fabs(x[1]) > 0.49999) {
+      value = M_PI * 1.5;  
+    }
+  }
+  
   return dirichlet;
 }
 
