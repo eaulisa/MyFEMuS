@@ -18,7 +18,7 @@
 unsigned counter = 0;
 const double eps = 1.e-5;
 bool areaConstraint = false;
-unsigned conformalType = 0;
+unsigned conformalType = 1;
 
 using namespace femus;
 

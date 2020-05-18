@@ -39,6 +39,7 @@ void GetElementNearVertexNumber(MultiLevelSolution &mlSol) {
 
   unsigned DIM = 3u;
   unsigned solIndex = mlSol.GetIndex("ENVN");
+  unsigned angleIndex = mlSol.GetIndex("bAngle");
 
   unsigned solType = mlSol.GetSolutionType(solIndex);
 
@@ -63,6 +64,16 @@ void GetElementNearVertexNumber(MultiLevelSolution &mlSol) {
   }
 
   sol->_Sol[solIndex]->close();
+
+  for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
+
+    unsigned nve = (*sol->_Sol[solIndex])(i);
+    double angle = (*sol->_Sol[angleIndex])(i);
+
+    sol->_Sol[angleIndex]->set(i, (2. * M_PI - angle) / nve);
+
+  }
+  sol->_Sol[angleIndex]->close();
 
 }
 
@@ -182,6 +193,127 @@ void ChangeTriangleConfiguration2(const std::vector<unsigned> & ENVN, std::vecto
     angle[1] *= scale;
     angle[2] *= scale;
   }
+}
+
+
+void GetConformalStructure(std::vector <double> &angle, std::vector < std::vector <double> > &xC) {
+
+  unsigned n = angle.size();
+
+  unsigned imax = n;
+  for(unsigned i = 0; i < n; i++) {
+    unsigned cnt = 0;
+    for(unsigned j = 1; j < n; j++) {
+      unsigned ip = (i + j) % n;
+      if(angle[i] > angle[ip]) {
+        cnt++;
+      }
+      else {
+        break;
+      }
+    }
+    if(cnt == n - 1) {
+      imax = i;
+      break;
+    }
+  }
+  if(imax == n) {
+    double angleSum = 0.;
+    for(unsigned i = 0; i < n; i++) {
+      angleSum += angle[i];
+    }
+    double scale = M_PI * (n - 2) / angleSum;
+    for(unsigned i = 0; i < n; i++) {
+      angle[i] *= scale;
+    }
+  }
+  else {
+    double angleSum = 0.;
+    for(unsigned j = 1; j < n; j++) {
+      unsigned ip = (imax + j) % n;
+      angleSum += angle[ip];
+    }
+    double scale = (M_PI * (n - 2) - angle[imax]) / angleSum;
+    for(unsigned j = 1; j < n; j++) {
+      unsigned ip = (imax + j) % n;
+      angle[ip] *= scale;
+    }
+  }
+
+  if(n == 3) {
+    xC[0][0] = -0.5;
+    xC[1][0] = 0.;
+    xC[1][1] = 0.;
+
+    double l = 1;
+    double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
+    double scale = sqrt((sqrt(3.) / 2.) / (l * d));
+    l = l * scale;
+    d = d * scale;
+
+    xC[0][1] = xC[0][0] + l;
+    xC[0][2] = xC[0][0] + d / tan(angle[0]);
+    xC[1][2] = d;
+    
+    if(xC[0].size() > 3) {
+      xC[0][3] = 0.5 * (xC[0][0] + xC[0][1]);
+      xC[1][3] = 0.5 * (xC[1][0] + xC[1][1]);
+
+      xC[0][4] = 0.5 * (xC[0][1] + xC[0][2]);
+      xC[1][4] = 0.5 * (xC[1][1] + xC[1][2]);
+
+      xC[0][5] = 0.5 * (xC[0][2] + xC[0][0]);
+      xC[1][5] = 0.5 * (xC[1][2] + xC[1][0]);
+      if(xC[0].size() > 6) {
+        xC[0][6] = (xC[0][0] + xC[0][1] + xC[0][2]) / 3.;
+        xC[1][6] = (xC[1][0] + xC[1][1] + xC[1][2]) / 3.;
+      }
+    }
+  }
+  else if(n == 4) {
+    xC[0][0] = 0.;
+    xC[1][0] = 0.;
+    xC[1][1] = 0.;
+    
+    
+    double a = 1.;
+    double csc3 = 1. / sin(angle[3]);
+    double den = sin(angle[1] + csc3 * sin(angle[0]) * sin(angle[2]));
+    double b = (2. + csc3 * sin(angle[0]) * sin(angle[1] + angle[2])) / den;
+    double d = csc3 * (2. * sin(angle[2]) - sin(angle[1]) * sin(angle[1] + angle[2])) / den;
+    double c1 = (1. - b * cos(angle[1]) - d * cos(angle[0]));
+    double c2 = (b * sin(angle[1]) - d * sin(angle[0]));
+    double c = sqrt(c1 * c1 + c2 * c2);
+    double scale = 2. / ( a * d * sin(angle[0]) +  b * c *sin(angle[2]));
+    
+    
+    xC[0][1] =  a * scale;
+    xC[0][2] = (a - b * cos(angle[1])) * scale;
+    xC[1][2] = (b * sin(angle[1])) * scale;
+    xC[0][3] = (d * cos(angle[0])) * scale;
+    xC[1][3] = (d * sin(angle[0])) * scale;
+    
+    if(xC[0].size() > 4) {
+      xC[0][4] = 0.5 * (xC[0][0] + xC[0][1]);
+      xC[1][4] = 0.5 * (xC[1][0] + xC[1][1]);
+
+      xC[0][5] = 0.5 * (xC[0][1] + xC[0][2]);
+      xC[1][5] = 0.5 * (xC[1][1] + xC[1][2]);
+
+      xC[0][6] = 0.5 * (xC[0][2] + xC[0][3]);
+      xC[1][6] = 0.5 * (xC[1][2] + xC[1][3]);
+
+      xC[0][7] = 0.5 * (xC[0][3] + xC[0][0]);
+      xC[1][7] = 0.5 * (xC[1][3] + xC[1][0]);
+
+      if(xC[0].size() > 7) {
+        xC[0][8] = (xC[0][0] + xC[0][1] + xC[0][2] + xC[0][3]) * 0.25;
+        xC[1][8] = (xC[1][0] + xC[1][1] + xC[1][2] + xC[1][3]) * 0.25;
+      }
+    }
+
+  }
+
 }
 
 
