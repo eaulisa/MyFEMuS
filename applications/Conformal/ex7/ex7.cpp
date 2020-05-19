@@ -65,6 +65,29 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
+  std::vector <double> angle(4);
+  std::vector < std::vector <double> > xC(2);
+  xC[0].resize(4);
+  xC[1].resize(4);
+
+  angle[0] = angle[1] = angle[2] = 2. * M_PI / 4.;
+  angle[3] = 2. * M_PI / 3.;
+
+  GetConformalStructure(angle, xC);
+
+  for(unsigned i = 0; i <= xC[0].size(); i++) {
+    unsigned ii = i % xC[0].size();  
+    std::cout << xC[0][i] << " " << xC[1][i]   << std::endl;
+  }
+
+
+
+  return 1;
+
+
+
+
+
   if(argc >= 2) {
     if(!strcmp("0", args[1])) { // square with triangles
       parameter = squareQuad;
@@ -165,7 +188,7 @@ int main(int argc, char** args) {
   if(areaConstraint) mlSol.AddSolution("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 
   mlSol.AddSolution("ENVN", LAGRANGE, feOrder, 0, false);
-  mlSol.AddSolution("bAngle", LAGRANGE, feOrder, 0);  
+  mlSol.AddSolution("bAngle", LAGRANGE, feOrder, 0);
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -305,14 +328,14 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
   else if(!strcmp(solName, "Lambda")) {
     dirichlet = false;
   }
-  
+
   else if(!strcmp(solName, "bAngle")) {
     value = M_PI;
     if(fabs(x[0]) > 0.49999 &&  fabs(x[1]) > 0.49999) {
-      value = M_PI * 1.5;  
+      value = M_PI * 1.5;
     }
   }
-  
+
   return dirichlet;
 }
 

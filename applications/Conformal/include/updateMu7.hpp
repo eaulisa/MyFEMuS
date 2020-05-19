@@ -1,44 +1,5 @@
 
 
-
-// if(ielGeom == TRI) {
-// 
-//   xT[0][1] = 0.5;
-//   std::vector < unsigned > ENVN(3);
-//   std::vector < double > angle(3);
-// 
-//   for(unsigned j = 0; j < 3; j++) {
-//     unsigned jnode  = msh->GetSolutionDof(j, iel, solENVNType);
-//     ENVN[j] = (*sol->_Sol[solENVNIndex])(jnode);
-//     angle[j] = 2 * M_PI / ENVN[j];
-//   }
-// 
-// 
-//   if(conformalTriangleType == 1) {  //this works with moo two levels
-//     ChangeTriangleConfiguration1(ENVN, angle);
-//   }
-//   else if(conformalTriangleType == 2) {  //this works with mao
-//     ChangeTriangleConfiguration2(ENVN, angle);
-//   }
-//   else { //no change
-//     angle.assign(3, M_PI / 3.);
-//   }
-// 
-//   double l = xT[0][1] - xT[0][0];
-//   double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
-//   double scale = sqrt((sqrt(3.) / 2.) / (l * d));
-//   l = l * scale;
-//   d = d * scale;
-//   xT[0][1] = xT[0][0] + l;
-//   xT[0][2] = xT[0][0] + d / tan(angle[0]);
-//   xT[1][2] = d;
-// 
-//   //std::cout << l << " " << d<<" "<< angle[0] << " " << angle[1] <<" "<< angle[2] << " " << l * d <<" "<< xT[0][2]<< " " << xT[1][2]<<  std::endl;
-// }
-
-
-
-
 void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const unsigned &iel, const unsigned &solType, std::vector<std::vector<double>> &cX) {
   //this works only for DIM == 2, if DIM == 3 we need to project the mesh coordinates on the tangent plane
   cX.resize(2);

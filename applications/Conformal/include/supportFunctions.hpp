@@ -254,7 +254,7 @@ void GetConformalStructure(std::vector <double> &angle, std::vector < std::vecto
     xC[0][1] = xC[0][0] + l;
     xC[0][2] = xC[0][0] + d / tan(angle[0]);
     xC[1][2] = d;
-    
+
     if(xC[0].size() > 3) {
       xC[0][3] = 0.5 * (xC[0][0] + xC[0][1]);
       xC[1][3] = 0.5 * (xC[1][0] + xC[1][1]);
@@ -274,25 +274,45 @@ void GetConformalStructure(std::vector <double> &angle, std::vector < std::vecto
     xC[0][0] = 0.;
     xC[1][0] = 0.;
     xC[1][1] = 0.;
-    
-    
-    double a = 1.;
-    double csc3 = 1. / sin(angle[3]);
-    double den = sin(angle[1] + csc3 * sin(angle[0]) * sin(angle[2]));
-    double b = (2. + csc3 * sin(angle[0]) * sin(angle[1] + angle[2])) / den;
-    double d = csc3 * (2. * sin(angle[2]) - sin(angle[1]) * sin(angle[1] + angle[2])) / den;
-    double c1 = (1. - b * cos(angle[1]) - d * cos(angle[0]));
-    double c2 = (b * sin(angle[1]) - d * sin(angle[0]));
-    double c = sqrt(c1 * c1 + c2 * c2);
-    double scale = 2. / ( a * d * sin(angle[0]) +  b * c *sin(angle[2]));
-    
-    
-    xC[0][1] =  a * scale;
-    xC[0][2] = (a - b * cos(angle[1])) * scale;
-    xC[1][2] = (b * sin(angle[1])) * scale;
-    xC[0][3] = (d * cos(angle[0])) * scale;
-    xC[1][3] = (d * sin(angle[0])) * scale;
-    
+
+    double a0 = angle[0];
+    double a1 = angle[1];
+    double a2 = angle[2];
+
+    double a01 = a0 + a1;
+    double a12 = a1 + a2;
+
+    double a = 1;
+    double b;
+    if(fabs(a01 - M_PI) < 1.0e-12) {
+      b = 1. / sin(a0) + 0.5 / sin(a2) * sin(a12);
+    }
+    else if(fabs(2 * angle[2] - M_PI) < 1.0e-12) {
+
+      b = 1. / tan(a01) *
+          (1. / cos(a01) * sin(a0) +
+           sqrt((2.* cos(a1) * sin(a0) + (2. * cos(a0) - sin(a0)) * sin(a1)) / cos(a01)));
+    }
+    double csca3 = 1. / sin(angle[3]);
+    double d = csca3 * (b * sin(angle[2]) - a * sin(angle[1] + angle[2]));
+
+//     double a = 1.;
+//     double csc3 = 1. / sin(angle[3]);
+//     double den = sin(angle[1]) + csc3 * sin(angle[0]) * sin(angle[2]);
+//     double b = (2. + csc3 * sin(angle[0]) * sin(angle[1] + angle[2])) / den;
+//     double d = csc3 * (2. * sin(angle[2]) - sin(angle[1]) * sin(angle[1] + angle[2])) / den;
+//     double c1 = (1. - b * cos(angle[1]) - d * cos(angle[0]));
+//     double c2 = (b * sin(angle[1]) - d * sin(angle[0]));
+//     double c = sqrt(c1 * c1 + c2 * c2);
+//     double scale = 2. / ( a * d * sin(angle[0]) +  b * c *sin(angle[2]));
+//
+//
+//     xC[0][1] =  a * scale;
+//     xC[0][2] = (a - b * cos(angle[1])) * scale;
+//     xC[1][2] = (b * sin(angle[1])) * scale;
+//     xC[0][3] = (d * cos(angle[0])) * scale;
+//     xC[1][3] = (d * sin(angle[0])) * scale;
+
     if(xC[0].size() > 4) {
       xC[0][4] = 0.5 * (xC[0][0] + xC[0][1]);
       xC[1][4] = 0.5 * (xC[1][0] + xC[1][1]);
