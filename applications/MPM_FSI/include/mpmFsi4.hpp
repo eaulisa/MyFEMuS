@@ -1380,12 +1380,10 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
 
       for(unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_SolOld[indexSolV[k]])(idof[i]);
-        for(unsigned  k = 0; k < dim; k++) {
           xp[i][k] = (*msh->_topology->_Sol[k])(idofX);     // coordinates of the reference configuration;
           vx[k][i] = xp[i][k] + (*sol->_Sol[indexSolD[k]])(idof[i]);     // coordinates of the deformed configuration
         }
         nodeFlag[i] = ((*sol->_Sol[indexNodeFlag])(idof[i]) > 0.5) ? true : false;
-      }
     }
 
     bool aPIsInitialized = false;
