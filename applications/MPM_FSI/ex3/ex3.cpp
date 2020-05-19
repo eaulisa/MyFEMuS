@@ -28,13 +28,13 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
 
   if (!strcmp (name, "VX")) {
     if (2 == facename || 4 == facename) {
-      test = 0; //TODO
+      test = 0; 
       value = 0;
     }
   }
   else if (!strcmp (name, "VY")) {
     if (3 == facename) {
-      test = 0; //TODO
+      test = 0; 
       value = 0;
     }
   }
@@ -66,8 +66,7 @@ int main (int argc, char** args) {
   double E = 1.74 * 1.e6;
 
   beta = 0.3;
-  Gamma = 0.5;
-
+  Gamma = 0.6;
 
   Parameter par (Lref, Uref);
 
@@ -297,7 +296,6 @@ int main (int argc, char** args) {
 
     GridToParticlesProjection (ml_prob, *linea);
 
-    //NOTE
     ProjectVelAcc (ml_prob);
 
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
