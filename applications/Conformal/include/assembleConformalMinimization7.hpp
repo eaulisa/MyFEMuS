@@ -39,7 +39,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
   // Setting the reference elements to be equilateral triangles.
   std::vector < std::vector < double > > cX(2);
-  
+
   std::vector< double > phi;
   std::vector< double > dphidu;
   std::vector <double> phix_uv[dim];
@@ -79,6 +79,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   solMuIndex[1] = mlSol->GetIndex("mu2");
   unsigned solTypeMu = mlSol->GetSolutionType(solMuIndex[0]);
   std::vector < std::vector < double > > solMu(dim);
+
+  unsigned vAngleIndex = mlSol->GetIndex("vAngle");
+  unsigned vAngleType = mlSol->GetSolutionType(vAngleIndex);
+  std::vector <double> vAngle;
 
   // Local-to-global pdeSys dofs.
   std::vector < int > SYSDOF;
@@ -168,11 +172,19 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         SYSDOF[ K * nxDofs + i] = pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
     }
+
+    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+    vAngle.resize(nvAngle);
+    for(unsigned i = 0; i < nvAngle; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+    }
+    
     if(counter == 0) {
-      GetConformalCoordinates(msh, 0, iel, solType, cX);
+      GetConformalCoordinates(msh, conformalType0, iel, solType, vAngle, cX);
     }
     else {
-      GetConformalCoordinates(msh, conformalType, iel, solType, cX);
+      GetConformalCoordinates(msh, conformalType, iel, solType, vAngle, cX);
     }
 
     // Local storage of global mapping and solution.
@@ -219,7 +231,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         phix_uv[0][i] = dphidu[i * dim];
         phix_uv[1][i] = dphidu[i * dim + 1];
       }
-      
+
       double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       for(unsigned K = 0; K < DIM; K++) {
         for(int j = 0; j < dim; j++) {

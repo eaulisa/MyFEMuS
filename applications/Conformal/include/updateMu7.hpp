@@ -1,12 +1,13 @@
 
 
-void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const unsigned &iel, const unsigned &solType, std::vector<std::vector<double>> &cX) {
+void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const unsigned &iel, const unsigned &solType,
+                             std::vector<double> &vAngle, std::vector<std::vector<double>> &cX) {
   //this works only for DIM == 2, if DIM == 3 we need to project the mesh coordinates on the tangent plane
   cX.resize(2);
   unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+  short unsigned ielGeom = msh->GetElementType(iel);
   if(conformalType == 0) {
   conformal_default:
-    short unsigned ielGeom = msh->GetElementType(iel);
     if(ielGeom == QUAD) {
       cX[0] = { -1., 1., 1., -1., 0., 1., 0., -1., 0.};
       cX[1] = { -1., -1., 1., 1., -1., 0., 1., 0., 0.};
@@ -27,44 +28,60 @@ void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const uns
         cX[K][i] = (*msh->_topology->_Sol[K])(iXDof);
       }
     }
-    double scale = sqrt(2. / sqrt((cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) * (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) +
-                                  (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) * (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) +
-                                  (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0]) * (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0])));
-
+    double scale;
+    if(ielGeom == QUAD) {
+      scale = sqrt(2. / (sqrt((cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) * (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) +
+                              (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) * (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) +
+                              (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0]) * (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0])) +
+                         sqrt((cX[0][2] * cX[1][3] - cX[0][3] * cX[1][2]) * (cX[0][2] * cX[1][3] - cX[0][3] * cX[1][2]) +
+                              (cX[0][3] * cX[1][1] - cX[0][1] * cX[1][3]) * (cX[0][3] * cX[1][1] - cX[0][1] * cX[1][3]) +
+                              (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) * (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]))));
+    }
+    else {
+      scale = sqrt((sqrt(3.) / 2.) / sqrt((cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) * (cX[0][1] * cX[1][2] - cX[0][2] * cX[1][1]) +
+                                          (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) * (cX[0][2] * cX[1][0] - cX[0][0] * cX[1][2]) +
+                                          (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0]) * (cX[0][0] * cX[1][1] - cX[0][1] * cX[1][0])));
+    }
     for(unsigned i = 0; i < nDofs; i++) {
       for(unsigned K = 0; K < 2; K++) {
         cX[K][i] *= scale;
       }
     }
   }
+  else if(conformalType == 2) {
+    cX[0].resize(nDofs);
+    cX[1].resize(nDofs);
+    GetConformalStructure(vAngle, cX);
+  }
   else {
     goto conformal_default;
   }
 }
 
-void GetConformalAngles(Mesh *msh, const unsigned &conformalType, const unsigned &iel, std::vector<double> &cAngle) {
+void GetConformalAngles(Mesh *msh, const unsigned &conformalType, const unsigned &iel, 
+                        std::vector<double> &vAngle, std::vector<double> &eAngle) {
 
   if(conformalType == 0) {
   conformal_default:
     short unsigned ielGeom = msh->GetElementType(iel);
     if(ielGeom == QUAD) {
-      cAngle = {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}; //for square
+      eAngle = {0., 0.5 * M_PI, M_PI, 1.5 * M_PI}; //for square
     }
     else {
-      cAngle = {0., 2. / 3. * M_PI, 4. / 3. * M_PI}; // for equilateral triangle
+      eAngle = {0., 2. / 3. * M_PI, 4. / 3. * M_PI}; // for equilateral triangle
     }
   }
-  else if(conformalType == 1) {
+  else if(conformalType == 1 || conformalType == 2) {
     unsigned solType = 0;
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
     std::vector<std::vector<double>> cX;
 
-    GetConformalCoordinates(msh, conformalType, iel, solType, cX);
-    cAngle.resize(nDofs);
+    GetConformalCoordinates(msh, conformalType, iel, solType, vAngle,  cX);
+    eAngle.resize(nDofs);
 
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned ip = (i + 1) % nDofs;
-      cAngle[i] =  atan2(cX[1][ip] - cX[1][i], cX[0][ip] - cX[0][i]);
+      eAngle[i] =  atan2(cX[1][ip] - cX[1][i], cX[0][ip] - cX[0][i]);
     }
   }
   else {
@@ -115,8 +132,9 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
 
   std::vector < std::vector < double > > cX(2);
 
-  unsigned solENVNIndex = mlSol.GetIndex("ENVN");
-  unsigned solENVNType = mlSol.GetSolutionType(solENVNIndex);
+  unsigned vAngleIndex = mlSol.GetIndex("vAngle");
+  unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
+  std::vector <double> vAngle;
 
   std::vector<double> phi_uv0;
   std::vector<double> phi_uv1;
@@ -151,7 +169,14 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
       }
     }
 
-    GetConformalCoordinates(msh, conformalType, iel, solTypeDx, cX);
+    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+    vAngle.resize(nvAngle);
+    for(unsigned i = 0; i < nvAngle; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+    }
+
+    GetConformalCoordinates(msh, conformalType, iel, solTypeDx, vAngle, cX);
 
 
 // *** Gauss point loop ***
@@ -282,7 +307,10 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   unsigned iproc = msh->processor_id();
   unsigned nprocs = msh->n_processors();
 
-  std::vector<double> cAngle;
+  unsigned vAngleIndex = mlSol.GetIndex("vAngle");
+  unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
+  std::vector <double> vAngle;
+  std::vector <double> eAngle;
 
   std::vector < unsigned > indexMuEdge(dim);
   indexMuEdge[0] = mlSol.GetIndex("mu1Edge");
@@ -301,7 +329,14 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-      GetConformalAngles(msh, conformalType, iel, cAngle);
+      unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+      vAngle.resize(nvAngle);
+      for(unsigned i = 0; i < nvAngle; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+        vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+      }
+
+      GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
 
       double mu[2];
       for(unsigned k = 0; k < 2; k++) {
@@ -313,8 +348,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
 
-        double a = cos(cAngle[iface]);
-        double b = sin(cAngle[iface]);
+        double a = cos(eAngle[iface]);
+        double b = sin(eAngle[iface]);
 
         double mu0s = (a * a - b * b) * mu[0] + 2. * a * b * mu[1];
         double mu1s = (a * a - b * b) * mu[1] - 2. * a * b * mu[0];
@@ -332,7 +367,14 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-      GetConformalAngles(msh, conformalType, iel, cAngle);
+      unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+      vAngle.resize(nvAngle);
+      for(unsigned i = 0; i < nvAngle; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+        vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+      }  
+        
+      GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
 
       double mu[2] = {0., 0.};
       double cnt = 0.;
@@ -346,8 +388,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
         double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
 
 
-        double a = cos(cAngle[iface]);
-        double b = sin(cAngle[iface]);
+        double a = cos(eAngle[iface]);
+        double b = sin(eAngle[iface]);
 
         mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
         mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;

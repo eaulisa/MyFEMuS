@@ -37,13 +37,12 @@ void GetElementNearVertexNumber(MultiLevelSolution &mlSol) {
   Solution* sol = mlSol.GetSolutionLevel(level);
   Mesh* msh = mlSol._mlMesh->GetLevel(level);
 
-  unsigned DIM = 3u;
-  unsigned solIndex = mlSol.GetIndex("ENVN");
-  unsigned angleIndex = mlSol.GetIndex("bAngle");
+  unsigned envIndex = mlSol.GetIndex("env");
+  unsigned angleIndex = mlSol.GetIndex("vAngle");
 
-  unsigned solType = mlSol.GetSolutionType(solIndex);
+  unsigned solType = mlSol.GetSolutionType(envIndex);
 
-  sol->_Sol[solIndex]->zero();
+  sol->_Sol[envIndex]->zero();
 
   unsigned iproc = msh->processor_id();
 
@@ -58,19 +57,19 @@ void GetElementNearVertexNumber(MultiLevelSolution &mlSol) {
 
       unsigned iDof = msh->GetSolutionDof(i, iel, solType);
 
-      sol->_Sol[solIndex]->add(iDof, 1);
+      sol->_Sol[envIndex]->add(iDof, 1);
 
     }
   }
 
-  sol->_Sol[solIndex]->close();
+  sol->_Sol[envIndex]->close();
 
   for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
 
-    unsigned nve = (*sol->_Sol[solIndex])(i);
+    unsigned env = (*sol->_Sol[envIndex])(i);
     double angle = (*sol->_Sol[angleIndex])(i);
 
-    sol->_Sol[angleIndex]->set(i, (2. * M_PI - angle) / nve);
+    sol->_Sol[angleIndex]->set(i, (2. * M_PI - angle) / env);
 
   }
   sol->_Sol[angleIndex]->close();
@@ -113,87 +112,8 @@ double max(const double &a , const double &b) {
 }
 
 
-void ChangeTriangleConfiguration1(const std::vector<unsigned> & ENVN, std::vector <double> &angle) {
-  double scale;
-  if(ENVN[0] < ENVN[1] && ENVN[0] < ENVN[2]) {
-    scale = (M_PI - angle[0]) / (angle[1] + angle [2]);
-    angle[1] *= scale;
-    angle[2] *= scale;
-  }
-  else if(ENVN[0] < ENVN[1] && ENVN[0] == ENVN[2]) {
-    angle[1] = M_PI - 2. * angle[0];
-  }
-  else if(ENVN[0] <= ENVN[1]  && ENVN[0] > ENVN[2]) {
-    scale = (M_PI - angle[2]) / (angle[1] + angle [0]);
-    angle[1] *= scale;
-    angle[0] *= scale;
-  }
-  else if(ENVN[0] == ENVN[1] && ENVN[0] < ENVN[2]) {
-    angle[2] = M_PI - 2. * angle[0];
-  }
-  else if(ENVN[0] == ENVN[1] && ENVN[0] == ENVN[2]) {
-    angle[0] = angle[1] = angle[2] =  M_PI / 3.;
-  }
-  else if(ENVN[0] > ENVN[1] && ENVN[0] <= ENVN[2]) {
-    scale = (M_PI - angle[1]) / (angle[0] + angle [2]);
-    angle[0] *= scale;
-    angle[2] *= scale;
-  }
-  else if(ENVN[0] > ENVN[1] && ENVN[0] > ENVN[2]) {
-    if(ENVN[1] < ENVN[2]) {
-      scale = (M_PI - angle[1]) / (angle[0] + angle [2]);
-      angle[0] *= scale;
-      angle[2] *= scale;
-    }
-    else if(ENVN[1] == ENVN[2]) {
-      angle[0] = M_PI - 2. * angle[1];
-    }
-    else if(ENVN[1] > ENVN[2]) {
-      scale = (M_PI - angle[2]) / (angle[0] + angle [1]);
-      angle[0] *= scale;
-      angle[1] *= scale;
-    }
-  }
-}
 
 
-void ChangeTriangleConfiguration2(const std::vector<unsigned> & ENVN, std::vector <double> &angle) {
-  unsigned type = 3; // there are 2 or 3 leading angles
-  if(ENVN[0] < ENVN[1]) {  // 0 leads on 1
-    if(ENVN[0] < ENVN[2]) type = 0;  // 0 is leading angle
-    else if(ENVN[0] > ENVN[2]) type = 2;  // 2 is leading angle
-  }
-  else if(ENVN[0] > ENVN[1]) {  // 1 leads on 0
-    if(ENVN[1] < ENVN[2]) type = 1;  // 1 is leading angle
-    else if(ENVN[1] > ENVN[2]) type = 2;  // 2 is leading angle
-  }
-  else { // 0 equals 1
-    if(ENVN[0] > ENVN[2]) type = 2;  // 2 is leading angle
-  }
-
-  double scale;
-  if(type == 0) {
-    scale = (M_PI - angle[0]) / (angle[1] + angle [2]);
-    angle[1] *= scale;
-    angle[2] *= scale;
-  }
-  else if(type == 1) {
-    scale = (M_PI - angle[1]) / (angle[0] + angle [2]);
-    angle[0] *= scale;
-    angle[2] *= scale;
-  }
-  else if(type == 2) {
-    scale = (M_PI - angle[2]) / (angle[1] + angle [0]);
-    angle[1] *= scale;
-    angle[0] *= scale;
-  }
-  else {
-    scale = M_PI / (angle[0] + angle[1] + angle[2]);
-    angle[0] *= scale;
-    angle[1] *= scale;
-    angle[2] *= scale;
-  }
-}
 
 
 void GetConformalStructure(std::vector <double> &angle, std::vector < std::vector <double> > &xC) {
@@ -243,17 +163,18 @@ void GetConformalStructure(std::vector <double> &angle, std::vector < std::vecto
   if(n == 3) {
     xC[0][0] = -0.5;
     xC[1][0] = 0.;
+    
+    double b = 1;
+    double h = b * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
+    double scale = sqrt((sqrt(3.) / 2.) / (b * h));
+    b *= scale;
+    h *= scale;
+
+    xC[0][1] = xC[0][0] + b;
     xC[1][1] = 0.;
-
-    double l = 1;
-    double d = l * sin(angle[0]) * sin(angle[1]) / sin(angle[0] + angle[1]);
-    double scale = sqrt((sqrt(3.) / 2.) / (l * d));
-    l = l * scale;
-    d = d * scale;
-
-    xC[0][1] = xC[0][0] + l;
-    xC[0][2] = xC[0][0] + d / tan(angle[0]);
-    xC[1][2] = d;
+    
+    xC[0][2] = xC[0][0] + h / tan(angle[0]);
+    xC[1][2] = h;
 
     if(xC[0].size() > 3) {
       xC[0][3] = 0.5 * (xC[0][0] + xC[0][1]);
@@ -273,45 +194,36 @@ void GetConformalStructure(std::vector <double> &angle, std::vector < std::vecto
   else if(n == 4) {
     xC[0][0] = 0.;
     xC[1][0] = 0.;
-    xC[1][1] = 0.;
-
+   
     double a0 = angle[0];
     double a1 = angle[1];
     double a2 = angle[2];
+    double a3 = angle[3];
 
     double a01 = a0 + a1;
     double a12 = a1 + a2;
 
     double a = 1;
-    double b;
-    if(fabs(a01 - M_PI) < 1.0e-12) {
-      b = 1. / sin(a0) + 0.5 / sin(a2) * sin(a12);
-    }
-    else if(fabs(2 * angle[2] - M_PI) < 1.0e-12) {
+    double b = a * sin(0.5 * a0) * sin(0.5 * a12) / (sin(0.5 * a2) * sin(0.5 * a01));
+    double csca3 = 1. / sin(a3);
+    double d = csca3 * (b * sin(a2) - a * sin(a12));
+    double c = csca3 * (a * sin(a0) - b * sin(a01));
 
-      b = 1. / tan(a01) *
-          (1. / cos(a01) * sin(a0) +
-           sqrt((2.* cos(a1) * sin(a0) + (2. * cos(a0) - sin(a0)) * sin(a1)) / cos(a01)));
-    }
-    double csca3 = 1. / sin(angle[3]);
-    double d = csca3 * (b * sin(angle[2]) - a * sin(angle[1] + angle[2]));
+    double scale = sqrt(2. / (a * d * sin(a0) + b * c * sin(a2)));
 
-//     double a = 1.;
-//     double csc3 = 1. / sin(angle[3]);
-//     double den = sin(angle[1]) + csc3 * sin(angle[0]) * sin(angle[2]);
-//     double b = (2. + csc3 * sin(angle[0]) * sin(angle[1] + angle[2])) / den;
-//     double d = csc3 * (2. * sin(angle[2]) - sin(angle[1]) * sin(angle[1] + angle[2])) / den;
-//     double c1 = (1. - b * cos(angle[1]) - d * cos(angle[0]));
-//     double c2 = (b * sin(angle[1]) - d * sin(angle[0]));
-//     double c = sqrt(c1 * c1 + c2 * c2);
-//     double scale = 2. / ( a * d * sin(angle[0]) +  b * c *sin(angle[2]));
-//
-//
-//     xC[0][1] =  a * scale;
-//     xC[0][2] = (a - b * cos(angle[1])) * scale;
-//     xC[1][2] = (b * sin(angle[1])) * scale;
-//     xC[0][3] = (d * cos(angle[0])) * scale;
-//     xC[1][3] = (d * sin(angle[0])) * scale;
+    a *= scale;
+    b *= scale;
+    c *= scale;
+    d *= scale;
+
+    xC[0][1] = a;
+    xC[1][1] = 0.;
+     
+    xC[0][2] = (a - b * cos(a1));
+    xC[1][2] = (b * sin(a1));
+    
+    xC[0][3] = (d * cos(a0));
+    xC[1][3] = (d * sin(a0));
 
     if(xC[0].size() > 4) {
       xC[0][4] = 0.5 * (xC[0][0] + xC[0][1]);
@@ -326,14 +238,12 @@ void GetConformalStructure(std::vector <double> &angle, std::vector < std::vecto
       xC[0][7] = 0.5 * (xC[0][3] + xC[0][0]);
       xC[1][7] = 0.5 * (xC[1][3] + xC[1][0]);
 
-      if(xC[0].size() > 7) {
+      if(xC[0].size() > 8) {
         xC[0][8] = (xC[0][0] + xC[0][1] + xC[0][2] + xC[0][3]) * 0.25;
         xC[1][8] = (xC[1][0] + xC[1][1] + xC[1][2] + xC[1][3]) * 0.25;
       }
     }
-
   }
-
 }
 
 
