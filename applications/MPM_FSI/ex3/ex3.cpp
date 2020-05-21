@@ -13,7 +13,7 @@
 #include "NumericVector.hpp"
 #include "adept.h"
 
-#include "../include/mpmFem_velocity_pressure.hpp"
+#include "../include/mpmFem_velocity.hpp"
 
 using namespace femus;
 
