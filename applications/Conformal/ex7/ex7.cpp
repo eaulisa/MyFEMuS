@@ -19,8 +19,8 @@ unsigned counter = 0;
 const double eps = 1.e-5;
 bool areaConstraint = false;
 
-unsigned conformalType0 = 2;
-unsigned conformalType = 2;
+unsigned conformalType0 = 0;
+unsigned conformalType = 0;
 
 using namespace femus;
 
@@ -57,9 +57,10 @@ const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true,
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
-const Parameter cat = Parameter("cat", 5, true, true, 1, 12, false, 2, 1, 0.986943);
+const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
-const Parameter moo = Parameter("moo", 7, true, true, 2, 50, false, 50, 1, 0.654910);
+const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
+const Parameter moai = Parameter("moai", 8, true, true, 1, 1, true, 40, 1, 0.879357);
 
 // Main program starts here.
 int main(int argc, char** args) {
@@ -71,21 +72,21 @@ int main(int argc, char** args) {
 //   std::vector < std::vector <double> > xC(2);
 // //   xC[0].resize(4);
 // //   xC[1].resize(4);
-// // 
+// //
 // //   angle[0] = angle[1] = angle[2] = 2. * M_PI / 4.;
 // //   angle[3] = 2. * M_PI / 3.;
-// 
+//
 //   xC[0].resize(3);
 //   xC[1].resize(3);
-// 
+//
 //   angle[2] = angle[1] = M_PI / 3.;
 //   angle[0] = M_PI / 2.;
-// 
-//   
+//
+//
 //   GetConformalStructure(angle, xC);
-// 
+//
 //   for(unsigned i = 0; i <= xC[0].size(); i++) {
-//     unsigned ii = i % xC[0].size();  
+//     unsigned ii = i % xC[0].size();
 //     std::cout << xC[0][ii] << " " << xC[1][ii]   << std::endl;
 //   }
 //  return 1;
@@ -118,6 +119,9 @@ int main(int argc, char** args) {
     }
     else if(!strcmp("7", args[1])) { // moo
       parameter = moo;
+    }
+    else if(!strcmp("8", args[1])) { // moai
+      parameter = moai;
     }
     else {
       goto generic;
@@ -165,6 +169,9 @@ int main(int argc, char** args) {
   else if(parameter.simulation == 7) {
     mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moo.med", "seventh", scalingFactor, false, false);
   }
+  else if(parameter.simulation == 8) {
+    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moai.med", "seventh", scalingFactor, false, false);
+  }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
   }
@@ -188,6 +195,14 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Dx1", LAGRANGE, feOrder, 2);
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 2);
   if(parameter.surface) mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 2);
+
+  if(areaConstraint){
+    mlSol.FixSolutionAtOnePoint("Dx1");
+    mlSol.FixSolutionAtOnePoint("Dx2");
+    if(parameter.surface) mlSol.FixSolutionAtOnePoint("Dx3");
+  }
+
+
 
   if(parameter.constraintIsOn) mlSol.AddSolution("Lambda", LAGRANGE, feOrder, 0);
 
@@ -220,7 +235,7 @@ int main(int argc, char** args) {
   else if(parameter.simulation < 5) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionIntersection);
   }
-  else if(parameter.simulation < 8) {
+  else if(parameter.simulation < 9) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
   }
   else { // generic pick your boundary
@@ -255,16 +270,16 @@ int main(int argc, char** args) {
   system.AttachGetTimeIntervalFunction(GetTimeStep);
   system.SetAssembleFunction(AssembleConformalMinimization);
 
-  system.init();
-  system.SetTime(-1.);
-  system.SetMaxNumberOfNonLinearIterations(1);
-  system.MGsolve();
-  UpdateMesh(mlSol);
-
-  system.SetTime(1.);
-  mlSol.GenerateBdc("Dx1", "Time_dependent");
-  mlSol.GenerateBdc("Dx2", "Time_dependent");
-  if(parameter.surface) mlSol.GenerateBdc("Dx3", "Time_dependent");
+  // system.init();
+  // system.SetTime(-1.);
+  // system.SetMaxNumberOfNonLinearIterations(1);
+  // system.MGsolve();
+  // UpdateMesh(mlSol);
+  //
+  // system.SetTime(1.);
+  // mlSol.GenerateBdc("Dx1", "Time_dependent");
+  // mlSol.GenerateBdc("Dx2", "Time_dependent");
+  // if(parameter.surface) mlSol.GenerateBdc("Dx3", "Time_dependent");
   system.SetTime(0.);
   system.SetMaxNumberOfNonLinearIterations(parameter.numberOfNonLinearSteps);
   system.init();
@@ -282,7 +297,10 @@ int main(int argc, char** args) {
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
+
+  EvaluateMu(mlSol);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  parameter.print();
 
   system.CopySolutionToOldSolution();
   for(unsigned k = 0; k < parameter.numberOfIterations; k++) {
@@ -309,6 +327,9 @@ bool SetBoundaryConditionZero(const std::vector < double >& x, const char solNam
 
   if(!strcmp(solName, "Lambda")) {
     dirichlet = false;
+  }
+  if(!strcmp(solName, "vAngles")) {
+    value = M_PI;
   }
   return dirichlet;
 }
@@ -440,4 +461,3 @@ void UpdateMesh(MultiLevelSolution &mlSol) {
   delete mysol;
 
 }
-

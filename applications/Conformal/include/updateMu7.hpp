@@ -58,7 +58,7 @@ void GetConformalCoordinates(Mesh *msh, const unsigned &conformalType, const uns
   }
 }
 
-void GetConformalAngles(Mesh *msh, const unsigned &conformalType, const unsigned &iel, 
+void GetConformalAngles(Mesh *msh, const unsigned &conformalType, const unsigned &iel,
                         std::vector<double> &vAngle, std::vector<double> &eAngle) {
 
   if(conformalType == 0) {
@@ -210,7 +210,7 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
 
-      double normal[DIM] = {0., 0., 1.};
+      double normal[3] = {0., 0., 1.};
 
       if(parameter.surface) {
         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
@@ -372,8 +372,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       for(unsigned i = 0; i < nvAngle; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
         vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
-      }  
-        
+      }
+
       GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
 
       double mu[2] = {0., 0.};

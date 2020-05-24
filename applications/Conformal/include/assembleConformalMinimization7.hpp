@@ -19,10 +19,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   // Pointers to the multilevel solution, solution (level) and equation (level).
   MultiLevelSolution *mlSol = ml_prob._ml_sol;
 
-  if(counter > 0) {
-    UpdateMu(*mlSol);
-  }
-
   Solution *sol = ml_prob._ml_sol->GetSolutionLevel(level);
   LinearEquationSolver *pdeSys = mlPdeSys->_LinSolver[level];
 
@@ -79,6 +75,14 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   solMuIndex[1] = mlSol->GetIndex("mu2");
   unsigned solTypeMu = mlSol->GetSolutionType(solMuIndex[0]);
   std::vector < std::vector < double > > solMu(dim);
+
+  if(counter > 0) {
+    UpdateMu(*mlSol);
+  }
+  else {
+    sol->_Sol[solMuIndex[0]]->zero();
+    sol->_Sol[solMuIndex[1]]->zero();
+  }
 
   unsigned vAngleIndex = mlSol->GetIndex("vAngle");
   unsigned vAngleType = mlSol->GetSolutionType(vAngleIndex);
@@ -179,7 +183,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
       vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
     }
-    
+
     if(counter == 0) {
       GetConformalCoordinates(msh, conformalType0, iel, solType, vAngle, cX);
     }
@@ -513,5 +517,3 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssembleO2ConformalMinimization.
-
-

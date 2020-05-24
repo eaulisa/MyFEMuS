@@ -217,7 +217,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
 
-      double normal[DIM];
+      double normal[3];
       normal[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]) / sqrt(detg);
       normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
       normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
@@ -231,9 +231,9 @@ void UpdateMu(MultiLevelSolution& mlSol) {
       boost::math::quaternion <double> dum = du + N * dv;
 
       boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
-      
+
       double mu[2];
-      
+
       mu[0] = MU.R_component_1();
       mu[1] = (MU * conj(N)).R_component_1();
 

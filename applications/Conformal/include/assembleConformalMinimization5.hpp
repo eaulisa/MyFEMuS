@@ -97,10 +97,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       for(unsigned K = 0; K < DIM; K++) {
 //         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
 //         solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_Sol[solDxIndex[K]])(iDDof);
-                
+
         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
         solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_Sol[solDxIndex[K]])(iDDof);
-        
+
         SYSDOF[ K * nxDofs + i] = pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
     }
@@ -150,7 +150,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
 
-      for(unsigned S = 0; S < DIM; S++) { // loop on the shift 
+      for(unsigned S = 0; S < DIM; S++) { // loop on the shift
         // Compute the shifted metric, metric determinant, and area element.
         double g[dim][dim] = {{0., 0.}, {0., 0.}};
         for(unsigned i = 0; i < dim; i++) { //loop on the derivatives, shift
@@ -174,8 +174,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         gi[1][0] = -g[1][0] / detg;
         gi[1][1] =  g[0][0] / detg;
 
-        // Compute components of the unit normal N to the reference surface, shifted 
-        double normal[DIM];
+        // Compute components of the unit normal N to the reference surface, shifted
+        double normal[3];
         normal[0] = (xhat_uv[(S + 1) % DIM][(S + 0) % DIM] * xhat_uv[(S + 2) % DIM][(S + 1) % DIM] -
                      xhat_uv[(S + 2) % DIM][(S + 0) % DIM] * xhat_uv[(S + 1) % DIM][(S + 1) % DIM]) / sqrt(detg);
         normal[1] = (xhat_uv[(S + 2) % DIM][(S + 0) % DIM] * xhat_uv[(S + 0) % DIM][(S + 1) % DIM] -
@@ -281,7 +281,3 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //   std::cout << std::flush;
 
 } // end AssembleO2ConformalMinimization.
-
-
-
-

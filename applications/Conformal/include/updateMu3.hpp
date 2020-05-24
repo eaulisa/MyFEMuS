@@ -1,4 +1,4 @@
- 
+
 void UpdateMu(MultiLevelSolution& mlSol) {
 
   //MultiLevelSolution*  mlSol = ml_prob._ml_sol;
@@ -186,7 +186,7 @@ void UpdateMu(MultiLevelSolution& mlSol) {
 
       // std::cout << detg << " ";
 
-      double normal[DIM];
+      double normal[3];
       normal[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]) / sqrt(detg);
       normal[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
       normal[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);

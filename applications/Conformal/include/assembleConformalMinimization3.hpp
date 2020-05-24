@@ -318,7 +318,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       gi[1][1] =  g[0][0] / detg;
 
       // Compute components of the unit normal N.
-      double normal[DIM];
+      double normal[3];
       normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
       normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
       normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
@@ -327,17 +327,17 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       normalMSqrtDetg[0] = (solMx_uv[1][0] * solMx_uv[2][1] - solMx_uv[2][0] * solMx_uv[1][1]);
       normalMSqrtDetg[1] = (solMx_uv[2][0] * solMx_uv[0][1] - solMx_uv[0][0] * solMx_uv[2][1]);
       normalMSqrtDetg[2] = (solMx_uv[0][0] * solMx_uv[1][1] - solMx_uv[1][0] * solMx_uv[0][1]);
-      
-      
+
+
       double normalN[DIM];
       normalN[0] = (solNx_uv[1][0] * solNx_uv[2][1] - solNx_uv[2][0] * solNx_uv[1][1]);
       normalN[1] = (solNx_uv[2][0] * solNx_uv[0][1] - solNx_uv[0][0] * solNx_uv[2][1]);
       normalN[2] = (solNx_uv[0][0] * solNx_uv[1][1] - solNx_uv[1][0] * solNx_uv[0][1]);
-      
+
       double normN = sqrt(normalN[0]*normalN[0] + normalN[1]*normalN[1] +normalN[2]*normalN[2]);
-      normalN[0] /= normN; 
-      normalN[1] /= normN; 
-      normalN[2] /= normN; 
+      normalN[0] /= normN;
+      normalN[1] /= normN;
+      normalN[2] /= normN;
 
       // Compute new X minus old X dot N, for "reparametrization".
       double DnXmDxdotNSqrtDetg = 0.;
@@ -549,4 +549,3 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssembleO2ConformalMinimization.
-

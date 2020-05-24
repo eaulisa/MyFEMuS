@@ -1,6 +1,6 @@
 
 double EvaluateMu(MultiLevelSolution& mlSol) {
-  
+
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
   Solution* sol = mlSol.GetSolutionLevel(level);
@@ -147,7 +147,7 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
 
-      double normal[DIM] = {0., 0., 1.};
+      double normal[3] = {0., 0., 1.};
 
       if(parameter.surface) {
         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
@@ -227,13 +227,13 @@ double EvaluateMu(MultiLevelSolution& mlSol) {
 
 void UpdateMu(MultiLevelSolution& mlSol) {
 
-  double MuNormAverageBefore = EvaluateMu(mlSol);  
+  double MuNormAverageBefore = EvaluateMu(mlSol);
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
   Solution* sol = mlSol.GetSolutionLevel(level);
   Mesh* msh = mlSol._mlMesh->GetLevel(level);
-  
+
   unsigned dim = 2;
 
   std::vector < unsigned > indexMu(dim);

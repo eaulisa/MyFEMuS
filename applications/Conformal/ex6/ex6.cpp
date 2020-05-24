@@ -17,7 +17,7 @@
 
 unsigned counter = 0;
 const double eps = 1.e-5;
-bool areaConstraint = true;
+bool areaConstraint = false;
 
 using namespace femus;
 
@@ -53,7 +53,7 @@ const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100,
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
 const Parameter cat = Parameter("cat", 5, true, true, 1, 12, false, 2, 1, 0.986943);
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
-const Parameter moo = Parameter("moo", 7, true, true, 2, 50, false, 50, 1, 0.654910);
+const Parameter moo = Parameter("moo", 7, true, true, 2, 50, true, 50, 1, 0.654910);
 
 // Main program starts here.
 int main(int argc, char** args) {
@@ -130,7 +130,7 @@ int main(int argc, char** args) {
     mlMsh.ReadCoarseMesh("../input/handbndry.med", "seventh", scalingFactor, false, false);
   }
   else if(parameter.simulation == 7) {
-    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moo.med", "seventh", scalingFactor, false, false);
+    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/newtorus.med", "seventh", scalingFactor, false, false);
   }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
@@ -347,4 +347,3 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
   }
   return dirichlet;
 }
-
