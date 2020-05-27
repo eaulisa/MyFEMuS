@@ -19,8 +19,8 @@ unsigned counter = 0;
 const double eps = 1.e-5;
 bool areaConstraint = false;
 
-unsigned conformalType0 = 0;
-unsigned conformalType = 0;
+unsigned conformalType0 = 2;
+unsigned conformalType = 2;
 
 using namespace femus;
 
@@ -30,7 +30,7 @@ Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
 #include "../include/updateMu7.hpp"
-#include "../include/assembleConformalMinimization7.hpp"
+#include "../include/assembleConformalMinimization8.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -52,15 +52,22 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 500, 1, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 90, 1, 0.729612);
-const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 12, false, 30, 3, 0.793786);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 250, 1, 0.746343);
+const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
+//const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 12, false, 30, 3, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
-const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
+//const Parameter cat = Parameter("cat", 5, true, false, 1, 20, false, 5, 1, 0.987606); //need conformal type 0,0 // areaConstraint // no folding!?!?!
+const Parameter cat = Parameter("cat", 5, true, true, 1, 50, false, 5, 1, 0.986969); //need conformal type 0,0 // no folding?!?!?!
+//const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
+//const Parameter cat = Parameter("cat", 5, true, false, 1, 20, true, 5, 1, 0.996710); //need conformal type 0,0 // areaConstraint
+//const Parameter cat = Parameter("cat", 5, true, true, 1, 25, false, 3, 1, 0.986754); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
-const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
-const Parameter moai = Parameter("moai", 8, true, true, 1, 1, true, 40, 1, 0.879357);
+//const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
+const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 50, 1, 0.602613);
+const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
+const Parameter fert = Parameter("fert", 9, true, false, 1, 20, true, 3, 1, 0.995966);
 
 // Main program starts here.
 int main(int argc, char** args) {
@@ -123,6 +130,9 @@ int main(int argc, char** args) {
     else if(!strcmp("8", args[1])) { // moai
       parameter = moai;
     }
+    else if(!strcmp("9", args[1])) { // moai
+      parameter = fert;
+    }
     else {
       goto generic;
     }
@@ -172,6 +182,9 @@ int main(int argc, char** args) {
   else if(parameter.simulation == 8) {
     mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moai.med", "seventh", scalingFactor, false, false);
   }
+  else if(parameter.simulation == 9) {
+    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/stupid.med", "seventh", scalingFactor, false, false);
+  }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
   }
@@ -196,7 +209,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 2);
   if(parameter.surface) mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 2);
 
-  if(areaConstraint){
+  if(areaConstraint && parameter.simulation>3){
     mlSol.FixSolutionAtOnePoint("Dx1");
     mlSol.FixSolutionAtOnePoint("Dx2");
     if(parameter.surface) mlSol.FixSolutionAtOnePoint("Dx3");
@@ -235,7 +248,7 @@ int main(int argc, char** args) {
   else if(parameter.simulation < 5) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionIntersection);
   }
-  else if(parameter.simulation < 9) {
+  else if(parameter.simulation < 10) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
   }
   else { // generic pick your boundary
@@ -381,6 +394,14 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
   if(!strcmp(solName, "Lambda")) {
     dirichlet = false;
   }
+
+  else if(!strcmp(solName, "vAngle")) {
+    value = M_PI;
+    if(fabs(x[0]) > 0.49999 &&  fabs(x[1]) > 0.49999) {
+      value = M_PI;
+    }
+  }
+
   return dirichlet;
 }
 
