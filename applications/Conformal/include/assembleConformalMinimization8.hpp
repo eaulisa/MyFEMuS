@@ -344,10 +344,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         // Penalty Residual and Jacobian.
         for(unsigned i = 0; i < nLDofs; i++) {
           unsigned irow = DIM * nxDofs + i;
-          Res[irow] -= phiL[i] * (eps * solLg * Area);
+          Res[irow] -= -phiL[i] * (eps * solLg * Area);
           unsigned istart = irow * sizeAll;
           for(unsigned j = 0; j < nLDofs; j++) {
-            Jac[istart + DIM * nxDofs + j] += eps * phiL[i] * phiL[j] *  Area;
+            Jac[istart + DIM * nxDofs + j] += -eps * phiL[i] * phiL[j] *  Area;
           }
         }
 
@@ -365,30 +365,44 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           }
         }
 
-        double normalNSqrtDetg[DIM];
-        normalNSqrtDetg[0] = (solNx_uv[1][0] * solNx_uv[2][1] - solNx_uv[2][0] * solNx_uv[1][1]);
-        normalNSqrtDetg[1] = (solNx_uv[2][0] * solNx_uv[0][1] - solNx_uv[0][0] * solNx_uv[2][1]);
-        normalNSqrtDetg[2] = (solNx_uv[0][0] * solNx_uv[1][1] - solNx_uv[1][0] * solNx_uv[0][1]);
 
-        double normalOSqrtDetg[DIM];
-        normalOSqrtDetg[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]);
-        normalOSqrtDetg[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]);
-        normalOSqrtDetg[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]);
+
+        double gN[dim][dim] = {{0., 0.}, {0., 0.}};
+        for(unsigned i = 0; i < dim; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            for(unsigned K = 0; K < DIM; K++) {
+              gN[i][j] += solNx_uv[K][i] * solNx_uv[K][j];
+            }
+          }
+        }
+        double detgN = gN[0][0] * gN[1][1] - gN[0][1] * gN[1][0];
+
+        // Compute the metric inverse.
+        double gNi[dim][dim];
+        gNi[0][0] =  gN[1][1] / detgN;
+        gNi[0][1] = -gN[0][1] / detgN;
+        gNi[1][0] = -gN[1][0] / detgN;
+        gNi[1][1] =  gN[0][0] / detgN;
+
+        double normalN[DIM];
+        normalN[0] = (solNx_uv[1][0] * solNx_uv[2][1] - solNx_uv[2][0] * solNx_uv[1][1]) / sqrt(detgN);
+        normalN[1] = (solNx_uv[2][0] * solNx_uv[0][1] - solNx_uv[0][0] * solNx_uv[2][1]) / sqrt(detgN);;
+        normalN[2] = (solNx_uv[0][0] * solNx_uv[1][1] - solNx_uv[1][0] * solNx_uv[0][1]) / sqrt(detgN);;
 
         // Compute new X minus old X dot N, for "reparametrization".
-        double DnXmDxdotNSqrtDetg = 0.;
+        double DnXmDxdotN = 0.;
         for(unsigned K = 0; K < DIM; K++) {
-          DnXmDxdotNSqrtDetg += - solDxg[K] * 0.5 * (normalNSqrtDetg[K] + normalOSqrtDetg[K]);
+          DnXmDxdotN += solDxg[K] * (normalN[K] + normal[K]);
         }
 
         // Lagrange Multiplier Residual and Linear Jacobian.
         for(unsigned K = 0; K < DIM; K++) {
           for(unsigned i = 0; i < nxDofs; i++) {
             unsigned irow = K * nxDofs + i;
-            Res[irow] -= solLg * phi[i] * 0.5 * (normalNSqrtDetg[K] + normalOSqrtDetg[K]) * Area2;
+            Res[irow] -= solLg * phi[i] * (normalN[K] + normal[K]) * Area;
             unsigned istart = irow * sizeAll;
             for(unsigned j = 0; j < nLDofs; j++) {
-              Jac[istart + DIM * nxDofs + j] += phiL[j] * phi[i] * 0.5 * (normalNSqrtDetg[K] + normalOSqrtDetg[K]) * Area2;
+              Jac[istart + DIM * nxDofs + j] += phiL[j] * phi[i] * (normalN[K] + normal[K]) * Area;
             }
           }
         }
@@ -396,57 +410,154 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         // Constraint Residual and Linear Jacobian
         for(unsigned i = 0; i < nLDofs; i++) {
           unsigned irow = DIM * nxDofs + i;
-          Res[irow] -= phiL[i] * (DnXmDxdotNSqrtDetg * Area2);
+          Res[irow] -= phiL[i] * (DnXmDxdotN * Area);
           unsigned istart = irow * sizeAll;
           for(unsigned K = 0; K < DIM; K++) {
             for(unsigned j = 0; j < nxDofs; j++) {
-              Jac[istart + K * nxDofs + j] += -phiL[i] * phi[j] * 0.5 * (normalNSqrtDetg[K] + normalOSqrtDetg[K]) * Area2;
+              Jac[istart + K * nxDofs + j] += phiL[i] * phi[j] * (normalN[K] + normal[K]) * Area;
             }
           }
         }
 
+        double DXN[3][3];
+        for(unsigned I = 0; I < 3; I++) {
+          for(unsigned J = 0; J < 3; J++) {
+            DXN[I][J] = solDxg[I] * normalN[J];
+          }
+        }
 
-        for(unsigned j = 0; j < nxDofs; j++) {
-
-          double DnormalSqrtDetg[DIM][DIM];
-
-          DnormalSqrtDetg[0][0] =  0.;
-          DnormalSqrtDetg[0][1] =  0.5 * (solNx_uv[2][1] * phix_uv[0][j] - solNx_uv[2][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[0][2] = -0.5 * (solNx_uv[1][1] * phix_uv[0][j] - solNx_uv[1][0] * phix_uv[1][j]);
-
-          DnormalSqrtDetg[1][0] = -0.5 * (solNx_uv[2][1] * phix_uv[0][j] - solNx_uv[2][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[1][1] =  0.;
-          DnormalSqrtDetg[1][2] =  0.5 * (solNx_uv[0][1] * phix_uv[0][j] - solNx_uv[0][0] * phix_uv[1][j]);
-
-          DnormalSqrtDetg[2][0] =  0.5 * (solNx_uv[1][1] * phix_uv[0][j] - solNx_uv[1][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[2][1] = -0.5 * (solNx_uv[0][1] * phix_uv[0][j] - solNx_uv[0][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[2][2] =  0.;
-
-//               // Nonlinear Lagrange Multiplier Jacobian
-//               for(unsigned i = 0; i < nxDofs; i++) {
-//                 for(unsigned K = 0; K < DIM; K++) {
-//                   unsigned irow = K * nxDofs + i;
-//                   unsigned istart = irow * sizeAll;
-//                   for(unsigned J = 0; J < DIM; J++) {
-//                     Jac[istart + J * nxDofs + j] += solLg * phix[i] * DnormalSqrtDetg[K][J] * Area2;
-//                   }
-//                 }
-//               }
-
-          // Nonlinear Constraint Jacobian
-          for(unsigned i = 0; i < nLDofs; i++) {
-            unsigned irow = DIM * nxDofs + i;
-            unsigned istart = irow * sizeAll;
-            for(unsigned K = 0; K < DIM; K++) {
-              double term = 0.;
-              for(unsigned J = 0; J < DIM; J++) {
-                term += - solDxg[J] * DnormalSqrtDetg[J][K];
+        double mGidDXDXN[2][3] = {{0., 0., 0.}, {0., 0., 0.}};
+        double mGidDXN[2][3][3] = {{{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}, {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}};
+        for(unsigned b = 0; b < 2; b++) {
+          for(unsigned a = 0; a < 2; a++) {
+            for(unsigned I = 0; I < 3; I++) {
+              for(unsigned J = 0; J < 3; J++) {
+                mGidDXDXN[b][J] += -gNi[a][b] * solNx_uv[I][a] * DXN[I][J];
+                mGidDXN[b][I][J] += -gNi[a][b] * solNx_uv[I][a] * normalN[J];
               }
-              Jac[istart + K * nxDofs + j] += phiL[i] * term * Area2;
             }
           }
         }
+
+        double dDXDX[2] = {0., 0.};
+        for(unsigned a = 0; a < 2; a++) {
+          for(unsigned I = 0; I < 3; I++) {
+            dDXDX[a] += solNx_uv[I][a] * solDxg[I];
+          }
+        }
+
+        double gIgINdDXDXdDX[2][2][3][3] = {{
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}},
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+          }, {
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}},
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+          }
+        };
+        
+        double gIgIdDXdDXDXN[2][2][3][3] = {{
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}},
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+          }, {
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}},
+            {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+          }
+        };
+
+        for(unsigned b = 0; b < 2; b++) {
+          for(unsigned l = 0; l < 2; l++) {
+            for(unsigned a = 0; a < 2; a++) {
+              for(unsigned k = 0; k < 2; k++) {
+                for(unsigned I = 0; I < 3; I++) {
+                  for(unsigned J = 0; J < 3; J++) {
+                    gIgINdDXDXdDX[b][l][I][J] += 2. * gNi[b][l] * gNi[a][k] * dDXDX[a] * normalN[I] * solNx_uv[J][k];  
+                    gIgIdDXdDXDXN[b][l][I][J] += gNi[a][b] * gNi[k][l] * dDXDX[a] * solNx_uv[I][k] * normalN[J];  
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // Nonlinear Constraint Jacobian
+        for(unsigned I = 0; I < DIM; I++) {
+          for(unsigned i = 0; i < nxDofs; i++) {
+            unsigned irow = I * nxDofs + i;
+            unsigned istart = irow * sizeAll;
+            for(unsigned J = 0; J < DIM; J++) {
+              for(unsigned j = 0; j < nxDofs; j++) {
+
+                double term = 0.;
+                for(unsigned b = 0; b < 2; b++) {
+                  for(unsigned l = 0; l < 2; l++) {
+                     term += phix_uv[b][i] * (gIgINdDXDXdDX[b][l][I][J] + gIgIdDXdDXDXN[b][l][I][J] - gNi[b][l] * DXN[J][I]) * phix_uv[l][j];  
+                  }
+                }
+                //Jac[istart + J * nxDofs + j] +=  solLg * term * Area;
+              }
+            }
+          }
+        }
+        
+
+
+        // Nonlinear Constraint Jacobian
+        for(unsigned i = 0; i < nLDofs; i++) {
+          unsigned irow = DIM * nxDofs + i;
+          unsigned istart = irow * sizeAll;
+          for(unsigned J = 0; J < DIM; J++) {
+            for(unsigned j = 0; j < nxDofs; j++) {
+
+              unsigned jrow =  J * nxDofs + j;
+              unsigned jstart = jrow * sizeAll;
+
+              double term = 0.;
+              for(unsigned b = 0; b < 2; b++) {
+                term += mGidDXDXN[b][J] * phix_uv[b][j];
+              }
+              Jac[istart + J * nxDofs + j] += phiL[i] * term * Area;
+              //Jac[jstart + DIM * nxDofs + i] += phiL[i] * term * Area;
+
+            }
+          }
+        }
+
+        // Nonlinear Constraint Jacobian
+        for(unsigned I = 0; I < DIM; I++) {
+          for(unsigned i = 0; i < nxDofs; i++) {
+            unsigned irow = I * nxDofs + i;
+
+            double term = 0.;
+            for(unsigned b = 0; b < 2; b++) {
+              term += mGidDXDXN[b][I] * phix_uv[b][i];
+            }
+            //Res[irow] -= solLg * term * Area;
+
+            unsigned istart = irow * sizeAll;
+            for(unsigned J = 0; J < DIM; J++) {
+              for(unsigned j = 0; j < nxDofs; j++) {
+
+                unsigned jrow =  J * nxDofs + j;
+                unsigned jstart = jrow * sizeAll;
+
+                double term = 0.;
+                for(unsigned b = 0; b < 2; b++) {
+                  term += mGidDXN[b][I][J] * phix_uv[b][j];
+                }
+                Jac[istart + J * nxDofs + j] +=  phi[i] * solLg * term * Area;
+                //Jac[jstart + I * nxDofs + i] +=  phi[i] * solLg * term * Area;
+              }
+            }
+          }
+        }
+
+
+
+
+
       }
+
+
 
 
       if(areaConstraint) {
@@ -487,9 +598,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
     } // end GAUSS POINT LOOP
 
-    //------------------------------------------------------------------------
-    // Add the local Matrix/Vector into the global Matrix/Vector
-    //copy the value of the adept::adoube aRes in double Res and store
+//------------------------------------------------------------------------
+// Add the local Matrix/Vector into the global Matrix/Vector
+//copy the value of the adept::adoube aRes in double Res and store
 
     RES->add_vector_blocked(Res, SYSDOF);
     KK->add_matrix_blocked(Jac, SYSDOF, SYSDOF);
@@ -522,3 +633,5 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssembleO2ConformalMinimization.
+
+
