@@ -365,82 +365,118 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           }
         }
 
-        double normalSqrtDetg[DIM];
-        normalSqrtDetg[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]);
-        normalSqrtDetg[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]);
-        normalSqrtDetg[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]);
+        double NArea[DIM];
+        NArea[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]);
+        NArea[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]);
+        NArea[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]);
 
         // Compute new X minus old X dot N, for "reparametrization".
         double DnXmDxdotNSqrtDetg = 0.;
         for(unsigned K = 0; K < DIM; K++) {
-          DnXmDxdotNSqrtDetg += solDxg[K] * normalSqrtDetg[K];
+          varXdotNArea += solDxg[K] * NArea[K];
         }
 
-        // Lagrange Multiplier Residual and Linear Jacobian.
-        for(unsigned K = 0; K < DIM; K++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            unsigned irow = K * nxDofs + i;
-            Res[irow] -= solLg * phi[i] * normalSqrtDetg[K] * Area2;
-            unsigned istart = irow * sizeAll;
-            for(unsigned j = 0; j < nLDofs; j++) {
-              Jac[istart + DIM * nxDofs + j] += phiL[j] * phi[i] * normalSqrtDetg[K] * Area2;
-            }
-          }
-        }
+        double delNArea[2][3][3] = {{{0.,0.,0.},{0.,0.,0.},{0.,0.,0.}}
+                                    ,{{0.,0.,0.},{0.,0.,0.},{0.,0.,0.}}};
 
-        // Constraint Residual and Linear Jacobian
+          delNArea[0][0][0] =  0.;
+          delNArea[0][0][1] =  0.5 * solx_uv[2][1];
+          delNArea[0][0][2] = -0.5 * solx_uv[1][1];
+          delNArea[0][1][0] = -0.5 * solx_uv[2][1];
+          delNArea[0][1][1] =  0.;
+          delNArea[0][1][2] =  0.5 * solx_uv[0][1];
+          delNArea[0][2][0] =  0.5 * solx_uv[1][1];
+          delNArea[0][2][1] = -0.5 * solx_uv[0][1];
+          delNArea[0][2][2] =  0.;
+
+          delNArea[1][0][0] =  0.;
+          delNArea[1][0][1] = -0.5 * solx_uv[2][0];
+          delNArea[1][0][2] =  0.5 * solx_uv[1][0];
+          delNArea[1][1][0] =  0.5 * solx_uv[2][0];
+          delNArea[1][1][1] =  0.;
+          delNArea[1][1][2] = -0.5 * solx_uv[0][0];
+          delNArea[1][2][0] = -0.5 * solx_uv[1][0];
+          delNArea[1][2][1] =  0.5 * solx_uv[0][0];
+          delNArea[1][2][2] =  0.;
+
+
+        // Residual term 1 and Linear Jacobian
         for(unsigned i = 0; i < nLDofs; i++) {
           unsigned irow = DIM * nxDofs + i;
-          Res[irow] -= phiL[i] * (DnXmDxdotNSqrtDetg * Area2);
+          Res[irow] -= phiL[i] * varXdotNArea * Area2;
           unsigned istart = irow * sizeAll;
-          for(unsigned K = 0; K < DIM; K++) {
+          for(unsigned J = 0; J < DIM; J++) {
             for(unsigned j = 0; j < nxDofs; j++) {
-              Jac[istart + K * nxDofs + j] += phiL[i] * phi[j] * normalSqrtDetg[K] * Area2;
+              Jac[istart + J * nxDofs + j] += phiL[i] * phi[j] * NArea[J] * Area2;
             }
           }
         }
 
+        // Residual term 2 and Linear Jacobian.
+        for(unsigned I = 0; I < DIM; I++) {
+          for(unsigned i = 0; i < nxDofs; i++) {
+            unsigned irow = I * nxDofs + i;
+            Res[irow] -= solLg * phi[i] * NArea[I] * Area2;
+            unsigned istart = irow * sizeAll;
+            for(unsigned j = 0; j < nLDofs; j++) {
+              Jac[istart + DIM * nxDofs + j] += phiL[j] * phi[i] * NArea[I] * Area2;
+            }
+          }
+        }
+
+        // // Residual term 3 and Linear Jacobian.
+        // for(unsigned I = 0; I < DIM; I++) {
+        //   for(unsigned i = 0; i < nxDofs; i++) {
+        //     unsigned irow = I * nxDofs + i;
+        //     double term = 0;
+        //     for(unsigned a = 0; a < dim; a++) {
+        //       for(unsigned J = 0; J < DIM; J++) {
+        //         term += solDxg[J] * delNArea[a][J][I] * phix_uv[a][i];
+        //       }
+        //     }
+        //     Res[irow] -= solLg * term * Area2;
+        //
+        //     // unsigned istart = irow * sizeAll;
+        //     // for(unsigned j = 0; j < nXDofs; j++) {
+        //     //   Jac[istart + J * nxDofs + j] += solLg * phi[i] * term * Area2;
+        //     }
+        //   }
+        //}
 
         for(unsigned j = 0; j < nxDofs; j++) {
 
-          double DnormalSqrtDetg[DIM][DIM];
-
-          DnormalSqrtDetg[0][0] =  0.;
-          DnormalSqrtDetg[0][1] =  0.5 * (solx_uv[2][1] * phix_uv[0][j] - solx_uv[2][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[0][2] = -0.5 * (solx_uv[1][1] * phix_uv[0][j] - solx_uv[1][0] * phix_uv[1][j]);
-
-          DnormalSqrtDetg[1][0] = -0.5 * (solx_uv[2][1] * phix_uv[0][j] - solx_uv[2][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[1][1] =  0.;
-          DnormalSqrtDetg[1][2] =  0.5 * (solx_uv[0][1] * phix_uv[0][j] - solx_uv[0][0] * phix_uv[1][j]);
-
-          DnormalSqrtDetg[2][0] =  0.5 * (solx_uv[1][1] * phix_uv[0][j] - solx_uv[1][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[2][1] = -0.5 * (solx_uv[0][1] * phix_uv[0][j] - solx_uv[0][0] * phix_uv[1][j]);
-          DnormalSqrtDetg[2][2] =  0.;
-
-              // Nonlinear Lagrange Multiplier Jacobian
-              for(unsigned i = 0; i < nxDofs; i++) {
-                for(unsigned K = 0; K < DIM; K++) {
-                  unsigned irow = K * nxDofs + i;
-                  unsigned istart = irow * sizeAll;
-                  for(unsigned J = 0; J < DIM; J++) {
-                    Jac[istart + J * nxDofs + j] += solLg * phi[i] * DnormalSqrtDetg[K][J] * Area2;
-                  }
-                }
-              }
-
-          // Nonlinear Constraint Jacobian
-          for(unsigned i = 0; i < nLDofs; i++) {
-            unsigned irow = DIM * nxDofs + i;
+        // Nonlinear Residual term 1 Jacobian
+        for(unsigned i = 0; i < nxDofs; i++) {
+          for(unsigned I = 0; I < DIM; I++) {
+            unsigned irow = I * nxDofs + i;
             unsigned istart = irow * sizeAll;
-            for(unsigned K = 0; K < DIM; K++) {
-              double term = 0.;
-              for(unsigned J = 0; J < DIM; J++) {
-                term += solDxg[J] * DnormalSqrtDetg[J][K];
+            double term = 0;
+            for(unsigned J = 0; J < DIM; J++) {
+              for(unsigned a = 0; a < dim; a++){
+                term += delNArea[a][I][J] * phix_uv[a][j];
               }
-              Jac[istart + K * nxDofs + j] += phiL[i] * term * Area2;
+              Jac[istart + J * nxDofs + j] += solLg * phi[i] * term * Area2;
             }
           }
         }
+
+          // Nonlinear Residual term 2 Jacobian
+          for(unsigned i = 0; i < nLDofs; i++) {
+            unsigned irow = DIM * nxDofs + i;
+            unsigned istart = irow * sizeAll;
+            for(unsigned J = 0; J < DIM; J++) {
+              double term = 0.;
+              for(unsigned K = 0; K < DIM; K++) {
+                for(unsigned a = 0; a < dim; a++) {
+                  term += solDxg[K] * delNArea[a][K][J] * phix_uv[a][j];
+                }
+              }
+              Jac[istart + J * nxDofs + j] += phiL[i] * term * Area2;
+            }
+          }
+
+        }
+
       }
 
 

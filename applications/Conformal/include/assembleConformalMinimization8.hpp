@@ -494,7 +494,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
                   }
                 }
                 Jac[istart + J * nxDofs + j] +=  phi[i] * solLg * term2 * Area;
-                Jac[jstart + I * nxDofs + i] +=  phi[i] * solLg * term2 * Area;
+                //Jac[jstart + I * nxDofs + i] +=  phi[i] * solLg * term2 * Area;
               }
             }
           }
@@ -518,7 +518,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
                 }
               }
               Jac[istart + J * nxDofs + j] += phiL[i] * term * Area; //1''
-              Jac[jstart + DIM * nxDofs + i] += phiL[i] * term * Area; //1'' transpose
+              //Jac[jstart + DIM * nxDofs + i] += phiL[i] * term * Area; //1'' transpose
             }
           }
         }
