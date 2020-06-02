@@ -30,7 +30,7 @@ Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
 #include "../include/updateMu7.hpp"
-#include "../include/assembleConformalMinimization8.hpp"
+#include "../include/assembleConformalMinimization9.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
