@@ -268,6 +268,7 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
 
   R0 = sqrt(R0);
   R1 = sqrt(R1);
+  
   dp = pow(dp, 1. / dim) / m1;
 
 
@@ -297,7 +298,7 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
   std::vector<double> XP(dim);
 
   unsigned c = 0;
-  for(unsigned i = i0; i <= i1; i++) {
+  for(int i = i0; i <= i1; i++) {
     c++;
     double ri = (i + 0.5) * dr;
     if(dim == 2) {
@@ -375,10 +376,10 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
 
             //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
 
-            wp[cnt] = ri * ri * sin(pk) * dr * dphi * dti;
+            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
             dist[cnt] = (R - ri);
 
-            area += ri * ri * sin(pk) * dr * dphi * dti;  // fix the volume
+            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
             cnt++;
           }
         }
@@ -460,10 +461,10 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
 
           //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
 
-          wp[cnt] = ri * ri * sin(pk) * dr * dphi * dti;
+          wp[cnt] = dp * (ri * dphi) * (ri * sin(pk) * dti);
           dist[cnt] = (R - ri);
 
-          area += ri * ri * sin(pk) * dr * dphi * dti;  // fix the volume
+          area += dp * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
           cnt++;
         }
       }
@@ -474,14 +475,11 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
 
   i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
   if(i0 < 0) i0 = 0;
-
   i1 = floor((R1 - (R + 0.5 * dp)) / dr - 0.5);
-  if(i1 > nr - 1) i1 = nr - 1;
-
-
-  for(unsigned i = i0; i <= i1; i++) {
+  
+  for(int i = i0; i <= i1; i++) {
     c++;
-    double ri = (R + 0.5 * dp) + (i + 0.5) * dr;
+    double ri = (R + 0.5 * ( dp + dr) ) + i * dr;
     if(dim == 2) {
       double dti = dr / ri;
       int j0 = floor(theta0 / dti);
@@ -557,21 +555,16 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
             
             //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
             
-            wp[cnt] = ri * ri * sin(pk) * dr * dphi * dti;
+            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
             dist[cnt] = (R - ri);
 
-            area += ri * ri * sin(pk) * dr * dphi * dti;  // fix the volume
+            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
             cnt++;
           }
         }
-
       }
-
-
     }
-
   }
-
 
 }
 
