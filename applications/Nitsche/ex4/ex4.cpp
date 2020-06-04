@@ -27,6 +27,8 @@
 #include "Solid.hpp"
 #include "Parameter.hpp"
 
+#include "../NewDraft/NewDraft.hpp"
+
 using namespace femus;
 
 Line* line1;
@@ -469,7 +471,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     }
 
 
-
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofV; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solVType);
@@ -570,7 +571,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       double thetaM = 8. / denM;
       
-      std::cout << thetaM <<" ";
+      //std::cout << thetaM <<" ";
 
       //double iL1C1 = 1. / (lambda1 * (*sol->_Sol[CLIndex[0]])(iel));
       //double iL2C2 = 1. / (lambda2 * (*sol->_Sol[CLIndex[1]])(iel));
