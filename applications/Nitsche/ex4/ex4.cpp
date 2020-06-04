@@ -42,6 +42,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 void BuildFlag(MultiLevelSolution& mlSol);
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol);
 
+void InitBallParticles(const unsigned & dim, const unsigned & ng, std::vector<double> &VxL, std::vector<double> &VxR,
+                       const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR,
+                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist);
+
+
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
   if(facename == 1)  dirichlet = true;
@@ -73,8 +78,8 @@ int main(int argc, char** args) {
   unsigned ny = 11; // this should always be a odd number
   unsigned nz = 1;
 
-  double length = 1.;
-  double lengthx = 0.5;
+  const double length = 1.;
+  const double lengthx = 0.5;
 
   if(DIM == 2) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, -lengthx / 2, lengthx / 2, -length / 2, length / 2, 0., 0., QUAD9, "seventh");
@@ -181,17 +186,28 @@ int main(int argc, char** args) {
   x[0][1] = yc;
 
   double R = 0.125;
+  double Rmax = 0.225;
+  double DR2 = R / 50.;
 
-  std::vector<double> VxL = {-10, 10};
-  std::vector<double> VxR = {-10, 10};
+  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length };
+  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length };
   std::vector < double> Xc = {xc, yc};
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
   unsigned NG = 5;
-  InitParticlesDisk3D(DIM, NG, VxL, VxR, Xc, R, xp, wp, dist);
-  PrintMat(xp);
-  abort;
+
+  InitBallParticles(DIM, NG, VxL, VxR, Xc, R, Rmax, DR2, xp, wp, dist);
+  
+  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size()); 
+  Eigen::MatrixXd xP(xp.size(), xp[0].size());
+  for(int i = 0; i < xp.size(); ++i) {
+    xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
+  }
+  
+  PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
+  
+  return 1;
 
 
 
@@ -1378,6 +1394,346 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   sol->_Sol[CLIndex[0]]->close();
   sol->_Sol[CLIndex[1]]->close();
 }
+
+void InitBallParticles(const unsigned & dim, const unsigned & ng, std::vector<double> &VxL, std::vector<double> &VxR,
+                       const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR,
+                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+
+  //unsigned m1 = ceil(2 * ng - 1);
+
+  double theta0 = 0; //atan2(VxL[1] - xc[1], VxR[0] - xc[0]);
+  double theta1 = 2 * M_PI;//atan2(VxR[1] - xc[1], VxL[0] - xc[0]);
+  //if(theta0 < 0) theta0 += M_PI;
+  //if(theta1 < 0) theta1 += M_PI;
+
+
+  double phi1 = M_PI / 2 - atan2(VxL[2] - xc[2], sqrt((VxR[0] - xc[0]) * (VxR[0] - xc[0]) + (VxR[1] - xc[1]) * (VxR[1] - xc[1]))); //TODO
+  double phi0 = M_PI / 2 - atan2(VxR[2] - xc[2], sqrt((VxL[0] - xc[0]) * (VxL[0] - xc[0]) + (VxL[1] - xc[1]) * (VxL[1] - xc[1]))); //TODO
+  if(phi0 < 0) phi0 += M_PI; //TODO
+  if(phi1 < 0) phi1 += M_PI; //TODO
+
+  double R0 = 0. ;
+  double R1 = 0. ;
+  //double dp = 1.;
+
+
+  for(unsigned k = 0; k < dim; k++) {
+    R0 += (VxL[k] - xc[k]) * (VxL[k] - xc[k]);
+    R1 += (VxR[k] - xc[k]) * (VxR[k] - xc[k]);
+    //dp *= VxR[k] - VxL[k];
+  }
+
+  R0 = sqrt(R0);
+  R1 = sqrt(R1);
+
+  double dp = DR;
+
+
+  //std::cout << "theta0 = " << theta0 << " theta1 = " << theta1 << " phi0 = " << phi0 << " phi1 = " << phi1 <<  " R0 = " << R0 <<  " R1 = " << R1 << std::endl;
+
+
+  unsigned nr = ceil(((R - 0.5 * dp)) / dp);
+  double dr = ((R - 0.5 * dp)) / nr;
+  double area = 0.;
+
+  xp.resize(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    xp[k].reserve(pow(2 * nr, dim));
+  }
+  wp.reserve(pow(2 * nr, dim));
+  dist.reserve(pow(2 * nr, dim));
+  unsigned cnt = 0;
+
+  int i0 = floor(R0 / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+  //int i1 = ceil(R1 / dr - 0.5);
+  int i1 = ceil((R - 0.5 * dp) / dr - 0.5);
+  if(i1 > nr - 1) i1 = nr - 1;
+
+  //std::cout << "i0 = " << i0 << " i1 = " << i1 <<std::endl;
+
+  std::vector<double> XP(dim);
+
+  for(int i = i0; i <= i1; i++) {
+    double ri = (i + 0.5) * dr;
+    if(dim == 2) {
+      unsigned nti = ceil(2 * M_PI * ri / dr);
+      double dti = 2 * M_PI / nti;
+      //double dti = dr / ri;
+      //int j0 = floor(theta0 / dti);
+      //int j1 = ceil(theta1 / dti);
+      //for(unsigned j = j0; j <= j1; j++) {
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = j * dti;
+        XP[0] = xc[0] + ri * cos(tj);
+        XP[1] = xc[1] + ri * sin(tj);
+        unsigned flag  = 0;
+        for(unsigned k = 0; k < dim; k++) {
+          if(VxL[k] > XP[k] || XP[k] > VxR[k]) {
+            flag++;
+            break;
+          }
+        }
+        if(!flag) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = XP[0];
+          xp[1][cnt] = XP[1];
+
+          //std::cout << xp[0][cnt] << " " << xp[1][cnt] << std::endl;
+
+          wp[cnt] = ri * dti * dr;
+          dist[cnt] = (R - ri);
+          area += ri * dti * dr;
+          cnt++;
+        }
+      }
+    }
+    else { //TODO
+
+      double dphi = dr / ri;
+      int k0 = floor(phi0 / dphi);
+      int k1 = ceil(phi1 / dphi);
+
+      for(unsigned k = k0; k <= k1; k++) {
+        double pk = (k + 0.5) * dphi;
+
+        double dti = dr / (ri * sin(pk));
+        int j0 = floor(theta0 / dti);
+        int j1 = ceil(theta1 / dti);
+
+        for(unsigned j = j0; j <= j1; j++) {
+          double tj = j * dti;
+          XP[0] = xc[0] + ri * sin(pk) * cos(tj);
+          XP[1] = xc[1] + ri * sin(pk) * sin(tj);
+          XP[2] = xc[2] + ri * cos(pk);
+
+          unsigned flag  = dim;
+          for(unsigned k = 0; k < dim; k++) {
+            if(VxL[k] <= XP[k]  && XP[k] <= VxR[k]) {
+              --flag;
+            }
+          }
+
+          if(!flag) {
+            for(unsigned k = 0; k < dim; k++) {
+              xp[k].resize(cnt + 1);
+            }
+            wp.resize(cnt + 1);
+            dist.resize(cnt + 1);
+
+            xp[0][cnt] = XP[0];
+            xp[1][cnt] = XP[1];
+            xp[2][cnt] = XP[2];
+
+            //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
+
+            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
+            dist[cnt] = (R - ri);
+
+            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+            cnt++;
+          }
+        }
+
+      }
+    }
+  }
+
+  double ri = R;
+  if(dim == 2) {
+    unsigned nti = ceil(2 * M_PI * ri / dr);
+    double dti = 2 * M_PI / nti;
+
+//     double dti = dr / ri;
+//     int j0 = floor(theta0 / dti);
+//     int j1 = ceil(theta1 / dti);
+//     for(unsigned j = j0; j <= j1; j++) {
+    for(unsigned j = 0; j < nti ; j++) {
+      double tj = j * dti;
+      XP[0] = xc[0] + ri * cos(tj);
+      XP[1] = xc[1] + ri * sin(tj);
+      unsigned flag  = 0;
+      for(unsigned k = 0; k < dim; k++) {
+        if(VxL[k] > XP[k]  || XP[k] > VxR[k]) {
+          ++flag;
+          break;
+        }
+      }
+      if(!flag) {
+
+        for(unsigned k = 0; k < dim; k++) {
+          xp[k].resize(cnt + 1);
+        }
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+
+        xp[0][cnt] = XP[0];
+        xp[1][cnt] = XP[1];
+
+        //std::cout << xp[0][cnt] << " " << xp[1][cnt] << std::endl;
+
+        wp[cnt] = ri * dti * dr;
+        dist[cnt] = (R - ri);
+        area += ri * dti * dr;
+        cnt++;
+      }
+    }
+  }
+  else { //TODO
+    double dphi = dr / ri;
+    int k0 = floor(phi0 / dphi);
+    int k1 = ceil(phi1 / dphi);
+
+    for(unsigned k = k0; k <= k1; k++) {
+      double pk = (k + 0.5) * dphi;
+
+      double dti = dr / (ri * sin(pk));
+      int j0 = floor(theta0 / dti);
+      int j1 = ceil(theta1 / dti);
+
+      for(unsigned j = j0; j <= j1; j++) {
+        double tj = j * dti;
+        XP[0] = xc[0] + ri * sin(pk) * cos(tj);
+        XP[1] = xc[1] + ri * sin(pk) * sin(tj);
+        XP[2] = xc[2] + ri * cos(pk);
+
+        unsigned flag  = dim;
+        for(unsigned k = 0; k < dim; k++) {
+          if(VxL[k] <= XP[k]  && XP[k] <= VxR[k]) {
+            --flag;
+          }
+        }
+
+        if(!flag) {
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = XP[0];
+          xp[1][cnt] = XP[1];
+          xp[2][cnt] = XP[2];
+
+          //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
+
+          wp[cnt] = dp * (ri * dphi) * (ri * sin(pk) * dti);
+          dist[cnt] = (R - ri);
+
+          area += dp * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+          cnt++;
+        }
+      }
+
+    }
+  }
+
+
+  i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+  i1 = floor((Rmax - (R + 0.5 * dp)) / dr - 0.5);
+
+  for(int i = i0; i <= i1; i++) {
+    double ri = (R + 0.5 * (dp + dr)) + i * dr;
+    if(dim == 2) {
+
+      unsigned nti = ceil(2 * M_PI * ri / dr);
+      double dti = 2 * M_PI / nti;
+
+//       double dti = dr / ri;
+//       int j0 = floor(theta0 / dti);
+//       int j1 = ceil(theta1 / dti);
+//       for(unsigned j = j0; j <= j1; j++) {
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = j * dti;
+        XP[0] = xc[0] + ri * cos(tj);
+        XP[1] = xc[1] + ri * sin(tj);
+        unsigned flag  = 0;
+        for(unsigned k = 0; k < dim; k++) {
+          if(VxL[k] > XP[k]  || XP[k] > VxR[k]) {
+            ++flag;
+            break;
+          }
+        }
+        if(!flag) {
+
+          for(unsigned k = 0; k < dim; k++) {
+            xp[k].resize(cnt + 1);
+          }
+          wp.resize(cnt + 1);
+          dist.resize(cnt + 1);
+
+          xp[0][cnt] = XP[0];
+          xp[1][cnt] = XP[1];
+
+          //std::cout << xp[0][cnt] << " " << xp[1][cnt] << std::endl;
+
+          wp[cnt] = ri * dti * dr;
+          dist[cnt] = (R - ri);
+
+          area += ri * dti * dr;
+          cnt++;
+        }
+      }
+    }
+    else {//TODO
+
+      double dphi = dr / ri;
+      int k0 = floor(phi0 / dphi);
+      int k1 = ceil(phi1 / dphi);
+
+      for(unsigned k = k0; k <= k1; k++) {
+        double pk = (k + 0.5) * dphi;
+        //unsigned nti = ceil(2 * M_PI * pk / dphi);
+        //double dti =  M_PI / nti;
+        double dti = dr / (ri * sin(pk));
+        int j0 = floor(theta0 / dti);
+        int j1 = ceil(theta1 / dti);
+
+        for(unsigned j = j0; j <= j1; j++) {
+          double tj = j * dti;
+          XP[0] = xc[0] + ri * sin(pk) * cos(tj);
+          XP[1] = xc[1] + ri * sin(pk) * sin(tj);
+          XP[2] = xc[2] + ri * cos(pk);
+
+          unsigned flag  = dim;
+          for(unsigned k = 0; k < dim; k++) {
+            if(VxL[k] <= XP[k]  && XP[k] <= VxR[k]) {
+              --flag;
+            }
+          }
+
+          if(!flag) {
+            for(unsigned k = 0; k < dim; k++) {
+              xp[k].resize(cnt + 1);
+            }
+            wp.resize(cnt + 1);
+            dist.resize(cnt + 1);
+
+            xp[0][cnt] = XP[0];
+            xp[1][cnt] = XP[1];
+            xp[2][cnt] = XP[2];
+
+            //std::cout << xp[0][cnt] << " " << xp[1][cnt] << " " << xp[2][cnt] << std::endl;
+
+            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
+            dist[cnt] = (R - ri);
+
+            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+            cnt++;
+          }
+        }
+      }
+    }
+  }
+
+}
+
 
 
 
