@@ -149,12 +149,12 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("VX1");
   system.AddSolutionToSystemPDE("VY1");
   if(DIM == 3) system.AddSolutionToSystemPDE("VZ1");
- // system.AddSolutionToSystemPDE("P1");
+// system.AddSolutionToSystemPDE("P1");
 
   system.AddSolutionToSystemPDE("VX2");
   system.AddSolutionToSystemPDE("VY2");
   if(DIM == 3) system.AddSolutionToSystemPDE("VZ2");
- // system.AddSolutionToSystemPDE("P2");
+// system.AddSolutionToSystemPDE("P2");
 
 
   // attach the assembling function to system
@@ -182,6 +182,23 @@ int main(int argc, char** args) {
 
   double R = 0.125;
 
+  std::vector<double> VxL = {-10, 10};
+  std::vector<double> VxR = {-10, 10};
+  std::vector < double> Xc = {xc, yc};
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  unsigned NG = 5;
+  InitParticlesDisk3D(DIM, NG, VxL, VxR, Xc, R, xp, wp, dist);
+  PrintMat(xp);
+  abort;
+
+
+
+
+
+
+
   unsigned NTHETA = 600; // number of partitions on the outer circle
   unsigned NR = NTHETA / (2 * M_PI); // number of partitions on the radial direction
   double DR = R / (NR + 0.5);
@@ -208,8 +225,6 @@ int main(int argc, char** args) {
   }
 
   size = x.size();
-
-
 
 
 
@@ -257,7 +272,6 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "bulk1", line1Points, 0);
 
 
-
   //interface marker initialization
   double Ntheta = NTHETA * 2;
   x.resize(Ntheta);
@@ -297,6 +311,7 @@ int main(int argc, char** args) {
   lineI->GetLine(lineIPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
   //END interface markers
+
 
   BuildFlag(mlSol);
 
@@ -366,11 +381,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   double rho2 = ml_prob.parameters.get<Solid> ("Fluid2").get_density();
 
   double mu1 = ml_prob.parameters.get<Solid> ("Fluid1").get_lame_shear_modulus();
-  
-  double mu2 = ml_prob.parameters.get<Solid> ("Fluid2").get_lame_shear_modulus();
-  
 
-  double g[DIM] = {0.,-1., 0.};
+  double mu2 = ml_prob.parameters.get<Solid> ("Fluid2").get_lame_shear_modulus();
+
+
+  double g[DIM] = {0., -1., 0.};
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
@@ -570,7 +585,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       double gammaM2 = iM2C2 / denM;
 
       double thetaM = 8. / denM;
-      
+
       //std::cout << thetaM <<" ";
 
       //double iL1C1 = 1. / (lambda1 * (*sol->_Sol[CLIndex[0]])(iel));
@@ -578,10 +593,10 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       //double denL = iL1C1 + iL2C2;
 
-     // double gammaL1 = iL1C1 / denL;
-     // double gammaL2 = iL2C2 / denL;
+      // double gammaL1 = iL1C1 / denL;
+      // double gammaL2 = iL2C2 / denL;
 
-     // double thetaL = 4. / denL;
+      // double thetaL = 4. / denL;
 
 
 //       double gammaL1 = 0.5;
@@ -597,7 +612,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
 
       //bulk1
-      while (imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
+      while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
         imarker1++;
       }
       while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
@@ -643,7 +658,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       }
 
       //bulk2
-      while (imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
+      while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
         imarker2++;
       }
       while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
@@ -817,7 +832,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //   PetscViewerPushFormat (viewer, PETSC_VIEWER_DRAW_LG);
 //   MatView ( (static_cast<PetscMatrix*> (KK))->mat(), viewer);
 //   //VecView ( (static_cast<PetscVector*> (RES))->vec(), viewer);
-// 
+//
 //   double a;
 //   std::cin >> a;
 
@@ -973,11 +988,11 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       }
 
       //bulk1
-      while (imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
+      while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
         imarker1++;
       }
-      while (imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
-      
+      while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
@@ -1002,7 +1017,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       }
 
       //bulk2
-      while (imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
+      while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
         imarker2++;
       }
       while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
