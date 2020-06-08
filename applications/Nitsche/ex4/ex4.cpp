@@ -33,6 +33,7 @@ using namespace femus;
 
 Line* line1;
 Line* line2;
+Line* line3;
 Line* lineI;
 
 unsigned DIM = 2;
@@ -172,47 +173,60 @@ int main(int argc, char** args) {
 
   //init marker
 
+  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length,-0.5 * length };
+  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length,0.5 * length };
 
+  
+  double xc = 0.;
+  double yc = 0.;
+  double zc = 0.;
+  double R = 0.125;
+  double Rmax = 0.225;
+  double DR2 = R / 10.;
+  std::vector < double> Xc = {xc, yc, zc};
+  
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  
+  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR2, xp, wp, dist);
+  
+  std::vector < MarkerType > markerType(xp.size(), VOLUME);
+
+  unsigned solType = 2;
+  line3 = new Line(xp, wp, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+
+  std::vector < std::vector < std::vector < double > > >  line3Points(1);
+  line3->GetLine(line3Points[0]);
+  PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
+  
+  
   //BEGIN init particles
   unsigned size = 1;
   std::vector < std::vector < double > > x; // marker
 
-  double xc = 0.;
-  double yc = 0.;
-  double zc = 0.;
+ 
 
   x.resize(size);
   x[0].resize(DIM, 0.);
   x[0][0] = xc;
   x[0][1] = yc;
 
-  double R = 0.125;
-  double Rmax = 0.225;
-  double DR2 = R / 10.;
+  
+  
+  
 
-  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length,-0.5 * length };
-  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length,0.5 * length };
-//   std::vector<double> VxL = { - 1000, -1000 };
-//   std::vector<double> VxR = {  1000,  10000 };
-  std::vector < double> Xc = {xc, yc, zc};
-  std::vector < std::vector <double> > xp;
-  std::vector <double> wp;
-  std::vector <double> dist;
-  unsigned NG = 5;
+//   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
+//   Eigen::MatrixXd xP(xp.size(), xp[0].size());
+//   for(int i = 0; i < xp.size(); ++i) {
+//     xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
+//   }
+// 
+//   //std::cout << " NumPoints =  "<< xP.cols() << std::endl;
+// 
+//   PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
 
-  InitBallParticles(DIM, NG, VxL, VxR, Xc, R, Rmax, DR2, xp, wp, dist);
-
-  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
-  Eigen::MatrixXd xP(xp.size(), xp[0].size());
-  for(int i = 0; i < xp.size(); ++i) {
-    xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
-  }
-
-  //std::cout << " NumPoints =  "<< xP.cols() << std::endl;
-
-  PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
-
-  return 1;
+//  return 1;
 
 
 
@@ -242,14 +256,12 @@ int main(int argc, char** args) {
     }
   }
 
-  PrintMat(x);
+
   size = x.size();
 
-  return 1;
 
-  std::vector < MarkerType > markerType(size, VOLUME);
 
-  unsigned solType = 2;
+  markerType.assign(size, VOLUME);
   line2 = new Line(x, volume, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > >  line2Points(1);
