@@ -5,7 +5,7 @@
  * read from the file ./input/square.neu the coarse-level mesh and associate it to mlMsh;
  * add in mlMsh uniform refined level-meshes;
  * define the multilevel-solution object mlSol associated to mlMsh;
- * add in mlSol different types of finite element solution variables;
+ * add in mlSol different types of finite element solution variables; +
  * initialize the solution variables;
  * define vtk and gmv writer objects associated to mlSol;
  * print vtk and gmv binary-format files in ./output directory.
