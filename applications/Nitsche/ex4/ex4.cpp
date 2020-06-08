@@ -35,7 +35,7 @@ Line* line1;
 Line* line2;
 Line* lineI;
 
-unsigned DIM = 3;
+unsigned DIM = 2;
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
@@ -190,8 +190,10 @@ int main(int argc, char** args) {
   double Rmax = 0.225;
   double DR2 = R / 10.;
 
-  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length };
-  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length };
+  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length,-0.5 * length };
+  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length,0.5 * length };
+//   std::vector<double> VxL = { - 1000, -1000 };
+//   std::vector<double> VxR = {  1000,  10000 };
   std::vector < double> Xc = {xc, yc, zc};
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
