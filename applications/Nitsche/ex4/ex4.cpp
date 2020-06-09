@@ -37,6 +37,16 @@ Line* line3;
 Line* lineI;
 
 unsigned DIM = 2;
+double eps = 0.5;
+double deps;
+double a0;
+double a1;
+double a3;
+double a5;
+double a7;
+double a9;
+
+
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
@@ -90,10 +100,24 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, -lengthx / 2, lengthx / 2, -length / 2, length / 2, -length / 2, length / 2, HEX27, "seventh");
   }
 
+  double Hx = lengthx / nx;
+  double Hy = length / ny;
+  double H = sqrt(Hx * Hx + Hy * Hy);
+
+  deps = H * eps; // eps1
+  a0 = 0.5; // 128./256.;
+  a1 = pow(deps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(deps, -3.) * 1.640625; //420./256.;
+  a5 = pow(deps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(deps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
+
+
+
   double Lref = 1.;
   double Uref = 1.;
   double rho1 = 1000;
-  double rho2 = 100;
+  double rho2 = 10;
   double mu1 = 1.e-03;
   double mu2 = 1.e-04;
 
@@ -176,21 +200,20 @@ int main(int argc, char** args) {
   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
 
-  
   double xc = 0.;
   double yc = 0.;
   double zc = 0.;
   double R = 0.125;
   double Rmax = 0.225;
-  double DR2 = R / 10.;
+  double DR2 = R / 100.;
   std::vector < double> Xc = {xc, yc, zc};
-  
+
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
-  
+
   InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR2, xp, wp, dist);
-  
+
   std::vector < MarkerType > markerType(xp.size(), VOLUME);
 
   unsigned solType = 2;
@@ -199,31 +222,32 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
-  
-  
+
+  //return 1;
+
   //BEGIN init particles
   unsigned size = 1;
   std::vector < std::vector < double > > x; // marker
 
- 
+
 
   x.resize(size);
   x[0].resize(DIM, 0.);
   x[0][0] = xc;
   x[0][1] = yc;
 
-  
-  
-  
+
+
+
 
 //   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 //   Eigen::MatrixXd xP(xp.size(), xp[0].size());
 //   for(int i = 0; i < xp.size(); ++i) {
 //     xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
 //   }
-// 
+//
 //   //std::cout << " NumPoints =  "<< xP.cols() << std::endl;
-// 
+//
 //   PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
 
 //  return 1;
@@ -481,14 +505,17 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
-  std::vector<Marker*> particle1 = line1->GetParticles();
-  std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
-  unsigned imarker1 = markerOffset1[iproc];
+//   std::vector<Marker*> particle1 = line1->GetParticles();
+//   std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
+//   unsigned imarker1 = markerOffset1[iproc];
+//
+//   std::vector<Marker*> particle2 = line2->GetParticles();
+//   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
+//   unsigned imarker2 = markerOffset2[iproc];
 
-
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-  unsigned imarker2 = markerOffset2[iproc];
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
 
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
@@ -641,29 +668,46 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //       double thetaM = mu1;
 
 
-
-      //bulk1
-      while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
-        imarker1++;
+      //bulk3
+      while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+        imarker3++;
       }
-      while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
+        std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle1[imarker1]->GetMarkerMass();
+        double weight = particle3[imarker3]->GetMarkerMass();
+        
+        double dg1 = particle3[imarker3]->GetMarkerDistance();
+        
+        //std::cout << dg1/deps << " ";
+        
+        double dg2 = dg1 * dg1;
+        double chi;
+        if(dg1 < -deps)
+          chi = 0.;
+        else if(dg1 > deps) {
+          chi = 1.;
+        }
+        else {
+          chi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+        }
 
 
         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
         std::vector < std::vector < adept::adouble > > gradSolV1(dim);
+        std::vector < std::vector < adept::adouble > > gradSolV2(dim);
         for(unsigned k = 0; k < dim; k++) {
           gradSolV1[k].assign(nDofV, 0.);
+          gradSolV2[k].assign(nDofV, 0.);
         }
 
         for(unsigned i = 0; i < nDofV; i++) {
           for(unsigned k = 0; k < dim; k++) {
             for(unsigned j = 0; j < dim; j++) {
               gradSolV1[k][j] += phi_x[i * dim + j] * solV1[k][i];
+              gradSolV2[k][j] += phi_x[i * dim + j] * solV2[k][i];
             }
           }
         }
@@ -672,64 +716,119 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         for(unsigned i = 0; i < nDofV; i++) {
 
           adept::adouble divV1 = 0.;
+          adept::adouble divV2 = 0.;
           for(unsigned k = 0; k < dim; k++) {
             divV1 += gradSolV1[k][k];
+            divV2 += gradSolV2[k][k];
           }
 
           for(unsigned k = 0; k < dim; k++) {
             adept::adouble sigma1 = 0.;
-            for(unsigned j = 0; j < dim; j++) {
-              sigma1 += mu1 * (gradSolV1[k][j] + gradSolV1[j][k]) * phi_x[i * dim + j];
-            }
-            //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
-            aResV1[k][i] += (- rho1 * g[k] * phi[i] + sigma1) * weight;
-          }
-        } // end phi_i loop
-        imarker1++;
-      }
-
-      //bulk2
-      while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
-        imarker2++;
-      }
-      while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
-
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle2[imarker2]->GetMarkerMass();
-
-        std::vector < std::vector < adept::adouble > > gradSolV2(dim);
-
-        for(unsigned k = 0; k < dim; k++) {
-          gradSolV2[k].assign(nDofV, 0.);
-        }
-
-        for(unsigned i = 0; i < nDofV; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            for(unsigned j = 0; j < dim; j++) {
-              gradSolV2[k][j] += phi_x[i * dim + j] * solV2[k][i];
-            }
-          }
-        }
-
-        // *** phi_i loop ***
-        for(unsigned i = 0; i < nDofV; i++) {
-          adept::adouble divV2 = 0.;
-          for(unsigned k = 0; k < dim; k++) {
-            divV2 += gradSolV2[k][k];
-          }
-          for(unsigned k = 0; k < dim; k++) {
             adept::adouble sigma2 = 0.;
             for(unsigned j = 0; j < dim; j++) {
+              sigma1 += mu1 * (gradSolV1[k][j] + gradSolV1[j][k]) * phi_x[i * dim + j];
               sigma2 += mu2 * (gradSolV2[k][j] + gradSolV2[j][k]) * phi_x[i * dim + j];
             }
-            //sigma2 += lambda2 * divD2 * phi_x[i * dim + k];
-            aResV2[k][i] += (- rho2 * g[k] * phi[i] + sigma2) * weight;
+            //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
+            
+            aResV1[k][i] += (1. - chi) * (- rho1 * g[k] * phi[i] + sigma1) * weight;
+            aResV2[k][i] += chi * (- rho2 * g[k] * phi[i] + sigma2) * weight;
+            
           }
-        }
-        imarker2++;
+        } // end phi_i loop
+        imarker3++;
       }
+
+
+
+//       //bulk1
+//       while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
+//         imarker1++;
+//       }
+//       while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+//
+//         // the local coordinates of the particles are the Gauss points in this context
+//         std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
+//         msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
+//         double weight = particle1[imarker1]->GetMarkerMass();
+//
+//
+//         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
+//         std::vector < std::vector < adept::adouble > > gradSolV1(dim);
+//         for(unsigned k = 0; k < dim; k++) {
+//           gradSolV1[k].assign(nDofV, 0.);
+//         }
+//
+//         for(unsigned i = 0; i < nDofV; i++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             for(unsigned j = 0; j < dim; j++) {
+//               gradSolV1[k][j] += phi_x[i * dim + j] * solV1[k][i];
+//             }
+//           }
+//         }
+//
+//         // *** phi_i loop ***
+//         for(unsigned i = 0; i < nDofV; i++) {
+//
+//           adept::adouble divV1 = 0.;
+//           for(unsigned k = 0; k < dim; k++) {
+//             divV1 += gradSolV1[k][k];
+//           }
+//
+//           for(unsigned k = 0; k < dim; k++) {
+//             adept::adouble sigma1 = 0.;
+//             for(unsigned j = 0; j < dim; j++) {
+//               sigma1 += mu1 * (gradSolV1[k][j] + gradSolV1[j][k]) * phi_x[i * dim + j];
+//             }
+//             //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
+//             aResV1[k][i] += (- rho1 * g[k] * phi[i] + sigma1) * weight;
+//           }
+//         } // end phi_i loop
+//         imarker1++;
+//       }
+//
+//       //bulk2
+//       while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
+//         imarker2++;
+//       }
+//       while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
+//
+//         // the local coordinates of the particles are the Gauss points in this context
+//         std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
+//         msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
+//         double weight = particle2[imarker2]->GetMarkerMass();
+//
+//         std::vector < std::vector < adept::adouble > > gradSolV2(dim);
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//           gradSolV2[k].assign(nDofV, 0.);
+//         }
+//
+//         for(unsigned i = 0; i < nDofV; i++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             for(unsigned j = 0; j < dim; j++) {
+//               gradSolV2[k][j] += phi_x[i * dim + j] * solV2[k][i];
+//             }
+//           }
+//         }
+//
+//         // *** phi_i loop ***
+//         for(unsigned i = 0; i < nDofV; i++) {
+//           adept::adouble divV2 = 0.;
+//           for(unsigned k = 0; k < dim; k++) {
+//             divV2 += gradSolV2[k][k];
+//           }
+//           for(unsigned k = 0; k < dim; k++) {
+//             adept::adouble sigma2 = 0.;
+//             for(unsigned j = 0; j < dim; j++) {
+//               sigma2 += mu2 * (gradSolV2[k][j] + gradSolV2[j][k]) * phi_x[i * dim + j];
+//             }
+//             //sigma2 += lambda2 * divD2 * phi_x[i * dim + k];
+//             aResV2[k][i] += (- rho2 * g[k] * phi[i] + sigma2) * weight;
+//           }
+//         }
+//         imarker2++;
+//       }
 
       // interface
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
