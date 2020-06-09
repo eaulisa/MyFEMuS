@@ -142,7 +142,7 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
     }
   }
 
-  std::cout << xp[0].size() << " " << Rmax << "\n";
+  //std::cout << xp[0].size() << " " << Rmax << "\n";
 
   double ri = R;
   if(dim == 2) {
@@ -217,7 +217,7 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
     }
   }
 
-  std::cout << xp[0].size() << " " << Rmax << "\n";
+  //std::cout << xp[0].size() << " " << Rmax << "\n";
 
   i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
   if(i0 < 0) i0 = 0;
@@ -301,13 +301,13 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
     }
   }
   if(dim == 2) {
-    std::cout << area << " " << M_PI*Rmax*Rmax << std::endl;
+    std::cout <<"computed area = "<< area << " " << " analytic area = " << M_PI * Rmax * Rmax << std::endl;
   }
   else {
-    std::cout << area << " " << 4. / 3.*M_PI*Rmax*Rmax*Rmax << std::endl;
+    std::cout <<"computed volume = "<< area << " " << " analytic volume = " << 4. / 3. * M_PI * Rmax * Rmax * Rmax << std::endl;
   }
 
-  std::cout << xp.size() << " " << Rmax << "\n";
+  //std::cout << xp.size() << " " << Rmax << "\n";
 }
 
 

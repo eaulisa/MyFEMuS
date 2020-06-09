@@ -173,8 +173,8 @@ int main(int argc, char** args) {
 
   //init marker
 
-  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length,-0.5 * length };
-  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length,0.5 * length };
+  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
+  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
 
   
   double xc = 0.;
@@ -194,7 +194,7 @@ int main(int argc, char** args) {
   std::vector < MarkerType > markerType(xp.size(), VOLUME);
 
   unsigned solType = 2;
-  line3 = new Line(xp, wp, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+  line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
