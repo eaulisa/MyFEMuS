@@ -13,7 +13,7 @@
 
 
 void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
-                       const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR,
+                       const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR, const unsigned &nbl,
                        std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
   //unsigned m1 = ceil(2 * ng - 1);
@@ -87,12 +87,12 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
         if(!flag) {
           xp.resize(cnt + 1);
           xp[cnt] = XP;
-          
+          //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
           wp.resize(cnt + 1);
           dist.resize(cnt + 1);
           wp[cnt] = ri * dti * dr;
           dist[cnt] = (R - ri);
-          
+
           area += ri * dti * dr;
           cnt++;
         }
@@ -127,8 +127,8 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
           if(!flag) {
 
             xp.resize(cnt + 1);
-            xp[cnt]= XP;
-            
+            xp[cnt] = XP;
+
             wp.resize(cnt + 1);
             dist.resize(cnt + 1);
             wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
@@ -144,78 +144,86 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
 
   //std::cout << xp[0].size() << " " << Rmax << "\n";
 
-  double ri = R;
-  if(dim == 2) {
 
-    unsigned nti = ceil((theta1 - theta0) * ri / dr);
-    double dti = (theta1 - theta0) / nti;
-    for(unsigned j = 0; j < nti; j++) {
-      double tj = theta0 + (0.5 + j) * dti;
-      XP[0] = xc[0] + ri * cos(tj);
-      XP[1] = xc[1] + ri * sin(tj);
-      unsigned flag  = 0;
-      for(unsigned k = 0; k < dim; k++) {
-        if(VxL[k] > XP[k]  || XP[k] > VxR[k]) {
-          ++flag;
-          break;
-        }
-      }
-      if(!flag) {
-
-        xp.resize(cnt + 1);
-        xp[cnt] = XP;
-
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-        wp[cnt] = ri * dti * dr;
-        dist[cnt] = (R - ri);
-        
-        area += ri * dti * dr;
-        cnt++;
-      }
-    }
-  }
-  else {
-    unsigned nphi = ceil((phi1 - phi0) * ri / dr);
-    double dphi = (phi1 - phi0) / nphi;
-
-    for(unsigned k = 0; k < nphi; k++) {
-      double pk = phi0 + (0.5 + k) * dphi;
-
-      unsigned nti = ceil((theta1 - theta0) * ri * sin(pk) / dr);
+  double dbl = dp / nbl;
+  for(unsigned i = 0; i < nbl; i++) {
+    double ri = (R - 0.5 * dp) + (i + 0.5) * dbl;
+    if(dim == 2) {
+      unsigned nti = ceil((theta1 - theta0) * ri / dr);
       double dti = (theta1 - theta0) / nti;
-
       for(unsigned j = 0; j < nti; j++) {
         double tj = theta0 + (0.5 + j) * dti;
-        XP[0] = xc[0] + ri * sin(pk) * cos(tj);
-        XP[1] = xc[1] + ri * sin(pk) * sin(tj);
-        XP[2] = xc[2] + ri * cos(pk);
-
+        XP[0] = xc[0] + ri * cos(tj);
+        XP[1] = xc[1] + ri * sin(tj);
         unsigned flag  = 0;
         for(unsigned k = 0; k < dim; k++) {
-          if(VxL[k] > XP[k] || XP[k] > VxR[k]) {
-            flag++;
+          if(VxL[k] > XP[k]  || XP[k] > VxR[k]) {
+            ++flag;
             break;
           }
         }
-
         if(!flag) {
 
           xp.resize(cnt + 1);
           xp[cnt] = XP;
-          
+
+          //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
+
           wp.resize(cnt + 1);
           dist.resize(cnt + 1);
-          wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
+          wp[cnt] = ri * dti * dr;
           dist[cnt] = (R - ri);
 
-          area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+          area += ri * dti * dr;
           cnt++;
         }
       }
+    }
+    else {
+      unsigned nphi = ceil((phi1 - phi0) * ri / dr);
+      double dphi = (phi1 - phi0) / nphi;
 
+      for(unsigned k = 0; k < nphi; k++) {
+        double pk = phi0 + (0.5 + k) * dphi;
+
+        unsigned nti = ceil((theta1 - theta0) * ri * sin(pk) / dr);
+        double dti = (theta1 - theta0) / nti;
+
+        for(unsigned j = 0; j < nti; j++) {
+          double tj = theta0 + (0.5 + j) * dti;
+          XP[0] = xc[0] + ri * sin(pk) * cos(tj);
+          XP[1] = xc[1] + ri * sin(pk) * sin(tj);
+          XP[2] = xc[2] + ri * cos(pk);
+
+          unsigned flag  = 0;
+          for(unsigned k = 0; k < dim; k++) {
+            if(VxL[k] > XP[k] || XP[k] > VxR[k]) {
+              flag++;
+              break;
+            }
+          }
+
+          if(!flag) {
+
+            xp.resize(cnt + 1);
+            xp[cnt] = XP;
+
+            wp.resize(cnt + 1);
+            dist.resize(cnt + 1);
+            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
+            dist[cnt] = (R - ri);
+
+            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+            cnt++;
+          }
+        }
+
+      }
     }
   }
+
+
+
 
   //std::cout << xp[0].size() << " " << Rmax << "\n";
 
@@ -245,7 +253,7 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
         if(!flag) {
           xp.resize(cnt + 1);
           xp[cnt] = XP;
-
+          //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
           wp.resize(cnt + 1);
           dist.resize(cnt + 1);
           wp[cnt] = ri * dti * dr;
@@ -286,7 +294,7 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
           if(!flag) {
             xp.resize(cnt + 1);
             xp[cnt] = XP;
-            
+
             wp.resize(cnt + 1);
             dist.resize(cnt + 1);
             wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
@@ -301,10 +309,10 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
     }
   }
   if(dim == 2) {
-    std::cout <<"computed area = "<< area << " " << " analytic area = " << M_PI * Rmax * Rmax << std::endl;
+    std::cout << "computed area = " << area << " " << " analytic area = " << M_PI * Rmax * Rmax << std::endl;
   }
   else {
-    std::cout <<"computed volume = "<< area << " " << " analytic volume = " << 4. / 3. * M_PI * Rmax * Rmax * Rmax << std::endl;
+    std::cout << "computed volume = " << area << " " << " analytic volume = " << 4. / 3. * M_PI * Rmax * Rmax * Rmax << std::endl;
   }
 
   //std::cout << xp.size() << " " << Rmax << "\n";

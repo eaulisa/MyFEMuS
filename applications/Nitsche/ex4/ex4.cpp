@@ -206,13 +206,27 @@ int main(int argc, char** args) {
   double R = 0.125;
   double Rmax = 0.225;
   double DR2 = R / 100.;
+  unsigned nbl = 5;
   std::vector < double> Xc = {xc, yc, zc};
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
 
-  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR2, xp, wp, dist);
+  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR2, nbl, xp, wp, dist);
+
+// Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
+//   Eigen::MatrixXd xP(xp.size(), xp[0].size());
+//   for(int i = 0; i < xp.size(); ++i) {
+//     xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
+//   }
+//
+//   std::cout << " NumPoints =  "<< xP.cols() << std::endl;
+//
+//   PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
+//
+//   return 1;
+
 
   std::vector < MarkerType > markerType(xp.size(), VOLUME);
 
@@ -240,17 +254,6 @@ int main(int argc, char** args) {
 
 
 
-//   Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
-//   Eigen::MatrixXd xP(xp.size(), xp[0].size());
-//   for(int i = 0; i < xp.size(); ++i) {
-//     xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
-//   }
-//
-//   //std::cout << " NumPoints =  "<< xP.cols() << std::endl;
-//
-//   PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
-
-//  return 1;
 
 
 
@@ -634,15 +637,15 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
     else {
 
-      double iM1C1 = 1. / (mu1 * (*sol->_Sol[CMIndex[0]])(iel));
-      double iM2C2 = 1. / (mu2 * (*sol->_Sol[CMIndex[1]])(iel));
+      double iM1C1 = 1. / (mu1 * (*sol->_Sol[CMIndex[0]])(iel)); // 1/Ce1: element-wise largest eigenvalue in region1
+      double iM2C2 = 1. / (mu2 * (*sol->_Sol[CMIndex[1]])(iel)); // 1/Ce2: element-wise largest eigenvalue in region2
 
       double denM = iM1C1 + iM2C2;
 
-      double gammaM1 = iM1C1 / denM;
+      double gammaM1 = iM1C1 / denM; // <u>_gamma  = gammaM1 * u1 + gammaM2 * u2
       double gammaM2 = iM2C2 / denM;
 
-      double thetaM = 8. / denM;
+      double thetaM = 8. / denM;   // penalty parameter, sharp version thetaM = 2 / denM
 
       //std::cout << thetaM <<" ";
 
@@ -678,11 +681,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
-        
+
         double dg1 = particle3[imarker3]->GetMarkerDistance();
-        
+
         //std::cout << dg1/deps << " ";
-        
+
         double dg2 = dg1 * dg1;
         double chi;
         if(dg1 < -deps)
@@ -730,10 +733,10 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
               sigma2 += mu2 * (gradSolV2[k][j] + gradSolV2[j][k]) * phi_x[i * dim + j];
             }
             //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
-            
+
             aResV1[k][i] += (1. - chi) * (- rho1 * g[k] * phi[i] + sigma1) * weight;
             aResV2[k][i] += chi * (- rho2 * g[k] * phi[i] + sigma2) * weight;
-            
+
           }
         } // end phi_i loop
         imarker3++;
@@ -1047,13 +1050,19 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
-  std::vector<Marker*> particle1 = line1->GetParticles();
-  std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
-  unsigned imarker1 = markerOffset1[iproc];
+//   std::vector<Marker*> particle1 = line1->GetParticles();
+//   std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
+//   unsigned imarker1 = markerOffset1[iproc];
+//
+//   std::vector<Marker*> particle2 = line2->GetParticles();
+//   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
+//   unsigned imarker2 = markerOffset2[iproc];
 
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-  unsigned imarker2 = markerOffset2[iproc];
+
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
+
 
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
@@ -1118,61 +1127,99 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       }
 
       //bulk1
-      while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
-        imarker1++;
+//       while(imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
+//         imarker1++;
+//       }
+//       while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+//
+//         // the local coordinates of the particles are the Gauss points in this context
+//         std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
+//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
+//         double weight = particle1[imarker1]->GetMarkerMass();
+//
+//         // *** phi_i loop ***
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//           for(unsigned i = 0; i < nDofu; i++) {
+//             for(unsigned l = 0; l < dim; l++) {
+//               for(unsigned j = 0; j < nDofu; j++) {
+//                 bM[0][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+//                 bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+//
+//                 bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+//
+//               }
+//             }
+//           }
+//         }
+//         imarker1++;
+//       }
+//
+//       //bulk2
+//       while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
+//         imarker2++;
+//       }
+//       while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
+//
+//         // the local coordinates of the particles are the Gauss points in this context
+//         std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
+//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
+//         double weight = particle2[imarker2]->GetMarkerMass();
+//
+//         // *** phi_i loop ***
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//           for(unsigned i = 0; i < nDofu; i++) {
+//             for(unsigned l = 0; l < dim; l++) {
+//               for(unsigned j = 0; j < nDofu; j++) {
+//                 bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+//                 bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+//
+//                 bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+//               }
+//             }
+//           }
+//         }
+//         imarker2++;
+//       }
+
+
+      while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+        imarker3++;
       }
-      while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
+        std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle1[imarker1]->GetMarkerMass();
+        double weight = particle3[imarker3]->GetMarkerMass();
 
-        // *** phi_i loop ***
+        double dg1 = particle3[imarker3]->GetMarkerDistance();
+
+        int d = 0;
+        if(dg1 > 0) {
+          d = 1;
+        }
 
         for(unsigned k = 0; k < dim; k++) {
           for(unsigned i = 0; i < nDofu; i++) {
             for(unsigned l = 0; l < dim; l++) {
               for(unsigned j = 0; j < nDofu; j++) {
-                bM[0][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+                bM[d][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+                bM[d][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
-                bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
+                bL[d][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
               }
             }
           }
         }
-        imarker1++;
+        imarker3++;
       }
 
-      //bulk2
-      while(imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
-        imarker2++;
-      }
-      while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
 
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle2[imarker2]->GetMarkerMass();
 
-        // *** phi_i loop ***
 
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned i = 0; i < nDofu; i++) {
-            for(unsigned l = 0; l < dim; l++) {
-              for(unsigned j = 0; j < nDofu; j++) {
-                bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
-                bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-              }
-            }
-          }
-        }
-        imarker2++;
-      }
 
       // interface
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
