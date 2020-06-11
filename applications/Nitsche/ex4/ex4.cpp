@@ -31,8 +31,6 @@
 
 using namespace femus;
 
-Line* line1;
-Line* line2;
 Line* line3;
 Line* lineI;
 
@@ -195,7 +193,7 @@ int main(int argc, char** args) {
 
   system.init();
 
-  //init marker
+  //BEGIN init particles
 
   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
@@ -205,7 +203,7 @@ int main(int argc, char** args) {
   double zc = 0.;
   double R = 0.125;
   double Rmax = 0.225;
-  double DR2 = R / 100.;
+  double DR = H / 10.;
   unsigned nbl = 5;
   std::vector < double> Xc = {xc, yc, zc};
 
@@ -213,7 +211,7 @@ int main(int argc, char** args) {
   std::vector <double> wp;
   std::vector <double> dist;
 
-  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR2, nbl, xp, wp, dist);
+  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, xp, wp, dist);
 
 // Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 //   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -236,109 +234,20 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
-
-  //return 1;
-
-  //BEGIN init particles
-  unsigned size = 1;
-  std::vector < std::vector < double > > x; // marker
-
-
-
-  x.resize(size);
-  x[0].resize(DIM, 0.);
-  x[0][0] = xc;
-  x[0][1] = yc;
-
-
-
-
-
-
-
-
-
-  unsigned NTHETA = 600; // number of partitions on the outer circle
-  unsigned NR = NTHETA / (2 * M_PI); // number of partitions on the radial direction
-  double DR = R / (NR + 0.5);
-
-  std::vector < double > volume(size, M_PI * 0.25 * DR * DR);   // volume of the central particle
-
-  double R2 = R - 0.5 * DR;
-
-  for(unsigned i = 0; i < NR; i++) {
-    double  r = R2 - i * DR;
-    unsigned Ntheta = static_cast <unsigned>(ceil(NTHETA * r / R)); // number of partitions on the current circle
-    double dtheta = 2 * M_PI / Ntheta;
-    unsigned sizeOld = x.size();
-    x.resize(sizeOld + Ntheta);
-    volume.resize(sizeOld + Ntheta, M_PI * ((r + 0.5 * DR) * (r + 0.5 * DR) - (r - 0.5 * DR) * (r - 0.5 * DR)) / Ntheta);
-
-    for(unsigned s = sizeOld; s < x.size(); s++) {
-      x[s].resize(DIM);
-    }
-    for(unsigned j = 0; j < Ntheta; j++) {
-      x[sizeOld + j][0] = xc + r * cos(j * dtheta);
-      x[sizeOld + j][1] = yc + r * sin(j * dtheta);
-    }
-  }
-
-
-  size = x.size();
-
-
-
-  markerType.assign(size, VOLUME);
-  line2 = new Line(x, volume, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-
-  std::vector < std::vector < std::vector < double > > >  line2Points(1);
-  line2->GetLine(line2Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk2", line2Points, 0);
-
-  x.resize(0);
-  volume.resize(0);
-
-  NR = static_cast <unsigned>(ceil(0.1 / DR));
-
-  double R1 = R + 0.5 * DR;
-
-  for(unsigned i = 0; i < NR; i++) {
-    double  r = R1 + i * DR;
-    unsigned Ntheta = static_cast <unsigned>(ceil(NTHETA * r / R)); // number of partitions on the current circle
-    double dtheta = 2 * M_PI / Ntheta;
-    unsigned sizeOld = x.size();
-    x.resize(sizeOld + Ntheta);
-    volume.resize(sizeOld + Ntheta, M_PI * ((r + 0.5 * DR) * (r + 0.5 * DR) - (r - 0.5 * DR) * (r - 0.5 * DR)) / Ntheta);
-
-    for(unsigned s = sizeOld; s < x.size(); s++) {
-      x[s].resize(DIM);
-    }
-    for(unsigned j = 0; j < Ntheta; j++) {
-      x[sizeOld + j][0] = xc + r * cos(j * dtheta);
-      x[sizeOld + j][1] = yc + r * sin(j * dtheta);
-    }
-  }
-
-  size = x.size();
-
-  markerType.assign(size, VOLUME);
-
-  line1 = new Line(x, volume, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-
-  std::vector < std::vector < std::vector < double > > >  line1Points(1);
-  line1->GetLine(line1Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk1", line1Points, 0);
-
-
-  //interface marker initialization
-  double Ntheta = NTHETA * 2;
-  x.resize(Ntheta);
+  
+  
+  
+  unsigned nr = ceil(((R - 0.5 * DR)) / DR);
+  double dr = ((R - 0.5 * DR)) / nr;
+  unsigned FI = 3;
+  unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
+  
+  xp.resize(Ntheta);
   markerType.assign(Ntheta, INTERFACE);
 
   for(unsigned i = 0; i < Ntheta; i++) {
-    x[i].assign(DIM, 0.);
+    xp[i].assign(DIM, 0.);
   }
-  //std::vector < double > area(Ntheta, 2 * M_PI * R / Ntheta);  // uniform marker volume
 
   std::vector < std::vector < std::vector < double > > > T;
   T.resize(Ntheta);
@@ -355,15 +264,17 @@ int main(int argc, char** args) {
   //BEGIN initialization
   for(unsigned i = 0; i < Ntheta; i++) {
 
-    x[i][0] = xc + R * cos(i * dtheta);
-    x[i][1] = yc + R * sin(i * dtheta);
+    double ti = 0. + (FI * 0.5 + i) * dtheta;
+        
+    xp[i][0] = xc + R * cos(ti);
+    xp[i][1] = yc + R * sin(ti);
 
-    T[i][0][0] = -arcLenght * sin(i * dtheta);
-    T[i][0][1] = arcLenght * cos(i * dtheta);
+    T[i][0][0] = -arcLenght * sin(ti);
+    T[i][0][1] = arcLenght * cos(ti);
 
   }
 
-  lineI = new Line(x, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+  lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
@@ -372,9 +283,14 @@ int main(int argc, char** args) {
 
 
   BuildFlag(mlSol);
+  
+   std::cout<<"AAAAAAAA"<<std::endl <<std::flush;
 
   GetInterfaceElementEigenvalues(mlSol);
 
+  std::cout<<"BBBBBBBB"<<std::endl <<std::flush;
+  
+  
   system.MGsolve();
 
   // ******* Print solution *******
@@ -982,40 +898,106 @@ void BuildFlag(MultiLevelSolution& mlSol) {
 
   unsigned eflagIndex = mlSol.GetIndex("eflag");
   unsigned nflagIndex = mlSol.GetIndex("nflag");
-
+    
   unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
-
+  
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
+  
   sol->_Sol[eflagIndex]->zero();
   sol->_Sol[nflagIndex]->zero();
 
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  std::vector < std::vector<double> >  x(dim);
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      
+    bool inside = false;  
+    bool outside = false;  
+    bool interface = false;  
 
-
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-
-  for(unsigned imarker = markerOffset2[iproc]; imarker < markerOffset2[iproc + 1]; imarker++) {
-    unsigned iel = particle2[imarker]->GetMarkerElement();
-    sol->_Sol[eflagIndex]->set(iel, 2.);
-  }
-
-
-  std::vector<Marker*> particleI = lineI->GetParticles();
-  std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
-
-  for(unsigned imarker = markerOffsetI[iproc]; imarker < markerOffsetI[iproc + 1]; imarker++) {
-    unsigned iel = particleI[imarker]->GetMarkerElement();
-    sol->_Sol[eflagIndex]->set(iel, 1.);
-    unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
-    for(unsigned i = 0; i < nDofu; i++) {
-      unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
-      sol->_Sol[nflagIndex]->set(iDof, 1.);
+    while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+      imarker3++;
+    }
+    while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+      double dg1 = particle3[imarker3]->GetMarkerDistance(); 
+      if(dg1 < -1.0e-10){
+        outside = true;
+        if(inside){
+          interface = true;
+          break;
+        }
+      }
+      else if(dg1 > 1.0e-10){
+        inside = true;
+        if(outside){
+          interface = true;
+          break;
+        }
+      }
+      else{
+        interface = true;    
+        break;
+      }
+      imarker3++;
+    }
+    if(interface){
+      sol->_Sol[eflagIndex]->set(iel, 1.);
+      unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
+      for(unsigned i = 0; i < nDofu; i++) {
+        unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(iDof, 1.);
+      } 
+    }
+    else if (inside){
+      sol->_Sol[eflagIndex]->set(iel, 2.);  
     }
   }
-
+  
   sol->_Sol[eflagIndex]->close();
   sol->_Sol[nflagIndex]->close();
+
+
+//   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+//
+//   Solution *sol  = mlSol.GetSolutionLevel(level);
+//   Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
+//   unsigned iproc  = msh->processor_id();
+//
+//   unsigned eflagIndex = mlSol.GetIndex("eflag");
+//   unsigned nflagIndex = mlSol.GetIndex("nflag");
+//
+//   unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
+//
+//   sol->_Sol[eflagIndex]->zero();
+//   sol->_Sol[nflagIndex]->zero();
+//
+//   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+//   std::vector < std::vector<double> >  x(dim);
+//
+//
+//   std::vector<Marker*> particle2 = line2->GetParticles();
+//   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
+//
+//   for(unsigned imarker = markerOffset2[iproc]; imarker < markerOffset2[iproc + 1]; imarker++) {
+//     unsigned iel = particle2[imarker]->GetMarkerElement();
+//     sol->_Sol[eflagIndex]->set(iel, 2.);
+//   }
+//
+//
+//   std::vector<Marker*> particleI = lineI->GetParticles();
+//   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
+//
+//   for(unsigned imarker = markerOffsetI[iproc]; imarker < markerOffsetI[iproc + 1]; imarker++) {
+//     unsigned iel = particleI[imarker]->GetMarkerElement();
+//     sol->_Sol[eflagIndex]->set(iel, 1.);
+//     unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
+//     for(unsigned i = 0; i < nDofu; i++) {
+//       unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
+//       sol->_Sol[nflagIndex]->set(iDof, 1.);
+//     }
+//   }
+//
+//   sol->_Sol[eflagIndex]->close();
+//   sol->_Sol[nflagIndex]->close();
 
 }
 
