@@ -149,7 +149,7 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
   for(unsigned i = 0; i < nbl; i++) {
     double ri = (R - 0.5 * dp) + (i + 0.5) * dbl;
     if(dim == 2) {
-      unsigned nti = ceil((theta1 - theta0) * ri / dr);
+      unsigned nti = ceil((theta1 - theta0) * R / dr);
       double dti = (theta1 - theta0) / nti;
       for(unsigned j = 0; j < nti; j++) {
         double tj = theta0 + (0.5 + j) * dti;
@@ -171,10 +171,10 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
 
           wp.resize(cnt + 1);
           dist.resize(cnt + 1);
-          wp[cnt] = ri * dti * dr;
+          wp[cnt] = ri * dti * dbl;
           dist[cnt] = (R - ri);
 
-          area += ri * dti * dr;
+          area += ri * dti * dbl;
           cnt++;
         }
       }
