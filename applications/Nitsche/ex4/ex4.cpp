@@ -749,8 +749,16 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //         imarker2++;
 //       }
 
-      // interface
+
+      
+       // interface
+      while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
+        imarkerI++;
+      }
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
+
+//       // interface      
+//       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
@@ -1178,6 +1186,19 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
         double dg1 = particle3[imarker3]->GetMarkerDistance();
 
+        double dg2 = dg1 * dg1;
+        double chi;
+        if(dg1 < -deps)
+          chi = 0.;
+        else if(dg1 > deps) {
+          chi = 1.;
+        }
+        else {
+          chi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+        }
+
+        
+        
         int d = 0;
         if(dg1 > 0) {
           d = 1;
@@ -1187,10 +1208,16 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
           for(unsigned i = 0; i < nDofu; i++) {
             for(unsigned l = 0; l < dim; l++) {
               for(unsigned j = 0; j < nDofu; j++) {
-                bM[d][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[d][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+                bM[0][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+                bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
-                bL[d][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                
+                bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+                bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+
+                bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                
               }
             }
           }
@@ -1199,12 +1226,15 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       }
 
 
-
-
-
-
       // interface
+      while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
+        imarkerI++;
+      }
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
+
+
+//       // interface
+//       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
@@ -1388,7 +1418,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         EPSSolve(eps);
 
         EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << real << " " << std::endl;
+        std::cout << iel << " " << real << " " << std::endl;
 
         sol->_Sol[CMIndex[s]]->set(iel, real);
 
@@ -1519,7 +1549,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         EPSSolve(eps);
 
         EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << real << " " << std::endl;
+        std::cout << iel << " " << real << " " << std::endl;
 
         sol->_Sol[CLIndex[s]]->set(iel, real);
 
