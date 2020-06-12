@@ -82,6 +82,9 @@ int main(int argc, char** args) {
 //   variablesToBePrinted.push_back("all");
 //   gmvIO.SetDebugOutput(false);
 //   gmvIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
+  
+  //   From what I understand, you define the type of mesh and how to refine it and what integration scheme to use,
+  //then you associate the mesh and integration scheme to a specific type of problem, with specifed order, then solve and print.
 
   return 0;
 }
