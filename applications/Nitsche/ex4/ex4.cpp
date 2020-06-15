@@ -50,6 +50,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
 void BuildFlag(MultiLevelSolution& mlSol);
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol);
+void GetParticleWeights(MultiLevelSolution& mlSol);
 
 // void InitBallParticles(const unsigned & dim, const unsigned & ng, std::vector<double> &VxL, std::vector<double> &VxR,
 //                        const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR,
@@ -234,14 +235,14 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
-  
-  
-  
+
+
+
   unsigned nr = ceil(((R - 0.5 * DR)) / DR);
   double dr = ((R - 0.5 * DR)) / nr;
   unsigned FI = 1;
   unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
-  
+
   xp.resize(Ntheta);
   markerType.assign(Ntheta, INTERFACE);
 
@@ -265,7 +266,7 @@ int main(int argc, char** args) {
   for(unsigned i = 0; i < Ntheta; i++) {
 
     double ti = 0. + (FI * 0.5 + i) * dtheta;
-        
+
     xp[i][0] = xc + R * cos(ti);
     xp[i][1] = yc + R * sin(ti);
 
@@ -281,16 +282,11 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
   //END interface markers
 
-
   BuildFlag(mlSol);
-  
-   std::cout<<"AAAAAAAA"<<std::endl <<std::flush;
 
+  //GetParticleWeights(mlSol);
   GetInterfaceElementEigenvalues(mlSol);
 
-  std::cout<<"BBBBBBBB"<<std::endl <<std::flush;
-  
-  
   system.MGsolve();
 
   // ******* Print solution *******
@@ -655,7 +651,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         imarker3++;
       }
 
-       // interface
+      // interface
       while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
         imarkerI++;
       }
@@ -807,60 +803,60 @@ void BuildFlag(MultiLevelSolution& mlSol) {
 
   unsigned eflagIndex = mlSol.GetIndex("eflag");
   unsigned nflagIndex = mlSol.GetIndex("nflag");
-    
+
   unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
-  
+
   std::vector<Marker*> particle3 = line3->GetParticles();
   std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
   unsigned imarker3 = markerOffset3[iproc];
-  
+
   sol->_Sol[eflagIndex]->zero();
   sol->_Sol[nflagIndex]->zero();
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-      
-    bool inside = false;  
-    bool outside = false;  
-    bool interface = false;  
+
+    bool inside = false;
+    bool outside = false;
+    bool interface = false;
 
     while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
       imarker3++;
     }
     while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
-      double dg1 = particle3[imarker3]->GetMarkerDistance(); 
-      if(dg1 < -1.0e-10){
+      double dg1 = particle3[imarker3]->GetMarkerDistance();
+      if(dg1 < -1.0e-10) {
         outside = true;
-        if(inside){
+        if(inside) {
           interface = true;
           break;
         }
       }
-      else if(dg1 > 1.0e-10){
+      else if(dg1 > 1.0e-10) {
         inside = true;
-        if(outside){
+        if(outside) {
           interface = true;
           break;
         }
       }
-      else{
-        interface = true;    
+      else {
+        interface = true;
         break;
       }
       imarker3++;
     }
-    if(interface){
+    if(interface) {
       sol->_Sol[eflagIndex]->set(iel, 1.);
       unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
       for(unsigned i = 0; i < nDofu; i++) {
         unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
         sol->_Sol[nflagIndex]->set(iDof, 1.);
-      } 
+      }
     }
-    else if (inside){
-      sol->_Sol[eflagIndex]->set(iel, 2.);  
+    else if(inside) {
+      sol->_Sol[eflagIndex]->set(iel, 2.);
     }
   }
-  
+
   sol->_Sol[eflagIndex]->close();
   sol->_Sol[nflagIndex]->close();
 
@@ -991,12 +987,12 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
                 bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
                 bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-                
+
                 bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
                 bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
                 bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-                
+
               }
             }
           }
@@ -1342,6 +1338,94 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   sol->_Sol[CLIndex[0]]->close();
   sol->_Sol[CLIndex[1]]->close();
 }
+
+
+
+
+
+void GetParticleWeights(MultiLevelSolution& mlSol) {
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+
+  Solution *sol  = mlSol.GetSolutionLevel(level);
+  Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
+  unsigned iproc  = msh->processor_id();
+
+  unsigned eflagIndex = mlSol.GetIndex("eflag");
+
+  unsigned soluType = 0; //Linear Lagrange
+
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  std::vector < std::vector<double> >  x(dim);
+
+  vector <double> phi;  // local test function
+  vector <double> phi_x; // local test function first order partial derivatives
+  double weight; // gauss point weight
+
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+    if(eFlag == 1) {
+
+      short unsigned ielGeom = msh->GetElementType(iel);
+      unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
+
+      for(int k = 0; k < dim; k++) {
+        x[k].resize(nDofu);  // Now we
+      }
+
+      for(unsigned i = 0; i < nDofu; i++) {
+        unsigned xDof  = msh->GetSolutionDof(i, iel, 2);    // global to global mapping between coordinates node and coordinate dof
+        for(unsigned k = 0; k < dim; k++) {
+          x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
+        }
+      }
+
+      for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
+        // *** get gauss point weight, test function and test function partial derivatives ***
+        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x);
+        
+        // Real Geometry
+        
+        // Build F with chebishev Polynomial
+        
+      }
+
+      // identify the first particle inside iel
+      while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+        imarker3++;
+      }
+      
+      unsigned imarker0 = imarker3;    
+      // loop on all particles inside iel to find how many particles are in iel
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+        imarker3++;  
+      }
+      unsigned nmarker = imarker3 - imarker0;
+      imarker3 = imarker0;
+      
+      // loop on all particles inside iel
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+          
+        // the local coordinates of the particles are the Gauss points in this context
+        std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
+        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
+        double weight = particle3[imarker3]->GetMarkerMass();
+
+
+        //Build A
+        
+        imarker3++;
+      }
+    }
+  }
+}
+
+
 
 
 
