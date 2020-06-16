@@ -25,8 +25,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   // Convenience variables to keep track of the dimension.
 
   const unsigned  DIM = 3;
-  const unsigned  dim = 2;
-
 
   // Get the process_id (for parallel computation).
   unsigned iproc = msh->processor_id();
@@ -51,11 +49,11 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > > solDx(DIM);
 
   // Get mu info
-  std::vector < unsigned > solMuIndex(dim);
+  std::vector < unsigned > solMuIndex(2);
   solMuIndex[0] = mlSol->GetIndex("mu1");
   solMuIndex[1] = mlSol->GetIndex("mu2");
   unsigned solTypeMu = mlSol->GetSolutionType(solMuIndex[0]);
-  std::vector < std::vector < double > > solMu(dim);
+  std::vector < std::vector < double > > solMu(2);
 
   // Local-to-global pdeSys dofs.
   std::vector < int > SYSDOF;
@@ -95,24 +93,20 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       unsigned iXDof  = msh->GetSolutionDof(i, iel, xType);
 
       for(unsigned K = 0; K < DIM; K++) {
-//         xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
-//         solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_Sol[solDxIndex[K]])(iDDof);
-
-        xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_SolOld[solDxIndex[K]])(iDDof);
+        xhat[K][i] = (*msh->_topology->_Sol[K])(iXDof) + (*sol->_Sol[solDxIndex[K]])(iDDof);
         solDx[K][i] = (*sol->_Sol[solDxIndex[K]])(iDDof) - (*sol->_Sol[solDxIndex[K]])(iDDof);
-
         SYSDOF[ K * nxDofs + i] = pdeSys->GetSystemDof(solDxIndex[K], solDxPdeIndex[K], i, iel);
       }
     }
 
     unsigned nDofsMu  = msh->GetElementDofNumber(iel, solTypeMu);
-    for(unsigned k = 0; k < dim; k++) {
+    for(unsigned k = 0; k < 2; k++) {
       solMu[k].resize(nDofsMu);
     }
 
     for(unsigned i = 0; i < nDofsMu; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solTypeMu);
-      for(unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < 2; k++) {
         solMu[k][i] = (*sol->_Sol[solMuIndex[k]])(iDof);
       }
     }
@@ -122,7 +116,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       const double *phix;  // local test function
 
-      const double *phix_uv[DIM]; // local test function first order partial derivatives
+      const double *phix_uv[3]; // local test function first order partial derivatives
 
       double weight; // gauss point weight
 
@@ -133,6 +127,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         phix_uv[1] = msh->_finiteElement[ielGeom][solType]->GetDPhiDEta(ig);
         phix_uv[2] = msh->_finiteElement[ielGeom][solType]->GetDPhiDZeta(ig);
 
+
+
         std::vector< double > stdVectorPhi;
         std::vector< double > stdVectorPhi_uv;
 
@@ -141,7 +137,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
 
 
-      double xhat_uv[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+      double xhat_uv[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
       for(unsigned K = 0; K < DIM; K++) {
         for(int J = 0; J < DIM; J++) {
           for(unsigned i = 0; i < nxDofs; i++) {
@@ -150,31 +146,47 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
 
-      for(unsigned S = 0; S < DIM; S++) { // loop on the shift
-        // Compute the shifted metric, metric determinant, and area element.
-        double g[dim][dim] = {{0., 0.}, {0., 0.}};
-        for(unsigned i = 0; i < dim; i++) { //loop on the derivatives, shift
+
+      for(unsigned S = 0; S < 3; S++) {
+
+        // Compute the metric, metric determinant, and area element.
+        double g[2][2] = {{0., 0.}, {0., 0.}};
+        for(unsigned i = 0; i < 2; i++) {
           unsigned ii = (S + i) % DIM;
-          for(unsigned j = 0; j < dim; j++) { //loop on the derivatives, shift
+          for(unsigned j = 0; j < 2; j++) {
             unsigned jj = (S + j) % DIM;
-            for(unsigned K = 0; K < DIM; K++) { // dot product, no shift
+            //std::cout << S << " " << ii << " " << jj << std::endl;
+            for(unsigned K = 0; K < DIM; K++) {
               g[i][j] += xhat_uv[K][ii] * xhat_uv[K][jj];
             }
           }
         }
+        //std::cout << std::endl;
+
         double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
+
+        if(fabs(detg) < 1.0e-20) {
+          std::cout <<  S << " " << g[0][0] << " " << g[0][1] << " " << g[1][0] << " " << g[1][1] << std::endl;
+          std::cout << xhat_uv[0][0] << " " << xhat_uv[0][1] << " " << xhat_uv[0][2] << "\n";
+          std::cout << xhat_uv[1][0] << " " << xhat_uv[1][1] << " " << xhat_uv[1][2] << "\n";
+          std::cout << xhat_uv[2][0] << " " << xhat_uv[2][1] << " " << xhat_uv[2][2] << "\n";
+          std::cout << std::endl;
+        }
 
         double Area = weight;// * sqrt(detg);
         double Area2 = weight; // Trick to give equal weight to each element.
 
+
+
+
         // Compute the metric inverse.
-        double gi[dim][dim];
+        double gi[2][2];
         gi[0][0] =  g[1][1] / detg;
         gi[0][1] = -g[0][1] / detg;
         gi[1][0] = -g[1][0] / detg;
         gi[1][1] =  g[0][0] / detg;
 
-        // Compute components of the unit normal N to the reference surface, shifted
+        // Compute components of the unit normal N to the reference surface
         double normal[3];
         normal[0] = (xhat_uv[(S + 1) % DIM][(S + 0) % DIM] * xhat_uv[(S + 2) % DIM][(S + 1) % DIM] -
                      xhat_uv[(S + 2) % DIM][(S + 0) % DIM] * xhat_uv[(S + 1) % DIM][(S + 1) % DIM]) / sqrt(detg);
@@ -184,7 +196,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
                      xhat_uv[(S + 1) % DIM][(S + 0) % DIM] * xhat_uv[(S + 0) % DIM][(S + 1) % DIM]) / sqrt(detg);
 
 
-        double mu[dim] = {0., 0.};
+        //std::cout << S << " " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
+
+        double mu[2] = {0., 0.};
 //         const double *phiMu = msh->_finiteElement[ielGeom][solTypeMu]->GetPhi(ig);  // local test function
 //         for(unsigned i = 0; i < nDofsMu; i++) {
 //           for(unsigned k = 0; k < 2; k++) {
@@ -192,8 +206,11 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //           }
 //         }
 
-        //with respect to the shifted variables and normals the quaternions and D remain the same
         boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
+//         boost::math::quaternion <double> e1(0., ((S == 0) ? 1 : 0), ((S == 1) ? 1 : 0), ((S == 2) ? 1 : 0));
+//         boost::math::quaternion <double> e2(0., ((S == 2) ? 1 : 0), ((S == 0) ? 1 : 0), ((S == 1) ? 1 : 0));
+//         boost::math::quaternion <double> e3(0., ((S == 1) ? 1 : 0), ((S == 2) ? 1 : 0), ((S == 0) ? 1 : 0));
+
 
         boost::math::quaternion <double> e1(0., 1., 0., 0.);
         boost::math::quaternion <double> e2(0., 0., 1., 0.);
@@ -227,18 +244,18 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
 
         // Quasi-Conformal Minimization Residual and Jacobian.
-        for(unsigned I = 0; I < DIM; I++) { //loop on the variables, shift
+        for(unsigned I = 0; I < DIM; I++) {
           unsigned II = (S + I) % DIM;
-          for(unsigned i = 0; i < nxDofs; i++) { //loop on the dofs, no shift
+          for(unsigned i = 0; i < nxDofs; i++) {
             unsigned irow = II * nxDofs + i;
             unsigned istart = irow * sizeAll;
-            for(unsigned J = 0; J < DIM; J++) { //loop on the variables, shift
+            for(unsigned J = 0; J < DIM; J++) {
               unsigned JJ = (S + J) % DIM;
-              for(unsigned j = 0; j < nxDofs; j++) { // loop on the dofs, no shift
+              for(unsigned j = 0; j < nxDofs; j++) {
                 double term = 0.;
-                for(unsigned k = 0; k < dim; k++) { //loop on the derivatives, shift
+                for(unsigned k = 0; k < 2; k++) {
                   unsigned kk = (S + k) % DIM;
-                  for(unsigned l = 0; l < dim; l++) { //loop on the derivatives, shift
+                  for(unsigned l = 0; l < 2; l++) {
                     unsigned ll = (S + l) % DIM;
                     term += phix_uv[kk][i] * D[I * 2 + k][J * 2 + l] * phix_uv[ll][j];
                   }
@@ -281,3 +298,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //   std::cout << std::flush;
 
 } // end AssembleO2ConformalMinimization.
+
+
+
+

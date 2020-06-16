@@ -16,7 +16,7 @@
 #include "PetscMatrix.hpp"
 
 unsigned counter = 0;
-unsigned numberOfIterations = 1;
+const unsigned numberOfIterations = 1;
 using namespace femus;
 
 
@@ -42,9 +42,8 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
 
-  unsigned numberOfUniformLevels = 1;
-  unsigned numberOfNonLinearSteps = 10;
-  numberOfIterations = 1;
+  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfNonLinearSteps = 20;
  
   // define multilevel mesh
   MultiLevelMesh mlMsh;
