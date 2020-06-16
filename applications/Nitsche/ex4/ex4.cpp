@@ -213,7 +213,7 @@ int main(int argc, char** args) {
   std::vector <double> wp;
   std::vector <double> dist;
 
-  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, FI, xp, wp, dist);
+  InitBallVolumeParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, FI, xp, wp, dist);
 
 // Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 //   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -244,46 +244,8 @@ int main(int argc, char** args) {
 
   std::vector < std::vector < std::vector < double > > > T; 
   
-  InitBallInterface(DIM, R, DR, FI, Xc, markerType, xp, wp, T);
-  
-  
+  InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
 
-//   unsigned nr = ceil(((R - 0.5 * DR)) / DR);
-//   double dr = ((R - 0.5 * DR)) / nr;
-//   
-//   unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
-// 
-//   xp.resize(Ntheta);
-//   markerType.assign(Ntheta, INTERFACE);
-// 
-//   for(unsigned i = 0; i < Ntheta; i++) {
-//     xp[i].assign(DIM, 0.);
-//   }
-// 
-//  
-//   T.resize(Ntheta);
-//   for(unsigned i = 0; i < Ntheta; i++) {
-//     T[i].resize(DIM - 1);
-//     for(unsigned k = 0; k < DIM - 1; k++) {
-//       T[i][k].resize(DIM, 0.);
-//     }
-//   }
-// 
-//   double arcLenght = 2. * M_PI * R / Ntheta;
-//   double dtheta = 2 * M_PI / Ntheta;
-// 
-//   //BEGIN initialization
-//   for(unsigned i = 0; i < Ntheta; i++) {
-// 
-//     double ti = 0. + (FI * 0.5 + i) * dtheta;
-// 
-//     xp[i][0] = xc + R * cos(ti);
-//     xp[i][1] = yc + R * sin(ti);
-// 
-//     T[i][0][0] = -arcLenght * sin(ti);
-//     T[i][0][1] = arcLenght * cos(ti);
-// 
-//   }
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
@@ -292,6 +254,7 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
   //END interface markers
 
+  
   BuildFlag(mlSol);
 
   //GetParticleWeights(mlSol);

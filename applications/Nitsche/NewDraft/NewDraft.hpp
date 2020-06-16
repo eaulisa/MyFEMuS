@@ -20,9 +20,9 @@
 
 
 
-void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
-                       const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
-                       std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
+                             const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
+                             std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
   //unsigned m1 = ceil(2 * ng - 1);
 
@@ -328,124 +328,94 @@ void InitBallParticles(const unsigned & dim, std::vector<double> &VxL, std::vect
 
 
 
-void InitBallInterface(const unsigned &dim, const double &R, const double &DR, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector < std::vector < std::vector < double > > > &T) {
+void InitBallInterfaceParticles(const unsigned &dim, const double &R, const double &DR, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector < std::vector < std::vector < double > > > &T) {
 
- 
+
   unsigned nr = ceil(((R - 0.5 * DR)) / DR);
   double dr = ((R - 0.5 * DR)) / nr;
 
-  unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
+  if(dim == 2) {
 
-  xp.resize(Ntheta);
-  wp.resize(Ntheta);
-  markerType.assign(Ntheta, INTERFACE);
+    unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
 
-  for(unsigned i = 0; i < Ntheta; i++) {
-    xp[i].assign(dim, 0.);
-  }
+    xp.resize(Ntheta);
+    markerType.assign(Ntheta, INTERFACE);
 
-
-  T.resize(Ntheta);
-  for(unsigned i = 0; i < Ntheta; i++) {
-    T[i].resize(dim - 1);
-    for(unsigned k = 0; k < dim - 1; k++) {
-      T[i][k].resize(dim, 0.);
+    for(unsigned i = 0; i < Ntheta; i++) {
+      xp[i].assign(dim, 0.);
     }
+
+    T.resize(Ntheta);
+    for(unsigned i = 0; i < Ntheta; i++) {
+      T[i].resize(dim - 1);
+      for(unsigned k = 0; k < dim - 1; k++) {
+        T[i][k].resize(dim, 0.);
+      }
+    }
+
+    double arcLenght = 2. * M_PI * R / Ntheta;
+    double dtheta = 2 * M_PI / Ntheta;
+
+
+    for(unsigned i = 0; i < Ntheta; i++) {
+
+      double ti = 0. + (FI * 0.5 + i) * dtheta;
+
+      xp[i][0] = xc[0] + R * cos(ti);
+      xp[i][1] = xc[1] + R * sin(ti);
+
+      T[i][0][0] = -arcLenght * sin(ti);
+      T[i][0][1] = arcLenght * cos(ti);
+
+    }
+    markerType.assign(Ntheta, INTERFACE);
+  }
+  else {
+    std::vector<double> XP(dim);
+    unsigned nphi = FI * ceil(M_PI * R / dr);
+    double dphi = M_PI / nphi;
+
+    xp.reserve(nphi * 2 * nphi);
+    T.reserve(nphi * 2 * nphi);
+
+    unsigned cnt = 0;
+
+    for(unsigned k = 0; k < nphi; k++) {
+      double pk = (0.5 + k) * dphi;
+
+      unsigned nti = FI * ceil(2 * M_PI * R * sin(pk) / dr);
+      double dti = 2 * M_PI / nti;
+
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = (0.5 + j) * dti;
+
+        XP[0] = xc[0] + R * sin(pk) * cos(tj);
+        XP[1] = xc[1] + R * sin(pk) * sin(tj);
+        XP[2] = xc[2] + R * cos(pk);
+        
+        xp.resize(cnt + 1);
+        xp[cnt] = XP;
+        
+        T.resize(cnt + 1);
+        T[cnt].resize(2);
+        T[cnt][0].resize(3);
+        T[cnt][1].resize(3);
+
+        T[cnt][0][0] = R * cos(pk) * cos(tj) * dphi;
+        T[cnt][0][1] = R * cos(pk) * sin(tj) * dphi;
+        T[cnt][0][2] = -R * sin(pk) * dphi;
+
+        T[cnt][1][0] = -R * sin(pk) * sin(tj) * dti;
+        T[cnt][1][1] = R * sin(pk) * cos(tj) * dti;
+        T[cnt][1][2] = 0.;
+       
+        cnt++;
+      }
+    }
+    markerType.assign(cnt, INTERFACE);
   }
 
-  double arcLenght = 2. * M_PI * R / Ntheta;
-  double dtheta = 2 * M_PI / Ntheta;
 
-
-  for(unsigned i = 0; i < Ntheta; i++) {
-
-    double ti = 0. + (FI * 0.5 + i) * dtheta;
-
-    xp[i][0] = xc[0] + R * cos(ti);
-    xp[i][1] = xc[1] + R * sin(ti);
-
-    T[i][0][0] = -arcLenght * sin(ti);
-    T[i][0][1] = arcLenght * cos(ti);
-
-    wp[i] = R * dr * dtheta;
-
-  }
-
-// this part is my crap, no way it works!
-
-//   unsigned Ntemp = pow(4 * nr, dim);
-//   xp.reserve(Ntemp);
-//   wp.reserve(Ntemp);
-//   unsigned cnt = 0;
-//   T.reserve(Ntemp);
-// 
-//   for(unsigned i = 0; i < 10; i++) {
-//     T[i].resize(dim - 1);
-//     for(unsigned k = 0; k < dim - 1; k++) {
-//       T[i][k].resize(dim, 0.);
-//     }
-//   }
-//  
-//   std::vector<double> XP(dim);
-//  
-//   if(dim == 2) {
-// 
-//     unsigned nti = FI * ceil(2 * M_PI * R / dr);
-//     double dti = 2 * M_PI / nti;
-//     for(unsigned j = 0; j < nti; j++) {
-//       double tj = (0.5 + j) * dti;
-//       XP[0] = xc[0] + R * cos(tj);
-//       XP[1] = xc[1] + R * sin(tj);
-//       xp.resize(cnt + 1);
-//       xp[cnt] = XP;
-// 
-//       wp.resize(cnt + 1);
-//       wp[cnt] = R * dti * dr;
-// 
-//       T[cnt][0][0] = -R * sin(tj);
-//       T[cnt][0][1] =  R * cos(tj);
-// 
-//       cnt++;
-//     }
-//   }
-//   else {
-// 
-//     unsigned nphi = FI * ceil(M_PI * R / dr);
-//     double dphi = M_PI / nphi;
-// 
-//     for(unsigned k = 0; k < nphi; k++) {
-//       double pk = (0.5 + k) * dphi;
-// 
-//       unsigned nti = FI * ceil(2 * M_PI * R * sin(pk) / dr);
-//       double dti = 2 * M_PI / nti;
-// 
-//       for(unsigned j = 0; j < nti; j++) {
-//         double tj = (0.5 + j) * dti;
-// 
-//         XP[0] = xc[0] + R * sin(pk) * cos(tj);
-//         XP[1] = xc[1] + R * sin(pk) * sin(tj);
-//         XP[2] = xc[2] + R * cos(pk);
-// 
-//         T[cnt][0][0] = R * cos(pk) * cos(tj);
-//         T[cnt][0][1] = R * cos(pk) * sin(tj);
-//         T[cnt][0][2] = -R * sin(pk);
-// 
-//         T[cnt][1][0] = -R * sin(pk) * sin(tj);
-//         T[cnt][1][1] = R * sin(pk) * cos(tj);
-//         T[cnt][1][2] = 0.;
-// 
-//         xp.resize(cnt + 1);
-//         xp[cnt] = XP;
-// 
-//         wp.resize(cnt + 1);
-//         wp[cnt] = dr * (R * dphi) * (R * sin(pk) * dti);
-//         cnt++;
-//       }
-//     }
-// 
-//   }
-// 
-//   markerType.assign(cnt, INTERFACE);
 
 
 
