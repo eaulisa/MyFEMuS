@@ -206,13 +206,14 @@ int main(int argc, char** args) {
   double Rmax = 0.225;
   double DR = H / 10.;
   unsigned nbl = 5;
+  unsigned FI = 3;
   std::vector < double> Xc = {xc, yc, zc};
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
 
-  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, xp, wp, dist);
+  InitBallParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, FI, xp, wp, dist);
 
 // Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 //   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -226,8 +227,10 @@ int main(int argc, char** args) {
 //
 //   return 1;
 
-
-  std::vector < MarkerType > markerType(xp.size(), VOLUME);
+ 
+  std::vector < MarkerType > markerType;
+  
+  markerType.assign(xp.size(), VOLUME);
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
@@ -236,44 +239,51 @@ int main(int argc, char** args) {
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
 
+  
+  ///interface stuff
 
+  std::vector < std::vector < std::vector < double > > > T; 
+  
+  InitBallInterface(DIM, R, DR, FI, Xc, markerType, xp, wp, T);
+  
+  
 
-  unsigned nr = ceil(((R - 0.5 * DR)) / DR);
-  double dr = ((R - 0.5 * DR)) / nr;
-  unsigned FI = 1;
-  unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
-
-  xp.resize(Ntheta);
-  markerType.assign(Ntheta, INTERFACE);
-
-  for(unsigned i = 0; i < Ntheta; i++) {
-    xp[i].assign(DIM, 0.);
-  }
-
-  std::vector < std::vector < std::vector < double > > > T;
-  T.resize(Ntheta);
-  for(unsigned i = 0; i < Ntheta; i++) {
-    T[i].resize(DIM - 1);
-    for(unsigned k = 0; k < DIM - 1; k++) {
-      T[i][k].resize(DIM, 0.);
-    }
-  }
-
-  double arcLenght = 2. * M_PI * R / Ntheta;
-  double dtheta = 2 * M_PI / Ntheta;
-
-  //BEGIN initialization
-  for(unsigned i = 0; i < Ntheta; i++) {
-
-    double ti = 0. + (FI * 0.5 + i) * dtheta;
-
-    xp[i][0] = xc + R * cos(ti);
-    xp[i][1] = yc + R * sin(ti);
-
-    T[i][0][0] = -arcLenght * sin(ti);
-    T[i][0][1] = arcLenght * cos(ti);
-
-  }
+//   unsigned nr = ceil(((R - 0.5 * DR)) / DR);
+//   double dr = ((R - 0.5 * DR)) / nr;
+//   
+//   unsigned Ntheta = FI * ceil(2. * M_PI * R / dr);
+// 
+//   xp.resize(Ntheta);
+//   markerType.assign(Ntheta, INTERFACE);
+// 
+//   for(unsigned i = 0; i < Ntheta; i++) {
+//     xp[i].assign(DIM, 0.);
+//   }
+// 
+//  
+//   T.resize(Ntheta);
+//   for(unsigned i = 0; i < Ntheta; i++) {
+//     T[i].resize(DIM - 1);
+//     for(unsigned k = 0; k < DIM - 1; k++) {
+//       T[i][k].resize(DIM, 0.);
+//     }
+//   }
+// 
+//   double arcLenght = 2. * M_PI * R / Ntheta;
+//   double dtheta = 2 * M_PI / Ntheta;
+// 
+//   //BEGIN initialization
+//   for(unsigned i = 0; i < Ntheta; i++) {
+// 
+//     double ti = 0. + (FI * 0.5 + i) * dtheta;
+// 
+//     xp[i][0] = xc + R * cos(ti);
+//     xp[i][1] = yc + R * sin(ti);
+// 
+//     T[i][0][0] = -arcLenght * sin(ti);
+//     T[i][0][1] = arcLenght * cos(ti);
+// 
+//   }
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
