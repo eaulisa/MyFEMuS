@@ -59,6 +59,9 @@ int main(int argc, char** args) {
 
   std::vector < std::vector < double > > l2Norm; //get familiar l2Norm[i][j] std::pair, std::vector, std::map,  dynamic memory allocation
   l2Norm.resize(maxNumberOfMeshes);
+  // std vector allows for dynamic memory allocation in a more efficient way than restructuring an array, the std vector uses more memory upon initialization, but it restructures in a more efficient way.
+  // std pair stores two objects and is a special case of the std tuple
+  //std map is a container object 
 
   vector < vector < double > > semiNorm;
   semiNorm.resize(maxNumberOfMeshes);
@@ -127,6 +130,7 @@ int main(int argc, char** args) {
   }
 
   // print the seminorm of the error and the order of convergence between different levels
+  //Loops for l2norm of the error
   std::cout << std::endl;
   std::cout << std::endl;
   std::cout << "l2 ERROR and ORDER OF CONVERGENCE:\n\n";
@@ -147,7 +151,7 @@ int main(int argc, char** args) {
       std::cout << "\t\t";
 
       for(unsigned j = 0; j < 3; j++) {
-        std::cout << log(l2Norm[i][j] / l2Norm[i + 1][j]) / log(2.) << "\t\t\t";
+        std::cout << log(l2Norm[i][j] / l2Norm[i + 1][j]) / log(2.) << "\t\t\t";//Definiton of k
       }
 
       std::cout << std::endl;
@@ -155,6 +159,7 @@ int main(int argc, char** args) {
 
   }
 
+  //Loops for the seminorm of the error
   std::cout << std::endl;
   std::cout << std::endl;
   std::cout << "SEMINORM ERROR and ORDER OF CONVERGENCE:\n\n";
@@ -175,7 +180,7 @@ int main(int argc, char** args) {
       std::cout << "\t\t";
 
       for(unsigned j = 0; j < 3; j++) {
-        std::cout << log(semiNorm[i][j] / semiNorm[i + 1][j]) / log(2.) << "\t\t\t";
+        std::cout << log(semiNorm[i][j] / semiNorm[i + 1][j]) / log(2.) << "\t\t\t";//Definiton of k
       }
 
       std::cout << std::endl;
@@ -186,17 +191,20 @@ int main(int argc, char** args) {
   return 0;
 }
 
+//Exact solution
 double GetExactSolutionValue(const std::vector < double >& x) {
   double pi = acos(-1.);
   return cos(pi * x[0]) * cos(pi * x[1]);
 };
 
+//Grad of exact solution    
 void GetExactSolutionGradient(const std::vector < double >& x, vector < double >& solGrad) {
   double pi = acos(-1.);
   solGrad[0]  = -pi * sin(pi * x[0]) * cos(pi * x[1]);
   solGrad[1] = -pi * cos(pi * x[0]) * sin(pi * x[1]);
 };
 
+//Laplace of exact solution
 double GetExactSolutionLaplace(const std::vector < double >& x) {
   double pi = acos(-1.);
   return -pi * pi * cos(pi * x[0]) * cos(pi * x[1]) - pi * pi * cos(pi * x[0]) * cos(pi * x[1]);
@@ -249,7 +257,7 @@ void AssemblePoissonProblem(MultiLevelProblem& ml_prob) {
   solu.reserve(maxSize);
 
   vector < vector < double > > x(dim);     // local coordinates
-  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE BI/TRIQUADRATIC)
+  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE BI/TRIQUADRATIC), I forgot, why always 2?
 
   for(unsigned i = 0; i < dim; i++) {
     x[i].reserve(maxSize);
@@ -264,7 +272,7 @@ void AssemblePoissonProblem(MultiLevelProblem& ml_prob) {
   phi_x.reserve(maxSize * dim);
 
 
-  vector< double > Res; // local redidual vector
+  vector< double > Res; // local residual vector
   Res.reserve(maxSize);
 
   vector < double > Jac; //local Jacobian matrix
@@ -359,6 +367,7 @@ void AssemblePoissonProblem(MultiLevelProblem& ml_prob) {
 
       } // end phi_i loop
     } // end gauss point loop
+    //The above loops uses the weak formulation and Gauss integration scheme and then compares to the exact solution with Gauss Quadrature, I believe...
 
 
     //--------------------------------------------------------------------------------------------------------
@@ -399,7 +408,7 @@ void AssemblePoissonProblem_AD(MultiLevelProblem& ml_prob) {
   // call the adept stack object
 
 
-  adept::Stack& s = FemusInit::_adeptStack;
+  adept::Stack& s = FemusInit::_adeptStack; //Question on this?
 
   //  extract pointers to the several objects that we are going to use
 
@@ -462,6 +471,7 @@ void AssemblePoissonProblem_AD(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   // element loop: each process loops only on the elements that owns
+  //Question: Does this only see adjacent nodes, is that what the comment above is referring to?
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -583,6 +593,7 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  //I believe you covered this, but how do you specify the partition of the mesh for parrelel computation, I remember you showing this but I don't remember how you know this partition
 
   //solution variable
   unsigned soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
@@ -662,7 +673,9 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
   
   double seminormAll;
   MPI_Reduce (&seminorm, &seminormAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); //MPI_library
+  //Just a reminder of what the above 4 lines are doing
 
-  return std::pair < double, double > (sqrt(l2normAll), sqrt(seminormAll));
+  return std::pair < double, double > (sqrt(l2normAll), sqrt(seminormAll));//use of std pair with l2 and semi norms
+  //I could not find the use of std map, when do you use this?
 
 }
