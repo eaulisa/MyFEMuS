@@ -1398,22 +1398,20 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         VxU[k] = *result.second;
       }
 
-//       double temp = 1.;
-//
-//       for(unsigned k = 0; k < dim ; k++) {
-//           temp *= 0.5 * (VxU[k] - VxL[k]);
-//         }
-//
-//       std::cout << temp * wg.sum() << " ";
+      double temp = 1.;
 
-//    !!!!!!!!!!!!!!MISTAKE std::cout << F(0) << std::endl F(0) is twice the above product, could not find the bug. Moving on for now.
+      for(unsigned k = 0; k < dim ; k++) {
+          temp *= 0.5 * (VxU[k] - VxL[k]);
+        }
+     
       GetChebGaussF(dim, m, VxL, VxU, Pg,  wg, Ftemp);
       
       for(unsigned i = 0; i < Ftemp.size() ; i++) {
         F(i) += Ftemp(i);
       }
 
-
+      std::cout << temp * 4. << " " << F(0) << std::endl;
+      
 
 //       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
 //         // *** get gauss point weight, test function and test function partial derivatives ***
@@ -1448,6 +1446,8 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
+        
+        //particle3[imarker3]->SetMarkerMass(2.);
 
         IndexSet.resize(cnt + 1);
         IndexSet[cnt] = cnt;
@@ -1469,7 +1469,25 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         imarker3++;
       }
 
+      //add your stuff here
+      
+      
+
+      // loop on all particles inside iel
+      imarker3 = imarker0;
+      unsigned cnt = 0;
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+  
+        //particle3[imarker3]->SetMarkerMass(newWeight[cnt]);
+
+        imarker3++;
+        cnt++;
+      }
+      
     }
+    
+    
+    
 
   }
 
