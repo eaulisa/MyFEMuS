@@ -1363,7 +1363,6 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
   
   
   unsigned cnt = 0;
-  std::vector<double> IndexSet;
   std::vector<double> wp;
   std::vector<std::vector<double>> xp(dim);
 
@@ -1449,10 +1448,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
 
-        IndexSet.resize(cnt + 1);
-        IndexSet[cnt] = cnt;
         
-        // I am harrassing FeMUS beauty here, sorry ):
         
         wp.resize(cnt + 1);
         wp[cnt] = weight;
