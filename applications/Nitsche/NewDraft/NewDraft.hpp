@@ -21,7 +21,7 @@
 
 
 void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
-                             const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
+                             const std::vector < double> &xc, std::vector < MarkerType > &markerType, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
                              std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
   //unsigned m1 = ceil(2 * ng - 1);
@@ -188,13 +188,13 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
       }
     }
     else {
-      unsigned nphi = ceil((phi1 - phi0) * ri / dr);
+      unsigned nphi = FI * ceil((phi1 - phi0) * ri / dr);
       double dphi = (phi1 - phi0) / nphi;
 
       for(unsigned k = 0; k < nphi; k++) {
         double pk = phi0 + (0.5 + k) * dphi;
 
-        unsigned nti = ceil((theta1 - theta0) * ri * sin(pk) / dr);
+        unsigned nti = FI * ceil((theta1 - theta0) * ri * sin(pk) / dr);
         double dti = (theta1 - theta0) / nti;
 
         for(unsigned j = 0; j < nti; j++) {
@@ -221,7 +221,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
             wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
             dist[cnt] = (R - ri);
 
-            area += dr * (ri * dphi) * (ri * sin(pk) * dti);  // fix the volume
+            area += dbl * (ri * dphi) * (ri * sin(pk) * dti);  
             cnt++;
           }
         }
@@ -231,9 +231,6 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
   }
 
 
-
-
-  //std::cout << xp[0].size() << " " << Rmax << "\n";
 
   i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
   if(i0 < 0) i0 = 0;
@@ -323,7 +320,8 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
     std::cout << "computed volume = " << area << " " << " analytic volume = " << 4. / 3. * M_PI * Rmax * Rmax * Rmax << std::endl;
   }
 
-  //std::cout << xp.size() << " " << Rmax << "\n";
+  markerType.assign(cnt, VOLUME);
+  
 }
 
 
@@ -371,6 +369,7 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
     markerType.assign(Ntheta, INTERFACE);
   }
   else {
+      
     std::vector<double> XP(dim);
     unsigned nphi = FI * ceil(M_PI * R / dr);
     double dphi = M_PI / nphi;
@@ -414,10 +413,6 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
     }
     markerType.assign(cnt, INTERFACE);
   }
-
-
-
-
 
 }
 
@@ -820,7 +815,7 @@ void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C) {
 
 
 void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
-
+  // xL is taken in reference coordinate system 
   PmX.resize(dim, m + 1, np);
   Eigen::MatrixXd Ptemp;
   Eigen::VectorXd xtemp;
@@ -904,6 +899,98 @@ void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const 
 
 
 
+void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &VxL, std::vector<double> &VxU, Eigen::MatrixXd &Pg,  Eigen::VectorXd &wg, Eigen::VectorXd &F) {
+
+  F.resize(pow(m + 1, dim));
+  F.setZero();
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+  Eigen::VectorXi J(dim);
+  Eigen::VectorXi NG(dim);
+  
+  unsigned ng = Pg.row(0).size();
+
+
+  
+  
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(m + 1, dim - k - 1);
+  }
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    NG(k) = pow(ng, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); 
+    }
+    F(t) = 0.;
+    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
+      J(0) = g / NG(0);
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = g % NG(k - 1);
+        J(k) = pk / NG(k); 
+      }
+      double value = 1.;
+      for(unsigned k = 0; k < dim ; k++) {
+        value *= 0.5 * (VxU[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
+      }
+      F(t) += value;
+    }
+  }
+  
+}
+
+
+void GetChebParticleA(const unsigned &dim, const unsigned &m, const unsigned &np, Eigen::Tensor<double,3,Eigen::RowMajor>  &PmX, Eigen::MatrixXd &A) {
+
+
+  A.resize(pow(m + 1, dim), np);
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(m + 1, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+    }
+    for(unsigned j = 0; j < np; j++) {
+      double r = 1;
+
+      for(unsigned k = 0; k < dim; k++) {
+        r *= PmX(k, I[k], j);
+      }
+      A(t, j) = r ;
+    }
+  }
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void SolWeightEigen(Eigen::MatrixXd & A, Eigen::VectorXd & F, Eigen::VectorXd & wP, Eigen::VectorXd & w_new) {
 
   w_new.resize(wP.size());
@@ -978,7 +1065,7 @@ void  GetParticlesOnBox(const double & a, const double & b, const unsigned & n1,
 
 }
 
-
+// N-point gauss quadrature points and weights by finding the roots of Legendre polynomaial
 void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd & wg) {
   unsigned N1 = N ;
   unsigned N2 = N + 1;
@@ -999,6 +1086,7 @@ void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd &
 
   double max = d.cwiseAbs().maxCoeff();
 
+  //Newton step for finding the roots
   while(max > eps) {
 
     L.col(0).fill(1.);
@@ -1026,8 +1114,8 @@ void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd &
     max = d.cwiseAbs().maxCoeff();
   }
 
+  // compute the weights from the roots
   wg.resize(N1);
-
   for(unsigned i = 0; i < N1; i++) {
     double r = double(N2) / double(N1);
     wg(i) = (2) / ((1 - xg(i) * xg(i)) * Lp(i) * Lp(i)) * r * r;

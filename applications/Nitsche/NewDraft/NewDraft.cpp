@@ -21,7 +21,7 @@ int main(int argc, char** args) {
   double a = 0.;
   double b = 1.;
   
-  unsigned lmax = 3; // number of refinements
+  unsigned lmax = 0; // number of refinements
   std::vector<double> EQ; // quadrature errors
   std::vector<double> EI; // integral errors
   EQ.resize(lmax + 1);
@@ -70,31 +70,32 @@ int main(int argc, char** args) {
         VxL[k] = x1D[I[k]];
         VxR[k] = x1D[I[k] + 1];
       }
-
-      InitParticlesDisk3D(dim, NG, VxL, VxR, {0., 0., 0.}, 0.75, xp, wp, dist);
+        
+       InitParticlesDisk3D(dim, NG, VxL, VxR, {0., 0., 0.}, 0.75, xp, wp, dist);
       //InitParticlesDisk(dim, NG, xL, xR, yL, yR,{0.,0.,0.}, 0.75, xp,wp, dist);
 
 
       Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
+      
       Eigen::MatrixXd xP(xp.size(), xp[0].size());
       for(int i = 0; i < xp.size(); ++i) {
         xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
       }
       NT += xP.row(0).size();
 
-      unsigned nq = xP.cols();
+      unsigned np = xP.cols();
       Eigen::MatrixXd xI;
-      xI.resize(dim, nq);
+      xI.resize(dim, np);
 
       for(unsigned k = 0; k < dim; k++) {
-        for(unsigned j = 0; j < nq ; j++) {
+        for(unsigned j = 0; j < np ; j++) {
           xI(k, j) = (2. / (VxR[k] - VxL[k])) * xP(k, j) - ((VxR[k] + VxL[k]) / (VxR[k] - VxL[k])) ;
         }
       }
 
 
       Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
-      GetChebXInfo(m, dim, nq, xI, PmX);
+      GetChebXInfo(m, dim, np, xI, PmX);
 
       Eigen::VectorXd xg;
       Eigen::VectorXd wg;
@@ -103,9 +104,15 @@ int main(int argc, char** args) {
       Cheb(m, xg, Pg);
 
       Eigen::MatrixXd A;
+      GetChebParticleA(dim, m, np, PmX, A);
+      
       Eigen::VectorXd F;
-
-      AssembleMatEigen(VxL, VxR, m, dim, nq, PmX, Pg,  wg, A, F);
+      GetChebGaussF(dim, m, VxL, VxR, Pg,  wg, F);
+      
+      
+      
+      //AssembleMatEigen(VxL, VxR, m, dim, nq, PmX, Pg,  wg, A, F);
+      
 
       Eigen::VectorXd w_new;
       SolWeightEigen(A, F, wP, w_new);

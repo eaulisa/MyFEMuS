@@ -28,6 +28,13 @@
 #include "Parameter.hpp"
 
 #include "../NewDraft/NewDraft.hpp"
+#include <eigen3/Eigen/Dense>
+#include <eigen3/unsupported/Eigen/KroneckerProduct>
+#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
+#include <eigen3/unsupported/Eigen/CXX11/Tensor>
+#include <algorithm>    // std::minmax_element
+
+
 
 using namespace femus;
 
@@ -212,8 +219,9 @@ int main(int argc, char** args) {
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
+  std::vector < MarkerType > markerType;
 
-  InitBallVolumeParticles(DIM, VxL, VxR, Xc, R, Rmax, DR, nbl, FI, xp, wp, dist);
+  InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
 
 // Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
 //   Eigen::MatrixXd xP(xp.size(), xp[0].size());
@@ -227,10 +235,6 @@ int main(int argc, char** args) {
 //
 //   return 1;
 
- 
-  std::vector < MarkerType > markerType;
-  
-  markerType.assign(xp.size(), VOLUME);
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
@@ -239,13 +243,12 @@ int main(int argc, char** args) {
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
 
-  
+
   ///interface stuff
 
-  std::vector < std::vector < std::vector < double > > > T; 
-  
-  InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
+  std::vector < std::vector < std::vector < double > > > T;
 
+  InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
@@ -254,10 +257,11 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
   //END interface markers
 
-  
+
+
   BuildFlag(mlSol);
 
-  //GetParticleWeights(mlSol);
+  GetParticleWeights(mlSol);
   GetInterfaceElementEigenvalues(mlSol);
 
   system.MGsolve();
@@ -1314,9 +1318,9 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
 
 
-
-
 void GetParticleWeights(MultiLevelSolution& mlSol) {
+
+
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
@@ -1337,65 +1341,167 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
 
   std::vector<Marker*> particle3 = line3->GetParticles();
   std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+
   unsigned imarker3 = markerOffset3[iproc];
+
+  unsigned NG = 5; // maybe declare globally
+  unsigned m = 4;  // maybe declare globally
+
+  Eigen::VectorXd xg;  // Gauss points on [-1,1]
+  Eigen::VectorXd wg;  // Gauss weights
+
+
+  
+  GetGaussPointsWeights(NG, xg, wg);
+  Eigen::MatrixXd Pg;
+  Cheb(m, xg, Pg);
+
+  
+  Eigen::VectorXd Ftemp;
+  Eigen::VectorXd F;
+  F.resize(pow(m + 1, dim));
+  
+  
+  unsigned cnt = 0;
+  std::vector<double> IndexSet;
+  std::vector<double> wp;
+  std::vector<std::vector<double>> xp(dim);
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+
+
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
     if(eFlag == 1) {
-
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
 
+      std::vector<double> VxL(dim); // lower bounds of the box
+      std::vector<double> VxU(dim); // upper bounds of the box
+
       for(int k = 0; k < dim; k++) {
-        x[k].resize(nDofu);  // Now we
+        x[k].resize(nDofu);
       }
 
       for(unsigned i = 0; i < nDofu; i++) {
         unsigned xDof  = msh->GetSolutionDof(i, iel, 2);    // global to global mapping between coordinates node and coordinate dof
         for(unsigned k = 0; k < dim; k++) {
-          x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
+          x[k][i] = (*msh->_topology->_Sol[k])(xDof);     // global extraction and local storage for the element coordinates
         }
       }
 
-      for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
-        // *** get gauss point weight, test function and test function partial derivatives ***
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x);
-        
-        // Real Geometry
-        
-        // Build F with chebishev Polynomial
-        
+
+      // assemble of the left hand side F
+      for(unsigned k = 0; k < dim ; k++) {
+        auto result = std::minmax_element(x[k].begin(), x[k].end());
+        VxL[k] = *result.first;
+        VxU[k] = *result.second;
       }
+
+//       double temp = 1.;
+//
+//       for(unsigned k = 0; k < dim ; k++) {
+//           temp *= 0.5 * (VxU[k] - VxL[k]);
+//         }
+//
+//       std::cout << temp * wg.sum() << " ";
+
+//    !!!!!!!!!!!!!!MISTAKE std::cout << F(0) << std::endl F(0) is twice the above product, could not find the bug. Moving on for now.
+      GetChebGaussF(dim, m, VxL, VxU, Pg,  wg, Ftemp);
+      
+      for(unsigned i = 0; i < Ftemp.size() ; i++) {
+        F(i) += Ftemp(i);
+      }
+
+
+
+//       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
+//         // *** get gauss point weight, test function and test function partial derivatives ***
+//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x);
+//
+//         // Real Geometry
+//
+//         // Build F with chebishev Polynomial
+//
+//       }
 
       // identify the first particle inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
         imarker3++;
       }
-      
-      unsigned imarker0 = imarker3;    
+
+      unsigned imarker0 = imarker3;
+
       // loop on all particles inside iel to find how many particles are in iel
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
-        imarker3++;  
+        imarker3++;
       }
       unsigned nmarker = imarker3 - imarker0;
       imarker3 = imarker0;
-      
+
       // loop on all particles inside iel
+
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
-          
+
+
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
 
-
-        //Build A
+        IndexSet.resize(cnt + 1);
+        IndexSet[cnt] = cnt;
         
+        // I am harrassing FeMUS beauty here, sorry ):
+        
+        wp.resize(cnt + 1);
+        wp[cnt] = weight;
+
+        for(unsigned k = 0; k < dim; k++) {
+          xp[k].resize(cnt + 1);
+          xp[k][cnt] = xi[k];
+        }
+
+        cnt++;
+        
+        //Build A : we need ALL particles in the reference coordinates orderly. Can we assemble in FEM fashion?
+
         imarker3++;
       }
+
     }
+
   }
+
+  
+  
+  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size()); // ordered particle weights
+  
+  Eigen::MatrixXd xP(xp.size(), xp[0].size());                  // ordered particle coordinates
+  for(int i = 0; i < xp.size(); ++i) {
+    xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
+  }
+
+  unsigned np = xP.cols();                                      // number of particles 
+
+  Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
+  GetChebXInfo(m, dim, np, xP, PmX);
+
+  Eigen::MatrixXd A;                                           //Assemble A
+  GetChebParticleA(dim, m, np, PmX, A);
+  
+  
+  Eigen::VectorXd w_new;
+  SolWeightEigen(A, F, wP, w_new);
+  
+
+  for(unsigned j = 0; j < np; j++) {
+    std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
+  }
+  
+  // It seems we need something like particle3[imarker3]->SetMarkerWeight(w_new(imarker3)), maybe do  _MPMSize = (3 * _dim + 2) +1 ??
+
+
 }
 
 
