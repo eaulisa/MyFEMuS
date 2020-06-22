@@ -1457,7 +1457,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       cnt = 0;
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
-        //particle3[imarker3]->SetMarkerMass(w_new[cnt]);
+        particle3[imarker3]->SetMarkerMass(w_new[cnt]);
 
         imarker3++;
         cnt++;
