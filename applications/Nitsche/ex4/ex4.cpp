@@ -1320,8 +1320,6 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
 void GetParticleWeights(MultiLevelSolution& mlSol) {
 
-
-
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
   Solution *sol  = mlSol.GetSolutionLevel(level);
@@ -1344,25 +1342,29 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
 
   unsigned imarker3 = markerOffset3[iproc];
 
-  unsigned NG = 5; // maybe declare globally
+  unsigned ng = 5; // maybe declare globally
   unsigned m = 4;  // maybe declare globally
 
-  Eigen::VectorXd xg;  // Gauss points on [-1,1]
-  Eigen::VectorXd wg;  // Gauss weights
+  std::vector< unsigned > NG(dim);
+  for(unsigned k = 0; k < dim ; k++) {
+    NG[k] = pow(ng, dim - k - 1);
+  }
+  std::vector < unsigned> J(dim);
+  std::vector < double > jac(pow(ng, dim));
 
+  Eigen::VectorXd xg;  // 1D Gauss points on [-1,1]
+  Eigen::VectorXd wg;  // 1D Gauss weights
 
-
-  GetGaussPointsWeights(NG, xg, wg);
+  GetGaussPointsWeights(ng, xg, wg); //1D
   Eigen::MatrixXd Pg;
-  Cheb(m, xg, Pg);
+  Cheb(m, xg, Pg); // 1D Chebyshev Polynomial
 
   Eigen::VectorXd F;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-
-
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+
     if(eFlag == 1) {
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
@@ -1389,25 +1391,26 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         VxU[k] = *result.second;
       }
 
-      GetChebGaussF(dim, m, VxL, VxU, Pg,  wg, F);
+      for(unsigned ig = 0; ig < pow(ng, dim) ; ig++) { // gauss loop
+        J[0] = ig / NG[0];
+        for(unsigned k = 1; k < dim ; k++) {
+          unsigned pk = ig % NG[k - 1];
+          J[k] = pk / NG[k];
+        }
+        std::vector <double> xi(dim);
+        for(unsigned k = 0; k < dim; k++) {
+          xi[k] = xg[J[k]];
+        }
+        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, jac[ig], phi, phi_x);
+      }
 
-//       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
-//         // *** get gauss point weight, test function and test function partial derivatives ***
-//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x);
-//
-//         // Real Geometry
-//
-//         // Build F with chebishev Polynomial
-//
-//       }
+      GetChebGaussF(dim, m, jac, Pg, wg, F); // multidimesional element integral of Chebyshev Polynomials up to degree m
 
       // identify the first particle inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
         imarker3++;
       }
-
       unsigned imarker0 = imarker3;
-
       // loop on all particles inside iel to find how many particles are in iel
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
         imarker3++;
@@ -1419,13 +1422,13 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       Eigen::MatrixXd xP(dim, nmarker);
       Eigen::VectorXd wP(nmarker);
       Eigen::MatrixXd A;
-      
+
       // loop on all particles inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
+        //msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
 
         for(unsigned k = 0; k < dim; k++) {
@@ -1441,31 +1444,27 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
       GetChebXInfo(m, dim, nmarker, xP, PmX);
 
-      GetChebParticleA(dim, m, nmarker, PmX, A);
-
+      GetChebParticleA(dim, m, nmarker, PmX, A); //multidimensional Chebyshev Polinomial evaluation in particle points up to m
 
       Eigen::VectorXd w_new;
-      SolWeightEigen(A, F, wP, w_new);                  // New weights for iel are avaliable at this point
+      SolWeightEigen(A, F, wP, w_new); // New weights for iel are avaliable at this point
 
-//       for(unsigned j = 0; j < nmarker; j++) {
-//         std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
-//       }
-
+      for(unsigned j = 0; j < nmarker; j++) {
+        std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
+      }
 
       // loop on all particles inside iel to attach the optimized weights to iel particles.
       imarker3 = imarker0;
       cnt = 0;
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
-        //particle3[imarker3]->SetMarkerMass(w_new[cnt]);
+        particle3[imarker3]->SetMarkerMass(w_new[cnt]);
 
         imarker3++;
         cnt++;
       }
-      
 
     } // end of interface loop
-    
   } // end of iel loop
 
 }
