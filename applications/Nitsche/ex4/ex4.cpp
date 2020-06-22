@@ -1351,20 +1351,12 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
   Eigen::VectorXd wg;  // Gauss weights
 
 
-  
+
   GetGaussPointsWeights(NG, xg, wg);
   Eigen::MatrixXd Pg;
   Cheb(m, xg, Pg);
 
-  
-  Eigen::VectorXd Ftemp;
   Eigen::VectorXd F;
-  F.resize(pow(m + 1, dim));
-  
-  
-  unsigned cnt = 0;
-  std::vector<double> wp;
-  std::vector<std::vector<double>> xp(dim);
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -1397,20 +1389,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         VxU[k] = *result.second;
       }
 
-      double temp = 1.;
-
-      for(unsigned k = 0; k < dim ; k++) {
-          temp *= 0.5 * (VxU[k] - VxL[k]);
-        }
-     
-      GetChebGaussF(dim, m, VxL, VxU, Pg,  wg, Ftemp);
-      
-      for(unsigned i = 0; i < Ftemp.size() ; i++) {
-        F(i) += Ftemp(i);
-      }
-
-      std::cout << temp * 4. << " " << F(0) << std::endl;
-      
+      GetChebGaussF(dim, m, VxL, VxU, Pg,  wg, F);
 
 //       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
 //         // *** get gauss point weight, test function and test function partial derivatives ***
@@ -1436,85 +1415,58 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       unsigned nmarker = imarker3 - imarker0;
       imarker3 = imarker0;
 
+      unsigned cnt = 0;
+      Eigen::MatrixXd xP(dim, nmarker);
+      Eigen::VectorXd wP(nmarker);
+      Eigen::MatrixXd A;
+      
       // loop on all particles inside iel
-
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
-
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle3[imarker3]->GetMarkerMass();
-        
-        //particle3[imarker3]->SetMarkerMass(2.);
-
-        
-        
-        wp.resize(cnt + 1);
-        wp[cnt] = weight;
 
         for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-          xp[k][cnt] = xi[k];
+          xP(k, cnt) = xi[k];
         }
+        wP[cnt] = weight;
 
         cnt++;
-        
-        //Build A : we need ALL particles in the reference coordinates orderly. Can we assemble in FEM fashion?
-
         imarker3++;
       }
 
-      //add your stuff here
-      
-      
 
-      // loop on all particles inside iel
+      Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
+      GetChebXInfo(m, dim, nmarker, xP, PmX);
+
+      GetChebParticleA(dim, m, nmarker, PmX, A);
+
+
+      Eigen::VectorXd w_new;
+      SolWeightEigen(A, F, wP, w_new);                  // New weights for iel are avaliable at this point
+
+//       for(unsigned j = 0; j < nmarker; j++) {
+//         std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
+//       }
+
+
+      // loop on all particles inside iel to attach the optimized weights to iel particles.
       imarker3 = imarker0;
-      unsigned cnt = 0;
+      cnt = 0;
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
-  
-        //particle3[imarker3]->SetMarkerMass(newWeight[cnt]);
+
+        //particle3[imarker3]->SetMarkerMass(w_new[cnt]);
 
         imarker3++;
         cnt++;
       }
       
-    }
+
+    } // end of interface loop
     
-    
-    
-
-  }
-
-  
-  
-  Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size()); // ordered particle weights
-  
-  Eigen::MatrixXd xP(xp.size(), xp[0].size());                  // ordered particle coordinates
-  for(int i = 0; i < xp.size(); ++i) {
-    xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
-  }
-
-  unsigned np = xP.cols();                                      // number of particles 
-
-  Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
-  GetChebXInfo(m, dim, np, xP, PmX);
-
-  Eigen::MatrixXd A;                                           //Assemble A
-  GetChebParticleA(dim, m, np, PmX, A);
-  
-  
-  Eigen::VectorXd w_new;
-  SolWeightEigen(A, F, wP, w_new);
-  
-
-  for(unsigned j = 0; j < np; j++) {
-    std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
-  }
-  
-  // It seems we need something like particle3[imarker3]->SetMarkerWeight(w_new(imarker3)), maybe do  _MPMSize = (3 * _dim + 2) +1 ??
-
+  } // end of iel loop
 
 }
 
