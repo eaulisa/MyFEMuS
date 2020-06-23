@@ -13,13 +13,6 @@
 #include "Line.hpp"
 
 
-
-
-
-
-
-
-
 void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
                              const std::vector < double> &xc, std::vector < MarkerType > &markerType, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
                              std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
@@ -218,7 +211,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
 
             wp.resize(cnt + 1);
             dist.resize(cnt + 1);
-            wp[cnt] = dr * (ri * dphi) * (ri * sin(pk) * dti);
+            wp[cnt] = dbl * (ri * dphi) * (ri * sin(pk) * dti);
             dist[cnt] = (R - ri);
 
             area += dbl * (ri * dphi) * (ri * sin(pk) * dti);  
@@ -909,14 +902,10 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &
   Eigen::VectorXi NG(dim);
   
   unsigned ng = Pg.row(0).size();
-
-
-  
-  
+ 
   for(unsigned k = 0; k < dim ; k++) {
     N(k) = pow(m + 1, dim - k - 1);
   }
-
 
   for(unsigned k = 0; k < dim ; k++) {
     NG(k) = pow(ng, dim - k - 1);
@@ -936,9 +925,57 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &
         J(k) = pk / NG(k); 
       }
       double value = 1.;
+      unsigned ig = 0;
+      double jac = 1.;
+      
       for(unsigned k = 0; k < dim ; k++) {
-        value *= 0.5 * (VxU[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
+        value *= 0.5 * (VxU[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k));
+      }            
+      F(t) += value;
+    }
+  }
+  
+}
+
+
+void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<double> &jac, Eigen::MatrixXd &Pg,  Eigen::VectorXd &wg, Eigen::VectorXd &F) {
+
+  F.resize(pow(m + 1, dim));
+  F.setZero();
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+  Eigen::VectorXi J(dim);
+  Eigen::VectorXi NG(dim);
+  
+  unsigned ng = Pg.row(0).size();
+ 
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(m + 1, dim - k - 1);
+  }
+
+  for(unsigned k = 0; k < dim ; k++) {
+    NG(k) = pow(ng, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); 
+    }
+    F(t) = 0.;
+    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
+      J(0) = g / NG(0);
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = g % NG(k - 1);
+        J(k) = pk / NG(k); 
       }
+      
+      double value = jac[g];
+      for(unsigned k = 0; k < dim ; k++) {
+        value *= Pg(I(k), J(k)) * wg(J(k));
+      }
+            
       F(t) += value;
     }
   }
