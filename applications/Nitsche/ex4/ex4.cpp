@@ -59,9 +59,6 @@ void BuildFlag(MultiLevelSolution& mlSol);
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol);
 void GetParticleWeights(MultiLevelSolution& mlSol);
 
-// void InitBallParticles(const unsigned & dim, const unsigned & ng, std::vector<double> &VxL, std::vector<double> &VxR,
-//                        const std::vector < double> &xc, const double & R, const double & Rmax, const double & DR,
-//                        std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist);
 
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
@@ -222,18 +219,6 @@ int main(int argc, char** args) {
   std::vector < MarkerType > markerType;
 
   InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
-
-// Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
-//   Eigen::MatrixXd xP(xp.size(), xp[0].size());
-//   for(int i = 0; i < xp.size(); ++i) {
-//     xP.row(i) = Eigen::VectorXd::Map(&xp[i][0], xp[0].size());
-//   }
-//
-//   std::cout << " NumPoints =  "<< xP.cols() << std::endl;
-//
-//   PrintMarkers(DIM, xP, dist, wP, wP, 0, 0);
-//
-//   return 1;
 
 
   unsigned solType = 2;
@@ -1439,7 +1424,6 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         cnt++;
         imarker3++;
       }
-
 
       Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
       GetChebXInfo(m, dim, nmarker, xP, PmX);

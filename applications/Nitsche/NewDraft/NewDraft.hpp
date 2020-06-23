@@ -13,37 +13,22 @@
 #include "Line.hpp"
 
 
+ 
+
 void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
                              const std::vector < double> &xc, std::vector < MarkerType > &markerType, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
                              std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
 
-  //unsigned m1 = ceil(2 * ng - 1);
+  
 
-  double theta0 = 0; //atan2(VxL[1] - xc[1], VxR[0] - xc[0]);
-  double theta1 = 2 * M_PI;//atan2(VxR[1] - xc[1], VxL[0] - xc[0]);
-  //if(theta0 < 0) theta0 += M_PI;
-  //if(theta1 < 0) theta1 += M_PI;
+  double theta0 = 0; 
+  double theta1 = 2 * M_PI;
 
-
-  double phi1 = M_PI;//M_PI / 2 - atan2(VxL[2] - xc[2], sqrt((VxR[0] - xc[0]) * (VxR[0] - xc[0]) + (VxR[1] - xc[1]) * (VxR[1] - xc[1]))); /
-  double phi0 = 0;// / 2 - atan2(VxR[2] - xc[2], sqrt((VxL[0] - xc[0]) * (VxL[0] - xc[0]) + (VxL[1] - xc[1]) * (VxL[1] - xc[1]))); //
-  //if(phi0 < 0) phi0 += M_PI; //TODO
-  //if(phi1 < 0) phi1 += M_PI; //TODO
-
+  double phi1 = M_PI;
+  double phi0 = 0;
+  
   double R0 = 0. ;
-  //double R1 = Rmax ;
-  //double dp = 1.;
-
-
-//   for(unsigned k = 0; k < dim; k++) {
-//     R0 += (VxL[k] - xc[k]) * (VxL[k] - xc[k]);
-//     R1 += (VxR[k] - xc[k]) * (VxR[k] - xc[k]);
-//     //dp *= VxR[k] - VxL[k];
-//   }
-//
-//   R0 = sqrt(R0);
-//   R1 = sqrt(R1);
-
+  
   double dp = DR;
 
 
@@ -408,9 +393,6 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
   }
 
 }
-
-
-
 
 
 
@@ -807,87 +789,72 @@ void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C) {
 }
 
 
-void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
-  // xL is taken in reference coordinate system 
-  PmX.resize(dim, m + 1, np);
-  Eigen::MatrixXd Ptemp;
-  Eigen::VectorXd xtemp;
-  for(unsigned k = 0; k < dim; k++) {
-    xtemp = xL.row(k);
-    Cheb(m, xtemp, Ptemp);
-    for(unsigned i = 0; i < m + 1; i++) {
-      for(unsigned j = 0; j < np; j++) {
-        PmX(k, i, j) = Ptemp(i, j);
-      }
-    }
-  }
-}
 
 
-void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F) {
-
-
-  A.resize(pow(m + 1, dim), np);
-  F.resize(pow(m + 1, dim));
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(m + 1, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-    }
-    for(unsigned j = 0; j < np; j++) {
-      double r = 1;
-
-      for(unsigned k = 0; k < dim; k++) {
-        r *= PmX(k, I[k], j);
-      }
-      A(t, j) = r ;
-    }
-
-  }
-
-  unsigned ng = Pg.row(0).size();
-  Eigen::VectorXi J(dim);
-  Eigen::VectorXi NG(dim);
-
-
-
-  for(unsigned k = 0; k < dim ; k++) {
-    NG(k) = pow(ng, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-    }
-    F(t) = 0.;
-    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
-      J(0) = g / NG(0);
-      for(unsigned k = 1; k < dim ; k++) {
-        unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
-      }
-      double value = 1.;
-
-      for(unsigned k = 0; k < dim ; k++) {
-        value *= 0.5 * (VxR[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
-      }
-      F(t) += value;
-    }
-
-  }
-
-}
+// void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F) {
+// 
+// 
+//   A.resize(pow(m + 1, dim), np);
+//   F.resize(pow(m + 1, dim));
+//   Eigen::VectorXi I(dim);
+//   Eigen::VectorXi N(dim);
+// 
+// 
+//   for(unsigned k = 0; k < dim ; k++) {
+//     N(k) = pow(m + 1, dim - k - 1);
+//   }
+// 
+//   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+//     I(0) = t / N(0);
+//     for(unsigned k = 1; k < dim ; k++) {
+//       unsigned pk = t % N(k - 1);
+//       I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+//     }
+//     for(unsigned j = 0; j < np; j++) {
+//       double r = 1;
+// 
+//       for(unsigned k = 0; k < dim; k++) {
+//         r *= PmX(k, I[k], j);
+//       }
+//       A(t, j) = r ;
+//     }
+// 
+//   }
+// 
+//   unsigned ng = Pg.row(0).size();
+//   Eigen::VectorXi J(dim);
+//   Eigen::VectorXi NG(dim);
+// 
+// 
+// 
+//   for(unsigned k = 0; k < dim ; k++) {
+//     NG(k) = pow(ng, dim - k - 1);
+//   }
+// 
+//   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+//     I(0) = t / N(0);
+//     for(unsigned k = 1; k < dim ; k++) {
+//       unsigned pk = t % N(k - 1);
+//       I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+//     }
+//     F(t) = 0.;
+//     for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
+//       J(0) = g / NG(0);
+//       for(unsigned k = 1; k < dim ; k++) {
+//         unsigned pk = g % NG(k - 1);
+//         J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
+//       }
+//       double value = 1.;
+// 
+//       for(unsigned k = 0; k < dim ; k++) {
+//         value *= 0.5 * (VxR[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
+//       }
+//       F(t) += value;
+//     }
+// 
+//   }
+// 
+// }
 
 
 
@@ -983,6 +950,25 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<dou
 }
 
 
+
+void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
+  // xL is taken in reference coordinate system 
+  PmX.resize(dim, m + 1, np);
+  Eigen::MatrixXd Ptemp;
+  Eigen::VectorXd xtemp;
+  for(unsigned k = 0; k < dim; k++) {
+    xtemp = xL.row(k);
+    Cheb(m, xtemp, Ptemp);
+    for(unsigned i = 0; i < m + 1; i++) {
+      for(unsigned j = 0; j < np; j++) {
+        PmX(k, i, j) = Ptemp(i, j);
+      }
+    }
+  }
+}
+
+
+
 void GetChebParticleA(const unsigned &dim, const unsigned &m, const unsigned &np, Eigen::Tensor<double,3,Eigen::RowMajor>  &PmX, Eigen::MatrixXd &A) {
 
 
@@ -1013,17 +999,6 @@ void GetChebParticleA(const unsigned &dim, const unsigned &m, const unsigned &np
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1066,9 +1041,8 @@ void PrintMarkers(const unsigned & dim, const Eigen::MatrixXd & xP, const std::v
 }
 
 
-
-
 void  GetParticlesOnBox(const double & a, const double & b, const unsigned & n1, const unsigned & dim, Eigen::MatrixXd & x, Eigen::MatrixXd & xL) {
+  
   double h = (b - a) / n1;
   x.resize(dim, pow(n1, dim));
   Eigen::VectorXi I(dim);
@@ -1191,143 +1165,6 @@ double get_r(const double & T, const unsigned & n) {
 }
 
 
-void InitParticlesDisk(const unsigned & dim, const unsigned & ng, double & xL, double & xR, double & yL, double & yR,
-                       const std::vector < double> &xc, const double & R, std::vector < std::vector <double> > &xp,
-                       std::vector <double> &wp, std::vector <double> &dist) {
-
-  double theta0 = atan2(yL - xc[1], xR - xc[0]);
-  double theta1 = atan2(yR - xc[1], xL - xc[0]);
-  if(theta0 < 0) theta0 += M_PI;
-  if(theta1 < 0) theta1 += M_PI;
-
-  double R0 = sqrt((xL - xc[0]) * (xL - xc[0]) + (yL - xc[1]) * (yL - xc[1]));
-  double R1 = sqrt((xR - xc[0]) * (xR - xc[0]) + (yR - xc[1]) * (yR - xc[1]));
-
-  unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
-  double dp = sqrt((xR - xL) * (yR - yL)) / m1;
-  unsigned nr = ceil(((R - 0.5 * dp)) / dp);
-  double dr = ((R - 0.5 * dp)) / nr;
-  double area = 0.;
-
-  xp.resize(dim);
-  for(unsigned k = 0; k < dim; k++) {
-    xp[k].reserve(2 * pow(m1, dim));
-  }
-  wp.reserve(2 * pow(m1, dim));
-  dist.reserve(2 * pow(m1, dim));
-  unsigned cnt = 0;
-
-  int i0 = floor(R0 / dr - 0.5);
-  if(i0 < 0) i0 = 0;
-  int i1 = ceil(R1 / dr - 0.5);
-  if(i1 > nr - 1) i1 = nr - 1;
-
-  for(unsigned i = i0; i <= i1; i++) {
-    double ri = (i + 0.5) * dr;
-    unsigned nti = ceil(2 * M_PI * ri / dr);
-    double dti = 2 * M_PI / nti;
-    int j0 = floor(theta0 / dti);
-    int j1 = ceil(theta1 / dti);
-    for(unsigned j = j0; j <= j1; j++) {
-      double tj = j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > xL && x < xR && y > yL && y < yR) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr;
-        dist[cnt] = (R - ri);
-
-        area += ri * dti * dr;
-        cnt++;
-
-      }
-    }
-  }
-
-  {
-    double ri = R;
-    unsigned nti = ceil(2 * M_PI * R / dp); // controls the density of particles on the boundary
-    double dti = 2 * M_PI / nti;
-    int j0 = floor(theta0 / dti);
-    int j1 = ceil(theta1 / dti);
-    for(unsigned j = j0; j <= j1; j++) {
-      double tj = j * dti;
-
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > xL && x < xR && y > yL && y < yR) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dp;
-
-        dist[cnt] = (R - ri);
-
-        area += ri * dti * dp;
-
-        cnt++;
-
-      }
-    }
-  }
-
-  i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
-  if(i0 < 0) i0 = 0;
-
-  i1 = floor((R1 - (R + 0.5 * dp)) / dr - 0.5);
-  if(i1 > nr - 1) i1 = nr - 1;
-
-  for(unsigned i = i0; i <= i1; i++) {
-
-    double ri = (R + 0.5 * dp) + (i + 0.5) * dr;
-    unsigned nti = ceil(2 * M_PI * ri / dr);
-    double dti = 2 * M_PI / nti;
-
-    int j0 = floor(theta0 / dti);
-    int j1 = ceil(theta1 / dti);
-    for(unsigned j = j0; j <= j1; j++) {
-      double tj = j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > xL && x < xR && y > yL && y < yR) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr;
-        dist[cnt] = (R - ri);
-        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-        area += ri * dti * dr;
-        dist[cnt] = R - ri;
-
-        cnt++;
-
-      }
-    }
-  }
-
-// std::cout << cnt << " " << pow(m1, dim) << std::endl;
-// std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
-
-}
-
 
 
 void PrintMat(std::vector< std::vector<double> >& M) {
@@ -1350,218 +1187,4 @@ void PrintVec(std::vector<double>& v) {
   std::cout << "\n" << std::endl;
 }
 
-
-void InitParticlesDiskOld(const unsigned & dim, const unsigned & ng, const double & eps, const unsigned & nbl, const bool & gradedbl,
-                          const double & a, const double & b, const std::vector < double> &xc, const double & R,
-                          std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
-
-
-  unsigned m1 = ceil(pow(1., 1. / dim) * (2 * ng - 1));
-  double dp = (b - a) / m1;
-  double deps = (b - a) * eps;
-
-  unsigned nr1 = ceil(((R - deps)) / dp);
-  unsigned nr2 = ceil((2 * R - (R + deps)) / dp);
-
-  double dr1 = ((R - deps)) / nr1;
-  double dr2 = (2 * R - (R + deps)) / nr2;
-  double dbl = (2. * deps) / nbl;
-
-  double area = 0.;
-
-  xp.resize(dim);
-  for(unsigned k = 0; k < dim; k++) {
-    xp[k].reserve(2 * pow(m1, dim));
-  }
-  wp.reserve(2 * pow(m1, dim));
-  dist.reserve(2 * pow(m1, dim));
-  unsigned cnt = 0;
-
-  for(unsigned i = 0; i < nr1 - 2 * gradedbl; i++) {
-    double ri = (i + 0.5) * dr1;
-    unsigned nti = ceil(2 * M_PI * ri / dr1);
-    double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
-      double tj = j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > a && x < b && y > a && y < b) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr1;
-        dist[cnt] = (R - ri);
-        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-        area += ri * dti * dr1;
-        cnt++;
-
-      }
-    }
-  }
-
-  if(gradedbl) {
-    double T = 7.;
-
-    double scale = (2.* dr1) / (T * dbl);
-    unsigned n1 = 3;
-
-    if(n1 > 1 && scale < 1.) {
-      T = T - 2;
-      scale = (2.* dr1) / (T * dbl);
-      n1--;
-    }
-
-    double r = (n1 > 0) ? get_r(T, n1) : 1.;
-    double dri = (n1 > 0) ? scale * dbl * pow(r, n1) : 2. * dr1;
-
-    double ri = R - deps - 2. * dr1;
-    for(unsigned i = 0; i <= n1; i++) {
-      ri += 0.5 * dri;
-      unsigned nti = ceil(2.5 * M_PI * ri / dr1);
-      double dti = 2 * M_PI / nti;
-      for(unsigned j = 0; j < nti; j++) {
-        double tj = (i * dti) / (n1 + 1) + j * dti;
-        double x = xc[0] + ri * cos(tj);
-        double y = xc[1] + ri * sin(tj);
-        if(x > a && x < b && y > a && y < b) {
-          for(unsigned k = 0; k < dim; k++) {
-            xp[k].resize(cnt + 1);
-          }
-          wp.resize(cnt + 1);
-          dist.resize(cnt + 1);
-
-          xp[0][cnt] = x;
-          xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dri;
-          dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-          area += ri * dti * dri;
-          cnt++;
-
-        }
-      }
-      ri += 0.5 * dri;
-      dri /= r;
-    }
-  }
-
-
-  {
-    //for(unsigned j = 0; j < nti; j++) {
-    for(unsigned i = 0; i < nbl; i++) {
-      double ri = (R - deps) + (i + 0.5) * dbl;
-      unsigned nti = ceil(4 * M_PI * R / (0.5 * (dr1 + dr2)));
-      //unsigned nti = ceil(2 * M_PI * ri / (2 * eps) );
-      double dti = 2 * M_PI / nti;
-      for(unsigned j = 0; j < nti; j++) {
-        double tj = /*(i * dti) / (nbl)*/ + j * dti;
-
-        double x = xc[0] + ri * cos(tj);
-        double y = xc[1] + ri * sin(tj);
-        if(x > a && x < b && y > a && y < b) {
-          for(unsigned k = 0; k < dim; k++) {
-            xp[k].resize(cnt + 1);
-          }
-          wp.resize(cnt + 1);
-          dist.resize(cnt + 1);
-
-          xp[0][cnt] = x;
-          xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dbl;
-
-          dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-
-          area += ri * dti * dbl;
-
-          cnt++;
-
-        }
-      }
-    }
-  }
-  if(gradedbl) {
-    double T = 7.;
-
-    double scale = (2.* dr2) / (T * dbl);
-    unsigned n2 = 3;
-
-    if(n2 > 1 && scale < 1.) {
-      T = T - 2;
-      scale = (2.* dr1) / (T * dbl);
-      n2--;
-    }
-
-    double r = (n2 > 0) ? get_r(T, n2) : 1.;
-    double dri = (n2 > 0) ? scale * dbl : 2. * dr2;
-
-    double ri = R + deps;
-    for(unsigned i = 0; i <= n2; i++) {
-      ri += 0.5 * dri;
-      unsigned nti = ceil(2.5 * M_PI * ri / dr2);
-      double dti = 2 * M_PI / nti;
-      for(unsigned j = 0; j < nti; j++) {
-        double tj = (i * dti) / (n2 + 1.) + j * dti;
-        double x = xc[0] + ri * cos(tj);
-        double y = xc[1] + ri * sin(tj);
-        if(x > a && x < b && y > a && y < b) {
-          for(unsigned k = 0; k < dim; k++) {
-            xp[k].resize(cnt + 1);
-          }
-          wp.resize(cnt + 1);
-          dist.resize(cnt + 1);
-
-          xp[0][cnt] = x;
-          xp[1][cnt] = y;
-          wp[cnt] = ri * dti * dri;
-          dist[cnt] = (R - ri);
-          //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-          area += ri * dti * dri;
-          cnt++;
-        }
-      }
-      ri += 0.5 * dri;
-      dri *= r;
-    }
-  }
-
-
-  for(unsigned i = 2 * gradedbl; i < nr2; i++) {
-
-    double ri = (R + deps) + (i + 0.5) * dr2;
-    unsigned nti = ceil(2 * M_PI * ri / dr2);
-    double dti = 2 * M_PI / nti;
-    for(unsigned j = 0; j < nti; j++) {
-      double tj = j * dti;
-      double x = xc[0] + ri * cos(tj);
-      double y = xc[1] + ri * sin(tj);
-      if(x > a && x < b && y > a && y < b) {
-        for(unsigned k = 0; k < dim; k++) {
-          xp[k].resize(cnt + 1);
-        }
-        wp.resize(cnt + 1);
-        dist.resize(cnt + 1);
-
-        xp[0][cnt] = x;
-        xp[1][cnt] = y;
-        wp[cnt] = ri * dti * dr2;
-        dist[cnt] = (R - ri);
-        //std::cout << x << " " << y << " " << dist[cnt] << " " << wp[cnt] << std::endl;
-        area += ri * dti * dr2;
-        dist[cnt] = R - ri;
-        cnt++;
-
-      }
-    }
-  }
-  //std::cout << cnt << " " << pow(m1, dim) << std::endl;
-  //std::cout << "Area = " << area << " vs " << (b - a)*(b - a) << std::endl;
-
-}
 
