@@ -436,6 +436,7 @@ void AssembleNonlinearProblem_AD(MultiLevelProblem& ml_prob) {
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  const unsigned lambda = 1;
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
   //solution variable
@@ -556,9 +557,12 @@ void AssembleNonlinearProblem_AD(MultiLevelProblem& ml_prob) {
         adept::adouble nonLinearTerm = 0.;
         adept::adouble mLaplace = 0.;
 
+        nonLinearTerm += lambda * soluGauss * soluGauss * soluGauss * phi[i] - lambda * soluGauss * phi[i];
+        
         for(unsigned jdim = 0; jdim < dim; jdim++) {
           mLaplace   +=  phi_x[i * dim + jdim] * soluGauss_x[jdim];
-          nonLinearTerm += soluGauss * soluGauss_x[jdim] * phi[i];
+          //nonLinearTerm += soluGauss * soluGauss_x[jdim] * phi[i];
+            
         }
 
         double exactSolValue = GetExactSolutionValue(xGauss);
@@ -566,10 +570,12 @@ void AssembleNonlinearProblem_AD(MultiLevelProblem& ml_prob) {
         GetExactSolutionGradient(xGauss , exactSolGrad);
         double exactSolLaplace = GetExactSolutionLaplace(xGauss);
 
-        double f = - exactSolLaplace * phi[i] ;
-        for(unsigned k = 0; k < dim; k++) {
-          f += exactSolValue * exactSolGrad[k] * phi[i];
-        }
+        //double f = - exactSolLaplace * phi[i]
+        double f = - exactSolLaplace * phi[i] + lambda * exactSolValue * exactSolValue * exactSolValue * phi[i] - lambda * exactSolValue * phi[i] ;
+        //for(unsigned k = 0; k < dim; k++) {
+          //f += exactSolValue * exactSolGrad[k] * phi[i];
+          
+        //}
         mRes[i] -= (f - (mLaplace + nonLinearTerm)) * weight;
 
       } // end phi_i loop
