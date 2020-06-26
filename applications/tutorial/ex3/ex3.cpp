@@ -258,6 +258,7 @@ void AssembleNonlinearProblem(MultiLevelProblem& ml_prob) {
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual vector object in pdeSys (level)
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  const unsigned lambda = 1;
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
   //solution variable
@@ -367,7 +368,8 @@ void AssembleNonlinearProblem(MultiLevelProblem& ml_prob) {
 
           for(unsigned kdim = 0; kdim < dim; kdim++) {
             mLaplace += (phi_x[i * dim + kdim] * phi_x[j * dim + kdim]);
-            nonLinearTerm +=   phi[i] * (phi[j] * soluGauss_x[kdim] + soluGauss * phi_x[j * dim + kdim]);
+            //nonLinearTerm +=   phi[i] * (phi[j] * soluGauss_x[kdim] + soluGauss * phi_x[j * dim + kdim]);
+            nonLinearTerm += phi[i] * (lambda * 3 * soluGauss * soluGauss * phi[j] - phi[j]);
           }
 
           J[i * nDofs + j] += (mLaplace + nonLinearTerm) * weight;
