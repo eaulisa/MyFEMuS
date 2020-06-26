@@ -110,7 +110,10 @@ int main(int argc, char** args) {
       system.AddSolutionToSystemPDE("u");
 
       // attach the assembling function to system
-      system.SetAssembleFunction(AssembleNonlinearProblem_AD);
+      //system.SetAssembleFunction(AssembleNonlinearProblem_AD);
+      system.SetAssembleFunction(AssembleNonlinearProblem);
+
+      
 
       // initilaize and solve the system
       system.init();
