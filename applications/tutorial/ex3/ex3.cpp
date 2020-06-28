@@ -363,16 +363,18 @@ void AssembleNonlinearProblem(MultiLevelProblem& ml_prob) {
         }
 
         Res[i] += (f - (mLaplace + nonLinearTerm)) * weight;
+        
 
         // *** phi_j loop ***
         for(unsigned j = 0; j < nDofs; j++) {
           mLaplace = 0.;
           nonLinearTerm = 0.;
-
+          nonLinearTerm += phi[i] * (lambda * 3 * soluGauss * soluGauss * phi[j] - lambda * phi[j]);
+          
           for(unsigned kdim = 0; kdim < dim; kdim++) {
             mLaplace += (phi_x[i * dim + kdim] * phi_x[j * dim + kdim]);
             //nonLinearTerm +=   phi[i] * (phi[j] * soluGauss_x[kdim] + soluGauss * phi_x[j * dim + kdim]);
-            nonLinearTerm += phi[i] * (lambda * 3 * soluGauss * soluGauss * phi[j] - phi[j]);
+            
           }
 
           J[i * nDofs + j] += (mLaplace + nonLinearTerm) * weight;
