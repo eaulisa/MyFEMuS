@@ -614,6 +614,5 @@ std::pair < double, double > GetErrorNorm(MultiLevelSolution * mlSol) {
   MPI_Reduce(&norm, &normSum, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);  //MPI_library
   
   return std::pair < double, double > (sqrt(normSum[0]), sqrt(normSum[1]));//use of std pair with l2 and semi norms
-  //I could not find the use of std map, when do you use this?
 
 }
