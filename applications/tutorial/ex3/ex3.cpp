@@ -110,8 +110,8 @@ int main(int argc, char** args) {
       system.AddSolutionToSystemPDE("u");
 
       // attach the assembling function to system
-      system.SetAssembleFunction(AssembleNonlinearProblem_AD);
-      //system.SetAssembleFunction(AssembleNonlinearProblem);
+      //system.SetAssembleFunction(AssembleNonlinearProblem_AD);
+      system.SetAssembleFunction(AssembleNonlinearProblem);
 
       // initilaize and solve the system
       system.init();
@@ -343,11 +343,13 @@ void AssembleNonlinearProblem(MultiLevelProblem& ml_prob) {
 
         double f = phi[i] * (- exactSolLaplace + lambda * (exactSolValue * exactSolValue * exactSolValue - exactSolValue));
         Res[i] += (f - (mLaplace + nonLinearTerm)) * weight;
+        
 
         // *** phi_j loop ***
         for(unsigned j = 0; j < nDofs; j++) {
           nonLinearTerm = phi[i] * lambda * (3. * soluGauss * soluGauss - 1.) * phi[j];
           mLaplace = 0.;
+
           for(unsigned k = 0; k < dim; k++) {
             mLaplace += (phi_x[i * dim + k] * phi_x[j * dim + k]);
           }

@@ -99,7 +99,7 @@ int main(int argc, char** args) {
       system.AddSolutionToSystemPDE("v");
 
       // attach the assembling function to system
-      system.SetAssembleFunction(AssembleBilaplaceProblem_AD);
+      system.SetAssembleFunction(AssembleBilaplaceProblem);
 
       // initilaize and solve the system
       system.init();
@@ -518,6 +518,8 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
 
       std::vector < double > xGauss(dim, 0.);
 
+      double mLaplace = 0.;
+      
       for(unsigned i = 0; i < nDofs; i++) {
         soluGauss += phi[i] * solu[i];
         solvGauss += phi[i] * solv[i];
@@ -546,8 +548,21 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
         Res[nDofs + i] -= (4. * M_PI * M_PI * M_PI * M_PI * exactSolValue * phi[i] -  Laplace_v) * weight;
 
         for(unsigned j = 0; j < nDofs; j++) {
-
+            mLaplace = 0.;
+            
+         for(unsigned kdim = 0; kdim < dim; kdim++) {
+            mLaplace += (phi_x[i * dim + kdim] * phi_x[j * dim + kdim]);   
+            
+         }
+          
+          Jac[i * 2 * nDofs + j] += mLaplace * weight;
+          Jac[i * 2 * nDofs + nDofs + j] = 0.;
+          Jac[(nDofs + i) * 2 * nDofs + j] = 0.;
+          Jac[(nDofs + i) * 2 * nDofs + nDofs + j] += mLaplace * weight;
+            
         }
+        
+        
 
       } // end phi_i loop
     } // end gauss point loop
