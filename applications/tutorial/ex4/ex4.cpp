@@ -556,7 +556,7 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
          }
           
           Jac[i * 2 * nDofs + j] += mLaplace * weight;
-          Jac[i * 2 * nDofs + nDofs + j] = 0.;
+          Jac[i * 2 * nDofs + nDofs + j] = phi[i] * phi[j] * weight;
           Jac[(nDofs + i) * 2 * nDofs + j] = 0.;
           Jac[(nDofs + i) * 2 * nDofs + nDofs + j] += mLaplace * weight;
             
