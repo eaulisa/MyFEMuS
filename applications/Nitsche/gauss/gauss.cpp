@@ -37,7 +37,7 @@ int main(int argc, char** args) {
                               line_gauss::Gauss15[0], line_gauss::Gauss16[0], line_gauss::Gauss17[0], line_gauss::Gauss18[0], line_gauss::Gauss19[0]
                             };
 
-   std::string name = "quad";                         
+   std::string name = "hex";                         
                             
   if (!strcmp("quad", name.c_str()) ) {
     //QUAD
@@ -655,7 +655,10 @@ void GnuPrint(std::string name, const std::vector < std::vector<double> > & weig
 
 
     for(unsigned i = 0; i < weight[m].size(); i++) {
-      fout << x[m][0][i] << " " << x[m][1][i] << " " << weight[m][i] << std::endl;
+      for(unsigned k=0; k< dim; k++){  
+        fout << x[m][k][i] << " ";
+      }
+      fout << weight[m][i] << std::endl;
     }
     fout.close();
 
