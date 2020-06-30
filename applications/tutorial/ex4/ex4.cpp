@@ -16,7 +16,7 @@
 #include "NumericVector.hpp"
 #include "VTKWriter.hpp"
 #include "GMVWriter.hpp"
-#include "NonLinearImplicitSystem.hpp"
+#include "LinearImplicitSystem.hpp"
 #include "adept.h"
 
 
@@ -92,7 +92,7 @@ int main(int argc, char** args) {
       MultiLevelProblem mlProb(&mlSol);
 
       // add system Poisson in mlProb as a Linear Implicit System
-      NonLinearImplicitSystem& system = mlProb.add_system < NonLinearImplicitSystem > ("Bilaplace");
+      LinearImplicitSystem& system = mlProb.add_system < LinearImplicitSystem > ("Bilaplace");
 
       // add solution "u" to system
       system.AddSolutionToSystemPDE("u");
@@ -174,9 +174,6 @@ int main(int argc, char** args) {
     }
 
   }
-
-
-
   return 0;
 }
 
@@ -231,7 +228,7 @@ void AssembleBilaplaceProblem_AD(MultiLevelProblem& ml_prob) {
 
   //  extract pointers to the several objects that we are going to use
 
-  NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("Bilaplace");   // pointer to the linear implicit system named "Poisson"
+  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("Bilaplace");   // pointer to the linear implicit system named "Poisson"
 
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
@@ -414,7 +411,7 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
 
   //  extract pointers to the several objects that we are going to use
 
-  NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("Bilaplace");   // pointer to the linear implicit system named "Poisson"
+  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("Bilaplace");   // pointer to the linear implicit system named "Poisson"
 
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
@@ -516,9 +513,7 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
       double solvGauss = 0;
       std::vector < double > solvGauss_x(dim, 0.);
 
-      std::vector < double > xGauss(dim, 0.);
-
-      double mLaplace = 0.;
+      std::vector < double > xGauss(dim, 0.);     
       
       for(unsigned i = 0; i < nDofs; i++) {
         soluGauss += phi[i] * solu[i];
@@ -544,21 +539,21 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
 
         double exactSolValue = GetExactSolutionValue(xGauss);
 
-        Res[i] -= (solvGauss * phi[i] -  Laplace_u) * weight;
+        Res[i] -= (-  Laplace_u + solvGauss * phi[i] ) * weight;
         Res[nDofs + i] -= (4. * M_PI * M_PI * M_PI * M_PI * exactSolValue * phi[i] -  Laplace_v) * weight;
 
         for(unsigned j = 0; j < nDofs; j++) {
-            mLaplace = 0.;
-            
-         for(unsigned kdim = 0; kdim < dim; kdim++) {
+          double mLaplace = 0.;
+
+          for(unsigned kdim = 0; kdim < dim; kdim++) {
             mLaplace += (phi_x[i * dim + kdim] * phi_x[j * dim + kdim]);   
-            
-         }
+          }
           
-          Jac[i * 2 * nDofs + j] += mLaplace * weight;
-          Jac[i * 2 * nDofs + nDofs + j] = phi[i] * phi[j] * weight;
-          Jac[(nDofs + i) * 2 * nDofs + j] = 0.;
-          Jac[(nDofs + i) * 2 * nDofs + nDofs + j] += mLaplace * weight;
+          Jac[i * sizeAll + j] += mLaplace * weight;
+          Jac[i * sizeAll + nDofs + j] += phi[i] * phi[j] * weight;
+          
+               
+          Jac[(nDofs + i) * sizeAll + nDofs + j] += mLaplace * weight;
             
         }
         
@@ -583,127 +578,93 @@ void AssembleBilaplaceProblem(MultiLevelProblem& ml_prob) {
   // ***************** END ASSEMBLY *******************
 }
 
+std::pair < double, double > GetErrorNorm(MultiLevelSolution * mlSol) {
 
-
-std::pair < double, double > GetErrorNorm(MultiLevelSolution* mlSol) {
   unsigned level = mlSol->_mlMesh->GetNumberOfLevels() - 1u;
   //  extract pointers to the several objects that we are going to use
-  Mesh*          msh          = mlSol->_mlMesh->GetLevel(level);    // pointer to the mesh (level) object
-  elem*          el         = msh->el;  // pointer to the elem object in msh (level)
-  Solution*    sol        = mlSol->GetSolutionLevel(level);    // pointer to the solution (level) object
+  Mesh*     msh = mlSol->_mlMesh->GetLevel(level);    // pointer to the mesh (level) object
+  elem*     el  = msh->el;  // pointer to the elem object in msh (level)
+  Solution* sol = mlSol->GetSolutionLevel(level);    // pointer to the solution (level) object
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  //I believe you covered this, but how do you specify the partition of the mesh for parrelel computation, I remember you showing this but I don't remember how you know this partition
 
   //solution variable
-  unsigned soluIndex;
-  soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
+  unsigned soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
   std::vector < double >  solu; // local solution
+  std::vector < vector < double > > x(dim);  // local coordinates
 
-  std::vector < std::vector < double > > x(dim);    // local coordinates
-  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE BIQUADRATIC)
 
   std::vector <double> phi;  // local test function
   std::vector <double> phi_x; // local test function first order partial derivatives
-  std::vector <double> phi_xx; // local test function second order partial derivatives
   double weight; // gauss point weight
 
-  // reserve memory for the local standar std::vectors
-  const unsigned maxSize = static_cast< unsigned >(ceil(pow(3, dim)));          // conservative: based on line3, quad9, hex27
-  solu.reserve(maxSize);
-
-  for(unsigned i = 0; i < dim; i++)
-    x[i].reserve(maxSize);
-
-  phi.reserve(maxSize);
-  phi_x.reserve(maxSize * dim);
-  unsigned dim2 = (3 * (dim - 1) + !(dim - 1));        // dim2 is the number of second order partial derivatives (1,3,6 depending on the dimension)
-  phi_xx.reserve(maxSize * dim2);
-
-  double seminorm = 0.;
-  double l2norm = 0.;
+  double norm[2] = {0., 0.};
 
   // element loop: each process loops only on the elements that owns
-  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
 
     short unsigned ielGeom = msh->GetElementType(iel);
-    unsigned nDofs  = msh->GetElementDofNumber(iel, soluType);    // number of solution element dofs
-    unsigned nDofs2 = msh->GetElementDofNumber(iel, xType);    // number of coordinate element dofs
+    unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);    // number of solution element dofs
 
     // resize local arrays
-    solu.resize(nDofs);
-
-    for(int i = 0; i < dim; i++) {
-      x[i].resize(nDofs2);
+    solu.resize(nDofu);
+    for(unsigned i = 0; i < dim; i++) {
+      x[i].resize(nDofu);
     }
 
-    // local storage of global mapping and solution
-    for(unsigned i = 0; i < nDofs; i++) {
-      unsigned solDof = msh->GetSolutionDof(i, iel, soluType);    // global to global mapping between solution node and solution dof
-      solu[i] = (*sol->_Sol[soluIndex])(solDof);      // global extraction and local storage for the solution
-    }
+    // local storage of global solution and coordinates
+    for(unsigned i = 0; i < nDofu; i++) {
+      unsigned uDof = msh->GetSolutionDof(i, iel, soluType);    // global to local mapping of soluType variables
+      solu[i] = (*sol->_Sol[soluIndex])(uDof);      // global to local u solution extraction
 
-    // local storage of coordinates
-    for(unsigned i = 0; i < nDofs2; i++) {
-      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-
+      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to local mapping of xType variables
       for(unsigned k = 0; k < dim; k++) {
-        x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
+        x[k][i] = (*msh->_topology->_Sol[k])(xDof);  // global to local coordinate extraction
       }
     }
+
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
-      msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x, phi_xx);
+      msh->_finiteElement[ielGeom][soluType]->Jacobian(x, ig, weight, phi, phi_x);
 
       // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-      double soluGauss = 0;
-      std::vector < double > soluGauss_x(dim, 0.);
-      std::vector < double > xGauss(dim, 0.);
+      double solu_gss = 0;
+      std::vector < double > gradSolu_gss(dim, 0.);
+      std::vector < double > x_gss(dim, 0.);
 
-      for(unsigned i = 0; i < nDofs; i++) {
-        soluGauss += phi[i] * solu[i];
+      for(unsigned i = 0; i < nDofu; i++) {
+        solu_gss += phi[i] * solu[i];
 
         for(unsigned k = 0; k < dim; k++) {
-          soluGauss_x[k] += phi_x[i * dim + k] * solu[i];
-          xGauss[k] += x[k][i] * phi[i];
+          gradSolu_gss[k] += phi_x[i * dim + k] * solu[i];
+          x_gss[k] += x[k][i] * phi[i];
         }
       }
 
-      std::vector <double> solGrad(dim);
-      GetExactSolutionGradient(xGauss, solGrad);
+      double exactSol = GetExactSolutionValue(x_gss);
+      norm[0] += (exactSol - solu_gss) * (exactSol - solu_gss) * weight;
 
-      for(unsigned j = 0; j < dim ; j++) {
-        seminorm   += ((soluGauss_x[j] - solGrad[j]) * (soluGauss_x[j] - solGrad[j])) * weight;
+      std::vector <double> exactGradSol(dim);
+      GetExactSolutionGradient(x_gss, exactGradSol);
+
+      for(unsigned k = 0; k < dim ; k++) {
+        norm[1]   += ((gradSolu_gss[k] - exactGradSol[k]) * (gradSolu_gss[k] - exactGradSol[k])) * weight;
       }
 
-      double exactSol = GetExactSolutionValue(xGauss);
-      l2norm += (exactSol - soluGauss) * (exactSol - soluGauss) * weight;
     } // end gauss point loop
   } //end element loop for each process
 
-  // add the norms of all processes
-  NumericVector* norm_vec;
-  norm_vec = NumericVector::build().release();
-  norm_vec->init(msh->n_processors(), 1 , false, AUTOMATIC);
+  double normSum[2] = {0., 0.};
+  MPI_Reduce(&norm, &normSum, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);  //MPI_library
 
-  norm_vec->set(iproc, l2norm);
-  norm_vec->close();
-  l2norm = norm_vec->l1_norm();
-
-  norm_vec->set(iproc, seminorm);
-  norm_vec->close();
-  seminorm = norm_vec->l1_norm();
-
-  delete norm_vec;
-
-  std::pair < double, double > norm;
-  norm.first  = sqrt(l2norm);
-  norm.second = sqrt(seminorm);
-
-  return norm;
+  return std::pair < double, double > (sqrt(normSum[0]), sqrt(normSum[1]));//use of std pair with l2 and semi norms
 
 }
