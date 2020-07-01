@@ -59,7 +59,7 @@ Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TO
 #include "./include/assembleConformalMinimization.hpp"
 
 
-#include "../include/assembleInit.hpp"
+#include "./include/assembleInit.hpp"
 
 // Declaration of systems.
 void AssemblePWillmore(MultiLevelProblem&);
