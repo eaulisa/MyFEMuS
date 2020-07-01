@@ -22,413 +22,119 @@ using namespace femus;
 
 
 
-void Print(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
+void CppPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 void GnuPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 double GetIntegral(const unsigned &m1, const std::vector<unsigned> &n, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 void TestQuadIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 void TestTriIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 void TestHexIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-
+void TestWedgeIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
+void TestTetIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
+void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vector < std::vector < double> > &weight,  std::vector < std::vector < std::vector < double> > > &x);
 
 int main(int argc, char** args) {
 
+  std::string name[5] = {"hex", "tet", "wedge", "quad", "tri"};
 
-  const double *Gauss[20] = { line_gauss::Gauss0[0],  line_gauss::Gauss1[0], line_gauss::Gauss2[0], line_gauss::Gauss3[0], line_gauss::Gauss4[0],
-                              line_gauss::Gauss5[0],  line_gauss::Gauss6[0], line_gauss::Gauss7[0], line_gauss::Gauss8[0], line_gauss::Gauss9[0],
-                              line_gauss::Gauss10[0], line_gauss::Gauss11[0], line_gauss::Gauss12[0], line_gauss::Gauss13[0], line_gauss::Gauss14[0],
-                              line_gauss::Gauss15[0], line_gauss::Gauss16[0], line_gauss::Gauss17[0], line_gauss::Gauss18[0], line_gauss::Gauss19[0]
-                            };
+  for(unsigned k = 0; k < 5; k++) {
 
-  std::string name = "quad";
-  
-  if(!strcmp("hex", name.c_str())) {
-    //HEX
-
-    unsigned dim = 3;
     unsigned maxNG = 10;
-
     std::vector < std::vector < double> > weight(maxNG);
     std::vector < std::vector < std::vector < double> > > x(maxNG);
-    for(unsigned m = 0; m < maxNG; m++) {
-      x[m].resize(dim);
-    }
 
-    std::vector <unsigned> dm = {1, 1, 1};
-    std::vector <unsigned> di = {0, 0, 0};
+    BuildGaussPoints(name[k], maxNG,  weight,  x);
 
-    for(unsigned m = 0; m < maxNG; m++) {
-      unsigned ngi = m + dm[0];
-      unsigned size = 0;
-      for(unsigned i = 0; i < ngi; i++) {
-        unsigned ngj = m + dm[1] - di[1] * i;
-        for(unsigned j = 0; j < ngj; j++) {
-          unsigned ngk = m + dm[2]; //this is m + 1 //TODO
-          size += ngk;
-        }
+    CppPrint(name[k], weight, x);
+    GnuPrint(name[k], weight, x);
+
+    for(unsigned m = 0; m < maxNG + 5; m++) {
+      if(!strcmp("hex", name[k].c_str())) {
+        TestHexIntegral(m, weight, x);
       }
-      weight[m].resize(size);
-      for(unsigned k = 0; k < dim; k++) {
-        x[m][k].resize(size);
+      else if(!strcmp("tet", name[k].c_str()))  {
+        TestTetIntegral(m, weight, x);
       }
-      unsigned cnt = 0;
-      for(unsigned i = 0; i < ngi; i++) {
-        unsigned ngj = m + dm[1] - di[1] * i;
-        for(unsigned j = 0; j < ngj; j++) {
-          unsigned ngk = m + dm[2]; //this is m + 1 //TODO
-          for(unsigned k = 0; k < ngk; k++) {
-
-            weight[m][cnt] = Gauss[ngi - 1][i] * Gauss[ngj - 1][j] * Gauss[ngk - 1][k];
-            x[m][0][cnt] = Gauss[ngi - 1][ngi + i];
-            x[m][1][cnt] = Gauss[ngj - 1][ngj + j];
-            x[m][2][cnt] = Gauss[ngk - 1][ngk + k];
-            cnt++;
-          }
-        }
+      else if(!strcmp("wedge", name[k].c_str())) {
+        TestWedgeIntegral(m, weight, x);
       }
-    }
-
-    Print(name, weight, x);
-    GnuPrint(name, weight, x);
-
-    for(unsigned m = 0; m < maxNG + 20; m++) {
-      TestHexIntegral(m, weight, x);
-    }
-
-  }
-
-  else if(!strcmp("quad", name.c_str()) || !strcmp("tri", name.c_str())) {
-
-    std::vector < std::vector < double > > xv;
-
-    if(!strcmp("quad", name.c_str())) {
-      xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad
-    }
-    else {
-      xv ={{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; // tri
-    }
-
-    std::vector <double> phi;  // local test function
-    std::vector <double> phi_x; // local test function first order partial derivatives
-    double jac;
-
-    const elem_type *fem = new const elem_type_2D("quad", "linear", "seventh");
-
-    unsigned dim = 2;
-    unsigned maxNG = 10;
-
-    std::vector < std::vector < double> > weight(maxNG);
-    std::vector < std::vector < std::vector < double> > > x(maxNG);
-    for(unsigned m = 0; m < maxNG; m++) {
-      x[m].resize(dim);
-    }
-
-    for(unsigned m = 0; m < maxNG; m++) {
-      unsigned ngi = m + 1;
-      unsigned size = 0;
-      for(unsigned i = 0; i < ngi; i++) {
-        unsigned ngj = m + 1;
-        size += ngj;
-      }
-      weight[m].resize(size);
-      for(unsigned k = 0; k < dim; k++) {
-        x[m][k].resize(size);
-      }
-      unsigned cnt = 0;
-      std::vector < double > xi(dim);
-      for(unsigned i = 0; i < ngi; i++) {
-        unsigned ngj = m + 1;
-        for(unsigned j = 0; j < ngj; j++) {
-          weight[m][cnt] = Gauss[ngi - 1][i] * Gauss[ngj - 1][j];
-          xi[0] = Gauss[ngi - 1][ngi + i];
-          xi[1] = Gauss[ngj - 1][ngj + j];
-
-          fem->Jacobian(xv, xi, jac, phi, phi_x);
-          weight[m][cnt] *= jac;
-
-          x[m][0][cnt] = 0.;
-          x[m][0][cnt] = 0.;
-          for(unsigned ii = 0; ii < 4; ii++) {
-            x[m][0][cnt] += phi[ii] * xv[0][ii];
-            x[m][1][cnt] += phi[ii] * xv[1][ii];
-          }
-          cnt++;
-        }
-      }
-    }
-
-    Print(name, weight, x);
-    GnuPrint(name, weight, x);
-
-    for(unsigned m = 0; m < maxNG + 20; m++) {
-      if(!strcmp("quad", name.c_str())) {
+      else if(!strcmp("quad", name[k].c_str()))  {
         TestQuadIntegral(m, weight, x);
       }
-      else {
+      else if(!strcmp("tri", name[k].c_str())) {
         TestTriIntegral(m, weight, x);
       }
     }
-    delete fem;
   }
 }
 
+void CppPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
 
+  std::ostringstream ofilename;
+  ofilename << name << "GaussPoints.cpp";
 
+  std::string filename(ofilename.str());
 
-
-
-
-
-
-//tetrahedra
-
-//   std::vector < std::vector < double > > xv = {
-//       {0, 1, 0.5, 0., 0., 0.5, 1./3., 0},
-//       {0, 0, 0.5, 1., 0., 0., 1./3., 0.5},
-//       {0, 0, 0, 0, 1, 0.5, 1./3., 0.5}};
-
-//   std::vector < std::vector < double > > xv = {
-//       {0., 1., 0., 0., 0., 0., 0., 0.},
-//       {0., 0., 1., 1., 0., 0., 0., 0.},
-//       {0., 0., 0., 0., 1., 1., 1., 1.}};
-//
-//   std::vector <double> phi;  // local test function
-//   std::vector <double> phi_x; // local test function first order partial derivatives
-//   double jac;
-//
-//   const elem_type *fem = new const elem_type_3D("hex", "linear", "seventh");
-//
-//   dim = 3;
-//   maxNG = 3;
-//
-//   std::cout << "const unsigned tet_gauss::GaussPoints[" << maxNG << "] = {";
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//     unsigned size = pow(ng, dim);
-//     std::cout << size << ", ";
-//   }
-//   std::cout << "\b\b};\n\n";
-//
-//   std::cout << "const double * tet_gauss::Gauss[" << maxNG << "] = {";
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//     std::cout << "Gauss" << ng - 1 << "[0], ";
-//   }
-//   std::cout << "\b\b};\n\n";
-//
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//
-//     unsigned size = pow(ng, dim);
-//     std::vector < double> weight(size);
-//     std::vector < double> x(size);
-//     std::vector < double> y(size);
-//     std::vector < double> z(size);
-//     std::vector < double > xi(dim);
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           weight[i * ng * ng + j * ng + k] = Gauss[ng - 1][i] * Gauss[ng - 1][j] * Gauss[ng - 1][k];
-//           xi[0] = Gauss[ng - 1][ng + i];
-//           xi[1] = Gauss[ng - 1][ng + j];
-//           xi[2] = Gauss[ng - 1][ng + k];
-//
-//
-//           fem->Jacobian(xv, xi, jac, phi, phi_x);
-//
-//           weight[i * ng * ng + j * ng + k] *= jac;
-//
-//           x[i * ng * ng + j * ng + k] = 0.;
-//           y[i * ng * ng + j * ng + k] = 0.;
-//           z[i * ng * ng + j * ng + k] = 0.;
-//
-//           for(unsigned ii = 0; ii < 8; ii++) {
-//             x[i * ng * ng + j * ng + k] += phi[ii] * xv[0][ii];
-//             y[i * ng * ng + j * ng + k] += phi[ii] * xv[1][ii];
-//             z[i * ng * ng + j * ng + k] += phi[ii] * xv[2][ii];
-//           }
-//
-//         }
-//       }
-//     }
-//
-//     std::cout.precision(14);
-//     std::cout << "const double tet_gauss::Gauss" << ng - 1 << "[" << dim + 1 << "][" <<  size << "] = {{";
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << weight[i * ng * ng + j * ng + k]  << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << x[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << y[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << z[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b}};" << std::endl << std::endl;
-//
-//   }
-//
-//   delete fem;
-
-
-
-//   //wedge
-//
-//   std::vector < std::vector < double > > xv = {{0, 1, 0, 0, 0, 1, 0, 0}, {0, 0, 1, 1, 0, 0, 1, 1}, {-1, -1, -1, -1, 1, 1, 1, 1}};
-//   std::vector <double> phi;  // local test function
-//   std::vector <double> phi_x; // local test function first order partial derivatives
-//   double jac;
-//
-//   const elem_type *fem = new const elem_type_3D("hex", "linear", "seventh");
-//
-//   dim = 3;
-//   maxNG = 3;
-//
-//   std::cout << "const unsigned tet_gauss::GaussPoints[" << maxNG << "] = {";
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//     unsigned size = pow(ng, dim);
-//     std::cout << size << ", ";
-//   }
-//   std::cout << "\b\b};\n\n";
-//
-//   std::cout << "const double * tet_gauss::Gauss[" << maxNG << "] = {";
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//     std::cout << "Gauss" << ng - 1 << "[0], ";
-//   }
-//   std::cout << "\b\b};\n\n";
-//
-//   for(unsigned ng = 1; ng <= maxNG; ng++) {
-//
-//     unsigned size = pow(ng, dim);
-//     std::vector < double> weight(size);
-//     std::vector < double> x(size);
-//     std::vector < double> y(size);
-//     std::vector < double> z(size);
-//     std::vector < double > xi(dim);
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           weight[i * ng * ng + j * ng + k] = Gauss[ng - 1][i] * Gauss[ng - 1][j] * Gauss[ng - 1][k];
-//           xi[0] = Gauss[ng - 1][ng + i];
-//           xi[1] = Gauss[ng - 1][ng + j];
-//           xi[2] = Gauss[ng - 1][ng + k];
-//
-//
-//           fem->Jacobian(xv, xi, jac, phi, phi_x);
-//
-//           weight[i * ng * ng + j * ng + k] *= jac;
-//
-//           x[i * ng * ng + j * ng + k] = 0.;
-//           y[i * ng * ng + j * ng + k] = 0.;
-//           z[i * ng * ng + j * ng + k] = 0.;
-//
-//           for(unsigned ii = 0; ii < 8; ii++) {
-//             x[i * ng * ng + j * ng + k] += phi[ii] * xv[0][ii];
-//             y[i * ng * ng + j * ng + k] += phi[ii] * xv[1][ii];
-//             z[i * ng * ng + j * ng + k] += phi[ii] * xv[2][ii];
-//           }
-//
-//         }
-//       }
-//     }
-//
-//     std::cout.precision(14);
-//     std::cout << "const double tet_gauss::Gauss" << ng - 1 << "[" << dim + 1 << "][" <<  size << "] = {{";
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << weight[i * ng * ng + j * ng + k]  << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << x[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << y[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b},\n{";
-//
-//     for(unsigned i = 0; i < ng; i++) {
-//       for(unsigned j = 0; j < ng; j++) {
-//         for(unsigned k = 0; k < ng; k++) {
-//           std::cout << z[i * ng * ng + j * ng + k] << ", ";
-//         }
-//       }
-//     }
-//     std::cout << "\b\b}};" << std::endl << std::endl;
-//
-//   }
-//
-//   delete fem;
-//}
-
-void Print(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+  std::ofstream fout;
+  fout.open(filename);
 
   unsigned maxNG = weight.size();
   unsigned dim = x[0].size();
 
-  std::cout << "const unsigned " << name << "_gauss::GaussPoints[" << maxNG << "] = {";
-  for(unsigned m = 0; m < maxNG; m++) {
-    std::cout << weight[m].size() << ", ";
-  }
-  std::cout << "\b\b};\n\n";
 
-  std::cout << "const double * " << name << "_gauss::Gauss[" << maxNG << "] = {";
+  fout << "/*=========================================================================" << std::endl << std::endl;
+
+  fout << "Program: FEMUS" << std::endl;
+  fout << "Module: Gauss" << std::endl;
+  fout << "Authors: Eugenio Aulisa, Giorgio Bornia, Erdi Kara" << std::endl << std::endl;
+
+  fout << "Copyright (c) FEMTTU" << std::endl;
+  fout << "All rights reserved." << std::endl << std::endl;
+
+  fout << "This software is distributed WITHOUT ANY WARRANTY; without even" << std::endl;
+  fout << "the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR" << std::endl;
+  fout << "PURPOSE.  See the above copyright notice for more information." << std::endl << std::endl;
+
+  fout << "=========================================================================*/" << std::endl << std::endl;
+
+  fout << "#include \"GaussPoints.hpp\"" << std::endl;
+  fout << "#include <iostream>" << std::endl;
+  fout << "#include <stdlib.h>" << std::endl;
+  fout << "#include <string.h>" << std::endl << std::endl;
+  fout << "namespace femus {" << std::endl;
+
+  fout << "const unsigned " << name << "_gauss::GaussPoints[" << maxNG << "] = {";
   for(unsigned m = 0; m < maxNG; m++) {
-    std::cout << "Gauss" << m << "[0], ";
+    fout << weight[m].size();
+    if(m < maxNG - 1) fout << ", ";
   }
-  std::cout << "\b\b};\n\n";
+  fout << "};\n\n";
+
+  fout << "const double * " << name << "_gauss::Gauss[" << maxNG << "] = {";
+  for(unsigned m = 0; m < maxNG; m++) {
+    fout << "Gauss" << m << "[0]";
+    if(m < maxNG - 1) fout << ", ";
+  }
+  fout << "};\n\n";
 
   for(unsigned m = 0; m < maxNG; m++) {
-    std::cout.precision(14);
-    std::cout << "const double " << name << "_gauss::Gauss" << m << "[" << dim + 1 << "][" <<  weight[m].size() << "] = {{";
+    fout.precision(14);
+    fout << "const double " << name << "_gauss::Gauss" << m << "[" << dim + 1 << "][" <<  weight[m].size() << "] = {{";
     for(unsigned i = 0; i < weight[m].size(); i++) {
-      std::cout << weight[m][i] << ", ";
+      fout << weight[m][i];
+      if(i < weight[m].size() - 1) fout << ", ";
     }
     for(unsigned k = 0; k < dim; k++) {
-      std::cout << "\b\b},\n{";
+      fout << "},\n{";
 
       for(unsigned i = 0; i < weight[m].size(); i++) {
-        std::cout << x[m][k][i] << ", ";
+        fout << x[m][k][i];
+        if(i < weight[m].size() - 1) fout << ", ";
       }
     }
-    std::cout << "\b\b}};" << std::endl << std::endl;
+    fout << "}};" << std::endl << std::endl;
   }
+  fout << "}" << std::endl;
+  fout.close();
 }
 
 void GnuPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
@@ -478,13 +184,9 @@ void TestQuadIntegral(const unsigned & m, const std::vector < std::vector<double
   unsigned order = 2 * (m + 1) - 1;
   unsigned dim = 2;
 
-  std::vector < unsigned > n(dim);
-  n.resize(dim);
-  n[0] = (m % dim == 0) ? m : m + 1;
-  unsigned n1 = order - n[0];
-  n[1] = (n1 % 2 == 0) ? n1 : n1 - 1;
-  double I = (1. + pow(-1., n[0])) / (n[0] + 1.) * (1. + pow(-1., n[1])) / (n[1] + 1.);
+  std::vector < unsigned > n(dim, 2 * m);
 
+  double I = (1. + pow(-1., n[0])) / (n[0] + 1.) * (1. + pow(-1., n[1])) / (n[1] + 1.);
 
   unsigned m1 = (m > weight.size() - 1) ? weight.size() - 1 : m;
   double I1 = GetIntegral(n, weight[m1], x[m1]);
@@ -499,8 +201,7 @@ void TestTriIntegral(const unsigned & m, const std::vector < std::vector<double>
 
   std::vector < unsigned > n(dim, m);
 
-  double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(2 + n[1]) / ((1 + n[1]) * boost::math::tgamma(3 + n [0] + n[1]));
-
+  double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) / boost::math::tgamma(3 + n [0] + n[1]);
 
   unsigned m1 = (m > weight.size() - 1) ? weight.size() - 1 : m;
   double I1 = GetIntegral(n, weight[m1], x[m1]);
@@ -514,29 +215,165 @@ void TestHexIntegral(const unsigned & m, const std::vector < std::vector<double>
 
   unsigned dim = 3;
 
-  std::vector < unsigned > n(dim);
-  unsigned m1 = order / dim;
-  unsigned r = order % dim;
-
-  if(m1 % 2 == 0) {
-    n[0] = n[1] = n[2] = m1;
-    if(r == 2) {
-      n[0] += 2;
-    }
-  }
-  else {
-    n[0] = m1 + 1;
-    n[1] = n[2] = m1 - 1;
-    if(r > 0) {
-      n[1] += 2;
-    }
-  }
+  std::vector < unsigned > n(dim, 2 * m);
 
   double I = (1. + pow(-1., n[0])) / (n[0] + 1.) * (1. + pow(-1., n[1])) / (n[1] + 1) * (1. + pow(-1., n[2])) / (n[2] + 1) ;
 
+  unsigned m1 = (m > weight.size() - 1) ? weight.size() - 1 : m;
+  double I1 = GetIntegral(n, weight[m1], x[m1]);
+
+  std::cout << n[0] << " " << n[1] <<  " " << n[2] << " " << n[0] + n[1] + n[2] << " " << 2 * (m1 + 1) - 1 << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
+
+
+}
+
+void TestWedgeIntegral(const unsigned & m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+
+  unsigned order = 2 * m ;
+  unsigned dim = 3;
+
+  std::vector < unsigned > n(dim);
+  n[0] = n[1] = m;
+  n[2] = (m % 2 == 0) ? m : m + 1;
+
+  double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) / boost::math::tgamma(3 + n [0] + n[1]) * (1. + pow(-1., n[2])) / (n[2] + 1) ;
+
   unsigned m2 = (m > weight.size() - 1) ? weight.size() - 1 : m;
   double I1 = GetIntegral(n, weight[m2], x[m2]);
-  std::cout << n[0] << " " << n[1] <<  " " << n[2] << " " << n[0] + n[1] + n[2] << " " << 2 * (m2 + 1) - 1 << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
+  std::cout << n[0] << " " << n[1] <<  " " << n[2] << " " << n[0] + n[1] << " " << 2 * m2  << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
+
+}
+
+void TestTetIntegral(const unsigned & m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+
+  unsigned order = (m > 0) ? 2 * m - 1 : 0;
+  unsigned dim = 3;
+
+  std::vector < unsigned > n(dim, m);
+  n[0] = order / 3;
+  n[1] = (order - n[0]) / 2;
+  n[2] = order - n[0] - n[1];
+
+  double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) * boost::math::tgamma(1 + n[2]) / boost::math::tgamma(4 + n [0] + n[1] + n[2]);
 
 
+  unsigned m1 = (m > weight.size() - 1) ? weight.size() - 1 : m;
+  double I1 = GetIntegral(n, weight[m1], x[m1]);
+  std::cout << n[0] << " " << n[1] << " " << n[2] << " " << n[0] + n[1] + n[2] << " " << 2 * m1 - 1   << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
+
+}
+
+
+void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vector < std::vector < double> > &weight,  std::vector < std::vector < std::vector < double> > > &x) {
+  const double *Gauss[20] = { line_gauss::Gauss0[0],  line_gauss::Gauss1[0], line_gauss::Gauss2[0], line_gauss::Gauss3[0], line_gauss::Gauss4[0],
+                              line_gauss::Gauss5[0],  line_gauss::Gauss6[0], line_gauss::Gauss7[0], line_gauss::Gauss8[0], line_gauss::Gauss9[0],
+                              line_gauss::Gauss10[0], line_gauss::Gauss11[0], line_gauss::Gauss12[0], line_gauss::Gauss13[0], line_gauss::Gauss14[0],
+                              line_gauss::Gauss15[0], line_gauss::Gauss16[0], line_gauss::Gauss17[0], line_gauss::Gauss18[0], line_gauss::Gauss19[0]
+                            };
+
+  const elem_type *fem;
+  std::vector < std::vector < double > > xv;
+  unsigned nv;
+  unsigned dim;
+
+  if(!strcmp("hex", name.c_str())) {
+    nv = 8;
+    dim = 3;
+    fem = new const elem_type_3D("hex", "linear", "seventh");
+    xv = {{ -1., 1., 1., -1., -1., 1., 1., -1.},
+      { -1., -1., 1., 1., -1., -1., 1., 1.},
+      { -1., -1., -1., -1., 1., 1., 1., 1.}
+    }; //hex
+
+  }
+  else if(!strcmp("tet", name.c_str())) {
+    nv = 8;
+    dim = 3;
+    fem = new const elem_type_3D("hex", "linear", "seventh");
+//       xv = {{0., 1., 0., 0., 0., 0., 0., 0.},
+//         {0., 0., 1., 1., 0., 0., 0., 0.},
+//         {0., 0., 0., 0., 1., 1., 1., 1.}
+//       }; //tet0
+
+    xv = {{0, 1, 0.5, 0., 0., 0.5, 1. / 3., 0},
+      {0, 0, 0.5, 1., 0., 0., 1. / 3., 0.5},
+      {0, 0, 0, 0, 1, 0.5, 1. / 3., 0.5}
+    }; //tet1
+  }
+  else if(!strcmp("wedge", name.c_str())) {
+    nv = 8;
+    dim = 3;
+    fem = new const elem_type_3D("hex", "linear", "seventh");
+//       xv = {{0., 1., 0., 0., 0., 1., 0., 0.},
+//         {0., 0., 1., 1., 0., 0., 1., 1.},
+//         { -1., -1., -1., -1., 1., 1., 1., 1.}
+//       } //wedge0
+
+    xv = {{0., 1., 0.5, 0., 0., 1., 0.5, 0.},
+      {0., 0., 0.5, 1., 0., 0., 0.5, 1.},
+      { -1., -1., -1., -1., 1., 1., 1., 1.}
+    }; //wedge1
+  }
+  else if(!strcmp("quad", name.c_str())) {
+    nv = 4;
+    dim = 2;
+    fem = new const elem_type_2D("quad", "linear", "seventh");
+    xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad
+  }
+  else if(!strcmp("tri", name.c_str())) {
+    nv = 4;
+    dim = 2;
+    fem = new const elem_type_2D("quad", "linear", "seventh");
+    xv = {{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; // tri
+  }
+  else {
+    abort();
+  }
+
+  std::vector <double> phi;  // local test function
+  std::vector <double> phi_x; // local test function first order partial derivatives
+  double jac;
+
+  weight.resize(maxNG);
+  x.resize(maxNG);
+  for(unsigned m = 0; m < maxNG; m++) {
+    x[m].resize(dim);
+  }
+
+  for(unsigned m = 0; m < maxNG; m++) {
+    unsigned ng = m + 1;
+    unsigned size = pow(ng, dim);
+
+    weight[m].resize(size);
+    for(unsigned k = 0; k < dim; k++) {
+      x[m][k].resize(size);
+    }
+    std::vector < double > xi(dim);
+    std::vector <unsigned> I(dim);
+    std::vector <unsigned> NG(dim);
+    for(unsigned k = 0; k < dim ; k++) {
+      NG[k] = pow(ng, dim - k - 1);
+    }
+
+    for(unsigned cnt = 0; cnt < size ; cnt++) {
+      I[0] = cnt / NG[0];
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = cnt % NG[k - 1];
+        I[k] = pk / NG[k];
+      }
+      weight[m][cnt] = 1.;
+      for(unsigned k = 0; k < dim; k++) {
+        weight[m][cnt] *= Gauss[m][I[k]];
+        xi[k] = Gauss[m][ng + I[k]];
+      }
+      fem->Jacobian(xv, xi, jac, phi, phi_x);
+      weight[m][cnt] *= jac;
+      for(unsigned k = 0; k < dim; k++) {
+        x[m][k][cnt] = 0.;
+        for(unsigned ii = 0; ii < nv; ii++) {
+          x[m][k][cnt] += phi[ii] * xv[k][ii];
+        }
+      }
+    }
+  }
 }
