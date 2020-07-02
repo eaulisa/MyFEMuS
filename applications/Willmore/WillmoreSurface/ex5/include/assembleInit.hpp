@@ -202,6 +202,7 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
 
       boost::math::quaternion <double> dfu(0, solx_uv[0][0], solx_uv[1][0], solx_uv[2][0]);
       boost::math::quaternion <double> dfv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
+      boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
 
       // Computing the metric inverse
       double gi[dim][dim];
@@ -219,12 +220,22 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           boost::math::quaternion <double> dphiu(0, (K == 0) * phix_uv[0][i], (K == 1) * phix_uv[0][i], (K == 2) * phix_uv[0][i]);
           boost::math::quaternion <double> dphiv(0, (K == 0) * phix_uv[1][i], (K == 1) * phix_uv[1][i], (K == 2) * phix_uv[1][i]);
 
-          double term1 = -0.5 * (gi[0][0] * (dfu % conj(dphiu) + dphiu % conj(dfu)) +
-                                 gi[0][1] * (dfu % conj(dphiv) + dphiu % conj(dfv)) +
-                                 gi[1][0] * (dfv % conj(dphiu) + dphiv % conj(dfu)) +
-                                 gi[1][1] * (dfv % conj(dphiv) + dphiv % conj(dfv)));
+          double term3 =        (gi[0][0] * (dfu % dphiu) +
+                                 gi[0][1] * (dfu % dphiv) +
+                                 gi[1][0] * (dfv % dphiu) +
+                                 gi[1][1] * (dfv % dphiv));
 
-          Res[irow] -= (solYg[K] * phiY[i] + term1) * Area;
+          // double term4 =        (gi[0][0] * (dfu * conj(dphiu)) +
+          //                        gi[0][1] * (dfu * conj(dphiv)) +
+          //                        gi[1][0] * (dfv * conj(dphiu)) +
+          //                        gi[1][1] * (dfv * conj(dphiv))).R_component_1();
+
+          // double df2 = -0.5 * (N * (dfu * dfv - dfv * dfu)).R_component_1(); //quaternion sqrt(detg)
+
+          // double df3 = -0.5 * (dfu * dfu + dfv * dfv).R_component_1(); //conformal area
+
+
+          Res[irow] -= (solYg[K] * phiY[i] + term3) * Area;
 
           unsigned jstart = istart + K * nYDofs;
           for(unsigned j = 0; j < nYDofs; j++) {
@@ -552,4 +563,3 @@ void AssembleSystemW(MultiLevelProblem& ml_prob) {
   KK->close();
 }
 //END Assemble SystemW
-

@@ -32,17 +32,17 @@ const double gamma1 = 0.;
 unsigned P[3] = {0, 1, 2};
 
 const double ap[3] = {kc * c0 * c0 + gamma1, -2. * kc * c0 , kc };
-const double normalSign = -1.;
+const double normalSign = 1.;
 
 //bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = false;
+bool volumeConstraint = true;
 bool areaConstraint = true;
 
 //unsigned conformalTriangleType = 2;
-const double eps = 1e-5;
+const double eps = 1e-6;
 
 unsigned counter = 0;
 //bool areaConstraintInConformal = false;
@@ -66,7 +66,7 @@ void AssemblePWillmore(MultiLevelProblem&);
 void AssemblePWillmore2(MultiLevelProblem& ml_prob);
 
 
-double dt0 = 3.2e-8; //P=2
+double dt0 = 5e-3; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -114,7 +114,7 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
@@ -125,14 +125,14 @@ int main(int argc, char** args) {
 
   const bool read_groups = false;                        //by default, if no argument is given, this is "true"
   const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
-  mlMsh.ReadCoarseMesh("../input/spot.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  //mlMsh.ReadCoarseMesh("../input/spot.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   //mlMsh.ReadCoarseMesh ("../input/armadillo.med", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor);
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -286,17 +286,17 @@ int main(int argc, char** args) {
 
   // and this?
   mlSol.GetWriter()->SetDebugOutput(false);
- 
+
 
   mlSol.GetWriter()->Write("./output1", "biquadratic", variablesToBePrinted, 0);
-  
+
   // First, solve system2 to "conformalize" the initial mesh.
   CopyDisplacement(mlSol, true);
-  system2.MGsolve();
-    
+  //system2.MGsolve();
+
   // Then, solve system0 to compute initial curvatures.
   CopyDisplacement(mlSol, false);
-  
+
   system.CopySolutionToOldSolution();
   systemY.MGsolve();
   systemW.MGsolve();
@@ -333,7 +333,7 @@ int main(int argc, char** args) {
 
     dt0 *= 1.1;
     //UNCOMMENT FOR P=4
-    if(dt0 > 5e-3) dt0 = 5e-3;
+    //if(dt0 > 5e-3) dt0 = 5e-3;
 
 
     //IGNORE THIS
