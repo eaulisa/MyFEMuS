@@ -790,71 +790,70 @@ void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C) {
 
 
 
+void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F) {
 
-// void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F) {
-// 
-// 
-//   A.resize(pow(m + 1, dim), np);
-//   F.resize(pow(m + 1, dim));
-//   Eigen::VectorXi I(dim);
-//   Eigen::VectorXi N(dim);
-// 
-// 
-//   for(unsigned k = 0; k < dim ; k++) {
-//     N(k) = pow(m + 1, dim - k - 1);
-//   }
-// 
-//   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-//     I(0) = t / N(0);
-//     for(unsigned k = 1; k < dim ; k++) {
-//       unsigned pk = t % N(k - 1);
-//       I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-//     }
-//     for(unsigned j = 0; j < np; j++) {
-//       double r = 1;
-// 
-//       for(unsigned k = 0; k < dim; k++) {
-//         r *= PmX(k, I[k], j);
-//       }
-//       A(t, j) = r ;
-//     }
-// 
-//   }
-// 
-//   unsigned ng = Pg.row(0).size();
-//   Eigen::VectorXi J(dim);
-//   Eigen::VectorXi NG(dim);
-// 
-// 
-// 
-//   for(unsigned k = 0; k < dim ; k++) {
-//     NG(k) = pow(ng, dim - k - 1);
-//   }
-// 
-//   for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-//     I(0) = t / N(0);
-//     for(unsigned k = 1; k < dim ; k++) {
-//       unsigned pk = t % N(k - 1);
-//       I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-//     }
-//     F(t) = 0.;
-//     for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
-//       J(0) = g / NG(0);
-//       for(unsigned k = 1; k < dim ; k++) {
-//         unsigned pk = g % NG(k - 1);
-//         J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
-//       }
-//       double value = 1.;
-// 
-//       for(unsigned k = 0; k < dim ; k++) {
-//         value *= 0.5 * (VxR[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
-//       }
-//       F(t) += value;
-//     }
-// 
-//   }
-// 
-// }
+
+  A.resize(pow(m + 1, dim), np);
+  F.resize(pow(m + 1, dim));
+  Eigen::VectorXi I(dim);
+  Eigen::VectorXi N(dim);
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    N(k) = pow(m + 1, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+    }
+    for(unsigned j = 0; j < np; j++) {
+      double r = 1;
+
+      for(unsigned k = 0; k < dim; k++) {
+        r *= PmX(k, I[k], j);
+      }
+      A(t, j) = r ;
+    }
+
+  }
+
+  unsigned ng = Pg.row(0).size();
+  Eigen::VectorXi J(dim);
+  Eigen::VectorXi NG(dim);
+
+
+
+  for(unsigned k = 0; k < dim ; k++) {
+    NG(k) = pow(ng, dim - k - 1);
+  }
+
+  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
+    I(0) = t / N(0);
+    for(unsigned k = 1; k < dim ; k++) {
+      unsigned pk = t % N(k - 1);
+      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
+    }
+    F(t) = 0.;
+    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
+      J(0) = g / NG(0);
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = g % NG(k - 1);
+        J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
+      }
+      double value = 1.;
+
+      for(unsigned k = 0; k < dim ; k++) {
+        value *= 0.5 * (VxR[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
+      }
+      F(t) += value;
+    }
+
+  }
+
+}
 
 
 
@@ -948,6 +947,8 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<dou
   }
   
 }
+
+
 
 
 
@@ -1163,9 +1164,6 @@ double get_r(const double & T, const unsigned & n) {
   }
   return r;
 }
-
-
-
 
 void PrintMat(std::vector< std::vector<double> >& M) {
 
