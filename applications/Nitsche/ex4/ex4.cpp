@@ -81,6 +81,25 @@ int main(int argc, char** args) {
   SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
+  const Gauss * gauss = new  Gauss("quad", "second");
+  unsigned dim = 2;
+  unsigned ng = gauss->GetGaussPointsNumber();
+  const double *weight = gauss->GetGaussWeightsPointer();
+  std::vector< const double * > x(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    x[k] = gauss->GetGaussCoordinatePointer(k);
+  }
+  
+  for(unsigned i=0; i<ng; i++){
+    for(unsigned k = 0; k<dim; k++)   {
+      std::cout << x[k][i] <<", ";
+    }  
+    std::cout << weight[i] <<std::endl;
+  }
+
+  delete gauss;
+  return 1;
+
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
