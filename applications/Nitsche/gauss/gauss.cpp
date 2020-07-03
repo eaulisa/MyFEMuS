@@ -20,7 +20,15 @@
 
 using namespace femus;
 
-
+enum ORDER{
+  ZERO_ORDER = 0, FIRST_ORDER, SECOND_ORDER, THIRD_ORDER, FOURTH_ORDER, FIFTH_ORDER, 
+  SIXTH_ORDER, SEVENTH_ORDER, EIGHTH_ORDER, NINTH_ORDER, TENTH_ORDER,
+  ELEVENTH_ORDER, TWELFTH_ORDER, THIRTEENTH_ORDER, FOURTEENTH_ORDER, FIFTEENTH_ORDER, 
+  SIXTEENTH_ORDER, SEVENTEENTH_ORDER, EIGHTEENTH_ORDER, NINETEENTH_ORDER, TWENTYTIETH_ORDER, 
+  TWENTY_FIRST_ORDER, TWENTY_SECOND_ORDER, TWENTY_THIRD_ORDER, TWENTY_FOURTH_ORDER, TWENTY_FIFTH_ORDER, 
+  TWENTY_SIXTH_ORDER, TWENTY_SEVENTH_ORDER, TWENTY_EIGHTH_ORDER, TWENTY_NINTH_ORDER, THIRTIETH_ORDER, 
+  THIRTY_FIRST_ORDER, THIRTY_SECOND_ORDER, THIRTY_THIRD_ORDER, THIRTY_FOURTH_ORDER, THIRTY_FIFTH_ORDER, 
+  THIRTY_SIXTH_ORDER, THIRTY_SEVENTH_ORDER, THIRTY_EIGHTH_ORDER, THIRTY_NINTH_ORDER};
 
 void CppPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
 void GnuPrint(std::string name, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
@@ -35,6 +43,27 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
 int main(int argc, char** args) {
 
   std::string name[5] = {"hex", "tet", "wedge", "quad", "tri"};
+  
+  ORDER order = ZERO_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  order = FIRST_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  order = SECOND_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  
+  order = TWENTY_SEVENTH_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  order = TWENTY_EIGHTH_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  order = TWENTY_NINTH_ORDER;
+  std::cout << order/2<<std::endl;
+  
+  //return 1;
 
   for(unsigned k = 0; k < 5; k++) {
 
@@ -263,10 +292,9 @@ void TestTetIntegral(const unsigned & m, const std::vector < std::vector<double>
 
 }
 
-
 void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vector < std::vector < double> > &weight,  std::vector < std::vector < std::vector < double> > > &x) {
-  const double *Gauss[20] = { line_gauss::Gauss0[0],  line_gauss::Gauss1[0], line_gauss::Gauss2[0], line_gauss::Gauss3[0], line_gauss::Gauss4[0],
-                              line_gauss::Gauss5[0],  line_gauss::Gauss6[0], line_gauss::Gauss7[0], line_gauss::Gauss8[0], line_gauss::Gauss9[0],
+  const double *Gauss[40] = { line_gauss::Gauss0[0], line_gauss::Gauss1[0], line_gauss::Gauss2[0], line_gauss::Gauss3[0], line_gauss::Gauss4[0],
+                              line_gauss::Gauss5[0], line_gauss::Gauss6[0], line_gauss::Gauss7[0], line_gauss::Gauss8[0], line_gauss::Gauss9[0],
                               line_gauss::Gauss10[0], line_gauss::Gauss11[0], line_gauss::Gauss12[0], line_gauss::Gauss13[0], line_gauss::Gauss14[0],
                               line_gauss::Gauss15[0], line_gauss::Gauss16[0], line_gauss::Gauss17[0], line_gauss::Gauss18[0], line_gauss::Gauss19[0]
                             };
@@ -275,10 +303,12 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
   std::vector < std::vector < double > > xv;
   unsigned nv;
   unsigned dim;
+  std::vector < unsigned > dm;
 
   if(!strcmp("hex", name.c_str())) {
     nv = 8;
     dim = 3;
+    dm.assign(dim, 0);
     fem = new const elem_type_3D("hex", "linear", "seventh");
     xv = {{ -1., 1., 1., -1., -1., 1., 1., -1.},
       { -1., -1., 1., 1., -1., -1., 1., 1.},
@@ -287,8 +317,10 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
 
   }
   else if(!strcmp("tet", name.c_str())) {
+    
     nv = 8;
     dim = 3;
+    dm.assign(dim, 1);
     fem = new const elem_type_3D("hex", "linear", "seventh");
 //       xv = {{0., 1., 0., 0., 0., 0., 0., 0.},
 //         {0., 0., 1., 1., 0., 0., 0., 0.},
@@ -301,8 +333,12 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
     }; //tet1
   }
   else if(!strcmp("wedge", name.c_str())) {
+    
     nv = 8;
     dim = 3;
+    dm.assign(dim, 1);
+    dm[2] = 0;
+    
     fem = new const elem_type_3D("hex", "linear", "seventh");
 //       xv = {{0., 1., 0., 0., 0., 1., 0., 0.},
 //         {0., 0., 1., 1., 0., 0., 1., 1.},
@@ -317,12 +353,16 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
   else if(!strcmp("quad", name.c_str())) {
     nv = 4;
     dim = 2;
+    dm.assign(dim, 0);
+    
     fem = new const elem_type_2D("quad", "linear", "seventh");
     xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad
   }
   else if(!strcmp("tri", name.c_str())) {
     nv = 4;
     dim = 2;
+    dm.assign(dim, 1);
+    
     fem = new const elem_type_2D("quad", "linear", "seventh");
     xv = {{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; // tri
   }
@@ -341,8 +381,14 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
   }
 
   for(unsigned m = 0; m < maxNG; m++) {
-    unsigned ng = m + 1;
-    unsigned size = pow(ng, dim);
+    unsigned size = 1;
+    std::vector < unsigned > ng(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      ng[k] = m + 1 + dm[k];
+      size *= ng[k];
+    }
+
+
 
     weight[m].resize(size);
     for(unsigned k = 0; k < dim; k++) {
@@ -351,8 +397,9 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
     std::vector < double > xi(dim);
     std::vector <unsigned> I(dim);
     std::vector <unsigned> NG(dim);
-    for(unsigned k = 0; k < dim ; k++) {
-      NG[k] = pow(ng, dim - k - 1);
+    NG[dim - 1] = 1;
+    for(unsigned k = dim - 1 ; k > 0;  k--) {
+      NG[k - 1] = NG[k] * ng[k];
     }
 
     for(unsigned cnt = 0; cnt < size ; cnt++) {
@@ -363,8 +410,8 @@ void BuildGaussPoints(const std::string &name, const unsigned &maxNG,  std::vect
       }
       weight[m][cnt] = 1.;
       for(unsigned k = 0; k < dim; k++) {
-        weight[m][cnt] *= Gauss[m][I[k]];
-        xi[k] = Gauss[m][ng + I[k]];
+        weight[m][cnt] *= Gauss[m + dm[k] ][I[k]];
+        xi[k] = Gauss[m + dm[k] ][ng[k] + I[k]];
       }
       fem->Jacobian(xv, xi, jac, phi, phi_x);
       weight[m][cnt] *= jac;
