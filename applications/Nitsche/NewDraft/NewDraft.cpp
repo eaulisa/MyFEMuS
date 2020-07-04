@@ -14,26 +14,8 @@ double a0, a1, a3, a5, a7, a9;
 int main(int argc, char** args) {
   unsigned dim = 2;
   unsigned NG = 4; // Gauss points
-  unsigned m = 1; // Polynomial degree
-  const std::vector<std::vector < double > > Gauss1 = {{ -0.28125, 0.26041666666667, 0.26041666666667, 0.26041666666667},
-    {0.33333333333333, 0.6, 0.2, 0.2},
-    {0.33333333333333, 0.2, 0.6, 0.2}
-  };
-
-  Eigen::MatrixXd xL(dim, NG);
-  for(unsigned i = 0; i < dim ; i++) {
-    for(unsigned j = 0; j < NG; j++) {
-      xL(i, j) = Gauss1[i + 1][j];
-    }
-  }
-    
-  Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
-  GetChebXInfo(m, dim, NG, xL, PmX );
-  Eigen::MatrixXd C;
-  GetChebParticleA(dim, m, NG, PmX, C);
-  std::cout << C << std::endl;
-
-
+  unsigned m = 1; // Chebshev Polynomial degree
+  
   //   double eps = 0.001; // width of transition region
 //   //unsigned nbl = 1; // number of bands on boundary
 //   //bool gradedbl = false; // nobody knows what???
@@ -123,7 +105,7 @@ int main(int argc, char** args) {
 //       Cheb(m, xg, Pg);
 //
 //       Eigen::MatrixXd A;
-//       GetChebParticleA(dim, m, np, PmX, A);
+//       GetMultiDimChebMatrix(dim, m, np, PmX, A);
 //
 //       Eigen::VectorXd F;
 //       GetChebGaussF(dim, m, VxL, VxR, Pg,  wg, F);

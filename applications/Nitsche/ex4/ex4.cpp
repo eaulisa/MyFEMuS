@@ -81,24 +81,24 @@ int main(int argc, char** args) {
   SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-  const Gauss * gauss = new  Gauss("quad", "second");
-  unsigned dim = 2;
-  unsigned ng = gauss->GetGaussPointsNumber();
-  const double *weight = gauss->GetGaussWeightsPointer();
-  std::vector< const double * > x(dim);
-  for(unsigned k = 0; k < dim; k++) {
-    x[k] = gauss->GetGaussCoordinatePointer(k);
-  }
-  
-  for(unsigned i=0; i<ng; i++){
-    for(unsigned k = 0; k<dim; k++)   {
-      std::cout << x[k][i] <<", ";
-    }  
-    std::cout << weight[i] <<std::endl;
-  }
-
-  delete gauss;
-  return 1;
+//   const Gauss * gauss = new  Gauss("quad", "second");
+//   unsigned dim = 2;
+//   unsigned ng = gauss->GetGaussPointsNumber();
+//   const double *weight = gauss->GetGaussWeightsPointer();
+//   std::vector< const double * > x(dim);
+//   for(unsigned k = 0; k < dim; k++) {
+//     x[k] = gauss->GetGaussCoordinatePointer(k);
+//   }
+//   
+//   for(unsigned i=0; i<ng; i++){
+//     for(unsigned k = 0; k<dim; k++)   {
+//       std::cout << x[k][i] <<", ";
+//     }  
+//     std::cout << weight[i] <<std::endl;
+//   }
+// 
+//   delete gauss;
+//   return 1;
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -229,7 +229,7 @@ int main(int argc, char** args) {
   double Rmax = 0.225;
   double DR = H / 10.;
   unsigned nbl = 5;
-  unsigned FI = 3;
+  unsigned FI = 5;
   std::vector < double> Xc = {xc, yc, zc};
 
   std::vector < std::vector <double> > xp;
@@ -1346,8 +1346,8 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
 
   unsigned imarker3 = markerOffset3[iproc];
 
-  unsigned ng = 5; // maybe declare globally
-  unsigned m = 4;  // maybe declare globally
+  unsigned ng = 3; // maybe declare globally
+  unsigned m = 2;  // maybe declare globally
 
   std::vector< unsigned > NG(dim);
   for(unsigned k = 0; k < dim ; k++) {
@@ -1364,6 +1364,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
   Cheb(m, xg, Pg); // 1D Chebyshev Polynomial
 
   Eigen::VectorXd F;
+  Eigen::MatrixXd A;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -1372,9 +1373,6 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
     if(eFlag == 1) {
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
-
-      std::vector<double> VxL(dim); // lower bounds of the box
-      std::vector<double> VxU(dim); // upper bounds of the box
 
       for(int k = 0; k < dim; k++) {
         x[k].resize(nDofu);
@@ -1388,13 +1386,6 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       }
 
 
-      // assemble of the left hand side F
-      for(unsigned k = 0; k < dim ; k++) {
-        auto result = std::minmax_element(x[k].begin(), x[k].end());
-        VxL[k] = *result.first;
-        VxU[k] = *result.second;
-      }
-
       for(unsigned ig = 0; ig < pow(ng, dim) ; ig++) { // gauss loop
         J[0] = ig / NG[0];
         for(unsigned k = 1; k < dim ; k++) {
@@ -1407,7 +1398,9 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
         }
         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, jac[ig], phi, phi_x);
       }
+     
 
+      
       GetChebGaussF(dim, m, jac, Pg, wg, F); // multidimesional element integral of Chebyshev Polynomials up to degree m
 
       // identify the first particle inside iel
@@ -1425,7 +1418,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       unsigned cnt = 0;
       Eigen::MatrixXd xP(dim, nmarker);
       Eigen::VectorXd wP(nmarker);
-      Eigen::MatrixXd A;
+     
 
       // loop on all particles inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
@@ -1447,14 +1440,14 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
       GetChebXInfo(m, dim, nmarker, xP, PmX);
 
-      GetChebParticleA(dim, m, nmarker, PmX, A); //multidimensional Chebyshev Polinomial evaluation in particle points up to m
+      GetMultiDimChebMatrix(dim, m, nmarker, PmX, A); //multidimensional Chebyshev Polinomial evaluation in particle points up to m
 
       Eigen::VectorXd w_new;
       SolWeightEigen(A, F, wP, w_new); // New weights for iel are avaliable at this point
 
-      for(unsigned j = 0; j < nmarker; j++) {
-        std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
-      }
+//      for(unsigned j = 0; j < nmarker; j++) {
+//         std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
+//       }
 
       // loop on all particles inside iel to attach the optimized weights to iel particles.
       imarker3 = imarker0;
