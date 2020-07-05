@@ -35,13 +35,15 @@ namespace femus {
   
   class wedge_gauss {
   public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
+    static const unsigned GaussPoints[7];
+    static const double *Gauss[7];  
     static const double Gauss0[4][1];
     static const double Gauss1[4][8];
     static const double Gauss2[4][21];
     static const double Gauss3[4][52];
     static const double Gauss4[4][95];
+    static const double Gauss5[4][168];
+    static const double Gauss6[4][259];
   };  
   
   
@@ -70,13 +72,15 @@ namespace femus {
 
   class tri_gauss {
   public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
+    static const unsigned GaussPoints[7];
+    static const double *Gauss[7];  
     static const double Gauss0[3][1];
     static const double Gauss1[3][4];
     static const double Gauss2[3][7];
     static const double Gauss3[3][13];
     static const double Gauss4[3][19];
+    static const double Gauss5[3][28];
+    static const double Gauss6[3][37];
   };
   
   
