@@ -970,7 +970,7 @@ void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np,
 
 
 
-void GetChebParticleA(const unsigned &dim, const unsigned &m, const unsigned &np, Eigen::Tensor<double,3,Eigen::RowMajor>  &PmX, Eigen::MatrixXd &A) {
+void GetMultiDimChebMatrix(const unsigned &dim, const unsigned &m, const unsigned &np, Eigen::Tensor<double,3,Eigen::RowMajor>  &PmX, Eigen::MatrixXd &A) {
 
 
   A.resize(pow(m + 1, dim), np);
