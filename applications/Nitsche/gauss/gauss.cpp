@@ -32,76 +32,69 @@ enum ORDER {
   THIRTY_SIXTH_ORDER, THIRTY_SEVENTH_ORDER, THIRTY_EIGHTH_ORDER, THIRTY_NINTH_ORDER
 };
 
-void CppPrint(GeomElType &geomElType, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void GnuPrint(GeomElType &geomElType, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-double GetIntegral(const unsigned &m1, const std::vector<unsigned> &n, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void TestQuadIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void TestTriIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void TestHexIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void TestWedgeIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void TestTetIntegral(const unsigned &m, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x);
-void BuildGaussPoints(GeomElType &geomElType, const unsigned &maxNG,  std::vector < std::vector < double> > &weight,  std::vector < std::vector < std::vector < double> > > &x);
+void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void GnuPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+double GetIntegral(const std::vector<unsigned> &n, const std::vector < std::vector<double> > & gaussQ);
+
+void TestLineIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void TestQuadIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void TestTriIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void TestHexIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void TestWedgeIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void TestTetIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+
+void BuildGaussPoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3], std::vector < std::vector < double> > & gaussQ);
 
 int main(int argc, char** args) {
 
-  std::cout << tetGauss.size() << " "<< tetGauss[3].size() <<" " << tetGauss[3][0].size() <<std::endl;  
+  GeomElType geomElType[6] = {HEX, TET, WEDGE, QUAD, TRI, LINE};
+
+  const elem_type *femAll[3];
+  femAll[0] = new const elem_type_1D("line", "linear", "zero");
+  femAll[1] = new const elem_type_2D("quad", "linear", "zero");
+  femAll[2] = new const elem_type_3D("hex", "linear", "zero");
+
+  unsigned maxOrder = THIRTEENTH_ORDER;
+  
+  for(unsigned k = 0; k < 6; k++) {
+
+    std::vector < std::vector < std::vector < double> > > gaussQ(maxOrder + 1);
     
-  GeomElType geomElType[6] = {HEX, TET, WEDGE, QUAD, TRI, LINE };
+    for(unsigned m = 0; m <= maxOrder; m++) {
+      BuildGaussPoints(geomElType[k], m, femAll,  gaussQ[m]);
+    }
 
-  ORDER order = ZERO_ORDER;
-  std::cout << order / 2 << std::endl;
+    CppPrint(geomElType[k], gaussQ);
+    GnuPrint(geomElType[k], gaussQ);
 
-  order = FIRST_ORDER;
-  std::cout << order / 2 << std::endl;
-
-  order = SECOND_ORDER;
-  std::cout << order / 2 << std::endl;
-
-
-  order = TWENTY_SEVENTH_ORDER;
-  std::cout << order / 2 << std::endl;
-
-  order = TWENTY_EIGHTH_ORDER;
-  std::cout << order / 2 << std::endl;
-
-  order = TWENTY_NINTH_ORDER;
-  std::cout << order / 2 << std::endl;
-
-  //return 1;
-
-  for(unsigned k = 0; k < 5; k++) {
-
-    unsigned maxNG = 13;
-    std::vector < std::vector < double> > weight(maxNG);
-    std::vector < std::vector < std::vector < double> > > x(maxNG);
-
-    BuildGaussPoints(geomElType[k], maxNG,  weight,  x);
-
-    CppPrint(geomElType[k], weight, x);
-    GnuPrint(geomElType[k], weight, x);
-
-    for(unsigned m = 0; m < maxNG + 5; m++) {
+    for(unsigned m = 0; m <= maxOrder + 5; m++) {
       if(HEX == geomElType[k]) {
-        TestHexIntegral(m, weight, x);
+        TestHexIntegral(m, gaussQ);
       }
       else if(TET == geomElType[k])  {
-        TestTetIntegral(m, weight, x);
+        TestTetIntegral(m, gaussQ);
       }
       else if(WEDGE == geomElType[k]) {
-        TestWedgeIntegral(m, weight, x);
+        TestWedgeIntegral(m, gaussQ);
       }
       else if(QUAD == geomElType[k])  {
-        TestQuadIntegral(m, weight, x);
+        TestQuadIntegral(m, gaussQ);
       }
       else if(TRI == geomElType[k]) {
-        TestTriIntegral(m, weight, x);
+        TestTriIntegral(m, gaussQ);
+      }
+      else if(LINE == geomElType[k]) {
+        TestLineIntegral(m, gaussQ);
       }
     }
     std::cout << std::endl;
   }
+
+  for(unsigned k = 0; k < 3; k++)
+    delete femAll[k];
 }
 
-void CppPrint(GeomElType &geomElType, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
 
@@ -113,8 +106,8 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector<double> > 
   std::ofstream fout;
   fout.open(filename);
 
-  unsigned maxNG = weight.size();
-  unsigned dim = x[0].size();
+  unsigned gQsize = gaussQ.size();
+  unsigned dim = gaussQ[0].size() - 1;
 
 
   fout << "/*=========================================================================" << std::endl << std::endl;
@@ -138,33 +131,34 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector<double> > 
   fout << "#include <string.h>" << std::endl << std::endl;
   fout << "namespace femus {" << std::endl;
 
-  fout << "const unsigned " << name[geomElType] << "_gauss::GaussPoints[" << maxNG << "] = {";
-  for(unsigned m = 0; m < maxNG; m++) {
-    fout << weight[m].size();
-    if(m < maxNG - 1) fout << ", ";
+  fout << "const unsigned " << name[geomElType] << "_gauss::GaussPoints[" << gQsize << "] = {";
+  for(unsigned m = 0; m < gQsize; m++) {
+    fout << gaussQ[m][0].size();
+    if(m < gQsize - 1) fout << ", ";
   }
   fout << "};\n\n";
 
-  fout << "const double * " << name[geomElType] << "_gauss::Gauss[" << maxNG << "] = {";
-  for(unsigned m = 0; m < maxNG; m++) {
+  fout << "const double * " << name[geomElType] << "_gauss::Gauss[" << gQsize << "] = {";
+  for(unsigned m = 0; m < gQsize; m++) {
     fout << "Gauss" << m << "[0]";
-    if(m < maxNG - 1) fout << ", ";
+    if(m < gQsize - 1) fout << ", ";
   }
   fout << "};\n\n";
 
-  for(unsigned m = 0; m < maxNG; m++) {
+  for(unsigned m = 0; m < gQsize; m++) {
+    unsigned size = gaussQ[m][0].size();
     fout.precision(14);
-    fout << "const double " << name[geomElType] << "_gauss::Gauss" << m << "[" << dim + 1 << "][" <<  weight[m].size() << "] = {{";
-    for(unsigned i = 0; i < weight[m].size(); i++) {
-      fout << weight[m][i];
-      if(i < weight[m].size() - 1) fout << ", ";
+    fout << "const double " << name[geomElType] << "_gauss::Gauss" << m << "[" << dim + 1 << "][" <<  size << "] = {{";
+    for(unsigned i = 0; i < size; i++) {
+      fout << gaussQ[m][0][i];
+      if(i < size - 1) fout << ", ";
     }
-    for(unsigned k = 0; k < dim; k++) {
+    for(unsigned k = 1; k <= dim; k++) {
       fout << "},\n{";
 
-      for(unsigned i = 0; i < weight[m].size(); i++) {
-        fout << x[m][k][i];
-        if(i < weight[m].size() - 1) fout << ", ";
+      for(unsigned i = 0; i < size; i++) {
+        fout << gaussQ[m][k][i];
+        if(i < size - 1) fout << ", ";
       }
     }
     fout << "}};" << std::endl << std::endl;
@@ -173,14 +167,14 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector<double> > 
   fout.close();
 }
 
-void GnuPrint(GeomElType &geomElType, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void GnuPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
 
-  unsigned maxNG = weight.size();
-  unsigned dim = x[0].size();
+  unsigned gQsize = gaussQ.size();
+  unsigned dim = gaussQ[0].size() - 1;
 
-  for(unsigned m = 0; m < maxNG; m++) {
+  for(unsigned m = 0; m < gQsize; m++) {
 
     std::ostringstream ofilename;
     ofilename << name[geomElType] << m << ".txt";
@@ -191,35 +185,50 @@ void GnuPrint(GeomElType &geomElType, const std::vector < std::vector<double> > 
     fout.open(filename);
 
 
-    for(unsigned i = 0; i < weight[m].size(); i++) {
-      for(unsigned k = 0; k < dim; k++) {
-        fout << x[m][k][i] << " ";
+    for(unsigned i = 0; i < gaussQ[m][0].size(); i++) {
+      for(unsigned k = 1; k <= dim; k++) {
+        fout << gaussQ[m][k][i] << " ";
       }
-      fout << weight[m][i] << std::endl;
+      fout << gaussQ[m][0][i] << std::endl;
     }
     fout.close();
 
   }
 }
 
-double GetIntegral(const std::vector<unsigned> &n, const std::vector<double> & weight, const std::vector < std::vector<double> > & x) {
+double GetIntegral(const std::vector<unsigned> &n, const std::vector < std::vector<double> > & gaussQ) {
 
-  unsigned dim = x.size();
-
+  unsigned dim = gaussQ.size() - 1;
   double I = 0;
 
-  for(unsigned i = 0; i < weight.size(); i++) {
+  for(unsigned i = 0; i < gaussQ[0].size(); i++) {
     double a = 1.;
-    for(unsigned k = 0; k < dim; k++) {
-      a *= pow(x[k][i], n[k]);
+    for(unsigned k = 1; k <= dim; k++) {
+      a *= pow(gaussQ[k][i], n[k - 1]);
     }
-    I += a * weight[i];
+    I += a * gaussQ[0][i];
   }
   return I;
 }
 
+void TestLineIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
-void TestTriIntegral(const unsigned & order, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+  std::cout << "LINE ";
+
+  unsigned m = (order % 2 == 0) ? order : order - 1;
+  std::vector < unsigned > n(1, m);
+
+  double I = (1. + pow(-1., n[0])) / (n[0] + 1.);
+
+  m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
+
+  std::cout << n[0] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
+
+}
+
+
+void TestTriIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::cout << "TRI ";
 
@@ -229,14 +238,14 @@ void TestTriIntegral(const unsigned & order, const std::vector < std::vector<dou
 
   double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) / boost::math::tgamma(3 + n [0] + n[1]);
 
-  unsigned m = (order > weight.size() - 1) ? weight.size() - 1 : order;
-  double I1 = GetIntegral(n, weight[m], x[m]);
+  unsigned m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
   std::cout << n[0] << " " << n[1] << " " << n[0] + n[1] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
 
 }
 
 
-void TestQuadIntegral(const unsigned & order, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void TestQuadIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::cout << "QUAD ";
 
@@ -245,15 +254,15 @@ void TestQuadIntegral(const unsigned & order, const std::vector < std::vector<do
 
   double I = (1. + pow(-1., n[0])) / (n[0] + 1.) * (1. + pow(-1., n[1])) / (n[1] + 1.);
 
-  m = (order > weight.size() - 1) ? weight.size() - 1 : order;
+  m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
 
-  double I1 = GetIntegral(n, weight[m], x[m]);
   std::cout << n[0] << " " << n[1] << " " << n[0] + n[1] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
 
 }
 
 
-void TestHexIntegral(const unsigned & order, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void TestHexIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::cout << "HEX ";
 
@@ -263,14 +272,14 @@ void TestHexIntegral(const unsigned & order, const std::vector < std::vector<dou
 
   double I = (1. + pow(-1., n[0])) / (n[0] + 1.) * (1. + pow(-1., n[1])) / (n[1] + 1) * (1. + pow(-1., n[2])) / (n[2] + 1) ;
 
-  m = (order > weight.size() - 1) ? weight.size() - 1 : order;
-  double I1 = GetIntegral(n, weight[m], x[m]);
+  m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
 
   std::cout << n[0] << " " << n[1] <<  " " << n[2] << " " << n[0] + n[1] + n[2] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
 
 }
 
-void TestWedgeIntegral(const unsigned & order, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void TestWedgeIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::cout << "WEDGE ";
 
@@ -282,14 +291,14 @@ void TestWedgeIntegral(const unsigned & order, const std::vector < std::vector<d
 
   double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) / boost::math::tgamma(3 + n [0] + n[1]) * (1. + pow(-1., n[2])) / (n[2] + 1) ;
 
-  unsigned m = (order > weight.size() - 1) ? weight.size() - 1 : order;
-  double I1 = GetIntegral(n, weight[m], x[m]);
+  unsigned m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
 
   std::cout << n[0] << " " << n[1] <<  " " << n[2] << " " << n[0] + n[1] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
 
 }
 
-void TestTetIntegral(const unsigned & order, const std::vector < std::vector<double> > & weight, const std::vector < std::vector < std::vector<double> > > & x) {
+void TestTetIntegral(const unsigned & order, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::cout << "TET ";
 
@@ -300,78 +309,16 @@ void TestTetIntegral(const unsigned & order, const std::vector < std::vector<dou
 
   double I = boost::math::tgamma(1 + n[0]) * boost::math::tgamma(1 + n[1]) * boost::math::tgamma(1 + n[2]) / boost::math::tgamma(4 + n [0] + n[1] + n[2]);
 
-  unsigned m = (order > weight.size() - 1) ? weight.size() - 1 : order;
-  double I1 = GetIntegral(n, weight[m], x[m]);
+  unsigned m = (order > gaussQ.size() - 1) ? gaussQ.size() - 1 : order;
+  double I1 = GetIntegral(n, gaussQ[m]);
 
   std::cout << n[0] << " " << n[1] << " " << n[2] << " " << n[0] + n[1] + n[2] << " " << m << " " << I << " " << I1 << " " << (I - I1) / I << std::endl;
 
 }
 
-void BuildGaussPoints(GeomElType &geomElType, const unsigned &order,
-                      std::vector < std::vector < double> > &weight,  std::vector < std::vector < std::vector < double> > > &x) {
+void BuildGaussPoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3],
+                      std::vector < std::vector < double> > &gaussQ) {
 
-  const unsigned GaussSize[6][40] = {{
-    }, {
-      1, 1, 5, 5, 15, 15, 31, 31, 45, 45
-    }, {
-      1, 1, 8, 8, 21, 21, 52, 52, 95, 95,168, 168, 259, 259
-    }, {
-
-    }, {
-      1, 1, 4, 4, 7, 7, 13, 13, 19, 19, 28, 28, 37, 37
-    }, {
-      1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7  
-    }
-  };
-  const double *Gauss[6][40] = {{
-    }, {
-      tet_gauss::Gauss0[0], tet_gauss::Gauss0[0],
-      tet_gauss::Gauss1[0], tet_gauss::Gauss1[0],
-      tet_gauss::Gauss2[0], tet_gauss::Gauss2[0],
-      tet_gauss::Gauss3[0], tet_gauss::Gauss3[0],
-      tet_gauss::Gauss4[0], tet_gauss::Gauss4[0]
-    }, {
-      wedge_gauss::Gauss0[0], wedge_gauss::Gauss0[0],
-      wedge_gauss::Gauss1[0], wedge_gauss::Gauss1[0],
-      wedge_gauss::Gauss2[0], wedge_gauss::Gauss2[0],
-      wedge_gauss::Gauss3[0], wedge_gauss::Gauss3[0],
-      wedge_gauss::Gauss4[0], wedge_gauss::Gauss4[0],
-      wedge_gauss::Gauss5[0], wedge_gauss::Gauss5[0],
-      wedge_gauss::Gauss6[0], wedge_gauss::Gauss6[0],
-    }, {
-    }, {
-      tri_gauss::Gauss0[0], tri_gauss::Gauss0[0],
-      tri_gauss::Gauss1[0], tri_gauss::Gauss1[0],
-      tri_gauss::Gauss2[0], tri_gauss::Gauss2[0],
-      tri_gauss::Gauss3[0], tri_gauss::Gauss3[0],
-      tri_gauss::Gauss4[0], tri_gauss::Gauss4[0],
-      tri_gauss::Gauss5[0], tri_gauss::Gauss5[0],
-      tri_gauss::Gauss6[0], tri_gauss::Gauss6[0]
-    }, {
-      line_gauss::Gauss0[0], line_gauss::Gauss0[0],
-      line_gauss::Gauss1[0], line_gauss::Gauss1[0],
-      line_gauss::Gauss2[0], line_gauss::Gauss2[0],
-      line_gauss::Gauss3[0], line_gauss::Gauss3[0],
-      line_gauss::Gauss4[0], line_gauss::Gauss4[0],
-      line_gauss::Gauss5[0], line_gauss::Gauss5[0],
-      line_gauss::Gauss6[0], line_gauss::Gauss6[0],
-      line_gauss::Gauss7[0], line_gauss::Gauss7[0],
-      line_gauss::Gauss8[0], line_gauss::Gauss8[0],
-      line_gauss::Gauss9[0], line_gauss::Gauss9[0],
-      line_gauss::Gauss10[0], line_gauss::Gauss10[0],
-      line_gauss::Gauss11[0], line_gauss::Gauss11[0],
-      line_gauss::Gauss12[0], line_gauss::Gauss12[0],
-      line_gauss::Gauss13[0], line_gauss::Gauss13[0],
-      line_gauss::Gauss14[0], line_gauss::Gauss14[0],
-      line_gauss::Gauss15[0], line_gauss::Gauss15[0],
-      line_gauss::Gauss16[0], line_gauss::Gauss16[0],
-      line_gauss::Gauss17[0], line_gauss::Gauss17[0],
-      line_gauss::Gauss18[0], line_gauss::Gauss18[0],
-      line_gauss::Gauss19[0], line_gauss::Gauss19[0]
-    }
-  };
-
-  const elem_type *fem;
   std::vector < std::vector < double > > xv;
   unsigned nv;
   unsigned dim;
@@ -382,113 +329,97 @@ void BuildGaussPoints(GeomElType &geomElType, const unsigned &order,
     nv = 8;
     dim = 3;
     dm.assign(dim, 0);
-    fem = new const elem_type_3D("hex", "linear", "seventh");
     xv = {{ -1., 1., 1., -1., -1., 1., 1., -1.},
       { -1., -1., 1., 1., -1., -1., 1., 1.},
       { -1., -1., -1., -1., 1., 1., 1., 1.}
-    }; //hex
-
+    }; //hex to hex mapping
   }
   else if(TET == geomElType) {
-
     nv = 8;
     dim = 3;
     dm.assign(dim, 2);
     m1 = 9;
 
-    fem = new const elem_type_3D("hex", "linear", "seventh");
     xv = {{0, 1, 0.5, 0., 0., 0.5, 1. / 3., 0},
       {0, 0, 0.5, 1., 0., 0., 1. / 3., 0.5},
       {0, 0, 0, 0, 1, 0.5, 1. / 3., 0.5}
-    }; //tet1
+    }; //hex to tet mapping
   }
   else if(WEDGE == geomElType) {
-
     nv = 8;
     dim = 3;
     dm.assign(dim, 1);
     dm[2] = 0;
     m1 = 14;
-
-    fem = new const elem_type_3D("hex", "linear", "seventh");
     xv = {{0., 1., 0.5, 0., 0., 1., 0.5, 0.},
       {0., 0., 0.5, 1., 0., 0., 0.5, 1.},
       { -1., -1., -1., -1., 1., 1., 1., 1.}
-    }; //wedge1
+    }; //hex to wedge mapping
   }
   else if(QUAD == geomElType) {
     nv = 4;
     dim = 2;
     dm.assign(dim, 0);
-
-    fem = new const elem_type_2D("quad", "linear", "seventh");
-    xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad
+    xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad to quad mapping
   }
   else if(TRI == geomElType) {
     nv = 4;
     dim = 2;
     dm.assign(dim, 1);
     m1 = 14;
-
-    fem = new const elem_type_2D("quad", "linear", "seventh");
-    xv = {{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; // tri
-
+    xv = {{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; //quad to tri mapping
+  }
+  else if(LINE == geomElType) {
+    nv = 2;
+    dim = 1;
+    dm.assign(dim, 0);
+    m1 = 40;
+    xv = {{ -1., 1.}}; //line to line mapping
   }
   else {
     abort();
   }
 
+  gaussQ.resize(dim + 1);
 
-  std::vector <double> phi;  // local test function
-  std::vector <double> phi_x; // local test function first order partial derivatives
-  double jac;
+  if(m < m1) {
+    if(geomElType == TET) {
+      gaussQ = tetGauss[m];
+    }
+    else if(geomElType == WEDGE) {
+      unsigned sizeT = triGauss[m][0].size();
+      unsigned sizeL = lineGauss[m][0].size();
+      unsigned size = sizeT * sizeL;
 
-  weight.resize(order + 1);
-  x.resize(order + 1);
-  for(unsigned m = 0; m < order + 1; m++) {
-    x[m].resize(dim);
-  }
-
-  for(unsigned m = 0; m < m1; m++) {
-    //if(geomElType != WEDGE) {
-      unsigned size = GaussSize[geomElType][m];
-      weight[m].resize(size);
-      for(unsigned k = 0; k < dim; k++) {
-        x[m][k].resize(size);
+      for(unsigned k = 0; k <= dim; k++) {
+        gaussQ[k].resize(size);
       }
 
-      for(unsigned cnt = 0; cnt < size ; cnt++) {
-        weight[m][cnt] = Gauss[geomElType][m][cnt];
-        for(unsigned k = 0; k < dim; k++) {
-          x[m][k][cnt] = Gauss[geomElType][m][size * (k + 1) + cnt];
+      unsigned cnt = 0;
+      for(unsigned i = 0; i < sizeT ; i++) {
+        for(unsigned j = 0; j < sizeL ; j++) {
+          gaussQ[0][cnt] = triGauss[m][0][i] * lineGauss[m][0][j];
+          gaussQ[1][cnt] = triGauss[m][1][i];
+          gaussQ[2][cnt] = triGauss[m][2][i];
+          gaussQ[3][cnt] = lineGauss[m][1][j];
+          cnt++;
         }
       }
-//     //}
-//     else{
-//       unsigned sizeT = GaussSize[TRI][m];
-//       unsigned sizeL = GaussSize[LINE][m];
-//       unsigned size = sizeT * sizeL;
-//       std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" <<sizeT << " " << sizeL <<" "<< size << std::endl;
-//       weight[m].resize(size);
-//       for(unsigned k = 0; k < dim; k++) {
-//         x[m][k].resize(size);
-//       }
-
-//       unsigned cnt = 0;
-//       for(unsigned i = 0; i < sizeT ; i++) {
-//         for(unsigned j = 0; j < sizeL ; j++) {  
-//           weight[m][cnt] = Gauss[TRI][m][i] * Gauss[LINE][m][j];
-//           x[m][0][cnt] = Gauss[TRI][m][sizeT * 1 + i];
-//           x[m][1][cnt] = Gauss[TRI][m][sizeT * 2 + i];
-//           x[m][2][cnt] = Gauss[LINE][m][sizeL * 1 + j];
-//           cnt++;
-//         }
-//       }  
-//     }
-
+    }
+    else if(geomElType == TRI) {
+      gaussQ = triGauss[m];
+    }
+    else if(geomElType == LINE) {
+      gaussQ = lineGauss[m];
+    }
   }
+  else {
+    std::vector <double> phi;  // local test function
+    std::vector <double> phi_x; // local test function first order partial derivatives
+    double jac;
 
-  for(unsigned m = m1; m < order + 1; m++) {
+    const elem_type *fem = femAll[dim - 1];
+
     unsigned size = 1;
     std::vector < unsigned > ng(dim);
     for(unsigned k = 0; k < dim; k++) {
@@ -496,9 +427,8 @@ void BuildGaussPoints(GeomElType &geomElType, const unsigned &order,
       size *= ng[k];
     }
 
-    weight[m].resize(size);
-    for(unsigned k = 0; k < dim; k++) {
-      x[m][k].resize(size);
+    for(unsigned k = 0; k <= dim; k++) {
+      gaussQ[k].resize(size);
     }
     std::vector < double > xi(dim);
     std::vector <unsigned> I(dim);
@@ -514,22 +444,22 @@ void BuildGaussPoints(GeomElType &geomElType, const unsigned &order,
         unsigned pk = cnt % NG[k - 1];
         I[k] = pk / NG[k];
       }
-      weight[m][cnt] = 1.;
+      gaussQ[0][cnt] = 1.;
       for(unsigned k = 0; k < dim; k++) {
-        weight[m][cnt] *= Gauss[LINE][m + dm[k] ][I[k]];
-        xi[k] = Gauss[LINE][m + dm[k] ][ng[k] + I[k]];
+        gaussQ[0][cnt] *= lineGauss[m + dm[k]][0][I[k]];
+        xi[k] = lineGauss[m + dm[k]][1][I[k]];
       }
       fem->Jacobian(xv, xi, jac, phi, phi_x);
-      weight[m][cnt] *= jac;
+      gaussQ[0][cnt] *= jac;
       for(unsigned k = 0; k < dim; k++) {
-        x[m][k][cnt] = 0.;
+        gaussQ[k + 1][cnt] = 0.;
         for(unsigned ii = 0; ii < nv; ii++) {
-          x[m][k][cnt] += phi[ii] * xv[k][ii];
+          gaussQ[k + 1][cnt] += phi[ii] * xv[k][ii];
         }
       }
     }
   }
-
-  delete fem;
+  //delete fem;
 }
+
 

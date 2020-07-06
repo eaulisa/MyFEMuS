@@ -1,3 +1,4 @@
+// TET
 
 const std::vector < std::vector < double > >  tetGauss1 = {{0.16666666666667},
   {0.25},
@@ -32,6 +33,7 @@ const std::vector < std::vector < double > > tetGauss8 = {{ -0.039327006641293, 
 const std::vector < std::vector < std::vector < double > > > &tetGauss = { tetGauss1, tetGauss1, tetGauss3, tetGauss3, tetGauss5, tetGauss5, tetGauss7, tetGauss7, tetGauss8};
 
 
+//TRIANGE
 
 const std::vector < std::vector < double > > triGauss1 = {{0.5},
   {0.33333333333333},
@@ -71,7 +73,7 @@ const std::vector < std::vector < double > > triGauss13 = {{0.025869883032872, 0
 const std::vector < std::vector < std::vector < double > > > & triGauss = {triGauss1, triGauss1, triGauss3, triGauss3, triGauss5, triGauss5, triGauss7, triGauss7, triGauss9, triGauss9, triGauss11, triGauss11, triGauss13, triGauss13};
 
 
-
+//LINE
 
 const std::vector < std::vector < double > > lineGauss1 = {{2}, {0}
 };
@@ -137,6 +139,17 @@ const std::vector < std::vector < std::vector < double > > > & lineGauss = {
   lineGauss1, lineGauss1, lineGauss3, lineGauss3, lineGauss5, lineGauss5, lineGauss7, lineGauss7,
   lineGauss9, lineGauss9, lineGauss11, lineGauss11, lineGauss13, lineGauss13, lineGauss15, lineGauss15,
   lineGauss17, lineGauss17,  lineGauss19, lineGauss19, lineGauss21, lineGauss21, lineGauss23, lineGauss23,
-  lineGauss25, lineGauss25, lineGauss27, lineGauss27, lineGauss29, lineGauss29,lineGauss31, lineGauss31, 
+  lineGauss25, lineGauss25, lineGauss27, lineGauss27, lineGauss29, lineGauss29, lineGauss31, lineGauss31,
   lineGauss33, lineGauss33, lineGauss35, lineGauss35, lineGauss37, lineGauss37, lineGauss39, lineGauss39
+};
+
+
+const std::vector < std::vector < double > > pointGaussAll = {{1.}};
+
+const std::vector < std::vector < std::vector < double > > > & pointGauss = {
+  pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll,
+  pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll,
+  pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll,
+  pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll,
+  pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll, pointGaussAll
 };
