@@ -892,7 +892,6 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   EPS eps;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
     if(eFlag == 1) {
 
@@ -1032,6 +1031,8 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       aM0 = aM;
       aL0 = aL;
 
+
+
       for(unsigned s = 0; s < 2; s++) {
 
         sizeAll = sizeAll0;
@@ -1086,9 +1087,10 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
           double imaginary;
           EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
+
           EPSDestroy(&eps);
 
-          if(fabs(real) < 1.0e-12) {
+          if(fabs(real) < 1.0e-12 && sizeAll > 1) {
             PetscScalar *pv;
             VecGetArray(v, &pv);
             unsigned ii = 0;
@@ -1130,7 +1132,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             aM.swap(aM1);
             bM[s].swap(bM1);
           }
-          else {
+          else if(real > 1.0e-12) {
             MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
             for(int i = 0; i < sizeAll; i++) {
               for(int j = 0; j < sizeAll; j++) {
@@ -1140,26 +1142,35 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
             MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
           }
+          else {
+            VecDestroy(&v);
+            break;
+          }
 
           VecDestroy(&v);
         }
 
         //END DEFLATION
+        if(real > 1.0e-12) {
+          EPSCreate(PETSC_COMM_SELF, &eps);
+          EPSSetOperators(eps, A, B);
+          EPSSetFromOptions(eps);
+          EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+          EPSSolve(eps);
 
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
+          EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+          std::cout << iel << " " << real << " " << std::endl;
 
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << iel << " " << real << " " << std::endl;
+          sol->_Sol[CMIndex[s]]->set(iel, real);
 
-        sol->_Sol[CMIndex[s]]->set(iel, real);
-
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
+          EPSDestroy(&eps);
+          MatDestroy(&A);
+          MatDestroy(&B);
+        }
+        else {
+          std::cout << iel << " " << 1.0e10 << " " << std::endl;
+          sol->_Sol[CLIndex[s]]->set(iel, 1.0e10);
+        };
 
       }
 
@@ -1217,9 +1228,10 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
           double imaginary;
           EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
+
           EPSDestroy(&eps);
 
-          if(fabs(real) < 1.0e-10) {
+          if(fabs(real) < 1.0e-10 && sizeAll > 1) {
             PetscScalar *pv;
             VecGetArray(v, &pv);
             unsigned ii = 0;
@@ -1261,7 +1273,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             aL.swap(aL1);
             bL[s].swap(bL1);
           }
-          else {
+          else if(real > 1.0e-10) {
             MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
             for(int i = 0; i < sizeAll; i++) {
               for(int j = 0; j < sizeAll; j++) {
@@ -1271,26 +1283,38 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
             MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
           }
-
+          else {
+            VecDestroy(&v);
+            break;
+          }
           VecDestroy(&v);
         }
 
+
+
         //END DEFLATION
 
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
+        if(real > 1.0e-10) {
+          EPSCreate(PETSC_COMM_SELF, &eps);
+          EPSSetOperators(eps, A, B);
+          EPSSetFromOptions(eps);
+          EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+          EPSSolve(eps);
 
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << iel << " " << real << " " << std::endl;
+          EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+          std::cout << iel << " " << real << " " << std::endl;
 
-        sol->_Sol[CLIndex[s]]->set(iel, real);
+          sol->_Sol[CLIndex[s]]->set(iel, real);
 
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
+          EPSDestroy(&eps);
+          MatDestroy(&A);
+          MatDestroy(&B);
+        }
+        else {
+          std::cout << iel << " " << 1.0e10 << " " << std::endl;
+          sol->_Sol[CLIndex[s]]->set(iel, 1.0e10);
+        };
+
 
       }
     }
@@ -1305,7 +1329,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
 
 
-void GetParticleWeights(MultiLevelSolution& mlSol) {
+void GetParticleWeights(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
