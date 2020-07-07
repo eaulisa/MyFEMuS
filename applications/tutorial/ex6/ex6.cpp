@@ -64,7 +64,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 7;
+  unsigned numberOfUniformLevels = 5;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -286,7 +286,7 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob) {
         solP_gss += phiP[i] * solP[i];
       }
 
-      double nu = 1./500.;
+      double nu = 1./250.;
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsV; i++) {
@@ -437,10 +437,13 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+    
     short unsigned ielGeom = msh->GetElementType(iel);
 
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);    // number of solution element dofs
+    
+    Jac.assign((3 * nDofsV * nDofsV + nDofsP) * (3 * nDofsV * nDofsV + nDofsP), 0.);
 
     unsigned nDofsVP = dim * nDofsV + nDofsP;
     // resize local arrays
@@ -547,7 +550,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
     double laplce = 0.;
 
     
-    for(unsigned I = 0; I < dim; I++){
+    /*for(unsigned I = 0; I < dim; I++){
         for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned  J = 0; J < dim; J++) {  
                 for(unsigned j = 0; j < nDofsV; j++) { 
@@ -578,7 +581,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
                         
                         if(i % 3  == 1){
                             if(k == 1){
-                               laplce += 2 * phiV_x[i * dim + k] * phiV_x[j * dim + k] + phiV_x[i * dim + k + 1] * phiV_x[j * dim + k + 1] + phiV_x[i * dim + k - 2] * phiV_x[j * dim + k - 2];
+                               laplce += 2 * phiV_x[i * dim + k] * phiV_x[j * dim + k] + phiV_x[i * dim + k + 1] * phiV_x[j * dim + k + 1] + phiV_x[i * dim + k - 1] * phiV_x[j * dim + k - 1];
                                nonLinear += (solV_gss[0] * phiV_x[j * dim + k] + solV_gss[1] * phiV_x[j * dim + k + 1] + solV_gss[2] * phiV_x[j * dim + k + 2] + gradSolV_gss[k][k] ) * phiV[i];
                             }
                             
@@ -616,17 +619,26 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
                 
                     }
                     
-                    Jac[3 * i * nDofsV +  i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[(3 * i + 1) * nDofsV +  i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[(3 * i + 2) * nDofsV +  i * nDofsP + j] = nu * laplce + nonLinear;
+                    //Jac[3 * i * nDofsV +  i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[3 * i * nDofsV +  i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[(3 * i + 1) * nDofsV +  i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[(3 * i + 1) * nDofsV +  i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[(3 * i + 2) * nDofsV +  i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[(3 * i + 2) * nDofsV +  i * nDofsP + j] = nu * laplce * weight;
                     
-                    Jac[3 * nDofsV * (nDofsV + i) +  nDofsV * nDofsP + i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[3 * nDofsV * (nDofsV + i) + nDofsV + nDofsV * nDofsP + i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[3 * nDofsV * (nDofsV + i) + 2 * nDofsV + nDofsV * nDofsP + i * nDofsP + j] = laplce + nonLinear;
+                    //Jac[3 * nDofsV * (nDofsV + i) +  nDofsV * nDofsP + i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[3 * nDofsV * (nDofsV + i) +  nDofsV * nDofsP + i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[3 * nDofsV * (nDofsV + i) + nDofsV + nDofsV * nDofsP + i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[3 * nDofsV * (nDofsV + i) + nDofsV + nDofsV * nDofsP + i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[3 * nDofsV * (nDofsV + i) + 2 * nDofsV + nDofsV * nDofsP + i * nDofsP + j] = (laplce + nonLinear) * weight;
+                    Jac[3 * nDofsV * (nDofsV + i) + 2 * nDofsV + nDofsV * nDofsP + i * nDofsP + j] = laplce;
                                         
-                    Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[6 * nDofsV * (nDofsV + i) + nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce + nonLinear;
-                    Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce + nonLinear;
+                    //Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[6 * nDofsV * (nDofsV + i) + nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[6 * nDofsV * (nDofsV + i) + nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce * weight;
+                    //Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * (laplce + nonLinear) * weight;
+                    Jac[6 * nDofsV * (nDofsV + i) + 2 * nDofsV + 2 * nDofsV * nDofsP + i * nDofsP + j] = nu * laplce * weight;
                     
                                       
                 }
@@ -644,15 +656,16 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
                 minusP += phiV_x[i * dim + J];
             }
             
-            Jac[3 * (i + 1) * nDofsV +  i * nDofsP + j] = -phiP[j] * minusP;
-            Jac[9 * (i + 1) * nDofsV + 3 * nDofsP * nDofsV + i * nDofsP + j] = -phiP[j] * minusV;
+            Jac[3 * (i + 1) * nDofsV +  i * nDofsP + j] = -phiP[j] * minusP * weight;
+            Jac[9 * (i + 1) * nDofsV + 3 * nDofsP * nDofsV + i * nDofsP + j] = -phiP[j] * minusV * weight;
                     
         }
             
     }
-    }
+    }*/
     }
   } //end element loop for each process
+}
 
 
 
