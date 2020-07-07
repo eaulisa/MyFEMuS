@@ -99,7 +99,7 @@ int main(int argc, char** args) {
 
 // TRI3-6-7 not working????
   if(DIM == 2) {
-    mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, -lengthx / 2, lengthx / 2, -length / 2, length / 2, 0., 0., TRI6, "seventh");
+    mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, -lengthx / 2, lengthx / 2, -length / 2, length / 2, 0., 0., QUAD9, "seventh");
   }
   else if(DIM == 3) {
     nz = ny;
@@ -140,7 +140,7 @@ int main(int argc, char** args) {
   // define the multilevel solution and attach the mlMsh object to it
   MultiLevelSolution mlSol(&mlMsh);
 
-  FEOrder femOrder = FIRST;
+  FEOrder femOrder = SECOND;
 
   mlSol.AddSolution("VX1", LAGRANGE, femOrder);
   mlSol.AddSolution("VY1", LAGRANGE, femOrder);
@@ -522,7 +522,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       double gammaM1 = iM1C1 / denM; // <u>_gamma  = gammaM1 * u1 + gammaM2 * u2
       double gammaM2 = iM2C2 / denM;
 
-      double thetaM = 8. / denM;   // penalty parameter, sharp version thetaM = 2 / denM
+      double thetaM = 8. * 1000 / denM;   // penalty parameter, sharp version thetaM = 2 / denM
 
       //std::cout << thetaM <<" ";
 
@@ -892,6 +892,9 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   Vec v;
   EPS eps;
 
+  clock_t petscTime = 0;
+  clock_t eigenTime = 0;
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
     if(eFlag == 1) {
@@ -910,7 +913,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       bL[1].assign(sizeAll * sizeAll, 0.);
 
       for(int k = 0; k < dim; k++) {
-        x[k].resize(nDofu);  
+        x[k].resize(nDofu);
       }
 
       for(unsigned i = 0; i < nDofu; i++) {
@@ -964,7 +967,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarker3++;
       }
 
-    
+
 
       // interface
       while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
@@ -1029,45 +1032,155 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarkerI++;
       }
 
-   
-   
-      Eigen::MatrixXd BM0(sizeAll,sizeAll);
-      Eigen::MatrixXd BM1(sizeAll,sizeAll);
-      Eigen::MatrixXd A0(sizeAll,sizeAll);
+
+      double perturbation = 1.0e-10;
+
+      {
+        std::vector < int > index(sizeAll);
+        for(int i = 0; i < sizeAll; i++)  index[i] = i;
+
+        clock_t start = clock();
+
+        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
+
+        MatSetValues(A, sizeAll, &index[0], sizeAll, &index[0], &aM[0]  , INSERT_VALUES);
+
+        MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+        for(unsigned s = 0; s < 2; s++) {
+
+          MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &B);
+
+          MatSetValues(B, sizeAll, &index[0], sizeAll, &index[0], &bM[s][0]  , INSERT_VALUES);
+
+          MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+          MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+
+          double nrm;
+          MatNorm(B, NORM_INFINITY, &nrm);
+
+          MatShift(B, perturbation * nrm);
+
+          EPSCreate(PETSC_COMM_SELF, &eps);
+          EPSSetOperators(eps, A, B);
+          EPSSetFromOptions(eps);
+          EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+          EPSSolve(eps);
+
+          double real;
+          EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+          std::cout << iel << " " << real << " " << std::endl;
+
+          sol->_Sol[CMIndex[s]]->set(iel, real);
+
+          EPSDestroy(&eps);
+          MatDestroy(&B);
+
+
+        }
+
+        MatDestroy(&A);
+
+        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
+
+        MatSetValues(A, sizeAll, &index[0], sizeAll, &index[0], &aL[0]  , INSERT_VALUES);
+
+        MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+        for(unsigned s = 0; s < 2; s++) {
+
+          MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &B);
+
+          MatSetValues(B, sizeAll, &index[0], sizeAll, &index[0], &bL[s][0]  , INSERT_VALUES);
+
+          MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+          MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+
+          double nrm;
+          MatNorm(B, NORM_INFINITY, &nrm);
+
+          MatShift(B, perturbation * nrm);
+
+          EPSCreate(PETSC_COMM_SELF, &eps);
+          EPSSetOperators(eps, A, B);
+          EPSSetFromOptions(eps);
+          EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+          EPSSolve(eps);
+
+          double real;
+          EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+          std::cout << iel << " " << real << " " << std::endl;
+
+          sol->_Sol[CLIndex[s]]->set(iel, real);
+
+          EPSDestroy(&eps);
+          MatDestroy(&B);
+
+        }
+
+        MatDestroy(&A);
+
+        petscTime += clock() - start;
+
+      }
+
+      sol->_Sol[CMIndex[0]]->close();
+      sol->_Sol[CMIndex[1]]->close();
+
+      sol->_Sol[CLIndex[0]]->close();
+      sol->_Sol[CLIndex[1]]->close();
+
+
+      clock_t start = clock();
+
+      Eigen::MatrixXd BM0(sizeAll, sizeAll);
+      Eigen::MatrixXd BM1(sizeAll, sizeAll);
+      Eigen::MatrixXd A0(sizeAll, sizeAll);
       BM0.setZero();
       BM1.setZero();
       A0.setZero();
-      for(unsigned i = 0; i < sizeAll; i++){
-          for(unsigned j = 0; j < sizeAll; j++){
-            BM0(i,j) += bL[0][i * sizeAll + j];
-            BM1(i,j) += bL[1][i * sizeAll + j];
-            A0(i,j) += aL[i * sizeAll + j];
-          }
+      for(unsigned i = 0; i < sizeAll; i++) {
+        for(unsigned j = 0; j < sizeAll; j++) {
+          BM0(i, j) += bL[0][i * sizeAll + j];
+          BM1(i, j) += bL[1][i * sizeAll + j];
+          A0(i, j) += aL[i * sizeAll + j];
+        }
       }
 
       double B0Lp = BM0.norm();
       double B1Lp = BM1.norm();
-      for(unsigned k = 0; k < sizeAll; k++){
-          BM0(k,k) += 1e-5 * B0Lp;
-          BM1(k,k) += 1e-5 * B1Lp;
-     }
-      
+      for(unsigned k = 0; k < sizeAll; k++) {
+        BM0(k, k) += perturbation * B0Lp;
+        BM1(k, k) += perturbation * B1Lp;
+      }
+
       //     std::cout << BM0 << std::endl;
 //     std::cout << A0 << std::endl;
 //     std::cout << "===============" << std::endl;
-      
-   Eigen::GeneralizedEigenSolver<Eigen::MatrixXd> ges;
-   //Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> ges;
-   std::cout << "=========================================================" << std::endl;
-   ges.compute(A0, BM0,false);
-   std::cout << ges.eigenvalues().transpose() << std::endl;
-   
-   
-   ges.compute(A0, BM1,false);
-   std::cout << ges.eigenvalues().transpose() << std::endl;
-      
-      
-      
+
+      Eigen::GeneralizedEigenSolver<Eigen::MatrixXd> ges;
+      //Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> ges;
+      std::cout << "=========================================================" << std::endl;
+      ges.compute(A0, BM0, false);
+      std::cout << ges.eigenvalues().transpose() << std::endl;
+
+
+      ges.compute(A0, BM1, false);
+      std::cout << ges.eigenvalues().transpose() << std::endl;
+
+      eigenTime += 2 * (clock() - start);
+
+//     }
+//   }
+//
+//
+//   std::cout << std::endl << "petsc TIME:\t" << static_cast<double>(petscTime) / CLOCKS_PER_SEC << std::endl;
+//   std::cout << std::endl << "Eigen TIME:\t" << static_cast<double>(eigenTime) / CLOCKS_PER_SEC << std::endl;
+//
+// }
+
       unsigned sizeAll0 = sizeAll;
       aM0 = aM;
       aL0 = aL;
@@ -1357,7 +1470,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         };
 
 
-     } // end lambda loop
+      } // end lambda loop
     }
   } //end of element loop
 
@@ -1397,7 +1510,7 @@ void GetParticleWeights(MultiLevelSolution & mlSol) {
   unsigned m = 3;  // Chebyshev degree
 
 //grab the gauss points with elemtype and degree
-  const Gauss *gauss = new  Gauss("tri", "fourth");
+  const Gauss *gauss = new  Gauss("quad", "fourth");
   unsigned ng = gauss->GetGaussPointsNumber();
   const double *Wg = gauss->GetGaussWeightsPointer();
   std::vector< const double * > Xg(dim);
