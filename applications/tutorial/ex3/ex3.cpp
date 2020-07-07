@@ -343,7 +343,6 @@ void AssembleNonlinearProblem(MultiLevelProblem& ml_prob) {
 
         double f = phi[i] * (- exactSolLaplace + lambda * (exactSolValue * exactSolValue * exactSolValue - exactSolValue));
         Res[i] += (f - (mLaplace + nonLinearTerm)) * weight;
-        
 
         // *** phi_j loop ***
         for(unsigned j = 0; j < nDofs; j++) {
