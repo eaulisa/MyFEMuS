@@ -29,6 +29,7 @@
 
 #include "../NewDraft/NewDraft.hpp"
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues>
 #include <eigen3/unsupported/Eigen/KroneckerProduct>
 #include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
@@ -909,7 +910,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       bL[1].assign(sizeAll * sizeAll, 0.);
 
       for(int k = 0; k < dim; k++) {
-        x[k].resize(nDofu);  // Now we
+        x[k].resize(nDofu);  
       }
 
       for(unsigned i = 0; i < nDofu; i++) {
@@ -963,6 +964,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarker3++;
       }
 
+    
 
       // interface
       while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
@@ -1027,11 +1029,50 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarkerI++;
       }
 
+   
+   
+      Eigen::MatrixXd BM0(sizeAll,sizeAll);
+      Eigen::MatrixXd BM1(sizeAll,sizeAll);
+      Eigen::MatrixXd A0(sizeAll,sizeAll);
+      BM0.setZero();
+      BM1.setZero();
+      A0.setZero();
+      for(unsigned i = 0; i < sizeAll; i++){
+          for(unsigned j = 0; j < sizeAll; j++){
+            BM0(i,j) += bL[0][i * sizeAll + j];
+            BM1(i,j) += bL[1][i * sizeAll + j];
+            A0(i,j) += aL[i * sizeAll + j];
+          }
+      }
+
+      double B0Lp = BM0.norm();
+      double B1Lp = BM1.norm();
+      for(unsigned k = 0; k < sizeAll; k++){
+          BM0(k,k) += 1e-5 * B0Lp;
+          BM1(k,k) += 1e-5 * B1Lp;
+     }
+      
+      //     std::cout << BM0 << std::endl;
+//     std::cout << A0 << std::endl;
+//     std::cout << "===============" << std::endl;
+      
+   Eigen::GeneralizedEigenSolver<Eigen::MatrixXd> ges;
+   //Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> ges;
+   std::cout << "=========================================================" << std::endl;
+   ges.compute(A0, BM0,false);
+   std::cout << ges.eigenvalues().transpose() << std::endl;
+   
+   
+   ges.compute(A0, BM1,false);
+   std::cout << ges.eigenvalues().transpose() << std::endl;
+      
+      
+      
       unsigned sizeAll0 = sizeAll;
       aM0 = aM;
       aL0 = aL;
 
-
+// implement eigen here
 
       for(unsigned s = 0; s < 2; s++) {
 
@@ -1169,10 +1210,10 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         }
         else {
           std::cout << iel << " " << 1.0e10 << " " << std::endl;
-          sol->_Sol[CLIndex[s]]->set(iel, 1.0e10);
+          sol->_Sol[CMIndex[s]]->set(iel, 1.0e10);
         };
 
-      }
+      } // end of mu loop
 
       for(unsigned s = 0; s < 2; s++) {
 
@@ -1316,9 +1357,9 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         };
 
 
-      }
+     } // end lambda loop
     }
-  }
+  } //end of element loop
 
   sol->_Sol[CMIndex[0]]->close();
   sol->_Sol[CMIndex[1]]->close();
