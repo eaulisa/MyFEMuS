@@ -66,3 +66,105 @@ int main(int argc, char** args) {
 
   return 1;
 }
+
+
+
+//       {
+//         std::vector < int > index(sizeAll);
+//         for(int i = 0; i < sizeAll; i++)  index[i] = i;
+//
+//         clock_t start = clock();
+//
+//         MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
+//
+//         MatSetValues(A, sizeAll, &index[0], sizeAll, &index[0], &aM[0]  , INSERT_VALUES);
+//
+//         MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+//         MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+//
+//         for(unsigned s = 0; s < 2; s++) {
+//
+//           MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &B);
+//
+//           MatSetValues(B, sizeAll, &index[0], sizeAll, &index[0], &bM[s][0]  , INSERT_VALUES);
+//
+//           MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+//           MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+//
+//           double nrm;
+//           MatNorm(B, NORM_INFINITY, &nrm);
+//
+//           MatShift(B, perturbation * nrm);
+//
+//           EPSCreate(PETSC_COMM_SELF, &eps);
+//           EPSSetOperators(eps, A, B);
+//           EPSSetType(eps, EPSLAPACK);
+//           EPSSetFromOptions(eps);
+//           EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
+//           EPSSolve(eps);
+//
+//           double real;
+//           EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+//           std::cout << iel << " " << real << " " << std::endl;
+//
+//           sol->_Sol[CMIndex[s]]->set(iel, real);
+//
+//           EPSDestroy(&eps);
+//           MatDestroy(&B);
+//
+//
+//         }
+//
+//         MatDestroy(&A);
+//
+//         MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
+//
+//         MatSetValues(A, sizeAll, &index[0], sizeAll, &index[0], &aL[0]  , INSERT_VALUES);
+//
+//         MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+//         MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+//
+//         for(unsigned s = 0; s < 2; s++) {
+//
+//           MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &B);
+//
+//           MatSetValues(B, sizeAll, &index[0], sizeAll, &index[0], &bL[s][0]  , INSERT_VALUES);
+//
+//           MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+//           MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+//
+//           double nrm;
+//           MatNorm(B, NORM_INFINITY, &nrm);
+//
+//           MatShift(B, perturbation * nrm);
+//
+//           EPSCreate(PETSC_COMM_SELF, &eps);
+//           EPSSetOperators(eps, A, B);
+//           EPSSetType(eps, EPSLAPACK);
+//           EPSSetFromOptions(eps);
+//           EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
+//           EPSSolve(eps);
+//
+//
+//           double real;
+//           EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
+//           std::cout << iel << " " << real << " " << std::endl;
+//
+//           sol->_Sol[CLIndex[s]]->set(iel, real);
+//
+//           EPSDestroy(&eps);
+//           MatDestroy(&B);
+//
+//         }
+//
+//         MatDestroy(&A);
+//
+//         petscTime += clock() - start;
+//
+//       }
+//
+//       sol->_Sol[CMIndex[0]]->close();
+//       sol->_Sol[CMIndex[1]]->close();
+//
+//       sol->_Sol[CLIndex[0]]->close();
+//       sol->_Sol[CLIndex[1]]->close();
