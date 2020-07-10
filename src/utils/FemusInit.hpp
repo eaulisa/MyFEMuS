@@ -42,9 +42,16 @@
 #include "adept.h"
 #include "uq.hpp"
 
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues>
+#include <eigen3/unsupported/Eigen/KroneckerProduct>
+#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
+#include <eigen3/unsupported/Eigen/CXX11/Tensor>
+
+
+
+
 namespace femus {
-
-
 
 class FemusInit {
   

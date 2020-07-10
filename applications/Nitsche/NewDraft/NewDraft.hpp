@@ -3,10 +3,10 @@
 #include <vector>
 #include <math.h>
 #include <ctime>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/unsupported/Eigen/KroneckerProduct>
-#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
-#include <eigen3/unsupported/Eigen/CXX11/Tensor>
+// #include <eigen3/Eigen/Dense>
+// #include <eigen3/unsupported/Eigen/KroneckerProduct>
+// #include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
+//#include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #include <fstream>
 #include <cmath>
 #include "Marker.hpp"
@@ -36,7 +36,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
 
 
   unsigned nr = ceil(((R - 0.5 * dp)) / dp);
-  double dr = ((R - 0.5 * dp)) / nr;
+  double dr = ((R - 0.5 * dp)) /  nr;
   double area = 0.;
 
   xp.reserve(pow(4 * nr, dim));
