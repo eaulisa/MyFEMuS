@@ -295,45 +295,15 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       dfp[0] = df[0] - N * df[1];
       dfp[1] = df[1] + N * df[0];
 
-      boost::math::quaternion <double> dfm[2];
-      dfm[0] = df[0] + N * df[1];
-      dfm[1] = df[1] - N * df[0];
+      // boost::math::quaternion <double> dfm[2];
+      // dfm[0] = df[0] + N * df[1];
+      // dfm[1] = df[1] - N * df[0];
 
       boost::math::quaternion <double> MU[2];
       MU[0] =  MUU * dfp[0];
       MU[1] = -MUU * dfp[1];
 
-      boost::math::quaternion <double> dfmmMu[2];
-      dfmmMu[0] = dfm[0] - MU[0];
-      dfmmMu[1] = dfm[1] - MU[1];
-
       // boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
-
-      boost::math::quaternion <double> a[6];
-      a[0] = e1 - MUU * e1;
-      a[2] = e2 - MUU * e2;
-      a[4] = e3 - MUU * e3;
-
-      a[1] = N * e1 + MUU * N * e1;
-      a[3] = N * e2 + MUU * N * e2;
-      a[5] = N * e3 + MUU * N * e3;
-
-      boost::math::quaternion <double> b[6];
-      b[0] = -N * e1 + MUU * N * e1;
-      b[2] = -N * e2 + MUU * N * e2;
-      b[4] = -N * e3 + MUU * N * e3;
-
-      b[1] = e1 + MUU * e1;
-      b[3] = e2 + MUU * e2;
-      b[5] = e3 + MUU * e3;
-
-      double D[6][6];
-      for(unsigned i = 0; i < 6; i++) {
-        for(unsigned j = 0; j < 6; j++) {
-          D[i][j] = gi[0][0] * (a[i] % a[j]) + gi[0][1] * (a[i] % b[j]) +
-                    gi[1][0] * (b[i] % a[j]) + gi[1][1] * (b[i] % b[j]);
-        }
-      }
 
       // Quasi-Conformal Minimization Residual and Jacobian.
       for(unsigned I = 0; I < DIM; I++) {
@@ -348,6 +318,14 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           boost::math::quaternion <double> dphiIm[2];
           dphiIm[0] = dphiI[0] + N * dphiI[1];
           dphiIm[1] = dphiI[1] - N * dphiI[0];
+
+          boost::math::quaternion <double> dphiIp[2];
+          dphiIp[0] = dphiI[0] - N * dphiI[1];
+          dphiIp[1] = dphiI[1] + N * dphiI[0];
+
+          boost::math::quaternion <double> dphiIcombo[2];
+          dphiIcombo[0] = dphiIm[0] - MUU * dphiIp[0];
+          dphiIcombo[1] = dphiIm[1] + MUU * dphiIp[1];
 
           for(unsigned J = 0; J < DIM; J++) {
             for(unsigned j = 0; j < nxDofs; j++) {
@@ -364,11 +342,20 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
             dphiJm[0] = dphiJ[0] + N * dphiJ[1];
             dphiJm[1] = dphiJ[1] - N * dphiJ[0];
 
+            boost::math::quaternion <double> dphiJp[2];
+            dphiJp[0] = dphiJ[0] - N * dphiJ[1];
+            dphiJp[1] = dphiJ[1] + N * dphiJ[0];
+
+            boost::math::quaternion <double> dphiJcombo[2];
+            dphiJcombo[0] = dphiJm[0] - MUU * dphiJp[0];
+            dphiJcombo[1] = dphiJm[1] + MUU * dphiJp[1];
+
               double term = 0.;
               double term2 = 0.;
-              // for(unsigned k = 0; k < dim; k++) {
-              //   for(unsigned l = 0; l < dim; l++) {
-                  //term += phix_uv[k][i] * D[I * dim + k][J * dim + l] * phix_uv[l][j];
+                   // term += gi[0][0] * dphiJcombo[0] % dphiIcombo[0] +
+                   //         gi[1][0] * dphiJcombo[1] % dphiIcombo[0] +
+                   //         gi[0][1] * dphiJcombo[0] % dphiIcombo[1] +
+                   //         gi[1][1] * dphiJcombo[1] % dphiIcombo[1]; //old method
                   term +=  gi[0][0] * dphiJm[0] % dphiIm[0] +
                            gi[1][0] * dphiJm[1] % dphiIm[0] +
                            gi[0][1] * dphiJm[0] % dphiIm[1] +
@@ -377,8 +364,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
                            gi[1][0] * MU[1] % dphiIm[0] +
                            gi[0][1] * MU[0] % dphiIm[1] +
                            gi[1][1] * MU[1] % dphiIm[1];
-              //   }
-              // }
               Jac[istart + J * nxDofs + j] += term * Area;
               Res[I * nxDofs + i] -= (-term2 + term * (xhat[J][j] + solDx[J][j])) * Area;
             }
