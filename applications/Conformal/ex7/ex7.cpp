@@ -30,7 +30,7 @@ Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
 #include "../include/updateMu7.hpp"
-#include "../include/assembleConformalMinimization9.hpp"
+#include "../include/assembleConformalMinimization10.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -54,20 +54,20 @@ const Parameter squareTri = Parameter("square with triangles", 1, false, false, 
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 250, 1, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
-const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 12, false, 30, 3, 0.793786); //normal constraint
+const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 1000, 1, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
 //const Parameter cat = Parameter("cat", 5, true, false, 1, 20, false, 5, 1, 0.987606); //need conformal type 0,0 // areaConstraint // no folding!?!?!
-const Parameter cat = Parameter("cat", 5, true, true, 1, 50, false, 5, 1, 0.986969); //need conformal type 0,0 // no folding?!?!?!
-//const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
+//const Parameter cat = Parameter("cat", 5, true, true, 1, 50, false, 5, 1, 0.986969); //need conformal type 0,0 // no folding?!?!?!
+const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
 //const Parameter cat = Parameter("cat", 5, true, false, 1, 20, true, 5, 1, 0.996710); //need conformal type 0,0 // areaConstraint
 //const Parameter cat = Parameter("cat", 5, true, true, 1, 25, false, 3, 1, 0.986754); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
 //const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
 const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 50, 1, 0.602613);
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
-const Parameter fert = Parameter("fert", 9, true, false, 1, 20, true, 3, 1, 0.995966);
+const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
 
 // Main program starts here.
 int main(int argc, char** args) {
@@ -180,7 +180,7 @@ int main(int argc, char** args) {
     mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moo.med", "seventh", scalingFactor, false, false);
   }
   else if(parameter.simulation == 8) {
-    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/moai.med", "seventh", scalingFactor, false, false);
+    mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/DTquad.med", "seventh", scalingFactor, false, false);
   }
   else if(parameter.simulation == 9) {
     mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/stupid.med", "seventh", scalingFactor, false, false);
@@ -311,7 +311,7 @@ int main(int argc, char** args) {
   variablesToBePrinted.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
 
-  EvaluateMu(mlSol);
+  //EvaluateMu(mlSol);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   parameter.print();
 

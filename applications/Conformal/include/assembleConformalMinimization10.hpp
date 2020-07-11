@@ -356,22 +356,31 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
             dphiJ[0] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[0][j], (J == 1) * phix_uv[0][j], (J == 2) * phix_uv[0][j]);
             dphiJ[1] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[1][j], (J == 1) * phix_uv[1][j], (J == 2) * phix_uv[1][j]);
 
-            boost::math::quaternion <double> dphiJmmMu[2];
-            dphiJmmMu[0] = dphiJ[0] + N * dphiJ[1] - MU[0];
-            dphiJmmMu[1] = dphiJ[1] - N * dphiJ[0] - MU[1];
+            // boost::math::quaternion <double> dphiJmmMu[2];
+            // dphiJmmMu[0] = dphiJ[0] + N * dphiJ[1] - MU[0];
+            // dphiJmmMu[1] = dphiJ[1] - N * dphiJ[0] - MU[1];
+
+            boost::math::quaternion <double> dphiJm[2];
+            dphiJm[0] = dphiJ[0] + N * dphiJ[1];
+            dphiJm[1] = dphiJ[1] - N * dphiJ[0];
 
               double term = 0.;
+              double term2 = 0.;
               // for(unsigned k = 0; k < dim; k++) {
               //   for(unsigned l = 0; l < dim; l++) {
                   //term += phix_uv[k][i] * D[I * dim + k][J * dim + l] * phix_uv[l][j];
-                  term += gi[0][0] * dphiJmmMu[0] % dphiIm[0] +
-                          gi[1][0] * dphiJmmMu[1] % dphiIm[0] +
-                          gi[0][1] * dphiJmmMu[0] % dphiIm[1] +
-                          gi[1][1] * dphiJmmMu[1] % dphiIm[1];
+                  term +=  gi[0][0] * dphiJm[0] % dphiIm[0] +
+                           gi[1][0] * dphiJm[1] % dphiIm[0] +
+                           gi[0][1] * dphiJm[0] % dphiIm[1] +
+                           gi[1][1] * dphiJm[1] % dphiIm[1];
+                  term2 += gi[0][0] * MU[0] % dphiIm[0] +
+                           gi[1][0] * MU[1] % dphiIm[0] +
+                           gi[0][1] * MU[0] % dphiIm[1] +
+                           gi[1][1] * MU[1] % dphiIm[1];
               //   }
               // }
               Jac[istart + J * nxDofs + j] += term * Area;
-              Res[I * nxDofs + i] -= term * Area * (xhat[J][j] + solDx[J][j]);
+              Res[I * nxDofs + i] -= (-term2 + term * (xhat[J][j] + solDx[J][j])) * Area;
             }
           }
         }

@@ -44,7 +44,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   // Get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC).
   unsigned xType = 2;
 
-  std::vector < unsigned > solDxIndex(dim);
+  std::vector < unsigned > solDxIndex(DIM);
   solDxIndex[0] = mlSol->GetIndex("Dx1");
   solDxIndex[1] = mlSol->GetIndex("Dx2");
   if(parameter.surface) solDxIndex[2] = mlSol->GetIndex("Dx3");
@@ -399,7 +399,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         delNArea[1][2][0] = -0.5 * solx_uv[1][0];
         delNArea[1][2][1] =  0.5 * solx_uv[0][0];
         delNArea[1][2][2] =  0.;
-        
+
         double deldelNArea[2][3][3][2][3] = {
           {
             { {{0., 0., 0.}, { 0. , 0. , 0. }},
@@ -493,20 +493,20 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
             }
             Res[irow] -= solLg * term * Area2;
 
-//             unsigned istart = irow * sizeAll;
-//             for(unsigned J = 0; J < DIM; J++) {
-//               for(unsigned j = 0; j < nxDofs; j++) {
-//                 double term = 0;
-//                 for(unsigned a = 0; a < dim; a++) {
-//                   for(unsigned K = 0; K < DIM; K++) {
-//                     for(unsigned b = 0; b < dim; b++) {
-//                       term += phix_uv[a][i] * solDxg[K] * deldelNArea[a][K][I][b][J] * phix_uv[b][j];
-//                     }
-//                   }
-//                 }
-//                 Jac[istart + J * nxDofs + j] += solLg * term * Area2;
-//               }
-//             }
+            // unsigned istart = irow * sizeAll;
+            // for(unsigned J = 0; J < DIM; J++) {
+            //   for(unsigned j = 0; j < nxDofs; j++) {
+            //     double term = 0;
+            //     for(unsigned a = 0; a < dim; a++) {
+            //       for(unsigned K = 0; K < DIM; K++) {
+            //         for(unsigned b = 0; b < dim; b++) {
+            //           term += phix_uv[a][i] * solDxg[K] * deldelNArea[a][K][I][b][J] * phix_uv[b][j];
+            //         }
+            //       }
+            //     }
+            //     Jac[istart + J * nxDofs + j] += solLg * term * Area2;
+            //   }
+            // }
           }
         }
       }

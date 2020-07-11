@@ -42,16 +42,16 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfNonLinearSteps = 20;
- 
+
   // define multilevel mesh
   MultiLevelMesh mlMsh;
 
   // Read coarse level mesh and generate finer level meshes.
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
- 
+
   mlMsh.ReadCoarseMesh("../input/hex.neu", "seventh", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels, NULL);
 
@@ -90,7 +90,7 @@ int main(int argc, char** args) {
   mlSol.GenerateBdc("Dx1", "Time_dependent");
   mlSol.GenerateBdc("Dx2", "Time_dependent");
   mlSol.GenerateBdc("Dx3", "Time_dependent");
-  
+
   MultiLevelProblem mlProb(&mlSol);
 
   // Add system Conformal or Shear Minimization in mlProb.
@@ -100,7 +100,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Dx1");
   system.AddSolutionToSystemPDE("Dx2");
   system.AddSolutionToSystemPDE("Dx3");
-  
+
   // Parameters for convergence and # of iterations.
   system.SetMaxNumberOfNonLinearIterations(numberOfNonLinearSteps);
   system.SetNonLinearConvergenceTolerance(1.e-10);
@@ -130,7 +130,7 @@ int main(int argc, char** args) {
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k + 1);
     system.CopySolutionToOldSolution();
   }
-  
+
   return 0;
 }
 
@@ -138,17 +138,17 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char solName[],
 
   bool dirichlet = true;
   value = 0.;
-  
+
   if(!strcmp(solName, "Dx2") || !strcmp(solName, "Dx3") ) {
-    if(faceName == 1 || faceName == 2)  
+    if(faceName == 1 || faceName == 2)
     dirichlet = false;
   }
   if(!strcmp(solName, "Dx3") || !strcmp(solName, "Dx1") ) {
-    if(faceName == 3 || faceName == 4)  
+    if(faceName == 3 || faceName == 4)
     dirichlet = false;
   }
   if(!strcmp(solName, "Dx1") || !strcmp(solName, "Dx2") ) {
-    if(faceName == 5 || faceName == 6)  
+    if(faceName == 5 || faceName == 6)
     dirichlet = false;
   }
   return dirichlet;

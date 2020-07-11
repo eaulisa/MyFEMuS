@@ -39,7 +39,7 @@ bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
 bool volumeConstraint = false;
-bool areaConstraint = true;
+bool areaConstraint = false;
 
 unsigned conformalTriangleType = 2;
 const double eps = 1e-5;
@@ -53,7 +53,7 @@ void AssemblePWillmore (MultiLevelProblem&);
 void AssemblePWillmore2 (MultiLevelProblem& ml_prob);
 
 
-double dt0 = 3.2e-8; //P=2
+double dt0 = 3.2e-6; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -111,7 +111,7 @@ int main (int argc, char** args) {
 
   const bool read_groups = false;                        //by default, if no argument is given, this is "true"
   const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
-  mlMsh.ReadCoarseMesh ("../input/spot.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  mlMsh.ReadCoarseMesh ("../input/DTquad.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   //mlMsh.ReadCoarseMesh ("../input/armadillo.med", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor);
@@ -303,7 +303,7 @@ int main (int argc, char** args) {
 
     dt0 *= 1.1;
       //UNCOMMENT FOR P=4
-      if (dt0 > 5e-3) dt0 = 5e-3;
+      if (dt0 > 5e-1) dt0 = 5e-1;
 
 
         //IGNORE THIS
