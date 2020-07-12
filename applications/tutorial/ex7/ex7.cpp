@@ -62,7 +62,7 @@ bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumb
 
 
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
-
+void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob);
 
 int main(int argc, char** args) {
 
@@ -84,7 +84,7 @@ int main(int argc, char** args) {
 //   unsigned numberOfSelectiveLevels = 0;
 //   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
-  unsigned numberOfUniformLevels = 6;
+  unsigned numberOfUniformLevels = 5;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
 
@@ -134,7 +134,7 @@ int main(int argc, char** args) {
   system.SetLinearEquationSolverType(FEMuS_DEFAULT); // GMRES precontioned with geometric multigrid
   //system.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
   // attach the assembling function to system
-  system.SetAssembleFunction(AssembleBoussinesqAppoximation_AD);
+  system.SetAssembleFunction(AssembleBoussinesqAppoximation);
 
   system.SetMaxNumberOfNonLinearIterations(10);
   system.SetNonLinearConvergenceTolerance(1.e-8);
@@ -486,6 +486,336 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob) {
 
   // ***************** END ASSEMBLY *******************
 }
+
+
+
+//Attempting to create J by hand
+void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
+//  ml_prob is the global object from/to where get/set all the data
+  //  level is the level of the PDE system to be assembled
+  //  levelMax is the Maximum level of the MultiLevelProblem
+  //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
+
+ 
+  //  extract pointers to the several objects that we are going to use
+  NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("Boussinesq");   // pointer to the linear implicit system named "Poisson"
+  const unsigned level = mlPdeSys->GetLevelToAssemble();
+
+  Mesh*           msh         = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
+  elem*           el          = msh->el;  // pointer to the elem object in msh (level)
+
+  MultiLevelSolution*   mlSol         = ml_prob._ml_sol;  // pointer to the multilevel solution object
+  Solution*   sol         = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
+
+
+  LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level];  // pointer to the equation (level) object
+  SparseMatrix*   KK          = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  NumericVector*  RES         = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
+
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+
+  
+  //solution variable
+  unsigned solTIndex;
+  solTIndex = mlSol->GetIndex("T");    // get the position of "T" in the ml_sol object
+  unsigned solTType = mlSol->GetSolutionType(solTIndex);    // get the finite element type for "T"
+
+  std::vector < unsigned > solVIndex(dim);
+  solVIndex[0] = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
+  solVIndex[1] = mlSol->GetIndex("V");    // get the position of "V" in the ml_sol object
+
+  if(dim == 3) solVIndex[2] = mlSol->GetIndex("W");       // get the position of "V" in the ml_sol object
+
+  unsigned solVType = mlSol->GetSolutionType(solVIndex[0]);    // get the finite element type for "u"
+
+  unsigned solPIndex;
+  solPIndex = mlSol->GetIndex("P");    // get the position of "P" in the ml_sol object
+  unsigned solPType = mlSol->GetSolutionType(solPIndex);    // get the finite element type for "u"
+
+  unsigned solTPdeIndex;
+  solTPdeIndex = mlPdeSys->GetSolPdeIndex("T");    // get the position of "T" in the pdeSys object
+
+  std::vector < unsigned > solVPdeIndex(dim);
+  solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
+  solVPdeIndex[1] = mlPdeSys->GetSolPdeIndex("V");    // get the position of "V" in the pdeSys object
+
+  if(dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
+
+  unsigned solPPdeIndex;
+  solPPdeIndex = mlPdeSys->GetSolPdeIndex("P");    // get the position of "P" in the pdeSys object
+
+  std::vector < double >  solT; // local solution
+  std::vector < std::vector < double > >  solV(dim);    // local solution
+  std::vector < double >  solP; // local solution
+
+  std::vector< double > mResT; // local redidual std::vector
+  std::vector< std::vector < double > > mResV(dim);    // local redidual std::vector
+  std::vector< double > mResP; // local redidual std::vector
+
+  std::vector < std::vector < double > > coordX(dim);    // local coordinates
+  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+ 
+  std::vector <double> phiV;  // local test function
+  std::vector <double> phiV_x; // local test function first order partial derivatives
+ 
+
+  std::vector <double> phiT;  // local test function
+  std::vector <double> phiT_x; // local test function first order partial derivatives
+ 
+  double* phiP;
+  double weight; // gauss point weight
+
+  std::vector< int > sysDof; // local to global pdeSys dofs
+  std::vector< double > Res; // local redidual std::vector
+  std::vector < double > Jac;
+  
+
+  KK->zero(); // Set to zero all the entries of the Global Matrix
+  RES->zero();
+
+  // element loop: each process loops only on the elements that owns
+  
+  
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    short unsigned ielGeom = msh->GetElementType(iel);
+
+    unsigned nDofsT = msh->GetElementDofNumber(iel, solTType);   // number of solution element dofs
+    unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);   // number of solution element dofs
+    unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);   // number of solution element dofs
+    unsigned nDofsX = (nDofsT > nDofsV) ? nDofsT:nDofsV;         // number of coordinate element dofs
+
+    unsigned nDofsTVP = nDofsT + dim * nDofsV + nDofsP;
+
+    
+    
+     // resize local arrays
+    sysDof.resize(nDofsTVP);
+    Jac.assign((nDofsT + 3 * nDofsV * nDofsV + nDofsP) * (nDofsT + 3 * nDofsV * nDofsV + nDofsP), 0.);
+    Res.assign(nDofsTVP, 0.);
+    
+    
+    solT.resize(nDofsT);
+
+    for(unsigned  k = 0; k < dim; k++) {
+      solV[k].resize(nDofsV);
+      coordX[k].resize(nDofsX);
+    }
+
+    solP.resize(nDofsP);
+
+    mResT.assign(nDofsV,0.);
+
+    for(unsigned  k = 0; k < dim; k++) {
+      mResV[k].assign(nDofsV,0.);
+    }
+
+    mResP.assign(nDofsP,0.);
+
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofsT; i++) {
+      unsigned solTDof = msh->GetSolutionDof(i, iel, solTType);    // global to global mapping between solution node and solution dof
+      solT[i] = (*sol->_Sol[solTIndex])(solTDof);      // global extraction and local storage for the solution
+      sysDof[i] = pdeSys->GetSystemDof(solTIndex, solTPdeIndex, i, iel);    // global to global mapping between solution node and pdeSys dofs
+    }
+
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofsV; i++) {
+      unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);    // global to global mapping between solution node and solution dof
+
+      for(unsigned  k = 0; k < dim; k++) {
+        solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);      // global extraction and local storage for the solution
+        sysDof[nDofsT + (k * nDofsV) + i ] = pdeSys->GetSystemDof(solVIndex[k], solVPdeIndex[k], i, iel);    // global to global mapping between solution node and pdeSys dof
+      }
+    }
+
+    for(unsigned i = 0; i < nDofsP; i++) {
+      unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);    // global to global mapping between solution node and solution dof
+      solP[i] = (*sol->_Sol[solPIndex])(solPDof);      // global extraction and local storage for the solution
+      sysDof[nDofsT + (dim * nDofsV) + i ] = pdeSys->GetSystemDof(solPIndex, solPPdeIndex, i, iel);    // global to global mapping between solution node and pdeSys dof
+    }
+
+    // local storage of coordinates
+    for(unsigned i = 0; i < nDofsX; i++) {
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
+
+      for(unsigned k = 0; k < dim; k++) {
+        coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
+      }
+    }
+
+
+    
+    // *** Gauss point loop ***
+    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      msh->_finiteElement[ielGeom][solTType]->Jacobian(coordX, ig, weight, phiT, phiT_x);
+      msh->_finiteElement[ielGeom][solVType]->Jacobian(coordX, ig, weight, phiV, phiV_x);
+      
+      phiP = msh->_finiteElement[ielGeom][solPType]->GetPhi(ig); // very fast, the gradient is expensive
+
+      // evaluate the solution, the solution derivatives and the coordinates in the gauss point
+      double solT_gss = 0.;
+      std::vector < double > gradSolT_gss(dim, 0.);
+
+      for(unsigned i = 0; i < nDofsT; i++) {
+        solT_gss += phiT[i] * solT[i];
+
+        for(unsigned j = 0; j < dim; j++) {
+          gradSolT_gss[j] += phiT_x[i * dim + j] * solT[i];
+        }
+      }
+
+      std::vector < double > solV_gss(dim, 0.);
+      std::vector < std::vector < double > > gradSolV_gss(dim);
+
+      for(unsigned  k = 0; k < dim; k++) {
+        gradSolV_gss[k].resize(dim);
+        std::fill(gradSolV_gss[k].begin(), gradSolV_gss[k].end(), 0);
+      }
+
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned  k = 0; k < dim; k++) {
+          solV_gss[k] += phiV[i] * solV[k][i];
+        } 
+
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned  k = 0; k < dim; k++) {
+            gradSolV_gss[k][j] += phiV_x[i * dim + j] * solV[k][i];
+          }
+        }
+      }
+
+      double solP_gss = 0.;
+
+      for(unsigned i = 0; i < nDofsP; i++) {
+        solP_gss += phiP[i] * solP[i];
+      }
+
+      double nu = 1.;
+      double alpha = .5;
+      double beta = 2000.;
+
+      // *** phiT_i loop ***
+      for(unsigned i = 0; i < nDofsT; i++) {
+        double Temp = 0.;
+
+        for(unsigned k = 0; k < dim; k++) {
+          Temp +=  alpha * phiT_x[i * dim + k] * gradSolT_gss[k];
+          Temp +=  phiT[i] * (solV_gss[k] * gradSolT_gss[k]);
+        }
+
+        mResT[i] -= - Temp * weight;
+      } // end phiT_i loop
+
+
+      // *** phiV_i loop ***
+      for(unsigned i = 0; i < nDofsV; i++) {
+        std::vector < double > NSV(dim, 0.);
+
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned  k = 0; k < dim; k++) {
+            NSV[k]   +=  nu * phiV_x[i * dim + j] * (gradSolV_gss[k][j] + gradSolV_gss[j][k]);
+            NSV[k]   +=  phiV[i] * (solV_gss[j] * gradSolV_gss[k][j]);
+          }
+        }
+
+        for(unsigned  k = 0; k < dim; k++) {
+          NSV[k] += -solP_gss * phiV_x[i * dim + k];
+        }
+
+        //Temperature only for y - axis
+        NSV[1] += -beta * solT_gss * phiV[i];
+
+        for(unsigned  k = 0; k < dim; k++) {
+          mResV[k][i] -= - NSV[k] * weight;
+        }
+      } // end phiV_i loop
+
+      // *** phiP_i loop ***
+      for(unsigned i = 0; i < nDofsP; i++) {
+        for(int k = 0; k < dim; k++) {
+          mResP[i] -= gradSolV_gss[k][k] * phiP[i]  * weight;
+        }
+      } // end phiP_i loop
+
+      
+      
+      
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+          unsigned VIrow = nDofsT + I * nDofsV + i;
+          for(unsigned j = 0; j < nDofsV; j++) {
+            unsigned VIcolumn = nDofsT + I * nDofsV + j;
+            for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+              unsigned VJcolumn = nDofsT + J * nDofsV + j;
+              Jac[ VIrow * nDofsTVP + VIcolumn] += nu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
+              Jac[ VIrow * nDofsTVP + VJcolumn] += nu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
+
+              Jac[ VIrow * nDofsTVP + VIcolumn] += phiV[i] * solV_gss[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
+              Jac[ VIrow * nDofsTVP + VJcolumn] += phiV[i] * phiV[j] * gradSolV_gss[I][J] * weight; //off-diagonal nonlinear
+              
+            }
+          }
+
+          for(unsigned j = 0; j < nDofsT; j++) {
+            unsigned Tcolumn = dim * nDofsV + nDofsP;
+            //Jac[ nDofsT * nDofsTVP + i * Tcolumn + j] += beta * phiT[j] * weight; //beta * tempature
+            //Jac[ nDofsT * nDofsTVP + nDofsV * (Tcolumn + nDofsT) + i * Tcolumn + j] += beta * phiT[j] * weight; //beta * tempature
+            //Jac[ nDofsT * nDofsTVP + 2 * nDofsV * (Tcolumn + nDofsT) + i * Tcolumn + j] += beta * phiT[j] * weight; //beta * tempature
+            Jac[ nDofsT * nDofsTVP + I * nDofsV * nDofsTVP + i * Tcolumn + j] += beta * phiT[j] * weight; //beta * tempature
+          }
+          
+          for(unsigned j = 0; j < nDofsP; j++) {
+            unsigned Pcolumn = nDofsT + dim * nDofsV + j;
+            Jac[ VIrow * nDofsTVP + Pcolumn] += - phiV_x[i * dim + I] * phiP[j] * weight; //pressure gradient
+            Jac[ Pcolumn * nDofsTVP + VIrow] += - phiV_x[i * dim + I] * phiP[j] * weight; //continuity
+          }
+
+        }
+      }
+      
+      for(unsigned i = 0; i < nDofsT; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+              for(unsigned j = 0; j < nDofsT; j++) {
+                unsigned Tcolumn = dim * nDofsV + nDofsP;
+              
+                Jac[ j + i * Tcolumn] += alpha * phiT_x[i * dim + k] * phiT_x[i * dim + k] * weight; //Laplace of temperature
+            
+              }
+              
+              for(unsigned j = 0; j < nDofsV; j++) {
+                //unsigned TVcolumn = nDofsT + dim * nDofsV + nDofsP;
+                //Jac[ (i + 1) * nDofsT + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[0] + solV_gss[0] * phiT_x[i * dim];
+                //Jac[ (i + 1) * (nDofsT + nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[1] + solV_gss[1] * phiT_x[i * dim + 1];
+                //Jac[ (i + 1) * (nDofsT + 2 * nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[2] + solV_gss[2] * phiT_x[i * dim + 2];
+                Jac[ (i + 1) * (nDofsT + k * nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[k] + solV_gss[k] * phiT_x[i * dim + k] * weight; //nonlinear temperature
+                
+                  
+              }
+              
+          }    
+      }
+    } // end gauss point loop
+
+    RES->add_vector_blocked(Res, sysDof);
+    KK->add_matrix_blocked(Jac, sysDof, sysDof);
+    
+  } //end element loop for each process
+
+  RES->close();
+
+  KK->close();
+
+  // ***************** END ASSEMBLY *******************
+}
+  
+  
+
+
+
+
 
 
 
