@@ -139,6 +139,14 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   }
 
 
+  boost::math::quaternion <double> e[3];
+  e[0] = boost::math::quaternion <double> (0., 1., 0., 0.);
+  e[1] = boost::math::quaternion <double> (0., 0., 1., 0.);
+  e[2] = boost::math::quaternion <double> (0., 0., 0., 1.);
+  
+  std::vector < boost::math::quaternion <double> > dphicombo[2][3];
+  boost::math::quaternion <double> dphiI[2];
+
 
   // ELEMENT LOOP: each process loops only on the elements that it owns.
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -221,6 +229,22 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
     }
 
+   // std::vector < boost::math::quaternion <double> > dphim[2][3];
+   // std::vector < boost::math::quaternion <double> > dphip[2][3];
+
+  
+
+    for(unsigned I = 0; I < DIM; I++) {
+//       dphim[0][I].resize(nxDofs);
+//       dphim[1][I].resize(nxDofs);
+//       dphip[0][I].resize(nxDofs);
+//       dphip[1][I].resize(nxDofs);
+
+      dphicombo[0][I].resize(nxDofs);
+      dphicombo[1][I].resize(nxDofs);
+    }
+
+
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
 
@@ -282,28 +306,77 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
 
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
-      boost::math::quaternion <double> e1(0., 1., 0., 0.);
-      boost::math::quaternion <double> e2(0., 0., 1., 0.);
-      boost::math::quaternion <double> e3(0., 0., 0., 1.);
+//       boost::math::quaternion <double> e1(0., 1., 0., 0.);
+//       boost::math::quaternion <double> e2(0., 0., 1., 0.);
+//       boost::math::quaternion <double> e3(0., 0., 0., 1.);
+
       boost::math::quaternion <double> MUU(mu[0], mu[1] * normal[0], mu[1] * normal[1], mu[1] * normal[2]);
 
-      boost::math::quaternion <double> df[2];
-      df[0] = boost::math::quaternion <double>(0, xhat_uv[0][0], xhat_uv[1][0], xhat_uv[2][0]);
-      df[1] = boost::math::quaternion <double>(0, xhat_uv[0][1], xhat_uv[1][1], xhat_uv[2][1]);
-
-      boost::math::quaternion <double> dfp[2];
-      dfp[0] = df[0] - N * df[1];
-      dfp[1] = df[1] + N * df[0];
+//       boost::math::quaternion <double> df[2];
+//       df[0] = boost::math::quaternion <double>(0, xhat_uv[0][0], xhat_uv[1][0], xhat_uv[2][0]);
+//       df[1] = boost::math::quaternion <double>(0, xhat_uv[0][1], xhat_uv[1][1], xhat_uv[2][1]);
+//
+//       boost::math::quaternion <double> dfp[2];
+//       dfp[0] = df[0] - N * df[1];
+//       dfp[1] = df[1] + N * df[0];
 
       // boost::math::quaternion <double> dfm[2];
       // dfm[0] = df[0] + N * df[1];
       // dfm[1] = df[1] - N * df[0];
 
-      boost::math::quaternion <double> MU[2];
-      MU[0] =  MUU * dfp[0];
-      MU[1] = -MUU * dfp[1];
+//       boost::math::quaternion <double> MU[2];
+//       MU[0] =  MUU * dfp[0];
+//       MU[1] = -MUU * dfp[1];
 
       // boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
+
+
+
+
+      // Quasi-Conformal Minimization Residual and Jacobian.
+
+//       std::vector < boost::math::quaternion <double> > dphim[2][3];
+//       std::vector < boost::math::quaternion <double> > dphip[2][3];
+// 
+//       std::vector < boost::math::quaternion <double> > dphicombo[2][3];
+
+    //  boost::math::quaternion <double> dphiI[2];
+
+      for(unsigned I = 0; I < DIM; I++) {
+//         dphim[0][I].resize(nxDofs);
+//         dphim[1][I].resize(nxDofs);
+//         dphip[0][I].resize(nxDofs);
+//         dphip[1][I].resize(nxDofs);
+// 
+//         dphicombo[0][I].resize(nxDofs);
+//         dphicombo[1][I].resize(nxDofs);
+
+
+        for(unsigned i = 0; i < nxDofs; i++) {
+          unsigned irow = I * nxDofs + i;
+          unsigned istart = irow * sizeAll;
+
+
+//           dphiI[0] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[0][i], (I == 1) * phix_uv[0][i], (I == 2) * phix_uv[0][i]);
+//           dphiI[1] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[1][i], (I == 1) * phix_uv[1][i], (I == 2) * phix_uv[1][i]);
+
+          dphiI[0] = phix_uv[0][i] * e[I];
+          dphiI[1] = phix_uv[1][i] * e[I];
+
+//           dphim[0][I][i] = dphiI[0] + N * dphiI[1];
+//           dphim[1][I][i] = dphiI[1] - N * dphiI[0];
+// 
+//           dphip[0][I][i] = dphiI[0] - N * dphiI[1];
+//           dphip[1][I][i] = dphiI[1] + N * dphiI[0];
+
+//           dphicombo[0][I][i] = dphim[0][I][i] - MUU * dphip[0][I][i];
+//           dphicombo[1][I][i] = dphim[1][I][i] + MUU * dphip[1][I][i];
+          
+          dphicombo[0][I][i] = (dphiI[0] + N * dphiI[1]) - MUU * (dphiI[0] - N * dphiI[1]);
+          dphicombo[1][I][i] = (dphiI[1] - N * dphiI[0]) + MUU * (dphiI[1] + N * dphiI[0]);
+
+        }
+      }
 
       // Quasi-Conformal Minimization Residual and Jacobian.
       for(unsigned I = 0; I < DIM; I++) {
@@ -311,59 +384,81 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           unsigned irow = I * nxDofs + i;
           unsigned istart = irow * sizeAll;
 
-          boost::math::quaternion <double> dphiI[2];
-          dphiI[0] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[0][i], (I == 1) * phix_uv[0][i], (I == 2) * phix_uv[0][i]);
-          dphiI[1] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[1][i], (I == 1) * phix_uv[1][i], (I == 2) * phix_uv[1][i]);
-
-          boost::math::quaternion <double> dphiIm[2];
-          dphiIm[0] = dphiI[0] + N * dphiI[1];
-          dphiIm[1] = dphiI[1] - N * dphiI[0];
-
-          boost::math::quaternion <double> dphiIp[2];
-          dphiIp[0] = dphiI[0] - N * dphiI[1];
-          dphiIp[1] = dphiI[1] + N * dphiI[0];
-
-          boost::math::quaternion <double> dphiIcombo[2];
-          dphiIcombo[0] = dphiIm[0] - MUU * dphiIp[0];
-          dphiIcombo[1] = dphiIm[1] + MUU * dphiIp[1];
+//           boost::math::quaternion <double> dphiI[2];
+//           dphiI[0] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[0][i], (I == 1) * phix_uv[0][i], (I == 2) * phix_uv[0][i]);
+//           dphiI[1] = boost::math::quaternion <double> (0, (I == 0) * phix_uv[1][i], (I == 1) * phix_uv[1][i], (I == 2) * phix_uv[1][i]);
+//
+//           boost::math::quaternion <double> dphiIm[2];
+//           dphiIm[0] = dphiI[0] + N * dphiI[1];
+//           dphiIm[1] = dphiI[1] - N * dphiI[0];
+//
+//           boost::math::quaternion <double> dphiIp[2];
+//           dphiIp[0] = dphiI[0] - N * dphiI[1];
+//           dphiIp[1] = dphiI[1] + N * dphiI[0];
+//
+//           boost::math::quaternion <double> dphiIcombo[2];
+//           dphiIcombo[0] = dphiIm[0] - MUU * dphiIp[0];
+//           dphiIcombo[1] = dphiIm[1] + MUU * dphiIp[1];
 
           for(unsigned J = 0; J < DIM; J++) {
             for(unsigned j = 0; j < nxDofs; j++) {
 
-            boost::math::quaternion <double> dphiJ[2];
-            dphiJ[0] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[0][j], (J == 1) * phix_uv[0][j], (J == 2) * phix_uv[0][j]);
-            dphiJ[1] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[1][j], (J == 1) * phix_uv[1][j], (J == 2) * phix_uv[1][j]);
-
-            // boost::math::quaternion <double> dphiJmmMu[2];
-            // dphiJmmMu[0] = dphiJ[0] + N * dphiJ[1] - MU[0];
-            // dphiJmmMu[1] = dphiJ[1] - N * dphiJ[0] - MU[1];
-
-            boost::math::quaternion <double> dphiJm[2];
-            dphiJm[0] = dphiJ[0] + N * dphiJ[1];
-            dphiJm[1] = dphiJ[1] - N * dphiJ[0];
-
-            boost::math::quaternion <double> dphiJp[2];
-            dphiJp[0] = dphiJ[0] - N * dphiJ[1];
-            dphiJp[1] = dphiJ[1] + N * dphiJ[0];
-
-            boost::math::quaternion <double> dphiJcombo[2];
-            dphiJcombo[0] = dphiJm[0] - MUU * dphiJp[0];
-            dphiJcombo[1] = dphiJm[1] + MUU * dphiJp[1];
+//               boost::math::quaternion <double> dphiJ[2];
+//               dphiJ[0] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[0][j], (J == 1) * phix_uv[0][j], (J == 2) * phix_uv[0][j]);
+//               dphiJ[1] = boost::math::quaternion <double> (0, (J == 0) * phix_uv[1][j], (J == 1) * phix_uv[1][j], (J == 2) * phix_uv[1][j]);
+//
+//               // boost::math::quaternion <double> dphiJmmMu[2];
+//               // dphiJmmMu[0] = dphiJ[0] + N * dphiJ[1] - MU[0];
+//               // dphiJmmMu[1] = dphiJ[1] - N * dphiJ[0] - MU[1];
+//
+//               boost::math::quaternion <double> dphiJm[2];
+//               dphiJm[0] = dphiJ[0] + N * dphiJ[1];
+//               dphiJm[1] = dphiJ[1] - N * dphiJ[0];
+//
+//               boost::math::quaternion <double> dphiJp[2];
+//               dphiJp[0] = dphiJ[0] - N * dphiJ[1];
+//               dphiJp[1] = dphiJ[1] + N * dphiJ[0];
+//
+//               boost::math::quaternion <double> dphiJcombo[2];
+//               dphiJcombo[0] = dphiJm[0] - MUU * dphiJp[0];
+//               dphiJcombo[1] = dphiJm[1] + MUU * dphiJp[1];
 
               double term = 0.;
               double term2 = 0.;
-                   // term += gi[0][0] * dphiJcombo[0] % dphiIcombo[0] +
-                   //         gi[1][0] * dphiJcombo[1] % dphiIcombo[0] +
-                   //         gi[0][1] * dphiJcombo[0] % dphiIcombo[1] +
-                   //         gi[1][1] * dphiJcombo[1] % dphiIcombo[1]; //old method
-                  term +=  gi[0][0] * dphiJm[0] % dphiIm[0] +
-                           gi[1][0] * dphiJm[1] % dphiIm[0] +
-                           gi[0][1] * dphiJm[0] % dphiIm[1] +
-                           gi[1][1] * dphiJm[1] % dphiIm[1];
-                  term2 += gi[0][0] * MU[0] % dphiIm[0] +
-                           gi[1][0] * MU[1] % dphiIm[0] +
-                           gi[0][1] * MU[0] % dphiIm[1] +
-                           gi[1][1] * MU[1] % dphiIm[1];
+              // term += gi[0][0] * dphiJcombo[0] % dphiIcombo[0] +
+              //         gi[1][0] * dphiJcombo[1] % dphiIcombo[0] +
+              //         gi[0][1] * dphiJcombo[0] % dphiIcombo[1] +
+              //         gi[1][1] * dphiJcombo[1] % dphiIcombo[1]; //old method
+//               term +=  gi[0][0] * dphiJm[0] % dphiIm[0] +
+//                        gi[1][0] * dphiJm[1] % dphiIm[0] +
+//                        gi[0][1] * dphiJm[0] % dphiIm[1] +
+//                        gi[1][1] * dphiJm[1] % dphiIm[1];
+//               term2 += gi[0][0] * MU[0] % dphiIm[0] +
+//                        gi[1][0] * MU[1] % dphiIm[0] +
+//                        gi[0][1] * MU[0] % dphiIm[1] +
+//                        gi[1][1] * MU[1] % dphiIm[1];
+              
+              term += gi[0][0] * dphicombo[0][J][j] % dphicombo[0][I][i] +
+                      gi[1][0] * dphicombo[1][J][j] % dphicombo[0][I][i] +
+                      gi[0][1] * dphicombo[0][J][j] % dphicombo[1][I][i] +
+                      gi[1][1] * dphicombo[1][J][j] % dphicombo[1][I][i]; //old method
+
+//               term += gi[0][0] * (dphicombo[0][J][j] * conj(dphicombo[0][I][i])).R_component_1() +
+//                       gi[1][0] * (dphicombo[1][J][j] * conj(dphicombo[0][I][i])).R_component_1() +
+//                       gi[0][1] * (dphicombo[0][J][j] * conj(dphicombo[1][I][i])).R_component_1() +
+//                       gi[1][1] * (dphicombo[1][J][j] * conj(dphicombo[1][I][i])).R_component_1(); //old method
+
+
+//               term +=  gi[0][0] * dphim[0][J][j] % dphim[0][I][i] +
+//                        gi[1][0] * dphim[1][J][j] % dphim[0][I][i] +
+//                        gi[0][1] * dphim[0][J][j] % dphim[1][I][i] +
+//                        gi[1][1] * dphim[1][J][j] % dphim[1][I][i] ;
+//               term2 += gi[0][0] * MU[0] % dphim[0][I][i] +
+//                        gi[1][0] * MU[1] % dphim[0][I][i] +
+//                        gi[0][1] * MU[0] % dphim[1][I][i] +
+//                        gi[1][1] * MU[1] % dphim[1][I][i];
+
+
               Jac[istart + J * nxDofs + j] += term * Area;
               Res[I * nxDofs + i] -= (-term2 + term * (xhat[J][j] + solDx[J][j])) * Area;
             }
