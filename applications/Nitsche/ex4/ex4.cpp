@@ -29,6 +29,7 @@
 
 #include "../NewDraft/NewDraft.hpp"
 // #include <eigen3/Eigen/Dense>
+// #include <eigen3/Eigen/Eigenvalues>
 // #include <eigen3/unsupported/Eigen/KroneckerProduct>
 // #include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
 // #include <eigen3/unsupported/Eigen/CXX11/Tensor>
@@ -52,7 +53,7 @@ double a7;
 double a9;
 
 
-
+void PrintMatlabMatrix(Eigen::MatrixXd &A);
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
 void BuildFlag(MultiLevelSolution& mlSol);
@@ -81,25 +82,6 @@ int main(int argc, char** args) {
   SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-//   const Gauss * gauss = new  Gauss("quad", "second");
-//   unsigned dim = 2;
-//   unsigned ng = gauss->GetGaussPointsNumber();
-//   const double *weight = gauss->GetGaussWeightsPointer();
-//   std::vector< const double * > x(dim);
-//   for(unsigned k = 0; k < dim; k++) {
-//     x[k] = gauss->GetGaussCoordinatePointer(k);
-//   }
-//   
-//   for(unsigned i=0; i<ng; i++){
-//     for(unsigned k = 0; k<dim; k++)   {
-//       std::cout << x[k][i] <<", ";
-//     }  
-//     std::cout << weight[i] <<std::endl;
-//   }
-// 
-//   delete gauss;
-//   return 1;
-
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
@@ -114,6 +96,8 @@ int main(int argc, char** args) {
   const double length = 1.;
   const double lengthx = 0.5;
 
+
+// TRI3-6-7 not working????
   if(DIM == 2) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, -lengthx / 2, lengthx / 2, -length / 2, length / 2, 0., 0., QUAD9, "seventh");
   }
@@ -156,7 +140,7 @@ int main(int argc, char** args) {
   // define the multilevel solution and attach the mlMsh object to it
   MultiLevelSolution mlSol(&mlMsh);
 
-  FEOrder femOrder = FIRST;
+  FEOrder femOrder = SECOND;
 
   mlSol.AddSolution("VX1", LAGRANGE, femOrder);
   mlSol.AddSolution("VY1", LAGRANGE, femOrder);
@@ -538,7 +522,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       double gammaM1 = iM1C1 / denM; // <u>_gamma  = gammaM1 * u1 + gammaM2 * u2
       double gammaM2 = iM2C2 / denM;
 
-      double thetaM = 8. / denM;   // penalty parameter, sharp version thetaM = 2 / denM
+      double thetaM = 8. * 10 / denM;   // penalty parameter, sharp version thetaM = 2 / denM
 
       //std::cout << thetaM <<" ";
 
@@ -889,27 +873,16 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   sol->_Sol[CLIndex[0]]->zero();
   sol->_Sol[CLIndex[1]]->zero();
 
-  std::vector < double > aM;
-  std::vector < double > aM0;
-  std::vector < std::vector < double > > bM(2);
 
-  std::vector < double > aM1;
-  std::vector < double > bM1;
+  Eigen::MatrixXd AM;
+  Eigen::MatrixXd AL;
+  Eigen::MatrixXd BM[2];
+  Eigen::MatrixXd BL[2];
 
 
-  std::vector < double > aL;
-  std::vector < double > aL0;
-  std::vector < std::vector < double > > bL(2);
-
-  std::vector < double > aL1;
-  std::vector < double > bL1;
-
-  Mat A, B;
-  Vec v;
-  EPS eps;
+  clock_t eigenTime = 0;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
     if(eFlag == 1) {
 
@@ -918,16 +891,30 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
       unsigned sizeAll = dim * nDofu;
 
-      aM.assign(sizeAll * sizeAll, 0.);
-      bM[0].assign(sizeAll * sizeAll, 0.);
-      bM[1].assign(sizeAll * sizeAll, 0.);
+      AM.resize(sizeAll, sizeAll);
+      AM.setZero();
 
-      aL.assign(sizeAll * sizeAll, 0.);
-      bL[0].assign(sizeAll * sizeAll, 0.);
-      bL[1].assign(sizeAll * sizeAll, 0.);
+      AL.resize(sizeAll, sizeAll);
+      AL.setZero();
+
+      for(unsigned k = 0; k < 2; k++) {
+        BM[k].resize(sizeAll, sizeAll);
+        BM[k].setZero();
+
+        BL[k].resize(sizeAll, sizeAll);
+        BL[k].setZero();
+      }
+
+//       aM.assign(sizeAll * sizeAll, 0.);
+//       bM[0].assign(sizeAll * sizeAll, 0.);
+//       bM[1].assign(sizeAll * sizeAll, 0.);
+//
+//       aL.assign(sizeAll * sizeAll, 0.);
+//       bL[0].assign(sizeAll * sizeAll, 0.);
+//       bL[1].assign(sizeAll * sizeAll, 0.);
 
       for(int k = 0; k < dim; k++) {
-        x[k].resize(nDofu);  // Now we
+        x[k].resize(nDofu);
       }
 
       for(unsigned i = 0; i < nDofu; i++) {
@@ -964,15 +951,15 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
           for(unsigned i = 0; i < nDofu; i++) {
             for(unsigned l = 0; l < dim; l++) {
               for(unsigned j = 0; j < nDofu; j++) {
-                bM[0][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+                BM[0](nDofu * k + i, k * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+                BM[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
-                bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                BL[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
 
-                bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+                BM[1](nDofu * k + i, k * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+                BM[1](nDofu * k + i, l * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
 
-                bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                BL[1](nDofu * k + i, l * nDofu + j) += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
 
               }
             }
@@ -980,6 +967,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         }
         imarker3++;
       }
+
 
 
       // interface
@@ -1026,16 +1014,16 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             for(int j = 0; j < nDofu; j++) {
               for(unsigned l = 0; l < dim; l++) {
 
-                aM[((nDofu * k) + i) * sizeAll + (k * nDofu + j) ] += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
-                aM[((nDofu * k) + i) * sizeAll + (l * nDofu + j) ] += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
+                AM(nDofu * k + i, k * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
+                AM(nDofu * k + i, l * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
 
-                aL[((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+                AL(nDofu * k + i, l * nDofu + j) += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
 
               }
               for(unsigned l1 = 0; l1 < dim; l1++) {
                 for(unsigned l2 = 0; l2 < dim; l2++) {
-                  aM[((nDofu * k) + i) * sizeAll + (l1 * nDofu + j)] += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l2]  * weight;
-                  aM[((nDofu * k) + i) * sizeAll + (l2 * nDofu + j)] += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l1]  * weight;
+                  AM(nDofu * k + i, l1 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l2]  * weight;
+                  AM(nDofu * k + i, l2 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l1]  * weight;
                 }
               }
 
@@ -1045,284 +1033,79 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarkerI++;
       }
 
-      unsigned sizeAll0 = sizeAll;
-      aM0 = aM;
-      aL0 = aL;
+      double perturbation = 1e-10;
 
-      for(unsigned s = 0; s < 2; s++) {
+      std::cout << "======================EIGEN===================================" << std::endl;
 
-        sizeAll = sizeAll0;
+      clock_t start = clock();
 
-        //BEGIN DEFLATION
+      Eigen::GeneralizedEigenSolver<Eigen::MatrixXd> ges;
+      double inf = 1e+10;
 
-        unsigned sizeAll1 = dim * (nDofu - 1);
-        aM1.resize(sizeAll1 * sizeAll1);
-        bM1.resize(sizeAll1 * sizeAll1);
+      for(unsigned k = 0; k < 2; k++) {
+        double BM0Lk = BM[k].norm();
 
-        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-        for(int k = 0; k < dim; k++) {
-          for(int i = 0; i < nDofu - 1; i++) {
-
-            int ip = i + 1;
-            int i1 = (nDofu - 1) * k + i;
-            for(int l = 0; l < dim; l++) {
-              for(int j = 0; j < nDofu - 1; j++) {
-                int jp = j + 1;
-                int j1 = (nDofu - 1) * l + j;
-                double value;
-                value = aM0[((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - aM0[(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                aM1[i1 * sizeAll1 + j1] = value;
-
-                value = bM[s][((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - bM[s][(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                bM1[i1 * sizeAll1 + j1] = value;
-                MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-
-              }
-            }
-          }
+        for(unsigned i = 0; i < sizeAll; i++) {
+          BM[k](i, i) += perturbation * BM0Lk;
         }
 
-        MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+        ges.compute(AM, BM[k], false);
+        std::complex < double > temp;
+        Eigen::VectorXcd eig;
 
-        sizeAll = sizeAll1;
-        aM.swap(aM1);
-        bM[s].swap(bM1);
-
-        double real = 0.;
-        while(fabs(real) < 1.0e-12) {
-
-          MatCreateVecs(B, &v, NULL);
-
-          EPSCreate(PETSC_COMM_SELF, &eps);
-          EPSSetOperators(eps, B, NULL);
-          EPSSetFromOptions(eps);
-          EPSSetWhichEigenpairs(eps, EPS_SMALLEST_MAGNITUDE);
-          EPSSolve(eps);
-
-          double imaginary;
-          EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
-          EPSDestroy(&eps);
-
-          if(fabs(real) < 1.0e-12) {
-            PetscScalar *pv;
-            VecGetArray(v, &pv);
-            unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++) {
-              if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
-            }
-
-            unsigned sizeAll1 = sizeAll - 1;
-
-            aM1.resize(sizeAll1 * sizeAll1);
-            bM1.resize(sizeAll1 * sizeAll1);
-
-            MatDestroy(&B);
-
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-            for(unsigned i = 0; i < sizeAll; i++) {
-              if(i != ii) {
-                int i1 = (i < ii) ? i : i - 1;
-                for(unsigned j = 0; j < sizeAll; j++) {
-                  if(j != ii) {
-                    int j1 = (j < ii) ? j : j - 1;
-                    double value;
-                    value = aM[i * sizeAll + j] - 1. / pv[ii] * pv[i] * aM[ii * sizeAll + j];
-                    aM1[i1 * sizeAll1 + j1] = value;
-
-                    value = bM[s][i * sizeAll + j] - 1. / pv[ii] * pv[i] * bM[s][ii * sizeAll + j];
-                    bM1[i1 * sizeAll1 + j1] = value;
-                    MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-                  }
-                }
-              }
-            }
-            MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-            VecRestoreArray(v, &pv);
-
-            sizeAll = sizeAll1;
-            aM.swap(aM1);
-            bM[s].swap(bM1);
+        eig = ges.eigenvalues();
+        double emax0 = 0.;
+        for(unsigned i = 0; i < sizeAll; i++) {
+          temp = eig(i);
+          if(fabs(real(temp)) > emax0 && fabs(real(temp)) < inf) {
+            emax0 = fabs(real(temp));
           }
-          else {
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
-            for(int i = 0; i < sizeAll; i++) {
-              for(int j = 0; j < sizeAll; j++) {
-                MatSetValues(A, 1, &i, 1, &j, &aM[i * sizeAll + j], INSERT_VALUES);
-              }
-            }
-            MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-          }
-
-          VecDestroy(&v);
         }
-
-        //END DEFLATION
-
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
-
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << iel << " " << real << " " << std::endl;
-
-        sol->_Sol[CMIndex[s]]->set(iel, real);
-
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
-
+        std::cout << iel << " " << emax0 << std::endl;
+        sol->_Sol[CMIndex[k]]->set(iel, emax0);
       }
 
-      for(unsigned s = 0; s < 2; s++) {
+      for(unsigned k = 0; k < 2; k++) {
+        double norm = BL[k].norm();
 
-        sizeAll = sizeAll0;
-
-        //BEGIN DEFLATION
-
-        unsigned sizeAll1 = dim * (nDofu - 1);
-        aL1.resize(sizeAll1 * sizeAll1);
-        bL1.resize(sizeAll1 * sizeAll1);
-
-        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-        for(int k = 0; k < dim; k++) {
-          for(int i = 0; i < nDofu - 1; i++) {
-
-            int ip = i + 1;
-            int i1 = (nDofu - 1) * k + i;
-            for(int l = 0; l < dim; l++) {
-              for(int j = 0; j < nDofu - 1; j++) {
-                int jp = j + 1;
-                int j1 = (nDofu - 1) * l + j;
-                double value;
-                value = aL0[((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - aL0[(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                aL1[i1 * sizeAll1 + j1] = value;
-
-                value = bL[s][((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - bL[s][(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                bL1[i1 * sizeAll1 + j1] = value;
-                MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-
-              }
-            }
-          }
+        for(unsigned i = 0; i < sizeAll; i++) {
+          BL[k](i, i) += perturbation * norm;
         }
 
-        MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+        ges.compute(AL, BL[k], false);
+        std::complex < double > temp;
+        Eigen::VectorXcd eig;
 
-        sizeAll = sizeAll1;
-        aL.swap(aL1);
-        bL[s].swap(bL1);
-
-        double real = 0.;
-        while(fabs(real) < 1.0e-10) {
-
-          MatCreateVecs(B, &v, NULL);
-
-          EPSCreate(PETSC_COMM_SELF, &eps);
-          EPSSetOperators(eps, B, NULL);
-          EPSSetFromOptions(eps);
-          EPSSetWhichEigenpairs(eps, EPS_SMALLEST_MAGNITUDE);
-          EPSSolve(eps);
-
-          double imaginary;
-          EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
-          EPSDestroy(&eps);
-
-          if(fabs(real) < 1.0e-10) {
-            PetscScalar *pv;
-            VecGetArray(v, &pv);
-            unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++) {
-              if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
-            }
-
-            unsigned sizeAll1 = sizeAll - 1;
-
-            aL1.resize(sizeAll1 * sizeAll1);
-            bL1.resize(sizeAll1 * sizeAll1);
-
-            MatDestroy(&B);
-
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-            for(unsigned i = 0; i < sizeAll; i++) {
-              if(i != ii) {
-                int i1 = (i < ii) ? i : i - 1;
-                for(unsigned j = 0; j < sizeAll; j++) {
-                  if(j != ii) {
-                    int j1 = (j < ii) ? j : j - 1;
-                    double value;
-                    value = aL[i * sizeAll + j] - 1. / pv[ii] * pv[i] * aL[ii * sizeAll + j];
-                    aL1[i1 * sizeAll1 + j1] = value;
-
-                    value = bL[s][i * sizeAll + j] - 1. / pv[ii] * pv[i] * bL[s][ii * sizeAll + j];
-                    bL1[i1 * sizeAll1 + j1] = value;
-                    MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-                  }
-                }
-              }
-            }
-            MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-            VecRestoreArray(v, &pv);
-
-            sizeAll = sizeAll1;
-            aL.swap(aL1);
-            bL[s].swap(bL1);
+        eig = ges.eigenvalues();
+        double emax0 = 0.;
+        for(unsigned i = 0; i < sizeAll; i++) {
+          temp = eig(i);
+          if(fabs(real(temp)) > emax0 && fabs(real(temp)) < inf) {
+            emax0 = fabs(real(temp));
           }
-          else {
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
-            for(int i = 0; i < sizeAll; i++) {
-              for(int j = 0; j < sizeAll; j++) {
-                MatSetValues(A, 1, &i, 1, &j, &aL[i * sizeAll + j], INSERT_VALUES);
-              }
-            }
-            MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-          }
-
-          VecDestroy(&v);
         }
-
-        //END DEFLATION
-
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
-
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << iel << " " << real << " " << std::endl;
-
-        sol->_Sol[CLIndex[s]]->set(iel, real);
-
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
-
+        std::cout << iel << " " << emax0 << std::endl;
+        sol->_Sol[CLIndex[k]]->set(iel, emax0);
       }
-    }
-  }
+      eigenTime += (clock() - start);
+    } // end of eflag loop
+  } //end of element loop
 
   sol->_Sol[CMIndex[0]]->close();
   sol->_Sol[CMIndex[1]]->close();
 
   sol->_Sol[CLIndex[0]]->close();
   sol->_Sol[CLIndex[1]]->close();
+
+  //std::cout << std::endl << "petsc TIME:\t" << static_cast<double>(petscTime) / CLOCKS_PER_SEC << std::endl;
+  std::cout << std::endl << "Eigen TIME:\t" << static_cast<double>(eigenTime) / CLOCKS_PER_SEC << std::endl;
+
 }
 
 
 
-void GetParticleWeights(MultiLevelSolution& mlSol) {
+
+void GetParticleWeights(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
@@ -1346,25 +1129,68 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
 
   unsigned imarker3 = markerOffset3[iproc];
 
-  unsigned ng = 3; // maybe declare globally
-  unsigned m = 2;  // maybe declare globally
+  unsigned m = 3;  // Chebyshev degree
 
-  std::vector< unsigned > NG(dim);
-  for(unsigned k = 0; k < dim ; k++) {
-    NG[k] = pow(ng, dim - k - 1);
+  unsigned i0, i1;
+  if(dim == 3) {
+    i0 = 0;
+    i1 = 3;
   }
-  std::vector < unsigned> J(dim);
-  std::vector < double > jac(pow(ng, dim));
+  else if(dim == 2) {
+    i0 = 3;
+    i1 = 5;
+  }
+  else {
+    i0 = 5;
+    i1 = 6;
+  }
 
-  Eigen::VectorXd xg;  // 1D Gauss points on [-1,1]
-  Eigen::VectorXd wg;  // 1D Gauss weights
+//grab the gauss points with elemtype and degree
+  std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  
+  unsigned ng[6];
+  Eigen::MatrixXd xg[6];
+  Eigen::VectorXd wg[6];
+  std::vector < double > jac[6];
+  Eigen::MatrixXd Pg[6];
 
-  GetGaussPointsWeights(ng, xg, wg); //1D
-  Eigen::MatrixXd Pg;
-  Cheb(m, xg, Pg); // 1D Chebyshev Polynomial
+  for(unsigned i = i0; i < i1; i++) {
 
-  Eigen::VectorXd F;
-  Eigen::MatrixXd A;
+    const Gauss *gauss = new  Gauss(name[i].c_str(), "fourth");
+    ng[i] = gauss->GetGaussPointsNumber();
+    
+    std::vector< const double * > Xg(dim);
+     
+    for(unsigned k = 0; k < dim; k++) {
+      Xg[k] = gauss->GetGaussCoordinatePointer(k);
+    }
+
+    xg[i].resize(dim, ng[i]);
+    for(unsigned k = 0; k < dim ; k++) {
+      for(unsigned j = 0; j < ng[i]; j++) {
+        xg[i](k, j) = Xg[k][j];
+      }
+    }
+
+    const double *Wg = gauss->GetGaussWeightsPointer();  
+    wg[i].resize(ng[i]);
+    for(unsigned j = 0; j < ng[i]; j++) {
+      wg[i](j) = Wg[j];
+    }
+
+    jac[i].resize(ng[i]);
+
+    Eigen::Tensor<double, 3, Eigen::RowMajor> PmG;
+    GetChebXInfo(m, dim, ng[i], xg[i], PmG);
+
+    GetMultiDimChebMatrix(dim, m, ng[i], PmG, Pg[i]);
+   
+    delete gauss;
+  }
+
+  Eigen::VectorXd F; // holds P_{n}(x_g) * wg * J(xg), n = 0,1,..m, g = 1,2,..ng  multidimensional
+  F.resize(pow(m + 1, dim));
+  Eigen::MatrixXd A; // // holds P_{n}(x_p) * wp , n = 0,1,..m, p = 1,2,..np multidimensional
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -1386,22 +1212,21 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       }
 
 
-      for(unsigned ig = 0; ig < pow(ng, dim) ; ig++) { // gauss loop
-        J[0] = ig / NG[0];
-        for(unsigned k = 1; k < dim ; k++) {
-          unsigned pk = ig % NG[k - 1];
-          J[k] = pk / NG[k];
-        }
+      for(unsigned ig = 0; ig < ng[ielGeom] ; ig++) { // gauss loop to get Jacobians
         std::vector <double> xi(dim);
         for(unsigned k = 0; k < dim; k++) {
-          xi[k] = xg[J[k]];
+          xi[k] = xg[ielGeom](k, ig);
         }
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, jac[ig], phi, phi_x);
+        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, jac[ielGeom][ig], phi, phi_x);
       }
-     
 
-      
-      GetChebGaussF(dim, m, jac, Pg, wg, F); // multidimesional element integral of Chebyshev Polynomials up to degree m
+      //Assemble F
+      F.setZero();
+      for(unsigned i = 0; i < pow(m + 1, dim); i++) {
+        for(unsigned j = 0; j < ng[ielGeom] ; j++) {
+          F(i) += Pg[ielGeom](i, j) * jac[ielGeom][j] * wg[ielGeom](j);
+        }
+      }
 
       // identify the first particle inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
@@ -1418,7 +1243,7 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       unsigned cnt = 0;
       Eigen::MatrixXd xP(dim, nmarker);
       Eigen::VectorXd wP(nmarker);
-     
+
 
       // loop on all particles inside iel
       while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
@@ -1440,12 +1265,12 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
       Eigen::Tensor<double, 3, Eigen::RowMajor> PmX;
       GetChebXInfo(m, dim, nmarker, xP, PmX);
 
-      GetMultiDimChebMatrix(dim, m, nmarker, PmX, A); //multidimensional Chebyshev Polinomial evaluation in particle points up to m
+      GetMultiDimChebMatrix(dim, m, nmarker, PmX, A); //multidimensional Chebyshev polynomial evaluation in particle points up to m
 
       Eigen::VectorXd w_new;
       SolWeightEigen(A, F, wP, w_new); // New weights for iel are avaliable at this point
 
-//      for(unsigned j = 0; j < nmarker; j++) {
+//       for(unsigned j = 0; j < nmarker; j++) {
 //         std::cout << xP(0, j) << " " << xP(1, j) << " " << wP(j) << " " << w_new(j) << std::endl;
 //       }
 
@@ -1466,6 +1291,17 @@ void GetParticleWeights(MultiLevelSolution& mlSol) {
 }
 
 
+void PrintMatlabMatrix(Eigen::MatrixXd &A) {
+
+  std::cout << " = [";
+  for(unsigned i = 0; i < A.rows(); i++) {
+    for(unsigned j = 0; j < A.cols(); j++) {
+      std::cout << A(i, j) << " ";
+    }
+    std::cout << ";" << std::endl;
+  }
+  std::cout << "];" << std::endl;
+}
 
 
 
