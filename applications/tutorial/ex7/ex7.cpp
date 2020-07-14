@@ -22,6 +22,10 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
+#include "petsc.h"
+#include "petscmat.h"
+#include "PetscMatrix.hpp"
+
 
 using namespace femus;
 
@@ -586,14 +590,14 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);   // number of solution element dofs
     unsigned nDofsX = (nDofsT > nDofsV) ? nDofsT:nDofsV;         // number of coordinate element dofs
 
+    
+    Jac.assign((nDofsT + 3 * nDofsV * nDofsV + nDofsP) * (nDofsT + 3 * nDofsV * nDofsV + nDofsP), 0.);
+    
     unsigned nDofsTVP = nDofsT + dim * nDofsV + nDofsP;
-
-    
-    
      // resize local arrays
     sysDof.resize(nDofsTVP);
-    Jac.assign((nDofsT + 3 * nDofsV * nDofsV + nDofsP) * (nDofsT + 3 * nDofsV * nDofsV + nDofsP), 0.);
     Res.assign(nDofsTVP, 0.);
+    Jac.assign(nDofsTVP * nDofsTVP, 0.);
     
     
     solT.resize(nDofsT);
@@ -790,7 +794,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
                 //Jac[ (i + 1) * nDofsT + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[0] + solV_gss[0] * phiT_x[i * dim];
                 //Jac[ (i + 1) * (nDofsT + nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[1] + solV_gss[1] * phiT_x[i * dim + 1];
                 //Jac[ (i + 1) * (nDofsT + 2 * nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[2] + solV_gss[2] * phiT_x[i * dim + 2];
-                Jac[ (i + 1) * (nDofsT + k * nDofsV) + i * nDofsTVP + j] += phiV[j] * gradSolT_gss[k] + solV_gss[k] * phiT_x[i * dim + k] * weight; //nonlinear temperature
+                Jac[ (i + 1) * (nDofsT + k * nDofsV) + i * nDofsTVP + j] += (phiV[j] * gradSolT_gss[k] + solV_gss[k] * phiT_x[i * dim + k]) * weight; //nonlinear temperature
                 
                   
               }
@@ -807,6 +811,17 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
   RES->close();
 
   KK->close();
+  
+  VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
+  MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
+
+  PetscViewer    viewer;
+  PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
+  PetscObjectSetName((PetscObject) viewer, "PWilmore matrix");
+  PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
+  MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
+  //double a;
+  //std::cin >> a;
 
   // ***************** END ASSEMBLY *******************
 }
