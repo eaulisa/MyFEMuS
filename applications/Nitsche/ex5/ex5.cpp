@@ -67,7 +67,7 @@ double GetIntegrand(const std::vector < double>  &x) {
   return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
 }
 
-bool printMesh = false;
+bool printMesh = true;
 std::ofstream fout;
 
 void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
@@ -116,7 +116,7 @@ int main(int argc, char** args) {
   }
 
   unsigned lmin = 0;
-  unsigned lmax = 10;
+  unsigned lmax = 2;
   refineElement.InitElement(xv, lmax);
 
   std::cout.precision(14);
@@ -213,15 +213,15 @@ double GetIntegral(const double &eps, const unsigned &level,
           x3[k] = xv[k][j];
         }
         d = GetDistance({x3[0], x3[1], x3[2]});
-        if(d > factor * eps) {
+        if(d > factor * eps) { // check if one node is inside layer
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
         }
-        else if(d < -factor * eps) {
+        else if(d < -factor * eps) { // check if one node is outside layer
           if(oneNodeIsInside) goto refine;
           oneNodeIsOutside = true;
         }
-        else {
+        else { // node is inside layer
           goto refine;
         }
       }
@@ -254,7 +254,7 @@ double GetIntegral(const double &eps, const unsigned &level,
 
       /* Regularized Heaviside Function from
        * Efficient adaptive integration of functions with sharp gradients
-       * and cusps in n-dimensional parallelepipeds, 1v1435.2021:viXra {sec 4.1 (1)}
+       * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
        * https://arxiv.org/abs/1202.5341
        */
       if(level == levelMax) { // any element at level l = lmax
