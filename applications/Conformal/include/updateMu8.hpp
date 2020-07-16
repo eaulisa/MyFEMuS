@@ -485,25 +485,28 @@ void BuildProjectionMatrices(MultiLevelSolution & mlSol) {
   unsigned nface = msh->_dofOffset[faceType][nprocs];
   unsigned nface_loc = msh->_dofOffset[faceType][iproc + 1] - msh->_dofOffset[faceType][iproc];
 
-//   SparseMatrix *B = SparseMatrix::build().release();
-//   B->init(nel, nel, nel_loc, nel_loc, 50, 50);
 
   std::vector < SparseMatrix* > PIJ(4);
 
   for(unsigned k = 0; k < 4; k++) {
     PIJ[k] = SparseMatrix::build().release();
-    PIJ[k]->init(nface, nel, nface_loc, nel_loc, 50, 50);
+    PIJ[k]->init(nface, nel, nface_loc, nel_loc, 10, 10);
   }
 
-//   SparseMatrix *Q = SparseMatrix::build().release();
-//   Q->init(nel, nface, nel_loc, nface_loc, 50, 50);
-
   std::vector < double > PIJl[4];
+
   std::vector< unsigned > irow;//loval to global mapping
   std::vector< unsigned > icolumn;//loval to global mapping
 
   for(int iel = msh->_dofOffset[elType][iproc]; iel < msh->_dofOffset[elType][iproc + 1]; iel++) {
 
+//     if(iel == 2) {
+//       for(unsigned i = 0; i < 4; i++) {
+//         std::cout <<   msh->GetSolutionDof(i, iel, 0) << " ";
+//       }
+//       std::cout << std::endl;
+//     }
+    
     unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
     vAngle.resize(nvAngle);
     for(unsigned i = 0; i < nvAngle; i++) {
@@ -558,61 +561,344 @@ void BuildProjectionMatrices(MultiLevelSolution & mlSol) {
   SparseMatrix *P = SparseMatrix::build().release();
   P->init(2, 2, PIJ);
 
-  PetscViewer    viewer;
+//   PetscViewer    viewer;
+//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
+//   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
+//
+//   PetscObjectSetName((PetscObject) viewer, "P");
+//   MatView((static_cast<PetscMatrix*>(P))->mat(), viewer);
+//
+//   double a;
+//   std::cin >> a;
+
+
+
+
+
+
+
+
+
+  std::vector < std::vector < double > > Rl[2][2];
+  std::vector < double > Ql[2][2];
+  std::vector < double > Sl[2][2];
+
+  std::vector < SparseMatrix* >  SIJ(4);
+
+  for(unsigned k = 0; k < 4; k++) {
+    SIJ[k] = SparseMatrix::build().release();
+    SIJ[k]->init(nel, nface, nel_loc, nface_loc, 10, 10);
+  }
+
+  for(int iel = msh->_dofOffset[elType][iproc]; iel < msh->_dofOffset[elType][iproc + 1]; iel++) {
+
+    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+    vAngle.resize(nvAngle);
+    for(unsigned i = 0; i < nvAngle; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+    }
+
+    GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
+
+    unsigned localDofOffset = msh->GetElementDofNumber(iel, 0);
+    unsigned nFaces = msh->GetElementFaceNumber(iel);
+    for(unsigned I = 0; I < 2; I++) {
+      for(unsigned J = 0; J < 2; J++) {
+        Rl[I][J].resize(nFaces);
+        Ql[I][J].assign(nFaces, 0);
+        Sl[I][J].assign(nFaces, 0);
+        for(unsigned i = 0; i < nFaces; i++) {
+          Rl[I][J][i].resize(nFaces);
+        }
+      }
+    }
+
+
+    icolumn.resize(nFaces);
+    irow.assign(1, iel);
+
+    for(unsigned iface = 0; iface < nFaces; iface++) {
+
+      icolumn[iface] = msh->GetSolutionDof(localDofOffset + iface, iel, faceType);
+
+      double a = cos(eAngle[iface]);
+      double b = sin(eAngle[iface]);
+
+      Rl[0][0][iface][iface] = (a * a - b * b);
+      Rl[0][1][iface][iface] = - 2. * a * b;
+      Rl[1][0][iface][iface] =  2. * a * b;
+      Rl[1][1][iface][iface] = (a * a - b * b);
+
+    }
+
+    Ql[0][0][1] = 1;
+    Ql[0][0][3] = -1;
+    Ql[0][1][2] = -1;
+    Ql[0][1][0] = 1;
+
+    Ql[1][0][2] =  1;
+    Ql[1][0][0] = -1;
+    Ql[1][1][1] =  1;
+    Ql[1][1][3] = -1;
+
+
+    for(unsigned I = 0; I < 2; I++) {
+      for(unsigned J = 0; J < 2; J++) {
+        for(unsigned K = 0; K < 2; K++) {
+          for(unsigned j = 0; j < nFaces; j++) {
+            for(unsigned k = 0; k < nFaces; k++) {
+              Sl[I][J][j] +=  Ql[I][K][k]   *  Rl[K][J][k][j];
+            }
+          }
+        }
+      }
+    }
+
+
+    for(unsigned k = 0; k < 4; k++) {
+      SIJ[k]->add_matrix_blocked(Sl[k / 2][k % 2], irow, icolumn);
+    }
+  }
+  for(unsigned k = 0; k < 4; k++) {
+    SIJ[k]->close();
+  }
+  sol->_Sol[indexCntEdge]->close();
+
+  std::vector < SparseMatrix* >  AIJ(4);
+  
+  AIJ[2] = SparseMatrix::build().release();
+  AIJ[2]->init(2, 2, SIJ);
+  AIJ[2]->matrix_RightMatMult(*P);
+
+  AIJ[1] = SparseMatrix::build().release();
+  AIJ[2]->get_transpose(*AIJ[1]);
+  
+  unsigned muIndex = mlSol.GetIndex("mu1");
+  NumericVector  *D = NumericVector::build().release();
+  D->init(*sol->_Sol[muIndex]);
+  *D = 1.;
+  
+  std::vector < SparseMatrix* >  DIJ(4);
+  DIJ[0] = SparseMatrix::build().release();
+  DIJ[0]->init(nel, nel, nel_loc, nel_loc, 1, 1);
+  DIJ[0]->matrix_set_diagonal_values (*D);
+  DIJ[1] = NULL;
+  DIJ[2] = NULL;
+  DIJ[3] = DIJ[0];
+    
+  AIJ[0] = SparseMatrix::build().release();
+  AIJ[0]->init(2, 2, DIJ);
+  AIJ[3] = NULL;
+  
+  SparseMatrix *A = SparseMatrix::build().release();
+  A->init(2, 2, AIJ);
+  
+  PetscViewer viewer;
   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
-
-  PetscObjectSetName((PetscObject) viewer, "P");
-  MatView((static_cast<PetscMatrix*>(P))->mat(), viewer);
+  
+  PetscObjectSetName((PetscObject) viewer, "A");
+  MatView((static_cast<PetscMatrix*>(A))->mat(), viewer);
 
   double a;
   std::cin >> a;
 
-//   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-//
-//     unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
-//     vAngle.resize(nvAngle);
-//     for(unsigned i = 0; i < nvAngle; i++) {
-//       unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
-//       vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
-//     }
-//
-//     GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
-//
-//     double mu[2] = {0., 0.};
-//     double cnt = 0.;
-//
-//     unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
-//     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-//
-//       unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-//
-//       double mu0s = (*sol->_Sol[indexMuEdge[0]])(idof);
-//       double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
-//
-//
-//       double a = cos(eAngle[iface]);
-//       double b = sin(eAngle[iface]);
-//
-//       mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
-//       mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;
-//
-//       cnt += (*sol->_Sol[indexCntEdge])(idof);
-//     }
-//
-//     for(unsigned k = 0; k < 2; k++) {
-//       sol->_Sol[indexMu[k]]->set(iel, mu[k] / cnt);
-//     }
-//
-//   }
-//   for(unsigned k = 0; k < 2; k++) {
-//     sol->_Sol[indexMu[k]]->close();
-//   }
+
+
+//   PetscObjectSetName((PetscObject) viewer, "S");
+//   MatView((static_cast<PetscMatrix*>(S))->mat(), viewer);
+
   for(unsigned k = 0; k < 4; k++) {
     delete PIJ[k];
+    delete SIJ[k];
+    delete DIJ[k];
+    delete AIJ[k];
   }
+  
   delete P;
+  delete A;
+  delete D;
 
 
 }
 
+double GetMuFromF(MultiLevelSolution & mlSol) {
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  Mesh* msh = mlSol._mlMesh->GetLevel(level);
+  elem* el = msh->el;
+
+  //unsigned  dim = msh->GetDimension();
+  unsigned dim = 2;
+  unsigned DIM = (parameter.surface) ? 3 : 2;
+
+  std::vector < unsigned > indexDx(DIM);
+  indexDx[0] = mlSol.GetIndex("Dx1");
+  indexDx[1] = mlSol.GetIndex("Dx2");
+  if(parameter.surface) indexDx[2] = mlSol.GetIndex("Dx3");
+  unsigned solTypeDx = mlSol.GetSolutionType(indexDx[0]);
+
+  std::vector < unsigned > indexMu(dim);
+  indexMu[0] = mlSol.GetIndex("mu1");
+  indexMu[1] = mlSol.GetIndex("mu2");
+
+  unsigned indexW1 = mlSol.GetIndex("weight1");
+  unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
+
+  std::vector< double > dof1;
+
+  std::vector < std::vector < double > > xhat(DIM);
+  std::vector < std::vector < double > > solx(DIM);
+
+  for(unsigned k = 0; k < dim; k++) {
+    sol->_Sol[indexMu[k]]->zero();
+  }
+  sol->_Sol[indexW1]->zero();
+
+  double weight; // gauss point weight
+
+  unsigned iproc = msh->processor_id();
+  unsigned nprocs = msh->n_processors();
+
+
+  std::vector < std::vector < double > > cX(2);
+
+  unsigned vAngleIndex = mlSol.GetIndex("vAngle");
+  unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
+  std::vector <double> vAngle;
+
+  std::vector<double> phi_uv0;
+  std::vector<double> phi_uv1;
+
+  std::vector< double > phi;
+  std::vector< double > dphidu;
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    short unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDofs1  = msh->GetElementDofNumber(iel, solType1);
+    unsigned nDofsDx  = msh->GetElementDofNumber(iel, solTypeDx);
+
+    dof1.resize(nDofs1);
+
+    for(int K = 0; K < DIM; K++) {
+      xhat[K].resize(nDofsDx);
+      solx[K].resize(nDofsDx);
+    }
+
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofs1; i++) {
+      dof1[i] = msh->GetSolutionDof(i, iel, solType1);
+    }
+    // local storage of coordinates
+    for(unsigned i = 0; i < nDofsDx; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solTypeDx);
+      unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+      for(unsigned K = 0; K < DIM; K++) {
+        xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
+        solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
+      }
+    }
+
+    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+    vAngle.resize(nvAngle);
+    for(unsigned i = 0; i < nvAngle; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+    }
+
+    GetConformalCoordinates(msh, conformalType, iel, solTypeDx, vAngle, cX);
+
+
+// *** Gauss point loop ***
+    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
+
+      double weight; // gauss point weight
+      msh->_finiteElement[ielGeom][solTypeDx]->Jacobian(cX, ig, weight, phi, dphidu);
+      const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
+
+      // Initialize and compute fields at the Gauss points.
+      double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+      double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+
+      for(unsigned K = 0; K < DIM; K++) {
+        for(int j = 0; j < dim; j++) {
+          for(unsigned i = 0; i < nDofsDx; i++) {
+            xhat_uv[K][j] += dphidu[i * dim + j] * xhat[K][i];
+            solx_uv[K][j] += dphidu[i * dim + j] * solx[K][i];
+          }
+        }
+      }
+
+      // Compute the metric, metric determinant, and area element.
+      double g[2][2] = {{0., 0.}, {0., 0.}};
+      for(unsigned i = 0; i < dim; i++) {
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned K = 0; K < DIM; K++) {
+            g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
+          }
+        }
+      }
+      double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
+
+      double normal[3] = {0., 0., 1.};
+
+      if(parameter.surface) {
+        normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
+        normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
+        normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
+      }
+
+      boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
+
+      boost::math::quaternion <double> du(0, solx_uv[0][0], solx_uv[1][0], solx_uv[2][0]);
+      boost::math::quaternion <double> dv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
+
+      boost::math::quaternion <double> dup = du - N * dv;
+      boost::math::quaternion <double> dum = du + N * dv;
+
+      boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
+
+      double mu[2];
+
+      mu[0] = MU.R_component_1();
+      mu[1] = (MU * conj(N)).R_component_1();
+
+      for(unsigned i = 0; i < nDofs1; i++) {
+        sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
+        for(unsigned k = 0; k < dim; k++) {
+          sol->_Sol[indexMu[k]]->add(dof1[i], mu[k] * phi1[i] * weight);
+        }
+      } // end phi_i loop
+
+    } // end gauss point loop
+  } //end element loop for each process*/
+
+
+
+  for(unsigned k = 0; k < dim; k++) {
+    sol->_Sol[indexMu[k]]->close();
+  }
+  sol->_Sol[indexW1]->close();
+
+  for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
+
+    double weight = (*sol->_Sol[indexW1])(i);
+
+    double mu[2];
+    for(unsigned k = 0; k < dim; k++) {
+      mu[k] = (*sol->_Sol[indexMu[k]])(i) / weight;
+      sol->_Sol[indexMu[k]]->set(i, mu[k]);
+    }
+  }
+  for(unsigned k = 0; k < dim; k++) {
+    sol->_Sol[indexMu[k]]->close();
+  }
+
+  
+}
+
+//VecCreateNest(MPI_Comm comm,PetscInt nb,IS is[],Vec x[],Vec *Y)
