@@ -77,11 +77,15 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > > solMu(dim);
 
   if(counter > 0) {
+//     LinearImplicitSystem* mlPdeSysMu   = &ml_prob.get_system< LinearImplicitSystem> ("mu");  
+//     mlPdeSysMu->MGsolve();
+//     GetFinalMu(*mlSol);
     UpdateMu(*mlSol);
   }
   else {
     sol->_Sol[solMuIndex[0]]->zero();
     sol->_Sol[solMuIndex[1]]->zero();
+    BuildPMatrix(*mlSol);
   }
 
   unsigned vAngleIndex = mlSol->GetIndex("vAngle");

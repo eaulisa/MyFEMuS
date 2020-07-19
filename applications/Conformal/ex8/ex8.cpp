@@ -29,8 +29,8 @@ using namespace femus;
 Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
-#include "../include/updateMu7.hpp"
-#include "../include/assembleConformalMinimization10.hpp"
+#include "../include/updateMu8.hpp"
+#include "../include/assembleConformalMinimization9.hpp"
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -210,7 +210,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Dx2", LAGRANGE, feOrder, 2);
   if(parameter.surface) mlSol.AddSolution("Dx3", LAGRANGE, feOrder, 2);
 
-  if(areaConstraint && parameter.simulation>3){
+  if(areaConstraint && parameter.simulation > 3) {
     mlSol.FixSolutionAtOnePoint("Dx1");
     mlSol.FixSolutionAtOnePoint("Dx2");
     if(parameter.surface) mlSol.FixSolutionAtOnePoint("Dx3");
@@ -227,6 +227,14 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+//   mlSol.AddSolution("lmu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+//   mlSol.AddSolution("lmu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+//   mlSol.FixSolutionAtOnePoint("lmu1");
+//   mlSol.FixSolutionAtOnePoint("lmu2");
+//   mlSol.FixSolutionAtOnePoint("mu1");
+//   mlSol.FixSolutionAtOnePoint("mu2");
+
+
   mlSol.AddSolution("weight1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
   mlSol.AddSolution("mu1Edge", LAGRANGE, SECOND, 0, false);
@@ -298,6 +306,19 @@ int main(int argc, char** args) {
   system.SetMaxNumberOfNonLinearIterations(parameter.numberOfNonLinearSteps);
   system.init();
 
+
+  // Add system Conformal or Shear Minimization in mlProb.
+  LinearImplicitSystem& systemMu = mlProb.add_system < LinearImplicitSystem > ("mu"); //for conformal
+
+  // Add solutions newDX, Lambda to system.
+//   systemMu.AddSolutionToSystemPDE("mu1");
+//   systemMu.AddSolutionToSystemPDE("mu2");
+//   systemMu.AddSolutionToSystemPDE("lmu1");
+//   systemMu.AddSolutionToSystemPDE("lmu2");
+//   systemMu.SetAssembleFunction(AssembleResMu);
+//   systemMu.init();
+
+
   counter = 0;
 
   mlSol.SetWriter(VTK);
@@ -330,6 +351,12 @@ int main(int argc, char** args) {
   EvaluateMu(mlSol);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, parameter.numberOfIterations);
   parameter.print();
+
+
+  delete  PtP[0][0];
+  delete  PtP[0][1];
+  delete  PtP[1][0];
+  delete  PtP[1][1];
 
   return 0;
 }
