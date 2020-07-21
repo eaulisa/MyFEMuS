@@ -247,8 +247,6 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
   //END interface markers
 
-
-
   BuildFlag(mlSol);
 
   GetParticleWeights(mlSol);
