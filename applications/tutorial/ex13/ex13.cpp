@@ -165,7 +165,7 @@ int main(int argc, char** args) {
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
   
-  const unsigned int n_timesteps = 500;
+  const unsigned int n_timesteps = 150;
   for(unsigned t = 0; t < n_timesteps; t++) {
     system.CopySolutionToOldSolution(); // Copy D, V, and A into DOld, VOld, and AOld, respectively
     system.MGsolve(); //solve for A, using DOld, VOld, and AOld
@@ -581,7 +581,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
       msh->_finiteElement[ielGeom][solDType]->Jacobian(coordX, ig, weight, phiD, phiD_x);
       phiP = msh->_finiteElement[ielGeom][solPType]->GetPhi(ig);
 
-      std::vector < double > solD_gss(dim, 0);
+      std::vector < double > solA_gss(dim, 0);
       std::vector < std::vector < double > > gradSolD_gss(dim);
 
       for(unsigned  k = 0; k < dim; k++) {
@@ -590,7 +590,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
 
       for(unsigned i = 0; i < nDofsD; i++) {
         for(unsigned  k = 0; k < dim; k++) {
-          solD_gss[k] += solD[k][i] * phiD[i];
+          solA_gss[k] += (( solD[k][i] - solDOld[k][i] ) / ( BETA * dt * dt ) - solVOld[k][i] / ( BETA * dt ) + (( BETA - 0.5 ) * solAOld[k][i] ) / BETA) * phiD[i];
         }
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned  k = 0; k < dim; k++) {
@@ -623,7 +623,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
           if(I == 1) {
             term += phiD[i] * 9.8 * rho; //Gravity only in y - direction
           }
-          Res[I * nDofsD + i] -= (rho * phiD[i] * solD_gss[I] + term) * weight;
+          Res[I * nDofsD + i] -= (rho * phiD[i] * solA_gss[I] + term) * weight;
         }
       } // end phiD_i loop
 
@@ -648,7 +648,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < nDofsD; j++) {
             unsigned VIcolumn = I * nDofsD + j;
 
-            Jac[ VIrow * nDofsAll + VIcolumn] += rho * phiD[i] * phiD[j] * weight; // inertia
+            Jac[ VIrow * nDofsAll + VIcolumn] += rho / ( BETA * dt * dt ) * phiD[i] * phiD[j] * weight; // inertia
 
             for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
               unsigned VJcolumn = J * nDofsD + j;
