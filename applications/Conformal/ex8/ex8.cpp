@@ -225,8 +225,8 @@ int main(int argc, char** args) {
   mlSol.AddSolution("env", LAGRANGE, FIRST, 0, false);
   mlSol.AddSolution("vAngle", LAGRANGE, FIRST, 0);
 
-  mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 2, false);
+  mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 2, false);
 //   mlSol.AddSolution("lmu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 //   mlSol.AddSolution("lmu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 //   mlSol.FixSolutionAtOnePoint("lmu1");

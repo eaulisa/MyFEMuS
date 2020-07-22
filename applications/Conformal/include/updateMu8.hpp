@@ -293,8 +293,6 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
 
 void UpdateMu(MultiLevelSolution & mlSol) {
 
-  double MuNormAverageBefore = EvaluateMu(mlSol);
-
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
   Solution* sol = mlSol.GetSolutionLevel(level);
@@ -305,24 +303,16 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   std::vector < unsigned > indexMu(dim);
   indexMu[0] = mlSol.GetIndex("mu1");
   indexMu[1] = mlSol.GetIndex("mu2");
+
+  *(sol->_SolOld[indexMu[0]]) = *(sol->_Sol[indexMu[0]]);
+  *(sol->_SolOld[indexMu[1]]) = *(sol->_Sol[indexMu[1]]);
+
+  double MuNormAverageBefore = EvaluateMu(mlSol);
+
   unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
 
   unsigned iproc = msh->processor_id();
   unsigned nprocs = msh->n_processors();
-
-//   unsigned vAngleIndex = mlSol.GetIndex("vAngle");
-//   unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
-//   std::vector <double> vAngle;
-//   std::vector <double> eAngle;
-//
-//   std::vector < unsigned > indexMuEdge(dim);
-//   indexMuEdge[0] = mlSol.GetIndex("mu1Edge");
-//   indexMuEdge[1] = mlSol.GetIndex("mu2Edge");
-//   unsigned indexCntEdge = mlSol.GetIndex("cntEdge");
-//   unsigned solType2 = mlSol.GetSolutionType(indexMuEdge[0]);
-//
-//   std::cout << "\nNumber of Smoothing steps = " << parameter.numberOfSmoothingSteps << std::endl;
-
 
   NumericVector  *mu1 = NumericVector::build().release();
   mu1->init(*sol->_Sol[indexMu[0]]);
@@ -331,11 +321,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
-//     mu1 = sol->_Sol[indexMu[0]];
-//     mu2 = sol->_Sol[indexMu[1]];
-      
     *mu1 = *(sol->_Sol[indexMu[0]]);
-    *mu2 = *(sol->_Sol[indexMu[1]]);  
+    *mu2 = *(sol->_Sol[indexMu[1]]);
 
     sol->_Sol[indexMu[0]] -> matrix_mult(*mu1, *PtP[0][0]);
     sol->_Sol[indexMu[0]] -> add_vector(*mu2, *PtP[0][1]);
@@ -346,93 +333,6 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   delete mu1;
   delete mu2;
-
-//   for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
-
-//     for(unsigned k = 0; k < dim; k++) {
-//       sol->_Sol[indexMuEdge[k]]->zero();
-//     }
-//     sol->_Sol[indexCntEdge]->zero();
-//
-//     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-//
-//       unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
-//       vAngle.resize(nvAngle);
-//       for(unsigned i = 0; i < nvAngle; i++) {
-//         unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
-//         vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
-//       }
-//
-//       GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
-//
-//       double mu[2];
-//       for(unsigned k = 0; k < 2; k++) {
-//         mu[k] = (*sol->_Sol[indexMu[k]])(iel);
-//       }
-//
-//       unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
-//       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-//
-//         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-//
-//         double a = cos(eAngle[iface]);
-//         double b = sin(eAngle[iface]);
-//
-//         double mu0s = (a * a - b * b) * mu[0] + 2. * a * b * mu[1];
-//         double mu1s = (a * a - b * b) * mu[1] - 2. * a * b * mu[0];
-//
-//         sol->_Sol[indexMuEdge[0]]->add(idof, mu0s);
-//         sol->_Sol[indexMuEdge[1]]->add(idof, mu1s);
-//
-//         sol->_Sol[indexCntEdge]->add(idof, 1);
-//       }
-//     }
-//     for(unsigned k = 0; k < 2; k++) {
-//       sol->_Sol[indexMuEdge[k]]->close();
-//     }
-//     sol->_Sol[indexCntEdge]->close();
-//
-//     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-//
-//       unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
-//       vAngle.resize(nvAngle);
-//       for(unsigned i = 0; i < nvAngle; i++) {
-//         unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
-//         vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
-//       }
-//
-//       GetConformalAngles(msh, conformalType, iel, vAngle, eAngle);
-//
-//       double mu[2] = {0., 0.};
-//       double cnt = 0.;
-//
-//       unsigned nDofs0  = msh->GetElementDofNumber(iel, 0);
-//       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-//
-//         unsigned idof = msh->GetSolutionDof(nDofs0 + iface, iel, solType2);
-//
-//         double mu0s = (*sol->_Sol[indexMuEdge[0]])(idof);
-//         double mu1s = (*sol->_Sol[indexMuEdge[1]])(idof);
-//
-//
-//         double a = cos(eAngle[iface]);
-//         double b = sin(eAngle[iface]);
-//
-//         mu[0] += (a * a - b * b) * mu0s - 2. * a * b * mu1s;
-//         mu[1] += (a * a - b * b) * mu1s + 2. * a * b * mu0s;
-//
-//         cnt += (*sol->_Sol[indexCntEdge])(idof);
-//       }
-//
-//       for(unsigned k = 0; k < 2; k++) {
-//         sol->_Sol[indexMu[k]]->set(iel, mu[k] / cnt);
-//       }
-//
-//     }
-//     for(unsigned k = 0; k < 2; k++) {
-//       sol->_Sol[indexMu[k]]->close();
-//     }
-//   }
 
 
   double MuNormAverageAfter;
@@ -457,6 +357,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   }
 
+
   if(parameter.finalSmoothIsOn) {
     for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
 
@@ -478,7 +379,144 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     }
   }
 
+
+//   //start line search algorithm
+//   unsigned DIM = (parameter.surface) ? 3 : 2;
+//   std::vector < unsigned > indexDx(DIM);
+//   indexDx[0] = mlSol.GetIndex("Dx1");
+//   indexDx[1] = mlSol.GetIndex("Dx2");
+//   if(parameter.surface) indexDx[2] = mlSol.GetIndex("Dx3");
+//   unsigned solTypeDx = mlSol.GetSolutionType(indexDx[0]);
+// 
+//   std::vector< double > dof1;
+// 
+//   std::vector < std::vector < double > > xhat(DIM);
+//   std::vector < std::vector < double > > solx(DIM);
+// 
+//   std::vector < std::vector < double > > cX(2);
+// 
+//   unsigned vAngleIndex = mlSol.GetIndex("vAngle");
+//   unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
+//   std::vector <double> vAngle;
+// 
+//   std::vector<double> phi_uv0;
+//   std::vector<double> phi_uv1;
+// 
+//   std::vector< double > phi;
+//   std::vector< double > dphidu;
+// 
+// 
+//   double num = 0.;
+//   double den = 0.;
+// 
+//   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+// 
+//     short unsigned ielGeom = msh->GetElementType(iel);
+//     unsigned nDofs1  = msh->GetElementDofNumber(iel, solType1);
+//     unsigned nDofsDx  = msh->GetElementDofNumber(iel, solTypeDx);
+// 
+//     double mu1i = (*sol->_Sol[indexMu[0]])(iel);
+//     double mu2i = (*sol->_Sol[indexMu[1]])(iel);
+// 
+//     double mu1im1 = (*sol->_SolOld[indexMu[0]])(iel);
+//     double mu2im1 = (*sol->_SolOld[indexMu[1]])(iel);
+// 
+//     for(int K = 0; K < DIM; K++) {
+//       xhat[K].resize(nDofsDx);
+//       solx[K].resize(nDofsDx);
+//     }
+// 
+//     // local storage of coordinates
+//     for(unsigned i = 0; i < nDofsDx; i++) {
+//       unsigned idof = msh->GetSolutionDof(i, iel, solTypeDx);
+//       unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+//       for(unsigned K = 0; K < DIM; K++) {
+//         xhat[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_SolOld[indexDx[K]])(idof);
+//         solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
+//       }
+//     }
+// 
+//     unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+//     vAngle.resize(nvAngle);
+//     for(unsigned i = 0; i < nvAngle; i++) {
+//       unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+//       vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
+//     }
+// 
+//     GetConformalCoordinates(msh, conformalType, iel, solTypeDx, vAngle, cX);
+// 
+// 
+// // *** Gauss point loop ***
+//     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
+// 
+//       double weight; // gauss point weight
+//       msh->_finiteElement[ielGeom][solTypeDx]->Jacobian(cX, ig, weight, phi, dphidu);
+//       const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
+// 
+//       // Initialize and compute fields at the Gauss points.
+//       double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+//       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+// 
+//       for(unsigned K = 0; K < DIM; K++) {
+//         for(int j = 0; j < dim; j++) {
+//           for(unsigned i = 0; i < nDofsDx; i++) {
+//             xhat_uv[K][j] += dphidu[i * dim + j] * xhat[K][i];
+//             solx_uv[K][j] += dphidu[i * dim + j] * solx[K][i];
+//           }
+//         }
+//       }
+// 
+//       // Compute the metric, metric determinant, and area element.
+//       double g[2][2] = {{0., 0.}, {0., 0.}};
+//       for(unsigned i = 0; i < dim; i++) {
+//         for(unsigned j = 0; j < dim; j++) {
+//           for(unsigned K = 0; K < DIM; K++) {
+//             g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
+//           }
+//         }
+//       }
+//       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
+// 
+//       double normal[3] = {0., 0., 1.};
+// 
+//       if(parameter.surface) {
+//         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
+//         normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
+//         normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
+//       }
+// 
+//       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
+// 
+//       boost::math::quaternion <double> du(0, solx_uv[0][0], solx_uv[1][0], solx_uv[2][0]);
+//       boost::math::quaternion <double> dv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
+// 
+//       boost::math::quaternion <double> dup = du - N * dv;
+//       boost::math::quaternion <double> dum = du + N * dv;
+// 
+//       boost::math::quaternion <double> MUi(mu1i, mu2i * normal[0], mu2i * normal[1], mu2i * normal[2]);
+//       boost::math::quaternion <double> MUim1(mu1im1, mu2im1 * normal[0], mu2im1 * normal[1], mu2im1 * normal[2]);
+// 
+//       num += (dum - MUi * dup) % ((MUim1 - MUi) * dup);
+//       den += ((MUim1 - MUi) * dup) % ((MUim1 - MUi) * dup);
+// 
+//     }
+//   }
+// 
+//   double t = num / den;
+// 
+//   sol->_Sol[indexMu[0]]->scale(1. - t);
+//   sol->_Sol[indexMu[1]]->scale(1. - t);
+// 
+//   sol->_Sol[indexMu[0]]->add(t, *(sol->_SolOld[indexMu[0]]));
+//   sol->_Sol[indexMu[1]]->add(t, *(sol->_SolOld[indexMu[1]]));
+
+
+
+
 }
+
+
+
 
 void BuildMuMatrix(MultiLevelProblem& ml_prob) {
   LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system< LinearImplicitSystem> ("mu");   // pointer to the linear implicit system named "Poisson"
