@@ -49,8 +49,8 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
 
   if((DIM == 2 && facename == 3) || (DIM == 3 && facename == 4)) {   // left boundary condition.
-    dirichlet = true;
-    //  value = 1000.;
+    //dirichlet = true;
+    value = 1000.;
   }
   
   return dirichlet;
