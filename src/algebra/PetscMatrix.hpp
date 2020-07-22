@@ -189,6 +189,8 @@ namespace femus {
       void print_hdf5 (const std::string name = "NULL") const;  ///< print hdf5
       /** Print  to Matlab format */
       void print_matlab (const std::string& name, const std::string& format) const;
+            
+      void draw () const;
 
       // functions ---------------------------------------------------
       /// Copies the diagonal part of the matrix
