@@ -30,7 +30,13 @@ namespace femus {
 
   class Marker : public ParallelObject {
     public:
-      Marker (std::vector < double > x, const double &mass, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.) {
+      Marker (std::vector < double > x, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.):
+        Marker (x, 0., 0., markerType, sol, solType, debug, s1){};  
+        
+      Marker (std::vector < double > x, const double &mass, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.):
+        Marker (x, mass, 0., markerType, sol, solType, debug, s1){};   
+
+      Marker (std::vector < double > x, const double &mass, const double &dist, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.) {
         //double s1 = 0.;
         _x = x;
         _markerType = markerType;
@@ -38,7 +44,7 @@ namespace femus {
         _dim = sol->GetMesh()->GetDimension();
         _step = 0;
 
-        _MPMSize = 3 * _dim + 1; //removed density
+        _MPMSize = 3 * _dim + 2; //added distance
         GetElement (1, UINT_MAX, sol, s1);
 
         if (_iproc == _mproc) {
@@ -47,7 +53,7 @@ namespace femus {
 
           _MPMQuantities.resize (_MPMSize);
           _MPMQuantities[3 * _dim ] = mass; /*11.133 for the disk */ /*0.217013888889 for the beam */ ;  //mass //now it is computed in the main, zero is a default value
-//           _MPMQuantities[3 * _dim + 1] = 10000.;  //density
+          _MPMQuantities[3 * _dim + 1] = dist;  //distance form interface
           for (unsigned d = 0; d < 3 * _dim; d++) {
             _MPMQuantities[d] = 0.;
           }
@@ -164,17 +170,17 @@ namespace femus {
         _MPMQuantities[3 * _dim] = mass;
       }
 
-//       void SetMarkerDensity(const double &density) {
-//         _MPMQuantities[3 * _dim + 1] = density;
-//       }
+      void SetMarkerDistance(const double &distance) {
+        _MPMQuantities[3 * _dim + 1] = distance;
+      }
 
       double GetMarkerMass() {
         return _MPMQuantities[3 * _dim];
       }
 
-//       double GetMarkerDensity() {
-//         return _MPMQuantities[3 * _dim + 1];
-//       }
+      double GetMarkerDistance() {
+        return _MPMQuantities[3 * _dim + 1];
+      }
 
       void SetMarkerVelocity (const std::vector <double>  &velocity) {
         if (_markerType != INTERFACE) {

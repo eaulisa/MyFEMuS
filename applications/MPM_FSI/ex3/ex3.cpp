@@ -7,14 +7,13 @@
 #include "Marker.hpp"
 #include "Line.hpp"
 
-#include "Fluid.hpp"
 #include "Solid.hpp"
 #include "Parameter.hpp"
 
 #include "NumericVector.hpp"
 #include "adept.h"
 
-#include "../include/mpmFem.hpp"
+#include "../include/mpmFem_velocity.hpp"
 
 using namespace femus;
 
@@ -27,15 +26,15 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
   bool test = 1; //dirichlet
   value = 0.;
 
-  if (!strcmp (name, "DX")) {
+  if (!strcmp (name, "VX")) {
     if (2 == facename || 4 == facename) {
-      test = 0;
+      test = 0; 
       value = 0;
     }
   }
-  else if (!strcmp (name, "DY")) {
+  else if (!strcmp (name, "VY")) {
     if (3 == facename) {
-      test = 0;
+      test = 0; 
       value = 0;
     }
   }
@@ -57,8 +56,7 @@ int main (int argc, char** args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 3; //for refinement in 3D
-  //unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
 
   double Lref = 1.;
@@ -68,12 +66,10 @@ int main (int argc, char** args) {
   double E = 1.74 * 1.e6;
 
   beta = 0.3;
-  Gamma = 0.5;
-
+  Gamma = 0.6;
 
   Parameter par (Lref, Uref);
 
-  // Generate Solid Object
   Solid solid;
   solid = Solid (par, E, nu, rhos, "Neo-Hookean");
 
@@ -87,37 +83,53 @@ int main (int argc, char** args) {
 
   MultiLevelSolution mlSol (&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 0, false);
+
+  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 0);
+  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 0);
+  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 0);
+
+  mlSol.AddSolution ("VXOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("VYOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("VZOld", LAGRANGE, SECOND, 0, false);
+
+  mlSol.AddSolution ("AX", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("AY", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("AZ", LAGRANGE, SECOND, 0, false);
+
+  mlSol.AddSolution ("AXOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 1) mlSol.AddSolution ("AYOld", LAGRANGE, SECOND, 0, false);
+  if (dim > 2) mlSol.AddSolution ("AZOld", LAGRANGE, SECOND, 0, false);
 
   mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+//   mlSol.AddSolution ("gM", LAGRANGE, SECOND, 0, false);
+  mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false);
 
   mlSol.Initialize ("All");
 
   mlSol.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
 
   // ******* Set boundary conditions *******
-  mlSol.GenerateBdc ("DX", "Steady");
-  if (dim > 1) mlSol.GenerateBdc ("DY", "Steady");
-  if (dim > 2) mlSol.GenerateBdc ("DZ", "Steady");
+  mlSol.GenerateBdc ("VX", "Steady");
+  if (dim > 1) mlSol.GenerateBdc ("VY", "Steady");
+  if (dim > 2) mlSol.GenerateBdc ("VZ", "Steady");
   mlSol.GenerateBdc ("M", "Steady");
 
   MultiLevelProblem ml_prob (&mlSol);
 
   ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
-  ml_prob.parameters.set<Solid> ("SolidFEM") = solid;
 
   // ******* Add MPM system to the MultiLevel problem *******
-  TransientNonlinearImplicitSystem& system = ml_prob.add_system < TransientNonlinearImplicitSystem > ("MPM_FEM");
-  system.AddSolutionToSystemPDE ("DX");
-  if (dim > 1) system.AddSolutionToSystemPDE ("DY");
-  if (dim > 2) system.AddSolutionToSystemPDE ("DZ");
+  TransientNonlinearImplicitSystem& system = ml_prob.add_system < TransientNonlinearImplicitSystem > ("MPM_FSI");
+  system.AddSolutionToSystemPDE ("VX");
+  if (dim > 1) system.AddSolutionToSystemPDE ("VY");
+  if (dim > 2) system.AddSolutionToSystemPDE ("VZ");
 
   // ******* System MPM Assembly *******
   system.SetAssembleFunction (AssembleMPMSys);
-  //system.SetAssembleFunction(AssembleFEM);
   // ******* set MG-Solver *******
   system.SetMgType (V_CYCLE);
 
@@ -142,38 +154,6 @@ int main (int argc, char** args) {
 
   system.SetTolerances (1.e-10, 1.e-15, 1.e+50, 40, 40);
 
-//   unsigned rows = 2*60;
-//   unsigned columns = 2*120;
-//   unsigned size = rows * columns;
-//
-//   std::vector < std::vector < double > > x; // marker
-//   std::vector < MarkerType > markerType;
-//
-//   x.resize(size);
-//   markerType.resize(size);
-//
-//   std::vector < std::vector < std::vector < double > > > line(1);
-//   std::vector < std::vector < std::vector < double > > > line0(1);
-//
-//   for (unsigned j = 0; j < size; j++) {
-//     x[j].assign(dim, 0.);
-//     markerType[j] = VOLUME;
-//   }
-//
-//   //BEGIN initialization
-//   for (unsigned i = 0; i < rows; i++) {
-//     for (unsigned j = 0; j < columns; j++) {
-//
-//       x[i * columns + j][0] = -0.5 + ((0.625 - 0.000001) / (columns - 1)) * j;
-//       x[i * columns + j][1] = -0.0625 + ((0.25 - 0.000001) / (rows - 1)) * i;
-//       if (dim == 3) {
-//         x[j][2] = 0.;
-//       }
-//     }
-//   }
-//   //END
-
-
   double L = 0.625;
   double H = 0.25;
 
@@ -189,6 +169,7 @@ int main (int argc, char** args) {
   unsigned size = rows * columns;
 
   std::vector < std::vector < double > > x; // marker
+
 
   x.resize (size);
 
@@ -214,9 +195,6 @@ int main (int argc, char** args) {
 
   double MASS = L0 * H0 * rhos;
   std::vector < double > mass (x.size(), MASS / x.size()); // uniform marker volume
-
-//    x.resize(0);
-//    mass.resize(0);
 
   if (fabs (H - H0) > 1.0e-10) {
 
@@ -277,33 +255,25 @@ int main (int argc, char** args) {
     totalMass += mass[i];
   }
 
-
-
   std::cout << totalMass << " " << rhos * H * L << std::endl;
 
   std::vector < MarkerType > markerType (mass.size(), VOLUME);
 
-
   unsigned solType = 2;
   linea = new Line (x, mass, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
 
-//   double beamArea = ( -0.5 + (0.625 - 0.000001) ) * (-0.0625 + (0.25 - 0.000001) );
-//   linea->SetParticlesMass(beamArea, rhos);
-
   linea->GetLine (line0[0]);
   PrintLine (DEFAULT_OUTPUTDIR, "line", line0, 0);
-
 
   linea->GetParticlesToGridMaterial();
 
   // ******* Print solution *******
   mlSol.SetWriter (VTK);
 
-  std::vector<std::string> mov_vars;
-  mov_vars.push_back ("DX");
-  mov_vars.push_back ("DY");
-  //mov_vars.push_back("DZ");
-  mlSol.GetWriter()->SetMovingMesh (mov_vars);
+//   std::vector<std::string> mov_vars;
+//   mov_vars.push_back("DX");
+//   mov_vars.push_back("DY");
+//   mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   std::vector<std::string> print_vars;
   print_vars.push_back ("All");
@@ -320,21 +290,22 @@ int main (int argc, char** args) {
       gravity[1]  = 0.;
     }
 
-    system.CopySolutionToOldSolution();
+//     ParticlesToGridProjection (mlSol, *linea);
 
     system.MGsolve();
 
+    GridToParticlesProjection (ml_prob, *linea);
+
+    ProjectVelAcc (ml_prob);
+
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
 
-    GridToParticlesProjection (ml_prob, *linea);
+    CopySolutionToSolutionOld (mlSol);
 
     linea->GetLine (line[0]);
     PrintLine (DEFAULT_OUTPUTDIR, "line", line, time_step);
 
-
-
   }
-
 
 
   delete linea;

@@ -1069,6 +1069,9 @@ if( _SolType >= 3 && _SolType < 5 ) {
   {
 
     _dim = 1;
+    _dim1 = true;
+    _dim2 = false;
+    _dim3 = false;
 
     //************ FE and MG SETUP ******************
     const basis* linearElement = set_FE_family_and_linear_element(geom_elem, _SolType);
@@ -1270,6 +1273,9 @@ if( _SolType >= 3 && _SolType < 5 ) {
   {
 
     _dim = 2;
+    _dim1 = false;
+    _dim2 = true;
+    _dim3 = false;
 
     //************ FE and MG SETUP ******************
     const basis* linearElement = set_FE_family_and_linear_element(geom_elem, _SolType);
@@ -1313,6 +1319,9 @@ if( _SolType >= 3 && _SolType < 5 ) {
   {
 
     _dim = 3;
+    _dim1 = false;
+    _dim2 = false;
+    _dim3 = true;
     
     //************ FE and MG SETUP ******************
     const basis* linearElement = set_FE_family_and_linear_element(geom_elem, _SolType);

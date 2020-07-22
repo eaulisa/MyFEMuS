@@ -44,8 +44,6 @@
 
 namespace femus {
 
-
-
 class FemusInit {
   
 public:
