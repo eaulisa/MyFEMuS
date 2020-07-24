@@ -655,7 +655,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
           for ( unsigned i = 0; i < faceDofs; i++ ) {
             unsigned inode = msh->GetLocalFaceVertexIndex ( iel, jface, i );
             Res[ nDofsD + inode] -=  phiD[i] * tau * weight; // Only add boundary integral to y - componet
-            //Res[2 * nDofsD + inode] +=  phiD[i] * tau * weight;
+            //Res[2 * nDofsD + inode] -=  phiD[i] * tau * weight;
             //Res[inode] +=  phiD[i] * tau * weight;
           }        
         }
