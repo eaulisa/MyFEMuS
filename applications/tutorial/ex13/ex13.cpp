@@ -48,9 +48,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
     dirichlet = true;
   }
 
-  if((DIM == 2 && facename == 3) || (DIM == 3 && facename == 4)) {   // left boundary condition.
-    //dirichlet = true;
-    value = 1000.;
+  if((DIM == 2 && facename == 3) || (DIM == 3 && facename == 4)) {   // top boundary condition.
+    dirichlet = false;
+    value = 500.;
   }
   
   return dirichlet;
@@ -86,6 +86,9 @@ int main(int argc, char** args) {
   else if(DIM == 3) {
     nz = ny;
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, 0., lengthx , 0., length, 0., length,  HEX27, "seventh");
+    
+    //mlMsh.ReadCoarseMesh("./input/beam.neu", "seventh", 1.); 
+    
   }
 
   unsigned dim = mlMsh.GetDimension();
@@ -129,21 +132,21 @@ int main(int argc, char** args) {
   // add system Poisson in mlProb as a Linear Implicit System
   TransientLinearImplicitSystem& system = mlProb.add_system < TransientLinearImplicitSystem > ("NS");
 
-   //add solution "A" to system
-//    system.AddSolutionToSystemPDE("AX");
-//    system.AddSolutionToSystemPDE("AY");
-//    if(dim == 3) system.AddSolutionToSystemPDE("AZ");
-//    system.AddSolutionToSystemPDE("P");
-  
-   system.AddSolutionToSystemPDE("DX");
-   system.AddSolutionToSystemPDE("DY");
-   if(dim == 3) system.AddSolutionToSystemPDE("DZ");
-   system.AddSolutionToSystemPDE("P");
+  //add solution "A" to system
+//     system.AddSolutionToSystemPDE("AX");
+//     system.AddSolutionToSystemPDE("AY");
+//     if(dim == 3) system.AddSolutionToSystemPDE("AZ");
+//     system.AddSolutionToSystemPDE("P");
+
+  system.AddSolutionToSystemPDE("DX");
+  system.AddSolutionToSystemPDE("DY");
+  if(dim == 3) system.AddSolutionToSystemPDE("DZ");
+  system.AddSolutionToSystemPDE("P");
 
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleResD);
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  
+
   // attach the assembling function to system
   //system.SetAssembleFunction(AssembleResD);
   //system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
@@ -169,7 +172,7 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  
+
   const unsigned int n_timesteps = 150;
   for(unsigned t = 0; t < n_timesteps; t++) {
     system.CopySolutionToOldSolution(); // Copy D, V, and A into DOld, VOld, and AOld, respectively
@@ -177,7 +180,7 @@ int main(int argc, char** args) {
     //NewmarkUpdate(&mlSol); // update for D an V, using DOld, VOld, AOld and A
     NewmarkUpdateWithD(&mlSol); // update for A and V, using DOld, VOld, AOld and D
 
-    
+
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
   }
   return 0;
@@ -317,7 +320,44 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
       }
     }
 
+// *** Face Gauss point loop (boundary Integral) ***
+    /*for ( unsigned jface = 0; jface < msh->GetElementFaceNumber ( iel ); jface++ ) {
+      int faceIndex = el->GetBoundaryIndex(iel, jface);
+      // look for boundary faces
+      if ( faceIndex == 1 ) {
+        const unsigned faceGeom = msh->GetElementFaceType ( iel, jface );
+        unsigned faceDofs = msh->GetElementFaceDofNumber (iel, jface, solDType);
+        std::vector  < std::vector  <  double > > faceCoordinates ( dim ); // A matrix holding the face coordinates rowwise.
+        for ( int k = 0; k < dim; k++ ) {
+          faceCoordinates[k].resize (faceDofs);
+        }
+        for ( unsigned i = 0; i < faceDofs; i++ ) {
+          unsigned inode = msh->GetLocalFaceVertexIndex ( iel, jface, i ); // face-to-element local node mapping.
+          for ( unsigned k = 0; k < dim; k++ ) {
+            faceCoordinates[k][i] =  coordX[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+          }
+        }
+        for ( unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solDType]->GetGaussPointNumber(); ig++ ) {
+            // We call the method GetGaussPointNumber from the object finiteElement in the mesh object msh.
+          std::vector < double> normal;
+          msh->_finiteElement[faceGeom][solDType]->JacobianSur ( faceCoordinates, ig, weight, phiD, phiD_x, normal );
 
+           std::vector< double > xg(dim,0.);
+           for ( unsigned i = 0; i < faceDofs; i++ ) {
+             for( unsigned k=0; k<dim; k++){
+               xg[k] += phiD[i] * faceCoordinates[k][i]; // xg(ig)= \sum_{i=0}^faceDofs phi[i](xig) facecoordinates[i]
+             }
+           }
+          double tau; // a(u)*grad_u\cdot normal
+          SetBoundaryCondition( xg, "D", tau, faceIndex, 0. ); // return tau
+          // *** phiD loop ***
+          for ( unsigned i = 0; i < faceDofs; i++ ) {
+            unsigned inode = msh->GetLocalFaceVertexIndex ( iel, jface, i );
+            Res[inode] +=  phiD[i] * tau * weight;
+          }
+        }
+      }
+    }   */
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solAType]->GetGaussPointNumber(); ig++) {
@@ -350,7 +390,7 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
       }
 
       double E = 10.e6;
-      double nu = 0.5;
+      double nu = 0.4;
       double rho = 1000.;
 
       double mu = E / (2. * (1. + nu));
@@ -578,7 +618,46 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
       }
     }
 
+// *** Face Gauss point loop (boundary Integral) ***
+    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+      int faceIndex = el->GetBoundaryIndex(iel, jface);
+      // look for boundary faces
+      if((dim == 2 && faceIndex == 3) || (dim == 3 && faceIndex == 4)) {
+        const unsigned faceGeom = msh->GetElementFaceType(iel, jface);
+        unsigned faceDofs = msh->GetElementFaceDofNumber(iel, jface, solDType);
+        std::vector  < std::vector  <  double> > faceCoordinates(dim);    // A matrix holding the face coordinates rowwise.
+        for(int k = 0; k < dim; k++) {
+          faceCoordinates[k].resize(faceDofs);
+        }
+        for(unsigned i = 0; i < faceDofs; i++) {
+          unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+          for(unsigned k = 0; k < dim; k++) {
+            faceCoordinates[k][i] =  coordX[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+          }
+        }
+        for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solDType]->GetGaussPointNumber(); ig++) {
+          // We call the method GetGaussPointNumber from the object finiteElement in the mesh object msh.
+          std::vector < double > normal;
+          msh->_finiteElement[faceGeom][solDType]->JacobianSur(faceCoordinates, ig, weight, phiD, phiD_x, normal);
 
+          std::vector< double > xg(dim, 0.);
+          for(unsigned i = 0; i < faceDofs; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              xg[k] += phiD[i] * faceCoordinates[k][i]; // xg(ig)= \sum_{i=0}^faceDofs phi[i](xig) facecoordinates[i]
+            }
+          }
+          double tau; // a(u)*grad_u\cdot normal
+          SetBoundaryCondition(xg, "D", tau, faceIndex, 0.);   // return tau
+          // *** phiD loop ***
+          for(unsigned i = 0; i < faceDofs; i++) {
+            unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+            for(unsigned k = 0; k < dim; k++) {
+              Res[k * nDofsD + inode] -=  phiD[i] * tau * normal[k] * weight;
+            }
+          }
+        }
+      }
+    }
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solDType]->GetGaussPointNumber(); ig++) {
@@ -595,7 +674,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
 
       for(unsigned i = 0; i < nDofsD; i++) {
         for(unsigned  k = 0; k < dim; k++) {
-          solA_gss[k] += (( solD[k][i] - solDOld[k][i] ) / ( BETA * dt * dt ) - solVOld[k][i] / ( BETA * dt ) + (( BETA - 0.5 ) * solAOld[k][i] ) / BETA) * phiD[i];
+          solA_gss[k] += ((solD[k][i] - solDOld[k][i]) / (BETA * dt * dt) - solVOld[k][i] / (BETA * dt) + ((BETA - 0.5) * solAOld[k][i]) / BETA) * phiD[i];
         }
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned  k = 0; k < dim; k++) {
@@ -610,7 +689,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
       }
 
       double E = 10.e6;
-      double nu = 0.5;
+      double nu = 0.4;
       double rho = 1000.;
 
       double mu = E / (2. * (1. + nu));
@@ -653,7 +732,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < nDofsD; j++) {
             unsigned VIcolumn = I * nDofsD + j;
 
-            Jac[ VIrow * nDofsAll + VIcolumn] += rho / ( BETA * dt * dt ) * phiD[i] * phiD[j] * weight; // inertia
+            Jac[ VIrow * nDofsAll + VIcolumn] += rho / (BETA * dt * dt) * phiD[i] * phiD[j] * weight;   // inertia
 
             for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
               unsigned VJcolumn = J * nDofsD + j;
@@ -792,8 +871,8 @@ void NewmarkUpdateWithD(MultiLevelSolution *mlSol) {
       double Vold = (*sol->_SolOld[solVIndex[k]])(i);
       double Dold = (*sol->_SolOld[solDIndex[k]])(i);
 
-      double Anew = ( Dnew -Dold ) / ( BETA * dt * dt ) - Vold / ( BETA * dt ) + (( BETA - 0.5 ) * Aold ) / BETA;
-      double Vnew = Vold + ( 1 - GAMMA ) * dt * Aold + GAMMA * dt * Anew;
+      double Anew = (Dnew - Dold) / (BETA * dt * dt) - Vold / (BETA * dt) + ((BETA - 0.5) * Aold) / BETA;
+      double Vnew = Vold + (1 - GAMMA) * dt * Aold + GAMMA * dt * Anew;
 
       sol->_Sol[solAIndex[k]]->set(i, Anew);
       sol->_Sol[solVIndex[k]]->set(i, Vnew);
