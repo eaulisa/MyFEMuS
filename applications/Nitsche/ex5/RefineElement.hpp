@@ -29,21 +29,34 @@ class RefineElement {
     void InitElement(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
 
       _xvl.resize(lMax);
+      _xil.resize(lMax);
       for(unsigned l = 0; l < lMax; l++) {
         _xvl[l].resize(_numberOfChildren);
+        _xil[l].resize(_numberOfChildren);
         for(unsigned i = 0; i < _numberOfChildren; i++) {
           _xvl[l][i].resize(_dim);
+          _xil[l][i].resize(_dim);
           for(unsigned k = 0; k < _dim; k++) {
             _xvl[l][i][k].resize(_numberOfNodes);
+            _xil[l][i][k].resize(_numberOfNodes);
           }
         }
       }
 
       _xvl[0][0] = xv;
+      for(unsigned k = 0; k < _dim; k++) {
+        for(unsigned i = 0; i < _numberOfNodes; i++) {
+          _xil[0][0][k][i] = *(_basis->GetXcoarse(i) + k);
+        }
+      }
     };
 
-    const std::vector<std::vector<double>> & GetElement(const unsigned &level, const unsigned &i)const {
+    const std::vector<std::vector<double>> & GetNodeCoordinates(const unsigned &level, const unsigned &i)const {
       return _xvl[level][i];
+    }
+    
+    const std::vector<std::vector<double>> & GetNodeLocalCoordinates(const unsigned &level, const unsigned &i)const {
+      return _xil[level][i];
     }
 
   private:
@@ -57,6 +70,7 @@ class RefineElement {
     void BuildPMat();
     basis* _basis;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xvl;
+    std::vector< std::vector < std::vector < std::vector <double> > > > _xil;
 
 };
 
@@ -172,6 +186,18 @@ void RefineElement::BuildElementProlongation(const unsigned &level, const unsign
       }
     }
   }
+  
+  for(Pi = _PMatrix.begin(), xCi = _xil[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
+    for(xCik = (*xCi).begin(), xFk = _xil[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
+      for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
+        *xCikj = 0.;
+        for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
+          *xCikj += Pijl->second * (*xFk)[Pijl->first];
+        }
+      }
+    }
+  }
+  
 }
 
 #endif

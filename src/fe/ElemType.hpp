@@ -81,6 +81,7 @@ namespace femus {
       /* mixed adept - double */
       void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig, 
                                       adept::adouble& weight,
+                                      const double *&phi,
                                       boost::optional < vector < adept::adouble >& > gradphi = boost::none,
                                       boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
 
@@ -88,6 +89,7 @@ namespace femus {
       /* all double */
       void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig, 
                                       double& weight,
+                                      const double *&phi,
                                       boost::optional < vector < double >& > gradphi = boost::none,
                                       boost::optional < vector < double > & > nablaphi = boost::none) const;
 
@@ -319,6 +321,7 @@ namespace femus {
       template <class type>
       void GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig, 
                                    type& weight,
+                                   const double *&phi,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
 
@@ -474,6 +477,7 @@ namespace femus {
       template <class type>
       void GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig, 
                                    type& weight,
+                                   const double *&phi,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
 
@@ -641,6 +645,7 @@ namespace femus {
       template <class type>
       void GetGaussQuantities_type(const vector < vector < type > >& vt, const unsigned& ig,
                                    type& weight,
+                                   const double *&phi,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
 
