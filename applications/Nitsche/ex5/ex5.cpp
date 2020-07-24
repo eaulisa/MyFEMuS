@@ -109,8 +109,7 @@ int main(int argc, char** args) {
   double eps0 = dMax * 0.025;
 
   RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh");
-  const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix = refineElement.GetProlongationMatrix();
-
+  
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
     fout.open("mesh.txt");
@@ -216,11 +215,11 @@ double GetIntegral(const double &eps, const unsigned &level,
           x3[k] = xv[k][j];
         }
         d = GetDistance({x3[0], x3[1], x3[2]});
-        if(d > factor * eps) { // check if one node is inside layer
+        if(d > factor * eps) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
         }
-        else if(d < -factor * eps) { // check if one node is outside layer
+        else if(d < -factor * eps) { // check if one node is outside thick interface
           if(oneNodeIsInside) goto refine;
           oneNodeIsOutside = true;
         }
@@ -228,7 +227,7 @@ double GetIntegral(const double &eps, const unsigned &level,
           goto refine;
         }
       }
-      if(!oneNodeIsOutside) {
+      if(!oneNodeIsOutside) { // the entire element is inside the thick interface
         goto integrate;
       }
     }
@@ -237,27 +236,28 @@ double GetIntegral(const double &eps, const unsigned &level,
   integrate:
 
     const elem_type &finiteElement = refineElement.GetFEM();
-    std::vector < double> xg(3, 0.);
-    std::vector < double> xig(3, 0.);
+    std::vector < double> xg(dim);
+    std::vector < double> xiFg(dim);
     double f;
     double dg1;
     double dg2;
     double weight;
-    const double *phiF;
-    std::vector < double > phiC(numberOfNodes);
-    double psi;
-    const std::vector < std::vector <double> >  &xi = refineElement.GetNodeLocalCoordinates(level, ii);
+    const double *phiC;
+    std::vector < double > phiF(numberOfNodes);
+    double U;
+    const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
     for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
-      finiteElement.GetGaussQuantities(xv, ig, weight, phiF);
-      std::fill(xg.begin(), xg.begin() + dim, 0.);
-      std::fill(xig.begin(), xig.begin() + dim, 0.);
+      finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
+      xg.assign(dim, 0.);
+      xiFg.assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned j = 0; j < numberOfNodes; j++) {
-          xg[k] += xv[k][j] * phiF[j];
-          xig[k] += xi[k][j] * phiF[j];
+          xg[k] += xv[k][j] * phiC[j];
+          xiFg[k] += xiF[k][j] * phiC[j];
         }
       }
-      finiteElement.GetPhi(phiC, xig);
+      finiteElement.GetPhi(phiF, xiFg);
+      
       f = GetIntegrand(xg);
 
       /* Regularized Heaviside Function from
@@ -266,17 +266,17 @@ double GetIntegral(const double &eps, const unsigned &level,
        * https://arxiv.org/abs/1202.5341
        */
       if(level == levelMax) { // any element at level l = lmax
-        dg1 = GetDistance({xg[0], xg[1], xg[2]});
+        dg1 = GetDistance(xg);
         dg2 = dg1 * dg1;
         if(dg1 < -eps)
-          psi = 0.;
+          U = 0.;
         else if(dg1 > eps) {
-          psi = 1.;
+          U = 1.;
         }
         else {
-          psi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+          U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
         }
-        integral += psi * f * weight;
+        integral += U * f * weight;
       }
       else { // interior element at level < lmax
         integral += f * weight;
