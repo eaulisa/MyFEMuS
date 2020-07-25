@@ -225,10 +225,10 @@ int main(int argc, char** args) {
   mlSol.AddSolution("env", LAGRANGE, FIRST, 0, false);
   mlSol.AddSolution("vAngle", LAGRANGE, FIRST, 0);
 
-  mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 2, false);
-  mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 2, false);
-//   mlSol.AddSolution("lmu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
-//   mlSol.AddSolution("lmu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+  mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
+  mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
+  mlSol.AddSolution("lmu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+  mlSol.AddSolution("lmu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 //   mlSol.FixSolutionAtOnePoint("lmu1");
 //   mlSol.FixSolutionAtOnePoint("lmu2");
 //   mlSol.FixSolutionAtOnePoint("mu1");
@@ -311,12 +311,12 @@ int main(int argc, char** args) {
   LinearImplicitSystem& systemMu = mlProb.add_system < LinearImplicitSystem > ("mu"); //for conformal
 
   // Add solutions newDX, Lambda to system.
-//   systemMu.AddSolutionToSystemPDE("mu1");
-//   systemMu.AddSolutionToSystemPDE("mu2");
-//   systemMu.AddSolutionToSystemPDE("lmu1");
-//   systemMu.AddSolutionToSystemPDE("lmu2");
-//   systemMu.SetAssembleFunction(AssembleResMu);
-//   systemMu.init();
+  systemMu.AddSolutionToSystemPDE("mu1");
+  systemMu.AddSolutionToSystemPDE("mu2");
+  systemMu.AddSolutionToSystemPDE("lmu1");
+  systemMu.AddSolutionToSystemPDE("lmu2");
+  systemMu.SetAssembleFunction(AssembleResMu);
+  systemMu.init();
 
 
   counter = 0;
