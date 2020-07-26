@@ -49,7 +49,7 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
 bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 300, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 600, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 1, 1, true, 500, 1, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 250, 1, 0.746343);

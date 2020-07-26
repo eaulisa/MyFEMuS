@@ -520,6 +520,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   }
 
   double t = num / den;
+  if (t < 0.) t = 0.;
+  else if (t > 1.) t = 1.;
   std::cout << t << "      ";
 
   sol->_Sol[indexMu[0]]->scale(1. - t);
