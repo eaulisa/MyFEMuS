@@ -81,8 +81,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     //mlPdeSysMu->MGsolve();
     //GetFinalMu(*mlSol);
     if(counter == 1) {
-      *(sol->_Sol[solMuIndex[0]]) = 0.1;
-      *(sol->_Sol[solMuIndex[1]]) = 0.1;
+      *(sol->_Sol[solMuIndex[0]]) = 100.;
+      *(sol->_Sol[solMuIndex[1]]) = 100.;
     }
 
 

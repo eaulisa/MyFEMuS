@@ -510,7 +510,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 // 
 //       num += (dum - MUi * dup) % ((MUim1 - MUi) * dup);
 //       den += ((MUim1 - MUi) * dup) % ((MUim1 - MUi) * dup);
-//       
+// 
 //       //std::cout << num <<" "<< den << "\n";
 // 
 //       energyBefore += (dum - MUim1 * dup) % (dum - MUim1 * dup);
@@ -1237,13 +1237,18 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
 
 
   std::vector < SparseMatrix* > PIJ(4);
+  std::vector < SparseMatrix* > PIJt(4);
 
   for(unsigned k = 0; k < 4; k++) {
     PIJ[k] = SparseMatrix::build().release();
     PIJ[k]->init(nface, nel, nface_loc, nel_loc, 10, 10);
+
+    PIJt[k] = SparseMatrix::build().release();
+    PIJt[k]->init(nel, nface, nel_loc, nface_loc, 10, 10);
   }
 
   std::vector < double > PIJl[4];
+  std::vector < double > PIJtl[4];
 
   std::vector< unsigned > irow;//loval to global mapping
   std::vector< unsigned > icolumn;//loval to global mapping
@@ -1263,6 +1268,7 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
     unsigned nFaces = msh->GetElementFaceNumber(iel);
     for(unsigned k = 0; k < 4; k++) {
       PIJl[k].resize(nFaces);
+      PIJtl[k].resize(nFaces);
     }
     irow.resize(nFaces);
     icolumn.assign(1, iel);
@@ -1279,14 +1285,23 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
       PIJl[2][iface] = - 2. * a * b;
       PIJl[3][iface] = (a * a - b * b);
 
+
+      PIJtl[0][iface] = (a * a - b * b) / nFaces;
+      PIJtl[1][iface] = -2. * a * b / nFaces;
+
+      PIJtl[2][iface] = 2. * a * b / nFaces;
+      PIJtl[3][iface] = (a * a - b * b) / nFaces;
+
       sol->_Sol[indexCntEdge]->add(irow[iface], 1);
     }
     for(unsigned k = 0; k < 4; k++) {
       PIJ[k]->add_matrix_blocked(PIJl[k], irow, icolumn);
+      PIJt[k]->add_matrix_blocked(PIJtl[k], icolumn, irow);
     }
   }
   for(unsigned k = 0; k < 4; k++) {
     PIJ[k]->close();
+    PIJt[k]->close();
   }
   sol->_Sol[indexCntEdge]->close();
 
@@ -1301,12 +1316,28 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
     MatDiagonalScale((static_cast<PetscMatrix*>(PIJ[k]))->mat(), (static_cast<PetscVector*>(sol->_Sol[indexCntEdge]))->vec(), NULL);
   }
 
+ // PIJ[0]->print_personal();
+ // PIJ[1]->print_personal();
+ // PIJ[2]->print_personal();
+ // PIJ[3]->print_personal();
 
-  std::vector < SparseMatrix* > PIJt(4);
-  for(unsigned i = 0; i < 4; i++) {
-    PIJt[i] = SparseMatrix::build().release();
-    PIJ[i]->get_transpose(*PIJt[i]);
-  }
+//   std::vector < SparseMatrix* > PIJt(4);
+// 
+//   PIJt[0] = SparseMatrix::build().release();
+//   PIJ[0]->get_transpose(*PIJt[0]);
+// 
+//   PIJt[1] = SparseMatrix::build().release();
+//   PIJ[2]->get_transpose(*PIJt[1]);
+// 
+//   PIJt[2] = SparseMatrix::build().release();
+//   PIJ[1]->get_transpose(*PIJt[2]);
+// 
+//   PIJt[3] = SparseMatrix::build().release();
+//   PIJ[3]->get_transpose(*PIJt[3]);
+
+
+ // PIJt[0]->print_personal();
+ // PIJt[1]->print_personal();
 
   NumericVector  *D = NumericVector::build().release();
   D->init(*sol->_Sol[indexCntEdge]);
@@ -1342,7 +1373,7 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   temp->matrix_ABC(*PIJt[3], *I , *PIJ[3], false);
   PtP[1][1]->add(1., *temp);
 
-  
+
 
   for(unsigned k = 0; k < 4; k++) {
     delete PIJ[k];
@@ -1350,6 +1381,12 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   }
   delete I;
   delete temp;
+
+ // PtP[0][0]->print_personal();
+ // PtP[0][1]->print_personal();
+
+//   double a;
+//   std::cin >> a;
 
 //   PtP[0][0]->draw();
 //   PtP[0][1]->draw();

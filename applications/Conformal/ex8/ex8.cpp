@@ -158,8 +158,8 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
   if(parameter.simulation == 0) {
-    //mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
-    mlMsh.ReadCoarseMesh("../input/squareReg.neu", "seventh", scalingFactor);
+    mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
+    //mlMsh.ReadCoarseMesh("../input/squareReg.neu", "seventh", scalingFactor);
     //mlMsh.ReadCoarseMesh("../input/square1.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 1) {
