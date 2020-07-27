@@ -1271,18 +1271,18 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol) {
               resBM[1][nDofu * k + i] += chi * 0.5 * phi_x[i * dim + l]  * gradSolVg[l][k] * weight;
               resBL[1][nDofu * k + i] += chi * phi_x[i * dim + k] * gradSolVg[l][l] * weight;
 
-              for(unsigned j = 0; j < nDofu; j++) {
-                BM[0](nDofu * k + i, k * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                BM[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-
-                BL[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
-                BM[1](nDofu * k + i, k * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                BM[1](nDofu * k + i, l * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-
-                BL[1](nDofu * k + i, l * nDofu + j) += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
-              }
+//               for(unsigned j = 0; j < nDofu; j++) {
+//                 BM[0](nDofu * k + i, k * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+//                 BM[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+// 
+//                 BL[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+// 
+//                 BM[1](nDofu * k + i, k * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
+//                 BM[1](nDofu * k + i, l * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
+// 
+//                 BL[1](nDofu * k + i, l * nDofu + j) += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+// 
+//               }
             }
           }
         }
@@ -1358,22 +1358,22 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol) {
               }
             }
 
-            for(int j = 0; j < nDofu; j++) {
-              for(unsigned l = 0; l < dim; l++) {
-
-                AM(nDofu * k + i, k * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
-                AM(nDofu * k + i, l * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
-
-                AL(nDofu * k + i, l * nDofu + j) += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
-              }
-              for(unsigned l1 = 0; l1 < dim; l1++) {
-                for(unsigned l2 = 0; l2 < dim; l2++) {
-                  AM(nDofu * k + i, l1 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l2]  * weight;
-                  AM(nDofu * k + i, l2 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l1]  * weight;
-                }
-              }
-            }
+//             for(int j = 0; j < nDofu; j++) {
+//               for(unsigned l = 0; l < dim; l++) {
+// 
+//                 AM(nDofu * k + i, k * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
+//                 AM(nDofu * k + i, l * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
+// 
+//                 AL(nDofu * k + i, l * nDofu + j) += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
+// 
+//               }
+//               for(unsigned l1 = 0; l1 < dim; l1++) {
+//                 for(unsigned l2 = 0; l2 < dim; l2++) {
+//                   AM(nDofu * k + i, l1 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l2]  * weight;
+//                   AM(nDofu * k + i, l2 * nDofu + j) += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l1]  * weight;
+//                 }
+//               }
+//             }
           } // end phi_i loop
         }
         imarkerI++;
