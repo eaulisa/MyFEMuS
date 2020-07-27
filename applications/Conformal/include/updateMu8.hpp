@@ -1204,7 +1204,7 @@ double GetFinalMu(MultiLevelSolution & mlSol) {
 
 void BuildPMatrix(MultiLevelSolution & mlSol) {
 
-  double MuNormAverageBefore = EvaluateMu(mlSol);
+  //double MuNormAverageBefore = EvaluateMu(mlSol);
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
 
@@ -1243,10 +1243,10 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
 
   for(unsigned k = 0; k < 4; k++) {
     PIJ[k] = SparseMatrix::build().release();
-    PIJ[k]->init(nface, nel, nface_loc, nel_loc, 10, 10);
+    PIJ[k]->init(nface, nel, nface_loc, nel_loc, 2, 2);
 
     PIJt[k] = SparseMatrix::build().release();
-    PIJt[k]->init(nel, nface, nel_loc, nface_loc, 10, 10);
+    PIJt[k]->init(nel, nface, nel_loc, nface_loc, 5, 5);
   }
 
   std::vector < double > PIJl[4];
@@ -1367,6 +1367,8 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   }
   delete I;
   delete temp;
+  delete D;
+  
 
 //   PtP[0][0]->print_personal();
 //   PtP[0][1]->print_personal();
