@@ -52,7 +52,7 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 600, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 1, 1, true, 500, 1, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 250, 1, 0.746343);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 500, 1, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
 const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 1000, 1, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);

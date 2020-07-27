@@ -80,11 +80,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     //LinearImplicitSystem* mlPdeSysMu   = &ml_prob.get_system< LinearImplicitSystem> ("mu");
     //mlPdeSysMu->MGsolve();
     //GetFinalMu(*mlSol);
-    if(counter == 1) {
-      *(sol->_Sol[solMuIndex[0]]) = 100.;
-      *(sol->_Sol[solMuIndex[1]]) = 100.;
-    }
-
 
     UpdateMu(*mlSol);
   }
