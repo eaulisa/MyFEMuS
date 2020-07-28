@@ -41,6 +41,7 @@ using namespace femus;
 
 Line* line3;
 Line* lineI;
+Line* fluidLine;
 
 unsigned DIM = 2;
 double eps = 0.5;
@@ -205,49 +206,86 @@ int main(int argc, char** args) {
 
   //BEGIN init particles
 
-  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
-  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
 
-  double xc = 0.;
-  double yc = 0.;
-  double zc = 0.;
-  double R = 0.125;
-  double Rmax = 0.225;
-  double DR = H / 10.;
-  unsigned nbl = 5;
-  unsigned FI = 5;
-  std::vector < double> Xc = {xc, yc, zc};
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
   std::vector < MarkerType > markerType;
 
-  InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
+  //double L = 0.2;
+  double Ls = 0.2;
+  double Hs = 3 * Ls;
+  double Lf = 0.1; 
+  double Hf = 4 * Hs;
+  unsigned rows = 30;
+  std::vector < double> xc = {-0.1, -0.5};
+  unsigned cols = static_cast < unsigned >(ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
+  unsigned nbl = 3; // odd number
 
+
+  InitRectangleParticle(DIM, Ls, Hs,Lf,Hf, rows, cols, nbl, xc, markerType, xp, wp, dist);
+
+  
+
+  
+
+//   std::cout << "SolidRegion" << std::endl;
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
+//   }
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
+  PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
 
 
   ///interface stuff
 
+  unsigned FI = 1;
   std::vector < std::vector < std::vector < double > > > T;
+  InitRectangleInterface(DIM, Ls, Hs, rows, cols, FI, xc, markerType, xp, T);
 
-  InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
+//   std::cout << "SolidInterface" << std::endl;
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
+//   }
+
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
+
+
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
+  PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
+
+
+
+  //fluid markers
+
+
+//   InitFluidRecParticle(DIM, Ls, Hs, Lf, Hf, rows, cols, xc, markerType, xp, wp, dist);
+// 
+//   
+//   fluidLine = new Line (xp, wp, dist, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
+// 
+//   std::vector < std::vector < std::vector < double > > > lineF (1);
+//   fluidLine->GetLine(lineF[0]);
+//   PrintLine(DEFAULT_OUTPUTDIR, "FluidMarkers", lineF, 0);
+//   
   
- 
+//   std::cout << "FluidRegion" << std::endl;
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
+//   }
+
+
+
 
   BuildFlag(mlSol);
 
@@ -1276,14 +1314,14 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol) {
 //               for(unsigned j = 0; j < nDofu; j++) {
 //                 BM[0](nDofu * k + i, k * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
 //                 BM[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-// 
+//
 //                 BL[0](nDofu * k + i, l * nDofu + j) += (1. - chi) * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-// 
+//
 //                 BM[1](nDofu * k + i, k * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
 //                 BM[1](nDofu * k + i, l * nDofu + j) += chi * 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-// 
+//
 //                 BL[1](nDofu * k + i, l * nDofu + j) += chi * phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-// 
+//
 //               }
             }
           }
@@ -1362,12 +1400,12 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol) {
 
 //             for(int j = 0; j < nDofu; j++) {
 //               for(unsigned l = 0; l < dim; l++) {
-// 
+//
 //                 AM(nDofu * k + i, k * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
 //                 AM(nDofu * k + i, l * nDofu + j) += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
-// 
+//
 //                 AL(nDofu * k + i, l * nDofu + j) += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-// 
+//
 //               }
 //               for(unsigned l1 = 0; l1 < dim; l1++) {
 //                 for(unsigned l2 = 0; l2 < dim; l2++) {
@@ -1394,32 +1432,32 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol) {
       }
       s.dependent(&resAM[0], sizeAll);
       JacAM.resize(sizeAll * sizeAll);
-      s.jacobian(&JacAM[0] , true);
+      s.jacobian(&JacAM[0], true);
       s.clear_dependents();
 
       s.dependent(&resAL[0], sizeAll);
       JacAL.resize(sizeAll * sizeAll);
-      s.jacobian(&JacAL[0] , true);
+      s.jacobian(&JacAL[0], true);
       s.clear_dependents();
 
       s.dependent(&resBM[0][0], sizeAll);
       JacBM[0].resize(sizeAll * sizeAll);
-      s.jacobian(&JacBM[0][0] , true);
+      s.jacobian(&JacBM[0][0], true);
       s.clear_dependents();
 
       s.dependent(&resBM[1][0], sizeAll);
       JacBM[1].resize(sizeAll * sizeAll);
-      s.jacobian(&JacBM[1][0] , true);
+      s.jacobian(&JacBM[1][0], true);
       s.clear_dependents();
 
       s.dependent(&resBL[0][0], sizeAll);
       JacBL[0].resize(sizeAll * sizeAll);
-      s.jacobian(&JacBL[0][0] , true);
+      s.jacobian(&JacBL[0][0], true);
       s.clear_dependents();
 
       s.dependent(&resBL[1][0], sizeAll);
       JacBL[1].resize(sizeAll * sizeAll);
-      s.jacobian(&JacBL[1][0] , true);
+      s.jacobian(&JacBL[1][0], true);
       s.clear_dependents();
 
       s.clear_independents();

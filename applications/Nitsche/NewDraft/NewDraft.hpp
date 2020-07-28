@@ -12,24 +12,439 @@
 #include <cmath>
 #include "Marker.hpp"
 #include "Line.hpp"
+#include <algorithm>
 
 
- 
 
-void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
-                             const std::vector < double> &xc, std::vector < MarkerType > &markerType, const double & R, const double & Rmax, const double & DR, const unsigned &nbl, const unsigned & FI,
-                             std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+void InitRectangleParticle(const unsigned &dim, const double &L, const double &H, const double &Lf, const double &Hf, const unsigned &rows, const unsigned &cols, const unsigned &nbl,
+                           const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+
+  double dx = L / (cols + 1);
+  double dy = H  / (rows + 0.5);
+  
+  unsigned nSideCols = ceil(Lf/dx -1);
+  unsigned nTopRows = ceil((Hf - H - xc[1])/dy);
+  
+  
+  unsigned sizeS = rows * cols + 2 * nbl * rows + nbl * cols + 2 * nbl * nbl ;
+  unsigned sizeF = 2 * nSideCols * (rows + 1) + 2 * nSideCols * nTopRows + nTopRows * (cols + 1) ;
+  
+  //std::cout << "dx = " << dx << " dy = " << dy << " size = " << size << std::endl;
+  
+  xp.reserve(2 * (sizeS+sizeF));
+  wp.reserve(2 * (sizeS+sizeF));
+  dist.reserve(2 * (sizeS+sizeF));
+  unsigned cnt = 0;
+  std::vector<double> XP(dim);
+
+
+//inner bulk
+  std::vector<double> d(3); // d = {x-xc[0], L-x, H - y  }
+  for(unsigned i = 0; i < rows ; i++) {
+    for(unsigned j = 0; j < cols; j++) {
+      XP[0] = xc[0] + dx + j * dx;
+      XP[1] = xc[1] + 0.5 * dy + i * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] = dx * dy;
+      d = {xp[cnt][0] - xc[0], L + xc[0] - xp[cnt][0], H + xc[1] - xp[cnt][1] };
+      dist.resize(cnt + 1);
+      dist[cnt] = *std::min_element(d.begin(), d.end());
+      cnt++;
+    }
+  }
+
+
+  double dL = sqrt(dx * dy) / 4.;   // generic width for boundary layer
+  double dbl = dL / nbl;            // width of each boundary layer
+
+
+//left and right boundary
+  for(unsigned k = 0; k < nbl; k++) {
+    for(unsigned j = 0; j < rows; j++) {
+      XP[0] = xc[0] - 0.5 * dL + (k + 0.5) * dbl;
+      XP[1] = xc[1] + 0.5 * dy + j * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      (nbl > 1) ? wp[cnt] = dbl * dy : wp[cnt] = 0.5 * dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] =  xp[cnt][0] - xc[0];
+      cnt++;
+
+
+      XP[0] = L + xc[0] - 0.5 * dL + (k + 0.5) * dbl;
+      XP[1] = xc[1] + 0.5 * dy + j * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      (nbl > 1) ? wp[cnt] = dbl * dy : wp[cnt] = 0.5 * dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] +=  L + xc[0] - xp[cnt][0];
+      cnt++;
+
+    }
+  }
+
+
+  //top band without corners
+  for(unsigned k = 0; k < nbl; k++) {
+    for(unsigned j = 0; j < cols; j++) {
+      XP[0] = xc[0] + dx + j * dx;;
+      XP[1] = H + xc[1] - 0.5 * dL + (k + 0.5) * dbl;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      (nbl > 1) ? wp[cnt] = dbl * dx : wp[cnt] = 0.5 * dx * dy;
+      dist[cnt] = H + xc[1] - xp[cnt][1];
+      cnt++;
+    }
+  }
+
+
+
+//corner chuncks
+  for(unsigned k = 0; k < nbl; k++) {
+    for(unsigned j = 0; j < nbl; j++) {
+      XP[0] = xc[0] - 0.5 * dL + (k + 0.5) * dbl;
+      XP[1] = H + xc[1] - 0.5 * dL + (j + 0.5) * dbl;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+
+      (nbl == 1) ? wp[cnt] = 0.5 * dx * 0.5 * dy : wp[cnt] = dbl * dbl;
+      dist.resize(cnt + 1);
+      if(xp[cnt][0] >= xc[0] && xp[cnt][1] <= H + xc[1]) {
+        dist[cnt] = xp[cnt][0] - xc[0];
+      }
+      else {
+        d = {fabs(xp[cnt][0] - xc[0]), fabs(H + xc[1] - xp[cnt][1]) };
+        dist[cnt] = -(*std::max_element(d.begin(), d.end()));
+      }
+      cnt++;
+
+      XP[0] = L + xc[0] - 0.5 * dL + (k + 0.5) * dbl;
+      XP[1] = H + xc[1] - 0.5 * dL + (j + 0.5) * dbl;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      (nbl == 1) ? wp[cnt] = 0.5 * dx * 0.5 * dy : wp[cnt] = dbl * dbl;
+      dist.resize(cnt + 1);
+      if(xp[cnt][0] <= L + xc[0] && xp[cnt][1] <= H + xc[1]) {
+        dist[cnt] = L + xc[0] - xp[cnt][0];
+      }
+      else {
+        d = {fabs(L + xc[0] - xp[cnt][0]), fabs(H + xc[1] - xp[cnt][1]) };
+        dist[cnt] = -(*std::max_element(d.begin(), d.end()));
+      }
+      cnt++;
+    }
+
+  }
+
 
   
+  
+  
+  
+  
+  
+  
+  //std::cout << "dx = " << dx << " dy = " << dy << " size = " << size << std::endl;
+ 
+  
 
-  double theta0 = 0; 
+
+
+
+
+//left and right chunks upto Hf
+  for(unsigned i = 0; i < rows + 1 + nTopRows; i++) {
+    for(unsigned j = 0; j < nSideCols ; j++) {
+      XP[0] = xc[0] - (j + 1) * dx ;
+      XP[1] = xc[1] + 0.5 * dy + i * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] =  xp[cnt][0] - xc[0];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+
+      XP[0] = L + xc[0] + (j + 1) * dx;
+      XP[1] = xc[1] + 0.5 * dy + i * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] +=  L + xc[0] - xp[cnt][0];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+
+    }
+  }
+
+
+  //top band
+  for(unsigned i = 0; i < nTopRows; i++) {
+    for(unsigned j = 0; j < cols + 2; j++) {
+      XP[0] = xc[0]  + j * dx;
+      XP[1] = H + xc[1] + (i + 1) * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist[cnt] = H + xc[1] - xp[cnt][1];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+    }
+  }
+
+
+  
+  
+  
+  
+  
+  
+
+//   double sum = 0.;
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     sum += wp[j];
+//   }
+// 
+//   //could not fix
+//   double area;
+//   (dbl == 1) ? area = L * H : area = L * H + 2 * 0.5 * dL * H + (0.5 * dL) * (L + 2 * 0.5 * dL);
+
+//   std::setprecision(6);
+//   std::cout << " ExactArea = " << area << " ComputedArea = " << sum << std::endl;
+
+
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << " " << wp[j] << " " << dist[j] << std::endl;
+//   }
+
+
+  
+  markerType.assign(cnt, VOLUME);
+
+
+}
+
+
+
+
+
+void InitRectangleInterface(const unsigned & dim, const double &L, const double &H, const unsigned &rows, const unsigned &cols, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector < std::vector < std::vector < double > > > &T) {
+
+
+  double dx = L / (cols + 1);
+  double dy = H / (rows + 0.5);
+
+
+  std::cout << "dx = " << dx << " dy = " << dy << std::endl;
+  double dp = (1. / FI) * std::min({dx, dy});
+
+  //ensure uniform distribution
+  unsigned Nr = static_cast < unsigned >(ceil(H / dp));
+  unsigned Nc = static_cast < unsigned >(ceil(L / dp)+1);
+  
+
+  unsigned size =  FI * (2 * Nr + Nc);
+  xp.reserve(2 * size);
+  T.reserve(2 * size);
+
+  unsigned cnt = 0;
+
+//left and right boundary
+  std::vector<double> XP(dim, 0.);
+
+  for(unsigned j = 0; j < Nr; j++) {
+
+    XP[0] = xc[0];
+    XP[1] = xc[1] + 0.5 * dy + j * dp;
+    xp.resize(cnt + 1);
+    xp[cnt] = XP;
+    //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
+    T.resize(cnt + 1);
+    T[cnt].resize(1);
+    T[cnt][0].resize(2);
+
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = -1.;
+    //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
+    cnt++;
+
+    XP[0] = L + xc[0];
+    XP[1] = xc[1] + 0.5 * dp + j * dp;
+    xp.resize(cnt + 1);
+    xp[cnt] = XP;
+    //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
+    T.resize(cnt + 1);
+    T[cnt].resize(1);
+    T[cnt][0].resize(2);
+
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = 1.;
+
+    //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
+    cnt++;
+  }
+
+
+  //top boundary
+  for(unsigned j = 0; j < Nc; j++) {
+    XP[0] = xc[0]  + j * dp;
+    XP[1] = H + xc[1];
+    xp.resize(cnt + 1);
+    xp[cnt] = XP;
+    //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
+
+    T.resize(cnt + 1);
+    T[cnt].resize(1);
+    T[cnt][0].resize(2);
+
+    T[cnt][0][0] = -1.;
+    T[cnt][0][1] = 0.;
+    //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
+    cnt++;
+  }
+
+
+  
+  
+  markerType.assign(cnt, INTERFACE);
+
+
+
+}
+
+
+void InitFluidRecParticle(const unsigned & dim, const double &L, const double &H, const double &Lf, const double &Hf, const unsigned &rows, const unsigned &cols, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist){
+  
+    
+  double dx = L / (cols + 1);
+  double dy = H  / (rows + 0.5);
+  
+  
+  //std::cout << "dx = " << dx << " dy = " << dy << " size = " << size << std::endl;
+  unsigned nSideCols = ceil(Lf/dx -1);
+  unsigned nTopRows = ceil((Hf - H - xc[1])/dy);
+  unsigned size = 2 * nSideCols * (rows + 1) + 2 * nSideCols * nTopRows + nTopRows * (cols + 1) ;
+  
+  xp.reserve(2 * size);
+  wp.reserve(2 * size);
+  dist.reserve(2 * size);
+  unsigned cnt = 0;
+  std::vector<double> XP(dim);
+
+
+
+
+//left and right chunks upto Hf
+  for(unsigned i = 0; i < rows + 1 + nTopRows; i++) {
+    for(unsigned j = 0; j < nSideCols ; j++) {
+      XP[0] = xc[0] - (j + 1) * dx ;
+      XP[1] = xc[1] + 0.5 * dy + i * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] =  xp[cnt][0] - xc[0];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+
+      XP[0] = L + xc[0] + (j + 1) * dx;
+      XP[1] = xc[1] + 0.5 * dy + i * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist.resize(cnt + 1);
+      dist[cnt] +=  L + xc[0] - xp[cnt][0];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+
+    }
+  }
+
+
+  //top band
+  for(unsigned i = 0; i < nTopRows; i++) {
+    for(unsigned j = 0; j < cols + 2; j++) {
+      XP[0] = xc[0]  + j * dx;
+      XP[1] = H + xc[1] + (i + 1) * dy;
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+      wp.resize(cnt + 1);
+      wp[cnt] =  dx * dy;
+      dist[cnt] = H + xc[1] - xp[cnt][1];
+      //std::cout << xp[cnt][0] << " " << xp[cnt][1] << " " << wp[cnt] << " " << dist[cnt] << std::endl;
+      cnt++;
+    }
+  }
+
+
+
+
+  double sum = 0.;
+  for(unsigned j = 0; j < xp.size(); j++) {
+    sum += wp[j];
+  }
+
+  //could not fix
+  double area;
+
+//   std::setprecision(6);
+//   std::cout << " ExactArea = " << area << " ComputedArea = " << sum << std::endl;
+
+
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << " " << wp[j] << " " << dist[j] << std::endl;
+//   }
+
+
+
+  markerType.assign(cnt, VOLUME);
+
+   
+    
+    
+    
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std::vector<double> &VxR,
+                             const std::vector < double> &xc, std::vector < MarkerType > &markerType, const double & R, const double & Rmax, const double & DR, const unsigned & nbl, const unsigned & FI,
+                             std::vector < std::vector <double> > &xp, std::vector <double> &wp, std::vector <double> &dist) {
+
+
+
+  double theta0 = 0;
   double theta1 = 2 * M_PI;
 
   double phi1 = M_PI;
   double phi0 = 0;
-  
+
   double R0 = 0. ;
-  
+
   double dp = DR;
 
 
@@ -200,7 +615,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
             wp[cnt] = dbl * (ri * dphi) * (ri * sin(pk) * dti);
             dist[cnt] = (R - ri);
 
-            area += dbl * (ri * dphi) * (ri * sin(pk) * dti);  
+            area += dbl * (ri * dphi) * (ri * sin(pk) * dti);
             cnt++;
           }
         }
@@ -300,12 +715,12 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
   }
 
   markerType.assign(cnt, VOLUME);
-  
+
 }
 
 
 
-void InitBallInterfaceParticles(const unsigned &dim, const double &R, const double &DR, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector < std::vector < std::vector < double > > > &T) {
+void InitBallInterfaceParticles(const unsigned & dim, const double & R, const double & DR, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector < std::vector < std::vector < double > > > &T) {
 
 
   unsigned nr = ceil(((R - 0.5 * DR)) / DR);
@@ -348,7 +763,7 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
     markerType.assign(Ntheta, INTERFACE);
   }
   else {
-      
+
     std::vector<double> XP(dim);
     unsigned nphi = FI * ceil(M_PI * R / dr);
     double dphi = M_PI / nphi;
@@ -370,10 +785,10 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
         XP[0] = xc[0] + R * sin(pk) * cos(tj);
         XP[1] = xc[1] + R * sin(pk) * sin(tj);
         XP[2] = xc[2] + R * cos(pk);
-        
+
         xp.resize(cnt + 1);
         xp[cnt] = XP;
-        
+
         T.resize(cnt + 1);
         T[cnt].resize(2);
         T[cnt][0].resize(3);
@@ -386,7 +801,7 @@ void InitBallInterfaceParticles(const unsigned &dim, const double &R, const doub
         T[cnt][1][0] = -R * sin(pk) * sin(tj) * dti;
         T[cnt][1][1] = R * sin(pk) * cos(tj) * dti;
         T[cnt][1][2] = 0.;
-       
+
         cnt++;
       }
     }
@@ -859,7 +1274,7 @@ void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const 
 
 
 
-void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &VxL, std::vector<double> &VxU, Eigen::MatrixXd &Pg,  Eigen::VectorXd &wg, Eigen::VectorXd &F) {
+void GetChebGaussF(const unsigned & dim, const unsigned & m, std::vector<double> &VxL, std::vector<double> &VxU, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F) {
 
   F.resize(pow(m + 1, dim));
   F.setZero();
@@ -867,9 +1282,9 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &
   Eigen::VectorXi N(dim);
   Eigen::VectorXi J(dim);
   Eigen::VectorXi NG(dim);
-  
+
   unsigned ng = Pg.row(0).size();
- 
+
   for(unsigned k = 0; k < dim ; k++) {
     N(k) = pow(m + 1, dim - k - 1);
   }
@@ -882,30 +1297,30 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, std::vector<double> &
     I(0) = t / N(0);
     for(unsigned k = 1; k < dim ; k++) {
       unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); 
+      I(k) = pk / N(k);
     }
     F(t) = 0.;
     for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
       J(0) = g / NG(0);
       for(unsigned k = 1; k < dim ; k++) {
         unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k); 
+        J(k) = pk / NG(k);
       }
       double value = 1.;
       unsigned ig = 0;
       double jac = 1.;
-      
+
       for(unsigned k = 0; k < dim ; k++) {
         value *= 0.5 * (VxU[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k));
-      }            
+      }
       F(t) += value;
     }
   }
-  
+
 }
 
 
-void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<double> &jac, Eigen::MatrixXd &Pg,  Eigen::VectorXd &wg, Eigen::VectorXd &F) {
+void GetChebGaussF(const unsigned & dim, const unsigned & m, const std::vector<double> &jac, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F) {
 
   F.resize(pow(m + 1, dim));
   F.setZero();
@@ -913,9 +1328,9 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<dou
   Eigen::VectorXi N(dim);
   Eigen::VectorXi J(dim);
   Eigen::VectorXi NG(dim);
-  
+
   unsigned ng = Pg.row(0).size();
- 
+
   for(unsigned k = 0; k < dim ; k++) {
     N(k) = pow(m + 1, dim - k - 1);
   }
@@ -928,25 +1343,25 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<dou
     I(0) = t / N(0);
     for(unsigned k = 1; k < dim ; k++) {
       unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); 
+      I(k) = pk / N(k);
     }
     F(t) = 0.;
     for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
       J(0) = g / NG(0);
       for(unsigned k = 1; k < dim ; k++) {
         unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k); 
+        J(k) = pk / NG(k);
       }
-      
+
       double value = jac[g];
       for(unsigned k = 0; k < dim ; k++) {
         value *= Pg(I(k), J(k)) * wg(J(k));
       }
-            
+
       F(t) += value;
     }
   }
-  
+
 }
 
 
@@ -954,7 +1369,7 @@ void GetChebGaussF(const unsigned &dim, const unsigned &m, const std::vector<dou
 
 
 void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
-  // xL is taken in reference coordinate system 
+  // xL is taken in reference coordinate system
   PmX.resize(dim, m + 1, np);
   Eigen::MatrixXd Ptemp;
   Eigen::VectorXd xtemp;
@@ -971,7 +1386,7 @@ void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np,
 
 
 
-void GetMultiDimChebMatrix(const unsigned &dim, const unsigned &m, const unsigned &np, Eigen::Tensor<double,3,Eigen::RowMajor>  &PmX, Eigen::MatrixXd &A) {
+void GetMultiDimChebMatrix(const unsigned & dim, const unsigned & m, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & A) {
 
 
   A.resize(pow(m + 1, dim), np);
@@ -1044,7 +1459,7 @@ void PrintMarkers(const unsigned & dim, const Eigen::MatrixXd & xP, const std::v
 
 
 void  GetParticlesOnBox(const double & a, const double & b, const unsigned & n1, const unsigned & dim, Eigen::MatrixXd & x, Eigen::MatrixXd & xL) {
-  
+
   double h = (b - a) / n1;
   x.resize(dim, pow(n1, dim));
   Eigen::VectorXi I(dim);
