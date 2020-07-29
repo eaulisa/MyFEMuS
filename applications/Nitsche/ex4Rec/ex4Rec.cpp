@@ -232,7 +232,7 @@ int main(int argc, char** args) {
 
 //   std::cout << "SolidRegion" << std::endl;
 //   for(unsigned j = 0; j < xp.size(); j++) {
-//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
+//     std::cout << xp[j][0] << " " << xp[j][1] <<" "<<wp[j]<<" "<< dist[j] << std::endl;
 //   }
 
   unsigned solType = 2;

@@ -41,18 +41,15 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
   double L1 = L + DB;
   double H1 = H + 0.5 * DB;
-  double DH = 0.5 * (Lf - L1);
+  double DH = 0.5 * (Lf - L);
 
   unsigned cols1 = ceil(L1 / dL);    // number of cols above the inner bulk + interface
   unsigned rows1 = ceil(H1 / dL);    // number of rows upto tops
-  unsigned nDH = ceil(DH / dL);      //number of side cols without tops
-
-
+  unsigned nDH = ceil( (DH - 0.5 * DB) / dL);      //number of side cols without tops
 
   double dx1 = L1 / cols1;
   double dy1 = H1 / rows1;
   double dH = (DH - 0.5 * DB) / nDH;
-
 
   unsigned size0 = rows0 * cols0;                                       // number of markers on the inner bulk
   unsigned sizel = 2 * (nbl * rowsl) + 2 * (nbl * nbl) + (nbl * colsl); // number of markers on the boundary layer
@@ -64,7 +61,6 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   dist.reserve(sizeAll);
   unsigned cnt = 0;
   std::vector<double> XP(dim);
-
 
 //inner bulk
   std::vector<double> d(3); // d = {x-xc[0], L-x, H - y  }
@@ -79,8 +75,6 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       cnt++;
     }
   }
-
-
 
 //left and right boundary
   for(unsigned k = 0; k < nbl; k++) {
@@ -102,9 +96,6 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
     }
   }
 
-
-
-
   //top band without corners
   for(unsigned k = 0; k < nbl; k++) {
     for(unsigned j = 0; j < colsl; j++) {
@@ -117,8 +108,6 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
     }
   }
 
-
-
 //corner chuncks
   for(unsigned k = 0; k < nbl; k++) {
     for(unsigned j = 0; j < nbl; j++) {
@@ -127,21 +116,23 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       xp[cnt] = XP;
       wp[cnt] = dbl * dbl;
 
-      if(xp[cnt][0] == xc[0]) {
-        (xp[cnt][1] >= H + xc[1]) ? dist[cnt] = (H + xc[1]) - xp[cnt][1] : dist[cnt] = 0.;
+      if(xp[cnt][0] > xc[0]) { //right
+        if(xp[cnt][1] < xc[1] + H) { //bottom
+          d = {xp[cnt][0] - xc[0], (xc[1] + H) - xp[cnt][1]};
+          dist[cnt] = *std::min_element(d.begin(), d.end());
+        }
+        else { //top + interface
+          dist[cnt] = (xc[1] + H) - xp[cnt][1];
+        }
       }
-
-      else if(xp[cnt][1] == H + xc[1]) {
-        (xp[cnt][0] <= xc[0]) ? dist[cnt] = xc[0] - xp[cnt][0] : dist[cnt] = 0.;
+      else { //left + interface
+        if(xp[cnt][1] < H + xc[1]) { //bottom
+          dist[cnt] = xc[0] - xp[cnt][0];
+        }
+        else { //top +interface
+          dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+        }
       }
-
-      else if(xp[cnt][0] > xc[0] && xp[cnt][1] < H + xc[1]) {
-        dist[cnt] = sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
-      }
-      else {
-        dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
-      }
-
 
       cnt++;
 
@@ -150,20 +141,25 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       xp[cnt] = XP;
       wp[cnt] = dbl * dbl;
 
-      if(xp[cnt][0] == L + xc[0]) {
-        (xp[cnt][1] >= H + xc[1]) ? dist[cnt] = (H + xc[1]) - xp[cnt][1] : dist[cnt] = 0.;
+
+      if(xp[cnt][0] < xc[0] + L) { //left
+        if(xp[cnt][1] < xc[1] + H) { //bottom
+          d = {(xc[0] + L) - xp[cnt][0], (xc[1] + H) - xp[cnt][1]};
+          dist[cnt] = *std::min_element(d.begin(), d.end());
+        }
+        else { //top + interface
+          dist[cnt] = (xc[1] + H) - xp[cnt][1];
+        }
+      }
+      else { //right + interface
+        if(xp[cnt][1] < xc[1] + H) { //bottom
+          dist[cnt] = (xc[0] + L) - xp[cnt][0];
+        }
+        else { //top +interface
+          dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+        }
       }
 
-      else if(xp[cnt][1] == H + xc[1]) {
-        (xp[cnt][0] >= L + xc[0]) ? dist[cnt] = L + xc[0] - xp[cnt][0] : dist[cnt] = 0.;
-      }
-
-      else if(xp[cnt][0] < L + xc[0] && xp[cnt][1] < H + xc[1]) {
-        dist[cnt] = sqrt(pow(xp[cnt][0] - (L + xc[0]), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
-      }
-      else {
-        dist[cnt] = sqrt(pow(xp[cnt][0] - (L + xc[0]), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
-      }
       cnt++;
     }
 
@@ -179,7 +175,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       XP[1] = (xc[1] + 0.5 * dy1) + j * dy1;
       xp[cnt] = XP;
       wp[cnt] = dH * dy1;
-      if(xp[cnt][1] <= xc[1] + H) {
+      if(xp[cnt][1] < xc[1] + H) {
         dist[cnt] =  xp[cnt][0] - xc[0];
       }
       else {
@@ -191,7 +187,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       XP[1] = (xc[1] + 0.5 * dy1) + j * dy1;
       xp[cnt] = XP;
       wp[cnt] = dH * dy1;
-      if(xp[cnt][1] <= xc[1] + H) {
+      if(xp[cnt][1] < xc[1] + H) {
         dist[cnt] = (xc[0] + L) - xp[cnt][0];
       }
       else {
@@ -202,15 +198,14 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   }
 
 
-
   //top band without corners
   for(unsigned k = 0; k < nDH; k++) {
     for(unsigned j = 0; j < cols1; j++) {
       XP[0] = (xc[0] + 0.5 * dx1) + j * dx1;
-      XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH; // dH or dy1 ?
+      XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH; 
       xp[cnt] = XP;
       wp[cnt] = dx1 * dH;
-      dist[cnt] = (xc[1] + H1) - xp[cnt][1];
+      dist[cnt] = (xc[1] + H) - xp[cnt][1];
       cnt++;
     }
   }
@@ -220,14 +215,14 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   for(unsigned k = 0; k < nDH; k++) {
     for(unsigned j = 0; j < nDH; j++) {
       XP[0] = (xc[0] - DH + 0.5 * dH) + k * dH;
-      XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH; //dH or dy1 ?
+      XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH;
       xp[cnt] = XP;
       wp[cnt] = dH * dH;
       dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
       cnt++;
 
       XP[0] = (xc[0] + L + 0.5 * DB + 0.5 * dH) + k * dH;
-      XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH; //dH or dy1 ?
+      XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH;
       xp[cnt] = XP;
       wp[cnt] = dH * dH;
       wp[cnt] = dH * dH;
@@ -240,10 +235,11 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
 
 
-  //   double sum = 0.;
-  //   for(unsigned j = 0; j < xp.size(); j++) {
-  //     sum += wp[j];
-  //   }
+  double sum = 0.;
+  for(unsigned j = 0; j < xp.size(); j++) {
+    sum += wp[j];
+  }
+  std::cout << "Volume difference = " << sum << " "<< sum - (H + DH)*Lf << std::endl;
   //
   //   //could not fix
   //   double area;

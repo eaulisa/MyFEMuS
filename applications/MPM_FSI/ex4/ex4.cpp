@@ -14,9 +14,11 @@
 #include "NumericVector.hpp"
 #include "adept.h"
 
-#include "../include/mpmFsi5.hpp"
-
 using namespace femus;
+Line* bulk;
+
+#include "../include/mpmFsi5.hpp"
+#include "../../Nitsche/NewDraft/NewDraft.hpp"
 
 
 
@@ -231,6 +233,39 @@ int main (int argc, char** args) {
 
   system2.SetTolerances (1.e-10, 1.e-15, 1.e+50, 2, 2);
 
+  
+  
+   
+  
+  
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  std::vector < MarkerType > markerTypeBulk;
+  
+  double Hs = 5.e-05;
+  double Ls = 5.e-06;
+  double Lf = 4. * Ls; 
+  
+  std::vector < double> xcc = {0.98e-04, 0.};
+  
+  double dL = Hs / 30;
+  
+  unsigned nbl = 3; // odd number
+  double DB = 0.5 * dL;
+ 
+  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
+
+  bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
+
+  std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
+  bulk->GetLine(bulkPoints[0]);
+  PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
+  
+  
+  delete bulk;
+  
+  
   double L = 5.e-05; //beam dimensions
   double H = 5.e-06;
 
