@@ -1,16 +1,13 @@
 /** \file Ex13.cpp
  *  \brief This example shows how to set and solve the weak form
- *   of the Navier-Stokes Equation
+ *   of the time dependent Stress-Strain Equation, for a beam with pressure
  *
- *  \f{eqnarray*}
- *  && \mathbf{V} \cdot \nabla \mathbf{V} - \nabla \cdot \nu (\nabla \mathbf{V} +(\nabla \mathbf{V})^T)
- *  +\nabla P = 0 \\
- *  && \nabla \cdot \mathbf{V} = 0
- *  \f}
- *  in a unit box domain (in 2D and 3D) with given vertical velocity 1 on
- *  the left boundary and walls elsewhere.
+ *  \nabla \cdot \sigma + \mass*acceleration = F
+ *  in a Beam domain (in 2D and 3D) clamped on one end
+ *  
  *  \author Eugenio Aulisa
  */
+
 
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
@@ -23,20 +20,15 @@
 #include "adept.h"
 
 
-#include "petsc.h"
-#include "petscmat.h"
-#include "PetscMatrix.hpp"
-
 const unsigned DIM = 3;
 const double BETA = 0.25;
 const double GAMMA = 0.5;
-
+bool UseNewmarkUpdateWithD = true;
 double dt = 0.01;
 
 double SetVariableTimeStep(const double time) {
   return dt;
 }
-
 
 using namespace femus;
 
@@ -70,11 +62,9 @@ int main(int argc, char** args) {
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
-  // read coarse level mesh and generate finers level meshes
 
-
-  unsigned nx = 10; // this should always be a odd number
-  unsigned ny = 2; // this should always be a odd number
+  unsigned nx = 10; 
+  unsigned ny = 2; 
   unsigned nz = 1;
 
   double length = .1;
@@ -86,15 +76,13 @@ int main(int argc, char** args) {
   else if(DIM == 3) {
     nz = ny;
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, 0., lengthx , 0., length, 0., length,  HEX27, "seventh");
-    
-    //mlMsh.ReadCoarseMesh("./input/beam.neu", "seventh", 1.); 
-    
   }
 
   unsigned dim = mlMsh.GetDimension();
 
   unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
+  
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
   // erase all the coarse mesh levels
@@ -130,31 +118,32 @@ int main(int argc, char** args) {
   MultiLevelProblem mlProb(&mlSol);
 
   // add system Poisson in mlProb as a Linear Implicit System
-  TransientLinearImplicitSystem& system = mlProb.add_system < TransientLinearImplicitSystem > ("NS");
+  TransientLinearImplicitSystem& system = mlProb.add_system < TransientLinearImplicitSystem > ("Beam");
 
-  //add solution "A" to system
-//     system.AddSolutionToSystemPDE("AX");
-//     system.AddSolutionToSystemPDE("AY");
-//     if(dim == 3) system.AddSolutionToSystemPDE("AZ");
-//     system.AddSolutionToSystemPDE("P");
-
-  system.AddSolutionToSystemPDE("DX");
-  system.AddSolutionToSystemPDE("DY");
-  if(dim == 3) system.AddSolutionToSystemPDE("DZ");
-  system.AddSolutionToSystemPDE("P");
+  if(UseNewmarkUpdateWithD){
+    //add solution "D" to system  
+    system.AddSolutionToSystemPDE("DX");
+    system.AddSolutionToSystemPDE("DY");
+    if(dim == 3) system.AddSolutionToSystemPDE("DZ");
+    system.AddSolutionToSystemPDE("P");
+    system.SetAssembleFunction(AssembleResD);
+  }
+  
+  else{
+    //add solution "A" to system
+    system.AddSolutionToSystemPDE("AX");
+    system.AddSolutionToSystemPDE("AY");
+    if(dim == 3) system.AddSolutionToSystemPDE("AZ");
+    system.AddSolutionToSystemPDE("P");
+    system.SetAssembleFunction(AssembleRes);
+  }
 
   // attach the assembling function to system
-  system.SetAssembleFunction(AssembleResD);
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-
-  // attach the assembling function to system
-  //system.SetAssembleFunction(AssembleResD);
-  //system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
 
   // initilaize and solve the system
   system.init();
   system.SetOuterSolver(PREONLY);
-
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
@@ -166,28 +155,38 @@ int main(int argc, char** args) {
   std::vector<std::string> mov_vars;
   mov_vars.push_back("DX");
   mov_vars.push_back("DY");
-  if(DIM == 3)
-    mov_vars.push_back("DZ");
+  if(DIM == 3) mov_vars.push_back("DZ");
+    
   vtkIO.SetMovingMesh(mov_vars);
-
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-
   const unsigned int n_timesteps = 150;
-  for(unsigned t = 0; t < n_timesteps; t++) {
-    system.CopySolutionToOldSolution(); // Copy D, V, and A into DOld, VOld, and AOld, respectively
-    system.MGsolve(); //solve for A, using DOld, VOld, and AOld
-    //NewmarkUpdate(&mlSol); // update for D an V, using DOld, VOld, AOld and A
-    NewmarkUpdateWithD(&mlSol); // update for A and V, using DOld, VOld, AOld and D
+  if(UseNewmarkUpdateWithD){
+      
+    for(unsigned t = 0; t < n_timesteps; t++) {
+        system.CopySolutionToOldSolution(); // Copy D, V, and A into DOld, VOld, and AOld, respectively
+        system.MGsolve(); //solve for A, using DOld, VOld, and AOld
+        NewmarkUpdateWithD(&mlSol); // update for A and V, using DOld, VOld, AOld and D
 
-
-    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
+        vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
+    }
+  }
+  
+  else{
+      
+      for(unsigned t = 0; t < n_timesteps; t++) {
+        system.CopySolutionToOldSolution(); // Copy D, V, and A into DOld, VOld, and AOld, respectively
+        system.MGsolve(); //solve for A, using DOld, VOld, and AOld
+        NewmarkUpdate(&mlSol); // update for D an V, using DOld, VOld, AOld and A
+        
+        vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
+    }
   }
   return 0;
 }
 
 
-//Attempting to create J by hand
+//Assemble Residual using A to update D amd V
 void AssembleRes(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
@@ -196,7 +195,7 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
 
 
   //  extract pointers to the several objects that we are going to use
-  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
+  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("Beam");   // pointer to the linear implicit system named "Beam"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -321,43 +320,45 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
     }
 
 // *** Face Gauss point loop (boundary Integral) ***
-    /*for ( unsigned jface = 0; jface < msh->GetElementFaceNumber ( iel ); jface++ ) {
+    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
       int faceIndex = el->GetBoundaryIndex(iel, jface);
       // look for boundary faces
-      if ( faceIndex == 1 ) {
-        const unsigned faceGeom = msh->GetElementFaceType ( iel, jface );
-        unsigned faceDofs = msh->GetElementFaceDofNumber (iel, jface, solDType);
-        std::vector  < std::vector  <  double > > faceCoordinates ( dim ); // A matrix holding the face coordinates rowwise.
-        for ( int k = 0; k < dim; k++ ) {
-          faceCoordinates[k].resize (faceDofs);
+      if((dim == 2 && faceIndex == 3) || (dim == 3 && faceIndex == 4)) {
+        const unsigned faceGeom = msh->GetElementFaceType(iel, jface);
+        unsigned faceDofs = msh->GetElementFaceDofNumber(iel, jface, solAType);
+        std::vector  < std::vector  <  double> > faceCoordinates(dim);    // A matrix holding the face coordinates rowwise.
+        for(int k = 0; k < dim; k++) {
+          faceCoordinates[k].resize(faceDofs);
         }
-        for ( unsigned i = 0; i < faceDofs; i++ ) {
-          unsigned inode = msh->GetLocalFaceVertexIndex ( iel, jface, i ); // face-to-element local node mapping.
-          for ( unsigned k = 0; k < dim; k++ ) {
+        for(unsigned i = 0; i < faceDofs; i++) {
+          unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+          for(unsigned k = 0; k < dim; k++) {
             faceCoordinates[k][i] =  coordX[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
           }
         }
-        for ( unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solDType]->GetGaussPointNumber(); ig++ ) {
-            // We call the method GetGaussPointNumber from the object finiteElement in the mesh object msh.
-          std::vector < double> normal;
-          msh->_finiteElement[faceGeom][solDType]->JacobianSur ( faceCoordinates, ig, weight, phiD, phiD_x, normal );
+        for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solAType]->GetGaussPointNumber(); ig++) {
+          // We call the method GetGaussPointNumber from the object finiteElement in the mesh object msh.
+          std::vector < double > normal;
+          msh->_finiteElement[faceGeom][solAType]->JacobianSur(faceCoordinates, ig, weight, phiA, phiA_x, normal);
 
-           std::vector< double > xg(dim,0.);
-           for ( unsigned i = 0; i < faceDofs; i++ ) {
-             for( unsigned k=0; k<dim; k++){
-               xg[k] += phiD[i] * faceCoordinates[k][i]; // xg(ig)= \sum_{i=0}^faceDofs phi[i](xig) facecoordinates[i]
-             }
-           }
-          double tau; // a(u)*grad_u\cdot normal
-          SetBoundaryCondition( xg, "D", tau, faceIndex, 0. ); // return tau
+          std::vector< double > xg(dim, 0.);
+          for(unsigned i = 0; i < faceDofs; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              xg[k] += phiA[i] * faceCoordinates[k][i]; 
+            }
+          }
+          double tau; // sigma (dot) normal (dot) v
+          SetBoundaryCondition(xg, "D", tau, faceIndex, 0.);   // return tau
           // *** phiD loop ***
-          for ( unsigned i = 0; i < faceDofs; i++ ) {
-            unsigned inode = msh->GetLocalFaceVertexIndex ( iel, jface, i );
-            Res[inode] +=  phiD[i] * tau * weight;
+          for(unsigned i = 0; i < faceDofs; i++) {
+            unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+            for(unsigned k = 0; k < dim; k++) {
+              Res[k * nDofsA + inode] -=  phiA[i] * tau * normal[k] * weight;
+            }
           }
         }
       }
-    }   */
+    }
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solAType]->GetGaussPointNumber(); ig++) {
@@ -405,8 +406,8 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
           }
           term +=  -phiA_x[i * dim + I]  * solP_gss; //div D
 
-          if(I == 2) {
-            term += phiA[i] * 9.8 * rho; //Gravity only in z - direction
+          if(I == 1) {
+            term += phiA[i] * 9.8 * rho; //Gravity only in y - direction
           }
           Res[I * nDofsA + i] -= (rho * phiA[i] * solA_gss[I] + term) * weight;
         }
@@ -471,18 +472,6 @@ void AssembleRes(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-//VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
-//MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
-
-//   PetscViewer    viewer;
-//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
-//   PetscObjectSetName((PetscObject) viewer, "PWilmore matrix");
-//   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
-//   MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
-//   double a;
-//   std::cin >> a;
-
-
 }
 
 
@@ -494,7 +483,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
 
 
   //  extract pointers to the several objects that we are going to use
-  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
+  LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("Beam");   // pointer to the linear implicit system named "Beam"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -718,10 +707,9 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
       }
       // *** phiP_i loop ***
       for(unsigned i = 0; i < nDofsP; i++) {
-        Res[dim * nDofsD + i] -= phiP[i]  * (-divD - lambdaI * solP_gss) * weight ; //continuity TODO
+        Res[dim * nDofsD + i] -= phiP[i]  * (-divD - lambdaI * solP_gss) * weight ; //Continuity with Pressure
       } // end phiP_i loop
       // end gauss point loop
-
 
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
@@ -736,8 +724,8 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
 
             for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
               unsigned VJcolumn = J * nDofsD + j;
-              Jac[ VIrow * nDofsAll + VIcolumn] += mu * phiD_x[i * dim + J] * phiD_x[j * dim + J] * weight; //diagonal diffusion TODO
-              Jac[ VIrow * nDofsAll + VJcolumn] += mu * phiD_x[i * dim + J] * phiD_x[j * dim + I] * weight; //off-diagonal diffusion TODO
+              Jac[ VIrow * nDofsAll + VIcolumn] += mu * phiD_x[i * dim + J] * phiD_x[j * dim + J] * weight; //diagonal diffusion 
+              Jac[ VIrow * nDofsAll + VJcolumn] += mu * phiD_x[i * dim + J] * phiD_x[j * dim + I] * weight; //off-diagonal diffusion 
             }
           }
 
@@ -753,7 +741,7 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
         unsigned Prow = dim * nDofsD + i;
         for(unsigned j = 0; j < nDofsP; j++) {
           unsigned Pcolumn = dim * nDofsD + j;
-          Jac[Prow * nDofsAll + Pcolumn] += - lambdaI * phiP[i]  * phiP[j] *  weight;   //continuity TODO
+          Jac[Prow * nDofsAll + Pcolumn] += - lambdaI * phiP[i]  * phiP[j] *  weight;   //continuity 
         }
       } // end phiP_i loop
     }// end gauss loop
@@ -769,23 +757,9 @@ void AssembleResD(MultiLevelProblem& ml_prob) {
 
   RES->close();
   KK->close();
-
-//VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
-//MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
-
-//   PetscViewer    viewer;
-//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
-//   PetscObjectSetName((PetscObject) viewer, "PWilmore matrix");
-//   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
-//   MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
-//   double a;
-//   std::cin >> a;
-
-
 }
 
-
-
+//This updates D and V using A
 void NewmarkUpdate(MultiLevelSolution *mlSol) {
   unsigned level = mlSol->_mlMesh->GetNumberOfLevels() - 1u;
   //  extract pointers to the several objects that we are going to use
@@ -795,7 +769,6 @@ void NewmarkUpdate(MultiLevelSolution *mlSol) {
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
-  //I believe you covered this, but how do you specify the partition of the mesh for parrelel computation, I remember you showing this but I don't remember how you know this partition
 
   //solution variable
   std::vector < unsigned > solDIndex(dim);
@@ -815,6 +788,7 @@ void NewmarkUpdate(MultiLevelSolution *mlSol) {
 
   unsigned solType = mlSol->GetSolutionType(solDIndex[0]);
 
+  //Newmark Update
   for(unsigned k = 0; k < dim; k++) {
     for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
       double Anew = (*sol->_Sol[solAIndex[k]])(i);
@@ -831,10 +805,9 @@ void NewmarkUpdate(MultiLevelSolution *mlSol) {
     sol->_Sol[solVIndex[k]]->close();
     sol->_Sol[solDIndex[k]]->close();
   }
-
 }
 
-
+//Update A and V using D
 void NewmarkUpdateWithD(MultiLevelSolution *mlSol) {
   unsigned level = mlSol->_mlMesh->GetNumberOfLevels() - 1u;
   //  extract pointers to the several objects that we are going to use
@@ -844,7 +817,6 @@ void NewmarkUpdateWithD(MultiLevelSolution *mlSol) {
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
-  //I believe you covered this, but how do you specify the partition of the mesh for parrelel computation, I remember you showing this but I don't remember how you know this partition
 
   //solution variable
   std::vector < unsigned > solDIndex(dim);
@@ -864,6 +836,7 @@ void NewmarkUpdateWithD(MultiLevelSolution *mlSol) {
 
   unsigned solType = mlSol->GetSolutionType(solDIndex[0]);
 
+  //Newmark Update
   for(unsigned k = 0; k < dim; k++) {
     for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
       double Dnew = (*sol->_Sol[solDIndex[k]])(i);
@@ -880,7 +853,6 @@ void NewmarkUpdateWithD(MultiLevelSolution *mlSol) {
     sol->_Sol[solAIndex[k]]->close();
     sol->_Sol[solVIndex[k]]->close();
   }
-
 }
 
 
