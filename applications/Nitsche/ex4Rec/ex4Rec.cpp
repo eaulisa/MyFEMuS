@@ -216,7 +216,7 @@ int main(int argc, char** args) {
   //double L = 0.2;
   double Ls = 0.2;
   double Hs = 3 * Ls;
-  double Lf = 0.1; 
+  double Lf = 0.4; 
   double Hf = 4 * Hs;
   unsigned rows = 30;
   std::vector < double> xc = {-0.1, -0.5};
@@ -229,10 +229,11 @@ int main(int argc, char** args) {
 
   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
 
-  std::cout << "SolidRegion" << std::endl;
-  for(unsigned j = 0; j < xp.size(); j++) {
-    std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
-  }
+
+//   std::cout << "SolidRegion" << std::endl;
+//   for(unsigned j = 0; j < xp.size(); j++) {
+//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
+//   }
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
