@@ -192,7 +192,7 @@ int main (int argc, char** argv) {
 
   unsigned soluIndexFine = mlSolFine.GetIndex ("u_fine");
   mlSolFine.GenerateBdcOnVolumeConstraint (volumeConstraintFlags, soluIndexFine, 0);
-
+  
   //BEGIN assemble and solve nonlocal problem
   MultiLevelProblem ml_prob (&mlSol);
 
@@ -201,7 +201,7 @@ int main (int argc, char** argv) {
   system.AddSolutionToSystemPDE ("u");
 
   // ******* System FEM Assembly *******
-  system.SetAssembleFunction (AssembleNonLocalSys);
+  system.SetAssembleFunction (AssembleNonLocalSysRefined);
   system.SetMaxNumberOfLinearIterations (1);
   // ******* set MG-Solver *******
   system.SetMgType (V_CYCLE);
