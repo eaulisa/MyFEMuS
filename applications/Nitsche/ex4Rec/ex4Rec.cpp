@@ -41,7 +41,7 @@ using namespace femus;
 
 Line* line3;
 Line* lineI;
-Line* fluidLine;
+
 
 unsigned DIM = 2;
 double eps = 0.5;
@@ -216,24 +216,18 @@ int main(int argc, char** args) {
   //double L = 0.2;
   double Ls = 0.2;
   double Hs = 3 * Ls;
-  double Lf = 0.4; 
+  double Lf = 0.4;
   double Hf = 4 * Hs;
   unsigned rows = 30;
   std::vector < double> xc = {-0.1, -0.5};
   unsigned cols = static_cast < unsigned >(ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
-  unsigned nbl = 3; // odd number
- 
+  unsigned nbl = 5; // odd number
+
   double dL = Hs / rows;
-  double DB = 0.1 * dL;
- 
+  double DB = 1. * dL;
+
 
   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
-
-
-//   std::cout << "SolidRegion" << std::endl;
-//   for(unsigned j = 0; j < xp.size(); j++) {
-//     std::cout << xp[j][0] << " " << xp[j][1] <<" "<<wp[j]<<" "<< dist[j] << std::endl;
-//   }
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
@@ -243,20 +237,14 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
 
 
-  ///interface stuff
+  ///interface markers
 
   unsigned FI = 1;
   std::vector < std::vector < std::vector < double > > > T;
-  InitRectangleInterface(DIM, Ls, Hs, rows, cols, FI, xc, markerType, xp, T);
-
-//   std::cout << "SolidInterface" << std::endl;
-//   for(unsigned j = 0; j < xp.size(); j++) {
-//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
-//   }
-
+  
+  InitRectangleInterface(DIM, Ls, Hs, DB, nbl, FI, xc, markerType, xp, T);
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-
 
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
@@ -265,34 +253,13 @@ int main(int argc, char** args) {
   //END interface markers
 
 
-
-  //fluid markers
-
-
-//   InitFluidRecParticle(DIM, Ls, Hs, Lf, Hf, rows, cols, xc, markerType, xp, wp, dist);
-// 
-//   
-//   fluidLine = new Line (xp, wp, dist, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
-// 
-//   std::vector < std::vector < std::vector < double > > > lineF (1);
-//   fluidLine->GetLine(lineF[0]);
-//   PrintLine(DEFAULT_OUTPUTDIR, "FluidMarkers", lineF, 0);
-//   
-  
-//   std::cout << "FluidRegion" << std::endl;
-//   for(unsigned j = 0; j < xp.size(); j++) {
-//     std::cout << xp[j][0] << " " << xp[j][1] << std::endl;
-//   }
-
-
-
-
   BuildFlag(mlSol);
-
   GetParticleWeights(mlSol);
   GetInterfaceElementEigenvalues(mlSol);
 
+  
   system.MGsolve();
+  
 
   // ******* Print solution *******
   mlSol.SetWriter(VTK);
@@ -300,7 +267,6 @@ int main(int argc, char** args) {
 
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
-
 
   mlSol.GetWriter()->Write("./output", "biquadratic", print_vars, 0);
 

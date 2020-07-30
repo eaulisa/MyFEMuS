@@ -205,6 +205,61 @@ int main(int argc, char** args) {
 
   //BEGIN init particles
 
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  std::vector < MarkerType > markerType;
+
+  
+
+//// INIT Rectange Particle Initilization 
+
+  // inner bulk solid markers + outer shell fluid markers
+//   double Ls = 0.2;
+//   double Hs = 3 * Ls;
+//   double Lf = 0.4; 
+//   double Hf = 4 * Hs;
+//   unsigned rows = 30;
+//   std::vector < double> xc = {-0.1, -0.5};
+//   unsigned cols = (ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
+//   unsigned nbl = 3; // odd number
+//  
+//   double dL = Hs / rows;
+//   double DB = 0.1 * dL;
+//  
+//   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
+// 
+// 
+//   unsigned solType = 2;
+//   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+// 
+//   std::vector < std::vector < std::vector < double > > >  line3Points(1);
+//   line3->GetLine(line3Points[0]);
+//   PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
+// 
+// 
+//   //interface markers
+// 
+//   unsigned FI = 1;
+//   std::vector < std::vector < std::vector < double > > > T;
+//   InitRectangleInterface(DIM, Ls, Hs, dL, DB, FI, xc, markerType, xp, T);
+//   
+// 
+// 
+//   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+// 
+//   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
+//   lineI->GetLine(lineIPoints[0]);
+//   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
+
+ 
+  
+//// END Rectange Particle Initilization 
+  
+  
+  
+  //// INIT Ball Marker Initilization
+  
   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
 
@@ -217,11 +272,6 @@ int main(int argc, char** args) {
   unsigned nbl = 5;
   unsigned FI = 5;
   std::vector < double> Xc = {xc, yc, zc};
-
-  std::vector < std::vector <double> > xp;
-  std::vector <double> wp;
-  std::vector <double> dist;
-  std::vector < MarkerType > markerType;
 
   InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
 
@@ -245,12 +295,17 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
-  //END interface markers
-
+//   
+  
+ //// END Ball Marker Initilization
+  
   BuildFlag(mlSol);
-
   GetParticleWeights(mlSol);
   GetInterfaceElementEigenvalues(mlSol);
+  
+  
+
+  
 
   system.MGsolve();
 

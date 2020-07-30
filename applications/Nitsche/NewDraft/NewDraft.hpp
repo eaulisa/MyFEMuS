@@ -45,7 +45,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
   unsigned cols1 = ceil(L1 / dL);    // number of cols above the inner bulk + interface
   unsigned rows1 = ceil(H1 / dL);    // number of rows upto tops
-  unsigned nDH = ceil( (DH - 0.5 * DB) / dL);      //number of side cols without tops
+  unsigned nDH = ceil((DH - 0.5 * DB) / dL);       //number of side cols without tops
 
   double dx1 = L1 / cols1;
   double dy1 = H1 / rows1;
@@ -202,7 +202,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   for(unsigned k = 0; k < nDH; k++) {
     for(unsigned j = 0; j < cols1; j++) {
       XP[0] = (xc[0] + 0.5 * dx1) + j * dx1;
-      XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH; 
+      XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH;
       xp[cnt] = XP;
       wp[cnt] = dx1 * dH;
       dist[cnt] = (xc[1] + H) - xp[cnt][1];
@@ -239,7 +239,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   for(unsigned j = 0; j < xp.size(); j++) {
     sum += wp[j];
   }
-  std::cout << "Volume difference = " << sum << " "<< sum - (H + DH)*Lf << std::endl;
+  std::cout << "Volume difference = " << sum << " " << sum - (H + DH)*Lf << std::endl;
   //
   //   //could not fix
   //   double area;
@@ -259,56 +259,70 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
 
 
-void InitRectangleInterface(const unsigned & dim, const double &L, const double &H, const unsigned &rows, const unsigned &cols, const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType, std::vector < std::vector <double> > &xp, std::vector < std::vector < std::vector < double > > > &T) {
+
+void InitRectangleInterface(const unsigned & dim, const double &L, const double &H, const double &DB, const unsigned nbl,
+                            const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType,
+                            std::vector < std::vector <double> > &xp,
+                            std::vector < std::vector < std::vector < double > > > &T) {
 
 
-  double dx = L / (cols + 1);
-  double dy = H / (rows + 0.5);
+  double L0 = L - DB;
+  double H0 = H - 0.5 * DB;
 
 
-  double dp = (1. / FI) * std::min({dx, dy});
 
-  //ensure uniform distribution
-  unsigned Nr = static_cast < unsigned >(ceil(H / dp));
-  unsigned Nc = static_cast < unsigned >(ceil(L / dp) + 1);
+  double dbl = DB / nbl;
+  unsigned colsl = ceil(L0 / dbl);
+  unsigned rowsl = ceil(H0 / dbl);
+  double dxl = L0 / colsl;
+  double dyl = H0 / rowsl;
+
+  //cols0 = FI * ceil(L / dx0);
+  //rows0 = FI * ceil(H / dy0 );
 
 
-  unsigned size =  FI * (2 * Nr + Nc);
-  xp.reserve(2 * size);
-  T.reserve(2 * size);
+
+  unsigned size = (2 * rowsl + colsl) +  nbl;
+  xp.resize(size);
+
+
+  for(unsigned i = 0; i < size; i++) {
+    xp[i].assign(dim, 0.);
+  }
+
+  T.resize(size);
+  for(unsigned i = 0; i < size; i++) {
+    T[i].resize(dim - 1);
+    for(unsigned k = 0; k < dim - 1; k++) {
+      T[i][k].resize(dim, 0.);
+    }
+  }
+
 
   unsigned cnt = 0;
 
 //left and right boundary
   std::vector<double> XP(dim, 0.);
 
-  for(unsigned j = 0; j < Nr; j++) {
+  for(unsigned j = 0; j < rowsl; j++) {
 
     XP[0] = xc[0];
-    XP[1] = xc[1] + 0.5 * dy + j * dp;
-    xp.resize(cnt + 1);
+    XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
     xp[cnt] = XP;
     //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
-    T.resize(cnt + 1);
-    T[cnt].resize(1);
-    T[cnt][0].resize(2);
 
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = -1.;
+    T[cnt][0][1] = -dyl;
     //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
 
     XP[0] = L + xc[0];
-    XP[1] = xc[1] + 0.5 * dp + j * dp;
-    xp.resize(cnt + 1);
+    XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
     xp[cnt] = XP;
     //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
-    T.resize(cnt + 1);
-    T[cnt].resize(1);
-    T[cnt][0].resize(2);
 
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = 1.;
+    T[cnt][0][1] = dyl;
 
     //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
@@ -316,23 +330,60 @@ void InitRectangleInterface(const unsigned & dim, const double &L, const double 
 
 
   //top boundary
-  for(unsigned j = 0; j < Nc; j++) {
-    XP[0] = xc[0]  + j * dp;
+  for(unsigned j = 0; j < colsl; j++) {
+    XP[0] = xc[0] + 0.5 * DB + 0.5 * dxl + j * dxl;
     XP[1] = H + xc[1];
-    xp.resize(cnt + 1);
     xp[cnt] = XP;
     //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
 
-    T.resize(cnt + 1);
-    T[cnt].resize(1);
-    T[cnt][0].resize(2);
-
-    T[cnt][0][0] = -1.;
+    T[cnt][0][0] = -dxl;
     T[cnt][0][1] = 0.;
     //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
   }
 
+
+
+
+  // corners
+
+
+  for(unsigned j = 0; j < nbl / 2; j++) {
+
+    XP[0] = xc[0] ;
+    XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
+    xp[cnt] = XP;
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = -dbl;
+    cnt++;
+
+  }
+
+  XP[0] = xc[0] ;
+  XP[1] = H + xc[1];
+  xp[cnt] = XP;
+  T[cnt][0][0] = -dbl * acos(M_PI / 4.);
+  T[cnt][0][1] = -dbl * acos(M_PI / 4.);
+  cnt++;
+
+
+
+  for(unsigned j = 0; j < nbl / 2; j++) {
+    std::cout << "aaaaaaaaaaaaaaaaaaaaaaaa" << j << std::endl;
+    XP[0] = xc[0] + 0.5 * dbl + j * dbl ;
+    XP[1] = H ;
+    xp[cnt] = XP;
+    T[cnt][0][0] = -dbl;
+    T[cnt][0][1] = 0.;
+    cnt++;
+
+  }
+
+
+
+
+
+  std::cout << "size = " << size << " cnt = " << cnt << std::endl;
 
   markerType.assign(cnt, INTERFACE);
 
