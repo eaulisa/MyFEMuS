@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include "MultiLevelSolution.hpp"
@@ -43,7 +44,6 @@ double A2 = 1. / 16.;
 double B2 = - 1. / 24.;
 
 // === New variables for adaptive assembly ===
-double radius;
 double xc = -1;
 double yc = -1;
 
@@ -98,26 +98,26 @@ void SetConstants(const double &eps) {
   a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
-double GetDistance(const std::vector < double>  &xg1, const std::vector < double>  &xg3) {
+double GetDistance(const std::vector < double>  &xg1, const std::vector < double>  &xg3, double &radius) {
   return radius - sqrt((xg3[0] - xg1[0]) * (xg3[0] - xg1[0]) + (xg3[1] - xg1[1]) * (xg3[1] - xg1[1]));
   //return -.5 - x[0] - x[1];
 }
 
-double GetIntegrand(const std::vector < double>  &x) {
-  return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
-}
-
-void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
-  fout.open("mesh.txt", std::ios::app);
-  double f;
-  for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
-    f = GetIntegrand({xv[0][j], xv[1][j]});
-    fout << xv[0][j] << " " << xv[1][j] << " " << f << std::endl;
-  }
-  f = GetIntegrand({xv[0][0], xv[1][0]});
-  fout << std::endl;
-  fout.close();
-}
+// double GetIntegrand(const std::vector < double>  &x) {
+//   return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
+// }
+// 
+// void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
+//   fout.open("mesh.txt", std::ios::app);
+//   double f;
+//   for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
+//     f = GetIntegrand({xv[0][j], xv[1][j]});
+//     fout << xv[0][j] << " " << xv[1][j] << " " << f << std::endl;
+//   }
+//   f = GetIntegrand({xv[0][0], xv[1][0]});
+//   fout << std::endl;
+//   fout.close();
+// }
 
 void RefinedAssembly(const double &eps, const unsigned &level,
                    const unsigned &levelMin, const unsigned &levelMax,
@@ -128,7 +128,7 @@ void RefinedAssembly(const double &eps, const unsigned &level,
                    const unsigned &nDof1, const vector < double > &xg1,
                    const double &weight1_ig, const vector <double> &phi1_ig, 
                    const vector < double >  &solu1, const vector < double > &solu2,
-                   const unsigned iFather = 0
+                   double &radius, const unsigned iFather = 0
                    ) {
 
   double integral = 0.;
@@ -140,23 +140,22 @@ void RefinedAssembly(const double &eps, const unsigned &level,
   
   const unsigned maxSize = static_cast< unsigned > (ceil (pow (3, dim)));       // conservative: based on line3, quad9, hex27
   
-  Res1.assign (maxSize, 0);
-  Res2.assign (maxSize, 0);
-
-  Jac11.assign (maxSize * maxSize, 0);
-  Jac12.assign (maxSize * maxSize, 0);
-
-  Jac21.assign (maxSize * maxSize, 0);
-  Jac22.assign (maxSize * maxSize, 0);
+  Jac11.assign (nDof1 * nDof1, 0.);
+  Jac12.assign (nDof1 * nDof2, 0.);
+  Jac21.assign (nDof2 * nDof1, 0.);
+  Jac22.assign (nDof2 * nDof2, 0.);
+  Res1.assign (nDof1, 0.);
+  Res2.assign (nDof2, 0.);
   
   bool oneNodeIsInside = true;
   bool oneNodeIsOutside = true;
+  
   if(level < levelMax) {
     if(level < levelMin) {
     refine:
       refineElement.BuildElementProlongation(level, iFather);
       for(unsigned i = 0; i < numberOfChildren; i++) {
-        RefinedAssembly(eps, level + 1, levelMin, levelMax, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1, weight1_ig, phi1_ig, solu1, solu2, i);
+        RefinedAssembly(eps, level + 1, levelMin, levelMax, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1, weight1_ig, phi1_ig, solu1, solu2, radius, i);
       }
     }
     else {
@@ -169,7 +168,7 @@ void RefinedAssembly(const double &eps, const unsigned &level,
         for(unsigned k = 0; k < dim; k++) {
           x3[k] = xv[k][j];
         }
-        d = GetDistance(xg1, x3);
+        d = GetDistance(xg1, x3, radius);
         if(d > factor * eps) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -265,11 +264,23 @@ void RefinedAssembly(const double &eps, const unsigned &level,
 
 //       }
 
-      if(printMesh) PrintElement(xv, refineElement);
+//       if(printMesh) PrintElement(xv, refineElement);
   }
 
   return;
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 const elem_type *fem = new const elem_type_2D ("quad", "linear", "second");   //to use a different quadrature rule in the inner integral
 
@@ -1334,6 +1345,15 @@ void AssembleNonLocalSysFine (MultiLevelProblem& ml_prob) {
 //END
 
 
+
+
+
+
+
+
+
+
+
 void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -1420,6 +1440,10 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
   double dMax;
 
   char geometry[] = "quad";
+  
+  std::vector < std::vector <double> > xv;
+  xv = {{ -1., 1., 1., -1., 0., 1., 0., -1., 0.}, { -1., -1., 1., 1., -1., 0., 1., 0., 0.}};
+  dMax = sqrt(pow(xv[0][2] - xv[0][0], 2) + pow(xv[1][2] - xv[1][0], 2));
 
   //TODO 
 
@@ -1510,8 +1534,6 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
         Res1.assign (nDof1, 0.);
         Res2.assign (nDof2, 0.);
         
-        std::cout<<nDof1 << "  " << nDof2 << "\n";
-
         for (int k = 0; k < dim; k++) {
           x1[k].resize (nDof1);
         }
@@ -1621,7 +1643,7 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
               eps = eps0 * pow(0.5, lmax - 1);
               SetConstants(eps);
               
-              RefinedAssembly(eps, 0, lmin, lmax, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1[ig], weight1[ig], phi1x[ig], solu1, solu2);
+              RefinedAssembly(eps, 0, lmin, lmax, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1[ig], weight1[ig], phi1x[ig], solu1, solu2, radius);
               
               
 //             }
@@ -1721,7 +1743,7 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
 //     MatAssemblyEnd ( A, MAT_FINAL_ASSEMBLY );
 //     PetscViewer viewer;
 //     MatView ( A, viewer );
-
+// 
 //     Vec v = ( static_cast< PetscVector* > ( RES ) )->vec();
 //     VecView(v,PETSC_VIEWER_STDOUT_WORLD);
 
