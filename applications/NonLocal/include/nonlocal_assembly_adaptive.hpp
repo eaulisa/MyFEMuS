@@ -1460,7 +1460,7 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
   }
 
   unsigned lmin = 0;
-  unsigned lmax = 10;
+  unsigned lmax = 2;
     //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmin);
   SetConstants(eps);
@@ -1643,7 +1643,7 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
               eps = eps0 * pow(0.5, lmax - 1);
               SetConstants(eps);
               
-              RefinedAssembly(eps, 0, lmin, lmax, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1[ig], weight1[ig], phi1x[ig], solu1, solu2, radius);
+              RefinedAssembly(eps, 0, lmin, lmax-1, refineElement, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1[ig], weight1[ig], phi1x[ig], solu1, solu2, radius);
               
               
 //             }
@@ -1738,14 +1738,14 @@ void AssembleNonLocalSysRefined (MultiLevelProblem& ml_prob) {
 
   KK->close();
 
-//     Mat A = ( static_cast<PetscMatrix*> ( KK ) )->mat();
-//     MatAssemblyBegin ( A, MAT_FINAL_ASSEMBLY );
-//     MatAssemblyEnd ( A, MAT_FINAL_ASSEMBLY );
-//     PetscViewer viewer;
-//     MatView ( A, viewer );
-// 
-//     Vec v = ( static_cast< PetscVector* > ( RES ) )->vec();
-//     VecView(v,PETSC_VIEWER_STDOUT_WORLD);
+    Mat A = ( static_cast<PetscMatrix*> ( KK ) )->mat();
+    MatAssemblyBegin ( A, MAT_FINAL_ASSEMBLY );
+    MatAssemblyEnd ( A, MAT_FINAL_ASSEMBLY );
+    PetscViewer viewer;
+    MatView ( A, viewer );
+
+    Vec v = ( static_cast< PetscVector* > ( RES ) )->vec();
+    VecView(v,PETSC_VIEWER_STDOUT_WORLD);
 
   // ***************** END ASSEMBLY *******************
 }
