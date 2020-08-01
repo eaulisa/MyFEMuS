@@ -86,7 +86,7 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
 }
 
 unsigned numberOfUniformLevels = 2;
-unsigned numberOfUniformLevelsFine = 3;
+unsigned numberOfUniformLevelsFine = 2;
 
 int main (int argc, char** argv) {
 
