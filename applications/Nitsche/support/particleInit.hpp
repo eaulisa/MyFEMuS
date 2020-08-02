@@ -102,7 +102,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       cnt++;
     }
   }
-
+  
 //corner chuncks
   for(unsigned k = 0; k < nbl; k++) {
     for(unsigned j = 0; j < nbl; j++) {
@@ -120,9 +120,9 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = (xc[1] + H) - xp[cnt][1];
         }
       }
-      else { //left + interface
+      else { //bottom + interface
         if(xp[cnt][1] < H + xc[1]) { //bottom
-          dist[cnt] = xc[0] - xp[cnt][0];
+          dist[cnt] = xp[cnt][0] - xc[0];
         }
         else { //top +interface
           dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
@@ -146,7 +146,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = (xc[1] + H) - xp[cnt][1];
         }
       }
-      else { //right + interface
+      else { //bottom + interface
         if(xp[cnt][1] < xc[1] + H) { //bottom
           dist[cnt] = (xc[0] + L) - xp[cnt][0];
         }
@@ -154,12 +154,10 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
         }
       }
-
       cnt++;
     }
 
   }
-
 
   ////////////////OUTER SHELL
 
@@ -192,19 +190,26 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
     }
   }
 
-
   //top band without corners
   for(unsigned k = 0; k < nDH; k++) {
     for(unsigned j = 0; j < cols1; j++) {
-      XP[0] = (xc[0] -0.5 * DB + 0.5 * dx1) + j * dx1;
+      XP[0] = (xc[0] - 0.5 * DB + 0.5 * dx1) + j * dx1;
       XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH;
       xp[cnt] = XP;
       wp[cnt] = dx1 * dH;
-      dist[cnt] = (xc[1] + H) - xp[cnt][1];
+
+      if(xp[cnt][0] < xc[0]) {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
+      else if(xp[cnt][0] < xc[0] + L) {
+        dist[cnt] = (xc[1] + H) - xp[cnt][1];
+      }
+      else {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
       cnt++;
     }
   }
-
 
   //top two corners
   for(unsigned k = 0; k < nDH; k++) {
@@ -220,21 +225,16 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH;
       xp[cnt] = XP;
       wp[cnt] = dH * dH;
-      wp[cnt] = dH * dH;
       dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
       cnt++;
     }
   }
 
-
-
-
-
   double sum = 0.;
   for(unsigned j = 0; j < xp.size(); j++) {
     sum += wp[j];
   }
-  std::cout << "Volume difference = " << sum << " " << sum - (H + DH)*Lf << std::endl;
+  std::cout<<"Volume = " << sum <<" Volume difference = " << sum - (H + DH)*Lf << std::endl;
   //
   //   //could not fix
   //   double area;
@@ -255,7 +255,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
 
 
-void InitRectangleInterface(const unsigned & dim, const double &L, const double &H, const double &DB, const unsigned nbl,
+void InitRectangleInterface(const unsigned & dim, const double & L, const double & H, const double & DB, const unsigned nbl,
                             const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType,
                             std::vector < std::vector <double> > &xp,
                             std::vector < std::vector < std::vector < double > > > &T) {
@@ -348,8 +348,8 @@ void InitRectangleInterface(const unsigned & dim, const double &L, const double 
   XP[0] = xc[0] ;
   XP[1] = H + xc[1];
   xp[cnt] = XP;
-  T[cnt][0][0] = -dbl * sqrt(2.)/2.;
-  T[cnt][0][1] = -dbl * sqrt(2.)/2.;
+  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] = -dbl * sqrt(2.) / 2.;
   cnt++;
   for(unsigned j = 0; j < nbl / 2; j++) {
     XP[0] = xc[0] + dbl + j * dbl ;
@@ -373,8 +373,8 @@ void InitRectangleInterface(const unsigned & dim, const double &L, const double 
   XP[0] = xc[0] + L;
   XP[1] = H + xc[1];
   xp[cnt] = XP;
-  T[cnt][0][0] = -dbl * sqrt(2.)/2.;
-  T[cnt][0][1] =  dbl * sqrt(2.)/2.;
+  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] =  dbl * sqrt(2.) / 2.;
   cnt++;
 
 

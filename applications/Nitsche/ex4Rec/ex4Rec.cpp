@@ -213,13 +213,13 @@ int main(int argc, char** args) {
   double Hs = 3 * Ls;
   double Lf = 0.4;
   double Hf = 4 * Hs;
-  unsigned rows = 30;
+  unsigned rows = 27;
   std::vector < double> xc = { -0.1, -0.5};
   unsigned cols = static_cast < unsigned >(ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
   unsigned nbl = 5; // odd number
 
   double dL = Hs / rows;
-  double DB = 1. * dL;
+  double DB = 1.3241592 * dL;
 
 
   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
