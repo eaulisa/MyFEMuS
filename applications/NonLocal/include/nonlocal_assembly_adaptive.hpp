@@ -100,7 +100,47 @@ void SetConstants(const double &eps) {
 
 double GetDistance(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &radius) {
   return radius - sqrt((xg3[0] - xg1[0]) * (xg3[0] - xg1[0]) + (xg3[1] - xg1[1]) * (xg3[1] - xg1[1]));
-  //return -.5 - x[0] - x[1];
+}
+double GetDistanceSquare(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &sqSide) {
+  double distance = 0;
+  int xFac = 0;
+  int yFac = 0;
+  int inside = - 1;
+//   Top left right and center (respectevely)
+  if( xg3[1] > xg1[1] + sqSide ){
+    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = 1;}
+    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = 1;}
+    else {xFac = 0; yFac = 1;}
+  }
+//   Bottom left right and center (respectevely)
+  else if( xg3[1] < xg1[1] - sqSide ){
+    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = -1;}
+    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = - 1;}
+    else {xFac = 0; yFac = -1;}
+  }
+//   Center left right and center (respectevely)  
+  else{
+    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = 0;}
+    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = 0;}
+    else { 
+      double y_1 = fabs(xg3[1] - (xg1[1] + sqSide));
+      double y_2 = fabs(xg3[1] - (xg1[1] - sqSide));
+      double x_1 = fabs(xg3[0] - (xg1[0] + sqSide));
+      double x_2 = fabs(xg3[0] - (xg1[0] - sqSide));
+      inside = + 1;
+      
+      if( y_1 > y_2 ) yFac = - 1;
+      else yFac = 1;
+      if( x_1 > x_2 ) xFac = - 1;
+      else xFac = 1;
+      
+      if(std::min(y_1, y_2) < std::min(x_1, x_2)) xFac = 0;
+      else yFac = 0;
+    }
+  }
+  
+  return inside * sqrt( fabs(xFac) * (xg3[0] - (xg1[0] + xFac * sqSide)) * (xg3[0] - (xg1[0] + xFac * sqSide)) + 
+  fabs(yFac) * (xg3[1] - (xg1[1] + yFac * sqSide)) * (xg3[1] - (xg1[1] + yFac * sqSide)) );
 }
 
 // double GetIntegrand(const std::vector < double>  &x) {
@@ -173,6 +213,7 @@ double RefinedAssembly(const double &eps, const unsigned &level,
           xvj[k] = xv[k][j];
         }
         d = GetDistance(xg1, xvj, radius);
+//         d = GetDistanceSquare(xg1, xvj, radius);  // for square kernel
         if(d > factor * eps) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -206,6 +247,7 @@ double RefinedAssembly(const double &eps, const unsigned &level,
     const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
 
     double kernel = 4. / M_PI * kappa1 / (delta1 * delta1 * delta1 * delta1) ;
+//     double kernel = 0.75 * kappa1 / (delta1 * delta1 * delta1 * delta1) ; // for square kernel
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
 
@@ -223,6 +265,7 @@ double RefinedAssembly(const double &eps, const unsigned &level,
       U = 1.;
       if(level == levelMax) { // only for element at level l = lmax
         dg1 =  GetDistance(xg1, xg2, radius);
+//         dg1 = GetDistanceSquare(xg1, xg2, radius); // for square kernel
         dg2 = dg1 * dg1;
         if(dg1 < -eps)
           U = 0.;
