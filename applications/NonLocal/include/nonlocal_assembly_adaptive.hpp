@@ -48,8 +48,6 @@ double B2 = - 1. / 24.;
 double xc = -1;
 double yc = -1;
 
-bool printMesh = false;
-std::ofstream fout;
 // === New variables for adaptive assembly ===
 
 void GetBoundaryFunctionValue(double &value, const std::vector < double >& x) {
@@ -82,156 +80,6 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
 
 
 //BEGIN New functions: GetIntegral on refined mesh (needs the RefineElement class)
-
-
-void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
-  fout.open("mesh.txt", std::ios::app);
-
-  for(unsigned j = 0; j < refineElement.GetNumberOfLinearNodes(); j++) {
-    fout << xv[0][j] << " " << xv[1][j] << " " << std::endl;
-  }
-  fout << xv[0][0] << " " << xv[1][0] << " " << std::endl;
-
-  fout << std::endl;
-  fout.close();
-}
-
-double RefinedAssembly(const unsigned &level,
-                       const unsigned &levelMin, const unsigned &levelMax,
-                       RefineElement &refineElement, NonLocal *nonlocal,
-                       vector< double > &Res1, vector< double > &Res2,
-                       vector < double > &Jac11, vector < double > &Jac12,
-                       vector < double > &Jac21, vector < double > &Jac22,
-                       const unsigned &nDof1, const vector < double > &xg1,
-                       const double &weight1_ig, const double *phi1_ig,
-                       const vector < double >  &solu1, const vector < double > &solu2,
-                       const double &radius, const unsigned iFather = 0
-                      ) {
-
-  double area = 0;
-
-  const unsigned &nDof2 = refineElement.GetNumberOfNodes();
-  const unsigned &numberOfChildren = refineElement.GetNumberOfChildren();
-  const unsigned &dim = refineElement.GetDimension();
-
-  const std::vector < std::vector <double> >  &xv2 = refineElement.GetNodeCoordinates(level, iFather);
-
-  bool oneNodeIsInside = true;
-  bool oneNodeIsOutside = true;
-
-  if(level < levelMax) {
-    if(level < levelMin) {
-    refine:
-      refineElement.BuildElementProlongation(level, iFather);
-      for(unsigned i = 0; i < numberOfChildren; i++) {
-        area += RefinedAssembly(level + 1, levelMin, levelMax, refineElement, nonlocal, Res1, Res2, Jac11, Jac12, Jac21, Jac22, nDof1, xg1, weight1_ig, phi1_ig, solu1, solu2, radius, i);
-      }
-    }
-    else {
-      oneNodeIsInside = false;
-      oneNodeIsOutside = false;
-      double d;
-      std::vector< double > xv2j(dim);
-      for(unsigned j = 0; j < nDof2; j++) {
-        for(unsigned k = 0; k < dim; k++) {
-          xv2j[k] = xv2[k][j];
-        }
-        d = nonlocal->GetDistance(xg1, xv2j, radius);
-        if(d > refineElement.GetEps()) { // check if one node is inside thick interface
-          if(oneNodeIsOutside) goto refine;
-          oneNodeIsInside = true;
-        }
-        else if(d < -refineElement.GetEps()) { // check if one node is outside thick interface
-          if(oneNodeIsInside) goto refine;
-          oneNodeIsOutside = true;
-        }
-        else { // node is inside layer
-          goto refine;
-        }
-      }
-      if(!oneNodeIsOutside) { // the entire element is inside the thick interface
-        goto integrate;
-      }
-    }
-  }
-  else { // integration rule for interface elements
-  integrate:
-
-    const elem_type &finiteElement = refineElement.GetFEM();
-    std::vector < double> xg2(dim);
-    std::vector < double> xi2Fg(dim);
-
-    double dg1;
-    double dg2;
-    double weight2;
-    const double *phi2y;
-    std::vector < double > phi2F(nDof2);
-    double U;
-    const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
-
-    double kernel = nonlocal->GetKernel(kappa1,delta1);
-    
-    for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
-
-      finiteElement.GetGaussQuantities(xv2, jg, weight2, phi2y);
-      xg2.assign(dim, 0.);
-      xi2Fg.assign(dim, 0.);
-      for(unsigned k = 0; k < dim; k++) {
-        for(unsigned j = 0; j < nDof2; j++) {
-          xg2[k] += xv2[k][j] * phi2y[j];
-          xi2Fg[k] += xi2F[k][j] * phi2y[j];
-        }
-      }
-      finiteElement.GetPhi(phi2F, xi2Fg);
-
-      U = 1.;
-      if(level == levelMax) { // only for element at level l = lmax
-        dg1 = nonlocal->GetDistance(xg1, xg2, radius);
-        U = refineElement.GetSmoothStepFunction(dg1);
-      }
-
-      if(U > 0.) {
-
-        area += weight2;
-
-        double C =  U * weight1_ig * weight2 * kernel;
-
-        for(unsigned i = 0; i < nDof1; i++) {
-          for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue11 =  C * (phi1_ig[i]) * phi1_ig[j];
-            Jac11[i * nDof1 + j] -= jacValue11;
-            Res1[i] +=  jacValue11 * solu1[j];
-          }
-
-          for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue12 = - C * (phi1_ig[i]) * phi2F[j];
-            Jac12[i * nDof2 + j] -= jacValue12;
-            Res1[i] +=  jacValue12 * solu2[j];
-          }//endl j loop
-        }
-
-        for(unsigned i = 0; i < nDof2; i++) {
-          for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue21 = C * (- phi2F[i]) * phi1_ig[j];
-            Jac21[i * nDof1 + j] -= jacValue21;
-            Res2[i] +=  jacValue21 * solu1[j];
-          }
-
-          for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue22 = - C * (- phi2F[i]) * phi2F[j];
-            Jac22[i * nDof2 + j] -= jacValue22;
-            Res2[i] +=  jacValue22 * solu2[j];
-          }//endl j loop
-        } //endl i loop
-      }//end if U > 0.
-    }//end jg loop
-
-    if(printMesh) PrintElement(xv2, refineElement);
-  }
-
-  return area;
-}
-
 
 
 void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
@@ -270,13 +118,6 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   std::vector< unsigned > l2GMap1; // local to global mapping
   std::vector< unsigned > l2GMap2; // local to global mapping
 
-  std::vector< double > Res1; // local redidual vector
-  std::vector< double > Res2; // local redidual vector
-  std::vector < double > Jac11;
-  std::vector < double > Jac12;
-  std::vector < double > Jac21;
-  std::vector < double > Jac22;
-
   std::vector < std::vector < double > > xg1;
   std::vector <double> weight1;
   std::vector <const double *> phi1x;
@@ -299,8 +140,9 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   char geometry[] = "quad";
   RefineElement refineElement = RefineElement(geometry, "linear", "seventh");
   refineElement.SetConstants(eps);
-  
-  NonLocal *nonlocal = new NonLocalBox();
+
+  //NonLocal *nonlocal = new NonLocalBox();
+  NonLocal *nonlocal = new NonLocalBall();
 
   fout.open("mesh.txt");
   fout.close();
@@ -357,9 +199,6 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
       for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-//         if(iel == 40) printMesh = true;
-//         else printMesh = false;
-
         short unsigned ielGeom = msh->GetElementType(iel);
         short unsigned ielGroup = msh->GetElementGroup(iel);
         unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
@@ -390,19 +229,14 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
-          if( (*x1MinMax[k].first  - *x2MinMax[k].second) > radius + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > radius + eps) {
+          if((*x1MinMax[k].first  - *x2MinMax[k].second) > radius + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > radius + eps) {
             coarseIntersectionTest = false;
             break;
           }
         }
 
         if(coarseIntersectionTest) {
-          Jac11.assign(nDof1 * nDof1, 0.);
-          Jac12.assign(nDof1 * nDof2, 0.);
-          Jac21.assign(nDof2 * nDof1, 0.);
-          Jac22.assign(nDof2 * nDof2, 0.);
-          Res1.assign(nDof1, 0.);
-          Res2.assign(nDof2, 0.);
+          nonlocal->ZeroLocalQuantities(nDof1,nDof2);
           unsigned igNumber =  msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
 
           xg1.resize(igNumber);
@@ -425,27 +259,30 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
           for(unsigned ig = 0; ig < igNumber; ig++) {
             if(iel == jel) {
               for(unsigned i = 0; i < nDof1; i++) {
+                std::vector <double>& Res1 = nonlocal->GetRes1();  
                 // Res1[i] -= 0. * weight[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                 Res1[i] -=  - 2. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 2)
 
               }
             }
 
-            area += RefinedAssembly(0, lmin, lmax - 1, refineElement, nonlocal,
-                                    Res1, Res2, Jac11, Jac12, Jac21, Jac22,
-                                    nDof1, xg1[ig], weight1[ig], phi1x[ig],
-                                    solu1, solu2, radius);
+            bool printMesh = false;
+            // if(iel == 40) printMesh = true;
+           
+            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, refineElement, 
+                                              nDof1, xg1[ig], weight1[ig], phi1x[ig],
+                                              solu1, solu2, kappa1, delta1, printMesh);
 
           }
 
           if(area > 0.) {
-            KK->add_matrix_blocked(Jac11, l2GMap1, l2GMap1);
-            KK->add_matrix_blocked(Jac12, l2GMap1, l2GMap2);
-            RES->add_vector_blocked(Res1, l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
+            RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
 
-            KK->add_matrix_blocked(Jac21, l2GMap2, l2GMap1);
-            KK->add_matrix_blocked(Jac22, l2GMap2, l2GMap2);
-            RES->add_vector_blocked(Res2, l2GMap2);
+            KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
+            RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
           }
         }// end if coarse intersection
       } //end iel loop
@@ -455,7 +292,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  
+
   delete nonlocal;
   //KK->draw();
 

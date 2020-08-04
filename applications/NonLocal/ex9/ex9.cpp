@@ -1,4 +1,5 @@
 
+
 #include "FemusInit.hpp"
 #include "MultiLevelProblem.hpp"
 #include "VTKWriter.hpp"
@@ -13,7 +14,6 @@
 #include "PetscMatrix.hpp"
 
 #include "slepceps.h"
-
 #include "../include/nonlocal_assembly_adaptive.hpp"
 
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties

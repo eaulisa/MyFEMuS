@@ -1,4 +1,3 @@
-
 #ifndef __femus_RefineElement_hpp__
 #define __femus_RefineElement_hpp__
 
