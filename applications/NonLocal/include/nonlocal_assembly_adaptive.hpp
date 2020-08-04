@@ -1618,16 +1618,20 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
-          double min = 1.0e10;
-          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].first))
-            min = fabs(*x1MinMax[k].first  - *x2MinMax[k].first);
-          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].first))
-            min = fabs(*x1MinMax[k].second - *x2MinMax[k].first);
-          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].second))
-            min = fabs(*x1MinMax[k].first  - *x2MinMax[k].second);
-          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].second))
-            min = fabs(*x1MinMax[k].second - *x2MinMax[k].second);
-          if(min > radius + eps - 1.0e-10) {
+//           double min = 1.0e10;
+//           if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].first))
+//             min = fabs(*x1MinMax[k].first  - *x2MinMax[k].first);
+//           if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].first))
+//             min = fabs(*x1MinMax[k].second - *x2MinMax[k].first);
+//           if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].second))
+//             min = fabs(*x1MinMax[k].first  - *x2MinMax[k].second);
+//           if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].second))
+//             min = fabs(*x1MinMax[k].second - *x2MinMax[k].second);
+//           if(min > radius + eps - 1.0e-10) {
+//             coarseIntersectionTest = false;
+//             break;
+//           }
+          if( (*x1MinMax[k].first  - *x2MinMax[k].second) > radius + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > radius + eps) {
             coarseIntersectionTest = false;
             break;
           }
