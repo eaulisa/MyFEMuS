@@ -89,124 +89,124 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
 
 //BEGIN New functions: GetIntegral on refined mesh (needs the RefineElement class)
 
-void SetConstants(const double &eps) {
-  a0 = 0.5; // 128./256.;
-  a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
-  a3 = -pow(eps, -3.) * 1.640625; //420./256.;
-  a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
-  a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
-  a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
-}
+// void SetConstants(const double &eps) {
+//   a0 = 0.5; // 128./256.;
+//   a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+//   a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+//   a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+//   a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+//   a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+// }
 
-double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
-  double distance = 0.;
-  for(unsigned k = 0; k < xc.size(); k++) {
-    distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
-  }
-  return radius - sqrt(distance);
-  //return radius - sqrt((xp[0] - xc[0]) * (xp[0] - xc[0]) + (xp[1] - xc[1]) * (xp[1] - xc[1]));
-}
-
-double GetDistanceSquare(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &sqSide) {
-  int xFac = 0;
-  int yFac = 0;
-  int inside = - 1;
-//   Top left right and center (respectively)
-  if(xg3[1] > xg1[1] + sqSide) {
-    if(xg3[0] < xg1[0] - sqSide) {
-      xFac = - 1;
-      yFac = 1;
-    }
-    else if(xg3[0] > xg1[0] + sqSide) {
-      xFac = 1;
-      yFac = 1;
-    }
-    else {
-      xFac = 0;
-      yFac = 1;
-    }
-  }
-//   Bottom left right and center (respectively)
-  else if(xg3[1] < xg1[1] - sqSide) {
-    if(xg3[0] < xg1[0] - sqSide) {
-      xFac = - 1;
-      yFac = -1;
-    }
-    else if(xg3[0] > xg1[0] + sqSide) {
-      xFac = 1;
-      yFac = - 1;
-    }
-    else {
-      xFac = 0;
-      yFac = -1;
-    }
-  }
-//   Center left right and center (respectively)
-  else {
-    if(xg3[0] < xg1[0] - sqSide) {
-      xFac = - 1;
-      yFac = 0;
-    }
-    else if(xg3[0] > xg1[0] + sqSide) {
-      xFac = 1;
-      yFac = 0;
-    }
-    else {
-      double y_1 = fabs(xg3[1] - (xg1[1] + sqSide));
-      double y_2 = fabs(xg3[1] - (xg1[1] - sqSide));
-      double x_1 = fabs(xg3[0] - (xg1[0] + sqSide));
-      double x_2 = fabs(xg3[0] - (xg1[0] - sqSide));
-      inside = + 1;
-
-      if(y_1 > y_2) yFac = - 1;
-      else yFac = 1;
-      if(x_1 > x_2) xFac = - 1;
-      else xFac = 1;
-
-      if(std::min(y_1, y_2) < std::min(x_1, x_2)) xFac = 0;
-      else yFac = 0;
-    }
-  }
-
-  return inside * sqrt(fabs(xFac) * (xg3[0] - (xg1[0] + xFac * sqSide)) * (xg3[0] - (xg1[0] + xFac * sqSide)) +
-                       fabs(yFac) * (xg3[1] - (xg1[1] + yFac * sqSide)) * (xg3[1] - (xg1[1] + yFac * sqSide)));
-}
-
-
-
-double GetDistanceBox(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &bSide) {
-
-  unsigned dim = xc.size();
-  std::vector < double > din(2 * dim); // used only if the point is inside
-  std::vector < double > dout(dim, 0.); // used only if the point is outside
-
-  bool inside = true;
-  for(unsigned k = 0; k < dim; k++) {
-    din[2 * k] = xp[k] - (xc[k] - bSide); // point minus box left-side:  < 0 -> point is outside
-    din[2 * k + 1] = (xc[k] + bSide) - xp[k]; // box right-side minus point: < 0 -> point is outside
-    if(din[2 * k] < 0.) {
-      dout[k] = din[2 * k];
-      inside = false;
-    }
-    else if(din[2 * k + 1] < 0.) {
-      dout[k] = din[2 * k + 1];
-      inside = false;
-    }
-  }
-
-  double distance;
-  if(inside) {
-    distance = *std::min_element(din.begin(), din.end());
-  }
-  else {
-    distance = 0.;
-    for(unsigned k = 0; k < dim; k++) {
-      distance += dout[k] * dout[k];
-    }
-    distance = -sqrt(distance);
-  }
-  return distance;
-}
+// double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
+//   double distance = 0.;
+//   for(unsigned k = 0; k < xc.size(); k++) {
+//     distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+//   }
+//   return radius - sqrt(distance);
+//   //return radius - sqrt((xp[0] - xc[0]) * (xp[0] - xc[0]) + (xp[1] - xc[1]) * (xp[1] - xc[1]));
+// }
+// 
+// double GetDistanceSquare(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &sqSide) {
+//   int xFac = 0;
+//   int yFac = 0;
+//   int inside = - 1;
+// //   Top left right and center (respectively)
+//   if(xg3[1] > xg1[1] + sqSide) {
+//     if(xg3[0] < xg1[0] - sqSide) {
+//       xFac = - 1;
+//       yFac = 1;
+//     }
+//     else if(xg3[0] > xg1[0] + sqSide) {
+//       xFac = 1;
+//       yFac = 1;
+//     }
+//     else {
+//       xFac = 0;
+//       yFac = 1;
+//     }
+//   }
+// //   Bottom left right and center (respectively)
+//   else if(xg3[1] < xg1[1] - sqSide) {
+//     if(xg3[0] < xg1[0] - sqSide) {
+//       xFac = - 1;
+//       yFac = -1;
+//     }
+//     else if(xg3[0] > xg1[0] + sqSide) {
+//       xFac = 1;
+//       yFac = - 1;
+//     }
+//     else {
+//       xFac = 0;
+//       yFac = -1;
+//     }
+//   }
+// //   Center left right and center (respectively)
+//   else {
+//     if(xg3[0] < xg1[0] - sqSide) {
+//       xFac = - 1;
+//       yFac = 0;
+//     }
+//     else if(xg3[0] > xg1[0] + sqSide) {
+//       xFac = 1;
+//       yFac = 0;
+//     }
+//     else {
+//       double y_1 = fabs(xg3[1] - (xg1[1] + sqSide));
+//       double y_2 = fabs(xg3[1] - (xg1[1] - sqSide));
+//       double x_1 = fabs(xg3[0] - (xg1[0] + sqSide));
+//       double x_2 = fabs(xg3[0] - (xg1[0] - sqSide));
+//       inside = + 1;
+// 
+//       if(y_1 > y_2) yFac = - 1;
+//       else yFac = 1;
+//       if(x_1 > x_2) xFac = - 1;
+//       else xFac = 1;
+// 
+//       if(std::min(y_1, y_2) < std::min(x_1, x_2)) xFac = 0;
+//       else yFac = 0;
+//     }
+//   }
+// 
+//   return inside * sqrt(fabs(xFac) * (xg3[0] - (xg1[0] + xFac * sqSide)) * (xg3[0] - (xg1[0] + xFac * sqSide)) +
+//                        fabs(yFac) * (xg3[1] - (xg1[1] + yFac * sqSide)) * (xg3[1] - (xg1[1] + yFac * sqSide)));
+// }
+// 
+// 
+// 
+// double GetDistanceBox(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &bSide) {
+// 
+//   unsigned dim = xc.size();
+//   std::vector < double > din(2 * dim); // used only if the point is inside
+//   std::vector < double > dout(dim, 0.); // used only if the point is outside
+// 
+//   bool inside = true;
+//   for(unsigned k = 0; k < dim; k++) {
+//     din[2 * k] = xp[k] - (xc[k] - bSide); // point minus box left-side:  < 0 -> point is outside
+//     din[2 * k + 1] = (xc[k] + bSide) - xp[k]; // box right-side minus point: < 0 -> point is outside
+//     if(din[2 * k] < 0.) {
+//       dout[k] = din[2 * k];
+//       inside = false;
+//     }
+//     else if(din[2 * k + 1] < 0.) {
+//       dout[k] = din[2 * k + 1];
+//       inside = false;
+//     }
+//   }
+// 
+//   double distance;
+//   if(inside) {
+//     distance = *std::min_element(din.begin(), din.end());
+//   }
+//   else {
+//     distance = 0.;
+//     for(unsigned k = 0; k < dim; k++) {
+//       distance += dout[k] * dout[k];
+//     }
+//     distance = -sqrt(distance);
+//   }
+//   return distance;
+// }
 
 
 
@@ -282,7 +282,8 @@ double RefinedAssembly(const double &eps, const unsigned &level,
         }
         //d = GetDistance(xg1, xv2j, radius);
         //d = GetDistanceSquare(xg1, xv2j, radius);  // for square kernel
-        d = GetDistanceBox(xg1, xv2j, radius);  // for square kernel
+//         d = GetDistanceBox(xg1, xv2j, radius);  // for square kernel
+        d = refineElement.GetDistance(xg1, xv2j, radius);
         if(d > factor * eps) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -315,8 +316,8 @@ double RefinedAssembly(const double &eps, const unsigned &level,
     double U;
     const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
 
-    //double kernel = 4. / M_PI * kappa1 / (delta1 * delta1 * delta1 * delta1) ;
-    double kernel = 0.75 * kappa1 / (delta1 * delta1 * delta1 * delta1) ; // for square kernel
+    double kernel = 4. / M_PI * kappa1 / (delta1 * delta1 * delta1 * delta1) ;
+//     double kernel = 0.75 * kappa1 / (delta1 * delta1 * delta1 * delta1) ; // for square kernel
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
 
@@ -333,15 +334,19 @@ double RefinedAssembly(const double &eps, const unsigned &level,
 
       U = 1.;
       if(level == levelMax) { // only for element at level l = lmax
+        
         //dg1 =  GetDistance(xg1, xg2, radius);
         //dg1 = GetDistanceSquare(xg1, xg2, radius); // for square kernel
-        dg1 = GetDistanceBox(xg1, xg2, radius); // for square kernel
-        dg2 = dg1 * dg1;
-        if(dg1 < -eps)
-          U = 0.;
-        else if(dg1 < eps) {
-          U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
-        }
+//         dg1 = GetDistanceBox(xg1, xg2, radius); // for square kernel
+        dg1 = refineElement.GetDistance(xg1, xg2, radius);
+        U = refineElement.GetU(dg1);
+//         dg2 = dg1 * dg1;
+//         
+//         if(dg1 < -eps)
+//           U = 0.;
+//         else if(dg1 < eps) {
+//           U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+//         }
       }
 
       if(U > 0.) {
@@ -1525,10 +1530,11 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   double eps0 = dMax * 0.025;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
-  SetConstants(eps);
+//   SetConstants(eps);
 
   char geometry[] = "quad";
-  RefineElement refineElement = RefineElement(geometry, "linear", "seventh");
+  RefineElement refineElement = RefineElement(geometry, "linear", "seventh", "sphere");
+  refineElement.SetConstants(eps);
 
   fout.open("mesh.txt");
   fout.close();
