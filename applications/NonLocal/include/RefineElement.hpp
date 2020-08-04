@@ -4,11 +4,17 @@
 
 class RefineElement {
   public:
-    RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss);
+    RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* kernel_type);
     ~RefineElement();
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
 
     void BuildElementProlongation(const unsigned &level, const unsigned &i);
+    
+    void SetConstants( double &eps );
+
+    double GetDistance( const std::vector < double>  &xc, const std::vector < double>  &xp, const double &bSide );
+    
+    double GetU( double dg1 );
 
     const elem_type &GetFEM() const {
       return *_finiteElement;
@@ -71,11 +77,13 @@ class RefineElement {
     basis* _basis;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xvl;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xil;
+    double _a0, _a1, _a3, _a5, _a7, _a9, _eps;
+    const char* _k_type;
 
 };
 
 
-RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss) {
+RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* kernel_type) {
 
   if(!strcmp(geom_elem, "line")) {
     _numberOfChildren = 2;
@@ -98,6 +106,8 @@ RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const 
   _basis = _finiteElement->GetBasis();
 
   _numberOfLinearNodes = _finiteElementLinear->GetNDofs();
+  
+  _k_type = kernel_type;
 
   BuildPMat();
   delete _finiteElementLinear;
@@ -198,6 +208,72 @@ void RefineElement::BuildElementProlongation(const unsigned &level, const unsign
     }
   }
   
+}
+
+void RefineElement::SetConstants( double &eps ){
+  _eps = eps;
+  _a0 = 0.5; // 128./256.;
+  _a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
+  _a3 = -pow(eps, -3.) * 1.640625; //420./256.;
+  _a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
+  _a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
+  _a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+}
+
+double RefineElement::GetDistance( const std::vector < double>  &xc, const std::vector < double>  &xp, const double &bSide ){
+  double distance = 0.;
+  
+  if(!strcmp(_k_type, "sphere")) {
+    for(unsigned k = 0; k < xc.size(); k++) {
+      distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+    }
+    distance = bSide - sqrt(distance);
+  }
+  
+  else if(!strcmp(_k_type, "box")) {
+    unsigned dim = xc.size();
+    std::vector < double > din(2 * dim); // used only if the point is inside
+    std::vector < double > dout(dim, 0.); // used only if the point is outside
+
+    bool inside = true;
+    for(unsigned k = 0; k < dim; k++) {
+      din[2 * k] = xp[k] - (xc[k] - bSide); // point minus box left-side:  < 0 -> point is outside
+      din[2 * k + 1] = (xc[k] + bSide) - xp[k]; // box right-side minus point: < 0 -> point is outside
+      if(din[2 * k] < 0.) {
+        dout[k] = din[2 * k];
+        inside = false;
+      }
+      else if(din[2 * k + 1] < 0.) {
+        dout[k] = din[2 * k + 1];
+        inside = false;
+      }
+    }
+
+    if(inside) {
+      distance = *std::min_element(din.begin(), din.end());
+    }
+    else {
+      distance = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        distance += dout[k] * dout[k];
+      }
+      distance = -sqrt(distance);
+    }
+  }
+  
+  return distance;
+}
+
+double RefineElement::GetU( double dg1 ){
+  double dg2 = dg1 * dg1;
+  
+  if(dg1 < - _eps)
+    return 0.;
+  else if(dg1 < _eps) {
+    return (_a0 + dg1 * (_a1 + dg2 * (_a3 + dg2 * (_a5 + dg2 * (_a7 + dg2 * _a9)))));
+  }
+  else 
+    return 1.;
 }
 
 #endif
