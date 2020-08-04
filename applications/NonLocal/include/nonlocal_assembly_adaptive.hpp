@@ -98,50 +98,118 @@ void SetConstants(const double &eps) {
   a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
-double GetDistance(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &radius) {
-  return radius - sqrt((xg3[0] - xg1[0]) * (xg3[0] - xg1[0]) + (xg3[1] - xg1[1]) * (xg3[1] - xg1[1]));
+double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
+  double distance = 0.;
+  for(unsigned k = 0; k < xc.size(); k++) {
+    distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+  }
+  return radius - sqrt(distance);
+  //return radius - sqrt((xp[0] - xc[0]) * (xp[0] - xc[0]) + (xp[1] - xc[1]) * (xp[1] - xc[1]));
 }
+
 double GetDistanceSquare(const std::vector < double>  &xg1, const std::vector < double>  &xg3, const double &sqSide) {
-  double distance = 0;
   int xFac = 0;
   int yFac = 0;
   int inside = - 1;
-//   Top left right and center (respectevely)
-  if( xg3[1] > xg1[1] + sqSide ){
-    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = 1;}
-    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = 1;}
-    else {xFac = 0; yFac = 1;}
+//   Top left right and center (respectively)
+  if(xg3[1] > xg1[1] + sqSide) {
+    if(xg3[0] < xg1[0] - sqSide) {
+      xFac = - 1;
+      yFac = 1;
+    }
+    else if(xg3[0] > xg1[0] + sqSide) {
+      xFac = 1;
+      yFac = 1;
+    }
+    else {
+      xFac = 0;
+      yFac = 1;
+    }
   }
-//   Bottom left right and center (respectevely)
-  else if( xg3[1] < xg1[1] - sqSide ){
-    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = -1;}
-    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = - 1;}
-    else {xFac = 0; yFac = -1;}
+//   Bottom left right and center (respectively)
+  else if(xg3[1] < xg1[1] - sqSide) {
+    if(xg3[0] < xg1[0] - sqSide) {
+      xFac = - 1;
+      yFac = -1;
+    }
+    else if(xg3[0] > xg1[0] + sqSide) {
+      xFac = 1;
+      yFac = - 1;
+    }
+    else {
+      xFac = 0;
+      yFac = -1;
+    }
   }
-//   Center left right and center (respectevely)  
-  else{
-    if( xg3[0] < xg1[0] - sqSide ) {xFac = - 1; yFac = 0;}
-    else if( xg3[0] > xg1[0] + sqSide ) {xFac = 1; yFac = 0;}
-    else { 
+//   Center left right and center (respectively)
+  else {
+    if(xg3[0] < xg1[0] - sqSide) {
+      xFac = - 1;
+      yFac = 0;
+    }
+    else if(xg3[0] > xg1[0] + sqSide) {
+      xFac = 1;
+      yFac = 0;
+    }
+    else {
       double y_1 = fabs(xg3[1] - (xg1[1] + sqSide));
       double y_2 = fabs(xg3[1] - (xg1[1] - sqSide));
       double x_1 = fabs(xg3[0] - (xg1[0] + sqSide));
       double x_2 = fabs(xg3[0] - (xg1[0] - sqSide));
       inside = + 1;
-      
-      if( y_1 > y_2 ) yFac = - 1;
+
+      if(y_1 > y_2) yFac = - 1;
       else yFac = 1;
-      if( x_1 > x_2 ) xFac = - 1;
+      if(x_1 > x_2) xFac = - 1;
       else xFac = 1;
-      
+
       if(std::min(y_1, y_2) < std::min(x_1, x_2)) xFac = 0;
       else yFac = 0;
     }
   }
-  
-  return inside * sqrt( fabs(xFac) * (xg3[0] - (xg1[0] + xFac * sqSide)) * (xg3[0] - (xg1[0] + xFac * sqSide)) + 
-  fabs(yFac) * (xg3[1] - (xg1[1] + yFac * sqSide)) * (xg3[1] - (xg1[1] + yFac * sqSide)) );
+
+  return inside * sqrt(fabs(xFac) * (xg3[0] - (xg1[0] + xFac * sqSide)) * (xg3[0] - (xg1[0] + xFac * sqSide)) +
+                       fabs(yFac) * (xg3[1] - (xg1[1] + yFac * sqSide)) * (xg3[1] - (xg1[1] + yFac * sqSide)));
 }
+
+
+
+double GetDistanceBox(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &bSide) {
+
+  unsigned dim = xc.size();
+  std::vector < double > din(2 * dim); // used only if the point is inside
+  std::vector < double > dout(dim, 0.); // used only if the point is outside
+
+  bool inside = true;
+  for(unsigned k = 0; k < dim; k++) {
+    din[2 * k] = xp[k] - (xc[k] - bSide); // point minus box left-side:  < 0 -> point is outside
+    din[2 * k + 1] = (xc[k] + bSide) - xp[k]; // box right-side minus point: < 0 -> point is outside
+    if(din[2 * k] < 0.) {
+      dout[k] = din[2 * k];
+      inside = false;
+    }
+    else if(din[2 * k + 1] < 0.) {
+      dout[k] = din[2 * k + 1];
+      inside = false;
+    }
+  }
+
+  double distance;
+  if(inside) {
+    distance = *std::min_element(din.begin(), din.end());
+  }
+  else {
+    distance = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      distance += dout[k] * dout[k];
+    }
+    distance = -sqrt(distance);
+  }
+  return distance;
+}
+
+
+
 
 // double GetIntegrand(const std::vector < double>  &x) {
 //   return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
@@ -189,7 +257,7 @@ double RefinedAssembly(const double &eps, const unsigned &level,
   const unsigned &numberOfChildren = refineElement.GetNumberOfChildren();
   const unsigned &dim = refineElement.GetDimension();
 
-  const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, iFather);
+  const std::vector < std::vector <double> >  &xv2 = refineElement.GetNodeCoordinates(level, iFather);
 
   bool oneNodeIsInside = true;
   bool oneNodeIsOutside = true;
@@ -207,13 +275,14 @@ double RefinedAssembly(const double &eps, const unsigned &level,
       oneNodeIsOutside = false;
       double factor = 1.;
       double d;
-      std::vector< double > xvj(dim);
+      std::vector< double > xv2j(dim);
       for(unsigned j = 0; j < nDof2; j++) {
         for(unsigned k = 0; k < dim; k++) {
-          xvj[k] = xv[k][j];
+          xv2j[k] = xv2[k][j];
         }
-        d = GetDistance(xg1, xvj, radius);
-//         d = GetDistanceSquare(xg1, xvj, radius);  // for square kernel
+        //d = GetDistance(xg1, xv2j, radius);
+        //d = GetDistanceSquare(xg1, xv2j, radius);  // for square kernel
+        d = GetDistanceBox(xg1, xv2j, radius);  // for square kernel
         if(d > factor * eps) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -246,17 +315,17 @@ double RefinedAssembly(const double &eps, const unsigned &level,
     double U;
     const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
 
-    double kernel = 4. / M_PI * kappa1 / (delta1 * delta1 * delta1 * delta1) ;
-//     double kernel = 0.75 * kappa1 / (delta1 * delta1 * delta1 * delta1) ; // for square kernel
+    //double kernel = 4. / M_PI * kappa1 / (delta1 * delta1 * delta1 * delta1) ;
+    double kernel = 0.75 * kappa1 / (delta1 * delta1 * delta1 * delta1) ; // for square kernel
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
 
-      finiteElement.GetGaussQuantities(xv, jg, weight2, phi2y);
+      finiteElement.GetGaussQuantities(xv2, jg, weight2, phi2y);
       xg2.assign(dim, 0.);
       xi2Fg.assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned j = 0; j < nDof2; j++) {
-          xg2[k] += xv[k][j] * phi2y[j];
+          xg2[k] += xv2[k][j] * phi2y[j];
           xi2Fg[k] += xi2F[k][j] * phi2y[j];
         }
       }
@@ -264,8 +333,9 @@ double RefinedAssembly(const double &eps, const unsigned &level,
 
       U = 1.;
       if(level == levelMax) { // only for element at level l = lmax
-        dg1 =  GetDistance(xg1, xg2, radius);
-//         dg1 = GetDistanceSquare(xg1, xg2, radius); // for square kernel
+        //dg1 =  GetDistance(xg1, xg2, radius);
+        //dg1 = GetDistanceSquare(xg1, xg2, radius); // for square kernel
+        dg1 = GetDistanceBox(xg1, xg2, radius); // for square kernel
         dg2 = dg1 * dg1;
         if(dg1 < -eps)
           U = 0.;
@@ -310,7 +380,7 @@ double RefinedAssembly(const double &eps, const unsigned &level,
       }//end if U > 0.
     }//end jg loop
 
-    if(printMesh) PrintElement(xv, refineElement);
+    if(printMesh) PrintElement(xv2, refineElement);
   }
 
   return area;
@@ -1549,14 +1619,14 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
           double min = 1.0e10;
-          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].first))  
-              min = fabs(*x1MinMax[k].first  - *x2MinMax[k].first);
-          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].first))  
-              min = fabs(*x1MinMax[k].second - *x2MinMax[k].first);
-          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].second)) 
-              min = fabs(*x1MinMax[k].first  - *x2MinMax[k].second);
-          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].second)) 
-              min = fabs(*x1MinMax[k].second - *x2MinMax[k].second);
+          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].first))
+            min = fabs(*x1MinMax[k].first  - *x2MinMax[k].first);
+          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].first))
+            min = fabs(*x1MinMax[k].second - *x2MinMax[k].first);
+          if(min > fabs(*x1MinMax[k].first  - *x2MinMax[k].second))
+            min = fabs(*x1MinMax[k].first  - *x2MinMax[k].second);
+          if(min > fabs(*x1MinMax[k].second - *x2MinMax[k].second))
+            min = fabs(*x1MinMax[k].second - *x2MinMax[k].second);
           if(min > radius + eps - 1.0e-10) {
             coarseIntersectionTest = false;
             break;
@@ -1848,6 +1918,7 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
   }
 
 }
+
 
 
 

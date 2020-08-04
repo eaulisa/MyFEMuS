@@ -99,6 +99,7 @@ namespace femus {
     delete [] _mem_prol_ind;
 
     delete _pt_basis;
+    delete _gauss_bdry;
     
   }
 
