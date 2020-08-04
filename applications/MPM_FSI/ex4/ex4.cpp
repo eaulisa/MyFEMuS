@@ -16,10 +16,13 @@
 
 using namespace femus;
 Line* bulk;
-Line* lineI; 
+Line* lineI;
+
+void BuildFlag(MultiLevelSolution& mlSol);
 
 #include "../include/mpmFsi5.hpp"
 #include "../../Nitsche/support/particleInit.hpp"
+
 
 
 
@@ -139,6 +142,11 @@ int main(int argc, char** args) {
   if(dim > 1) mlSol.AddSolution("DY", LAGRANGE, SECOND, 0, false);
   if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, SECOND, 0, false);
 
+  mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
+
+
+
 
 // mlSol.SetIfFSI (true);
 
@@ -244,18 +252,20 @@ int main(int argc, char** args) {
   std::vector <double> dist;
   std::vector < MarkerType > markerTypeBulk;
 
-  double Hs = 5.e-05;
+  double Hs = 4.99e-05;
   double Ls = 5.e-06;
   double Lf = 4. * Ls;
 
   std::vector < double> xcc = {0.98e-04, 0.};
 
-  double dL = Hs / 30;
+  double dL = Hs / 250;
 
   unsigned nbl = 3; // odd number
-  double DB = 0.5 * dL;
+  double DB =  dL;
 
   InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
+
+  //InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
 
   bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
@@ -267,10 +277,14 @@ int main(int argc, char** args) {
   //interface markers
 
 
-  unsigned FI = 1;
+  //unsigned FI = 1;
   std::vector < std::vector < std::vector < double > > > T;
 
-  InitRectangleInterface(2, Ls, Hs, DB, nbl,FI, xcc, markerTypeBulk, xp, T);
+  InitRectangleInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
+
+
+
+
 
   unsigned solType1 = 2;
   lineI = new Line(xp, T, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), solType1);
@@ -284,10 +298,9 @@ int main(int argc, char** args) {
 
 
 
-  delete bulk;
-  delete lineI;
+  
 
-  double L = 5.e-05; //beam dimensions
+  double L = 4.99e-05; //beam dimensions
   double H = 5.e-06;
 
 //   double xc = 1.e-04 + 0.5 * H ; //should be this one to do COMSOL benchmark
@@ -477,10 +490,10 @@ int main(int argc, char** args) {
 
 
 
-  std::vector < std::vector < std::vector < double > > > lineI(1);
-  interfaceLine->GetLine(lineI[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineI, 0);
-  PrintLine("./output1", "interfaceLine", lineI, 0);
+  std::vector < std::vector < std::vector < double > > > lineI1(1);
+  interfaceLine->GetLine(lineI1[0]);
+  PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineI1, 0);
+  PrintLine("./output1", "interfaceLine", lineI1, 0);
   //END interface markers
 
 
@@ -562,7 +575,8 @@ int main(int argc, char** args) {
   interfaceLine->GetParticlesToGridMaterial(false);
   solidLine->GetParticlesToGridMaterial(true);
   GetParticlesToNodeFlag(mlSol, *solidLine, *fluidLine);
-
+  
+  BuildFlag(mlSol);
 
   // ******* Print solution *******
   mlSol.SetWriter(VTK);
@@ -592,27 +606,37 @@ int main(int argc, char** args) {
     }
 
     system.CopySolutionToOldSolution();
-
+    
     system.MGsolve();
 //     system2.MGsolve();
 
     solidLine->GetLine(lineS[0]);
     PrintLine("./output1", "solidLine", lineS, time_step);
-    interfaceLine->GetLine(lineI[0]);
-    PrintLine("./output1", "interfaceLine", lineI, time_step);
+    interfaceLine->GetLine(lineI1[0]);
+    PrintLine("./output1", "interfaceLine", lineI1, time_step);
     fluidLine->GetLine(lineF[0]);
     PrintLine("./output1", "fluidLine", lineF, time_step);
     mlSol.GetWriter()->Write("./output1", "biquadratic", print_vars, time_step);
 
+    GridToParticlesProjection(ml_prob, *bulk, *lineI);
     GridToParticlesProjection(ml_prob, *solidLine, *fluidLine, *interfaceLine);
-
+    
     solidLine->GetLine(lineS[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "solidLine", lineS, time_step);
-    interfaceLine->GetLine(lineI[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineI, time_step);
+    interfaceLine->GetLine(lineI1[0]);
+    PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineI1, time_step);
     fluidLine->GetLine(lineF[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "fluidLine", lineF, time_step);
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
+
+
+    bulk->GetLine(bulkPoints[0]);
+    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step);
+
+    lineI->GetLine(lineIPoints[0]);
+    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
+    
+
 
   }
 
@@ -621,9 +645,77 @@ int main(int argc, char** args) {
   delete solidLine;
   delete fluidLine;
   delete interfaceLine;
+  delete bulk;
+  delete lineI;
+  
   return 0;
 
 } //end main
 
+void BuildFlag(MultiLevelSolution& mlSol) {
 
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+
+  Solution *sol  = mlSol.GetSolutionLevel(level);
+  Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
+  unsigned iproc  = msh->processor_id();
+
+  unsigned eflagIndex = mlSol.GetIndex("eflag");
+  unsigned nflagIndex = mlSol.GetIndex("nflag");
+
+  unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
+
+  std::vector<Marker*> particle3 = bulk->GetParticles();
+  std::vector<unsigned> markerOffset3 = bulk->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
+
+  sol->_Sol[eflagIndex]->zero();
+  sol->_Sol[nflagIndex]->zero();
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    bool inside = false;
+    bool outside = false;
+    bool interface = false;
+
+    while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+      imarker3++;
+    }
+    while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+      double dg1 = particle3[imarker3]->GetMarkerDistance();
+      if(dg1 < -1.0e-10) {
+        outside = true;
+        if(inside) {
+          interface = true;
+          break;
+        }
+      }
+      else if(dg1 > 1.0e-10) {
+        inside = true;
+        if(outside) {
+          interface = true;
+          break;
+        }
+      }
+      else {
+        interface = true;
+        break;
+      }
+      imarker3++;
+    }
+    if(interface) {
+      sol->_Sol[eflagIndex]->set(iel, 1.);
+      unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
+      for(unsigned i = 0; i < nDofu; i++) {
+        unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(iDof, 1.);
+      }
+    }
+    else if(inside) {
+      sol->_Sol[eflagIndex]->set(iel, 2.);
+    }
+  }
+  sol->_Sol[eflagIndex]->close();
+  sol->_Sol[nflagIndex]->close();
+}
 
