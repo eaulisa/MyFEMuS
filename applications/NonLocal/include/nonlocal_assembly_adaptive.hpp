@@ -84,7 +84,13 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
 
 void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
-  LinearImplicitSystem* mlPdeSys  = &ml_prob.get_system<LinearImplicitSystem> ("NonLocal");
+  LinearImplicitSystem* mlPdeSys; 
+  if(!solveFine){
+    mlPdeSys = &ml_prob.get_system<LinearImplicitSystem> ("NonLocal");
+  }
+  else{
+    mlPdeSys = &ml_prob.get_system<LinearImplicitSystem> ("NonLocalFine");  
+  }
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*                    msh = ml_prob._ml_msh->GetLevel(level);
@@ -102,11 +108,21 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned nprocs = msh->n_processors(); // get the noumber of processes (for parallel computation)
 
-  unsigned soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
+  unsigned soluIndex;
+  unsigned soluPdeIndex;
+    
+  if(!solveFine){
+    soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
+    soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
+  }
+  else{  
+    soluIndex = mlSol->GetIndex("u_fine");    // get the position of "u" in the ml_sol object
+    soluPdeIndex = mlPdeSys->GetSolPdeIndex("u_fine");    // get the position of "u" in the pdeSys object  
+  }
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
-  unsigned soluPdeIndex;
-  soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
+
+  
 
   std::vector < double >  solu1; // local solution for the nonlocal assembly
   std::vector < double >  solu2; // local solution for the nonlocal assembly
@@ -137,9 +153,14 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
 
-  char geometry[] = "quad";
-  RefineElement refineElement = RefineElement(geometry, "linear", "seventh");
-  refineElement.SetConstants(eps);
+  
+  RefineElement *refineElement[6];
+    
+  refineElement[3] = new RefineElement("quad", "linear", "seventh");
+  refineElement[4] = new RefineElement("tri", "linear", "seventh");
+  
+  refineElement[3]->SetConstants(eps);
+  refineElement[4]->SetConstants(eps);
 
   //NonLocal *nonlocal = new NonLocalBox();
   NonLocal *nonlocal = new NonLocalBall();
@@ -191,7 +212,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
       }
 
-      refineElement.InitElement(x2, lmax);
+      refineElement[jelGeom]->InitElement(x2, lmax);
 
       for(unsigned k = 0; k < dim; k++) {
         x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
@@ -267,9 +288,9 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
 
             bool printMesh = false;
-            // if(iel == 40) printMesh = true;
+            //if(iel == 118) printMesh = true;
            
-            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, refineElement, 
+            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom], 
                                               nDof1, xg1[ig], weight1[ig], phi1x[ig],
                                               solu1, solu2, kappa1, delta1, printMesh);
 
@@ -294,6 +315,8 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
 
   delete nonlocal;
+  delete refineElement[3];
+  delete refineElement[4];
   //KK->draw();
 
   // ***************** END ASSEMBLY *******************
