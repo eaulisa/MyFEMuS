@@ -281,8 +281,8 @@ int main(int argc, char** argv) {
   systemFine.AddSolutionToSystemPDE("u");
 
   // ******* System FEM Assembly *******
-//   systemFine.SetAssembleFunction(AssembleNonLocalSysFine);
-  systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
+  systemFine.SetAssembleFunction(AssembleNonLocalSys);
+//  systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
   systemFine.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   systemFine.SetMgType(V_CYCLE);
