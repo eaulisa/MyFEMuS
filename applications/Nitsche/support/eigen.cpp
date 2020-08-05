@@ -1,6 +1,5 @@
 
 
- 
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -72,73 +71,6 @@ void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C) {
     }
   }
   C.transposeInPlace();
-
-}
-
-
-
-void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F) {
-
-
-  A.resize(pow(m + 1, dim), np);
-  F.resize(pow(m + 1, dim));
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(m + 1, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-    }
-    for(unsigned j = 0; j < np; j++) {
-      double r = 1;
-
-      for(unsigned k = 0; k < dim; k++) {
-        r *= PmX(k, I[k], j);
-      }
-      A(t, j) = r ;
-    }
-
-  }
-
-  unsigned ng = Pg.row(0).size();
-  Eigen::VectorXi J(dim);
-  Eigen::VectorXi NG(dim);
-
-
-
-  for(unsigned k = 0; k < dim ; k++) {
-    NG(k) = pow(ng, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-    }
-    F(t) = 0.;
-    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // multidimensional index on the space of polynomaials
-      J(0) = g / NG(0);
-      for(unsigned k = 1; k < dim ; k++) {
-        unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k); // dimensional index over on the space of polynomaials
-      }
-      double value = 1.;
-
-      for(unsigned k = 0; k < dim ; k++) {
-        value *= 0.5 * (VxR[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k)) ;
-      }
-      F(t) += value;
-    }
-
-  }
 
 }
 
@@ -237,8 +169,6 @@ void GetChebGaussF(const unsigned & dim, const unsigned & m, const std::vector<d
 
 
 
-
-
 void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
   // xL is taken in reference coordinate system
   PmX.resize(dim, m + 1, np);
@@ -330,40 +260,6 @@ void PrintMarkers(const unsigned & dim, const Eigen::MatrixXd & xP, const std::v
 }
 
 
-void  GetParticlesOnBox(const double & a, const double & b, const unsigned & n1, const unsigned & dim, Eigen::MatrixXd & x, Eigen::MatrixXd & xL) {
-
-  double h = (b - a) / n1;
-  x.resize(dim, pow(n1, dim));
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(n1, dim - k - 1);
-  }
-
-  for(unsigned p = 0; p < pow(n1, dim) ; p++) {
-    I(0) = 1 + p / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = p % N(k - 1);
-      I(k) = 1 + pk / N(k);
-    }
-    //std::cout << I(0) << " " << I(1) << std::endl;
-
-    for(unsigned k = 0; k < dim ; k++) {
-      std::srand(std::time(0));
-      double r = 2 * ((double) rand() / (RAND_MAX)) - 1;
-      x(k, p) = a + h / 2 + (I(k) - 1) * h; // + 0.1 * r;
-    }
-  }
-
-  xL.resize(dim, pow(n1, dim));
-  Eigen::MatrixXd ID;
-  ID.resize(dim, pow(n1, dim));
-  ID.fill(1.);
-  xL = (2. / (b - a)) * x - ((b + a) / (b - a)) * ID;
-
-
-}
 
 // N-point gauss quadrature points and weights by finding the roots of Legendre polynomaial
 void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd & wg) {
@@ -453,25 +349,7 @@ double get_r(const double & T, const unsigned & n) {
   return r;
 }
 
-void PrintMat(std::vector< std::vector<double> >& M) {
 
-  for(unsigned i = 0; i < M.size(); i++) {
-    for(unsigned j = 0; j < M[i].size(); j++) {
-      std::cout << M[i][j] << " ";
-    }
-    std::cout << std::endl;
-  }
-  std::cout << "\n" << std::endl;
-}
-
-
-void PrintVec(std::vector<double>& v) {
-  for(unsigned i = 0; i < v.size(); i++) {
-
-    std::cout << v[i] << " ";
-  }
-  std::cout << "\n" << std::endl;
-}
 
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol, Line* line3, Line* lineI, const double &deps) {
 
@@ -756,17 +634,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol, Line* line3, Line
 
 }
 
-void PrintMatlabMatrix(Eigen::MatrixXd &A) {
 
-  std::cout << " = [";
-  for(unsigned i = 0; i < A.rows(); i++) {
-    for(unsigned j = 0; j < A.cols(); j++) {
-      std::cout << A(i, j) << " ";
-    }
-    std::cout << ";" << std::endl;
-  }
-  std::cout << "];" << std::endl;
-}
 
 void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol, Line* line3, Line* lineI, const double &deps) {
 

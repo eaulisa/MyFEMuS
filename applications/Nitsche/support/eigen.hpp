@@ -15,8 +15,6 @@ void Testing(double & a, double & b, const unsigned & m, const unsigned & dim, E
 
 void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C);
 
-void AssembleMatEigen(std::vector<double>& VxL, std::vector<double> &VxR, const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::MatrixXd & A, Eigen::VectorXd & F);
-
 void GetChebGaussF(const unsigned & dim, const unsigned & m, std::vector<double> &VxL, std::vector<double> &VxU, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F);
 
 void GetChebGaussF(const unsigned & dim, const unsigned & m, const std::vector<double> &jac, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F);
@@ -30,18 +28,12 @@ void SolWeightEigen(Eigen::MatrixXd & A, Eigen::VectorXd & F, Eigen::VectorXd & 
 void PrintMarkers(const unsigned & dim, const Eigen::MatrixXd & xP, const std::vector <double> &dist,
                   const Eigen::VectorXd wP, const Eigen::VectorXd & w_new, const unsigned & l, const unsigned & t);
 
-void  GetParticlesOnBox(const double & a, const double & b, const unsigned & n1, const unsigned & dim, Eigen::MatrixXd & x, Eigen::MatrixXd & xL);
-
 void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd & wg);
 
 double GetDistance(const Eigen::VectorXd & x);
 
 double get_g(const double & r, const double & T, const unsigned & n);
 double get_r(const double & T, const unsigned & n);
-void PrintMat(std::vector< std::vector<double> >& M);
-
-void PrintVec(std::vector<double>& v);
-void PrintMatlabMatrix(Eigen::MatrixXd &A);
 
 #endif
 

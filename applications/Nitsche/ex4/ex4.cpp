@@ -1,15 +1,8 @@
-/** tutorial/Ex1
- * This example shows how to:
- * initialize a femus application;
- * define the multilevel-mesh object mlMsh;
- * read from the file ./input/square.neu the coarse-level mesh and associate it to mlMsh;
- * add in mlMsh uniform refined level-meshes;
- * define the multilevel-solution object mlSol associated to mlMsh;
- * add in mlSol different types of finite element solution variables;
- * initialize the solution varables;
- * define vtk and gmv writer objects associated to mlSol;
- * print vtk and gmv binary-format files in ./output directory.
- **/
+// This is an experimental application which describes Nitsche coupling for a linear stress term
+// from both domains. GetParticleWeights computes and updates particle weights on the cut elements in a way that 
+// the new weights are exact upto m - degree polynomials and still close to the old weights.
+// GetInterfaceElementEigenvalues computes the averaging coefficents appearing in interface terms Nitsche formulation.
+// There are two initilization here, ball and rectanglular type.
 
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
@@ -31,7 +24,6 @@
 #include "../support/sharedFunctions.hpp"
 
 #include <algorithm>    // std::minmax_element
-
 
 
 using namespace femus;
@@ -193,31 +185,30 @@ int main(int argc, char** args) {
 
   system.init();
 
-  //BEGIN init particles
+    //BEGIN init particles
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
   std::vector < MarkerType > markerType;
-
   
-
-//// INIT Rectange Particle Initilization 
-
-  // inner bulk solid markers + outer shell fluid markers
-//   double Ls = 0.2;
-//   double Hs = 3 * Ls;
-//   double Lf = 0.4; 
-//   double Hf = 4 * Hs;
-//   unsigned rows = 30;
-//   std::vector < double> xc = {-0.1, -0.5};
-//   unsigned cols = (ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
-//   unsigned nbl = 3; // odd number
-//  
-//   double dL = Hs / rows;
-//   double DB = 0.1 * dL;
-//  
-//   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
+  
+/// INIT Ball Marker Initilization
+  
+//   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
+//   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
+// 
+//   double xc = 0.;
+//   double yc = 0.;
+//   double zc = 0.;
+//   double R = 0.125;
+//   double Rmax = 0.225;
+//   double DR = H / 10.;
+//   unsigned nbl = 5;
+//   unsigned FI = 5;
+//   std::vector < double> Xc = {xc, yc, zc};
+// 
+//   InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
 // 
 // 
 //   unsigned solType = 2;
@@ -225,76 +216,72 @@ int main(int argc, char** args) {
 // 
 //   std::vector < std::vector < std::vector < double > > >  line3Points(1);
 //   line3->GetLine(line3Points[0]);
-//   PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
+//   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
 // 
 // 
-//   //interface markers
+//   ///interface stuff
 // 
-//   unsigned FI = 1;
 //   std::vector < std::vector < std::vector < double > > > T;
-//   InitRectangleInterface(DIM, Ls, Hs, dL, DB, FI, xc, markerType, xp, T);
-//   
 // 
+//   InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
 // 
 //   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 // 
 //   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
 //   lineI->GetLine(lineIPoints[0]);
-//   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
+//   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
+//   
+  
+//// END Ball Marker Initilization
+  
 
- 
-  
-//// END Rectange Particle Initilization 
-  
-  
-  
-  //// INIT Ball Marker Initilization
-  
-  std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
-  std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
+//// INIT Rectange Particle Initilization 
 
-  double xc = 0.;
-  double yc = 0.;
-  double zc = 0.;
-  double R = 0.125;
-  double Rmax = 0.225;
-  double DR = H / 10.;
-  unsigned nbl = 5;
-  unsigned FI = 5;
-  std::vector < double> Xc = {xc, yc, zc};
+  //inner bulk solid markers + outer shell fluid markers
+  double Ls = 0.2;
+  double Hs = 3 * Ls;
+  double Lf = 0.4;
+  double Hf = 4 * Hs;
+  unsigned rows = 27;
+  std::vector < double> xc = { -0.1, -0.5};
+  unsigned cols = static_cast < unsigned >(ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
+  unsigned nbl = 5; // odd number
 
-  InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
+  double dL = Hs / rows;
+  double DB = 1.3241592 * dL;
 
+
+  InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
 
   unsigned solType = 2;
   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
+  PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
 
 
-  ///interface stuff
+  ///interface markers
 
+  unsigned FI = 1;
   std::vector < std::vector < std::vector < double > > > T;
-
-  InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
-
+  InitRectangleInterface(DIM, Ls, Hs, DB, nbl, FI, xc, markerType, xp, T);
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
-//   
+
+  PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
+  //END interface markers
+
+ 
   
- //// END Ball Marker Initilization
+//// END Rectange Particle Initilization 
+  
   
   BuildFlag(mlSol);
   GetParticleWeights(mlSol, line3, lineI);
   GetInterfaceElementEigenvalues(mlSol, line3, lineI, deps);
-  
-  
-
   
 
   system.MGsolve();
@@ -327,6 +314,8 @@ int main(int argc, char** args) {
 
   ml_prob.clear();
 
+  delete line3;
+  delete lineI;
   return 0;
 }
 
@@ -491,8 +480,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       }
     }
 
+    
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
+    
+    // elements which are NOT cut by the interface
     if(eFlag == 0 || eFlag == 2) {
       // *** Element Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
@@ -557,6 +549,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       } // end gauss point loop
     }
 
+    // cut elements
     else {
 
       double iM1C1 = 1. / (mu1 * (*sol->_Sol[CMIndex[0]])(iel)); // 1/Ce1: element-wise largest eigenvalue in region1
