@@ -31,8 +31,7 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = false;
-bool areaConstraint = false;
+bool volumeConstraint = true;
 
 unsigned counter = 0;
 
@@ -152,7 +151,7 @@ int main (int argc, char** args) {
   mlSol.AddSolution ("Y3", LAGRANGE, FIRST, 2);
 
   // Add variable "Lambda" based on constraint choice.
-  if (volumeConstraint || areaConstraint) {
+  if (volumeConstraint) {
     mlSol.AddSolution ("Lambda", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
   }
 
@@ -208,9 +207,9 @@ int main (int argc, char** args) {
   system.AddSolutionToSystemPDE ("Y3");
 
   // Add solution Lambda to system based on constraint choice.
-  if (volumeConstraint || areaConstraint) {
+  if (volumeConstraint) {
     system.AddSolutionToSystemPDE ("Lambda");
-    system.SetNumberOfGlobalVariables (volumeConstraint + areaConstraint);
+    system.SetNumberOfGlobalVariables (volumeConstraint);
   }
 
   // Parameters for convergence and # of iterations for Willmore.
@@ -427,7 +426,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
   unsigned lambda2PdeDof;
 
   // Don't know what's happening here. ?
-  if (volumeConstraint || areaConstraint) {
+  if (volumeConstraint) {
     unsigned solLambdaIndex;
     solLambdaIndex = mlSol->GetIndex ("Lambda");
     solLambaPdeIndex = mlPdeSys->GetSolPdeIndex ("Lambda");
@@ -444,17 +443,17 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       solLambda1 = lambda1;
     }
 
-    if (areaConstraint) {
-      double lambda2;
-      if (iproc == 0) {
-        lambda2 = (*sol->_Sol[solLambdaIndex]) (volumeConstraint); // global to local solution
-        lambda2PdeDof = pdeSys->GetSystemDof (solLambdaIndex,
-                                              solLambaPdeIndex, 0, volumeConstraint);
-      }
-      MPI_Bcast (&lambda2, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast (&lambda2PdeDof, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-      solLambda2 = lambda2;
-    }
+    // if (areaConstraint) {
+    //   double lambda2;
+    //   if (iproc == 0) {
+    //     lambda2 = (*sol->_Sol[solLambdaIndex]) (volumeConstraint); // global to local solution
+    //     lambda2PdeDof = pdeSys->GetSystemDof (solLambdaIndex,
+    //                                           solLambaPdeIndex, 0, volumeConstraint);
+    //   }
+    //   MPI_Bcast (&lambda2, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    //   MPI_Bcast (&lambda2PdeDof, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    //    = lambda2;
+    // }
 
     // No idea what is happening here -- something with parallelization?
     std::vector < double > value (2);
@@ -466,13 +465,11 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
 
     // For equations other than Lagrange multiplier:
     for (int iel = msh->_elementOffset[iproc];
-         iel < msh->_elementOffset[iproc + 1]; iel++) {
-      if (iel > volumeConstraint * areaConstraint) {
-        row[0] = pdeSys->GetSystemDof (solLambdaIndex,
+      iel < msh->_elementOffset[iproc + 1]; iel++) {
+      row[0] = pdeSys->GetSystemDof (solLambdaIndex,
                                        solLambaPdeIndex, 0, iel);
-        columns[0] = row[0];
-        KK->add_matrix_blocked (value, row, columns);
-      }
+      columns[0] = row[0];
+      KK->add_matrix_blocked (value, row, columns);
     }
   }
 
@@ -500,7 +497,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
 
     // Convenience variable for keeping track of problem size.
     unsigned sizeAll = DIM * (nxDofs + nYDofs)
-                       + volumeConstraint + areaConstraint;
+                       + volumeConstraint;
 
     // Resize local arrays.
     SYSDOF.resize (sizeAll);
@@ -550,11 +547,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
 
     // Conditions for local storage of global Lagrange multipliers.
     if (volumeConstraint) {
-      SYSDOF[sizeAll - 1u - areaConstraint ] = lambda1PdeDof;
-    }
-
-    if (areaConstraint) {
-      SYSDOF[sizeAll - 1u ] = lambda2PdeDof;
+      SYSDOF[sizeAll - 1u] = lambda1PdeDof;
     }
 
     // Start a new recording of all the operations involving adept variables.
@@ -584,10 +577,6 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       phiY_uv[0] = msh->_finiteElement[ielGeom][solYType]->GetDPhiDXi (ig);
       phiY_uv[1] = msh->_finiteElement[ielGeom][solYType]->GetDPhiDEta (ig);
 
-      // phiW = msh->_finiteElement[ielGeom][solWType]->GetPhi (ig);
-      // phiW_uv[0] = msh->_finiteElement[ielGeom][solWType]->GetDPhiDXi (ig);
-      // phiW_uv[1] = msh->_finiteElement[ielGeom][solWType]->GetDPhiDEta (ig);
-
       // Initialize quantities xNew, xOld, Y, W at the Gauss points.
       adept::adouble solxNewg[3] = {0., 0., 0.};
       double solxOldg[3] = {0., 0., 0.};
@@ -597,10 +586,6 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       adept::adouble solxNew_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       adept::adouble solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solxOld_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-
-      //adept::adouble solYNew_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      //adept::adouble solY_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      //double solYOld_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       // Compute the above quantities at the Gauss points.
       for (unsigned K = 0; K < DIM; K++) {
@@ -662,17 +647,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       }
       double signYdotN = (YdotN.value() >= 0.) ? 1. : -1.;
 
-      // Some necessary quantities when working with polynomials.
-      //adept::adouble sumP1 = 0.;
-      //adept::adouble sumP2 = 0.;
-      adept::adouble sumP3 = 0.;
-      for (unsigned p = 0; p < 3; p++) {
-        double signP = (P[p] % 2u == 0) ? 1. : signYdotN;
-        //sumP1 += signP * ap[p] * P[p] * pow (YdotY, (P[p] - 2.) / 2.);
-        //sumP2 += signP * ap[p] * (1. - P[p]) * pow (YdotY , P[p] / 2.);
-        //sumP2 += signP * (ap[p] - ap[p] * P[p]) * pow (YdotY , P[p]/2.);
-        sumP3 += signP * ap[p] * pow (YdotY, P[p] / 2.);
-      }
+      double sumP3 = 1.;
 
       // Computing the metric inverse
       adept::adouble gi[dim][dim];
@@ -696,24 +671,21 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       adept::adouble solx_Xtan[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
       adept::adouble solxOld_Xtan[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
 
-      // adept::adouble solYNew_Xtan[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-      // adept::adouble solY_Xtan[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-      // adept::adouble solYOld_Xtan[DIM][DIM] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-
       // Computing tangential gradients defined above.
       for (unsigned I = 0; I < DIM; I++) {
         for (unsigned J = 0; J < DIM; J++) {
-          for (unsigned k = 0; k < dim; k++) {
-            solxNew_Xtan[I][J] += solxNew_uv[I][k] * Jir[k][J];
-            solx_Xtan[I][J] += solx_uv[I][k] * Jir[k][J];
-            solxOld_Xtan[I][J] += solxOld_uv[I][k] * Jir[k][J];
-
-            // solYNew_Xtan[I][J] += solYNew_uv[I][k] * Jir[k][J];
-            // solY_Xtan[I][J] += solY_uv[I][k] * Jir[k][J];
-            // solYOld_Xtan[I][J] += solYOld_uv[I][k] * Jir[k][J];
-          }
+          for (unsigned i = 0; i < dim; i++) {
+            // for (unsigned j = 0; j < dim; j++) {
+            //   solxNew_Xtan[I][J] += gi[i][j] * solx_uv[J][j] * solxNew_uv[I][i];
+            //   solx_Xtan[I][J] += gi[i][j] * solx_uv[J][j] * solx_uv[I][i];
+            //   solxOld_Xtan[I][J] += gi[i][j] * solx_uv[J][j] * solxOld_uv[I][i];
+            // }
+              solxNew_Xtan[I][J] += solxNew_uv[I][i] * Jir[i][J];
+              solx_Xtan[I][J] += solx_uv[I][i] * Jir[i][J];
+              solxOld_Xtan[I][J] += solxOld_uv[I][i] * Jir[i][J];
         }
       }
+    }
 
       // Define and compute gradients of test functions for X and W.
       std::vector < adept::adouble > phix_Xtan[DIM];
@@ -725,13 +697,19 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
 
         for (unsigned inode  = 0; inode < nxDofs; inode++) {
           for (unsigned k = 0; k < dim; k++) {
-            phix_Xtan[J][inode] += phix_uv[k][inode] * Jir[k][J];
+            // for (unsigned j = 0; j < dim; j++) {
+            //   phix_Xtan[J][inode] += g[k][j] * solx_uv[J][j] * phix_uv[k][inode];
+            // }
+              phix_Xtan[J][inode] += phix_uv[k][inode] * Jir[k][J];
           }
         }
 
         for (unsigned inode  = 0; inode < nYDofs; inode++) {
           for (unsigned k = 0; k < dim; k++) {
-            phiY_Xtan[J][inode] += phiY_uv[k][inode] * Jir[k][J];
+            // for (unsigned j = 0; j < dim; j++) {
+            //   phiY_Xtan[J][inode] += g[k][j] * solx_uv[J][j] * phiY_uv[k][inode];
+            // }
+              phiY_Xtan[J][inode] += phiY_uv[k][inode] * Jir[k][J];
           }
         }
       }
@@ -739,41 +717,40 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       // Implement the curvature equation Y = \Delta X .
       for (unsigned K = 0; K < DIM; K++) {
         for (unsigned i = 0; i < nxDofs; i++) {
-          adept::adouble term1 = 0.;
+          adept::adouble term = 0.;
 
           for (unsigned J = 0; J < DIM; J++) {
-            term1 +=  solxNew_Xtan[K][J] * phix_Xtan[J][i];
+            term +=  solxNew_Xtan[K][J] * phix_Xtan[J][i];
           }
-          aResx[K][i] += (solYg[K] * phix[i] + term1) * Area;
+          aResx[K][i] += (solYg[K] * phix[i] + term) * Area;
         }
 
         // Implement the MCF equation.
         for (unsigned i = 0; i < nYDofs; i++) {
-          adept::adouble term1 = 0.;
+          adept::adouble term = 0.;
 
           for (unsigned J = 0; J < DIM; J++) {
-            term1 +=  solxNew_Xtan[K][J] * phiY_Xtan[J][i];
+            term +=  solxNew_Xtan[K][J] * phiY_Xtan[J][i];
           }
-          aResY[K][i] += ( ( ( (solxNewg[K] - solxOldg[K])  / dt) + term1
-                          + solLambda1 * normal[K] ) * phiY[i]
-                          + solLambda2 * term1) * Area;
+          aResY[K][i] += ( ( (solxNewg[K] - solxOldg[K])  / dt) + term
+                          + solLambda1 * normal[K] ) * phiY[i] * Area;
         }
 
         // Lagrange multiplier (volume) equation Dx.N = 0.
         if (volumeConstraint) {
-          aResLambda1 += ( (solxNewg[K] - solxOldg[K]) * normal[K]) * Area;
+          aResLambda1 += (solxNewg[K] - solxOldg[K]) * normal[K] * Area;
         }
 
         // Lagrange multiplier (area) equation.
-        if (areaConstraint) {
-          //aResLambda2 += ( -YdotN * (solxNewg[K] - solxOldg[K]) * normal[K]) * Area;
-
-          adept::adouble term1t = 0.;
-          for (unsigned J = 0; J < DIM; J++) {
-            term1t +=  solx_Xtan[K][J] * (solxNew_Xtan[K][J] - solxOld_Xtan[K][J]) ;
-          }
-          aResLambda2 += term1t * Area;
-        }
+        // if (areaConstraint) {
+        //   //aResLambda2 += ( -YdotN * (solxNewg[K] - solxOldg[K]) * normal[K]) * Area;
+        //
+        //   adept::adouble term1t = 0.;
+        //   for (unsigned J = 0; J < DIM; J++) {
+        //     term1t +=  solx_Xtan[K][J] * (solxNew_Xtan[K][J] - solxOld_Xtan[K][J]) ;
+        //   }
+        //   aResLambda2 += term1t * Area;
+        // }
       }
 
       // Compute new surface area, volume, and P-Willmore energy.
@@ -781,7 +758,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
         surface += Area.value();
         volume += normalSign * (solxNewg[K].value() * normal[K].value()) * Area.value();
       }
-      energy += sumP3.value() * Area.value();
+      energy += sumP3 * Area.value();
 
     } // end GAUSS POINT LOOP.
 
@@ -801,11 +778,7 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
     }
 
     if (volumeConstraint) {
-      Res[sizeAll - 1u - areaConstraint] = - aResLambda1.value();
-    }
-
-    if (areaConstraint) {
-      Res[sizeAll - 1u] = - aResLambda2.value();
+      Res[sizeAll - 1u] = - aResLambda1.value();
     }
 
     // ???
@@ -827,10 +800,6 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
       s.dependent (&aResLambda1, 1);
     }
 
-    if (areaConstraint) {
-      s.dependent (&aResLambda2, 1);
-    }
-
     // Define the independent variables.
     for (int K = 0; K < DIM; K++) {
       s.independent (&solx[K][0], nxDofs);
@@ -842,10 +811,6 @@ void AssembleMCF (MultiLevelProblem& ml_prob) {
 
     if (volumeConstraint) {
       s.independent (&solLambda1, 1);
-    }
-
-    if (areaConstraint) {
-      s.independent (&solLambda2, 1);
     }
 
     // Get the Jacobian matrix (ordered by row).
