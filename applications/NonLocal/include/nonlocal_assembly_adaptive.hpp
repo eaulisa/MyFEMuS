@@ -110,6 +110,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
   soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
+
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
   std::vector < double >  solu1; // local solution for the nonlocal assembly
@@ -134,29 +135,38 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
   unsigned lmin = 0;
-  unsigned lmax = 6;
+  unsigned lmax = 4;
 
   double dMax = 0.1 * delta1;
   double eps0 = dMax * 0.025;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
+  
+  std::cout << eps <<std::endl;
 
+  RefineElement *refineElement[6][3];
 
-  RefineElement *refineElement[6];
+  refineElement[3][0] = new RefineElement("quad", "linear", "seventh");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "seventh");
+  refineElement[3][2] = new RefineElement("quad", "biquadratic", "seventh");
+  refineElement[4][0] = new RefineElement("tri", "linear", "seventh");
+  refineElement[4][1] = new RefineElement("tri", "quadratic", "seventh");
+  refineElement[4][2] = new RefineElement("tri", "biquadratic", "seventh");
 
-  refineElement[3] = new RefineElement("quad", "linear", "seventh");
-  refineElement[4] = new RefineElement("tri", "linear", "seventh");
+  refineElement[3][soluType]->SetConstants(eps);
+  refineElement[4][soluType]->SetConstants(eps);
+  
+  
+  
 
-  refineElement[3]->SetConstants(eps);
-  refineElement[4]->SetConstants(eps);
-
-  //NonLocal *nonlocal = new NonLocalBox();
-  NonLocal *nonlocal = new NonLocalBall();
+  NonLocal *nonlocal = new NonLocalBox();
+  //NonLocal *nonlocal = new NonLocalBall();
 
   fout.open("mesh.txt");
   fout.close();
 
 
+  double area1 = 0.;
   //BEGIN nonlocal assembly
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(unsigned jel = msh->_elementOffset[kproc]; jel < msh->_elementOffset[kproc + 1]; jel++) {
@@ -200,7 +210,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
       }
 
-      refineElement[jelGeom]->InitElement(x2, lmax);
+      refineElement[jelGeom][soluType]->InitElement(x2, lmax);
 
       for(unsigned k = 0; k < dim; k++) {
         x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
@@ -276,11 +286,14 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
 
             bool printMesh = false;
-            //if(iel == 118) printMesh = true;
+            //if(iel == 40 && ig == 1 ) printMesh = true;
 
-            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom],
-                                              nDof1, xg1[ig], weight1[ig], phi1x[ig],
-                                              solu1, solu2, kappa1, delta1, printMesh);
+            double area0 = nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
+                                                     nDof1, xg1[ig], weight1[ig], phi1x[ig],
+                                                     solu1, solu2, kappa1, delta1, printMesh);
+
+            area += area0;
+            if(iel == 40 && ig == 1) area1 += area0;
 
           }
 
@@ -301,10 +314,17 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
+  std::cout.precision(14);
+  std::cout << "AAAAAAAAAAA = " << area1 <<" "<<(2. * delta1) * (2. * delta1) << " " << M_PI * delta1 * delta1 << std::endl;
 
   delete nonlocal;
-  delete refineElement[3];
-  delete refineElement[4];
+  delete refineElement[3][0];
+  delete refineElement[3][1];
+  delete refineElement[3][2];  
+  delete refineElement[4][0];
+  delete refineElement[4][1];
+  delete refineElement[4][2];
+  
   //KK->draw();
 
   // ***************** END ASSEMBLY *******************
@@ -335,11 +355,6 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
 
 
-
-
-const elem_type *fem = new const elem_type_2D("quad", "linear", "second");    //to use a different quadrature rule in the inner integral
-
-const elem_type *femQuadrature = new const elem_type_2D("quad", "linear", "eighth");    //to use a different quadrature rule in the inner integral
 
 void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;

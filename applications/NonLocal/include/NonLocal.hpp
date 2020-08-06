@@ -60,8 +60,7 @@ void NonLocal::ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2)
 
 double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
                                  RefineElement &refineElement,
-                                 const unsigned &nDof1, const vector < double > &xg1,
-                                 const double &weight1_ig, const double *phi1_ig,
+                                 const unsigned &nDof1, const vector < double > &xg1, const double &weight1_ig, const double *phi1_ig,
                                  const vector < double >  &solu1, const vector < double > &solu2,
                                  const double &kappa, const double &delta, const bool &printMesh) {
 
@@ -91,6 +90,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       oneNodeIsOutside = false;
       double d;
       std::vector< double > xv2j(dim);
+      
       for(unsigned j = 0; j < nDof2; j++) {
         for(unsigned k = 0; k < dim; k++) {
           xv2j[k] = xv2[k][j];
@@ -139,6 +139,13 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
         }
       }
       finiteElement.GetPhi(phi2F, xi2Fg);
+      
+//       std::cout << xi2Fg[0] << " " << xi2Fg[0]<<std::endl;
+//       for(unsigned j = 0; j < nDof2; j++){
+//         std::cout << j<<" " << phi2F[j] << std::endl;    
+//       }
+      
+//      exit(1);
       
       if(level == levelMax - 1) { // only for element at level l = lmax - 1
         U = refineElement.GetSmoothStepFunction(  this->GetDistance(xg1, xg2, delta) );

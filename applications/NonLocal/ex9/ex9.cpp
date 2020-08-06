@@ -87,7 +87,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 unsigned numberOfUniformLevels = 2;
-unsigned numberOfUniformLevelsFine = 3;
+unsigned numberOfUniformLevelsFine = 2;
 
 int main(int argc, char** argv) {
 
@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
 
   //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
   mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "second", scalingFactor);
-// mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
+ // mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6.neu", "second", scalingFactor);
 //     mlMshFine.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7.neu", "second", scalingFactor);
@@ -163,13 +163,16 @@ int main(int argc, char** argv) {
   MultiLevelSolution mlSolFine(&mlMshFine);
 
   // add variables to mlSol
-  mlSol.AddSolution("u", LAGRANGE, FIRST, 0);
-  mlSolFine.AddSolution("u", LAGRANGE, FIRST, 0);
-  mlSolFine.AddSolution("up", LAGRANGE, FIRST, 0, false);
+  
+  FEOrder femType  = SERENDIPITY;
+  
+  mlSol.AddSolution("u", LAGRANGE,  femType, 0);
+  mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
+  mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
 
-  mlSol.AddSolution("u_local", LAGRANGE, FIRST, 0);
+  mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
 
-  mlSol.AddSolution("u_exact", LAGRANGE, FIRST, 0, false);
+  mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
 
   mlSol.Initialize("All");
   mlSolFine.Initialize("All");
@@ -206,6 +209,7 @@ int main(int argc, char** argv) {
 
   // ******* System FEM Assembly *******
   system.SetAssembleFunction(AssembleNonLocalSysRefined);
+  //system.SetAssembleFunction(AssembleNonLocalSys);
   system.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   system.SetMgType(V_CYCLE);
@@ -282,7 +286,7 @@ int main(int argc, char** argv) {
 
   // ******* System FEM Assembly *******
   systemFine.SetAssembleFunction(AssembleNonLocalSys);
-//  systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
+  //systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
   systemFine.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   systemFine.SetMgType(V_CYCLE);
@@ -326,13 +330,13 @@ int main(int argc, char** argv) {
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "nonlocal_local_exact", print_vars, 0);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR,"quadratic", print_vars, 0);
 
   mlSolFine.SetWriter(VTK);
   std::vector<std::string> print_vars2;
   print_vars2.push_back("All");
   mlSolFine.GetWriter()->SetDebugOutput(true);
-  mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, "fine", print_vars2, 0);
+  mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, "quadratic", print_vars2, 1);
 
   std::cout << std::endl << " total CPU time : " << std::setw(11) << std::setprecision(6) << std::fixed
             << static_cast<double>((clock() - total_time)) / CLOCKS_PER_SEC << " s" << std::endl;
@@ -359,12 +363,8 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
   double error_solLocal_norm2 = 0.;
 
-  double error_NonLocCoarse_NonLocFine_norm2 = 0.;
-
   double solNonlocal_norm2 = 0.;
-
-  double solNonlocalFine_norm2 = 0.;
-
+    
   double solLocal_norm2 = 0.;
 
   double sol_exact_norm2 = 0.;
@@ -523,6 +523,11 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
     solFineL->_Sol[solupIndexFine]->matrix_mult(*solFineLm1->_Sol[solupIndexFine], *mshFineL->GetCoarseToFineProjection(soluType));
   }
 
+  double error_NonLocCoarse_NonLocFine_norm2 = 0.;
+
+  double solNonlocalFine_norm2 = 0.;
+
+  
   for(int iel = solFine->GetMesh()->_elementOffset[iproc]; iel < solFine->GetMesh()->_elementOffset[iproc + 1]; iel ++) {
 
     short unsigned ielGeom = mshFine->GetElementType(iel);
@@ -549,12 +554,12 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
     const double* phi;  // local test function
     double weight; // gauss point weight
-    unsigned igNumber = femQuadrature->GetGaussPointNumber();
+    unsigned igNumber = mshFine->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < igNumber; ig++) {
         
-      femQuadrature->GetGaussQuantities(x, ig, weight, phi); 
+      mshFine->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x, ig, weight, phi); 
       double soluP_gss = 0.;
       double solu_gss = 0.;
       for(unsigned i = 0; i < nDofs; i++) {
@@ -568,6 +573,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
     }
 
   }
+   
 
   norm2 = 0.;
   MPI_Allreduce(&error_NonLocCoarse_NonLocFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
