@@ -20,11 +20,11 @@ Line* lineI;
 
 void BuildFlag(MultiLevelSolution& mlSol);
 
+double eps;
+
+
 #include "../include/mpmFsi5.hpp"
 #include "../../Nitsche/support/particleInit.hpp"
-
-
-
 
 
 double SetVariableTimeStep(const double time) {
@@ -262,6 +262,7 @@ int main(int argc, char** args) {
 
   unsigned nbl = 3; // odd number
   double DB =  dL;
+  eps = DB;
 
   InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
 
@@ -584,7 +585,7 @@ int main(int argc, char** args) {
   std::vector<std::string> mov_vars;
   mov_vars.push_back("DX");
   mov_vars.push_back("DY");
-  //mov_vars.push_back("UZ");
+  //mov_vars.push_back("DZ");
   mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   std::vector<std::string> print_vars;
