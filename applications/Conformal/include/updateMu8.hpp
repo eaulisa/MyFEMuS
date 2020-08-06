@@ -321,8 +321,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   NumericVector  *mu2 = NumericVector::build().release();
   mu2->init(*sol->_Sol[indexMu[1]]);
 
-  
-  
+
+
   for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
     *mu1 = *(sol->_Sol[indexMu[0]]);
@@ -1368,13 +1368,13 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   delete I;
   delete temp;
   delete D;
-  
+
 
 //   PtP[0][0]->print_personal();
 //   PtP[0][1]->print_personal();
 //   PtP[1][0]->print_personal();
 //   PtP[1][1]->print_personal();
-  
+
 //   PtP[0][0]->draw();
 //   PtP[0][1]->draw();
 //   PtP[1][0]->draw();

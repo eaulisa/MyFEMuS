@@ -30,17 +30,17 @@ bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
 unsigned conformalTriangleType = 1;
-const double eps = 0e-5;
+const double eps = 1e-5;
 bool volumeConstraint = false;
 bool areaConstraint = false;
 
-#include "../include/supportFunctions.hpp"
-#include "../include/assembleConformalMinimization.hpp"
+#include "../include/supportFunctionsOld.hpp"
+#include "../include/assembleConformalMinimizationOld.hpp"
 #include "../include/assembleInit.hpp"
 
 void AssemblePWillmore (MultiLevelProblem& ml_prob);
 
-double dt0 = 1e-9;
+double dt0 = 1e-6;
 // Function to control the time stepping.
 double GetTimeStep (const double t) {
   //if(time==0) return 1.0e-10;

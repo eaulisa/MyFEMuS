@@ -31,15 +31,23 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = true;
+bool volumeConstraint = false;
 bool areaConstraint = false;
 
-unsigned conformalTriangleType = 2;
-const double eps = 1.0e-3;
+unsigned counter = 0;
+
+unsigned conformalType0 = 2;
+unsigned conformalType = 2;
+
+#include "../include/parameter.hpp"
+Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TODO
+
+const double eps = 1.0e-5;
 
 const double normalSign = -1.;
 
 #include "../include/supportFunctions.hpp"
+#include "../include/updateMu.hpp"
 #include "../include/assembleConformalMinimization.hpp"
 #include "../include/assembleInit.hpp"
 
@@ -53,7 +61,7 @@ const double timederiv = 0.;
 void AssembleMCF (MultiLevelProblem&);
 
 
-double dt0 = 6e-2;
+double dt0 = 1e-2;
 
 // Function to control the time stepping.
 double GetTimeStep (const double t) {
@@ -105,7 +113,7 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
@@ -119,10 +127,10 @@ int main (int argc, char** args) {
 
   const bool read_groups = false;                        //by default, if no argument is given, this is "true"
   const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
-  mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh (numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -155,6 +163,17 @@ int main (int argc, char** args) {
   mlSol.AddSolution ("nDx2", LAGRANGE, FIRST, 0);
   mlSol.AddSolution ("nDx3", LAGRANGE, FIRST, 0);
   mlSol.AddSolution ("Lambda1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+
+  mlSol.AddSolution("env", LAGRANGE, FIRST, 0, false);
+  mlSol.AddSolution("vAngle", LAGRANGE, FIRST, 0);
+
+  mlSol.AddSolution("mu1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("mu2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("weight1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+
+  mlSol.AddSolution("mu1Edge", LAGRANGE, SECOND, 0, false);
+  mlSol.AddSolution("mu2Edge", LAGRANGE, SECOND, 0, false);
+  mlSol.AddSolution("cntEdge", LAGRANGE, SECOND, 0, false);
 
   // Initialize the variables and attach boundary conditions.
   mlSol.Initialize ("All");
@@ -209,7 +228,7 @@ int main (int argc, char** args) {
   system.SetMgType (V_CYCLE);
 
   // Add system2 Conformal Minimization in mlProb.
-  NonLinearImplicitSystem& system2 = mlProb.add_system < NonLinearImplicitSystem > ("nProj");
+  NonLinearImplicitSystem& system2 = mlProb.add_system < NonLinearImplicitSystem > ("conformal");
 
   // Add solutions newDX, Lambda1 to system2.
   system2.AddSolutionToSystemPDE ("nDx1");
