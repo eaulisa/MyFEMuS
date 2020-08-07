@@ -44,8 +44,8 @@ bool areaConstraint = false;
 unsigned conformalTriangleType = 2;
 const double eps = 1e-5;
 
-#include "../include/supportFunctions.hpp"
-#include "../include/assembleConformalMinimization.hpp"
+#include "../include/supportFunctionsOld.hpp"
+#include "../include/assembleConformalMinimizationOld.hpp"
 #include "../include/assembleInit.hpp"
 
 // Declaration of systems.

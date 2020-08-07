@@ -49,10 +49,10 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
 bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 4, 1, true, 600, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 600, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 500, 1, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 3, true, 500, 1, 0.746343);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
 const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 1000, 1, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
@@ -65,7 +65,7 @@ const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086
 //const Parameter cat = Parameter("cat", 5, true, true, 1, 25, false, 3, 1, 0.986754); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
 //const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
-const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 50, 1, 0.602613);
+const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.602613);
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
 
@@ -166,7 +166,7 @@ int main(int argc, char** args) {
     mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 2 || parameter.simulation == 3) {
-    mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
+    mlMsh.ReadCoarseMesh("../input/cylinder.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 4) {
     mlMsh.ReadCoarseMesh("../input/intersection.neu", "seventh", scalingFactor);
@@ -416,6 +416,9 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
   if(!strcmp(solName, "Dx1")) {
     if(1 == faceName) {
       value = time / parameter.numberOfIterations * 0.8 * sin(x[1] / 0.5 * M_PI);
+      //value = time / parameter.numberOfIterations * 1.5 * (x[0]*x[1] + x[1]*x[1]);
+      // value = time / parameter.numberOfIterations * 1.5 * (x[0]*x[0]*x[0] - x[1]*x[1]*x[1]);
+      //value = time / parameter.numberOfIterations * 0.25 * (1- sin(x[1] / 0.5 * M_PI));
     }
   }
 
