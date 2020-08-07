@@ -46,7 +46,7 @@ const double eps = 1e-5;
 
 #include "../include/supportFunctionsOld.hpp"
 #include "../include/assembleConformalMinimizationOld.hpp"
-#include "../include/assembleInit.hpp"
+#include "../include/assembleInitOld.hpp"
 
 // Declaration of systems.
 void AssemblePWillmore (MultiLevelProblem&);

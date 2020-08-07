@@ -36,7 +36,7 @@ bool areaConstraint = false;
 
 #include "../include/supportFunctionsOld.hpp"
 #include "../include/assembleConformalMinimizationOld.hpp"
-#include "../include/assembleInit.hpp"
+#include "../include/assembleInitOld.hpp"
 
 void AssemblePWillmore (MultiLevelProblem& ml_prob);
 
