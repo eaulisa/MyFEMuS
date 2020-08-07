@@ -48,6 +48,20 @@ double B2 = - 1. / 24.;
 double xc = -1;
 double yc = -1;
 
+const unsigned swap[4][9] = {
+  {0, 1, 2, 3, 4, 5, 6, 7, 8},
+  {3, 0, 1, 2, 7, 4, 5, 6, 8},
+  {2, 3, 0, 1, 6, 7, 4, 5, 8},
+  {1, 2, 3, 0, 5, 6, 7, 4, 8}
+};
+
+const unsigned swapI[4][9] = {
+  {0, 1, 2, 3, 4, 5, 6, 7, 8},
+  {1, 2, 3, 0, 5, 6, 7, 4, 8},
+  {2, 3, 0, 1, 6, 7, 4, 5, 8},
+  {3, 0, 1, 2, 7, 4, 5, 6, 8}
+};
+
 // === New variables for adaptive assembly ===
 
 void GetBoundaryFunctionValue(double &value, const std::vector < double >& x) {
@@ -72,7 +86,7 @@ void GetBoundaryFunctionValue(double &value, const std::vector < double >& x) {
 
 }
 
-void ReorderElement(std::vector < int > &dofs, std::vector < double > & sol, std::vector < std::vector < double > > & x);
+unsigned ReorderElement(std::vector < int > &dofs, std::vector < double > & sol, std::vector < std::vector < double > > & x);
 
 void RectangleAndBallRelation(bool &theyIntersect, const std::vector<double> &ballCenter, const double &ballRadius, const std::vector < std::vector < double> > &elementCoordinates,  std::vector < std::vector < double> > &newCoordinates);
 
@@ -110,7 +124,6 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
   soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
-
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
   std::vector < double >  solu1; // local solution for the nonlocal assembly
@@ -135,32 +148,30 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
   unsigned lmin = 0;
-  unsigned lmax = 4;
+  unsigned lmax = 10;
 
-  double dMax = 0.1 * delta1;
-  double eps0 = dMax * 0.025;
+  double dMax = 0.5 * delta1;
+  double eps0 = dMax * 0.0025;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
-  
-  std::cout << eps <<std::endl;
+
+  //std::cout << eps <<std::endl;
 
   RefineElement *refineElement[6][3];
 
   refineElement[3][0] = new RefineElement("quad", "linear", "seventh");
   refineElement[3][1] = new RefineElement("quad", "quadratic", "seventh");
   refineElement[3][2] = new RefineElement("quad", "biquadratic", "seventh");
+
   refineElement[4][0] = new RefineElement("tri", "linear", "seventh");
   refineElement[4][1] = new RefineElement("tri", "quadratic", "seventh");
   refineElement[4][2] = new RefineElement("tri", "biquadratic", "seventh");
 
   refineElement[3][soluType]->SetConstants(eps);
   refineElement[4][soluType]->SetConstants(eps);
-  
-  
-  
 
-  NonLocal *nonlocal = new NonLocalBox();
-  //NonLocal *nonlocal = new NonLocalBall();
+  //NonLocal *nonlocal = new NonLocalBox();
+  NonLocal *nonlocal = new NonLocalBall();
 
   fout.open("mesh.txt");
   fout.close();
@@ -193,11 +204,13 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
       if(iproc == kproc) {
         for(unsigned j = 0; j < nDof2; j++) {
-          l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
-          unsigned solDof = msh->GetSolutionDof(j, jel, soluType);
-          solu2[j] = (*sol->_Sol[soluIndex])(solDof);
-          unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
 
+          unsigned uDof = msh->GetSolutionDof(j, jel, soluType);
+          solu2[j] = (*sol->_Sol[soluIndex])(uDof);
+
+          l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
+
+          unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
           for(unsigned k = 0; k < dim; k++) {
             x2[k][j] = (*msh->_topology->_Sol[k])(xDof);
           }
@@ -230,9 +243,11 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         }
 
         for(unsigned i = 0; i < nDof1; i++) {
+
+          unsigned uDof = msh->GetSolutionDof(i, iel, soluType);
+          solu1[i] = (*sol->_Sol[soluIndex])(uDof);
+
           l2GMap1[i] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, i, iel);
-          unsigned solDof = msh->GetSolutionDof(i, iel, soluType);
-          solu1[i] = (*sol->_Sol[soluIndex])(solDof);
 
           unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
           for(unsigned k = 0; k < dim; k++) {
@@ -279,25 +294,81 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             if(iel == jel) {
               for(unsigned i = 0; i < nDof1; i++) {
                 std::vector <double>& Res1 = nonlocal->GetRes1();
-                // Res1[i] -= 0. * weight[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
+                //Res1[i] -= 0. * weight1[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                 Res1[i] -=  - 2. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 2)
-
               }
             }
 
             bool printMesh = false;
-            //if(iel == 40 && ig == 1 ) printMesh = true;
+            if(iel == 40) printMesh = true;
 
             double area0 = nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
                                                      nDof1, xg1[ig], weight1[ig], phi1x[ig],
                                                      solu1, solu2, kappa1, delta1, printMesh);
 
             area += area0;
-            if(iel == 40 && ig == 1) area1 += area0;
+            if(iel == 24 && ig == 1) area1 += area0;
 
           }
 
+          if(iel == 40 && jel == 28) {
+
+            std::cout.precision(14);
+
+//             std::vector<double> Res1 = nonlocal->GetRes1();
+//             for(unsigned i = 0; i < nDof1;i++){
+//               std::cout << Res1[i] <<" ";
+//             }
+//
+//             std::vector<double> Res2 = nonlocal->GetRes2();
+//             std::cout<<std::endl;
+//             for(unsigned i = 0; i < nDof1;i++){
+//               std::cout << Res2[i] <<" ";
+//             }
+            std::cout << std::endl;
+
+            std::vector<double> Jac11 = nonlocal->GetJac11();
+            for(unsigned i = 0; i < nDof1; i++) {
+              for(unsigned j = 0; j < nDof1; j++) {
+                std::cout << Jac11[i * nDof1 + j] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            std::cout.precision(14);
+            std::vector<double> Jac12 = nonlocal->GetJac12();
+            for(unsigned i = 0; i < nDof1; i++) {
+              for(unsigned j = 0; j < nDof2; j++) {
+                std::cout << Jac12[i * nDof2 + j] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            std::cout.precision(14);
+            std::vector<double> Jac21 = nonlocal->GetJac21();
+            for(unsigned i = 0; i < nDof2; i++) {
+              for(unsigned j = 0; j < nDof1; j++) {
+                std::cout << Jac21[i * nDof1 + j] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            std::cout.precision(14);
+            std::vector<double> Jac22 = nonlocal->GetJac22();
+            for(unsigned i = 0; i < nDof2; i++) {
+              for(unsigned j = 0; j < nDof2; j++) {
+                std::cout << Jac22[i * nDof2 + j] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+          }
+
           if(area > 0.) {
+
             KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
             KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
             RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
@@ -314,17 +385,17 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  std::cout.precision(14);
-  std::cout << "AAAAAAAAAAA = " << area1 <<" "<<(2. * delta1) * (2. * delta1) << " " << M_PI * delta1 * delta1 << std::endl;
+  //std::cout.precision(14);
+  //std::cout << "AAAAAAAAAAA = " << area1 <<" "<<(2. * delta1) * (2. * delta1) << " " << M_PI * delta1 * delta1 << std::endl;
 
   delete nonlocal;
   delete refineElement[3][0];
   delete refineElement[3][1];
-  delete refineElement[3][2];  
+  delete refineElement[3][2];
   delete refineElement[4][0];
   delete refineElement[4][1];
   delete refineElement[4][2];
-  
+
   //KK->draw();
 
   // ***************** END ASSEMBLY *******************
@@ -465,6 +536,7 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
         x2[k].resize(nDof2);
       }
 
+      unsigned typej;
       if(iproc == kproc) {
         for(unsigned j = 0; j < nDof2; j++) {
           l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
@@ -477,7 +549,7 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
           }
         }
 
-        ReorderElement(l2GMap2, solu2, x2);
+        typej = ReorderElement(l2GMap2, solu2, x2);
       }
 
       MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
@@ -520,7 +592,7 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
           }
         }
 
-        ReorderElement(l2GMap1, solu1, x1);
+        unsigned typei = ReorderElement(l2GMap1, solu1, x1);
 
         double sideLength = fabs(x1[0][0] - x1[0][1]);
 
@@ -610,7 +682,7 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
 
             if(iel == jel) {
               for(unsigned i = 0; i < nDof1; i++) {
-//                                 Res1[i] -= 0. * weight[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
+//                                 Res1[i] -= 0. * weight1[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                 Res1[i] -=  - 2. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 2)
                 /*                if (xg1[ig][0] < 0.) {
                                   double resValue = cos (xg1[ig][1]) * (- 0.5 * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] - kappa1 / 8. * xg1[ig][0] * xg1[ig][0] * xg1[ig][0] + 11. / 2. * xg1[ig][0] * xg1[ig][0] + kappa1 / 16. * xg1[ig][0] * xg1[ig][0] + kappa1 * 5. / 8. * xg1[ig][0] + 1. - 1. / 16. * kappa1);
@@ -719,6 +791,63 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
               }//end jg loop
             }
           }//end ig loop
+
+          if(iel == 40 && jel == 28) {
+
+            std::cout.precision(14);
+
+//             for(unsigned i = 0; i < nDof1;i++){
+//               std::cout << Res1[i] <<" ";
+//             }
+//             std::cout<<std::endl;
+//             for(unsigned i = 0; i < nDof1;i++){
+//               std::cout << Res2[i] <<" ";
+//             }
+//             std::cout<<std::endl;
+
+            std::cout << std::endl;
+            
+            for(unsigned i = 0; i < nDof1; i++) {
+              unsigned ii = swapI[typei][i];  
+              for(unsigned j = 0; j < nDof1; j++) {
+                unsigned jj = swapI[typei][j];  
+                std::cout << Jac11[ii * nDof1 + jj] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            for(unsigned i = 0; i < nDof1; i++) {
+              unsigned ii = swapI[typei][i]; 
+              for(unsigned j = 0; j < nDof2; j++) {
+                unsigned jj = swapI[typej][j];  
+                std::cout << Jac12[ii * nDof2 + jj] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            for(unsigned i = 0; i < nDof2; i++) {
+              unsigned ii = swapI[typej][i];
+              for(unsigned j = 0; j < nDof1; j++) {
+                unsigned jj = swapI[typei][j];
+                std::cout << Jac21[ii * nDof1 + jj] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+            
+            for(unsigned i = 0; i < nDof2; i++) {
+              unsigned ii = swapI[typej][i];  
+              for(unsigned j = 0; j < nDof2; j++) {
+                unsigned jj = swapI[typej][j];  
+                std::cout << Jac22[ii * nDof2 + jj] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
+          }
+
 
           if(ifAnyIntersection) {
             KK->add_matrix_blocked(Jac11, l2GMap1, l2GMap1);
@@ -1085,14 +1214,9 @@ void RectangleAndBallRelation(bool & theyIntersect, const std::vector<double> &b
 
 }
 
-const unsigned swap[4][9] = {
-  {0, 1, 2, 3, 4, 5, 6, 7, 8},
-  {3, 0, 1, 2, 7, 4, 5, 6, 8},
-  {2, 3, 0, 1, 6, 7, 4, 5, 8},
-  {1, 2, 3, 0, 5, 6, 7, 4, 8}
-};
 
-void ReorderElement(std::vector < int > &dofs, std::vector < double > & sol, std::vector < std::vector < double > > & x) {
+
+unsigned ReorderElement(std::vector < int > &dofs, std::vector < double > & sol, std::vector < std::vector < double > > & x) {
 
   unsigned type = 0;
 
@@ -1124,6 +1248,8 @@ void ReorderElement(std::vector < int > &dofs, std::vector < double > & sol, std
       }
     }
   }
+
+  return type;
 }
 
 

@@ -55,7 +55,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
   bool dirichlet = true;
   value = 0.;
-//     value = x[0];
+//  value = x[0];
   value = x[0] * x[0];
 //     value = x[0] * x[0] * x[0] ;
 //   value = (x[0] < 0.) ? x[0] * x[0] * x[0] : 3 * x[0] * x[0] * x[0];
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 //      mlMsh.ReadCoarseMesh ( "../input/martaTest1.neu", "second", scalingFactor );
 //    mlMsh.ReadCoarseMesh ( "../input/martaTest2.neu", "second", scalingFactor );
   //mlMsh.ReadCoarseMesh ( "../input/martaTest3.neu", "second", scalingFactor );
-  mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "second", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
 //  mlMsh.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest5.neu", "fifth", scalingFactor );
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest7.neu", "fifth", scalingFactor );
@@ -140,8 +140,8 @@ int main(int argc, char** argv) {
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
 
   //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
-  mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "second", scalingFactor);
- // mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
+  mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+// mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6.neu", "second", scalingFactor);
 //     mlMshFine.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7.neu", "second", scalingFactor);
@@ -163,16 +163,16 @@ int main(int argc, char** argv) {
   MultiLevelSolution mlSolFine(&mlMshFine);
 
   // add variables to mlSol
-  
-  FEOrder femType  = SERENDIPITY;
-  
+
+  FEOrder femType = SERENDIPITY;
+  std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
+
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
+  mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
+  mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
+  
   mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
   mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
-
-  mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
-
-  mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
 
   mlSol.Initialize("All");
   mlSolFine.Initialize("All");
@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
   systemFine.SetTolerances(1.e-20, 1.e-20, 1.e+50, 100);
 
 // ******* Solution *******
- 
+
   systemFine.MGsolve(); //TODO
 
   //END assemble and solve nonlocal problem
@@ -330,13 +330,13 @@ int main(int argc, char** argv) {
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(true);
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR,"quadratic", print_vars, 0);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, femTypeName[femType].c_str(), print_vars, 0);
 
   mlSolFine.SetWriter(VTK);
   std::vector<std::string> print_vars2;
   print_vars2.push_back("All");
   mlSolFine.GetWriter()->SetDebugOutput(true);
-  mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, "quadratic", print_vars2, 1);
+  mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, femTypeName[femType].c_str(), print_vars2, 1);
 
   std::cout << std::endl << " total CPU time : " << std::setw(11) << std::setprecision(6) << std::fixed
             << static_cast<double>((clock() - total_time)) / CLOCKS_PER_SEC << " s" << std::endl;
@@ -351,7 +351,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
   const unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
   Mesh* msh = mlSol._mlMesh->GetLevel(level);
   Solution* sol  = mlSol.GetSolutionLevel(level);
-  
+
 
   const unsigned  dim = msh->GetDimension();
 
@@ -364,7 +364,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
   double error_solLocal_norm2 = 0.;
 
   double solNonlocal_norm2 = 0.;
-    
+
   double solLocal_norm2 = 0.;
 
   double sol_exact_norm2 = 0.;
@@ -375,7 +375,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
   unsigned soluIndexLocal;
   soluIndexLocal = mlSol.GetIndex("u_local");
-  
+
   unsigned    iproc = msh->processor_id();
   unsigned    nprocs = msh->n_processors();
 
@@ -501,13 +501,13 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
 
   //BEGIN nonlocal fine - coarse L2 norm on fine grid
- 
+
   std::cout << "------------------------------------- " << std::endl;
-  
+
   const unsigned levelFine = mlSolFine._mlMesh->GetNumberOfLevels() - 1;
   Mesh* mshFine = mlSolFine._mlMesh->GetLevel(levelFine);
   Solution* solFine  = mlSolFine.GetSolutionLevel(levelFine);
-  
+
   unsigned soluIndexFine;
   soluIndexFine = mlSolFine.GetIndex("u");
 
@@ -527,7 +527,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
   double solNonlocalFine_norm2 = 0.;
 
-  
+
   for(int iel = solFine->GetMesh()->_elementOffset[iproc]; iel < solFine->GetMesh()->_elementOffset[iproc + 1]; iel ++) {
 
     short unsigned ielGeom = mshFine->GetElementType(iel);
@@ -558,8 +558,8 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < igNumber; ig++) {
-        
-      mshFine->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x, ig, weight, phi); 
+
+      mshFine->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x, ig, weight, phi);
       double soluP_gss = 0.;
       double solu_gss = 0.;
       for(unsigned i = 0; i < nDofs; i++) {
@@ -573,7 +573,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
     }
 
   }
-   
+
 
   norm2 = 0.;
   MPI_Allreduce(&error_NonLocCoarse_NonLocFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);

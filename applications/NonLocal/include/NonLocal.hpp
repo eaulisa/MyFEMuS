@@ -124,7 +124,13 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
     std::vector < double > phi2F(nDof2);
     double U;
     const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
-
+    
+//     std::cout << level << std::endl;
+//     for(unsigned i = 0; i < xi2F[0].size(); i++ ){
+//       std::cout << xv2[0][i] << " " << xv2[1][i]<<std::endl;
+//     }
+    
+    
     double kernel = this->GetKernel(kappa, delta);
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
@@ -140,12 +146,12 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       }
       finiteElement.GetPhi(phi2F, xi2Fg);
       
-//       std::cout << xi2Fg[0] << " " << xi2Fg[0]<<std::endl;
+//       std::cout << xi2Fg[0] << " " << xi2Fg[1]<<std::endl;
 //       for(unsigned j = 0; j < nDof2; j++){
 //         std::cout << j<<" " << phi2F[j] << std::endl;    
 //       }
       
-//      exit(1);
+     
       
       if(level == levelMax - 1) { // only for element at level l = lmax - 1
         U = refineElement.GetSmoothStepFunction(  this->GetDistance(xg1, xg2, delta) );
@@ -153,9 +159,11 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       else{
         U = 1.;    
       }
+      
+      //std::cout<<U<<" ";  
 
       if(U > 0.) {
-        area += weight2;
+        area += weight2 * U;
         double C =  U * weight1_ig * weight2 * kernel;
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
@@ -184,7 +192,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       }//end if U > 0.
     }//end jg loop
 
-    if(printMesh) PrintElement(xv2, refineElement);
+    if(printMesh) this->PrintElement(xv2, refineElement);
   }
 
   return area;
