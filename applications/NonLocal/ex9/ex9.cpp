@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
   // add variables to mlSol
 
   FEOrder femType = SERENDIPITY;
+  //FEOrder femType = FIRST;
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
@@ -285,8 +286,8 @@ int main(int argc, char** argv) {
   systemFine.AddSolutionToSystemPDE("u");
 
   // ******* System FEM Assembly *******
-  systemFine.SetAssembleFunction(AssembleNonLocalSys);
-  //systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
+  //systemFine.SetAssembleFunction(AssembleNonLocalSys);
+  systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
   systemFine.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   systemFine.SetMgType(V_CYCLE);
@@ -439,7 +440,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
 //             soluExact_gss = x_gss * x_gss * x_gss * x_gss + 0.1 * x_gss * x_gss; // this is x^4 + delta * x^2
 
-      soluExact_gss = x_gss * x_gss; // this is x^2
+      soluExact_gss = x_gss * x_gss ; // this is x^2
 
 //             soluExact_gss = (x_gss < 0.) ? x_gss * x_gss * x_gss : 3.* x_gss * x_gss * x_gss; // this is x^3 for x< 0 and 3 x^3 for x >= 0
 

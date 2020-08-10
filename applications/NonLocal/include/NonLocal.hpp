@@ -80,9 +80,14 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
     refine:
       refineElement.BuildElementProlongation(level, iFather);
       for(unsigned i = 0; i < numberOfChildren; i++) {
-        area += RefinedAssembly(level + 1, levelMin, levelMax, i, refineElement,
+        double area0 = RefinedAssembly(level + 1, levelMin, levelMax, i, refineElement,
                                 nDof1, xg1, weight1_ig, phi1_ig,
                                 solu1, solu2, kappa, delta, printMesh);
+        
+        area += area0;
+//         if(printMesh){
+//           std::cout << level << " " << iFather << " " << i << " " << area << " " << area0 << std::endl;
+//         }
       }
     }
     else {
@@ -96,11 +101,11 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
           xv2j[k] = xv2[k][j];
         }
         d = this->GetDistance(xg1, xv2j, delta);
-        if(d > refineElement.GetEps()) { // check if one node is inside thick interface
+        if(d > 1.*refineElement.GetEps()) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
         }
-        else if(d < -refineElement.GetEps()) { // check if one node is outside thick interface
+        else if(d < -1.*refineElement.GetEps()) { // check if one node is outside thick interface
           if(oneNodeIsInside) goto refine;
           oneNodeIsOutside = true;
         }
@@ -153,6 +158,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       
      
       
+      
       if(level == levelMax - 1) { // only for element at level l = lmax - 1
         U = refineElement.GetSmoothStepFunction(  this->GetDistance(xg1, xg2, delta) );
       }
@@ -160,10 +166,12 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
         U = 1.;    
       }
       
+      U=(this->GetDistance(xg1, xg2, delta)>0)?1.:0.;
+      
       //std::cout<<U<<" ";  
 
       if(U > 0.) {
-        area += weight2 * U;
+        area += weight2;
         double C =  U * weight1_ig * weight2 * kernel;
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {

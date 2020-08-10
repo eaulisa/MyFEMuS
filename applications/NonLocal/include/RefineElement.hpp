@@ -170,6 +170,19 @@ void RefineElement::BuildPMat() {
       PMatrix[i][j].resize(cnt);
     }
   }
+//   std::cout.precision(16);
+//   for(unsigned i = 0; i < _numberOfChildren; i++) {
+//     for(unsigned j = 0; j < _numberOfNodes; j++) {
+//       double sum = 0.;  
+//       for(unsigned k = 0; k < PMatrix[i][j].size(); k++) {
+//         sum += PMatrix[i][j][k].second;  
+//         std::cout <<  PMatrix[i][j][k].first << " " << PMatrix[i][j][k].second << "\t";
+//       }
+//       std::cout << sum << " "<< std::endl;
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
   _PMatrix = PMatrix;
 }
 
