@@ -80,7 +80,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > > solMu(dim);
 
   if(counter > 0) {
-    UpdateMu(*mlSol);
+    sol->_Sol[solMuIndex[0]]->zero();
+    sol->_Sol[solMuIndex[1]]->zero();  
+    //UpdateMu(*mlSol);
   }
   else {
     sol->_Sol[solMuIndex[0]]->zero();
