@@ -38,9 +38,12 @@ double GetIntegral(const double &dMax, const unsigned &level, const unsigned &le
 double GetIntegral1(const double &eps, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
                     RefineElement &refineElement, const unsigned ii = 0);
 
+double GetIntegral2(const double &eps, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
+                    RefineElement &refineElement, const unsigned ii = 0);
+
 double radius;
-double xc = -1;
-double yc = -1;
+double xc = -0;
+double yc = -0;
 
 double a0;
 double a1;
@@ -64,10 +67,10 @@ double GetDistance(const std::vector < double>  &x) {
 }
 
 double GetIntegrand(const std::vector < double>  &x) {
-  return (radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
+  return 1;//(radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
 }
 
-bool printMesh = false;
+bool printMesh = true;
 std::ofstream fout;
 
 void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
@@ -78,6 +81,7 @@ void PrintElement(const std::vector < std::vector < double> > &xv, const RefineE
     fout << xv[0][j] << " " << xv[1][j] << " " << f << std::endl;
   }
   f = GetIntegrand({xv[0][0], xv[1][0]});
+  fout << xv[0][0] << " " << xv[1][0] << " " << f << std::endl;
   fout << std::endl;
   fout.close();
 }
@@ -93,7 +97,7 @@ int main(int argc, char** args) {
   char geometry[] = "quad";
 
   if(!strcmp(geometry, "quad")) {
-    radius = 1.5;
+    radius = .005;
     xv = {{ -1., 1., 1., -1., 0., 1., 0., -1., 0.}, { -1., -1., 1., 1., -1., 0., 1., 0., 0.}};
     dMax = sqrt(pow(xv[0][2] - xv[0][0], 2) + pow(xv[1][2] - xv[1][0], 2));
   }
@@ -106,31 +110,33 @@ int main(int argc, char** args) {
   // dMax is the characteristic length on the coarse element/mesh
   // eps0 is the characteristic half-thickness for the unit step function on the coarse grid
 
-  double eps0 = dMax * 0.025;
+  double eps0 = (dMax < radius) ? dMax : radius;
 
-  RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh");
-  
+  RefineElement refineElement = RefineElement(geometry, "biquadratic", "ninth");
+
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
     fout.open("mesh.txt");
     fout.close();
   }
 
-  unsigned lmin = 0;
-  unsigned lmax = 10;
+  unsigned lmin = 5;
+  unsigned lmax = 15;
   refineElement.InitElement(xv, lmax);
 
   std::cout.precision(14);
 
   double integral;
-  double analyticIntegral =  M_PI * pow(radius, 4.) / 8.;
+  //double analyticIntegral =  M_PI * pow(radius, 4.) / 8.;
+  double analyticIntegral =  M_PI * pow(radius, 2.);
 
   std::clock_t c_start = std::clock();
 
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
-  double eps = eps0 * pow(0.5, lmin);
+  double eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, lmin));
+
   SetConstants(eps);
-  integral = GetIntegral(eps, 0, lmin, lmin, refineElement);
+  integral = GetIntegral2(eps, 0, lmin, lmin, refineElement);
 
   std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
   double Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
@@ -138,9 +144,13 @@ int main(int argc, char** args) {
 
   double Errorlm1 = Errorl0;
   for(unsigned l = lmin + 1; l < lmax; l++) {
-    eps = eps0 * pow(0.5, l);
+    //eps = eps0 * pow(0.5, l);
+
+    eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.55, l));
+
+    std::cout << eps << " ";
     SetConstants(eps);
-    integral = GetIntegral(eps, 0, lmin, l, refineElement);
+    integral = GetIntegral2(eps, 0, lmin, l, refineElement);
     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
@@ -181,6 +191,132 @@ int main(int argc, char** args) {
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
   return 1;
+}
+
+
+
+double GetIntegral2(const double &eps, const unsigned &level,
+                    const unsigned &levelMin, const unsigned &levelMax,
+                    RefineElement &refineElement, const unsigned ii) {
+
+  double integral = 0.;
+  const unsigned &numberOfNodes = refineElement.GetNumberOfNodes();
+  const unsigned &numberOfChildren = refineElement.GetNumberOfChildren();
+  const unsigned &dim = refineElement.GetDimension();
+
+  const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, ii);
+
+  bool oneNodeIsInside = true;
+  bool oneNodeIsOutside = true;
+
+  if(level < levelMin) {
+  refine:
+    refineElement.BuildElementProlongation(level, ii);
+    for(unsigned i = 0; i < numberOfChildren; i++) {
+      integral += GetIntegral2(eps, level + 1, levelMin, levelMax, refineElement, i);
+    }
+  }
+  else if(level <= levelMax) {
+    oneNodeIsInside = false;
+    oneNodeIsOutside = false;
+    double factor = (level == levelMax) ? 1. : 1.;
+    double d;
+    std::vector< double > x3(3, 0.);
+    for(unsigned j = 0; j < numberOfNodes; j++) {
+      for(unsigned k = 0; k < dim; k++) {
+        x3[k] = xv[k][j];
+      }
+      d = GetDistance({x3[0], x3[1], x3[2]});
+      if(d > factor * eps) { // check if one node is inside thick interface
+        oneNodeIsInside = true;
+        if(oneNodeIsOutside)
+          if(level == levelMax)  goto integrate;
+          else goto refine;
+      }
+      else if(d < -factor * eps) { // check if one node is outside thick interface
+        oneNodeIsOutside = true;
+        if(oneNodeIsInside)
+          if(level == levelMax)  goto integrate;
+          else goto refine;
+
+      }
+      else { // node is inside layer
+        oneNodeIsOutside = true;  
+        if(level == levelMax)  goto integrate;
+        else goto refine;
+      }
+    }
+    if(!oneNodeIsOutside) { // the entire element is inside the thick interface
+      goto integrate;
+    }
+  }
+  else { // integration rule for interface elements
+  integrate:
+
+    const elem_type &finiteElement = refineElement.GetFEM();
+    std::vector < double> xg(dim);
+    std::vector < double> xiFg(dim);
+    double f;
+    double dg1;
+    double dg2;
+    double weight;
+    std::vector<double> phiC;
+    std::vector<double> phiCx;
+    std::vector < double > phiF(numberOfNodes);
+    double U;
+    const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
+
+
+//     for(unsigned i = 0; i < xv[0].size(); i++) {
+//       std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
+//     }
+
+
+    for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
+      //finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
+      finiteElement.Jacobian(xv, ig, weight, phiC, phiCx);
+      xg.assign(dim, 0.);
+      xiFg.assign(dim, 0.);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < numberOfNodes; j++) {
+          xg[k] += xv[k][j] * phiC[j];
+          xiFg[k] += xiF[k][j] * phiC[j];
+        }
+      }
+      finiteElement.GetPhi(phiF, xiFg);
+
+      f = GetIntegrand(xg);
+
+      /* Regularized Heaviside Function from
+       * Efficient adaptive integration of functions with sharp gradients
+       * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
+       * https://arxiv.org/abs/1202.5341
+       */
+      if(oneNodeIsOutside) {
+        //if(level == levelMax) { // any element at level l = lmax
+        dg1 = GetDistance(xg);
+        dg2 = dg1 * dg1;
+        if(dg1 < -eps)
+          U = 0.;
+        else if(dg1 > eps) {
+          U = 1.;
+        }
+        else {
+          U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+        }
+        integral += U * f * weight;
+        //if(U > 0.) std::cout <<"BBBB "<<ig<<" " << U << " " << integral << " "<<std::endl;
+      }
+      else { // interior element at level < lmax
+        //std::cout << "AAAA";
+        integral += f * weight;
+      }
+    }
+    //std::cout << level << " " << ii << " " << integral << std::endl;
+    if(printMesh) PrintElement(xv, refineElement);
+  }
+  //std::cout << level <<"\n";
+  return integral;
 }
 
 double GetIntegral(const double &eps, const unsigned &level,
@@ -242,12 +378,21 @@ double GetIntegral(const double &eps, const unsigned &level,
     double dg1;
     double dg2;
     double weight;
-    const double *phiC;
+    std::vector<double> phiC;
+    std::vector<double> phiCx;
     std::vector < double > phiF(numberOfNodes);
     double U;
     const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
+
+
+//     for(unsigned i = 0; i < xv[0].size(); i++) {
+//       std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
+//     }
+
+
     for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
-      finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
+      //finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
+      finiteElement.Jacobian(xv, ig, weight, phiC, phiCx);
       xg.assign(dim, 0.);
       xiFg.assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
@@ -257,7 +402,7 @@ double GetIntegral(const double &eps, const unsigned &level,
         }
       }
       finiteElement.GetPhi(phiF, xiFg);
-      
+
       f = GetIntegrand(xg);
 
       /* Regularized Heaviside Function from
@@ -277,21 +422,19 @@ double GetIntegral(const double &eps, const unsigned &level,
           U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
         }
         integral += U * f * weight;
+        //if(U > 0.) std::cout <<"BBBB "<<ig<<" " << U << " " << integral << " "<<std::endl;
       }
       else { // interior element at level < lmax
+        std::cout << "AAAA";
         integral += f * weight;
       }
     }
+    if(integral > 0) std::cout << level << " " << ii << " " << integral << std::endl;
     if(printMesh) PrintElement(xv, refineElement);
   }
-
+  //std::cout << level <<"\n";
   return integral;
 }
-
-
-
-
-
 
 
 

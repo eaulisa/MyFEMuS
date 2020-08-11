@@ -166,7 +166,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
         U = 1.;    
       }
       
-      U=(this->GetDistance(xg1, xg2, delta)>0)?1.:0.;
+      //U=(this->GetDistance(xg1, xg2, delta)>0)?1.:0.;
       
       //std::cout<<U<<" ";  
 

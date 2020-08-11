@@ -270,6 +270,20 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         }
 
         if(coarseIntersectionTest) {
+
+          if((iel == 40 && jel == 40)) {
+            std::cout<<"{";  
+            for(unsigned k = 0; k < dim; k++) {
+              std::cout<<"{";    
+              for(unsigned j = 0; j < nDof1; j++) {
+                std::cout << x1[k][j] << ", ";
+              }
+              std::cout<<"},";  
+            }
+            std::cout<<"};";  
+          }
+
+
           nonlocal->ZeroLocalQuantities(nDof1, nDof2);
           unsigned igNumber =  msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
 
@@ -301,7 +315,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
 
             bool printMesh = false;
-            if(iel == 40 && jel ==40 && ig == 4) printMesh = true;
+            if(iel == 40 && jel == 40 && ig == 4) printMesh = true;
 
             area[ig] += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
                                                   nDof1, xg1[ig], weight1[ig], phi1x[ig],
@@ -311,9 +325,9 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
           }
           std::cout.precision(14);
-          if((iel == 24 && jel == 24) || (iel == 30 && jel == 30)) {
+          if((iel == 40 && jel == 40)) {
             for(unsigned ig = 0; ig < igNumber; ig++) {
-              std::cout << ig << " " << area[ig] << " " << area[ig] - M_PI * delta1 * delta1 << std::endl;
+              std::cout << ig << " " << area[ig] << " " <<M_PI * delta1 * delta1 << " " << area[ig] - M_PI * delta1 * delta1 << std::endl;
             }
           }
 
