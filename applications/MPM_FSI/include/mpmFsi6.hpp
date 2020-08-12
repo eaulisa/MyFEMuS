@@ -1284,6 +1284,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
   GetParticlesToNodeFlag(*mlSol, solidLine, fluidLine);
 
   BuildFlag(*mlSol);
+  GetParticleWeights(*mlSol, &bulk, &lineI);
   
 }
 
