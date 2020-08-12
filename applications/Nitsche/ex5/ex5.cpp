@@ -42,8 +42,8 @@ double GetIntegral2(const double &eps, const unsigned &level, const unsigned &le
                     RefineElement &refineElement, const unsigned ii = 0);
 
 double radius;
-double xc = -0;
-double yc = -0;
+double xc = 0.;//+0.3473333;
+double yc = 0.;//-0.782333;
 
 double a0;
 double a1;
@@ -70,7 +70,7 @@ double GetIntegrand(const std::vector < double>  &x) {
   return 1;//(radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
 }
 
-bool printMesh = true;
+bool printMesh = false;
 std::ofstream fout;
 
 void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
@@ -97,7 +97,7 @@ int main(int argc, char** args) {
   char geometry[] = "quad";
 
   if(!strcmp(geometry, "quad")) {
-    radius = .005;
+    radius = .235;
     xv = {{ -1., 1., 1., -1., 0., 1., 0., -1., 0.}, { -1., -1., 1., 1., -1., 0., 1., 0., 0.}};
     dMax = sqrt(pow(xv[0][2] - xv[0][0], 2) + pow(xv[1][2] - xv[1][0], 2));
   }
@@ -112,7 +112,7 @@ int main(int argc, char** args) {
 
   double eps0 = (dMax < radius) ? dMax : radius;
 
-  RefineElement refineElement = RefineElement(geometry, "biquadratic", "ninth");
+  RefineElement refineElement = RefineElement(geometry, "biquadratic", "ninth", "zero");
 
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
@@ -121,19 +121,21 @@ int main(int argc, char** args) {
   }
 
   unsigned lmin = 5;
-  unsigned lmax = 15;
+  unsigned lmax = 20;
   refineElement.InitElement(xv, lmax);
 
   std::cout.precision(14);
 
   double integral;
   //double analyticIntegral =  M_PI * pow(radius, 4.) / 8.;
-  double analyticIntegral =  M_PI * pow(radius, 2.);
+
 
   std::clock_t c_start = std::clock();
 
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, lmin));
+  double analyticIntegral =  M_PI * pow(radius - eps, 2.)
+                             + 2. * M_PI * (-5./11. * pow(eps, 2) + eps * radius);
 
   SetConstants(eps);
   integral = GetIntegral2(eps, 0, lmin, lmin, refineElement);
@@ -146,16 +148,17 @@ int main(int argc, char** args) {
   for(unsigned l = lmin + 1; l < lmax; l++) {
     //eps = eps0 * pow(0.5, l);
 
-    eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.55, l));
-
-    std::cout << eps << " ";
+    eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
+    analyticIntegral =  M_PI * pow(radius - eps, 2.)
+                             + 2. * M_PI * (-5./11. * pow(eps, 2) + eps * radius);
+    std::cout << "EPS = " << eps << std::endl;
     SetConstants(eps);
     integral = GetIntegral2(eps, 0, lmin, l, refineElement);
     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
     std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
-    std::cout << "Relative Error level " << l + 1 << " = " << Errorl << std::endl;
+    std::cout << "Relative Error level " << l << " = " << Errorl << std::endl;
     Errorlm1 = Errorl;
   }
 
@@ -163,9 +166,15 @@ int main(int argc, char** args) {
   long double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
+  
+  std::cout<<std::endl<<std::endl;
+  
   c_start = std::clock();
 
-  eps = eps0 * pow(0.5, lmin);
+  eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, lmin));
+  analyticIntegral =  M_PI * pow(radius - eps, 2.)
+                             + 2. * M_PI * (-5./11. * pow(eps, 2) + eps * radius);
+                             
   SetConstants(eps);
   integral = GetIntegral1(eps, 0, lmin, lmin, refineElement);
 
@@ -175,14 +184,17 @@ int main(int argc, char** args) {
 
   Errorlm1 = Errorl0;
   for(unsigned l = lmin + 1; l < lmax; l++) {
-    eps = eps0 * pow(0.5, l);
+    eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
+    analyticIntegral =  M_PI * pow(radius - eps, 2.)
+                             + 2. * M_PI * (-5./11. * pow(eps, 2) + eps * radius);
+                             
     SetConstants(eps);
     integral = GetIntegral1(eps, 0, lmin, l, refineElement);
     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
     std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
-    std::cout << "Relative Error level " << l + 1 << " = " << Errorl << std::endl;
+    std::cout << "Relative Error level " << l  << " = " << Errorl << std::endl;
     Errorlm1 = Errorl;
   }
 
@@ -241,7 +253,7 @@ double GetIntegral2(const double &eps, const unsigned &level,
 
       }
       else { // node is inside layer
-        oneNodeIsOutside = true;  
+        oneNodeIsOutside = true;
         if(level == levelMax)  goto integrate;
         else goto refine;
       }
@@ -253,7 +265,7 @@ double GetIntegral2(const double &eps, const unsigned &level,
   else { // integration rule for interface elements
   integrate:
 
-    const elem_type &finiteElement = refineElement.GetFEM();
+    const elem_type &finiteElement = (oneNodeIsOutside) ? refineElement.GetFEM() : refineElement.GetFEMInside();
     std::vector < double> xg(dim);
     std::vector < double> xiFg(dim);
     double f;
