@@ -20,13 +20,10 @@ Line* lineI;
 void BuildFlag(MultiLevelSolution& mlSol);
 double eps;
 
-#include "../include/mpmFsi6.hpp"
 #include "../../Nitsche/support/particleInit.hpp"
-
+#include "../../Nitsche/support/sharedFunctions.hpp"
+#include "../include/mpmFsi6.hpp"
 using namespace femus;
-
-
-
 
 double SetVariableTimeStep (const double time) {
   double dt =  0.005/*0.008*/;
@@ -552,6 +549,7 @@ int main (int argc, char** args) {
   GetParticlesToNodeFlag (mlSol, *solidLine, *fluidLine);
 
   BuildFlag(mlSol);
+  GetParticleWeights(mlSol, bulk, lineI);
 
   // ******* Print solution *******
   mlSol.SetWriter (VTK);
