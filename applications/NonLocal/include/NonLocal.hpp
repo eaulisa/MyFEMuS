@@ -8,7 +8,7 @@ class NonLocal {
     NonLocal() {};
     ~NonLocal() {};
     virtual double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) const = 0;
-    virtual double GetKernel(const double  &kappa, const double &delta) const = 0;
+    virtual double GetKernel(const double  &kappa, const double &delta, const double &eps) const = 0;
 
     void ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2);
 
@@ -80,14 +80,9 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
     refine:
       refineElement.BuildElementProlongation(level, iFather);
       for(unsigned i = 0; i < numberOfChildren; i++) {
-        double area0 = RefinedAssembly(level + 1, levelMin, levelMax, i, refineElement,
+        area += RefinedAssembly(level + 1, levelMin, levelMax, i, refineElement,
                                 nDof1, xg1, weight1_ig, phi1_ig,
                                 solu1, solu2, kappa, delta, printMesh);
-        
-        area += area0;
-//         if(printMesh){
-//           std::cout << level << " " << iFather << " " << i << " " << area << " " << area0 << std::endl;
-//         }
       }
     }
     else {
@@ -95,7 +90,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       oneNodeIsOutside = false;
       double d;
       std::vector< double > xv2j(dim);
-      
+
       for(unsigned j = 0; j < nDof2; j++) {
         for(unsigned k = 0; k < dim; k++) {
           xv2j[k] = xv2[k][j];
@@ -129,14 +124,8 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
     std::vector < double > phi2F(nDof2);
     double U;
     const std::vector < std::vector <double> >  &xi2F = refineElement.GetNodeLocalCoordinates(level, iFather);
-    
-//     std::cout << level << std::endl;
-//     for(unsigned i = 0; i < xi2F[0].size(); i++ ){
-//       std::cout << xv2[0][i] << " " << xv2[1][i]<<std::endl;
-//     }
-    
-    
-    double kernel = this->GetKernel(kappa, delta);
+
+    double kernel = this->GetKernel(kappa, delta, refineElement.GetEps());
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
 
@@ -150,25 +139,13 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
         }
       }
       finiteElement.GetPhi(phi2F, xi2Fg);
-      
-//       std::cout << xi2Fg[0] << " " << xi2Fg[1]<<std::endl;
-//       for(unsigned j = 0; j < nDof2; j++){
-//         std::cout << j<<" " << phi2F[j] << std::endl;    
-//       }
-      
-     
-      
-      
+
       if(level == levelMax - 1) { // only for element at level l = lmax - 1
-        U = refineElement.GetSmoothStepFunction(  this->GetDistance(xg1, xg2, delta) );
+        U = refineElement.GetSmoothStepFunction(this->GetDistance(xg1, xg2, delta));
       }
-      else{
-        U = 1.;    
+      else {
+        U = 1.;
       }
-      
-      //U=(this->GetDistance(xg1, xg2, delta)>0)?1.:0.;
-      
-      //std::cout<<U<<" ";  
 
       if(U > 0.) {
         area += weight2;
@@ -214,7 +191,7 @@ void NonLocal::PrintElement(const std::vector < std::vector < double> > &xv, con
   }
   fout << xv[0][0] << " " << xv[1][0] << " " << std::endl;
   fout << std::endl;
-  
+
   fout.close();
 }
 
@@ -224,7 +201,7 @@ class NonLocalBall: public NonLocal {
     NonLocalBall(): NonLocal() {};
     ~NonLocalBall() {};
     double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const;
-    double GetKernel(const double &kappa, const double &delta) const;
+    double GetKernel(const double &kappa, const double &delta, const double &eps) const;
 };
 
 class NonLocalBox: public NonLocal {
@@ -232,7 +209,7 @@ class NonLocalBox: public NonLocal {
     NonLocalBox(): NonLocal() {};
     ~NonLocalBox() {};
     double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const;
-    double GetKernel(const double  &kappa, const double &delta) const;
+    double GetKernel(const double  &kappa, const double &delta, const double &eps) const;
 };
 
 double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
@@ -244,8 +221,10 @@ double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::ve
   return distance;
 }
 
-double NonLocalBall::GetKernel(const double  &kappa, const double &delta) const {
-  return 4. / M_PI * kappa / (delta * delta * delta * delta) ;
+double NonLocalBall::GetKernel(const double  &kappa, const double &delta, const double &eps) const {
+  return 4. /  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
+                                + 2. * (-5. / 11. * eps * eps + eps * delta))
+                        * delta * delta) ;
 }
 
 double NonLocalBox::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const {
@@ -282,7 +261,7 @@ double NonLocalBox::GetDistance(const std::vector < double>  &xc, const std::vec
   return distance;
 }
 
-double NonLocalBox::GetKernel(const double  &kappa, const double &delta) const {
+double NonLocalBox::GetKernel(const double  &kappa, const double &delta, const double &eps) const {
   return 0.75 * kappa / (delta * delta * delta * delta);
 }
 

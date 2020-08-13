@@ -33,7 +33,7 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.005; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+double delta1 = 0.2; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -147,15 +147,15 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   //BEGIN setup for adaptive integration
-  unsigned lmin = 3;
-  unsigned lmax = 11;
+  unsigned lmin = 0;
+  unsigned lmax = 7;
 
   double dMax = 0.5 * delta1;
-  double eps0 = dMax * 0.025;
+  double eps0 = dMax * 0.5;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
 
-  //std::cout << eps <<std::endl;
+  std::cout << "EPS = "<< eps <<std::endl;
 
   RefineElement *refineElement[6][3];
 
@@ -271,17 +271,17 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
         if(coarseIntersectionTest) {
 
-          if((iel == 40 && jel == 40)) {
-            std::cout<<"{";  
-            for(unsigned k = 0; k < dim; k++) {
-              std::cout<<"{";    
-              for(unsigned j = 0; j < nDof1; j++) {
-                std::cout << x1[k][j] << ", ";
-              }
-              std::cout<<"},";  
-            }
-            std::cout<<"};";  
-          }
+//           if((iel == 40 && jel == 40)) {
+//             std::cout<<"{";
+//             for(unsigned k = 0; k < dim; k++) {
+//               std::cout<<"{";
+//               for(unsigned j = 0; j < nDof1; j++) {
+//                 std::cout << x1[k][j] << ", ";
+//               }
+//               std::cout<<"},";
+//             }
+//             std::cout<<"};";
+//           }
 
 
           nonlocal->ZeroLocalQuantities(nDof1, nDof2);
@@ -303,7 +303,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
           }
 
-          std::vector < double >  area(igNumber, 0.);
+          double area = 0.;
           for(unsigned ig = 0; ig < igNumber; ig++) {
             if(iel == jel) {
               for(unsigned i = 0; i < nDof1; i++) {
@@ -315,20 +315,17 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
 
             bool printMesh = false;
-            if(iel == 40 && jel == 40 && ig == 4) printMesh = true;
-
-            area[ig] += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
-                                                  nDof1, xg1[ig], weight1[ig], phi1x[ig],
-                                                  solu1, solu2, kappa1, delta1, printMesh);
-
-
-
-          }
-          std::cout.precision(14);
-          if((iel == 40 && jel == 40)) {
-            for(unsigned ig = 0; ig < igNumber; ig++) {
-              std::cout << ig << " " << area[ig] << " " <<M_PI * delta1 * delta1 << " " << area[ig] - M_PI * delta1 * delta1 << std::endl;
+            if(iel == 40 && ig == 4) {
+              printMesh = true;
+              //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
             }
+
+            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
+                                              nDof1, xg1[ig], weight1[ig], phi1x[ig],
+                                              solu1, solu2, kappa1, delta1, printMesh);
+
+
+
           }
 
 //           if(iel == 40 && jel == 28) {
@@ -387,7 +384,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 //             std::cout << std::endl;
 //         }
 
-          if(area[4] > 0.) {
+          if(area > 0.) {
 
             KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
             KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
@@ -405,8 +402,8 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  std::cout.precision(14);
-  std::cout << "AAAAAAAAAAA = " << eps << std::endl;
+// std::cout.precision(14);
+// std::cout << "AAAAAAAAAAA = " << eps << std::endl;
 
   delete nonlocal;
   delete refineElement[3][0];
