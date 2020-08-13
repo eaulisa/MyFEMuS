@@ -62,11 +62,8 @@ Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TO
 // Declaration of systems.
 void AssemblePWillmore(MultiLevelProblem&);
 
-double dt0 = 5e-4; //P=2
+double dt0 = 5e-5; //P=2
 //double dt0 = 3.2e-6; //P=4
-
-
-//double dt0 = 5.e-5; //P=2
 
 
 // Function to control the time stepping.
@@ -125,13 +122,13 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
 
 
-  //mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
-  //mlMsh.ReadCoarseMesh ("../input/dog.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh ("../../Conformal/input/handbndry.med", "seventh", scalingFactor, false, false);
   //mlMsh.ReadCoarseMesh ("../input/virus3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidSphere.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/CliffordTorus.neu", "seventh", scalingFactor);
@@ -145,7 +142,7 @@ int main(int argc, char** args) {
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -246,7 +243,7 @@ int main(int argc, char** args) {
 
 
   // Parameters for convergence and # of iterations for Willmore.
-  system.SetMaxNumberOfNonLinearIterations(6);
+  system.SetMaxNumberOfNonLinearIterations(12);
   system.SetNonLinearConvergenceTolerance(1.e-12);
 
   // Attach the assembling function to P-Willmore system.
@@ -337,29 +334,30 @@ int main(int argc, char** args) {
 
 
 
-    dt0 *= 1.5;
+    dt0 *= 1.3;
     //UNCOMMENT FOR P=4
     //if(dt0 > 5e-1) dt0 = 5e-1;
 
     //IGNORE THIS
-    // if (time_step < 1) {
-    //   //dt0 = 0.005;
-    //   P[0] = 2;
-    // }
-    // else {
-    //   P[0] = 4;
-    //   dt0 *= 1.05;
-    //   //if (dt0 > 0.000008) dt0 = 0.000008;
-    // }
+    if (time_step < 30) {
+      //dt0 = 0.005;
+      //P[2] = 2;
+    }
+    else {
+      // P[2] = 4;
+      // dt0 *= 1.1;
+      if(dt0 > 1e-2) dt0 = 1e-2;
+      //if (dt0 > 0.000008) dt0 = 0.000008;
+    }
 
     if(time_step % 1 == 0) {
       mlSol.GetWriter()->Write("./output1", "biquadratic", variablesToBePrinted, (time_step + 1) / printInterval);
 
-      CopyDisplacement(mlSol, true);
-      //if (time_step % 2 ==1) {
-      system2.MGsolve();
-      //}
-      CopyDisplacement(mlSol, false);
+      // CopyDisplacement(mlSol, true);
+      // //if (time_step % 2 ==1) {
+      // system2.MGsolve();
+      // //}
+      // CopyDisplacement(mlSol, false);
 
       system.CopySolutionToOldSolution();
       //UNCOMMENT FOR P=4
@@ -619,13 +617,13 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
         const unsigned faceGeom = msh->GetElementFaceType(iel, jface); //edge
         unsigned fnxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
         unsigned fnKDofs = msh->GetElementFaceDofNumber(iel, jface, solKType);
-       
+
         for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
 
           double fweight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
           const double *fphix = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
           const double *fphix_u = msh->_finiteElement[faceGeom][solxType]->GetDPhiDXi(ig);
-          
+
           const double *fphiK = msh->_finiteElement[faceGeom][solKType]->GetPhi(ig);
 
 
@@ -635,17 +633,17 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
-              unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);   
+              unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
               fsolxg[I] += fphix[i] * 0.5 * ( solx[I][inode] + solxOld[I][inode]);
               fdsolxgdt[I] += fphix[i] * ( solx[I][inode] - solxOld[I][inode])/dt;
-              
+
               fsolxg_u[I] += fphix_u[i] * 0.5 * ( solx[I][inode] + solxOld[I][inode]);
             }
           }
 
           adept::adouble fsolKg = 0.;
           for(unsigned i = 0; i < fnKDofs; i++) {
-            unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);   
+            unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
             fsolKg += fphiK[i] * solK[inode];
           }
 
@@ -653,13 +651,13 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
           for(unsigned i = 0; i < fnKDofs; i++) {
             unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-            aResK[fdof] += fphiK[i] * ((fsolxg[0] * fsolxg[0] + fsolxg[1] * fsolxg[1] + fsolxg[2] * fsolxg[2]) - 1.) * length;
+            aResK[fdof] += fphiK[i] * ((fsolxg[0] * fsolxg[0] + fsolxg[1] * fsolxg[1] + fsolxg[2] * fsolxg[2]) - 1.) * length - eps * fsolKg * fphiK[i] * length;
           }
 
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-              aResx[I][fdof] += (1000 * fdsolxgdt[I] + 2. * fsolKg * fsolxg[I]) * fphix[i] * length;
+              aResx[I][fdof] += (1 * fdsolxgdt[I] + 2. * fsolKg * fsolxg[I]) * fphix[i] * length;
             }
           }
         }
@@ -917,21 +915,21 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           aResW[K][i] += (((solxNewg[K] - solxOldg[K])  / dt) * phiW[i]
                           - term0
                           + sumP2 * term1
-                          - term2 * phiW_Xtan[K][i]
+                          //- term2 * phiW_Xtan[K][i]
                           + term3
                          ) * Area;
         }
       }
 
-      
-      
+
+
       const double *phiK = msh->_finiteElement[ielGeom][solKType]->GetPhi(ig);
       for(unsigned i = 0; i < nKDofs; i++) {
-        aResK[i] += 1.0e-10 * solK[i] * phiK[i] * weight; 
+        aResK[i] += 1.0e-10 * solK[i] * phiK[i] * weight;
       }
-      
-      
-      
+
+
+
       // Compute new surface area, volume, and P-Willmore energy.
 
       surface += Area.value();
@@ -964,7 +962,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
         Res[DIM * (nxDofs + nYDofs) + K * nWDofs + i] = -aResW[K][i].value();
       }
     }
-    
+
     for(int i = 0; i < nKDofs; i++) {
       Res[ DIM * (nxDofs + nYDofs + nWDofs) + i] = -aResK[i].value();
     }
@@ -985,8 +983,8 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
       s.dependent(&aResW[K][0], nWDofs);
     }
     s.dependent(&aResK[0], nKDofs);
-    
-    
+
+
     // Define the independent variables.
     for(int K = 0; K < DIM; K++) {
       s.independent(&solx[K][0], nxDofs);
@@ -1044,5 +1042,3 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssemblePWillmore.
-
-
