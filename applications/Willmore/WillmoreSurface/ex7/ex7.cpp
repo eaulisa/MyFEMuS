@@ -40,7 +40,7 @@ double surface0 = 0.;
 double volume0 = 0.;
 
 //unsigned conformalTriangleType = 2;
-const double eps = 1e-6;
+const double eps = 1e-8;
 
 unsigned counter = 0;
 //bool areaConstraintInConformal = false;
@@ -142,7 +142,7 @@ int main(int argc, char** args) {
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -243,7 +243,7 @@ int main(int argc, char** args) {
 
 
   // Parameters for convergence and # of iterations for Willmore.
-  system.SetMaxNumberOfNonLinearIterations(12);
+  system.SetMaxNumberOfNonLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-12);
 
   // Attach the assembling function to P-Willmore system.
@@ -628,16 +628,22 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
 
           adept::adouble fsolxg[3] = {0., 0., 0.};
+          adept::adouble fsolxNewg[3] = {0., 0., 0.};
+          
           adept::adouble fsolxg_u[3] = {0., 0., 0.};
+          adept::adouble fsolxNewg_u[3] = {0., 0., 0.};
           adept::adouble fdsolxgdt[3] = {0., 0., 0.};
 
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
               fsolxg[I] += fphix[i] * 0.5 * ( solx[I][inode] + solxOld[I][inode]);
+              fsolxNewg[I] += fphix[i] * solx[I][inode];
+               
               fdsolxgdt[I] += fphix[i] * ( solx[I][inode] - solxOld[I][inode])/dt;
 
               fsolxg_u[I] += fphix_u[i] * 0.5 * ( solx[I][inode] + solxOld[I][inode]);
+              fsolxNewg_u[I] += fphix_u[i] * solx[I][inode];
             }
           }
 
@@ -651,13 +657,13 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
           for(unsigned i = 0; i < fnKDofs; i++) {
             unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-            aResK[fdof] += fphiK[i] * ((fsolxg[0] * fsolxg[0] + fsolxg[1] * fsolxg[1] + fsolxg[2] * fsolxg[2]) - 1.) * length - eps * fsolKg * fphiK[i] * length;
+            aResK[fdof] += fphiK[i] * ((fsolxNewg[0] * fsolxNewg[0] + fsolxNewg[1] * fsolxNewg[1] + fsolxNewg[2] * fsolxNewg[2]) - 1.) * length - eps * fsolKg * fphiK[i] * length;
           }
 
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-              aResx[I][fdof] += (1 * fdsolxgdt[I] + 2. * fsolKg * fsolxg[I]) * fphix[i] * length;
+              aResx[I][fdof] += (1 * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length;
             }
           }
         }
@@ -1042,3 +1048,4 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 //     std::cin >> a;
 
 } // end AssemblePWillmore.
+
