@@ -414,11 +414,11 @@ double GetPWillmoreEnergy(MultiLevelSolution &mlSol) {
 
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nYDofs; i++) {
-          solYg[K] += phiY[i] * 0.5 * (solYOld[K][i] + solY[K][i]);
+          solYg[K] += phiY[i] * 0.5 * (0.* solYOld[K][i] + 2.* solY[K][i]);
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nxDofs; i++) {
-            solx_uv[K][j]    += phix_uv[j][i] * 0.5 * (solx[K][i] + solxOld[K][i]);
+            solx_uv[K][j]    += phix_uv[j][i] * 0.5 * ( 0. * solxOld[K][i] +  2. * solx[K][i]);
           }
         }
       }

@@ -280,23 +280,23 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  // Get data from each process running in parallel.
-  double surfaceAll;
-  MPI_Reduce(&surface, &surfaceAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if(firstTime) surface0 = surfaceAll;
-  std::cout << "SURFACE = " << surfaceAll << " SURFACE0 = " << surface0 <<  " error = " << (surface0 - surfaceAll) / surface0 << std::endl;
+//   // Get data from each process running in parallel.
+//   double surfaceAll;
+//   MPI_Reduce(&surface, &surfaceAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//   if(firstTime) surface0 = surfaceAll;
+//   std::cout << "SURFACE = " << surfaceAll << " SURFACE0 = " << surface0 <<  " error = " << (surface0 - surfaceAll) / surface0 << std::endl;
+// 
+//   double volumeAll;
+//   MPI_Reduce(&volume, &volumeAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//   if(firstTime) volume0 = volumeAll;
+//   std::cout << "VOLUME = " << volumeAll << " VOLUME0 = " << volume0 <<  " error = " << (volume0 - volumeAll) / volume0 << std::endl;
+// 
+//   double energyAll;
+//   MPI_Reduce(&energy, &energyAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//   std::cout << "ENERGY = " << energyAll << std::endl;
 
-  double volumeAll;
-  MPI_Reduce(&volume, &volumeAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if(firstTime) volume0 = volumeAll;
-  std::cout << "VOLUME = " << volumeAll << " VOLUME0 = " << volume0 <<  " error = " << (volume0 - volumeAll) / volume0 << std::endl;
 
-  double energyAll;
-  MPI_Reduce(&energy, &energyAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  std::cout << "ENERGY = " << energyAll << std::endl;
-
-
-  firstTime = false;
+  //firstTime = false;
 }
 //END Assemble SystemY
 
