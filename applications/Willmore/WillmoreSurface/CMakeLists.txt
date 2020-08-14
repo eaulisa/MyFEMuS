@@ -9,6 +9,7 @@ ADD_SUBDIRECTORY(ex4/)
 ADD_SUBDIRECTORY(ex5/)
 ADD_SUBDIRECTORY(ex6/)
 ADD_SUBDIRECTORY(ex7/)
+ADD_SUBDIRECTORY(ex8/)
 
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/applications/Willmore/WillmoreSurface/input/)
 FILE(COPY           ${PROJECT_SOURCE_DIR}/applications/Willmore/WillmoreSurface/input/ DESTINATION ${PROJECT_BINARY_DIR}/applications/Willmore/WillmoreSurface/input/)
