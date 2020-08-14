@@ -93,6 +93,13 @@ physics/Material.cpp
 physics/Parameter.cpp
 physics/Solid.cpp
 quadrature/GaussPoints.cpp
+quadrature/HexGaussPoints.cpp
+quadrature/WedgeGaussPoints.cpp
+quadrature/TetGaussPoints.cpp
+quadrature/QuadGaussPoints.cpp
+quadrature/TriGaussPoints.cpp
+quadrature/LineGaussPoints.cpp
+quadrature/PointGaussPoints.cpp
 solution/MultiLevelSolution.cpp
 solution/Solution.cpp
 solution/output/Writer.cpp

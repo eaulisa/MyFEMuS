@@ -54,7 +54,7 @@ int main(int argc, char** args) {
   femAll[1] = new const elem_type_2D("quad", "linear", "zero");
   femAll[2] = new const elem_type_3D("hex", "linear", "zero");
 
-  unsigned maxOrder = SIXTEENTH_ORDER;
+  unsigned maxOrder = THIRTIETH_ORDER;
   
   for(unsigned k = 0; k < 6; k++) {
 
@@ -65,7 +65,7 @@ int main(int argc, char** args) {
     }
 
     CppPrint(geomElType[k], gaussQ);
-    GnuPrint(geomElType[k], gaussQ);
+    //GnuPrint(geomElType[k], gaussQ);
 
     for(unsigned m = 0; m <= maxOrder + 5; m++) {
       if(HEX == geomElType[k]) {
