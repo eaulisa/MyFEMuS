@@ -3,11 +3,6 @@
 #include <vector>
 #include <math.h>
 #include <ctime>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Eigenvalues>
-#include <eigen3/unsupported/Eigen/KroneckerProduct>
-#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
-#include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #include <fstream>
 #include <cmath>
 #include "Marker.hpp"
@@ -107,7 +102,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       cnt++;
     }
   }
-
+  
 //corner chuncks
   for(unsigned k = 0; k < nbl; k++) {
     for(unsigned j = 0; j < nbl; j++) {
@@ -125,9 +120,9 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = (xc[1] + H) - xp[cnt][1];
         }
       }
-      else { //left + interface
+      else { //bottom + interface
         if(xp[cnt][1] < H + xc[1]) { //bottom
-          dist[cnt] = xc[0] - xp[cnt][0];
+          dist[cnt] = xp[cnt][0] - xc[0];
         }
         else { //top +interface
           dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
@@ -151,7 +146,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = (xc[1] + H) - xp[cnt][1];
         }
       }
-      else { //right + interface
+      else { //bottom + interface
         if(xp[cnt][1] < xc[1] + H) { //bottom
           dist[cnt] = (xc[0] + L) - xp[cnt][0];
         }
@@ -159,12 +154,10 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
         }
       }
-
       cnt++;
     }
 
   }
-
 
   ////////////////OUTER SHELL
 
@@ -197,19 +190,26 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
     }
   }
 
-
   //top band without corners
   for(unsigned k = 0; k < nDH; k++) {
     for(unsigned j = 0; j < cols1; j++) {
-      XP[0] = (xc[0] + 0.5 * dx1) + j * dx1;
+      XP[0] = (xc[0] - 0.5 * DB + 0.5 * dx1) + j * dx1;
       XP[1] = (xc[1] + H1  + 0.5 * dH) + k * dH;
       xp[cnt] = XP;
       wp[cnt] = dx1 * dH;
-      dist[cnt] = (xc[1] + H) - xp[cnt][1];
+
+      if(xp[cnt][0] < xc[0]) {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
+      else if(xp[cnt][0] < xc[0] + L) {
+        dist[cnt] = (xc[1] + H) - xp[cnt][1];
+      }
+      else {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
       cnt++;
     }
   }
-
 
   //top two corners
   for(unsigned k = 0; k < nDH; k++) {
@@ -225,21 +225,16 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
       XP[1] = (xc[1] + H1 + 0.5 * dH) + j * dH;
       xp[cnt] = XP;
       wp[cnt] = dH * dH;
-      wp[cnt] = dH * dH;
       dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
       cnt++;
     }
   }
 
-
-
-
-
   double sum = 0.;
   for(unsigned j = 0; j < xp.size(); j++) {
     sum += wp[j];
   }
-  std::cout << "Volume difference = " << sum << " " << sum - (H + DH)*Lf << std::endl;
+  std::cout<<"Volume = " << sum <<" Volume difference = " << sum - (H + DH)*Lf << std::endl;
   //
   //   //could not fix
   //   double area;
@@ -260,7 +255,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
 
 
 
-void InitRectangleInterface(const unsigned & dim, const double &L, const double &H, const double &DB, const unsigned nbl,
+void InitRectangleInterface(const unsigned & dim, const double & L, const double & H, const double & DB, const unsigned nbl,
                             const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType,
                             std::vector < std::vector <double> > &xp,
                             std::vector < std::vector < std::vector < double > > > &T) {
@@ -282,7 +277,7 @@ void InitRectangleInterface(const unsigned & dim, const double &L, const double 
 
 
 
-  unsigned size = (2 * rowsl + colsl);// +  2 * nbl;
+  unsigned size = (2 * rowsl + colsl) +  2 * nbl;
   xp.resize(size);
 
 
@@ -334,71 +329,67 @@ void InitRectangleInterface(const unsigned & dim, const double &L, const double 
     XP[0] = xc[0] + 0.5 * DB + 0.5 * dxl + j * dxl;
     XP[1] = H + xc[1];
     xp[cnt] = XP;
-    //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
 
     T[cnt][0][0] = -dxl;
     T[cnt][0][1] = 0.;
-    //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
   }
 
 
+  // corner left
+  for(unsigned j = 0; j < nbl / 2; j++) {
+    XP[0] = xc[0] ;
+    XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
+    xp[cnt] = XP;
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = -dbl;
+    cnt++;
+  }
+  XP[0] = xc[0] ;
+  XP[1] = H + xc[1];
+  xp[cnt] = XP;
+  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] = -dbl * sqrt(2.) / 2.;
+  cnt++;
+  for(unsigned j = 0; j < nbl / 2; j++) {
+    XP[0] = xc[0] + dbl + j * dbl ;
+    XP[1] = xc[1] + H ;
+    xp[cnt] = XP;
+    T[cnt][0][0] = -dbl;
+    T[cnt][0][1] = 0.;
+    cnt++;
+  }
+
+  //corner right
+  for(unsigned j = 0; j < nbl / 2; j++) {
+    XP[0] = xc[0] + L ;
+    XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
+    xp[cnt] = XP;
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = dbl;
+    cnt++;
+  }
+
+  XP[0] = xc[0] + L;
+  XP[1] = H + xc[1];
+  xp[cnt] = XP;
+  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] =  dbl * sqrt(2.) / 2.;
+  cnt++;
 
 
-//   // corner left
-//   for(unsigned j = 0; j < nbl / 2; j++) {
-//     XP[0] = xc[0] ;
-//     XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
-//     xp[cnt] = XP;
-//     T[cnt][0][0] = 0.;
-//     T[cnt][0][1] = -dbl;
-//     cnt++;
-//   }
-//   XP[0] = xc[0] ;
-//   XP[1] = H + xc[1];
-//   xp[cnt] = XP;
-//   T[cnt][0][0] = -dbl * acos(M_PI / 4.);
-//   T[cnt][0][1] = -dbl * acos(M_PI / 4.);
-//   cnt++;
-//   for(unsigned j = 0; j < nbl / 2; j++) {
-//     XP[0] = xc[0] + dbl + j * dbl ;
-//     XP[1] = xc[1] + H ;
-//     xp[cnt] = XP;
-//     T[cnt][0][0] = -dbl;
-//     T[cnt][0][1] = 0.;
-//     cnt++;
-//   }
-// 
-//   //corner right
-//   for(unsigned j = 0; j < nbl / 2; j++) {
-//     XP[0] = xc[0] + L ;
-//     XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
-//     xp[cnt] = XP;
-//     T[cnt][0][0] = 0.;
-//     T[cnt][0][1] = dbl;
-//     cnt++;
-//   }
-// 
-//   XP[0] = xc[0] + L;
-//   XP[1] = H + xc[1];
-//   xp[cnt] = XP;
-//   T[cnt][0][0] = -dbl * acos(M_PI / 4.);
-//   T[cnt][0][1] = dbl * acos(M_PI / 4.);
-//   cnt++;
-// 
-// 
-// 
-//   for(unsigned j = 0; j < nbl / 2; j++) {
-// 
-//     XP[0] = xc[0] + L - dbl - j * dbl ;
-//     XP[1] = xc[1] + H ;
-//     xp[cnt] = XP;
-// 
-//     T[cnt][0][0] = -dbl;
-//     T[cnt][0][1] = 0.;
-//     cnt++;
-// 
-//   }
+
+  for(unsigned j = 0; j < nbl / 2; j++) {
+
+    XP[0] = xc[0] + L - dbl - j * dbl ;
+    XP[1] = xc[1] + H ;
+    xp[cnt] = XP;
+
+    T[cnt][0][0] = -dbl;
+    T[cnt][0][1] = 0.;
+    cnt++;
+
+  }
 
 
 
@@ -1119,342 +1110,5 @@ void InitParticlesDisk3D(const unsigned & dim, const unsigned & ng, std::vector<
       }
     }
   }
-
-}
-
-
-
-void Testing(double & a, double & b, const unsigned & m, const unsigned & dim, Eigen::MatrixXd & x,
-             Eigen::VectorXd & w_new, std::vector<double> &dist, const double & eps, double & QuadSum, double & IntSum) {
-
-
-  double deps = (b - a) * eps; // eps1
-
-  double a0 = 0.5; // 128./256.;
-  double a1 = pow(deps, -1.) * 1.23046875; // 315/256.;
-  double a3 = -pow(deps, -3.) * 1.640625; //420./256.;
-  double a5 = pow(deps, -5.) * 1.4765625; // 378./256.;
-  double a7 = -pow(deps, -7.) * 0.703125; // 180./256.;
-  double a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
-
-  QuadSum = 0.;
-  IntSum = 0.;
-
-  for(unsigned i = 0; i < w_new.size(); i++) {
-
-    double dg1 = dist[i];
-    double dg2 = dg1 * dg1;
-    double xi;
-    if(dg1 < -deps)
-      xi = 0.;
-    else if(dg1 > deps) {
-      xi = 1.;
-    }
-    else {
-      xi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
-    }
-
-    double r = 0.75 * 0.75 ;
-    for(unsigned k = 0; k < dim; k++) {
-      r +=  - x(k, i) * x(k, i);
-    }
-    IntSum += xi * r * w_new(i);
-
-    r = 1.;
-    for(unsigned k = 0; k < dim; k++) {
-      r *=  x(k, i);
-    }
-    QuadSum += pow(r, m) * w_new(i);
-  }
-
-}
-
-
-void Cheb(const unsigned & m, Eigen::VectorXd & xg, Eigen::MatrixXd & C) {
-
-  C.resize(xg.size(), m + 1);
-  for(unsigned i = 0; i < xg.size(); i++) {
-    C(i, 0) = 1;
-    C(i, 1) = xg(i);
-    for(unsigned j = 2; j <= m; j++) {
-      C(i, j) =  2 * xg(i) * C(i, j - 1) - C(i, j - 2);
-    }
-  }
-  C.transposeInPlace();
-
-}
-
-
-
-
-void GetChebGaussF(const unsigned & dim, const unsigned & m, std::vector<double> &VxL, std::vector<double> &VxU, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F) {
-
-  F.resize(pow(m + 1, dim));
-  F.setZero();
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-  Eigen::VectorXi J(dim);
-  Eigen::VectorXi NG(dim);
-
-  unsigned ng = Pg.row(0).size();
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(m + 1, dim - k - 1);
-  }
-
-  for(unsigned k = 0; k < dim ; k++) {
-    NG(k) = pow(ng, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k);
-    }
-    F(t) = 0.;
-    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
-      J(0) = g / NG(0);
-      for(unsigned k = 1; k < dim ; k++) {
-        unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k);
-      }
-      double value = 1.;
-      unsigned ig = 0;
-      double jac = 1.;
-
-      for(unsigned k = 0; k < dim ; k++) {
-        value *= 0.5 * (VxU[k] - VxL[k]) * Pg(I(k), J(k)) * wg(J(k));
-      }
-      F(t) += value;
-    }
-  }
-
-}
-
-
-void GetChebGaussF(const unsigned & dim, const unsigned & m, const std::vector<double> &jac, Eigen::MatrixXd & Pg,  Eigen::VectorXd & wg, Eigen::VectorXd & F) {
-
-  F.resize(pow(m + 1, dim));
-  F.setZero();
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-  Eigen::VectorXi J(dim);
-  Eigen::VectorXi NG(dim);
-
-  unsigned ng = Pg.row(0).size();
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(m + 1, dim - k - 1);
-  }
-
-  for(unsigned k = 0; k < dim ; k++) {
-    NG(k) = pow(ng, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k);
-    }
-    F(t) = 0.;
-    for(unsigned g = 0; g < pow(ng, dim) ; g++) { // gauss loop
-      J(0) = g / NG(0);
-      for(unsigned k = 1; k < dim ; k++) {
-        unsigned pk = g % NG(k - 1);
-        J(k) = pk / NG(k);
-      }
-
-      double value = jac[g];
-      for(unsigned k = 0; k < dim ; k++) {
-        value *= Pg(I(k), J(k)) * wg(J(k));
-      }
-
-      F(t) += value;
-    }
-  }
-
-}
-
-
-void GetChebXInfo(const unsigned & m, const unsigned & dim, const unsigned & np, Eigen::MatrixXd & xL, Eigen::Tensor<double, 3, Eigen::RowMajor>& PmX) {
-  // xL is taken in reference coordinate system
-  PmX.resize(dim, m + 1, np);
-  Eigen::MatrixXd Ptemp;
-  Eigen::VectorXd xtemp;
-  for(unsigned k = 0; k < dim; k++) {
-    xtemp = xL.row(k);
-    Cheb(m, xtemp, Ptemp);
-    for(unsigned i = 0; i < m + 1; i++) {
-      for(unsigned j = 0; j < np; j++) {
-        PmX(k, i, j) = Ptemp(i, j);
-      }
-    }
-  }
-}
-
-
-
-void GetMultiDimChebMatrix(const unsigned & dim, const unsigned & m, const unsigned & np, Eigen::Tensor<double, 3, Eigen::RowMajor>  &PmX, Eigen::MatrixXd & A) {
-
-
-  A.resize(pow(m + 1, dim), np);
-  Eigen::VectorXi I(dim);
-  Eigen::VectorXi N(dim);
-
-
-  for(unsigned k = 0; k < dim ; k++) {
-    N(k) = pow(m + 1, dim - k - 1);
-  }
-
-  for(unsigned t = 0; t < pow(m + 1, dim) ; t++) { // multidimensional index on the space of polynomaials
-    I(0) = t / N(0);
-    for(unsigned k = 1; k < dim ; k++) {
-      unsigned pk = t % N(k - 1);
-      I(k) = pk / N(k); // dimensional index over on the space of polynomaials
-    }
-    for(unsigned j = 0; j < np; j++) {
-      double r = 1;
-
-      for(unsigned k = 0; k < dim; k++) {
-        r *= PmX(k, I[k], j);
-      }
-      A(t, j) = r ;
-    }
-  }
-
-
-}
-
-
-
-
-void SolWeightEigen(Eigen::MatrixXd & A, Eigen::VectorXd & F, Eigen::VectorXd & wP, Eigen::VectorXd & w_new) {
-
-  w_new.resize(wP.size());
-
-  Eigen::VectorXd y = A.transpose() * (A * A.transpose()).partialPivLu().solve(F - A * wP);
-  w_new = y + wP;
-
-
-}
-
-void PrintMarkers(const unsigned & dim, const Eigen::MatrixXd & xP, const std::vector <double> &dist,
-                  const Eigen::VectorXd wP, const Eigen::VectorXd & w_new, const unsigned & l, const unsigned & t) {
-
-  std::ofstream fout;
-
-  char filename[100];
-  sprintf(filename, "marker%d.txt", l);
-
-  if(t == 0) {
-    fout.open(filename);
-  }
-  else {
-    fout.open(filename, std::ios::app);
-  }
-
-  for(unsigned i = 0; i < w_new.size(); i++) {
-
-    for(unsigned k = 0; k < dim; k++) {
-      fout << xP(k, i) << " ";
-    }
-    fout <<  dist[i] << " " << wP[i] << " " << w_new[i] << std::endl;
-  }
-
-  fout.close();
-
-}
-
-
-
-
-// N-point gauss quadrature points and weights by finding the roots of Legendre polynomaial
-void GetGaussPointsWeights(unsigned & N, Eigen::VectorXd & xg, Eigen::VectorXd & wg) {
-  unsigned N1 = N ;
-  unsigned N2 = N + 1;
-  Eigen::VectorXd xu;
-  xu.setLinSpaced(N1, -1, 1);
-  xg.resize(N1);
-  for(unsigned i = 0; i <= N - 1; i++) {
-    xg(i) = cos((2 * i + 1) * M_PI / (2 * (N - 1) + 2)) + (0.27 / N1) * sin(M_PI * xu(i) * (N - 1) / N2) ;
-  }
-  Eigen::MatrixXd L(N1, N2);
-  L.fill(0.);
-  Eigen::VectorXd Lp(N1);
-  Lp.fill(0.);
-  Eigen::VectorXd y0(xg.size());
-  y0.fill(2);
-  double eps = 1e-15;
-  Eigen::VectorXd d = xg - y0;
-
-  double max = d.cwiseAbs().maxCoeff();
-
-  //Newton step for finding the roots
-  while(max > eps) {
-
-    L.col(0).fill(1.);
-    L.col(1) = xg;
-
-    for(unsigned k = 2; k < N2; k++) {
-      for(unsigned i = 0; i < N1; i++) {
-        L(i, k) = ((2 * k - 1) * xg(i) * L(i, k - 1) - (k - 1) * L(i, k - 2)) / k;
-      }
-    }
-
-
-    for(unsigned i = 0; i < N1; i++) {
-      Lp(i) = N2 * (L(i, N1 - 1) - xg(i) * L(i, N2 - 1)) / (1 - xg(i) * xg(i));
-    }
-
-    y0 = xg;
-
-    for(unsigned i = 0; i < N1; i++) {
-      xg(i) =  y0(i) - L(i, N2 - 1) / Lp(i);
-    }
-
-    d = xg - y0;
-
-    max = d.cwiseAbs().maxCoeff();
-  }
-
-  // compute the weights from the roots
-  wg.resize(N1);
-  for(unsigned i = 0; i < N1; i++) {
-    double r = double(N2) / double(N1);
-    wg(i) = (2) / ((1 - xg(i) * xg(i)) * Lp(i) * Lp(i)) * r * r;
-  }
-}
-
-
-double GetDistance(const Eigen::VectorXd & x) {
-
-  double radius = 0.75;
-  Eigen::VectorXd xc(x.size());
-  xc.fill(0.);
-
-  double rx = 0;
-  for(unsigned i = 0; i < x.size(); i++) {
-    rx += (x[i] - xc[i]) * (x[i] - xc[i]);
-  }
-  return radius - sqrt(rx);
-
-}
-
-
-double get_g(const double & r, const double & T, const unsigned & n) {
-  double rn = pow(r, n);
-  return (-1. + r) * (-1 + r * rn + T - r * T) / (1. + (-1. + n * (-1 + r)) * rn);
-}
-
-double get_r(const double & T, const unsigned & n) {
-  double r0 = 2.;
-  double r = 0;
-  while(fabs(r - r0) > 1.0e-10) {
-    r0 = r;
-    r = r0 - get_g(r0, T, n);
-  }
-  return r;
 }
 

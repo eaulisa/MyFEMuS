@@ -1,3 +1,7 @@
+// This application describes integration of modified Heaviside function using particles as integration points
+//on a cubic domain cut by an arc, IntSum is this computed quantity. We also verify the rule can integrate exactly 
+// upto a prescribed order m in 2D and 3D. This is all achieved by computing new weights w_new which are close to
+// the original ones. We verify the convergence by refining the domain lmax times. 
 
 #include "FemusInit.hpp"
 #include <iostream>
@@ -18,7 +22,7 @@ int main(int argc, char** args) {
   unsigned NG = 4; // Gauss points
   unsigned m = 1; // Chebshev Polynomial degree
   
-  //   double eps = 0.001; // width of transition region
+//   double eps = 0.001; // width of transition region
 //   //unsigned nbl = 1; // number of bands on boundary
 //   //bool gradedbl = false; // nobody knows what???
 //   double a = 0.;
@@ -75,7 +79,6 @@ int main(int argc, char** args) {
 //       }
 //
 //        InitParticlesDisk3D(dim, NG, VxL, VxR, {0., 0., 0.}, 0.75, xp, wp, dist);
-//       //InitParticlesDisk(dim, NG, xL, xR, yL, yR,{0.,0.,0.}, 0.75, xp,wp, dist);
 //
 //
 //       Eigen::VectorXd wP = Eigen::VectorXd::Map(&wp[0], wp.size());
@@ -111,10 +114,6 @@ int main(int argc, char** args) {
 //
 //       Eigen::VectorXd F;
 //       GetChebGaussF(dim, m, VxL, VxR, Pg,  wg, F);
-//
-//
-//
-//       //AssembleMatEigen(VxL, VxR, m, dim, nq, PmX, Pg,  wg, A, F);
 //
 //
 //       Eigen::VectorXd w_new;
