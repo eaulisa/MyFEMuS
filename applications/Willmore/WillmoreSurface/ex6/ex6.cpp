@@ -31,6 +31,7 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
+double willmore0 = 0.;
 
 unsigned counter = 0;
 
@@ -59,7 +60,7 @@ const double timederiv = 0.;
 void AssembleMCF(MultiLevelProblem&);
 
 
-double dt0 = .1;
+double dt0 = 500;
 
 // Function to control the time stepping.
 double GetTimeStep(const double t) {
@@ -112,9 +113,9 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
-//   mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
-   mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
-//  mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
@@ -207,7 +208,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("K");
 
   // Parameters for convergence and # of iterations for Willmore.
-  system.SetMaxNumberOfNonLinearIterations(20);
+  system.SetMaxNumberOfNonLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-10);
 
   // Attach the assembling function to P-Willmore system.
@@ -405,6 +406,7 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
   // Initialize area, volume, P-Willmore energy.
   double surface = 0.;
   double volume = 0.;
+  double willmore = 0.;
 
   // ELEMENT LOOP: each process loops only on the elements that it owns.
   for(int iel = msh->_elementOffset[iproc];
@@ -469,57 +471,61 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
         unsigned fnxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
         unsigned fnKDofs = msh->GetElementFaceDofNumber(iel, jface, solKType);
         std::vector  <  adept::adouble > fsolx[DIM];    // A matrix holding the face coordinates rowwise.
+        std::vector  <  double > fsolxOld[DIM];    // A matrix holding the face coordinates rowwise.
+
         for(int I = 0; I < DIM; I++) {
           fsolx[I].resize(fnxDofs);
+          fsolxOld[I].resize(fnxDofs);
         }
         for(unsigned i = 0; i < fnxDofs; i++) {
           unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
           for(unsigned I = 0; I < DIM; I++) {
             fsolx[I][i] =  solx[I][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+            fsolxOld[I][i] =  solxOld[I][inode];
           }
         }
-                
+
         std::vector  <  adept::adouble > fsolK(fnKDofs);    // A matrix holding the face coordinates rowwise.
         for(unsigned i = 0; i < fnKDofs; i++) {
           unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
           fsolK[i] =  solK[inode]; // We extract the local coordinates on the face from local coordinates on the element.
         }
-        
-        
+
+
         for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
-                     
+
           double fweight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
           const double *fphix = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
           const double *fphix_u = msh->_finiteElement[ielGeom][solxType]->GetDPhiDXi(ig);
-     
+
           const double *fphiK = msh->_finiteElement[faceGeom][solKType]->GetPhi(ig);
-          
-          
+
+
           adept::adouble fsolxg[3] = {0., 0., 0.};
-          adept::adouble fsolxg_u[3] = {0., 0., 0.};
-            
+          adept::adouble fsolxOldg_u[3] = {0., 0., 0.};
+
           for(unsigned I=0;I<DIM;I++){
             for(unsigned i=0; i < fnxDofs; i++){
-              fsolxg[I] += fphix[i] * fsolx[I][i];    
-              fsolxg_u[I] += fphix_u[i] * fsolx[I][i];    
+              fsolxg[I] += fphix[i] * fsolx[I][i];
+              fsolxOldg_u[I] += fphix_u[i] * fsolxOld[I][i];
             }
           }
-          
+
           adept::adouble fsolKg = 0.;
           for(unsigned i=0; i < fnKDofs; i++){
-            fsolKg += fphiK[i] * fsolK[i];    
+            fsolKg += fphiK[i] * fsolK[i];
           }
-          
-          adept::adouble length = sqrt(fsolxg_u[0] * fsolxg_u[0] + fsolxg_u[1] * fsolxg_u[1] + fsolxg_u[2] * fsolxg_u[2]) * fweight;
-          
+
+          adept::adouble length = sqrt(fsolxOldg_u[0] * fsolxOldg_u[0] + fsolxOldg_u[1] * fsolxOldg_u[1] + fsolxOldg_u[2] * fsolxOldg_u[2]) * fweight;
+
           for(unsigned i = 0; i < fnKDofs; i++){
-            unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping. 
+            unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
             aResK[fdof] -= fphiK[i] * ( ( fsolxg[0] * fsolxg[0] + fsolxg[1] * fsolxg[1] + fsolxg[2] * fsolxg[2] ) - 1. ) * length;
           }
-          
+
           for(unsigned I = 0; I < DIM; I++){
             for(unsigned i = 0; i < fnxDofs; i++){
-              unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping. 
+              unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
               aResx[I][fdof] -= fsolKg * ( 2. * fsolxg[I] * fphix[i] ) * length;
             }
           }
@@ -579,7 +585,7 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < dim; i++) {
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned K = 0; K < DIM; K++) {
-            g[i][j] += solx_uv[K][i] * solx_uv[K][j];
+            g[i][j] += solxOld_uv[K][i] * solxOld_uv[K][j];
           }
         }
       }
@@ -588,12 +594,12 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
 
       // Computing the unit normal vector N.
       adept::adouble normal[DIM];
-      normal[0] = normalSign * (solx_uv[1][0] * solx_uv[2][1]
-                                - solx_uv[2][0] * solx_uv[1][1]) / sqrt(detg);
-      normal[1] = normalSign * (solx_uv[2][0] * solx_uv[0][1]
-                                - solx_uv[0][0] * solx_uv[2][1]) / sqrt(detg);
-      normal[2] = normalSign * (solx_uv[0][0] * solx_uv[1][1]
-                                - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
+      normal[0] = normalSign * (solxOld_uv[1][0] * solxOld_uv[2][1]
+                                - solxOld_uv[2][0] * solxOld_uv[1][1]) / sqrt(detg);
+      normal[1] = normalSign * (solxOld_uv[2][0] * solxOld_uv[0][1]
+                                - solxOld_uv[0][0] * solxOld_uv[2][1]) / sqrt(detg);
+      normal[2] = normalSign * (solxOld_uv[0][0] * solxOld_uv[1][1]
+                                - solxOld_uv[1][0] * solxOld_uv[0][1]) / sqrt(detg);
 
       // Computing the metric inverse
       adept::adouble gi[dim][dim];
@@ -607,7 +613,7 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < dim; i++) {
         for(unsigned J = 0; J < DIM; J++) {
           for(unsigned k = 0; k < dim; k++) {
-            Jir[i][J] += gi[i][k] * solx_uv[J][k];
+            Jir[i][J] += gi[i][k] * solxOld_uv[J][k];
           }
         }
       }
@@ -645,7 +651,13 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
             // }
             phix_Xtan[J][inode] += phix_uv[k][inode] * Jir[k][J];
           }
+
+        // adept::adouble term1 = 0;
+        // for(unsigned K = 0; K < DIM; K++) {
+        //   term1 +=  solxNew_Xtan[J][K] * phix_Xtan[K][inode] * Area;
+        // }
         }
+        // willmore += term1.value();
       }
 
       // Implement the curvature equation Y = \Delta X .
@@ -665,13 +677,14 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
 
       const double *phiK = msh->_finiteElement[ielGeom][solKType]->GetPhi(ig);
       for(unsigned i = 0; i < nKDofs; i++) {
-        aResK[i] += 1.0e-10 * solK[i] * phiK[i] * weight; 
+        aResK[i] += 1.0e-10 * solK[i] * phiK[i] * weight;
       }
-      
-      
+
+
       // Compute new surface area, volume, and P-Willmore energy.
       for(unsigned K = 0; K < DIM; K++) {
         volume += normalSign * (solxNewg[K].value() * normal[K].value()) * Area.value();
+        //willmore += (Hg.value() * Hg.value()) / 4 * Area.value();
       }
       surface += Area.value();
 
@@ -720,7 +733,7 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
 
   RES->close();
   KK->close();
-  
+
   //KK->draw();
 
 // Get data from each process running in parallel.
@@ -731,6 +744,10 @@ void AssembleMCF(MultiLevelProblem& ml_prob) {
   double volumeAll;
   MPI_Reduce(&volume, &volumeAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   std::cout << "VOLUME = " << volumeAll << std::endl;
+
+  // double willmoreAll;
+  // MPI_Reduce(&willmore, &willmoreAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  // std::cout << "WILLMORE = " << willmoreAll << std::endl;
 
   firstTime = false;
 
