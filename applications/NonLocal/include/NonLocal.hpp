@@ -222,9 +222,11 @@ double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::ve
 }
 
 double NonLocalBall::GetKernel(const double  &kappa, const double &delta, const double &eps) const {
-  return 4. /  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
-                                + 2. * (-5. / 11. * eps * eps + eps * delta))
-                        * delta * delta) ;
+//   return 4. /  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
+//                                 + 2. * (-5. / 11. * eps * eps + eps * delta))
+//                         * delta * delta) ;
+    return 4. /  (M_PI * kappa * delta * delta * delta * delta) ; 
+    
 }
 
 double NonLocalBox::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const {

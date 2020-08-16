@@ -20,21 +20,15 @@
 
 namespace femus {
 // ************** POINT ***************
-  const unsigned point_gauss::GaussPoints[5] = {1, 1, 1, 1, 1};
-  const double * point_gauss::Gauss[5] = { Gauss0[0], Gauss1[0], Gauss2[0], Gauss3[0], Gauss4[0]};
-
-
-//first row-weights, second row: x-coordinates
+  const unsigned point_gauss::GaussPoints[38] = {1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19};
+  const double * point_gauss::Gauss[38] = {Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], 
+                                          Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], 
+                                          Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], 
+                                          Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0], Gauss0[0]};
+  
+  
+  //first row-weights, second row: x-coordinates
   const double point_gauss::Gauss0[2][1] = {{1}, {0}};
-
-  const double point_gauss::Gauss1[2][1] = {{1}, {0}};
-
-  const double point_gauss::Gauss2[2][1] = {{1}, {0}};
-
-  const double point_gauss::Gauss3[2][1] = {{1}, {0}};
-
-  const double point_gauss::Gauss4[2][1] = {{1}, {0}};
-
 
 
 } //end namespace femus

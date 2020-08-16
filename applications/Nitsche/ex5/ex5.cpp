@@ -112,7 +112,7 @@ int main(int argc, char** args) {
 
   double eps0 = (dMax < radius) ? dMax : radius;
 
-  RefineElement refineElement = RefineElement(geometry, "biquadratic", "seventh", "zero");
+  RefineElement refineElement = RefineElement(geometry, "quadratic", "fifteenth", "zero");
 
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
@@ -120,8 +120,8 @@ int main(int argc, char** args) {
     fout.close();
   }
 
-  unsigned lmin = 3;
-  unsigned lmax = 7;
+  unsigned lmin = 2;
+  unsigned lmax = 15;
   refineElement.InitElement(xv, lmax);
 
   std::cout.precision(14);
@@ -285,7 +285,7 @@ double GetIntegral2(const double &eps, const unsigned &level,
 //       std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
 //     }
 
-
+    //std::cout << finiteElement.GetGaussPointNumber() <<std::endl;
     for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
       //finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
       finiteElement.Jacobian(xv, ig, weight, phiC, phiCx);
@@ -306,9 +306,11 @@ double GetIntegral2(const double &eps, const unsigned &level,
        * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
        * https://arxiv.org/abs/1202.5341
        */
+      //std::cout << weight << " ";
       if(oneNodeIsOutside) {
         //if(level == levelMax) { // any element at level l = lmax
         dg1 = GetDistance(xg);
+        //std::cout << dg1 <<" ";
         dg2 = dg1 * dg1;
         if(dg1 < -eps)
           U = 0.;
@@ -325,15 +327,16 @@ double GetIntegral2(const double &eps, const unsigned &level,
         //std::cout << "AAAA";
         integral += f * weight;
       }
+      //std::cout<<std::endl;
     }
 
     double xc = 0.5 * (xv[0][0] + xv[0][2]);
     double yc = 0.5 * (xv[1][0] + xv[1][2]);
-    if(xc > 0.12 && xc < 0.19 && yc > 0.21 && yc < 0.26) {
-      std::cout << level << " " << ii << " " << integral << std::endl;
-
-      std::cout << 0.5 * (xv[0][0] + xv[0][2]) << " " << 0.5 * (xv[1][0] + xv[1][2]) << std::endl;
-    }
+//     if(xc > 0.12 && xc < 0.19 && yc > 0.21 && yc < 0.26) {
+//       std::cout << level << " " << ii << " " << integral << std::endl;
+// 
+//       std::cout << 0.5 * (xv[0][0] + xv[0][2]) << " " << 0.5 * (xv[1][0] + xv[1][2]) << std::endl;
+//     }
     if(level == levelMax &&  printMesh) PrintElement(xv, refineElement);
   }
   //std::cout << level <<"\n";
