@@ -163,6 +163,7 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
 
       // Initialize derivatives of x and W (new, middle, old) at the Gauss points.
       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
+      double solY_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nYDofs; i++) {
@@ -174,6 +175,7 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nxDofs; i++) {
             solx_uv[K][j] += phix_uv[j][i] * solx[K][i];
+            solY_uv[K][j] += phix_uv[j][i] * solY[K][i];
           }
         }
       }
@@ -204,6 +206,9 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
       boost::math::quaternion <double> dfv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
 
+      boost::math::quaternion <double> dYu(0, solY_uv[0][0], solY_uv[1][0], solY_uv[2][0]);
+      boost::math::quaternion <double> dYv(0, solY_uv[0][1], solY_uv[1][1], solY_uv[2][1]);
+
       // Computing the metric inverse
       double gi[dim][dim];
       gi[0][0] =  g[1][1] / detg;
@@ -220,6 +225,11 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           boost::math::quaternion <double> dphiu(0, (K == 0) * phix_uv[0][i], (K == 1) * phix_uv[0][i], (K == 2) * phix_uv[0][i]);
           boost::math::quaternion <double> dphiv(0, (K == 0) * phix_uv[1][i], (K == 1) * phix_uv[1][i], (K == 2) * phix_uv[1][i]);
 
+          double term2 =  (gi[0][0] * (dYu % dphiu) +
+                                 gi[0][1] * (dYu % dphiv) +
+                                 gi[1][0] * (dYv % dphiu) +
+                                 gi[1][1] * (dYv % dphiv));
+
           double term3 =        (gi[0][0] * (dfu % dphiu) +
                                  gi[0][1] * (dfu % dphiv) +
                                  gi[1][0] * (dfv % dphiu) +
@@ -235,11 +245,20 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           // double df3 = -0.5 * (dfu * dfu + dfv * dfv).R_component_1(); //conformal area
 
 
-          Res[irow] -= (solYg[K] * phiY[i] + term3) * Area;
+          Res[irow] += (solYg[K] * phiY[i] + 0.0005 * term2 + term3) * Area;
 
           unsigned jstart = istart + K * nYDofs;
           for(unsigned j = 0; j < nYDofs; j++) {
-            Jac [jstart + j] += (phiY[i] * phiY[j]) * Area;
+
+          boost::math::quaternion <double> dphiuJ(0, (K == 0) * phix_uv[0][j], (K == 1) * phix_uv[0][j], (K == 2) * phix_uv[0][j]);
+          boost::math::quaternion <double> dphivJ(0, (K == 0) * phix_uv[1][j], (K == 1) * phix_uv[1][j], (K == 2) * phix_uv[1][j]);
+
+          double term2Jac =  (gi[0][0] * (dphiu % dphiuJ) +
+                                 gi[0][1] * (dphiu % dphivJ) +
+                                 gi[1][0] * (dphiv % dphiuJ) +
+                                 gi[1][1] * (dphiv % dphivJ));
+
+            Jac [jstart + j] -= (phiY[i] * phiY[j] + 0.0005 * term2Jac) * Area;
           }
         }
       }
@@ -280,23 +299,23 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-//   // Get data from each process running in parallel.
-//   double surfaceAll;
-//   MPI_Reduce(&surface, &surfaceAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-//   if(firstTime) surface0 = surfaceAll;
-//   std::cout << "SURFACE = " << surfaceAll << " SURFACE0 = " << surface0 <<  " error = " << (surface0 - surfaceAll) / surface0 << std::endl;
-// 
-//   double volumeAll;
-//   MPI_Reduce(&volume, &volumeAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-//   if(firstTime) volume0 = volumeAll;
-//   std::cout << "VOLUME = " << volumeAll << " VOLUME0 = " << volume0 <<  " error = " << (volume0 - volumeAll) / volume0 << std::endl;
-// 
-//   double energyAll;
-//   MPI_Reduce(&energy, &energyAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-//   std::cout << "ENERGY = " << energyAll << std::endl;
+  // Get data from each process running in parallel.
+  double surfaceAll;
+  MPI_Reduce(&surface, &surfaceAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if(firstTime) surface0 = surfaceAll;
+  std::cout << "SURFACE = " << surfaceAll << " SURFACE0 = " << surface0 <<  " error = " << (surface0 - surfaceAll) / surface0 << std::endl;
+
+  double volumeAll;
+  MPI_Reduce(&volume, &volumeAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if(firstTime) volume0 = volumeAll;
+  std::cout << "VOLUME = " << volumeAll << " VOLUME0 = " << volume0 <<  " error = " << (volume0 - volumeAll) / volume0 << std::endl;
+
+  double energyAll;
+  MPI_Reduce(&energy, &energyAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  std::cout << "ENERGY = " << energyAll << std::endl;
 
 
-  //firstTime = false;
+  firstTime = false;
 }
 //END Assemble SystemY
 

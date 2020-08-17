@@ -81,7 +81,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
   if(counter > 0) {
     sol->_Sol[solMuIndex[0]]->zero();
-    sol->_Sol[solMuIndex[1]]->zero();  
+    sol->_Sol[solMuIndex[1]]->zero();
     //UpdateMu(*mlSol);
   }
   else {
