@@ -41,6 +41,10 @@ double GetIntegral1(const double &eps, const unsigned &level, const unsigned &le
 double GetIntegral2(const double &eps, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
                     RefineElement &refineElement, const unsigned ii = 0);
 
+double GetIntegral3(const double &eps, const double &tol, const unsigned &level, const unsigned &levelMax,
+                    RefineElement &refineElement, const unsigned ii = 0);
+
+
 double radius;
 double xc = 0.;//+0.3473333;
 double yc = 0.;//-0.782333;
@@ -70,7 +74,7 @@ double GetIntegrand(const std::vector < double>  &x) {
   return 1;//(radius * radius) - ((x[0] - xc) * (x[0] - xc) + (x[1] - yc) * (x[1] - yc));
 }
 
-bool printMesh = true;
+bool printMesh = false;
 std::ofstream fout;
 
 void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement) {
@@ -112,15 +116,17 @@ int main(int argc, char** args) {
 
   double eps0 = (dMax < radius) ? dMax : radius;
 
-  RefineElement refineElement = RefineElement(geometry, "quadratic", "fifteenth", "zero");
+  RefineElement refineElement = RefineElement(geometry, "quadratic", "fifteenth", "ninth", "lobatto");
 
+  printMesh = true;
+  
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
     fout.open("mesh.txt");
     fout.close();
   }
 
-  unsigned lmin = 2;
+  unsigned lmin = 0;
   unsigned lmax = 15;
   refineElement.InitElement(xv, lmax);
 
@@ -133,34 +139,35 @@ int main(int argc, char** args) {
   std::clock_t c_start = std::clock();
 
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
-  double eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, lmin));
+  double eps = 0.01 * radius;
   double analyticIntegral =  M_PI * pow(radius - eps, 2.)
                              + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
 
   SetConstants(eps);
-  integral = GetIntegral2(eps, 0, lmin, lmin, refineElement);
+  integral = GetIntegral3(eps, 1.0e-12, 0, lmax, refineElement);
 
   std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
   double Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
   std::cout << "Relative Error level " << lmin << " = " << Errorl0 << std::endl;
 
-  double Errorlm1 = Errorl0;
-  for(unsigned l = lmin + 1; l < lmax; l++) {
-    //eps = eps0 * pow(0.5, l);
-
-    eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
-    analyticIntegral =  M_PI * pow(radius - eps, 2.)
-                        + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
-    std::cout << "EPS = " << eps << std::endl;
-    SetConstants(eps);
-    integral = GetIntegral2(eps, 0, lmin, l, refineElement);
-    double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
-    std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
-    std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
-    std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
-    std::cout << "Relative Error level " << l << " = " << Errorl << std::endl;
-    Errorlm1 = Errorl;
-  }
+//   double Errorlm1 = Errorl0;
+//   for(unsigned l = lmin + 1; l < lmax; l++) {
+//     //eps = eps0 * pow(0.5, l);
+// 
+//     //eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
+//     eps = std::min(0.1 * radius, 0.1 * radius);  
+//     analyticIntegral =  M_PI * pow(radius - eps, 2.)
+//                         + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
+//     std::cout << "EPS = " << eps << std::endl;
+//     SetConstants(eps);
+//     integral = GetIntegral3(eps, 0, lmin, l, refineElement);
+//     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
+//     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
+//     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
+//     std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
+//     std::cout << "Relative Error level " << l << " = " << Errorl << std::endl;
+//     Errorlm1 = Errorl;
+//   }
 
   std::clock_t c_end = std::clock();
   long double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
@@ -171,12 +178,14 @@ int main(int argc, char** args) {
 
   printMesh = false;
   
+  lmax = 10;
+
   c_start = std::clock();
 
   eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, lmin));
   analyticIntegral =  M_PI * pow(radius - eps, 2.)
                       + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
-
+  lmin = 2;
   SetConstants(eps);
   integral = GetIntegral1(eps, 0, lmin, lmin, refineElement);
 
@@ -184,7 +193,7 @@ int main(int argc, char** args) {
   Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
   std::cout << "Relative Error level " << lmin << " = " << Errorl0 << std::endl;
 
-  Errorlm1 = Errorl0;
+  double Errorlm1 = Errorl0;
   for(unsigned l = lmin + 1; l < lmax; l++) {
     eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
     analyticIntegral =  M_PI * pow(radius - eps, 2.)
@@ -207,6 +216,81 @@ int main(int argc, char** args) {
   return 1;
 }
 
+
+double GetIntegral3(const double &eps, const double &tolerance, const unsigned &level, const unsigned &levelMax,
+                    RefineElement &refineElement, const unsigned ii){
+
+  double integral2 = 0.;  
+  std::vector < double > integral(2, 0.);
+  const unsigned &numberOfNodes = refineElement.GetNumberOfNodes();
+  const unsigned &dim = refineElement.GetDimension();
+
+  const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, ii);
+
+
+
+  for(unsigned l = 0 ; l < 2; l++) {
+    const elem_type &finiteElement = (l == 0) ? refineElement.GetFEMInside() : refineElement.GetFEM();
+
+    std::vector < double> xg(dim);
+    std::vector < double> xiFg(dim);
+    double f;
+    double dg1;
+    double dg2;
+    double weight;
+    const double *phiC;
+    std::vector < double > phiF(numberOfNodes);
+    double U;
+    const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
+
+    for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
+      finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
+      xg.assign(dim, 0.);
+      xiFg.assign(dim, 0.);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < numberOfNodes; j++) {
+          xg[k] += xv[k][j] * phiC[j];
+          xiFg[k] += xiF[k][j] * phiC[j];
+        }
+      }
+      finiteElement.GetPhi(phiF, xiFg);
+
+      f = GetIntegrand(xg);
+
+      /* Regularized Heaviside Function from
+       * Efficient adaptive integration of functions with sharp gradients
+       * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
+       * https://arxiv.org/abs/1202.5341
+       */
+      //std::cout << weight << " ";
+      dg1 = GetDistance(xg);
+      dg2 = dg1 * dg1;
+      if(dg1 < -eps)
+        U = 0.;
+      else if(dg1 > eps) {
+        U = 1.;
+      }
+      else {
+        U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+      }
+      integral[l] += U * f * weight;
+    }
+  }
+  
+  
+  if( fabs( integral[1] - integral[0] ) > tolerance && level < levelMax - 1){ 
+    refineElement.BuildElementProlongation(level, ii);
+    for(unsigned i = 0; i < refineElement.GetNumberOfChildren(); i++) {
+      integral2 += GetIntegral3(eps, tolerance, level + 1, levelMax, refineElement, i);
+    }
+  }
+  else{
+    integral2 += integral[1];  
+    if(printMesh) PrintElement(xv, refineElement);    
+  }
+
+  return integral2;
+}
 
 
 double GetIntegral2(const double &eps, const unsigned &level,
@@ -334,7 +418,7 @@ double GetIntegral2(const double &eps, const unsigned &level,
     double yc = 0.5 * (xv[1][0] + xv[1][2]);
 //     if(xc > 0.12 && xc < 0.19 && yc > 0.21 && yc < 0.26) {
 //       std::cout << level << " " << ii << " " << integral << std::endl;
-// 
+//
 //       std::cout << 0.5 * (xv[0][0] + xv[0][2]) << " " << 0.5 * (xv[1][0] + xv[1][2]) << std::endl;
 //     }
     if(level == levelMax &&  printMesh) PrintElement(xv, refineElement);

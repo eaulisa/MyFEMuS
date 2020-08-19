@@ -4,7 +4,8 @@
 
 class RefineElement {
   public:
-    RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* order_gauss_inside);
+    RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, 
+                  const char* order_gauss_inside, const char* gauss_type = "legendre");
     ~RefineElement();
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
 
@@ -79,25 +80,26 @@ class RefineElement {
 };
 
 
-RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* order_gauss_inside) {
+RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, 
+                             const char* order_gauss_inside, const char* gauss_type) {
 
   if(!strcmp(geom_elem, "line")) {
     _numberOfChildren = 2;
-    _finiteElement = new const elem_type_1D(geom_elem, fe_order, order_gauss);
-    _finiteElementInside = new const elem_type_1D(geom_elem, fe_order, order_gauss_inside);
-    _finiteElementLinear = new const elem_type_1D(geom_elem, "linear", order_gauss);
+    _finiteElement = new const elem_type_1D(geom_elem, fe_order, order_gauss, gauss_type);
+    _finiteElementInside = new const elem_type_1D(geom_elem, fe_order, order_gauss_inside, gauss_type);
+    _finiteElementLinear = new const elem_type_1D(geom_elem, "linear", order_gauss, gauss_type);
   }
   else if(!strcmp(geom_elem, "quad") || !strcmp(geom_elem, "tri")) {
     _numberOfChildren = 4;
-    _finiteElement = new const elem_type_2D(geom_elem, fe_order, order_gauss);
-    _finiteElementInside = new const elem_type_2D(geom_elem, fe_order, order_gauss_inside);
-    _finiteElementLinear = new const elem_type_2D(geom_elem, "linear", order_gauss);
+    _finiteElement = new const elem_type_2D(geom_elem, fe_order, order_gauss, gauss_type);
+    _finiteElementInside = new const elem_type_2D(geom_elem, fe_order, order_gauss_inside,gauss_type);
+    _finiteElementLinear = new const elem_type_2D(geom_elem, "linear", order_gauss,gauss_type);
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {
     _numberOfChildren = 8;
-    _finiteElement = new const elem_type_3D(geom_elem, fe_order, order_gauss);
-    _finiteElementInside = new const elem_type_3D(geom_elem, fe_order, order_gauss_inside);
-    _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", order_gauss);
+    _finiteElement = new const elem_type_3D(geom_elem, fe_order, order_gauss,gauss_type);
+    _finiteElementInside = new const elem_type_3D(geom_elem, fe_order, order_gauss_inside,gauss_type);
+    _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", order_gauss,gauss_type);
   }
 
   _dim = _finiteElement->GetDim();

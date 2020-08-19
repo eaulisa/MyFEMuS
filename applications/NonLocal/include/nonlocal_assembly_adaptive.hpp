@@ -33,7 +33,7 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.02; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+double delta1 = 0.2; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -148,10 +148,10 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
   unsigned lmin = 3;
-  unsigned lmax = 8;
+  unsigned lmax = 6;
 
   double dMax = 0.5 * delta1;
-  double eps0 = dMax * 0.125;
+  double eps0 = dMax * 0.25;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = eps0 * pow(0.5, lmax - 1);
 
@@ -159,13 +159,13 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
   RefineElement *refineElement[6][3];
 
-  refineElement[3][0] = new RefineElement("quad", "linear", "eleventh");
-  refineElement[3][1] = new RefineElement("quad", "quadratic", "eleventh");
-  refineElement[3][2] = new RefineElement("quad", "biquadratic", "eleventh");
+  refineElement[3][0] = new RefineElement("quad", "linear", "ninth", "lobatto");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "ninth","lobatto");
+  refineElement[3][2] = new RefineElement("quad", "biquadratic", "ninth","lobatto");
 
-  refineElement[4][0] = new RefineElement("tri", "linear", "seventh");
-  refineElement[4][1] = new RefineElement("tri", "quadratic", "seventh");
-  refineElement[4][2] = new RefineElement("tri", "biquadratic", "seventh");
+  refineElement[4][0] = new RefineElement("tri", "linear", "thirteenth", "lobatto");
+  refineElement[4][1] = new RefineElement("tri", "quadratic", "thirteenth", "lobatto");
+  refineElement[4][2] = new RefineElement("tri", "biquadratic", "thirteenth", "lobatto");
 
   refineElement[3][soluType]->SetConstants(eps);
   refineElement[4][soluType]->SetConstants(eps);
@@ -285,14 +285,14 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
 
           nonlocal->ZeroLocalQuantities(nDof1, nDof2);
-          unsigned igNumber =  msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
+          unsigned igNumber =  refineElement[ielGeom][soluType]->GetFEM().GetGaussPointNumber();
 
           xg1.resize(igNumber);
           weight1.resize(igNumber);
           phi1x.resize(igNumber);
 
           for(unsigned ig = 0; ig < igNumber; ig++) {
-            msh->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x1, ig, weight1[ig], phi1x[ig]);
+            refineElement[ielGeom][soluType]->GetFEM().GetGaussQuantities(x1, ig, weight1[ig], phi1x[ig]);
 
             xg1[ig].assign(dim, 0.);
 
@@ -315,7 +315,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
 
             bool printMesh = false;
-            if(iel == 40 && ig == 4) {
+            if(iel == 40) {
               printMesh = true;
               //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
             }
