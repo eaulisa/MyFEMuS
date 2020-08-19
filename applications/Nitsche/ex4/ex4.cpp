@@ -280,7 +280,7 @@ int main(int argc, char** args) {
   
   
   BuildFlag(mlSol);
-  GetParticleWeights(mlSol, line3, lineI);
+  GetParticleWeights(mlSol, line3);
   GetInterfaceElementEigenvalues(mlSol, line3, lineI, deps);
   
 
@@ -419,13 +419,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
-//   std::vector<Marker*> particle1 = line1->GetParticles();
-//   std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
-//   unsigned imarker1 = markerOffset1[iproc];
-//
-//   std::vector<Marker*> particle2 = line2->GetParticles();
-//   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-//   unsigned imarker2 = markerOffset2[iproc];
 
   std::vector<Marker*> particle3 = line3->GetParticles();
   std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
@@ -533,13 +526,13 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
             if(eFlag == 0) {
               aResV1[k][i] += (- rho1 * g[k] * phi[i] + sigma1) * weight;
-              if(nodeFlag[i] != 1) { // fake equation for sugular matrix
+              if(nodeFlag[i] != 1) { // fake equation for singular matrix
                 aResV2[k][i] += sigma2 * weight;
               }
             }
             else if(eFlag == 2) {
               aResV2[k][i] += (- rho2 * g[k] * phi[i] + sigma2) * weight;
-              if(nodeFlag[i] != 1) { // fake equation for sugular matrix
+              if(nodeFlag[i] != 1) { // fake equation for singular matrix
                 aResV1[k][i] += sigma1 * weight;
               }
             }

@@ -21,7 +21,7 @@ using namespace femus;
 
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol, Line* line3, Line* lineI, const double &deps);
 void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol, Line* line3, Line* lineI, const double &deps);
-void GetParticleWeights(MultiLevelSolution & mlSol, Line* line3, Line* lineI);
+void GetParticleWeights(MultiLevelSolution & mlSol, Line* line3);
 
 #endif
  

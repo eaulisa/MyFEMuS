@@ -137,6 +137,14 @@ int main (int argc, char** args) {
   
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
+  
+  
+  mlSol.AddSolution("CM1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("CM2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+
+  mlSol.AddSolution("CL1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("CL2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  
 
   mlSol.SetIfFSI (true);
 
@@ -549,7 +557,8 @@ int main (int argc, char** args) {
   GetParticlesToNodeFlag (mlSol, *solidLine, *fluidLine);
 
   BuildFlag(mlSol);
-  GetParticleWeights(mlSol, bulk, lineI);
+  GetParticleWeights(mlSol, bulk);
+  GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
 
   // ******* Print solution *******
   mlSol.SetWriter (VTK);
