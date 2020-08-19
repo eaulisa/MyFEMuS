@@ -2,6 +2,8 @@
 #ifndef __femus_RefineElement_hpp__
 #define __femus_RefineElement_hpp__
 
+#include "Genealogy.hpp"
+
 class RefineElement {
   public:
     RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss, 

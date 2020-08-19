@@ -129,6 +129,20 @@ int main(int argc, char** args) {
   unsigned lmin = 0;
   unsigned lmax = 15;
   refineElement.InitElement(xv, lmax);
+  
+  
+  
+  GenealogyTree element;
+  element.Init(xv,xv,refineElement.GetProlongationMatrix());
+  std::cout<<"AAAAAAAAAAAAAAAAAAAAAAA\n"<<std::flush;
+  GenealogyTree &elementl = element.GetElementQuantities(std::vector<unsigned>{1});
+  std::cout<<"BBBBBBBBBBBBBBBBBBBB\n"<<std::flush;
+  element.Print("prova");
+  std::cout<<"CCCCCCCCCCCCCCCCCCCCCC\n"<<std::flush;
+  element.Clear();
+  std::cout<<"DDDDDDDDDDDDDDDDDDDDD\n"<<std::flush;
+  
+  return 1;
 
   std::cout.precision(14);
 
