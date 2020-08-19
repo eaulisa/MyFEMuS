@@ -22,7 +22,7 @@ double eps;
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
-#include "../include/mpmFsi6.hpp"
+#include "../include/mpmFsi6b.hpp"
 using namespace femus;
 
 double SetVariableTimeStep (const double time) {
@@ -558,7 +558,7 @@ int main (int argc, char** args) {
 
   BuildFlag(mlSol);
   GetParticleWeights(mlSol, bulk);
-  GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
+  //GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
 
   // ******* Print solution *******
   mlSol.SetWriter (VTK);

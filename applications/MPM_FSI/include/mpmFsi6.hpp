@@ -176,27 +176,11 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   CLIndex[0] = mlSol->GetIndex("CL1");
   CLIndex[1] = mlSol->GetIndex("CL2");
-  
-  
-
-  //double  indexNodeDist = mlSol->GetIndex ("NodeDist");
-
+    
   start_time = clock();
 
   myKK->zero();
   myRES->zero();
-
-//   std::vector<Marker*> particlesSolid = solidLine->GetParticles();
-//   std::vector<unsigned> markerOffsetSolid = solidLine->GetMarkerOffset();
-//
-//   std::vector<unsigned> markerOffsetFluid = fluidLine->GetMarkerOffset();
-//   std::vector<Marker*> particlesFluid = fluidLine->GetParticles();
-//
-//   std::vector<unsigned> markerOffsetInterface = interfaceLine->GetMarkerOffset();
-//   std::vector<Marker*> particlesInterface = interfaceLine->GetParticles();
-//
-//   unsigned iSmarker = markerOffsetSolid[iproc];
-//   unsigned iFmarker = markerOffsetFluid[iproc];
 
   std::vector<Marker*> particlesBulk = bulk->GetParticles();
   std::vector<unsigned> markerOffsetBulk = bulk->GetMarkerOffset();
