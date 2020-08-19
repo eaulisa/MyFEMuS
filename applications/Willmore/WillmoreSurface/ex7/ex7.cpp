@@ -119,8 +119,8 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
 
 
-  //mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
@@ -224,7 +224,7 @@ int main(int argc, char** args) {
 
   // Parameters for convergence and # of iterations for Willmore.
   system.SetMaxNumberOfNonLinearIterations(20);
-  system.SetNonLinearConvergenceTolerance(1.e-12);
+  system.SetNonLinearConvergenceTolerance(1.e-10);
 
   // Attach the assembling function to P-Willmore system.
   system.SetAssembleFunction(AssemblePWillmore);
@@ -287,7 +287,7 @@ int main(int argc, char** args) {
 
   // Parameters for the main algorithm loop.
 
-  unsigned numberOfTimeSteps = 400u;
+  unsigned numberOfTimeSteps = 4000u;
   unsigned printInterval = 1u;
 
   std::fstream fs;
@@ -315,7 +315,7 @@ int main(int argc, char** args) {
 
     dt0 *= 1.5;
     //UNCOMMENT FOR P=4
-    if(dt0 > 1e-1) dt0 = 1e-1;
+    //if(dt0 > 5e-2) dt0 = 5e-2;
 
     // //IGNORE THIS
     // if (time_step < 30) {
@@ -332,19 +332,14 @@ int main(int argc, char** args) {
     if(time_step % 1 == 0) {
       mlSol.GetWriter()->Write("./output1", "biquadratic", variablesToBePrinted, (time_step + 1) / printInterval);
 
-      //if(dt0 > 0.15) dt0 = 0.2;
+      //if(dt0 > 0.2) dt0 = 0.2;
       //
-      CopyDisplacement(mlSol, true);
-      if ( time_step % 5 == 1) {
-      system2.MGsolve();
-      }
-      CopyDisplacement(mlSol, false);
-
-      system.CopySolutionToOldSolution();
-
-      if (time_step % 5 == 1){
-       systemY.MGsolve();
-      }
+    //if ( time_step % 10 == 1) {
+        CopyDisplacement(mlSol, true);
+        system2.MGsolve();
+        CopyDisplacement(mlSol, false);
+        systemY.MGsolve();
+      //}
     }
 
     if((time_step + 1) % printInterval == 0)
@@ -562,7 +557,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           const double *fphiK = msh->_finiteElement[faceGeom][solKType]->GetPhi(ig);
 
 
-          adept::adouble fsolxg[3] = {0., 0., 0.};
+          //adept::adouble fsolxg[3] = {0., 0., 0.};
           adept::adouble fsolxNewg[3] = {0., 0., 0.};
 
           adept::adouble fsolxg_u[3] = {0., 0., 0.};
@@ -572,7 +567,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
-              fsolxg[I] += fphix[i] * 0.5 * ( solx[I][inode] + solxOld[I][inode]);
+              //fsolxg[I] += fphix[i] * 0.5 * ( 0.*solx[I][inode] + 2.*solxOld[I][inode]);
               fsolxNewg[I] += fphix[i] * solx[I][inode];
 
               fdsolxgdt[I] += fphix[i] * ( solx[I][inode] - solxOld[I][inode])/dt;
@@ -582,7 +577,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
             }
           }
 
-          adept::adouble length = sqrt(fsolxg_u[0] * fsolxg_u[0] + fsolxg_u[1] * fsolxg_u[1] + fsolxg_u[2] * fsolxg_u[2]) * fweight;
+          adept::adouble length = sqrt(fsolxNewg_u[0] * fsolxNewg_u[0] + fsolxNewg_u[1] * fsolxNewg_u[1] + fsolxNewg_u[2] * fsolxNewg_u[2]) * fweight;
 
           adept::adouble constraint = (fsolxNewg[0] * fsolxNewg[0] + fsolxNewg[1] * fsolxNewg[1] + fsolxNewg[2] * fsolxNewg[2]) - 1.;
 
@@ -594,17 +589,14 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
           for(unsigned i = 0; i < fnKDofs; i++) {
             unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-            aResK[fdof] += fphiK[i] * constraint * length - 0. * eps * fsolKg * fphiK[i] * length;
+            aResK[fdof] += fphiK[i] * constraint * length; //- 0. * eps * fsolKg * fphiK[i] * length;
           }
 
           for(unsigned I = 0; I < DIM; I++) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
 
-                adept::adouble term = 0;
-                term += fsolxg_u[I] * fphix_u[i];
-
-              aResx[I][fdof] += (1. * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length + fsolKg * term * constraint;
+              aResx[I][fdof] += (1. * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length + fsolKg * fsolxg_u[I] * fphix_u[i] * constraint;
             }
           }
         }
@@ -639,7 +631,10 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
       // Initialize quantities xNew, xOld, Y, W at the Gauss points.
       adept::adouble solxNewg[3] = {0., 0., 0.};
       double solxOldg[3] = {0., 0., 0.};
+
       adept::adouble solYg[3] = {0., 0., 0.};
+      double solYOldg[3] = {0., 0., 0.};
+      adept::adouble solYNewg[3] = {0., 0., 0.};
 
       // Initialize derivatives of x and W (new, middle, old) at the Gauss points.
       adept::adouble solxNew_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
@@ -658,8 +653,9 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
         }
 
         for(unsigned i = 0; i < nYDofs; i++) {
-          //solYNewg[K] += phiY[i] * solY[K][i];
+          solYNewg[K] += phiY[i] * solY[K][i];
           solYg[K] += phiY[i] * 0.5 * (solYOld[K][i] + solY[K][i]);
+          solYOldg[K] += phiY[i] * solYOld[K][i];
         }
 
         for(int j = 0; j < dim; j++) {
@@ -701,26 +697,30 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
                                 - solx_uv[1][0] * solx_uv[0][1]) / sqrt(detg);
 
       // Computing Y.N and |Y|^2, which are essentially 2H and 4H^2.
-      adept::adouble YdotN = 0.;
+      //adept::adouble YdotN = 0.;
       adept::adouble YdotY = 0.;
+      adept::adouble YdotYNew = 0.;
+      double YdotYOld = 0;
       for(unsigned K = 0; K < DIM; K++) {
-        YdotN += solYg[K] * normal[K];
+        //YdotN += solYg[K] * normal[K];
         YdotY += solYg[K] * solYg[K];
+        YdotYOld += solYOldg[K] * solYOldg[K];
+        YdotYNew += solYNewg[K] * solYNewg[K];
       }
-      double signYdotN = (YdotN.value() >= 0.) ? 1. : -1.;
+      //double signYdotN = (YdotN.value() >= 0.) ? 1. : -1.;
       //double signYdotN = 1.;
 
       // Some necessary quantities when working with polynomials.
-      adept::adouble sumP1 = 0.;
-      adept::adouble sumP2 = 0.;
-      adept::adouble sumP3 = 0.;
-      for(unsigned p = 0; p < 3; p++) {
-        double signP = (P[p] % 2u == 0) ? 1. : signYdotN;
-        sumP1 += signP * ap[p] * P[p] * pow(YdotY, (P[p] - 2.) / 2.);
-        sumP2 += signP * ap[p] * (1. - P[p]) * pow(YdotY , P[p] / 2.);
-        //sumP2 += signP * (ap[p] - ap[p] * P[p]) * pow (YdotY , P[p]/2.);
-        sumP3 += signP * ap[p] * pow(YdotY, P[p] / 2.);
-      }
+      // adept::adouble sumP1 = 0.;
+      // adept::adouble sumP2 = 0.;
+      // adept::adouble sumP3 = 0.;
+      // for(unsigned p = 0; p < 3; p++) {
+      //   double signP = (P[p] % 2u == 0) ? 1. : signYdotN;
+      //   sumP1 += signP * ap[p] * P[p] * pow(YdotY, (P[p] - 2.) / 2.);
+      //   sumP2 += signP * ap[p] * (1. - P[p]) * pow(YdotY , P[p] / 2.);
+      //   //sumP2 += signP * (ap[p] - ap[p] * P[p]) * pow (YdotY , P[p]/2.);
+      //   sumP3 += signP * ap[p] * pow(YdotY, P[p] / 2.);
+      // }
 
       // Computing the metric inverse
       adept::adouble gi[dim][dim];
@@ -788,13 +788,13 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
       for(unsigned K = 0; K < DIM; K++) {
         for(unsigned i = 0; i < nxDofs; i++) {
           adept::adouble term1 = 0.;
-          adept::adouble term2 = 0.;
+          //adept::adouble term2 = 0.;
 
           for(unsigned J = 0; J < DIM; J++) {
             term1 +=  solxNew_Xtan[K][J] * phix_Xtan[J][i]; // the field x is new (i + 1) but differentiated on the surface at (i+1/2)
-            term2 +=  solY_Xtan[K][J] * phix_Xtan[J][i];
+            //term2 +=  solY_Xtan[K][J] * phix_Xtan[J][i];
           }
-          aResx[K][i] += (solYg[K] * phix[i] + term1) * Area; // delta 1 smooth things out (stability trick) to be used for bad surfaces,
+          aResx[K][i] += (solYNewg[K] * phix[i] + term1) * Area; // delta 1 smooth things out (stability trick) to be used for bad surfaces,
         }
 
         // Implement the main P-Willmore equation.
@@ -804,16 +804,15 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           adept::adouble term2 = 0.;
           adept::adouble term3 = 0.;
 
-          adept::adouble term5 = 0.;
-
           for(unsigned J = 0; J < DIM; J++) {
             term0 +=  solYNew_Xtan[K][J] * phiY_Xtan[J][i]; // the field W is new (i + 1) but differentiated on the surface at (i + 1/2)
-            term1 +=  solx_Xtan[K][J] * phiY_Xtan[J][i];
-            term2 +=  solY_Xtan[J][J];
+            term1 +=  solxNew_Xtan[K][J] * phiY_Xtan[J][i]; // was solx_xtan
+            term2 +=  solYNew_Xtan[J][J]; //was solY_xtan
 
             adept::adouble term4 = 0.;
             for(unsigned L = 0; L < DIM; L++) {  // the fields W and x are old (i) but differentiated on the surface at (i + 1/2)
-              term4 += solx_Xtan[L][J] * solY_Xtan[L][K] + solx_Xtan[L][K] * solY_Xtan[L][J];
+              //term4 += solx_Xtan[L][J] * solY_Xtan[L][K] + solx_Xtan[L][K] * solY_Xtan[L][J];
+              term4 += solxNew_Xtan[L][J] * solY_Xtan[L][K] + solxNew_Xtan[L][K] * solY_Xtan[L][J];
             }
             term3 += phiY_Xtan[J][i] * term4;
             /* this is the trick we learned from Dzuik: basically in magnitude term3 = 2 term0, so -term0 + term3 = + term0 = 1/2 term3,
@@ -827,7 +826,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           // P-Willmore equation
           aResY[K][i] += (((solxNewg[K] - solxOldg[K])  / dt) * phiY[i]
                           - term0
-                          + sumP2 * term1
+                          - 0.5 * YdotYNew * term1
                           - term2 * phiY_Xtan[K][i]
                           + term3
                          ) * Area;
@@ -850,7 +849,8 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
       for(unsigned K = 0; K < DIM; K++) {
         volume += normalSign * (solxNewg[K].value()  * normal[K].value()) * Area.value();
       }
-      energy += sumP3.value() * Area.value();
+      //energy += sumP3.value() * Area.value();
+      energy += YdotY.value() * Area.value();
 
     } // end GAUSS POINT LOOP.
 
