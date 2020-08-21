@@ -1043,7 +1043,7 @@ void GetInterfaceElementEigenvaluesAD(MultiLevelSolution& mlSol, Line* line3, Li
 
 
 
-void GetParticleWeights(MultiLevelSolution & mlSol, Line* line3, Line* lineI) {
+void GetParticleWeights(MultiLevelSolution & mlSol, Line* line3) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 

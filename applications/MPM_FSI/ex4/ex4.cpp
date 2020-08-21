@@ -638,7 +638,6 @@ int main(int argc, char** args) {
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
     
 
-
   }
 
 
