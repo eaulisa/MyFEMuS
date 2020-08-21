@@ -41,8 +41,10 @@ double GetIntegral1(const double &eps, const unsigned &level, const unsigned &le
 double GetIntegral2(const double &eps, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax,
                     RefineElement &refineElement, const unsigned ii = 0);
 
-double GetIntegral3(const double &eps, const double &tol, const unsigned &level, const unsigned &levelMax,
-                    RefineElement &refineElement, const unsigned ii = 0);
+double GetIntegral3(const double &eps, const double &tol, const unsigned &level, const unsigned &levelMax, OctTreeElement & element);
+
+double GetIntegral4(const double &eps, const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, 
+                    OctTreeElement & element, const std::vector <unsigned> &igb);
 
 
 double radius;
@@ -63,6 +65,27 @@ void SetConstants(const double &eps) {
   a5 = pow(eps, -5.) * 1.4765625; // 378./256.;
   a7 = -pow(eps, -7.) * 0.703125; // 180./256.;
   a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
+}
+
+/* Regularized Heaviside Function from
+    * Efficient adaptive integration of functions with sharp gradients
+    * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
+    * https://arxiv.org/abs/1202.5341
+    */
+//std::cout << weight << " ";
+
+double GetSmoothTestFunction(const double &dg1, const double &eps) {
+  double U;
+  if(dg1 < -eps)
+    U = 0.;
+  else if(dg1 > eps) {
+    U = 1.;
+  }
+  else {
+    double dg2 = dg1 * dg1;
+    U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+  }
+  return U;
 }
 
 double GetDistance(const std::vector < double>  &x) {
@@ -116,10 +139,25 @@ int main(int argc, char** args) {
 
   double eps0 = (dMax < radius) ? dMax : radius;
 
-  RefineElement refineElement = RefineElement(geometry, "quadratic", "fifteenth", "ninth", "lobatto");
+  RefineElement refineElement = RefineElement(geometry, "quadratic", "first", "ninth", "fifteenth",  "lobatto");
 
-  printMesh = true;
+  unsigned n1 = (15 + 3) / 2;
+  std::vector <unsigned> igb(n1 * n1);
+  unsigned cnt = 0;
+  for(unsigned i = 0; i < n1; i++) {
+    for(unsigned j = 0; j < n1; j += (i == 0 || i == 8) ? 1 : n1 - 1) {
+      igb[cnt] = (i * n1) + j;
+      cnt++;
+    }
+  }
+  igb.resize(cnt);
+  for(unsigned i = 0; i < igb.size(); i++) {
+    std::cout << igb[i] << " ";
+  }
   
+  
+  printMesh = false;
+
   for(unsigned k = 0; k < dim; k++) xv[k].resize(refineElement.GetNumberOfNodes());
   if(printMesh) {
     fout.open("mesh.txt");
@@ -129,28 +167,14 @@ int main(int argc, char** args) {
   unsigned lmin = 0;
   unsigned lmax = 15;
   refineElement.InitElement(xv, lmax);
-  
-  
-  
-  GenealogyTree element;
-  element.Init(xv,xv,refineElement.GetProlongationMatrix());
-  std::cout<<"AAAAAAAAAAAAAAAAAAAAAAA\n"<<std::flush;
-  GenealogyTree &elementl = element.GetElementQuantities(std::vector<unsigned>{1});
-  std::cout<<"BBBBBBBBBBBBBBBBBBBB\n"<<std::flush;
-  element.Print("prova");
-  std::cout<<"CCCCCCCCCCCCCCCCCCCCCC\n"<<std::flush;
-  element.Clear();
-  std::cout<<"DDDDDDDDDDDDDDDDDDDDD\n"<<std::flush;
-  
-  return 1;
+
+  OctTreeElement element;
+  element.Init(xv, xv, refineElement.GetProlongationMatrix(), &refineElement.GetFEMMedium(), &refineElement.GetFEMFine());
+
 
   std::cout.precision(14);
 
   double integral;
-  //double analyticIntegral =  M_PI * pow(radius, 4.) / 8.;
-
-
-  std::clock_t c_start = std::clock();
 
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = 0.01 * radius;
@@ -158,40 +182,49 @@ int main(int argc, char** args) {
                              + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
 
   SetConstants(eps);
-  integral = GetIntegral3(eps, 1.0e-12, 0, lmax, refineElement);
+
+  xc = +0.3473333;
+  yc = -0.2333;
+
+  std::clock_t c_start = std::clock();
+  integral = GetIntegral3(eps, M_PI * radius * radius * 1.0e-7, 0, lmax, element);
 
   std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
   double Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
   std::cout << "Relative Error level " << lmin << " = " << Errorl0 << std::endl;
-
-//   double Errorlm1 = Errorl0;
-//   for(unsigned l = lmin + 1; l < lmax; l++) {
-//     //eps = eps0 * pow(0.5, l);
-// 
-//     //eps = std::min(0.25 * radius, 0.25 * dMax * pow(0.5, l));
-//     eps = std::min(0.1 * radius, 0.1 * radius);  
-//     analyticIntegral =  M_PI * pow(radius - eps, 2.)
-//                         + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
-//     std::cout << "EPS = " << eps << std::endl;
-//     SetConstants(eps);
-//     integral = GetIntegral3(eps, 0, lmin, l, refineElement);
-//     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
-//     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
-//     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
-//     std::cout << "Computed Integral level " << l << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
-//     std::cout << "Relative Error level " << l << " = " << Errorl << std::endl;
-//     Errorlm1 = Errorl;
-//   }
-
   std::clock_t c_end = std::clock();
   long double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
+  element.PrintCounter();
+
+  xc = +0;
+  yc = -0;
+
+  c_start = std::clock();
+  integral = GetIntegral3(eps, M_PI * radius * radius * 1.0e-7, 0, lmax, element);
+
+  std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
+  Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
+  std::cout << "Relative Error level " << lmin << " = " << Errorl0 << std::endl;
+  c_end = std::clock();
+  time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
+  std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
+
+  element.PrintCounter();
+  element.PrintElement("mesh.txt");
+
+  xc = +0.3473333;
+  yc = -0.2333;
+
+
+  OctTreeElement element2;
+  element2.Init(xv, xv, refineElement.GetProlongationMatrix(), &refineElement.GetFEMCoarse(), &refineElement.GetFEMFine());
 
   std::cout << std::endl << std::endl;
 
   printMesh = false;
-  
+
   lmax = 10;
 
   c_start = std::clock();
@@ -201,7 +234,7 @@ int main(int argc, char** args) {
                       + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
   lmin = 2;
   SetConstants(eps);
-  integral = GetIntegral1(eps, 0, lmin, lmin, refineElement);
+  integral = GetIntegral4(eps, 0, lmin, lmin, element2,igb);
 
   std::cout << "Computed Integral level " << lmin << " = " << integral << " Analytic Integral = " << analyticIntegral << " ";
   Errorl0 = fabs(integral - analyticIntegral) / analyticIntegral;
@@ -214,7 +247,7 @@ int main(int argc, char** args) {
                         + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
 
     SetConstants(eps);
-    integral = GetIntegral1(eps, 0, lmin, l, refineElement);
+    integral = GetIntegral4(eps, 0, lmin, l, element2, igb);
     double Errorl = fabs(integral - analyticIntegral) / analyticIntegral;
     std::cout << "Order of Convergence1 = " << log(Errorlm1 / Errorl) / log(2) << " ";
     std::cout << "Order of Convergence2 = " << log(Errorl0 / Errorl) / log(pow(2, l - lmin)) << std::endl;
@@ -223,87 +256,111 @@ int main(int argc, char** args) {
     Errorlm1 = Errorl;
   }
 
+  std::cout << ",\"+\" using (" << xc << "+" << radius << "*cos(2*pi*$0/400)):(" << yc << "+" << radius << "*sin(2*pi*$0/400)) w l";
+  std::cout << ",\"+\" using (" << xc << "+" << radius + eps << "*cos(2*pi*$0/400)):(" << yc << "+" << radius + eps << "*sin(2*pi*$0/400)) w l";
+  std::cout << ",\"+\" using (" << xc << "+" << radius - eps << "*cos(2*pi*$0/400)):(" << yc << "+" << radius - eps << "*sin(2*pi*$0/400)) w l" << std::endl;
+
   c_end = std::clock();
   time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
+
+  element2.PrintCounter();
+  element2.PrintElement("mesh2.txt");
 
   return 1;
 }
 
 
-double GetIntegral3(const double &eps, const double &tolerance, const unsigned &level, const unsigned &levelMax,
-                    RefineElement &refineElement, const unsigned ii){
+double GetIntegral3(const double &eps, const double &tolerance, const unsigned &level, const unsigned &levelMax, OctTreeElement &element) {
 
-  double integral2 = 0.;  
-  std::vector < double > integral(2, 0.);
-  const unsigned &numberOfNodes = refineElement.GetNumberOfNodes();
-  const unsigned &dim = refineElement.GetDimension();
-
-  const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, ii);
-
-
+  double thisIntegral = 0.;
+  double integral[2] = {0., 0.};
 
   for(unsigned l = 0 ; l < 2; l++) {
-    const elem_type &finiteElement = (l == 0) ? refineElement.GetFEMInside() : refineElement.GetFEM();
 
-    std::vector < double> xg(dim);
-    std::vector < double> xiFg(dim);
-    double f;
-    double dg1;
-    double dg2;
-    double weight;
-    const double *phiC;
-    std::vector < double > phiF(numberOfNodes);
-    double U;
-    const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
+    const std::vector < std::vector < double> > &xg = element.GetGaussCoordinates(l);
+    const std::vector < std::vector < double > > &phi  = element.GetGaussShapeFunctions(l);;
+    const std::vector < double> &weight = element.GetGaussWeights(l);
 
-    for(unsigned ig = 0; ig < finiteElement.GetGaussPointNumber(); ig++) {
-      finiteElement.GetGaussQuantities(xv, ig, weight, phiC);
-      xg.assign(dim, 0.);
-      xiFg.assign(dim, 0.);
-      for(unsigned k = 0; k < dim; k++) {
-        for(unsigned j = 0; j < numberOfNodes; j++) {
-          xg[k] += xv[k][j] * phiC[j];
-          xiFg[k] += xiF[k][j] * phiC[j];
-        }
-      }
-      finiteElement.GetPhi(phiF, xiFg);
-
-      f = GetIntegrand(xg);
-
-      /* Regularized Heaviside Function from
-       * Efficient adaptive integration of functions with sharp gradients
-       * and cusps in n-dimensional parallelepipeds, sec 4.1 (1)
-       * https://arxiv.org/abs/1202.5341
-       */
-      //std::cout << weight << " ";
-      dg1 = GetDistance(xg);
-      dg2 = dg1 * dg1;
-      if(dg1 < -eps)
-        U = 0.;
-      else if(dg1 > eps) {
-        U = 1.;
-      }
-      else {
-        U = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
-      }
-      integral[l] += U * f * weight;
+    for(unsigned ig = 0; ig < weight.size(); ig++) {
+      integral[l] += GetSmoothTestFunction(GetDistance(xg[ig]) , eps) * GetIntegrand(xg[ig]) * weight[ig];
     }
   }
-  
-  
-  if( fabs( integral[1] - integral[0] ) > tolerance && level < levelMax - 1){ 
-    refineElement.BuildElementProlongation(level, ii);
-    for(unsigned i = 0; i < refineElement.GetNumberOfChildren(); i++) {
-      integral2 += GetIntegral3(eps, tolerance, level + 1, levelMax, refineElement, i);
+
+  if(fabs(integral[1] - integral[0]) > tolerance && level < levelMax - 1) {
+    for(unsigned i = 0; i < element.GetNumberOfChildren(); i++) {
+      thisIntegral += GetIntegral3(eps, tolerance / 1.4, level + 1, levelMax, *element.GetElement(std::vector<unsigned> {i}));
     }
   }
-  else{
-    integral2 += integral[1];  
-    if(printMesh) PrintElement(xv, refineElement);    
+  else {
+    thisIntegral += integral[1];
   }
 
-  return integral2;
+  return thisIntegral;
+}
+
+double GetIntegral4(const double &eps, const unsigned &level,
+                    const unsigned &levelMin, const unsigned &levelMax, OctTreeElement & element, const std::vector <unsigned> &igb) {
+
+  double integral = 0.;
+
+  const std::vector < std::vector < double> > &xg1 = element.GetGaussCoordinates(1);
+  const unsigned &numberOfChildren = element.GetNumberOfChildren();
+
+  bool oneNodeIsInside = true;
+  bool oneNodeIsOutside = true;
+
+  if(level < levelMin) {
+  refine:
+    for(unsigned i = 0; i < numberOfChildren; i++) {
+      integral += GetIntegral4(eps, level + 1, levelMin, levelMax, *element.GetElement(std::vector<unsigned> {i}), igb);
+    }
+  }
+  else if(level <= levelMax) {
+    oneNodeIsInside = false;
+    oneNodeIsOutside = false;
+    double factor = (level == levelMax) ? 1. : 1.;
+    double d;
+    std::vector< double > x3(3, 0.);
+    for(unsigned j = 0; j < igb.size(); j++) {
+      d = GetDistance(xg1[igb[j]]);
+      if(d > factor * eps) { // check if one node is inside thick interface
+        oneNodeIsInside = true;
+        if(oneNodeIsOutside)
+          if(level == levelMax)  goto integrate;
+          else goto refine;
+      }
+      else if(d < -factor * eps) { // check if one node is outside thick interface
+        oneNodeIsOutside = true;
+        if(oneNodeIsInside)
+          if(level == levelMax)  goto integrate;
+          else goto refine;
+
+      }
+      else { // node is inside layer
+        oneNodeIsOutside = true;
+        if(level == levelMax)  goto integrate;
+        else goto refine;
+      }
+    }
+    if(!oneNodeIsOutside) { // the entire element is inside the thick interface
+      goto integrate;
+    }
+  }
+  else { // integration rule for interface elements
+  integrate:
+
+    unsigned l = (oneNodeIsOutside) ? 1 : 0;
+
+    const std::vector < std::vector < double> > &xg = element.GetGaussCoordinates(l);
+    const std::vector < std::vector < double > > &phi  = element.GetGaussShapeFunctions(l);;
+    const std::vector < double> &weight = element.GetGaussWeights(l);
+
+    for(unsigned ig = 0; ig < weight.size(); ig++) {
+      integral += GetSmoothTestFunction(GetDistance(xg[ig]) , eps) * GetIntegrand(xg[ig]) * weight[ig];
+    }
+  }
+  return integral;
 }
 
 
@@ -365,7 +422,7 @@ double GetIntegral2(const double &eps, const unsigned &level,
   else { // integration rule for interface elements
   integrate:
 
-    const elem_type &finiteElement = (oneNodeIsOutside) ? refineElement.GetFEM() : refineElement.GetFEMInside();
+    const elem_type &finiteElement = (oneNodeIsOutside) ? refineElement.GetFEMFine() : refineElement.GetFEMCoarse();
     std::vector < double> xg(dim);
     std::vector < double> xiFg(dim);
     double f;
@@ -493,7 +550,7 @@ double GetIntegral(const double &eps, const unsigned &level,
   else { // integration rule for interface elements
   integrate:
 
-    const elem_type &finiteElement = refineElement.GetFEM();
+    const elem_type &finiteElement = refineElement.GetFEMFine();
     std::vector < double> xg(dim);
     std::vector < double> xiFg(dim);
     double f;
@@ -628,7 +685,7 @@ double GetIntegral1(const double & eps, const unsigned & level,
         }
       }
       else if(!oneNodeIsOutside) {
-        const elem_type &finiteElement = refineElement.GetFEM();
+        const elem_type &finiteElement = refineElement.GetFEMFine();
         double weight;
         const double *phiF;
         std::vector < double > phiC(numberOfNodes);
@@ -654,7 +711,7 @@ double GetIntegral1(const double & eps, const unsigned & level,
     }
   }
   else { // integration rule for interface elements
-    const elem_type &finiteElement = refineElement.GetFEM();
+    const elem_type &finiteElement = refineElement.GetFEMFine();
     std::vector < double> xg(3, 0.);
     std::vector < double> xig(3, 0.);
     double f;
@@ -704,4 +761,6 @@ double GetIntegral1(const double & eps, const unsigned & level,
 
   return integral;
 }
+
+
 
