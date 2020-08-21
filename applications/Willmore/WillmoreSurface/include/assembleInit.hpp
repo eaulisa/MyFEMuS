@@ -245,7 +245,7 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           // double df3 = -0.5 * (dfu * dfu + dfv * dfv).R_component_1(); //conformal area
 
 
-          Res[irow] += (solYg[K] * phiY[i] + 0.001 * term2 + term3) * Area;
+          Res[irow] += (solYg[K] * phiY[i] + 0.0005 * term2 + term3) * Area;
 
           unsigned jstart = istart + K * nYDofs;
           for(unsigned j = 0; j < nYDofs; j++) {
@@ -258,7 +258,7 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
                                  gi[1][0] * (dphiv % dphiuJ) +
                                  gi[1][1] * (dphiv % dphivJ));
 
-            Jac [jstart + j] -= (phiY[i] * phiY[j] + 0.001 * term2Jac) * Area;
+            Jac [jstart + j] -= (phiY[i] * phiY[j] + 0.0005 * term2Jac) * Area;
           }
         }
       }

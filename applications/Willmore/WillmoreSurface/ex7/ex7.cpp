@@ -119,8 +119,8 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
 
 
-  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
@@ -313,8 +313,10 @@ int main(int argc, char** args) {
 
 
 
-    dt0 *= 1.5;
+    dt0 *= 2.;
     //UNCOMMENT FOR P=4
+    if(dt0 > 0.075) dt0 = 0.075;
+    //if(dt0 > 0.1) dt0 = 0.1;
     //if(dt0 > 5e-2) dt0 = 5e-2;
 
     // //IGNORE THIS
@@ -334,12 +336,12 @@ int main(int argc, char** args) {
 
       //if(dt0 > 0.2) dt0 = 0.2;
       //
-    //if ( time_step % 10 == 1) {
+    if ( time_step % 5 == 1 && time_step < 15) {
         CopyDisplacement(mlSol, true);
         system2.MGsolve();
         CopyDisplacement(mlSol, false);
         systemY.MGsolve();
-      //}
+      }
     }
 
     if((time_step + 1) % printInterval == 0)
@@ -596,7 +598,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
             for(unsigned i = 0; i < fnxDofs; i++) {
               unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
 
-              aResx[I][fdof] += (1. * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length + fsolKg * fsolxg_u[I] * fphix_u[i] * constraint;
+              aResx[I][fdof] += (.2 * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length + fsolKg * fsolxNewg_u[I] * fphix_u[i] * constraint;
             }
           }
         }
@@ -734,7 +736,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < dim; i++) {
         for(unsigned J = 0; J < DIM; J++) {
           for(unsigned k = 0; k < dim; k++) {
-            Jir[i][J] += gi[i][k] * solx_uv[J][k];
+            Jir[i][J] += gi[i][k] * solxNew_uv[J][k];
           }
         }
       }
