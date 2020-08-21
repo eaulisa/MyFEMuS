@@ -307,7 +307,7 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
 
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = -dyl;
+    T[cnt][0][1] = dyl;
     //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
 
@@ -317,7 +317,7 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     //std::cout << xp[cnt][0] << " " << xp[cnt][1] << std::endl;
 
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = dyl;
+    T[cnt][0][1] = -dyl;
 
     //std::cout << T[cnt][0][0] << " " << T[cnt][0][1] << std::endl;
     cnt++;
@@ -330,7 +330,7 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     XP[1] = H + xc[1];
     xp[cnt] = XP;
 
-    T[cnt][0][0] = -dxl;
+    T[cnt][0][0] = dxl;
     T[cnt][0][1] = 0.;
     cnt++;
   }
@@ -342,20 +342,20 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
     xp[cnt] = XP;
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = -dbl;
+    T[cnt][0][1] = dbl;
     cnt++;
   }
   XP[0] = xc[0] ;
   XP[1] = H + xc[1];
   xp[cnt] = XP;
-  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
-  T[cnt][0][1] = -dbl * sqrt(2.) / 2.;
+  T[cnt][0][0] = dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] = dbl * sqrt(2.) / 2.;
   cnt++;
   for(unsigned j = 0; j < nbl / 2; j++) {
     XP[0] = xc[0] + dbl + j * dbl ;
     XP[1] = xc[1] + H ;
     xp[cnt] = XP;
-    T[cnt][0][0] = -dbl;
+    T[cnt][0][0] = dbl;
     T[cnt][0][1] = 0.;
     cnt++;
   }
@@ -366,15 +366,15 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     XP[1] = (H0 + xc[1] + 0.5 * dbl) + j * dbl;
     xp[cnt] = XP;
     T[cnt][0][0] = 0.;
-    T[cnt][0][1] = dbl;
+    T[cnt][0][1] = -dbl;
     cnt++;
   }
 
   XP[0] = xc[0] + L;
   XP[1] = H + xc[1];
   xp[cnt] = XP;
-  T[cnt][0][0] = -dbl * sqrt(2.) / 2.;
-  T[cnt][0][1] =  dbl * sqrt(2.) / 2.;
+  T[cnt][0][0] = dbl * sqrt(2.) / 2.;
+  T[cnt][0][1] = -dbl * sqrt(2.) / 2.;
   cnt++;
 
 
@@ -385,7 +385,7 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
     XP[1] = xc[1] + H ;
     xp[cnt] = XP;
 
-    T[cnt][0][0] = -dbl;
+    T[cnt][0][0] = dbl;
     T[cnt][0][1] = 0.;
     cnt++;
 

@@ -364,7 +364,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         for(unsigned i = 0; i < nDofsP; i++) {
           for(unsigned  k = 0; k < dim; k++) {
-            aRhsP[i] += phiP[i] *  gradSolVg[k][k] * weight;
+            aRhsP[i] += - phiP[i] *  gradSolVg[k][k] * weight;
           }
         }
       }
@@ -511,7 +511,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned i = 0; i < nDofsP; i++) {
             if(eFlag == 1) {
               for(unsigned  k = 0; k < dim; k++) {
-                aRhsP[i] += (1. - U) * phiP[i] *  gradSolVp[k][k] * area;
+                aRhsP[i] += - phiP[i] *  gradSolVp[k][k] * area;
               }
             }
           }
