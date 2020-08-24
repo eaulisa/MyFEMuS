@@ -38,6 +38,10 @@ class RefineElement {
 
     void InitElement(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
 
+      for(unsigned k = 0; k < _dim; k++){
+        xv[k].resize(_numberOfNodes);
+      }   
+        
       _xvl.resize(lMax);
       _xil.resize(lMax);
       for(unsigned l = 0; l < lMax; l++) {
@@ -114,6 +118,7 @@ RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const 
 
   _dim = _finiteElementFine->GetDim();
   _numberOfNodes = _finiteElementFine->GetNDofs();
+    
   _basis = _finiteElementFine->GetBasis();
 
   _numberOfLinearNodes = _finiteElementLinear->GetNDofs();
