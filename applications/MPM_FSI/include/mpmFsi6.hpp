@@ -352,7 +352,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
         }
         else if(MPMmaterial < nDofs) {  //INTERFACE  slightly compressible P/lambda -div V = 0
-          double nu = 0.49; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
+          double nu = 0.33; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
           double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
           aRhsP[i] += phiP[i] * solPg * lameFluidInverse * weight;
           for(unsigned  k = 0; k < dim; k++) {
