@@ -116,7 +116,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
   else { // integration rule for interface elements
   integrate:
 
-    const elem_type &finiteElement = refineElement.GetFEM();
+    const elem_type &finiteElement = refineElement.GetFEMFine();
     std::vector < double> xg2(dim);
     std::vector < double> xi2Fg(dim);
     double weight2;
