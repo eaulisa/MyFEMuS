@@ -129,11 +129,11 @@ int main (int argc, char** args) {
 
   mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, FIRST, 2);
 
-  mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
-  mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution ("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false); //TODO see who this is
-  mlSol.AddSolution ("NodeDist", LAGRANGE, SECOND, 0, false); //TODO see who this is
+  //mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
+  //mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  //mlSol.AddSolution ("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  //mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false); //TODO see who this is
+  //mlSol.AddSolution ("NodeDist", LAGRANGE, SECOND, 0, false); //TODO see who this is
   
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
@@ -160,7 +160,7 @@ int main (int argc, char** args) {
   if (dim > 1) mlSol.GenerateBdc ("VY", "Steady");
   if (dim > 2) mlSol.GenerateBdc ("VZ", "Steady");
   mlSol.GenerateBdc ("P", "Steady");
-  mlSol.GenerateBdc ("M", "Steady");
+ // mlSol.GenerateBdc ("M", "Steady");
 
   MultiLevelProblem ml_prob (&mlSol);
 
@@ -254,8 +254,8 @@ int main (int argc, char** args) {
 
   double dL = Hs / 250;
 
-  unsigned nbl = 3; // odd number
-  double DB =  dL;
+  unsigned nbl = 5; // odd number
+  double DB =  0.5 * dL;
   eps = DB;
 
   InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
@@ -284,278 +284,10 @@ int main (int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
 
-  double L = 5.e-05; //beam dimensions
-  double H = 5.e-06;
-
-//   double xc = 1.e-04 + 0.5 * H ; //should be this one to do COMSOL benchmark
-  double xc = 0.98e-04 + 0.5 * H; //we are using this not to have markers on edges of elements from the beginning
-  double yc = 0.;
-
-  double H0 = /*5. / 5.*/ 3. / 5.* H; //0.15: 3ref, 0.2: 4 ref, 0.225: 5 ref
-  double L0 = L - (H - H0) / 2.;
-  unsigned rows = 20; // 20: 3 ref, 40: 4 ref, 80: 5 ref
-  double DH = H0 / (rows - 1);
-  unsigned columns = static_cast < unsigned > (ceil (L0 / DH)) + 1;
-  double DL = L0 / (columns - 1);
-  unsigned size = rows * columns;
-
-  std::vector < std::vector < double > > x; // marker
-  std::vector < MarkerType > markerType;
-
-  x.resize (size);
-  markerType.resize (size);
-
-  for (unsigned j = 0; j < size; j++) {
-    x[j].assign (dim, 0.);
-    markerType[j] = VOLUME;
-  }
-
-  //BEGIN initialization
-  for (unsigned i = 0; i < rows; i++) {
-    for (unsigned j = 0; j < columns; j++) {
-
-      x[i * columns + j][1] = yc + (L0 / (columns - 1)) * j;
-      x[i * columns + j][0] = xc - 0.5 * H0 + (H0 / (rows - 1)) * i;
-      if (dim == 3) {
-        x[j][2] = 0.;
-      }
-    }
-  }
-  //END
-
-  double MASS = L0 * H0 * rhos;
-  std::vector < double > mass (x.size(), MASS / x.size()); // uniform marker volume
-
-  if (fabs (H - H0) > 1.0e-10) {
-
-    double factor = 1.;//1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
-    //double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers.
-    unsigned NL = getNumberOfLayers (0.5 * (H - H0) / DH, factor);
-    std::cout << NL << std::endl;
-
-    double xs = xc - 0.5 * H0;
-    double ys = yc;
-    for (unsigned i = 1; i < NL; i++) {
-      DL = DL / factor;
-      DH = DH / factor;
-      L0 += DL;
-      H0 += 2 * DH;
-      xs -= DL;
-      columns = static_cast < unsigned > (ceil (L0 / DL)) + 1;
-      rows = static_cast < unsigned > (ceil (H0 / DH)) + 1;
-
-      double DL1 = L0 / (columns - 1);
-      double DH1 = H0 / (rows - 1);
-
-      unsigned sizeOld = x.size();
-      x.resize (sizeOld  + 2 * columns + (rows - 2));
-      for (unsigned s = sizeOld; s < x.size(); s++) {
-        x[s].resize (dim, 0.);
-      }
-      double x1 = xs;
-      double y1 = ys;
-      unsigned counter = 0;
-      for (unsigned j = 0; j < columns; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        y1 += DL1;
-      }
-      x1 += DH1;
-      y1 -= DL1;
-      for (unsigned j = 1; j < rows; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        x1 += DH1;
-      }
-      x1 -= DH1;
-      y1 -= DL1;
-      for (unsigned j = 1; j < columns; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        y1 -= DL1;
-      }
-      mass.resize (x.size(), rhos * DL1 * DH1);
-      markerType.resize (x.size(), VOLUME);
-    }
-  }
-
-  double totalMass = 0;
-  for (unsigned i = 0; i < mass.size(); i++) {
-    totalMass += mass[i];
-  }
-
-  std::cout <<"SOLID MASS = " << totalMass << " " << rhos * H * L << std::endl;
-
-  unsigned solType = 2;
-  solidLine = new Line (x, mass, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
-
-  std::vector < std::vector < std::vector < double > > > lineS (1);
-  solidLine->GetLine (lineS[0]);
-  PrintLine (DEFAULT_OUTPUTDIR, "solidLine", lineS, 0);
-  PrintLine ("./output1", "solidLine", lineS, 0);
-
-
-  //BEGIN interface markers
-  {
-    x.resize (0);
-    std::vector < std::vector < std::vector < double > > > tangent;
-    markerType.resize (0);
-
-    double xs = xc - 0.5 * H0;
-    double ys = yc;
-
-    columns = 4 * static_cast < unsigned > (ceil (L0 / DL)) + 1;
-    rows = 4 * static_cast < unsigned > (ceil (H0 / DH)) + 1;
-
-    double DL1 = L0 / (columns - 1);
-    double DH1 = H0 / (rows - 1);
-
-    x.resize (2 * columns + (rows - 2));
-    tangent.resize (2 * columns + (rows - 2));
-
-    for (unsigned s = 0; s < x.size(); s++) {
-      x[s].resize (dim, 0.);
-      tangent[s].resize (1);
-      tangent[s][0].resize (dim, 0.);
-    }
-    double x1 = xs;
-    double y1 = ys;
-    unsigned counter = 0;
-    for (unsigned j = 0; j < columns; j++) {
-      x[counter][0] = x1;
-      x[counter][1] = y1;
-
-      tangent[counter][0][0] = 0.;
-      tangent[counter][0][1] = -DL1;
-
-      counter++;
-      y1 += DL1;
-
-    }
-    x1 += DH1;
-    y1 -= DL1;
-    for (unsigned j = 1; j < rows; j++) {
-      x[counter][0] = x1;
-      x[counter][1] = y1;
-
-      tangent[counter][0][0] = -DH1;
-      tangent[counter][0][1] = 0.;
-
-      counter++;
-      x1 += DH1;
-
-    }
-    x1 -= DH1;
-    y1 -= DL1;
-    for (unsigned j = 1; j < columns; j++) {
-      x[counter][0] = x1;
-      x[counter][1] = y1;
-
-      tangent[counter][0][0] = 0.;
-      tangent[counter][0][1] = DL1;
-
-      counter++;
-      y1 -= DL1;
-    }
-
-    markerType.assign (x.size(), INTERFACE);
-
-    solType = 2;
-    interfaceLine = new Line (x, tangent, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
-
-  }
-
-
-
-  std::vector < std::vector < std::vector < double > > > lineI1 (1);
-  interfaceLine->GetLine (lineI1[0]);
-  PrintLine (DEFAULT_OUTPUTDIR, "interfaceLine", lineI1, 0);
-  PrintLine ("./output1", "interfaceLine", lineI1, 0);
-  //END interface markers
-
-
-  x.resize (0);
-  mass.resize (0);
-  markerType.resize (0);
-
-  double H1 = 4. * H; //TODO tune the factor 4
-  if (fabs (H - H0) > 1.0e-10) {
-
-    double factor = 1.; //1.148; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
-    //double factor = 1.; //1.148: 3 ref, 1.224: 5 ref, 1.2: 4 ref --> 21 layers. //TODO
-    unsigned NL = getNumberOfLayers (0.5 * (H1 - H0) / DH, factor, false);
-    std::cout << NL << std::endl;
-
-    double xs = xc - 0.5 * H0;
-    double ys = yc;
-    for (unsigned i = 1; i < NL; i++) {
-      DL = DL * factor;
-      DH = DH * factor;
-      L0 += DL;
-      H0 += 2 * DH;
-      xs -= DL;
-      columns = static_cast < unsigned > (ceil (L0 / DL)) + 1;
-      rows = static_cast < unsigned > (ceil (H0 / DH)) + 1;
-
-      double DL1 = L0 / (columns - 1);
-      double DH1 = H0 / (rows - 1);
-
-      unsigned sizeOld = x.size();
-      x.resize (sizeOld  + 2 * columns + (rows - 2));
-      for (unsigned s = sizeOld; s < x.size(); s++) {
-        x[s].resize (dim, 0.);
-      }
-      double x1 = xs;
-      double y1 = ys;
-      unsigned counter = 0;
-      for (unsigned j = 0; j < columns; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        y1 += DL1;
-      }
-      x1 += DH1;
-      y1 -= DL1;
-      for (unsigned j = 1; j < rows; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        x1 += DH1;
-      }
-      x1 -= DH1;
-      y1 -= DL1;
-      for (unsigned j = 1; j < columns; j++) {
-        x[sizeOld + counter][0] = x1;
-        x[sizeOld + counter][1] = y1;
-        counter++;
-        y1 -= DL1;
-      }
-      mass.resize (x.size(), rhof * DL * DH);
-      markerType.resize (x.size(), VOLUME);
-    }
-  }
-
-  totalMass = 0.;
-  for (unsigned i = 0; i < mass.size(); i++) {
-    totalMass += mass[i];
-  }
-  std::cout <<"FLUID MASS = " << totalMass << " " << rhof * ( (H1 * (L + (H1 - H) * 0.5 * H)) - (H * L)) << std::endl;
-
-  fluidLine = new Line (x, mass, markerType, mlSol.GetLevel (numberOfUniformLevels - 1), solType);
-
-  std::vector < std::vector < std::vector < double > > > lineF (1);
-  fluidLine->GetLine (lineF[0]);
-  PrintLine (DEFAULT_OUTPUTDIR, "fluidLine", lineF, 0);
-  PrintLine ("./output1", "fluidLine", lineF, 0);
-
-  fluidLine->GetParticlesToGridMaterial (false);
-  interfaceLine->GetParticlesToGridMaterial (false);
-  solidLine->GetParticlesToGridMaterial (true);
-  GetParticlesToNodeFlag (mlSol, *solidLine, *fluidLine);
-
+  
+  lineI->GetParticlesToGridMaterial(false);
+  bulk->GetParticlesToGridMaterial(false);
+  
   BuildFlag(mlSol);
   GetParticleWeights(mlSol, bulk);
   //GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
@@ -583,48 +315,25 @@ int main (int argc, char** args) {
   unsigned n_timesteps = 200;
   for (unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
-    if (time_step >= 3) {
-      gravity[0]  = 0.;
-    }
-
     system.CopySolutionToOldSolution();
 
+    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step);
+    bulk->GetLine(bulkPoints[0]);
+    PrintLine("output1", "bulk", bulkPoints, time_step);
+    lineI->GetLine(lineIPoints[0]);
+    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
+       
     system.MGsolve();
-//     system2.MGsolve();
-
-    solidLine->GetLine (lineS[0]);
-    PrintLine ("./output1", "solidLine", lineS, time_step);
-    interfaceLine->GetLine (lineI1[0]);
-    PrintLine ("./output1", "interfaceLine", lineI1, time_step);
-    fluidLine->GetLine (lineF[0]);
-    PrintLine ("./output1", "fluidLine", lineF, time_step);
-    mlSol.GetWriter()->Write ("./output1", "biquadratic", print_vars, time_step);
-
-    GridToParticlesProjection(ml_prob, *solidLine, *fluidLine, *interfaceLine,*bulk, *lineI);
     
-    solidLine->GetLine(lineS[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "solidLine", lineS, time_step);
-    interfaceLine->GetLine(lineI1[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineI1, time_step);
-    fluidLine->GetLine(lineF[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "fluidLine", lineF, time_step);
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
-
-
+    GridToParticlesProjection(ml_prob, *bulk, *lineI);
     bulk->GetLine(bulkPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step);
-
     lineI->GetLine(lineIPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
 
   }
 
-
-
-  delete solidLine;
-  delete fluidLine;
-  delete interfaceLine;
-  
   delete bulk;
   delete lineI;
   
