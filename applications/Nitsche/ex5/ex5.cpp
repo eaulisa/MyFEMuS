@@ -50,6 +50,10 @@ void GetIntegral5(const double &eps0, const double &eps, const unsigned &level, 
                   const std::vector <unsigned> &igrFather, std::vector<double> & integral_i, const unsigned ii = 0);
 
 
+void GetIntegral6(const double &eps, const double &tol, const unsigned &level, const unsigned &levelMax, const unsigned &levelMin,
+                  RefineElement &refineElement, const std::vector< std::vector<double>>&xc_i,
+                  const std::vector <unsigned> &igrFather, std::vector<double> & integral_i, const unsigned ii = 0);
+
 double radius;
 double xc = 0.;//+0.3473333;
 double yc = 0.;//-0.782333;
@@ -225,7 +229,7 @@ int main(int argc, char** args) {
   xc = +0.3473333;
   yc = -0.2333;
 
-  RefineElement refineElement2 = RefineElement(geometry, "quadratic", "first", "ninth", "fifteenth",  "legendre");
+  RefineElement refineElement2 = RefineElement(geometry, "quadratic", "first", "fifth", "fifteenth",  "legendre");
   refineElement2.InitElement(xv, lmax);
 
   OctTreeElement element2;
@@ -329,8 +333,6 @@ int main(int argc, char** args) {
 
   GetIntegral5(eps0, eps, 0, lmin, lmin, refineElement2, xc_i, igr, integral_i);
 
-  integral = integral_i[0];
-
   std::vector<double> error0(ng);
   std::vector<double> errorlm1(ng);
   std::vector<double> errorl(ng);
@@ -380,6 +382,29 @@ int main(int argc, char** args) {
   }
   std::cout << std::endl;
 
+
+  eps = 0.01 * radius;
+  analyticIntegral =  M_PI * pow(radius - eps, 2.)
+                      + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
+
+  SetConstants(eps);
+
+  c_start = std::clock();
+  for(unsigned i = 0; i < ng; i++) {
+    igr[i] = i;
+    integral_i[i] = 0.;
+  }
+  double tolerance = 1.0e-7;
+  GetIntegral6(eps, M_PI * radius * radius * tolerance, 0, lmax, lmin, refineElement, xc_i, igr, integral_i);
+
+  for(unsigned ig = 0; ig < ng; ig++) {
+    std::cout << "Required tolerance " << tolerance << " Computed Integral = " << integral_i[ig] << " Analytic Integral = " << analyticIntegral << " ";
+    error0[ig] = fabs(integral_i[ig] - analyticIntegral) / analyticIntegral;
+    std::cout << "Relative Error level " << lmin << " = " << error0[ig] << std::endl;
+  }
+  c_end = std::clock();
+  time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
+  std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
 
   return 1;
@@ -454,11 +479,11 @@ void GetIntegral5(const double &eps0, const double &eps, const unsigned &level,
     igbSize = igSize;
     igrSize = 0;
   }
-  else{
+  else {
     igbSize = 0;
-    igrSize = igSize;  
+    igrSize = igSize;
   }
-  
+
   if(igbSize + igiSize) { // at least one of the integrals have to be computed
     const elem_type &finiteElement = (igbSize) ? refineElement.GetFEMFine() : refineElement.GetFEMCoarse();
     std::vector < double> xg(dim);
@@ -502,6 +527,100 @@ void GetIntegral5(const double &eps0, const double &eps, const unsigned &level,
 
   return;
 }
+
+
+
+
+void GetIntegral6(const double &eps, const double &tol, const unsigned &level, const unsigned &levelMax, const unsigned &levelMin,
+                  RefineElement &refineElement, const std::vector< std::vector<double>>&xc,
+                  const std::vector <unsigned> &igFather, std::vector<double> & integral, const unsigned ii) {
+
+  std::vector < double > levelIntegral[2];
+  levelIntegral[0].assign(igFather.size(), 0.);
+  levelIntegral[1].assign(igFather.size(), 0.);
+
+  const unsigned &numberOfNodes = refineElement.GetNumberOfNodes();
+  const unsigned &dim = refineElement.GetDimension();
+
+  const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, ii);
+
+  std::vector < double> xg(dim);
+  std::vector < double > phiF(numberOfNodes);
+  double weight;
+  std::vector < double> xiFg(dim);
+  const double *phiC;
+  const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, ii);
+
+  std::vector <unsigned> ig(igFather.size());
+  unsigned igrSize;
+
+  if(level < levelMin) {
+    ig = igFather;
+    goto refine;
+  }
+  
+  for(unsigned l = (level < levelMax) ? 0 : 1; l < 2; l++) {
+
+    const elem_type &finiteElement = (l == 0) ? refineElement.GetFEMMedium() : refineElement.GetFEMFine();
+
+    for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
+      finiteElement.GetGaussQuantities(xv, jg, weight, phiC);
+      xg.assign(dim, 0.);
+      xiFg.assign(dim, 0.);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < numberOfNodes; j++) {
+          xg[k] += xv[k][j] * phiC[j];
+          xiFg[k] += xiF[k][j] * phiC[j];
+        }
+      }
+      finiteElement.GetPhi(phiF, xiFg);
+
+      for(unsigned i = 0; i < igFather.size(); i++) {
+        levelIntegral[l][i] += GetSmoothTestFunction(GetDistance(xg , xc[igFather[i]]) , eps) * GetIntegrand(xg) * weight;
+      }
+    }
+
+  }
+
+  if(level == levelMax) {
+
+    for(unsigned i = 0; i < igFather.size(); i++) {
+      integral[igFather[i]] += levelIntegral[1][i];
+    }
+  }
+  else {
+    
+   igrSize = 0.;
+    for(unsigned i = 0; i < igFather.size(); i++) {
+      if(fabs(levelIntegral[1][i] - levelIntegral[0][i]) < tol) {
+        integral[igFather[i]] += levelIntegral[1][i];
+      }
+      else {
+        ig[igrSize] = igFather[i];
+        igrSize++;
+      }
+    }
+    ig.resize(igrSize);
+
+    if(igrSize > 0) {
+    refine:
+      refineElement.BuildElementProlongation(level, ii);
+      for(unsigned i = 0; i < refineElement.GetNumberOfChildren(); i++) {
+        GetIntegral6(eps, tol, level + 1, levelMax, levelMin, refineElement, xc, ig, integral, i);
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
 
 double GetIntegral2(const double & eps0, const double & eps, const unsigned & level,
                     const unsigned & levelMin, const unsigned & levelMax,
