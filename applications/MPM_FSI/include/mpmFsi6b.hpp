@@ -326,7 +326,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         // start SUPG paramters
         std::vector <std::vector <adept::adouble> > JacMatrix; // not working with "double"?
+        std::vector <std::vector <double> > JacMatrixHat; // not working with "double"?
         msh->_finiteElement[ielt][solType]->GetJacobian(vx, ig, weight, JacMatrix);
+        msh->_finiteElement[ielt][solType]->GetJacobian(vxHat, ig, weightHat, JacMatrixHat);
 
         std::vector <std::vector <adept::adouble> > G(dim);
         for(unsigned j = 0; j < dim; j++) {
