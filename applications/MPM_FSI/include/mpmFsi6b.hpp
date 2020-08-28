@@ -260,10 +260,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightHat, phiHat, gradPhiHat);
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weight, phi, gradPhi, nablaphi);
-      
 
-      
-      
+
+
+
       vector < adept::adouble > solVg(dim, 0.);
       vector < adept::adouble > solVgOld(dim, 0.);
 
@@ -317,86 +317,96 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
       }
 
-      
-      // tauM computation, need jacobian matrix...
-      
-      std::vector <std::vector <adept::adouble> > JacMatrix; // not working with "double"?
-      msh->_finiteElement[ielt][solType]->GetJacobian (vx, ig, weight, JacMatrix); 
-      
-      std::vector <std::vector <adept::adouble> > G(dim);
-      for(unsigned j = 0; j < dim; j++) {
-        G[j].resize(dim,0.);
-      }
-      
-      for(unsigned i = 0; i < dim; i++){
-        for(unsigned j = 0; j < dim; j++){
+
+
+
+
+      if(eFlag == 0) {   // only fluid cells
+
+
+        // start SUPG paramters
+        std::vector <std::vector <adept::adouble> > JacMatrix; // not working with "double"?
+        msh->_finiteElement[ielt][solType]->GetJacobian(vx, ig, weight, JacMatrix);
+
+        std::vector <std::vector <adept::adouble> > G(dim);
+        for(unsigned j = 0; j < dim; j++) {
+          G[j].resize(dim, 0.);
+        }
+
+        for(unsigned i = 0; i < dim; i++) {
+          for(unsigned j = 0; j < dim; j++) {
             adept::adouble value = 1.;
-            for(unsigned k = 0; k < dim; k++){
-                value *= JacMatrix[k][i] * JacMatrix[k][j];
+            for(unsigned k = 0; k < dim; k++) {
+              value *= JacMatrix[k][i] * JacMatrix[k][j];
             }
             G[i][j] +=  value;
+          }
         }
-      }
-       
-    adept::adouble tauM = 0.;      
-    double CI = 36.;
-     for(unsigned i = 0; i < dim; i++){
-        for(unsigned j = 0; j < dim; j++){
-            adept::adouble denom = pow(2 * rhoFluid/dt, 2.) 
-            + rhoFluid * (solVg[i] - (solDg[i] - solDgOld[i]) / dt) * G[i][j] * rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt)
-            + CI * muFluid * muFluid * G[i][j] * G[i][j];
-            tauM += 1./ sqrt(denom); 
-        }
-      }  
-   
-   
-   adept::adouble tauC = 0.;
-   for(unsigned k = 0; k < dim; k++){
-      tauC += 1./ (tauM * G[k][k]);
-   }
-   
-  
-      
-      
-    std::vector < adept::adouble > tauM_SupgPhi (nDofs, 0.);
 
-    for (unsigned i = 0; i < nDofs; i++) {
-        for (unsigned j = 0; j < dim; j++) {
-          tauM_SupgPhi[i] += tauM * (rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradPhi[i * dim + j]  /*+ gradphiP */) ; ;
+        adept::adouble tauM = 0.;
+        double CI = 36.;
+        for(unsigned i = 0; i < dim; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            adept::adouble denom = pow(2 * rhoFluid / dt, 2.)
+                                   + rhoFluid * (solVg[i] - (solDg[i] - solDgOld[i]) / dt) * G[i][j] * rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt)
+                                   + CI * muFluid * muFluid * G[i][j] * G[i][j];
+            tauM += 1. / sqrt(denom);
+          }
         }
-    }
-    
-    
-    std::vector < adept::adouble > gradP (dim, 0.); // need phiP_x ???
-    
-    
-      if(eFlag == 0) {   // only fluid cells
-          for(unsigned i = 0; i < nDofs; i++) {
+
+
+        adept::adouble tauC = 0.;
+        for(unsigned k = 0; k < dim; k++) {
+          tauC += 1. / (tauM * G[k][k]);
+        }
+
+
+
+
+        std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
+        //TODO
+
+//end SUPG parameters
+
+
+
+        for(unsigned i = 0; i < nDofs; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            tauM_SupgPhi[i] += tauM * (rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradPhi[i * dim + j]  /*+ gradphiP */) ; ;
+          }
+        }
+
+        std::vector < adept::adouble > gradP(dim, 0.);  // need phiP_x ???
+
+
+
+
+        for(unsigned i = 0; i < nDofs; i++) {
           for(unsigned k = 0; k < dim; k++) {
             adept::adouble wlaplace = 0.;
             adept::adouble SupgLaplace = 0.;
             adept::adouble advection = 0.;
             adept::adouble SupgAdvection = 0.;
-           
+
             //adept::adouble SupgPressure = 0.;
             adept::adouble SupgDiv = 0.;
-            
+
             for(unsigned j = 0; j < dim; j++) {
               wlaplace  +=  gradPhi[i * dim + j] * (gradSolVg[k][j] + gradSolVg[j][k]);
-              SupgLaplace += (-2. * muFluid * 0.5 * (nablaSolVg[k][j] + nablaSolVg[j][k]) ) * tauM_SupgPhi[i]; // SUPG laplace
+              SupgLaplace += (-2. * muFluid * 0.5 * (nablaSolVg[k][j] + nablaSolVg[j][k])) * tauM_SupgPhi[i];  // SUPG laplace
               advection  +=  phi[i] * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j]; // ALE advection
               SupgAdvection += rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j] * tauM_SupgPhi[i]; // SUPG Advection
-              
-              SupgDiv += tauC * gradSolVg[j][j] * gradPhi[i * dim + j]; 
+
+              SupgDiv += tauC * gradSolVg[j][j] * gradPhi[i * dim + j];
             }
-            
+
             adept::adouble SupgTime = 0.;
             SupgTime += (rhoFluid * (solVg[k] - solVgOld[k])) *  tauM_SupgPhi[i] / dt;
-            
+
             aRhsV[k][i] -= (rhoFluid * phi[i] * (solVg[k] - solVgOld[k]) / dt
                             + rhoFluid * advection + muFluid * wlaplace +
                             - gradPhi[i * dim + k] * solPg
-                              /* + SupgTime + SupgAdvection + SupgLaplace + SupgDiv*/) * weight;
+                            /* + SupgTime + SupgAdvection + SupgLaplace + SupgDiv*/) * weight;
           }
         }
 
@@ -405,9 +415,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             aRhsP[i] -= phiP[i] *  gradSolVg[k][k] * weight;
           }
         }
-        
-        
-        
+
+
+
       }
 //       else if(eFlag == 1) {  //INTERFACE  slightly compressible P/lambda -div V = 0
 //         double nu = 0.4; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
