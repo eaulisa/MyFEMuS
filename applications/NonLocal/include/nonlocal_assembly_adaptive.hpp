@@ -167,8 +167,8 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   refineElement[4][1] = new RefineElement("tri", "quadratic", "third", "fifth", "fifth", "legendre");
   refineElement[4][2] = new RefineElement("tri", "biquadratic", "third", "fifth", "fifth", "legendre");
 
-  refineElement[3][soluType]->SetConstants(eps);
-  refineElement[4][soluType]->SetConstants(eps);
+  refineElement[3][soluType]->SetConstants(eps, eps0);
+  refineElement[4][soluType]->SetConstants(eps, eps0);
 
   //NonLocal *nonlocal = new NonLocalBox();
   NonLocal *nonlocal = new NonLocalBall();
@@ -303,7 +303,18 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
           }
 
           double area = 0.;
+          
+          bool printMesh = false;
+          if(iel == 40) {
+            printMesh = true;
+            //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
+          }
+            
+                      
+          std::vector <unsigned> igr(igNumber);
+          
           for(unsigned ig = 0; ig < igNumber; ig++) {
+            igr[ig] = ig;
             if(iel == jel) {
               for(unsigned i = 0; i < nDof1; i++) {
                 std::vector <double>& Res1 = nonlocal->GetRes1();
@@ -313,19 +324,16 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
               }
             }
 
-            bool printMesh = false;
-            if(iel == 40) {
-              printMesh = true;
-              //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
-            }
-
             area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
                                               nDof1, xg1[ig], weight1[ig], phi1x[ig],
                                               solu1, solu2, kappa1, delta1, printMesh);
 
-
-
           }
+          
+          
+//           nonlocal->RefinedAssembly5(0, lmin, lmax, 0, igr, *refineElement[jelGeom][soluType], nDof1,
+//                                      xg1, weight1, phi1x, solu1, solu2, kappa1, delta1, printMesh);
+
 
 //           if(iel == 40 && jel == 28) {
 //

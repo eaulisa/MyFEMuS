@@ -10,7 +10,7 @@ class RefineElement {
 
     void BuildElementProlongation(const unsigned &level, const unsigned &i);
 
-    void SetConstants(const double &eps);
+    void SetConstants(const double &eps, const double &eps0);
 
     double GetSmoothStepFunction(const double &dg1);
 
@@ -72,6 +72,9 @@ class RefineElement {
     const double &GetEps() {
       return _eps;
     }
+    const double &GetEps0() {
+      return _eps;
+    }
 
   private:
     unsigned _dim;
@@ -87,7 +90,7 @@ class RefineElement {
     basis* _basis;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xvl;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xil;
-    double _a0, _a1, _a3, _a5, _a7, _a9, _eps;
+    double _a0, _a1, _a3, _a5, _a7, _a9, _eps, _eps0;
 
 };
 
@@ -240,8 +243,9 @@ void RefineElement::BuildElementProlongation(const unsigned &level, const unsign
 
 }
 
-void RefineElement::SetConstants(const double &eps) {
+void RefineElement::SetConstants(const double &eps, const double &eps0) {
   _eps = eps;
+  _eps0 = eps0;
   _a0 = 0.5; // 128./256.;
   _a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
   _a3 = -pow(eps, -3.) * 1.640625; //420./256.;
