@@ -25,12 +25,12 @@ double eps;
 #include "../include/mpmFsi6b.hpp"
 using namespace femus;
 
-double SetVariableTimeStep (const double time) {
+double SetVariableTimeStep(const double time) {
   double dt =  0.005/*0.008*/;
   return dt;
 }
 
-bool SetBoundaryCondition (const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
+bool SetBoundaryCondition(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
   bool test = 1; //dirichlet
   value = 0.;
 
@@ -38,39 +38,39 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
   double U = 0.05; //TODO it is not clear if it is 0.05 or 0.0333
   double t2 = t * t;
 
-  if (!strcmp (name, "DX")) {
-    if (3 == facename) {
+  if(!strcmp(name, "DX")) {
+    if(3 == facename) {
       test = 0;
       value = 0;
     }
   }
-  else if (!strcmp (name, "DY")) {
-    if (2 == facename || 4 == facename) {
+  else if(!strcmp(name, "DY")) {
+    if(2 == facename || 4 == facename) {
       test = 0;
       value = 0;
     }
   }
-  else if (!strcmp (name, "VX")) {
-    if (2 == facename) {
+  else if(!strcmp(name, "VX")) {
+    if(2 == facename) {
       test = 0;
       value = 0;
     }
-    else if (4 == facename) {
-      value = (U * t2 / sqrt (pow ( (0.04 - t2), 2.) + pow ( (0.1 * t), 2.))) * 4. * (H - x[1]) * x[1] / (H * H);
+    else if(4 == facename) {
+      value = (U * t2 / sqrt(pow((0.04 - t2), 2.) + pow((0.1 * t), 2.))) * 4. * (H - x[1]) * x[1] / (H * H);
     }
   }
-  else if (!strcmp (name, "VY")) {
-    if (2 == facename) {
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {
       test = 0;
       value = 0;
     }
   }
-  else if (!strcmp (name, "P")) {
+  else if(!strcmp(name, "P")) {
     test = 0;
     value = 0;
   }
-  else if (!strcmp (name, "M")) {
-    if (1 == facename) {
+  else if(!strcmp(name, "M")) {
+    if(1 == facename) {
       test = 0;
       value = 0;
     }
@@ -80,10 +80,10 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char name[], d
 
 }
 
-int main (int argc, char** args) {
+int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
-  FemusInit mpinit (argc, args, MPI_COMM_WORLD);
+  FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 10000.;
@@ -103,66 +103,68 @@ int main (int argc, char** args) {
   Gamma = 0.5;
 
 
-  Parameter par (Lref, Uref);
+  Parameter par(Lref, Uref);
 
   // Generate Solid Object
-  Solid solid (par, E, nu, rhos, "Neo-Hookean");
-  Fluid fluid (par, muf, rhof, "Newtonian");
+  Solid solid(par, E, nu, rhos, "Neo-Hookean");
+  Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh ("../input/fsi_bnc_2D.neu", "fifth", scalingFactor);
-  mlMsh.RefineMesh (numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
+  mlMsh.ReadCoarseMesh("../input/fsi_bnc_2D.neu", "fifth", scalingFactor);
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
-  mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
+  mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
   numberOfUniformLevels = 1;
 
   unsigned dim = mlMsh.GetDimension();
 
-  MultiLevelSolution mlSol (&mlMsh);
+  MultiLevelSolution mlSol(&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution ("DX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("DY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("DZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("DX", LAGRANGE, SECOND, 2);
+  if(dim > 1) mlSol.AddSolution("DY", LAGRANGE, SECOND, 2);
+  if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, SECOND, 2);
 
-  mlSol.AddSolution ("VX", LAGRANGE, SECOND, 2);
-  if (dim > 1) mlSol.AddSolution ("VY", LAGRANGE, SECOND, 2);
-  if (dim > 2) mlSol.AddSolution ("VZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("VX", LAGRANGE, SECOND, 2);
+  if(dim > 1) mlSol.AddSolution("VY", LAGRANGE, SECOND, 2);
+  if(dim > 2) mlSol.AddSolution("VZ", LAGRANGE, SECOND, 2);
 
-  mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, FIRST, 2);
+  mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
+  //mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, FIRST, 2);
+  //mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
   //mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   //mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   //mlSol.AddSolution ("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   //mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false); //TODO see who this is
   //mlSol.AddSolution ("NodeDist", LAGRANGE, SECOND, 0, false); //TODO see who this is
-  
+
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
-  
-  
+
+
   mlSol.AddSolution("CM1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("CM2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
   mlSol.AddSolution("CL1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("CL2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  
 
-  mlSol.SetIfFSI (true);
 
-  mlSol.Initialize ("All");
+  mlSol.SetIfFSI(true);
 
-  mlSol.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
+  mlSol.Initialize("All");
+
+  mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
   // ******* Set boundary conditions *******
-  mlSol.GenerateBdc ("DX", "Steady");
-  if (dim > 1) mlSol.GenerateBdc ("DY", "Steady");
-  if (dim > 2) mlSol.GenerateBdc ("DZ", "Steady");
-  mlSol.GenerateBdc ("VX", "Time_dependent");
-  if (dim > 1) mlSol.GenerateBdc ("VY", "Steady");
-  if (dim > 2) mlSol.GenerateBdc ("VZ", "Steady");
-  mlSol.GenerateBdc ("P", "Steady");
- // mlSol.GenerateBdc ("M", "Steady");
+  mlSol.GenerateBdc("DX", "Steady");
+  if(dim > 1) mlSol.GenerateBdc("DY", "Steady");
+  if(dim > 2) mlSol.GenerateBdc("DZ", "Steady");
+  mlSol.GenerateBdc("VX", "Time_dependent");
+  if(dim > 1) mlSol.GenerateBdc("VY", "Steady");
+  if(dim > 2) mlSol.GenerateBdc("VZ", "Steady");
+  mlSol.GenerateBdc("P", "Steady");
+// mlSol.GenerateBdc ("M", "Steady");
 
-  MultiLevelProblem ml_prob (&mlSol);
+  MultiLevelProblem ml_prob(&mlSol);
 
   ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
   ml_prob.parameters.set<Solid> ("SolidFEM") = solid;
@@ -170,80 +172,81 @@ int main (int argc, char** args) {
 
   // ******* Add MPM system to the MultiLevel problem *******
   TransientNonlinearImplicitSystem& system = ml_prob.add_system < TransientNonlinearImplicitSystem > ("MPM_FSI");
-  system.AddSolutionToSystemPDE ("DX");
-  if (dim > 1) system.AddSolutionToSystemPDE ("DY");
-  if (dim > 2) system.AddSolutionToSystemPDE ("DZ");
-  system.AddSolutionToSystemPDE ("VX");
-  if (dim > 1) system.AddSolutionToSystemPDE ("VY");
-  if (dim > 2) system.AddSolutionToSystemPDE ("VZ");
-  system.AddSolutionToSystemPDE ("P");
+  system.AddSolutionToSystemPDE("DX");
+  if(dim > 1) system.AddSolutionToSystemPDE("DY");
+  if(dim > 2) system.AddSolutionToSystemPDE("DZ");
+  system.AddSolutionToSystemPDE("VX");
+  if(dim > 1) system.AddSolutionToSystemPDE("VY");
+  if(dim > 2) system.AddSolutionToSystemPDE("VZ");
+  system.AddSolutionToSystemPDE("P");
 
   // ******* System MPM-FSI Assembly *******
-  system.SetAssembleFunction (AssembleMPMSys);
+  system.SetAssembleFunction(AssembleMPMSys);
   //system.SetAssembleFunction (AssembleMPMSysOld);
   //system.SetAssembleFunction(AssembleFEM);
   // ******* set MG-Solver *******
-  system.SetMgType (V_CYCLE);
+  system.SetMgType(V_CYCLE);
 
-  system.SetAbsoluteLinearConvergenceTolerance (1.0e-10);
-  system.SetMaxNumberOfLinearIterations (1);
-  system.SetNonLinearConvergenceTolerance (1.e-9);
-  system.SetMaxNumberOfNonLinearIterations (2);
+  system.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
+  system.SetMaxNumberOfLinearIterations(1);
+  system.SetNonLinearConvergenceTolerance(1.e-9);
+  system.SetMaxNumberOfNonLinearIterations(2);
 
-  system.SetNumberPreSmoothingStep (1);
-  system.SetNumberPostSmoothingStep (1);
+  system.SetNumberPreSmoothingStep(1);
+  system.SetNumberPostSmoothingStep(1);
 
   // ******* Set Preconditioner *******
-  system.SetLinearEquationSolverType (FEMuS_DEFAULT);
+  system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
   system.init();
 
   // ******* Set Smoother *******
-  system.SetSolverFineGrids (GMRES);
+  system.SetSolverFineGrids(GMRES);
 
-  system.SetPreconditionerFineGrids (ILU_PRECOND);
+  system.SetPreconditionerFineGrids(ILU_PRECOND);
 
-  system.SetTolerances (1.e-10, 1.e-15, 1.e+50, 40, 40);
+  system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
 
 
   // ******* Add MPM system to the MultiLevel problem *******
   NonLinearImplicitSystem& system2 = ml_prob.add_system < NonLinearImplicitSystem > ("DISP");
-  system2.AddSolutionToSystemPDE ("DX");
-  if (dim > 1) system2.AddSolutionToSystemPDE ("DY");
-  if (dim > 2) system2.AddSolutionToSystemPDE ("DZ");
+  system2.AddSolutionToSystemPDE("DX");
+  if(dim > 1) system2.AddSolutionToSystemPDE("DY");
+  if(dim > 2) system2.AddSolutionToSystemPDE("DZ");
 
   // ******* System MPM Assembly *******
 //     system2.SetAssembleFunction(AssembleSolidDisp);
   //system2.SetAssembleFunction(AssembleFEM);
   // ******* set MG-Solver *******
-  system2.SetMgType (V_CYCLE);
+  system2.SetMgType(V_CYCLE);
 
 
-  system2.SetAbsoluteLinearConvergenceTolerance (1.0e-10);
-  system2.SetMaxNumberOfLinearIterations (1);
-  system2.SetNonLinearConvergenceTolerance (1.e-9);
-  system2.SetMaxNumberOfNonLinearIterations (1);
+  system2.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
+  system2.SetMaxNumberOfLinearIterations(1);
+  system2.SetNonLinearConvergenceTolerance(1.e-9);
+  system2.SetMaxNumberOfNonLinearIterations(1);
 
-  system2.SetNumberPreSmoothingStep (1);
-  system2.SetNumberPostSmoothingStep (1);
+  system2.SetNumberPreSmoothingStep(1);
+  system2.SetNumberPostSmoothingStep(1);
 
   // ******* Set Preconditioner *******
-  system2.SetLinearEquationSolverType (FEMuS_DEFAULT);
+  system2.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
   system2.init();
 
   // ******* Set Smoother *******
-  system2.SetSolverFineGrids (GMRES);
+  system2.SetSolverFineGrids(GMRES);
 
-  system2.SetPreconditionerFineGrids (ILU_PRECOND);
+  system2.SetPreconditionerFineGrids(ILU_PRECOND);
 
-  system2.SetTolerances (1.e-10, 1.e-15, 1.e+50, 2, 2);
-  
-  
+  system2.SetTolerances(1.e-10, 1.e-15, 1.e+50, 2, 2);
+
+
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
+  std::vector <double> nSlaves;
   std::vector < MarkerType > markerTypeBulk;
 
   double Hs = 4.99e-05;
@@ -258,12 +261,12 @@ int main (int argc, char** args) {
   double DB =  0.5 * dL;
   eps = DB;
 
-  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
+  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist, nSlaves);
+   
+  bulk = new Line(xp, wp, dist, nSlaves, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
-  //InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
-
-  bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
-
+  std::cout<<"AAAAAAAAAAAAAAAAAA\n"<<std::flush;
+  
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
@@ -284,36 +287,36 @@ int main (int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
 
-  
+
   lineI->GetParticlesToGridMaterial(false);
   bulk->GetParticlesToGridMaterial(false);
-  
+
   BuildFlag(mlSol);
-  GetParticleWeights(mlSol, bulk);
+  //GetParticleWeights(mlSol, bulk);
   //GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
 
   // ******* Print solution *******
-  mlSol.SetWriter (VTK);
+  mlSol.SetWriter(VTK);
 
   std::vector<std::string> mov_vars;
-  mov_vars.push_back ("DX");
-  mov_vars.push_back ("DY");
+  mov_vars.push_back("DX");
+  mov_vars.push_back("DY");
   //mov_vars.push_back("DZ");
-  mlSol.GetWriter()->SetMovingMesh (mov_vars);
+  mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   std::vector<std::string> print_vars;
-  print_vars.push_back ("All");
+  print_vars.push_back("All");
 
-  mlSol.GetWriter()->SetDebugOutput (true);
-  mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  mlSol.GetWriter()->Write ("./output1", "biquadratic", print_vars, 0);
+  mlSol.GetWriter()->SetDebugOutput(true);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
+  //mlSol.GetWriter()->Write ("./output1", "biquadratic", print_vars, 0);
 
   //return 1;
 
 
-  system.AttachGetTimeIntervalFunction (SetVariableTimeStep);
+  system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 200;
-  for (unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
+  for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
 
@@ -322,9 +325,9 @@ int main (int argc, char** args) {
     PrintLine("output1", "bulk", bulkPoints, time_step);
     lineI->GetLine(lineIPoints[0]);
     PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
-       
+
     system.MGsolve();
-    
+
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
     bulk->GetLine(bulkPoints[0]);
@@ -336,7 +339,7 @@ int main (int argc, char** args) {
 
   delete bulk;
   delete lineI;
-  
+
   return 0;
 
 } //end main

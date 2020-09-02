@@ -12,12 +12,13 @@
 
 
 void InitRectangleParticle(const unsigned &dim, const double &L, const double &H, const double &Lf,
-                           const double &dL, const double &DB, const unsigned &nbl,
+                           const double &dL, const double &DB, unsigned &nbl,
                            const std::vector < double> &xc,
                            std::vector < MarkerType > &markerType,
                            std::vector < std::vector <double> > &xp,
                            std::vector <double> &wp,
-                           std::vector <double> &dist) {
+                           std::vector <double> &dist,
+                           boost::optional < std::vector < double > & > nSlaves = boost::none) {
 
 
   double L0 = L - DB;
@@ -27,6 +28,8 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   unsigned rows0 = ceil(H0 / dL);
   double dx0 = L0 / cols0;
   double dy0 = H0  / rows0;
+
+  if(nbl % 2 == 0) nbl++;
 
   double dbl = DB / nbl;
   unsigned colsl = ceil(L0 / dbl);
@@ -54,6 +57,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   xp.resize(sizeAll);
   wp.resize(sizeAll);
   dist.resize(sizeAll);
+  if(nSlaves) nSlaves->assign(sizeAll, 0.);
   unsigned cnt = 0;
   std::vector<double> XP(dim);
 
@@ -72,42 +76,67 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   }
 
 //left and right boundary
-  for(unsigned k = 0; k < nbl; k++) {
-    for(unsigned j = 0; j < rowsl; j++) {
-      XP[0] = (xc[0] - 0.5 * DB + 0.5 * dbl) + k * dbl;
+
+  std::vector < unsigned> map(nbl);
+  map[0] = nbl / 2;
+  for(unsigned i = 0; i < nbl / 2; i++) {
+    map[1 + i] = i;
+    map[nbl / 2 + 1 + i] = nbl / 2 + 1 + i;
+  }
+
+//   for(unsigned i = 0; i < nbl; i++) {
+//     map[i] = i;
+//   }
+
+  for(unsigned j = 0; j < rowsl; j++) {
+    for(unsigned k = 0; k < nbl; k++) {
+      unsigned kmap = map[k];
+      //XP[0] = (xc[0] - 0.5 * DB + 0.5 * dbl) + kmap * dbl;//change
+      XP[0] = (xc[0] + 0.5 * DB - 0.5 * dbl) - kmap * dbl;
       XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
       xp[cnt] = XP;
       wp[cnt] = dbl * dyl;
       dist[cnt] =  xp[cnt][0] - xc[0];
+      if(nSlaves && k == 0)(*nSlaves)[cnt] = nbl - 1;
       cnt++;
+    }
+  }
 
-      XP[0] = (xc[0] + L - 0.5 * DB + 0.5 * dbl) + k * dbl;
+  for(unsigned j = 0; j < rowsl; j++) {
+    for(unsigned k = 0; k < nbl; k++) {
+      unsigned kmap = map[k];
+      XP[0] = (xc[0] + L - 0.5 * DB + 0.5 * dbl) + kmap * dbl;//okay
       XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
       xp[cnt] = XP;
       wp[cnt] = dbl * dyl;
       dist[cnt] += (xc[0] + L) - xp[cnt][0];
+      if(nSlaves && k == 0)(*nSlaves)[cnt] = nbl - 1;
       cnt++;
-
     }
   }
 
   //top band without corners
-  for(unsigned k = 0; k < nbl; k++) {
-    for(unsigned j = 0; j < colsl; j++) {
+  for(unsigned j = 0; j < colsl; j++) {
+    for(unsigned k = 0; k < nbl; k++) {
+      unsigned kmap = map[k];
       XP[0] = (xc[0] + 0.5 * DB + 0.5 * dxl) + j * dxl;
-      XP[1] = (xc[1] + H0  + 0.5 * dbl) + k * dbl;
+      XP[1] = (xc[1] + H0  + 0.5 * dbl) + kmap * dbl;//okay
       xp[cnt] = XP;
       wp[cnt] = dbl * dxl;
       dist[cnt] = (xc[1] + H) - xp[cnt][1];
+      if(nSlaves && k == 0)(*nSlaves)[cnt] = nbl - 1;
       cnt++;
     }
   }
-  
+
 //corner chuncks
   for(unsigned k = 0; k < nbl; k++) {
+    unsigned kmap = map[k];
     for(unsigned j = 0; j < nbl; j++) {
-      XP[0] = (xc[0] - 0.5 * DB + 0.5 * dbl) + k * dbl;
-      XP[1] = (xc[1] + H0  + 0.5 * dbl) + j * dbl;
+      unsigned jmap = map[j];
+      //XP[0] = (xc[0] - 0.5 * DB + 0.5 * dbl) + kmap * dbl;//change
+      XP[0] = (xc[0] + 0.5 * DB - 0.5 * dbl) - kmap * dbl;//change
+      XP[1] = (xc[1] + H0  + 0.5 * dbl) + jmap * dbl;
       xp[cnt] = XP;
       wp[cnt] = dbl * dbl;
 
@@ -129,13 +158,21 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
         }
       }
 
+      if(nSlaves && j == 0 && k == 0)(*nSlaves)[cnt] = nbl * nbl - 1;
       cnt++;
 
-      XP[0] = (xc[0] + L - 0.5 * DB + 0.5 * dbl) + k * dbl;
-      XP[1] = (xc[1] + H0  + 0.5 * dbl) + j * dbl;
+    }
+  }
+
+  for(unsigned k = 0; k < nbl; k++) {
+    unsigned kmap = map[k];
+    for(unsigned j = 0; j < nbl; j++) {
+      unsigned jmap = map[j];
+
+      XP[0] = (xc[0] + L - 0.5 * DB + 0.5 * dbl) + kmap * dbl; //okay
+      XP[1] = (xc[1] + H0  + 0.5 * dbl) + jmap * dbl;
       xp[cnt] = XP;
       wp[cnt] = dbl * dbl;
-
 
       if(xp[cnt][0] < xc[0] + L) { //left
         if(xp[cnt][1] < xc[1] + H) { //bottom
@@ -154,6 +191,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
           dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
         }
       }
+      if(nSlaves && j == 0 && k == 0)(*nSlaves)[cnt] = nbl * nbl - 1;
       cnt++;
     }
 
@@ -234,7 +272,7 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
   for(unsigned j = 0; j < xp.size(); j++) {
     sum += wp[j];
   }
-  std::cout<<"Volume = " << sum <<" Volume difference = " << sum - (H + DH)*Lf << std::endl;
+  std::cout << "Volume = " << sum << " Volume difference = " << sum - (H + DH)*Lf << std::endl;
   //
   //   //could not fix
   //   double area;

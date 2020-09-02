@@ -64,18 +64,25 @@ namespace femus {
 
   Line::Line(const std::vector < std::vector < double > > x,
              const std::vector <MarkerType>& markerType, Solution* sol, const unsigned& solType) :
-    Line(x, std::vector <double>(x.size(), 0.), std::vector <double>(x.size(), 0.), markerType, sol, solType) {};
+    Line(x, std::vector <double>(x.size(), 0.), std::vector <double>(x.size(), 0.), std::vector <double>(x.size(), 0.),
+         markerType, sol, solType) {};
 
 
   Line::Line(const std::vector < std::vector < double > > x, const std::vector < double > &mass,
              const std::vector <MarkerType>& markerType, Solution* sol, const unsigned& solType) :
-    Line(x, mass, std::vector <double>(x.size(), 0.), markerType, sol, solType) {};
-    
+    Line(x, mass, std::vector <double>(x.size(), 0.), std::vector <double>(x.size(), 0.), markerType, sol, solType) {};
+
 
   Line::Line(const std::vector < std::vector < double > > x, const std::vector < double > &mass,
              const std::vector < double > &dist, const std::vector <MarkerType>& markerType,
-             Solution* sol, const unsigned& solType) {
+             Solution* sol, const unsigned& solType) :
+    Line(x, mass, dist, std::vector <double>(x.size(), 0.), markerType, sol, solType) {};
 
+  Line::Line(const std::vector < std::vector < double > > x, const std::vector < double > &mass,
+             const std::vector < double > &dist, const std::vector < double > &nSlaves,
+             const std::vector <MarkerType>& markerType,
+             Solution* sol, const unsigned& solType) {
+       
     _sol = sol;
     _mesh = _sol->GetMesh();
 
@@ -94,9 +101,26 @@ namespace femus {
     _printList.resize(_size);
 
     for(unsigned j = 0; j < _size; j++) {
-      particles[j] = new Marker(x[j], mass[j], dist[j], markerType[j], _sol, solType, true);
+
+      particles[j] = new Marker(x[j], mass[j], dist[j], nSlaves[j], markerType[j], _sol, solType, true);
+
+      for(unsigned k = j + 1; k <= j + nSlaves[j]; k++) {
+
+        particles[k] = new Marker(x[j], mass[k], dist[k], nSlaves[k], markerType[k], _sol, solType, true);
+        
+        if(particles[k]->GetMarkerProc(sol) == _iproc) {
+          particles[k]->SetIprocMarkerCoordinates(x[k]);
+          std::vector < std::vector < std::vector < std::vector < double > > > >aX;
+          particles[k]->FindLocalCoordinates(solType, aX, true, sol, 0.);
+        }
+      }
+      
+      j += nSlaves[j];
+
     }
+        
     Reorder(particles);
+    
   }
 
 
@@ -1367,27 +1391,46 @@ namespace femus {
 
   void Line::UpdateLineMPM() {
 
+    std::map <unsigned, std::vector<double> > xSlave;
 
     for(unsigned iMarker = _markerOffset[_iproc]; iMarker < _markerOffset[_iproc + 1]; iMarker++) {
+
       unsigned elem =  _particles[iMarker]->GetMarkerElement();
       _particles[iMarker]->GetElementSerial(elem, _sol, 0.);
       _particles[iMarker]->SetIprocMarkerPreviousElement(elem);
+
+      unsigned nSlaves = _particles[iMarker]->GetMarkerNumberOfSlaves();
+      if(nSlaves > 0) {
+        std::vector< double > x;
+        _particles[iMarker]->GetMarkerCoordinates(x);
+
+        for(unsigned kMarker = iMarker + 1; kMarker <= iMarker + nSlaves; kMarker++) {
+
+          xSlave[iMarker] = _particles[kMarker]->GetIprocMarkerCoordinates();
+          _particles[kMarker]->SetIprocMarkerCoordinates(x);
+
+          unsigned elem = _particles[kMarker]->GetMarkerElement();
+          _particles[kMarker]->GetElementSerial(elem, _sol, 0.);
+          _particles[kMarker]->SetIprocMarkerPreviousElement(elem);
+        }
+        iMarker += nSlaves;
+      }
     }
 
     for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
       for(unsigned iMarker = _markerOffset[jproc]; iMarker < _markerOffset[jproc + 1]; iMarker++) {
 
-        unsigned elem =  _particles[iMarker]->GetMarkerElement();
+        unsigned elem =  _particles[iMarker]->GetMarkerElement(); //global call to all processes
         MPI_Bcast(& elem, 1, MPI_UNSIGNED, jproc, PETSC_COMM_WORLD);
-        _particles[iMarker]->SetMarkerElement(elem);
+        _particles[iMarker]->SetMarkerElement(elem); //global call to all processes
 
         if(elem != UINT_MAX) {
-          unsigned mproc = _particles[iMarker]->GetMarkerProc(_sol);  //WARNING you don't know if this is your real process
-          _particles[iMarker]->SetMarkerProc(mproc);
+          unsigned mproc = _particles[iMarker]->GetMarkerProc(_sol);  //global call based on elem, WARNING you don't know if this is your real process
+          _particles[iMarker]->SetMarkerProc(mproc); //global call
 
-          if(mproc != jproc) {  //this means, if we think the particle moved from jproc (which means element serial shouldn't have found the actual element)
+          if(mproc != jproc) {  //this means, if we think the particle moved outside jproc (which means element serial shouldn't have found the actual element)
             unsigned prevElem = _particles[iMarker]->GetIprocMarkerPreviousElement();
-            _particles[iMarker]->GetElement(prevElem, jproc, _sol, 0.);
+            _particles[iMarker]->GetElement(prevElem, jproc, _sol, 0.); //global call parallel search
             _particles[iMarker]->SetIprocMarkerPreviousElement(prevElem);
           }
 
@@ -1457,6 +1500,42 @@ namespace femus {
 
     //END find new _elem and _mproc
 
+    for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
+
+      unsigned size;
+      if(_iproc == jproc) size = xSlave.size();
+      MPI_Bcast(& size, 1, MPI_UNSIGNED, jproc, PETSC_COMM_WORLD);
+
+      std::map < unsigned, std::vector<double>>::iterator it = xSlave.begin();
+
+      for(unsigned i = 0; i < size; i++) {
+
+        unsigned iMarker;
+        std::vector < double > x(_dim);
+        if(_iproc == jproc) {
+          iMarker = it->first;
+          x = it->second;
+          it++;
+        }
+
+        MPI_Bcast(& iMarker, 1, MPI_UNSIGNED, jproc, PETSC_COMM_WORLD);
+        unsigned mproc = _particles[iMarker]->GetMarkerProc(_sol);
+
+
+        if(_iproc == jproc) {
+          MPI_Send(&x[0], _dim, MPI_DOUBLE, mproc, 1, PETSC_COMM_WORLD);
+        }
+        if(_iproc == mproc) {
+          MPI_Recv(&x[0], _dim, MPI_DOUBLE, jproc, 1, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+          _particles[iMarker]->SetIprocMarkerCoordinates(x);
+        }
+
+
+      }
+
+    }
+
+
     UpdateLine();
 
   }
@@ -1501,6 +1580,7 @@ namespace femus {
 
 
 }
+
 
 
 

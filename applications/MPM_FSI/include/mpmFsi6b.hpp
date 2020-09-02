@@ -303,11 +303,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
         for(unsigned k = 0; k < dim; k++) {
           if(nodeFlag[i] == 0) {
-            if(eFlag == 2) { //bulk solid: kinematic: v - dD/dt = 0
-              aRhsV[k][i] -= -phiHat[i] * (solV[k][i] - (solD[k][i] - solDOld[k][i]) / dt) * weightHat;
-            }
-            else if(eFlag == 0) { //bulk fluid: smooth extension nabla D = 0
-              adept::adouble  wlaplaceD  = 0.;
+//             if(eFlag == 2) { //bulk solid: kinematic: v - dD/dt = 0
+//               aRhsV[k][i] -= -phiHat[i] * (solV[k][i] - (solD[k][i] - solDOld[k][i]) / dt) * weightHat;
+//             }
+//            else
+            if(eFlag == 0) { //bulk fluid: smooth extension nabla D = 0
+              adept::adouble wlaplaceD  = 0.;
               for(unsigned  j = 0; j < dim; j++) {
                 wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
               }
@@ -497,7 +498,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
           }
         }
-        
+
         adept::adouble solPp = 0.;
         msh->_finiteElement[ielt][solTypeP]->GetPhi(phiP, xi);
         for(unsigned i = 0; i < nDofsP; i++) {
@@ -560,20 +561,18 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
           double dM = (1 - U) * area * rhoFluid;
           for(unsigned i = 0; i < nDofs; i++) {
-            //if(nodeFlag[i] == 1) {
-              for(unsigned k = 0; k < dim; k++) {
-                adept::adouble Vlaplace = 0.;
-                adept::adouble advection = 0.;
-                for(unsigned j = 0; j < dim; j++) {
-                  Vlaplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
-                  advection +=  phi[i] * (solVp[j] - (solDp[j] - solDpOld[j]) / dt) * gradSolVp[k][j]; //ALE
-                }
-
-                aRhsV[k][i] -= (phi[i] * (solVp[k] - solVpOld[k]) / dt + advection +
-                                muFluid / rhoFluid * Vlaplace - gradPhi[i * dim + k] * solPp / rhoFluid
-                               ) * dM;
+            for(unsigned k = 0; k < dim; k++) {
+              adept::adouble Vlaplace = 0.;
+              adept::adouble advection = 0.;
+              for(unsigned j = 0; j < dim; j++) {
+                Vlaplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
+                advection +=  phi[i] * (solVp[j] - (solDp[j] - solDpOld[j]) / dt) * gradSolVp[k][j]; //ALE
               }
-            //}
+
+              aRhsV[k][i] -= (phi[i] * (solVp[k] - solVpOld[k]) / dt + advection +
+                              muFluid / rhoFluid * Vlaplace - gradPhi[i * dim + k] * solPp / rhoFluid
+                             ) * dM;
+            }
           }
 
           for(unsigned i = 0; i < nDofsP; i++) {
@@ -587,7 +586,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         //BEGIN solid Momentum in the bulk interface and solid cells (integration is on the particles in \Omega_s)
         if(U > 0) {
-          double dM = (eFlag == 1)? U * area * rhoMpm : area * rhoMpm;
+          double dM = (eFlag == 1) ? U * area * rhoMpm : area * rhoMpm;
           for(unsigned i = 0; i < nDofs; i++) {
             adept::adouble CauchyDIR[3] = {0., 0., 0.};
             for(unsigned j = 0.; j < dim; j++) {
@@ -596,8 +595,14 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               }
             }
             for(unsigned k = 0; k < dim; k++) {
-              aRhsD[k][i] -= (phi[i] * (1. / (beta * dt * dt) * solDp[k] - 1. / (beta * dt) * solVpOld[k] - (1. - 2.* beta) / (2. * beta) * solApOld[k])  //NEWMARK ACCELERATION N+1
-                              + J_hat * CauchyDIR[k] / rhoMpm)  * dM;
+              adept::adouble solApk = 1. / (beta * dt * dt) * solDp[k] - 1. / (beta * dt) * solVpOld[k] - (1. - 2.* beta) / (2. * beta) * solApOld[k];  //NEWMARK ACCELERATION
+              aRhsD[k][i] -= (phi[i] * solApk + J_hat * CauchyDIR[k] / rhoMpm)  * dM;
+              
+              if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
+                adept::adouble vk = solVpOld[k] + dt * ((1. - Gamma) * solApOld[k] + Gamma * solApk);  //NEWMARK velocity
+                aRhsV[k][i] -= -phiHat[i] * (solVp[k] - vk) * area;
+              }
+              
             }
           }
         }
@@ -612,8 +617,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       if(eFlag == 1) {  //interface markers
 
-        double thetaM = 30 * muFluid / 3.0e-6;
-        double thetaL = 30 * rhoFluid / dt * 3.0e-6 ; 
+        double thetaM = 300 * muFluid / 3.0e-6;
+        double thetaL = 300 * rhoFluid / dt * 3.0e-6  + thetaM;
 
         while(imarkerI < markerOffsetI[iproc + 1] && iel != particleI[imarkerI]->GetMarkerElement()) {
           imarkerI++;
@@ -658,11 +663,29 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           std::vector < adept::adouble > v2(dim, 0.);
           std::vector < adept::adouble > tau(dim, 0.);
 
+          std::vector <double> solVpOld(dim);
+          particleI[imarkerI]->GetMarkerVelocity(solVpOld);
+
+          std::vector <double> solApOld(dim);
+          particleI[imarkerI]->GetMarkerAcceleration(solApOld);
+
+          std::vector <adept::adouble> solDp(dim, 0.);
+          std::vector <adept::adouble> solAp(dim);
+
+          //update displacement and acceleration
+          for(int k = 0; k < dim; k++) {
+            for(unsigned i = 0; i < nDofs; i++) {
+              v1[k] += phi[i] * solV[k][i];
+              solDp[k] += phi[i] * solD[k][i];
+              //v2[k] += phi[i] * (solD[k][i] - solDOld[k][i]) / dt;
+            }
+            solAp[k] = 1. / (beta * dt * dt) * solDp[k] - 1. / (beta * dt) * solVpOld[k] - (1. - 2.* beta) / (2. * beta) * solApOld[k];
+            v2[k] = solVpOld[k] + dt * ((1. - Gamma) * solApOld[k] + Gamma * solAp[k]);
+          }
+
           for(unsigned k = 0; k < dim; k++) {
             tau[k] += - solPp * N[k];
             for(unsigned i = 0; i < nDofs; i++) {
-              v1[k] += phi[i] * solV[k][i];
-              v2[k] += phi[i] * (solD[k][i] - solDOld[k][i]) / dt;
               for(unsigned j = 0; j < dim; j++) {
                 tau[k] += muFluid * (solV[k][i] * gradPhi[i * dim + j] + solV[j][i] * gradPhi[i * dim + k]) * N[j];
               }
@@ -818,10 +841,10 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
   }
 
   //BEGIN loop on bulk particles
-  
+
   std::vector<Marker*> particles =  bulk.GetParticles();
   std::vector<unsigned> markerOffset = bulk.GetMarkerOffset();
-  
+
   unsigned ielOld = UINT_MAX;
   for(unsigned iMarker = markerOffset[iproc]; iMarker < markerOffset[iproc + 1]; iMarker++) {
     unsigned iel = particles[iMarker]->GetMarkerElement();
@@ -856,32 +879,32 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
 
       msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
 
-      std::vector <double> particleVelOld(dim);
-      particles[iMarker]->GetMarkerVelocity(particleVelOld);
+      std::vector <double> solVpOld(dim);
+      particles[iMarker]->GetMarkerVelocity(solVpOld);
 
-      std::vector <double> particleAccOld(dim);
-      particles[iMarker]->GetMarkerAcceleration(particleAccOld);
+      std::vector <double> solApOld(dim);
+      particles[iMarker]->GetMarkerAcceleration(solApOld);
 
-      std::vector <double> particleDisp(dim, 0.);
+      std::vector <double> solDp(dim, 0.);
       //update displacement and acceleration
       for(int i = 0; i < dim; i++) {
         for(unsigned inode = 0; inode < nDofs; inode++) {
-          particleDisp[i] += phiHat[inode] * solD[i][inode];
+          solDp[i] += phiHat[inode] * solD[i][inode];
         }
       }
 
-      particles[iMarker]->SetMarkerDisplacement(particleDisp);
+      particles[iMarker]->SetMarkerDisplacement(solDp);
       particles[iMarker]->UpdateParticleCoordinates();
 
-      std::vector <double> particleAcc(dim);
-      std::vector <double> particleVel(dim);
+      std::vector <double> solAp(dim);
+      std::vector <double> solVp(dim);
       for(unsigned i = 0; i < dim; i++) {
-        particleAcc[i] = 1. / (beta * dt * dt) * particleDisp[i] - 1. / (beta * dt) * particleVelOld[i] - (1. - 2.* beta) / (2. * beta) * particleAccOld[i];
-        particleVel[i] = particleVelOld[i] + dt * ((1. - Gamma) * particleAccOld[i] + Gamma * particleAcc[i]);
+        solAp[i] = 1. / (beta * dt * dt) * solDp[i] - 1. / (beta * dt) * solVpOld[i] - (1. - 2.* beta) / (2. * beta) * solApOld[i];
+        solVp[i] = solVpOld[i] + dt * ((1. - Gamma) * solApOld[i] + Gamma * solAp[i]);
       }
 
-      particles[iMarker]->SetMarkerVelocity(particleVel);
-      particles[iMarker]->SetMarkerAcceleration(particleAcc);
+      particles[iMarker]->SetMarkerVelocity(solVp);
+      particles[iMarker]->SetMarkerAcceleration(solAp);
 
       //   update the deformation gradient
       for(int i = 0; i < dim; i++) {
@@ -954,16 +977,32 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
 
       msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
 
-      std::vector <double> particleDisp(dim, 0.);
+      std::vector <double> solVpOld(dim);
+      particles[iMarker]->GetMarkerVelocity(solVpOld);
+
+      std::vector <double> solApOld(dim);
+      particles[iMarker]->GetMarkerAcceleration(solApOld);
+
+      std::vector <double> solDp(dim, 0.);
       //update displacement and acceleration
       for(int i = 0; i < dim; i++) {
         for(unsigned inode = 0; inode < nDofs; inode++) {
-          particleDisp[i] += phiHat[inode] * solD[i][inode];
+          solDp[i] += phiHat[inode] * solD[i][inode];
         }
       }
 
-      particles[iMarker]->SetMarkerDisplacement(particleDisp);
+      particles[iMarker]->SetMarkerDisplacement(solDp);
       particles[iMarker]->UpdateParticleCoordinates();
+
+      std::vector <double> solAp(dim);
+      std::vector <double> solVp(dim);
+      for(unsigned i = 0; i < dim; i++) {
+        solAp[i] = 1. / (beta * dt * dt) * solDp[i] - 1. / (beta * dt) * solVpOld[i] - (1. - 2.* beta) / (2. * beta) * solApOld[i];
+        solVp[i] = solVpOld[i] + dt * ((1. - Gamma) * solApOld[i] + Gamma * solAp[i]);
+      }
+
+      particles[iMarker]->SetMarkerVelocity(solVp);
+      particles[iMarker]->SetMarkerAcceleration(solAp);
 
       //   update the deformation gradient
       for(int i = 0; i < dim; i++) {
@@ -1024,7 +1063,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
 
 
   BuildFlag(*mlSol);
-  GetParticleWeights(*mlSol, &bulk);
+ // GetParticleWeights(*mlSol, &bulk);
 
 }
 
@@ -1299,6 +1338,10 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
   std::cout << "COUNTER = " << counterAll << " " << msh->GetTotalNumberOfDofs(solType) << std::endl;
 
 }
+
+
+
+
 
 
 
