@@ -19,7 +19,7 @@ class NonLocal {
                            const double &kappa, const double &delta, const bool &printMesh);
     
     void RefinedAssembly5(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                          const std::vector <unsigned> &igFather, RefineElement &refineElement, 
+                          const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement, 
                           const unsigned &nDof1, const std::vector< std::vector<double>>&xc, const std::vector<double> &weight1, 
                           const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2, 
                           const double &kappa, const double &delta, const bool &printMesh);
@@ -104,11 +104,11 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
           xv2j[k] = xv2[k][j];
         }
         d = this->GetDistance(xg1, xv2j, delta);
-        if(d > 1.*refineElement.GetEps()) { // check if one node is inside thick interface
+        if(d > std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
         }
-        else if(d < -1.*refineElement.GetEps()) { // check if one node is outside thick interface
+        else if(d < - std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if one node is outside thick interface
           if(oneNodeIsInside) goto refine;
           oneNodeIsOutside = true;
         }
@@ -197,8 +197,8 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
 
 
 void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                                const std::vector <unsigned> &igFather, RefineElement &refineElement, 
-                                const unsigned &nDof1, const std::vector< std::vector<double>>&xc, const std::vector<double> &weight1, 
+                                const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement, 
+                                const unsigned &nDof1, const std::vector< std::vector<double>>&x1, const std::vector<double> &weight1, 
                                 const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2, 
                                 const double &kappa, const double &delta, const bool &printMesh) {
 
@@ -210,7 +210,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
 
   const std::vector < std::vector <double> >  &xv = refineElement.GetNodeCoordinates(level, iFather);
 
-  std::vector <unsigned> igi(igFather.size()); //interface
+  igi.resize(igFather.size());//interface
   unsigned igiSize = 0;
 
   std::vector <unsigned> ig(igFather.size()); //refine or boundary integral
@@ -232,7 +232,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
         for(unsigned k = 0; k < dim; k++) {
           xv_j[k] = xv[k][j];
         }
-        d = this->GetDistance(xv_j, xc[igFather[i]], delta);
+        d = this->GetDistance(xv_j, x1[igFather[i]], delta);
         if(d > std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if the node is inside the thick interface
           if(oneNodeIsOutside) {
             ig[igSize] = igFather[i];
@@ -264,7 +264,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
     ig.resize(igSize);
   }
 
-  if(level == levelMax) {
+  if(level == levelMax - 1) {
     igbSize = igSize;
     igrSize = 0;
   }
@@ -280,7 +280,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
 
     std::vector < double> xi2Fg(dim);
     const double *phiC;
-    std::vector < double > phiF(nDof2);
+    std::vector < double > phi2(nDof2);
 
     const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, iFather);
     
@@ -296,12 +296,10 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
           xi2Fg[k] += xiF[k][j] * phiC[j];
         }
       }
-      finiteElement.GetPhi(phiF, xi2Fg);
+      finiteElement.GetPhi(phi2, xi2Fg);
 
-      double C =  0.;
-      
       for(unsigned gb = 0; gb < igbSize; gb++) {
-        double C =  refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , xc[ig[gb]], delta)) * weight1[ig[gb]] * weight2 * kernel;
+        double C =  refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[ig[gb]], delta)) * weight1[ig[gb]] * weight2 * kernel;
         
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
@@ -310,19 +308,19 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
             _res1[i] +=  jacValue11 * solu1[j];
           }
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue12 = - C * (phi1[ig[gb]][i]) * phiF[j];
+            double jacValue12 = - C * (phi1[ig[gb]][i]) * phi2[j];
             _jac12[i * nDof2 + j] -= jacValue12;
             _res1[i] +=  jacValue12 * solu2[j];
           }//endl j loop
         }
         for(unsigned i = 0; i < nDof2; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue21 = C * (- phiF[i]) * phi1[ig[gb]][j];
+            double jacValue21 = C * (- phi2[i]) * phi1[ig[gb]][j];
             _jac21[i * nDof1 + j] -= jacValue21;
             _res2[i] +=  jacValue21 * solu1[j];
           }
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue22 = - C * (- phiF[i]) * phiF[j];
+            double jacValue22 = - C * (- phi2[i]) * phi2[j];
             _jac22[i * nDof2 + j] -= jacValue22;
             _res2[i] +=  jacValue22 * solu2[j];
           }//endl j loop
@@ -331,7 +329,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
       }
       for(unsigned gi = 0; gi < igiSize; gi++) {
         
-        double C = weight1[igi[gi]] * weight2 * kernel;
+        double C = /*refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[igi[gi]], delta)) **/ weight1[igi[gi]] * weight2 * kernel;
         
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
@@ -340,33 +338,33 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
             _res1[i] +=  jacValue11 * solu1[j];
           }
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue12 = - C * (phi1[igi[gi]][i]) * phiF[j];
+            double jacValue12 = - C * (phi1[igi[gi]][i]) * phi2[j];
             _jac12[i * nDof2 + j] -= jacValue12;
             _res1[i] +=  jacValue12 * solu2[j];
           }//endl j loop
         }
         for(unsigned i = 0; i < nDof2; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue21 = C * (- phiF[i]) * phi1[igi[gi]][j];
+            double jacValue21 = C * (- phi2[i]) * phi1[igi[gi]][j];
             _jac21[i * nDof1 + j] -= jacValue21;
             _res2[i] +=  jacValue21 * solu1[j];
           }
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue22 = - C * (- phiF[i]) * phiF[j];
+            double jacValue22 = - C * (- phi2[i]) * phi2[j];
             _jac22[i * nDof2 + j] -= jacValue22;
             _res2[i] +=  jacValue22 * solu2[j];
           }//endl j loop
         } //endl i loop
       }
     }
-    if(level == levelMax &&  printMesh) PrintElement(xv, refineElement);
+    if(/*level == levelMax - 1 &&*/  printMesh) PrintElement(xv, refineElement);
   }
 
   if(igrSize) { // at least one of the integrals have to be refined
   refine:
     refineElement.BuildElementProlongation(level, iFather);
     for(unsigned i = 0; i < numberOfChildren; i++) {
-      RefinedAssembly5(level + 1, levelMin, levelMax, i, ig, refineElement, nDof1, xc, weight1, phi1,
+      RefinedAssembly5(level + 1, levelMin, levelMax, i, ig, igi, refineElement, nDof1, x1, weight1, phi1,
                                   solu1, solu2, kappa, delta, printMesh);
     }
   }

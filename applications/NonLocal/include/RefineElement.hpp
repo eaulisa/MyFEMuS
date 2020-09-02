@@ -73,7 +73,7 @@ class RefineElement {
       return _eps;
     }
     const double &GetEps0() {
-      return _eps;
+      return _eps0;
     }
 
   private:
