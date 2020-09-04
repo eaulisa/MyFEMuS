@@ -384,8 +384,7 @@ int main(int argc, char** args) {
 
 
   eps = 0.01 * radius;
-  analyticIntegral =  M_PI * pow(radius - eps, 2.)
-                      + 2. * M_PI * (-5. / 11. * pow(eps, 2) + eps * radius);
+  analyticIntegral =  M_PI * (radius * radius + eps * eps / 11.);
 
   SetConstants(eps);
 

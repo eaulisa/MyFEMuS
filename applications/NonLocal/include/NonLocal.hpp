@@ -9,39 +9,49 @@ class NonLocal {
     ~NonLocal() {};
     virtual double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) const = 0;
     virtual double GetKernel(const double  &kappa, const double &delta, const double &eps) const = 0;
+    virtual double GetArea(const double &delta, const double &eps) const = 0;
 
     void ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2);
+    void ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2, const unsigned &level);
+
+    void AddFineLevelLocalQuantities(const unsigned &level);
 
     double RefinedAssembly(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
                            RefineElement &refineElement,
                            const unsigned &nDof1, const vector < double > &xg1, const double &weight1_ig, const double *phi1_ig,
                            const vector < double >  &solu1, const vector < double > &solu2,
-                           const double &kappa, const double &delta, const bool &printMesh);
-    
+                           const double &kappa, const double &delta, const bool &printMesh, std::vector <double> &value);
+
     void RefinedAssembly5(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                          const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement, 
-                          const unsigned &nDof1, const std::vector< std::vector<double>>&xc, const std::vector<double> &weight1, 
-                          const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2, 
+                          const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement,
+                          const unsigned &nDof1, const std::vector< std::vector<double>>&xc, const std::vector<double> &weight1,
+                          const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2,
                           const double &kappa, const double &delta, const bool &printMesh);
-    
+
     double GetSmoothTestFunction(const double &dg1, const double &eps);
 
     std::vector < double > & GetRes1() {
+      //return _resl1[0];
       return _res1;
     };
     std::vector < double > & GetRes2() {
+      //return _resl2[0];
       return _res2;
     };
     std::vector < double > & GetJac11() {
+      //return _jacl11[0];
       return _jac11;
     };
     std::vector < double > & GetJac12() {
+      //return _jacl12[0];
       return _jac12;
     };
     std::vector < double > & GetJac21() {
+      //return _jacl21[0];
       return _jac21;
     };
     std::vector < double > & GetJac22() {
+      //return _jacl22[0];
       return _jac22;
     };
 
@@ -53,26 +63,85 @@ class NonLocal {
     std::vector < double > _jac21;
     std::vector < double > _jac22;
 
+//     std::vector<std::vector < double > > _resl1;
+//     std::vector<std::vector < double > > _resl2;
+//
+//     std::vector< std::vector < double > > _jacl11;
+//     std::vector< std::vector < double > > _jacl12;
+//     std::vector< std::vector < double > > _jacl21;
+//     std::vector< std::vector < double > > _jacl22;
+
     void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement);
 
 };
 
 void NonLocal::ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2) {
+
   _jac11.assign(nDof1 * nDof1, 0.);
   _jac12.assign(nDof1 * nDof2, 0.);
   _jac21.assign(nDof2 * nDof1, 0.);
   _jac22.assign(nDof2 * nDof2, 0.);
   _res1.assign(nDof1, 0.);
   _res2.assign(nDof2, 0.);
+
+//   _jacl11.resize(1);
+//   _jacl12.resize(1);
+//   _jacl21.resize(1);
+//   _jacl22.resize(1);
+//   _resl1.resize(1);
+//   _resl2.resize(1);
+//
+//   _jacl11[0].assign(nDof1 * nDof1, 0.);
+//   _jacl12[0].assign(nDof1 * nDof2, 0.);
+//   _jacl21[0].assign(nDof2 * nDof1, 0.);
+//   _jacl22[0].assign(nDof2 * nDof2, 0.);
+//   _resl1[0].assign(nDof1, 0.);
+//   _resl2[0].assign(nDof2, 0.);
+
 }
+
+void NonLocal::ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2, const unsigned &level) {
+//   _jacl11.resize(level + 1);
+//   _jacl12.resize(level + 1);
+//   _jacl21.resize(level + 1);
+//   _jacl22.resize(level + 1);
+//   _resl1.resize(level + 1);
+//   _resl2.resize(level + 1);
+//
+//   _jacl11[level].assign(nDof1 * nDof1, 0.);
+//   _jacl12[level].assign(nDof1 * nDof2, 0.);
+//   _jacl21[level].assign(nDof2 * nDof1, 0.);
+//   _jacl22[level].assign(nDof2 * nDof2, 0.);
+//   _resl1[level].assign(nDof1, 0.);
+//   _resl2[level].assign(nDof2, 0.);
+}
+
+void NonLocal::AddFineLevelLocalQuantities(const unsigned &level) {
+
+//   for(unsigned i = 0; i < _jacl11[ level ].size() ; i++) {
+//     _jacl11[level][i] += _jacl11[level + 1][i];
+//     _jacl12[level][i] += _jacl12[level + 1][i];
+//     _jacl21[level][i] += _jacl21[level + 1][i];
+//     _jacl22[level][i] += _jacl22[level + 1][i];
+//   }
+//   for(unsigned i = 0; i < _resl1[ level ].size() ; i++) {
+//     _resl1[level][i] += _resl1[level + 1][i];
+//     _resl2[level][i] += _resl2[level + 1][i];
+//   }
+
+}
+
 
 double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
                                  RefineElement &refineElement,
                                  const unsigned &nDof1, const vector < double > &xg1, const double &weight1_ig, const double *phi1_ig,
                                  const vector < double >  &solu1, const vector < double > &solu2,
-                                 const double &kappa, const double &delta, const bool &printMesh) {
+                                 const double &kappa, const double &delta, const bool &printMesh, std::vector <double> &value) {
+
+  double eps0l = std::max(refineElement.GetEps0() * pow(0.5, level) , refineElement.GetEps());
 
   double area = 0;
+  std::vector <double> lvalue(4,0.);
 
   const unsigned &nDof2 = refineElement.GetNumberOfNodes();
   const unsigned &numberOfChildren = refineElement.GetNumberOfChildren();
@@ -87,11 +156,13 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
     if(level < levelMin) {
     refine:
       refineElement.BuildElementProlongation(level, iFather);
+      //ZeroLocalQuantities(nDof1, nDof2, level + 1);
       for(unsigned i = 0; i < numberOfChildren; i++) {
         area += RefinedAssembly(level + 1, levelMin, levelMax, i, refineElement,
                                 nDof1, xg1, weight1_ig, phi1_ig,
-                                solu1, solu2, kappa, delta, printMesh);
+                                solu1, solu2, kappa, delta, printMesh, lvalue);
       }
+      //AddFineLevelLocalQuantities(level);
     }
     else {
       oneNodeIsInside = false;
@@ -104,11 +175,11 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
           xv2j[k] = xv2[k][j];
         }
         d = this->GetDistance(xg1, xv2j, delta);
-        if(d > std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if one node is inside thick interface
+        if(d > eps0l) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
         }
-        else if(d < - std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if one node is outside thick interface
+        else if(d < - eps0l) { // check if one node is outside thick interface
           if(oneNodeIsInside) goto refine;
           oneNodeIsOutside = true;
         }
@@ -156,37 +227,74 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       }
 
       if(U > 0.) {
-        area += weight2;
+        area += U * weight2;
+        
+        lvalue[0] += U * weight2;       
+        lvalue[1] += U * weight2 * (xg1[0]- xg2[0]) * (xg1[0]- xg2[0]);       
+        lvalue[2] += U * weight2 * (xg1[1]- xg2[1]) * (xg1[1]- xg2[1]);      
+        lvalue[3] += U * weight2 * (xg1[0]- xg2[0]) * (xg1[1]- xg2[1]);       
+        
         double C =  U * weight1_ig * weight2 * kernel;
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue11 =  C * (phi1_ig[i]) * phi1_ig[j];
+            double jacValue11 =  1. * C * (phi1_ig[i]) * phi1_ig[j];
             _jac11[i * nDof1 + j] -= jacValue11;
-            _res1[i] +=  jacValue11 * solu1[j];
+            _res1[i] += jacValue11 * solu1[j];
+
+            //_jacl11[level][i * nDof1 + j] -= jacValue11;
+            //_resl1[level][i] +=  jacValue11 * solu1[j];
+
           }
+
+
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue12 = - C * (phi1_ig[i]) * phi2F[j];
+            double jacValue12 = - 1. * C * (phi1_ig[i]) * phi2F[j];
             _jac12[i * nDof2 + j] -= jacValue12;
             _res1[i] +=  jacValue12 * solu2[j];
+
+            //_jacl12[level][i * nDof2 + j] -= jacValue12;
+            //_resl1[level][i] +=  jacValue12 * solu2[j];
+
           }//endl j loop
+
+          //_res1[i] -=  2 * C * phi1_ig[i] * ( xg1[0] * xg1[0] -  xg2[0] * xg2[0]);
+
         }
         for(unsigned i = 0; i < nDof2; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue21 = C * (- phi2F[i]) * phi1_ig[j];
+            double jacValue21 = 1. * C * (- phi2F[i]) * phi1_ig[j];
             _jac21[i * nDof1 + j] -= jacValue21;
             _res2[i] +=  jacValue21 * solu1[j];
+
+            //_jacl21[level][i * nDof1 + j] -= jacValue21;
+            //_resl2[level][i] +=  jacValue21 * solu1[j];
+
           }
+
+
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue22 = - C * (- phi2F[i]) * phi2F[j];
+            double jacValue22 = - 1. * C * (- phi2F[i]) * phi2F[j];
             _jac22[i * nDof2 + j] -= jacValue22;
-            _res2[i] +=  jacValue22 * solu2[j];
+            _res2[i] += jacValue22 * solu2[j];
+
+            //_jacl22[level][i * nDof2 + j] -= jacValue22;
+            //_resl2[level][i] +=  jacValue22 * solu2[j];
+
           }//endl j loop
+
+          //_res2[i] -=  C * phi2F[i] * (xg2[0] * xg2[0] - xg1[0] * xg1[0]);
+
         } //endl i loop
       }//end if U > 0.
     }//end jg loop
 
     if(printMesh) this->PrintElement(xv2, refineElement);
   }
+  
+  value[0] += lvalue[0];
+  value[1] += lvalue[1];
+  value[2] += lvalue[2];
+  value[3] += lvalue[3];
 
   return area;
 }
@@ -197,13 +305,14 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
 
 
 void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                                const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement, 
-                                const unsigned &nDof1, const std::vector< std::vector<double>>&x1, const std::vector<double> &weight1, 
-                                const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2, 
+                                const std::vector <unsigned> &igFather, std::vector <unsigned> &igi, RefineElement &refineElement,
+                                const unsigned &nDof1, const std::vector< std::vector<double>>&x1, const std::vector<double> &weight1,
+                                const std::vector <const double *> phi1, const vector < double >  &solu1, const vector < double > &solu2,
                                 const double &kappa, const double &delta, const bool &printMesh) {
 
-  double area = 0;
-  
+
+  double eps0l = std::max(refineElement.GetEps0() * pow(0.5, level) , refineElement.GetEps());
+
   const unsigned &nDof2 = refineElement.GetNumberOfNodes();
   const unsigned &numberOfChildren = refineElement.GetNumberOfChildren();
   const unsigned &dim = refineElement.GetDimension();
@@ -222,7 +331,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
     ig = igFather;
     goto refine;
   }
-  else  {
+  else if(level < levelMax - 1) {
     for(unsigned i = 0; i < igFather.size(); i++) {// loop only on the nodes the father asked for refinement
       bool oneNodeIsInside = false;
       bool oneNodeIsOutside = false;
@@ -233,7 +342,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
           xv_j[k] = xv[k][j];
         }
         d = this->GetDistance(xv_j, x1[igFather[i]], delta);
-        if(d > std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if the node is inside the thick interface
+        if(d > eps0l) { // check if the node is inside the thick interface
           if(oneNodeIsOutside) {
             ig[igSize] = igFather[i];
             igSize++;
@@ -241,7 +350,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
           }
           oneNodeIsInside = true;
         }
-        else if(d < -std::max(refineElement.GetEps0(), refineElement.GetEps())) { // check if the node is outside the thick interface
+        else if(d < -eps0l) { // check if the node is outside the thick interface
           oneNodeIsOutside = true;
           if(oneNodeIsInside) {
             ig[igSize] = igFather[i];
@@ -262,16 +371,23 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
       }
     }
     ig.resize(igSize);
-  }
-
-  if(level == levelMax - 1) {
-    igbSize = igSize;
-    igrSize = 0;
-  }
-  else {
     igbSize = 0;
     igrSize = igSize;
   }
+  else { //if(level == levelMax - 1) {
+    ig = igFather;
+    igbSize = igFather.size();
+    igrSize = 0;
+    igiSize = 0;
+
+
+//    igbSize = igSize;
+//   igrSize = 0;
+  }
+//   else {
+//     igbSize = 0;
+//     igrSize = igSize;
+//   }
 
   if(igbSize + igiSize) { // at least one of the integrals have to be computed
     const elem_type &finiteElement = (igbSize) ? refineElement.GetFEMFine() : refineElement.GetFEMCoarse();
@@ -283,7 +399,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
     std::vector < double > phi2(nDof2);
 
     const std::vector < std::vector <double> >  &xiF = refineElement.GetNodeLocalCoordinates(level, iFather);
-    
+
     double kernel = this->GetKernel(kappa, delta, refineElement.GetEps());
 
     for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
@@ -300,7 +416,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
 
       for(unsigned gb = 0; gb < igbSize; gb++) {
         double C =  refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[ig[gb]], delta)) * weight1[ig[gb]] * weight2 * kernel;
-        
+
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
             double jacValue11 =  C * (phi1[ig[gb]][i]) * phi1[ig[gb]][j];
@@ -325,12 +441,12 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
             _res2[i] +=  jacValue22 * solu2[j];
           }//endl j loop
         } //endl i loop
-  
+
       }
       for(unsigned gi = 0; gi < igiSize; gi++) {
-        
+
         double C = /*refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[igi[gi]], delta)) **/ weight1[igi[gi]] * weight2 * kernel;
-        
+
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
             double jacValue11 =  C * (phi1[igi[gi]][i]) * phi1[igi[gi]][j];
@@ -365,7 +481,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
     refineElement.BuildElementProlongation(level, iFather);
     for(unsigned i = 0; i < numberOfChildren; i++) {
       RefinedAssembly5(level + 1, levelMin, levelMax, i, ig, igi, refineElement, nDof1, x1, weight1, phi1,
-                                  solu1, solu2, kappa, delta, printMesh);
+                       solu1, solu2, kappa, delta, printMesh);
     }
   }
 
@@ -392,6 +508,9 @@ class NonLocalBall: public NonLocal {
     ~NonLocalBall() {};
     double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const;
     double GetKernel(const double &kappa, const double &delta, const double &eps) const;
+    double GetArea(const double &delta, const double &eps) const {
+      return M_PI * (delta * delta + eps * eps / 11.);
+    };
 };
 
 class NonLocalBox: public NonLocal {
@@ -400,6 +519,9 @@ class NonLocalBox: public NonLocal {
     ~NonLocalBox() {};
     double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const;
     double GetKernel(const double  &kappa, const double &delta, const double &eps) const;
+    double GetArea(const double &delta, const double &eps) const {
+      return delta * delta;
+    };
 };
 
 double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
@@ -412,11 +534,18 @@ double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::ve
 }
 
 double NonLocalBall::GetKernel(const double  &kappa, const double &delta, const double &eps) const {
-//   return 4. /  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
+//   return 4. *  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
 //                                 + 2. * (-5. / 11. * eps * eps + eps * delta))
 //                         * delta * delta) ;
-    return 4. /  (M_PI * kappa * delta * delta * delta * delta) ; 
-    
+//   std::cout.precision(14) ;
+//   std::cout<<delta <<" "<<eps<<"\n";
+//   std::cout<<(1. + 6./11. * pow( eps / delta, 2) + 3./143. * pow(eps / delta, 4.) ) <<"\n";
+//
+//   abort();
+
+  return 4. * kappa / (M_PI  * delta * delta * delta * delta)
+         / (1. + 6. / 11. * pow(eps / delta, 2) + 3. / 143. * pow(eps / delta, 4.))  ;
+
 }
 
 double NonLocalBox::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const {

@@ -33,7 +33,7 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.2; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+double delta1 = 0.15; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -150,27 +150,27 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin = 0;
   unsigned lmax = 4;
 
-  double dMax = 0.5 * delta1;
+  double dMax = 0.1;
   double eps0 = dMax * 0.25;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
-  double eps = eps0 * pow(0.5, lmax - 1);
+  double eps = 0.125 * delta1;// * pow(0.5, 3 - 1);
 
-  std::cout << "EPS = " << eps << std::endl;
+  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " "<< " lmax = " << lmax << std::endl;
 
   RefineElement *refineElement[6][3];
 
   refineElement[3][0] = new RefineElement("quad", "linear", "fifth", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement("quad", "quadratic", "fifth", "fifth", "fifth", "legendre");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "fifteenth", "fifth", "fifth", "legendre");
   refineElement[3][2] = new RefineElement("quad", "biquadratic", "fifth", "fifth", "fifth", "legendre");
 
   refineElement[4][0] = new RefineElement("tri", "linear", "fifth", "fifth", "fifth", "legendre");
   refineElement[4][1] = new RefineElement("tri", "quadratic", "fifth", "fifth", "fifth", "legendre");
   refineElement[4][2] = new RefineElement("tri", "biquadratic", "fifth", "fifth", "fifth", "legendre");
-  
+
 //   refineElement[3][0] = new RefineElement("quad", "linear", "first", "fifth", "fifth", "legendre");
 //   refineElement[3][1] = new RefineElement("quad", "quadratic", "first", "fifth", "fifth", "legendre");
 //   refineElement[3][2] = new RefineElement("quad", "biquadratic", "first", "fifth", "fifth", "legendre");
-// 
+//
 //   refineElement[4][0] = new RefineElement("tri", "linear", "first", "fifth", "fifth", "legendre");
 //   refineElement[4][1] = new RefineElement("tri", "quadratic", "first", "fifth", "fifth", "legendre");
 //   refineElement[4][2] = new RefineElement("tri", "biquadratic", "first", "fifth", "fifth", "legendre");
@@ -184,7 +184,21 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   fout.open("mesh.txt");
   fout.close();
 
-  double area1 = 0.;
+  unsigned nel = msh->_elementOffset[nprocs];
+  unsigned ng = refineElement[3][soluType]->GetFEMCoarse().GetGaussPointNumber();
+
+  std::vector< std::vector<double> > AREA(nel);
+  std::vector< std::vector<double> > MXX(nel);
+  std::vector< std::vector<double> > MYY(nel);
+  std::vector< std::vector<double> > MXY(nel);
+
+  for(unsigned iel = 0; iel < nel; iel++) {
+    AREA[iel].assign(ng, 0.);
+    MXX[iel].assign(ng, 0.);
+    MYY[iel].assign(ng, 0.);
+    MXY[iel].assign(ng, 0.);
+  }
+
   //BEGIN nonlocal assembly
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(unsigned jel = msh->_elementOffset[kproc]; jel < msh->_elementOffset[kproc + 1]; jel++) {
@@ -310,38 +324,79 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
           }
 
-          double area = 0.;
-          
+
+
           bool printMesh = false;
 //           if(iel == 40) {
 //             printMesh = true;
-            //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
+          //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
 //           }
-            
-                      
+
+          std::vector < double > area(igNumber , 0.);
           std::vector <unsigned> igr(igNumber);
-          std::vector <unsigned> igi; igi.reserve(igNumber);
-          
+          std::vector <unsigned> igi;
+          igi.reserve(igNumber);
+
           for(unsigned ig = 0; ig < igNumber; ig++) {
             igr[ig] = ig;
             if(iel == jel) {
+
+              std::vector <double> &Jac11 = nonlocal->GetJac11();
+              std::vector <double>& Res1 = nonlocal->GetRes1();
+
+//               double kernel = nonlocal->GetKernel(kappa1, delta1, refineElement[jelGeom][soluType]->GetEps());
+//               double area = nonlocal->GetArea(delta1, refineElement[jelGeom][soluType]->GetEps());
+//
+//               double C =  weight1[ig] * area * kernel;
+
               for(unsigned i = 0; i < nDof1; i++) {
-                std::vector <double>& Res1 = nonlocal->GetRes1();
                 //Res1[i] -= 0. * weight1[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
                 Res1[i] -=  - 2. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 2)
                 //Res1[i] -=  - 6. * xg1[ig][0] * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 6 x)
+                for(unsigned j = 0; j < nDof1; j++) {
+                  //double jacValue11 =  2. * C * phi1x[ig][i] * phi1x[ig][j];
+                  //Jac11[ i * nDof1 + j] -=  jacValue11;
+                  //Res1[i] += jacValue11 * solu1[j];
+                }
               }
             }
 
-            area += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
-                                              nDof1, xg1[ig], weight1[ig], phi1x[ig],
-                                              solu1, solu2, kappa1, delta1, printMesh);
+            if(iel == 67 && ig == 0) {
+              printMesh = true;
+            }
+
+            if(true || iel <= jel) {
+              std::vector <double> value(4, 0.);
+              area[ig] += nonlocal->RefinedAssembly(0, lmin, lmax, 0, *refineElement[jelGeom][soluType],
+                                                    nDof1, xg1[ig], weight1[ig], phi1x[ig],
+                                                    solu1, solu2, kappa1, delta1, printMesh, value);
+              AREA[iel][ig] += value[0];
+              MXX[iel][ig] += value[1];
+              MYY[iel][ig] += value[2];
+              MXY[iel][ig] += value[3];
+
+
+//               std::vector <double>& Res1 = nonlocal->GetRes1();
+//
+//
+//               double areaE = nonlocal->GetArea(delta1, refineElement[jelGeom][soluType]->GetEps());
+//
+//
+//               for(unsigned i = 0; i < nDof1; i++) {
+//                 //Res1[i] -= 0. * weight1[ig] * phi1x[ig][i]; //Ax - f (so f = 0)
+//                 Res1[i] -=  - 2. * weight1[ig]  * phi1x[ig][i] * area[ig] / areaE; //Ax - f (so f = - 2)
+//                 //Res1[i] -=  - 6. * xg1[ig][0] * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = - 6 x)
+//               }
+
+
+
+            }
 
           }
-          
-          if(iel == 40 && jel == 42) {
-            printMesh = true;
-          }
+
+//            if(iel == 67 && ig == 0) {
+//              printMesh = true;
+//            }
 //           nonlocal->RefinedAssembly5(0, lmin, lmax, 0, igr, igi, *refineElement[jelGeom][soluType], nDof1,
 //                                      xg1, weight1, phi1x, solu1, solu2, kappa1, delta1, printMesh);
 
@@ -404,13 +459,13 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
 //           if(area > 0.) {
 
-            KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
-            KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
-            RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
+          KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
+          KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
+          RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
 
-            KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
-            KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
-            RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
+          KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
+          KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
+          RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
 //           }
         }// end if coarse intersection
       } //end iel loop
@@ -422,6 +477,34 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
 // std::cout.precision(14);
 // std::cout << "AAAAAAAAAAA = " << eps << std::endl;
+
+  double kernel = nonlocal->GetKernel(0.5, delta1, refineElement[3][soluType]->GetEps());
+  double area = nonlocal->GetArea(delta1, refineElement[3][soluType]->GetEps());
+
+  double errorArea = 0;
+  double errorLaplace = 0;
+  double errorMixed = 0;
+  double errorKernel = 0;
+  
+  for(unsigned iel = 0; iel < nel; iel++) {
+    short unsigned ielGroup = msh->GetElementGroup(iel);
+
+    std::cout.precision(14);
+
+    if(ielGroup == 7) {
+      for(unsigned ig = 0; ig < ng; ig++) {
+        errorArea = (fabs(AREA[iel][ig] - area) > errorArea  ) ? fabs(AREA[iel][ig] - area): errorArea;  
+        errorLaplace = (fabs(MXX[iel][ig] - MYY[iel][ig]) > errorLaplace  ) ? fabs(MXX[iel][ig] - MYY[iel][ig]) : errorLaplace;  
+        errorMixed = (fabs(MXY[iel][ig] ) > errorMixed  ) ? fabs(MXY[iel][ig] ) : errorMixed;  
+        errorKernel = (fabs(1./(MXX[iel][ig] + MYY[iel][ig]) - kernel) > errorKernel  ) ? fabs(1./(MXX[iel][ig] + MYY[iel][ig]) - kernel) : errorKernel ;  
+          
+        //std::cout << iel << " " << ig << " " << AREA[iel][ig] << " " << area << " " << MXX[iel][ig] << "  " <<  MYY[iel][ig] << "  " <<
+        // 2. * kappa1 / (MXX[iel][ig] + MYY[iel][ig])<<" "<< kernel<<" " <<  MXY[iel][ig] << std::endl;
+      }
+    }
+  }
+
+  std::cout << errorArea/area <<" " << errorLaplace << " " << errorMixed << " " << errorKernel/kernel << std::endl;
 
   delete nonlocal;
   delete refineElement[3][0];
@@ -1373,6 +1456,9 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
   }
 
 }
+
+
+
 
 
 

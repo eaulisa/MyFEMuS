@@ -179,6 +179,7 @@ int main(int argc, char** argv) {
   mlSolFine.Initialize("All");
 
   mlSol.Initialize("u_exact", InitalValueU);
+  mlSol.Initialize("u", InitalValueU);
 
   // ******* Set boundary conditions *******
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
@@ -233,9 +234,9 @@ int main(int argc, char** argv) {
   system.SetSolverFineGrids(RICHARDSON);
 //   system.SetRichardsonScaleFactor(0.7);
 
-  system.SetPreconditionerFineGrids(ILU_PRECOND);
+  system.SetPreconditionerFineGrids(MLU_PRECOND);
 
-  system.SetTolerances(1.e-20, 1.e-20, 1.e+50, 100);
+  system.SetTolerances(1.e-40, 1.e-40, 1.e+50, 100);
 
 // ******* Solution *******
 
