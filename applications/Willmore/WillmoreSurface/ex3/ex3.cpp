@@ -31,11 +31,11 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = false;
+bool volumeConstraint = true;
 bool areaConstraint = false;
 
 unsigned conformalTriangleType = 2;
-const double eps = 1.0e-5;
+const double eps = 1.0e-3;
 
 const double normalSign = -1.;
 
@@ -53,7 +53,7 @@ const double timederiv = 0.;
 void AssembleMCF (MultiLevelProblem&);
 
 
-double dt0 = 6e-4;
+double dt0 = 6e-2;
 
 // Function to control the time stepping.
 double GetTimeStep (const double t) {
@@ -105,7 +105,7 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
@@ -117,9 +117,12 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/spot.med", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor);
 
+  const bool read_groups = false;                        //by default, if no argument is given, this is "true"
+  const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
+  mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh (numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -251,26 +254,26 @@ int main (int argc, char** args) {
   // Parameters for the main algorithm loop.
   unsigned numberOfTimeSteps = 1000u;
   unsigned printInterval = 1u;
-  
+
   std::fstream fs;
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
   if(iproc == 0) {
     fs.open ("Energy.txt", std::fstream::out);
   }
-  
-  
+
+
   // Main algorithm loop.
   for (unsigned time_step = 0; time_step < numberOfTimeSteps; time_step++) {
     system.CopySolutionToOldSolution();
     system.MGsolve();
-    
+
     double energy = GetPWillmoreEnergy(mlSol);
     double dt = system.GetIntervalTime();
     double time = system.GetTime();
     if(iproc == 0) fs << dt <<" " << time << " " << energy << std::endl;
 
-    dt0 *= 1.02;
+    dt0 *= 1.1;
 
     if (time_step % 1 == 0) {
       mlSol.GetWriter()->Write ("./output1", "linear", variablesToBePrinted, (time_step + 1) / printInterval);
@@ -289,7 +292,7 @@ int main (int argc, char** args) {
     if ( (time_step + 1) % printInterval == 0)
       mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "linear", variablesToBePrinted, (time_step + 1) / printInterval);
   }
-  
+
   if(iproc == 0) fs.close();
   return 0;
 }

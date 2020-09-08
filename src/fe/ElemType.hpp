@@ -48,7 +48,7 @@ namespace femus {
     public:
 
       /** constructor that receives Geometric Element and Gauss info */
-      elem_type(const char* geom_elem, const char* fe_order, const char* order_gauss);
+      elem_type(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* gauss_type = "legendre");
 
       /** destructor */
       virtual ~elem_type();
@@ -291,7 +291,7 @@ namespace femus {
     public:
 
       /** constructor */
-      elem_type_1D(const char* solid, const char* order, const char* gauss_order);
+      elem_type_1D(const char* solid, const char* order, const char* gauss_order, const char* gauss_type = "legendre");
 
       /** destructor */
       ~elem_type_1D() {
@@ -447,7 +447,7 @@ namespace femus {
     public:
 
       /** constructor */
-      elem_type_2D(const char* solid, const char* order, const char* gauss_order);
+      elem_type_2D(const char* solid, const char* order, const char* gauss_order, const char* gauss_type = "legendre");
 
       /** destructor */
       ~elem_type_2D() {
@@ -614,7 +614,7 @@ namespace femus {
     public:
 
       /** constructor */
-      elem_type_3D(const char* solid, const char* order, const char* gauss_order);
+      elem_type_3D(const char* solid, const char* order, const char* gauss_order, const char* gauss_type = "legendre");
 
       /** destructor */
       ~elem_type_3D() {

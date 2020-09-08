@@ -565,7 +565,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
                   Resu2_1[i] -=  cutOff * 1. * weight1[ig]  * phi1x[ig][i]; //Ax - f (so f = 1)
                 }
 
-                if (ielGroup == 9) {
+                if (ielGroup == 6 || ielGroup == 9) {
 
                   //lumped mass matrix
 //                   double Mlumped = phi1x[ig][i] * weight1[ig];
@@ -597,7 +597,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
                 }
               }
 
-              if (ielGroup == 9) {
+              if (ielGroup == 6 || ielGroup == 9) {
                 for (unsigned i = 0; i < nDofMu; i++) {
                   for (unsigned j = 0; j < nDof1; j++) {
                     double massMatrix = phi1x[ig][j] * weight1[ig] * phiL[i];
@@ -746,7 +746,7 @@ void AssembleNonLocalSysFETI (MultiLevelProblem& ml_prob) {
 
             KK->add_matrix_blocked (Jacmu, l2GMapmu_1, l2GMapmu_1);
 
-            if ( (iel == jel) && ielGroup == 9) {
+            if ( (iel == jel) && (ielGroup == 6 || ielGroup == 9)) {
               KK->add_matrix_blocked (M1, l2GMapmu_1, l2GMapu1_1); //M1 (mu rows and u1 columns)
               KK->add_matrix_blocked (M1T, l2GMapu1_1, l2GMapmu_1); //M1 transpose (u1 rows and mu columns)
               KK->add_matrix_blocked (M2, l2GMapmu_1, l2GMapu2_1); //M2 (mu rows and u2 columns)

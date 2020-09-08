@@ -11,13 +11,13 @@
  * print vtk and gmv binary-format files in ./output directory.
  **/
 
-#include "GaussPoints.hpp"
 #include "ElemType.hpp"
 #include <cmath>
 #include <iostream>
 #include <boost/math/special_functions/gamma.hpp>
 
 #include "gauss.hpp"
+#include "gaussLobatto.hpp"
 
 using namespace femus;
 
@@ -32,7 +32,11 @@ enum ORDER {
   THIRTY_SIXTH_ORDER, THIRTY_SEVENTH_ORDER, THIRTY_EIGHTH_ORDER, THIRTY_NINTH_ORDER
 };
 
-void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void CppLegendrePrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void HppLegendrePrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void CppLobattoPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+void HppLobattoPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
+
 void GnuPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ);
 double GetIntegral(const std::vector<unsigned> &n, const std::vector < std::vector<double> > & gaussQ);
 
@@ -43,7 +47,9 @@ void TestHexIntegral(const unsigned &m, const std::vector < std::vector < std::v
 void TestWedgeIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
 void TestTetIntegral(const unsigned &m, const std::vector < std::vector < std::vector<double> > > & gaussQ);
 
-void BuildGaussPoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3], std::vector < std::vector < double> > & gaussQ);
+void BuildGaussLegendrePoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3], std::vector < std::vector < double> > & gaussQ);
+void BuildGaussLobattoPoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3], std::vector < std::vector < double> > & gaussQ);
+
 
 int main(int argc, char** args) {
 
@@ -54,18 +60,28 @@ int main(int argc, char** args) {
   femAll[1] = new const elem_type_2D("quad", "linear", "zero");
   femAll[2] = new const elem_type_3D("hex", "linear", "zero");
 
-  unsigned maxOrder = SIXTEENTH_ORDER;
-  
+  unsigned maxOrder = THIRTY_SEVENTH_ORDER;
+
   for(unsigned k = 0; k < 6; k++) {
 
     std::vector < std::vector < std::vector < double> > > gaussQ(maxOrder + 1);
-    
+
     for(unsigned m = 0; m <= maxOrder; m++) {
-      BuildGaussPoints(geomElType[k], m, femAll,  gaussQ[m]);
+      BuildGaussLobattoPoints(geomElType[k], m, femAll,  gaussQ[m]);
     }
 
-    CppPrint(geomElType[k], gaussQ);
-    GnuPrint(geomElType[k], gaussQ);
+    CppLobattoPrint(geomElType[k], gaussQ);
+    HppLobattoPrint(geomElType[k], gaussQ);
+    
+    for(unsigned m = 0; m <= maxOrder; m++) {
+      BuildGaussLegendrePoints(geomElType[k], m, femAll,  gaussQ[m]);
+    }
+
+    CppLegendrePrint(geomElType[k], gaussQ);
+    HppLegendrePrint(geomElType[k], gaussQ);
+    
+    
+    //GnuPrint(geomElType[k], gaussQ);
 
     for(unsigned m = 0; m <= maxOrder + 5; m++) {
       if(HEX == geomElType[k]) {
@@ -94,12 +110,13 @@ int main(int argc, char** args) {
     delete femAll[k];
 }
 
-void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
+void CppLegendrePrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  std::string Name[6] = {"Hex", "Tet", "Wedge", "Quad", "Tri", "Line"};
 
   std::ostringstream ofilename;
-  ofilename << name[geomElType] << "GaussPoints.cpp";
+  ofilename << Name[geomElType] << "GaussLegendrePoints.cpp";
 
   std::string filename(ofilename.str());
 
@@ -125,20 +142,20 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vec
 
   fout << "=========================================================================*/" << std::endl << std::endl;
 
-  fout << "#include \"GaussPoints.hpp\"" << std::endl;
+  fout << "#include \"" << Name[geomElType] << "GaussLegendrePoints.hpp\"" << std::endl;
   fout << "#include <iostream>" << std::endl;
   fout << "#include <stdlib.h>" << std::endl;
   fout << "#include <string.h>" << std::endl << std::endl;
   fout << "namespace femus {" << std::endl;
 
-  fout << "const unsigned " << name[geomElType] << "_gauss::GaussPoints[" << gQsize << "] = {";
+  fout << "const unsigned " << name[geomElType] << "_gaussLegendre::GaussPoints[" << gQsize << "] = {";
   for(unsigned m = 0; m < gQsize; m++) {
     fout << gaussQ[m][0].size();
     if(m < gQsize - 1) fout << ", ";
   }
   fout << "};\n\n";
 
-  fout << "const double * " << name[geomElType] << "_gauss::Gauss[" << gQsize << "] = {";
+  fout << "const double * " << name[geomElType] << "_gaussLegendre::Gauss[" << gQsize << "] = {";
   for(unsigned m = 0; m < gQsize; m++) {
     fout << "Gauss" << m << "[0]";
     if(m < gQsize - 1) fout << ", ";
@@ -148,7 +165,7 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vec
   for(unsigned m = 0; m < gQsize; m++) {
     unsigned size = gaussQ[m][0].size();
     fout.precision(14);
-    fout << "const double " << name[geomElType] << "_gauss::Gauss" << m << "[" << dim + 1 << "][" <<  size << "] = {{";
+    fout << "const double " << name[geomElType] << "_gaussLegendre::Gauss" << m << "[" << dim + 1 << "][" <<  size << "] = {{";
     for(unsigned i = 0; i < size; i++) {
       fout << gaussQ[m][0][i];
       if(i < size - 1) fout << ", ";
@@ -167,7 +184,190 @@ void CppPrint(GeomElType &geomElType, const std::vector < std::vector < std::vec
   fout.close();
 }
 
-void GnuPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
+
+
+void HppLegendrePrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
+
+  std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  std::string Name[6] = {"Hex", "Tet", "Wedge", "Quad", "Tri", "Line"};
+
+  std::ostringstream ofilename;
+  ofilename << Name[geomElType] << "GaussLegendrePoints.hpp";
+
+  std::string filename(ofilename.str());
+
+  std::ofstream fout;
+  fout.open(filename);
+
+  unsigned gQsize = gaussQ.size();
+  unsigned dim = gaussQ[0].size() - 1;
+
+
+  fout << "/*=========================================================================" << std::endl << std::endl;
+
+  fout << "Program: FEMUS" << std::endl;
+  fout << "Module: Gauss" << std::endl;
+  fout << "Authors: Eugenio Aulisa, Giorgio Bornia, Erdi Kara" << std::endl << std::endl;
+
+  fout << "Copyright (c) FEMTTU" << std::endl;
+  fout << "All rights reserved." << std::endl << std::endl;
+
+  fout << "This software is distributed WITHOUT ANY WARRANTY; without even" << std::endl;
+  fout << "the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR" << std::endl;
+  fout << "PURPOSE.  See the above copyright notice for more information." << std::endl << std::endl;
+
+  fout << "=========================================================================*/" << std::endl << std::endl;
+
+  fout << "#ifndef __femus_quadrature_" << Name[geomElType] << "GaussLegendrePoints_hpp__" << std::endl;
+  fout << "#define __femus_quadrature_" << Name[geomElType] << "GaussLegendrePoints_hpp__" << std::endl << std::endl;
+
+  fout << "namespace femus {" << std::endl << std::endl;
+
+  fout << " class " << name[geomElType] << "_gaussLegendre {" << std::endl;
+  fout << " public:" << std::endl;
+  fout << " static const unsigned GaussPoints[" << gQsize << "];" << std::endl;
+  fout << " static const double *Gauss[" << gQsize << "];" << std::endl;
+
+  for(unsigned m = 0; m < gQsize; m++) {
+    unsigned size = gaussQ[m][0].size();
+    fout << " static const double Gauss" << m << "[" << dim + 1 << "][" <<  size << "];" << std::endl;
+  }
+  fout << " };" << std::endl << std::endl;
+  fout << " };" << std::endl << std::endl;
+  fout << "#endif";
+  fout.close();
+}
+
+void CppLobattoPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
+
+  std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  std::string Name[6] = {"Hex", "Tet", "Wedge", "Quad", "Tri", "Line"};
+
+  std::ostringstream ofilename;
+  ofilename << Name[geomElType] << "GaussLobattoPoints.cpp";
+
+  std::string filename(ofilename.str());
+
+  std::ofstream fout;
+  fout.open(filename);
+
+  unsigned gQsize = gaussQ.size();
+  unsigned dim = gaussQ[0].size() - 1;
+
+
+  fout << "/*=========================================================================" << std::endl << std::endl;
+
+  fout << "Program: FEMUS" << std::endl;
+  fout << "Module: Gauss" << std::endl;
+  fout << "Authors: Eugenio Aulisa, Giorgio Bornia, Erdi Kara" << std::endl << std::endl;
+
+  fout << "Copyright (c) FEMTTU" << std::endl;
+  fout << "All rights reserved." << std::endl << std::endl;
+
+  fout << "This software is distributed WITHOUT ANY WARRANTY; without even" << std::endl;
+  fout << "the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR" << std::endl;
+  fout << "PURPOSE.  See the above copyright notice for more information." << std::endl << std::endl;
+
+  fout << "=========================================================================*/" << std::endl << std::endl;
+
+  fout << "#include \"" << Name[geomElType] << "GaussLobattoPoints.hpp\"" << std::endl;
+  fout << "#include <iostream>" << std::endl;
+  fout << "#include <stdlib.h>" << std::endl;
+  fout << "#include <string.h>" << std::endl << std::endl;
+  fout << "namespace femus {" << std::endl;
+
+  fout << "const unsigned " << name[geomElType] << "_gaussLobatto::GaussPoints[" << gQsize << "] = {";
+  for(unsigned m = 0; m < gQsize; m++) {
+    fout << gaussQ[m][0].size();
+    if(m < gQsize - 1) fout << ", ";
+  }
+  fout << "};\n\n";
+
+  fout << "const double * " << name[geomElType] << "_gaussLobatto::Gauss[" << gQsize << "] = {";
+  for(unsigned m = 0; m < gQsize; m++) {
+    fout << "Gauss" << m << "[0]";
+    if(m < gQsize - 1) fout << ", ";
+  }
+  fout << "};\n\n";
+
+  for(unsigned m = 0; m < gQsize; m++) {
+    unsigned size = gaussQ[m][0].size();
+    fout.precision(14);
+    fout << "const double " << name[geomElType] << "_gaussLobatto::Gauss" << m << "[" << dim + 1 << "][" <<  size << "] = {{";
+    for(unsigned i = 0; i < size; i++) {
+      fout << gaussQ[m][0][i];
+      if(i < size - 1) fout << ", ";
+    }
+    for(unsigned k = 1; k <= dim; k++) {
+      fout << "},\n{";
+
+      for(unsigned i = 0; i < size; i++) {
+        fout << gaussQ[m][k][i];
+        if(i < size - 1) fout << ", ";
+      }
+    }
+    fout << "}};" << std::endl << std::endl;
+  }
+  fout << "}" << std::endl;
+  fout.close();
+}
+
+
+
+void HppLobattoPrint(GeomElType &geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
+
+  std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  std::string Name[6] = {"Hex", "Tet", "Wedge", "Quad", "Tri", "Line"};
+
+  std::ostringstream ofilename;
+  ofilename << Name[geomElType] << "GaussLobattoPoints.hpp";
+
+  std::string filename(ofilename.str());
+
+  std::ofstream fout;
+  fout.open(filename);
+
+  unsigned gQsize = gaussQ.size();
+  unsigned dim = gaussQ[0].size() - 1;
+
+
+  fout << "/*=========================================================================" << std::endl << std::endl;
+
+  fout << "Program: FEMUS" << std::endl;
+  fout << "Module: Gauss" << std::endl;
+  fout << "Authors: Eugenio Aulisa, Giorgio Bornia, Erdi Kara" << std::endl << std::endl;
+
+  fout << "Copyright (c) FEMTTU" << std::endl;
+  fout << "All rights reserved." << std::endl << std::endl;
+
+  fout << "This software is distributed WITHOUT ANY WARRANTY; without even" << std::endl;
+  fout << "the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR" << std::endl;
+  fout << "PURPOSE.  See the above copyright notice for more information." << std::endl << std::endl;
+
+  fout << "=========================================================================*/" << std::endl << std::endl;
+
+  fout << "#ifndef __femus_quadrature_" << Name[geomElType] << "GaussLobattoPoints_hpp__" << std::endl;
+  fout << "#define __femus_quadrature_" << Name[geomElType] << "GaussLobattoPoints_hpp__" << std::endl << std::endl;
+
+  fout << "namespace femus {" << std::endl << std::endl;
+
+  fout << " class " << name[geomElType] << "_gaussLobatto {" << std::endl;
+  fout << " public:" << std::endl;
+  fout << " static const unsigned GaussPoints[" << gQsize << "];" << std::endl;
+  fout << " static const double *Gauss[" << gQsize << "];" << std::endl;
+
+  for(unsigned m = 0; m < gQsize; m++) {
+    unsigned size = gaussQ[m][0].size();
+    fout << " static const double Gauss" << m << "[" << dim + 1 << "][" <<  size << "];" << std::endl;
+  }
+  fout << " };" << std::endl << std::endl;
+  fout << " };" << std::endl << std::endl;
+  fout << "#endif";
+  fout.close();
+}
+
+
+void GnuPrint(GeomElType & geomElType, const std::vector < std::vector < std::vector<double> > > & gaussQ) {
 
   std::string name[6] = {"hex", "tet", "wedge", "quad", "tri", "line"};
 
@@ -316,7 +516,7 @@ void TestTetIntegral(const unsigned & order, const std::vector < std::vector < s
 
 }
 
-void BuildGaussPoints(GeomElType &geomElType, const unsigned &m, const elem_type *femAll[3],
+void BuildGaussLegendrePoints(GeomElType & geomElType, const unsigned & m, const elem_type * femAll[3],
                       std::vector < std::vector < double> > &gaussQ) {
 
   std::vector < std::vector < double > > xv;
@@ -462,4 +662,119 @@ void BuildGaussPoints(GeomElType &geomElType, const unsigned &m, const elem_type
   //delete fem;
 }
 
+void BuildGaussLobattoPoints(GeomElType & geomElType, const unsigned & m, const elem_type * femAll[3],
+                             std::vector < std::vector < double> > &gaussQ) {
 
+  std::vector < std::vector < double > > xv;
+  unsigned nv;
+  unsigned dim;
+  std::vector < unsigned > dm;
+  unsigned m1 = 0;
+
+  if(HEX == geomElType) {
+    nv = 8;
+    dim = 3;
+    dm.assign(dim, 0);
+    xv = {{ -1., 1., 1., -1., -1., 1., 1., -1.},
+      { -1., -1., 1., 1., -1., -1., 1., 1.},
+      { -1., -1., -1., -1., 1., 1., 1., 1.}
+    }; //hex to hex mapping
+  }
+  else if(TET == geomElType) {
+    nv = 8;
+    dim = 3;
+    dm.assign(dim, 2);
+
+    xv = {{0, 1, 0.5, 0., 0., 0.5, 1. / 3., 0},
+      {0, 0, 0.5, 1., 0., 0., 1. / 3., 0.5},
+      {0, 0, 0, 0, 1, 0.5, 1. / 3., 0.5}
+    }; //hex to tet mapping
+  }
+  else if(WEDGE == geomElType) {
+    nv = 8;
+    dim = 3;
+    dm.assign(dim, 1);
+    dm[2] = 0;
+    xv = {{0., 1., 0.5, 0., 0., 1., 0.5, 0.},
+      {0., 0., 0.5, 1., 0., 0., 0.5, 1.},
+      { -1., -1., -1., -1., 1., 1., 1., 1.}
+    }; //hex to wedge mapping
+  }
+  else if(QUAD == geomElType) {
+    nv = 4;
+    dim = 2;
+    dm.assign(dim, 0);
+    xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}}; //quad to quad mapping
+  }
+  else if(TRI == geomElType) {
+    nv = 4;
+    dim = 2;
+    dm.assign(dim, 1);
+    xv = {{0., 1., 0.5, 0.}, {0., 0., 0.5, 1.}}; //quad to tri mapping
+  }
+  else if(LINE == geomElType) {
+    nv = 2;
+    dim = 1;
+    dm.assign(dim, 0);
+    m1 = 44;
+    xv = {{ -1., 1.}}; //line to line mapping
+  }
+  else {
+    abort();
+  }
+
+  gaussQ.resize(dim + 1);
+
+  if(m < m1) {
+    if(geomElType == LINE) {
+      gaussQ = lineGaussLobatto[m];
+    }
+  }
+  else {
+    std::vector <double> phi;  // local test function
+    std::vector <double> phi_x; // local test function first order partial derivatives
+    double jac;
+
+    const elem_type *fem = femAll[dim - 1];
+
+    unsigned size = 1;
+    std::vector < unsigned > ng(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      ng[k] = (m + dm[k]) / 2 + 2;
+      size *= ng[k];
+    }
+
+    for(unsigned k = 0; k <= dim; k++) {
+      gaussQ[k].resize(size);
+    }
+    std::vector < double > xi(dim);
+    std::vector <unsigned> I(dim);
+    std::vector <unsigned> NG(dim);
+    NG[dim - 1] = 1;
+    for(unsigned k = dim - 1 ; k > 0;  k--) {
+      NG[k - 1] = NG[k] * ng[k];
+    }
+
+    for(unsigned cnt = 0; cnt < size ; cnt++) {
+      I[0] = cnt / NG[0];
+      for(unsigned k = 1; k < dim ; k++) {
+        unsigned pk = cnt % NG[k - 1];
+        I[k] = pk / NG[k];
+      }
+      gaussQ[0][cnt] = 1.;
+      for(unsigned k = 0; k < dim; k++) {
+        gaussQ[0][cnt] *= lineGaussLobatto[m + dm[k]][0][I[k]];
+        xi[k] = lineGaussLobatto[m + dm[k]][1][I[k]];
+      }
+      fem->Jacobian(xv, xi, jac, phi, phi_x);
+      gaussQ[0][cnt] *= jac;
+      for(unsigned k = 0; k < dim; k++) {
+        gaussQ[k + 1][cnt] = 0.;
+        for(unsigned ii = 0; ii < nv; ii++) {
+          gaussQ[k + 1][cnt] += phi[ii] * xv[k][ii];
+        }
+      }
+    }
+  }
+  //delete fem;
+}

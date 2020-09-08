@@ -11,7 +11,22 @@
 
 #define FACE_FOR_CONTROL             1
 
+
 #include "../../param.hpp"
+
+#define IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY    0
+
+
+#define N_UNIFORM_LEVELS  2
+#define N_ERASED_LEVELS   1
+#define S_FRAC 0.75
+
+#define OP_Hhalf    1
+
+#define USE_Cns     1
+
+#define Nsplit      4
+
 
 
 #define FE_DOMAIN  2 //with 0 it only works in serial, you must put 2 to make it work in parallel...: that's because when you fetch the dofs from _topology you get the wrong indices
@@ -157,25 +172,26 @@ int main(int argc, char** args) {
    //1: bottom  //2: right  //3: top  //4: left (in 2d) GenerateCoarseBoxMesh 
   
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   ml_mesh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
   ml_mesh.EraseCoarseLevels(numberOfUniformLevels - 1);
   ml_mesh.PrintInfo();
+  unsigned dim = ml_mesh.GetDimension();
 
   // ======= Solution  ==================
   MultiLevelSolution ml_sol(&ml_mesh);
 
-  ml_sol.AddSolution("state",   LAGRANGE, SECOND/*FIRST*/);
-  ml_sol.AddSolution("control", LAGRANGE, SECOND/*FIRST*/);
-  ml_sol.AddSolution("adjoint", LAGRANGE, SECOND/*FIRST*/);
-  ml_sol.AddSolution("mu",      LAGRANGE, SECOND/*FIRST*/);  //MU
+  ml_sol.AddSolution("state",   LAGRANGE, /*SECOND*/FIRST);
+  ml_sol.AddSolution("control", LAGRANGE, /*SECOND*/FIRST);
+  ml_sol.AddSolution("adjoint", LAGRANGE, /*SECOND*/FIRST);
+  ml_sol.AddSolution("mu",      LAGRANGE, /*SECOND*/FIRST);  //MU
   ml_sol.AddSolution("TargReg", DISCONTINUOUS_POLYNOMIAL, ZERO); //this variable is not solution of any eqn, it's just a given field
   ml_sol.AddSolution("ContReg", DISCONTINUOUS_POLYNOMIAL, ZERO); //this variable is not solution of any eqn, it's just a given field
   //MU
   const unsigned int fake_time_dep_flag = 2;
   const std::string act_set_flag_name = "act_flag";
-  ml_sol.AddSolution(act_set_flag_name.c_str(), LAGRANGE, SECOND/*FIRST*/, fake_time_dep_flag);               //this variable is not solution of any eqn, it's just a given field
+  ml_sol.AddSolution(act_set_flag_name.c_str(), LAGRANGE, /*SECOND*/FIRST, fake_time_dep_flag);               //this variable is not solution of any eqn, it's just a given field
   //MU
 
   if ( ml_sol.GetSolutionType("control") != ml_sol.GetSolutionType("state")) abort();
@@ -219,14 +235,19 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("adjoint");  
   system.AddSolutionToSystemPDE("mu");     //MU
   
+  unsigned dimension = pow ( pow(2, numberOfUniformLevels) * 2 + 1, dim );
+  system.SetSparsityPatternMinimumSize (dimension, "control");
+
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleOptSys);
-  
+
+// *****************
   ml_sol.SetWriter(VTK);
   ml_sol.GetWriter()->SetDebugOutput(true);
 
   system.SetDebugNonlinear(true);
   system.SetDebugFunction(ComputeIntegral);  //weird error if I comment this line, I expect nothing to happen but something in the assembly gets screwed up in memory I guess
+// *****************
    
 //   // initialize and solve the system
   system.init();
@@ -285,6 +306,7 @@ void AssembleOptSys(MultiLevelProblem& ml_prob) {
   const unsigned max_size = static_cast< unsigned >(ceil(pow(3, dim)));
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
 
   constexpr bool print_algebra_global = false;
   constexpr bool print_algebra_local = false;
@@ -507,8 +529,122 @@ void AssembleOptSys(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < /*const*/ elem_type_templ_base<double, double> *  > > elem_all;
   ml_prob.get_all_abstract_fe(elem_all);
 //*************************************************** 
- 
-    
+//***************************************************
+  
+  const double s_frac = S_FRAC;
+
+  const double check_limits = 1.;//1./(1. - s_frac); // - s_frac;
+
+  double C_ns = 2 * (1 - USE_Cns) + USE_Cns * s_frac * pow(2, (2. * s_frac)) * tgamma((dim + 2. * s_frac) / 2.) / (pow(M_PI, dim / 2.) * tgamma(1 -  s_frac)) ;
+
+     control_eqn_bdry_fractional(iproc,
+                   nprocs,
+                    ml_prob,
+                    ml_sol,
+                    sol,
+                    msh,
+                    pdeSys,
+                    //-----------
+                    geom_element,
+                    geom_element,
+                    solType_coords,
+                    dim,
+                    space_dim,
+                    //-----------
+                    n_unknowns,
+                    Solname_Mat,
+                    SolFEType_Mat,
+                    SolIndex_Mat,
+                    SolPdeIndex,
+                    Sol_n_el_dofs_Mat, 
+                    sol_eldofs_Mat,  
+                    L2G_dofmap_Mat,
+                    L2G_dofmap_Mat_AllVars,
+                    max_size,
+                    //-----------
+                    Res,
+                    Jac,
+                    //-----------
+                    n_quantities,
+                    SolFEType_quantities,
+                    Sol_n_el_dofs_quantities,
+                    //-----------
+                    elem_all,
+                    Jac_qp_bdry,
+                    JacI_qp_bdry,
+                    detJac_qp_bdry,
+                    weight_bdry,
+                    phi_ctrl_bdry,
+                    phi_ctrl_x_bdry, 
+                    //-----------
+                    pos_mat_ctrl,
+                    pos_sol_ctrl,
+                    IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY,
+                    //-----------
+                    KK,
+                    RES,
+                    assembleMatrix,
+                    //-----------
+                    alpha,
+                    beta,     
+                    Nsplit,
+                    s_frac,
+                    check_limits,
+                    C_ns,
+                    OP_Hhalf
+                    ) ;
+                    
+                    
+  
+//    control_eqn_bdry(iproc,
+//                     ml_prob,
+//                     ml_sol,
+//                     sol,
+//                     msh,
+//                     pdeSys,
+//                     //-----------
+//                     geom_element,
+//                     solType_coords,
+//                     space_dim,
+//                     //-----------
+//                     n_unknowns,
+//                     Solname_Mat,
+//                     SolFEType_Mat,
+//                     SolIndex_Mat,
+//                     SolPdeIndex,
+//                     Sol_n_el_dofs_Mat, 
+//                     sol_eldofs_Mat,  
+//                     L2G_dofmap_Mat,
+//                     L2G_dofmap_Mat_AllVars,
+//                     //-----------
+//                     Res,
+//                     Jac,
+//                     //-----------
+//                     n_quantities,
+//                     SolFEType_quantities,
+//                     Sol_n_el_dofs_quantities,
+//                     //-----------
+//                     elem_all,
+//                     Jac_qp_bdry,
+//                     JacI_qp_bdry,
+//                     detJac_qp_bdry,
+//                     weight_bdry,
+//                     phi_ctrl_bdry,
+//                     phi_ctrl_x_bdry, 
+//                     //-----------
+//                     pos_mat_ctrl,
+//                     pos_sol_ctrl,
+//                     IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY,
+//                     //-----------
+//                     KK,
+//                     RES,
+//                     assembleMatrix,
+//                     //-----------
+//                     alpha,
+//                     beta     
+//                     ) ;
+  
+  
   // element loop: each process loops only on the elements that owns
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -544,9 +680,9 @@ void AssembleOptSys(MultiLevelProblem& ml_prob) {
 
       
       
-  //************* set target domain flag **************
    geom_element.set_elem_center(iel, solType_coords);
 
+  //************* set target domain flag **************
    int target_flag = 0;
    target_flag = ElementTargetFlag(geom_element.get_elem_center());
  //*************************************************** 
@@ -619,9 +755,9 @@ void AssembleOptSys(MultiLevelProblem& ml_prob) {
     
     weight_bdry = detJac_qp_bdry * ml_prob.GetQuadratureRule(ielGeom_bdry).GetGaussWeightsPointer()[ig_bdry];
 
-    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_ctrl]] ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_ctrl_bdry, phi_ctrl_x_bdry, phi_xx_bdry_placeholder, space_dim);
-    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_state]]->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_u_bdry, phi_u_x_bdry,  phi_xx_bdry_placeholder, space_dim);
-    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_adj]]  ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_adj_bdry, phi_adj_x_bdry,  phi_xx_bdry_placeholder, space_dim);
+    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_ctrl]] ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_ctrl_bdry, phi_ctrl_x_bdry, boost::none, space_dim);
+    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_state]]->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_u_bdry, phi_u_x_bdry,  boost::none, space_dim);
+    elem_all[ielGeom_bdry][SolFEType_quantities[pos_sol_adj]]  ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_adj_bdry, phi_adj_x_bdry,  boost::none, space_dim);
 
 
     elem_all[ielGeom][solType_coords]->JacJacInv_vol_at_bdry_new(geom_element.get_coords_at_dofs_3d(), ig_bdry, jface, Jac_qp/*not_needed_here*/, JacI_qp, detJac_qp/*not_needed_here*/, space_dim);
@@ -696,8 +832,8 @@ void AssembleOptSys(MultiLevelProblem& ml_prob) {
 
 
                 Res[ assemble_jacobian<double,double>::res_row_index(Sol_n_el_dofs_Mat,pos_mat_ctrl,i_vol) ]  +=  - control_node_flag[i_vol] *  weight_bdry *
-                                                                                (    alpha * phi_ctrl_bdry[i_bdry] * sol_ctrl_bdry_gss
-							                           +  beta * lap_rhs_dctrl_ctrl_bdry_gss_i 
+                                                                                (    IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY * alpha * phi_ctrl_bdry[i_bdry] * sol_ctrl_bdry_gss
+							                           +  IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY * beta * lap_rhs_dctrl_ctrl_bdry_gss_i 
 							                           - grad_adj_dot_n_res * phi_ctrl_bdry[i_bdry]
 // 							                           -         phi_ctrl_bdry[i_bdry]*sol_adj_bdry_gss // for Neumann control
 							                         );  //boundary optimality condition
@@ -731,8 +867,8 @@ if ( i_vol == j_vol )  {
 
           
               Jac[ assemble_jacobian<double,double>::jac_row_col_index(Sol_n_el_dofs_Mat, sum_Sol_n_el_dofs, pos_mat_ctrl, pos_mat_ctrl, i_vol, j_vol) ] 
-			+=  control_node_flag[i_vol] *  weight_bdry * (alpha * phi_ctrl_bdry[i_bdry] * phi_ctrl_bdry[j_bdry] 
-			                                              + beta *  lap_mat_dctrl_ctrl_bdry_gss);   
+			+=  control_node_flag[i_vol] *  weight_bdry * ( IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY * alpha * phi_ctrl_bdry[i_bdry] * phi_ctrl_bdry[j_bdry] 
+			                                              +  IS_BLOCK_DCTRL_CTRL_INSIDE_BDRY * beta *  lap_mat_dctrl_ctrl_bdry_gss);   
     
 		   
 //============ End Bdry Jacobians ==================	
@@ -1094,11 +1230,9 @@ void ComputeIntegral(const MultiLevelProblem& ml_prob)    {
  //***************************************************
   vector <double> phi_ctrl_bdry;  
   vector <double> phi_ctrl_x_bdry; 
-  vector <double> phi_xx_bdry_placeholder;
 
   phi_ctrl_bdry.reserve(max_size);
   phi_ctrl_x_bdry.reserve(max_size * space_dim);
-  phi_xx_bdry_placeholder.reserve(max_size * dim2);
 
   unsigned solIndex_ctrl = ml_sol->GetIndex("control");
   unsigned solType_ctrl = ml_sol->GetSolutionType(solIndex_ctrl);
@@ -1243,7 +1377,7 @@ void ComputeIntegral(const MultiLevelProblem& ml_prob)    {
 		  
     elem_all[ielGeom_bdry][solType_coords]->JacJacInv(geom_element.get_coords_at_dofs_bdry_3d(), ig_bdry, Jac_qp_bdry, JacI_qp_bdry, detJac_qp_bdry, space_dim);
     weight_bdry = detJac_qp_bdry * ml_prob.GetQuadratureRule(ielGeom_bdry).GetGaussWeightsPointer()[ig_bdry];
-    elem_all[ielGeom_bdry][solType_ctrl] ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_ctrl_bdry, phi_ctrl_x_bdry, phi_xx_bdry_placeholder, space_dim);
+    elem_all[ielGeom_bdry][solType_ctrl] ->shape_funcs_current_elem(ig_bdry, JacI_qp_bdry, phi_ctrl_bdry, phi_ctrl_x_bdry, boost::none, space_dim);
 
 		  
 		 //========== compute gauss quantities on the boundary ===============================================
