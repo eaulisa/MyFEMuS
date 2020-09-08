@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
   system.AddSolutionToSystemPDE("u");
 
   // ******* System FEM Assembly *******
-  system.SetAssembleFunction(AssembleNonLocalSysRefined);
+  system.SetAssembleFunction(AssembleNonLocalWithSymmetricRefinenemnt);
   //system.SetAssembleFunction(AssembleNonLocalSys);
   system.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
 
   // ******* System FEM Assembly *******
   //systemFine.SetAssembleFunction(AssembleNonLocalSys);
-  systemFine.SetAssembleFunction(AssembleNonLocalSysRefined);
+  systemFine.SetAssembleFunction(AssembleNonLocalWithSymmetricRefinenemnt);
   systemFine.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   systemFine.SetMgType(V_CYCLE);

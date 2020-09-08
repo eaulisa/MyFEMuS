@@ -96,7 +96,8 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
 //BEGIN New functions: GetIntegral on refined mesh (needs the RefineElement class)
 
 
-void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
+
+void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
 
   LinearImplicitSystem* mlPdeSys;
 
@@ -147,20 +148,20 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   //BEGIN setup for adaptive integration
-  unsigned lmin = 0;
-  unsigned lmax = 4;
+  unsigned lmin = 1;
+  unsigned lmax = 2;
 
   double dMax = 0.1;
   double eps0 = dMax * 0.25;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = 0.125 * delta1;// * pow(0.5, 3 - 1);
 
-  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " "<< " lmax = " << lmax << std::endl;
+  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax = " << lmax << std::endl;
 
   RefineElement *refineElement[6][3];
 
   refineElement[3][0] = new RefineElement("quad", "linear", "fifth", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement("quad", "quadratic", "fifteenth", "fifth", "fifth", "legendre");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "ninth", "ninth", "ninth", "legendre");
   refineElement[3][2] = new RefineElement("quad", "biquadratic", "fifth", "fifth", "fifth", "legendre");
 
   refineElement[4][0] = new RefineElement("tri", "linear", "fifth", "fifth", "fifth", "legendre");
@@ -244,7 +245,256 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
         MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
       }
 
-      refineElement[jelGeom][soluType]->InitElement(x2, lmax);
+      refineElement[jelGeom][soluType]->InitElement2(x2, lmax);
+
+      for(unsigned k = 0; k < dim; k++) {
+        x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
+      }
+
+      for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+        short unsigned ielGeom = msh->GetElementType(iel);
+        short unsigned ielGroup = msh->GetElementGroup(iel);
+        unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
+
+        l2GMap1.resize(nDof1);
+        solu1.resize(nDof1);
+
+        for(int k = 0; k < dim; k++) {
+          x1[k].resize(nDof1);
+        }
+
+        for(unsigned i = 0; i < nDof1; i++) {
+
+          unsigned uDof = msh->GetSolutionDof(i, iel, soluType);
+          solu1[i] = (*sol->_Sol[soluIndex])(uDof);
+
+          l2GMap1[i] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, i, iel);
+
+          unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
+          for(unsigned k = 0; k < dim; k++) {
+            x1[k][i] = (*msh->_topology->_Sol[k])(xDof);
+          }
+        }
+
+        for(unsigned k = 0; k < dim; k++) {
+          x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
+        }
+
+        double radius = delta1;
+
+        bool coarseIntersectionTest = true;
+        for(unsigned k = 0; k < dim; k++) {
+          if((*x1MinMax[k].first  - *x2MinMax[k].second) > radius + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > radius + eps) {
+            coarseIntersectionTest = false;
+            break;
+          }
+        }
+
+
+        if(true || iel >= jel) {
+          if(coarseIntersectionTest) {
+            nonlocal->ZeroLocalQuantities(nDof1, nDof2);
+
+            refineElement[ielGeom][soluType]->InitElement1(x1, lmax);
+
+            bool ielEqualJel = (iel == jel) ? true : false;
+            bool printMesh = false;
+
+
+            nonlocal->Assembly1(0, lmin, lmax, 0,
+                                *refineElement[ielGeom][soluType], *refineElement[jelGeom][soluType],
+                                solu1, solu2, kappa1, delta1, ielEqualJel, printMesh);
+
+            KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
+            RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
+
+//             KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
+//             KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
+//             RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
+
+          }
+
+        }// end if coarse intersection
+      } //end iel loop
+    } //end jel loop
+  } //end kproc loop
+
+  RES->close();
+  KK->close();
+
+  delete nonlocal;
+  delete refineElement[3][0];
+  delete refineElement[3][1];
+  delete refineElement[3][2];
+  delete refineElement[4][0];
+  delete refineElement[4][1];
+  delete refineElement[4][2];
+
+  //KK->draw();
+
+  // ***************** END ASSEMBLY *******************
+}
+
+
+
+
+
+
+
+
+
+
+void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
+
+  LinearImplicitSystem* mlPdeSys;
+
+  mlPdeSys = &ml_prob.get_system<LinearImplicitSystem> ("NonLocal");
+
+  const unsigned level = mlPdeSys->GetLevelToAssemble();
+
+  Mesh*                    msh = ml_prob._ml_msh->GetLevel(level);
+  elem*                     el = msh->el;
+
+  MultiLevelSolution*    mlSol = ml_prob._ml_sol;
+  Solution*                sol = ml_prob._ml_sol->GetSolutionLevel(level);
+
+  LinearEquationSolver* pdeSys = mlPdeSys->_LinSolver[level];
+  SparseMatrix*            KK = pdeSys->_KK;
+  NumericVector*           RES = pdeSys->_RES;
+
+  const unsigned  dim = msh->GetDimension();
+
+  unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  unsigned nprocs = msh->n_processors(); // get the noumber of processes (for parallel computation)
+
+  unsigned soluIndex;
+  unsigned soluPdeIndex;
+
+  soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
+  soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
+  unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
+
+  std::vector < double >  solu1; // local solution for the nonlocal assembly
+  std::vector < double >  solu2; // local solution for the nonlocal assembly
+
+  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  std::vector < vector < double > > x1(dim);
+  std::vector < vector < double > > x2(dim);
+
+  std::vector< unsigned > l2GMap1; // local to global mapping
+  std::vector< unsigned > l2GMap2; // local to global mapping
+
+  std::vector < std::vector < double > > xg1;
+  std::vector <double> weight1;
+  std::vector <const double *> phi1x;
+
+  std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > x1MinMax(dim);
+  std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > x2MinMax(dim);
+
+  RES->zero();
+  KK->zero(); // Set to zero all the entries of the Global Matrix
+
+  //BEGIN setup for adaptive integration
+  unsigned lmin = 0;
+  unsigned lmax = 3;
+
+  double dMax = 0.1;
+  double eps0 = dMax * 0.25;
+  //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
+  double eps = 0.125 * delta1;// * pow(0.5, 3 - 1);
+
+  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax = " << lmax << std::endl;
+
+  RefineElement *refineElement[6][3];
+
+  refineElement[3][0] = new RefineElement("quad", "linear", "fifth", "fifth", "fifth", "legendre");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "fifth", "fifth", "fifth", "legendre");
+  refineElement[3][2] = new RefineElement("quad", "biquadratic", "fifth", "fifth", "fifth", "legendre");
+
+  refineElement[4][0] = new RefineElement("tri", "linear", "fifth", "fifth", "fifth", "legendre");
+  refineElement[4][1] = new RefineElement("tri", "quadratic", "fifth", "fifth", "fifth", "legendre");
+  refineElement[4][2] = new RefineElement("tri", "biquadratic", "fifth", "fifth", "fifth", "legendre");
+
+//   refineElement[3][0] = new RefineElement("quad", "linear", "first", "fifth", "fifth", "legendre");
+//   refineElement[3][1] = new RefineElement("quad", "quadratic", "first", "fifth", "fifth", "legendre");
+//   refineElement[3][2] = new RefineElement("quad", "biquadratic", "first", "fifth", "fifth", "legendre");
+//
+//   refineElement[4][0] = new RefineElement("tri", "linear", "first", "fifth", "fifth", "legendre");
+//   refineElement[4][1] = new RefineElement("tri", "quadratic", "first", "fifth", "fifth", "legendre");
+//   refineElement[4][2] = new RefineElement("tri", "biquadratic", "first", "fifth", "fifth", "legendre");
+
+  refineElement[3][soluType]->SetConstants(eps, eps0);
+  refineElement[4][soluType]->SetConstants(eps, eps0);
+
+  //NonLocal *nonlocal = new NonLocalBox();
+  NonLocal *nonlocal = new NonLocalBall();
+
+  fout.open("mesh.txt");
+  fout.close();
+
+  unsigned nel = msh->_elementOffset[nprocs];
+  unsigned ng = refineElement[3][soluType]->GetFEMCoarse().GetGaussPointNumber();
+
+  std::vector< std::vector<double> > AREA(nel);
+  std::vector< std::vector<double> > MXX(nel);
+  std::vector< std::vector<double> > MYY(nel);
+  std::vector< std::vector<double> > MXY(nel);
+
+  for(unsigned iel = 0; iel < nel; iel++) {
+    AREA[iel].assign(ng, 0.);
+    MXX[iel].assign(ng, 0.);
+    MYY[iel].assign(ng, 0.);
+    MXY[iel].assign(ng, 0.);
+  }
+
+  //BEGIN nonlocal assembly
+  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+    for(unsigned jel = msh->_elementOffset[kproc]; jel < msh->_elementOffset[kproc + 1]; jel++) {
+
+      short unsigned jelGeom;
+      short unsigned jelGroup;
+      unsigned nDof2;
+
+      if(iproc == kproc) {
+        jelGeom = msh->GetElementType(jel);
+        jelGroup = msh->GetElementGroup(jel);
+        nDof2  = msh->GetElementDofNumber(jel, soluType);
+      }
+
+      MPI_Bcast(&jelGeom, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&jelGroup, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&nDof2, 1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
+
+      l2GMap2.resize(nDof2);
+      solu2.resize(nDof2);
+      for(unsigned k = 0; k < dim; k++) {
+        x2[k].resize(nDof2);
+      }
+
+      if(iproc == kproc) {
+        for(unsigned j = 0; j < nDof2; j++) {
+
+          unsigned uDof = msh->GetSolutionDof(j, jel, soluType);
+          solu2[j] = (*sol->_Sol[soluIndex])(uDof);
+
+          l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
+
+          unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
+          for(unsigned k = 0; k < dim; k++) {
+            x2[k][j] = (*msh->_topology->_Sol[k])(xDof);
+          }
+        }
+      }
+
+      MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&solu2[0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+      for(unsigned k = 0; k < dim; k++) {
+        MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+      }
+
+      refineElement[jelGeom][soluType]->InitElement2(x2, lmax);
 
       for(unsigned k = 0; k < dim; k++) {
         x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
@@ -292,18 +542,6 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
         if(coarseIntersectionTest) {
 
-//           if((iel == 40 && jel == 40)) {
-//             std::cout<<"{";
-//             for(unsigned k = 0; k < dim; k++) {
-//               std::cout<<"{";
-//               for(unsigned j = 0; j < nDof1; j++) {
-//                 std::cout << x1[k][j] << ", ";
-//               }
-//               std::cout<<"},";
-//             }
-//             std::cout<<"};";
-//           }
-
 
           nonlocal->ZeroLocalQuantities(nDof1, nDof2);
           unsigned igNumber =  refineElement[ielGeom][soluType]->GetFEMCoarse().GetGaussPointNumber();
@@ -324,13 +562,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
             }
           }
 
-
-
           bool printMesh = false;
-//           if(iel == 40) {
-//             printMesh = true;
-          //std::cout << xg1[ig][0] << " " << xg1[ig][1]<<std::endl;
-//           }
 
           std::vector < double > area(igNumber , 0.);
           std::vector <unsigned> igr(igNumber);
@@ -485,7 +717,7 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
   double errorLaplace = 0;
   double errorMixed = 0;
   double errorKernel = 0;
-  
+
   for(unsigned iel = 0; iel < nel; iel++) {
     short unsigned ielGroup = msh->GetElementGroup(iel);
 
@@ -493,18 +725,18 @@ void AssembleNonLocalSysRefined(MultiLevelProblem& ml_prob) {
 
     if(ielGroup == 7) {
       for(unsigned ig = 0; ig < ng; ig++) {
-        errorArea = (fabs(AREA[iel][ig] - area) > errorArea  ) ? fabs(AREA[iel][ig] - area): errorArea;  
-        errorLaplace = (fabs(MXX[iel][ig] - MYY[iel][ig]) > errorLaplace  ) ? fabs(MXX[iel][ig] - MYY[iel][ig]) : errorLaplace;  
-        errorMixed = (fabs(MXY[iel][ig] ) > errorMixed  ) ? fabs(MXY[iel][ig] ) : errorMixed;  
-        errorKernel = (fabs(1./(MXX[iel][ig] + MYY[iel][ig]) - kernel) > errorKernel  ) ? fabs(1./(MXX[iel][ig] + MYY[iel][ig]) - kernel) : errorKernel ;  
-          
+        errorArea = (fabs(AREA[iel][ig] - area) > errorArea) ? fabs(AREA[iel][ig] - area) : errorArea;
+        errorLaplace = (fabs(MXX[iel][ig] - MYY[iel][ig]) > errorLaplace) ? fabs(MXX[iel][ig] - MYY[iel][ig]) : errorLaplace;
+        errorMixed = (fabs(MXY[iel][ig]) > errorMixed) ? fabs(MXY[iel][ig]) : errorMixed;
+        errorKernel = (fabs(1. / (MXX[iel][ig] + MYY[iel][ig]) - kernel) > errorKernel) ? fabs(1. / (MXX[iel][ig] + MYY[iel][ig]) - kernel) : errorKernel ;
+
         //std::cout << iel << " " << ig << " " << AREA[iel][ig] << " " << area << " " << MXX[iel][ig] << "  " <<  MYY[iel][ig] << "  " <<
         // 2. * kappa1 / (MXX[iel][ig] + MYY[iel][ig])<<" "<< kernel<<" " <<  MXY[iel][ig] << std::endl;
       }
     }
   }
 
-  std::cout << errorArea/area <<" " << errorLaplace << " " << errorMixed << " " << errorKernel/kernel << std::endl;
+  std::cout << errorArea / area << " " << errorLaplace << " " << errorMixed << " " << errorKernel / kernel << std::endl;
 
   delete nonlocal;
   delete refineElement[3][0];
