@@ -161,7 +161,7 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
   RefineElement *refineElement[6][3];
 
   refineElement[3][0] = new RefineElement("quad", "linear", "fifth", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement("quad", "quadratic", "ninth", "ninth", "ninth", "legendre");
+  refineElement[3][1] = new RefineElement("quad", "quadratic", "fifth", "fifth", "fifth", "legendre");
   refineElement[3][2] = new RefineElement("quad", "biquadratic", "fifth", "fifth", "fifth", "legendre");
 
   refineElement[4][0] = new RefineElement("tri", "linear", "fifth", "fifth", "fifth", "legendre");
