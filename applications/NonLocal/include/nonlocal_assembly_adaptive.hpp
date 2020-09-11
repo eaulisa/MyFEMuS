@@ -149,14 +149,16 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
   unsigned lmin = 1;
-  unsigned lmax = 2;
+  
+  unsigned lmax1 = 1;
+  unsigned lmax2 = 4;
 
   double dMax = 0.1;
   double eps0 = dMax * 0.25;
   //for a given level max of refinement eps is the characteristic length really used for the unit step function: eps = eps0 * 0.5^lmax
   double eps = 0.125 * delta1;// * pow(0.5, 3 - 1);
 
-  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax = " << lmax << std::endl;
+  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmax2 = " << lmax2 <<std::endl;
 
   RefineElement *refineElement[6][3];
 
@@ -245,7 +247,7 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
         MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
       }
 
-      refineElement[jelGeom][soluType]->InitElement2(x2, lmax);
+      refineElement[jelGeom][soluType]->InitElement2(x2, lmax2);
 
       for(unsigned k = 0; k < dim; k++) {
         x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
@@ -292,17 +294,17 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
         }
 
 
-        if(true || iel >= jel) {
+        if(iel >= jel || lmax1 != lmax2) {
           if(coarseIntersectionTest) {
             nonlocal->ZeroLocalQuantities(nDof1, nDof2);
 
-            refineElement[ielGeom][soluType]->InitElement1(x1, lmax);
+            refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
 
             bool ielEqualJel = (iel == jel) ? true : false;
             bool printMesh = false;
 
 
-            nonlocal->Assembly1(0, lmin, lmax, 0,
+            nonlocal->Assembly1(0, lmin, lmax1, lmax2, 0,
                                 *refineElement[ielGeom][soluType], *refineElement[jelGeom][soluType],
                                 solu1, solu2, kappa1, delta1, ielEqualJel, printMesh);
 
@@ -310,9 +312,9 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
             KK->add_matrix_blocked(nonlocal->GetJac12(), l2GMap1, l2GMap2);
             RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
 
-//             KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
-//             KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
-//             RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
+            KK->add_matrix_blocked(nonlocal->GetJac21(), l2GMap2, l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac22(), l2GMap2, l2GMap2);
+            RES->add_vector_blocked(nonlocal->GetRes2(), l2GMap2);
 
           }
 

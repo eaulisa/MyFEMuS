@@ -15,16 +15,16 @@ class NonLocal {
 
     void AddFineLevelLocalQuantities(const unsigned &level);
 
-    void Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                   RefineElement &refineElement1, RefineElement &refineElement2,
+    void Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
+                   const unsigned &iFather, RefineElement &refineElement1, RefineElement &refineElement2,
                    const vector < double >  &solu1, const vector < double > &solu2,
                    const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh);
 
-    double Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                     RefineElement &refineElement,
+    double Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
+                     const unsigned &iFather, RefineElement &refineElement,
                      const unsigned &nDof1, const vector < double > &xg1, const double &weight1_ig, const vector < double > &phi1_ig,
                      const vector < double >  &solu1, const vector < double > &solu2,
-                     const double &kappa, const double &delta, const bool &printMesh);
+                     const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh);
 
 
 
@@ -253,15 +253,15 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
 }
 
 
-void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                         RefineElement &refineElement1, RefineElement &refineElement2,
+void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
+                         const unsigned &iFather, RefineElement &refineElement1, RefineElement &refineElement2,
                          const vector < double >  &solu1, const vector < double > &solu2,
                          const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh) {
 
-  if(level < levelMax - 1) {
+  if(level < levelMax1 - 1) {
     refineElement1.BuildElement1Prolongation(level, iFather);
     for(unsigned i = 0; i < refineElement1.GetNumberOfChildren(); i++) {
-      Assembly1(level + 1, levelMin, levelMax, i, refineElement1, refineElement2,
+      Assembly1(level + 1, levelMin, levelMax1, levelMax2, i, refineElement1, refineElement2,
                 solu1, solu2, kappa, delta, ielEqualJel, printMesh);
     }
   }
@@ -293,35 +293,24 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
       finiteElement1.GetPhi(phi1F, xi1Fg);
 
       if(ielEqualJel) {
-
-//         double kernel = GetKernel(kappa, delta, refineElement1.GetEps());
-//         double area = GetArea(delta, refineElement1.GetEps());
-//         double C =  weight1 * area * kernel;
-
         for(unsigned i = 0; i < nDof1; i++) {
           _res1[i] -=  - 2. * weight1  * phi1F[i]; //Ax - f (so f = - 2)
-//           for(unsigned j = 0; j < nDof1; j++) {
-//             double jacValue11 =  2. * C * phi1F[i] * phi1F[j];
-//             _jac11[ i * nDof1 + j] -=  jacValue11;
-//             _res1[i] += jacValue11 * solu1[j];
-//           }
-
         }
       }
 
-      Assembly2(0, levelMin, levelMax, 0, refineElement1,
+      Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement1,
                 nDof1, xg1, weight1, phi1F,
-                solu1, solu2, kappa, delta, printMesh);
+                solu1, solu2, kappa, delta, ielEqualJel, printMesh);
     }
 
   }
 }
 
-double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax, const unsigned &iFather,
-                           RefineElement &refineElement,
+double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2, 
+                           const unsigned &iFather, RefineElement &refineElement,
                            const unsigned &nDof1, const vector < double > &xg1, const double &weight1, const vector < double > &phi1,
                            const vector < double >  &solu1, const vector < double > &solu2,
-                           const double &kappa, const double &delta, const bool &printMesh) {
+                           const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh) {
 
   double eps0l = std::max(refineElement.GetEps0() * pow(0.5, level) , refineElement.GetEps());
 
@@ -337,14 +326,14 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
   bool oneNodeIsInside = true;
   bool oneNodeIsOutside = true;
 
-  if(level < levelMax - 1) {
+  if(level < levelMax2 - 1) {
     if(level < levelMin) {
     refine:
       refineElement.BuildElement2Prolongation(level, iFather);
       for(unsigned i = 0; i < numberOfChildren; i++) {
-        area += Assembly2(level + 1, levelMin, levelMax, i, refineElement,
+        area += Assembly2(level + 1, levelMin, levelMax1, levelMax2, i, refineElement,
                           nDof1, xg1, weight1, phi1,
-                          solu1, solu2, kappa, delta, printMesh);
+                          solu1, solu2, kappa, delta, ielEqualJel, printMesh);
       }
     }
     else {
@@ -402,7 +391,7 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
       }
       finiteElement.GetPhi(phi2F, xi2Fg);
 
-      if(level == levelMax - 1) { // only for element at level l = lmax - 1
+      if(level == levelMax2 - 1) { // only for element at level l = lmax - 1
         U = refineElement.GetSmoothStepFunction(this->GetDistance(xg1, xg2, delta));
       }
       else {
@@ -413,32 +402,48 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
         area += U * weight2;
 
         double C =  U * weight1 * weight2 * kernel;
+        
+        double C11, C12, C21, C22;
+        
+        if (levelMax1 == levelMax2){ // symmetric
+          C11 = C12 = C21 = C22 = (1. + !ielEqualJel) * C;  
+        }
+        
+        else if(levelMax1 < levelMax2) {  //coarse external - fine internal
+          C11 = C12 = 2. * C;
+          C21 = C22 = 0.;  
+        }
+        else { // fine external - coarse internal
+          C11 = C12 = 0.;
+          C21 = C22 = 2. * C;  
+        }
+        
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
-            double jacValue11 =  2. * C * phi1[i] * phi1[j];
+            double jacValue11 =  C11 * phi1[i] * phi1[j];
             _jac11[i * nDof1 + j] -= jacValue11;
             _res1[i] += jacValue11 * solu1[j];
           }
 
           for(unsigned j = 0; j < nDof2; j++) {
-            double jacValue12 = - 2. * C * phi1[i] * phi2F[j];
+            double jacValue12 = - C12 * phi1[i] * phi2F[j];
             _jac12[i * nDof2 + j] -= jacValue12;
             _res1[i] +=  jacValue12 * solu2[j];
           }//endl j loop
         }
-//         for(unsigned i = 0; i < nDof2; i++) {
-//           for(unsigned j = 0; j < nDof1; j++) {
-//             double jacValue21 = 0. * C * (- phi2F[i]) * phi1[j];
-//             _jac21[i * nDof1 + j] -= jacValue21;
-//             _res2[i] +=  jacValue21 * solu1[j];
-//           }
-// 
-//           for(unsigned j = 0; j < nDof2; j++) {
-//             double jacValue22 = - 0. * C * (- phi2F[i]) * phi2F[j];
-//             _jac22[i * nDof2 + j] -= jacValue22;
-//             _res2[i] += jacValue22 * solu2[j];
-//           }//endl j loop
-//         } //endl i loop
+        for(unsigned i = 0; i < nDof2; i++) {
+          for(unsigned j = 0; j < nDof1; j++) {
+            double jacValue21 = C21 * (- phi2F[i]) * phi1[j];
+            _jac21[i * nDof1 + j] -= jacValue21;
+            _res2[i] +=  jacValue21 * solu1[j];
+          }
+
+          for(unsigned j = 0; j < nDof2; j++) {
+            double jacValue22 = - C22 * (- phi2F[i]) * phi2F[j];
+            _jac22[i * nDof2 + j] -= jacValue22;
+            _res2[i] += jacValue22 * solu2[j];
+          }//endl j loop
+        } //endl i loop
       }//end if U > 0.
     }//end jg loop
 
