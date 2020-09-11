@@ -59,7 +59,7 @@ double smoothstep(double edge0, double edge1, double x) {
 
 
 
-void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
+void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   // ml_prob is the global object from/to where get/set all the data
   // level is the level of the PDE system to be assembled
@@ -138,7 +138,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
-  double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
+  double muFluid = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity(): 
+                             ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();;
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
@@ -150,8 +151,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   vector <unsigned> indexSolV(dim);
   vector <unsigned> indexPdeV(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
-    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3][0]);
+    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3 * fluid][0]);
+    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3 * fluid][0]);
   }
   unsigned solTypeV = mlSol->GetSolutionType(&varname[0][0]);
 
@@ -168,8 +169,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP1(3);
   std::vector < std::vector < std::vector <double > > > aP2(3);
-
-
+  
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -226,9 +226,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
 
-        unsigned eFlag2 = (jel >= 0) ? static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5)) : 2;
+        unsigned eFlag2 = (jel >= 0) ? static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5)) : 3;
 
-        if(eFlag2 == 0 || (eFlag2 == 1 && jel > iel)) {
+        if(eFlag2 == 0 + !fluid * 2 || (eFlag2 == 1 && jel > iel)) {
 
           short unsigned ielt2 = msh->GetElementType(jel);
 
@@ -554,7 +554,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   myKK->zero();
   myRES->zero();
 
-  AssembleGhostPenalty(ml_prob);
+  AssembleGhostPenalty(ml_prob, true);
+  AssembleGhostPenalty(ml_prob, false);
+  
 
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
