@@ -179,6 +179,11 @@ int main(int argc, char** args) {
   if(dim > 1) system.AddSolutionToSystemPDE("VY");
   if(dim > 2) system.AddSolutionToSystemPDE("VZ");
   system.AddSolutionToSystemPDE("P");
+  
+  system.SetSparsityPatternMinimumSize (1000);
+//   if(dim > 1) system.SetSparsityPatternMinimumSize (500, "VY");
+//   if(dim > 2) system.SetSparsityPatternMinimumSize (500, "VZ");
+//   
 
   // ******* System MPM-FSI Assembly *******
   system.SetAssembleFunction(AssembleMPMSys);
