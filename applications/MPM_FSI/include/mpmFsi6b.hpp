@@ -138,8 +138,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
-  double muFluid = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity(): 
-                             ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();;
+  double muFluid = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity() :
+                   ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();;
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
@@ -169,7 +169,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   std::vector < std::vector < std::vector <double > > > aP1(3);
   std::vector < std::vector < std::vector <double > > > aP2(3);
-  
+
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -416,8 +416,42 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
               }
             }
-          }
 
+            if(fluid && solTypeP < 3) {
+              msh->_finiteElement[ielt1][solTypeP]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1);
+              msh->_finiteElement[ielt2][solTypeP]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2);
+
+              adept::adouble gradSolP1DotN = 0.;
+              adept::adouble gradSolP2DotN = 0.;
+
+
+              for(unsigned i = 0; i < nDofsP1; i++) {
+                for(unsigned J = 0; J < dim; J++) {
+                  gradSolP1DotN += solP1[i] * gradPhi1[i * dim + J] * normal[J];
+                }
+              }
+
+              for(unsigned i = 0; i < nDofsP2; i++) {
+                for(unsigned J = 0; J < dim; J++) {
+                  gradSolP2DotN += solP2[i] * gradPhi2[i * dim + J] * normal[J];
+                }
+              }
+
+              for(unsigned i = 0; i < nDofsP1; i++) {
+                for(unsigned J = 0; J < dim; J++) {
+                  aRhsP1[i] +=  - h3 * gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                }
+              }
+
+              for(unsigned i = 0; i < nDofsP2; i++) {
+                for(unsigned J = 0; J < dim; J++) {
+                  aRhsP2[i] +=  + h3 * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                }
+              }
+
+            }
+
+          }
 
           //copy the value of the adept::adoube aRes in double Res and store them in RES
           rhs1.resize(nDofs1);   //resize
@@ -556,7 +590,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   AssembleGhostPenalty(ml_prob, true);
   AssembleGhostPenalty(ml_prob, false);
-  
+
 
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
@@ -906,9 +940,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //       }
 
 
-      else if(eFlag == 2) {   // only solid cells: fake pressure
+      else if(eFlag == 2) {   // only solid cells: fake pressure //TODO
         for(unsigned i = 0; i < nDofsP; i++) {
-          aRhsP[i] -= phiP[i] * solPg * weight;
+          aRhsP[i] -= 1.0e-10 * phiP[i] * solPg * weight;
         }
       }
     } // end gauss point loop
@@ -1103,8 +1137,23 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
           msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
 
+          std::vector <std::vector < double > > THat;
+          particleI[imarkerI]->GetMarkerTangent(THat);
+
+          std::vector < std::vector < double > > FpOld;
+          FpOld = particleI[imarkerI]->GetDeformationGradient(); //extraction of the deformation gradient
+
           std::vector <std::vector < double > > T;
-          particleI[imarkerI]->GetMarkerTangent(T);
+          T.resize(THat.size());
+
+          for(unsigned k = 0; k < T.size(); k++) {
+            T[k].assign(dim, 0.);
+            for(unsigned i = 0; i < dim; i++) {
+              for(unsigned j = 0; j < dim; j++) {
+                T[k][i] += FpOld[i][j] * THat[k][j];
+              }
+            }
+          }
 
           double weight;
           std::vector < double > N(dim);

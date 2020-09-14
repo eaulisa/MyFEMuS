@@ -127,9 +127,9 @@ int main(int argc, char** args) {
   if(dim > 1) mlSol.AddSolution("VY", LAGRANGE, SECOND, 2);
   if(dim > 2) mlSol.AddSolution("VZ", LAGRANGE, SECOND, 2);
 
-  mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
+  //mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
   //mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, FIRST, 2);
-  //mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
+  mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
   //mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
   //mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
@@ -266,9 +266,14 @@ int main(int argc, char** args) {
   double DB =  0.5 * dL;
   eps = DB;
 
-  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist, nSlaves);
+//   InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist, nSlaves);
+//    
+//   bulk = new Line(xp, wp, dist, nSlaves, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
+  
+  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
    
-  bulk = new Line(xp, wp, dist, nSlaves, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
+  bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
+  
 
   std::cout<<"AAAAAAAAAAAAAAAAAA\n"<<std::flush;
   
