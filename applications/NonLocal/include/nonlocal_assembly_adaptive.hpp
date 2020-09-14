@@ -148,10 +148,10 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   //BEGIN setup for adaptive integration
-  unsigned lmin = 1;
+  unsigned lmin = 4;
   
-  unsigned lmax1 = 1;
-  unsigned lmax2 = 4;
+  unsigned lmax1 = 4;
+  unsigned lmax2 = 1;
 
   double dMax = 0.1;
   double eps0 = dMax * 0.25;
@@ -182,7 +182,7 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
   refineElement[4][soluType]->SetConstants(eps, eps0);
 
   //NonLocal *nonlocal = new NonLocalBox();
-  NonLocal *nonlocal = new NonLocalBall();
+  NonLocal *nonlocal = new NonLocalBall1();
 
   fout.open("mesh.txt");
   fout.close();

@@ -7,9 +7,19 @@ class NonLocal {
   public:
     NonLocal() {};
     ~NonLocal() {};
-    virtual double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) const = 0;
+    double GetRadius(const std::vector < double>  &xc, const std::vector < double>  &xp) {
+      double distance  = 0.;
+      for(unsigned k = 0; k < xc.size(); k++) {
+        distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+      }
+      return sqrt(distance);
+
+    };
+    virtual double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) const = 0;
     virtual double GetKernel(const double  &kappa, const double &delta, const double &eps) const = 0;
     virtual double GetArea(const double &delta, const double &eps) const = 0;
+    virtual double GetGamma(const double &d) const = 0;
+
 
     void ZeroLocalQuantities(const unsigned &nDof1, const unsigned &nDof2);
 
@@ -127,7 +137,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
         for(unsigned k = 0; k < dim; k++) {
           xv2j[k] = xv2[k][j];
         }
-        d = this->GetDistance(xg1, xv2j, delta);
+        d = this->GetInterfaceDistance(xg1, xv2j, delta);
         if(d > eps0l) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -173,7 +183,7 @@ double NonLocal::RefinedAssembly(const unsigned &level, const unsigned &levelMin
       finiteElement.GetPhi(phi2F, xi2Fg);
 
       if(level == levelMax - 1) { // only for element at level l = lmax - 1
-        U = refineElement.GetSmoothStepFunction(this->GetDistance(xg1, xg2, delta));
+        U = refineElement.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2, delta));
       }
       else {
         U = 1.;
@@ -295,6 +305,13 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
       if(ielEqualJel) {
         for(unsigned i = 0; i < nDof1; i++) {
           _res1[i] -=  - 2. * weight1  * phi1F[i]; //Ax - f (so f = - 2)
+//           for(unsigned j = 0; j < nDof1; j++) {
+//             double kernel = GetKernel(kappa, delta, refineElement1.GetEps());
+//             double area = GetArea(delta, refineElement1.GetEps());
+//             double jacValue11 = 2. * phi1F[i] * phi1F[j] * weight1 * area * kernel;
+//             _jac11[i * nDof1 + j] -= jacValue11;
+//             _res1[i] += jacValue11 * solu1[j];
+//           }
         }
       }
 
@@ -306,7 +323,7 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
   }
 }
 
-double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2, 
+double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
                            const unsigned &iFather, RefineElement &refineElement,
                            const unsigned &nDof1, const vector < double > &xg1, const double &weight1, const vector < double > &phi1,
                            const vector < double >  &solu1, const vector < double > &solu2,
@@ -346,7 +363,7 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
         for(unsigned k = 0; k < dim; k++) {
           xv2j[k] = xv2[k][j];
         }
-        d = this->GetDistance(xg1, xv2j, delta);
+        d = this->GetInterfaceDistance(xg1, xv2j, delta);
         if(d > eps0l) { // check if one node is inside thick interface
           if(oneNodeIsOutside) goto refine;
           oneNodeIsInside = true;
@@ -391,33 +408,35 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
       }
       finiteElement.GetPhi(phi2F, xi2Fg);
 
+      double r = GetRadius(xg1, xg2);
       if(level == levelMax2 - 1) { // only for element at level l = lmax - 1
-        U = refineElement.GetSmoothStepFunction(this->GetDistance(xg1, xg2, delta));
+        U = refineElement.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2, delta)) * GetGamma(r);
       }
       else {
-        U = 1.;
+        U = GetGamma(r);
       }
 
       if(U > 0.) {
         area += U * weight2;
 
         double C =  U * weight1 * weight2 * kernel;
-        
+
         double C11, C12, C21, C22;
-        
-        if (levelMax1 == levelMax2){ // symmetric
-          C11 = C12 = C21 = C22 = (1. + !ielEqualJel) * C;  
+
+        if(levelMax1 == levelMax2) { // symmetric
+          C11 = C12 = C21 = C22 = (1. + !ielEqualJel) * C;
         }
-        
+
         else if(levelMax1 < levelMax2) {  //coarse external - fine internal
           C11 = C12 = 2. * C;
-          C21 = C22 = 0.;  
+          C21 = C22 = 0.;
         }
         else { // fine external - coarse internal
           C11 = C12 = 0.;
-          C21 = C22 = 2. * C;  
+          C21 = 2. * C; 
+          C22 = 2. * C;
         }
-        
+
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
             double jacValue11 =  C11 * phi1[i] * phi1[j];
@@ -492,7 +511,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
         for(unsigned k = 0; k < dim; k++) {
           xv_j[k] = xv[k][j];
         }
-        d = this->GetDistance(xv_j, x1[igFather[i]], delta);
+        d = this->GetInterfaceDistance(xv_j, x1[igFather[i]], delta);
         if(d > eps0l) { // check if the node is inside the thick interface
           if(oneNodeIsOutside) {
             ig[igSize] = igFather[i];
@@ -566,7 +585,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
       finiteElement.GetPhi(phi2, xi2Fg);
 
       for(unsigned gb = 0; gb < igbSize; gb++) {
-        double C =  refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[ig[gb]], delta)) * weight1[ig[gb]] * weight2 * kernel;
+        double C =  refineElement.GetSmoothStepFunction(this->GetInterfaceDistance(xg2 , x1[ig[gb]], delta)) * weight1[ig[gb]] * weight2 * kernel;
 
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
@@ -596,7 +615,7 @@ void NonLocal::RefinedAssembly5(const unsigned &level, const unsigned &levelMin,
       }
       for(unsigned gi = 0; gi < igiSize; gi++) {
 
-        double C = /*refineElement.GetSmoothStepFunction(this->GetDistance(xg2 , x1[igi[gi]], delta)) **/ weight1[igi[gi]] * weight2 * kernel;
+        double C = /*refineElement.GetSmoothStepFunction(this->GetInterfaceDistance(xg2 , x1[igi[gi]], delta)) **/ weight1[igi[gi]] * weight2 * kernel;
 
         for(unsigned i = 0; i < nDof1; i++) {
           for(unsigned j = 0; j < nDof1; j++) {
@@ -657,49 +676,79 @@ class NonLocalBall: public NonLocal {
   public:
     NonLocalBall(): NonLocal() {};
     ~NonLocalBall() {};
-    double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const;
-    double GetKernel(const double &kappa, const double &delta, const double &eps) const;
+
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
+      double distance  = 0.;
+      for(unsigned k = 0; k < xc.size(); k++) {
+        distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+      }
+      distance = radius - sqrt(distance);
+      return distance;
+    }
+
+    double GetKernel(const double  &kappa, const double &delta, const double &eps) const {
+      return 4. * kappa / (M_PI  * delta * delta * delta * delta)
+             / (1. + 6. / 11. * pow(eps / delta, 2) + 3. / 143. * pow(eps / delta, 4.))  ;
+    }
+
     double GetArea(const double &delta, const double &eps) const {
       return M_PI * (delta * delta + eps * eps / 11.);
     };
+
+    double GetGamma(const double &d) const {
+      return 1.;
+    }
 };
+
+
+class NonLocalBall1: public NonLocal {
+  public:
+    NonLocalBall1(): NonLocal() {};
+    ~NonLocalBall1() {};
+
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
+      double distance  = 0.;
+      for(unsigned k = 0; k < xc.size(); k++) {
+        distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+      }
+      distance = radius - sqrt(distance);
+      return distance;
+    }
+
+    double GetKernel(const double  &kappa, const double &delta, const double &eps) const {
+      return 3. * kappa / (M_PI  * delta * delta * delta)
+             / (1. + 3. / 11. * pow(eps / delta, 2.))  ;
+    }
+
+    double GetArea(const double &delta, const double &eps) const {
+      return 2. * M_PI * delta;
+    };
+
+    double GetGamma(const double &d) const {
+      return 1. / d;
+    }
+};
+
+
+
 
 class NonLocalBox: public NonLocal {
   public:
     NonLocalBox(): NonLocal() {};
     ~NonLocalBox() {};
-    double GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const;
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const;
     double GetKernel(const double  &kappa, const double &delta, const double &eps) const;
     double GetArea(const double &delta, const double &eps) const {
       return delta * delta;
     };
+
+    double GetGamma(const double &d) const {
+      return 1.;
+    }
 };
 
-double NonLocalBall::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
-  double distance  = 0.;
-  for(unsigned k = 0; k < xc.size(); k++) {
-    distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
-  }
-  distance = radius - sqrt(distance);
-  return distance;
-}
 
-double NonLocalBall::GetKernel(const double  &kappa, const double &delta, const double &eps) const {
-//   return 4. *  kappa / (M_PI * ((delta - eps) * (delta - eps)  +
-//                                 + 2. * (-5. / 11. * eps * eps + eps * delta))
-//                         * delta * delta) ;
-//   std::cout.precision(14) ;
-//   std::cout<<delta <<" "<<eps<<"\n";
-//   std::cout<<(1. + 6./11. * pow( eps / delta, 2) + 3./143. * pow(eps / delta, 4.) ) <<"\n";
-//
-//   abort();
-
-  return 4. * kappa / (M_PI  * delta * delta * delta * delta)
-         / (1. + 6. / 11. * pow(eps / delta, 2) + 3. / 143. * pow(eps / delta, 4.))  ;
-
-}
-
-double NonLocalBox::GetDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const {
+double NonLocalBox::GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const {
 
   double distance = 0.;
   unsigned dim = xc.size();
