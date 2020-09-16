@@ -1,12 +1,10 @@
 #ifndef __femus_RefineElement_hpp__
 #define __femus_RefineElement_hpp__
 
-#include "OctTreeElement.hpp"
-
 class RefineElement {
   public:
-    RefineElement(unsigned const &lmax, const char* geom_elem, const char* fe_order, const char* order_gauss_fem1,
-                  const char* order_gauss_fem2, const char* gauss_type = "legendre");
+    RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss_coarse,
+                  const char* order_gauss_medium, const char* order_gauss_fine, const char* gauss_type = "legendre");
     ~RefineElement();
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
 
@@ -17,13 +15,15 @@ class RefineElement {
 
     double GetSmoothStepFunction(const double &dg1);
 
-    const elem_type &GetFEM1() const {
-      return *_finiteElement1;
+    const elem_type &GetFEMCoarse() const {
+      return *_finiteElementCoarse;
     }
-    const elem_type &GetFEM2() const {
-      return *_finiteElement2;
+    const elem_type &GetFEMMedium() const {
+      return *_finiteElementMedium;
     }
-
+    const elem_type &GetFEMFine() const {
+      return *_finiteElementFine;
+    }
     const unsigned &GetNumberOfNodes() const {
       return _numberOfNodes;
     }
@@ -128,11 +128,10 @@ class RefineElement {
     unsigned _numberOfChildren;
     unsigned _numberOfNodes;
     unsigned _numberOfLinearNodes;
-    const elem_type *_finiteElement1;
-    const elem_type *_finiteElement2;
+    const elem_type *_finiteElementCoarse;
+    const elem_type *_finiteElementMedium;
+    const elem_type *_finiteElementFine;
     const elem_type *_finiteElementLinear;
-
-    OctTreeElement _octreeElement1;
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
@@ -147,56 +146,47 @@ class RefineElement {
 };
 
 
-RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const char* fe_order,
-                             const char* order_gauss_fem1, const char* order_gauss_fem2, const char* gauss_type) {
+RefineElement::RefineElement(const char* geom_elem, const char* fe_order, const char* order_gauss_coarse,
+                             const char* order_gauss_medium, const char* order_gauss_fine, const char* gauss_type) {
   if(!strcmp(geom_elem, "line")) {
     _numberOfChildren = 2;
 
-    _finiteElement1 = new const elem_type_1D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
-    _finiteElement2 = new const elem_type_1D(geom_elem, fe_order, order_gauss_fem2, gauss_type);;
+    _finiteElementCoarse = new const elem_type_1D(geom_elem, fe_order, order_gauss_coarse, gauss_type);
+    _finiteElementMedium = new const elem_type_1D(geom_elem, fe_order, order_gauss_medium, gauss_type);
+    _finiteElementFine = new const elem_type_1D(geom_elem, fe_order, order_gauss_fine, gauss_type);
     _finiteElementLinear = new const elem_type_1D(geom_elem, "linear", "zero", gauss_type);
   }
   else if(!strcmp(geom_elem, "quad") || !strcmp(geom_elem, "tri")) {
     _numberOfChildren = 4;
-    _finiteElement1 = new const elem_type_2D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
-    _finiteElement2 = new const elem_type_2D(geom_elem, fe_order, order_gauss_fem2, gauss_type);
+    _finiteElementCoarse = new const elem_type_2D(geom_elem, fe_order, order_gauss_coarse, gauss_type);
+    _finiteElementMedium = new const elem_type_2D(geom_elem, fe_order, order_gauss_medium, gauss_type);
+    _finiteElementFine = new const elem_type_2D(geom_elem, fe_order, order_gauss_fine, gauss_type);
     _finiteElementLinear = new const elem_type_2D(geom_elem, "linear", "zero", gauss_type);
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {
     _numberOfChildren = 8;
-    _finiteElement1 = new const elem_type_3D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
-    _finiteElement2 = new const elem_type_3D(geom_elem, fe_order, order_gauss_fem2, gauss_type);
+    _finiteElementCoarse = new const elem_type_3D(geom_elem, fe_order, order_gauss_coarse, gauss_type);
+    _finiteElementMedium = new const elem_type_3D(geom_elem, fe_order, order_gauss_medium, gauss_type);
+    _finiteElementFine = new const elem_type_3D(geom_elem, fe_order, order_gauss_fine, gauss_type);
     _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", "zero", gauss_type);
   }
 
-  _dim = _finiteElement1->GetDim();
-  _numberOfNodes = _finiteElement1->GetNDofs();
+  _dim = _finiteElementFine->GetDim();
+  _numberOfNodes = _finiteElementFine->GetNDofs();
 
-  _basis = _finiteElement1->GetBasis();
+  _basis = _finiteElementFine->GetBasis();
 
   _numberOfLinearNodes = _finiteElementLinear->GetNDofs();
 
   BuildPMat();
-
-  _xi1l.resize(1);
-  _xi1l[0].resize(1);
-  _xi1l[0][0].resize(_dim);
-  for(unsigned k = 0; k < _dim; k++) {
-    _xi1l[0][0][k].resize(_numberOfNodes);
-    for(unsigned i = 0; i < _numberOfNodes; i++) {
-      _xi1l[0][0][k][i] =  *(_basis->GetXcoarse(i) + k);
-    }
-  }
-
-  _octreeElement1.Init(_xi1l[0][0], _PMatrix, _finiteElement1, lmax);
-
   delete _finiteElementLinear;
 
 }
 
 RefineElement::~RefineElement() {
-  delete _finiteElement1;
-  delete _finiteElement2;
+  delete _finiteElementCoarse;
+  delete _finiteElementMedium;
+  delete _finiteElementFine;
 }
 
 const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & RefineElement::GetProlongationMatrix() {
@@ -241,7 +231,7 @@ void RefineElement::BuildPMat() {
 
       PMatrix[i][j].resize(_numberOfNodes);
       unsigned cnt = 0;
-      _finiteElement1->GetPhi(phi, xiChild);
+      _finiteElementFine->GetPhi(phi, xiChild);
       for(unsigned jj = 0; jj < _numberOfNodes; jj++) {
         if(fabs(phi[jj]) > 1.0e-10) {
           PMatrix[i][j][cnt].first = jj;
