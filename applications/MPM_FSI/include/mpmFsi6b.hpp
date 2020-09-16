@@ -841,30 +841,17 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       }
 
 
-
-
-
       if(eFlag == 0) {   // only fluid cells
-
-
+          
         //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
         std::vector <std::vector <adept::adouble> > JacMatrix;
         std::vector <std::vector <double> > JacMatrixHat;
         msh->_finiteElement[ielt][solType]->GetJacobian(vx, ig, weight, JacMatrix);
         msh->_finiteElement[ielt][solType]->GetJacobian(vxHat, ig, weightHat, JacMatrixHat);
 
-        // Jacobian entries seems weird, check again.//TODO
-//         std::cout << "JJJJJJJJJJJJJJ" << std::endl;
-//         for(unsigned i = 0; i < dim; i++) {
-//           for(unsigned j = 0; j < dim; j++) {
-//             std::cout << JacMatrix[i][j] << " ";
-//           }
-//           std::cout << std::endl;
-//         }
 
-
+        
         std::vector <std::vector <adept::adouble> > G(dim); // J^T . J
-        //some Gij = 0. due to the issue above
         for(unsigned i = 0; i < dim; i++) {
           G[i].assign(dim, 0.);
           for(unsigned j = 0; j < dim; j++) {
@@ -891,6 +878,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
         tauMtrG *= tauM;
         adept::adouble tauC = 1. / tauMtrG;
+        
         //end SUPG parameters
 
         std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
@@ -942,47 +930,47 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
         //continuity block
-//         for(unsigned i = 0; i < nDofsP; i++) {
-//           for(unsigned K = 0; K < dim; K++) {
-//
-//             adept::adouble StrongLaplace = 0.;
-//             adept::adouble StrongAdvection = 0.;
-//             adept::adouble Time = 0.;
-//             adept::adouble PressureGrad = 0.;
-//
-//
-//             for(unsigned J = 0; J < dim; J++) {
-//               unsigned kdim;
-//
-//               if(K == J) kdim = J;
-//               else if(1 == K + J) kdim = dim;       // xy
-//               else if(2 == K + J) kdim = dim + 2;    // xz
-//               else if(3 == K + J) kdim = dim + 1;    // yz
-//
-//               StrongLaplace += (-2. * muFluid * 0.5 * (DeltaSolVg[K][J] + DeltaSolVg[J][kdim])) * gradPhiP[i * dim + J];
-//               StrongAdvection += rhoFluid * (solVg[J] - (solDg[J] - solDgOld[J]) / dt) * gradSolVg[K][J] * gradPhiP[i * dim + J] ;
-//
-//             }
-//
-//
-//             Time += (rhoFluid * (solVg[K] - solVgOld[K]) / dt) * gradPhiP[i * dim + K];
-//             PressureGrad += gradSolPg[K] * gradPhiP[i * dim + K];
-//
-//
-//             aRhsP[i] -=  (phiPP[i] *  gradSolVg[K][K] /*+ StrongLaplace + StrongAdvection + Time + PressureGrad*/) * weight;
-//
-//           }
-//
-//
-//         }
-//
-
-
         for(unsigned i = 0; i < nDofsP; i++) {
-          for(unsigned  k = 0; k < dim; k++) {
-            aRhsP[i] -= phiP[i] *  gradSolVg[k][k] * weight;
+          for(unsigned k = 0; k < dim; k++) {
+
+            adept::adouble StrongLaplace = 0.;
+            adept::adouble StrongAdvection = 0.;
+            adept::adouble Time = 0.;
+            adept::adouble PressureGrad = 0.;
+
+
+            for(unsigned j = 0; j < dim; j++) {
+              unsigned kdim;
+
+              if(k == j) kdim = j;
+              else if(1 == k + j) kdim = dim;       // xy
+              else if(2 == k + j) kdim = dim + 2;    // xz
+              else if(3 == k + j) kdim = dim + 1;    // yz
+
+              StrongLaplace += (- muFluid * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim])) * gradPhiP[i * dim + j];
+              StrongAdvection += rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j] * gradPhiP[i * dim + j] ;
+
+            }
+
+
+            Time += (rhoFluid * (solVg[k] - solVgOld[k]) / dt) * gradPhiP[i * dim + k];
+            PressureGrad += gradSolPg[k] * gradPhiP[i * dim + k];
+
+
+            aRhsP[i] -=  (phiPP[i] *  gradSolVg[k][k]  /* Time +StrongLaplace + StrongAdvection + PressureGrad*/) * weight;
+
           }
+
+
         }
+//
+
+
+//         for(unsigned i = 0; i < nDofsP; i++) {
+//           for(unsigned  k = 0; k < dim; k++) {
+//             aRhsP[i] -= phiPP[i] *  gradSolVg[k][k] * weight;
+//           }
+//         }
 
 
 
