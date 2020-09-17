@@ -944,20 +944,20 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
               if(k == j) kdim = j;
               else if(1 == k + j) kdim = dim;       // xy
-              else if(2 == k + j) kdim = dim + 2;    // xz
-              else if(3 == k + j) kdim = dim + 1;    // yz
+              else if(2 == k + j) kdim = dim + 2;   // xz
+              else if(3 == k + j) kdim = dim + 1;   // yz
 
-              StrongLaplace += (- muFluid * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim])) /** gradPhiP[i * dim + j]*/;
-              StrongAdvection += rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j] /** gradPhiP[i * dim + j]*/ ;
+              StrongLaplace += (- muFluid * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]));
+              StrongAdvection += rhoFluid * (solVg[j] - (solDg[j] - solDgOld[j]) / dt) * gradSolVg[k][j];
 
             }
 
 
-            Time += (rhoFluid * (solVg[k] - solVgOld[k]) / dt) /** gradPhiP[i * dim + k]*/;
-            PressureGrad += gradSolPg[k] /** gradPhiP[i * dim + k]*/;
+            Time += (rhoFluid * (solVg[k] - solVgOld[k]) / dt);
+            PressureGrad += gradSolPg[k];
 
 
-            aRhsP[i] -=  (phiPP[i] * gradSolVg[k][k]  + (Time + StrongLaplace + StrongAdvection + PressureGrad) * gradPhiP[i * dim + k] );
+            aRhsP[i] -=  (phiPP[i] * gradSolVg[k][k]  + (Time + StrongLaplace + StrongAdvection + PressureGrad) * tauM * gradPhiP[i * dim + k] );
 
           }
 
