@@ -3,89 +3,65 @@
 
 class OctTreeElement {
     //specific data members
-    //std::vector<std::vector < double > >  _xv;
-    std::vector<std::vector < double > >  _xi;
-    std::vector< OctTreeElement >  _child;
+    std::vector<std::vector < double > > _xi;
+    std::vector< OctTreeElement > _child;
     bool _haveChilderen = false;
-    //std::vector < std::vector < double> > _xg[2];
     std::vector < std::vector < double > > _phi;
-    //std::vector < double> _weight[2];
-    bool _femQuantitiesAreBuilt;
 
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _fakePMatrix;
 
     //share data members
-    static unsigned _counter;
-    static unsigned _counterFEM;
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &_PMatrix  = _fakePMatrix;
     const elem_type *_fem;
 
   public:
 
-    const unsigned GetNumberOfChildren() {
+    const unsigned GetNumberOfChildren() const {
       return _PMatrix.size();
     }
 
-    const std::vector < std::vector < double> > & GetGaussShapeFunctions() {
-      if(!_femQuantitiesAreBuilt) {
-        BuildFemQuantities();
-      }
+    const std::vector < std::vector < double> > & GetGaussShapeFunctions() const {
       return _phi;
     }
 
     void Init(const std::vector<std::vector < double > >  &xi,
               const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > &PMatrix,
-              const elem_type *fem, const unsigned &prelocateMemoryLevelMax) {
+              const elem_type *fem, const unsigned &levelMax) {
 
       this->Clear();
       _xi = xi;
       _PMatrix = PMatrix;
 
-      _counter = 1;
-      _counterFEM = 0;
-
       _haveChilderen = false;
       _fem = fem;
-      _femQuantitiesAreBuilt = false;
 
-      if(prelocateMemoryLevelMax > 0) {
+      if(levelMax > 0) {
         unsigned ng = _fem->GetGaussPointNumber();
         unsigned numberOfChildren = _PMatrix.size();
-        this->PrelocateMemory(0, prelocateMemoryLevelMax, ng, numberOfChildren);
+        this->RecursiveBuild(0, levelMax, ng, numberOfChildren);
+      }
+      else {
+        std::cout << "Error! Level max should be greater than 0" << std::endl;
+        abort;
       }
     }
 
   private:
 
-    void PrelocateMemory(const unsigned &level, const unsigned &prelocateMemoryLevelMax,
-                         const unsigned &ng, const unsigned &numberOfChildren) {
+    void RecursiveBuild(const unsigned &level, const unsigned &levelMax,
+                        const unsigned &ng, const unsigned &numberOfChildren) {
 
-      _phi.resize(ng);
-
-      for(unsigned ig = 0; ig < ng; ig++) {
-
-        _phi[ig].resize(_xi[0].size());
-      }
-
-      if(prelocateMemoryLevelMax > level + 1) {
-        _child.resize(numberOfChildren);
+      BuildFemQuantities();
+      if(levelMax > level + 1) {
+        GenerateChildren();
         for(unsigned i = 0; i < numberOfChildren; i++) {
-
-          _child[i]._xi.resize(_xi.size());
-          for(unsigned j = 0; j < _xi.size(); j++) {
-
-            _child[i]._xi[j].resize(_xi[j].size());
-          }
           _child[i]._haveChilderen = false;
-          _child[i]._femQuantitiesAreBuilt = false;
-
-          _child[i].PrelocateMemory(level + 1, prelocateMemoryLevelMax, ng, numberOfChildren);
+          _child[i].RecursiveBuild(level + 1, levelMax, ng, numberOfChildren);
         }
       }
     }
 
     void BuildFemQuantities() {
-      _counterFEM++;
       unsigned dim = _xi.size();
       unsigned numberOfNodes = _xi[0].size();
 
@@ -95,7 +71,6 @@ class OctTreeElement {
       unsigned ng = _fem->GetGaussPointNumber();
 
       _phi.resize(ng);
-
 
       for(unsigned ig = 0; ig < ng; ig++) {
         phiC = _fem->GetPhi(ig);
@@ -108,7 +83,6 @@ class OctTreeElement {
         _phi[ig].resize(numberOfNodes);
         _fem->GetPhi(_phi[ig], xiFg);
       }
-      _femQuantitiesAreBuilt  = true;
     }
 
   public:
@@ -119,21 +93,21 @@ class OctTreeElement {
         }
       }
       _haveChilderen = false;
-      _femQuantitiesAreBuilt = false;
     }
 
-    OctTreeElement *GetElement(const std::vector<unsigned> &genealogy) {
+    const OctTreeElement *GetElement(const std::vector<unsigned> &genealogy) const {
       return this->GetElement(genealogy, 0);
     }
 
   private:
-    OctTreeElement *GetElement(const std::vector<unsigned> &genealogy, unsigned level) {
+    const OctTreeElement *GetElement(const std::vector<unsigned> &genealogy, unsigned level) const {
       if(level == genealogy.size()) {
         return this;
       }
       else {
         if(this->_haveChilderen == false) {
-          this->GenerateChildren();
+          std::cout << "Error! This level child is not available" << std::endl;
+          abort;
         }
         return this->_child[ genealogy[level] ].GetElement(genealogy, level + 1);
       }
@@ -141,7 +115,6 @@ class OctTreeElement {
 
     void GenerateChildren() {
 
-      _counter += _PMatrix.size();
       _child.resize(_PMatrix.size());
 
       for(unsigned i = 0; i < _child.size(); i++) {
@@ -201,15 +174,7 @@ class OctTreeElement {
       PrintElement(fout);
       fout.close();
     }
-
-    void PrintCounter() const {
-      std::cout << "The total number of elements formed is " << _counter << std::endl;
-      std::cout << "The total number of FEM formed is " << _counterFEM << std::endl;
-    }
-
 };
 
-unsigned OctTreeElement::_counter = 0;
-unsigned OctTreeElement::_counterFEM = 0;
 
 #endif

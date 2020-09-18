@@ -149,7 +149,7 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 2;
+  unsigned lmax1 = 5;
 
   double dMax = 0.1;
   double eps0 = dMax * 0.25;
@@ -284,7 +284,11 @@ void AssembleNonLocalWithSymmetricRefinenemnt(MultiLevelProblem& ml_prob) {
           bool ielEqualJel = (iel == jel) ? true : false;
           bool printMesh = false;
 
-          nonlocal->Assembly1(0, 1, lmax1, 1, 0,
+//           nonlocal->Assembly1(0, 1, lmax1, 1, 0,
+//                               *refineElement[ielGeom][soluType], *refineElement[jelGeom][soluType],
+//                               solu1, solu2, kappa1, delta1, ielEqualJel, printMesh);
+          
+           nonlocal->Assembly1(0, 1, lmax1, 1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(), x2MinMax,
                               *refineElement[ielGeom][soluType], *refineElement[jelGeom][soluType],
                               solu1, solu2, kappa1, delta1, ielEqualJel, printMesh);
 

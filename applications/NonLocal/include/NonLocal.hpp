@@ -30,6 +30,14 @@ class NonLocal {
                    const vector < double >  &solu1, const vector < double > &solu2,
                    const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh);
 
+    void Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
+                   const unsigned &iFather, const OctTreeElement & octTreeElement1,
+                   const std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > &x2MinMax,
+                   RefineElement &refineElement1, RefineElement &refineElement2,
+                   const vector < double >  &solu1, const vector < double > &solu2,
+                   const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh);
+
+
     double Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
                      const unsigned &iFather, RefineElement &refineElement,
                      const unsigned &nDof1, const vector < double > &xg1, const double &weight1_ig, const vector < double > &phi1_ig,
@@ -44,7 +52,7 @@ class NonLocal {
     std::vector < double > & GetRes2() {
       return _res2;
     };
-   
+
     std::vector < double > & GetJac21() {
       return _jac21;
     };
@@ -123,6 +131,87 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
   }
 }
 
+
+
+
+void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
+                         const unsigned &iFather, const OctTreeElement &octTreeElement1,
+                         const std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > &x2MinMax,
+                         RefineElement &refineElement1, RefineElement &refineElement2,
+                         const vector < double >  &solu1, const vector < double > &solu2,
+                         const double &kappa, const double &delta, const bool &ielEqualJel, const bool &printMesh) {
+
+  if(level < levelMax1 - 1) {
+    refineElement1.BuildElement1Prolongation(level, iFather);
+    for(unsigned i = 0; i < refineElement1.GetNumberOfChildren(); i++) {
+      Assembly1(level + 1, levelMin, levelMax1, levelMax2, i,
+                *octTreeElement1.GetElement(std::vector<unsigned> {i}), x2MinMax,
+                refineElement1, refineElement2,
+                solu1, solu2, kappa, delta, ielEqualJel, printMesh);
+    }
+  }
+  else {
+    const unsigned &nDof1 = refineElement1.GetNumberOfNodes();
+    const unsigned &dim = refineElement1.GetDimension();
+    const std::vector < std::vector <double> >  &xv1 = refineElement1.GetElement1NodeCoordinates(level, iFather);
+
+    std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
+    }
+
+    double eps = refineElement1.GetEps();
+
+    bool coarseIntersectionTest = true;
+    for(unsigned k = 0; k < dim; k++) {
+      if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta + eps) {
+        coarseIntersectionTest = false;
+        break;
+      }
+    }
+
+
+
+
+
+
+    const elem_type &finiteElement1 = refineElement1.GetFEM1();
+
+    std::vector < double> xg1(dim);
+    double weight1 = 0.1;
+    const double *phi1;
+
+    const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions();
+
+    for(unsigned ig = 0; ig < finiteElement1.GetGaussPointNumber(); ig++) {
+
+      finiteElement1.GetGaussQuantities(xv1, ig, weight1, phi1);
+      //phi1 = finiteElement1.GetPhi(ig);
+      xg1.assign(dim, 0.);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned i = 0; i < nDof1; i++) {
+          xg1[k] += xv1[k][i] * phi1[i];
+        }
+      }
+
+      if(ielEqualJel) {
+        for(unsigned i = 0; i < nDof1; i++) {
+          _res1[i] -=  - 2. * weight1  * phi1F[ig][i]; //Ax - f (so f = - 2)
+        }
+      }
+      if(coarseIntersectionTest) {
+        Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement1,
+                  nDof1, xg1, weight1, phi1F[ig],
+                  solu1, solu2, kappa, delta, ielEqualJel, printMesh);
+      }
+    }
+
+  }
+}
+
+
+
+
 double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, const unsigned &levelMax1, const unsigned &levelMax2,
                            const unsigned &iFather, RefineElement &refineElement,
                            const unsigned &nDof1, const vector < double > &xg1, const double &weight1, const vector < double > &phi1,
@@ -141,32 +230,36 @@ double NonLocal::Assembly2(const unsigned &level, const unsigned &levelMin, cons
   double weight2;
   const double *phi2;
   double U;
-  double kernel = this->GetKernel(kappa, delta, refineElement.GetEps());
+  double twoWeigh1Kernel = 2. * weight1 * this->GetKernel(kappa, delta, refineElement.GetEps());
+  const double *phi2pt;
+  std::vector<double>::iterator xg2it;
+  std::vector < std::vector<double> > ::const_iterator xv2it;
+  std::vector<double>::const_iterator xv2kit;
 
   for(unsigned jg = 0; jg < finiteElement.GetGaussPointNumber(); jg++) {
 
     finiteElement.GetGaussQuantities(xv2, jg, weight2, phi2);
     xg2.assign(dim, 0.);
-  
-    for(unsigned k = 0; k < dim; k++) {
-      for(unsigned j = 0; j < nDof2; j++) {
-        xg2[k] += xv2[k][j] * phi2[j];
+
+    for(xg2it = xg2.begin(), xv2it = xv2.begin() ; xg2it != xg2.end(); xg2it++, xv2it++) {
+      for(xv2kit = (*xv2it).begin(), phi2pt = phi2;  xv2kit != (*xv2it).end(); phi2pt++, xv2kit++) {
+        *xg2it += (*xv2kit) * (*phi2pt);
       }
     }
-  
+
     U = refineElement.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2, delta)) * GetGamma(GetRadius(xg1, xg2));
     if(U > 0.) {
       area += U * weight2;
-      double C =  U * weight1 * weight2 * kernel;
+      double C =  U *  weight2 * twoWeigh1Kernel;
       for(unsigned i = 0; i < nDof2; i++) {
         for(unsigned j = 0; j < nDof1; j++) {
-          double jacValue21 = 2. * C * (- phi2[i]) * phi1[j];
+          double jacValue21 = C * (- phi2[i]) * phi1[j];
           _jac21[i * nDof1 + j] -= jacValue21;
           _res2[i] +=  jacValue21 * solu1[j];
         }
 
         for(unsigned j = 0; j < nDof2; j++) {
-          double jacValue22 = - 2. * C * (- phi2[i]) * phi2[j];
+          double jacValue22 = C * phi2[i] * phi2[j];
           _jac22[i * nDof2 + j] -= jacValue22;
           _res2[i] += jacValue22 * solu2[j];
         }//endl j loop

@@ -36,6 +36,10 @@ class RefineElement {
     const unsigned &GetDimension() const {
       return _dim;
     }
+    
+    const OctTreeElement& GetOctTreeElement1() const{
+      return _octTreeElement1;
+    }
 
 
     void InitElement1(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
@@ -132,7 +136,7 @@ class RefineElement {
     const elem_type *_finiteElement2;
     const elem_type *_finiteElementLinear;
 
-    OctTreeElement _octreeElement1;
+    OctTreeElement _octTreeElement1;
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
@@ -188,7 +192,7 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
     }
   }
 
-  _octreeElement1.Init(_xi1l[0][0], _PMatrix, _finiteElement1, lmax);
+  _octTreeElement1.Init(_xi1l[0][0], _PMatrix, _finiteElement1, lmax);
 
   delete _finiteElementLinear;
 
@@ -252,19 +256,6 @@ void RefineElement::BuildPMat() {
       PMatrix[i][j].resize(cnt);
     }
   }
-//   std::cout.precision(16);
-//   for(unsigned i = 0; i < _numberOfChildren; i++) {
-//     for(unsigned j = 0; j < _numberOfNodes; j++) {
-//       double sum = 0.;
-//       for(unsigned k = 0; k < PMatrix[i][j].size(); k++) {
-//         sum += PMatrix[i][j][k].second;
-//         std::cout <<  PMatrix[i][j][k].first << " " << PMatrix[i][j][k].second << "\t";
-//       }
-//       std::cout << sum << " "<< std::endl;
-//     }
-//     std::cout << std::endl;
-//   }
-//   std::cout << std::endl;
   _PMatrix = PMatrix;
 }
 
@@ -291,17 +282,16 @@ void RefineElement::BuildElement1Prolongation(const unsigned &level, const unsig
       }
     }
   }
-
-  for(Pi = _PMatrix.begin(), xCi = _xi1l[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-    for(xCik = (*xCi).begin(), xFk = _xi1l[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
-      for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
-        *xCikj = 0.;
-        for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
-          *xCikj += Pijl->second * (*xFk)[Pijl->first];
-        }
-      }
-    }
-  }
+//   for(Pi = _PMatrix.begin(), xCi = _xi1l[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
+//     for(xCik = (*xCi).begin(), xFk = _xi1l[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
+//       for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
+//         *xCikj = 0.;
+//         for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
+//           *xCikj += Pijl->second * (*xFk)[Pijl->first];
+//         }
+//       }
+//     }
+//   }
 }
 
 
