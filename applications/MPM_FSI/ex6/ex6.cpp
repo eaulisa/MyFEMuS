@@ -117,36 +117,24 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
+  FEOrder femOrder = FIRST;
+  
   MultiLevelSolution mlSol(&mlMsh);
   // add variables to mlSol
-  mlSol.AddSolution("DX", LAGRANGE, SECOND, 2);
-  if(dim > 1) mlSol.AddSolution("DY", LAGRANGE, SECOND, 2);
-  if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("DX", LAGRANGE, femOrder, 2);
+  if(dim > 1) mlSol.AddSolution("DY", LAGRANGE, femOrder, 2);
+  if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 2);
 
-  mlSol.AddSolution("VX", LAGRANGE, SECOND, 2);
-  if(dim > 1) mlSol.AddSolution("VY", LAGRANGE, SECOND, 2);
-  if(dim > 2) mlSol.AddSolution("VZ", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("VX", LAGRANGE, femOrder, 2);
+  if(dim > 1) mlSol.AddSolution("VY", LAGRANGE, femOrder, 2);
+  if(dim > 2) mlSol.AddSolution("VZ", LAGRANGE, femOrder, 2);
 
   //mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
   //mlSol.AddSolution ("P", DISCONTINUOUS_POLYNOMIAL, FIRST, 2);
   mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
-  //mlSol.AddSolution ("M", LAGRANGE, SECOND, 2);
-  //mlSol.AddSolution ("Mat", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  //mlSol.AddSolution ("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  //mlSol.AddSolution ("NodeFlag", LAGRANGE, SECOND, 0, false); //TODO see who this is
-  //mlSol.AddSolution ("NodeDist", LAGRANGE, SECOND, 0, false); //TODO see who this is
-
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
-
-
-  mlSol.AddSolution("CM1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("CM2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-
-  mlSol.AddSolution("CL1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("CL2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-
+  mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
 
   mlSol.SetIfFSI(true);
 
@@ -162,7 +150,6 @@ int main(int argc, char** args) {
   if(dim > 1) mlSol.GenerateBdc("VY", "Steady");
   if(dim > 2) mlSol.GenerateBdc("VZ", "Steady");
   mlSol.GenerateBdc("P", "Steady");
-// mlSol.GenerateBdc ("M", "Steady");
 
   MultiLevelProblem ml_prob(&mlSol);
 
