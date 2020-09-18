@@ -957,7 +957,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             PressureGrad += gradSolPg[k];
 
 
-            aRhsP[i] -=  (phiPP[i] * gradSolVg[k][k]  + (Time + StrongLaplace + StrongAdvection + PressureGrad) * tauM * gradPhiP[i * dim + k] );
+            aRhsP[i] -=  (phiPP[i] * gradSolVg[k][k]  + (Time + StrongLaplace + StrongAdvection + PressureGrad) * tauM * gradPhiP[i * dim + k] ) * weight;
 
           }
 
