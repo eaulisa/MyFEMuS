@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
   system.AddSolutionToSystemPDE("u");
 
   // ******* System FEM Assembly *******
-  system.SetAssembleFunction(AssembleNonLocalWithSymmetricRefinenemnt);
+  system.SetAssembleFunction(AssembleNonLocalReversedLoop);
   //system.SetAssembleFunction(AssembleNonLocalSys);
   system.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******

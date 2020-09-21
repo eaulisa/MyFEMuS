@@ -123,7 +123,7 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
         }
       }
 
-      Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement1,
+      Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement2,
                 nDof1, xg1, weight1, phi1F,
                 solu1, solu2, kappa, delta, ielEqualJel, printMesh);
     }
@@ -170,11 +170,6 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
       }
     }
 
-
-
-
-
-
     const elem_type &finiteElement1 = refineElement1.GetFEM1();
 
     std::vector < double> xg1(dim);
@@ -200,7 +195,7 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin, const 
         }
       }
       if(coarseIntersectionTest) {
-        Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement1,
+        Assembly2(0, levelMin, levelMax1, levelMax2, 0, refineElement2,
                   nDof1, xg1, weight1, phi1F[ig],
                   solu1, solu2, kappa, delta, ielEqualJel, printMesh);
       }
