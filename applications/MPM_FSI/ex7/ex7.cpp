@@ -22,7 +22,7 @@ double eps;
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
-#include "../include/mpmFsi6b.hpp"
+#include "../include/mpmFsi6.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
