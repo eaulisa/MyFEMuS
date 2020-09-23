@@ -2,9 +2,9 @@
 ** GAMBIT NEUTRAL FILE
 turek2D
 PROGRAM:                Gambit     VERSION:  2.3.16
-18 Sep 2020    11:05:43 
+23 Sep 2020    11:33:37 
      NUMNP     NELEM     NGRPS    NBSETS     NDFCD     NDFVL
-       338        72         1         3         2         2
+       338        72         1         4         2         2
 ENDOFSECTION
    NODAL COORDINATES 2.3.16
          1   3.53553390593e-02   3.53553390593e-02
@@ -520,14 +520,7 @@ ENDOFSECTION
         72    2    3
 ENDOFSECTION
  BOUNDARY CONDITIONS 2.3.16
-                               3       1      42       0       6
-         9    2    1
-        11    2    1
-        10    2    3
-        20    2    4
-        19    2    4
-        18    2    4
-        17    2    4
+                               3       1      34       0       6
         33    2    2
         34    2    2
         35    2    2
@@ -548,13 +541,23 @@ ENDOFSECTION
         65    2    4
         64    2    4
         63    2    4
+        20    2    4
+        19    2    4
+        18    2    4
+        17    2    4
+         9    2    1
+        10    2    3
+        11    2    1
         14    2    3
-        15    2    2
-        16    2    2
         21    2    2
         22    2    2
         23    2    2
         24    2    2
+        15    2    2
+        16    2    2
+ENDOFSECTION
+ BOUNDARY CONDITIONS 2.3.16
+                               4       1       8       0       6
          5    2    2
          6    2    2
          3    2    4
