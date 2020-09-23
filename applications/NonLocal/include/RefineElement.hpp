@@ -11,17 +11,28 @@ class RefineElement {
     const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & GetProlongationMatrix();
 
     void BuildElement1Prolongation(const unsigned &level, const unsigned &i);
-    void BuildElement2Prolongation(const unsigned &level, const unsigned &i);
+    void SetConstants(const double &eps);
 
-    void SetConstants(const double &eps, const double &eps0);
+    double GetSmoothStepFunction(const double &dg1) const {
+      if(dg1 < - _eps)
+        return 0.;
+      else if(dg1 < _eps) {
+        double dg2 = dg1 * dg1;  
+        return (_a0 + dg1 * (_a1 + dg2 * (_a3 + dg2 * (_a5 + dg2 * (_a7 + dg2 * _a9)))));
+      }
+      else
+        return 1.;
+    };
 
-    double GetSmoothStepFunction(const double &dg1);
-
-    const elem_type &GetFEM1() const {
+    const elem_type &GetFem1() const {
       return *_finiteElement1;
     }
-    const elem_type &GetFEM2() const {
+    const elem_type &GetFem2() const {
       return *_finiteElement2;
+    }
+
+    const elem_type *GetFem2Pointer() const {
+      return _finiteElement2;
     }
 
     const unsigned &GetNumberOfNodes() const {
@@ -36,95 +47,31 @@ class RefineElement {
     const unsigned &GetDimension() const {
       return _dim;
     }
-    
-    const OctTreeElement& GetOctTreeElement1() const{
+
+    const OctTreeElement& GetOctTreeElement1() const {
       return _octTreeElement1;
     }
 
-
     void InitElement1(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
-
       _xv1l.resize(lMax);
-      _xi1l.resize(lMax);
       for(unsigned l = 0; l < lMax; l++) {
         _xv1l[l].resize(_numberOfChildren);
-        _xi1l[l].resize(_numberOfChildren);
         for(unsigned i = 0; i < _numberOfChildren; i++) {
           _xv1l[l][i].resize(_dim);
-          _xi1l[l][i].resize(_dim);
           for(unsigned k = 0; k < _dim; k++) {
             _xv1l[l][i][k].resize(_numberOfNodes);
-            _xi1l[l][i][k].resize(_numberOfNodes);
           }
         }
       }
-
       _xv1l[0][0] = xv;
-      for(unsigned k = 0; k < _dim; k++) {
-        for(unsigned i = 0; i < _numberOfNodes; i++) {
-          _xi1l[0][0][k][i] = *(_basis->GetXcoarse(i) + k);
-        }
-      }
     };
-
-
-
-    void InitElement2(std::vector<std::vector<double>> &xv, const unsigned &lMax) {
-
-      _xv2l.resize(lMax);
-      _xi2l.resize(lMax);
-      for(unsigned l = 0; l < lMax; l++) {
-        _xv2l[l].resize(_numberOfChildren);
-        _xi2l[l].resize(_numberOfChildren);
-        for(unsigned i = 0; i < _numberOfChildren; i++) {
-          _xv2l[l][i].resize(_dim);
-          _xi2l[l][i].resize(_dim);
-          for(unsigned k = 0; k < _dim; k++) {
-            _xv2l[l][i][k].resize(_numberOfNodes);
-            _xi2l[l][i][k].resize(_numberOfNodes);
-          }
-        }
-      }
-
-      _xv2l[0][0] = xv;
-      for(unsigned k = 0; k < _dim; k++) {
-        for(unsigned i = 0; i < _numberOfNodes; i++) {
-          _xi2l[0][0][k][i] = *(_basis->GetXcoarse(i) + k);
-        }
-      }
-    };
-
 
     const std::vector<std::vector<double>> & GetElement1NodeCoordinates(const unsigned &level, const unsigned &i)const {
       return _xv1l[level][i];
     }
 
-    const std::vector<std::vector<double>> & GetElement1LocalCoordinates(const unsigned &level, const unsigned &i)const {
-      return _xi1l[level][i];
-    }
-
-
-
-    const std::vector<std::vector<double>> & GetElement2NodeCoordinates(const unsigned &level, const unsigned &i)const {
-      return _xv2l[level][i];
-    }
-
-    const std::vector<std::vector<double>> & GetElement2LocalCoordinates(const unsigned &level, const unsigned &i)const {
-      return _xi2l[level][i];
-    }
-
-
-
-
-
-
-
-
-    const double &GetEps() {
+    const double &GetEps() const {
       return _eps;
-    }
-    const double &GetEps0() {
-      return _eps0;
     }
 
   private:
@@ -140,13 +87,10 @@ class RefineElement {
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
-    std::vector< std::vector < std::vector < std::vector <double> > > > _xv2l;
-    std::vector< std::vector < std::vector < std::vector <double> > > > _xi2l;
+    std::vector< std::vector < std::vector < std::vector <double> > > > _xv1l;/*
+    std::vector< std::vector < std::vector < std::vector <double> > > > _xi1l;*/
 
-    std::vector< std::vector < std::vector < std::vector <double> > > > _xv1l;
-    std::vector< std::vector < std::vector < std::vector <double> > > > _xi1l;
-
-    double _a0, _a1, _a3, _a5, _a7, _a9, _eps, _eps0;
+    double _a0, _a1, _a3, _a5, _a7, _a9, _eps;
 
 };
 
@@ -182,17 +126,17 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
 
   BuildPMat();
 
-  _xi1l.resize(1);
-  _xi1l[0].resize(1);
-  _xi1l[0][0].resize(_dim);
+  _xv1l.resize(1);
+  _xv1l[0].resize(1);
+  _xv1l[0][0].resize(_dim);
   for(unsigned k = 0; k < _dim; k++) {
-    _xi1l[0][0][k].resize(_numberOfNodes);
+    _xv1l[0][0][k].resize(_numberOfNodes);
     for(unsigned i = 0; i < _numberOfNodes; i++) {
-      _xi1l[0][0][k][i] =  *(_basis->GetXcoarse(i) + k);
+      _xv1l[0][0][k][i] =  *(_basis->GetXcoarse(i) + k);
     }
   }
 
-  _octTreeElement1.Init(_xi1l[0][0], _PMatrix, _finiteElement1, lmax);
+  _octTreeElement1.Init(_xv1l[0][0], _PMatrix, _finiteElement1, lmax);
 
   delete _finiteElementLinear;
 
@@ -282,62 +226,11 @@ void RefineElement::BuildElement1Prolongation(const unsigned &level, const unsig
       }
     }
   }
-//   for(Pi = _PMatrix.begin(), xCi = _xi1l[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-//     for(xCik = (*xCi).begin(), xFk = _xi1l[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
-//       for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
-//         *xCikj = 0.;
-//         for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
-//           *xCikj += Pijl->second * (*xFk)[Pijl->first];
-//         }
-//       }
-//     }
-//   }
 }
 
 
-
-
-
-
-
-void RefineElement::BuildElement2Prolongation(const unsigned &level, const unsigned &i) {
-
-  std::vector< std::vector < std::vector <double> > >::iterator xCi;
-  std::vector < std::vector<double>>::iterator xCik;
-  std::vector<double>::iterator xCikj;
-
-  std::vector < std::vector<double>>::const_iterator xFk;
-
-  std::vector <std::vector <std::vector < std::pair<unsigned, double>>>>::const_iterator Pi;
-  std::vector <std::vector < std::pair<unsigned, double>>>::const_iterator Pij;
-  std::vector < std::pair<unsigned, double>>::const_iterator Pijl;
-
-  for(Pi = _PMatrix.begin(), xCi = _xv2l[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-    for(xCik = (*xCi).begin(), xFk = _xv2l[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
-      for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
-        *xCikj = 0.;
-        for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
-          *xCikj += Pijl->second * (*xFk)[Pijl->first];
-        }
-      }
-    }
-  }
-
-  for(Pi = _PMatrix.begin(), xCi = _xi2l[level + 1].begin(); Pi != _PMatrix.end(); xCi++, Pi++) {
-    for(xCik = (*xCi).begin(), xFk = _xi2l[level][i].begin(); xCik != (*xCi).end(); xCik++, xFk++) {
-      for(Pij = (*Pi).begin(), xCikj = (*xCik).begin(); Pij != (*Pi).end(); Pij++, xCikj++) {
-        *xCikj = 0.;
-        for(Pijl = (*Pij).begin(); Pijl != (*Pij).end(); Pijl++) {
-          *xCikj += Pijl->second * (*xFk)[Pijl->first];
-        }
-      }
-    }
-  }
-}
-
-void RefineElement::SetConstants(const double &eps, const double &eps0) {
+void RefineElement::SetConstants(const double &eps) {
   _eps = eps;
-  _eps0 = eps0;
   _a0 = 0.5; // 128./256.;
   _a1 = pow(eps, -1.) * 1.23046875; // 315/256.;
   _a3 = -pow(eps, -3.) * 1.640625; //420./256.;
@@ -346,19 +239,5 @@ void RefineElement::SetConstants(const double &eps, const double &eps0) {
   _a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
-
-
-
-double RefineElement::GetSmoothStepFunction(const double &dg1) {
-  double dg2 = dg1 * dg1;
-
-  if(dg1 < - _eps)
-    return 0.;
-  else if(dg1 < _eps) {
-    return (_a0 + dg1 * (_a1 + dg2 * (_a3 + dg2 * (_a5 + dg2 * (_a7 + dg2 * _a9)))));
-  }
-  else
-    return 1.;
-}
 
 #endif

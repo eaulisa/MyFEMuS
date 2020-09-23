@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 2;
+unsigned numberOfUniformLevels = 4;
 unsigned numberOfUniformLevelsFine = 2;
 
 int main(int argc, char** argv) {
@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
   system.AddSolutionToSystemPDE("u");
 
   // ******* System FEM Assembly *******
-  system.SetAssembleFunction(AssembleNonLocalReversedLoop);
+  system.SetAssembleFunction(AssembleNonLocalRefined);
   //system.SetAssembleFunction(AssembleNonLocalSys);
   system.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
 
   // ******* System FEM Assembly *******
   //systemFine.SetAssembleFunction(AssembleNonLocalSys);
-  systemFine.SetAssembleFunction(AssembleNonLocalWithSymmetricRefinenemnt);
+  systemFine.SetAssembleFunction(AssembleNonLocalRefined);
   systemFine.SetMaxNumberOfLinearIterations(1);
   // ******* set MG-Solver *******
   systemFine.SetMgType(V_CYCLE);
