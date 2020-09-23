@@ -65,7 +65,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
   // level is the level of the PDE system to be assembled
   // levelMax is the Maximum level of the MultiLevelProblem
   // assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
+std::cout << "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK" << std::endl;
+    
   clock_t AssemblyTime = 0;
   clock_t start_time, end_time;
 
@@ -144,8 +145,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.05;
-  double gammap = 0.05;
+  double gammac = 0.05 * 1e+6;
+  double gammap = 0.05 * 1e+6;
   
   std::cout.precision(10);
 
@@ -222,6 +223,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
                       (vx1[1][0] - vx1[1][2]) * (vx1[1][0] - vx1[1][2])) ;
       double h2 = h * h;
       double h3 = h * h * h;
+      
+      std::cout << gammac * ( muFluid + rhoFluid * h2/dt) * h << " " ;
 
       bool aP1IsInitialized = false;
 
@@ -568,6 +571,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   // levelMax is the Maximum level of the MultiLevelProblem
   // assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
+    
+    
   clock_t AssemblyTime = 0;
   clock_t start_time, end_time;
 
@@ -871,6 +876,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         tauMtrG *= tauM;
         adept::adouble tauC = 1. / tauMtrG;
         
+        tauM = 0.;
+        tauC = 0.;
         //end SUPG parameters
 
         std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);

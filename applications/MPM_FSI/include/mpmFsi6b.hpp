@@ -144,14 +144,14 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.05;
-  double gammap = 0.05;
+  double gammac = 0.05*1e+5;
+  double gammap = 0.05*1e+5;
   
   std::cout.precision(10);
 
   //variable-name handling
   const char varname[10][5] = {"DX", "DY", "DZ", "VX", "VY", "VZ"};
-
+  
   vector <unsigned> indexSolV(dim);
   vector <unsigned> indexPdeV(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
@@ -1601,7 +1601,8 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
   }
   //END loop on interface particle
 
-  ProjectGridVelocity(*mlSol);
+  std::cout << "Projecting velocity" << std::endl;
+  //ProjectGridVelocity(*mlSol);
 
   //BEGIN loop on elements to update grid velocity and acceleration
   for(unsigned idof = msh->_dofOffset[solType][iproc]; idof < msh->_dofOffset[solType][iproc + 1]; idof++) {
@@ -1615,16 +1616,21 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
   }
   //END loop on elements to update grid velocity and acceleration
 
+  std::cout << "updating interface line" << std::endl;
   lineI.UpdateLineMPM();
+  std::cout << "updating bulk" << std::endl;
   bulk.UpdateLineMPM();
 
   bool updateMat = false;
+  std::cout << "GetParticlesToGridMaterial Interfcae" << std::endl;
   lineI.GetParticlesToGridMaterial(updateMat);
+  std::cout << "GetParticlesToGridMaterial bulk" << std::endl;
   bulk.GetParticlesToGridMaterial(updateMat);
 
-
+ std::cout << "Building element flag" << std::endl;
   BuildFlag(*mlSol);
-// GetParticleWeights(*mlSol, &bulk);
+  
+  //GetParticleWeights(*mlSol, &bulk);
 
 }
 
