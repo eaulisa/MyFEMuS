@@ -239,7 +239,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //BEGIN setup for adaptive integration
 
   unsigned lmax1 = 4;
-  double dMax = 0.1 * pow(0.75, level-1);
+  unsigned lmin1 = 2;
+  
+  if (lmin1 > lmax1-1) lmin1 = lmax1 - 1;
+  double dMax = 0.133333 * pow(0.75, level);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
@@ -319,7 +322,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
       }
 
-     
+
 
       time_t start = clock();
       region2.Reset();
@@ -374,9 +377,18 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       nonlocal->ZeroLocalQuantities(nDof1, region2);
       bool printMesh = false;
 
-      nonlocal->Assembly1(0, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                          *refineElement[ielGeom][soluType], region2,
-                          solu1, kappa1, delta1, printMesh);
+//       nonlocal->Assembly1(0, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+//                           *refineElement[ielGeom][soluType], region2,
+//                           solu1, kappa1, delta1, printMesh);
+
+      std::vector<unsigned>jelIndex(region2.size());
+      for(unsigned j = 0; j < jelIndex.size(); j++) {
+        jelIndex[j] = j;
+      }
+      
+      nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                            *refineElement[ielGeom][soluType], region2, jelIndex,
+                            solu1, kappa1, delta1, printMesh);
 
       RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
       KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
@@ -386,7 +398,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
       }
       assemblyTime += clock() - start;
-      
+
     } //end iel loop
   } //end kproc loop
 
@@ -402,9 +414,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   delete refineElement[4][2];
 
   //KK->draw();
-  
-  std::cout << "Search Time = "<< static_cast<double>(searchTime) / CLOCKS_PER_SEC << std::endl;
-  std::cout << "Assembly Time = "<< static_cast<double>(assemblyTime) / CLOCKS_PER_SEC << std::endl;
+
+  std::cout << "Search Time = " << static_cast<double>(searchTime) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "Assembly Time = " << static_cast<double>(assemblyTime) / CLOCKS_PER_SEC << std::endl;
 
   // ***************** END ASSEMBLY *******************
 }
