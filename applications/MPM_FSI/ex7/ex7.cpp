@@ -137,7 +137,7 @@ int main(int argc, char **args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  FEOrder femOrder = FIRST;
+  FEOrder femOrder = SECOND;
 
   MultiLevelSolution mlSol(&mlMsh);
   // add variables to mlSol
@@ -421,7 +421,7 @@ int main(int argc, char **args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 200;
+  unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
