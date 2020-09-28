@@ -334,9 +334,6 @@ int main(int argc, char **args) {
 
   bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
-
-  std::cout << "AAAAAAAAAAAAAAAAAA\n" << std::flush;
-
   std::vector < std::vector < std::vector < double >>>bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
@@ -369,8 +366,6 @@ int main(int argc, char **args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
 
-  
-  std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
   mlSol.SetWriter(VTK);
 
   std::vector < std::string > mov_vars;
@@ -419,10 +414,13 @@ int main(int argc, char **args) {
 
   //return 1;
 
-
+   clock_t start_time_t;
+  
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
+    start_time_t = clock();
+   
 
     system.CopySolutionToOldSolution();
 
@@ -447,6 +445,14 @@ int main(int argc, char **args) {
     
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints,
               time_step);
+    
+    if(time_step > 1 ){
+        
+    std::cout << "One time step = " << (clock() - start_time_t) / (double) CLOCKS_PER_SEC << " seconds\nRemaing_Time = " 
+    << (n_timesteps - time_step - 1) * (clock() - start_time_t) / ( (double) CLOCKS_PER_SEC * 60) << " mins / "
+    << (n_timesteps - time_step - 1) * (clock() - start_time_t) / ( (double) CLOCKS_PER_SEC * 60 * 60) << " hours. Cheers!" << std::endl;
+        
+    }
 
   }
 
