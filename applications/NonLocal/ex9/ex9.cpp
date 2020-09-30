@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 2;
+unsigned numberOfUniformLevels = 6;
 unsigned numberOfUniformLevelsFine = 2;
 
 int main(int argc, char** argv) {
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  system.SetSparsityPatternMinimumSize(5000u);    //TODO tune
+  system.SetSparsityPatternMinimumSize(10000u);    //TODO tune
 
   system.init();
 
@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
   system.SetSolverFineGrids(RICHARDSON);
 //   system.SetRichardsonScaleFactor(0.7);
 
-  system.SetPreconditionerFineGrids(MLU_PRECOND);
+  system.SetPreconditionerFineGrids(ILU_PRECOND);
 
   system.SetTolerances(1.e-40, 1.e-40, 1.e+50, 100);
 

@@ -289,7 +289,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 5;
+  unsigned lmax1 = 3;
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
