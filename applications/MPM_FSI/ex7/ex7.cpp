@@ -97,9 +97,9 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 5; //for refinement in 3D
+  unsigned numberOfUniformLevels = 4; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
-  unsigned numberOfSelectiveLevels =0 ;
+  unsigned numberOfSelectiveLevels = 0 ;
 
   double Lref = 1.;
   double Uref = 1.;
