@@ -27,8 +27,8 @@ using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
-  if(time < 9) dt = 0.05;
-  else dt = 0.025;
+  if(time < 2.5) dt = 0.05;
+  else dt = 0.0125;
 
   return dt;
 }
@@ -97,7 +97,7 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 4; //for refinement in 3D
+  unsigned numberOfUniformLevels = 3; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0 ;
 
@@ -290,7 +290,7 @@ int main(int argc, char **args) {
   
   double Hs = lbeam + rcircle;                // length of the particle beam, y-direction, delete the section inside the circle later on
   double Ls = hbeam;                          // width of the particle beam, x-direction
-  double Lf = 2. * Ls;
+  double Lf = 3. * Ls;
 
   std::vector < double > xcc = { xcircle - 0.5 * hbeam, ycircle};
 
