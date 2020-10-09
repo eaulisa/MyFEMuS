@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 2;
+unsigned numberOfUniformLevels = 3;
 unsigned numberOfUniformLevelsFine = 2;
 
 int main(int argc, char** argv) {
@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
-  
+
   mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
   mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
 
@@ -506,88 +506,89 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
   std::cout << "------------------------------------- " << std::endl;
 
   const unsigned levelFine = mlSolFine._mlMesh->GetNumberOfLevels() - 1;
-  Mesh* mshFine = mlSolFine._mlMesh->GetLevel(levelFine);
-  Solution* solFine  = mlSolFine.GetSolutionLevel(levelFine);
+  if(levelFine >= level) {
+    Mesh* mshFine = mlSolFine._mlMesh->GetLevel(levelFine);
+    Solution* solFine  = mlSolFine.GetSolutionLevel(levelFine);
 
-  unsigned soluIndexFine;
-  soluIndexFine = mlSolFine.GetIndex("u");
+    unsigned soluIndexFine;
+    soluIndexFine = mlSolFine.GetIndex("u");
 
-  unsigned solupIndexFine;
-  solupIndexFine = mlSolFine.GetIndex("up");
+    unsigned solupIndexFine;
+    solupIndexFine = mlSolFine.GetIndex("up");
 
-  Solution* solFineL = mlSolFine.GetSolutionLevel(level);
-  *solFineL->_Sol[solupIndexFine] = *sol->_Sol[soluIndex];
-  for(unsigned l = level + 1; l <= levelFine; l++) {
-    Mesh* mshFineL = mlSolFine._mlMesh->GetLevel(l);
-    Solution* solFineL = mlSolFine.GetSolutionLevel(l);
-    Solution* solFineLm1 = mlSolFine.GetSolutionLevel(l - 1);
-    solFineL->_Sol[solupIndexFine]->matrix_mult(*solFineLm1->_Sol[solupIndexFine], *mshFineL->GetCoarseToFineProjection(soluType));
-  }
-
-  double error_NonLocCoarse_NonLocFine_norm2 = 0.;
-
-  double solNonlocalFine_norm2 = 0.;
-
-
-  for(int iel = solFine->GetMesh()->_elementOffset[iproc]; iel < solFine->GetMesh()->_elementOffset[iproc + 1]; iel ++) {
-
-    short unsigned ielGeom = mshFine->GetElementType(iel);
-    unsigned nDofs  = mshFine->GetElementDofNumber(iel, soluType);
-
-    vector < double >  solu(nDofs);
-    vector < double >  soluP(nDofs);
-
-    std::vector < std::vector <double> > x(dim);
-
-    for(int k = 0; k < dim; k++) {
-      x[k].assign(nDofs, 0.);
+    Solution* solFineL = mlSolFine.GetSolutionLevel(level);
+    *solFineL->_Sol[solupIndexFine] = *sol->_Sol[soluIndex];
+    for(unsigned l = level + 1; l <= levelFine; l++) {
+      Mesh* mshFineL = mlSolFine._mlMesh->GetLevel(l);
+      Solution* solFineL = mlSolFine.GetSolutionLevel(l);
+      Solution* solFineLm1 = mlSolFine.GetSolutionLevel(l - 1);
+      solFineL->_Sol[solupIndexFine]->matrix_mult(*solFineLm1->_Sol[solupIndexFine], *mshFineL->GetCoarseToFineProjection(soluType));
     }
 
-    for(unsigned i = 0; i < nDofs; i++) {
-      unsigned solDof = mshFine->GetSolutionDof(i, iel, soluType);
-      solu[i] = (*solFine->_Sol[soluIndexFine])(solDof);
-      soluP[i] = (*solFine->_Sol[solupIndexFine])(solDof);
-      unsigned xDof  = mshFine->GetSolutionDof(i, iel, xType);
-      for(unsigned k = 0; k < dim; k++) {
-        x[k][i] = (*mshFine->_topology->_Sol[k])(xDof);
+    double error_NonLocCoarse_NonLocFine_norm2 = 0.;
+
+    double solNonlocalFine_norm2 = 0.;
+
+
+    for(int iel = solFine->GetMesh()->_elementOffset[iproc]; iel < solFine->GetMesh()->_elementOffset[iproc + 1]; iel ++) {
+
+      short unsigned ielGeom = mshFine->GetElementType(iel);
+      unsigned nDofs  = mshFine->GetElementDofNumber(iel, soluType);
+
+      vector < double >  solu(nDofs);
+      vector < double >  soluP(nDofs);
+
+      std::vector < std::vector <double> > x(dim);
+
+      for(int k = 0; k < dim; k++) {
+        x[k].assign(nDofs, 0.);
       }
-    }
 
-    const double* phi;  // local test function
-    double weight; // gauss point weight
-    unsigned igNumber = mshFine->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
-
-    // *** Gauss point loop ***
-    for(unsigned ig = 0; ig < igNumber; ig++) {
-
-      mshFine->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x, ig, weight, phi);
-      double soluP_gss = 0.;
-      double solu_gss = 0.;
       for(unsigned i = 0; i < nDofs; i++) {
-        solu_gss += phi[i] * solu[i];
-        soluP_gss += phi[i] * soluP[i];
+        unsigned solDof = mshFine->GetSolutionDof(i, iel, soluType);
+        solu[i] = (*solFine->_Sol[soluIndexFine])(solDof);
+        soluP[i] = (*solFine->_Sol[solupIndexFine])(solDof);
+        unsigned xDof  = mshFine->GetSolutionDof(i, iel, xType);
+        for(unsigned k = 0; k < dim; k++) {
+          x[k][i] = (*mshFine->_topology->_Sol[k])(xDof);
+        }
       }
 
-      error_NonLocCoarse_NonLocFine_norm2 += (solu_gss - soluP_gss) * (solu_gss - soluP_gss) * weight;
-      solNonlocalFine_norm2 += solu_gss * solu_gss * weight;
+      const double* phi;  // local test function
+      double weight; // gauss point weight
+      unsigned igNumber = mshFine->_finiteElement[ielGeom][soluType]->GetGaussPointNumber();
+
+      // *** Gauss point loop ***
+      for(unsigned ig = 0; ig < igNumber; ig++) {
+
+        mshFine->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x, ig, weight, phi);
+        double soluP_gss = 0.;
+        double solu_gss = 0.;
+        for(unsigned i = 0; i < nDofs; i++) {
+          solu_gss += phi[i] * solu[i];
+          soluP_gss += phi[i] * soluP[i];
+        }
+
+        error_NonLocCoarse_NonLocFine_norm2 += (solu_gss - soluP_gss) * (solu_gss - soluP_gss) * weight;
+        solNonlocalFine_norm2 += solu_gss * solu_gss * weight;
+
+      }
 
     }
 
+
+    norm2 = 0.;
+    MPI_Allreduce(&error_NonLocCoarse_NonLocFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    norm = sqrt(norm2);
+    std::cout.precision(14);
+    std::cout << "L2 norm of ERROR: Nonlocal - Nonlocal Fine = " << norm << std::endl;
+
+    norm2 = 0.;
+    MPI_Allreduce(&solNonlocalFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    norm = sqrt(norm2);
+    std::cout.precision(14);
+    std::cout << "L2 norm of NONLOCAL FINE soln = " << norm << std::endl;
   }
-
-
-  norm2 = 0.;
-  MPI_Allreduce(&error_NonLocCoarse_NonLocFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  norm = sqrt(norm2);
-  std::cout.precision(14);
-  std::cout << "L2 norm of ERROR: Nonlocal - Nonlocal Fine = " << norm << std::endl;
-
-  norm2 = 0.;
-  MPI_Allreduce(&solNonlocalFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  norm = sqrt(norm2);
-  std::cout.precision(14);
-  std::cout << "L2 norm of NONLOCAL FINE soln = " << norm << std::endl;
-
   //END
 
 }
