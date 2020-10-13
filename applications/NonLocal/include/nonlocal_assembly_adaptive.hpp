@@ -576,14 +576,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     std::cout << "[" << iproc << "]   ";
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      std::cout << orCntSend[kproc] << " ";
+      std::cout << orSizeSend[kproc] << " ";
     }
     std::cout << std::endl;
 
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "[" << iproc << "]   ";
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      std::cout << orCntRecv[kproc] << " ";
+      std::cout << orSizeRecv[kproc] << " ";
     }
     std::cout << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
