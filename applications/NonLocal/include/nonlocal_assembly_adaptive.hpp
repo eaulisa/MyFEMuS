@@ -565,8 +565,28 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       MPI_Isend(&orCntSend[kproc], 1, MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsSend[kproc][0]);
       MPI_Isend(&orSizeSend[kproc], 1, MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsSend[kproc][1]);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
 
+    MPI_Status status;
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      for(unsigned m = 0; m < 2; m++) {
+        MPI_Wait(&reqsRecv[kproc][m], &status);
+        MPI_Wait(&reqsSend[kproc][m], &status);
+      }
+    }
+
+    std::cout << "[" << iproc << "]   ";
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      std::cout << orCntSend[kproc] << " ";
+    }
+    std::cout << std::endl;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "[" << iproc << "]   ";
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      std::cout << orCntRecv[kproc] << " ";
+    }
+    std::cout << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       orGeomRecv[kproc].resize(orCntRecv[kproc]);
@@ -594,7 +614,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         MPI_Isend(orXSend[kproc][k].data(), orXSend[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, MPI_COMM_WORLD, &reqsSend[kproc][3 + k]);
       }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      for(unsigned m = 0; m < 3 + dim; m++) {
+        MPI_Wait(&reqsRecv[kproc][m], &status);
+        MPI_Wait(&reqsSend[kproc][m], &status);
+      }
+    }
 
     std::cout << "Exchange Time = " << static_cast<double>(clock() - exchangeTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
@@ -1891,6 +1917,7 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
   }
 
 }
+
 
 
 
