@@ -712,7 +712,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
   double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
   double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-  double KMmp = EMpm / (3.* (1. - 2. * nuMpm));     //bulk modulus
+
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
@@ -1050,7 +1050,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       // *** Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
 
-        msh->_finiteElement[ielt][solTypeP]->Jacobian(vxHat, ig, weightP, phiP, gradPhiP);
         msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightDHat, phiD, gradPhiDHat);
         msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weightD, phiD, gradPhiD);
 
@@ -1085,6 +1084,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           solAgAm[k] = ((1. - am) * solAgk + am * solAgOld[k]);
         }
 
+        double *phi = msh->_finiteElement[ielt][solTypeP]->GetPhi(ig);
         adept::adouble solPg = 0.;
         for(unsigned i = 0; i < nDofsP; i++) {
           solPg += phiP[i] * solP[i];
@@ -1132,7 +1132,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           for(unsigned k = 0; k < dim; k++) {
             aRhsD[k][i] -= (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
-            if(k == 0){
+            if(k == 0) {
               aRhsD[k][i] -= (rhoMpm * phiD[i]) * weightD;
             }
           }
@@ -1207,11 +1207,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       }
 
       // start a new recording of all the operations involving adept::adouble variables
+      // start a new recording of all the operations involving adept::adouble variables
       s.new_recording();
 
       for(unsigned i = 0; i < nDofs; i++) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
         for(unsigned  k = 0; k < dim; k++) {
+          vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX);
           vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + (1. - af) * solDOld[k][i] + af * solD[k][i];
         }
       }
@@ -1219,41 +1221,113 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       // *** Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
 
+        msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightDHat, phiD, gradPhiDHat);
         msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weightD, phiD, gradPhiD);
 
-        std::vector < std::vector < adept::adouble > > gradSolDg(dim);
+        std::vector < std::vector < adept::adouble > > gradSolDgHat(dim);
 
         for(unsigned  k = 0; k < dim; k++) {
-          gradSolDg[k].assign(dim, 0.);
+          gradSolDgHat[k].assign(dim, 0.);
         }
 
         for(unsigned i = 0; i < nDofs; i++) {
           for(unsigned j = 0; j < dim; j++) {
+
             for(unsigned  k = 0; k < dim; k++) {
-              gradSolDg[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiD[i * dim + j];
+              gradSolDgHat[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiDHat[i * dim + j];
             }
           }
         }
 
-        double *phiP = msh->_finiteElement[ielt][solTypeP]->GetPhi(ig);
+        double *phi = msh->_finiteElement[ielt][solTypeP]->GetPhi(ig);
         adept::adouble solPg = 0.;
         for(unsigned i = 0; i < nDofsP; i++) {
           solPg += phiP[i] * solP[i];
         }
 
+        adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned k = 0; k < dim; k++) {
+            F[j][k] += gradSolDgHat[j][k];
+          }
+        }
 
-        //END computation of the Cauchy Stress
-        for(unsigned i = 0; i < nDofs; i++) {
-          if(nodeFlag[i] == 4) {
-            for(unsigned k = 0; k < dim; k++) {
-              adept::adouble wlaplace = 0.;  
-              for(unsigned j = 0; j < dim; j++) {
-                wlaplace += gradPhiD[i * dim + j] * (gradSolDg[k][j] + gradSolDg[j][k]);
-              }
-              aRhsD[k][i] -= wlaplace * weightD;
+        adept::adouble J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
+                                - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+
+
+        adept::adouble B[3][3];
+        for(unsigned i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            B[i][j] = 0.;
+            for(unsigned k = 0; k < 3; k++) {
+              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+              B[i][j] += F[i][k] * F[j][k];
             }
           }
         }
+
+        adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+        adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+        adept::adouble Cauchy[3][3];
+
+
+        double E = 1;
+        double nu = 0.4;
+
+        double mu = E / (2. * (1. + nu));
+        double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
+
+        for(unsigned j = 0; j < 3; j++) {
+          for(unsigned k = 0; k < 3; k++) {
+            Cauchy[j][k] = lambda * log(J_hat) / J_hat * Id2th[j][k] + mu / J_hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
+          }
+        }
+        //END computation of the Cauchy Stress
+        for(unsigned i = 0; i < nDofs; i++) {
+          if(nodeFlag[i] == 4) {
+            adept::adouble CauchyDIR[3] = {0., 0., 0.};
+            for(unsigned j = 0.; j < dim; j++) {
+              for(unsigned k = 0.; k < dim; k++) {
+                CauchyDIR[j] += gradPhiD[i * dim + k] * Cauchy[j][k];
+              }
+            }
+            for(unsigned k = 0; k < dim; k++) {
+              aRhsD[k][i] -=   CauchyDIR[k] * weightD;
+            }
+          }
+        }
+
+//         unsigned group = msh->GetElementGroup(iel);
+//         double E = (group == 13) ? 2 : 1;
+//         double nu = 0.35;
+// 
+//         double mu = E / (2. * (1. + nu));
+//         double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
+// 
+//         adept::adouble divD = 0.;
+//         for(int I = 0; I < dim; I++) {
+//           divD += gradSolDgHat[I][I];
+//         }
+// 
+//         // *** phiA_i loop ***
+//         for(unsigned i = 0; i < nDofs; i++) {
+//           if(nodeFlag[i] == 4) {
+//             for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
+//               adept::adouble term = 0.;
+//               for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
+//                 term +=  mu * gradPhiDHat[i * dim + J] * (gradSolDgHat[I][J] + gradSolDgHat[J][I]); // diffusion
+//               }
+//               term +=  gradPhiDHat[i * dim + I]  * lambda * divD;
+// 
+//               aRhsD[I][i] -=   term * weightDHat;
+//             }
+//           }
+//         } // end phiA_i loop
+
+
+
+
         //continuity block
         for(unsigned i = 0; i < nDofsP; i++) {
           aRhsP[i] -= (phiP[i] * solPg) * weightD;
