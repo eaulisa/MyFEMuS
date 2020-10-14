@@ -20,9 +20,18 @@ Line *lineI;
 void BuildFlag(MultiLevelSolution & mlSol);
 double eps;
 
+double beta = 0.25;
+double Gamma = 0.5;
+double theta = 0.5;
+double af = theta;
+double pInf = (1. + af) / (2. - af);
+double am = pInf / (1. + pInf);
+
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
-#include "../include/mpmFsi8.hpp"
+#include "./include/assemblySolid.hpp"
+#include "./include/assemblyBoundaryLayer.hpp"
+#include "./include/assemblyFluid.hpp"
 using namespace femus;
 
 double dt = 1.;
@@ -34,6 +43,7 @@ double SetVariableTimeStep(const double time) {
   return dt;
 }
 
+void Assemble(MultiLevelProblem& ml_prob);
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol);
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol);
 
@@ -190,7 +200,7 @@ int main(int argc, char **args) {
 //
 
   // ******* System MPM-FSI Assembly *******
-  system.SetAssembleFunction(AssembleMPMSys);
+  system.SetAssembleFunction(Assemble);
   //system.SetAssembleFunction (AssembleMPMSysOld);
   //system.SetAssembleFunction(AssembleFEM);
   // ******* set MG-Solver *******
@@ -245,7 +255,51 @@ int main(int argc, char **args) {
 
 }
 
+void Assemble(MultiLevelProblem& ml_prob) {
 
+  // ml_prob is the global object from/to where get/set all the data
+  // level is the level of the PDE system to be assembled
+  // levelMax is the Maximum level of the MultiLevelProblem
+  // assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
+
+  clock_t AssemblyTime = 0;
+  clock_t start_time, end_time;
+
+  //pointers and references
+
+  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("MPM_FSI");
+  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
+  Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
+
+  //Solution*                sol = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
+
+  LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];  // pointer to the equation (level) object
+
+  Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
+  elem* el = msh->el;   // pointer to the elem object in msh (level)
+  SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
+
+  myKK->zero();
+  myRES->zero();
+      
+  AssembleSolid(ml_prob);
+  AssembleBoundaryLayer(ml_prob);
+  
+  
+  AssembleFluid(ml_prob);
+  
+  // AssembleGhostPenalty(ml_prob, true);
+  
+  myKK->close();
+  myRES->close();
+  
+  end_time = clock();
+  AssemblyTime += (end_time - start_time);
+
+  
+}
 
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol) {
 

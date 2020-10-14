@@ -243,6 +243,9 @@ namespace femus {
         return _materialElementCounter;
       }
       
+      unsigned GetFaceRangeStart(const unsigned &ielt) const;
+      
+      unsigned GetFaceRangeEnd(const unsigned &ielt) const;
       
     private:
 
@@ -285,6 +288,15 @@ namespace femus {
     {4, 8, 9, 1, 3}, //quad
     {3, 6, 7, 1, 3}, //tri
     {2, 3, 3, 1, 2}  //line
+  };
+  
+  const unsigned FACERANGE[6][2] = {
+    {20,26},
+    {10,14},
+    {15,20},
+    {4,8},
+    {3,6},
+    {2,3}
   };
 
   /**
