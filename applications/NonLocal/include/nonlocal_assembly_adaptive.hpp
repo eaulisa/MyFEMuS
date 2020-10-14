@@ -578,19 +578,19 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
     }
 
-    std::cout << "[" << iproc << "]  ";
-    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      std::cout << orSizeSend[kproc] << " ";
-    }
-    std::cout << std::endl;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "[" << iproc << "]  ";
-    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      std::cout << orSizeRecv[kproc] << " ";
-    }
-    std::cout << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+//     std::cout << "[" << iproc << "]  ";
+//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//       std::cout << orSizeSend[kproc] << " ";
+//     }
+//     std::cout << std::endl;
+// 
+//     MPI_Barrier(MPI_COMM_WORLD);
+//     std::cout << "[" << iproc << "]  ";
+//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//       std::cout << orSizeRecv[kproc] << " ";
+//     }
+//     std::cout << std::endl;
+//     MPI_Barrier(MPI_COMM_WORLD);
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       orGeomRecv[kproc].resize(orCntRecv[kproc]);
@@ -635,7 +635,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       if(kproc != iproc) {
         unsigned cnt1 = 0;
-        for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) {
+        for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
 
           short unsigned ielGeom = orGeomRecv[kproc][iel];
           unsigned nDof1  = el->GetNVE(ielGeom, soluType);
@@ -665,7 +665,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           region2.Reset();
 
           unsigned cnt2 = 0;
-          for(unsigned jel = 0; jel < orGeomSend[kproc].size(); jel++) {
+          for(unsigned jel = 0; jel < orGeomSend[kproc].size(); jel++) { // these elements are own by iproc
 
             short unsigned jelGeom = orGeomSend[kproc][jel];
             unsigned nDof2  = el->GetNVE(jelGeom, soluType);
@@ -720,7 +720,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
                                 *refineElement[ielGeom][soluType], region2, jelIndex,
                                 solu1, kappa1, delta1, printMesh);
 
-          for(unsigned jel = 0; jel < region2.size(); jel++) {
+          for(unsigned jel = 0; jel < region2.size(); jel++) { 
+            /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
+               This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize 
+               the bufferization and exchange of information is closing the KK matrix and the RES vector */
             KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
             KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
             RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
@@ -729,20 +732,27 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }//end iel loop
       }
     }
-
-    RES->close();
-    KK->close();
-
+    
     std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Search Time = " << static_cast<double>(pSearchTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Assembly Time = " << static_cast<double>(pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
+    
+    time_t start = clock();
+    RES->close();
+    KK->close();
+    std::cout << "[" << iproc << "]  ";
+    std::cout << "parallel Closing Time = " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC << std::endl;
+    std::cout << std::endl;
+    
     std::cout << "[" << iproc << "]  ";
     std::cout << "total Search Time = " << static_cast<double>(sSearchTime + pSearchTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << "[" << iproc << "]  ";
     std::cout << "total Assembly Time = " << static_cast<double>(sAssemblyTime + pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
+
+   
   }
   else {
     RES->close();
