@@ -537,7 +537,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //END serial nonlocal assembly
 
 
-
   //BEGIN parallel nonlocal assembly
   if(nprocs > 1) {
 
@@ -723,7 +722,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           for(unsigned jel = 0; jel < region2.size(); jel++) { 
             /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
                This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize 
-               the bufferization and exchange of information is closing the KK matrix and the RES vector */
+               the bufferization and exchange of information when closing the KK matrix and the RES vector */
             KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
             KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
             RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
@@ -751,8 +750,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     std::cout << "[" << iproc << "]  ";
     std::cout << "total Assembly Time = " << static_cast<double>(sAssemblyTime + pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
-
-   
+  
   }
   else {
     RES->close();
