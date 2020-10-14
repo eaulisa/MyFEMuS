@@ -516,7 +516,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
                           *refineElement[ielGeom][soluType], region2, jelIndex,
                           solu1, kappa1, delta1, printMesh);
 
-
     RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
 
     //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
@@ -528,11 +527,16 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     sAssemblyTime += clock() - start;
 
   } //end iel loop
-  //BEGIN nonlocal assembly
 
+  std::cout << "[" << iproc << "]  ";
   std::cout << "serial Search Time = " << static_cast<double>(sSearchTime) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "[" << iproc << "]  ";
   std::cout << "serial Assembly Time = " << static_cast<double>(sAssemblyTime) / CLOCKS_PER_SEC << std::endl;
   std::cout << std::endl;
+
+  //END serial nonlocal assembly
+
+
 
   //BEGIN parallel nonlocal assembly
   if(nprocs > 1) {
@@ -574,14 +578,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
     }
 
-    std::cout << "[" << iproc << "]   ";
+    std::cout << "[" << iproc << "]  ";
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       std::cout << orSizeSend[kproc] << " ";
     }
     std::cout << std::endl;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "[" << iproc << "]   ";
+    std::cout << "[" << iproc << "]  ";
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       std::cout << orSizeRecv[kproc] << " ";
     }
@@ -621,66 +625,57 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         MPI_Wait(&reqsSend[kproc][m], &status);
       }
     }
-
+    std::cout << "[" << iproc << "]  ";
     std::cout << "Exchange Time = " << static_cast<double>(clock() - exchangeTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
 
     time_t pSearchTime = 0.;
     time_t pAssemblyTime = 0.;
 
-    for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      if(kproc != iproc) {
+        unsigned cnt1 = 0;
+        for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) {
 
-      short unsigned ielGeom;
-      short unsigned ielGroup;
-      unsigned nDof1;
+          short unsigned ielGeom = orGeomRecv[kproc][iel];
+          unsigned nDof1  = el->GetNVE(ielGeom, soluType);
 
-      ielGeom = msh->GetElementType(iel);
-      ielGroup = msh->GetElementGroup(iel);
-      nDof1  = msh->GetElementDofNumber(iel, soluType);
+          l2GMap1.resize(nDof1);
+          solu1.resize(nDof1);
+          for(unsigned k = 0; k < dim; k++) {
+            x1[k].resize(nDof1);
+          }
 
-      l2GMap1.resize(nDof1);
-      solu1.resize(nDof1);
-      for(unsigned k = 0; k < dim; k++) {
-        x1[k].resize(nDof1);
-      }
+          for(unsigned i = 0; i < nDof1; i++) {
+            solu1[i] = orSolRecv[kproc][cnt1 + i];
+            l2GMap1[i] = orDofsRecv[kproc][cnt1 + i];
+            for(unsigned k = 0; k < dim; k++) {
+              x1[k][i] =  orXRecv[kproc][k][cnt1 + i];
+            }
+          }
 
-      for(unsigned i = 0; i < nDof1; i++) {
-        unsigned uDof = msh->GetSolutionDof(i, iel, soluType);
-        solu1[i] = (*sol->_Sol[soluIndex])(uDof);
+          refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
+          for(unsigned k = 0; k < dim; k++) {
+            x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
+          }
 
-        l2GMap1[i] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, i, iel);
+          cnt1 += nDof1;
+          time_t start = clock();
 
-        unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
-        for(unsigned k = 0; k < dim; k++) {
-          x1[k][i] = (*msh->_topology->_Sol[k])(xDof);
-        }
-      }
+          region2.Reset();
 
-      refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
+          unsigned cnt2 = 0;
+          for(unsigned jel = 0; jel < orGeomSend[kproc].size(); jel++) {
 
-      for(unsigned k = 0; k < dim; k++) {
-        x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
-      }
-
-      time_t start = clock();
-
-
-      region2.Reset();
-
-      for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-        if(kproc != iproc) {
-          unsigned cnt = 0;
-          for(int jel = 0; jel < orGeomRecv[kproc].size(); jel++) {
-
-            short unsigned jelGeom = orGeomRecv[kproc][jel];
+            short unsigned jelGeom = orGeomSend[kproc][jel];
             unsigned nDof2  = el->GetNVE(jelGeom, soluType);
 
-            for(int k = 0; k < dim; k++) {
+            for(unsigned k = 0; k < dim; k++) {
               x2[k].assign(nDof2, 0.);
             }
             for(unsigned j = 0; j < nDof2; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                x2[k][j] = orXRecv[kproc][k][cnt + j];
+                x2[k][j] = orXSend[kproc][k][cnt2 + j];
               }
             }
             minmax2.resize(dim);
@@ -702,51 +697,59 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
               l2GMap2.resize(nDof2);
               solu2.resize(nDof2);
               for(unsigned j = 0; j < nDof2; j++) {
-                solu2[j] = orSolRecv[kproc][cnt + j];
-                l2GMap2[j] = orDofsRecv[kproc][cnt + j];
+                solu2[j] = orSolSend[kproc][cnt2 + j];
+                l2GMap2[j] = orDofsSend[kproc][cnt2 + j];
               }
               region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
             }
-            cnt += nDof2;
+            cnt2 += nDof2;
           }
-        }
+
+          pSearchTime += clock() - start;
+          start = clock();
+
+          nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
+          bool printMesh = false;
+
+          std::vector<unsigned>jelIndex(region2.size());
+          for(unsigned j = 0; j < jelIndex.size(); j++) {
+            jelIndex[j] = j;
+          }
+
+          nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                                *refineElement[ielGeom][soluType], region2, jelIndex,
+                                solu1, kappa1, delta1, printMesh);
+
+          for(unsigned jel = 0; jel < region2.size(); jel++) {
+            KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
+            RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
+          }
+          pAssemblyTime += clock() - start;
+        }//end iel loop
       }
+    }
 
-      pSearchTime += clock() - start;
-      start = clock();
+    RES->close();
+    KK->close();
 
-      nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
-      bool printMesh = false;
-
-      std::vector<unsigned>jelIndex(region2.size());
-      for(unsigned j = 0; j < jelIndex.size(); j++) {
-        jelIndex[j] = j;
-      }
-
-      nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                            *refineElement[ielGeom][soluType], region2, jelIndex,
-                            solu1, kappa1, delta1, printMesh);
-
-      //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
-      for(unsigned jel = 0; jel < region2.size(); jel++) {
-        KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
-        KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
-        RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
-      }
-      pAssemblyTime += clock() - start;
-    }//end iel loop
-
+    std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Search Time = " << static_cast<double>(pSearchTime) / CLOCKS_PER_SEC << std::endl;
+    std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Assembly Time = " << static_cast<double>(pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
+    std::cout << "[" << iproc << "]  ";
     std::cout << "total Search Time = " << static_cast<double>(sSearchTime + pSearchTime) / CLOCKS_PER_SEC << std::endl;
+    std::cout << "[" << iproc << "]  ";
     std::cout << "total Assembly Time = " << static_cast<double>(sAssemblyTime + pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
   }
+  else {
+    RES->close();
+    KK->close();
+  }
 
 
-  RES->close();
-  KK->close();
 
 
 
