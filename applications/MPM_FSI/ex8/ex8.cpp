@@ -285,6 +285,8 @@ void Assemble(MultiLevelProblem& ml_prob) {
   myRES->zero();
       
   AssembleSolid(ml_prob);
+  AssembleSolidInterface(ml_prob);
+  
   AssembleBoundaryLayer(ml_prob);
   
   
