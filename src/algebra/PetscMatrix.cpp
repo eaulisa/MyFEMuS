@@ -797,7 +797,7 @@ namespace femus {
 
       int k = 0;
       for(int j = 0; j < n; j++) {
-        if(fabs(vals[j]) > tolerance) {
+        if(fabs(vals[j]) >= tolerance) {
           if(colStart <= cols[j] && cols[j] < colEnd) {
             sizeDiag[i]++;
           }
