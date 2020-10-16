@@ -234,7 +234,6 @@ void RectangleAndBallRelation2(bool & theyIntersect, const std::vector<double> &
 
 //BEGIN New functions: GetIntegral on refined mesh (needs the RefineElement class)
 
-
 void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   LinearImplicitSystem* mlPdeSys;
@@ -582,7 +581,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //       std::cout << orSizeSend[kproc] << " ";
 //     }
 //     std::cout << std::endl;
-// 
+//
 //     MPI_Barrier(MPI_COMM_WORLD);
 //     std::cout << "[" << iproc << "]  ";
 //     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
@@ -707,50 +706,52 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           pSearchTime += clock() - start;
           start = clock();
 
-          nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
-          bool printMesh = false;
+          if(region2.size() > 0) {
+            nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
+            bool printMesh = false;
 
-          std::vector<unsigned>jelIndex(region2.size());
-          for(unsigned j = 0; j < jelIndex.size(); j++) {
-            jelIndex[j] = j;
-          }
+            std::vector<unsigned>jelIndex(region2.size());
+            for(unsigned j = 0; j < jelIndex.size(); j++) {
+              jelIndex[j] = j;
+            }
 
-          nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                                *refineElement[ielGeom][soluType], region2, jelIndex,
-                                solu1, kappa1, delta1, printMesh);
+            nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                                  *refineElement[ielGeom][soluType], region2, jelIndex,
+                                  solu1, kappa1, delta1, printMesh);
 
-          for(unsigned jel = 0; jel < region2.size(); jel++) { 
-            /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
-               This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize 
-               the bufferization and exchange of information when closing the KK matrix and the RES vector */
-            KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
-            KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
-            RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
+            for(unsigned jel = 0; jel < region2.size(); jel++) {
+              /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
+                 This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
+                 the bufferization and exchange of information when closing the KK matrix and the RES vector */
+              KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+              KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
+              RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
+            }
           }
           pAssemblyTime += clock() - start;
         }//end iel loop
       }
     }
-    
+
     std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Search Time = " << static_cast<double>(pSearchTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Assembly Time = " << static_cast<double>(pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
-    
+
     time_t start = clock();
     RES->close();
     KK->close();
     std::cout << "[" << iproc << "]  ";
     std::cout << "parallel Closing Time = " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
-    
+
     std::cout << "[" << iproc << "]  ";
     std::cout << "total Search Time = " << static_cast<double>(sSearchTime + pSearchTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << "[" << iproc << "]  ";
     std::cout << "total Assembly Time = " << static_cast<double>(sAssemblyTime + pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
-  
+
   }
   else {
     RES->close();
@@ -758,8 +759,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
 
 
-
-
+  double tolerance = 1.0e-12 * KK->linfty_norm();
+  KK->RemoveZeroEntries(tolerance);
+  
+  KK->draw();
+  
 
   delete nonlocal;
   delete refineElement[3][0];
