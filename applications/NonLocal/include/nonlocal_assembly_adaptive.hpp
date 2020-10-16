@@ -762,7 +762,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
   
-  KK->draw();
+  //KK->draw();
   
 
   delete nonlocal;
