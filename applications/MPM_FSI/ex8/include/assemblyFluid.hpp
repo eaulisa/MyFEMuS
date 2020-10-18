@@ -704,7 +704,7 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
     unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
 
-    if(eFlag == 2) {
+    if(eFlag <= 2) {
 
       for(unsigned  k = 0; k < dim; k++) {
         solV[k].resize(nDofs);

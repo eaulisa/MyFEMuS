@@ -102,11 +102,11 @@ namespace femus {
 
     for(unsigned j = 0; j < _size; j++) {
 
-      particles[j] = new Marker(x[j], mass[j], dist[j], nSlaves[j], markerType[j], _sol, solType, true);
+      particles[j] = new Marker(x[j], mass[j], dist[j], nSlaves[j], markerType[j], _sol, solType);
 
       for(unsigned k = j + 1; k <= j + nSlaves[j]; k++) {
 
-        particles[k] = new Marker(x[j], mass[k], dist[k], nSlaves[k], markerType[k], _sol, solType, true);
+        particles[k] = new Marker(x[j], mass[k], dist[k], nSlaves[k], markerType[k], _sol, solType);
         
         if(particles[k]->GetMarkerProc(sol) == _iproc) {
           particles[k]->SetIprocMarkerCoordinates(x[k]);
@@ -148,7 +148,7 @@ namespace femus {
     _printList.resize(_size);
 
     for(unsigned j = 0; j < _size; j++) {
-      particles[j] = new Marker(x[j], markerType[j], _sol, solType, true);
+      particles[j] = new Marker(x[j], markerType[j], _sol, solType);
       particles[j]->SetMarkerTangentGlobal(tangent[j]);
     }
     Reorder(particles);

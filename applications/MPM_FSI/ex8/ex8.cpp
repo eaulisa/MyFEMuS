@@ -27,8 +27,8 @@ double af = theta;
 double pInf = (1. + af) / (2. - af);
 double am = pInf / (1. + pInf);
 
-#include "../../Nitsche/support/particleInit.hpp"
-#include "../../Nitsche/support/sharedFunctions.hpp"
+//#include "../../Nitsche/support/particleInit.hpp"
+//#include "../../Nitsche/support/sharedFunctions.hpp"
 #include "./include/assemblySolid.hpp"
 #include "./include/assemblyBoundaryLayer.hpp"
 #include "./include/assemblyFluid.hpp"
@@ -44,6 +44,8 @@ double SetVariableTimeStep(const double time) {
 }
 
 void Assemble(MultiLevelProblem& ml_prob);
+
+void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0);
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol);
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol);
 
@@ -148,6 +150,7 @@ int main(int argc, char **args) {
   mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("pElem", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
 
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, false);
@@ -162,8 +165,8 @@ int main(int argc, char **args) {
   mlSol.AddSolution("AY", LAGRANGE, femOrder, 0, false);
   if(dim > 2) mlSol.AddSolution("AZ", LAGRANGE, femOrder, 0, false);
 
-  
-  
+
+
   //mlSol.SetIfFSI(true);
 
   mlSol.Initialize("All");
@@ -224,6 +227,7 @@ int main(int argc, char **args) {
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
   BuildFlagSolidRegion(mlSol);
+  InitPElement(mlSol, std::vector <double> {0., 0.4, 0.});
 
   mlSol.SetWriter(VTK);
 
@@ -240,11 +244,11 @@ int main(int argc, char **args) {
 
   ProjectNewmarkDisplacemenet(mlSol);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  
+
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
-       
+
     system.CopySolutionToOldSolution();
     system.MGsolve();
     ProjectNewmarkDisplacemenet(mlSol);
@@ -283,24 +287,24 @@ void Assemble(MultiLevelProblem& ml_prob) {
 
   myKK->zero();
   myRES->zero();
-      
+
   AssembleSolid(ml_prob);
   AssembleSolidInterface(ml_prob);
-  
+
   AssembleBoundaryLayer(ml_prob);
-  
-  
+
+
   AssembleFluid(ml_prob);
-  
+
   // AssembleGhostPenalty(ml_prob, true);
-  
+
   myKK->close();
   myRES->close();
-  
+
   end_time = clock();
   AssemblyTime += (end_time - start_time);
 
-  
+
 }
 
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol) {
@@ -357,6 +361,60 @@ void BuildFlagSolidRegion(MultiLevelSolution & mlSol) {
 }
 
 
+void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+
+  Solution *sol = mlSol.GetSolutionLevel(level);
+  Mesh *msh = mlSol._mlMesh->GetLevel(level);
+  const unsigned dim = msh->GetDimension();
+
+  unsigned iproc  = msh->processor_id();
+  unsigned nprocs = msh->n_processors();
+
+  unsigned pElemIndex = mlSol.GetIndex("pElem");
+
+  struct {
+    double dist2;
+    int elem;
+  } in, out;
+
+  in.dist2 = 10e10;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+    unsigned flag_mat = msh->GetElementMaterial(iel);
+    if(flag_mat == 2) {
+      unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+      unsigned idofX = msh->GetSolutionDof(nDofs - 1, iel, 2); //global dof for mesh coordinates
+      double dist2 = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        dist2 += (x0[k] - (*msh->_topology->_Sol[k])(idofX)) * (x0[k] - (*msh->_topology->_Sol[k])(idofX));
+      }
+      if(dist2 < in.dist2) {
+        in.dist2 = dist2;
+        in.elem = iel;
+      }
+    }
+  }
+
+  MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, PETSC_COMM_WORLD);
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+    unsigned flag_mat = msh->GetElementMaterial(iel);
+    if(flag_mat != 2) {
+      sol->_Sol[pElemIndex]->set(iel, out.elem);
+    }
+    else{
+      sol->_Sol[pElemIndex]->set(iel, -1.);  
+    }
+  }
+  sol->_Sol[pElemIndex]->close();
+  
+  
+}
+
+
+
 
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
 
@@ -387,19 +445,19 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
   for(int i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     if((*sol->_Sol[nflagIndex])(i) >= 4) {
       for(unsigned k = 0 ; k < dim ; k++) {
-          
+
         double Dnew = (*sol->_Sol[indexSolU[k]])(i);
         double Dold = (*sol->_SolOld[indexSolU[k]])(i);
-        
+
         double Vold = (*sol->_Sol[indexSolV[k]])(i);
         double Aold = (*sol->_Sol[indexSolA[k]])(i);
         double Anew = (Dnew - Dold) / (beta * dt * dt) - Vold / (beta * dt) + ((beta - 0.5) * Aold) / beta;
         double Vnew = Vold + (1 - Gamma) * dt * Aold + Gamma * dt * Anew;
-                
+
         sol->_Sol[indexSolD[k]]->set(i, Dnew);
-        sol->_Sol[indexSolV[k]]->set(i, Vnew);          
+        sol->_Sol[indexSolV[k]]->set(i, Vnew);
         sol->_Sol[indexSolA[k]]->set(i, Anew);
-          
+
       }
     }
   }

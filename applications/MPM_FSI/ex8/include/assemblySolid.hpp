@@ -399,9 +399,21 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   vector< vector< adept::adouble > > solV(dim);      // local solution (velocity)
   vector< adept::adouble > solP;
 
-  vector< vector< double > > solDOld(dim);      // local solution (displacement)
-  vector< vector< double > > solVOld(dim);
-  vector< vector< double > > solAOld(dim);
+
+  vector< vector< double > > solV2(dim);      // local solution (velocity)
+  vector< vector< double > > solV2Old(dim);
+  vector< double > solP2;
+  vector< unsigned > solV2dofs(dim);
+  vector< unsigned > solP2dofs;
+
+
+  vector< vector< double > > solD1(dim);      // local solution (displacement)
+  vector< vector< double > > solD1Old(dim);      // local solution (displacement)
+  vector< vector< unsigned > > solD1dofs(dim);      // local solution (displacement)
+
+  vector <vector < adept::adouble> > vx1(dim);   //vx1 are goind
+  vector <vector < double> > vx1Hat(dim); //1 solid 2 is fluid
+  vector <vector < double> > vx2Hat(dim); //1 solid 2 is fluid
 
   vector< double > rhs;    // local redidual vector
   vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
@@ -420,13 +432,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   vector < adept::adouble > gradPhiD;
   vector < double > gradPhiDHat;
 
-  vector < double> nablaphiP;
-  vector < double> nablaphiV;
-
   unsigned dim2 = 3 * (dim - 1);
 
-  vector <vector < adept::adouble> > vx(dim);   //vx is coordX in assembly of ex30
-  vector <vector < double> > vxHat(dim);
+
 
   double weightP;
   double weightV;
@@ -476,38 +484,156 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   unsigned solTypeP = mlSol->GetSolutionType("P");
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");
+  unsigned pElemIndex = mlSol->GetIndex("pElem");
   unsigned nflagIndex = mlSol->GetIndex("nflag");
-  std::vector < unsigned >  nodeFlag; // local solution
+
+  std::vector <unsigned> nodeFlag1;
+  std::vector <unsigned> nodeFlag2;
 
   start_time = clock();
 
+  unsigned meshOffset = msh->_elementOffset[iproc];
+  unsigned meshOffsetp1 = msh->_elementOffset[iproc + 1];
+
+  for(int iel = meshOffset; iel < meshOffsetp1; iel++) {
+    unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
+    if(eFlag < 2) { //solid
+      mysolution->_Sol[eflagIndex]->set(iel, 2.);
+    }
+  }
+  mysolution->_Sol[eflagIndex]->close();
+ 
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
 
-      unsigned interface = 0;  
+      unsigned interface = 0;
+      short unsigned ielt1;
+      unsigned nDofsD1;
+      unsigned pElem;
       if(iproc == kproc) {
         unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
         if(eFlag == 4) { //solid
-          short unsigned ielt = msh->GetElementType(iel);
-          for(unsigned i = el->GetFaceRangeStart(ielt); i < el->GetFaceRangeEnd(ielt); i++) {
+          ielt1 = msh->GetElementType(iel);
+          
+          pElem = static_cast <unsigned>(floor((*mysolution->_Sol[pElemIndex])(iel) + 0.5));
+          
+          for(unsigned i = el->GetFaceRangeStart(ielt1); i < el->GetFaceRangeEnd(ielt1); i++) {
             unsigned idof = msh->GetSolutionDof(i, iel, solType);
             if((*mysolution->_Sol[nflagIndex])(idof) == 5) {
               interface = 1;
+
+              nDofsD1 = msh->GetElementDofNumber(iel, solType);
+              for(unsigned  k = 0; k < dim; k++) {
+                solD1[k].resize(nDofsD1);
+                solD1Old[k].resize(nDofsD1);
+                vx1Hat[k].resize(nDofsD1);
+                aRhsD[k].assign(nDofsD1, 0.);
+                solD1dofs[k].resize(nDofsD1);
+              }
+              nodeFlag1.resize(nDofsD1);
+              for(unsigned i = 0; i < nDofsD1; i++) {
+                unsigned idofD = msh->GetSolutionDof(i, iel, solType); //global dof for solution D
+                unsigned idofX = msh->GetSolutionDof(i, iel, 2); //global dof for mesh coordinates
+
+                nodeFlag1[i] = (*mysolution->_Sol[nflagIndex])(idofD); // set it to 0 for no-marker
+
+                for(unsigned  k = 0; k < dim; k++) {
+                  solD1[k][i] = (*mysolution->_Sol[indexSolD[k]])(idofD);
+                  solD1Old[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idofD);
+                  solD1dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel);
+                  vx1Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
+                }
+              }
               break;
             }
           }
         }
       }
-      MPI_Bcast(&interface, 1, MPI_UNSIGNED, iproc, PETSC_COMM_WORLD);
-      if(interface){
-            
+      MPI_Bcast(&interface, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+      if(interface) {
+        MPI_Bcast(&ielt1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        MPI_Bcast(&nDofsD1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        MPI_Bcast(&pElem, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        if(iproc != kproc) {
+          for(unsigned  k = 0; k < dim; k++) {
+            solD1[k].resize(nDofsD1);
+            solD1Old[k].resize(nDofsD1);
+            vx1Hat[k].resize(nDofsD1);
+            solD1dofs[k].resize(nDofsD1);
+          }
+          nodeFlag1.resize(nDofsD1);
+        }
+
+        for(unsigned  k = 0; k < dim; k++) {
+          MPI_Bcast(solD1[k].data(), solD1[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(solD1Old[k].data(), solD1Old[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(vx1Hat[k].data(), vx1Hat[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(solD1dofs[k].data(), solD1dofs[k].size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        }
+        MPI_Bcast(nodeFlag1.data(), nodeFlag1.size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        const unsigned FELT[6][2] = {{3, 3}, {4, 4}, {3, 4}, {5, 5}, {5, 5}, {6, 6}};
+        // 0 hex, 1 tet, 2 wedge, 3 square, 4 triangle, 5 line, 6 point
+
+        for(unsigned j = el->GetFaceRangeStart(ielt1); j < el->GetFaceRangeEnd(ielt1); j++) {
+          if(nodeFlag1[j] == 5) {
+
+            unsigned jface = j - el->GetFaceRangeStart(ielt1); //local face number
+
+            unsigned nfc = el->GetNFC(ielt1, 0);
+            const unsigned jfacetype = FELT[ielt1][jface >= nfc];
+            unsigned faceDofs = el->GetNVE(jfacetype, solType);
+
+            std::vector  < std::vector  <  double > > xf1(dim);    // physical coordinates of the face in the af configuration
+            for(int k = 0; k < dim; k++) {
+              xf1[k].resize(faceDofs);
+            }
+
+            for(unsigned i = 0; i < faceDofs; i++) {
+              unsigned inode = el->GetIG(ielt1, jface, i); // local mapping from face to element
+              for(unsigned k = 0; k < dim; k++) {
+                xf1[k][i] =  vx1Hat[k][inode] + af * solD1[k][inode] + (1 - af) * solD1Old[k][inode];
+              }
+            }
+
+            for(unsigned ig = 0; ig  <  msh->_finiteElement[jfacetype][solType]->GetGaussPointNumber(); ig++) {
+
+              std::vector < double> normal;
+              msh->_finiteElement[jfacetype][solType]->JacobianSur(xf1, ig, weightDHat, phiD, gradPhiDHat, normal);
+
+              std::vector< double > xg(dim, 0.);
+              for(unsigned i = 0; i < faceDofs; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  xg[k] += phiD[i] * xf1[k][i];
+                }
+              }
+
+              Marker gp(xg, VOLUME, mysolution, solType, pElem);          
+
+              unsigned jel = gp.GetMarkerElement();
+
+              if(jel >= meshOffset && jel < meshOffsetp1) {
+                mysolution->_Sol[eflagIndex]->set(jel, 1.);
+              }
+              
+              pElem = (jel != UINT_MAX) ? jel : gp.GetIprocMarkerPreviousElement();
+                
+              if(iproc == kproc){
+                mysolution->_Sol[pElemIndex]->set(iel, pElem);    
+              }
+            }
+          }
+        }
       }
-      
     }
+    
   }
 
-
+  mysolution->_Sol[eflagIndex]->close();
+  mysolution->_Sol[pElemIndex]->close();
 
 
 
@@ -1244,7 +1370,7 @@ void ProjectGridVelocity(MultiLevelSolution & mlSol) {
         for(unsigned k = 0; k < dim; k++) {
           xp[k] = xp1[i * dim + k];
         }
-        Marker p(xp, 1, VOLUME, sol, solType, true, 1.);
+        Marker p(xp, 1, VOLUME, sol, solType, UINT_MAX, 1.);
         unsigned mproc = p.GetMarkerProc(sol);
         if(iproc == mproc) {
           unsigned jel = p.GetMarkerElement();

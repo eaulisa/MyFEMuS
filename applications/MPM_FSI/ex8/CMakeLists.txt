@@ -13,7 +13,7 @@ PROJECT(${THIS_APPLICATION})
 
 ADD_EXECUTABLE(${THIS_APPLICATION}
 ${CMAKE_PROJECT_DIR}ex8.cpp 
-${CMAKE_PROJECT_DIR}./../../Nitsche/support/eigen.cpp
+#${CMAKE_PROJECT_DIR}./../../Nitsche/support/eigen.cpp
 )
 
 

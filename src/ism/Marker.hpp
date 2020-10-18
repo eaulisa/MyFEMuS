@@ -30,16 +30,21 @@ namespace femus {
 
   class Marker : public ParallelObject {
     public:
-      Marker(std::vector < double > x, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.):
-        Marker(x, 0., 0., 0., markerType, sol, solType, debug, s1) {};
 
-      Marker(std::vector < double > x, const double &mass, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.):
-        Marker(x, mass, 0., 0., markerType, sol, solType, debug, s1) {};
+      Marker(std::vector < double > x, const MarkerType &markerType,
+             Solution *sol, const unsigned & solType, const unsigned &elem = UINT_MAX, const double &s1 = 0.):
+        Marker(x, 0., 0., 0., markerType, sol, solType, elem, s1) {};
 
-      Marker(std::vector < double > x, const double &mass, const double &dist, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.) :
-        Marker(x, mass, dist, 0., markerType, sol, solType, debug, s1) {};
+      Marker(std::vector < double > x, const double &mass, const MarkerType &markerType,
+             Solution *sol, const unsigned & solType, const unsigned &elem = UINT_MAX, const double &s1 = 0.):
+        Marker(x, mass, 0., 0., markerType, sol, solType, elem, s1) {};
 
-      Marker(std::vector < double > x, const double &mass, const double &dist, const double &nSlaves, const MarkerType &markerType, Solution *sol, const unsigned & solType, const bool &debug = false, const double &s1 = 0.) {
+      Marker(std::vector < double > x, const double &mass, const double &dist, const MarkerType &markerType,
+             Solution *sol, const unsigned & solType,  const unsigned &elem = UINT_MAX, const double &s1 = 0.) :
+        Marker(x, mass, dist, 0., markerType, sol, solType, elem, s1) {};
+
+      Marker(std::vector < double > x, const double &mass, const double &dist, const double &nSlaves,
+             const MarkerType &markerType, Solution *sol, const unsigned & solType, const unsigned &elem = UINT_MAX, const double &s1 = 0.) {
 
         _x = x;
         _markerType = markerType;
@@ -48,12 +53,46 @@ namespace femus {
         _step = 0;
 
         _MPMSize = 3 * _dim + 3 + (_markerType == INTERFACE) * (_dim - 1) * _dim ; //added distance
-        GetElement(1, UINT_MAX, sol, s1);
+        if(elem == UINT_MAX) { //parallel search
+          GetElement(1, UINT_MAX, sol, s1);
+        }
+        else { //try first a serial search starting from elem
+
+          _elem = elem;
+          unsigned preElem = elem;
+          
+          _mproc = GetMarkerProc(sol);
+          unsigned preMproc = _mproc;
+          
+          if(_iproc == _mproc) {
+            GetElementSerial(preElem, sol, s1);
+            //std::cout << preElem <<" ";
+            SetIprocMarkerPreviousElement(preElem);
+          }
+          MPI_Bcast(& _elem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
+          MPI_Bcast(& _previousElem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
+          
+          if(_elem != UINT_MAX) {
+            _mproc = GetMarkerProc(sol);
+
+            if(_mproc != preMproc) {  //this means, if we think the particle moved outside _mprocOld
+              preElem = GetIprocMarkerPreviousElement();
+              GetElement(preElem, preMproc, sol, s1); //global call parallel search
+              SetIprocMarkerPreviousElement(preElem);
+              MPI_Bcast(& _previousElem, 1, MPI_UNSIGNED, _mproc, PETSC_COMM_WORLD);
+            }
+          }
+          else {
+            MPI_Bcast(& _mproc, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
+          }
+
+        }
 
         if(_iproc == _mproc) {
-          std::vector < std::vector < std::vector < std::vector < double > > > >aX;
-          FindLocalCoordinates(_solType, aX, true, sol, s1);
-
+          if(_elem != UINT_MAX) {
+            std::vector < std::vector < std::vector < std::vector < double > > > >aX;
+            FindLocalCoordinates(_solType, aX, true, sol, s1);
+          }
           _MPMQuantities.assign(_MPMSize, 0.);
           _MPMQuantities[3 * _dim ] = mass; /*11.133 for the disk */ /*0.217013888889 for the beam */ ;  //mass //now it is computed in the main, zero is a default value
           _MPMQuantities[3 * _dim + 1] = dist;  //distance form interface

@@ -1899,7 +1899,7 @@ void ProjectGridVelocity(MultiLevelSolution & mlSol) {
         for(unsigned k = 0; k < dim; k++) {
           xp[k] = xp1[i * dim + k];
         }
-        Marker p(xp, 1, VOLUME, sol, solType, true, 1.);
+        Marker p(xp, 1, VOLUME, sol, solType, UINT_MAX, 1.);
         unsigned mproc = p.GetMarkerProc(sol);
         if(iproc == mproc) {
           unsigned jel = p.GetMarkerElement();
