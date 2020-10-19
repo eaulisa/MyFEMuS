@@ -1010,7 +1010,12 @@ namespace femus {
   }
 
 
-
+  const unsigned FELT[6][2] = {{3, 3}, {4, 4}, {3, 4}, {5, 5}, {5, 5}, {6, 6}};
+  unsigned elem::GetFaceType(const unsigned& ielt, const unsigned& jface){
+    return FELT[ielt][jface >= NFC[ielt][0]];  
+  }
+  
+  
 } //end namespace femus
 
 

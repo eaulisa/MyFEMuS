@@ -403,7 +403,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   vector< vector< double > > solV2(dim);      // local solution (velocity)
   vector< vector< double > > solV2Old(dim);
   vector< double > solP2;
-  vector< unsigned > solV2dofs(dim);
+  vector < vector< unsigned > > solV2dofs(dim);
   vector< unsigned > solP2dofs;
 
 
@@ -502,28 +502,27 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
     }
   }
   mysolution->_Sol[eflagIndex]->close();
- 
+
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+    for(int iel1 = msh->_elementOffset[kproc]; iel1 < msh->_elementOffset[kproc + 1]; iel1++) {
 
       unsigned interface = 0;
       short unsigned ielt1;
       unsigned nDofsD1;
       unsigned pElem;
       if(iproc == kproc) {
-        unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
+        unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel1) + 0.5));
         if(eFlag == 4) { //solid
-          ielt1 = msh->GetElementType(iel);
-          
-          pElem = static_cast <unsigned>(floor((*mysolution->_Sol[pElemIndex])(iel) + 0.5));
-          
+          ielt1 = msh->GetElementType(iel1);
+          pElem = static_cast <unsigned>(floor((*mysolution->_Sol[pElemIndex])(iel1) + 0.5));
+
           for(unsigned i = el->GetFaceRangeStart(ielt1); i < el->GetFaceRangeEnd(ielt1); i++) {
-            unsigned idof = msh->GetSolutionDof(i, iel, solType);
+            unsigned idof = msh->GetSolutionDof(i, iel1, solType);
             if((*mysolution->_Sol[nflagIndex])(idof) == 5) {
               interface = 1;
 
-              nDofsD1 = msh->GetElementDofNumber(iel, solType);
+              nDofsD1 = msh->GetElementDofNumber(iel1, solType);
               for(unsigned  k = 0; k < dim; k++) {
                 solD1[k].resize(nDofsD1);
                 solD1Old[k].resize(nDofsD1);
@@ -533,15 +532,15 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               }
               nodeFlag1.resize(nDofsD1);
               for(unsigned i = 0; i < nDofsD1; i++) {
-                unsigned idofD = msh->GetSolutionDof(i, iel, solType); //global dof for solution D
-                unsigned idofX = msh->GetSolutionDof(i, iel, 2); //global dof for mesh coordinates
+                unsigned idofD = msh->GetSolutionDof(i, iel1, solType); //global dof for solution D
+                unsigned idofX = msh->GetSolutionDof(i, iel1, 2); //global dof for mesh coordinates
 
                 nodeFlag1[i] = (*mysolution->_Sol[nflagIndex])(idofD); // set it to 0 for no-marker
 
                 for(unsigned  k = 0; k < dim; k++) {
                   solD1[k][i] = (*mysolution->_Sol[indexSolD[k]])(idofD);
                   solD1Old[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idofD);
-                  solD1dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel);
+                  solD1dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel1);
                   vx1Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
                 }
               }
@@ -575,61 +574,203 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
         }
         MPI_Bcast(nodeFlag1.data(), nodeFlag1.size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
-        const unsigned FELT[6][2] = {{3, 3}, {4, 4}, {3, 4}, {5, 5}, {5, 5}, {6, 6}};
-        // 0 hex, 1 tet, 2 wedge, 3 square, 4 triangle, 5 line, 6 point
+        for(unsigned j1 = el->GetFaceRangeStart(ielt1); j1 < el->GetFaceRangeEnd(ielt1); j1++) {
+          if(nodeFlag1[j1] == 5) {
 
-        for(unsigned j = el->GetFaceRangeStart(ielt1); j < el->GetFaceRangeEnd(ielt1); j++) {
-          if(nodeFlag1[j] == 5) {
+            unsigned jface1 = j1 - el->GetFaceRangeStart(ielt1); //local face number
 
-            unsigned jface = j - el->GetFaceRangeStart(ielt1); //local face number
-
-            unsigned nfc = el->GetNFC(ielt1, 0);
-            const unsigned jfacetype = FELT[ielt1][jface >= nfc];
-            unsigned faceDofs = el->GetNVE(jfacetype, solType);
+            unsigned jfaceType1 = el->GetFaceType(ielt1, jface1);
+            unsigned jfaceDofs1 = el->GetNFACENODES(ielt1, jface1, solType);
 
             std::vector  < std::vector  <  double > > xf1(dim);    // physical coordinates of the face in the af configuration
             for(int k = 0; k < dim; k++) {
-              xf1[k].resize(faceDofs);
+              xf1[k].resize(jfaceDofs1);
             }
 
-            for(unsigned i = 0; i < faceDofs; i++) {
-              unsigned inode = el->GetIG(ielt1, jface, i); // local mapping from face to element
+            for(unsigned i = 0; i < jfaceDofs1; i++) {
+              unsigned inode = el->GetIG(ielt1, jface1, i); // local mapping from face to element
               for(unsigned k = 0; k < dim; k++) {
                 xf1[k][i] =  vx1Hat[k][inode] + af * solD1[k][inode] + (1 - af) * solD1Old[k][inode];
               }
             }
 
-            for(unsigned ig = 0; ig  <  msh->_finiteElement[jfacetype][solType]->GetGaussPointNumber(); ig++) {
+            unsigned ng1 = msh->_finiteElement[jfaceType1][solType]->GetGaussPointNumber();
+            std::vector < Marker *> gp(ng1);
+            std::vector < unsigned> jel(ng1);
+            std::map <unsigned, unsigned> jelCounter;
+            std::map <unsigned, unsigned>::iterator it;
+
+            for(unsigned ig = 0; ig < ng1; ig++) {
 
               std::vector < double> normal;
-              msh->_finiteElement[jfacetype][solType]->JacobianSur(xf1, ig, weightDHat, phiD, gradPhiDHat, normal);
+              const double* phiD1 = msh->_finiteElement[jfaceType1][solType]->GetPhi(ig);
 
               std::vector< double > xg(dim, 0.);
-              for(unsigned i = 0; i < faceDofs; i++) {
+              for(unsigned i = 0; i < jfaceDofs1; i++) {
                 for(unsigned k = 0; k < dim; k++) {
-                  xg[k] += phiD[i] * xf1[k][i];
+                  xg[k] += phiD1[i] * xf1[k][i];
                 }
               }
+              gp[ig] = new Marker(xg, VOLUME, mysolution, solType, pElem);
+              jel[ig] = gp[ig]->GetMarkerElement();
 
-              Marker gp(xg, VOLUME, mysolution, solType, pElem);          
-
-              unsigned jel = gp.GetMarkerElement();
-
-              if(jel >= meshOffset && jel < meshOffsetp1) {
-                mysolution->_Sol[eflagIndex]->set(jel, 1.);
+              it = jelCounter.find(jel[ig]);
+              if(it != jelCounter.end()) {
+                jelCounter[jel[ig]] += 1;
               }
-              
-              pElem = (jel != UINT_MAX) ? jel : gp.GetIprocMarkerPreviousElement();
-                
-              if(iproc == kproc){
-                mysolution->_Sol[pElemIndex]->set(iel, pElem);    
+              else {
+                jelCounter[jel[ig]] = 1;
               }
+
+            }
+            std::vector < unsigned > IELT2(jelCounter.size());
+            std::vector < std::vector < unsigned > > IG(jelCounter.size());
+
+            for(it == jelCounter.begin(); it != jelCounter.end(); it++) {
+              std::cout << it->first <<" "<< it ->second << std::endl;
+            }
+           
+
+//             {
+//               unsigned i = 0;
+//               for(i = 0, it == jelCounter.begin(); it != jelCounter.end(); it++, i++) {
+//                 IELT2[i] = it->first;
+//                 IG[i].reserve(it->second);
+//               }
+// 
+//               std::cout << IELT2[i] << " ";
+//             }
+// 
+//             std::cout << std::endl;
+
+//             for(unsigned ig = 0; ig < gp.size(); ig++) {
+//               unsigned i = 0;
+//               while(jel[ig] != IELT2[i]) i++;
+//               unsigned k = IG[i].size();
+//               IG[i].resize(k + 1);
+//               IG[i][k] = ig;
+//             }
+//
+//             for(unsigned i = 0; i < IELT2.size(); i++){
+//               std::cout << "On element " << IELT2[i] << " we have gauss points\n ";
+//               for(unsigned k = 0; k < IG[i].size(); k++){
+//                 std::cout<< IG[i][k] << " ";
+//               }
+//               std::cout << std::endl;
+//             }
+
+
+            for(unsigned ig = 0; ig < gp.size(); ig++) {
+
+              unsigned iel2 = gp[ig]->GetMarkerElement();
+
+
+
+              if(iel2 != UINT_MAX) {
+                unsigned jproc = msh->IsdomBisectionSearch(iel2 , 3); // return  jproc for piece-wise constant discontinuous type (3)
+
+
+                unsigned ielt2;
+                unsigned nDofsV2;
+                unsigned nDofsP2;
+
+                std::vector < double > xi =  gp[ig]->GetMarkerLocalCoordinates();
+
+                if(iproc == jproc) {
+                  mysolution->_Sol[eflagIndex]->set(iel2, 1.);
+
+                  ielt2 = msh->GetElementType(iel2);
+                  nDofsV2 = msh->GetElementDofNumber(iel2, solType);
+                  nDofsP2 = msh->GetElementDofNumber(iel2, solTypeP);
+                  for(unsigned  k = 0; k < dim; k++) {
+                    solV2[k].resize(nDofsV2);
+                    solV2Old[k].resize(nDofsV2);
+                    vx2Hat[k].resize(nDofsV2);
+                    aRhsV[k].assign(nDofsV2, 0.);
+                    solV2dofs[k].resize(nDofsV2);
+                  }
+                  solP2.resize(nDofsP2);
+                  aRhsP.assign(nDofsP2, 0.);
+                  solP2dofs.resize(nDofsP2);
+
+                  for(unsigned i = 0; i < nDofsV2; i++) {
+                    unsigned idofV = msh->GetSolutionDof(i, iel2, solType); //global dof for solution D
+                    unsigned idofX = msh->GetSolutionDof(i, iel2, 2); //global dof for mesh coordinates
+                    for(unsigned  k = 0; k < dim; k++) {
+                      solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idofV);
+                      solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idofV);
+                      solV2dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel2);
+                      vx2Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
+                    }
+                  }
+                  for(unsigned i = 0; i < nDofsP2; i++) {
+                    unsigned idofP = msh->GetSolutionDof(i, iel2, solTypeP); //global dof for solution D
+                    solP2[i] = (*mysolution->_Sol[indexSolP])(idofP);
+                    solP2dofs[i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel2);
+                  }
+
+                  MPI_Send(&ielt2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+                  MPI_Send(&nDofsV2, 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD);
+                  MPI_Send(&nDofsP2, 1, MPI_UNSIGNED, kproc, 2, PETSC_COMM_WORLD);
+
+                  for(unsigned  k = 0; k < dim; k++) {
+                    MPI_Send(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, kproc, 3 + (k * 4), PETSC_COMM_WORLD);
+                    MPI_Send(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, 4 + (k * 4), PETSC_COMM_WORLD);
+                    MPI_Send(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, kproc, 5 + (k * 4), PETSC_COMM_WORLD);
+                    MPI_Send(solV2dofs[k].data(), solV2dofs[k].size(), MPI_UNSIGNED, kproc, 6 + (k * 4), PETSC_COMM_WORLD);
+                  }
+                  MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 3 + (dim * 4), PETSC_COMM_WORLD);
+                  MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 4 + (dim * 4), PETSC_COMM_WORLD);
+
+                  MPI_Send(xi.data(), xi.size(), MPI_DOUBLE, kproc, 3 + (dim * 4), PETSC_COMM_WORLD);
+
+                }
+
+                if(iproc == kproc) {
+                  MPI_Recv(&ielt2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&nDofsV2, 1, MPI_UNSIGNED, jproc, 1, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&nDofsP2, 1, MPI_UNSIGNED, jproc, 2, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                  for(unsigned  k = 0; k < dim; k++) {
+                    solV2[k].resize(nDofsV2);
+                    solV2Old[k].resize(nDofsV2);
+                    vx2Hat[k].resize(nDofsV2);
+                    solV2dofs[k].resize(nDofsV2);
+                  }
+                  solP2.resize(nDofsP2);
+                  solP2dofs.resize(nDofsP2);
+
+                  for(unsigned  k = 0; k < dim; k++) {
+                    MPI_Recv(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, jproc, 3 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, jproc, 4 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, jproc, 5 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(solV2dofs[k].data(), solV2dofs[k].size(), MPI_UNSIGNED, jproc, 6 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  }
+                  MPI_Recv(solP2.data(), solP2.size(), MPI_DOUBLE, jproc, 3 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, jproc, 4 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(xi.data(), xi.size(), MPI_DOUBLE, jproc, 3 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+
+
+
+              }
+
+
+              pElem = (iel2 != UINT_MAX) ? iel2 : gp[ig]->GetIprocMarkerPreviousElement();
+              if(iproc == kproc) {
+                mysolution->_Sol[pElemIndex]->set(iel1, pElem);
+              }
+
+            }
+
+            for(unsigned ig = 0; ig < gp.size(); ig++) {
+              delete gp[ig];
             }
           }
         }
       }
     }
-    
+
   }
 
   mysolution->_Sol[eflagIndex]->close();

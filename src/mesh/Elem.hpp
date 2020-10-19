@@ -108,6 +108,8 @@ namespace femus {
       /** To be Added */
       void SetElementGroupNumber(const unsigned& value);
 
+      unsigned GetFaceType(const unsigned& ielt, const unsigned& jface);
+      
       /** To be Added */
       int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
@@ -115,7 +117,7 @@ namespace femus {
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
-
+      
       /** To be Added */
       unsigned GetIndex(const char name[]) const;
 
