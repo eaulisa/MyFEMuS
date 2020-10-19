@@ -622,42 +622,46 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 jelCounter[jel[ig]] = 1;
               }
 
+              std::cout << jel[ig] << " ";
             }
+            std::cout << std::endl;
             std::vector < unsigned > IELT2(jelCounter.size());
             std::vector < std::vector < unsigned > > IG(jelCounter.size());
 
-            for(it == jelCounter.begin(); it != jelCounter.end(); it++) {
-              std::cout << it->first <<" "<< it ->second << std::endl;
-            }
+//             for(it = jelCounter.begin(); it != jelCounter.end(); it++) {
+//               std::cout << it->first <<" "<< it ->second << std::endl;
+//             }
            
 
-//             {
-//               unsigned i = 0;
-//               for(i = 0, it == jelCounter.begin(); it != jelCounter.end(); it++, i++) {
-//                 IELT2[i] = it->first;
-//                 IG[i].reserve(it->second);
-//               }
-// 
-//               std::cout << IELT2[i] << " ";
-//             }
-// 
-//             std::cout << std::endl;
+            {
+              unsigned i = 0;
+              for(i = 0, it = jelCounter.begin(); it != jelCounter.end(); it++, i++) {
+                IELT2[i] = it->first;
+                IG[i].reserve(it->second);
+                //std::cout << IELT2[i] << " ";
+              }
+              //std::cout << std::endl;
+              
+            }
 
-//             for(unsigned ig = 0; ig < gp.size(); ig++) {
-//               unsigned i = 0;
-//               while(jel[ig] != IELT2[i]) i++;
-//               unsigned k = IG[i].size();
-//               IG[i].resize(k + 1);
-//               IG[i][k] = ig;
-//             }
-//
-//             for(unsigned i = 0; i < IELT2.size(); i++){
-//               std::cout << "On element " << IELT2[i] << " we have gauss points\n ";
-//               for(unsigned k = 0; k < IG[i].size(); k++){
-//                 std::cout<< IG[i][k] << " ";
-//               }
-//               std::cout << std::endl;
-//             }
+            
+
+            for(unsigned ig = 0; ig < gp.size(); ig++) {
+              unsigned i = 0;
+              while(jel[ig] != IELT2[i]) i++;
+              unsigned k = IG[i].size();
+              IG[i].resize(k + 1);
+              IG[i][k] = ig;
+            }
+
+            for(unsigned i = 0; i < IELT2.size(); i++){
+              std::cout << "On element " << IELT2[i] << " we have gauss points ";
+              for(unsigned k = 0; k < IG[i].size(); k++){
+                std::cout<< IG[i][k] << " ";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << std::endl;
 
 
             for(unsigned ig = 0; ig < gp.size(); ig++) {
