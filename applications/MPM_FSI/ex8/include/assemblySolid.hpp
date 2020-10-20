@@ -593,17 +593,25 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 xf1[k][i] =  vx1Hat[k][inode] + af * solD1[k][inode] + (1 - af) * solD1Old[k][inode];
               }
             }
-
-            unsigned ng1 = msh->_finiteElement[jfaceType1][solType]->GetGaussPointNumber();
-            std::vector < Marker *> gp(ng1);
-            std::vector < unsigned> jel(ng1);
+            unsigned coarse = 0;
+            unsigned fine = 1;
+            unsigned qType = coarse;
+            unsigned ng1;
+            std::vector < Marker *> gp;
+            std::vector < unsigned> jel;
+            
+            
+          testGaussPoints:
+            ng1 = fem[qType][jfaceType1][solType]->GetGaussPointNumber();
+            gp.resize(ng1);
+            jel.resize(ng1);
+            
             std::map <unsigned, unsigned> jelCounter;
             std::map <unsigned, unsigned>::iterator it;
 
             for(unsigned ig = 0; ig < ng1; ig++) {
 
-              std::vector < double> normal;
-              const double* phiD1 = msh->_finiteElement[jfaceType1][solType]->GetPhi(ig);
+              const double* phiD1 = fem[qType][jfaceType1][solType]->GetPhi(ig);
 
               std::vector< double > xg(dim, 0.);
               for(unsigned i = 0; i < jfaceDofs1; i++) {
@@ -622,7 +630,22 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 jelCounter[jel[ig]] = 1;
               }
             }
+
+            if(qType == coarse && jelCounter.size() > 1) {
+              qType = fine; 
+              for(unsigned ig = 0; ig < gp.size(); ig++) {
+                delete gp[ig];
+              }
+              goto testGaussPoints;
+            }
             
+            if(qType == fine){
+              for(unsigned ig = 0; ig < gp.size();ig++){  
+                std::cout << jel[ig] <<" ";
+              }
+              std::cout << std::endl;
+            }
+
             std::vector < unsigned > iel2All(jelCounter.size());
             std::vector < std::vector < unsigned > > ig2All(jelCounter.size());
 
@@ -634,8 +657,6 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               }
             }
 
-
-
             for(unsigned ig = 0; ig < gp.size(); ig++) {
               unsigned i = 0;
               while(jel[ig] != iel2All[i]) i++;
@@ -643,7 +664,6 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               ig2All[i].resize(k + 1);
               ig2All[i][k] = ig;
             }
-
 
             for(unsigned i = 0; i < iel2All.size(); i++) {
               unsigned iel2 = iel2All[i];
@@ -738,11 +758,10 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     xi2[ig].resize(dim);
                     MPI_Recv(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, jproc, 3 + (dim * 4) + ig, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   }
-
                 }
-                // we finished to exchange all information, we are ready to assembly!
-                if(iproc == kproc || iproc == jproc){
-                    
+                // we finished to exchange all needed information, we are ready to assemble!
+                if(iproc == kproc || iproc == jproc) {
+
                 }
 
 

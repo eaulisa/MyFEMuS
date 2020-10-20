@@ -27,6 +27,8 @@ double af = theta;
 double pInf = (1. + af) / (2. - af);
 double am = pInf / (1. + pInf);
 
+const elem_type *fem[2][6][5];
+
 //#include "../../Nitsche/support/particleInit.hpp"
 //#include "../../Nitsche/support/sharedFunctions.hpp"
 #include "./include/assemblySolid.hpp"
@@ -48,6 +50,9 @@ void Assemble(MultiLevelProblem& ml_prob);
 void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0);
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol);
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol);
+
+void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine);
+void DeleteFem();
 
 bool SetBoundaryCondition(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
   bool dirichlet = true;
@@ -131,6 +136,8 @@ int main(int argc, char **args) {
   mlMsh.ReadCoarseMesh("../input/turek2Db.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels,
                    numberOfUniformLevels, NULL);
+  
+  NewFem("fifth", "twenty fifth");
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
   numberOfUniformLevels = 1;
@@ -246,7 +253,7 @@ int main(int argc, char **args) {
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 10000;
+  unsigned n_timesteps = 100;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
@@ -255,6 +262,8 @@ int main(int argc, char **args) {
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
   }
 
+  
+  DeleteFem();
   return 0;
 
 }
@@ -404,13 +413,13 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
     if(flag_mat != 2) {
       sol->_Sol[pElemIndex]->set(iel, out.elem);
     }
-    else{
-      sol->_Sol[pElemIndex]->set(iel, -1.);  
+    else {
+      sol->_Sol[pElemIndex]->set(iel, -1.);
     }
   }
   sol->_Sol[pElemIndex]->close();
-  
-  
+
+
 }
 
 
@@ -541,3 +550,90 @@ void BuildFlag(MultiLevelSolution & mlSol) {
 }
 
 
+
+void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine) {
+
+  fem[0][0][0] = new const elem_type_3D("hex", "linear", GaussOrderCoarse);
+  fem[0][0][1] = new const elem_type_3D("hex", "quadratic", GaussOrderCoarse);
+  fem[0][0][2] = new const elem_type_3D("hex", "biquadratic", GaussOrderCoarse);
+  fem[0][0][3] = new const elem_type_3D("hex", "constant", GaussOrderCoarse);
+  fem[0][0][4] = new const elem_type_3D("hex", "disc_linear", GaussOrderCoarse);
+
+  fem[0][1][0] = new const elem_type_3D("tet", "linear", GaussOrderCoarse);
+  fem[0][1][1] = new const elem_type_3D("tet", "quadratic", GaussOrderCoarse);
+  fem[0][1][2] = new const elem_type_3D("tet", "biquadratic", GaussOrderCoarse);
+  fem[0][1][3] = new const elem_type_3D("tet", "constant", GaussOrderCoarse);
+  fem[0][1][4] = new const elem_type_3D("tet", "disc_linear", GaussOrderCoarse);
+
+  fem[0][2][0] = new const elem_type_3D("wedge", "linear", GaussOrderCoarse);
+  fem[0][2][1] = new const elem_type_3D("wedge", "quadratic", GaussOrderCoarse);
+  fem[0][2][2] = new const elem_type_3D("wedge", "biquadratic", GaussOrderCoarse);
+  fem[0][2][3] = new const elem_type_3D("wedge", "constant", GaussOrderCoarse);
+  fem[0][2][4] = new const elem_type_3D("wedge", "disc_linear", GaussOrderCoarse);
+
+  fem[0][3][0] = new const elem_type_2D("quad", "linear", GaussOrderCoarse);
+  fem[0][3][1] = new const elem_type_2D("quad", "quadratic", GaussOrderCoarse);
+  fem[0][3][2] = new const elem_type_2D("quad", "biquadratic", GaussOrderCoarse);
+  fem[0][3][3] = new const elem_type_2D("quad", "constant", GaussOrderCoarse);
+  fem[0][3][4] = new const elem_type_2D("quad", "disc_linear", GaussOrderCoarse);
+
+  fem[0][4][0] = new const elem_type_2D("tri", "linear", GaussOrderCoarse);
+  fem[0][4][1] = new const elem_type_2D("tri", "quadratic", GaussOrderCoarse);
+  fem[0][4][2] = new const elem_type_2D("tri", "biquadratic", GaussOrderCoarse);
+  fem[0][4][3] = new const elem_type_2D("tri", "constant", GaussOrderCoarse);
+  fem[0][4][4] = new const elem_type_2D("tri", "disc_linear", GaussOrderCoarse);
+
+  fem[0][5][0] = new const elem_type_1D("line", "linear", GaussOrderCoarse);
+  fem[0][5][1] = new const elem_type_1D("line", "quadratic", GaussOrderCoarse);
+  fem[0][5][2] = new const elem_type_1D("line", "biquadratic", GaussOrderCoarse);
+  fem[0][5][3] = new const elem_type_1D("line", "constant", GaussOrderCoarse);
+  fem[0][5][4] = new const elem_type_1D("line", "disc_linear", GaussOrderCoarse);
+
+
+  fem[1][0][0] = new const elem_type_3D("hex", "linear", GaussOrderFine);
+  fem[1][0][1] = new const elem_type_3D("hex", "quadratic", GaussOrderFine);
+  fem[1][0][2] = new const elem_type_3D("hex", "biquadratic", GaussOrderFine);
+  fem[1][0][3] = new const elem_type_3D("hex", "constant", GaussOrderFine);
+  fem[1][0][4] = new const elem_type_3D("hex", "disc_linear", GaussOrderFine);
+
+  fem[1][1][0] = new const elem_type_3D("tet", "linear", GaussOrderFine);
+  fem[1][1][1] = new const elem_type_3D("tet", "quadratic", GaussOrderFine);
+  fem[1][1][2] = new const elem_type_3D("tet", "biquadratic", GaussOrderFine);
+  fem[1][1][3] = new const elem_type_3D("tet", "constant", GaussOrderFine);
+  fem[1][1][4] = new const elem_type_3D("tet", "disc_linear", GaussOrderFine);
+
+  fem[1][2][0] = new const elem_type_3D("wedge", "linear", GaussOrderFine);
+  fem[1][2][1] = new const elem_type_3D("wedge", "quadratic", GaussOrderFine);
+  fem[1][2][2] = new const elem_type_3D("wedge", "biquadratic", GaussOrderFine);
+  fem[1][2][3] = new const elem_type_3D("wedge", "constant", GaussOrderFine);
+  fem[1][2][4] = new const elem_type_3D("wedge", "disc_linear", GaussOrderFine);
+
+  fem[1][3][0] = new const elem_type_2D("quad", "linear", GaussOrderFine);
+  fem[1][3][1] = new const elem_type_2D("quad", "quadratic", GaussOrderFine);
+  fem[1][3][2] = new const elem_type_2D("quad", "biquadratic", GaussOrderFine);
+  fem[1][3][3] = new const elem_type_2D("quad", "constant", GaussOrderFine);
+  fem[1][3][4] = new const elem_type_2D("quad", "disc_linear", GaussOrderFine);
+
+  fem[1][4][0] = new const elem_type_2D("tri", "linear", GaussOrderFine);
+  fem[1][4][1] = new const elem_type_2D("tri", "quadratic", GaussOrderFine);
+  fem[1][4][2] = new const elem_type_2D("tri", "biquadratic", GaussOrderFine);
+  fem[1][4][3] = new const elem_type_2D("tri", "constant", GaussOrderFine);
+  fem[1][4][4] = new const elem_type_2D("tri", "disc_linear", GaussOrderFine);
+
+  fem[1][5][0] = new const elem_type_1D("line", "linear", GaussOrderFine);
+  fem[1][5][1] = new const elem_type_1D("line", "quadratic", GaussOrderFine);
+  fem[1][5][2] = new const elem_type_1D("line", "biquadratic", GaussOrderFine);
+  fem[1][5][3] = new const elem_type_1D("line", "constant", GaussOrderFine);
+  fem[1][5][4] = new const elem_type_1D("line", "disc_linear", GaussOrderFine);
+
+}
+
+void DeleteFem() {
+  for(unsigned i = 0; i < 2; i++) {
+    for(unsigned j = 0; j < 6; j++) {
+      for(unsigned k = 0; k < 5; k++) {
+        delete fem[i][j][k];
+      }
+    }
+  }
+}
