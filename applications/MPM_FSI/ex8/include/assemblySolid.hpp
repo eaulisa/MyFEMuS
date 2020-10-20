@@ -621,66 +621,46 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               else {
                 jelCounter[jel[ig]] = 1;
               }
-
-              std::cout << jel[ig] << " ";
             }
-            std::cout << std::endl;
-            std::vector < unsigned > IELT2(jelCounter.size());
-            std::vector < std::vector < unsigned > > IG(jelCounter.size());
-
-//             for(it = jelCounter.begin(); it != jelCounter.end(); it++) {
-//               std::cout << it->first <<" "<< it ->second << std::endl;
-//             }
-           
+            
+            std::vector < unsigned > iel2All(jelCounter.size());
+            std::vector < std::vector < unsigned > > ig2All(jelCounter.size());
 
             {
               unsigned i = 0;
               for(i = 0, it = jelCounter.begin(); it != jelCounter.end(); it++, i++) {
-                IELT2[i] = it->first;
-                IG[i].reserve(it->second);
-                //std::cout << IELT2[i] << " ";
+                iel2All[i] = it->first;
+                ig2All[i].reserve(it->second);
               }
-              //std::cout << std::endl;
-              
             }
 
-            
+
 
             for(unsigned ig = 0; ig < gp.size(); ig++) {
               unsigned i = 0;
-              while(jel[ig] != IELT2[i]) i++;
-              unsigned k = IG[i].size();
-              IG[i].resize(k + 1);
-              IG[i][k] = ig;
+              while(jel[ig] != iel2All[i]) i++;
+              unsigned k = ig2All[i].size();
+              ig2All[i].resize(k + 1);
+              ig2All[i][k] = ig;
             }
 
-            for(unsigned i = 0; i < IELT2.size(); i++){
-              std::cout << "On element " << IELT2[i] << " we have gauss points ";
-              for(unsigned k = 0; k < IG[i].size(); k++){
-                std::cout<< IG[i][k] << " ";
-              }
-              std::cout << std::endl;
-            }
-            std::cout << std::endl;
 
-
-            for(unsigned ig = 0; ig < gp.size(); ig++) {
-
-              unsigned iel2 = gp[ig]->GetMarkerElement();
-
-
-
+            for(unsigned i = 0; i < iel2All.size(); i++) {
+              unsigned iel2 = iel2All[i];
               if(iel2 != UINT_MAX) {
                 unsigned jproc = msh->IsdomBisectionSearch(iel2 , 3); // return  jproc for piece-wise constant discontinuous type (3)
-
 
                 unsigned ielt2;
                 unsigned nDofsV2;
                 unsigned nDofsP2;
 
-                std::vector < double > xi =  gp[ig]->GetMarkerLocalCoordinates();
-
+                std::vector < std::vector < double > > xi2(ig2All[i].size());
                 if(iproc == jproc) {
+
+                  for(unsigned ig = 0; ig < ig2All[i].size(); ig++) {
+                    xi2[ig] = gp[ig2All[i][ig]]->GetMarkerLocalCoordinates();
+                  }
+
                   mysolution->_Sol[eflagIndex]->set(iel2, 1.);
 
                   ielt2 = msh->GetElementType(iel2);
@@ -726,8 +706,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 3 + (dim * 4), PETSC_COMM_WORLD);
                   MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 4 + (dim * 4), PETSC_COMM_WORLD);
 
-                  MPI_Send(xi.data(), xi.size(), MPI_DOUBLE, kproc, 3 + (dim * 4), PETSC_COMM_WORLD);
-
+                  for(unsigned ig = 0; ig < xi2.size(); ig++) {
+                    MPI_Send(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, kproc, 3 + (dim * 4) + ig, PETSC_COMM_WORLD);
+                  }
                 }
 
                 if(iproc == kproc) {
@@ -752,14 +733,25 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   }
                   MPI_Recv(solP2.data(), solP2.size(), MPI_DOUBLE, jproc, 3 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   MPI_Recv(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, jproc, 4 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-                  MPI_Recv(xi.data(), xi.size(), MPI_DOUBLE, jproc, 3 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                  for(unsigned ig = 0; ig < xi2.size(); ig++) {
+                    xi2[ig].resize(dim);
+                    MPI_Recv(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, jproc, 3 + (dim * 4) + ig, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  }
+
+                }
+                // we finished to exchange all information, we are ready to assembly!
+                if(iproc == kproc || iproc == jproc){
+                    
                 }
 
 
 
               }
+            }
 
-
+            for(unsigned ig = 0; ig < gp.size(); ig++) {
+              unsigned iel2 = gp[ig]->GetMarkerElement();
               pElem = (iel2 != UINT_MAX) ? iel2 : gp[ig]->GetIprocMarkerPreviousElement();
               if(iproc == kproc) {
                 mysolution->_Sol[pElemIndex]->set(iel1, pElem);
