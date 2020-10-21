@@ -294,7 +294,12 @@ void Assemble(MultiLevelProblem& ml_prob) {
   SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
 
+  MatSetOption((static_cast<PetscMatrix*> (myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  
   myKK->zero();
+  
+  
+  
   myRES->zero();
 
   AssembleSolid(ml_prob);
@@ -310,6 +315,10 @@ void Assemble(MultiLevelProblem& ml_prob) {
   myKK->close();
   myRES->close();
 
+  
+  //double tolerance = 1.0e-12 * myKK->linfty_norm();
+  //myKK->RemoveZeroEntries(tolerance);
+  
   end_time = clock();
   AssemblyTime += (end_time - start_time);
 
