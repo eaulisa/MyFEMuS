@@ -273,10 +273,6 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
             std::vector < double> normal;
             msh->_finiteElement[faceGeom][solTypeV]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-
-
-
-
             std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
             for(unsigned i = 0; i < faceDofs; i++) {
               for(unsigned k = 0; k < dim; k++) {

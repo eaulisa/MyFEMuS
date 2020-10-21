@@ -308,9 +308,9 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
           }
           for(unsigned k = 0; k < dim; k++) {
             aRhsD[k][i] -= (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
-            if(k == 0) {
-              aRhsD[k][i] -= (rhoMpm * phiD[i]) * weightD;
-            }
+//             if(k == 0) {
+//               aRhsD[k][i] -= (rhoMpm * phiD[i]) * weightD;
+//             }
           }
         }
         //continuity block
@@ -403,13 +403,15 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   vector< vector< double > > solV2(dim);      // local solution (velocity)
   vector< vector< double > > solV2Old(dim);
   vector< double > solP2;
-  vector < vector< unsigned > > solV2dofs(dim);
+  vector< unsigned > solV2dofs;
   vector< unsigned > solP2dofs;
 
 
   vector< vector< double > > solD1(dim);      // local solution (displacement)
   vector< vector< double > > solD1Old(dim);      // local solution (displacement)
-  vector< vector< unsigned > > solD1dofs(dim);      // local solution (displacement)
+  vector< vector< double > > solV1Old(dim);      // local solution (displacement)
+  vector< vector< double > > solA1Old(dim);      // local solution (displacement)
+  vector< unsigned > solD1dofs;      // local solution (displacement)
 
   vector <vector < adept::adouble> > vx1(dim);   //vx1 are goind
   vector <vector < double> > vx1Hat(dim); //1 solid 2 is fluid
@@ -429,6 +431,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
   vector < double > gradPhiP;
   vector < double > gradPhiV;
+
   vector < adept::adouble > gradPhiD;
   vector < double > gradPhiDHat;
 
@@ -526,10 +529,12 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               for(unsigned  k = 0; k < dim; k++) {
                 solD1[k].resize(nDofsD1);
                 solD1Old[k].resize(nDofsD1);
+                solV1Old[k].resize(nDofsD1);
+                solA1Old[k].resize(nDofsD1);
                 vx1Hat[k].resize(nDofsD1);
                 aRhsD[k].assign(nDofsD1, 0.);
-                solD1dofs[k].resize(nDofsD1);
               }
+              solD1dofs.resize(dim * nDofsD1);
               nodeFlag1.resize(nDofsD1);
               for(unsigned i = 0; i < nDofsD1; i++) {
                 unsigned idofD = msh->GetSolutionDof(i, iel1, solType); //global dof for solution D
@@ -540,7 +545,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 for(unsigned  k = 0; k < dim; k++) {
                   solD1[k][i] = (*mysolution->_Sol[indexSolD[k]])(idofD);
                   solD1Old[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idofD);
-                  solD1dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel1);
+
+                  solV1Old[k][i] = (*mysolution->_Sol[indexSolVOld[k]])(idofD);
+                  solV1Old[k][i] = (*mysolution->_Sol[indexSolAOld[k]])(idofD);
+
+                  solD1dofs[k * nDofsD1 + i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel1);
                   vx1Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
                 }
               }
@@ -560,18 +569,22 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
           for(unsigned  k = 0; k < dim; k++) {
             solD1[k].resize(nDofsD1);
             solD1Old[k].resize(nDofsD1);
+            solV1Old[k].resize(nDofsD1);
+            solA1Old[k].resize(nDofsD1);
             vx1Hat[k].resize(nDofsD1);
-            solD1dofs[k].resize(nDofsD1);
           }
+          solD1dofs.resize(dim * nDofsD1);
           nodeFlag1.resize(nDofsD1);
         }
 
         for(unsigned  k = 0; k < dim; k++) {
           MPI_Bcast(solD1[k].data(), solD1[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
           MPI_Bcast(solD1Old[k].data(), solD1Old[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(solV1Old[k].data(), solV1Old[k].size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(solA1Old[k].data(), solA1Old[k].size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
           MPI_Bcast(vx1Hat[k].data(), vx1Hat[k].size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
-          MPI_Bcast(solD1dofs[k].data(), solD1dofs[k].size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         }
+        MPI_Bcast(solD1dofs.data(), solD1dofs.size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         MPI_Bcast(nodeFlag1.data(), nodeFlag1.size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
         for(unsigned j1 = el->GetFaceRangeStart(ielt1); j1 < el->GetFaceRangeEnd(ielt1); j1++) {
@@ -588,9 +601,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
             }
 
             for(unsigned i = 0; i < jfaceDofs1; i++) {
-              unsigned inode = el->GetIG(ielt1, jface1, i); // local mapping from face to element
+              unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
               for(unsigned k = 0; k < dim; k++) {
-                xf1[k][i] =  vx1Hat[k][inode] + af * solD1[k][inode] + (1 - af) * solD1Old[k][inode];
+                xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD1[k][if2e] + af * solD1Old[k][if2e];
               }
             }
             unsigned coarse = 0;
@@ -599,13 +612,12 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
             unsigned ng1;
             std::vector < Marker *> gp;
             std::vector < unsigned> jel;
-            
-            
+
           testGaussPoints:
             ng1 = fem[qType][jfaceType1][solType]->GetGaussPointNumber();
             gp.resize(ng1);
             jel.resize(ng1);
-            
+
             std::map <unsigned, unsigned> jelCounter;
             std::map <unsigned, unsigned>::iterator it;
 
@@ -632,41 +644,41 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
             }
 
             if(qType == coarse && jelCounter.size() > 1) {
-              qType = fine; 
+              qType = fine;
               for(unsigned ig = 0; ig < gp.size(); ig++) {
                 delete gp[ig];
               }
               goto testGaussPoints;
             }
-            
-            if(qType == fine){
-              for(unsigned ig = 0; ig < gp.size();ig++){  
-                std::cout << jel[ig] <<" ";
+
+            if(qType == fine) {
+              for(unsigned ig = 0; ig < gp.size(); ig++) {
+                std::cout << jel[ig] << " ";
               }
               std::cout << std::endl;
             }
 
             std::vector < unsigned > iel2All(jelCounter.size());
-            std::vector < std::vector < unsigned > > ig2All(jelCounter.size());
+            std::vector < std::vector < unsigned > > igAll(jelCounter.size());
 
             {
               unsigned i = 0;
               for(i = 0, it = jelCounter.begin(); it != jelCounter.end(); it++, i++) {
                 iel2All[i] = it->first;
-                ig2All[i].reserve(it->second);
+                igAll[i].reserve(it->second);
               }
             }
 
             for(unsigned ig = 0; ig < gp.size(); ig++) {
               unsigned i = 0;
               while(jel[ig] != iel2All[i]) i++;
-              unsigned k = ig2All[i].size();
-              ig2All[i].resize(k + 1);
-              ig2All[i][k] = ig;
+              unsigned k = igAll[i].size();
+              igAll[i].resize(k + 1);
+              igAll[i][k] = ig;
             }
 
-            for(unsigned i = 0; i < iel2All.size(); i++) {
-              unsigned iel2 = iel2All[i];
+            for(unsigned ii = 0; ii < iel2All.size(); ii++) {
+              unsigned iel2 = iel2All[ii];
               if(iel2 != UINT_MAX) {
                 unsigned jproc = msh->IsdomBisectionSearch(iel2 , 3); // return  jproc for piece-wise constant discontinuous type (3)
 
@@ -674,11 +686,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 unsigned nDofsV2;
                 unsigned nDofsP2;
 
-                std::vector < std::vector < double > > xi2(ig2All[i].size());
+                std::vector < std::vector < double > > xi2(igAll[ii].size());
                 if(iproc == jproc) {
 
-                  for(unsigned ig = 0; ig < ig2All[i].size(); ig++) {
-                    xi2[ig] = gp[ig2All[i][ig]]->GetMarkerLocalCoordinates();
+                  for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
+                    xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
                   }
 
                   mysolution->_Sol[eflagIndex]->set(iel2, 1.);
@@ -691,8 +703,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     solV2Old[k].resize(nDofsV2);
                     vx2Hat[k].resize(nDofsV2);
                     aRhsV[k].assign(nDofsV2, 0.);
-                    solV2dofs[k].resize(nDofsV2);
                   }
+                  solV2dofs.resize(dim * nDofsV2);
                   solP2.resize(nDofsP2);
                   aRhsP.assign(nDofsP2, 0.);
                   solP2dofs.resize(nDofsP2);
@@ -703,7 +715,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     for(unsigned  k = 0; k < dim; k++) {
                       solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idofV);
                       solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idofV);
-                      solV2dofs[k][i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel2);
+                      solV2dofs[k * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel2);
                       vx2Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
                     }
                   }
@@ -718,16 +730,16 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   MPI_Send(&nDofsP2, 1, MPI_UNSIGNED, kproc, 2, PETSC_COMM_WORLD);
 
                   for(unsigned  k = 0; k < dim; k++) {
-                    MPI_Send(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, kproc, 3 + (k * 4), PETSC_COMM_WORLD);
-                    MPI_Send(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, 4 + (k * 4), PETSC_COMM_WORLD);
-                    MPI_Send(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, kproc, 5 + (k * 4), PETSC_COMM_WORLD);
-                    MPI_Send(solV2dofs[k].data(), solV2dofs[k].size(), MPI_UNSIGNED, kproc, 6 + (k * 4), PETSC_COMM_WORLD);
+                    MPI_Send(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, kproc, 3 + (k * 3), PETSC_COMM_WORLD);
+                    MPI_Send(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, 4 + (k * 3), PETSC_COMM_WORLD);
+                    MPI_Send(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, kproc, 5 + (k * 3), PETSC_COMM_WORLD);
                   }
-                  MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 3 + (dim * 4), PETSC_COMM_WORLD);
-                  MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 4 + (dim * 4), PETSC_COMM_WORLD);
+                  MPI_Send(solV2dofs.data(), solV2dofs.size(), MPI_UNSIGNED, kproc, 3 + (dim * 3), PETSC_COMM_WORLD);
+                  MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 4 + (dim * 3), PETSC_COMM_WORLD);
+                  MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 5 + (dim * 3), PETSC_COMM_WORLD);
 
                   for(unsigned ig = 0; ig < xi2.size(); ig++) {
-                    MPI_Send(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, kproc, 3 + (dim * 4) + ig, PETSC_COMM_WORLD);
+                    MPI_Send(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, kproc, 6 + (dim * 3) + ig, PETSC_COMM_WORLD);
                   }
                 }
 
@@ -740,27 +752,256 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     solV2[k].resize(nDofsV2);
                     solV2Old[k].resize(nDofsV2);
                     vx2Hat[k].resize(nDofsV2);
-                    solV2dofs[k].resize(nDofsV2);
                   }
+                  solV2dofs.resize(dim * nDofsV2);
                   solP2.resize(nDofsP2);
                   solP2dofs.resize(nDofsP2);
 
                   for(unsigned  k = 0; k < dim; k++) {
-                    MPI_Recv(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, jproc, 3 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, jproc, 4 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, jproc, 5 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(solV2dofs[k].data(), solV2dofs[k].size(), MPI_UNSIGNED, jproc, 6 + (k * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, jproc, 3 + (k * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, jproc, 4 + (k * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, jproc, 5 + (k * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   }
-                  MPI_Recv(solP2.data(), solP2.size(), MPI_DOUBLE, jproc, 3 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-                  MPI_Recv(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, jproc, 4 + (dim * 4), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(solV2dofs.data(), solV2dofs.size(), MPI_UNSIGNED, jproc, 3 + (dim * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(solP2.data(), solP2.size(), MPI_DOUBLE, jproc, 4 + (dim * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, jproc, 5 + (dim * 3), PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
 
                   for(unsigned ig = 0; ig < xi2.size(); ig++) {
                     xi2[ig].resize(dim);
-                    MPI_Recv(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, jproc, 3 + (dim * 4) + ig, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, jproc, 6 + (dim * 3) + ig, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   }
                 }
                 // we finished to exchange all needed information, we are ready to assemble!
                 if(iproc == kproc || iproc == jproc) {
+
+                  //initialize adept varibles
+                  for(unsigned k = 0; k < dim; k++) {
+                    solD[k].resize(nDofsD1) ;
+                    for(unsigned i = 0; i < nDofsD1; i++) {
+                      solD[k][i] = solD1[k][i];
+                    }
+                    solV[k].resize(nDofsV2);
+                    for(unsigned i = 0; i < nDofsV2; i++) {
+                      solV[k][i] = solV2[k][i];
+                    }
+                  }
+                  solP.resize(nDofsP2);
+                  for(unsigned i = 0; i < nDofsP2; i++) {
+                    solP[i] = solP2[i];
+                  }
+
+                  s.new_recording();
+
+                  //solid
+                  std::vector  < std::vector  <  adept::adouble > > xf1(dim);    // physical coordinates of the face in the af configuration
+                  for(int k = 0; k < dim; k++) {
+                    xf1[k].resize(jfaceDofs1);
+                  }
+
+                  for(unsigned i = 0; i < jfaceDofs1; i++) {
+                    unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
+                    for(unsigned k = 0; k < dim; k++) {
+                      xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD[k][if2e] + af * solD1Old[k][if2e];
+                    }
+                  }
+
+                  for(unsigned ig = 0; ig < igAll[ii].size(); ig++) { // loop on the interface integration points both on the solid and the fluid
+                    unsigned ig1 = igAll[ii][ig]; //solid gauss point id
+                    unsigned ig2 = ig; //integration point id in the ii fluid element
+
+                    std::vector < adept::adouble > N;
+                    fem[qType][jfaceType1][solType]->JacobianSur(xf1, ig1, weightD, phiD, gradPhiD, N); // boundary solid integration
+
+                    fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
+                    fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
+
+                    adept::adouble solPg = 0.;
+                    for(unsigned i = 0; i < nDofsP2; i++) {
+                      solPg += phiP[i] * solP[i];
+                    }
+
+                    std::vector < adept::adouble > v1(dim, 0.); // this is the velocity of the solid
+                    std::vector < adept::adouble > v2(dim, 0.); // this is the velocity of the fluid
+                    std::vector < adept::adouble > tau(dim, 0.);
+
+                    std::vector <adept::adouble> solDg(dim, 0.);
+                    std::vector <double> solD1gOld(dim, 0.);
+                    std::vector <double> solV1gOld(dim, 0.);
+                    std::vector <double> solA1gOld(dim, 0.);
+                    std::vector <adept::adouble> solA1g(dim);
+                    std::vector <adept::adouble> solV1g(dim);
+
+                    //update displacement and acceleration
+                    for(int k = 0; k < dim; k++) {
+                      for(unsigned i = 0; i < nDofsV2; i++) {
+                        v2[k] += phiV[i] * ((1. - theta) * solV[k][i] + theta * solV2Old[k][i]);
+                      }
+                      
+                      for(unsigned i = 0; i < jfaceDofs1; i++) {
+                        unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
+                        solDg[k] = phiD[i] * solD[k][if2e];
+                        solD1gOld[k] = phiD[i] * solD1Old[k][if2e];
+                        solV1gOld[k] = phiD[i] * solV1Old[k][if2e];
+                        solA1gOld[k] = phiD[i] * solA1Old[k][if2e];
+                      }
+
+                      solA1g[k] = (solDg[k] - solD1gOld[k]) / (beta * dt * dt)
+                                  - solV1gOld[k] / (beta * dt)
+                                  - solA1gOld[k] * (1. - 2.* beta) / (2. * beta);
+                      solV1g[k] = (solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]));
+
+                      v1[k] = (1. - af) * solV1g[k] + af * solV1gOld[k];
+                    }
+
+                    for(unsigned k = 0; k < dim; k++) {
+                      tau[k] += - solPg * N[k];
+                      for(unsigned i = 0; i < nDofsV2; i++) {
+                        for(unsigned j = 0; j < dim; j++) {
+                          tau[k] += muFluid * (((1. - theta) * solV[k][i] + theta * solV2Old[k][i]) * gradPhiV[i * dim + j] +
+                                               ((1. - theta) * solV[j][i] + theta * solV2Old[j][i]) * gradPhiV[i * dim + k]) * N[j];
+                        }
+                      }
+                    }
+
+                    double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] * vx2Hat[0][2]) +
+                                    (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
+
+                    double thetaM = 50 * muFluid / h;
+                    double thetaL = 50 * rhoFluid / (theta * dt * h);
+
+                    if(iproc == kproc) {
+                       for(unsigned i = 0; i < jfaceDofs1; i++) {
+                        unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
+                        for(unsigned k = 0; k < dim; k++) {
+                          aRhsD[k][if2e] -= -tau[k] * phiD[i] * weightD;
+                          aRhsD[k][if2e] -=  thetaM * (v1[k] - v2[k]) * phiD[i] * weightD;
+                          for(unsigned j = 0; j < dim; j++) {
+                            aRhsD[k][if2e] -=  thetaL * (v1[j] - v2[j]) * N[j] * phiD[i] * N[k] * weightD;
+                          }
+                        }
+                      }
+                    }
+
+                    if(iproc == jproc) {
+                      for(unsigned i = 0; i < nDofsV2; i++) {
+                        for(unsigned k = 0; k < dim; k++) {
+                          aRhsV[k][i] -=  tau[k] * phiV[i] * weightD;
+                          aRhsV[k][i] -= -thetaM * (v1[k] - v2[k]) * phiV[i] * weightD;
+
+                          for(unsigned j = 0; j < dim; j++) {
+                            aRhsV[k][i] -= -(muFluid * gradPhiV[i * dim + j] * N[j] * (v1[k] - v2[k])) * weightD;
+                            aRhsV[k][i] -= -(muFluid * gradPhiV[i * dim + j] * N[k] * (v1[j] - v2[j])) * weightD;
+                            aRhsV[k][i] -= -thetaL * (v1[j] - v2[j]) * N[j] * phiV[i] * N[k] * weightD;
+                          }
+                        }
+                      } // end phi_i loop
+
+                      for(unsigned i = 0; i < nDofsP2; i++) {
+                        for(unsigned k = 0; k < dim; k++) {
+                          aRhsP[i] -= - (phiP[i]  * (v1[k] - v2[k]) * N[k]) * weightD;
+                        }
+                      }
+                    }
+                  }//close ig loop
+
+                  //call adept
+
+                  sysDofsAll = solD1dofs;
+                  sysDofsAll.insert(sysDofsAll.end(), solV2dofs.begin(), solV2dofs.end());
+                  sysDofsAll.insert(sysDofsAll.end(), solP2dofs.begin(), solP2dofs.end());
+
+                  if(iproc == kproc) {
+                    unsigned nDofsD1All = dim * nDofsD1;
+
+                    rhs.resize(nDofsD1All);   //resize
+
+                    for(int i = 0; i < nDofsD1; i++) {
+                      for(unsigned  k = 0; k < dim; k++) {
+                        rhs[ i +  k * nDofsD1 ] = -aRhsD[k][i].value();
+                      }
+                    }
+
+                    myRES->add_vector_blocked(rhs, solD1dofs);
+                    unsigned nDofsAll = dim * (nDofsD1 + nDofsV2) + nDofsP2;
+
+
+                    Jac.resize(nDofsD1All * nDofsAll);
+                    // define the dependent variables
+
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.dependent(&aRhsD[k][0], nDofsD1);
+                    }
+
+                    // define the independent variables
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.independent(&solD[k][0], nDofsD1);
+                    }
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.independent(&solV[k][0], nDofsV2);
+                    }
+                    s.independent(&solP[0], nDofsP2);
+
+                    // get the and store jacobian matrix (row-major)
+                    s.jacobian(&Jac[0], true);
+                    myKK->add_matrix_blocked(Jac, solD1dofs, sysDofsAll);
+                    
+                    s.clear_independents();
+                    s.clear_dependents();
+                  }
+
+                  if(iproc == jproc) {
+
+                    std::vector < unsigned >solVP2dofs = solV2dofs;
+                    solVP2dofs.insert(solVP2dofs.end(), solP2dofs.begin(), solP2dofs.end());
+
+                    unsigned nDofsVP2All = dim * nDofsV2 + nDofsP2; // number of rows in the fluid block
+
+                    rhs.resize(nDofsVP2All);   //resize
+
+                    for(int i = 0; i < nDofsV2; i++) {
+                      for(unsigned  k = 0; k < dim; k++) {
+                        rhs[ i +  k * nDofsV2 ] = -aRhsV[k][i].value();
+                      }
+                    }
+                    for(int i = 0; i < nDofsP2; i++) {
+                      rhs[ i +  dim * nDofsV2 ] = -aRhsP[i].value();
+                    }
+                    myRES->add_vector_blocked(rhs, solVP2dofs);
+                    
+                    unsigned nDofsAll = dim * (nDofsD1 + nDofsV2) + nDofsP2; // number of columns
+
+                    Jac.resize(nDofsVP2All * nDofsAll);
+                    // define the dependent variables
+
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.dependent(&aRhsV[k][0], nDofsV2);
+                    }
+                    s.dependent(&aRhsP[0], nDofsP2);
+
+                    // define the independent variables
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.independent(&solD[k][0], nDofsD1);
+                    }
+                    for(unsigned  k = 0; k < dim; k++) {
+                      s.independent(&solV[k][0], nDofsV2);
+                    }
+                    s.independent(&solP[0], nDofsP2);
+
+                    // get the and store jacobian matrix (row-major)
+                    s.jacobian(&Jac[0], true);
+                    myKK->add_matrix_blocked(Jac, solVP2dofs, sysDofsAll);
+                    
+                    s.clear_independents();
+                    s.clear_dependents();
+                  }
+
+
+
+                 
+
+
+
+
 
                 }
 
