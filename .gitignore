@@ -25,7 +25,7 @@ contrib/lib/
 contrib/hdf5-1.8.5-patch1-linux-x86_64-shared/
 lib/
 applications/*/lib/
-aplications/tutorial/ex11/
+applications/tutorial/ex11
 
 # kdevelop files
 .kdev4/
