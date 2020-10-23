@@ -237,7 +237,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
         }
       }
 
-      double h = sqrt((vx1[0][0] - vx1[0][2]) * (vx1[0][0] * vx1[0][2]) +
+      double h = sqrt((vx1[0][0] - vx1[0][2]) * (vx1[0][0] - vx1[0][2]) +
                       (vx1[1][0] - vx1[1][2]) * (vx1[1][0] - vx1[1][2])) ;
       double h2 = h * h;
       double h3 = h * h * h;
@@ -1232,7 +1232,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       if(eFlag == 1) {  //interface markers
 
 
-        double h = sqrt((vxHat[0][0] - vxHat[0][2]) * (vxHat[0][0] * vxHat[0][2]) +
+        double h = sqrt((vxHat[0][0] - vxHat[0][2]) * (vxHat[0][0] - vxHat[0][2]) +
                         (vxHat[1][0] - vxHat[1][2]) * (vxHat[1][0] - vxHat[1][2])) ;
 
         double thetaM = 50 * muFluid / h;
