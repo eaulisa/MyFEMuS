@@ -136,7 +136,7 @@ int main(int argc, char **args) {
   mlMsh.ReadCoarseMesh("../input/turek2Db.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels,
                    numberOfUniformLevels, NULL);
-  
+
   NewFem("fifth", "twenty fifth");
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -262,7 +262,7 @@ int main(int argc, char **args) {
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
   }
 
-  
+
   DeleteFem();
   return 0;
 
@@ -294,31 +294,24 @@ void Assemble(MultiLevelProblem& ml_prob) {
   SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
 
-  MatSetOption((static_cast<PetscMatrix*> (myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-  
+  MatSetOption((static_cast<PetscMatrix*>(myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+
   myKK->zero();
-  
-  
-  
   myRES->zero();
 
   AssembleSolid(ml_prob);
   AssembleSolidInterface(ml_prob);
-
   AssembleBoundaryLayer(ml_prob);
-
-
+  AssembleBoundaryLayerProjection(ml_prob);
   AssembleFluid(ml_prob);
-
-  // AssembleGhostPenalty(ml_prob, true);
+  AssembleGhostPenalty(ml_prob);
 
   myKK->close();
   myRES->close();
 
-  
   //double tolerance = 1.0e-12 * myKK->linfty_norm();
   //myKK->RemoveZeroEntries(tolerance);
-  
+
   end_time = clock();
   AssemblyTime += (end_time - start_time);
 
@@ -459,6 +452,10 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
     indexSolA[k] = mlSol.GetIndex(&varname[k + 9][0]);
   }
   unsigned solType = mlSol.GetSolutionType(&varname[0][0]);
+
+  for(unsigned k = 0; k < dim; k++) {
+    *sol->_Sol[indexSolV[k]] = *sol->_Sol[indexSolU[k]];
+  }
 
   for(int i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     if((*sol->_Sol[nflagIndex])(i) >= 4) {

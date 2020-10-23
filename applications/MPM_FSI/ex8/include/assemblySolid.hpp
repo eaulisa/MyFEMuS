@@ -203,7 +203,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
         for(unsigned  k = 0; k < dim; k++) {
           vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX);
-          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + (1. - af) * solDOld[k][i] + af * solD[k][i];
+          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) +  af * solD[k][i] + (1. - af) * solDOld[k][i];
         }
       }
 
@@ -238,7 +238,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
             solAgOld[j] += phiD[i] * solAOld[j][i];
 
             for(unsigned  k = 0; k < dim; k++) {
-              gradSolDgHat[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiDHat[i * dim + j];
+              gradSolDgHat[k][j] += (af * solD[k][i] + (1. - af) * solDOld[k][i]) * gradPhiDHat[i * dim + j];
             }
           }
         }
@@ -248,7 +248,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
         std::vector < adept::adouble > solAgAm(dim);
         for(unsigned  k = 0; k < dim; k++) {
           adept::adouble solAgk = (solDg[k] - solDgOld[k]) / (beta * dt * dt) - solVgOld[k] / (beta * dt) - solAgOld[k] * (1. - 2.* beta) / (2. * beta); //NEWMARK ACCELERATION
-          solAgAm[k] = ((1. - am) * solAgk + am * solAgOld[k]);
+          solAgAm[k] = (am * solAgk + (1. - am) * solAgOld[k]);
         }
 
 
@@ -466,9 +466,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
   vector <unsigned> indexSolD(dim);
   vector <unsigned> indexSolV(dim);
-
-  vector <unsigned> indexSolAOld(dim);
+  
   vector <unsigned> indexSolVOld(dim);
+  vector <unsigned> indexSolAOld(dim);
 
   vector <unsigned> indexPdeD(dim);
   vector <unsigned> indexPdeV(dim);
@@ -547,7 +547,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   solD1Old[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idofD);
 
                   solV1Old[k][i] = (*mysolution->_Sol[indexSolVOld[k]])(idofD);
-                  solV1Old[k][i] = (*mysolution->_Sol[indexSolAOld[k]])(idofD);
+                  solA1Old[k][i] = (*mysolution->_Sol[indexSolAOld[k]])(idofD);
 
                   solD1dofs[k * nDofsD1 + i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel1);
                   vx1Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
@@ -603,7 +603,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
             for(unsigned i = 0; i < jfaceDofs1; i++) {
               unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
               for(unsigned k = 0; k < dim; k++) {
-                xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD1[k][if2e] + af * solD1Old[k][if2e];
+                xf1[k][i] =  vx1Hat[k][if2e] + af * solD1[k][if2e] + (1. - af) * solD1Old[k][if2e];
               }
             }
             unsigned coarse = 0;
@@ -725,25 +725,27 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     solP2dofs[i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel2);
                   }
 
-                  MPI_Send(&ielt2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
-                  MPI_Send(&nDofsV2, 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD);
-                  MPI_Send(&nDofsP2, 1, MPI_UNSIGNED, kproc, 2, PETSC_COMM_WORLD);
+                  if(kproc != jproc) {
+                    MPI_Send(&ielt2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+                    MPI_Send(&nDofsV2, 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD);
+                    MPI_Send(&nDofsP2, 1, MPI_UNSIGNED, kproc, 2, PETSC_COMM_WORLD);
 
-                  for(unsigned  k = 0; k < dim; k++) {
-                    MPI_Send(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, kproc, 3 + (k * 3), PETSC_COMM_WORLD);
-                    MPI_Send(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, 4 + (k * 3), PETSC_COMM_WORLD);
-                    MPI_Send(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, kproc, 5 + (k * 3), PETSC_COMM_WORLD);
-                  }
-                  MPI_Send(solV2dofs.data(), solV2dofs.size(), MPI_UNSIGNED, kproc, 3 + (dim * 3), PETSC_COMM_WORLD);
-                  MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 4 + (dim * 3), PETSC_COMM_WORLD);
-                  MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 5 + (dim * 3), PETSC_COMM_WORLD);
+                    for(unsigned  k = 0; k < dim; k++) {
+                      MPI_Send(solV2[k].data(), solV2[k].size(), MPI_DOUBLE, kproc, 3 + (k * 3), PETSC_COMM_WORLD);
+                      MPI_Send(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, 4 + (k * 3), PETSC_COMM_WORLD);
+                      MPI_Send(vx2Hat[k].data(), vx2Hat[k].size(), MPI_DOUBLE, kproc, 5 + (k * 3), PETSC_COMM_WORLD);
+                    }
+                    MPI_Send(solV2dofs.data(), solV2dofs.size(), MPI_UNSIGNED, kproc, 3 + (dim * 3), PETSC_COMM_WORLD);
+                    MPI_Send(solP2.data(), solP2.size(), MPI_DOUBLE, kproc, 4 + (dim * 3), PETSC_COMM_WORLD);
+                    MPI_Send(solP2dofs.data(), solP2dofs.size(), MPI_UNSIGNED, kproc, 5 + (dim * 3), PETSC_COMM_WORLD);
 
-                  for(unsigned ig = 0; ig < xi2.size(); ig++) {
-                    MPI_Send(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, kproc, 6 + (dim * 3) + ig, PETSC_COMM_WORLD);
+                    for(unsigned ig = 0; ig < xi2.size(); ig++) {
+                      MPI_Send(xi2[ig].data(), xi2[ig].size(), MPI_DOUBLE, kproc, 6 + (dim * 3) + ig, PETSC_COMM_WORLD);
+                    }
                   }
                 }
 
-                if(iproc == kproc) {
+                if(kproc != jproc && iproc == kproc) {
                   MPI_Recv(&ielt2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   MPI_Recv(&nDofsV2, 1, MPI_UNSIGNED, jproc, 1, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   MPI_Recv(&nDofsP2, 1, MPI_UNSIGNED, jproc, 2, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -801,7 +803,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   for(unsigned i = 0; i < jfaceDofs1; i++) {
                     unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                     for(unsigned k = 0; k < dim; k++) {
-                      xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD[k][if2e] + af * solD1Old[k][if2e];
+                      xf1[k][i] =  vx1Hat[k][if2e] + af * solD[k][if2e] + (1. - af) * solD1Old[k][if2e];
                     }
                   }
 
@@ -812,6 +814,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     std::vector < adept::adouble > N;
                     fem[qType][jfaceType1][solType]->JacobianSur(xf1, ig1, weightD, phiD, gradPhiD, N); // boundary solid integration
 
+                    //std::cout << xi2[ig2][0] <<" "<< xi2[ig2][1]<<std::endl;
+                    
                     fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
                     fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
 
@@ -834,9 +838,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     //update displacement and acceleration
                     for(int k = 0; k < dim; k++) {
                       for(unsigned i = 0; i < nDofsV2; i++) {
-                        v2[k] += phiV[i] * ((1. - theta) * solV[k][i] + theta * solV2Old[k][i]);
+                        v2[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
                       }
-                      
+
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                         solDg[k] = phiD[i] * solD[k][if2e];
@@ -850,27 +854,27 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                                   - solA1gOld[k] * (1. - 2.* beta) / (2. * beta);
                       solV1g[k] = (solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]));
 
-                      v1[k] = (1. - af) * solV1g[k] + af * solV1gOld[k];
+                      v1[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
                     }
 
                     for(unsigned k = 0; k < dim; k++) {
                       tau[k] += - solPg * N[k];
                       for(unsigned i = 0; i < nDofsV2; i++) {
                         for(unsigned j = 0; j < dim; j++) {
-                          tau[k] += muFluid * (((1. - theta) * solV[k][i] + theta * solV2Old[k][i]) * gradPhiV[i * dim + j] +
-                                               ((1. - theta) * solV[j][i] + theta * solV2Old[j][i]) * gradPhiV[i * dim + k]) * N[j];
+                          tau[k] += muFluid * (( theta * solV[k][i] + (1. - theta) * solV2Old[k][i]) * gradPhiV[i * dim + j] +
+                                               ( theta * solV[j][i] + (1. - theta) * solV2Old[j][i]) * gradPhiV[i * dim + k]) * N[j];
                         }
                       }
                     }
 
-                    double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] * vx2Hat[0][2]) +
+                    double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
                     double thetaM = 50 * muFluid / h;
                     double thetaL = 50 * rhoFluid / (theta * dt * h);
 
                     if(iproc == kproc) {
-                       for(unsigned i = 0; i < jfaceDofs1; i++) {
+                      for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                         for(unsigned k = 0; k < dim; k++) {
                           aRhsD[k][if2e] -= -tau[k] * phiD[i] * weightD;
@@ -944,7 +948,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, solD1dofs, sysDofsAll);
-                    
+
                     s.clear_independents();
                     s.clear_dependents();
                   }
@@ -967,7 +971,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       rhs[ i +  dim * nDofsV2 ] = -aRhsP[i].value();
                     }
                     myRES->add_vector_blocked(rhs, solVP2dofs);
-                    
+
                     unsigned nDofsAll = dim * (nDofsD1 + nDofsV2) + nDofsP2; // number of columns
 
                     Jac.resize(nDofsVP2All * nDofsAll);
@@ -990,23 +994,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, solVP2dofs, sysDofsAll);
-                    
+
                     s.clear_independents();
                     s.clear_dependents();
                   }
-
-
-
-                 
-
-
-
-
-
                 }
-
-
-
               }
             }
 
@@ -1032,218 +1024,10 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   mysolution->_Sol[eflagIndex]->close();
   mysolution->_Sol[pElemIndex]->close();
 
-
-
-  /*
-
-
-  // resize local arrays
-  sysDofsAll.resize(nDofsAll);
-  nodeFlag.resize(nDofs);
-
-
-
-
-
-  for(unsigned  k = 0; k < dim; k++) {
-  solD[k].resize(nDofs);
-  solDOld[k].resize(nDofs);
-  solVOld[k].resize(nDofs);
-  solAOld[k].resize(nDofs);
-  aRhsD[k].assign(nDofs, 0.);
-  vx[k].resize(nDofs);
-  vxHat[k].resize(nDofs);
-  }
-  solP.resize(nDofsP);
-  aRhsP.assign(nDofsP, 0.);
-
-  for(unsigned i = 0; i < nDofs; i++) {
-  unsigned idof = msh->GetSolutionDof(i, iel, solType);
-
-  nodeFlag[i] = (*mysolution->_Sol[nflagIndex])(idof); // set it to 0 for no-marker
-
-  for(unsigned  k = 0; k < dim; k++) {
-  solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof);
-  solDOld[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idof);
-  solVOld[k][i] = (*mysolution->_Sol[indexSolVOld[k]])(idof);
-  solAOld[k][i] = (*mysolution->_Sol[indexSolAOld[k]])(idof);
-  sysDofsAll[k * nDofs + i] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel);
-  }
-  }
-
-  for(unsigned i = 0; i < nDofsP; i++) {
-  unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
-  solP[i] = (*mysolution->_Sol[indexSolP])(idof);
-  sysDofsAll[dim * nDofs + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
-  }
-
-  // start a new recording of all the operations involving adept::adouble variables
-  s.new_recording();
-
-  for(unsigned i = 0; i < nDofs; i++) {
-  unsigned idofX = msh->GetSolutionDof(i, iel, 2);
-  for(unsigned  k = 0; k < dim; k++) {
-  vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX);
-  vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + (1. - af) * solDOld[k][i] + af * solD[k][i];
-  }
-  }
-
-
-
-  // *** Gauss point loop ***
-  for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
-
-  msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightDHat, phiD, gradPhiDHat);
-  msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weightD, phiD, gradPhiD);
-
-
-  std::vector < adept::adouble > solDg(dim, 0.);
-  std::vector < adept::adouble > solDgOld(dim, 0.);
-  std::vector < double > solVgOld(dim, 0.);
-  std::vector < double > solAgOld(dim, 0.);
-
-  std::vector < std::vector < adept::adouble > > gradSolDgHat(dim);
-
-  for(unsigned  k = 0; k < dim; k++) {
-  gradSolDgHat[k].assign(dim, 0.);
-  }
-
-
-
-
-  for(unsigned i = 0; i < nDofs; i++) {
-  for(unsigned j = 0; j < dim; j++) {
-    solDg[j] += phiD[i] * solD[j][i];
-    solDgOld[j] += phiD[i] * solDOld[j][i];
-    solVgOld[j] += phiD[i] * solVOld[j][i];
-    solAgOld[j] += phiD[i] * solAOld[j][i];
-
-    for(unsigned  k = 0; k < dim; k++) {
-      gradSolDgHat[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiDHat[i * dim + j];
-    }
-  }
-  }
-
-
-
-  std::vector < adept::adouble > solAgAm(dim);
-  for(unsigned  k = 0; k < dim; k++) {
-  adept::adouble solAgk = (solDg[k] - solDgOld[k]) / (beta * dt * dt) - solVgOld[k] / (beta * dt) - solAgOld[k] * (1. - 2.* beta) / (2. * beta); //NEWMARK ACCELERATION
-  solAgAm[k] = ((1. - am) * solAgk + am * solAgOld[k]);
-  }
-
-
-
-  double *phiP = msh->_finiteElement[ielt][solTypeP]->GetPhi(ig);
-  adept::adouble solPg = 0.;
-
-
-
-
-  for(unsigned i = 0; i < nDofsP; i++) {
-  solPg += phiP[i] * solP[i];
-  }
-
-
-
-  adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
-  for(unsigned j = 0; j < dim; j++) {
-  for(unsigned k = 0; k < dim; k++) {
-    F[j][k] += gradSolDgHat[j][k];
-  }
-  }
-
-  adept::adouble J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
-                        - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
-
-
-  adept::adouble B[3][3];
-  for(unsigned i = 0; i < 3; i++) {
-  for(int j = 0; j < 3; j++) {
-    B[i][j] = 0.;
-    for(unsigned k = 0; k < 3; k++) {
-      //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-      B[i][j] += F[i][k] * F[j][k];
-    }
-  }
-  }
-
-  adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
-  adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
-  adept::adouble Cauchy[3][3];
-
-
-  for(unsigned j = 0; j < 3; j++) {
-  for(unsigned k = 0; k < 3; k++) {
-    Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
-  }
-  }
-
-  //END computation of the Cauchy Stress
-  for(unsigned i = 0; i < nDofs; i++) {
-  adept::adouble CauchyDIR[3] = {0., 0., 0.};
-  for(unsigned j = 0.; j < dim; j++) {
-    for(unsigned k = 0.; k < dim; k++) {
-      CauchyDIR[j] += gradPhiD[i * dim + k] * Cauchy[j][k];
-    }
-  }
-  for(unsigned k = 0; k < dim; k++) {
-    aRhsD[k][i] -= (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
-    if(k == 0) {
-      aRhsD[k][i] -= (rhoMpm * phiD[i]) * weightD;
-    }
-  }
-  }
-  //continuity block
-  for(unsigned i = 0; i < nDofsP; i++) {
-  aRhsP[i] -= (phiP[i] * solPg) * weightD;
-  }
-  } // end gauss point loop
-
-  //copy the value of the adept::adoube aRes in double Res and store them in RES
-  rhs.resize(nDofsAll);   //resize
-
-  for(int i = 0; i < nDofs; i++) {
-  for(unsigned  k = 0; k < dim; k++) {
-  rhs[k * nDofs + i] = -aRhsD[k][i].value();
-  }
-  }
-  for(int i = 0; i < nDofsP; i++) {
-  rhs[ dim * nDofs  + i] = -aRhsP[i].value();
-  }
-
-  myRES->add_vector_blocked(rhs, sysDofsAll);
-
-
-  Jac.resize(nDofsAll * nDofsAll);
-  // define the dependent variables
-
-  for(unsigned  k = 0; k < dim; k++) {
-  s.dependent(&aRhsD[k][0], nDofs);
-  }
-  s.dependent(&aRhsP[0], nDofsP);
-
-  for(unsigned  k = 0; k < dim; k++) {
-  s.independent(&solD[k][0], nDofs);
-  }
-  s.independent(&solP[0], nDofsP);
-
-  // get the and store jacobian matrix (row-major)
-  s.jacobian(&Jac[0], true);
-  myKK->add_matrix_blocked(Jac, sysDofsAll, sysDofsAll);
-
-  s.clear_independents();
-  s.clear_dependents();
-
-  }
-  }
-  }
-  */
-
-// *************************************
+  // *************************************
   end_time = clock();
   AssemblyTime += (end_time - start_time);
-// ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
+  // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
 
