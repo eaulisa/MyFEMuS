@@ -829,7 +829,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       for(unsigned  k = 0; k < dim; k++) {
         vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i];
         //vx[k][i] = vxHat[k][i] + solD[k][i];
-        vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + (1 - theta) * solDOld[k][i] + theta * solD[k][i];
+        vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + theta * solD[k][i]+ (1 - theta) * solDOld[k][i] ;
       }
     }
 
@@ -870,12 +870,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           solVg[j] += phi[i] * solV[j][i];
           solDg[j] += phi[i] * solD[j][i];
           solVgOld[j] += phiHat[i] * solVOld[j][i];
-          solVgTheta[j] += phi[i] * ((1. - theta)  * solV[j][i] + theta * solVOld[j][i]);
+          solVgTheta[j] += phi[i] * ( theta  * solV[j][i] + (1. - theta) * solVOld[j][i]);
           solDgOld[j] += phiHat[i] * solDOld[j][i];
           for(unsigned  k = 0; k < dim; k++) {
             gradSolDgHat[k][j] += gradPhiHat[i * dim + j] * solD[k][i];
-            gradSolVgTheta[k][j] += gradPhi[i * dim + j] * ((1. - theta)  * solV[k][i] +  theta * solVOld[k][i]);
-            DeltaSolVgTheta[k][j]   += nablaphi[i * dim2 + j] * ((1. - theta) * solV[k][i] + theta * solVOld[k][i]) ;
+            gradSolVgTheta[k][j] += gradPhi[i * dim + j] * (theta  * solV[k][i] +  (1. - theta) * solVOld[k][i]);
+            DeltaSolVgTheta[k][j]   += nablaphi[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;
           }
         }
       }
@@ -1092,14 +1092,14 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             solVp[j] += phi[i] * solV[j][i]; // we can use newmark too
             for(int k = 0; k < dim; k++) {
               gradSolDpAf[j][k] +=  gradPhi[i * dim + k] * ( (1.-af) * solD[j][i] + af * solDOld[j][i] );
-              gradSolVpTheta[j][k] +=  gradPhi[i * dim + k] * ((1. - theta) * solV[j][i] + theta * solVOld[j][i]) ; // potential problem if solVpOld is not smooth
-              gradSolDpHatAf[j][k] +=  gradPhiHat[i * dim + k] * ( (1.-af) * solD[j][i] + af * solDOld[j][i] );
+              gradSolVpTheta[j][k] +=  gradPhi[i * dim + k] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]) ; // potential problem if solVpOld is not smooth
+              gradSolDpHatAf[j][k] +=  gradPhiHat[i * dim + k] * ( af * solD[j][i] + (1. - af) * solDOld[j][i] );
             }
           }
         }
 
         for(int j = 0; j < dim; j++) {
-          solVpTheta[j] = (1. - theta) * solVp[j] + theta * solVpOld[j];
+          solVpTheta[j] =  theta * solVp[j] + (1. - theta) * solVpOld[j];
         }
 
 
@@ -1308,20 +1308,20 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           //update displacement and acceleration
           for(int k = 0; k < dim; k++) {
             for(unsigned i = 0; i < nDofs; i++) {
-              v1[k] += (1. - theta) * phi[i] * solV[k][i];// + theta * solVOld[k][i];
+              v1[k] +=  theta * phi[i] * solV[k][i];// + theta * solVOld[k][i];
               solDp[k] += phi[i] * solD[k][i];
             }
-            v1[k] += theta * solVpOld[k];
+            v1[k] += (1.- theta) * solVpOld[k];
             solAp[k] = 1. / (beta * dt * dt) * solDp[k] - 1. / (beta * dt) * solVpOld[k] - (1. - 2.* beta) / (2. * beta) * solApOld[k];
-            v2[k] = (1.-af) * (solVpOld[k] + dt * ((1. - Gamma) * solApOld[k] + Gamma * solAp[k]) ) + af * solVpOld[k];
+            v2[k] = (1.- af) * (solVpOld[k] + dt * ((1. - Gamma) * solApOld[k] + Gamma * solAp[k]) ) + af * solVpOld[k];
           }
 
           for(unsigned k = 0; k < dim; k++) {
             tau[k] += - solPp * N[k];
             for(unsigned i = 0; i < nDofs; i++) {
               for(unsigned j = 0; j < dim; j++) {
-                tau[k] += muFluid * (((1. - theta) * solV[k][i] + theta * solVOld[k][i]) * gradPhi[i * dim + j] +
-                                     ((1. - theta) * solV[j][i] + theta * solVOld[j][i]) * gradPhi[i * dim + k]) * N[j];
+                tau[k] += muFluid * ( theta * solV[k][i] + (1.- theta) * solVOld[k][i]) * gradPhi[i * dim + j] +
+                                     ( theta * solV[j][i] + (1.- theta) * solVOld[j][i]) * gradPhi[i * dim + k]) * N[j];
               }
             }
           }

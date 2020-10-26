@@ -414,13 +414,11 @@ int main(int argc, char **args) {
 
   //return 1;
 
-   clock_t start_time_t;
+   
   
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
-    start_time_t = clock();
-   
 
     system.CopySolutionToOldSolution();
 
@@ -443,17 +441,8 @@ int main(int argc, char **args) {
     std::cout << "printing interface" << std::endl;
     lineI->GetLine(lineIPoints[0]);
     
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints,
-              time_step);
+    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
     
-    if(time_step > 1 ){
-        
-    std::cout << "One time step = " << (clock() - start_time_t) / (double) CLOCKS_PER_SEC << " seconds\nRemaing_Time = " 
-    << (n_timesteps - time_step - 1) * (clock() - start_time_t) / ( (double) CLOCKS_PER_SEC * 60) << " mins / "
-    << (n_timesteps - time_step - 1) * (clock() - start_time_t) / ( (double) CLOCKS_PER_SEC * 60 * 60) << " hours. Cheers!" << std::endl;
-        
-    }
-
   }
 
   delete bulk;
