@@ -55,11 +55,11 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   vector< vector< adept::adouble > > solV2(dim); // local solution (velocity)
   vector< adept::adouble > solP2; // local solution (velocity)
 
-  vector< vector< adept::adouble > > aRhsV1(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP1; // local redidual vector
+  vector< vector< adept::adouble > > aResV1(dim);     // local redidual vector
+  vector< adept::adouble > aResP1; // local redidual vector
 
-  vector< vector< adept::adouble > > aRhsV2(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP2; // local redidual vector
+  vector< vector< adept::adouble > > aResV2(dim);     // local redidual vector
+  vector< adept::adouble > aResP2; // local redidual vector
 
   vector< double > rhs1; // local redidual vector
   vector< double > rhs2; // local redidual vector
@@ -91,8 +91,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.05;
-  double gammap = 0.05;
+  double gammac = 0.5;
+  double gammap = 0.5;
 
   std::cout.precision(10);
 
@@ -184,7 +184,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
         unsigned eFlag2 = (jel >= 0) ? static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5)) : 0;
 
-        if( eFlag2 == 2 || (eFlag2 == 1 && jel > iel) ) {
+        if(eFlag2 == 2 || (eFlag2 == 1 && jel > iel)) {
 
           //std::cout << jel << " ";
 
@@ -232,11 +232,11 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
           }
 
           for(unsigned  k = 0; k < dim; k++) {
-            aRhsV1[k].assign(nDofsV1, 0.);
-            aRhsV2[k].assign(nDofsV2, 0.);
+            aResV1[k].assign(nDofsV1, 0.);
+            aResV2[k].assign(nDofsV2, 0.);
           }
-          aRhsP1.assign(nDofsP1, 0.);
-          aRhsP2.assign(nDofsP2, 0.);
+          aResP1.assign(nDofsP1, 0.);
+          aResP2.assign(nDofsP2, 0.);
 
           s.new_recording();
 
@@ -268,8 +268,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
           for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeV]->GetGaussPointNumber(); ig++) {
 
-            std::vector < double> normal;
-            msh->_finiteElement[faceGeom][solTypeV]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+            std::vector < double> N; //N12
+            msh->_finiteElement[faceGeom][solTypeV]->JacobianSur(faceVx, ig, weight, phi, gradPhi, N);
 
             std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
             for(unsigned i = 0; i < faceDofs; i++) {
@@ -318,7 +318,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 solV1gOld[I] += phi1[i] * solV1Old[I][i];
                 //solD1gOld[I] += phi1[i] * solD1Old[I][i];
                 for(unsigned J = 0; J < dim; J++) {
-                  gradSolV1DotN[I] += solV1[I][i] * gradPhi1[i * dim + J] * normal[J];
+                  gradSolV1DotN[I] += solV1[I][i] * gradPhi1[i * dim + J] * N[J];
                   for(unsigned K = 0; K < dim; K++) {
                     //2D xx, yy, xy
                     //3D xx, yy, zz, xy, yz ,zx
@@ -327,7 +327,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                     else if(1 == J + K) L = dim;     // xy
                     else if(2 == J + K) L = dim + 2; // xz
                     else if(3 == J + K) L = dim + 1; // yz
-                    hessSolV1DotN[I] += solV1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                    hessSolV1DotN[I] += solV1[I][i] * N[J] * nablaPhi1[i * dim2 + L] * N[K];
                   }
                 }
               }
@@ -342,7 +342,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 solV2gOld[I] += phi2[i] * solV2Old[I][i];
                 //solD2gOld[I] += phi2[i] * solD2Old[I][i];
                 for(unsigned J = 0; J < dim; J++) {
-                  gradSolV2DotN[I] += solV2[I][i] * gradPhi2[i * dim + J] * normal[J];
+                  gradSolV2DotN[I] += solV2[I][i] * gradPhi2[i * dim + J] * N[J];
                   for(unsigned K = 0; K < dim; K++) {
                     //2D xx, yy, xy
                     //3D xx, yy, zz, xy, yz ,zx
@@ -351,7 +351,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                     else if(1 == J + K) L = dim;     // xy
                     else if(2 == J + K) L = dim + 2; // xz
                     else if(3 == J + K) L = dim + 1; // yz
-                    hessSolV2DotN[I] += solV2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                    hessSolV2DotN[I] += solV2[I][i] * N[J] * nablaPhi2[i * dim2 + L] * N[K];
                   }
                 }
               }
@@ -363,8 +363,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
             double V2NormL2 = 0.;
 
             for(unsigned k = 0; k < dim; k++) {
-              V1NormL2 += (solV1gOld[k] /*- solD1gOld[k] / dt*/) * (solV1gOld[k] /*- solD1gOld[k] / dt*/);
-              V2NormL2 += (solV2gOld[k] /*- solD2gOld[k] / dt*/) * (solV2gOld[k] /*- solD2gOld[k] / dt*/);
+              V1NormL2 += solV1gOld[k] * solV1gOld[k];
+              V2NormL2 += solV2gOld[k] * solV2gOld[k];
             }
 
             V1NormL2 = sqrt(V1NormL2);
@@ -374,10 +374,14 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
             double psiT2 = (muFluid / rhoFluid + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt));
             double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2);
 
+            
+            double C1 = gammac * ( muFluid + rhoFluid * psiC * V1NormL2 * V1NormL2 + rhoFluid * h2 / (theta * dt) );
+            
+            
             for(unsigned I = 0; I < dim; I++) {
               for(unsigned i = 0; i < nDofsV1; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  aRhsV1[I][i] +=  -gammac * (muFluid + rhoFluid * psiC * V1NormL2 * V1NormL2 + rhoFluid * h2 / (theta * dt)) * h * gradPhi1[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                  aResV1[I][i] += C1 * h * gradPhi1[i * dim + J] * N[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
                   for(unsigned K = 0; K < dim; K++) {
 
                     unsigned L;
@@ -386,14 +390,14 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                     else if(2 == J + K) L = dim + 2; // xz
                     else if(3 == J + K) L = dim + 1; // yz
 
-                    aRhsV1[I][i] +=  - gammac * (muFluid + rhoFluid * psiC * V1NormL2 * V1NormL2 + rhoFluid * h2 / (theta * dt)) * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                    aResV1[I][i] += C1 * h3 * N[J] * nablaPhi1[i * dim2 + L] * N[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
                   }
                 }
               }
 
               for(unsigned i = 0; i < nDofsV2; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  aRhsV2[I][i] +=  + gammac * (muFluid + rhoFluid * psiC * V2NormL2 * V2NormL2 + rhoFluid * h2 / (theta * dt)) * h * gradPhi2[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                  aResV2[I][i] +=  - C1 * h * gradPhi2[i * dim + J] * N[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
 
                   for(unsigned K = 0; K < dim; K++) {
 
@@ -403,7 +407,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                     else if(2 == J + K) L = dim + 2; // xz
                     else if(3 == J + K) L = dim + 1; // yz
 
-                    aRhsV2[I][i] +=  + gammac * (muFluid + rhoFluid * psiC * V2NormL2 * V2NormL2 + rhoFluid * h2 / (theta * dt)) * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                    aResV2[I][i] += - C1 * h3 * N[J] * nablaPhi2[i * dim2 + L] * N[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
                   }
                 }
               }
@@ -421,25 +425,25 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
               for(unsigned i = 0; i < nDofsP1; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  gradSolP1DotN += solP1[i] * gradPhi1[i * dim + J] * normal[J];
+                  gradSolP1DotN += solP1[i] * gradPhi1[i * dim + J] * N[J];
                 }
               }
 
               for(unsigned i = 0; i < nDofsP2; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  gradSolP2DotN += solP2[i] * gradPhi2[i * dim + J] * normal[J];
+                  gradSolP2DotN += solP2[i] * gradPhi2[i * dim + J] * N[J];
                 }
               }
 
               for(unsigned i = 0; i < nDofsP1; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  aRhsP1[i] +=  - gammap * psiC / rhoFluid * h * gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                  aResP1[i] += gammap * psiC / rhoFluid * h * gradPhi1[i * dim + J] * N[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                 }
               }
 
               for(unsigned i = 0; i < nDofsP2; i++) {
                 for(unsigned J = 0; J < dim; J++) {
-                  aRhsP2[i] +=  + gammap * psiC / rhoFluid * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                  aResP2[i] +=  - gammap * psiC / rhoFluid * h * gradPhi2[i * dim + J] * N[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                 }
               }
 
@@ -451,11 +455,11 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
           rhs1.resize(nDofs1);   //resize
           for(int i = 0; i < nDofsV1; i++) {
             for(unsigned  k = 0; k < dim; k++) {
-              rhs1[ k * nDofsV1 + i ] = -aRhsV1[k][i].value();
+              rhs1[ k * nDofsV1 + i ] = -aResV1[k][i].value();
             }
           }
           for(int i = 0; i < nDofsP1; i++) {
-            rhs1[ dim * nDofsV1 + i] = -aRhsP1[i].value();
+            rhs1[ dim * nDofsV1 + i] = -aResP1[i].value();
           }
           myRES->add_vector_blocked(rhs1, sysDofs1);
 
@@ -463,20 +467,20 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
           rhs2.resize(nDofs2);   //resize
           for(int i = 0; i < nDofsV2; i++) {
             for(unsigned  k = 0; k < dim; k++) {
-              rhs2[ k * nDofsV2 + i ] = -aRhsV2[k][i].value();
+              rhs2[ k * nDofsV2 + i ] = -aResV2[k][i].value();
             }
           }
           for(int i = 0; i < nDofsP2; i++) {
-            rhs2[ dim * nDofsV2 + i] = -aRhsP2[i].value();
+            rhs2[ dim * nDofsV2 + i] = -aResP2[i].value();
           }
           myRES->add_vector_blocked(rhs2, sysDofs2);
 
 
           // define the dependent variables J11 and J12
           for(unsigned  k = 0; k < dim; k++) {
-            s.dependent(&aRhsV1[k][0], nDofsV1);
+            s.dependent(&aResV1[k][0], nDofsV1);
           }
-          s.dependent(&aRhsP1[0], nDofsP1);
+          s.dependent(&aResP1[0], nDofsP1);
 
 
           // define the independent variables J11
@@ -507,9 +511,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
           // define the dependent variables J21 and J22
           for(unsigned  k = 0; k < dim; k++) {
-            s.dependent(&aRhsV2[k][0], nDofsV2);
+            s.dependent(&aResV2[k][0], nDofsV2);
           }
-          s.dependent(&aRhsP2[0], nDofsP2);
+          s.dependent(&aResP2[0], nDofsP2);
 
 
           // define the independent variables J21
@@ -596,52 +600,33 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
   // data
   unsigned iproc  = msh->processor_id();
 
-  vector< vector< adept::adouble > > solD(dim);      // local solution (displacement)
+
   vector< vector< adept::adouble > > solV(dim);      // local solution (velocity)
   vector< adept::adouble > solP;
-
-  vector< vector< double > > solDOld(dim);      // local solution (displacement)
   vector< vector< double > > solVOld(dim);
-  vector< vector< double > > solAOld(dim);
 
   vector< double > rhs;    // local redidual vector
-  vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
-  vector< vector< adept::adouble > > aRhsV(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP;    // local redidual vector
+  vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
+  vector< adept::adouble > aResP;    // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
 
   vector < double > phiV;
-  vector < double > phiD;
   vector < double > phiP;
 
   vector < double > gradPhiP;
   vector < double > gradPhiV;
-  vector < adept::adouble > gradPhiD;
-  vector < double > gradPhiDHat;
 
   vector < double> nablaphiP;
   vector < double> nablaphiV;
 
   unsigned dim2 = 3 * (dim - 1);
 
-  vector <vector < adept::adouble> > vx(dim);   //vx is coordX in assembly of ex30
   vector <vector < double> > vxHat(dim);
 
   double weightP;
   double weightV;
-  double weightDHat;
-  adept::adouble weightD;
-
-
-  //reading parameters for MPM body
-  double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-  double EMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_young_module();
-  double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
-  double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
-  double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
@@ -652,23 +637,14 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
   std::cout.precision(10);
 
   //variable-name handling
-  const char varname[12][5] = {"UX", "UY", "UZ", "UX", "UY", "UZ", "VX", "VY", "VZ", "AX", "AY", "AZ"};
+  const char varname[12][5] = {"UX", "UY", "UZ"};
 
-  //vector <unsigned> indexSolD(dim);
   vector <unsigned> indexSolV(dim);
-
-//   vector <unsigned> indexSolAOld(dim);
-//   vector <unsigned> indexSolVOld(dim);
-
   vector <unsigned> indexPdeD(dim);
   vector <unsigned> indexPdeV(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
-    //indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
-    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
-    //indexSolVOld[ivar] = mlSol->GetIndex(&varname[ivar + 6][0]); // For Newmark in Solid
-    //indexSolAOld[ivar] = mlSol->GetIndex(&varname[ivar + 9][0]); // For Newmark in Solid
-    //indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);     // DX, DY, DZ
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3][0]); //VX, VY, VZ
+    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar][0]);
+    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
@@ -702,11 +678,11 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
       for(unsigned  k = 0; k < dim; k++) {
         solV[k].resize(nDofs);
         solVOld[k].resize(nDofs);
-        aRhsV[k].assign(nDofs, 0.);
+        aResV[k].assign(nDofs, 0.);
         vxHat[k].resize(nDofs);
       }
       solP.resize(nDofsP);
-      aRhsP.assign(nDofsP, 0.);
+      aResP.assign(nDofsP, 0.);
 
       for(unsigned i = 0; i < nDofs; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, solType);
@@ -758,10 +734,10 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {
             solVg[j] += phiV[i] * solV[j][i];
             solVgOld[j] += phiV[i] * solVOld[j][i];
-            solVgTheta[j] += phiV[i] * ( theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
+            solVgTheta[j] += phiV[i] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
             for(unsigned  k = 0; k < dim; k++) {
-              gradSolVgTheta[k][j] += gradPhiV[i * dim + j] * ( theta * solV[k][i] +  (1. - theta) * solVOld[k][i]);
-              DeltaSolVgTheta[k][j]   += nablaphiV[i * dim2 + j] * ( theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;
+              gradSolVgTheta[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]);
+              DeltaSolVgTheta[k][j]   += nablaphiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;
             }
           }
         }
@@ -832,8 +808,7 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
             adept::adouble SupgLaplace = 0.;
             adept::adouble advection = 0.;
 
-            adept::adouble SupgDiv = 0.;
-            adept::adouble SupgPressure = 0.;
+
 
             for(unsigned j = 0; j < dim; j++) {
               wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolVgTheta[k][j] + gradSolVgTheta[j][k]);
@@ -843,18 +818,16 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
               else if(1 == k + j) kdim = dim;        // xy
               else if(2 == k + j) kdim = dim + 2;    // xz
               else if(3 == k + j) kdim = dim + 1;    // yz
-              SupgLaplace += (-muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim])) * tauM_SupgPhi[i];  // SUPG laplace
+              SupgLaplace += -muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim]) * tauM_SupgPhi[i];  // SUPG laplace
 
               advection += rhoFluid * solVgTheta[j] * gradSolVgTheta[k][j] * (phiV[i] + tauM_SupgPhi[i]);
 
             }
 
-            SupgDiv += tauC * divVgTheta * gradPhiV[i * dim + k];
-            SupgPressure += gradSolPg[k] * tauM_SupgPhi[i];
+            adept::adouble SupgDiv = tauC * divVgTheta * gradPhiV[i * dim + k];
+            adept::adouble SupgPressure = gradSolPg[k] * tauM_SupgPhi[i];
 
-
-
-            aRhsV[k][i] -= (rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
+            aResV[k][i] += (rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
                             + advection
                             + wlaplace +  SupgLaplace
                             - gradPhiV[i * dim + k] * solPg + SupgPressure
@@ -886,9 +859,9 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
             }
 
 
-            aRhsP[i] -= (phiP[i] * gradSolVgTheta[k][k] +
-                         (rhoFluid * (solVg[k] - solVgOld[k]) / dt +
-                          sLaplace + advection + gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
+            aResP[i] += (phiP[i] * gradSolVgTheta[k][k] +
+                         (rhoFluid * (solVg[k] - solVgOld[k]) / dt + advection +
+                          sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
 
           }
         }
@@ -900,11 +873,11 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
       for(int i = 0; i < nDofs; i++) {
         for(unsigned  k = 0; k < dim; k++) {
-          rhs[k * nDofs + i] = -aRhsV[k][i].value();
+          rhs[k * nDofs + i] = -aResV[k][i].value();
         }
       }
       for(int i = 0; i < nDofsP; i++) {
-        rhs[ dim * nDofs  + i] = -aRhsP[i].value();
+        rhs[ dim * nDofs  + i] = -aResP[i].value();
       }
 
       myRES->add_vector_blocked(rhs, sysDofsAll);
@@ -914,9 +887,9 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
       // define the dependent variables
 
       for(unsigned  k = 0; k < dim; k++) {
-        s.dependent(&aRhsV[k][0], nDofs);
+        s.dependent(&aResV[k][0], nDofs);
       }
-      s.dependent(&aRhsP[0], nDofsP);
+      s.dependent(&aResP[0], nDofsP);
 
       for(unsigned  k = 0; k < dim; k++) {
         s.independent(&solV[k][0], nDofs);
