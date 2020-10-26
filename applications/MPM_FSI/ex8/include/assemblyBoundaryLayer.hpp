@@ -42,7 +42,6 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   unsigned iproc  = msh->processor_id();
 
   vector< vector< adept::adouble > > solD(dim);      // local solution (displacement)
-  vector< vector< adept::adouble > > solV(dim);      // local solution (velocity)
   vector< adept::adouble > solP;
 
   vector< vector< double > > solDOld(dim);      // local solution (displacement)
@@ -50,26 +49,19 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector< vector< double > > solAOld(dim);
 
   vector< double > rhs;    // local redidual vector
-  vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
-  vector< vector< adept::adouble > > aRhsV(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP;    // local redidual vector
+  vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
+  vector< adept::adouble > aResP;    // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
-
-  vector < double > phiV;
+  
   vector < double > phiD;
   vector < double > phiP;
-
-  vector < double > gradPhiP;
+  
   vector < double > gradPhiV;
   vector < adept::adouble > gradPhiD;
   vector < double > gradPhiDHat;
-
-  vector < double> nablaphiP;
-  vector < double> nablaphiV;
-
-  unsigned dim2 = 3 * (dim - 1);
+ 
 
   vector <vector < adept::adouble> > vx(dim);   //vx is coordX in assembly of ex30
   vector <vector < double> > vxHat(dim);
@@ -147,12 +139,12 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
       for(unsigned  k = 0; k < dim; k++) {
         solD[k].resize(nDofs);
         solDOld[k].resize(nDofs);
-        aRhsD[k].assign(nDofs, 0.);
+        aResD[k].assign(nDofs, 0.);
         vx[k].resize(nDofs);
         vxHat[k].resize(nDofs);
       }
       solP.resize(nDofsP);
-      aRhsP.assign(nDofsP, 0.);
+      aResP.assign(nDofsP, 0.);
 
       for(unsigned i = 0; i < nDofs; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, solType);
@@ -255,44 +247,14 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
               }
             }
             for(unsigned k = 0; k < dim; k++) {
-              aRhsD[k][i] -=   CauchyDIR[k] * weightD;
+              aResD[k][i] +=   CauchyDIR[k] * weightD;
             }
           }
         }
 
-//         unsigned group = msh->GetElementGroup(iel);
-//         double E = (group == 13) ? 2 : 1;
-//         double nu = 0.35;
-//
-//         double mu = E / (2. * (1. + nu));
-//         double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
-//
-//         adept::adouble divD = 0.;
-//         for(int I = 0; I < dim; I++) {
-//           divD += gradSolDgHat[I][I];
-//         }
-//
-//         // *** phiA_i loop ***
-//         for(unsigned i = 0; i < nDofs; i++) {
-//           if(nodeFlag[i] == 4) {
-//             for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
-//               adept::adouble term = 0.;
-//               for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
-//                 term +=  mu * gradPhiDHat[i * dim + J] * (gradSolDgHat[I][J] + gradSolDgHat[J][I]); // diffusion
-//               }
-//               term +=  gradPhiDHat[i * dim + I]  * lambda * divD;
-//
-//               aRhsD[I][i] -=   term * weightDHat;
-//             }
-//           }
-//         } // end phiA_i loop
-
-
-
-
         //continuity block
         for(unsigned i = 0; i < nDofsP; i++) {
-          aRhsP[i] -= (phiP[i] * solPg) * weightD;
+          aResP[i] += (phiP[i] * solPg) * weightD;
         }
       } // end gauss point loop
 
@@ -301,11 +263,11 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
 
       for(int i = 0; i < nDofs; i++) {
         for(unsigned  k = 0; k < dim; k++) {
-          rhs[k * nDofs + i] = -aRhsD[k][i].value();
+          rhs[k * nDofs + i] = -aResD[k][i].value();
         }
       }
       for(int i = 0; i < nDofsP; i++) {
-        rhs[ dim * nDofs  + i] = -aRhsP[i].value();
+        rhs[ dim * nDofs  + i] = -aResP[i].value();
       }
 
       myRES->add_vector_blocked(rhs, sysDofsAll);
@@ -314,9 +276,9 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
       // define the dependent variables
 
       for(unsigned  k = 0; k < dim; k++) {
-        s.dependent(&aRhsD[k][0], nDofs);
+        s.dependent(&aResD[k][0], nDofs);
       }
-      s.dependent(&aRhsP[0], nDofsP);
+      s.dependent(&aResP[0], nDofsP);
 
       for(unsigned  k = 0; k < dim; k++) {
         s.independent(&solD[k][0], nDofs);
@@ -395,8 +357,8 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
 
   vector< double > rhs;    // local redidual vector
   //vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
-  vector< vector< adept::adouble > > aRhsV(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP;    // local redidual vector
+  vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
+  vector< adept::adouble > aResP;    // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
@@ -610,180 +572,184 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
 
             if(iproc == jproc) {
 
-              unsigned ielt2;
-              unsigned nDofsV2;
-              unsigned nDofsP2;
+              unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel2) + 0.5));
 
-              std::vector < std::vector < double > > xi2(igAll[ii].size());
-              for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
-                xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
-              }
-              mysolution->_Sol[eflagIndex]->set(iel2, 1.);
-              ielt2 = msh->GetElementType(iel2);
-              nDofsV2 = msh->GetElementDofNumber(iel2, solType);
-              nDofsP2 = msh->GetElementDofNumber(iel2, solTypeP);
-              for(unsigned  k = 0; k < dim; k++) {
-                solV2[k].resize(nDofsV2);
-                solV2Old[k].resize(nDofsV2);
-                vx2Hat[k].resize(nDofsV2);
-                aRhsV[k].assign(nDofsV2, 0.);
-              }
-              solV2dofs.resize(dim * nDofsV2);
-              solP2.resize(nDofsP2);
-              aRhsP.assign(nDofsP2, 0.);
-              solP2dofs.resize(nDofsP2);
-              for(unsigned i = 0; i < nDofsV2; i++) {
-                unsigned idofV = msh->GetSolutionDof(i, iel2, solType); //global dof for solution D
-                unsigned idofX = msh->GetSolutionDof(i, iel2, 2); //global dof for mesh coordinates
+              if(eFlag2 == 1) {
+                unsigned ielt2;
+                unsigned nDofsV2;
+                unsigned nDofsP2;
+
+                std::vector < std::vector < double > > xi2(igAll[ii].size());
+                for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
+                  xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
+                }
+                mysolution->_Sol[eflagIndex]->set(iel2, 1.);
+                ielt2 = msh->GetElementType(iel2);
+                nDofsV2 = msh->GetElementDofNumber(iel2, solType);
+                nDofsP2 = msh->GetElementDofNumber(iel2, solTypeP);
                 for(unsigned  k = 0; k < dim; k++) {
-                  solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idofV);
-                  solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idofV);
-                  solV2dofs[k * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel2);
-                  vx2Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
+                  solV2[k].resize(nDofsV2);
+                  solV2Old[k].resize(nDofsV2);
+                  vx2Hat[k].resize(nDofsV2);
+                  aResV[k].assign(nDofsV2, 0.);
                 }
-              }
-              for(unsigned i = 0; i < nDofsP2; i++) {
-                unsigned idofP = msh->GetSolutionDof(i, iel2, solTypeP); //global dof for solution D
-                solP2[i] = (*mysolution->_Sol[indexSolP])(idofP);
-                solP2dofs[i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel2);
-              }
-
-              //initialize adept varibles
-              for(unsigned k = 0; k < dim; k++) {
-                solD[k].resize(nDofsD1) ;
-                for(unsigned i = 0; i < nDofsD1; i++) {
-                  solD[k][i] = solD1[k][i];
-                }
-                solV[k].resize(nDofsV2);
+                solV2dofs.resize(dim * nDofsV2);
+                solP2.resize(nDofsP2);
+                aResP.assign(nDofsP2, 0.);
+                solP2dofs.resize(nDofsP2);
                 for(unsigned i = 0; i < nDofsV2; i++) {
-                  solV[k][i] = solV2[k][i];
-                }
-              }
-              solP.resize(nDofsP2);
-              for(unsigned i = 0; i < nDofsP2; i++) {
-                solP[i] = solP2[i];
-              }
-
-              s.new_recording();
-
-              //solid coordinates in the af domain
-              for(unsigned k = 0; k < dim; k++) {
-                vx1[k]. resize(nDofsD1);
-                for(unsigned i = 0; i < nDofsD1; i++) {
-                  vx1[k][i] =  vx1Hat[k][i] + af * solD[k][i] + (1. - af) * solD1Old[k][i];
-                }
-              }
-
-              for(unsigned ig = 0; ig < igAll[ii].size(); ig++) { // loop on the interface integration points both on the solid and the fluid
-                unsigned ig1 = igAll[ii][ig]; //solid gauss point id
-                unsigned ig2 = ig; //integration point id in the ii fluid element
-
-
-                fem[qType][ielt1][solType]->Jacobian(vx1, ig1, weightD, phiD, gradPhiD); // boundary solid integration
-
-                fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
-                fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
-
-                adept::adouble solPg = 0.;
-                for(unsigned i = 0; i < nDofsP2; i++) {
-                  solPg += phiP[i] * solP[i];
-                }
-
-                std::vector < double > solV2gOld(dim, 0.); 
-                std::vector < adept::adouble > solV2gTheta(dim, 0.); 
-                std::vector < adept::adouble > solV2g(dim, 0.); 
-                std::vector < std::vector < adept::adouble > > gradSolV2g(dim); 
-
-                for(int k = 0; k < dim; k++) {
-                  gradSolV2g[k].assign(dim, 0.);
-                  for(unsigned i = 0; i < nDofsV2; i++) {
-                    solV2gOld[k] += phiV[i] * solV2Old[k][i];
-                    solV2gTheta[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
-                    solV2g[k] += phiV[i] * solV[k][i];
-                    for(unsigned j = 0; j < dim; j++) {
-                      gradSolV2g[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
-                    }
+                  unsigned idofV = msh->GetSolutionDof(i, iel2, solType); //global dof for solution D
+                  unsigned idofX = msh->GetSolutionDof(i, iel2, 2); //global dof for mesh coordinates
+                  for(unsigned  k = 0; k < dim; k++) {
+                    solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idofV);
+                    solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idofV);
+                    solV2dofs[k * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel2);
+                    vx2Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
                   }
                 }
+                for(unsigned i = 0; i < nDofsP2; i++) {
+                  unsigned idofP = msh->GetSolutionDof(i, iel2, solTypeP); //global dof for solution D
+                  solP2[i] = (*mysolution->_Sol[indexSolP])(idofP);
+                  solP2dofs[i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel2);
+                }
 
-
-                adept::adouble divVg = 0.;
+                //initialize adept varibles
                 for(unsigned k = 0; k < dim; k++) {
-                  divVg += gradSolV2g[k][k];
+                  solD[k].resize(nDofsD1) ;
+                  for(unsigned i = 0; i < nDofsD1; i++) {
+                    solD[k][i] = solD1[k][i];
+                  }
+                  solV[k].resize(nDofsV2);
+                  for(unsigned i = 0; i < nDofsV2; i++) {
+                    solV[k][i] = solV2[k][i];
+                  }
+                }
+                solP.resize(nDofsP2);
+                for(unsigned i = 0; i < nDofsP2; i++) {
+                  solP[i] = solP2[i];
                 }
 
-                for(unsigned i = 0; i < nDofsV2; i++) {
-                  for(unsigned k = 0; k < dim; k++) {
+                s.new_recording();
 
-                    adept::adouble wlaplace = 0.;
-                    adept::adouble advection = 0.;
-
-                    for(unsigned j = 0; j < dim; j++) {
-                      wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolV2g[k][j] + gradSolV2g[j][k]);
-                      advection += rhoFluid * solV2gTheta[j] * gradSolV2g[k][j] * phiV[i];
-
-                    }
-
-                    aRhsV[k][i] -= (rhoFluid * (solV2g[k] - solV2gOld[k]) / dt * phiV[i]
-                                    + advection
-                                    + wlaplace
-                                    - gradPhiV[i * dim + k] * solPg) * weightD;
+                //solid coordinates in the af domain
+                for(unsigned k = 0; k < dim; k++) {
+                  vx1[k]. resize(nDofsD1);
+                  for(unsigned i = 0; i < nDofsD1; i++) {
+                    vx1[k][i] =  vx1Hat[k][i] + af * solD[k][i] + (1. - af) * solD1Old[k][i];
                   }
                 }
 
+                for(unsigned ig = 0; ig < igAll[ii].size(); ig++) { // loop on the interface integration points both on the solid and the fluid
+                  unsigned ig1 = igAll[ii][ig]; //solid gauss point id
+                  unsigned ig2 = ig; //integration point id in the ii fluid element
 
-                //continuity block
-                for(unsigned i = 0; i < nDofsP2; i++) {
-                  aRhsP[i] -= phiP[i] * divVg * weightD;
+
+                  fem[qType][ielt1][solType]->Jacobian(vx1, ig1, weightD, phiD, gradPhiD); // boundary solid integration
+
+                  fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
+                  fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
+
+                  adept::adouble solPg = 0.;
+                  for(unsigned i = 0; i < nDofsP2; i++) {
+                    solPg += phiP[i] * solP[i];
+                  }
+
+                  std::vector < double > solV2gOld(dim, 0.);
+                  std::vector < adept::adouble > solV2gTheta(dim, 0.);
+                  std::vector < adept::adouble > solV2g(dim, 0.);
+                  std::vector < std::vector < adept::adouble > > gradSolV2g(dim);
+
+                  for(int k = 0; k < dim; k++) {
+                    gradSolV2g[k].assign(dim, 0.);
+                    for(unsigned i = 0; i < nDofsV2; i++) {
+                      solV2gOld[k] += phiV[i] * solV2Old[k][i];
+                      solV2gTheta[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                      solV2g[k] += phiV[i] * solV[k][i];
+                      for(unsigned j = 0; j < dim; j++) {
+                        gradSolV2g[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                      }
+                    }
+                  }
+
+
+                  adept::adouble divVg = 0.;
+                  for(unsigned k = 0; k < dim; k++) {
+                    divVg += gradSolV2g[k][k];
+                  }
+
+                  for(unsigned i = 0; i < nDofsV2; i++) {
+                    for(unsigned k = 0; k < dim; k++) {
+
+                      adept::adouble wlaplace = 0.;
+                      adept::adouble advection = 0.;
+
+                      for(unsigned j = 0; j < dim; j++) {
+                        wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolV2g[k][j] + gradSolV2g[j][k]);
+                        advection += rhoFluid * solV2gTheta[j] * gradSolV2g[k][j] * phiV[i];
+
+                      }
+
+                      aResV[k][i] += (rhoFluid * (solV2g[k] - solV2gOld[k]) / dt * phiV[i]
+                                      + advection
+                                      + wlaplace
+                                      - gradPhiV[i * dim + k] * solPg) * weightD;
+                    }
+                  }
+
+
+                  //continuity block
+                  for(unsigned i = 0; i < nDofsP2; i++) {
+                    aResP[i] += phiP[i] * divVg * weightD;
+                  }
+
+
+
+                }//close ig loop
+
+                std::vector < unsigned > solVP2dofs = solV2dofs;
+                solVP2dofs.insert(solVP2dofs.end(), solP2dofs.begin(), solP2dofs.end());
+
+                sysDofsAll = solD1dofs;
+                sysDofsAll.insert(sysDofsAll.end(), solVP2dofs.begin(), solVP2dofs.end());
+
+                rhs.resize(solVP2dofs.size());   //resize
+
+                for(int i = 0; i < nDofsV2; i++) {
+                  for(unsigned  k = 0; k < dim; k++) {
+                    rhs[ i +  k * nDofsV2 ] = -aResV[k][i].value();
+                  }
                 }
+                for(int i = 0; i < nDofsP2; i++) {
+                  rhs[ i +  dim * nDofsV2 ] = -aResP[i].value();
+                }
+                myRES->add_vector_blocked(rhs, solVP2dofs);
 
+                Jac.resize(solVP2dofs.size() * sysDofsAll.size());
+                // define the dependent variables
 
-
-              }//close ig loop
-
-              std::vector < unsigned > solVP2dofs = solV2dofs;
-              solVP2dofs.insert(solVP2dofs.end(), solP2dofs.begin(), solP2dofs.end());
-
-              sysDofsAll = solD1dofs;
-              sysDofsAll.insert(sysDofsAll.end(), solVP2dofs.begin(), solVP2dofs.end());
-
-              rhs.resize(solVP2dofs.size());   //resize
-
-              for(int i = 0; i < nDofsV2; i++) {
                 for(unsigned  k = 0; k < dim; k++) {
-                  rhs[ i +  k * nDofsV2 ] = -aRhsV[k][i].value();
+                  s.dependent(&aResV[k][0], nDofsV2);
                 }
+                s.dependent(&aResP[0], nDofsP2);
+
+                // define the independent variables
+                for(unsigned  k = 0; k < dim; k++) {
+                  s.independent(&solD[k][0], nDofsD1);
+                }
+                for(unsigned  k = 0; k < dim; k++) {
+                  s.independent(&solV[k][0], nDofsV2);
+                }
+                s.independent(&solP[0], nDofsP2);
+
+                // get the and store jacobian matrix (row-major)
+                s.jacobian(&Jac[0], true);
+                // std::cout << Jac.size() << " " << solVP2dofs.size() << " " << sysDofsAll.size() << " " << solVP2dofs.size() * sysDofsAll.size() << std::endl << std::flush;
+
+                myKK->add_matrix_blocked(Jac, solVP2dofs, sysDofsAll);
+
+                s.clear_independents();
+                s.clear_dependents();
               }
-              for(int i = 0; i < nDofsP2; i++) {
-                rhs[ i +  dim * nDofsV2 ] = -aRhsP[i].value();
-              }
-              myRES->add_vector_blocked(rhs, solVP2dofs);
-
-              Jac.resize(solVP2dofs.size() * sysDofsAll.size());
-              // define the dependent variables
-
-              for(unsigned  k = 0; k < dim; k++) {
-                s.dependent(&aRhsV[k][0], nDofsV2);
-              }
-              s.dependent(&aRhsP[0], nDofsP2);
-
-              // define the independent variables
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solD[k][0], nDofsD1);
-              }
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solV[k][0], nDofsV2);
-              }
-              s.independent(&solP[0], nDofsP2);
-
-              // get the and store jacobian matrix (row-major)
-              s.jacobian(&Jac[0], true);
-              // std::cout << Jac.size() << " " << solVP2dofs.size() << " " << sysDofsAll.size() << " " << solVP2dofs.size() * sysDofsAll.size() << std::endl << std::flush;
-
-              myKK->add_matrix_blocked(Jac, solVP2dofs, sysDofsAll);
-
-              s.clear_independents();
-              s.clear_dependents();
             }
           }
         }

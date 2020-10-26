@@ -86,8 +86,8 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
   vector< vector< double > > solAOld(dim);
 
   vector< double > rhs;    // local redidual vector
-  vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP;    // local redidual vector
+  vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
+  vector< adept::adouble > aResP;    // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
@@ -169,12 +169,12 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
         solDOld[k].resize(nDofs);
         solVOld[k].resize(nDofs);
         solAOld[k].resize(nDofs);
-        aRhsD[k].assign(nDofs, 0.);
+        aResD[k].assign(nDofs, 0.);
         vx[k].resize(nDofs);
         vxHat[k].resize(nDofs);
       }
       solP.resize(nDofsP);
-      aRhsP.assign(nDofsP, 0.);
+      aResP.assign(nDofsP, 0.);
 
       for(unsigned i = 0; i < nDofs; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, solType);
@@ -307,15 +307,12 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
             }
           }
           for(unsigned k = 0; k < dim; k++) {
-            aRhsD[k][i] -= (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
-//             if(k == 0) {
-//               aRhsD[k][i] -= (rhoMpm * phiD[i]) * weightD;
-//             }
+            aResD[k][i] += (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
           }
         }
         //continuity block
         for(unsigned i = 0; i < nDofsP; i++) {
-          aRhsP[i] -= (phiP[i] * solPg) * weightD;
+          aResP[i] += (phiP[i] * solPg) * weightD;
         }
       } // end gauss point loop
 
@@ -324,11 +321,11 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
 
       for(int i = 0; i < nDofs; i++) {
         for(unsigned  k = 0; k < dim; k++) {
-          rhs[k * nDofs + i] = -aRhsD[k][i].value();
+          rhs[k * nDofs + i] = -aResD[k][i].value();
         }
       }
       for(int i = 0; i < nDofsP; i++) {
-        rhs[ dim * nDofs  + i] = -aRhsP[i].value();
+        rhs[ dim * nDofs  + i] = -aResP[i].value();
       }
 
       myRES->add_vector_blocked(rhs, sysDofsAll);
@@ -338,9 +335,9 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
       // define the dependent variables
 
       for(unsigned  k = 0; k < dim; k++) {
-        s.dependent(&aRhsD[k][0], nDofs);
+        s.dependent(&aResD[k][0], nDofs);
       }
-      s.dependent(&aRhsP[0], nDofsP);
+      s.dependent(&aResP[0], nDofsP);
 
       for(unsigned  k = 0; k < dim; k++) {
         s.independent(&solD[k][0], nDofs);
@@ -418,9 +415,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   vector <vector < double> > vx2Hat(dim); //1 solid 2 is fluid
 
   vector< double > rhs;    // local redidual vector
-  vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
-  vector< vector< adept::adouble > > aRhsV(dim);     // local redidual vector
-  vector< adept::adouble > aRhsP;    // local redidual vector
+  vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
+  vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
+  vector< adept::adouble > aResP;    // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
@@ -466,7 +463,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
   vector <unsigned> indexSolD(dim);
   vector <unsigned> indexSolV(dim);
-  
+
   vector <unsigned> indexSolVOld(dim);
   vector <unsigned> indexSolAOld(dim);
 
@@ -532,7 +529,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 solV1Old[k].resize(nDofsD1);
                 solA1Old[k].resize(nDofsD1);
                 vx1Hat[k].resize(nDofsD1);
-                aRhsD[k].assign(nDofsD1, 0.);
+                aResD[k].assign(nDofsD1, 0.);
               }
               solD1dofs.resize(dim * nDofsD1);
               nodeFlag1.resize(nDofsD1);
@@ -702,11 +699,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     solV2[k].resize(nDofsV2);
                     solV2Old[k].resize(nDofsV2);
                     vx2Hat[k].resize(nDofsV2);
-                    aRhsV[k].assign(nDofsV2, 0.);
+                    aResV[k].assign(nDofsV2, 0.);
                   }
                   solV2dofs.resize(dim * nDofsV2);
                   solP2.resize(nDofsP2);
-                  aRhsP.assign(nDofsP2, 0.);
+                  aResP.assign(nDofsP2, 0.);
                   solP2dofs.resize(nDofsP2);
 
                   for(unsigned i = 0; i < nDofsV2; i++) {
@@ -811,11 +808,17 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     unsigned ig1 = igAll[ii][ig]; //solid gauss point id
                     unsigned ig2 = ig; //integration point id in the ii fluid element
 
-                    std::vector < adept::adouble > N;
-                    fem[qType][jfaceType1][solType]->JacobianSur(xf1, ig1, weightD, phiD, gradPhiD, N); // boundary solid integration
+                    std::vector < adept::adouble > Nsf;
+                    fem[qType][jfaceType1][solType]->JacobianSur(xf1, ig1, weightD, phiD, gradPhiD, Nsf); // boundary solid integration
+
+                    std::vector < adept::adouble > N(dim); // normal from the fluid to the solid domain
+                    for(unsigned k = 0; k < dim; k++) {
+                      N[k] = -Nsf[k];
+                    }
+
 
                     //std::cout << xi2[ig2][0] <<" "<< xi2[ig2][1]<<std::endl;
-                    
+
                     fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
                     fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
 
@@ -824,8 +827,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       solPg += phiP[i] * solP[i];
                     }
 
-                    std::vector < adept::adouble > v1(dim, 0.); // this is the velocity of the solid
-                    std::vector < adept::adouble > v2(dim, 0.); // this is the velocity of the fluid
+                    std::vector < adept::adouble > vs(dim, 0.); // this is the velocity of the solid
+                    std::vector < adept::adouble > vf(dim, 0.); // this is the velocity of the fluid
                     std::vector < adept::adouble > tau(dim, 0.);
 
                     std::vector <adept::adouble> solDg(dim, 0.);
@@ -838,7 +841,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     //update displacement and acceleration
                     for(int k = 0; k < dim; k++) {
                       for(unsigned i = 0; i < nDofsV2; i++) {
-                        v2[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                        vf[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
                       }
 
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
@@ -854,33 +857,36 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                                   - solA1gOld[k] * (1. - 2.* beta) / (2. * beta);
                       solV1g[k] = (solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]));
 
-                      v1[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
+                      vs[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
                     }
 
                     for(unsigned k = 0; k < dim; k++) {
-                      tau[k] += - solPg * N[k];
+                      tau[k] += solPg * N[k];
                       for(unsigned i = 0; i < nDofsV2; i++) {
                         for(unsigned j = 0; j < dim; j++) {
-                          tau[k] += muFluid * (( theta * solV[k][i] + (1. - theta) * solV2Old[k][i]) * gradPhiV[i * dim + j] +
-                                               ( theta * solV[j][i] + (1. - theta) * solV2Old[j][i]) * gradPhiV[i * dim + k]) * N[j];
+                          tau[k] += -muFluid * ((theta * solV[k][i] + (1. - theta) * solV2Old[k][i]) * gradPhiV[i * dim + j] +
+                                                (theta * solV[j][i] + (1. - theta) * solV2Old[j][i]) * gradPhiV[i * dim + k]) * N[j];
                         }
                       }
                     }
 
+                    //std::cout<<ig << " " << xi2[ig2][0] << " " << xi2[ig2][1] <<" " << tau[0] << " " << tau[1] <<std::endl;
+                    //std::cout<<ig << " " << v1[0] << " " << v2[0] <<" " << v1[1] << " " << v2[1] <<std::endl;
+
                     double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
-                    double thetaM = 50 * muFluid / h;
-                    double thetaL = 50 * rhoFluid / (theta * dt * h);
+                    double thetaM = 10 * muFluid / h;
+                    double thetaL = 10 * (rhoFluid * h / (theta * dt) + muFluid / h);
 
                     if(iproc == kproc) {
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                         for(unsigned k = 0; k < dim; k++) {
-                          aRhsD[k][if2e] -= -tau[k] * phiD[i] * weightD;
-                          aRhsD[k][if2e] -=  thetaM * (v1[k] - v2[k]) * phiD[i] * weightD;
+                          aResD[k][if2e] += tau[k] * (-phiD[i]) * weightD;
+                          aResD[k][if2e] += thetaM * (vf[k] - vs[k]) * (-phiD[i]) * weightD;
                           for(unsigned j = 0; j < dim; j++) {
-                            aRhsD[k][if2e] -=  thetaL * (v1[j] - v2[j]) * N[j] * phiD[i] * N[k] * weightD;
+                            aResD[k][if2e] +=  thetaL * (vf[j] - vs[j]) * N[j] * (-phiD[i]) * N[k] * weightD;
                           }
                         }
                       }
@@ -889,20 +895,20 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     if(iproc == jproc) {
                       for(unsigned i = 0; i < nDofsV2; i++) {
                         for(unsigned k = 0; k < dim; k++) {
-                          aRhsV[k][i] -=  tau[k] * phiV[i] * weightD;
-                          aRhsV[k][i] -= -thetaM * (v1[k] - v2[k]) * phiV[i] * weightD;
+                          aResV[k][i] +=  tau[k] * phiV[i] * weightD;
+                          aResV[k][i] +=  thetaM * (vf[k] - vs[k]) * phiV[i] * weightD;
 
                           for(unsigned j = 0; j < dim; j++) {
-                            aRhsV[k][i] -= -(muFluid * gradPhiV[i * dim + j] * N[j] * (v1[k] - v2[k])) * weightD;
-                            aRhsV[k][i] -= -(muFluid * gradPhiV[i * dim + j] * N[k] * (v1[j] - v2[j])) * weightD;
-                            aRhsV[k][i] -= -thetaL * (v1[j] - v2[j]) * N[j] * phiV[i] * N[k] * weightD;
+                            aResV[k][i] += -(muFluid * gradPhiV[i * dim + j] * N[j] * (vf[k] - vs[k])) * weightD;
+                            aResV[k][i] += -(muFluid * gradPhiV[i * dim + j] * N[k] * (vf[j] - vs[j])) * weightD;
+                            aResV[k][i] +=  thetaL * (vf[j] - vs[j]) * N[j] * phiV[i] * N[k] * weightD;
                           }
                         }
                       } // end phi_i loop
 
                       for(unsigned i = 0; i < nDofsP2; i++) {
                         for(unsigned k = 0; k < dim; k++) {
-                          aRhsP[i] -= - (phiP[i]  * (v1[k] - v2[k]) * N[k]) * weightD;
+                          aResP[i] += - (phiP[i]  * (vf[k] - vs[k]) * N[k]) * weightD;
                         }
                       }
                     }
@@ -921,7 +927,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     for(int i = 0; i < nDofsD1; i++) {
                       for(unsigned  k = 0; k < dim; k++) {
-                        rhs[ i +  k * nDofsD1 ] = -aRhsD[k][i].value();
+                        rhs[ i +  k * nDofsD1 ] = -aResD[k][i].value();
                       }
                     }
 
@@ -933,7 +939,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     // define the dependent variables
 
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aRhsD[k][0], nDofsD1);
+                      s.dependent(&aResD[k][0], nDofsD1);
                     }
 
                     // define the independent variables
@@ -964,11 +970,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     for(int i = 0; i < nDofsV2; i++) {
                       for(unsigned  k = 0; k < dim; k++) {
-                        rhs[ i +  k * nDofsV2 ] = -aRhsV[k][i].value();
+                        rhs[ i +  k * nDofsV2 ] = -aResV[k][i].value();
                       }
                     }
                     for(int i = 0; i < nDofsP2; i++) {
-                      rhs[ i +  dim * nDofsV2 ] = -aRhsP[i].value();
+                      rhs[ i +  dim * nDofsV2 ] = -aResP[i].value();
                     }
                     myRES->add_vector_blocked(rhs, solVP2dofs);
 
@@ -978,9 +984,9 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     // define the dependent variables
 
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aRhsV[k][0], nDofsV2);
+                      s.dependent(&aResV[k][0], nDofsV2);
                     }
-                    s.dependent(&aRhsP[0], nDofsP2);
+                    s.dependent(&aResP[0], nDofsP2);
 
                     // define the independent variables
                     for(unsigned  k = 0; k < dim; k++) {
