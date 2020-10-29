@@ -293,7 +293,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level+2);
+  double dMax = 0.133333 * pow(0.66, level + 2);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
@@ -527,6 +527,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   } //end iel loop
 
+  KK->flush();
+
   std::cout << "[" << iproc << "]  ";
   std::cout << "serial Search Time = " << static_cast<double>(sSearchTime) / CLOCKS_PER_SEC << std::endl;
   std::cout << "[" << iproc << "]  ";
@@ -630,7 +632,23 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     time_t pSearchTime = 0.;
     time_t pAssemblyTime = 0.;
 
-    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+
+    std::vector<unsigned > porder (nprocs);
+    for(unsigned i = 0; i < porder.size(); i++) {
+      porder[i] = i;
+    }
+    for(unsigned i = 0; i < porder.size() - 1; i++) {
+      for(unsigned j = i + 1; j < porder.size(); j++) {
+        if(orGeomRecv[porder[i]].size() < orGeomRecv[porder[j]].size() ) {
+          unsigned porderi = porder[i];
+          porder[i] = porder[j];
+          porder[j] = porderi;
+        }
+      }
+    }
+
+    for(unsigned lproc = 0; lproc < nprocs; lproc++) {
+      unsigned kproc = porder[lproc];  
       if(kproc != iproc) {
         unsigned cnt1 = 0;
         for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
@@ -731,6 +749,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           pAssemblyTime += clock() - start;
         }//end iel loop
       }
+      KK->flush();
     }
 
     std::cout << "[" << iproc << "]  ";
@@ -761,9 +780,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
-  
+
   //KK->draw();
-  
+
 
   delete nonlocal;
   delete refineElement[3][0];

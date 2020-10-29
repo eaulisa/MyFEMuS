@@ -99,6 +99,7 @@ namespace femus {
 
       /** set close flag */
       virtual void close () const = 0;
+      virtual void flush () const = 0;
 
       // Return data -------------------------------------------------
       // matrix values
