@@ -442,14 +442,6 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
   adept::adouble weightD;
 
 
-  //reading parameters for MPM body
-  double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-  double EMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_young_module();
-  double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
-  double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
-  double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-
-
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
@@ -813,7 +805,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     std::vector < adept::adouble > N(dim); // normal from the fluid to the solid domain
                     for(unsigned k = 0; k < dim; k++) {
-                      N[k] = -Nsf[k];
+                      N[k] = Nsf[k];
                     }
 
 
@@ -870,15 +862,17 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       }
                     }
 
-                    //std::cout<<ig << " " << xi2[ig2][0] << " " << xi2[ig2][1] <<" " << tau[0] << " " << tau[1] <<std::endl;
-                    //std::cout<<ig << " " << v1[0] << " " << v2[0] <<" " << v1[1] << " " << v2[1] <<std::endl;
+//                     std::cout<<ig << " " << xi2[ig2][0] << " " << xi2[ig2][1] <<" " << tau[0] << " " << tau[1] <<std::endl;
+//                     std::cout<<ig << " " << vf[0] << " " << vs[0] <<" " << vf[1] << " " << vs[1] <<std::endl;
 
                     double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
-                    double thetaM = 10 * muFluid / h;
-                    double thetaL = 10 * (rhoFluid * h / (theta * dt) + muFluid / h);
+                    double thetaM = 10.0 * muFluid / h;
+                    double thetaL = 10.0 * (rhoFluid * h / (theta * dt) + muFluid / h);
 
+                    std::cout << thetaM << " " << thetaL << std::endl;
+                    
                     if(iproc == kproc) {
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
