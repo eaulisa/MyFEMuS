@@ -431,7 +431,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
           unsigned kk = kproc * dim * 2 + k * dim;
-          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
+          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > 1.5 * delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > 1.5 * delta1 + eps) {
             coarseIntersectionTest = false;
             break;
           }
