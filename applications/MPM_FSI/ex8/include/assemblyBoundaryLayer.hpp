@@ -54,14 +54,14 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
-  
+
   vector < double > phiD;
   vector < double > phiP;
-  
+
   vector < double > gradPhiV;
   vector < adept::adouble > gradPhiD;
   vector < double > gradPhiDHat;
- 
+
 
   vector <vector < adept::adouble> > vx(dim);   //vx is coordX in assembly of ex30
   vector <vector < double> > vxHat(dim);
@@ -514,7 +514,7 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
           std::vector< double > xg(dim, 0.);
           for(unsigned i = 0; i < nDofsD1; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              xg[k] += phiD1[i] * vx1Hat[k][i] + af * solD1[k][i] + (1. - af) * solD1Old[k][i];
+              xg[k] += phiD1[i] * (vx1Hat[k][i] + af * solD1[k][i] + (1. - af) * solD1Old[k][i]);
             }
           }
 
@@ -670,6 +670,24 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                       }
                     }
                   }
+
+                  std::vector < adept::adouble > xg1(dim, 0.);
+                  std::vector < adept::adouble > xg2(dim, 0.);
+                 
+                  for(int k = 0; k < dim; k++) {
+                    for(unsigned i = 0; i < nDofsV2; i++) {
+                      xg2[k] += vx2Hat[k][i] *  phiV[i];
+                    }
+                    for(unsigned i = 0; i < nDofsD1; i++) {
+                      xg1[k] += vx1[k][i] *  phiD[i];
+                    }
+                  }
+
+                  if( (xg1[0] - xg2[0]) * (xg1[0] - xg2[0]) + (xg1[1] - xg2[1]) * (xg1[1] - xg2[1]) > 1.0e-14 ) {
+                    std::cout << ii <<" "<< iel1 << " " << iel2 << " " << ig1 << " " << ig2 << " " << xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] << std::endl;
+                    std::cout << ii <<" "<< xg1[0]  << " " <<  xg2[0] << " "<< xg1[1] << " " << xg2[1] << std::endl;
+                  }
+
 
 
                   adept::adouble divVg = 0.;

@@ -91,8 +91,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.5;
-  double gammap = 0.5;
+  double gammac = 0.05;
+  double gammap = 0.05;
 
   std::cout.precision(10);
 
@@ -375,8 +375,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
             double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2);
 
             
-            double C1 = gammac * ( muFluid + rhoFluid * psiC * V1NormL2 * V1NormL2 + rhoFluid * h2 / (theta * dt) );
-            
+            double C1 = gammac * ( muFluid + rhoFluid * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2 ) + rhoFluid * h2 / (theta * dt) );
+                       
             
             for(unsigned I = 0; I < dim; I++) {
               for(unsigned i = 0; i < nDofsV1; i++) {
