@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 6;
+unsigned numberOfUniformLevels = 4;
 unsigned numberOfUniformLevelsFine = 1;
 
 int main(int argc, char** argv) {
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 //      mlMsh.ReadCoarseMesh ( "../input/martaTest1.neu", "second", scalingFactor );
 //    mlMsh.ReadCoarseMesh ( "../input/martaTest2.neu", "second", scalingFactor );
   //mlMsh.ReadCoarseMesh ( "../input/martaTest3.neu", "second", scalingFactor );
-  mlMsh.ReadCoarseMesh("../input/martaTest4_6x8.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
 //  mlMsh.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest5.neu", "fifth", scalingFactor );
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest7.neu", "fifth", scalingFactor );

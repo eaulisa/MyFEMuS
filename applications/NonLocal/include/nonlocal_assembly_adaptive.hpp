@@ -293,7 +293,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level);
+  double dMax = 0.133333 * pow(0.66, level + 2);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
