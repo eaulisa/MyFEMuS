@@ -293,7 +293,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level + 2);
+  double dMax = 0.133333 * pow(0.66, level);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
@@ -347,7 +347,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
 
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+    MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
   }
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(unsigned k = 0; k < dim; k++) {
@@ -431,7 +431,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
           unsigned kk = kproc * dim * 2 + k * dim;
-          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > 1.5 * delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > 1.5 * delta1 + eps) {
+          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
             coarseIntersectionTest = false;
             break;
           }
@@ -561,13 +561,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Irecv(&orCntRecv[kproc], 1, MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsRecv[kproc][0]);
-      MPI_Irecv(&orSizeRecv[kproc], 1, MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsRecv[kproc][1]);
+      MPI_Irecv(&orCntRecv[kproc], 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsRecv[kproc][0]);
+      MPI_Irecv(&orSizeRecv[kproc], 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsRecv[kproc][1]);
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Isend(&orCntSend[kproc], 1, MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsSend[kproc][0]);
-      MPI_Isend(&orSizeSend[kproc], 1, MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsSend[kproc][1]);
+      MPI_Isend(&orCntSend[kproc], 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsSend[kproc][0]);
+      MPI_Isend(&orSizeSend[kproc], 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsSend[kproc][1]);
     }
 
     MPI_Status status;
@@ -584,13 +584,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //     }
 //     std::cout << std::endl;
 //
-//     MPI_Barrier(MPI_COMM_WORLD);
+//     MPI_Barrier(PETSC_COMM_WORLD);
 //     std::cout << "[" << iproc << "]  ";
 //     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
 //       std::cout << orSizeRecv[kproc] << " ";
 //     }
 //     std::cout << std::endl;
-//     MPI_Barrier(MPI_COMM_WORLD);
+//     MPI_Barrier(PETSC_COMM_WORLD);
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       orGeomRecv[kproc].resize(orCntRecv[kproc]);
@@ -602,20 +602,20 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Irecv(orGeomRecv[kproc].data(), orGeomRecv[kproc].size(), MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsRecv[kproc][0]);
-      MPI_Irecv(orDofsRecv[kproc].data(), orDofsRecv[kproc].size(), MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsRecv[kproc][1]);
-      MPI_Irecv(orSolRecv[kproc].data(), orSolRecv[kproc].size(), MPI_DOUBLE, kproc, 2, MPI_COMM_WORLD, &reqsRecv[kproc][2]);
+      MPI_Irecv(orGeomRecv[kproc].data(), orGeomRecv[kproc].size(), MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsRecv[kproc][0]);
+      MPI_Irecv(orDofsRecv[kproc].data(), orDofsRecv[kproc].size(), MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsRecv[kproc][1]);
+      MPI_Irecv(orSolRecv[kproc].data(), orSolRecv[kproc].size(), MPI_DOUBLE, kproc, 2, PETSC_COMM_WORLD, &reqsRecv[kproc][2]);
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Irecv(orXRecv[kproc][k].data(), orXRecv[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, MPI_COMM_WORLD, &reqsRecv[kproc][3 + k]);
+        MPI_Irecv(orXRecv[kproc][k].data(), orXRecv[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, PETSC_COMM_WORLD, &reqsRecv[kproc][3 + k]);
       }
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Isend(orGeomSend[kproc].data(), orGeomSend[kproc].size(), MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsSend[kproc][0]);
-      MPI_Isend(orDofsSend[kproc].data(), orDofsSend[kproc].size(), MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsSend[kproc][1]);
-      MPI_Isend(orSolSend[kproc].data(), orSolSend[kproc].size(), MPI_DOUBLE, kproc, 2, MPI_COMM_WORLD, &reqsSend[kproc][2]);
+      MPI_Isend(orGeomSend[kproc].data(), orGeomSend[kproc].size(), MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsSend[kproc][0]);
+      MPI_Isend(orDofsSend[kproc].data(), orDofsSend[kproc].size(), MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsSend[kproc][1]);
+      MPI_Isend(orSolSend[kproc].data(), orSolSend[kproc].size(), MPI_DOUBLE, kproc, 2, PETSC_COMM_WORLD, &reqsSend[kproc][2]);
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Isend(orXSend[kproc][k].data(), orXSend[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, MPI_COMM_WORLD, &reqsSend[kproc][3 + k]);
+        MPI_Isend(orXSend[kproc][k].data(), orXSend[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, PETSC_COMM_WORLD, &reqsSend[kproc][3 + k]);
       }
     }
 
@@ -903,9 +903,9 @@ void AssembleNonLocalRefinedOld(MultiLevelProblem& ml_prob) {
         nDof1  = msh->GetElementDofNumber(iel, soluType);
       }
 
-      MPI_Bcast(&ielGeom, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&ielGroup, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&nDof1, 1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&ielGeom, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&ielGroup, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&nDof1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
       l2GMap1.resize(nDof1);
       solu1.resize(nDof1);
@@ -928,10 +928,10 @@ void AssembleNonLocalRefinedOld(MultiLevelProblem& ml_prob) {
         }
       }
 
-      MPI_Bcast(&l2GMap1[0], nDof1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&solu1[0], nDof1, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&l2GMap1[0], nDof1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&solu1[0], nDof1, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Bcast(&x1[k][0], nDof1, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+        MPI_Bcast(&x1[k][0], nDof1, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
       }
 
       refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
@@ -1138,9 +1138,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
         nDof2  = msh->GetElementDofNumber(jel, soluType);
       }
 
-      MPI_Bcast(&jelGeom, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&jelGroup, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&nDof2, 1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&jelGeom, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&jelGroup, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&nDof2, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
       l2GMap2.resize(nDof2);
       solu2.resize(nDof2);
@@ -1165,11 +1165,11 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
         typej = ReorderElement(l2GMap2, solu2, x2);
       }
 
-      MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&solu2[0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&solu2[0], nDof2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
 
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+        MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
       }
 
       for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
