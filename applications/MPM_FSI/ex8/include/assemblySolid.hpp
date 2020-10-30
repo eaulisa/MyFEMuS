@@ -666,6 +666,47 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
               igAll[i][k] = ig;
             }
 
+
+            if( iel2All.size() > 1 ) {
+
+
+              for(unsigned ii = 0; ii < iel2All.size(); ii++) {
+
+                unsigned iel2 = iel2All[ii];
+
+                //std::cout << ii << " " << iel2 << std::endl;
+                std::vector < std::vector < double > > xi2(igAll[ii].size());
+                for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
+                  xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
+                  //std::cout <<  igAll[ii][ig] << " " << xi2[ig][0] << " " << xi2[ig][1] << std::endl;
+                }
+
+
+                std::vector < std::vector < double > > xp(igAll[ii].size());
+                for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
+                  xp[ig] = gp[igAll[ii][ig]]->GetIprocMarkerCoordinates();
+                  //std::cout << xp[ig][0] << " " << xp[ig][1] << std::endl;
+                }
+
+                unsigned nDofsV2 = msh->GetElementDofNumber(iel2, solType);
+                for(unsigned  k = 0; k < dim; k++) {
+                  vx2Hat[k].resize(nDofsV2);
+                }
+                for(unsigned i = 0; i < nDofsV2; i++) {
+                  unsigned idofX = msh->GetSolutionDof(i, iel2, 2); //global dof for mesh coordinates
+                  for(unsigned  k = 0; k < dim; k++) {
+                    vx2Hat[k][i] = (*msh->_topology->_Sol[k])(idofX);
+                  }
+                  //std::cout << vx2Hat[0][i] << " " << vx2Hat[1][i] << std::endl;
+                }
+
+
+              }
+
+              //exit(0);
+            }
+
+
             for(unsigned ii = 0; ii < iel2All.size(); ii++) {
               unsigned iel2 = iel2All[ii];
               if(iel2 != UINT_MAX) {
@@ -681,6 +722,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
                     xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
                   }
+
+                  // std::cout << xi2[0] <<" "<<" "xi2[1] << std::endl;
 
                   mysolution->_Sol[eflagIndex]->set(iel2, 1.);
 
@@ -805,11 +848,11 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     std::vector < adept::adouble > N(dim); // normal from the fluid to the solid domain
                     for(unsigned k = 0; k < dim; k++) {
-                      N[k] = Nsf[k];
+                      N[k] = -Nsf[k];
                     }
 
 
-                    //std::cout << xi2[ig2][0] <<" "<< xi2[ig2][1]<<std::endl;
+                    //std::cout << ii << " " << ig2 << " " << ig1 << " " << xi2[ig2][0] << " " << xi2[ig2][1] << std::endl;
 
                     fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
                     fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
@@ -818,6 +861,10 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     for(unsigned i = 0; i < nDofsP2; i++) {
                       solPg += phiP[i] * solP[i];
                     }
+
+
+                    std::vector < adept::adouble > xg1(dim, 0.);
+                    std::vector < adept::adouble > xg2(dim, 0.);
 
                     std::vector < adept::adouble > vs(dim, 0.); // this is the velocity of the solid
                     std::vector < adept::adouble > vf(dim, 0.); // this is the velocity of the fluid
@@ -834,14 +881,16 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     for(int k = 0; k < dim; k++) {
                       for(unsigned i = 0; i < nDofsV2; i++) {
                         vf[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                        xg2[k] += phiV[i] * vx2Hat[k][i];
                       }
 
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
-                        solDg[k] = phiD[i] * solD[k][if2e];
-                        solD1gOld[k] = phiD[i] * solD1Old[k][if2e];
-                        solV1gOld[k] = phiD[i] * solV1Old[k][if2e];
-                        solA1gOld[k] = phiD[i] * solA1Old[k][if2e];
+                        solDg[k] += phiD[i] * solD[k][if2e];
+                        solD1gOld[k] += phiD[i] * solD1Old[k][if2e];
+                        solV1gOld[k] += phiD[i] * solV1Old[k][if2e];
+                        solA1gOld[k] += phiD[i] * solA1Old[k][if2e];
+                        xg1[k] += phiD[i] * xf1[k][i];
                       }
 
                       solA1g[k] = (solDg[k] - solD1gOld[k]) / (beta * dt * dt)
@@ -850,8 +899,14 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       solV1g[k] = (solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]));
 
                       vs[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
+                      
+                      
+                      
                     }
-
+                    
+                    if( (xg1[0] - xg2[0]) * (xg1[0] - xg2[0]) + (xg1[1] - xg2[1]) * (xg1[1] - xg2[1]) > 1.0e-14 ){
+                      std::cout << ii <<iel1 <<" " << iel2 << " "<< ig1 <<" "<< ig2 <<" "<< xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] <<std::endl;
+                    }
                     for(unsigned k = 0; k < dim; k++) {
                       tau[k] += solPg * N[k];
                       for(unsigned i = 0; i < nDofsV2; i++) {
@@ -870,9 +925,10 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     double thetaM = 10.0 * muFluid / h;
                     double thetaL = 10.0 * (rhoFluid * h / (theta * dt) + muFluid / h);
+                    //thetaM = thetaL;
 
-                    std::cout << thetaM << " " << thetaL << std::endl;
-                    
+                    //std::cout << thetaM << " " << thetaL << std::endl;
+
                     if(iproc == kproc) {
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
@@ -1000,7 +1056,13 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   }
                 }
               }
+
+
+
+
             }
+
+            //if(iel2All.size() > 1) exit(0);
 
             for(unsigned ig = 0; ig < gp.size(); ig++) {
               unsigned iel2 = gp[ig]->GetMarkerElement();
