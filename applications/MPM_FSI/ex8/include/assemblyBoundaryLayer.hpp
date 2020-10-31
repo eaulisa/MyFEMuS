@@ -45,8 +45,6 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector< adept::adouble > solP;
 
   vector< vector< double > > solDOld(dim);      // local solution (displacement)
-  vector< vector< double > > solVOld(dim);
-  vector< vector< double > > solAOld(dim);
 
   vector< double > rhs;    // local redidual vector
   vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
@@ -58,7 +56,6 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector < double > phiD;
   vector < double > phiP;
 
-  vector < double > gradPhiV;
   vector < adept::adouble > gradPhiD;
   vector < double > gradPhiDHat;
 
@@ -66,46 +63,17 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector <vector < adept::adouble> > vx(dim);   //vx is coordX in assembly of ex30
   vector <vector < double> > vxHat(dim);
 
-  double weightP;
-  double weightV;
   double weightDHat;
   adept::adouble weightD;
 
-
-  //reading parameters for MPM body
-  double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-  double EMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_young_module();
-  double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
-  double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
-  double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-
-
-  //reading parameters for fluid FEM domain
-  double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
-  double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
-
-  double dt =  my_nnlin_impl_sys.GetIntervalTime();
-
-  std::cout.precision(10);
-
   //variable-name handling
-  const char varname[12][5] = {"UX", "UY", "UZ", "UX", "UY", "UZ", "VX", "VY", "VZ", "AX", "AY", "AZ"};
+  const char varname[12][5] = {"UX", "UY", "UZ"};
 
   vector <unsigned> indexSolD(dim);
-  vector <unsigned> indexSolV(dim);
-
-  vector <unsigned> indexSolAOld(dim);
-  vector <unsigned> indexSolVOld(dim);
-
   vector <unsigned> indexPdeD(dim);
-  vector <unsigned> indexPdeV(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
     indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
-    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
-    indexSolVOld[ivar] = mlSol->GetIndex(&varname[ivar + 6][0]); // For Newmark in Solid
-    indexSolAOld[ivar] = mlSol->GetIndex(&varname[ivar + 9][0]); // For Newmark in Solid
-    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);     // DX, DY, DZ
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3][0]); //VX, VY, VZ
+    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);    
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 

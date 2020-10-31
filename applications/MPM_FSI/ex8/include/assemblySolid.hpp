@@ -109,9 +109,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
 
   //reading parameters for MPM body
   double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-  double EMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_young_module();
   double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
-  double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
   double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
 
 
@@ -521,7 +519,6 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 solV1Old[k].resize(nDofsD1);
                 solA1Old[k].resize(nDofsD1);
                 vx1Hat[k].resize(nDofsD1);
-                aResD[k].assign(nDofsD1, 0.);
               }
               solD1dofs.resize(dim * nDofsD1);
               nodeFlag1.resize(nDofsD1);
@@ -808,6 +805,13 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                 // we finished to exchange all needed information, we are ready to assemble!
                 if(iproc == kproc || iproc == jproc) {
 
+                  if(iproc == kproc) {
+                    for(unsigned k = 0; k < dim; k++) {
+                      aResD[k].assign(nDofsD1, 0.);
+                    }
+                  }
+
+
                   //initialize adept varibles
                   for(unsigned k = 0; k < dim; k++) {
                     solD[k].resize(nDofsD1) ;
@@ -868,7 +872,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
 
                     std::vector < adept::adouble > vs(dim, 0.); // this is the velocity of the solid
                     std::vector < adept::adouble > vf(dim, 0.); // this is the velocity of the fluid
-                    std::vector < adept::adouble > tau(dim, 0.);
+
 
                     std::vector <adept::adouble> solDg(dim, 0.);
                     std::vector <double> solD1gOld(dim, 0.);
@@ -899,14 +903,15 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       solV1g[k] = (solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]));
 
                       vs[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
-                      
-                      
-                      
+
                     }
-                    
-                    if( (xg1[0] - xg2[0]) * (xg1[0] - xg2[0]) + (xg1[1] - xg2[1]) * (xg1[1] - xg2[1]) > 1.0e-14 ){
-                      std::cout << ii <<iel1 <<" " << iel2 << " "<< ig1 <<" "<< ig2 <<" "<< xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] <<std::endl;
+
+                    if( (xg1[0] - xg2[0]) * (xg1[0] - xg2[0]) + (xg1[1] - xg2[1]) * (xg1[1] - xg2[1]) > 1.0e-14 ) {
+                      std::cout << ii << iel1 << " " << iel2 << " " << ig1 << " " << ig2 << " " << xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] << std::endl;
                     }
+
+
+                    std::vector < adept::adouble > tau(dim, 0.);
                     for(unsigned k = 0; k < dim; k++) {
                       tau[k] += solPg * N[k];
                       for(unsigned i = 0; i < nDofsV2; i++) {
