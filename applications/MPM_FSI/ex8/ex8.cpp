@@ -192,7 +192,6 @@ int main(int argc, char **args) {
   MultiLevelProblem ml_prob(&mlSol);
 
   ml_prob.parameters.set < Solid > ("SolidMPM") = solid;
-  ml_prob.parameters.set < Solid > ("SolidFEM") = solid;
   ml_prob.parameters.set < Fluid > ("FluidFEM") = fluid;
 
   // ******* Add MPM system to the MultiLevel problem *******
@@ -253,7 +252,7 @@ int main(int argc, char **args) {
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 100;
+  unsigned n_timesteps = 1000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();

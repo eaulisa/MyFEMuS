@@ -91,7 +91,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.05;
+  double gammac = 0.5;
   double gammap = 0.05;
 
   std::cout.precision(10);
