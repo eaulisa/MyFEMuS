@@ -73,7 +73,7 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
   vector <unsigned> indexPdeD(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
     indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
-    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);    
+    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
@@ -315,49 +315,29 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
 
   vector< vector< double > > solD1(dim);      // local solution (displacement)
   vector< vector< double > > solD1Old(dim);      // local solution (displacement)
-//   vector< vector< double > > solV1Old(dim);      // local solution (displacement)
-//   vector< vector< double > > solA1Old(dim);      // local solution (displacement)
   vector< unsigned > solD1dofs;      // local solution (displacement)
 
-  vector <vector < adept::adouble> > vx1(dim);   //vx1 are goind
+  vector <vector < adept::adouble> > vx1(dim);
   vector <vector < double> > vx1Hat(dim); //1 solid 2 is fluid
   vector <vector < double> > vx2Hat(dim); //1 solid 2 is fluid
 
   vector< double > rhs;    // local redidual vector
-  //vector< vector< adept::adouble > > aRhsD(dim);     // local redidual vector
   vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
-  vector< adept::adouble > aResP;    // local redidual vector
+  vector< adept::adouble > aResP; // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofsAll;
 
   vector < double > phiV;
-  vector < double > phiD;
-  vector < double > phiP;
-
-// vector < double > gradPhiP;
   vector < double > gradPhiV;
+  vector < double > nablaPhiV;
+  vector < double > phiP;
+  vector < double > gradPhiP;
 
-  vector < adept::adouble > gradPhiD;
-  //vector < double > gradPhiDHat;
-
-  unsigned dim2 = 3 * (dim - 1);
-
-
-
-  //double weightP;
   double weightV;
-// double weightDHat;
+
+  const double *phiD;
   adept::adouble weightD;
-
-
-  //reading parameters for MPM body
-//   double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-//   double EMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_young_module();
-//   double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
-//   double nuMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_poisson_coeff();
-//   double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
-
 
   //reading parameters for fluid FEM domain
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
@@ -368,23 +348,18 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
   std::cout.precision(10);
 
   //variable-name handling
-  const char varname[12][5] = {"UX", "UY", "UZ", "UX", "UY", "UZ", "VX", "VY", "VZ", "AX", "AY", "AZ"};
+  const char varname[12][5] = {"UX", "UY", "UZ", "UX", "UY", "UZ"};
 
   vector <unsigned> indexSolD(dim);
   vector <unsigned> indexSolV(dim);
-
-//   vector <unsigned> indexSolAOld(dim);
-//   vector <unsigned> indexSolVOld(dim);
 
   vector <unsigned> indexPdeD(dim);
   vector <unsigned> indexPdeV(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
     indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
     indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
-//     indexSolVOld[ivar] = mlSol->GetIndex(&varname[ivar + 6][0]); // For Newmark in Solid
-//     indexSolAOld[ivar] = mlSol->GetIndex(&varname[ivar + 9][0]); // For Newmark in Solid
-    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);     // DX, DY, DZ
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3][0]); //VX, VY, VZ
+    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);
+    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
@@ -395,6 +370,16 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
   unsigned eflagIndex = mlSol->GetIndex("eflag");
   unsigned pElemIndex = mlSol->GetIndex("pElem");
 
+
+  unsigned pckElIndex = mlSol->GetIndex("pckEl");
+  unsigned pckVelIndex = mlSol->GetIndex("pckVel");
+  unsigned pckPreIndex = mlSol->GetIndex("pckPre");
+
+
+  mysolution->_Sol[pckElIndex]->zero();
+  mysolution->_Sol[pckVelIndex]->zero();
+  mysolution->_Sol[pckPreIndex]->zero();
+
   start_time = clock();
 
   unsigned meshOffset = msh->_elementOffset[iproc];
@@ -404,12 +389,17 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(int iel1 = msh->_elementOffset[kproc]; iel1 < msh->_elementOffset[kproc + 1]; iel1++) {
 
-      short unsigned ielt1;
+      unsigned ielt1;
       unsigned nDofsD1;
       unsigned pElem;
       unsigned eFlag1 = 0;
 
       if(iproc == kproc) {
+
+        if(iel1 == 2258) {
+          std::cout << "AAAAAAAAAAAAAAA\n";
+        }
+
         eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel1) + 0.5));
         if(eFlag1 == 3) { // boundary Layer
           ielt1 = msh->GetElementType(iel1);
@@ -434,7 +424,6 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
           }
         }
       }
-
 
       MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
@@ -478,16 +467,21 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
 
         for(unsigned ig = 0; ig < ng1; ig++) {
 
-          const double* phiD1 = fem[qType][ielt1][solType]->GetPhi(ig);
+          phiD = fem[qType][ielt1][solType]->GetPhi(ig);
           std::vector< double > xg(dim, 0.);
           for(unsigned i = 0; i < nDofsD1; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              xg[k] += phiD1[i] * (vx1Hat[k][i] + af * solD1[k][i] + (1. - af) * solD1Old[k][i]);
+              xg[k] += phiD[i] * (vx1Hat[k][i] + af * solD1[k][i] + (1. - af) * solD1Old[k][i]);
             }
           }
 
           gp[ig] = new Marker(xg, VOLUME, mysolution, solType, pElem);
           jel[ig] = gp[ig]->GetMarkerElement();
+
+          if(iel1 == 2258) {
+            std::cout << jel[ig] << " ";
+          }
+
 
           it = jelCounter.find(jel[ig]);
           if(it != jelCounter.end()) {
@@ -522,27 +516,25 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
             iel2All[i] = it->first;
             igAll[i].reserve(it->second);
           }
+          for(unsigned ig = 0; ig < gp.size(); ig++) {
+            unsigned i = 0;
+            while(jel[ig] != iel2All[i]) i++;
+            unsigned k = igAll[i].size();
+            igAll[i].resize(k + 1);
+            igAll[i][k] = ig;
+          }
         }
-
-        for(unsigned ig = 0; ig < gp.size(); ig++) {
-          unsigned i = 0;
-          while(jel[ig] != iel2All[i]) i++;
-          unsigned k = igAll[i].size();
-          igAll[i].resize(k + 1);
-          igAll[i][k] = ig;
-        }
-
 
         for(unsigned ii = 0; ii < iel2All.size(); ii++) {
           unsigned iel2 = iel2All[ii];
           if(iel2 != UINT_MAX) {
             unsigned jproc = msh->IsdomBisectionSearch(iel2 , 3); // return  jproc for piece-wise constant discontinuous type (3)
-
             if(iproc == jproc) {
-
               unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel2) + 0.5));
+              if(eFlag2 == 2) {
 
-              if(eFlag2 == 1) {
+                mysolution->_Sol[pckElIndex]->set(iel2, 1);
+
                 unsigned ielt2;
                 unsigned nDofsV2;
                 unsigned nDofsP2;
@@ -551,10 +543,11 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                 for(unsigned ig = 0; ig < igAll[ii].size(); ig++) {
                   xi2[ig] = gp[igAll[ii][ig]]->GetMarkerLocalCoordinates();
                 }
-                mysolution->_Sol[eflagIndex]->set(iel2, 1.);
+
                 ielt2 = msh->GetElementType(iel2);
                 nDofsV2 = msh->GetElementDofNumber(iel2, solType);
                 nDofsP2 = msh->GetElementDofNumber(iel2, solTypeP);
+
                 for(unsigned  k = 0; k < dim; k++) {
                   solV2[k].resize(nDofsV2);
                   solV2Old[k].resize(nDofsV2);
@@ -565,8 +558,12 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                 solP2.resize(nDofsP2);
                 aResP.assign(nDofsP2, 0.);
                 solP2dofs.resize(nDofsP2);
+
                 for(unsigned i = 0; i < nDofsV2; i++) {
                   unsigned idofV = msh->GetSolutionDof(i, iel2, solType); //global dof for solution D
+
+                  mysolution->_Sol[pckVelIndex]->set(idofV, 1);
+
                   unsigned idofX = msh->GetSolutionDof(i, iel2, 2); //global dof for mesh coordinates
                   for(unsigned  k = 0; k < dim; k++) {
                     solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idofV);
@@ -577,6 +574,7 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                 }
                 for(unsigned i = 0; i < nDofsP2; i++) {
                   unsigned idofP = msh->GetSolutionDof(i, iel2, solTypeP); //global dof for solution D
+                  mysolution->_Sol[pckPreIndex]->set(idofP, 1);
                   solP2[i] = (*mysolution->_Sol[indexSolP])(idofP);
                   solP2dofs[i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel2);
                 }
@@ -611,37 +609,64 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                   unsigned ig1 = igAll[ii][ig]; //solid gauss point id
                   unsigned ig2 = ig; //integration point id in the ii fluid element
 
+                  fem[qType][ielt1][solType]->GetGaussQuantities(vx1, ig1, weightD, phiD); // boundary solid integration
 
-                  fem[qType][ielt1][solType]->Jacobian(vx1, ig1, weightD, phiD, gradPhiD); // boundary solid integration
+                  fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV, nablaPhiV); //cut fem fluid cell
+                  //  fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
 
-                  fem[qType][ielt2][solType]->Jacobian(vx2Hat, xi2[ig2], weightV, phiV, gradPhiV); //cut fem fluid cell
-                  fem[qType][ielt2][solTypeP]->GetPhi(phiP, xi2[ig2]); //cut fem fluid cell
+//                   adept::adouble solPg = 0.;
+//                   for(unsigned i = 0; i < nDofsP2; i++) {
+//                     solPg += phiP[i] * solP[i];
+//                   }
+
+                  fem[qType][ielt2][solTypeP]->Jacobian(vx2Hat, xi2[ig2], weightV, phiP, gradPhiP); //cut fem fluid cell
 
                   adept::adouble solPg = 0.;
+                  vector<adept::adouble> gradSolPg(dim, 0.);
+
                   for(unsigned i = 0; i < nDofsP2; i++) {
                     solPg += phiP[i] * solP[i];
+                    for(unsigned k = 0; k < dim; k++) {
+                      gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
+                    }
                   }
+
+
+
+
 
                   std::vector < double > solV2gOld(dim, 0.);
                   std::vector < adept::adouble > solV2gTheta(dim, 0.);
                   std::vector < adept::adouble > solV2g(dim, 0.);
                   std::vector < std::vector < adept::adouble > > gradSolV2g(dim);
+                  std::vector < std::vector < adept::adouble > > gradSolV2gTheta(dim);
+
+
+                  std::vector<vector<adept::adouble> > DeltaSolV2gTheta(dim);
+                  const unsigned dim2 = 3 * (dim - 1)   ;
 
                   for(int k = 0; k < dim; k++) {
                     gradSolV2g[k].assign(dim, 0.);
+                    gradSolV2gTheta[k].assign(dim, 0.);
+                    DeltaSolV2gTheta[k].assign(dim2, 0.);
                     for(unsigned i = 0; i < nDofsV2; i++) {
                       solV2gOld[k] += phiV[i] * solV2Old[k][i];
                       solV2gTheta[k] += phiV[i] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
                       solV2g[k] += phiV[i] * solV[k][i];
                       for(unsigned j = 0; j < dim; j++) {
-                        gradSolV2g[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                        gradSolV2gTheta[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]);
+                        gradSolV2g[k][j] += gradPhiV[i * dim + j] * solV[k][i];
+                      }
+                      for(unsigned j = 0; j < dim2; j++) {
+                        DeltaSolV2gTheta[k][j] += nablaPhiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solV2Old[k][i]) ;
                       }
                     }
+
                   }
 
                   std::vector < adept::adouble > xg1(dim, 0.);
                   std::vector < adept::adouble > xg2(dim, 0.);
-                 
+
                   for(int k = 0; k < dim; k++) {
                     for(unsigned i = 0; i < nDofsV2; i++) {
                       xg2[k] += vx2Hat[k][i] *  phiV[i];
@@ -652,16 +677,48 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                   }
 
                   if( (xg1[0] - xg2[0]) * (xg1[0] - xg2[0]) + (xg1[1] - xg2[1]) * (xg1[1] - xg2[1]) > 1.0e-14 ) {
-                    std::cout << ii <<" "<< iel1 << " " << iel2 << " " << ig1 << " " << ig2 << " " << xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] << std::endl;
-                    std::cout << ii <<" "<< xg1[0]  << " " <<  xg2[0] << " "<< xg1[1] << " " << xg2[1] << std::endl;
+                    std::cout << ii << " " << iel1 << " " << iel2 << " " << ig1 << " " << ig2 << " " << xg1[0] - xg2[0] << " " << xg1[1] - xg2[1] << std::endl;
+                    std::cout << ii << " " << xg1[0]  << " " <<  xg2[0] << " " << xg1[1] << " " << xg2[1] << std::endl;
                   }
 
 
 
-                  adept::adouble divVg = 0.;
-                  for(unsigned k = 0; k < dim; k++) {
-                    divVg += gradSolV2g[k][k];
+
+
+                  //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
+                  std::vector <std::vector <adept::adouble> > JacMatrix;
+                  fem[qType][ielt1][solType]->GetJacobian(vx1, ig1, weightD, JacMatrix);
+
+
+                  std::vector <std::vector <adept::adouble> > G(dim); // J^T . J
+                  for(unsigned i = 0; i < dim; i++) {
+                    G[i].assign(dim, 0.);
+                    for(unsigned j = 0; j < dim; j++) {
+                      for(unsigned k = 0; k < dim; k++) {
+                        G[i][j] += JacMatrix[k][i].value() * JacMatrix[k][j].value();
+                      }
+                    }
                   }
+
+                  adept::adouble tauM = 0.;
+                  double CI = 36.;
+                  adept::adouble denom = pow(2 * rhoFluid / dt, 2.);
+                  for(unsigned i = 0; i < dim; i++) {
+                    for(unsigned j = 0; j < dim; j++) {
+                      denom += rhoFluid * solV2gTheta[i] * G[i][j] * rhoFluid * solV2gTheta[j]
+                               + CI * muFluid * muFluid * G[i][j] * G[i][j];
+                    }
+                  }
+                  tauM += 1. / sqrt(denom);
+                  //std::cout << tauM << " ";
+
+
+
+
+
+
+
+
 
                   for(unsigned i = 0; i < nDofsV2; i++) {
                     for(unsigned k = 0; k < dim; k++) {
@@ -670,23 +727,66 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                       adept::adouble advection = 0.;
 
                       for(unsigned j = 0; j < dim; j++) {
-                        wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolV2g[k][j] + gradSolV2g[j][k]);
-                        advection += rhoFluid * solV2gTheta[j] * gradSolV2g[k][j] * phiV[i];
-
+                        wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolV2gTheta[k][j] + gradSolV2gTheta[j][k]);
+                        advection += rhoFluid * solV2gTheta[j] * gradSolV2gTheta[k][j] * phiV[i];
                       }
 
                       aResV[k][i] += (rhoFluid * (solV2g[k] - solV2gOld[k]) / dt * phiV[i]
-                                      + advection
-                                      + wlaplace
-                                      - gradPhiV[i * dim + k] * solPg) * weightD;
+                                      + advection +
+                                      wlaplace
+                                      - gradPhiV[i * dim + k] * solPg
+                                     ) * weightD.value();
                     }
                   }
 
-
                   //continuity block
+//                   adept::adouble divVg = 0.;
+//                   for(unsigned k = 0; k < dim; k++) {
+//                     divVg += gradSolV2g[k][k];
+//                   }
+//
+//                   double nu = 0.4; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
+//                   double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
+//
+//                   //std::cout << lameFluidInverse <<" ";
+//
+//                   for(unsigned i = 0; i < nDofsP2; i++) {
+//                     aResP[i] += phiP[i] * divVg * weightD.value();
+//                     aResP[i] += phiP[i] * solPg * lameFluidInverse * weightD.value();
+//                     //aResP[i] += phiP[i] * solPg * weightD.value();
+//
+//                   }
+
+
+
                   for(unsigned i = 0; i < nDofsP2; i++) {
-                    aResP[i] += phiP[i] * divVg * weightD;
+                    for(unsigned k = 0; k < dim; k++) {
+
+                      adept::adouble sLaplace = 0.;
+                      adept::adouble advection = 0.;
+
+
+                      for(unsigned j = 0; j < dim; j++) {
+                        unsigned kdim;
+
+                        if(k == j) kdim = j;
+                        else if(1 == k + j) kdim = dim;       // xy
+                        else if(2 == k + j) kdim = dim + 2;   // xz
+                        else if(3 == k + j) kdim = dim + 1;   // yz
+
+                        sLaplace += (- muFluid * (DeltaSolV2gTheta[k][j] + DeltaSolV2gTheta[j][kdim]));
+                        advection += rhoFluid * solV2gTheta[j]  * gradSolV2gTheta[k][j];
+
+                      }
+
+
+                      aResP[i] += (phiP[i] * gradSolV2gTheta[k][k] +
+                                   (rhoFluid * (solV2g[k] - solV2gOld[k]) / dt + advection +
+                                    sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightD.value();
+
+                    }
                   }
+
 
 
 
@@ -729,7 +829,6 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
 
                 // get the and store jacobian matrix (row-major)
                 s.jacobian(&Jac[0], true);
-                // std::cout << Jac.size() << " " << solVP2dofs.size() << " " << sysDofsAll.size() << " " << solVP2dofs.size() * sysDofsAll.size() << std::endl << std::flush;
 
                 myKK->add_matrix_blocked(Jac, solVP2dofs, sysDofsAll);
 
@@ -740,24 +839,26 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
           }
         }
 
-
         for(unsigned ig = 0; ig < gp.size(); ig++) {
           unsigned iel2 = gp[ig]->GetMarkerElement();
           pElem = (iel2 != UINT_MAX) ? iel2 : gp[ig]->GetIprocMarkerPreviousElement();
           if(iproc == kproc) {
             mysolution->_Sol[pElemIndex]->set(iel1, pElem);
           }
-        }
-
-        for(unsigned ig = 0; ig < gp.size(); ig++) {
           delete gp[ig];
         }
+
       }
     }
   }
 
-  mysolution->_Sol[eflagIndex]->close();
   mysolution->_Sol[pElemIndex]->close();
+
+  mysolution->_Sol[pckElIndex]->close();
+  mysolution->_Sol[pckVelIndex]->close();
+  mysolution->_Sol[pckPreIndex]->close();
+
+
 
 // *************************************
   end_time = clock();
