@@ -63,13 +63,13 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   const double H = 2.5;
 
 
-  if(!strcmp(name, "UY")) {
+  if(!strcmp(name, "UX")) {
     if(1 == facename) {     //inflow
       if(t < 2.0) {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[0] + 0.2) * (-x[0] + 0.21) * 0.5 * (1. - cos(0.5 * M_PI * t));
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21) * 0.5 * (1. - cos(0.5 * M_PI * t));
       }
       else {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[0] + 0.2) * (-x[0] + 0.21);
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21);
       }
     }
     else if(2 == facename || 6 == facename) {     //outflow and porous media Neumann
@@ -78,7 +78,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
     }
   }
 
-  else if(!strcmp(name, "UX")) {
+  else if(!strcmp(name, "UY")) {
     if(6 == facename) {     //porous media Neumann
       dirichlet = false;
       value = 0.;
@@ -133,7 +133,7 @@ int main(int argc, char **args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2Db.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turek2Dd.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels,
                    numberOfUniformLevels, NULL);
 
@@ -160,6 +160,11 @@ int main(int argc, char **args) {
   mlSol.AddSolution("pElem", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
 
+  mlSol.AddSolution("pckEl", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("pckVel", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("pckPre", LAGRANGE, FIRST, 0, false);
+
+
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("DY", LAGRANGE, femOrder, 0, false);
   if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 0, false);
@@ -182,10 +187,9 @@ int main(int argc, char **args) {
   //mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition1);
 
   // ******* Set boundary conditions *******
-  mlSol.GenerateBdc("UX", "Steady");
-  mlSol.GenerateBdc("UY", "Time_dependent");
-  if(dim > 2)
-    mlSol.GenerateBdc("UZ", "Steady");
+  mlSol.GenerateBdc("UX", "Time_dependent");
+  mlSol.GenerateBdc("UY", "Steady");
+  if(dim > 2) mlSol.GenerateBdc("UZ", "Steady");
 
   mlSol.GenerateBdc("P", "Steady");
 
@@ -233,7 +237,7 @@ int main(int argc, char **args) {
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
   BuildFlagSolidRegion(mlSol);
-  InitPElement(mlSol, std::vector <double> {0., 0.4, 0.});
+  InitPElement(mlSol, std::vector <double> {0.4, 0., 0.});
 
   mlSol.SetWriter(VTK);
 
@@ -298,18 +302,21 @@ void Assemble(MultiLevelProblem& ml_prob) {
   myKK->zero();
   myRES->zero();
 
-  AssembleSolid(ml_prob);
-  AssembleSolidInterface(ml_prob);
+  //AssembleSolid(ml_prob);
+  //AssembleSolidInterface(ml_prob);
   AssembleBoundaryLayer(ml_prob);
   AssembleBoundaryLayerProjection(ml_prob);
-  AssembleFluid(ml_prob);
-  AssembleGhostPenalty(ml_prob);
+// AssembleFluid(ml_prob);
+// AssembleGhostPenalty(ml_prob);
 
   myKK->close();
   myRES->close();
 
   //double tolerance = 1.0e-12 * myKK->linfty_norm();
   //myKK->RemoveZeroEntries(tolerance);
+
+
+// myKK->draw();
 
   end_time = clock();
   AssemblyTime += (end_time - start_time);
@@ -384,6 +391,8 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
 
   unsigned pElemIndex = mlSol.GetIndex("pElem");
 
+  std::vector <double> xc(dim);
+
   struct {
     double dist2;
     int elem;
@@ -391,35 +400,60 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
 
   in.dist2 = 10e10;
 
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-    unsigned flag_mat = msh->GetElementMaterial(iel);
-    if(flag_mat == 2) {
-      unsigned nDofs = msh->GetElementDofNumber(iel, 2);
-      unsigned idofX = msh->GetSolutionDof(nDofs - 1, iel, 2); //global dof for mesh coordinates
-      double dist2 = 0.;
-      for(unsigned k = 0; k < dim; k++) {
-        dist2 += (x0[k] - (*msh->_topology->_Sol[k])(idofX)) * (x0[k] - (*msh->_topology->_Sol[k])(idofX));
+
+  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+    for(unsigned iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+      unsigned flag_mat;
+      if(iproc == kproc) {
+        flag_mat = msh->GetElementMaterial(iel);
+        if(flag_mat > 2) {
+          unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+          unsigned idofX = msh->GetSolutionDof(nDofs - 1, iel, 2); //center of the element dof (coordinates)
+
+          for(unsigned k = 0; k < dim; k++) {
+            xc[k] =  (*msh->_topology->_Sol[k])(idofX); // x-y-z coordinates
+          }
+        }
+        else {
+          sol->_Sol[pElemIndex]->set(iel, -1.);
+        }
       }
-      if(dist2 < in.dist2) {
-        in.dist2 = dist2;
-        in.elem = iel;
+      
+      MPI_Bcast(&flag_mat, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+      if(flag_mat > 2) {
+        MPI_Bcast(xc.data(), xc.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+        
+        in.dist2 = 10e10;
+        for(unsigned jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
+
+          unsigned jflag_mat = msh->GetElementMaterial(jel);
+          if(jflag_mat == 2) {
+
+            unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+            unsigned jdofX = msh->GetSolutionDof(nDofs - 1, jel, 2); //center of the element dof (coordinates)
+
+            double dist2 = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              dist2 += (xc[k] - (*msh->_topology->_Sol[k])(jdofX)) * (xc[k] - (*msh->_topology->_Sol[k])(jdofX));
+            }
+            if(dist2 < in.dist2) {
+              in.dist2 = dist2;
+              in.elem = jel;
+            }
+          }
+        }
+
+        MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, PETSC_COMM_WORLD);
+
+        if(iproc == kproc) {
+          sol->_Sol[pElemIndex]->set(iel, out.elem);
+        }
       }
     }
   }
 
-  MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, PETSC_COMM_WORLD);
-
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-    unsigned flag_mat = msh->GetElementMaterial(iel);
-    if(flag_mat != 2) {
-      sol->_Sol[pElemIndex]->set(iel, out.elem);
-    }
-    else {
-      sol->_Sol[pElemIndex]->set(iel, -1.);
-    }
-  }
   sol->_Sol[pElemIndex]->close();
-
 
 }
 

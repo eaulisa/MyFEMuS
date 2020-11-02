@@ -737,7 +737,12 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
             solVgTheta[j] += phiV[i] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
             for(unsigned  k = 0; k < dim; k++) {
               gradSolVgTheta[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]);
-              DeltaSolVgTheta[k][j]   += nablaphiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;
+              
+            }
+          }
+          for(unsigned j = 0; j < dim2; j++) {
+            for(unsigned  k = 0; k < dim; k++) {
+              DeltaSolVgTheta[k][j]   += nablaphiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;  
             }
           }
         }
