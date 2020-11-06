@@ -1320,8 +1320,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             tau[k] += - solPp * N[k];
             for(unsigned i = 0; i < nDofs; i++) {
               for(unsigned j = 0; j < dim; j++) {
-                tau[k] += muFluid * ( theta * solV[k][i] + (1.- theta) * solVOld[k][i]) * gradPhi[i * dim + j] +
-                                     ( theta * solV[j][i] + (1.- theta) * solVOld[j][i]) * gradPhi[i * dim + k]) * N[j];
+                tau[k] += muFluid * ((theta * solV[k][i] + (1. - theta) * solVOld[k][i]) * gradPhi[i * dim + j] +
+                                     (theta * solV[j][i] + (1. - theta) * solVOld[j][i]) * gradPhi[i * dim + k]) * N[j];
               }
             }
           }
