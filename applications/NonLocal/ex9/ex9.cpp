@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 4;
+unsigned numberOfUniformLevels = 2;
 unsigned numberOfUniformLevelsFine = 1;
 
 int main(int argc, char** argv) {
@@ -170,6 +170,9 @@ int main(int argc, char** argv) {
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
+  
+  mlSol.AddSolution("cnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  
 
   mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
   mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
