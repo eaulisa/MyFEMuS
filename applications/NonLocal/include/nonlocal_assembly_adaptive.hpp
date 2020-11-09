@@ -432,108 +432,108 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      if(kproc != iproc) {
-        bool coarseIntersectionTest = true;
-        for(unsigned k = 0; k < dim; k++) {
-          unsigned kk = kproc * dim * 2 + k * dim;
-          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
-            coarseIntersectionTest = false;
-            break;
-          }
-        }
-        if(coarseIntersectionTest) {
-          orElements[kproc][orCntSend[kproc]] = iel;
-          orGeomSend[kproc][orCntSend[kproc]] = ielGeom;
-          orCntSend[kproc]++;
-          for(unsigned i = 0; i < nDof1; i++) {
-            orDofsSend[kproc][orSizeSend[kproc] + i] = l2GMap1[i];
-            orSolSend[kproc][orSizeSend[kproc] + i] = solu1[i];
-            for(unsigned k = 0; k < dim; k++) {
-              orXSend[kproc][k][orSizeSend[kproc] + i] = x1[k][i];
-            }
-          }
-          orSizeSend[kproc] += nDof1;
-        }
-      }
-    }
-
-
-
-    time_t start = clock();
-    region2.Reset();
-    for(int jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
-
-      short unsigned jelGeom = msh->GetElementType(jel);
-      short unsigned jelGroup = msh->GetElementGroup(jel);
-      unsigned nDof2  = msh->GetElementDofNumber(jel, soluType);
-
-      for(int k = 0; k < dim; k++) {
-        x2[k].resize(nDof2);
-      }
-      for(unsigned j = 0; j < nDof2; j++) {
-        unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
-        for(unsigned k = 0; k < dim; k++) {
-          x2[k][j] = (*msh->_topology->_Sol[k])(xDof);
-        }
-      }
-
-      minmax2.resize(dim);
-      for(unsigned k = 0; k < dim; k++) {
-        minmax2[k].resize(2);
-        x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
-        minmax2[k][0] = *x2MinMax[k].first;
-        minmax2[k][1] = *x2MinMax[k].second;
-      }
+      //if(kproc != iproc) {
       bool coarseIntersectionTest = true;
       for(unsigned k = 0; k < dim; k++) {
-        if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
+        unsigned kk = kproc * dim * 2 + k * dim;
+        if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
           coarseIntersectionTest = false;
           break;
         }
       }
-
       if(coarseIntersectionTest) {
-        sol->_Sol[cntIndex]->add(jel, 1);  
-        l2GMap2.resize(nDof2);
-        solu2.resize(nDof2);
-        for(unsigned j = 0; j < nDof2; j++) {
-          unsigned uDof = msh->GetSolutionDof(j, jel, soluType);
-          solu2[j] = (*sol->_Sol[soluIndex])(uDof);
-          l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
+        orElements[kproc][orCntSend[kproc]] = iel;
+        orGeomSend[kproc][orCntSend[kproc]] = ielGeom;
+        orCntSend[kproc]++;
+        for(unsigned i = 0; i < nDof1; i++) {
+          orDofsSend[kproc][orSizeSend[kproc] + i] = l2GMap1[i];
+          orSolSend[kproc][orSizeSend[kproc] + i] = solu1[i];
+          for(unsigned k = 0; k < dim; k++) {
+            orXSend[kproc][k][orSizeSend[kproc] + i] = x1[k][i];
+          }
         }
-        region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
+        orSizeSend[kproc] += nDof1;
       }
+      //}
     }
 
-    sSearchTime += clock() - start;
 
-    start = clock();
 
-    nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
-    bool printMesh = false;
-
-    std::vector<unsigned>jelIndex(region2.size());
-    for(unsigned j = 0; j < jelIndex.size(); j++) {
-      jelIndex[j] = j;
-    }
-
-    nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                          *refineElement[ielGeom][soluType], region2, jelIndex,
-                          solu1, kappa1, delta1, printMesh);
-
-    RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
-
-    //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
-    for(unsigned jel = 0; jel < region2.size(); jel++) {
-      KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
-      KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
-      RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
-    }
-    sAssemblyTime += clock() - start;
+//     time_t start = clock();
+//     region2.Reset();
+//     for(int jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
+//
+//       short unsigned jelGeom = msh->GetElementType(jel);
+//       short unsigned jelGroup = msh->GetElementGroup(jel);
+//       unsigned nDof2  = msh->GetElementDofNumber(jel, soluType);
+//
+//       for(int k = 0; k < dim; k++) {
+//         x2[k].resize(nDof2);
+//       }
+//       for(unsigned j = 0; j < nDof2; j++) {
+//         unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
+//         for(unsigned k = 0; k < dim; k++) {
+//           x2[k][j] = (*msh->_topology->_Sol[k])(xDof);
+//         }
+//       }
+//
+//       minmax2.resize(dim);
+//       for(unsigned k = 0; k < dim; k++) {
+//         minmax2[k].resize(2);
+//         x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
+//         minmax2[k][0] = *x2MinMax[k].first;
+//         minmax2[k][1] = *x2MinMax[k].second;
+//       }
+//       bool coarseIntersectionTest = true;
+//       for(unsigned k = 0; k < dim; k++) {
+//         if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
+//           coarseIntersectionTest = false;
+//           break;
+//         }
+//       }
+//
+//       if(coarseIntersectionTest) {
+//         sol->_Sol[cntIndex]->add(jel, 1);
+//         l2GMap2.resize(nDof2);
+//         solu2.resize(nDof2);
+//         for(unsigned j = 0; j < nDof2; j++) {
+//           unsigned uDof = msh->GetSolutionDof(j, jel, soluType);
+//           solu2[j] = (*sol->_Sol[soluIndex])(uDof);
+//           l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
+//         }
+//         region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
+//       }
+//     }
+//
+//     sSearchTime += clock() - start;
+//
+//     start = clock();
+//
+//     nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
+//     bool printMesh = false;
+//
+//     std::vector<unsigned>jelIndex(region2.size());
+//     for(unsigned j = 0; j < jelIndex.size(); j++) {
+//       jelIndex[j] = j;
+//     }
+//
+//     nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+//                           *refineElement[ielGeom][soluType], region2, jelIndex,
+//                           solu1, kappa1, delta1, printMesh);
+//
+//     RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
+//
+//     //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
+//     for(unsigned jel = 0; jel < region2.size(); jel++) {
+//       KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+//       KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
+//       RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
+//     }
+//     sAssemblyTime += clock() - start;
 
   } //end iel loop
 
-  KK->flush();
+//  KK->flush();
 
   std::cout << "[" << iproc << "]  ";
   std::cout << "serial Search Time = " << static_cast<double>(sSearchTime) / CLOCKS_PER_SEC << std::endl;
@@ -545,7 +545,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
   //BEGIN parallel nonlocal assembly
-  if(nprocs > 1) {
+  if(nprocs > 0) {
 
     time_t exchangeTime = clock();
 
@@ -579,17 +579,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     MPI_Status status;
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 2; m++) {
-          
+
         int test = MPI_Wait(&reqsRecv[kproc][m], &status);
-        if(test != MPI_SUCCESS){
+        if(test != MPI_SUCCESS) {
           abort();
         }
-        
+
         test = MPI_Wait(&reqsSend[kproc][m], &status);
-        if(test != MPI_SUCCESS){
+        if(test != MPI_SUCCESS) {
           abort();
         }
-        
+
       }
     }
 
@@ -637,12 +637,12 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 3 + dim; m++) {
         int test = MPI_Wait(&reqsRecv[kproc][m], &status);
-        if(test != MPI_SUCCESS){
+        if(test != MPI_SUCCESS) {
           abort();
         }
-        
+
         test = MPI_Wait(&reqsSend[kproc][m], &status);
-        if(test != MPI_SUCCESS){
+        if(test != MPI_SUCCESS) {
           abort();
         }
       }
@@ -671,110 +671,113 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     for(unsigned lproc = 0; lproc < nprocs; lproc++) {
       unsigned kproc = porder[lproc];
-      if(kproc != iproc) {
-        unsigned cnt1 = 0;
-        for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
+      //if(kproc != iproc) {
+      unsigned cnt1 = 0;
+      for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
 
-          short unsigned ielGeom = orGeomRecv[kproc][iel];
-          unsigned nDof1  = el->GetNVE(ielGeom, soluType);
+        short unsigned ielGeom = orGeomRecv[kproc][iel];
+        unsigned nDof1  = el->GetNVE(ielGeom, soluType);
 
-          l2GMap1.resize(nDof1);
-          solu1.resize(nDof1);
+        l2GMap1.resize(nDof1);
+        solu1.resize(nDof1);
+        for(unsigned k = 0; k < dim; k++) {
+          x1[k].resize(nDof1);
+        }
+
+        for(unsigned i = 0; i < nDof1; i++) {
+          solu1[i] = orSolRecv[kproc][cnt1 + i];
+          l2GMap1[i] = orDofsRecv[kproc][cnt1 + i];
           for(unsigned k = 0; k < dim; k++) {
-            x1[k].resize(nDof1);
+            x1[k][i] =  orXRecv[kproc][k][cnt1 + i];
           }
+        }
 
-          for(unsigned i = 0; i < nDof1; i++) {
-            solu1[i] = orSolRecv[kproc][cnt1 + i];
-            l2GMap1[i] = orDofsRecv[kproc][cnt1 + i];
+        refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
+        for(unsigned k = 0; k < dim; k++) {
+          x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
+        }
+
+        cnt1 += nDof1;
+        time_t start = clock();
+
+        region2.Reset();
+
+        unsigned cnt2 = 0;
+        for(unsigned jel = 0; jel < orGeomSend[kproc].size(); jel++) { // these elements are own by iproc
+
+          short unsigned jelGeom = orGeomSend[kproc][jel];
+          unsigned nDof2  = el->GetNVE(jelGeom, soluType);
+
+          for(unsigned k = 0; k < dim; k++) {
+            x2[k].assign(nDof2, 0.);
+          }
+          for(unsigned j = 0; j < nDof2; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              x1[k][i] =  orXRecv[kproc][k][cnt1 + i];
+              x2[k][j] = orXSend[kproc][k][cnt2 + j];
+            }
+          }
+          minmax2.resize(dim);
+          for(unsigned k = 0; k < dim; k++) {
+            minmax2[k].resize(2);
+            x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
+            minmax2[k][0] = *x2MinMax[k].first;
+            minmax2[k][1] = *x2MinMax[k].second;
+          }
+          bool coarseIntersectionTest = true;
+          for(unsigned k = 0; k < dim; k++) {
+            if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
+              coarseIntersectionTest = false;
+              break;
             }
           }
 
-          refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
-          for(unsigned k = 0; k < dim; k++) {
-            x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
-          }
+          if(coarseIntersectionTest) {
 
-          cnt1 += nDof1;
-          time_t start = clock();
+            sol->_Sol[cntIndex]->add(orElements[kproc][jel], 1);
 
-          region2.Reset();
-
-          unsigned cnt2 = 0;
-          for(unsigned jel = 0; jel < orGeomSend[kproc].size(); jel++) { // these elements are own by iproc
-
-            short unsigned jelGeom = orGeomSend[kproc][jel];
-            unsigned nDof2  = el->GetNVE(jelGeom, soluType);
-
-            for(unsigned k = 0; k < dim; k++) {
-              x2[k].assign(nDof2, 0.);
-            }
+            l2GMap2.resize(nDof2);
+            solu2.resize(nDof2);
             for(unsigned j = 0; j < nDof2; j++) {
-              for(unsigned k = 0; k < dim; k++) {
-                x2[k][j] = orXSend[kproc][k][cnt2 + j];
-              }
+              solu2[j] = orSolSend[kproc][cnt2 + j];
+              l2GMap2[j] = orDofsSend[kproc][cnt2 + j];
             }
-            minmax2.resize(dim);
-            for(unsigned k = 0; k < dim; k++) {
-              minmax2[k].resize(2);
-              x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
-              minmax2[k][0] = *x2MinMax[k].first;
-              minmax2[k][1] = *x2MinMax[k].second;
-            }
-            bool coarseIntersectionTest = true;
-            for(unsigned k = 0; k < dim; k++) {
-              if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
-                coarseIntersectionTest = false;
-                break;
-              }
-            }
+            region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
+          }
+          cnt2 += nDof2;
+        }
 
-            if(coarseIntersectionTest) {
-                
-              sol->_Sol[cntIndex]->add(orElements[kproc][jel], 1);  
-                
-              l2GMap2.resize(nDof2);
-              solu2.resize(nDof2);
-              for(unsigned j = 0; j < nDof2; j++) {
-                solu2[j] = orSolSend[kproc][cnt2 + j];
-                l2GMap2[j] = orDofsSend[kproc][cnt2 + j];
-              }
-              region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
-            }
-            cnt2 += nDof2;
+        pSearchTime += clock() - start;
+        start = clock();
+
+        if(region2.size() > 0) {
+          nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
+          bool printMesh = false;
+
+          std::vector<unsigned>jelIndex(region2.size());
+          for(unsigned j = 0; j < jelIndex.size(); j++) {
+            jelIndex[j] = j;
           }
 
-          pSearchTime += clock() - start;
-          start = clock();
+          nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                                *refineElement[ielGeom][soluType], region2, jelIndex,
+                                solu1, kappa1, delta1, printMesh);
 
-          if(region2.size() > 0) {
-            nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
-            bool printMesh = false;
-
-            std::vector<unsigned>jelIndex(region2.size());
-            for(unsigned j = 0; j < jelIndex.size(); j++) {
-              jelIndex[j] = j;
-            }
-
-            nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                                  *refineElement[ielGeom][soluType], region2, jelIndex,
-                                  solu1, kappa1, delta1, printMesh);
-
-
-            for(unsigned jel = 0; jel < region2.size(); jel++) {
-              /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
-                 This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
-                 the bufferization and exchange of information when closing the KK matrix and the RES vector */
-              KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
-              KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
-              RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
-            }
+          if(iproc == kproc ) {
+            RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
           }
-          pAssemblyTime += clock() - start;
-        }//end iel loop
-      }
+
+          for(unsigned jel = 0; jel < region2.size(); jel++) {
+            /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
+               This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
+               the bufferization and exchange of information when closing the KK matrix and the RES vector */
+            KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+            KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
+            RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
+          }
+        }
+        pAssemblyTime += clock() - start;
+      }//end iel loop
+      //}
       KK->flush();
     }
 
