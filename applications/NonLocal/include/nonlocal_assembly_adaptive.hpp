@@ -266,6 +266,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
+  unsigned cntIndex = mlSol->GetIndex("cnt");    // get the position of "u" in the ml_sol object
+
   std::vector < double >  solu1; // local solution for the nonlocal assembly
   std::vector < double >  solu2; // local solution for the nonlocal assembly
 
@@ -389,6 +391,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
   }
 
+  sol->_Sol[cntIndex]->zero();
+
+
   //BEGIN nonlocal assembly
   for(unsigned iel = offset; iel < offsetp1; iel++) {
 
@@ -488,6 +493,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
 
       if(coarseIntersectionTest) {
+        sol->_Sol[cntIndex]->add(jel, 1);  
         l2GMap2.resize(nDof2);
         solu2.resize(nDof2);
         for(unsigned j = 0; j < nDof2; j++) {
@@ -648,7 +654,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned lproc = 0; lproc < nprocs; lproc++) {
-      unsigned kproc = porder[lproc];  
+      unsigned kproc = porder[lproc];
       if(kproc != iproc) {
         unsigned cnt1 = 0;
         for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
@@ -710,6 +716,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             }
 
             if(coarseIntersectionTest) {
+                
+              sol->_Sol[cntIndex]->add(orElements[kproc][jel], 1);  
+                
               l2GMap2.resize(nDof2);
               solu2.resize(nDof2);
               for(unsigned j = 0; j < nDof2; j++) {
@@ -736,6 +745,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
                                   *refineElement[ielGeom][soluType], region2, jelIndex,
                                   solu1, kappa1, delta1, printMesh);
+
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
@@ -777,6 +787,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     KK->close();
   }
 
+  sol->_Sol[cntIndex]->close();
 
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
