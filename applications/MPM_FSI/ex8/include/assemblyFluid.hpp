@@ -91,8 +91,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.5;
-  double gammap = 0.05;
+  double gammac = 0.005;
+  double gammap = 0.005;
 
   std::cout.precision(10);
 
@@ -374,10 +374,10 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
             double psiT2 = (muFluid / rhoFluid + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt));
             double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2);
 
-            
+
             double C1 = gammac * ( muFluid + rhoFluid * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2 ) + rhoFluid * h2 / (theta * dt) );
-                       
-            
+
+
             for(unsigned I = 0; I < dim; I++) {
               for(unsigned i = 0; i < nDofsV1; i++) {
                 for(unsigned J = 0; J < dim; J++) {
@@ -658,6 +658,8 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
   start_time = clock();
 
+  // double area = 0.;
+
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -672,6 +674,8 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
     nodeFlag.resize(nDofs);
 
     unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
+
+
 
     if(eFlag == 2) {
 
@@ -723,10 +727,12 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
         vector < adept::adouble > solVgTheta(dim, 0.);
 
         vector < vector < adept::adouble > > gradSolVgTheta(dim);
+        vector < vector < adept::adouble > > gradSolVg(dim);
         vector<vector<adept::adouble> > DeltaSolVgTheta(dim);
 
         for(unsigned  k = 0; k < dim; k++) {
           gradSolVgTheta[k].assign(dim, 0.);
+          gradSolVg[k].assign(dim, 0.);
           DeltaSolVgTheta[k].resize(dim2, 0.);
         }
 
@@ -737,12 +743,12 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
             solVgTheta[j] += phiV[i] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
             for(unsigned  k = 0; k < dim; k++) {
               gradSolVgTheta[k][j] += gradPhiV[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]);
-              
+              gradSolVg[k][j] += gradPhiV[i * dim + j] * solV[k][i];
             }
           }
           for(unsigned j = 0; j < dim2; j++) {
             for(unsigned  k = 0; k < dim; k++) {
-              DeltaSolVgTheta[k][j]   += nablaphiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;  
+              DeltaSolVgTheta[k][j]  += nablaphiV[i * dim2 + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]) ;
             }
           }
         }
@@ -829,14 +835,12 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
             }
 
-            adept::adouble SupgDiv = tauC * divVgTheta * gradPhiV[i * dim + k];
-            adept::adouble SupgPressure = gradSolPg[k] * tauM_SupgPhi[i];
-
-            aResV[k][i] += (rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
-                            + advection
-                            + wlaplace +  SupgLaplace
-                            - gradPhiV[i * dim + k] * solPg + SupgPressure
-                            + SupgDiv
+            aResV[k][i] += ( rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
+                             + advection
+                             + wlaplace + SupgLaplace
+                             //- gradPhiV[i * dim + k] * solPg // the weak pressure gradient for now is replaced by the strong one below
+                             + gradSolPg[k] * (phiV[i] + tauM_SupgPhi[i]) // attention this involves also the strong pressure gradient
+                             + tauC * divVgTheta * gradPhiV[i * dim + k]
                            ) * weightV;
           }
         }
@@ -848,7 +852,6 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
             adept::adouble sLaplace = 0.;
             adept::adouble advection = 0.;
-
 
             for(unsigned j = 0; j < dim; j++) {
               unsigned kdim;
@@ -863,10 +866,10 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
 
             }
 
-
-            aResP[i] += (phiP[i] * gradSolVgTheta[k][k] +
-                         (rhoFluid * (solVg[k] - solVgOld[k]) / dt + advection +
-                          sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
+            aResP[i] += phiP[i] * (
+                          gradSolVg[k][k] +
+                          (rhoFluid * (solVg[k] - solVgOld[k]) / dt + advection +
+                           sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
 
           }
         }
@@ -909,14 +912,12 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
       s.clear_dependents();
 
     }
-
-
-
-
-
   }
 
 // *************************************
+
+//std::cout << "Area = "<<area<<std::endl;
+
   end_time = clock();
   AssemblyTime += (end_time - start_time);
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************

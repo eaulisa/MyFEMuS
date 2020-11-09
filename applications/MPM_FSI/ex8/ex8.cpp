@@ -15,43 +15,47 @@
 #include "adept.h"
 
 using namespace femus;
-Line *bulk;
-Line *lineI;
-void BuildFlag(MultiLevelSolution & mlSol);
-double eps;
 
-double beta = 0.25;
+
+#include "./include/RefineElement.hpp"
+
+double beta = 1./6.;
 double Gamma = 0.5;
-double theta = 0.5;
+double theta = 1.;
 double af = theta;
 double pInf = (1. + af) / (2. - af);
 double am = pInf / (1. + pInf);
 
 const elem_type *fem[2][6][5];
+RefineElement *refinedFem[6][3];
 
 //#include "../../Nitsche/support/particleInit.hpp"
 //#include "../../Nitsche/support/sharedFunctions.hpp"
 #include "./include/assemblySolid.hpp"
 #include "./include/assemblyBoundaryLayer.hpp"
 #include "./include/assemblyFluid.hpp"
+
+
 using namespace femus;
+
+
 
 double dt = 1.;
 
 double SetVariableTimeStep(const double time) {
-  if(time < 2.5) dt = 0.05;
-  else dt = 0.0125;
+  if(time < 2.) dt = 0.05;
+  else dt = 0.005;
 
   return dt;
 }
 
 void Assemble(MultiLevelProblem& ml_prob);
 
-void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0);
+void InitPElement(MultiLevelSolution & mlSol);
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol);
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol);
 
-void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine);
+void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine, const unsigned &lmax);
 void DeleteFem();
 
 bool SetBoundaryCondition(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
@@ -86,8 +90,10 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   }
 
   else if(!strcmp(name, "P")) {
-    dirichlet = 0;
-    value = 0;
+    if(2 != facename)  {
+      dirichlet = 0;
+      value = 0;
+    }
   }
 
   return dirichlet;
@@ -114,17 +120,62 @@ int main(int argc, char **args) {
 //   double E = 2.e05;
 //   double muf = 1.0e-3;
 
+  unsigned lmax = 2;
+
+  NewFem("fifth", "twenty fifth", lmax);
+
+//   std::vector <std::vector <double> > xv = {{ -1., 1., 1., -1.}, { -1., -1., 1., 1.}};
+//   std::vector <double>  il(lmax);
+//
+//   refinedFem[3][0]->InitElement1(xv);
+//
+//   double area = 0.;
+//
+//   int l = 0;
+//   for(il[l] = 0; il[l] < refinedFem[3][0]->GetLevelSize(l); il[l]++) {
+//     if(l < lmax - 1 && rand() > RAND_MAX/2) { //refine
+//     //  std::cout << l <<" "<< il[l] <<std::endl;
+//       refinedFem[3][0]->BuildElement1Prolongation(l, il[l]);  // this creates the next level for the il[l] element
+//       l++;// move to the next level
+//       il[l] = -1; // this reset the il[l++] index to zero (notice that the il[l]++, will augment it by one)
+//     }
+//     else{ //integrate
+//
+//      // std::cout << l <<" "<< il[l] <<std::endl;
+//       const std::vector<std::vector<double>> & xvl = refinedFem[3][0]->GetElement1NodeCoordinates(l, il[l]);
+//
+//       area += (xvl[0][2] - xvl[0][0]) * (xvl[1][2] - xvl[1][0]);
+//
+//       for(unsigned i = 0; i < xvl[0].size();i ++){
+//         for(unsigned k = 0; k < xvl.size();k++){
+//           std::cout << xvl[k][i] << " ";
+//         }
+//         std::cout << std::endl;
+//       }
+//       std::cout << std::endl;
+//
+//       while(l > 0 && il[l] + 1 == refinedFem[3][0]->GetLevelSize(l)) {
+//         //once all the elements have been integrated move to the previous level
+//         l--;
+//       }
+//     }
+//   }
+//
+//   std::cout << area <<std::endl;
+//
+//   DeleteFem();
+//   return 1;
 
 
   double rhof = 1000.;
   double muf = 1.;
-  double rhos = 10000.;
+  double rhos = 1000.;
   double nu = 0.4;
   double E = 1400000;
 
 
-  beta = 0.3;
-  Gamma = 0.5;
+//   beta = 0.3;
+//   Gamma = 0.5;
 
 
   Parameter par(Lref, Uref);
@@ -133,11 +184,11 @@ int main(int argc, char **args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2Dd.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turek2Db.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels,
                    numberOfUniformLevels, NULL);
 
-  NewFem("fifth", "twenty fifth");
+
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
   numberOfUniformLevels = 1;
@@ -160,11 +211,6 @@ int main(int argc, char **args) {
   mlSol.AddSolution("pElem", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
 
-  mlSol.AddSolution("pckEl", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("pckVel", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("pckPre", LAGRANGE, FIRST, 0, false);
-
-
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("DY", LAGRANGE, femOrder, 0, false);
   if(dim > 2) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 0, false);
@@ -177,14 +223,9 @@ int main(int argc, char **args) {
   mlSol.AddSolution("AY", LAGRANGE, femOrder, 0, false);
   if(dim > 2) mlSol.AddSolution("AZ", LAGRANGE, femOrder, 0, false);
 
-
-
-  //mlSol.SetIfFSI(true);
-
   mlSol.Initialize("All");
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-  //mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition1);
 
   // ******* Set boundary conditions *******
   mlSol.GenerateBdc("UX", "Time_dependent");
@@ -237,7 +278,8 @@ int main(int argc, char **args) {
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
   BuildFlagSolidRegion(mlSol);
-  InitPElement(mlSol, std::vector <double> {0.4, 0., 0.});
+
+  InitPElement(mlSol);
 
   mlSol.SetWriter(VTK);
 
@@ -302,12 +344,12 @@ void Assemble(MultiLevelProblem& ml_prob) {
   myKK->zero();
   myRES->zero();
 
-  //AssembleSolid(ml_prob);
-  //AssembleSolidInterface(ml_prob);
+  AssembleSolid(ml_prob);
+  AssembleSolidInterface(ml_prob);
   AssembleBoundaryLayer(ml_prob);
   AssembleBoundaryLayerProjection(ml_prob);
-// AssembleFluid(ml_prob);
-// AssembleGhostPenalty(ml_prob);
+  AssembleFluid(ml_prob);
+  AssembleGhostPenalty(ml_prob);
 
   myKK->close();
   myRES->close();
@@ -315,8 +357,22 @@ void Assemble(MultiLevelProblem& ml_prob) {
   //double tolerance = 1.0e-12 * myKK->linfty_norm();
   //myKK->RemoveZeroEntries(tolerance);
 
+//   PetscInt row = 16133 * 0 + 462;
+//   PetscInt ncols;
+//   const PetscInt *cols;
+//   const PetscScalar *vals;
+//   MatGetRow((static_cast<PetscMatrix*>(myKK))->mat(),row,&ncols,&cols,&vals);
 
-// myKK->draw();
+//   for(unsigned i = 0; i<ncols; i++){
+//     unsigned minus = 0;
+//     if(cols[i] > 16133 * 2) minus = 2;
+//     else if(cols[i] > 16133) minus = 1;
+//     std::cout << cols[i] - minus * 16133 << " " << vals[i]<< std::endl;
+//   }
+
+// MatRestoreRow((static_cast<PetscMatrix*>(myKK))->mat(),row,&ncols,&cols,&vals);
+
+  //myKK->draw();
 
   end_time = clock();
   AssemblyTime += (end_time - start_time);
@@ -378,7 +434,7 @@ void BuildFlagSolidRegion(MultiLevelSolution & mlSol) {
 }
 
 
-void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
+void InitPElement(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
@@ -398,9 +454,6 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
     int elem;
   } in, out;
 
-  in.dist2 = 10e10;
-
-
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     for(unsigned iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
       unsigned flag_mat;
@@ -418,19 +471,21 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
           sol->_Sol[pElemIndex]->set(iel, -1.);
         }
       }
-      
+
+
       MPI_Bcast(&flag_mat, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
       if(flag_mat > 2) {
         MPI_Bcast(xc.data(), xc.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
-        
-        in.dist2 = 10e10;
+
+        in.dist2 = 1000;
+        in.elem = INT_MAX;
         for(unsigned jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
 
           unsigned jflag_mat = msh->GetElementMaterial(jel);
           if(jflag_mat == 2) {
 
-            unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+            unsigned nDofs = msh->GetElementDofNumber(jel, 2);
             unsigned jdofX = msh->GetSolutionDof(nDofs - 1, jel, 2); //center of the element dof (coordinates)
 
             double dist2 = 0.;
@@ -443,9 +498,9 @@ void InitPElement(MultiLevelSolution & mlSol, const std::vector <double> &x0) {
             }
           }
         }
-
-        MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, PETSC_COMM_WORLD);
-
+       
+        MPI_Reduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, kproc, PETSC_COMM_WORLD);
+        
         if(iproc == kproc) {
           sol->_Sol[pElemIndex]->set(iel, out.elem);
         }
@@ -499,7 +554,7 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
 
         double Vold = (*sol->_Sol[indexSolV[k]])(i);
         double Aold = (*sol->_Sol[indexSolA[k]])(i);
-        double Anew = (Dnew - Dold) / (beta * dt * dt) - Vold / (beta * dt) + ((beta - 0.5) * Aold) / beta;
+        double Anew = (Dnew - Dold) / (beta * dt * dt) - Vold / (beta * dt) + Aold * (beta - 0.5) / beta;
         double Vnew = Vold + (1 - Gamma) * dt * Aold + Gamma * dt * Anew;
 
         sol->_Sol[indexSolD[k]]->set(i, Dnew);
@@ -519,78 +574,7 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
 
 
 
-void BuildFlag(MultiLevelSolution & mlSol) {
-
-  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
-  Solution *sol = mlSol.GetSolutionLevel(level);
-  Mesh *msh = mlSol._mlMesh->GetLevel(level);
-  unsigned iproc = msh->processor_id();
-
-  unsigned eflagIndex = mlSol.GetIndex("eflag");
-  unsigned nflagIndex = mlSol.GetIndex("nflag");
-
-  unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
-
-  std::vector < Marker * >particle3 = bulk->GetParticles();
-  std::vector < unsigned >markerOffset3 = bulk->GetMarkerOffset();
-  unsigned imarker3 = markerOffset3[iproc];
-
-  sol->_Sol[eflagIndex]->zero();
-  sol->_Sol[nflagIndex]->zero();
-
-  for(int iel = msh->_elementOffset[iproc];
-      iel < msh->_elementOffset[iproc + 1]; iel++) {
-
-    bool inside = false;
-    bool outside = false;
-    bool interface = false;
-
-    while(imarker3 < markerOffset3[iproc + 1]
-          && iel > particle3[imarker3]->GetMarkerElement()) {
-      imarker3++;
-    }
-    while(imarker3 < markerOffset3[iproc + 1]
-          && iel == particle3[imarker3]->GetMarkerElement()) {
-      double dg1 = particle3[imarker3]->GetMarkerDistance();
-      if(dg1 < -1.0e-10) {
-        outside = true;
-        if(inside) {
-          interface = true;
-          break;
-        }
-      }
-      else if(dg1 > 1.0e-10) {
-        inside = true;
-        if(outside) {
-          interface = true;
-          break;
-        }
-      }
-      else {
-        interface = true;
-        break;
-      }
-      imarker3++;
-    }
-    if(interface) {
-      sol->_Sol[eflagIndex]->set(iel, 1.);
-      unsigned nDofu = msh->GetElementDofNumber(iel, nflagType);      // number of solution element dofs
-      for(unsigned i = 0; i < nDofu; i++) {
-        unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
-        sol->_Sol[nflagIndex]->set(iDof, 1.);
-      }
-    }
-    else if(inside) {
-      sol->_Sol[eflagIndex]->set(iel, 2.);
-    }
-  }
-  sol->_Sol[eflagIndex]->close();
-  sol->_Sol[nflagIndex]->close();
-}
-
-
-
-void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine) {
+void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine, const unsigned &lmax) {
 
   fem[0][0][0] = new const elem_type_3D("hex", "linear", GaussOrderCoarse);
   fem[0][0][1] = new const elem_type_3D("hex", "quadratic", GaussOrderCoarse);
@@ -665,6 +649,30 @@ void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine) {
   fem[1][5][3] = new const elem_type_1D("line", "constant", GaussOrderFine);
   fem[1][5][4] = new const elem_type_1D("line", "disc_linear", GaussOrderFine);
 
+
+  refinedFem[0][0] = new RefineElement(lmax, "hex", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[0][1] = new RefineElement(lmax, "hex", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[0][2] = new RefineElement(lmax, "hex", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
+
+  refinedFem[1][0] = new RefineElement(lmax, "tet", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[1][1] = new RefineElement(lmax, "tet", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[1][2] = new RefineElement(lmax, "tet", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
+
+  refinedFem[2][0] = new RefineElement(lmax, "wedge", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[2][1] = new RefineElement(lmax, "wedge", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[2][2] = new RefineElement(lmax, "wedge", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
+
+  refinedFem[3][0] = new RefineElement(lmax, "quad", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[3][1] = new RefineElement(lmax, "quad", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[3][2] = new RefineElement(lmax, "quad", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
+
+  refinedFem[4][0] = new RefineElement(lmax, "tri", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[4][1] = new RefineElement(lmax, "tri", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[4][2] = new RefineElement(lmax, "tri", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
+
+  refinedFem[5][0] = new RefineElement(lmax, "line", "linear", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[5][1] = new RefineElement(lmax, "line", "quadratic", GaussOrderCoarse, "zero", "lobatto");
+  refinedFem[5][2] = new RefineElement(lmax, "line", "biquadratic", GaussOrderCoarse, "zero", "lobatto");
 }
 
 void DeleteFem() {
@@ -675,4 +683,12 @@ void DeleteFem() {
       }
     }
   }
+
+  for(unsigned j = 0; j < 6; j++) {
+    for(unsigned k = 0; k < 3; k++) {
+      delete refinedFem[j][k];
+    }
+  }
+
+
 }
