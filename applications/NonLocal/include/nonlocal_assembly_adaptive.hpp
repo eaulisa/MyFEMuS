@@ -579,8 +579,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     MPI_Status status;
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 2; m++) {
-        MPI_Wait(&reqsRecv[kproc][m], &status);
-        MPI_Wait(&reqsSend[kproc][m], &status);
+          
+        int test = MPI_Wait(&reqsRecv[kproc][m], &status);
+        if(test != MPI_SUCCESS){
+          abort();
+        }
+        
+        test = MPI_Wait(&reqsSend[kproc][m], &status);
+        if(test != MPI_SUCCESS){
+          abort();
+        }
+        
       }
     }
 
@@ -627,8 +636,15 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 3 + dim; m++) {
-        MPI_Wait(&reqsRecv[kproc][m], &status);
-        MPI_Wait(&reqsSend[kproc][m], &status);
+        int test = MPI_Wait(&reqsRecv[kproc][m], &status);
+        if(test != MPI_SUCCESS){
+          abort();
+        }
+        
+        test = MPI_Wait(&reqsSend[kproc][m], &status);
+        if(test != MPI_SUCCESS){
+          abort();
+        }
       }
     }
     std::cout << "[" << iproc << "]  ";
