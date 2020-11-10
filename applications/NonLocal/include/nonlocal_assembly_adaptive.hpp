@@ -295,7 +295,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level + 2);
+  double dMax = 0.133333 * pow(0.66, level + 3);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
@@ -351,18 +351,18 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
   }
-  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(unsigned k = 0; k < dim; k++) {
-      unsigned kk = kproc * (dim * 2) + k * dim;
-      //std::cout << kproc << " " << k << " " << kprocMinMax[kk] << " " << kprocMinMax[kk + 1] << "\n";
-    }
-  }
+//   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//     for(unsigned k = 0; k < dim; k++) {
+//       unsigned kk = kproc * (dim * 2) + k * dim;
+//       //std::cout << kproc << " " << k << " " << kprocMinMax[kk] << " " << kprocMinMax[kk + 1] << "\n";
+//     }
+//   }
 
   std::vector < std::vector < unsigned > > orElements(nprocs);
-  std::vector < unsigned > orCntSend(nprocs, 0);
-  std::vector < unsigned > orCntRecv(nprocs);
-  std::vector < unsigned > orSizeSend(nprocs, 0);
-  std::vector < unsigned > orSizeRecv(nprocs);
+  std::vector < unsigned > orCntSend(nprocs,0);
+  std::vector < unsigned > orCntRecv(nprocs,0);
+  std::vector < unsigned > orSizeSend(nprocs,0);
+  std::vector < unsigned > orSizeRecv(nprocs,0);
   std::vector < std::vector < unsigned > > orGeomSend(nprocs);
   std::vector < std::vector < unsigned > > orGeomRecv(nprocs);
 
@@ -397,13 +397,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //BEGIN nonlocal assembly
   for(unsigned iel = offset; iel < offsetp1; iel++) {
 
-    short unsigned ielGeom;
-    short unsigned ielGroup;
-    unsigned nDof1;
-
-    ielGeom = msh->GetElementType(iel);
-    ielGroup = msh->GetElementGroup(iel);
-    nDof1  = msh->GetElementDofNumber(iel, soluType);
+    unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
 
     l2GMap1.resize(nDof1);
     solu1.resize(nDof1);

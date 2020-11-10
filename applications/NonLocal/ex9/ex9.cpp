@@ -87,7 +87,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
 unsigned numberOfUniformLevels = 2;
 
-unsigned numberOfUniformLevelsFine = 1;
+unsigned numberOfUniformLevelsFine = 2;
 
 int main(int argc, char** argv) {
 
@@ -138,9 +138,10 @@ int main(int argc, char** argv) {
 //   mlMsh.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7_bis.neu", "eighth", scalingFactor);
 //      mlMsh.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8_bis.neu", "eighth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
-
+    
   //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
   mlMshFine.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
+  
 // mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5.neu", "second", scalingFactor);
 //   mlMshFine.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6.neu", "second", scalingFactor);
@@ -153,9 +154,8 @@ int main(int argc, char** argv) {
 //     mlMshFine.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8_bis.neu", "eighth", scalingFactor);
   mlMshFine.RefineMesh(numberOfUniformLevelsFine + numberOfSelectiveLevels, numberOfUniformLevelsFine , NULL);
 
-//   mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
-
-//   mlMshFine.EraseCoarseLevels (numberOfUniformLevelsFine - 1);
+  mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
+  mlMshFine.EraseCoarseLevels (numberOfUniformLevelsFine - 1);
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -185,12 +185,17 @@ int main(int argc, char** argv) {
   mlSol.Initialize("u_exact", InitalValueU);
   mlSol.Initialize("u", InitalValueU);
 
+  std::cout<<" AAA \n"<<std::flush;
+  
   // ******* Set boundary conditions *******
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSolFine.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
   mlSolFine.GenerateBdc("All");
 
+  
+  std::cout<<" BBB \n"<<std::flush;
+  
   // ******* Set volume constraints for the nonlocal *******
   std::vector<unsigned> volumeConstraintFlags(3);
   volumeConstraintFlags[0] = 5;
@@ -228,7 +233,10 @@ int main(int argc, char** argv) {
   system.SetNumberPostSmoothingStep(1);
 
   // ******* Set Preconditioner *******
-  system.SetLinearEquationSolverType(FEMuS_DEFAULT);
+    
+  system.SetLinearEquationSolverType (FEMuS_DEFAULT);
+  system.SetOuterSolver (PREONLY);
+  
 
   system.SetSparsityPatternMinimumSize(10000u);    //TODO tune
 
