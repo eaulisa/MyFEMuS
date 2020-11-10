@@ -295,7 +295,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level + 3);
+  double dMax = 0.133333 * pow(0.66, level + 2);
   double eps = 0.125 * dMax;
 
   std::cout << "level = " << level << " ";
@@ -359,10 +359,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   }
 
   std::vector < std::vector < unsigned > > orElements(nprocs);
-  std::vector < unsigned > orCntSend(nprocs,0);
-  std::vector < unsigned > orCntRecv(nprocs,0);
-  std::vector < unsigned > orSizeSend(nprocs,0);
-  std::vector < unsigned > orSizeRecv(nprocs,0);
+  std::vector < unsigned > orCntSend(nprocs, 0);
+  std::vector < unsigned > orCntRecv(nprocs, 0);
+  std::vector < unsigned > orSizeSend(nprocs, 0);
+  std::vector < unsigned > orSizeRecv(nprocs, 0);
   std::vector < std::vector < unsigned > > orGeomSend(nprocs);
   std::vector < std::vector < unsigned > > orGeomRecv(nprocs);
 
@@ -451,6 +451,24 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
       //}
     }
+
+    std::vector <double> res1(nDof1, 0.);
+    double weight1;
+    const double *phi1;
+
+    // *** Gauss point loop ***
+    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      msh->_finiteElement[ielGeom][soluType]->GetGaussQuantities(x1, ig, weight1, phi1);
+      // *** phi_i loop ***
+      for(unsigned i = 0; i < nDof1; i++) {
+        res1[i] -= -2. * phi1[i] * weight1;
+      } // end phi_i loop
+    } // end gauss point loop
+
+    RES->add_vector_blocked(res1, l2GMap1);
+
+
 
 
 
@@ -757,9 +775,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
                                 *refineElement[ielGeom][soluType], region2, jelIndex,
                                 solu1, kappa1, delta1, printMesh);
 
-          if(iproc == kproc ) {
-            RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
-          }
+//           if(iproc == kproc ) {
+//             RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
+//           }
 
           for(unsigned jel = 0; jel < region2.size(); jel++) {
             /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
