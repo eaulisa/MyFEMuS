@@ -262,7 +262,6 @@ int main(int argc, char** args) {
   bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
   
 
-  std::cout<<"AAAAAAAAAAAAAAAAAA\n"<<std::flush;
   
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
