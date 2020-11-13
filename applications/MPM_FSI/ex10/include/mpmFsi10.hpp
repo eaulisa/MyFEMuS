@@ -4,12 +4,13 @@
 using namespace femus;
 
 
-double Gamma = 0.5;
-double theta = 0.9;
+
+double theta = 0.5;
 double af = theta; // am < af <= 0.5
 double pInf = (1. + af) / (2. - af);
-double am = 0.5; //pInf / (1. + pInf);
+double am = 0.4; //pInf / (1. + pInf);
 double beta = 1./4. + 1./2.* (af - am) ;
+double Gamma = 0.5 - am + af;
 //double gravity[3] = {9810, 0., 0.};
 double gravity[3] = {0, 0., 0.};
 
@@ -151,8 +152,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 1.;
-  double gammap = 1.;
+  double gammac = 0.05;
+  double gammap = 0.05;
 
   std::cout.precision(10);
 
