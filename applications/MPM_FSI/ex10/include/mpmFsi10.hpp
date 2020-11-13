@@ -4,13 +4,12 @@
 using namespace femus;
 
 
-
-double theta = 0.5;
-double af = theta; // am < af <= 0.5
+double Gamma = 0.5; // goes with the new one, correct
+double theta = 0.9; // theta = 1. is backward Euler, goes with the new one, correct
+double af = theta; // goes with old one TODO af = 1- theta, change the formulation
 double pInf = (1. + af) / (2. - af);
-double am = 0.4; //pInf / (1. + pInf);
-double beta = 1./4. + 1./2.* (af - am) ;
-double Gamma = 0.5 - am + af;
+double am = 0.5; //pInf / (1. + pInf); // goes with old one TODO, change the formulation
+double beta = 1./4. + 1./2.* (af - am) ; // goes with the new one, correct
 //double gravity[3] = {9810, 0., 0.};
 double gravity[3] = {0, 0., 0.};
 
