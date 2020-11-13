@@ -928,8 +928,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
-                    double thetaM = 10.0 * muFluid / h;
-                    double thetaL = 10.0 * (rhoFluid * h / (theta * dt) + muFluid / h);
+                    double thetaM = 0.001 * muFluid / h;
+                    double thetaL = 0.001 * (rhoFluid * h / (theta * dt) + muFluid / h);
                     //thetaM = thetaL;
 
                     //std::cout << thetaM << " " << thetaL << std::endl;
@@ -938,7 +938,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                       for(unsigned i = 0; i < jfaceDofs1; i++) {
                         unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                         for(unsigned k = 0; k < dim; k++) {
-                          aResD[k][if2e] += (tau[k] - solPg * N[k]) * (-phiD[i]) * weightD;
+                          aResD[k][if2e] += tau[k] * (-phiD[i]) * weightD;
                           aResD[k][if2e] += thetaM * (vf[k] - vs[k]) * (-phiD[i]) * weightD;
                           for(unsigned j = 0; j < dim; j++) {
                             aResD[k][if2e] +=  thetaL * (vf[j] - vs[j]) * N[j] * (-phiD[i]) * N[k] * weightD;
@@ -954,8 +954,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                           aResV[k][i] +=  thetaM * (vf[k] - vs[k]) * phiV[i] * weightD;
 
                           for(unsigned j = 0; j < dim; j++) {
-                            aResV[k][i] += -(muFluid * gradPhiV[i * dim + j] * N[j] * (vf[k] - vs[k])) * weightD;
-                            aResV[k][i] += -(muFluid * gradPhiV[i * dim + j] * N[k] * (vf[j] - vs[j])) * weightD;
+                            aResV[k][i] += (muFluid * gradPhiV[i * dim + j] * N[j] * (vf[k] - vs[k])) * weightD;
+                            aResV[k][i] += (muFluid * gradPhiV[i * dim + j] * N[k] * (vf[j] - vs[j])) * weightD;
                             aResV[k][i] +=  thetaL * (vf[j] - vs[j]) * N[j] * phiV[i] * N[k] * weightD;
                           }
                         }

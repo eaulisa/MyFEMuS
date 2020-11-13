@@ -19,12 +19,14 @@ using namespace femus;
 
 #include "./include/RefineElement.hpp"
 
-double beta = 1./6.;
+
 double Gamma = 0.5;
-double theta = 1.;
+double theta = 0.75;
 double af = theta;
 double pInf = (1. + af) / (2. - af);
-double am = pInf / (1. + pInf);
+double am = 0.5; //pInf / (1. + pInf);
+double beta = 1. / 4. + 1. / 2. * (af - am);
+
 
 const elem_type *fem[2][6][5];
 RefineElement *refinedFem[6][3];
@@ -169,7 +171,7 @@ int main(int argc, char **args) {
 
   double rhof = 1000.;
   double muf = 1.;
-  double rhos = 1000.;
+  double rhos = 10000.;
   double nu = 0.4;
   double E = 1400000;
 
@@ -498,9 +500,9 @@ void InitPElement(MultiLevelSolution & mlSol) {
             }
           }
         }
-       
+
         MPI_Reduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, kproc, PETSC_COMM_WORLD);
-        
+
         if(iproc == kproc) {
           sol->_Sol[pElemIndex]->set(iel, out.elem);
         }
