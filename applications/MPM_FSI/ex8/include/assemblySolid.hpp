@@ -201,7 +201,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
         for(unsigned  k = 0; k < dim; k++) {
           vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX);
-          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) +  af * solD[k][i] + (1. - af) * solDOld[k][i];
+          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) +  (1. - af) * solD[k][i] + af * solDOld[k][i];
         }
       }
 
@@ -236,7 +236,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
             solAgOld[j] += phiD[i] * solAOld[j][i];
 
             for(unsigned  k = 0; k < dim; k++) {
-              gradSolDgHat[k][j] += (af * solD[k][i] + (1. - af) * solDOld[k][i]) * gradPhiDHat[i * dim + j];
+              gradSolDgHat[k][j] += ( (1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiDHat[i * dim + j];
             }
           }
         }
@@ -246,7 +246,7 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
         std::vector < adept::adouble > solAgAm(dim);
         for(unsigned  k = 0; k < dim; k++) {
           adept::adouble solAgk = (solDg[k] - solDgOld[k]) / (beta * dt * dt) - solVgOld[k] / (beta * dt) + solAgOld[k] * (beta - 0.5) / beta; //NEWMARK ACCELERATION
-          solAgAm[k] = (am * solAgk + (1. - am) * solAgOld[k]);
+          solAgAm[k] = (1. - am) * solAgk + am * solAgOld[k];
         }
 
 
@@ -287,25 +287,23 @@ void AssembleSolid(MultiLevelProblem& ml_prob) {
 
         adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
         adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
-        adept::adouble Cauchy[3][3];
+        adept::adouble sigma[3][3];
 
 
         for(unsigned j = 0; j < 3; j++) {
           for(unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
+            sigma[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
           }
         }
 
         //END computation of the Cauchy Stress
         for(unsigned i = 0; i < nDofs; i++) {
-          adept::adouble CauchyDIR[3] = {0., 0., 0.};
-          for(unsigned j = 0.; j < dim; j++) {
-            for(unsigned k = 0.; k < dim; k++) {
-              CauchyDIR[j] += gradPhiD[i * dim + k] * Cauchy[j][k];
+          for(unsigned k = 0.; k < dim; k++) {
+            adept::adouble cauchy = 0;
+            for(unsigned j = 0.; j < dim; j++) {
+              cauchy += gradPhiD[i * dim + j] * sigma[k][j];
             }
-          }
-          for(unsigned k = 0; k < dim; k++) {
-            aResD[k][i] += (rhoMpm * phiD[i] * solAgAm[k] + CauchyDIR[k]) * weightD;
+            aResD[k][i] += (rhoMpm * phiD[i] * solAgAm[k] + cauchy + 0. * rhoMpm * phiD[i] * (k == 1)) * weightDHat;
           }
         }
         //continuity block
@@ -589,7 +587,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
             for(unsigned i = 0; i < jfaceDofs1; i++) {
               unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
               for(unsigned k = 0; k < dim; k++) {
-                xf1[k][i] =  vx1Hat[k][if2e] + af * solD1[k][if2e] + (1. - af) * solD1Old[k][if2e];
+                xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD1[k][if2e] + af * solD1Old[k][if2e];
               }
             }
             unsigned coarse = 0;
@@ -839,7 +837,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                   for(unsigned i = 0; i < jfaceDofs1; i++) {
                     unsigned if2e = el->GetIG(ielt1, jface1, i); // local mapping from face to element
                     for(unsigned k = 0; k < dim; k++) {
-                      xf1[k][i] =  vx1Hat[k][if2e] + af * solD[k][if2e] + (1. - af) * solD1Old[k][if2e];
+                      xf1[k][i] =  vx1Hat[k][if2e] + (1. - af) * solD[k][if2e] + af * solD1Old[k][if2e];
                     }
                   }
 
@@ -902,7 +900,7 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                                   + solA1gOld[k] * (beta - 0.5) / beta;
                       solV1g[k] = solV1gOld[k] + dt * ((1. - Gamma) * solA1gOld[k] + Gamma * solA1g[k]);
 
-                      vs[k] = af * solV1g[k] + (1. - af) * solV1gOld[k];
+                      vs[k] = (1. - af) * solV1g[k] +  af * solV1gOld[k];
 
                     }
 
@@ -928,8 +926,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
-                    double thetaM = 0.001 * muFluid / h;
-                    double thetaL = 0.001 * (rhoFluid * h / (theta * dt) + muFluid / h);
+                    double thetaM = 1 * muFluid / h;
+                    double thetaL = 1 * (rhoFluid * h / (theta * dt) + muFluid / h);
                     //thetaM = thetaL;
 
                     //std::cout << thetaM << " " << thetaL << std::endl;

@@ -20,13 +20,13 @@ using namespace femus;
 #include "./include/RefineElement.hpp"
 
 
-double Gamma = 0.5;
-double theta = 0.75;
-double af = theta;
-double pInf = (1. + af) / (2. - af);
-double am = 0.5; //pInf / (1. + pInf);
-double beta = 1. / 4. + 1. / 2. * (af - am);
 
+double theta = 0.5;
+double af = 1. - theta;
+// double pInf = (1. + af) / (2. - af);
+double am = af - 0.1; //pInf / (1. + pInf);
+double beta = 0.25 + 0.5 * (af - am);
+double Gamma = 0.5 + (af - am);
 
 const elem_type *fem[2][6][5];
 RefineElement *refinedFem[6][3];
@@ -45,8 +45,8 @@ using namespace femus;
 double dt = 1.;
 
 double SetVariableTimeStep(const double time) {
-  if(time < 2.) dt = 0.05;
-  else dt = 0.005;
+  if(time < 6.) dt = 0.05;
+  else dt = 0.01;
 
   return dt;
 }
@@ -174,11 +174,6 @@ int main(int argc, char **args) {
   double rhos = 10000.;
   double nu = 0.4;
   double E = 1400000;
-
-
-//   beta = 0.3;
-//   Gamma = 0.5;
-
 
   Parameter par(Lref, Uref);
 
@@ -543,10 +538,6 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
   }
   unsigned solType = mlSol.GetSolutionType(&varname[0][0]);
 
-  for(unsigned k = 0; k < dim; k++) {
-    *sol->_Sol[indexSolV[k]] = *sol->_Sol[indexSolU[k]];
-  }
-
   for(int i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     if((*sol->_Sol[nflagIndex])(i) >= 4) {
       for(unsigned k = 0 ; k < dim ; k++) {
@@ -563,6 +554,12 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
         sol->_Sol[indexSolV[k]]->set(i, Vnew);
         sol->_Sol[indexSolA[k]]->set(i, Anew);
 
+      }
+    }
+    else {
+      for(unsigned k = 0 ; k < dim ; k++) {
+        double Vnew = (*sol->_Sol[indexSolU[k]])(i);
+        sol->_Sol[indexSolV[k]]->set(i, Vnew);
       }
     }
   }

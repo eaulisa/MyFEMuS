@@ -9,7 +9,7 @@ double theta = 0.9; // theta = 1. is backward Euler, goes with the new one, corr
 double af = theta; // goes with old one TODO af = 1- theta, change the formulation
 double pInf = (1. + af) / (2. - af);
 double am = 0.5; //pInf / (1. + pInf); // goes with old one TODO, change the formulation
-double beta = 1./4. + 1./2.* (af - am) ; // goes with the new one, correct
+double beta = 1. / 4. + 1. / 2.* (af - am) ; // goes with the new one, correct
 //double gravity[3] = {9810, 0., 0.};
 double gravity[3] = {0, 0., 0.};
 
@@ -872,21 +872,66 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
 
+      if(eFlag == 0) { //bulk fluid: smooth extension nabla D = 0
+
+        adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned k = 0; k < dim; k++) {
+            F[j][k] += gradSolDgHat[j][k];
+          }
+        }
+
+        adept::adouble J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
+                                - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
 
 
-      for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
-        for(unsigned k = 0; k < dim; k++) {
+        adept::adouble B[3][3];
+        for(unsigned i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            B[i][j] = 0.;
+            for(unsigned k = 0; k < 3; k++) {
+              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+              B[i][j] += F[i][k] * F[j][k];
+            }
+          }
+        }
+
+        adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+        adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+        adept::adouble sigma[3][3];
+
+        double E = 1;
+        double nu = 0.4;
+
+        double mu = E / (2. * (1. + nu));
+        double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
+
+        for(unsigned j = 0; j < 3; j++) {
+          for(unsigned k = 0; k < 3; k++) {
+            sigma[j][k] = lambda * log(J_hat) / J_hat * Id2th[j][k] + mu / J_hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
+          }
+        }
+        //END computation of the Cauchy Stress
+        for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
           if(nodeFlag[i] == 0) {
-            if(eFlag == 0) { //bulk fluid: smooth extension nabla D = 0
-              adept::adouble wlaplaceD  = 0.;
-              for(unsigned  j = 0; j < dim; j++) {
-                wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
+            for(unsigned k = 0.; k < dim; k++) {
+              adept::adouble cauchy = 0.;
+              for(unsigned j = 0.; j < dim; j++) {
+                cauchy += sigma[k][j] * gradPhi[i * dim + j] ;
               }
-              aResD[k][i] +=  wlaplaceD * weightHat;
+              aResD[k][i] += cauchy * weight;
             }
           }
         }
       }
+
+
+//               adept::adouble wlaplaceD  = 0.;
+//               for(unsigned  j = 0; j < dim; j++) {
+//                 wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
+//               }
+//               aResD[k][i] +=  wlaplaceD * weightHat;
+
 
 
       if(eFlag == 0) {   // only fluid cells
@@ -897,22 +942,21 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         msh->_finiteElement[ielt][solType]->GetJacobian(vx, ig, weight, JacMatrix);
 
 
-
-
-        vector<adept::adouble> gradSolPg(dim, 0.);
-        if(solTypeP < 3) {
-          for(unsigned i = 0; i < nDofsP; i++) {
-            for(unsigned k = 0; k < dim; k++) {
-              gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
-            }
+        if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases
+          for(unsigned j = 0; j < dim; j++) {
+            gradPhiP[0 * dim + j]  = 0.;
           }
-
-        }
-        else if(solTypeP == 4) {
           for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              gradSolPg[i] +=  solP[ 1 + j ] * JacMatrix[j][i];
+              gradPhiP[( i + 1) * dim + j] = JacMatrix[i][j];
             }
+          }
+        }
+
+        vector<adept::adouble> gradSolPg(dim, 0.);
+        for(unsigned i = 0; i < nDofsP; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
           }
         }
 
@@ -1338,7 +1382,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
             solAp[k] = (solDp[k] - solDpOld[k]) / (beta * dt * dt) - solVpOld[k] / (beta * dt) + (beta - 0.5) / beta * solApOld[k]; // Newmark acceleration
             solApAm[k] = am * solAp[k] + (1. - am) * solApOld[k]; // generalized alpha acceleration
-            v2[k] = solVpOld[k] + af *(dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
+            v2[k] = solVpOld[k] + af * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
 
           }
 

@@ -136,7 +136,7 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
         for(unsigned  k = 0; k < dim; k++) {
           vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX);
-          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + af * solD[k][i] + (1. - af) * solDOld[k][i];
+          vx[k][i] = (*msh->_topology->_Sol[k])(idofX) + (1. - af) * solD[k][i] + af * solDOld[k][i];
         }
       }
 
@@ -156,7 +156,7 @@ void AssembleBoundaryLayer(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {
 
             for(unsigned  k = 0; k < dim; k++) {
-              gradSolDgHat[k][j] += (af * solD[k][i] + (1. - af) * solDOld[k][i]) * gradPhiDHat[i * dim + j];
+              gradSolDgHat[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiDHat[i * dim + j];
             }
           }
         }
@@ -377,8 +377,8 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
             unsigned idofX = msh->GetSolutionDof(i, iel1, 2); //global dof for mesh coordinates
             for(unsigned  k = 0; k < dim; k++) {
               vx1[k][i] = (*msh->_topology->_Sol[k])(idofX)
-                          + af * (*mysolution->_Sol[indexSolD[k]])(idofD) //solD[k][i]
-                          + (1. - af) *  (*mysolution->_SolOld[indexSolD[k]])(idofD); //solDOld[k][i]
+                          + (1. - af) * (*mysolution->_Sol[indexSolD[k]])(idofD) //solD[k][i]
+                          + af *  (*mysolution->_SolOld[indexSolD[k]])(idofD); //solDOld[k][i]
             }
           }
         }
