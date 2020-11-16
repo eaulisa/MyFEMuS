@@ -26,11 +26,12 @@ using namespace femus;
 
 //int simulation = 1; // =1 sphere (default) = 2 torus
 
-unsigned P = 2;
+unsigned P = 4;
+const double c0 = -.0;
 
 //Sphere
 
-double thetaSphere = acos (-1.) / 4;
+double thetaSphere = acos(-1.) / 2;
 
 bool SetBoundaryConditionSphere (const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true; //dirichlet
@@ -63,7 +64,7 @@ double InitalValueHSphere (const std::vector < double >& x) {
 }
 
 double GetTimeStep (const double time) {
-  return 0.005;
+  return 0.01;
 }
 
 
@@ -366,9 +367,9 @@ void AssembleWillmoreProblem_AD (MultiLevelProblem& ml_prob) {
         }
       }
 
-      adept::adouble HPm1 = H;
+      adept::adouble HPm1 = H + c0;
       for (unsigned i = 0; i < P - 2; i++) {
-        HPm1 *= H;
+        HPm1 *= H + c0;
       }
 
       adept::adouble u_xNorm2 = 0;
@@ -379,7 +380,7 @@ void AssembleWillmoreProblem_AD (MultiLevelProblem& ml_prob) {
       adept::adouble A = sqrt (1. + u_xNorm2);
       adept::adouble A2 = A * A;
 
-      HPintegralLocal += pow( H.value(), P) * A.value() * weight;
+      HPintegralLocal += pow( H.value() + c0, P) * A.value() * weight;
 
       double Id[2][2] = {{1., 0.}, {0., 1.}};
       vector < vector < adept::adouble> > B (dim);
@@ -403,7 +404,7 @@ void AssembleWillmoreProblem_AD (MultiLevelProblem& ml_prob) {
           nonLinearLaplaceU +=  - 1. / A  * u_x[idim] * phi_x[i * dim + idim];
 
           nonLinearLaplaceW +=  - (P / (2.* A) * (B[idim][0] * W_x[0] + B[idim][1] * W_x[1])
-                                    - (W * H) / A2 * u_x[idim]
+                                    - (W * (H + c0)) / A2 * u_x[idim]
                                    ) * phi_x[i * dim + idim];
 
         }

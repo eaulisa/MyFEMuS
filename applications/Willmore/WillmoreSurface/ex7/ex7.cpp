@@ -62,7 +62,7 @@ Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TO
 // Declaration of systems.
 void AssemblePWillmore(MultiLevelProblem&);
 
-double dt0 = 5e-5; //P=2
+double dt0 = 5e-6; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -119,8 +119,8 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
 
 
-  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
@@ -139,7 +139,7 @@ int main(int argc, char** args) {
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -287,7 +287,7 @@ int main(int argc, char** args) {
 
   // Parameters for the main algorithm loop.
 
-  unsigned numberOfTimeSteps = 4000u;
+  unsigned numberOfTimeSteps = 400u;
   unsigned printInterval = 1u;
 
   std::fstream fs;

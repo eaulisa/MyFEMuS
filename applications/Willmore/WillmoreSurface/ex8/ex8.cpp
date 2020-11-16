@@ -25,13 +25,13 @@ using namespace femus;
  * ap is the coefficient in front of the power of H. */
 
 
-const double c0 = 0.;
+const double c0 = -1.25;
 const double kc = 1.;
 const double gamma1 = 0.;
 
 unsigned P[3] = {0, 1, 2};
 
-const double ap[3] = {kc * c0 * c0 + gamma1, -2. * kc * c0 , kc };
+const double ap[3] = {0 * kc * c0 * c0 + gamma1, 0* -2. * kc * c0 , kc };
 const double normalSign = 1.;
 
 //bool O2conformal = true;
@@ -40,7 +40,7 @@ double surface0 = 0.;
 double volume0 = 0.;
 
 //unsigned conformalTriangleType = 2;
-const double eps = 1e-6;
+const double eps = 0e-6;
 
 unsigned counter = 0;
 //bool areaConstraintInConformal = false;
@@ -62,7 +62,7 @@ Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TO
 // Declaration of systems.
 void AssemblePWillmore(MultiLevelProblem&);
 
-double dt0 = 50; //P=2
+double dt0 = .5; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -80,12 +80,20 @@ double GetTimeStep(const double t) {
 
 // IBVs.  No boundary, and IVs set to sphere (just need something).
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
-  bool dirichlet = false;
+  bool dirichlet = true;
   value = 0.;
 
-  if(!strcmp("Y1", SolName) || !strcmp("Y2", SolName) || !strcmp("Y3", SolName)) {
+  if(!strcmp("Y1", SolName) || !strcmp("Y2", SolName)) {
     dirichlet = true;
   }
+  if(!strcmp("Y3", SolName)) {
+    dirichlet = true;
+    value = -c0;
+  }
+
+  // if(!strcmp("Y1", SolName) || !strcmp("Y2", SolName) || !strcmp("Y3", SolName)) {
+  //   dirichlet = true;
+  // }
   else if(!strcmp("nDx1", SolName) || !strcmp("nDx2", SolName) || !strcmp("nDx3", SolName)) {
     dirichlet = true;
   }
@@ -115,8 +123,8 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/cube.neu", "seventh", scalingFactor);
 
-
-  mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/circle_quad3.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/cylinderInBallp75.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/ballTet.neu", "seventh", scalingFactor);
 
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
@@ -136,7 +144,7 @@ int main(int argc, char** args) {
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -220,7 +228,7 @@ int main(int argc, char** args) {
 
 
   // Parameters for convergence and # of iterations for Willmore.
-  system.SetMaxNumberOfNonLinearIterations(3);
+  system.SetMaxNumberOfNonLinearIterations(5);
   system.SetNonLinearConvergenceTolerance(1.e-12);
 
   // Attach the assembling function to P-Willmore system.
@@ -310,13 +318,13 @@ int main(int argc, char** args) {
 
 //     if(time_step % 1 == 0) {
 //       mlSol.GetWriter()->Write("./output1", "biquadratic", variablesToBePrinted, (time_step + 1) / printInterval);
-// 
+//
 //       //CopyDisplacement(mlSol, true);
 //       //if (time_step % 2 ==1) {
 //       //system2.MGsolve();
 //       //}
 //       //CopyDisplacement(mlSol, false);
-// 
+//
 //       //system.CopySolutionToOldSolution();
 //       //UNCOMMENT FOR P=4
 //       //if (time_step % 7 == 6){
@@ -529,61 +537,61 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
 
 
 
-    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
-      if(el->GetBoundaryIndex(iel, jface) == 1) {
-
-        ielIsInterior = false;
-        const unsigned faceGeom = msh->GetElementFaceType(iel, jface); //edge
-        unsigned fnxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
-        unsigned fnKDofs = msh->GetElementFaceDofNumber(iel, jface, solKType);
-
-        for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
-
-          double fweight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
-          const double *fphix = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
-          const double *fphix_u = msh->_finiteElement[faceGeom][solxType]->GetDPhiDXi(ig);
-
-          const double *fphiK = msh->_finiteElement[faceGeom][solKType]->GetPhi(ig);
-
-
-          adept::adouble fsolxg[3] = {0., 0., 0.};
-          adept::adouble fsolxNewg[3] = {0., 0., 0.};
-          adept::adouble fsolxg_u[3] = {0., 0., 0.};
-          adept::adouble fdsolxgdt[3] = {0., 0., 0.};
-
-          for(unsigned I = 0; I < DIM; I++) {
-            for(unsigned i = 0; i < fnxDofs; i++) {
-              unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
-              fsolxg[I] += fphix[i] * solxOld[I][inode];
-              fsolxNewg[I] += fphix[i] * solx[I][inode];
-              fdsolxgdt[I] += fphix[i] * (solx[I][inode] - solxOld[I][inode]) / dt;
-
-              fsolxg_u[I] += fphix_u[i] * solxOld[I][inode];
-            }
-          }
-
-          adept::adouble fsolKg = 0.;
-          for(unsigned i = 0; i < fnKDofs; i++) {
-            unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
-            fsolKg += fphiK[i] * solK[inode];
-          }
-
-          adept::adouble length = sqrt(fsolxg_u[0] * fsolxg_u[0] + fsolxg_u[1] * fsolxg_u[1] + fsolxg_u[2] * fsolxg_u[2]) * fweight;
-
-          for(unsigned i = 0; i < fnKDofs; i++) {
-            unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-            aResK[fdof] += fphiK[i] * ((fsolxNewg[0] * fsolxNewg[0] + fsolxNewg[1] * fsolxNewg[1] + fsolxNewg[2] * fsolxNewg[2]) - 1.) * length - 0 * eps * fsolKg * fphiK[i] * length;
-          }
-
-          for(unsigned I = 0; I < DIM; I++) {
-            for(unsigned i = 0; i < fnxDofs; i++) {
-              unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
-              aResx[I][fdof] += (0 * 0.01 * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length;
-            }
-          }
-        }
-      }
-    }
+    // for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+    //   if(el->GetBoundaryIndex(iel, jface) == 1) {
+    //
+    //     ielIsInterior = false;
+    //     const unsigned faceGeom = msh->GetElementFaceType(iel, jface); //edge
+    //     unsigned fnxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
+    //     unsigned fnKDofs = msh->GetElementFaceDofNumber(iel, jface, solKType);
+    //
+    //     for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
+    //
+    //       double fweight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
+    //       const double *fphix = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
+    //       const double *fphix_u = msh->_finiteElement[faceGeom][solxType]->GetDPhiDXi(ig);
+    //
+    //       const double *fphiK = msh->_finiteElement[faceGeom][solKType]->GetPhi(ig);
+    //
+    //
+    //       adept::adouble fsolxg[3] = {0., 0., 0.};
+    //       adept::adouble fsolxNewg[3] = {0., 0., 0.};
+    //       adept::adouble fsolxg_u[3] = {0., 0., 0.};
+    //       adept::adouble fdsolxgdt[3] = {0., 0., 0.};
+    //
+    //       for(unsigned I = 0; I < DIM; I++) {
+    //         for(unsigned i = 0; i < fnxDofs; i++) {
+    //           unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+    //           fsolxg[I] += fphix[i] * solxOld[I][inode];
+    //           fsolxNewg[I] += fphix[i] * solx[I][inode];
+    //           fdsolxgdt[I] += fphix[i] * (solx[I][inode] - solxOld[I][inode]) / dt;
+    //
+    //           fsolxg_u[I] += fphix_u[i] * solxOld[I][inode];
+    //         }
+    //       }
+    //
+    //       adept::adouble fsolKg = 0.;
+    //       for(unsigned i = 0; i < fnKDofs; i++) {
+    //         unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+    //         fsolKg += fphiK[i] * solK[inode];
+    //       }
+    //
+    //       adept::adouble length = sqrt(fsolxg_u[0] * fsolxg_u[0] + fsolxg_u[1] * fsolxg_u[1] + fsolxg_u[2] * fsolxg_u[2]) * fweight;
+    //
+    //       for(unsigned i = 0; i < fnKDofs; i++) {
+    //         unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+    //         aResK[fdof] += fphiK[i] * ((fsolxNewg[0] * fsolxNewg[0] + fsolxNewg[1] * fsolxNewg[1] + fsolxNewg[2] * fsolxNewg[2]) - 1.) * length - 0 * eps * fsolKg * fphiK[i] * length;
+    //       }
+    //
+    //       for(unsigned I = 0; I < DIM; I++) {
+    //         for(unsigned i = 0; i < fnxDofs; i++) {
+    //           unsigned fdof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+    //           aResx[I][fdof] += (0 * 0.01 * fdsolxgdt[I] + 2. * fsolKg * fsolxNewg[I]) * fphix[i] * length;
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
 
 
@@ -698,7 +706,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
         //sumP2 += signP * (ap[p] - ap[p] * P[p]) * pow (YdotY , P[p]/2.);
         sumP3 += signP * ap[p] * pow(YdotY, P[p] / 2.);
       }
-     
+
       // Computing the metric inverse
       adept::adouble gi[dim][dim];
       gi[0][0] =  g[1][1] / detg;
@@ -803,9 +811,9 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
           // P-Willmore equation
           aResY[K][i] += (0. * ((solxNewg[K] - solxOldg[K])  / dt) * phiY[i]
                           - term0
-//                           + sumP2 * term1
-//                           - term2 * phiY_Xtan[K][i]
-//                           + term3
+                           + sumP2 * term1
+                           - term2 * phiY_Xtan[K][i]
+                           + term3
                          ) * Area;
         }
       }
@@ -828,7 +836,7 @@ void AssemblePWillmore(MultiLevelProblem& ml_prob) {
         volume += normalSign * (solxNewg[K].value()  * normal[K].value()) * Area.value();
       }
       energy += sumP3.value() * Area.value();
-     
+
     } // end GAUSS POINT LOOP.
 
     //------------------------------------------------------------------------
