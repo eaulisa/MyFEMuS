@@ -91,8 +91,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.005;
-  double gammap = 0.005;
+  double gammac = 0.01;
+  double gammap = 0.01;
 
   std::cout.precision(10);
 
@@ -798,7 +798,7 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
         adept::adouble tauC = 1. / tauMtrG;
 
         //end SUPG parameters
-        //tauM = tauC = 0.;
+        tauM = tauC = 0.;
 
         std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
         for(unsigned i = 0; i < nDofs; i++) {
