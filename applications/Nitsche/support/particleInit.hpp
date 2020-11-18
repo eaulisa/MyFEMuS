@@ -11,6 +11,452 @@
 
 
 
+void InitBar2D(const unsigned &dim, const double &L, const double &H, const double &Lf,
+               const double &dL, const double &DB, unsigned &nbl,
+               std::vector < double> &xc,
+               std::vector < MarkerType > &markerType,
+               std::vector < std::vector <double> > &xp,
+               std::vector <double> &wp,
+               std::vector <double> &dist) {
+
+  double L0 = L - DB;
+  double H0 = H - 0.1 * DB; // get close to the top
+
+  unsigned cols0 = ceil(L0 / dL);
+  unsigned rows0 = ceil(H0 / dL);
+  double dx0 = L0 / cols0;
+  double dy0 = H0  / rows0;
+  
+  
+  if(nbl % 2 == 0) nbl++;
+
+  double dbl = DB / nbl;            //step size in boundary layer
+  unsigned colsl = ceil(L0 / dbl);
+  unsigned rowsl = ceil(H0 / dbl);
+  double dxl = L0 / colsl;
+  double dyl = H0 / rowsl;
+
+  
+  double L1 = L + DB;
+  double H1 = H; // stay just below the top boundary where the disc starts
+  double DH = 0.5 * (Lf - L);
+
+  unsigned cols1 = ceil(L1 / dL);    // number of cols above the inner bulk + interface
+  unsigned rows1 = ceil(H1 / dL);    // number of rows upto tops
+  unsigned nDH = ceil((DH - 0.5 * DB) / dL);       //number of side cols without tops
+
+  double dx1 = L1 / cols1;
+  double dy1 = H1 / rows1;
+  double dH = (DH - 0.5 * DB) / nDH;
+
+  
+  unsigned size0 = rows0 * cols0;         // number of markers on the inner bulk
+  unsigned sizel = 2 * (nbl * rowsl)  ;   // number of markers on the boundary layer without the top layers
+  unsigned size1 = 2 * (nDH * rows1);     // number of markers on the outer shell without the top bulk
+  unsigned sizeAll = size0 + sizel + size1;
+
+  xp.resize(sizeAll);
+  wp.resize(sizeAll);
+  dist.resize(sizeAll);
+
+  unsigned cnt = 0;
+  std::vector<double> XP(dim);
+
+  double R = L / 2. ;
+//inner bulk
+  std::vector<double> d(3); // d = {x-xc[0], L-x, H - y  }
+  for(unsigned i = 0; i < rows0 ; i++) {
+    for(unsigned j = 0; j < cols0; j++) {
+      XP[0] = (xc[0] + 0.5 * DB + 0.5 * dx0) + j * dx0;
+      XP[1] = (xc[1] + 0.5 * dy0) + i * dy0;
+      xp[cnt] = XP;
+      wp[cnt] = dx0 * dy0;
+      d = {xp[cnt][0] - xc[0], (xc[0] + L) - xp[cnt][0], (xc[1] + H + R) - xp[cnt][1] };
+      dist[cnt] = *std::min_element(d.begin(), d.end());
+      cnt++;
+    }
+  }
+
+//left and right boundary
+
+  std::vector < unsigned> map(nbl);
+  map[0] = nbl / 2;
+  for(unsigned i = 0; i < nbl / 2; i++) {
+    map[1 + i] = i;
+    map[nbl / 2 + 1 + i] = nbl / 2 + 1 + i;
+  }
+
+  
+  for(unsigned j = 0; j < rowsl; j++) {
+    for(unsigned k = 0; k < nbl; k++) {
+      unsigned kmap = map[k];
+      XP[0] = (xc[0] + 0.5 * DB - 0.5 * dbl) - kmap * dbl;
+      XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
+      xp[cnt] = XP;
+      wp[cnt] = dbl * dyl;
+      dist[cnt] =  xp[cnt][0] - xc[0];
+      cnt++;
+    }
+  }
+
+  for(unsigned j = 0; j < rowsl; j++) {
+    for(unsigned k = 0; k < nbl; k++) {
+      unsigned kmap = map[k];
+      XP[0] = (xc[0] + L - 0.5 * DB + 0.5 * dbl) + kmap * dbl;
+      XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
+      xp[cnt] = XP;
+      wp[cnt] = dbl * dyl;
+      dist[cnt] += (xc[0] + L) - xp[cnt][0];
+      cnt++;
+    }
+  }
+
+
+//=============== OUTER SHELL ================
+
+  //left and right outer
+  for(unsigned k = 0; k < nDH; k++) {
+    for(unsigned j = 0; j < rows1; j++) {
+      XP[0] = (xc[0] - DH + 0.5 * dH) + k * dH;
+      XP[1] = (xc[1] + 0.5 * dy1) + j * dy1;
+      xp[cnt] = XP;
+      wp[cnt] = dH * dy1;
+      if(xp[cnt][1] < xc[1] + H) {
+        dist[cnt] =  xp[cnt][0] - xc[0];
+      }
+      else {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - xc[0], 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
+      cnt++;
+
+      XP[0] = (xc[0] + L + 0.5 * DB + 0.5 * dH) + k * dH;
+      XP[1] = (xc[1] + 0.5 * dy1) + j * dy1;
+      xp[cnt] = XP;
+      wp[cnt] = dH * dy1;
+      if(xp[cnt][1] < xc[1] + H) {
+        dist[cnt] = (xc[0] + L) - xp[cnt][0];
+      }
+      else {
+        dist[cnt] = -sqrt(pow(xp[cnt][0] - (xc[0] + L), 2) + pow(xp[cnt][1] - (xc[1] + H), 2));
+      }
+      cnt++;
+    }
+  }
+
+
+
+  double sum = 0.;
+  for(unsigned j = 0; j < xp.size(); j++) {
+    sum += wp[j];
+  }
+  std::cout << "AreaRectange = " << sum << " Area Difference Rectange = " << fabs(sum - (H + DH) * Lf) << std::endl;
+
+
+
+  markerType.assign(cnt, VOLUME);
+
+
+
+}
+
+
+
+void RoundCap(const unsigned &dim, const double &L, const double &H, const double &Lf,
+              const double &dL, const double &DB, unsigned &nbl,
+              std::vector < double> &xc,
+              std::vector < MarkerType > &markerType,
+              std::vector < std::vector <double> > &xp,
+              std::vector <double> &wp,
+              std::vector <double> &dist) {
+
+// small semi-disc on the top of the beam
+
+  unsigned cols0 = ceil(L / dL);
+  double dx0 = L / cols0;
+  double DH = 0.5 * (Lf - L);
+
+
+  double R = L / 2. ;
+  double theta0 = 0.;
+  double theta1 = M_PI;
+
+  double R0 = 0. ;
+  double dp = dx0;
+
+
+  unsigned nr = ceil(((R - 0.5 * dp)) / dp);
+  double dr = ((R - 0.5 * dp)) /  nr;
+  double area = 0.;
+
+  xp.reserve(pow(4 * nr, dim));
+  wp.reserve(pow(4 * nr, dim));
+  dist.reserve(pow(4 * nr, dim));
+  unsigned cnt = 0;
+
+  // inner circle points from R0 to R
+  int i0 = floor(R0 / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+  int i1 = ceil((R - 0.5 * dp) / dr - 0.5);
+  if(i1 > nr - 1) i1 = nr - 1;
+
+  std::vector<double> XP(dim);
+
+  for(int i = i0; i <= i1; i++) {
+
+    double ri = (i + 0.5) * dr;
+    unsigned nti = ceil((theta1 - theta0) * ri / dr);
+    double dti = (theta1 - theta0) / nti;
+
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = theta0 + (0.5 + j) * dti;
+      XP[0] = xc[0] + L/2 + ri * cos(tj);
+      XP[1] = xc[1] + H + ri * sin(tj);
+      xp.resize(cnt + 1);
+      xp[cnt] = XP;
+
+      wp.resize(cnt + 1);
+      dist.resize(cnt + 1);
+      wp[cnt] = ri * dti * dr;
+      dist[cnt] = (R - ri);
+
+      area += ri * dti * dr;
+      cnt++;
+    }
+  }
+
+  
+//boundary  points
+  double dbl = DB / nbl;            //step size in boundary layer
+  for(unsigned i = 0; i < nbl; i++) {
+    double ri = (R - 0.5 * DB) + (i + 0.5) * dbl;
+    if(dim == 2) {
+      unsigned nti = nbl * ceil((theta1 - theta0) * R / dr);
+      double dti = (theta1 - theta0) / nti;
+      for(unsigned j = 0; j < nti; j++) {
+        double tj = theta0 + (0.5 + j) * dti;
+        XP[0] = xc[0] + L/2 + ri * cos(tj);
+        XP[1] = xc[1] + H + ri * sin(tj);
+
+        xp.resize(cnt + 1);
+        xp[cnt] = XP;
+
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+        wp[cnt] = ri * dti * dbl;
+        dist[cnt] = (R - ri);
+
+        area += ri * dti * dbl;
+        cnt++;
+      }
+    }
+  }
+
+
+  
+  
+  
+  
+  
+  
+//outer circle points from R + 0.5 * dp to Rmax on the top the entire bulk points without the small disc above
+
+  double Rmax =  sqrt((Lf / 2) * (Lf / 2)) ;
+  //std::vector< double > VxL = {xc[0] - DH, xc[1] + H };   // {xmin, ymin}
+  //std::vector< double > VxR = {xc[0] + L + 0.5 * DB + DH, xc[1] + H + (Lf / 2) }; // {xmax, ymax}
+
+  i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
+  if(i0 < 0) i0 = 0;
+  i1 = floor((Rmax - (R + 0.5 * dp)) / dr - 0.5);
+
+  for(int i = i0; i <= i1; i++) {
+
+    double ri = (R + 0.5 * (dp + dr)) + i * dr;
+    unsigned nti = ceil((theta1 - theta0) * ri / dr);
+    double dti = (theta1 - theta0) / nti;
+    for(unsigned j = 0; j < nti; j++) {
+      double tj = theta0 + (0.5 + j) * dti;
+      XP[0] = xc[0] + L/2. + ri * cos(tj);
+      XP[1] = xc[1] + H + ri * sin(tj);
+//       unsigned flag  = 0;
+//       for(unsigned k = 0; k < dim; k++) {
+//         if(XP[k] < VxL[k]  || XP[k] > VxR[k]) {
+//           ++flag;
+//           break;
+//         }
+//       }
+
+      if(true) {
+        xp.resize(cnt + 1);
+        xp[cnt] = XP;
+        wp.resize(cnt + 1);
+        dist.resize(cnt + 1);
+        wp[cnt] = ri * dti * dr;
+        dist[cnt] = (R - ri);
+
+        area += ri * dti * dr;
+        cnt++;
+
+      }
+    }
+  }
+
+  markerType.assign(cnt, VOLUME);
+  
+  std::cout << "AreaRoundCap = " << area << " " << " Area Difference RoundCap " << fabs(area - (M_PI * Rmax * Rmax / 2)) << std::endl;
+
+
+ 
+
+
+
+}
+
+
+void InitRoundBarParticle2D(const unsigned &dim, const double &L, const double &H, const double &Lf,
+                    const double &dL, const double &DB, unsigned &nbl,
+                    std::vector < double> &xc,
+                    std::vector < MarkerType > &markerType,
+                    std::vector < std::vector <double> > &xp,
+                    std::vector <double> &wp,
+                    std::vector <double> &dist) {
+
+
+  std::vector < std::vector <double> > XP;
+  std::vector <double> WP;
+  std::vector <double> DIST;
+  std::vector < MarkerType > MARKERTypeBulk;
+
+
+  InitBar2D(2, L, H, Lf, dL, DB, nbl, xc, MARKERTypeBulk, XP, WP, DIST);
+
+  unsigned size1 = XP.size();
+  xp.resize(size1);
+  wp.resize(size1);
+  dist.resize(size1);
+
+  for(unsigned i = 0; i < size1 ; i++) {
+    xp[i].resize(dim);
+    wp[i] = WP[i];
+    dist[i] = DIST[i];
+    for(unsigned j = 0 ; j < dim ; j++) {
+      xp[i][j] = XP[i][j];
+    }
+  }
+
+
+  RoundCap(2, L, H, Lf, dL, DB, nbl, xc, MARKERTypeBulk, XP, WP, DIST);
+
+  unsigned size2 = size1 + XP.size();
+
+  xp.resize(size2);
+  wp.resize(size2);
+  dist.resize(size2);
+
+
+  for(unsigned i = 0; i < XP.size() ; i++) {
+    xp[size1 + i].resize(dim);
+    wp[size1 + i] = WP[i];
+    dist[size1 + i] = DIST[i];
+    for(unsigned j = 0 ; j < dim ; j++) {
+      xp[i + size1][j] = XP[i][j];
+    }
+  }
+
+
+  markerType.assign(size2, VOLUME);
+
+
+}
+
+
+
+void InitRoundBar2DInterface(const unsigned & dim, const double & L, const double & H, const double & DB, const unsigned nbl,
+                             const unsigned & FI, const std::vector < double> &xc, std::vector < MarkerType > &markerType,
+                             std::vector < std::vector <double> > &xp,
+                             std::vector < std::vector < std::vector < double > > > &T) {
+  
+  double H0 = H - 0.1 * DB; // to be close to the top
+  double dbl = DB / nbl;
+  unsigned rowsl = ceil(H0 / dbl);
+  double dyl = H0 / rowsl;
+
+  
+  double R = L / 2.;
+  unsigned nr = ceil(((R - 0.5 * DB)) / DB);
+  double dr = ((R - 0.5 * DB)) / nr;
+  unsigned Ntheta = nbl * ceil(M_PI * R / dr); // number of points on the circle-cap interface
+
+  unsigned size = 2 * rowsl + Ntheta;
+
+  
+  
+  xp.resize(size);
+
+  for(unsigned i = 0; i < size; i++) {
+    xp[i].assign(dim, 0.);
+  }
+
+  T.resize(size);
+  for(unsigned i = 0; i < size; i++) {
+    T[i].resize(dim - 1);
+    for(unsigned k = 0; k < dim - 1; k++) {
+      T[i][k].resize(dim, 0.);
+    }
+  }
+
+
+  unsigned cnt = 0;
+  
+ // round cap interface
+  double arcLenght = R * M_PI / Ntheta;
+  double dtheta =  M_PI / Ntheta;  
+
+  for(unsigned i = 0; i < Ntheta; i++) {
+    
+    double ti = 0. + (FI * 0.5 + i) * dtheta;
+
+    xp[cnt][0] = xc[0] + L/2. + R * cos(ti);
+    xp[cnt][1] = xc[1] + H + R * sin(ti);
+
+    T[cnt][0][0] = -arcLenght * sin(ti);
+    T[cnt][0][1] = arcLenght * cos(ti);
+    cnt++;
+
+  }
+  
+//left and right boundary of the beam
+
+  std::vector<double> XP(dim, 0.);
+  for(unsigned j = 0; j < rowsl; j++) {
+
+    XP[0] = xc[0];
+    XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
+    xp[cnt] = XP;
+
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = -dyl;
+
+    cnt++;
+
+    XP[0] = L + xc[0];
+    XP[1] = (xc[1] + 0.5 * dyl) + j * dyl;
+    xp[cnt] = XP;
+
+    T[cnt][0][0] = 0.;
+    T[cnt][0][1] = +dyl;
+
+    cnt++;
+  }
+
+
+
+markerType.assign(size, INTERFACE); 
+
+}
+
+
+
+
 void InitRectangleParticle(const unsigned &dim, const double &L, const double &H, const double &Lf,
                            const double &dL, const double &DB, unsigned &nbl,
                            const std::vector < double> &xc,
@@ -273,14 +719,6 @@ void InitRectangleParticle(const unsigned &dim, const double &L, const double &H
     sum += wp[j];
   }
   std::cout << "Volume = " << sum << " Volume difference = " << sum - (H + DH)*Lf << std::endl;
-  //
-  //   //could not fix
-  //   double area;
-  //   (dbl == 1) ? area = L * H : area = L * H + 2 * 0.5 * dL * H + (0.5 * dL) * (L + 2 * 0.5 * dL);
-
-  //   std::setprecision(6);
-  //   std::cout << " ExactArea = " << area << " ComputedArea = " << sum << std::endl;
-
 
 
   markerType.assign(cnt, VOLUME);
@@ -309,9 +747,6 @@ void InitRectangleInterface(const unsigned & dim, const double & L, const double
   unsigned rowsl = ceil(H0 / dbl);
   double dxl = L0 / colsl;
   double dyl = H0 / rowsl;
-
-  //cols0 = FI * ceil(L / dx0);
-  //rows0 = FI * ceil(H / dy0 );
 
 
 
@@ -469,9 +904,9 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
   dist.reserve(pow(4 * nr, dim));
   unsigned cnt = 0;
 
+  // inner circle points from R0 to R
   int i0 = floor(R0 / dr - 0.5);
   if(i0 < 0) i0 = 0;
-  //int i1 = ceil(R1 / dr - 0.5);
   int i1 = ceil((R - 0.5 * dp) / dr - 0.5);
   if(i1 > nr - 1) i1 = nr - 1;
 
@@ -555,7 +990,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
 
   //std::cout << xp[0].size() << " " << Rmax << "\n";
 
-
+//boundary circle points
   double dbl = dp / nbl;
   for(unsigned i = 0; i < nbl; i++) {
     double ri = (R - 0.5 * dp) + (i + 0.5) * dbl;
@@ -634,7 +1069,7 @@ void InitBallVolumeParticles(const unsigned & dim, std::vector<double> &VxL, std
   }
 
 
-
+//outer circle points from R + 0.5 * dp to Rmax
   i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
   if(i0 < 0) i0 = 0;
   i1 = floor((Rmax - (R + 0.5 * dp)) / dr - 0.5);
