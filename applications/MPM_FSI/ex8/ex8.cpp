@@ -21,7 +21,7 @@ using namespace femus;
 
 
 
-double theta = 0.5;
+double theta = 1.;
 double af = 1. - theta;
 // double pInf = (1. + af) / (2. - af);
 double am = af - 0.1; //pInf / (1. + pInf);
@@ -55,6 +55,7 @@ void Assemble(MultiLevelProblem& ml_prob);
 
 void InitPElement(MultiLevelSolution & mlSol);
 void BuildFlagSolidRegion(MultiLevelSolution & mlSol);
+void BuildFlagFluidRegion(MultiLevelSolution & mlSol);
 void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol);
 
 void NewFem(const char* GaussOrderCoarse, const char* GaussOrderFine, const unsigned &lmax);
@@ -110,7 +111,7 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 1; //for refinement in 3D
+  unsigned numberOfUniformLevels = 3; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0 ;
 
@@ -345,6 +346,9 @@ void Assemble(MultiLevelProblem& ml_prob) {
   AssembleSolidInterface(ml_prob);
   AssembleBoundaryLayer(ml_prob);
   AssembleBoundaryLayerProjection(ml_prob);
+
+  BuildFlagFluidRegion(*mlSol);
+
   AssembleFluid(ml_prob);
   AssembleGhostPenalty(ml_prob);
 
@@ -429,6 +433,111 @@ void BuildFlagSolidRegion(MultiLevelSolution & mlSol) {
   }
   sol->_Sol[nflagIndex]->close();
 }
+
+
+
+void BuildFlagFluidRegion(MultiLevelSolution & mlSol) {
+
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+
+  Solution *sol = mlSol.GetSolutionLevel(level);
+  Mesh *msh = mlSol._mlMesh->GetLevel(level);
+  unsigned iproc = msh->processor_id();
+
+  unsigned eflagIndex = mlSol.GetIndex("eflag");
+  unsigned nflagIndex = mlSol.GetIndex("nflag");
+
+  unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+
+    if(eFlag < 3) {
+      unsigned nDofs = msh->GetElementDofNumber(iel, nflagType);
+      for(unsigned  i = 0; i < nDofs; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(idof, 2);
+      }
+    }
+  }
+  sol->_Sol[nflagIndex]->close();
+
+
+
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+
+    if(eFlag == 0) {
+      unsigned nDofs = msh->GetElementDofNumber(iel, nflagType);
+      for(unsigned  i = 0; i < nDofs; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(idof, 0);
+      }
+    }
+  }
+  sol->_Sol[nflagIndex]->close();
+
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+
+    if(eFlag == 1) {
+      unsigned nDofs = msh->GetElementDofNumber(iel, nflagType);
+      for(unsigned  i = 0; i < nDofs; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(idof, 1);
+      }
+    }
+  }
+  sol->_Sol[nflagIndex]->close();
+
+
+  unsigned counterAll = 1;
+  while(counterAll > 0) {
+    unsigned iprocCounter = 0;
+
+    for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+      unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+
+      if(eFlag == 2) {
+        unsigned nDofs = msh->GetElementDofNumber(iel, nflagType);
+        for(unsigned  i = 0; i < nDofs; i++) {
+          unsigned idof = msh->GetSolutionDof(i, iel, nflagType);
+          unsigned inodeFlag = (*sol->_Sol[nflagIndex])(idof);
+          if(inodeFlag == 1 || inodeFlag == 10) {
+            sol->_Sol[eflagIndex]->set(iel, 10);
+            break;
+          }
+        }
+      }
+    }
+    sol->_Sol[eflagIndex]->close();
+
+    for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
+      if(eFlag == 10) {
+        unsigned nDofs = msh->GetElementDofNumber(iel, nflagType);
+        for(unsigned  i = 0; i < nDofs; i++) {
+          unsigned idof = msh->GetSolutionDof(i, iel, nflagType);
+          unsigned inodeFlag = (*sol->_Sol[nflagIndex])(idof);
+          if(inodeFlag == 2) {
+            iprocCounter++;
+            sol->_Sol[nflagIndex]->set(idof, 10);
+          }
+        }
+      }
+    }
+    sol->_Sol[nflagIndex]->close();
+    MPI_Allreduce(&iprocCounter, &counterAll, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+  }
+}
+
+
 
 
 void InitPElement(MultiLevelSolution & mlSol) {
@@ -539,7 +648,8 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
   unsigned solType = mlSol.GetSolutionType(&varname[0][0]);
 
   for(int i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
-    if((*sol->_Sol[nflagIndex])(i) >= 4) {
+    unsigned nodeFlag = (*sol->_Sol[nflagIndex])(i);  
+    if(nodeFlag >= 4 && nodeFlag < 8) {
       for(unsigned k = 0 ; k < dim ; k++) {
 
         double Dnew = (*sol->_Sol[indexSolU[k]])(i);
@@ -550,7 +660,7 @@ void ProjectNewmarkDisplacemenet(MultiLevelSolution & mlSol) {
         double Anew = (Dnew - Dold) / (beta * dt * dt) - Vold / (beta * dt) + Aold * (beta - 0.5) / beta;
         double Vnew = Vold + (1 - Gamma) * dt * Aold + Gamma * dt * Anew;
 
-        sol->_Sol[indexSolD[k]]->set(i, Dnew);
+        sol->_Sol[indexSolD[k]]->set(i, (1. - af) * Dnew + af * Dold);
         sol->_Sol[indexSolV[k]]->set(i, Vnew);
         sol->_Sol[indexSolA[k]]->set(i, Anew);
 

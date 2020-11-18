@@ -926,8 +926,8 @@ void AssembleSolidInterface(MultiLevelProblem& ml_prob) {
                     double h = sqrt((vx2Hat[0][0] - vx2Hat[0][2]) * (vx2Hat[0][0] - vx2Hat[0][2]) +
                                     (vx2Hat[1][0] - vx2Hat[1][2]) * (vx2Hat[1][0] - vx2Hat[1][2])) ;
 
-                    double thetaM = 1 * muFluid / h;
-                    double thetaL = 1 * (rhoFluid * h / (theta * dt) + muFluid / h);
+                    double thetaM = 10 * muFluid / h;
+                    double thetaL = 10 * (rhoFluid * h / (theta * dt) + muFluid / h);
                     //thetaM = thetaL;
 
                     //std::cout << thetaM << " " << thetaL << std::endl;

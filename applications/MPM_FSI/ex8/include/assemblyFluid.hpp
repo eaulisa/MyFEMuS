@@ -91,8 +91,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.01;
-  double gammap = 0.01;
+  double gammac = 0.05;
+  double gammap = 0.05;
 
   std::cout.precision(10);
 
@@ -182,9 +182,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
 
-        unsigned eFlag2 = (jel >= 0) ? static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5)) : 0;
+        unsigned eFlag2 = (jel >= 0) ? static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5)) : 100;
 
-        if(eFlag2 == 2 || (eFlag2 == 1 && jel > iel)) {
+        if(eFlag2 == 0 || (eFlag2 == 1 && jel > iel)) {
 
           //std::cout << jel << " ";
 
@@ -663,21 +663,23 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
   //BEGIN loop on elements (to initialize the "soft" stiffness matrix)
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    short unsigned ielt = msh->GetElementType(iel);
-
-    unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
-    unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);    // number of solution element dofs
-    unsigned nDofsAll = dim * nDofs + nDofsP;
-
-    // resize local arrays
-    sysDofsAll.resize(nDofsAll);
-    nodeFlag.resize(nDofs);
-
     unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
 
+    if(eFlag == 2 || eFlag == 0 || eFlag == 10) {
+
+      short unsigned ielt = msh->GetElementType(iel);
+
+      unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
+      unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);    // number of solution element dofs
+      unsigned nDofsAll = dim * nDofs + nDofsP;
+
+      // resize local arrays
+      sysDofsAll.resize(nDofsAll);
 
 
-    if(eFlag == 2) {
+
+
+      nodeFlag.resize(nDofs);
 
       for(unsigned  k = 0; k < dim; k++) {
         solV[k].resize(nDofs);
@@ -763,117 +765,138 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
           }
         }
 
+        if(eFlag != 10) {
 
-        //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
-        std::vector <std::vector <double> > JacMatrix;
-        msh->_finiteElement[ielt][solType]->GetJacobian(vxHat, ig, weightV, JacMatrix);
+          //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
+          std::vector <std::vector <double> > JacMatrix;
+          msh->_finiteElement[ielt][solType]->GetJacobian(vxHat, ig, weightV, JacMatrix);
 
 
-        std::vector <std::vector <adept::adouble> > G(dim); // J^T . J
-        for(unsigned i = 0; i < dim; i++) {
-          G[i].assign(dim, 0.);
-          for(unsigned j = 0; j < dim; j++) {
+          std::vector <std::vector <adept::adouble> > G(dim); // J^T . J
+          for(unsigned i = 0; i < dim; i++) {
+            G[i].assign(dim, 0.);
+            for(unsigned j = 0; j < dim; j++) {
+              for(unsigned k = 0; k < dim; k++) {
+                G[i][j] += JacMatrix[k][i] * JacMatrix[k][j];
+              }
+            }
+          }
+
+          adept::adouble tauM = 0.;
+          double CI = 36.;
+          adept::adouble denom = pow(2 * rhoFluid / dt, 2.);
+          for(unsigned i = 0; i < dim; i++) {
+            for(unsigned j = 0; j < dim; j++) {
+              denom += rhoFluid * solVgTheta[i] * G[i][j] * rhoFluid * solVgTheta[j]
+                       + CI * muFluid * muFluid * G[i][j] * G[i][j];
+            }
+          }
+          tauM += 1. / sqrt(denom);
+
+          adept::adouble tauMtrG = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            tauMtrG += G[k][k];
+          }
+          tauMtrG *= tauM;
+          adept::adouble tauC = 1. / tauMtrG;
+
+          //end SUPG parameters
+          //tauM = tauC = 0.;
+
+          std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
+          for(unsigned i = 0; i < nDofs; i++) {
+            for(unsigned j = 0; j < dim; j++) {
+              tauM_SupgPhi[i] += tauM * (rhoFluid * solVgTheta[j] * gradPhiV[i * dim + j]);
+            }
+          }
+
+          adept::adouble divVgTheta = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            divVgTheta += gradSolVgTheta[k][k];
+          }
+
+          for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              G[i][j] += JacMatrix[k][i] * JacMatrix[k][j];
+
+              adept::adouble wlaplace = 0.;
+              adept::adouble SupgLaplace = 0.;
+              adept::adouble advection = 0.;
+
+
+
+              for(unsigned j = 0; j < dim; j++) {
+                wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolVgTheta[k][j] + gradSolVgTheta[j][k]);
+
+                unsigned kdim;
+                if(k == j) kdim = j;
+                else if(1 == k + j) kdim = dim;        // xy
+                else if(2 == k + j) kdim = dim + 2;    // xz
+                else if(3 == k + j) kdim = dim + 1;    // yz
+                SupgLaplace += -muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim]) * tauM_SupgPhi[i];  // SUPG laplace
+
+                advection += rhoFluid * solVgTheta[j] * gradSolVgTheta[k][j] * (phiV[i] + tauM_SupgPhi[i]);
+
+              }
+
+              aResV[k][i] += ( rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
+                               + advection
+                               + wlaplace + SupgLaplace
+                               //- gradPhiV[i * dim + k] * solPg // the weak pressure gradient for now is replaced by the strong one below
+                               + gradSolPg[k] * (phiV[i] + tauM_SupgPhi[i]) // attention this involves also the strong pressure gradient
+                               + tauC * divVgTheta * gradPhiV[i * dim + k]
+                             ) * weightV;
+            }
+          }
+
+
+          //continuity block
+          for(unsigned i = 0; i < nDofsP; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+
+              adept::adouble sLaplace = 0.;
+              adept::adouble advection = 0.;
+
+              for(unsigned j = 0; j < dim; j++) {
+                unsigned kdim;
+
+                if(k == j) kdim = j;
+                else if(1 == k + j) kdim = dim;       // xy
+                else if(2 == k + j) kdim = dim + 2;   // xz
+                else if(3 == k + j) kdim = dim + 1;   // yz
+
+                sLaplace += (- muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim]));
+                advection += rhoFluid * solVgTheta[j]  * gradSolVgTheta[k][j];
+
+              }
+
+              aResP[i] += (phiP[i] * gradSolVg[k][k] +
+                            (rhoFluid * (solVg[k] - solVgOld[k]) / dt + advection +
+                             sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
+
             }
           }
         }
-
-        adept::adouble tauM = 0.;
-        double CI = 36.;
-        adept::adouble denom = pow(2 * rhoFluid / dt, 2.);
-        for(unsigned i = 0; i < dim; i++) {
-          for(unsigned j = 0; j < dim; j++) {
-            denom += rhoFluid * solVgTheta[i] * G[i][j] * rhoFluid * solVgTheta[j]
-                     + CI * muFluid * muFluid * G[i][j] * G[i][j];
-          }
-        }
-        tauM += 1. / sqrt(denom);
-
-        adept::adouble tauMtrG = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          tauMtrG += G[k][k];
-        }
-        tauMtrG *= tauM;
-        adept::adouble tauC = 1. / tauMtrG;
-
-        //end SUPG parameters
-        tauM = tauC = 0.;
-
-        std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
-        for(unsigned i = 0; i < nDofs; i++) {
-          for(unsigned j = 0; j < dim; j++) {
-            tauM_SupgPhi[i] += tauM * (rhoFluid * solVgTheta[j] * gradPhiV[i * dim + j]);
-          }
-        }
-
-        adept::adouble divVgTheta = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          divVgTheta += gradSolVgTheta[k][k];
-        }
-
-        for(unsigned i = 0; i < nDofs; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-
-            adept::adouble wlaplace = 0.;
-            adept::adouble SupgLaplace = 0.;
-            adept::adouble advection = 0.;
-
-
-
-            for(unsigned j = 0; j < dim; j++) {
-              wlaplace += muFluid * gradPhiV[i * dim + j] * (gradSolVgTheta[k][j] + gradSolVgTheta[j][k]);
-
-              unsigned kdim;
-              if(k == j) kdim = j;
-              else if(1 == k + j) kdim = dim;        // xy
-              else if(2 == k + j) kdim = dim + 2;    // xz
-              else if(3 == k + j) kdim = dim + 1;    // yz
-              SupgLaplace += -muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim]) * tauM_SupgPhi[i];  // SUPG laplace
-
-              advection += rhoFluid * solVgTheta[j] * gradSolVgTheta[k][j] * (phiV[i] + tauM_SupgPhi[i]);
-
+        else {
+          for(unsigned i = 0; i < nDofs; i++) {
+            if(nodeFlag[i] == 10) {
+              for(unsigned k = 0; k < dim; k++) {
+                adept::adouble wlaplace = 0.;
+                for(unsigned j = 0; j < dim; j++) {
+                  wlaplace += gradPhiV[i * dim + j] * gradSolVg[k][j] ;
+                }
+                aResV[k][i] += wlaplace * weightV;
+              }
             }
-
-            aResV[k][i] += ( rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phiV[i] + tauM_SupgPhi[i])
-                             + advection
-                             + wlaplace + SupgLaplace
-                             //- gradPhiV[i * dim + k] * solPg // the weak pressure gradient for now is replaced by the strong one below
-                             + gradSolPg[k] * (phiV[i] + tauM_SupgPhi[i]) // attention this involves also the strong pressure gradient
-                             + tauC * divVgTheta * gradPhiV[i * dim + k]
-                           ) * weightV;
           }
-        }
 
-
-        //continuity block
-        for(unsigned i = 0; i < nDofsP; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-
-            adept::adouble sLaplace = 0.;
-            adept::adouble advection = 0.;
-
-            for(unsigned j = 0; j < dim; j++) {
-              unsigned kdim;
-
-              if(k == j) kdim = j;
-              else if(1 == k + j) kdim = dim;       // xy
-              else if(2 == k + j) kdim = dim + 2;   // xz
-              else if(3 == k + j) kdim = dim + 1;   // yz
-
-              sLaplace += (- muFluid * (DeltaSolVgTheta[k][j] + DeltaSolVgTheta[j][kdim]));
-              advection += rhoFluid * solVgTheta[j]  * gradSolVgTheta[k][j];
-
+          for(unsigned i = 0; i < nDofsP; i++) {
+            if(nodeFlag[i] == 10) {
+              for(unsigned j = 0; j < dim; j++) {
+                aResP[i] += gradSolPg[j] * gradPhiP[i * dim + j] * weightV;
+              }
             }
-
-            aResP[i] += phiP[i] * (
-                          gradSolVg[k][k] +
-                          (rhoFluid * (solVg[k] - solVgOld[k]) / dt + advection +
-                           sLaplace +  gradSolPg[k]) * tauM * gradPhiP[i * dim + k]) * weightV;
-
           }
         }
-
       } // end gauss point loop
 
       //copy the value of the adept::adoube aRes in double Res and store them in RES
