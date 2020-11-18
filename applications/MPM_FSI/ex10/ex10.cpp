@@ -116,8 +116,8 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  FEOrder femOrder = FIRST;
-  
+  FEOrder femOrder = SECOND;
+
   MultiLevelSolution mlSol(&mlMsh);
   // add variables to mlSol
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 2);
@@ -165,11 +165,11 @@ int main(int argc, char** args) {
   if(dim > 1) system.AddSolutionToSystemPDE("VY");
   if(dim > 2) system.AddSolutionToSystemPDE("VZ");
   system.AddSolutionToSystemPDE("P");
-  
-  system.SetSparsityPatternMinimumSize (1000);
+
+  system.SetSparsityPatternMinimumSize(1000);
 //   if(dim > 1) system.SetSparsityPatternMinimumSize (500, "VY");
 //   if(dim > 2) system.SetSparsityPatternMinimumSize (500, "VZ");
-//   
+//
 
   // ******* System MPM-FSI Assembly *******
   system.SetAssembleFunction(AssembleMPMSys);
@@ -237,7 +237,6 @@ int main(int argc, char** args) {
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
-  std::vector <double> nSlaves;
   std::vector < MarkerType > markerTypeBulk;
 
   double Hs = 4.99e-05;
@@ -246,20 +245,43 @@ int main(int argc, char** args) {
 
   std::vector < double> xcc = {0.98e-04, 0.};
 
+  //double dL = Hs / 250; // old one
+
   double dL = Hs / 250;
 
-  unsigned nbl = 5; // odd number
+  unsigned nbl = 3; // odd number
   double DB =  0.5 * dL;
   eps = DB;
 
-//   InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist, nSlaves);
-//    
-//   bulk = new Line(xp, wp, dist, nSlaves, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
+
+  //InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist); // 
+  InitRoundBarParticle2D(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
   
-  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
-   
+  
+//   std::ofstream fout1;
+//   fout1.open("RoundBar.txt", std::ofstream::trunc);
+// 
+//   for(unsigned i = 0; i < xp.size(); i++) {
+//     fout1 <<  xp[i][0] << " " << xp[i][1] << " " << dist[i] << " "<< wp[i] << std::endl;
+//   }
+//   
+//   fout1.close();
+
+  
+  
+
+  
+//   std::ofstream fout2;
+//   fout2.open("RoundBarInt.txt", std::ofstream::trunc);
+//   
+//   for(unsigned i = 0; i < xp.size(); i++) {
+//     fout2 <<  xp[i][0] << " " << xp[i][1] << std::endl;
+//   }
+//   fout2.close();
+
+
+    
   bulk = new Line(xp, wp, dist, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
-  
 
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
@@ -269,9 +291,10 @@ int main(int argc, char** args) {
   //interface markers
 
   //unsigned FI = 1;
+  
   std::vector < std::vector < std::vector < double > > > T;
-
-  InitRectangleInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
+  InitRoundBar2DInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
+  //InitRectangleInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
 
   unsigned solType1 = 2;
   lineI = new Line(xp, T, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), solType1);

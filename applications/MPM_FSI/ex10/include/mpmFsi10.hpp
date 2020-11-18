@@ -4,12 +4,25 @@
 using namespace femus;
 
 
-double Gamma = 0.5; // goes with the new one, correct
-double theta = 0.9; // theta = 1. is backward Euler, goes with the new one, correct
-double af = theta; // goes with old one TODO af = 1- theta, change the formulation
-double pInf = (1. + af) / (2. - af);
-double am = 0.5; //pInf / (1. + pInf); // goes with old one TODO, change the formulation
-double beta = 1. / 4. + 1. / 2.* (af - am) ; // goes with the new one, correct
+// double Gamma = 0.5; // goes with the new one, correct
+// double theta = 0.9; // theta = 1. is backward Euler, goes with the new one, correct
+// double af = theta; // goes with old one TODO af = 1- theta, change the formulation
+// double pInf = (1. + af) / (2. - af);
+// double am = 0.5; //pInf / (1. + pInf); // goes with old one TODO, change the formulation
+// double beta = 1. / 4. + 1. / 2.* (af - am) ; // goes with the new one, correct
+
+// double theta = 0.5;
+// double af = 1. - theta;
+// double am = af - 0.1; 
+// double beta = 0.25 + 0.5 * (af - am);
+// double Gamma = 0.5 + (af - am);
+
+
+double Gamma = 0.5; 
+double theta = 0.9; 
+double af = 0.1; 
+double am = 0.5; 
+double beta = 0.25 + 0.5 * (am - af) ; 
 //double gravity[3] = {9810, 0., 0.};
 double gravity[3] = {0, 0., 0.};
 
@@ -799,8 +812,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // reference configuration
         //vx[k][i] = vxHat[k][i] + solD[k][i]; // current configuration
         //vx[k][i] = (*msh->_topology->_Sol[k])(idofX) +  af * solD[k][i] + (1. - af) * solDOld[k][i]; // af configuration
-        vx[k][i] = vxHat[k][i] +  af * (solD[k][i] - solDOld[k][i]); // af configuration
-
+        //vx[k][i] = vxHat[k][i] +  af * (solD[k][i] - solDOld[k][i]); // af configuration
+        vx[k][i]  = vxHat[k][i] + (1. - af) * (solD[k][i] - solDOld[k][i]);
       }
     }
 
@@ -1142,7 +1155,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               //gradSolVp[j][k] +=  gradPhi[i * dim + k] * solV[j][i];
               gradSolVpTheta[j][k] +=  gradPhi[i * dim + k] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
               //gradSolDpHat[j][k] +=  gradPhiHat[i * dim + k] * solD[j][i];
-              gradSolDpHat[k][j] += (af * solD[k][i] + (1. - af) * solDOld[k][i]) * gradPhiHat[i * dim + j];
+              gradSolDpHat[k][j] += ((1. - af) * solD[k][i] + af * solDOld[k][i]) * gradPhiHat[i * dim + j];
             }
           }
         }
@@ -1154,7 +1167,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         for(int j = 0; j < dim; j++) {
           solVpTheta[j] = theta * solVp[j] + (1. - theta) * solVpOld[j]; //TODO this comes from the particle, try the old mesh velocity
           solAp[j] = (solDp[j] - solDpOld[j]) / (beta * dt * dt) - solVpOld[j] / (beta * dt) + solApOld[j] * (beta - 0.5) / beta ;   //NEWMARK ACCELERATION
-          solApAm[j] = am * solAp[j] + (1. - am) * solApOld[j];
+          solApAm[j] = (1. - am) * solAp[j] + am * solApOld[j];
           solVpS[j] = solVpOld[j] + dt * (Gamma * solAp[j] + (1. - Gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
         }
 
@@ -1295,7 +1308,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         double h = sqrt((vxHat[0][0] - vxHat[0][2]) * (vxHat[0][0] - vxHat[0][2]) +
                         (vxHat[1][0] - vxHat[1][2]) * (vxHat[1][0] - vxHat[1][2])) ;
 
-        double GAMMA = 200.; // 10, 45 in the paper.
+        double GAMMA = 100.; // 10, 45 in the paper.
         double thetaM = GAMMA * muFluid / h;
         double thetaL = GAMMA * rhoFluid / (theta * dt) * h  + thetaM;
 
@@ -1371,7 +1384,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           std::vector <adept::adouble> solDp(dim, 0.);
           std::vector <double> solDpOld(dim, 0.);
           std::vector <adept::adouble> solAp(dim);
-          std::vector < adept::adouble > solApAm(dim);
+          //std::vector < adept::adouble > solApAm(dim);
 
           //update displacement and acceleration
           for(int k = 0; k < dim; k++) {
@@ -1381,8 +1394,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               solDpOld[k] += phi[i] * solDOld[k][i];
             }
             solAp[k] = (solDp[k] - solDpOld[k]) / (beta * dt * dt) - solVpOld[k] / (beta * dt) + (beta - 0.5) / beta * solApOld[k]; // Newmark acceleration
-            solApAm[k] = am * solAp[k] + (1. - am) * solApOld[k]; // generalized alpha acceleration
-            v2[k] = solVpOld[k] + af * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
+            //solApAm[k] = (1. - am) * solAp[k] + am * solApOld[k]; // generalized alpha acceleration
+            v2[k] = solVpOld[k] + (1.- af) * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
 
           }
 
