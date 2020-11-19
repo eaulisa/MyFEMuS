@@ -172,7 +172,7 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.15; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+double delta1 = 0.2; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -300,7 +300,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   std::cout << "level = " << level << " ";
 
-  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax1 = " << lmax1 << std::endl;
+  
+  double delta1m = delta1- eps; 
+  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1m + eps << " " << " lmax1 = " << lmax1 << std::endl;
 
   RefineElement *refineElement[6][3];
 
@@ -317,7 +319,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //NonLocal *nonlocal = new NonLocalBox();
   NonLocal *nonlocal = new NonLocalBall();
-  nonlocal->SetKernel(kappa1, delta1, eps);
+  nonlocal->SetKernel(kappa1, delta1m, eps);
 
   fout.open("mesh.txt");
   fout.close();
@@ -431,7 +433,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
           unsigned kk = kproc * dim * 2 + k * dim;
-          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
+          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1m + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1m + eps) {
             coarseIntersectionTest = false;
             break;
           }
@@ -494,7 +496,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
       bool coarseIntersectionTest = true;
       for(unsigned k = 0; k < dim; k++) {
-        if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
+        if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1m + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1m + eps) {
           coarseIntersectionTest = false;
           break;
         }
@@ -527,7 +529,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
                           *refineElement[ielGeom][soluType], region2, jelIndex,
-                          solu1, kappa1, delta1, printMesh);
+                          solu1, kappa1, delta1m, printMesh);
 
     for(unsigned jel = 0; jel < region2.size(); jel++) {
       KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
@@ -712,7 +714,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             }
             bool coarseIntersectionTest = true;
             for(unsigned k = 0; k < dim; k++) {
-              if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
+              if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1m + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1m + eps) {
                 coarseIntersectionTest = false;
                 break;
               }
@@ -747,7 +749,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
             nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
                                   *refineElement[ielGeom][soluType], region2, jelIndex,
-                                  solu1, kappa1, delta1, printMesh);
+                                  solu1, kappa1, delta1m, printMesh);
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
