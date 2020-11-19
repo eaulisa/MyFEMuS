@@ -295,14 +295,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level + 2);
+  //double dMax = 0.133333 * pow(0.66, level + 2); //marta4
+//   double dMax = 0.133333 * pow(0.66, level); //marta
+  double dMax = 0.1 * pow(2./3., level-1); //marta
   double eps = 0.125 * dMax;
+  //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
   std::cout << "level = " << level << " ";
 
-  
-  double delta1m = delta1- eps; 
-  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1m + eps << " " << " lmax1 = " << lmax1 << std::endl;
+
+  double delta1m = delta1 - eps;
+  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1m + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
 
@@ -454,7 +457,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
     }
 
-    
+
     //assemble and store RHS
     std::vector <double> res1(nDof1, 0.);
     double weight1;
@@ -462,10 +465,16 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     const elem_type* fem1 = refineElement[ielGeom][soluType]->GetFem1();
     for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
       fem1->GetGaussQuantities(x1, ig, weight1, phi1);
+      std::vector< double > x1g(dim, 0);
       for(unsigned i = 0; i < nDof1; i++) {
-        res1[i] -= -2. * phi1[i] * weight1;
-      } 
-    } 
+        for(unsigned k = 0; k < dim; k++) {
+          x1g[k] += x1[k][i] * phi1[i];
+        }
+      }
+      for(unsigned i = 0; i < nDof1; i++) {
+        res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1;
+      }
+    }
     RES->add_vector_blocked(res1, l2GMap1);
 
 
@@ -528,8 +537,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                          *refineElement[ielGeom][soluType], region2, jelIndex,
-                          solu1, kappa1, delta1m, printMesh);
+                        *refineElement[ielGeom][soluType], region2, jelIndex,
+                        solu1, kappa1, delta1m, printMesh);
 
     for(unsigned jel = 0; jel < region2.size(); jel++) {
       KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
@@ -748,8 +757,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             }
 
             nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                                  *refineElement[ielGeom][soluType], region2, jelIndex,
-                                  solu1, kappa1, delta1m, printMesh);
+                                *refineElement[ielGeom][soluType], region2, jelIndex,
+                                solu1, kappa1, delta1m, printMesh);
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
@@ -1432,8 +1441,8 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
         }
 
 //                 double srcTerm =  12. * x_gss[0] * x_gss[0] ; // so f = - 12 x^2
-        double srcTerm =  2. ; // so f = - 2
-        //double srcTerm =  6. * x_gss[0]; // so f = - 12 x^2
+        //double srcTerm =  2. ; // so f = - 2
+        double srcTerm =  6. * ( x_gss[0] + x_gss[1]) ; // so f = - 12 x^2
 //         double srcTerm =  - 1. ; // so f = 1
 //         double srcTerm;
 //         if (x_gss[0] < 0.) {
