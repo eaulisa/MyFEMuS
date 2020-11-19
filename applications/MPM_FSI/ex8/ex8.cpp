@@ -45,7 +45,7 @@ using namespace femus;
 double dt = 1.;
 
 double SetVariableTimeStep(const double time) {
-  if(time < 20.) dt = 0.05;
+  if(time < 2.) dt = 0.05;
   else dt = 0.01;
 
   return dt;
@@ -296,13 +296,13 @@ int main(int argc, char **args) {
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 2000;
+  unsigned n_timesteps = 3000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
     system.MGsolve();
     ProjectNewmarkDisplacemenet(mlSol);
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
+    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step/5);
   }
 
 
