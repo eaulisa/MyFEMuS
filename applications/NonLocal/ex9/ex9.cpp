@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 4;
+unsigned numberOfUniformLevels = 3;
 
 unsigned numberOfUniformLevelsFine = 1;
 
@@ -121,7 +121,8 @@ int main(int argc, char** argv) {
   
   //mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
   
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest5.neu", "fifth", scalingFactor );
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest7.neu", "fifth", scalingFactor );
@@ -144,7 +145,8 @@ int main(int argc, char** argv) {
 
   //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
   
-  mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+  //mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+  mlMshFine.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
   // mlMshFine.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
   //mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
   
