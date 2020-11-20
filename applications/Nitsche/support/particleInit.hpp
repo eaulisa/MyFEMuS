@@ -18,16 +18,17 @@ void InitBar2D(const unsigned &dim, const double &L, const double &H, const doub
                std::vector < std::vector <double> > &xp,
                std::vector <double> &wp,
                std::vector <double> &dist) {
-
+    
+  //inner bulk parameters
   double L0 = L - DB;
-  double H0 = H - 0.1 * DB; // get close to the top
-
+  double H0 = H ;//H0 = H - 0.5 * DB; // get close to the top
   unsigned cols0 = ceil(L0 / dL);
   unsigned rows0 = ceil(H0 / dL);
-  double dx0 = L0 / cols0;
+  double dx0 = L0 / cols0; 
   double dy0 = H0  / rows0;
   
   
+  //boundary layer parameters
   if(nbl % 2 == 0) nbl++;
 
   double dbl = DB / nbl;            //step size in boundary layer
@@ -36,11 +37,10 @@ void InitBar2D(const unsigned &dim, const double &L, const double &H, const doub
   double dxl = L0 / colsl;
   double dyl = H0 / rowsl;
 
-  
+  //outer bulk parameters
   double L1 = L + DB;
   double H1 = H; // stay just below the top boundary where the disc starts
   double DH = 0.5 * (Lf - L);
-
   unsigned cols1 = ceil(L1 / dL);    // number of cols above the inner bulk + interface
   unsigned rows1 = ceil(H1 / dL);    // number of rows upto tops
   unsigned nDH = ceil((DH - 0.5 * DB) / dL);       //number of side cols without tops
@@ -171,9 +171,9 @@ void RoundCap(const unsigned &dim, const double &L, const double &H, const doubl
 
 // small semi-disc on the top of the beam
 
-  unsigned cols0 = ceil(L / dL);
-  double dx0 = L / cols0;
-  double DH = 0.5 * (Lf - L);
+  //unsigned cols0 = ceil(L / dL);
+  //double dx0 = L / cols0;
+  //double DH = 0.5 * (Lf - L);
 
 
   double R = L / 2. ;
@@ -181,7 +181,8 @@ void RoundCap(const unsigned &dim, const double &L, const double &H, const doubl
   double theta1 = M_PI;
 
   double R0 = 0. ;
-  double dp = dx0;
+  //double dp = dx0;
+  double dp = DB;
 
 
   unsigned nr = ceil(((R - 0.5 * dp)) / dp);
@@ -256,14 +257,10 @@ void RoundCap(const unsigned &dim, const double &L, const double &H, const doubl
   
   
   
-  
-  
 //outer circle points from R + 0.5 * dp to Rmax on the top the entire bulk points without the small disc above
 
   double Rmax =  sqrt((Lf / 2) * (Lf / 2)) ;
-  //std::vector< double > VxL = {xc[0] - DH, xc[1] + H };   // {xmin, ymin}
-  //std::vector< double > VxR = {xc[0] + L + 0.5 * DB + DH, xc[1] + H + (Lf / 2) }; // {xmax, ymax}
-
+ 
   i0 = floor((R0 - (R + 0.5 * dp)) / dr - 0.5);
   if(i0 < 0) i0 = 0;
   i1 = floor((Rmax - (R + 0.5 * dp)) / dr - 0.5);
@@ -277,15 +274,7 @@ void RoundCap(const unsigned &dim, const double &L, const double &H, const doubl
       double tj = theta0 + (0.5 + j) * dti;
       XP[0] = xc[0] + L/2. + ri * cos(tj);
       XP[1] = xc[1] + H + ri * sin(tj);
-//       unsigned flag  = 0;
-//       for(unsigned k = 0; k < dim; k++) {
-//         if(XP[k] < VxL[k]  || XP[k] > VxR[k]) {
-//           ++flag;
-//           break;
-//         }
-//       }
 
-      if(true) {
         xp.resize(cnt + 1);
         xp[cnt] = XP;
         wp.resize(cnt + 1);
@@ -295,8 +284,6 @@ void RoundCap(const unsigned &dim, const double &L, const double &H, const doubl
 
         area += ri * dti * dr;
         cnt++;
-
-      }
     }
   }
 
@@ -375,7 +362,8 @@ void InitRoundBar2DInterface(const unsigned & dim, const double & L, const doubl
                              std::vector < std::vector <double> > &xp,
                              std::vector < std::vector < std::vector < double > > > &T) {
   
-  double H0 = H - 0.1 * DB; // to be close to the top
+  // the center of the circle is (x0,y0) = (xc[0] + L/2, xc[1] + H) 
+  double H0 = H;// H - 0.5 * DB; // to be close to the top
   double dbl = DB / nbl;
   unsigned rowsl = ceil(H0 / dbl);
   double dyl = H0 / rowsl;
@@ -408,9 +396,9 @@ void InitRoundBar2DInterface(const unsigned & dim, const double & L, const doubl
   unsigned cnt = 0;
   
  // round cap interface
-  double arcLenght = R * M_PI / Ntheta;
+  
   double dtheta =  M_PI / Ntheta;  
-
+  double arcLenght = R * dtheta;
   for(unsigned i = 0; i < Ntheta; i++) {
     
     double ti = 0. + (FI * 0.5 + i) * dtheta;
