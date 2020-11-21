@@ -297,9 +297,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
   //double dMax = 0.133333 * pow(0.66, level + 2); //marta4
 //   double dMax = 0.133333 * pow(0.66, level); //marta
-  double dMax = 0.1 * pow(2./3., level-1); //marta
+  double dMax = 0.1 * pow(2. / 3., level - 1); //marta
   double eps = 0.125 * dMax;
   //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
+
+  double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
 
@@ -541,7 +543,15 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
                         solu1, kappa1, delta1m, printMesh);
 
     for(unsigned jel = 0; jel < region2.size(); jel++) {
-      KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+
+      std::vector<double> & J21 = nonlocal->GetJac21(jel);
+      for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
+        if(fabs(J21[ii]) > 1.0e-12 * areaEl) {
+          KK->add_matrix_blocked(J21, region2.GetMapping(jel), l2GMap1);
+          break;
+        }
+      }
+
       KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
       RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
     }
@@ -764,7 +774,15 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
                  This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
                  the bufferization and exchange of information when closing the KK matrix and the RES vector */
-              KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+              
+              std::vector<double> & J21 = nonlocal->GetJac21(jel);
+              for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
+                if( fabs(J21[ii]) > 1.0e-12 * areaEl) {
+                  KK->add_matrix_blocked(J21, region2.GetMapping(jel), l2GMap1);
+                  break;
+                }
+              }
+
               KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
               RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
             }
@@ -801,11 +819,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
 
   sol->_Sol[cntIndex]->close();
-
-  double tolerance = 1.0e-12 * KK->linfty_norm();
-  KK->RemoveZeroEntries(tolerance);
-
-  //KK->draw();
+  
+//   double tolerance = 1.0e-12 * KK->linfty_norm();
+//   KK->RemoveZeroEntries(tolerance);
+// 
+//   KK->draw();
 
   delete nonlocal;
   delete refineElement[3][0];
