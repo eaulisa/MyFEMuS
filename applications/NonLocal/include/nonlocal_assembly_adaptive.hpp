@@ -820,8 +820,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   sol->_Sol[cntIndex]->close();
   
-//   double tolerance = 1.0e-12 * KK->linfty_norm();
-//   KK->RemoveZeroEntries(tolerance);
+  double tolerance = 1.0e-12 * KK->linfty_norm();
+  KK->RemoveZeroEntries(tolerance);
 // 
 //   KK->draw();
 
