@@ -26,8 +26,8 @@ using namespace femus;
 
 //int simulation = 1; // =1 sphere (default) = 2 torus
 
-unsigned P = 4;
-const double c0 = -.0;
+unsigned P = 2;
+const double c0 = -0.75;
 
 //Sphere
 
@@ -37,21 +37,22 @@ bool SetBoundaryConditionSphere (const std::vector < double >& x, const char Sol
   bool dirichlet = true; //dirichlet
 
   if (!strcmp ("u", SolName)) {
-      value = 0;
+      //value = 0.;
 
-    // if(x[1] >= 0){
-    //   value = 0.1 * sin( 4. * acos(x[0]) );
-    // }
-    // else{
-    //   value = 0.1 * sin( 4. * (2. * M_PI - acos(x[0])) );
-    // }
+    if(x[1] >= 0){
+      value = 0.1 * sin( 4. * acos(x[0]) );
+    }
+    else{
+      value = 0.1 * sin( 4. * (2. * M_PI - acos(x[0])) );
+    }
   }
   else if (!strcmp ("H", SolName)) {
     //value = -1. / tan(thetaSphere);
-    value = 0.;
+    value = -c0;
   }
   else if (!strcmp ("W", SolName)) {
     //value = -1. / tan(thetaSphere);
+    //dirichlet = false;
     value =  0.;
   }
   return dirichlet;
@@ -64,7 +65,7 @@ double InitalValueHSphere (const std::vector < double >& x) {
 }
 
 double GetTimeStep (const double time) {
-  return 0.01;
+  return 0.1;
 }
 
 
