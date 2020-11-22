@@ -137,6 +137,44 @@ void AssembleSystemY (MultiLevelProblem& ml_prob) {
           pdeSys->GetSystemDof (solYIndex[K], solYPdeIndex[K], i, iel);
       }
     }
+    
+    
+    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+      if(el->GetBoundaryIndex(iel, jface) == 1) {
+             
+        const unsigned faceGeom = msh->GetElementFaceType(iel, jface); //edge
+        unsigned nxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
+
+        for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
+
+          double weight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
+          const double *phi = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
+          const double *phi_u = msh->_finiteElement[faceGeom][solxType]->GetDPhiDXi(ig);
+
+          double solxg[3] = {0., 0., 0.};
+          double solxg_u[3] = {0., 0., 0.};
+
+          for(unsigned I = 0; I < DIM; I++) {
+            for(unsigned i = 0; i < nxDofs; i++) {
+              unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+              solxg[I] += phi[i] * solx[I][inode];
+              solxg_u[I] += phi_u[i] * solx[I][inode];
+            }
+          }
+
+          double length = sqrt(solxg_u[0] * solxg_u[0] + solxg_u[1] * solxg_u[1] + solxg_u[2] * solxg_u[2]) * weight;
+
+
+          for(unsigned i = 0; i < nxDofs; i++) {
+            for(unsigned I = 0; I < DIM; I++) {
+              unsigned idof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+              Res[I * nYDofs + idof] += solxg[I] * phi[i] * length;
+            }
+          }
+        }
+      }
+    }
+
 
     // begin GAUSS POINT LOOP
     for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solxType]->GetGaussPointNumber(); ig++) {

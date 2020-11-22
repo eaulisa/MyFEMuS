@@ -138,6 +138,49 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
       }
     }
 
+
+//     for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+//       if(el->GetBoundaryIndex(iel, jface) == 1) {
+// 
+//           
+//         std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAA\n";  
+//           
+//         const unsigned faceGeom = msh->GetElementFaceType(iel, jface); //edge
+//         unsigned nxDofs = msh->GetElementFaceDofNumber(iel, jface, solxType);
+// 
+//         for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solxType]->GetGaussPointNumber(); ig++) {
+// 
+//           double weight = msh->_finiteElement[faceGeom][solxType]->GetGaussWeight(ig);
+//           const double *phi = msh->_finiteElement[faceGeom][solxType]->GetPhi(ig);
+//           const double *phi_u = msh->_finiteElement[faceGeom][solxType]->GetDPhiDXi(ig);
+// 
+//           double solxg[3] = {0., 0., 0.};
+//           double solxg_u[3] = {0., 0., 0.};
+// 
+//           for(unsigned I = 0; I < DIM; I++) {
+//             for(unsigned i = 0; i < nxDofs; i++) {
+//               unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+//               solxg[I] += phi[i] * solx[I][inode];
+//               solxg_u[I] += phi_u[i] * solx[I][inode];
+//             }
+//           }
+// 
+//           double length = sqrt(solxg_u[0] * solxg_u[0] + solxg_u[1] * solxg_u[1] + solxg_u[2] * solxg_u[2]) * weight;
+// 
+// 
+//           for(unsigned i = 0; i < nxDofs; i++) {
+//             for(unsigned I = 0; I < DIM; I++) {
+//               unsigned idof = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+//               Res[I * nYDofs + idof] += +solxg[I] * phi[i] * length;
+//             }
+//           }
+//         }
+//       }
+//     }
+
+
+
+
     // begin GAUSS POINT LOOP
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solxType]->GetGaussPointNumber(); ig++) {
 
@@ -226,9 +269,9 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           boost::math::quaternion <double> dphiv(0, (K == 0) * phix_uv[1][i], (K == 1) * phix_uv[1][i], (K == 2) * phix_uv[1][i]);
 
           double term2 =  (gi[0][0] * (dYu % dphiu) +
-                                 gi[0][1] * (dYu % dphiv) +
-                                 gi[1][0] * (dYv % dphiu) +
-                                 gi[1][1] * (dYv % dphiv));
+                           gi[0][1] * (dYu % dphiv) +
+                           gi[1][0] * (dYv % dphiu) +
+                           gi[1][1] * (dYv % dphiv));
 
           double term3 =        (gi[0][0] * (dfu % dphiu) +
                                  gi[0][1] * (dfu % dphiv) +
@@ -250,13 +293,13 @@ void AssembleSystemY(MultiLevelProblem& ml_prob) {
           unsigned jstart = istart + K * nYDofs;
           for(unsigned j = 0; j < nYDofs; j++) {
 
-          boost::math::quaternion <double> dphiuJ(0, (K == 0) * phix_uv[0][j], (K == 1) * phix_uv[0][j], (K == 2) * phix_uv[0][j]);
-          boost::math::quaternion <double> dphivJ(0, (K == 0) * phix_uv[1][j], (K == 1) * phix_uv[1][j], (K == 2) * phix_uv[1][j]);
+            boost::math::quaternion <double> dphiuJ(0, (K == 0) * phix_uv[0][j], (K == 1) * phix_uv[0][j], (K == 2) * phix_uv[0][j]);
+            boost::math::quaternion <double> dphivJ(0, (K == 0) * phix_uv[1][j], (K == 1) * phix_uv[1][j], (K == 2) * phix_uv[1][j]);
 
-          double term2Jac =  (gi[0][0] * (dphiu % dphiuJ) +
-                                 gi[0][1] * (dphiu % dphivJ) +
-                                 gi[1][0] * (dphiv % dphiuJ) +
-                                 gi[1][1] * (dphiv % dphivJ));
+            double term2Jac =  (gi[0][0] * (dphiu % dphiuJ) +
+                                gi[0][1] * (dphiu % dphivJ) +
+                                gi[1][0] * (dphiv % dphiuJ) +
+                                gi[1][1] * (dphiv % dphivJ));
 
             Jac [jstart + j] -= (phiY[i] * phiY[j] + 0.0005 * term2Jac) * Area;
           }
@@ -582,3 +625,5 @@ void AssembleSystemW(MultiLevelProblem& ml_prob) {
   KK->close();
 }
 //END Assemble SystemW
+
+
