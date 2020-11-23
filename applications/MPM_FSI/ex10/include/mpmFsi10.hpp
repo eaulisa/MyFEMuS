@@ -4,24 +4,6 @@
 using namespace femus;
 
 
-double theta = 1.;
-double af = 1. - theta;
-double am = af - 0.1; 
-double beta = 0.25 + 0.5 * (af - am);
-double Gamma = 0.5 + (af - am);
-
-
-// double Gamma = 0.5; 
-// double theta = 0.9; 
-// double af = 0.1; 
-// double am = 0.5; 
-// double beta = 0.25 + 0.5 * (am - af) ; 
-// //double gravity[3] = {9810, 0., 0.};
-// double gravity[3] = {0, 0., 0.};
-
-
-
-
 //void GetParticlesToNodeFlag(MultiLevelSolution &mlSol, Line & solidLine, Line & fluidLine);
 //void GetPressureNeighbor(MultiLevelSolution &mlSol, Line & solidLine, Line & fluidLine);
 
@@ -157,8 +139,6 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double gammac = 0.05;
-  double gammap = 0.05;
 
   std::cout.precision(10);
 
@@ -954,7 +934,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              gradPhiP[( i + 1) * dim + j] = JacMatrix[i][j];
+              gradPhiP[(i + 1) * dim + j] = JacMatrix[i][j];
             }
           }
         }
@@ -1301,7 +1281,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         double h = sqrt((vxHat[0][0] - vxHat[0][2]) * (vxHat[0][0] - vxHat[0][2]) +
                         (vxHat[1][0] - vxHat[1][2]) * (vxHat[1][0] - vxHat[1][2])) ;
 
-        double GAMMA = 10.; // 10, 45 in the paper.
+
         double thetaM = GAMMA * muFluid / h;
         double thetaL = GAMMA * rhoFluid / (theta * dt) * h  + thetaM;
 
@@ -1388,7 +1368,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
             solAp[k] = (solDp[k] - solDpOld[k]) / (beta * dt * dt) - solVpOld[k] / (beta * dt) + (beta - 0.5) / beta * solApOld[k]; // Newmark acceleration
             //solApAm[k] = (1. - am) * solAp[k] + am * solApOld[k]; // generalized alpha acceleration
-            v2[k] = solVpOld[k] + (1.- af) * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
+            v2[k] = solVpOld[k] + (1. - af) * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k]));
 
           }
 
