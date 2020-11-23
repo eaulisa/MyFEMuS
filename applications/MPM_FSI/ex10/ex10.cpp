@@ -34,7 +34,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char name[], do
   value = 0.;
 
   double H = 1.e-4; //channel length
-  double U = 0.05; //TODO it is not clear if it is 0.05 or 0.0333
+  double U = 0.05; 
   double t2 = t * t;
 
   if(!strcmp(name, "DX")) {
@@ -98,10 +98,7 @@ int main(int argc, char** args) {
   double E = 2.e05;
   double muf = 1.0e-3;
 
-  beta = 0.3;
-  Gamma = 0.5;
-
-
+ 
   Parameter par(Lref, Uref);
 
   // Generate Solid Object
@@ -116,7 +113,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  FEOrder femOrder = SECOND;
+  FEOrder femOrder = FIRST;
 
   MultiLevelSolution mlSol(&mlMsh);
   // add variables to mlSol
@@ -243,14 +240,14 @@ int main(int argc, char** args) {
   double Ls = 5.e-06;
   double Lf = 4. * Ls;
 
-  std::vector < double> xcc = {0.98e-04, 0.};
+  std::vector < double> xcc = {0.98e-04, 0.}; // this is the lower left corner of the beam
 
-  //double dL = Hs / 250; // old one
+  double dL = Hs / 250; // old one
 
-  double dL = Hs / 250;
+  //double dL = Hs / 200;
 
-  unsigned nbl = 3; // odd number
-  double DB =  0.5 * dL;
+  unsigned nbl = 3;  // odd number
+  double DB = dL;    // allows us to match the particles on round top and rectangle bottom 
   eps = DB;
 
 
@@ -258,26 +255,19 @@ int main(int argc, char** args) {
   InitRoundBarParticle2D(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
   
   
-//   std::ofstream fout1;
-//   fout1.open("RoundBar.txt", std::ofstream::trunc);
-// 
-//   for(unsigned i = 0; i < xp.size(); i++) {
-//     fout1 <<  xp[i][0] << " " << xp[i][1] << " " << dist[i] << " "<< wp[i] << std::endl;
-//   }
-//   
-//   fout1.close();
+  std::ofstream fout1;
+  fout1.open("RoundBar.txt", std::ofstream::trunc);
+
+  for(unsigned i = 0; i < xp.size(); i++) {
+    fout1 <<  xp[i][0] << " " << xp[i][1] << " " << dist[i] << " "<< wp[i] << std::endl;
+  }
+  
+  fout1.close();
 
   
   
 
   
-//   std::ofstream fout2;
-//   fout2.open("RoundBarInt.txt", std::ofstream::trunc);
-//   
-//   for(unsigned i = 0; i < xp.size(); i++) {
-//     fout2 <<  xp[i][0] << " " << xp[i][1] << std::endl;
-//   }
-//   fout2.close();
 
 
     
@@ -296,6 +286,16 @@ int main(int argc, char** args) {
   InitRoundBar2DInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
   //InitRectangleInterface(2, Ls, Hs, DB, nbl, 1, xcc, markerTypeBulk, xp, T);
 
+  
+  std::ofstream fout2;
+  fout2.open("RoundBarInt.txt", std::ofstream::trunc);
+
+  for(unsigned i = 0; i < xp.size(); i++) {
+    fout2 <<  xp[i][0] << " " << xp[i][1] << std::endl;
+  }
+  fout2.close();
+
+  
   unsigned solType1 = 2;
   lineI = new Line(xp, T, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), solType1);
 
