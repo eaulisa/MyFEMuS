@@ -28,8 +28,8 @@ using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
-  if(time < 2.5) dt = 0.05;
-  else dt = 0.0125;
+  if(time < 2) dt = 0.05;
+  else dt = 0.01;
 
   return dt;
 }
@@ -119,8 +119,8 @@ int main(int argc, char **args) {
   double E = 1400000;
 
 
-  beta = 0.3;
-  Gamma = 0.5;
+  //beta = 0.3;
+  //Gamma = 0.5;
 
 
   Parameter par(Lref, Uref);

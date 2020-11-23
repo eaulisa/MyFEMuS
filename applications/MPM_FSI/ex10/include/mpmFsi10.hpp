@@ -4,27 +4,20 @@
 using namespace femus;
 
 
-// double Gamma = 0.5; // goes with the new one, correct
-// double theta = 0.9; // theta = 1. is backward Euler, goes with the new one, correct
-// double af = theta; // goes with old one TODO af = 1- theta, change the formulation
-// double pInf = (1. + af) / (2. - af);
-// double am = 0.5; //pInf / (1. + pInf); // goes with old one TODO, change the formulation
-// double beta = 1. / 4. + 1. / 2.* (af - am) ; // goes with the new one, correct
-
-// double theta = 0.5;
-// double af = 1. - theta;
-// double am = af - 0.1; 
-// double beta = 0.25 + 0.5 * (af - am);
-// double Gamma = 0.5 + (af - am);
+double theta = 1.;
+double af = 1. - theta;
+double am = af - 0.1; 
+double beta = 0.25 + 0.5 * (af - am);
+double Gamma = 0.5 + (af - am);
 
 
-double Gamma = 0.5; 
-double theta = 0.9; 
-double af = 0.1; 
-double am = 0.5; 
-double beta = 0.25 + 0.5 * (am - af) ; 
-//double gravity[3] = {9810, 0., 0.};
-double gravity[3] = {0, 0., 0.};
+// double Gamma = 0.5; 
+// double theta = 0.9; 
+// double af = 0.1; 
+// double am = 0.5; 
+// double beta = 0.25 + 0.5 * (am - af) ; 
+// //double gravity[3] = {9810, 0., 0.};
+// double gravity[3] = {0, 0., 0.};
 
 
 
@@ -1308,7 +1301,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         double h = sqrt((vxHat[0][0] - vxHat[0][2]) * (vxHat[0][0] - vxHat[0][2]) +
                         (vxHat[1][0] - vxHat[1][2]) * (vxHat[1][0] - vxHat[1][2])) ;
 
-        double GAMMA = 100.; // 10, 45 in the paper.
+        double GAMMA = 10.; // 10, 45 in the paper.
         double thetaM = GAMMA * muFluid / h;
         double thetaL = GAMMA * rhoFluid / (theta * dt) * h  + thetaM;
 
