@@ -640,6 +640,9 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
                     s.clear_independents();
                     s.clear_dependents();
                   }
+                  else{
+                    mysolution->_Sol[eflagIndex]->set(iel2,0);// gray cell 
+                  }
                 }
               }
             }
@@ -662,6 +665,7 @@ void AssembleBoundaryLayerProjection(MultiLevelProblem& ml_prob) {
   }
 
   mysolution->_Sol[pElemIndex]->close();
+  mysolution->_Sol[eflagIndex]->close();
 
 // *************************************
   end_time = clock();
