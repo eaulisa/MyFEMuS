@@ -1,4 +1,4 @@
-// 2D Turek Benchmark problem.  
+// 2D Turek Benchmark problem.
 
 #include "FemusInit.hpp"
 #include "MultiLevelProblem.hpp"
@@ -20,6 +20,21 @@ Line *bulk;
 Line *lineI;
 void BuildFlag(MultiLevelSolution & mlSol);
 double eps;
+
+
+double Gamma = 0.5;
+double theta = 0.9;
+double af = 0.1;
+double am = 0.5;
+double beta = 0.25 + 0.5 * (am - af) ;
+//double gravity[3] = {9810, 0., 0.};
+double gravity[3] = {0, 0., 0.};
+
+
+double gammac = 0.05;
+double gammap = 0.05;
+double GAMMA = 10.; // 10, 45 in the paper.
+
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
@@ -288,7 +303,7 @@ int main(int argc, char **args) {
   double ycircle = 0.;
 
 
-  
+
   double Hs = lbeam + rcircle;                // length of the particle beam, y-direction, delete the section inside the circle later on
   double Ls = hbeam;                          // width of the particle beam, x-direction
   double Lf = 3. * Ls;
@@ -317,7 +332,7 @@ int main(int argc, char **args) {
       markerTypeBulk.erase(markerTypeBulk.begin() + i);
       dist.erase(dist.begin() + i);
       wp.erase(wp.begin() + i);
-      xp.erase(xp.begin() + i); 
+      xp.erase(xp.begin() + i);
       i--;
     }
   }
@@ -351,7 +366,7 @@ int main(int argc, char **args) {
     double d = sqrt((xp[i][0] - xcircle) * (xp[i][0] - xcircle) + (xp[i][1] - ycircle) * (xp[i][1] - ycircle));
     if(d < rcircle) {
       markerTypeBulk.erase(markerTypeBulk.begin() + i);
-      xp.erase(xp.begin() + i); 
+      xp.erase(xp.begin() + i);
       T.erase(T.begin() + i);
       i--;
     }
@@ -380,13 +395,13 @@ int main(int argc, char **args) {
 
   mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  
-  
-  
-  
-  
+
+
+
+
+
   lineI->GetParticlesToGridMaterial(false);    // breaking here...
-  
+
   bulk->GetParticlesToGridMaterial(false);
 
 
@@ -398,25 +413,25 @@ int main(int argc, char **args) {
   //GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
 
   // ******* Print solution *******
-/*  mlSol.SetWriter(VTK);
+  /*  mlSol.SetWriter(VTK);
 
-  std::vector < std::string > mov_vars;
-  mov_vars.push_back("DX");
-  mov_vars.push_back("DY");
-  //mov_vars.push_back("DZ");
-  mlSol.GetWriter()->SetMovingMesh(mov_vars);
+    std::vector < std::string > mov_vars;
+    mov_vars.push_back("DX");
+    mov_vars.push_back("DY");
+    //mov_vars.push_back("DZ");
+    mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
-  std::vector < std::string > print_vars;
-  print_vars.push_back("All");
+    std::vector < std::string > print_vars;
+    print_vars.push_back("All");
 
-  mlSol.GetWriter()->SetDebugOutput(true);
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0)*/;
+    mlSol.GetWriter()->SetDebugOutput(true);
+    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0)*/;
   //mlSol.GetWriter()->Write ("./output1", "biquadratic", print_vars, 0);
 
   //return 1;
 
-   
-  
+
+
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
@@ -441,9 +456,9 @@ int main(int argc, char **args) {
     PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step);
     std::cout << "printing interface" << std::endl;
     lineI->GetLine(lineIPoints[0]);
-    
+
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
-    
+
   }
 
   delete bulk;
