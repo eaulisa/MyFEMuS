@@ -297,7 +297,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
   //double dMax = 0.133333 * pow(0.66, level + 2); //marta4
 //   double dMax = 0.133333 * pow(0.66, level); //marta
-  double dMax = 0.1 * pow(2. / 3., level - 1); //marta
+  double dMax = 0.1 * pow(2./3., level - 1); //marta
   double eps = 0.125 * dMax;
   //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
@@ -306,7 +306,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   std::cout << "level = " << level << " ";
 
 
-  double delta1m = delta1 - eps;
+  double delta1m = delta1;// - eps;
   std::cout << "EPS = " << eps << " " << "delta1 = " << delta1m + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
@@ -474,7 +474,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
       for(unsigned i = 0; i < nDof1; i++) {
-        res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1;
+        //res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1;
+          res1[i] -= ( -12.* (x1g[0] * x1g[0]) - delta1m * delta1m ) * phi1[i] * weight1;
+           
       }
     }
     RES->add_vector_blocked(res1, l2GMap1);
@@ -1460,7 +1462,8 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
 
 //                 double srcTerm =  12. * x_gss[0] * x_gss[0] ; // so f = - 12 x^2
         //double srcTerm =  2. ; // so f = - 2
-        double srcTerm =  6. * ( x_gss[0] + x_gss[1]) ; // so f = - 12 x^2
+        //double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // so f = - 12 x^2
+        double srcTerm =  -12.* (x_gss[0] * x_gss[0]);
 //         double srcTerm =  - 1. ; // so f = 1
 //         double srcTerm;
 //         if (x_gss[0] < 0.) {
@@ -1470,7 +1473,7 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
 //           srcTerm =  - cos (x_gss[1]) * (sin (x_gss[0]) * (-kappa2 / 12. - 2 * x_gss[0]) + cos (x_gss[0]) * (kappa2 / 8. + 1. - kappa2 / 12. * x_gss[0] - x_gss[0] * x_gss[0])); //so f = cos(y) * (sin(x) * (-k2 / 12. - 2 * x) + cos(x) * (k2 / 8. + 1. - k2 / 12. * x - x^2))
 //         }
         //double srcTerm =  0./*- GetExactSolutionLaplace(x_gss)*/ ;
-        aRes[i] += (srcTerm * phi[i] + laplace) * weight;
+        aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 
       } // end phi_i loop
     } // end gauss point loop

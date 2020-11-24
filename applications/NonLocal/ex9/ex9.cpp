@@ -26,7 +26,7 @@ double InitalValueU(const std::vector < double >& x) {
 //     value =  x[0] + 0. * ( 0.51 * 0.51 - x[0] * x[0] ) * ( 0.51 * 0.51 - x[1] * x[1] );
 //     value =  x[0];
 // value =  x[0] * x[0];
-   value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1] ;
+   value =  x[0] * x[0] * x[0] *x[0];//+ x[1] * x[1] * x[1] ;
 //     value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1];
 //     value =  x[0] * x[0] * x[0] * x[0] + 0.1 * x[0] * x[0]; //this is x^4 + delta x^2
 //     value =  x[0] * x[0] * x[0] * x[0]; //this is x^4
@@ -56,7 +56,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0.;
 //  value = x[0];
 //  value = x[0] * x[0];
-     value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1];
+     value = x[0] * x[0] * x[0] * x[0];// + x[1] * x[1] * x[1];
 //   value = (x[0] < 0.) ? x[0] * x[0] * x[0] : 3 * x[0] * x[0] * x[0];
 //     value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1];
 //     value = x[0] * x[0] * x[0] * x[0] + 0.1 * x[0] * x[0]; //this is x^4 + delta x^2
@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 6;
+unsigned numberOfUniformLevels = 5;
 
 unsigned numberOfUniformLevelsFine = 1;
 
@@ -121,8 +121,8 @@ int main(int argc, char** argv) {
   
   //mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
-  //mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
   
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest5.neu", "fifth", scalingFactor );
 //     mlMsh.ReadCoarseMesh ( "../input/martaTest7.neu", "fifth", scalingFactor );
@@ -145,8 +145,8 @@ int main(int argc, char** argv) {
 
   //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
   
-  //mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
-  mlMshFine.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
+  mlMshFine.ReadCoarseMesh("../input/martaTest4.neu", "fifth", scalingFactor);
+  //mlMshFine.ReadCoarseMesh("../input/martaTest4Unstr.neu", "second", scalingFactor);
   // mlMshFine.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
   //mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
   
@@ -174,8 +174,8 @@ int main(int argc, char** argv) {
 
   // add variables to mlSol
 
-  FEOrder femType = SERENDIPITY;
-  //FEOrder femType = FIRST;
+  //FEOrder femType = SERENDIPITY;
+  FEOrder femType = FIRST;
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
@@ -456,7 +456,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 //             soluExact_gss = x_gss * x_gss * x_gss * x_gss + 0.1 * x_gss * x_gss; // this is x^4 + delta * x^2
 
 //       soluExact_gss = x_gss * x_gss ; // this is x^2
-         soluExact_gss = x_gss * x_gss * x_gss + y_gss * y_gss * y_gss; // this is x^2
+         soluExact_gss = x_gss * x_gss * x_gss * x_gss;//+ y_gss * y_gss * y_gss; // this is x^2
 
 //             soluExact_gss = (x_gss < 0.) ? x_gss * x_gss * x_gss : 3.* x_gss * x_gss * x_gss; // this is x^3 for x< 0 and 3 x^3 for x >= 0
 
