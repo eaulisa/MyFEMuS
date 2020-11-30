@@ -291,14 +291,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 3;
+  unsigned lmax1 = 4;
   unsigned lmin1 = 1;
 
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
   //double dMax = 0.133333 * pow(0.66, level + 2); //marta4
 //   double dMax = 0.133333 * pow(0.66, level); //marta
-  double dMax = 0.1 * pow(2./3., level - 1); //marta
-  double eps = 0.125 * dMax;
+  double dMax = 0.1 * pow(1./3., level - 1); //marta
+  double eps = 0.5 * dMax;
   //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);

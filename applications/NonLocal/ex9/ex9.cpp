@@ -85,7 +85,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 5;
+unsigned numberOfUniformLevels = 4;
 
 unsigned numberOfUniformLevelsFine = 1;
 
@@ -174,8 +174,8 @@ int main(int argc, char** argv) {
 
   // add variables to mlSol
 
-  //FEOrder femType = SERENDIPITY;
-  FEOrder femType = FIRST;
+  FEOrder femType = SERENDIPITY;
+  //FEOrder femType = FIRST;
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
