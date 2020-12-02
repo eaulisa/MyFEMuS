@@ -22,13 +22,20 @@ void BuildFlag(MultiLevelSolution & mlSol);
 double eps;
 
 
-double Gamma = 0.5;
-double theta = 0.9;
-double af = 0.1;
-double am = 0.5;
-double beta = 0.25 + 0.5 * (am - af) ;
+// double Gamma = 0.5;
+// double theta = 0.9;
+// double af = 0.1;
+// double am = 0.;
+// double beta = 0.25 + 0.5 * (am - af) ;
 //double gravity[3] = {9810, 0., 0.};
 double gravity[3] = {0, 0., 0.};
+
+double theta = 1.;
+double af = 1. - theta;
+// double pInf = (1. + af) / (2. - af);
+double am = af - 0.1; //pInf / (1. + pInf);
+double beta = 0.25 + 0.5 * (af - am);
+double Gamma = 0.5 + (af - am);
 
 
 double gammac = 0.05;
@@ -38,12 +45,12 @@ double GAMMA = 10.; // 10, 45 in the paper.
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
-#include "../include/mpmFsi6.hpp"
+#include "../ex10/include/mpmFsi10.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
-  if(time < 2) dt = 0.05;
+  if(time < 2.) dt = 0.05;
   else dt = 0.01;
 
   return dt;
@@ -113,7 +120,7 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 5; //for refinement in 3D
+  unsigned numberOfUniformLevels = 4; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0 ;
 
@@ -310,9 +317,9 @@ int main(int argc, char **args) {
 
   std::vector < double > xcc = { xcircle - 0.5 * hbeam, ycircle};
 
-  double dL = Hs / 500;
+  double dL = Hs / 1200;
 
-  unsigned nbl = 3;       // odd number
+  unsigned nbl = 1;       // odd number
   double DB = dL;
   eps = DB;
 
@@ -320,7 +327,7 @@ int main(int argc, char **args) {
 //
 //   bulk = new Line(xp, wp, dist, nSlaves, markerTypeBulk, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
-  InitRectangleParticle(2, Ls, Hs, Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
+  InitRectangleParticle(2, Ls, Hs,  Lf, dL, DB, nbl, xcc, markerTypeBulk, xp, wp, dist);
 
   //delete particles inside the circle
 
