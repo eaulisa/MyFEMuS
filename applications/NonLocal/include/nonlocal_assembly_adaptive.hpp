@@ -291,23 +291,31 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 4;
+  //unsigned lmax1 = 3; // consistency form 3 -> 7
+  unsigned lmax1 = 3; // cubic or quartic
   unsigned lmin1 = 1;
-
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  //double dMax = 0.133333 * pow(0.66, level + 2); //marta4
-//   double dMax = 0.133333 * pow(0.66, level); //marta
-  double dMax = 0.1 * pow(1./3., level - 1); //marta
-  double eps = 0.5 * dMax;
+  
+  
+  // consistency 
+  //double dMax = 0.1;
   //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
-
+  
+  //cubic
+  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
+  //double eps = 0.125 * dMax;
+  
+  //quartic
+  double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
+  double eps = 0.125 * dMax;
+    
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
 
-
-  double delta1m = delta1;// - eps;
-  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1m + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
+  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
 
@@ -324,7 +332,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //NonLocal *nonlocal = new NonLocalBox();
   NonLocal *nonlocal = new NonLocalBall();
-  nonlocal->SetKernel(kappa1, delta1m, eps);
+  nonlocal->SetKernel(kappa1, delta1, eps);
 
   fout.open("mesh.txt");
   fout.close();
@@ -438,7 +446,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
           unsigned kk = kproc * dim * 2 + k * dim;
-          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1m + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1m + eps) {
+          if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
             coarseIntersectionTest = false;
             break;
           }
@@ -474,8 +482,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
       for(unsigned i = 0; i < nDof1; i++) {
-        //res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1;
-          res1[i] -= ( -12.* (x1g[0] * x1g[0]) - delta1m * delta1m ) * phi1[i] * weight1;
+        //res1[i] -= -4. * phi1[i] * weight1; // consistency
+        //res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1; //cubic
+        res1[i] -= ( -12.* (x1g[0] * x1g[0] + x1g[1] * x1g[1]) - 2. * delta1 * delta1 ) * phi1[i] * weight1; //quartic
            
       }
     }
@@ -509,7 +518,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
       bool coarseIntersectionTest = true;
       for(unsigned k = 0; k < dim; k++) {
-        if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1m + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1m + eps) {
+        if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
           coarseIntersectionTest = false;
           break;
         }
@@ -542,7 +551,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
                         *refineElement[ielGeom][soluType], region2, jelIndex,
-                        solu1, kappa1, delta1m, printMesh);
+                        solu1, kappa1, delta1, printMesh);
 
     for(unsigned jel = 0; jel < region2.size(); jel++) {
 
@@ -735,7 +744,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             }
             bool coarseIntersectionTest = true;
             for(unsigned k = 0; k < dim; k++) {
-              if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1m + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1m + eps) {
+              if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
                 coarseIntersectionTest = false;
                 break;
               }
@@ -770,7 +779,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
             nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
                                 *refineElement[ielGeom][soluType], region2, jelIndex,
-                                solu1, kappa1, delta1m, printMesh);
+                                solu1, kappa1, delta1, printMesh);
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
@@ -1460,19 +1469,10 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
           laplace   +=  aCoeff * phi_x[i * dim + jdim] * gradSolu_gss[jdim];
         }
 
-//                 double srcTerm =  12. * x_gss[0] * x_gss[0] ; // so f = - 12 x^2
-        //double srcTerm =  2. ; // so f = - 2
-        //double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // so f = - 12 x^2
-        double srcTerm =  -12.* (x_gss[0] * x_gss[0]);
-//         double srcTerm =  - 1. ; // so f = 1
-//         double srcTerm;
-//         if (x_gss[0] < 0.) {
-//           srcTerm = - cos (x_gss[1]) * (- 0.5 * x_gss[0] * x_gss[0] * x_gss[0] * x_gss[0] - kappa1 / 8. * x_gss[0] * x_gss[0] * x_gss[0] + 11. / 2. * x_gss[0] * x_gss[0] + kappa1 / 16. * x_gss[0] * x_gss[0] + kappa1 * 5. / 8. * x_gss[0] + 1. - 1. / 16. * kappa1); // f = cos(y) * ( - 0.5 * x^4 - kappa1 / 8 * x^3 + 11. / 2. * x^2 + kappa1 / 16. * x^2 + kappa1 * 5. / 8. * x + 1. - 1. / 16. * k1)
-//         }
-//         else {
-//           srcTerm =  - cos (x_gss[1]) * (sin (x_gss[0]) * (-kappa2 / 12. - 2 * x_gss[0]) + cos (x_gss[0]) * (kappa2 / 8. + 1. - kappa2 / 12. * x_gss[0] - x_gss[0] * x_gss[0])); //so f = cos(y) * (sin(x) * (-k2 / 12. - 2 * x) + cos(x) * (k2 / 8. + 1. - k2 / 12. * x - x^2))
-//         }
-        //double srcTerm =  0./*- GetExactSolutionLaplace(x_gss)*/ ;
+        //double srcTerm =  -4. ; // so f = - 2 //consistency
+        //double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // cubic
+        double srcTerm =  -12.* (x_gss[0] * x_gss[0] + x_gss[1] * x_gss[1]); //quartic
+
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 
       } // end phi_i loop
