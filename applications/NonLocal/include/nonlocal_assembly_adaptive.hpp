@@ -172,7 +172,8 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.2; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+//double delta1 = 0.2; //cubic, quartic, consistency
+double delta1 = 0.05; //parallel
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -307,9 +308,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //double eps = 0.125 * dMax;
   
   //quartic
-  double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
-  double eps = 0.125 * dMax;
+  //double eps = 0.125 * dMax;
+  
+  //parallel
+  double dMax = 0.0125 * pow(1./2., level); //marta4finer
+  double eps = 0.5 * dMax;
     
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
@@ -483,8 +488,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
       for(unsigned i = 0; i < nDof1; i++) {
         //res1[i] -= -4. * phi1[i] * weight1; // consistency
-        //res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1; //cubic
-        res1[i] -= ( -12.* (x1g[0] * x1g[0] + x1g[1] * x1g[1]) - 2. * delta1 * delta1 ) * phi1[i] * weight1; //quartic
+        res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1; //cubic
+        //res1[i] -= ( -12.* (x1g[0] * x1g[0] + x1g[1] * x1g[1]) - 2. * delta1 * delta1 ) * phi1[i] * weight1; //quartic
            
       }
     }
@@ -1470,8 +1475,8 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
         }
 
         //double srcTerm =  -4. ; // so f = - 2 //consistency
-        //double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // cubic
-        double srcTerm =  -12.* (x_gss[0] * x_gss[0] + x_gss[1] * x_gss[1]); //quartic
+        double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // cubic
+        //double srcTerm =  -12.* (x_gss[0] * x_gss[0] + x_gss[1] * x_gss[1]); //quartic
 
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 

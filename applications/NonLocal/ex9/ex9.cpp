@@ -24,8 +24,8 @@ double InitalValueU(const std::vector < double >& x) {
   double value;
 
   //value =  x[0] * x[0] + x[1] * x[1]; //consistency 
-  //value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic 
-  value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
+  value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic 
+  //value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
 
 
 
@@ -39,15 +39,15 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
   bool dirichlet = true;
   //value = x[0] * x[0] + x[1] * x[1]; //consistency
-  //value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic
-    value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
+  value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic
+  //value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
 
 
   return dirichlet;
 }
 
 //unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix 
+unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix 
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine 
 
 
@@ -68,8 +68,9 @@ int main(int argc, char** argv) {
 
 
 
-  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
-  //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs
+  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
+  char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
   //char fileName[100] = "../input/martaTest4Tri.neu";
   //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
     
@@ -366,8 +367,8 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
       
       //soluExact_gss = x_gss * x_gss + y_gss * y_gss; //consistency
-      //soluExact_gss = x_gss * x_gss * x_gss + y_gss * y_gss * y_gss; // cubic
-      soluExact_gss = x_gss * x_gss * x_gss * x_gss + y_gss * y_gss * y_gss * y_gss; // quartic
+      soluExact_gss = x_gss * x_gss * x_gss + y_gss * y_gss * y_gss; // cubic
+      //soluExact_gss = x_gss * x_gss * x_gss * x_gss + y_gss * y_gss * y_gss * y_gss; // quartic
 
       error_solExact_norm2 += (soluNonLoc_gss - soluExact_gss) * (soluNonLoc_gss - soluExact_gss) * weight;
 
