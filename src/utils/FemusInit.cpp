@@ -22,22 +22,22 @@
 
 namespace femus {
 
-adept::Stack FemusInit::_adeptStack;
+  adept::Stack FemusInit::_adeptStack;
 
-uq FemusInit::_uqHermite(UQ_HERMITE); 
-uq FemusInit::_uqLegendre(UQ_LEGENDRE); 
+  uq FemusInit::_uqHermite(UQ_HERMITE);
+  uq FemusInit::_uqLegendre(UQ_LEGENDRE);
 
 // =======================================================
 /// This function initializes the libraries if it is parallel
-FemusInit::FemusInit(
+  FemusInit::FemusInit(
     int & argc,            // integer program input
     char** & argv,         // char program input
     MPI_Comm comm_world_in // communicator for MPI direct
-) {// ======================================================
+  ) {// ======================================================
 
 #ifdef HAVE_PETSC
 
-  int ierr = PetscInitialize (&argc, &argv, NULL, NULL);    CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    int ierr = PetscInitialize (&argc, &argv, NULL, NULL);    CHKERRABORT(PETSC_COMM_WORLD, ierr);
 
 #endif
 
@@ -50,17 +50,17 @@ FemusInit::FemusInit(
 
 
     if ( i != 0) {
-        std::cout.rdbuf(NULL);
+      std::cout.rdbuf(NULL);
     }
 #endif
 
-   std::cout << " FemusInit(): PETSC_COMM_WORLD initialized" << std::endl << std::endl;
+    std::cout << " FemusInit(): PETSC_COMM_WORLD initialized" << std::endl << std::endl << std::flush;
 
     return;
-}
+  }
 
 
-FemusInit::~FemusInit() {
+  FemusInit::~FemusInit() {
 
 #ifdef HAVE_PETSC
     PetscFinalize();
@@ -68,7 +68,7 @@ FemusInit::~FemusInit() {
 #endif
 
     return;
-}
+  }
 
 
 } //end namespace femus
