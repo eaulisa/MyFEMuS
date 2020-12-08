@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
 
 // ******* Solution *******
 
-  systemFine.MGsolve(); //TODO
+  //systemFine.MGsolve(); //TODO
 
   //END assemble and solve nonlocal problem
 

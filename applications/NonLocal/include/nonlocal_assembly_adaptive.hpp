@@ -293,7 +293,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //BEGIN setup for adaptive integration
 
   //unsigned lmax1 = 3; // consistency form 3 -> 7
-  unsigned lmax1 = 3; // cubic or quartic
+  unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
 
@@ -320,7 +320,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   double dMax = 0.1 * pow(2. / 3., level - 1); //marta4finer
   double eps = 0.125 * dMax;
 
-
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
@@ -328,14 +327,18 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
-
+ 
+  NonLocal *nonlocal;
+  
   if(dim == 3) {
     refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
     refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
     refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
 
     refineElement[0][soluType]->SetConstants(eps);
-
+    
+    
+    nonlocal = new NonLocalBall3D();
 
   }
   else if (dim == 2) {
@@ -349,10 +352,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     refineElement[3][soluType]->SetConstants(eps);
     refineElement[4][soluType]->SetConstants(eps);
+    
+    nonlocal = new NonLocalBall();
+    //nonlocal = new NonLocalBox();
   }
 
-  //NonLocal *nonlocal = new NonLocalBox();
-  NonLocal *nonlocal = new NonLocalBall();
   nonlocal->SetKernel(kappa1, delta1, eps);
 
   fout.open("mesh.txt");
@@ -363,7 +367,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   std::vector <double> kprocMinMax(nprocs * dim * 2);
   for(unsigned k = 0; k < dim; k++) {
-    unsigned kk = iproc * (dim * 2) + k * dim;
+    unsigned kk = iproc * (dim * 2) + k * 2;
     kprocMinMax[kk] = 1.0e10;
     kprocMinMax[kk + 1] = -1.0e10;
   }
@@ -376,7 +380,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     for(unsigned i = 0; i < nDof; i++) {
       unsigned iDof  = msh->GetSolutionDof(i, iel, xType);
       for(unsigned k = 0; k < dim; k++) {
-        unsigned kk = iproc * (dim * 2) + k * dim;
+        unsigned kk = iproc * (dim * 2) + k * 2;
         double xk = (*msh->_topology->_Sol[k])(iDof);
         if(xk < kprocMinMax[kk]) kprocMinMax[kk] = xk;
         if(xk > kprocMinMax[kk + 1]) kprocMinMax[kk + 1] = xk;
@@ -429,10 +433,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   sol->_Sol[cntIndex]->zero();
 
+  
+  
 
   //BEGIN nonlocal assembly
   for(unsigned iel = offset; iel < offsetp1; iel++) {
 
+    std::cout << iel << " "<<std::flush;
+      
     unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
 
@@ -466,7 +474,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       if(kproc != iproc) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
-          unsigned kk = kproc * dim * 2 + k * dim;
+          unsigned kk = kproc * dim * 2 + k * 2;
           if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
             coarseIntersectionTest = false;
             break;

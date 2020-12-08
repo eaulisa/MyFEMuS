@@ -336,6 +336,39 @@ class NonLocalBall: public NonLocal {
     }
 };
 
+class NonLocalBall3D: public NonLocal {
+  public:
+    NonLocalBall3D(): NonLocal() {};
+    ~NonLocalBall3D() {};
+
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
+      double distance  = 0.;
+      for(unsigned k = 0; k < xc.size(); k++) {
+        distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+      }
+      distance = radius - sqrt(distance);
+      return distance;
+    };
+
+    void SetKernel(const double  &kappa, const double &delta, const double &eps) {
+      _kernel = 15. * kappa / (4. * M_PI  * delta * delta * delta * delta * delta)
+                / (1. + 10. / 11. * pow(eps / delta, 2) + 15. / 143. * pow(eps / delta, 4.));
+    }
+
+    double GetArea(const double &delta, const double &eps) const {
+      return 4./3. * M_PI * (delta * delta * delta) * ( 1. + 3./11. * pow(eps/delta,2 ) );
+    };
+
+    double GetGamma(const double &d) const {
+      return 1.;
+    }
+
+    double GetGamma(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
+      return 1.;
+    }
+};
+
+
 
 class NonLocalBall1: public NonLocal {
   public:
