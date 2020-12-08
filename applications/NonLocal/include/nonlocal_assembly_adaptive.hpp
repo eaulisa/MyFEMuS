@@ -173,7 +173,7 @@ bool nonLocalAssembly = true;
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
 //double delta1 = 0.2; //cubic, quartic, consistency
-double delta1 = 0.05; //parallel
+double delta1 = 0.2; //parallel
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -296,26 +296,31 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   unsigned lmax1 = 3; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  
-  
-  // consistency 
+
+
+  // consistency
   //double dMax = 0.1;
   //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
-  
+
   //cubic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
   //double eps = 0.125 * dMax;
-  
+
   //quartic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
   //double eps = 0.125 * dMax;
-  
+
   //parallel
-  double dMax = 0.0125 * pow(1./2., level); //marta4finer
-  double eps = 0.5 * dMax;
-    
+  //double dMax = 0.0125 * pow(1./2., level); //marta4finer
+  //double eps = 0.5 * dMax;
+
+  //3D
+  double dMax = 0.1 * pow(2. / 3., level - 1); //marta4finer
+  double eps = 0.125 * dMax;
+
+
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
@@ -324,16 +329,27 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   RefineElement *refineElement[6][3];
 
-  refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+  if(dim == 3) {
+    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
+    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
 
-  refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
-  refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+    refineElement[0][soluType]->SetConstants(eps);
 
-  refineElement[3][soluType]->SetConstants(eps);
-  refineElement[4][soluType]->SetConstants(eps);
+
+  }
+  else if (dim == 2) {
+    refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
+    refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+
+    refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
+    refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+
+    refineElement[3][soluType]->SetConstants(eps);
+    refineElement[4][soluType]->SetConstants(eps);
+  }
 
   //NonLocal *nonlocal = new NonLocalBox();
   NonLocal *nonlocal = new NonLocalBall();
@@ -490,7 +506,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         //res1[i] -= -4. * phi1[i] * weight1; // consistency
         res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1; //cubic
         //res1[i] -= ( -12.* (x1g[0] * x1g[0] + x1g[1] * x1g[1]) - 2. * delta1 * delta1 ) * phi1[i] * weight1; //quartic
-           
+
       }
     }
     RES->add_vector_blocked(res1, l2GMap1);
@@ -790,7 +806,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
                  This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
                  the bufferization and exchange of information when closing the KK matrix and the RES vector */
-              
+
               std::vector<double> & J21 = nonlocal->GetJac21(jel);
               for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
                 if( fabs(J21[ii]) > 1.0e-12 * areaEl) {
@@ -835,19 +851,26 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
 
   sol->_Sol[cntIndex]->close();
-  
+
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
-// 
+//
 //   KK->draw();
 
   delete nonlocal;
-  delete refineElement[3][0];
-  delete refineElement[3][1];
-  delete refineElement[3][2];
-  delete refineElement[4][0];
-  delete refineElement[4][1];
-  delete refineElement[4][2];
+  if(dim==3){
+    delete refineElement[0][0];
+    delete refineElement[0][1];
+    delete refineElement[0][2];
+  }
+  else if(dim == 2) {
+    delete refineElement[3][0];
+    delete refineElement[3][1];
+    delete refineElement[3][2];
+    delete refineElement[4][0];
+    delete refineElement[4][1];
+    delete refineElement[4][2];
+  }
 
 // ***************** END ASSEMBLY *******************
 }
