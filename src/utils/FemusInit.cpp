@@ -45,11 +45,25 @@ namespace femus {
     // redirect libMesh::out to nothing on all
     // other processors unless explicitly told
     // not to via the --keep-cout command-line argument.
-    int i;
-    MPI_Comm_rank(MPI_COMM_WORLD, &i);
+   
+    int world_size;       //The number of processes that were spawned.
+    int world_rank;       //The rank of the current process.
+    char processor_name[MPI_MAX_PROCESSOR_NAME];  //The name of the current process
+    int name_len;
+    // Get and set the number of processes
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
+    // Get and set the rank of the process
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-    if ( i != 0) {
+    // Get and set the name and length of the processor
+    MPI_Get_processor_name(processor_name, &name_len);
+
+    // Print off a hello world message
+    printf("Hello world from processor %s, rank %d out of %d processors\n",
+           processor_name, world_rank, world_size);
+
+    if ( world_rank != 0) {
       std::cout.rdbuf(NULL);
     }
 #endif
