@@ -21,12 +21,13 @@
 using namespace femus;
 
 double InitalValueU(const std::vector < double >& x) {
-  double value;
+  double value = 0.;
 
-  //value =  x[0] * x[0] + x[1] * x[1]; //consistency 
-  value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic 
-  //value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
-
+  for(unsigned k = 0; k < x.size(); k++) {
+    value +=  x[k] * x[k]; //consistency
+    //value +=  x[k] * x[k] * x[k]; //cubic
+    //value +=  x[k] * x[k] * x[k] * x[k];//quartic
+  }
 
 
 
@@ -38,17 +39,21 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine);
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
 
   bool dirichlet = true;
-  //value = x[0] * x[0] + x[1] * x[1]; //consistency
-  value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1]; //cubic
-  //value = x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1]; //quartic
 
+  value = 0.;
 
+  for(unsigned k = 0; k < x.size(); k++) {
+    value +=  x[k] * x[k]; //consistency
+    //value +=  x[k] * x[k] * x[k]; //cubic
+    //value +=  x[k] * x[k] * x[k] * x[k];//quartic
+  }
+  
   return dirichlet;
 }
 
-//unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix 
-//unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine 
+unsigned numberOfUniformLevels = 2; //consistency
+//unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+//unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 
 unsigned numberOfUniformLevelsFine = 1;
@@ -73,9 +78,9 @@ int main(int argc, char** argv) {
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
   //char fileName[100] = "../input/martaTest4Tri.neu";
   //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
-  //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs
-  char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1
-    
+  char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
+  //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
+
   mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
   MPI_Barrier(MPI_COMM_WORLD);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
@@ -96,7 +101,7 @@ int main(int argc, char** argv) {
   // add variables to mlSol
   FEOrder femType = SERENDIPITY;
   //FEOrder femType = FIRST;
-  
+
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
@@ -355,24 +360,24 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
       msh->_finiteElement[ielGeom][soluType]->Jacobian(x1, ig, weight, phi, phi_x);
       double soluNonLoc_gss = 0.;
       double soluLoc_gss = 0.;
-      double soluExact_gss = 0.;
-      double x_gss = 0.;
-      double y_gss = 0.;
+      std::vector < double > xg(dim, 0.);
 
       for(unsigned i = 0; i < nDofu; i++) {
         soluNonLoc_gss += phi[i] * soluNonLoc[i];
         soluLoc_gss += phi[i] * soluLoc[i];
-        x_gss += phi[i] * x1[0][i]; // this is x at the Gauss point
-        y_gss += phi[i] * x1[1][i]; // this is y at the Gauss point
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += phi[i] * x1[k][i]; // this is x at the Gauss point
+        }
       }
 
 
 
-
-      
-      //soluExact_gss = x_gss * x_gss + y_gss * y_gss; //consistency
-      soluExact_gss = x_gss * x_gss * x_gss + y_gss * y_gss * y_gss; // cubic
-      //soluExact_gss = x_gss * x_gss * x_gss * x_gss + y_gss * y_gss * y_gss * y_gss; // quartic
+      double soluExact_gss = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        soluExact_gss += xg[k] * xg[k];//consistency
+        //soluExact_gss += xg[k] * xg[k] * xg[k]; // cubic
+        //soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
+      }
 
       error_solExact_norm2 += (soluNonLoc_gss - soluExact_gss) * (soluNonLoc_gss - soluExact_gss) * weight;
 

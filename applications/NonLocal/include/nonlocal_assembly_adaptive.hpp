@@ -298,9 +298,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
 
 
-  // consistency
-  //double dMax = 0.1;
-  //double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
+//   //consistency
+//   double dMax = 0.1;
+//   double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
   //cubic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
@@ -316,10 +316,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //double dMax = 0.0125 * pow(1./2., level); //marta4finer
   //double eps = 0.5 * dMax;
 
-  //3D
+
+
+  //consistency 3D
+  double dMax = 0.1;
+  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
+
+
+  //convergence 3D
   //double dMax = 0.1 * pow(2. / 3., level - 1); //marta4-3D
-  double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
-  double eps = 0.125 * dMax;
+  //double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
+  //double eps = 0.125 * dMax;
 
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
@@ -328,17 +335,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
- 
+
   NonLocal *nonlocal;
-  
+
   if(dim == 3) {
     refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
     refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
     refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
 
     refineElement[0][soluType]->SetConstants(eps);
-    
-    
+
+
     nonlocal = new NonLocalBall3D();
 
   }
@@ -353,7 +360,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     refineElement[3][soluType]->SetConstants(eps);
     refineElement[4][soluType]->SetConstants(eps);
-    
+
     nonlocal = new NonLocalBall();
     //nonlocal = new NonLocalBox();
   }
@@ -434,14 +441,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   sol->_Sol[cntIndex]->zero();
 
-  
-  
+
+
 
   //BEGIN nonlocal assembly
   for(unsigned iel = offset; iel < offsetp1; iel++) {
 
-    std::cout << iel << " "<<std::flush;
-      
+    std::cout << iel << " " << std::flush;
+
     unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
 
@@ -512,10 +519,12 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
       for(unsigned i = 0; i < nDof1; i++) {
-        //res1[i] -= -4. * phi1[i] * weight1; // consistency
-        res1[i] -= -6.* (x1g[0] + x1g[1]) * phi1[i] * weight1; //cubic
-        //res1[i] -= ( -12.* (x1g[0] * x1g[0] + x1g[1] * x1g[1]) - 2. * delta1 * delta1 ) * phi1[i] * weight1; //quartic
 
+        for(unsigned k = 0; k < dim; k++) {
+          res1[i] -= -2 * phi1[i] * weight1; // consistency
+          //res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
+          //res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
+        }
       }
     }
     RES->add_vector_blocked(res1, l2GMap1);
@@ -867,7 +876,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   KK->draw();
 
   delete nonlocal;
-  if(dim==3){
+  if(dim == 3) {
     delete refineElement[0][0];
     delete refineElement[0][1];
     delete refineElement[0][2];
@@ -1506,10 +1515,14 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
           laplace   +=  aCoeff * phi_x[i * dim + jdim] * gradSolu_gss[jdim];
         }
 
-        //double srcTerm =  -4. ; // so f = - 2 //consistency
-        double srcTerm =  -6. * ( x_gss[0] + x_gss[1]) ; // cubic
-        //double srcTerm =  -12.* (x_gss[0] * x_gss[0] + x_gss[1] * x_gss[1]); //quartic
 
+        double srcTerm = 0.;
+
+        for(unsigned k = 0; k < dim; k++) {
+          srcTerm +=  -2. ; // so f = - 2 //consistency
+          //srcTerm +=  -6. * x_gss[k] ; // cubic
+          //srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
+        }
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 
       } // end phi_i loop
