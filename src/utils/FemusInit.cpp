@@ -17,6 +17,7 @@
 // includes :
 //----------------------------------------------------------------------------
 #include <iostream>
+#include <fstream>
 #include "FemusInit.hpp"
 #include "UqQuadratureTypeEnum.hpp"
 
@@ -45,7 +46,7 @@ namespace femus {
     // redirect libMesh::out to nothing on all
     // other processors unless explicitly told
     // not to via the --keep-cout command-line argument.
-   
+
     int world_size;       //The number of processes that were spawned.
     int world_rank;       //The rank of the current process.
     char processor_name[MPI_MAX_PROCESSOR_NAME];  //The name of the current process
@@ -59,9 +60,16 @@ namespace femus {
     // Get and set the name and length of the processor
     MPI_Get_processor_name(processor_name, &name_len);
 
-    // Print off a hello world message
-    printf("Hello world from processor %s, rank %d out of %d processors\n",
-           processor_name, world_rank, world_size);
+    std::ofstream fout;
+
+    for(unsigned i = 0; i < world_size; i++) {
+      if(i == world_rank) {
+        fout.open("ProcessorTable.txt", std::ios_base::app);
+        fout << "processor " << processor_name << " rank " << world_rank;
+        fout << " of " << world_size << " processors" << std::endl;
+        fout.close();
+      }
+    }
 
     if ( world_rank != 0) {
       std::cout.rdbuf(NULL);
