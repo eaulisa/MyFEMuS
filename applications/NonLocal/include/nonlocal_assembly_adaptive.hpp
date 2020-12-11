@@ -317,7 +317,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //double eps = 0.5 * dMax;
 
   //3D
-  double dMax = 0.1 * pow(2. / 3., level - 1); //marta4finer
+  //double dMax = 0.1 * pow(2. / 3., level - 1); //marta4-3D
+  double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
   double eps = 0.125 * dMax;
 
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);

@@ -47,7 +47,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 //unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 4; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix 
+unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix 
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine 
 
 
@@ -73,11 +73,14 @@ int main(int argc, char** argv) {
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
   //char fileName[100] = "../input/martaTest4Tri.neu";
   //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
-  char fileName[100] = "../input/martaTest4-3D.neu"; // works till 144 nprocs +4
+  //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs
+  char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1
     
   mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
+  MPI_Barrier(MPI_COMM_WORLD);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
 
+  MPI_Barrier(MPI_COMM_WORLD);
   //consistency
   mlMshFine.ReadCoarseMesh(fileName, "fifth", scalingFactor);
   mlMshFine.RefineMesh(numberOfUniformLevelsFine + numberOfSelectiveLevels, numberOfUniformLevelsFine , NULL);
@@ -158,7 +161,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  system.SetSparsityPatternMinimumSize(40000u);    //TODO tune
+  system.SetSparsityPatternMinimumSize(60000u);    //TODO tune
 
   system.init();
 
@@ -235,7 +238,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   systemFine.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  systemFine.SetSparsityPatternMinimumSize(5000u);    //TODO tune
+  //systemFine.SetSparsityPatternMinimumSize(5000u);    //TODO tune
 
 
   systemFine.init();
