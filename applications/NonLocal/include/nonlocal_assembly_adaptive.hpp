@@ -360,8 +360,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   nonlocal->SetKernel(kappa1, delta1, eps);
 
-  fout.open("mesh.txt");
-  fout.close();
+//   fout.open("mesh.txt");
+//   fout.close();
 
   time_t sSearchTime = 0.;
   time_t sAssemblyTime = 0.;
