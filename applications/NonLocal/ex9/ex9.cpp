@@ -24,9 +24,9 @@ double InitalValueU(const std::vector < double >& x) {
   double value = 0.;
 
   for(unsigned k = 0; k < x.size(); k++) {
-    value +=  x[k] * x[k]; //consistency
-    //value +=  x[k] * x[k] * x[k]; //cubic
-    //value +=  x[k] * x[k] * x[k] * x[k];//quartic
+//     value +=  x[k] * x[k]; //consistency
+//     value +=  x[k] * x[k] * x[k]; //cubic
+    value +=  x[k] * x[k] * x[k] * x[k];//quartic
   }
 
 
@@ -43,16 +43,16 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0.;
 
   for(unsigned k = 0; k < x.size(); k++) {
-    value +=  x[k] * x[k]; //consistency
-    //value +=  x[k] * x[k] * x[k]; //cubic
-    //value +=  x[k] * x[k] * x[k] * x[k];//quartic
+//     value +=  x[k] * x[k]; //consistency
+//     value +=  x[k] * x[k] * x[k]; //cubic
+    value +=  x[k] * x[k] * x[k] * x[k];//quartic
   }
   
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 2; //consistency
-//unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+// unsigned numberOfUniformLevels = 2; //consistency
+unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
 
   // add variables to mlSol
   FEOrder femType = SERENDIPITY;
-  //FEOrder femType = FIRST;
+//   FEOrder femType = FIRST;
 
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
@@ -374,9 +374,9 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
       double soluExact_gss = 0.;
       for(unsigned k = 0; k < dim; k++) {
-        soluExact_gss += xg[k] * xg[k];//consistency
-        //soluExact_gss += xg[k] * xg[k] * xg[k]; // cubic
-        //soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
+//         soluExact_gss += xg[k] * xg[k];//consistency
+//         soluExact_gss += xg[k] * xg[k] * xg[k]; // cubic
+        soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
       }
 
       error_solExact_norm2 += (soluNonLoc_gss - soluExact_gss) * (soluNonLoc_gss - soluExact_gss) * weight;

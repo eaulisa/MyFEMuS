@@ -319,14 +319,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
   //consistency 3D
-  double dMax = 0.1;
-  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
+//   double dMax = 0.1;
+//   double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
 
   //convergence 3D
-  //double dMax = 0.1 * pow(2. / 3., level - 1); //marta4-3D
+  double dMax = 0.1 * pow(2. / 3., level - 1); //marta4-3D
   //double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
-  //double eps = 0.125 * dMax;
+  double eps = 0.125 * dMax;
 
   double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
@@ -521,9 +521,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDof1; i++) {
 
         for(unsigned k = 0; k < dim; k++) {
-          res1[i] -= -2 * phi1[i] * weight1; // consistency
-          //res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
-          //res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
+//           res1[i] -= -2 * phi1[i] * weight1; // consistency
+//           res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
+          res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
         }
       }
     }
@@ -1519,9 +1519,9 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
         double srcTerm = 0.;
 
         for(unsigned k = 0; k < dim; k++) {
-          srcTerm +=  -2. ; // so f = - 2 //consistency
-          //srcTerm +=  -6. * x_gss[k] ; // cubic
-          //srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
+//           srcTerm +=  -2. ; // so f = - 2 //consistency
+//           srcTerm +=  -6. * x_gss[k] ; // cubic
+          srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
         }
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 
