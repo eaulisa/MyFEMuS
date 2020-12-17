@@ -52,7 +52,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 // unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 
