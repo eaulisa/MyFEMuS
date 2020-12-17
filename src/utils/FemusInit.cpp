@@ -61,6 +61,12 @@ namespace femus {
     MPI_Get_processor_name(processor_name, &name_len);
 
     std::ofstream fout;
+    
+    if(0 == world_rank) {
+      fout.open("ProcessorTable.txt");
+      fout.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for(unsigned i = 0; i < world_size; i++) {
       if(i == world_rank) {
@@ -69,6 +75,7 @@ namespace femus {
         fout << " of " << world_size << " processors" << std::endl;
         fout.close();
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
 
     if ( world_rank != 0) {
