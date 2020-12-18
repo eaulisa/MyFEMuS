@@ -19,6 +19,9 @@ Line* lineI;
 void BuildFlag(MultiLevelSolution& mlSol);
 double eps;
 
+double gravity[3] = {0., 0., 0.};
+bool weakP = true;
+
 double theta = 1.;
 double af = 1. - theta;
 double am = af - 0.1;
@@ -75,8 +78,10 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char name[], do
       value = 0;
     }
   }
-  else if(!strcmp(name, "P") /*&& (2 == facename)*/) {
-    test = 0;
+  else if(!strcmp(name, "P")) {
+    if(weakP || 2 != facename) {
+      test = 0;
+    }
     value = 0;
   }
   else if(!strcmp(name, "M")) {

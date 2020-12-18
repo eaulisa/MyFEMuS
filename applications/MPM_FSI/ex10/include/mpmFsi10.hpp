@@ -1,6 +1,6 @@
 #include "MultiLevelSolution.hpp"
 #include "PetscMatrix.hpp"
-
+#include "GhostPenalty.hpp"
 using namespace femus;
 
 
@@ -614,8 +614,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   myKK->zero();
   myRES->zero();
 
-  AssembleGhostPenalty(ml_prob, true);
-  AssembleGhostPenalty(ml_prob, false);
+  AssembleGhostPenaltyP(ml_prob, true);
+  AssembleGhostPenaltyP(ml_prob, false);
 
 
   // call the adept stack object
@@ -823,7 +823,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       }
 
       for(unsigned i = 0; i < nDofs; i++) {
-          
+
         for(unsigned j = 0; j < dim; j++) {
           solVg[j] += phi[i] * solV[j][i];
           solVgOld[j] += phi[i] * solVOld[j][i];
@@ -1009,8 +1009,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             aResV[k][i] += (rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phi[i] + tauM_SupgPhi[i])
                             + advection
                             + wlaplace + SupgLaplace
-                            - gradPhi[i * dim + k] * solPg
-                            //+ phi[i] * gradSolPg[k]
+                            - weakP * gradPhi[i * dim + k] * solPg
+                            + !weakP * phi[i] * gradSolPg[k]
                             + SupgPressure
                             + SupgDiv
                            ) * weight;
@@ -1217,8 +1217,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
               aResV[k][i] += (phi[i] * (solVp[k] - solVpOld[k]) / dt + advection +
                               muFluid / rhoFluid * Vlaplace
-                              - gradPhi[i * dim + k] * solPg / rhoFluid
-//                               + phi[i] * gradSolPg[k] / rhoFluid
+                              - weakP * gradPhi[i * dim + k] * solPg / rhoFluid
+                              + !weakP * phi[i] * gradSolPg[k] / rhoFluid
                              ) * dM;
             }
           }
@@ -1247,7 +1247,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
             for(unsigned k = 0; k < dim; k++) {
 
-              aResD[k][i] += (phi[i] * solApAm[k] + J_hat * CauchyDIR[k] / rhoMpm)  * dM;
+              aResD[k][i] += (phi[i] * solApAm[k] + J_hat * CauchyDIR[k] / rhoMpm - gravity[k] * phi[i])  * dM;
 
               if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
 
@@ -1358,7 +1358,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
             solAp[k] = (solDp[k] - solDpOld[k]) / (beta * dt * dt) - solVpOld[k] / (beta * dt) + (beta - 0.5) / beta * solApOld[k]; // Newmark acceleration
             //solApAm[k] = (1. - am) * solAp[k] + am * solApOld[k]; // generalized alpha acceleration
-            v2[k] = solVpOld[k] + (1. - af) * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k])); //why not af * solVpOld[k]? 
+            v2[k] = solVpOld[k] + (1. - af) * (dt * (Gamma * solAp[k] + (1. - Gamma) * solApOld[k])); //why not af * solVpOld[k]?
           }
 
           for(unsigned k = 0; k < dim; k++) {
@@ -1375,7 +1375,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           // *** phi_i loop ***
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              aResV[k][i] += (tau[k] - 0. * solPp * N[k]) * phi[i] * weight;  // correct sign due to the normal
+              aResV[k][i] += (tau[k] - !weakP * solPp * N[k]) * phi[i] * weight;  // correct sign due to the normal
               aResV[k][i] += thetaM * (v1[k] - v2[k]) * phi[i] * weight;
 
               aResD[k][i] += -tau[k] * phi[i] * weight; // correct sign due to the normal

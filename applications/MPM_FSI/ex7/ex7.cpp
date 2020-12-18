@@ -28,7 +28,8 @@ double eps;
 // double am = 0.;
 // double beta = 0.25 + 0.5 * (am - af) ;
 //double gravity[3] = {9810, 0., 0.};
-double gravity[3] = {0, 0., 0.};
+double gravity[3] = {0., 0., 0.};
+bool weakP = false;
 
 double theta = 1.;
 double af = 1. - theta;
@@ -104,7 +105,9 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   }
 
   else if(!strcmp(name, "P")) {
-    test = 0;
+    if(weakP || 2 != facename) {
+      test = 0;
+    }
     value = 0;
   }
 
@@ -120,7 +123,7 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 4; //for refinement in 3D
+  unsigned numberOfUniformLevels = 3; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0 ;
 
@@ -317,7 +320,7 @@ int main(int argc, char **args) {
 
   std::vector < double > xcc = { xcircle - 0.5 * hbeam, ycircle};
 
-  double dL = Hs / 1200;
+  double dL = Hs / 400;
 
   unsigned nbl = 1;       // odd number
   double DB = dL;
@@ -442,6 +445,13 @@ int main(int argc, char **args) {
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
+
+    if(time_step <= 50) {
+      gravity[0] = 0.2;
+    }
+    else{
+      gravity[0] = 0.;  
+    }
 
     system.CopySolutionToOldSolution();
 
