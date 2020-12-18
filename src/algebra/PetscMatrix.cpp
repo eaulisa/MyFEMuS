@@ -786,6 +786,12 @@ namespace femus {
     const int *cols;
     const double *vals;
 
+    int maxSizeDiagBefore = 0;
+    int maxSizeOffBefore = 0;
+
+    int maxSizeDiagAfter = 0;
+    int maxSizeOffAfter = 0;
+
     for(int i = 0; i < rowEnd - rowStart; i++) {
 
       int row = rowStart + i;
@@ -795,25 +801,53 @@ namespace femus {
       nCols[i].resize(n);
       nVals[i].resize(n);
 
+      int sizeDiagBeforei = 0;
+      int sizeOffBeforei = 0;
+      
       int k = 0;
       for(int j = 0; j < n; j++) {
-        if(fabs(vals[j]) >= tolerance) {
-          if(colStart <= cols[j] && cols[j] < colEnd) {
+
+        if(colStart <= cols[j] && cols[j] < colEnd) {
+          sizeDiagBeforei++;  
+          if(fabs(vals[j]) >= tolerance) {
             sizeDiag[i]++;
+            nCols[i][k] = cols[j];
+            nVals[i][k] = vals[j];
+            k++;
           }
-          else {
+        }
+        else {
+          sizeOffBeforei++;    
+          if(fabs(vals[j]) >= tolerance) {
             sizeOff[i]++;
+            nCols[i][k] = cols[j];
+            nVals[i][k] = vals[j];
+            k++;
           }
-          nCols[i][k] = cols[j];
-          nVals[i][k] = vals[j];
-          k++;
         }
       }
+      
+      if(sizeDiagBeforei > maxSizeDiagBefore) maxSizeDiagBefore = sizeDiagBeforei;
+      if(sizeOffBeforei > maxSizeOffBefore) maxSizeOffBefore = sizeOffBeforei;
+
+      if(sizeDiag[i] > maxSizeDiagAfter) maxSizeDiagAfter = sizeDiag[i];
+      if(sizeOff[i] > maxSizeOffAfter) maxSizeOffAfter = sizeDiag[i];
 
       MatRestoreRow(_mat, i, &n, &cols, &vals);
       nCols[i].resize(sizeDiag[i] + sizeOff[i]);
       nVals[i].resize(sizeDiag[i] + sizeOff[i]);
     }
+    
+    unsigned maxDiag, maxOff;
+    MPI_Allreduce( &maxSizeDiagBefore, &maxDiag, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
+    MPI_Allreduce( &maxSizeOffBefore, &maxOff, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
+
+    std::cout << "Before Removal: maxDiagonal = " << maxDiag << "maxOffDiagonal = "<< maxOff <<std::endl;
+        
+    MPI_Allreduce(&maxSizeDiagAfter, &maxDiag, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
+    MPI_Allreduce(&maxSizeOffAfter, &maxOff, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
+
+    std::cout << "After Removal: maxDiagonal = " << maxDiag << "maxOffDiagonal = "<< maxOff <<std::endl;
 
     MatDestroy(&_mat);
 
