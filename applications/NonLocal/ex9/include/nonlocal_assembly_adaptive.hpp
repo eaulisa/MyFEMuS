@@ -173,7 +173,7 @@ bool nonLocalAssembly = true;
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
 //double delta1 = 0.2; //cubic, quartic, consistency
-double delta1 = 0.1; //parallel
+double delta1 = 0.2; //parallel
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -292,8 +292,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  //unsigned lmax1 = 3; // consistency form 3 -> 7
-  unsigned lmax1 = 2; // cubic or quartic
+  unsigned lmax1 = 3; // consistency form 3 -> 7
+  //unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
 
@@ -303,10 +303,12 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
   //cubic
-  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
-  //double eps = 0.125 * dMax;
-
+  double eps = 0.125 * dMax;
+  double areaEl = pow( 0.1 * pow(1. / 2., -1. + level), dim);
+  
+  
   //quartic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
@@ -324,11 +326,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
   //convergence 3D
-  double dMax = 0.1 * pow(2. / 3., -1. + level + 1.); //marta4-3D
+  //double dMax = 0.1 * pow(2. / 3., -1. + level + 1.); //marta4-3D
   //double dMax = 0.2 * pow(2. / 3., level + 1); //marta4-3D-fine
-  double eps = 0.125 * dMax;
+  //double eps = 0.125 * dMax;
 
-  double areaEl = pow( 0.1 * pow(1. / 2., -1. + level +1.), dim);
+  //double areaEl = pow( 0.1 * pow(1. / 2., -1. + level +1.), dim);
 
   std::cout << "level = " << level << " " << " number of processes = " << nprocs << std::endl;
 

@@ -14,7 +14,7 @@
 
 #include "slepceps.h"
 
-#include "../include/nonlocal_assembly_adaptive.hpp"
+#include "./include/nonlocal_assembly_adaptive.hpp"
 
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
 
@@ -73,13 +73,13 @@ int main(int argc, char** argv) {
 
 
 
-  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
   //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
   //char fileName[100] = "../input/martaTest4Tri.neu";
   //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
   //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
-  char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
+  //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
 
   mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -99,8 +99,8 @@ int main(int argc, char** argv) {
   MultiLevelSolution mlSolFine(&mlMshFine);
 
   // add variables to mlSol
-  FEOrder femType = SERENDIPITY;
-//   FEOrder femType = FIRST;
+  //FEOrder femType = SERENDIPITY;
+  FEOrder femType = FIRST;
 
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
