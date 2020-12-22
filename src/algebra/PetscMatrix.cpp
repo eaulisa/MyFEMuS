@@ -831,7 +831,7 @@ namespace femus {
       if(sizeOffBeforei > maxSizeOffBefore) maxSizeOffBefore = sizeOffBeforei;
 
       if(sizeDiag[i] > maxSizeDiagAfter) maxSizeDiagAfter = sizeDiag[i];
-      if(sizeOff[i] > maxSizeOffAfter) maxSizeOffAfter = sizeDiag[i];
+      if(sizeOff[i] > maxSizeOffAfter) maxSizeOffAfter = sizeOff[i];
 
       MatRestoreRow(_mat, i, &n, &cols, &vals);
       nCols[i].resize(sizeDiag[i] + sizeOff[i]);
@@ -842,12 +842,12 @@ namespace femus {
     MPI_Allreduce( &maxSizeDiagBefore, &maxDiag, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
     MPI_Allreduce( &maxSizeOffBefore, &maxOff, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
 
-    std::cout << "Before Removal: maxDiagonal = " << maxDiag << "maxOffDiagonal = "<< maxOff <<std::endl;
+    std::cout << "Before Removal: maxDiagonal = " << maxDiag << " maxOffDiagonal = "<< maxOff <<std::endl;
         
     MPI_Allreduce(&maxSizeDiagAfter, &maxDiag, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
     MPI_Allreduce(&maxSizeOffAfter, &maxOff, 1, MPI_INT, MPI_MAX, PETSC_COMM_WORLD);
 
-    std::cout << "After Removal: maxDiagonal = " << maxDiag << "maxOffDiagonal = "<< maxOff <<std::endl;
+    std::cout << "After Removal: maxDiagonal = " << maxDiag << " maxOffDiagonal = "<< maxOff <<std::endl;
 
     MatDestroy(&_mat);
 
