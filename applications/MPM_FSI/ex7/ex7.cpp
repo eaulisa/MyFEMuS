@@ -123,7 +123,7 @@ int main(int argc, char **args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 3; //for refinement in 3D
+  unsigned numberOfUniformLevels = 4; //for refinement in 3D
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0 ;
 
@@ -447,7 +447,7 @@ int main(int argc, char **args) {
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     if(time_step <= 50) {
-      gravity[0] = 0.2;
+      gravity[0] = 0.02 * time_step;
     }
     else{
       gravity[0] = 0.;  
