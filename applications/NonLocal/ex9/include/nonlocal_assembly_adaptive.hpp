@@ -292,9 +292,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 3; // consistency form 3 -> 7
+  unsigned lmax1 = (!baricenter) ? 3 : 1; // consistency form 3 -> 7
   //unsigned lmax1 = 2; // cubic or quartic
-  unsigned lmin1 = 1;
+  unsigned lmin1 = 0;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
 
 
@@ -303,12 +303,12 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
   //cubic
-  double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  double dMax = 0.1 * pow(2. / 3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
-  double eps = 0.125 * dMax;
+  double eps = (!baricenter) * 0.125 * dMax;
   double areaEl = pow( 0.1 * pow(1. / 2., -1. + level), dim);
-  
-  
+
+
   //quartic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
@@ -341,25 +341,39 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   NonLocal *nonlocal;
 
   if(dim == 3) {
-    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
-    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
-
+    if(!baricenter) {
+      refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "legendre", "fifth", "legendre");
+      refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "legendre", "fifth", "legendre");
+      refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "legendre", "fifth", "legendre");
+    }
+    else {
+      refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "second", "lobatto", "first", "legendre");
+      refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "second", "lobatto", "first", "legendre");
+      refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "second", "lobatto", "first", "legendre");
+    }
     refineElement[0][soluType]->SetConstants(eps);
-
-
     nonlocal = new NonLocalBall3D();
-
   }
   else if (dim == 2) {
-    refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
-    refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+    if(!baricenter) {
+      refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "legendre", "fifth", "legendre");
+      refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "legendre", "fifth", "legendre");
+      refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "legendre", "fifth", "legendre");
 
-    refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
-    refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+      refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "legendre", "fifth", "legendre");
+      refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "legendre", "fifth", "legendre");
+      refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "legendre", "fifth", "legendre");
+    }
+    else {
+      refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "second", "lobatto", "first", "legendre");
+      refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "second", "lobatto", "first", "legendre");
+      refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "second", "lobatto", "first", "legendre");
 
+      refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "second", "lobatto", "first", "legendre");
+      refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "second", "lobatto", "first", "legendre");
+      refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "second", "lobatto", "first", "legendre");
+    }
+    
     refineElement[3][soluType]->SetConstants(eps);
     refineElement[4][soluType]->SetConstants(eps);
 
@@ -525,7 +539,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         for(unsigned k = 0; k < dim; k++) {
 //           res1[i] -= -2 * phi1[i] * weight1; // consistency
 //           res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
-          res1[i] -= ( -12.* x1g[k] * x1g[k] - (1. - (dim == 3) * 1./7.) * delta1 * delta1 ) * phi1[i] * weight1; //quartic
+          res1[i] -= ( -12.* x1g[k] * x1g[k] - (1. - (dim == 3) * 1. / 7.) * delta1 * delta1 ) * phi1[i] * weight1; //quartic
         }
       }
     }

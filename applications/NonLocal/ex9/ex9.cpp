@@ -14,7 +14,10 @@
 
 #include "slepceps.h"
 
+bool baricenter = true;
+
 #include "./include/nonlocal_assembly_adaptive.hpp"
+
 
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
 
@@ -52,7 +55,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 // unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+unsigned numberOfUniformLevels = 5; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 
@@ -274,11 +277,11 @@ int main(int argc, char** argv) {
   mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, femTypeName[femType].c_str(), print_vars, 0);
 
-  mlSolFine.SetWriter(VTK);
-  std::vector<std::string> print_vars2;
-  print_vars2.push_back("All");
-  mlSolFine.GetWriter()->SetDebugOutput(true);
-  mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, femTypeName[femType].c_str(), print_vars2, 1);
+//   mlSolFine.SetWriter(VTK);
+//   std::vector<std::string> print_vars2;
+//   print_vars2.push_back("All");
+//   mlSolFine.GetWriter()->SetDebugOutput(true);
+//   mlSolFine.GetWriter()->Write(DEFAULT_OUTPUTDIR, femTypeName[femType].c_str(), print_vars2, 1);
 
   std::cout << std::endl << " total CPU time : " << std::setw(11) << std::setprecision(6) << std::fixed
             << static_cast<double>((clock() - total_time)) / CLOCKS_PER_SEC << " s" << std::endl;
