@@ -305,7 +305,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //cubic
   double dMax = 0.1 * pow(2. / 3., level - 1); //marta4, tri unstructured
   //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
-  double eps = (!baricenter) * 0.125 * dMax;
+  //double eps = (!baricenter) * 0.125 * dMax + baricenter * 0.00001;
+  double eps = 0.125 * dMax;
+  //double eps = 0;
   double areaEl = pow( 0.1 * pow(1. / 2., -1. + level), dim);
 
 
@@ -365,13 +367,30 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "legendre", "fifth", "legendre");
     }
     else {
-      refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "second", "lobatto", "first", "legendre");
-      refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "second", "lobatto", "first", "legendre");
-      refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "second", "lobatto", "first", "legendre");
+        
+    /*  refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "legendre", "first", "legendre");
+      refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "legendre", "first", "legendre");
+      refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "legendre", "first", "legendre");
 
-      refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "second", "lobatto", "first", "legendre");
-      refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "second", "lobatto", "first", "legendre");
-      refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "second", "lobatto", "first", "legendre");
+      refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "legendre", "first", "legendre");
+      refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "legendre", "first", "legendre");
+      refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "legendre", "first", "legendre");  
+       */ 
+//       refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "second", "lobatto", "first", "legendre");
+//       refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "second", "lobatto", "first", "legendre");
+//       refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "second", "lobatto", "first", "legendre");
+// 
+//       refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "second", "lobatto", "first", "legendre");
+//       refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "second", "lobatto", "first", "legendre");
+//       refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "second", "lobatto", "first", "legendre");
+
+      refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "lobatto", "fifth", "legendre");
+      refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "lobatto", "fifth", "legendre");
+      refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "lobatto", "fifth", "legendre");
+
+      refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "lobatto", "fifth", "legendre");
+      refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "lobatto", "fifth", "legendre");
+      refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "lobatto", "fifth", "legendre");
     }
     
     refineElement[3][soluType]->SetConstants(eps);
