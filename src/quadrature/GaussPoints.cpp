@@ -136,7 +136,7 @@ namespace femus {
       gauss_order = 37;
     }
     else {
-      std::cout << order_gauss << "is not a valid option for the Gauss points of" << geom_elem << std::endl;
+      std::cout << order_gauss << " is not a valid option for the Gauss points of " << geom_elem << std::endl;
       abort();
     }
     

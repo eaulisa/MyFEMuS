@@ -9,6 +9,9 @@ IF(BUILD_NAVIERSTOKESAPPS)
 
   # Time-dependent BE NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/BackwardEulerNavierStokesParallel/)
+  
+   # Time-dependent BE NavierStokes
+  ADD_SUBDIRECTORY(${NS_FOLDER}/FlowPastCylinder/)
 
   # Time-dependent Generalized-alpha NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/TaylorGreenVortexFlowGeneralisedalpha/)
