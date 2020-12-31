@@ -45,7 +45,7 @@ using namespace std;
 // The function returns an array of the equivalent polynomial coefficients, coefficients
 complex<double> * getCoefficients (const int &dim, const int &degree, const double &p, const double & a, const double & d, const double b = 0, const double c = 0)
 {
-  LiSK::LiSK< complex<double> > lisk(4);
+  LiSK::LiSK< complex<double> > lisk(5);
 
   if(dim == 1) {
 
@@ -58,21 +58,72 @@ complex<double> * getCoefficients (const int &dim, const int &degree, const doub
 
       double x2r = -exp((-1 - d) * p);
       const complex<double> x2(x2r, 0.);
+      
+      double x3r = -exp((-1 - d) * p);
+      const complex<double> x3(x2r, 0.);
 
 
       static complex < double > coefficients[4];
 
-      coefficients[0] = 2. * (-1. + (2. * p + log(1. + exp(-1. + d) * p)) - log(1. + exp((1. + d) * p))) / p;
+      coefficients[0] = (1./(4. * pow(p,3))) * (14. * pow(p,3) + 9. * pow(p,2) * log(1. + exp((-1. + d) * p)) + 
 
-      coefficients[1] = (2. * (p * log(1. + exp((-1. - d) * p)) + p * log(1. + exp(p - d * p)) - lisk.Li(2, x2) + lisk.Li(2, x1))) / pow(p, 2);
+                        15. * pow(p,2) * log(1. + exp(-(1. + d) * p)) - 9. * pow(p,2) * log(1. + exp((1. + d) * p)) - 
 
-      coefficients[2] = -2. / 3. + (2. * (-(pow(p, 2) * log(1. + exp((-1. - d) * p))) + pow(p, 2) * log(1. + exp(p - d * p)) +
-                                          2. * p * lisk.Li(2, x2) + 2. * p * lisk.Li(2, x1) + 2. * lisk.Li(3, x2) -
-                                          2. * lisk.Li(3, x1))) / pow(p, 3);
+                        15. * pow(p,2) * log(1. + exp((p - d* p))) - 30. * p * lisk.Li(2, x2) - 
 
-      coefficients[3] = (2. * (pow(p, 3) * log(1. + exp((-1. - d) * p)) + pow(p, 3) * log(1. + exp(p - d * p)) - 3. * pow(p, 2) * lisk.Li(2, x2) +
-                               3. * pow(p, 2) * lisk.Li(2, x1) - 6. * p * lisk.Li(3, x2) - 6. * p * lisk.Li(3, x1) -
-                               6. * lisk.Li(4, x2) + 6. * lisk.Li(4, x1))) / pow(p, 4);
+                        30. * p * lisk.Li(2, x1) - (30. * lisk.Li(3, x2)) + 30. * lisk.Li(3, x1));
+
+                        
+
+      coefficients[1] = (-15.*(pow(p,3)*log(1. + exp((-1. - d)*p)) + 
+
+                    pow(p,3)*log(1. + exp(p - d*p)) - 
+
+                    8.*pow(p,2)*lisk.Li(2,x2) + 
+
+                    8.*pow(p,2)*lisk.Li(2,x1) - 
+
+                    21.*p*lisk.Li(3,x2) - 
+
+                    21.*p*lisk.Li(3,x1) - 
+
+                    21.*lisk.Li(4,x2) + 
+
+                    21.*lisk.Li(4,x1)))/(2.*pow(p,4));
+
+
+      coefficients[2] = -7.5 - (45. * log(1. + exp((-1. - d) * p)))/(4. * p) - 
+
+                        (15. * log(1. + exp((-1. + d) * p)))/(4. * p) + 
+
+                        (15. * log(1. + exp((1. + d) * p)))/(4. * p) + 
+
+                        (45. * log(1. + exp(p - d * p)))/(4. * p) + 
+
+                        (45. * lisk.Li(2,-exp((-1. - d) * p)))/(2. * pow(p,2)) + 
+
+                        (45. * lisk.Li(2,-exp(p - d * p)))/(2. * pow(p,2)) + 
+
+                        (45. * lisk.Li(3,-exp((-1 - d) * p)))/(2. * pow(p,3)) - 
+
+                        (45. * lisk.Li(3,-exp(p - d * p)))/(2. * pow(p,3));
+
+
+      coefficients[3] = (35. * log(1. + exp((-1. - d) * p)))/(2. * p) + 
+
+                        (35. * log(1. + exp(p - d * p)))/(2. * p) - 
+
+                        (105. * lisk.Li(2,-exp((-1. - d) * p)))/pow(p,2) + 
+
+                        (105. * lisk.Li(2,-exp(p - d * p)))/pow(p,2) - 
+
+                        (525. * lisk.Li(3,-exp((-1. - d) * p)))/(2. * pow(p,3)) - 
+
+                        (525. * lisk.Li(3,-exp(p - d * p)))/(2. * pow(p,3)) - 
+
+                        (525. * lisk.Li(4,-exp((-1. - d) * p)))/(2. * pow(p,4)) + 
+
+                        (525. * lisk.Li(4,-exp(p - d * p)))/(2. * pow(p,4));
 
       return coefficients;
     }
@@ -99,7 +150,7 @@ complex<double> * getCoefficients (const int &dim, const int &degree, const doub
 
 int main ()
 {
-  complex < double > * ptr = getCoefficients(1, 3, 100, 1, 0.5);
+  complex < double > * ptr = getCoefficients(1, 3, 50, 1, 0.7);
   std::cout<< ptr[0] << " "<< ptr[1] << " "<<  ptr[2]<< " "<<  ptr[3] << std::endl;
   std::cout<< ptr[0].real() << " "<< ptr[1].real() << " "<<  ptr[2].real()<< " "<<  ptr[3].real() << std::endl;
   return 0;
