@@ -243,11 +243,25 @@ double NonLocal::Assembly2(const RefineElement & element1, const Region & region
     const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
 
     bool coarseIntersectionTest = true;
-    for(unsigned k = 0; k < dim; k++) {
-      if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
-        coarseIntersectionTest = false;
-        break;
+
+    if(!baricenter) {
+      for(unsigned k = 0; k < dim; k++) {
+        if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
+          coarseIntersectionTest = false;
+          break;
+        }
       }
+    }
+    else {
+      const std::vector < std::vector <double> >  &xv2 = region2.GetCoordinates(jel);
+      const unsigned &nDof2 = region2.GetDofNumber(jel);
+      std::vector < double> xg2(dim);
+      for(unsigned i = 0; i < nDof2; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xg2[k] += xv2[k][i] / nDof2;
+        }
+      }
+      if(GetDistance(xg1, xg2) > delta) coarseIntersectionTest = false;
     }
 
     if(coarseIntersectionTest) {
@@ -262,7 +276,8 @@ double NonLocal::Assembly2(const RefineElement & element1, const Region & region
 
       for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
         phi2 = fem->GetPhi(jg);
-        U = element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta));
+        U = (!baricenter) ? element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta)) : 1.;
+        
         if(U > 0.) {
           double C =  U * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
           double *jac22pt = &_jac22[jel][0];
@@ -356,7 +371,7 @@ class NonLocalBall3D: public NonLocal {
     }
 
     double GetArea(const double &delta, const double &eps) const {
-      return 4./3. * M_PI * (delta * delta * delta) * ( 1. + 3./11. * pow(eps/delta,2 ) );
+      return 4. / 3. * M_PI * (delta * delta * delta) * (1. + 3. / 11. * pow(eps / delta, 2));
     };
 
     double GetGamma(const double &d) const {
@@ -463,4 +478,5 @@ double NonLocalBox::GetInterfaceDistance(const std::vector < double>  &xc, const
 
 
 #endif
+
 

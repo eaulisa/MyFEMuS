@@ -14,7 +14,7 @@
 
 #include "slepceps.h"
 
-bool baricenter = true;
+bool baricenter = false;
 
 #include "./include/nonlocal_assembly_adaptive.hpp"
 
