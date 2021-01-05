@@ -55,8 +55,6 @@ class EquivalentPolynomial {
       if(_dim == 1) {
         //value =
       }
-
-
       return value;
     }
 
