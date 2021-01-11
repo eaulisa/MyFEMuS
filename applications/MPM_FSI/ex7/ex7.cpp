@@ -138,7 +138,7 @@ int main(int argc, char **args) {
 
 
   double rhof = 1000.;
-  double muf = 1.;
+  double muf = .5;
   double rhos = 10000.;
   double nu = 0.4;
   double E = 1400000;
@@ -446,12 +446,12 @@ int main(int argc, char **args) {
   unsigned n_timesteps = 10000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
-    if(time_step <= 50) {
-      gravity[0] = 0.02 * time_step;
-    }
-    else{
-      gravity[0] = 0.;  
-    }
+//     if(time_step <= 50) {
+//       gravity[0] = 0.02 * time_step;
+//     }
+//     else{
+//       gravity[0] = 0.;  
+//     }
 
     system.CopySolutionToOldSolution();
 
