@@ -192,8 +192,9 @@ int main() {
   
   
   EquivalentPolynomial eqP;
-  eqP.SetCoefficients(2, 2, 10, std::vector<double> {1., 2.}, -0.5);
+  eqP.SetCoefficients(2, 4, 10, std::vector<double> {1., 2.}, -0.5);
   eqP.PrintCoefficients();
+  std::cout << eqP.GetValue(std::vector<double> {0.}) << " " << std::endl;
   
   return 0;
 }
