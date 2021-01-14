@@ -1,274 +1,77 @@
-//
-//  main.cpp
-//  example
-//
-//  Created by Sebastian on 18/05/16.
-//  Copyright © 2016 Sebastian Kirchner. All rights reserved.
-//
-//  This file is part of LiSK.
-//
-//  LiSK is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  LiSK is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with LiSK.  If not, see <http://www.gnu.org/licenses/>.
-
 
 #include "eqPoly.hpp"
 
+#include "FemusInit.hpp"
+#include "Elem.hpp"
 
-// This function accepts: the diminsion, dim; polynomial degree, degree; generalized Heavyside funcion paprameter, p;
-// discontinuity (point, line, or plane) ax + by + cz = d, where b and c are set to zero by default;
-// The function returns an array of the equivalent polynomial coefficients, coefficients
-complex<double> * getCoefficients(const int &dim, const int &degree, const double &p, const double & a, const double & d, const double b = 0, const double c = 0) {
-  LiSK::LiSK< complex<double> > lisk(5);
-
-  if(dim == 1) {
-
-    //TODO
-
-    if(degree == 3) {
-
-      double x1 = -exp(p - d * p) ;
-      //const complex<double> x1(x1r, 0.);
-
-      double x2 = -exp((-1 - d) * p);
-      //const complex<double> x2(x2r, 0.);
-
-      double x3 = -exp((-1 - d) * p);
-      //const complex<double> x3(x2r, 0.);
+using namespace femus;
 
 
-      static complex < double > coefficients[4];
+int main(int argc, char** args) {
 
-      coefficients[0] = (1. / (4. * pow(p, 3))) * (14. * pow(p, 3) + 9. * pow(p, 2) * log(1. + exp((-1. + d) * p)) +
-                                                   15. * pow(p, 2) * log(1. + exp(-(1. + d) * p)) - 9. * pow(p, 2) * log(1. + exp((1. + d) * p)) -
-                                                   15. * pow(p, 2) * log(1. + exp((p - d * p))) - 30. * p * lisk.Li(2, x2) -
-                                                   30. * p * lisk.Li(2, x1) - (30. * lisk.Li(3, x2)) + 30. * lisk.Li(3, x1));
+  FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-
-
-      coefficients[1] = (-15.*(pow(p, 3) * log(1. + exp((-1. - d) * p)) +
-                               pow(p, 3) * log(1. + exp(p - d * p)) -
-                               8.*pow(p, 2) * lisk.Li(2, x2) +
-                               8.*pow(p, 2) * lisk.Li(2, x1) -
-                               21.*p * lisk.Li(3, x2) -
-                               21.*p * lisk.Li(3, x1) -
-                               21.*lisk.Li(4, x2) +
-                               21.*lisk.Li(4, x1))) / (2.*pow(p, 4));
-
-
-      coefficients[2] = -7.5 - (45. * log(1. + exp((-1. - d) * p))) / (4. * p) -
-                        (15. * log(1. + exp((-1. + d) * p))) / (4. * p) +
-                        (15. * log(1. + exp((1. + d) * p))) / (4. * p) +
-                        (45. * log(1. + exp(p - d * p))) / (4. * p) +
-                        (45. * lisk.Li(2, -exp((-1. - d) * p))) / (2. * pow(p, 2)) +
-                        (45. * lisk.Li(2, -exp(p - d * p))) / (2. * pow(p, 2)) +
-                        (45. * lisk.Li(3, -exp((-1 - d) * p))) / (2. * pow(p, 3)) -
-                        (45. * lisk.Li(3, -exp(p - d * p))) / (2. * pow(p, 3));
-
-
-      coefficients[3] = (35. * log(1. + exp((-1. - d) * p))) / (2. * p) +
-                        (35. * log(1. + exp(p - d * p))) / (2. * p) -
-                        (105. * lisk.Li(2, -exp((-1. - d) * p))) / pow(p, 2) +
-                        (105. * lisk.Li(2, -exp(p - d * p))) / pow(p, 2) -
-                        (525. * lisk.Li(3, -exp((-1. - d) * p))) / (2. * pow(p, 3)) -
-                        (525. * lisk.Li(3, -exp(p - d * p))) / (2. * pow(p, 3)) -
-                        (525. * lisk.Li(4, -exp((-1. - d) * p))) / (2. * pow(p, 4)) +
-                        (525. * lisk.Li(4, -exp(p - d * p))) / (2. * pow(p, 4));
-
-      return coefficients;
-    }
-
-  }
-
-  else if(dim == 2) {
-
-    //int numcoefficients = ((degree + 1) * (degree + 2)) / 2;
-    //double coefficients[numcoefficients];
-
-    //TODO
-
-
-    if(degree == 2) {
-
-      static complex < double > coefficients[6];
-
-      std::cout << "here" << std::endl;
-
-      coefficients[0] = (-10. *  pow(a, 3) *  pow(b, 3) *  pow(p, 4) -  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((-b - d) * p)) +
-                         pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((a - b - d) * p)) +  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((b - d) * p)) -
-                         pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((a + b - d) * p)) +  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((-b + d) * p)) +
-                         15. *  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((-a - b + d) * p)) -
-                         16. *  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((a - b + d) * p)) -
-                         pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((b + d) * p)) -
-                         15. *  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((-a + b + d) * p)) +
-                         16. *  pow(a, 2) *  pow(b, 2) *  pow(p, 2) * lisk.Li(2, - exp((a + b + d) * p)) + 30. *  pow(a, 2) * b * p * lisk.Li(3, - exp((-a - b + d) * p)) +
-                         30. * a *  pow(b, 2) * p * lisk.Li(3, - exp((-a - b + d) * p)) - 30. *  pow(a, 2) * b * p * lisk.Li(3, - exp((a - b + d) * p)) +
-                         30. * a *  pow(b, 2) * p * lisk.Li(3, - exp((a - b + d) * p)) + 30. *  pow(a, 2) * b * p * lisk.Li(3, - exp((-a + b + d) * p)) -
-                         30. * a *  pow(b, 2) * p * lisk.Li(3, - exp((-a + b + d) * p)) - 30. *  pow(a, 2) * b * p * lisk.Li(3, - exp((a + b + d) * p)) -
-                         30. * a *  pow(b, 2) * p * lisk.Li(3, - exp((a + b + d) * p)) + 30. *  pow(a, 2) * lisk.Li(4, - exp((-a - b + d) * p)) +
-                         30. *  pow(b, 2) * lisk.Li(4, - exp((-a - b + d) * p)) - 30. *  pow(a, 2) * lisk.Li(4, - exp((a - b + d) * p)) -
-                         30. *  pow(b, 2) * lisk.Li(4, - exp((a - b + d) * p)) - 30. *  pow(a, 2) * lisk.Li(4, - exp((-a + b + d) * p)) -
-                         30. *  pow(b, 2) * lisk.Li(4, - exp((-a + b + d) * p)) + 30. *  pow(a, 2) * lisk.Li(4, - exp((a + b + d) * p)) +
-                         30. *  pow(b, 2) * lisk.Li(4, - exp((a + b + d) * p))) / (8. *  pow(a, 3) *  pow(b, 3) *  pow(p, 4));
-
-      coefficients[1] = (3. * (a * p * lisk.Li(2, -exp((-a - b + d) * p)) + a * p * lisk.Li(2, -exp((a - b + d) * p)) - a * p * lisk.Li(2, -exp((-a + b + d) * p)) -
-                               a * p * lisk.Li(2, -exp((a + b + d) * p)) + lisk.Li(3, -exp((-a - b + d) * p)) - lisk.Li(3, -exp((a - b + d) * p)) -
-                               lisk.Li(3, -exp((-a + b + d) * p)) + lisk.Li(3, -exp((a + b + d) * p)))) / (2. * pow(a, 2) * b * pow(p, 3));
-
-
-      coefficients[2] = (-3. * (a * b * pow(p, 2) * log(1. + exp((-a - b + d) * p)) + a * b * pow(p, 2) * log(1. + exp((a - b + d) * p)) +
-                                a * b * pow(p, 2) * log(1. + exp((-a + b + d) * p)) - a * b * pow(p, 2) *
-                                log(exp((-a - b + d) * p) * (1. + exp((a + b - d) * p)) * (1. + exp((-a + b + d) * p))) +
-                                a * b * pow(p, 2) * log(1. + exp((a + b + d) * p)) - a * b * pow(p, 2) * log((1. + exp((a - b + d) * p)) * (1. + exp((a + b + d) * p))) -
-                                b * p * lisk.Li(2, -exp((-a - b + d) * p)) + b * p * lisk.Li(2, -exp((a - b + d) * p)) - b * p * lisk.Li(2, -exp((-a + b + d) * p)) +
-                                b * p * lisk.Li(2, -exp((a + b + d) * p)) - lisk.Li(3, -exp((-a - b + d) * p)) + lisk.Li(3, -exp((a - b + d) * p)) +
-                                lisk.Li(3, -exp((-a + b + d) * p)) - lisk.Li(3, -exp((a + b + d) * p)))) / (2. * a * pow(b, 2) * pow(p, 3));
-
-
-      coefficients[3] = (-15. * (2. * pow(a, 3) * b * pow(p, 4) + pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((-b - d) * p)) -
-                                 pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((a - b - d) * p)) - pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((b - d) * p)) +
-                                 pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((a + b - d) * p)) - pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((-b + d) * p)) +
-                                 3. * pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((-a - b + d) * p)) - 2. * pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((a - b + d) * p)) +
-                                 pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((b + d) * p)) - 3. * pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((-a + b + d) * p)) +
-                                 2. * pow(a, 2) * pow(p, 2) * lisk.Li(2, -exp((a + b + d) * p)) + 6. * a * p * lisk.Li(3, -exp((-a - b + d) * p)) +
-                                 6. * a * p * lisk.Li(3, -exp((a - b + d) * p)) - 6. * a * p * lisk.Li(3, -exp((-a + b + d) * p)) - 6. * a * p * lisk.Li(3, -exp((a + b + d) * p)) +
-                                 6. * lisk.Li(4, -exp((-a - b + d) * p)) - 6. * lisk.Li(4, -exp((a - b + d) * p)) - 6. * lisk.Li(4, -exp((-a + b + d) * p)) +
-                                 6. * lisk.Li(4, -exp((a + b + d) * p)))) / (8. * pow(a, 3) * b * pow(p, 4));
-
-
-      coefficients[4] = (15. * (2. * a * pow(b, 3) * pow(p, 4) + pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((-b - d) * p)) -
-                                pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((a - b - d) * p)) - pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((b - d) * p)) +
-                                pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((a + b - d) * p)) - pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((-b + d) * p)) +
-                                pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((a - b + d) * p)) + pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((b + d) * p)) -
-                                pow(b, 2) * pow(p, 2) * lisk.Li(2, -exp((a + b + d) * p)) - 3. * b * p * lisk.Li(3, -exp((-a - b + d) * p)) +
-                                3. * b * p * lisk.Li(3, -exp((a - b + d) * p)) - 3. * b * p * lisk.Li(3, -exp((-a + b + d) * p)) + 3. * b * p * lisk.Li(3, -exp((a + b + d) * p)) -
-                                3. * lisk.Li(4, -exp((-a - b + d) * p)) + 3. * lisk.Li(4, -exp((a - b + d) * p)) + 3. * lisk.Li(4, -exp((-a + b + d) * p)) -
-                                3. * lisk.Li(4, -exp((a + b + d) * p)))) / (4. * a * pow(b, 3) * pow(p, 4));
-
-
-      coefficients[5] = (-3. * (2. * pow(a, 3) * b * pow(p, 4) - 3. * pow(a, 2) * b * pow(p, 3) * log(1. + exp((a - b - d) * p)) -
-                                3. * pow(a, 2) * b * pow(p, 3) * log(1. + exp((a + b - d) * p)) + 3. * pow(a, 2) * b * pow(p, 3) * log(1. + exp((a - b + d) * p)) +
-                                3. * pow(a, 2) * b * pow(p, 3) * log(exp((-a - b + d) * p) * (1. + exp((a + b - d) * p)) * (1. + exp((-a + b + d) * p))) +
-                                3. * pow(a, 2) * b * pow(p, 3) * log(1. + exp((a + b + d) * p)) -
-                                3. * pow(a, 2) * b * pow(p, 3) * log((1. + exp((a - b + d) * p)) * (1. + exp((a + b + d) * p))) -
-                                6. * a * b * pow(p, 2) * lisk.Li(2, -exp((a - b - d) * p)) - 6. * a * b * pow(p, 2) * lisk.Li(2, -exp((a + b - d) * p)) +
-                                6. * a * b * pow(p, 2) * lisk.Li(2, -exp((a - b + d) * p)) + 6. * a * b * pow(p, 2) * lisk.Li(2, -exp((a + b + d) * p)) -
-                                6. * b * p * lisk.Li(3, -exp((-b - d) * p)) + 6. * b * p * lisk.Li(3, -exp((a - b - d) * p)) - 6. * b * p * lisk.Li(3, -exp((b - d) * p)) +
-                                6. * b * p * lisk.Li(3, -exp((a + b - d) * p)) + 6. * b * p * lisk.Li(3, -exp((-b + d) * p)) + 6. * a * p * lisk.Li(3, -exp((-a - b + d) * p)) +
-                                6. * a * p * lisk.Li(3, -exp((a - b + d) * p)) - 6. * b * p * lisk.Li(3, -exp((a - b + d) * p)) + 6. * b * p * lisk.Li(3, -exp((b + d) * p)) -
-                                6. * a * p * lisk.Li(3, -exp((-a + b + d) * p)) - 6. * a * p * lisk.Li(3, -exp((a + b + d) * p)) - 6. * b * p * lisk.Li(3, -exp((a + b + d) * p)) +
-                                6. * lisk.Li(4, -exp((-a - b + d) * p)) - 6. * lisk.Li(4, -exp((a - b + d) * p)) - 6. * lisk.Li(4, -exp((-a + b + d) * p)) +
-                                6. * lisk.Li(4, -exp((a + b + d) * p)))) / (4. * pow(a, 2) * pow(b, 2) * pow(p, 4));
-
-      return coefficients;
-    }
-  }
-
-
-  else if(dim == 3) {
-    double coefficients[((degree + 1) * (degree + 2) * (degree + 3)) / 6];
-
-    //TODO
-
-
-  }
-
-
-}
-
-int main() {
-  complex < double > * ptr = getCoefficients(2, 2, 10, 1, -0.5, 2);
-  std::cout << ptr[0] << " " << ptr[1] << " " <<  ptr[2] << " " <<  ptr[3] <<  " " <<  ptr[4] <<  " " <<  ptr[5] << std::endl;
-  std::cout << ptr[0].real() << " " << ptr[1].real() << " " <<  ptr[2].real() << " " <<  ptr[3].real() <<  " " <<  ptr[4].real()  << " " <<  ptr[5].real() << std::endl;
-  
-  
   EquivalentPolynomial eqP;
   eqP.SetCoefficients(2, 4, 10, std::vector<double> {1., 2.}, -0.5);
   eqP.PrintCoefficients();
   std::cout << eqP.GetValue(std::vector<double> {0.}) << " " << std::endl;
-  
-  return 0;
-}
-
-/*
-using namespace cln;*/
-
-int main1(int argc, const char * argv[]) {
-
-  using namespace std;
-
-  complex<double> x(1 / 4., 1 / 4.);
-  double xr = 1.;
-  double xi = 1.;
-  x = complex <double> (xr, xi);
-
-  x = complex <double> (real(x), imag(x));
-
-  x.real(2.);
-
-  std::cout << x << std::endl;
 
 
-  // Double precision example for Li_n and Li_22
-  try {
-    //Create a LiSK object. Constants are prepared for
-    //computations of Li_n up to n=20
-    LiSK::LiSK<complex<double>> lisk(20);
 
-    complex<double> x(1 / 4., 1 / 4.);
-    double xr = 1.;
-    double xi = 1.;
-    x = complex <double> (xr, xi);
-    const vector<int> weights = {1, 2, 3, 4, 5, 6, 10, 15, 20};
 
-    // Compute Li_n(x) for n=1,2,3,4,5,6,10,15,20 at x=1/4+I*1/4
-    for(auto n : weights) {
-      cout << "Li(" << n << ",x) = " << setprecision(17) << lisk.Li(n, x) << endl;
+
+
+
+
+  std::vector<double> phi;
+  std::vector<double> gradPhi;
+  double weight;
+  {
+    std::vector<std::vector<double>> xv = {{-1., 1.}};
+    double integral = 0.;
+    unsigned dim = 1;
+    eqP.SetCoefficients(1, 3, 100, std::vector<double> {}, 0.5);
+    const elem_type * fe = new const elem_type_1D("line", "linear", "ninth");
+    for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      fe->Jacobian(xv, ig, weight, phi, gradPhi);
+      std::vector<double> xg(dim, 0.);
+      for(unsigned i = 0; i < phi.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += xv[k][i] * phi[i];
+        }
+      }
+      integral += xg[0] * xg[0] * xg[0] * eqP.GetValue(xg) * weight;
     }
-
-    // Compute Li_22(x,y) at x=y=1/4+I*1/4
-    cout << "\nLi_22(x,y) = " << setprecision(17) << lisk.Li22(x, x) << endl << endl;
-
-
-  }
-  catch(runtime_error& e) {
-    cout << e.what() << endl;
+    std::cout << "Integral = " << integral << std::endl;
+    delete fe;
   }
 
+  {
+    std::vector<std::vector<double>> xv = {{-1., 1., 1., -1.}, {-1., -1., 1., 1.}};
+    double integral = 0.;
+    unsigned dim = 2;
+    eqP.SetCoefficients(2, 2, 20, std::vector<double> {1., -1.}, 1.);
+    const elem_type * fe = new const elem_type_2D("quad", "linear", "ninth");
+    for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
 
-  // Arbitrary precision example for Li_n and Li_22
-  try {
-    //Create a LiSK object. Constants are prepared for
-    //computations of Li_n up to n=20 with 34 digit precision
-    LiSK::LiSK<cln::cl_N> lisk(20, 34);
-
-    const cln::cl_N x = cln::complex("1/4", "1/4");
-    const vector<int> weights = {1, 2, 3, 4, 5, 6, 10, 15, 20};
-
-    // Compute Li_n(x) for n=1,2,3,4,5,6,10,15,20 at x=1/4+I*1/4
-    for(auto n : weights) {
-      cout << "Li(" << n << ",x) = " << setprecision(17) << lisk.Li(n, x) << endl;
+      fe->Jacobian(xv, ig, weight, phi, gradPhi);
+      std::vector<double> xg(dim, 0.);
+      for(unsigned i = 0; i < phi.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += xv[k][i] * phi[i];
+        }
+      }
+      integral += xg[0] * xg[1] * eqP.GetValue(xg) * weight;
     }
-
-    // Compute Li_22(x,y) at x=y=1/4+I*1/4
-    cout << "\nLi_22(x,y) = " << setprecision(17) << lisk.Li22(x, x) << endl << endl;
-
-
+    std::cout << "Integral = " << integral << std::endl;
+    delete fe;
   }
-  catch(runtime_error& e) {
-    cout << e.what() << endl;
-  }
+
+
+
+
 
   return 0;
 }
-
 
