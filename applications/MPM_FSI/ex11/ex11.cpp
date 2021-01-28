@@ -3,14 +3,15 @@
 #include "VTKWriter.hpp"
 #include "MultiLevelSolution.hpp"
 
+#include "MeshRefinement.hpp"
 
 const double WEIGHT[6][27] = {
-    {}, //hex
-    {}, //tet
-    {}, //wedge
-    {0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 1. }, //quad sum is 4
-    {1./24., 1./24., 1./24., 1./8., 1./8., 1./8., 0.}, //tri sun 1/2
-    {0.5, 0.5, 1.}  //line sum 2
+  {}, //hex
+  {}, //tet
+  {}, //wedge
+  {0.0625, 0.0625, 0.0625, 0.0625, 0.125, 0.125, 0.125, 0.125, 0.25 }, 
+  {1./12., 1./12., 1./12., 0.25, 0.25, 0.25, 0.}, 
+  {0.25, 0.25, .5}  
 } ;
 
 
@@ -24,6 +25,8 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char name[], do
 
 void BuildMarkers(MultiLevelMesh& mlMesh);
 
+void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layer);
+
 int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
@@ -31,23 +34,25 @@ int main(int argc, char** args) {
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 2; //for refinement in 3D
-  //unsigned numberOfUniformLevels = 1;
-  unsigned numberOfSelectiveLevels = 0;
-
 
   mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
-  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
-  mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
-  numberOfUniformLevels = 1;
+  unsigned numberOfRefinement = 1;
+
+  for(unsigned i = 0; i < numberOfRefinement; i++) {
+    FlagElements(mlMsh, 2);
+    mlMsh.AddAMRMeshLevel();
+  }
+
+  mlMsh.EraseCoarseLevels(numberOfRefinement);
 
   unsigned dim = mlMsh.GetDimension();
 
   FEOrder femOrder = FIRST;
 
   MultiLevelSolution mlSol(&mlMsh);
-  // add variables to mlSol
+
+  //add variables to mlSol
   mlSol.AddSolution("u", LAGRANGE, femOrder, 2);
 
   mlSol.Initialize("All");
@@ -58,7 +63,7 @@ int main(int argc, char** args) {
 
   BuildMarkers(mlMsh);
 
-  // ******* Print solution *******
+  //******* Print solution *******
   mlSol.SetWriter(VTK);
   std::vector<std::string> mov_vars;
   std::vector<std::string> print_vars;
@@ -123,29 +128,93 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
       }
     }
 
-
-    for(unsigned i = 0; i < nDofs; i++) {
-      std::vector < double > xi(dim);
-      
-      for(unsigned k = 0; k < dim; k++) {
-        xi[k] = *(msh->_finiteElement[ielt][solType]->GetBasis()->GetXcoarse(i) + k);
-      }
-      
-      
+    double ielArea = 0.;
+    for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
       double jac;
-      msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, jac, phi, gradPhi);
-      weight[msh->GetSolutionDof(i, iel, solType)] += jac * WEIGHT[ielt][i];
-      area += jac * WEIGHT[ielt][i];
+      msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
+      ielArea += jac;
     }
 
-   
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      weight[msh->GetSolutionDof(i, iel, solType)] += ielArea * WEIGHT[ielt][i];
+      area += ielArea * WEIGHT[ielt][i];
+    }
+    
 
   }
 
-  std::cout << area << " " << 2 * 4.99 + 0.5 * M_PI * 1. * 1.; 
-  
+  std::cout << area << " " << 2 * 4.99 + 0.5 * M_PI * 1. * 1.;
+
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulkPoints[0] = xp;
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
+
+}
+
+void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
+
+  unsigned level = mlMesh.GetNumberOfLevels() - 1;
+  Mesh *msh   = mlMesh.GetLevel(level);
+  unsigned iproc  = msh->processor_id();
+  const unsigned dim = msh->GetDimension();
+
+  for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
+    if(msh->el->GetIfElementCanBeRefined(iel)) {
+      bool refine = 0;
+      unsigned ielGrup = msh->GetElementGroup(iel);
+
+      for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+        int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+        if(jel >= 0) { // iface is not a boundary of the domain
+          unsigned jelGrup = msh->GetElementGroup(jel);
+          if(ielGrup != jelGrup) { //iel and jel are on the FSI interface
+            refine = true;
+            break;
+          }
+        }
+      }
+
+      if(refine)  {
+        msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
+      }
+    }
+
+
+  }
+
+
+  msh->_topology->_Sol[msh->GetAmrIndex()]->close();
+
+
+  for(unsigned k = 1; k < layers; k++) {
+    for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
+      if(msh->el->GetIfElementCanBeRefined(iel) && (*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.) {
+        bool refine = 0;
+        for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+          int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+          if(jel >= 0 && (*msh->_topology->_Sol[msh->GetAmrIndex()])(jel) == 1.) { // iface is not a boundary of the domain
+            refine = true;
+            break;
+          }
+        }
+
+        if(refine)  {
+          msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 0.5);
+        }
+      }
+    }
+    
+    for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
+      if((*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.5) {
+        msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
+      }
+    }
+    
+    msh->_topology->_Sol[msh->GetAmrIndex()]->close();
+  }
+
+
+
 
 }
