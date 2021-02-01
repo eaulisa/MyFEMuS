@@ -56,7 +56,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 
   //mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
   
   
@@ -64,12 +64,12 @@ int main(int argc, char** args) {
 
    unsigned numberOfRefinement = 1;
 // 
-  for(unsigned i = 0; i < numberOfRefinement; i++) {
-    FlagElements(mlMsh, 2);
-    mlMsh.AddAMRMeshLevel();
-  }
-// 
-   mlMsh.EraseCoarseLevels(numberOfRefinement);
+//   for(unsigned i = 0; i < numberOfRefinement; i++) {
+//     FlagElements(mlMsh, 2);
+//     mlMsh.AddAMRMeshLevel();
+//   }
+// // 
+//    mlMsh.EraseCoarseLevels(numberOfRefinement);
 
   unsigned dim = mlMsh.GetDimension();
 
