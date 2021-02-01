@@ -6,12 +6,32 @@
 #include "MeshRefinement.hpp"
 
 const double WEIGHT[6][27] = {
-  {}, //hex
-  {}, //tet
-  {}, //wedge
-  {0.0625, 0.0625, 0.0625, 0.0625, 0.125, 0.125, 0.125, 0.125, 0.25 }, 
-  {1./12., 1./12., 1./12., 0.25, 0.25, 0.25, 0.}, 
-  {0.25, 0.25, .5}  
+  {
+    1. / 64., 1. / 64., 1. / 64., 1. / 64.,
+    1. / 64., 1. / 64., 1. / 64., 1. / 64.,
+    1. / 32., 1. / 32., 1. / 32., 1. / 32.,
+    1. / 32., 1. / 32., 1. / 32., 1. / 32.,
+    1. / 32., 1. / 32., 1. / 32., 1. / 32.,
+    1. / 16., 1. / 16., 1. / 16., 1. / 16., 1. / 16., 1. / 16., 1. / 8
+  }, //hex
+  {
+    1. / 32., 1. / 32., 1. / 32., 1. / 32.,
+    7. / 48., 7. / 48., 7. / 48., 7. / 48., 7. / 48., 7. / 48.
+  }, //tet
+  {
+    1. / 48., 1. / 48., 1. / 48., 1. / 48., 1. / 48., 1. / 48.,
+    1. / 16., 1. / 16., 1. / 16., 1. / 16., 1. / 16., 1. / 16.,
+    1. / 24., 1. / 24., 1. / 24., 1. / 8., 1. / 8., 1. / 8.
+  }, //wedge
+  {
+    0.0625, 0.0625, 0.0625, 0.0625,
+    0.125, 0.125, 0.125, 0.125, 0.25
+  },
+  {
+    1. / 12., 1. / 12., 1. / 12.,
+    0.25, 0.25, 0.25, 0.
+  },
+  {0.25, 0.25, .5}
 } ;
 
 
@@ -35,16 +55,21 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
 
-  mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
+  
+  
+   //mlMsh.RefineMesh(2, 2, NULL);
 
-  unsigned numberOfRefinement = 1;
-
+   unsigned numberOfRefinement = 1;
+// 
   for(unsigned i = 0; i < numberOfRefinement; i++) {
     FlagElements(mlMsh, 2);
     mlMsh.AddAMRMeshLevel();
   }
-
-  mlMsh.EraseCoarseLevels(numberOfRefinement);
+// 
+   mlMsh.EraseCoarseLevels(numberOfRefinement);
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -140,7 +165,7 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
       weight[msh->GetSolutionDof(i, iel, solType)] += ielArea * WEIGHT[ielt][i];
       area += ielArea * WEIGHT[ielt][i];
     }
-    
+
 
   }
 
@@ -204,13 +229,13 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
         }
       }
     }
-    
+
     for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
       if((*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.5) {
         msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
       }
     }
-    
+
     msh->_topology->_Sol[msh->GetAmrIndex()]->close();
   }
 
