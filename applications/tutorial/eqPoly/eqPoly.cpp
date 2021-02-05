@@ -3,10 +3,18 @@
 
 #include "FemusInit.hpp"
 #include "Elem.hpp"
+#include <iostream>
+
+#include </usr/include/eigen3/Eigen/Core>
+#include </usr/include/eigen3/Eigen/SVD>
+#include <iostream>
+ 
 
 
 using namespace femus;
 using namespace std;
+using namespace Eigen;
+using std::cout;
 
 int main(int argc, char** args) {
 
@@ -21,9 +29,26 @@ int main(int argc, char** args) {
   std::cout << eqP.GetValue(std::vector<double> {0.5,0.5}) << " " << std::endl;
 
 
+std::vector < double >points {1.,2.,3.,4.,5.,6.,7.,8.,9};
+
+eqP.FindBestFit(points);
 
 
 
+
+    /*std::vector <double> tes(27); 
+    MatrixXd C;
+    C.setRandom(10,3);
+    JacobiSVD<MatrixXd> svd( C, ComputeThinU | ComputeThinV);
+    MatrixXd Cp = svd.matrixV();
+    MatrixXd sigma = svd.singularValues().asDiagonal();
+    svd.matrixV().transpose();
+    MatrixXd diff = Cp;
+    tes[0] = Cp(1,2);
+
+    cout << "diff:\n" << Cp.col(2) << "\n";
+    cout << "diff:\n" << tes[0] << "\n";
+*/
 
 
 
