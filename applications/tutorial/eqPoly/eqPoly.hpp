@@ -22,7 +22,7 @@ class EquivalentPolynomial {
 
     void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d);
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
-    void FindBestFit(const std::vector < double > &pts);
+    void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts);
 
     const std::vector < complex < double > > &GetCoefficients() {
       return _coefficients;
@@ -534,65 +534,75 @@ void EquivalentPolynomial::MatrixVectorMultiply(const std::vector<std::vector <d
 
 //This function takes a vector of points as inputs and calculates the best fit plane for those points
 
-void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts) {
-    
-    if(pts.size() % 3 != 0) {
-     std::cout << "number of points must be a multiple of 3" << endl; 
-     abort();
+void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts) {
+
+  if(pts.size() % 3 != 0) {
+    std::cout << "number of points must be a multiple of 3" << endl;
+    abort();
+  }
+
+  unsigned numberofpoints = pts.size() / 3u;
+  MatrixXd m(numberofpoints, 3);
+  _bestfit.resize(4);
+  std::vector < double > N(3, 0.);
+  std::vector < double > centroid(3, 0.);
+
+
+
+  unsigned cnt = 0;
+
+  for(unsigned i = 0; i < numberofpoints; i++) {
+
+    for(unsigned j = 0; j < 3; j++, cnt++) {
+      centroid[j] += pts[cnt];
+      N[j] += Npts[cnt];
     }
-    
-    unsigned numberofpoints = (pts.size() + 1u) / 3u;
-    MatrixXd m(numberofpoints,3);
-    _bestfit.resize(3);
-    
-    double xsum = 0;
-    double ysum = 0;
-    double zsum = 0;    
-    std::vector < double > centroid(3); 
-    
-    for(unsigned i = 0; i < numberofpoints; i++) {
-        
-        if(i % 3 == 0) {
-            xsum += pts[i];
-        }
-        
-        else if( i % 3 == 1 ) {
-            ysum += pts[i];
-        }
-        
-        else if( i % 3 == 2 ) {
-            zsum += pts[i];
-        }
-        
+
+  }
+
+  N[0] /= numberofpoints;
+  N[1] /= numberofpoints;
+  N[2] /= numberofpoints;
+
+  centroid[0] /= numberofpoints;
+  centroid[1] /= numberofpoints;
+  centroid[2] /= numberofpoints;
+
+  cnt = 0;
+
+  for(unsigned i = 0; i < numberofpoints; i++) {
+
+    for(unsigned j = 0; j < 3; j++, cnt++) {
+      m(i, j) = pts[cnt] - centroid[j];
     }
-    
-    centroid[0] = xsum / numberofpoints;
-    centroid[1] = ysum / numberofpoints;
-    centroid[2] = zsum / numberofpoints;
-    
-    for(unsigned i = 0; i < numberofpoints; i++) {
-    
-        for(unsigned j = 0; j < 3; j++) {
-            m(i,j) = pts[3 * i + j] - centroid[j];
-        }
-        
-    }
-    
-    
-    JacobiSVD<MatrixXd> svd( m, ComputeThinU | ComputeThinV);
-    MatrixXd v = svd.matrixV();
-    _bestfit[0] = v(0, 2);
-    _bestfit[1] = v(1, 2);
-    _bestfit[2] = v(2, 2);
-    
-    std::cout << _bestfit[0] << "best fit" << endl; 
-    std::cout << _bestfit[1] << "best fit" << endl; 
-    std::cout << _bestfit[2] << "best fit" << endl; 
-    std::cout << _bestfit[0] * _bestfit[0] + _bestfit[2] * _bestfit[2] + _bestfit[1] * _bestfit[1]  << "   = norm squared" << endl;
-    std::cout << v << "   v matrix" << endl;
-    
-    
-    
+
+  }
+
+
+  JacobiSVD<MatrixXd> svd(m, ComputeThinU | ComputeThinV);
+  MatrixXd v = svd.matrixV();
+  _bestfit[0] = v(0, 2);
+  _bestfit[1] = v(1, 2);
+  _bestfit[2] = v(2, 2);
+
+  if(N[0] * _bestfit[0] + N[1] * _bestfit[1] + N[2] * _bestfit[2] < 0) {
+    _bestfit[0] *= -1.;
+    _bestfit[1] *= -1.;
+    _bestfit[2] *= -1.;
+  }
+
+  _bestfit[3] = -_bestfit[0] * centroid[0] - _bestfit[1] * centroid[1] - _bestfit[2] * centroid[2];
+
+  std::cout << _bestfit[0] << "   best fit a" << endl;
+  std::cout << _bestfit[1] << "   best fit b" << endl;
+  std::cout << _bestfit[2] << "   best fit c" << endl;
+  std::cout << _bestfit[3] << "   best fit d" << endl;
+  //std::cout << _bestfit[0] * _bestfit[0] + _bestfit[2] * _bestfit[2] + _bestfit[1] * _bestfit[1]  << "   = norm squared" << endl;
+  std::cout << v << "   v matrix" << endl;
+  std::cout << _bestfit[0] * 1 + _bestfit[1] * 2 + _bestfit[2] * 3 + _bestfit[3] << "  check equation" << std::endl;
+
+
+
 }
 
 

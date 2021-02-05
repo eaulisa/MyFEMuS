@@ -29,9 +29,10 @@ int main(int argc, char** args) {
   std::cout << eqP.GetValue(std::vector<double> {0.5,0.5}) << " " << std::endl;
 
 
-std::vector < double >points {1.,2.,3.,4.,5.,6.,7.,8.,9};
+std::vector < double >points {1.,2.,3.,4.,5.,6.,70.,83.,97.};
+std::vector < double >normal {-1.,0.,0.,-1.,0.,0.,-1.,0.,0.};
 
-eqP.FindBestFit(points);
+eqP.FindBestFit(points,normal);
 
 
 
