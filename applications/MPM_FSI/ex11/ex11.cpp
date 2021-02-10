@@ -43,9 +43,8 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char name[], do
   return test;
 }
 
-void BuildMarkers(MultiLevelMesh& mlMesh);
-
-void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layer);
+void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut);
+void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers);
 
 int main(int argc, char** args) {
 
@@ -55,21 +54,21 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
 
-  //mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
 
 
   //mlMsh.RefineMesh(2, 2, NULL);
 
-//   unsigned numberOfRefinement = 2;
-//
-//   for(unsigned i = 0; i < numberOfRefinement; i++) {
-//     FlagElements(mlMsh, 1);
-//     mlMsh.AddAMRMeshLevel();
-//   }
-//
-//   mlMsh.EraseCoarseLevels(numberOfRefinement);
+  unsigned numberOfRefinement = 2;
+
+  for(unsigned i = 0; i < numberOfRefinement; i++) {
+    FlagElements(mlMsh, 1);
+    mlMsh.AddAMRMeshLevel();
+  }
+
+  mlMsh.EraseCoarseLevels(numberOfRefinement);
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -86,7 +85,7 @@ int main(int argc, char** args) {
   // ******* Set boundary conditions *******
   mlSol.GenerateBdc("u", "Steady");
 
-  BuildMarkers(mlMsh);
+  BuildMarkers(mlMsh, -0.6, 1.0E10);
 
   //******* Print solution *******
   mlSol.SetWriter(VTK);
@@ -103,7 +102,7 @@ int main(int argc, char** args) {
 
 
 
-void BuildMarkers(MultiLevelMesh& mlMesh) {
+void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut) {
 
   unsigned level = mlMesh.GetNumberOfLevels() - 1;
   Mesh *msh   = mlMesh.GetLevel(level);
@@ -112,27 +111,29 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
 
   unsigned solType = 2;
   unsigned xpSize = msh->el->GetNodeNumber();
-  std::vector < std::vector < double > > xp(xpSize);
 
+
+
+  //BEGIN bulk markers
+  std::vector < std::vector < double > > xp(xpSize);
+  std::vector < double > dist(xpSize);
+  
   for(unsigned i = 0; i < xpSize; i++) {
     xp[i].resize(dim);
+    dist[i] = (msh->GetSolidMark(i) > 0.5) ? 1. : -1.;
     for(unsigned k = 0; k < dim; k++) {
       xp[i][k] = (*msh->_topology->_Sol[k])(i);
     }
   }
-
-
+    
   std::vector < double > weight(xpSize, 0.);
+ 
   std::vector < double > phi;
   std::vector < double > gradPhi;
-
-
   std::vector <std::vector < double> > vx(dim);
 
   double totalArea = 0.;
-
   for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
-
     short unsigned ielt = msh->GetElementType(iel);
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
     for(unsigned  k = 0; k < dim; k++) {
@@ -145,29 +146,22 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
         vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
       }
     }
-
     double ielArea = 0.;
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
       double jac;
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
       ielArea += jac;
     }
-
-
     for(unsigned i = 0; i < nDofs; i++) {
       weight[msh->GetSolutionDof(i, iel, solType)] += ielArea * WEIGHT[ielt][i];
       totalArea += ielArea * WEIGHT[ielt][i];
     }
-
   }
+  //END bulk markers
 
   std::cout << totalArea << " " << 2 * 4.99 + 0.5 * M_PI * 1. * 1. << std::endl;
 
-  std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
-  bulkPoints[0] = xp;
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
-
-
+  //BEGIN interface markers
   std::vector < std::vector < double > > xpI(0);
   std::vector < std::vector < std::vector < double > > > xpT(0);
 
@@ -190,7 +184,6 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
           vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
         }
       }
-
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
@@ -286,12 +279,13 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
       }
     }
   }
+  //END interface markers
 
   std::cout << xpI.size() << std::endl;
-
   std::cout << totalArea << " " << 2 * 4.99 + M_PI * 0.25 << std::endl;
-  totalArea = 0.;
 
+  //BEGIN remove interface marker duplicates
+  totalArea = 0.;
   for(unsigned i = 0; i < xpI.size(); i++) {
     unsigned cnt = 1;
     std::vector < double > N(dim);
@@ -336,26 +330,23 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
         }
         xpI.erase(xpI.begin() + j);
         xpT.erase(xpT.begin() + j);
+        j--;
       }
     }
 
     totalArea += area;
 
     if(cnt > 1) {
-
       double normN2 = 0;
       for(unsigned k = 0; k < dim; k++) {
         normN2 += N[k] * N[k];
       }
-
       for(unsigned l = 0; l < dim - 1; l++) {
-
         double prj = 0.;
         for(unsigned k = 0; k < dim; k++) {
           prj += xpT[i][l][k] * N[k];
         }
         prj /= normN2;
-
         double normT2 = 0.;
         for(unsigned k = 0; k < dim; k++) {
           xpT[i][l][k] -= prj * N[k];
@@ -382,18 +373,83 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
       }
     }
   }
+  //END remove interface marker duplicates
 
   std::cout << xpI.size() << std::endl;
+  std::cout << totalArea << " " << 2 * 4.99 + M_PI * .25 << std::endl;
+
+  //BEGIN get the distance of bulk particles from the interface
+  for(unsigned ip = 0; ip < xp.size(); ip++) {
+    double dmin = 1.0e100;
+    for(unsigned jp = 0; jp < xpI.size(); jp++) {
+      double d = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        d += (xp[ip][k] - xpI[jp][k]) * (xp[ip][k] - xpI[jp][k]);
+      }
+      d = sqrt(d);
+      if(d < dmin) dmin = d;
+    }
+    dist[ip] *= dmin;
+  }
+  //END get the distance of bulk particles from the interface
+
+
+  //BEGIN remove bulk markers that are too far from the interface
+  for(unsigned ip = 0; ip < xp.size();) {
+    unsigned dip = 1;
+    if(dist[ip] < dminCut || dist[ip] > dmaxCut) {
+      xp.erase(xp.begin() + ip);
+      weight.erase(weight.begin() + ip);
+      dist.erase(dist.begin() + ip);
+      dip = 0;
+    }
+    ip += dip;
+  }
+  //END remove bulk markers that are too far from the interface
+ 
+  std::ofstream fout;
+
+  //BEGIN bulk printing
+  fout.open("../input/bulk.txt");
+  std::cout << dim << " " << xp.size() << std::endl;
+  for(unsigned ip = 0; ip < xp.size(); ip++) {
+    for(unsigned k = 0; k < dim; k++) {
+      fout << xp[ip][k] << " ";
+    }
+    fout << weight[ip] << " ";
+    fout << dist[ip] << std::endl;
+  }
+  fout.close();
+  //END bulk printing
+
+  //BEGIN bulk printing
+  fout.open("../input/interface.txt");
+  std::cout << dim << " " << xpI.size() << std::endl;
+  for(unsigned ip = 0; ip < xpI.size(); ip++) {
+    for(unsigned k = 0; k < dim; k++) {
+      fout << xpI[ip][k] << " ";
+    }
+    for(unsigned l = 0; l < dim - 1; l++) {
+      for(unsigned k = 0; k < dim; k++) {
+        fout << xpT[ip][l][k] << " ";
+      }
+    }
+    fout << std::endl;
+  }
+  fout.close();
+  //END bulk printing
+
+  std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
+  bulkPoints[0] = xp;
+  PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
 
   std::vector < std::vector < std::vector < double > > >  interfacePoints(1);
   interfacePoints[0] = xpI;
   PrintLine(DEFAULT_OUTPUTDIR, "interface", interfacePoints, 0);
 
-  std::cout << totalArea << " " << 2 * 4.99 + M_PI * .25 << std::endl;
-
   std::vector < std::vector < double > > xpI2;
   xpI2 = xpI;
-  
+
   totalArea = 0.;
   for(unsigned i = 0; i < xpI.size(); i++) {
     std::vector < double > N(dim);
@@ -417,11 +473,8 @@ void BuildMarkers(MultiLevelMesh& mlMesh) {
   std::cout << totalArea << " " << 2 * 4.99 + M_PI * .25 << std::endl;
   interfacePoints[0] = xpI2;
   PrintLine(DEFAULT_OUTPUTDIR, "interface2", interfacePoints, 0);
+
 }
-
-
-
-
 
 void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
 
@@ -433,30 +486,25 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
   for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
     if(msh->el->GetIfElementCanBeRefined(iel)) {
       bool refine = 0;
-      unsigned ielGrup = msh->GetElementGroup(iel);
+      unsigned ielMat = msh->GetElementMaterial(iel);
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
         if(jel >= 0) { // iface is not a boundary of the domain
-          unsigned jelGrup = msh->GetElementGroup(jel);
-          if(ielGrup != jelGrup) { //iel and jel are on the FSI interface
+          unsigned jelMat = msh->GetElementMaterial(jel);
+          if(ielMat != jelMat) { //iel and jel are on the FSI interface
             refine = true;
             break;
           }
         }
       }
-
       if(refine)  {
         msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
       }
     }
-
-
   }
 
-
   msh->_topology->_Sol[msh->GetAmrIndex()]->close();
-
 
   for(unsigned k = 1; k < layers; k++) {
     for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
@@ -469,23 +517,16 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
             break;
           }
         }
-
         if(refine)  {
           msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 0.5);
         }
       }
     }
-
     for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
       if((*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.5) {
         msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
       }
     }
-
     msh->_topology->_Sol[msh->GetAmrIndex()]->close();
   }
-
-
-
-
 }
