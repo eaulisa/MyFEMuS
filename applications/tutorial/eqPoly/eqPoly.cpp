@@ -1,14 +1,14 @@
 
 #include "eqPoly.hpp"
-
+#include <time.h>
 #include "FemusInit.hpp"
 #include "Elem.hpp"
 #include <iostream>
-
+#include <stdlib.h>
 #include </usr/include/eigen3/Eigen/Core>
 #include </usr/include/eigen3/Eigen/SVD>
 #include <iostream>
- 
+
 
 
 using namespace femus;
@@ -20,36 +20,59 @@ int main(int argc, char** args) {
 
   //FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-  //SetCoefficients takes ( dim, degree of equivalent polynomial, rho, vector < a, b, c > for the dicontinuity ( point, line, or plane ) 
+  //SetCoefficients takes ( dim, degree of equivalent polynomial, rho, vector < a, b, c > for the dicontinuity ( point, line, or plane ), and element (3=triangle/tet, 4=square/cube
   // a*x + b*y + c*z + d = 0, and d) as inputs
   EquivalentPolynomial eqP;
+
+  //
+   eqP.SetCoefficients(2, 2, 32, std::vector<double> {1., 2.}, -1., 3);
+   eqP.PrintCoefficients();
+//   std::cout << eqP.GetValue(std::vector<double> {0.5, 0.5}) << " " << std::endl;
+
+
+  std::vector < double >points {1.,2.,4.,5.,7.,8.,-5.,23.,12.,15.,14.,14.};
+  //std::vector < double >points(2000);
+  std::vector < double >normal {-1., 0., 0., -1., 0., 0., -1., 0., 0.};
+  unsigned dim = 3;
+  eqP.FindBestFit(points, normal, dim);
   
-  eqP.SetCoefficients(2, 4, 32, std::vector<double> {1.,1.}, -1.);
-  eqP.PrintCoefficients();
-  std::cout << eqP.GetValue(std::vector<double> {0.5,0.5}) << " " << std::endl;
+
+//   clock_t t;
+//   t = clock();
+// 
+//   for(unsigned k = 0; k < 1000; k++) {
+// 
+//     for(unsigned i = 0; i < 2000; i++) {
+// 
+//       points[i] = rand() % 100;
+// 
+//     }
+// 
+//     
+//     eqP.FindBestFit(points, normal, dim);
+// 
+// 
+//   }
+// 
+//   
+// 
+//   t = clock() - t;
+//   printf("It took me %d clicks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
 
 
-std::vector < double >points {1.,2.,3.,4.,5.,6.,70.,83.,97.};
-std::vector < double >normal {-1.,0.,0.,-1.,0.,0.,-1.,0.,0.};
+  /*std::vector <double> tes(27);
+  MatrixXd C;
+  C.setRandom(10,3);
+  JacobiSVD<MatrixXd> svd( C, ComputeThinU | ComputeThinV);
+  MatrixXd Cp = svd.matrixV();
+  MatrixXd sigma = svd.singularValues().asDiagonal();
+  svd.matrixV().transpose();
+  MatrixXd diff = Cp;
+  tes[0] = Cp(1,2);
 
-eqP.FindBestFit(points,normal);
-
-
-
-
-    /*std::vector <double> tes(27); 
-    MatrixXd C;
-    C.setRandom(10,3);
-    JacobiSVD<MatrixXd> svd( C, ComputeThinU | ComputeThinV);
-    MatrixXd Cp = svd.matrixV();
-    MatrixXd sigma = svd.singularValues().asDiagonal();
-    svd.matrixV().transpose();
-    MatrixXd diff = Cp;
-    tes[0] = Cp(1,2);
-
-    cout << "diff:\n" << Cp.col(2) << "\n";
-    cout << "diff:\n" << tes[0] << "\n";
-*/
+  cout << "diff:\n" << Cp.col(2) << "\n";
+  cout << "diff:\n" << tes[0] << "\n";
+  */
 
 
 
@@ -60,7 +83,7 @@ eqP.FindBestFit(points,normal);
     std::vector<std::vector<double>> xv = {{-1., 1.}};
     double integral = 0.;
     unsigned dim = 1;
-    eqP.SetCoefficients(1, 3, 50, std::vector<double> {1.}, -0.5);
+    eqP.SetCoefficients(1, 3, 50, std::vector<double> {1.}, -0.5, 4);
     const elem_type * fe = new const elem_type_1D("line", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -81,7 +104,7 @@ eqP.FindBestFit(points,normal);
     std::vector<std::vector<double>> xv = {{-1., 1., 1., -1.}, {-1., -1., 1., 1.}};
     double integral = 0.;
     unsigned dim = 2;
-    eqP.SetCoefficients(2, 4, 32, std::vector<double> {1., 1.}, -1.);
+    eqP.SetCoefficients(2, 4, 32, std::vector<double> {1., 1.}, -1., 4);
     const elem_type * fe = new const elem_type_2D("quad", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
 
