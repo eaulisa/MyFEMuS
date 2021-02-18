@@ -54,7 +54,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
 
-  mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
 
