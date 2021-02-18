@@ -54,6 +54,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
 
+  //mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
   mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
@@ -488,8 +489,14 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
       bool refine = 0;
       unsigned ielMat = msh->GetElementMaterial(iel);
 
-      for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-        int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+      
+      for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel,1);j++){
+	   int jel = msh->el->GetElementNearElement(iel,j);
+      
+      
+      
+      //for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+       // int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
         if(jel >= 0) { // iface is not a boundary of the domain
           unsigned jelMat = msh->GetElementMaterial(jel);
           if(ielMat != jelMat) { //iel and jel are on the FSI interface
@@ -510,8 +517,11 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers) {
     for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
       if(msh->el->GetIfElementCanBeRefined(iel) && (*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.) {
         bool refine = 0;
-        for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-          int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+        
+        for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel,1);j++){
+	      int jel = msh->el->GetElementNearElement(iel,j);
+        //for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+          //int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
           if(jel >= 0 && (*msh->_topology->_Sol[msh->GetAmrIndex()])(jel) == 1.) { // iface is not a boundary of the domain
             refine = true;
             break;
