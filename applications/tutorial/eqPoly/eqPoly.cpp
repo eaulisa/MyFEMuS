@@ -25,17 +25,19 @@ int main(int argc, char** args) {
   EquivalentPolynomial eqP;
 
   //
-   eqP.SetCoefficients(2, 2, 32, std::vector<double> {1., 2.}, -1., 3);
+   eqP.SetCoefficients(3, 2, 2, std::vector<double> {1., 2., 1.}, 0., 3);
    eqP.PrintCoefficients();
 //   std::cout << eqP.GetValue(std::vector<double> {0.5, 0.5}) << " " << std::endl;
 
 
   std::vector < double >points {1.,2.,4.,5.,7.,8.,-5.,23.,12.,15.,14.,14.};
   //std::vector < double >points(2000);
-  std::vector < double >normal {-1., 0., 0., -1., 0., 0., -1., 0., 0.};
+  std::vector < double >normal {1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0.};
   unsigned dim = 3;
   eqP.FindBestFit(points, normal, dim);
-  
+  std::vector < double > onepoint {1.,2.,3.};
+  unsigned element = 0;
+  std::cout << eqP.GetValue(onepoint, element) << "  value" << endl;
 
 //   clock_t t;
 //   t = clock();
@@ -75,7 +77,7 @@ int main(int argc, char** args) {
   */
 
 
-
+  
   std::vector<double> phi;
   std::vector<double> gradPhi;
   double weight;
@@ -83,6 +85,7 @@ int main(int argc, char** args) {
     std::vector<std::vector<double>> xv = {{-1., 1.}};
     double integral = 0.;
     unsigned dim = 1;
+    element = 6;
     eqP.SetCoefficients(1, 3, 50, std::vector<double> {1.}, -0.5, 4);
     const elem_type * fe = new const elem_type_1D("line", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
@@ -94,18 +97,27 @@ int main(int argc, char** args) {
           xg[k] += xv[k][i] * phi[i];
         }
       }
-      integral += xg[0] * xg[0] * xg[0] * eqP.GetValue(xg) * weight;
+      integral += xg[0] * xg[0] * xg[0] * eqP.GetValue(xg, element) * weight;
     }
     std::cout << "Integral = " << integral << std::endl;
     delete fe;
   }
 
+  element = 4;
+  std::vector  <double> pt {0.5, 0.5};
+  eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1.}, -1., element);
+  std::cout << eqP.GetValue(pt, element) << " triangle at 0.5, 0.5 " << std::endl;
+     eqP.PrintCoefficients();
+
+     //TODO Fix triangle integration
+  
   {
     std::vector<std::vector<double>> xv = {{-1., 1., 1., -1.}, {-1., -1., 1., 1.}};
     double integral = 0.;
     unsigned dim = 2;
-    eqP.SetCoefficients(2, 4, 32, std::vector<double> {1., 1.}, -1., 4);
-    const elem_type * fe = new const elem_type_2D("quad", "linear", "ninth");
+    element = 4;
+    eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1.}, -1., element);
+    const elem_type * fe = new const elem_type_2D("tri", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
 
       fe->Jacobian(xv, ig, weight, phi, gradPhi);
@@ -115,7 +127,7 @@ int main(int argc, char** args) {
           xg[k] += xv[k][i] * phi[i];
         }
       }
-      integral += xg[0] * xg[1] * eqP.GetValue(xg) * weight;
+      integral += xg[0] * xg[1] * eqP.GetValue(xg, element) * weight;
     }
     std::cout << "Integral = " << integral << std::endl;
     delete fe;

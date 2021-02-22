@@ -23,6 +23,7 @@ class EquivalentPolynomial {
     void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element);
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
     void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, unsigned &dim);
+    double GetValue(std::vector <double> &x, unsigned &element);
 
     const std::vector < complex < double > > &GetCoefficients() {
       return _coefficients;
@@ -36,77 +37,6 @@ class EquivalentPolynomial {
     }
 
 
-
-
-
-    double GetValue(std::vector <double> x) {
-
-      unsigned numvalues = x.size();
-      unsigned numcoefficients = _coefficients.size();
-      //std::vector < double > values(numvalues);
-      //std::fill(values.begin(), values.end(), 0.);
-      double value = 0.;
-
-      if(_dim == 1) {
-
-        for(unsigned k = 0; k < numvalues; k++) {
-
-          for(unsigned i = 0; i < numcoefficients; i++) {
-
-            value += _coefficients[i].real() * pow(x[k], i);
-
-          }
-
-        }
-
-      }
-
-      if(_dim == 2) {
-
-        if(_degree == 2) {
-
-          value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
-                  _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1];
-
-        }
-
-        if(_degree == 3) {
-
-          value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
-                  _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1]  +
-                  _coefficients[6].real() * x[0] * x[0] * x[0] + _coefficients[7].real() * x[1] * x[1] * x[1] +
-                  _coefficients[8].real() * x[0] * x[0] * x[1] + _coefficients[9].real() * x[1] * x[1] * x[0];
-
-        }
-
-        if(_degree == 4) {
-
-          value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
-                  _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1] +
-                  _coefficients[6].real() * x[0] * x[0] * x[0] + _coefficients[7].real() * x[1] * x[1] * x[1] + _coefficients[8].real() * x[0] * x[0] * x[1] + _coefficients[9].real() * x[1] * x[1] * x[0]  + _coefficients[10].real() * x[0] * x[0] * x[0] * x[0] +
-                  _coefficients[11].real() * x[1] * x[1] * x[1] * x[1] + _coefficients[12].real() * x[0] * x[0] * x[1] * x[1] +
-                  _coefficients[13].real() * x[0] * x[0] * x[0] * x[1] + _coefficients[14].real() * x[1] * x[1] * x[1] * x[0];
-
-        }
-
-        if(_degree == 5) {
-
-          value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
-                  _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[0] * x[0] +
-                  _coefficients[6].real() * x[1] * x[1] * x[1] + _coefficients[7].real() * x[0] * x[0] * x[0] * x[0] + _coefficients[8].real() * x[1] * x[1] * x[1] * x[1] +
-                  _coefficients[9].real() * pow(x[0], 5) + _coefficients[10].real() * pow(x[1], 5) +
-                  _coefficients[11].real() * x[0] * x[0] * x[1] + _coefficients[12].real() * x[0] * x[0] * x[0] * x[1] +
-                  _coefficients[13].real() * x[0] * x[0] * x[0] * x[0] * x[1] + _coefficients[14].real() * x[1] * x[1] * x[0] +
-                  _coefficients[15].real() * x[1] * x[1] * x[1] * x[0] + _coefficients[16].real() * x[1] * x[1] * x[1] * x[1] * x[0] +
-                  _coefficients[17].real() * x[0] * x[0] * x[0] * x[1] * x[1] + _coefficients[18].real() * x[1] * x[1] * x[1] * x[0] * x[0] +
-                  _coefficients[19].real() * x[0] * x[1] + _coefficients[20].real() * x[0] * x[0] * x[1] * x[1];
-
-        }
-
-      }
-
-      return value;
-    }
 
 
   private:
@@ -125,6 +55,8 @@ class EquivalentPolynomial {
 };
 
 
+
+//TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
 void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element) {
 
   _dim = dim;
@@ -190,7 +122,7 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
     _b_vector.resize(n);
     std::vector <double> bvector(n);
 
-    if(element == 4) {
+    if(element == 3) {
 
 
 
@@ -518,9 +450,9 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
     }
 
 
-    else if(element == 3) {
-        
-        std::cout << " Triangle "   << endl;
+    else if(element == 4) {
+
+      std::cout << " Triangle "   << endl;
 
       _b_vector[0] = -0.5 + (2. * ((-a + b) * _lisk->Li(2, -exp(d * p)) - b * _lisk->Li(2, -exp((a + d) * p)) + a * _lisk->Li(2, -exp((b + d) * p)))) / (a * (a - b) * b * pow(p, 2));
 
@@ -538,16 +470,16 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
                      (2. * ((a - b) * p * ((-a + b) * p * _lisk->Li(2, -exp((a + d) * p)) + 2. * _lisk->Li(3, -exp((a + d) * p))) - 2. * _lisk->Li(4, -exp((a + d) * p)) + 2. * _lisk->Li(4, -exp((b + d) * p)))) /
                      (pow(a - b, 3) * b * pow(p, 4));
 
-      _b_vector[4] = -0.08333333333333333 + (2 * a * pow(a - b, 2) * pow(b, 2) * pow(p, 2) * _lisk->Li(2, -exp((b + d) * p)) - 4 * a * (a - 2 * b) * (a - b) * b * p * _lisk->Li(3,                                 -exp((b + d) * p)) - 4 * pow(a - b, 3) * _lisk->Li(4, -exp(d * p)) - 4 * pow(b, 3) * _lisk->Li(4, -exp((a + d) * p)) + 
-      4 * a * (pow(a, 2) - 3 * a * b + 3 * pow(b, 2)) * _lisk->Li(4, -exp((b + d) * p))) / (a * pow(a - b, 3) * pow(b, 3) * pow(p, 4));
+      _b_vector[4] = -0.08333333333333333 + (2 * a * pow(a - b, 2) * pow(b, 2) * pow(p, 2) * _lisk->Li(2, -exp((b + d) * p)) - 4 * a * (a - 2 * b) * (a - b) * b * p * _lisk->Li(3,                                 -exp((b + d) * p)) - 4 * pow(a - b, 3) * _lisk->Li(4, -exp(d * p)) - 4 * pow(b, 3) * _lisk->Li(4, -exp((a + d) * p)) +
+                                             4 * a * (pow(a, 2) - 3 * a * b + 3 * pow(b, 2)) * _lisk->Li(4, -exp((b + d) * p))) / (a * pow(a - b, 3) * pow(b, 3) * pow(p, 4));
 
       _b_vector[5] = -(pow(a, 5) * pow(b, 2) * pow(p, 4) - 3 * pow(a, 4) * pow(b, 3) * pow(p, 4) + 3 * pow(a, 3) * pow(b, 4) * pow(p, 4) - pow(a, 2) * pow(b, 5) * pow(p, 4) +
                        48 * a * (a - b) * pow(b, 2) * p * _lisk->Li(3, -exp((a + d) * p)) + 48 * pow(a, 2) * (a - b) * b * p * _lisk->Li(3, -exp((b + d) * p)) + 48 * pow(a, 3) * _lisk->Li(4, -exp(d * p)) - 144 * pow(a, 2) * b * _lisk->Li(4, -exp(d * p)) + 144 * a * pow(b, 2) * _lisk->Li(4, -exp(d * p)) - 48 * pow(b, 3) * _lisk->Li(4, -exp(d * p)) - 144 * a * pow(b, 2) * _lisk->Li(4, -exp((a + d) * p)) + 48 * pow(b, 3) * _lisk->Li(4, -exp((a + d) * p)) -
                        48 * pow(a, 3) * _lisk->Li(4, -exp((b + d) * p)) +
                        144 * pow(a, 2) * b * _lisk->Li(4, -exp((b + d) * p))) / (24. * pow(a, 2) * pow(a - b, 3) * pow(b, 2) * pow(p, 4));
-                       
-                       
-                       
+
+
+
       if(degree <= 2) EquivalentPolynomial::MatrixVectorMultiply(_A22T_inverse, _b_vector, _coefficients);
       //else if(degree == 3) EquivalentPolynomial::MatrixVectorMultiply(_A23_inverse, _b_vector, _coefficients);
       //else if(degree == 4) EquivalentPolynomial::MatrixVectorMultiply(_A24_inverse, _b_vector, _coefficients);
@@ -560,7 +492,7 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
 
   else if(dim == 3) {
     {
-        
+
       double a = c[0];
       double b = c[1];
       double cz = c[2];
@@ -570,98 +502,98 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
       std::vector <double> bvector(n);
 
 
-      if(element == 4) {
-          
-         _b_vector[0] = (-2. * (4 * a * b * cz * pow(p,3) - _lisk->Li(3,-exp((-a - b - cz + d) * p)) + _lisk->Li(3,-exp((a - b - cz + d) * p)) + _lisk->Li(3,-exp((-a + b - cz + d) * p)) - _lisk->Li(3,-exp((a + b - cz + d) * p)) + 
-        _lisk->Li(3,-exp((-a - b + cz + d) * p)) - _lisk->Li(3,-exp((a - b + cz + d) * p)) - _lisk->Li(3,-exp((-a + b + cz + d) * p)) + _lisk->Li(3,-exp((a + b + cz + d) * p))))/(a * b * cz * pow(p,3));
-         
-         _b_vector[1] = (-2. * (a * p * _lisk->Li(3,-exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(3,-exp((a - b - cz + d) * p)) - a * p * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(3,-exp((a + b - cz + d) * p)) - 
-        a * p * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(3,-exp((a - b + cz + d) * p)) + a * p * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(3,-exp((a + b + cz + d) * p)) + 
-        _lisk->Li(4,-exp((-a - b - cz + d) * p)) - _lisk->Li(4,-exp((a - b - cz + d) * p)) - _lisk->Li(4,-exp((-a + b - cz + d) * p)) + _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        _lisk->Li(4,-exp((-a - b + cz + d) * p)) + _lisk->Li(4,-exp((a - b + cz + d) * p)) + _lisk->Li(4,-exp((-a + b + cz + d) * p)) - _lisk->Li(4,-exp((a + b + cz + d) * p))))/
-    (pow(a,2) * b * cz * pow(p,4));
-         
-         _b_vector[2] = (-2. * (b * p * _lisk->Li(3,-exp((-a - b - cz + d) * p)) - b * p * _lisk->Li(3,-exp((a - b - cz + d) * p)) + b * p * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - 
-        b * p * _lisk->Li(3,-exp((a + b - cz + d) * p)) - b * p * _lisk->Li(3,-exp((-a - b + cz + d) * p)) + b * p * _lisk->Li(3,-exp((a - b + cz + d) * p)) - b * p * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + 
-        b * p * _lisk->Li(3,-exp((a + b + cz + d) * p)) + _lisk->Li(4,-exp((-a - b - cz + d) * p)) - _lisk->Li(4,-exp((a - b - cz + d) * p)) - _lisk->Li(4,-exp((-a + b - cz + d) * p)) + 
-        _lisk->Li(4,-exp((a + b - cz + d) * p)) - _lisk->Li(4,-exp((-a - b + cz + d) * p)) + _lisk->Li(4,-exp((a - b + cz + d) * p)) + _lisk->Li(4,-exp((-a + b + cz + d) * p)) - 
-        _lisk->Li(4,-exp((a + b + cz + d) * p))))/(a * pow(b,2) * cz * pow(p,4));
-         
-         _b_vector[3] = (-2. * (cz * p * _lisk->Li(3,-exp((-a - b - cz + d) * p)) - cz * p * _lisk->Li(3,-exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(3,-exp((-a + b - cz + d) * p)) + cz * p * _lisk->Li(3,-exp((a + b - cz + d) * p)) + 
-        cz * p * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - cz * p * _lisk->Li(3,-exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + cz * p * _lisk->Li(3,-exp((a + b + cz + d) * p)) + 
-        _lisk->Li(4,-exp((-a - b - cz + d) * p)) - _lisk->Li(4,-exp((a - b - cz + d) * p)) - _lisk->Li(4,-exp((-a + b - cz + d) * p)) + _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        _lisk->Li(4,-exp((-a - b + cz + d) * p)) + _lisk->Li(4,-exp((a - b + cz + d) * p)) + _lisk->Li(4,-exp((-a + b + cz + d) * p)) - _lisk->Li(4,-exp((a + b + cz + d) * p))))/
-    (a * b * pow(cz,2) * pow(p,4));
-         
-         _b_vector[4] = (2. * (a * b * pow(p,2) * _lisk->Li(3,-exp((-a - b - cz + d) * p)) + a * b * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) + 
-        a * b * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) + a * b * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) - a * b * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - 
-        a * b * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) - a * b * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) - a * b * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) + 
-        a * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) + b * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - b * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - 
-        a * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) + b * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) - b * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        a * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) - b * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) + b * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) + 
-        a * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - b * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + b * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + 
-        _lisk->Li(5,-exp((-a - b - cz + d) * p)) - _lisk->Li(5,-exp((a - b - cz + d) * p)) - _lisk->Li(5,-exp((-a + b - cz + d) * p)) + _lisk->Li(5,-exp((a + b - cz + d) * p)) - 
-        _lisk->Li(5,-exp((-a - b + cz + d) * p)) + _lisk->Li(5,-exp((a - b + cz + d) * p)) + _lisk->Li(5,-exp((-a + b + cz + d) * p)) - _lisk->Li(5,-exp((a + b + cz + d) * p))))/
-    (pow(a,2) * pow(b,2) * cz * pow(p,5));
-         
-         _b_vector[5] = (2. * (a * cz * pow(p,2) * _lisk->Li(3,-exp((-a - b - cz + d) * p)) + a * cz * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) - 
-        a * cz * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - a * cz * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) + a * cz * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) + 
-        a * cz * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) - a * cz * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) - a * cz * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) + 
-        a * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) + cz * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - 
-        a * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - cz * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) + cz * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        a * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) + cz * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) + 
-        a * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - cz * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + cz * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + 
-        _lisk->Li(5,-exp((-a - b - cz + d) * p)) - _lisk->Li(5,-exp((a - b - cz + d) * p)) - _lisk->Li(5,-exp((-a + b - cz + d) * p)) + _lisk->Li(5,-exp((a + b - cz + d) * p)) - 
-        _lisk->Li(5,-exp((-a - b + cz + d) * p)) + _lisk->Li(5,-exp((a - b + cz + d) * p)) + _lisk->Li(5,-exp((-a + b + cz + d) * p)) - _lisk->Li(5,-exp((a + b + cz + d) * p))))/
-    (pow(a,2) * b * pow(cz,2) * pow(p,5));
-         
-         _b_vector[6] = (2. * (b * cz * pow(p,2) * _lisk->Li(3,-exp((-a - b - cz + d) * p)) - b * cz * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) + 
-        b * cz * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - b * cz * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) + b * cz * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - 
-        b * cz * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) + b * cz * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) - b * cz * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) + 
-        b * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) + cz * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) - b * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) + 
-        b * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - cz * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - b * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) + cz * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        b * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) + cz * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) + b * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) - 
-        b * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - cz * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) + b * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + cz * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) + 
-        _lisk->Li(5,-exp((-a - b - cz + d) * p)) - _lisk->Li(5,-exp((a - b - cz + d) * p)) - _lisk->Li(5,-exp((-a + b - cz + d) * p)) + _lisk->Li(5,-exp((a + b - cz + d) * p)) - 
-        _lisk->Li(5,-exp((-a - b + cz + d) * p)) + _lisk->Li(5,-exp((a - b + cz + d) * p)) + _lisk->Li(5,-exp((-a + b + cz + d) * p)) - _lisk->Li(5,-exp((a + b + cz + d) * p))))/
-    (a * pow(b,2) * pow(cz,2) * pow(p,5));
-         
-         _b_vector[7] = (-2. * (4 * pow(a,3) * b * cz * pow(p,5) - 3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((-a - b - cz + d) * p)) + 
-        3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) + 3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - 
-        3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) + 3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - 
-        3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) - 3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + 
-        3 * pow(a,2) * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) - 6 * a * p * _lisk->Li(4,-exp((-a - b - cz + d) * p)) - 6 * a * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) + 
-        6 * a * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) + 6 * a * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) + 6 * a * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) + 
-        6 * a * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) - 6 * a * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - 6 * a * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((-a - b - cz + d) * p)) + 
-        6. * _lisk->Li(5,-exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a + b - cz + d) * p)) - 6. * _lisk->Li(5,-exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a - b + cz + d) * p)) - 
-        6. * _lisk->Li(5,-exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((-a + b + cz + d) * p)) + 6. * _lisk->Li(5,-exp((a + b + cz + d) * p))))/(3. * pow(a,3) * b * cz * pow(p,5));
-         
-         _b_vector[8] = (-2. * (4 * a * pow(b,3) * cz * pow(p,5) - 3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp(-((a + b + cz - d) * p))) + 3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) + 
-        3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - 3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) + 
-        3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - 3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) - 
-        3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + 3 * pow(b,2) * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) - 6. * b * p * _lisk->Li(4,-exp(-((a + b + cz - d) * p))) + 
-        6. * b * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) - 6. * b * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) + 6. * b * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) + 
-        6. * b * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) - 6. * b * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) + 6. * b * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - 
-        6. * b * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5,-exp(-((a + b + cz - d) * p))) + 6. * _lisk->Li(5,-exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a + b - cz + d) * p)) - 
-        6. * _lisk->Li(5,-exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a - b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((-a + b + cz + d) * p)) + 
-        6. * _lisk->Li(5,-exp((a + b + cz + d) * p))))/(3. * a * pow(b,3) * cz * pow(p,5));
-         
-         _b_vector[9] = (-2. * (4 * a * b * pow(cz,3) * pow(p,5) - 3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp(-((a + b + cz - d) * p))) + 3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((a - b - cz + d) * p)) + 
-        3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b - cz + d) * p)) - 3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((a + b - cz + d) * p)) + 
-        3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((-a - b + cz + d) * p)) - 3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((a - b + cz + d) * p)) - 
-        3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((-a + b + cz + d) * p)) + 3 * pow(cz,2) * pow(p,2) * _lisk->Li(3,-exp((a + b + cz + d) * p)) - 6. * cz * p * _lisk->Li(4,-exp(-((a + b + cz - d) * p))) + 
-        6. * cz * p * _lisk->Li(4,-exp((a - b - cz + d) * p)) + 6. * cz * p * _lisk->Li(4,-exp((-a + b - cz + d) * p)) - 6. * cz * p * _lisk->Li(4,-exp((a + b - cz + d) * p)) - 
-        6. * cz * p * _lisk->Li(4,-exp((-a - b + cz + d) * p)) + 6. * cz * p * _lisk->Li(4,-exp((a - b + cz + d) * p)) + 6. * cz * p * _lisk->Li(4,-exp((-a + b + cz + d) * p)) - 
-        6. * cz * p * _lisk->Li(4,-exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5,-exp(-((a + b + cz - d) * p))) + 6. * _lisk->Li(5,-exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a + b - cz + d) * p)) - 
-        6. * _lisk->Li(5,-exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5,-exp((-a - b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5,-exp((-a + b + cz + d) * p)) + 
-        6. * _lisk->Li(5,-exp((a + b + cz + d) * p))))/(3. * a * b * pow(cz,3) * pow(p,5));
-        
-        
-      if(degree <= 2) EquivalentPolynomial::MatrixVectorMultiply(_A32_inverse, _b_vector, _coefficients);
-      //else if(degree == 3) EquivalentPolynomial::MatrixVectorMultiply(_A23_inverse, _b_vector, _coefficients);
-      //else if(degree == 4) EquivalentPolynomial::MatrixVectorMultiply(_A24_inverse, _b_vector, _coefficients);
-        
-          
+      if(element == 3) {
+
+        _b_vector[0] = (-2. * (4 * a * b * cz * pow(p, 3) - _lisk->Li(3, -exp((-a - b - cz + d) * p)) + _lisk->Li(3, -exp((a - b - cz + d) * p)) + _lisk->Li(3, -exp((-a + b - cz + d) * p)) - _lisk->Li(3, -exp((a + b - cz + d) * p)) +
+                               _lisk->Li(3, -exp((-a - b + cz + d) * p)) - _lisk->Li(3, -exp((a - b + cz + d) * p)) - _lisk->Li(3, -exp((-a + b + cz + d) * p)) + _lisk->Li(3, -exp((a + b + cz + d) * p)))) / (a * b * cz * pow(p, 3));
+
+        _b_vector[1] = (-2. * (a * p * _lisk->Li(3, -exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(3, -exp((a - b - cz + d) * p)) - a * p * _lisk->Li(3, -exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(3, -exp((a + b - cz + d) * p)) -
+                               a * p * _lisk->Li(3, -exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(3, -exp((a - b + cz + d) * p)) + a * p * _lisk->Li(3, -exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(3, -exp((a + b + cz + d) * p)) +
+                               _lisk->Li(4, -exp((-a - b - cz + d) * p)) - _lisk->Li(4, -exp((a - b - cz + d) * p)) - _lisk->Li(4, -exp((-a + b - cz + d) * p)) + _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                               _lisk->Li(4, -exp((-a - b + cz + d) * p)) + _lisk->Li(4, -exp((a - b + cz + d) * p)) + _lisk->Li(4, -exp((-a + b + cz + d) * p)) - _lisk->Li(4, -exp((a + b + cz + d) * p)))) /
+                       (pow(a, 2) * b * cz * pow(p, 4));
+
+        _b_vector[2] = (-2. * (b * p * _lisk->Li(3, -exp((-a - b - cz + d) * p)) - b * p * _lisk->Li(3, -exp((a - b - cz + d) * p)) + b * p * _lisk->Li(3, -exp((-a + b - cz + d) * p)) -
+                               b * p * _lisk->Li(3, -exp((a + b - cz + d) * p)) - b * p * _lisk->Li(3, -exp((-a - b + cz + d) * p)) + b * p * _lisk->Li(3, -exp((a - b + cz + d) * p)) - b * p * _lisk->Li(3, -exp((-a + b + cz + d) * p)) +
+                               b * p * _lisk->Li(3, -exp((a + b + cz + d) * p)) + _lisk->Li(4, -exp((-a - b - cz + d) * p)) - _lisk->Li(4, -exp((a - b - cz + d) * p)) - _lisk->Li(4, -exp((-a + b - cz + d) * p)) +
+                               _lisk->Li(4, -exp((a + b - cz + d) * p)) - _lisk->Li(4, -exp((-a - b + cz + d) * p)) + _lisk->Li(4, -exp((a - b + cz + d) * p)) + _lisk->Li(4, -exp((-a + b + cz + d) * p)) -
+                               _lisk->Li(4, -exp((a + b + cz + d) * p)))) / (a * pow(b, 2) * cz * pow(p, 4));
+
+        _b_vector[3] = (-2. * (cz * p * _lisk->Li(3, -exp((-a - b - cz + d) * p)) - cz * p * _lisk->Li(3, -exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(3, -exp((-a + b - cz + d) * p)) + cz * p * _lisk->Li(3, -exp((a + b - cz + d) * p)) +
+                               cz * p * _lisk->Li(3, -exp((-a - b + cz + d) * p)) - cz * p * _lisk->Li(3, -exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(3, -exp((-a + b + cz + d) * p)) + cz * p * _lisk->Li(3, -exp((a + b + cz + d) * p)) +
+                               _lisk->Li(4, -exp((-a - b - cz + d) * p)) - _lisk->Li(4, -exp((a - b - cz + d) * p)) - _lisk->Li(4, -exp((-a + b - cz + d) * p)) + _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                               _lisk->Li(4, -exp((-a - b + cz + d) * p)) + _lisk->Li(4, -exp((a - b + cz + d) * p)) + _lisk->Li(4, -exp((-a + b + cz + d) * p)) - _lisk->Li(4, -exp((a + b + cz + d) * p)))) /
+                       (a * b * pow(cz, 2) * pow(p, 4));
+
+        _b_vector[4] = (2. * (a * b * pow(p, 2) * _lisk->Li(3, -exp((-a - b - cz + d) * p)) + a * b * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) +
+                              a * b * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) + a * b * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) - a * b * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) -
+                              a * b * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) - a * b * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) - a * b * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) +
+                              a * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) + b * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) - b * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) -
+                              a * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) + b * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) - b * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                              a * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) - b * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) + b * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) +
+                              a * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) - b * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) + b * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) +
+                              _lisk->Li(5, -exp((-a - b - cz + d) * p)) - _lisk->Li(5, -exp((a - b - cz + d) * p)) - _lisk->Li(5, -exp((-a + b - cz + d) * p)) + _lisk->Li(5, -exp((a + b - cz + d) * p)) -
+                              _lisk->Li(5, -exp((-a - b + cz + d) * p)) + _lisk->Li(5, -exp((a - b + cz + d) * p)) + _lisk->Li(5, -exp((-a + b + cz + d) * p)) - _lisk->Li(5, -exp((a + b + cz + d) * p)))) /
+                       (pow(a, 2) * pow(b, 2) * cz * pow(p, 5));
+
+        _b_vector[5] = (2. * (a * cz * pow(p, 2) * _lisk->Li(3, -exp((-a - b - cz + d) * p)) + a * cz * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) -
+                              a * cz * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) - a * cz * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) + a * cz * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) +
+                              a * cz * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) - a * cz * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) - a * cz * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) +
+                              a * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) + cz * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) + a * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) -
+                              a * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - cz * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - a * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) + cz * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                              a * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) + cz * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) - a * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) +
+                              a * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) - cz * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) + a * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) + cz * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) +
+                              _lisk->Li(5, -exp((-a - b - cz + d) * p)) - _lisk->Li(5, -exp((a - b - cz + d) * p)) - _lisk->Li(5, -exp((-a + b - cz + d) * p)) + _lisk->Li(5, -exp((a + b - cz + d) * p)) -
+                              _lisk->Li(5, -exp((-a - b + cz + d) * p)) + _lisk->Li(5, -exp((a - b + cz + d) * p)) + _lisk->Li(5, -exp((-a + b + cz + d) * p)) - _lisk->Li(5, -exp((a + b + cz + d) * p)))) /
+                       (pow(a, 2) * b * pow(cz, 2) * pow(p, 5));
+
+        _b_vector[6] = (2. * (b * cz * pow(p, 2) * _lisk->Li(3, -exp((-a - b - cz + d) * p)) - b * cz * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) +
+                              b * cz * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) - b * cz * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) + b * cz * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) -
+                              b * cz * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) + b * cz * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) - b * cz * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) +
+                              b * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) + cz * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) - b * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) - cz * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) +
+                              b * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - cz * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - b * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) + cz * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                              b * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) + cz * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) + b * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) - cz * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) -
+                              b * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) - cz * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) + b * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) + cz * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) +
+                              _lisk->Li(5, -exp((-a - b - cz + d) * p)) - _lisk->Li(5, -exp((a - b - cz + d) * p)) - _lisk->Li(5, -exp((-a + b - cz + d) * p)) + _lisk->Li(5, -exp((a + b - cz + d) * p)) -
+                              _lisk->Li(5, -exp((-a - b + cz + d) * p)) + _lisk->Li(5, -exp((a - b + cz + d) * p)) + _lisk->Li(5, -exp((-a + b + cz + d) * p)) - _lisk->Li(5, -exp((a + b + cz + d) * p)))) /
+                       (a * pow(b, 2) * pow(cz, 2) * pow(p, 5));
+
+        _b_vector[7] = (-2. * (4 * pow(a, 3) * b * cz * pow(p, 5) - 3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a - b - cz + d) * p)) +
+                               3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) + 3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) -
+                               3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) + 3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) -
+                               3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) - 3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) +
+                               3 * pow(a, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) - 6 * a * p * _lisk->Li(4, -exp((-a - b - cz + d) * p)) - 6 * a * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) +
+                               6 * a * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) + 6 * a * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) + 6 * a * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) +
+                               6 * a * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) - 6 * a * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) - 6 * a * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((-a - b - cz + d) * p)) +
+                               6. * _lisk->Li(5, -exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a + b - cz + d) * p)) - 6. * _lisk->Li(5, -exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a - b + cz + d) * p)) -
+                               6. * _lisk->Li(5, -exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((-a + b + cz + d) * p)) + 6. * _lisk->Li(5, -exp((a + b + cz + d) * p)))) / (3. * pow(a, 3) * b * cz * pow(p, 5));
+
+        _b_vector[8] = (-2. * (4 * a * pow(b, 3) * cz * pow(p, 5) - 3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp(-((a + b + cz - d) * p))) + 3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) +
+                               3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) - 3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) +
+                               3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) - 3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) -
+                               3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) + 3 * pow(b, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) - 6. * b * p * _lisk->Li(4, -exp(-((a + b + cz - d) * p))) +
+                               6. * b * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) - 6. * b * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) + 6. * b * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) +
+                               6. * b * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) - 6. * b * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) + 6. * b * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) -
+                               6. * b * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5, -exp(-((a + b + cz - d) * p))) + 6. * _lisk->Li(5, -exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a + b - cz + d) * p)) -
+                               6. * _lisk->Li(5, -exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a - b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((-a + b + cz + d) * p)) +
+                               6. * _lisk->Li(5, -exp((a + b + cz + d) * p)))) / (3. * a * pow(b, 3) * cz * pow(p, 5));
+
+        _b_vector[9] = (-2. * (4 * a * b * pow(cz, 3) * pow(p, 5) - 3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp(-((a + b + cz - d) * p))) + 3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b - cz + d) * p)) +
+                               3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b - cz + d) * p)) - 3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b - cz + d) * p)) +
+                               3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a - b + cz + d) * p)) - 3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((a - b + cz + d) * p)) -
+                               3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((-a + b + cz + d) * p)) + 3 * pow(cz, 2) * pow(p, 2) * _lisk->Li(3, -exp((a + b + cz + d) * p)) - 6. * cz * p * _lisk->Li(4, -exp(-((a + b + cz - d) * p))) +
+                               6. * cz * p * _lisk->Li(4, -exp((a - b - cz + d) * p)) + 6. * cz * p * _lisk->Li(4, -exp((-a + b - cz + d) * p)) - 6. * cz * p * _lisk->Li(4, -exp((a + b - cz + d) * p)) -
+                               6. * cz * p * _lisk->Li(4, -exp((-a - b + cz + d) * p)) + 6. * cz * p * _lisk->Li(4, -exp((a - b + cz + d) * p)) + 6. * cz * p * _lisk->Li(4, -exp((-a + b + cz + d) * p)) -
+                               6. * cz * p * _lisk->Li(4, -exp((a + b + cz + d) * p)) - 6. * _lisk->Li(5, -exp(-((a + b + cz - d) * p))) + 6. * _lisk->Li(5, -exp((a - b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a + b - cz + d) * p)) -
+                               6. * _lisk->Li(5, -exp((a + b - cz + d) * p)) + 6. * _lisk->Li(5, -exp((-a - b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((a - b + cz + d) * p)) - 6. * _lisk->Li(5, -exp((-a + b + cz + d) * p)) +
+                               6. * _lisk->Li(5, -exp((a + b + cz + d) * p)))) / (3. * a * b * pow(cz, 3) * pow(p, 5));
+
+
+        if(degree <= 2) EquivalentPolynomial::MatrixVectorMultiply(_A32_inverse, _b_vector, _coefficients);
+        //else if(degree == 3) EquivalentPolynomial::MatrixVectorMultiply(_A23_inverse, _b_vector, _coefficients);
+        //else if(degree == 4) EquivalentPolynomial::MatrixVectorMultiply(_A24_inverse, _b_vector, _coefficients);
+
+
       }
 
 
@@ -703,7 +635,7 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
 
 
 
-//Calculate Normal and centroid from points
+//Calculate average Normal and centroid from points
   for(unsigned i = 0; i < numberofpoints; i++) {
 
     for(unsigned j = 0; j < dim; j++, cnt++) {
@@ -755,6 +687,11 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
     }
 
   }
+  
+  for(unsigned i = 0; i < dim; i++) {
+
+    std::cout << " coefficent before dot product "  << _bestfit[i] << endl;
+  }
 
   //Rotate normal by pi if Normal dot coefficents is less than zero
   if(normaldotcoefficients < 0) {
@@ -783,15 +720,15 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
 //
 //   }
 //
-// //Calculate constant d in ax+by+d=0 or ax+by+cz+d=0
-//   for(unsigned i = 0; i < dim; i++) {
-//
-//     d += _bestfit[i] * centroid[i];
-//   }
-//
-//   _bestfit[dim] = d;
-
+//Calculate constant d in ax+by+d=0 or ax+by+cz+d=0
   for(unsigned i = 0; i < dim; i++) {
+
+    d -= _bestfit[i] * centroid[i];
+  }
+
+  _bestfit[dim] = d;
+
+  for(unsigned i = 0; i < dim + 1; i++) {
 
     std::cout << " coefficent "  << _bestfit[i] << endl;
   }
@@ -807,6 +744,98 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
 
 }
 
+
+double EquivalentPolynomial::GetValue(std::vector <double> &x, unsigned &element) {
+
+      unsigned numvalues = x.size();
+      unsigned numcoefficients = _coefficients.size();
+      //std::vector < double > values(numvalues);
+      //std::fill(values.begin(), values.end(), 0.);
+      double value = 0.;
+
+      if(_dim == 1) {
+
+        for(unsigned k = 0; k < numvalues; k++) {
+
+          for(unsigned i = 0; i < numcoefficients; i++) {
+
+            value += _coefficients[i].real() * pow(x[k], i);
+
+          }
+
+        }
+
+      }
+
+      if(_dim == 2) {
+
+          if(element == 3){
+            if(_degree == 2) {
+
+            value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1];
+
+            }
+
+            if(_degree == 3) {
+
+            value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1]  +
+                    _coefficients[6].real() * x[0] * x[0] * x[0] + _coefficients[7].real() * x[1] * x[1] * x[1] +
+                    _coefficients[8].real() * x[0] * x[0] * x[1] + _coefficients[9].real() * x[1] * x[1] * x[0];
+
+            }
+
+            if(_degree == 4) {
+
+            value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1] +
+                    _coefficients[6].real() * x[0] * x[0] * x[0] + _coefficients[7].real() * x[1] * x[1] * x[1] + _coefficients[8].real() * x[0] * x[0] * x[1] + _coefficients[9].real() * x[1] * x[1] * x[0]  + _coefficients[10].real() * x[0] * x[0] * x[0] * x[0] +
+                    _coefficients[11].real() * x[1] * x[1] * x[1] * x[1] + _coefficients[12].real() * x[0] * x[0] * x[1] * x[1] +
+                    _coefficients[13].real() * x[0] * x[0] * x[0] * x[1] + _coefficients[14].real() * x[1] * x[1] * x[1] * x[0];
+
+            }
+
+            if(_degree == 5) {
+
+            value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[0] * x[0] +
+                    _coefficients[6].real() * x[1] * x[1] * x[1] + _coefficients[7].real() * x[0] * x[0] * x[0] * x[0] + _coefficients[8].real() * x[1] * x[1] * x[1] * x[1] +
+                    _coefficients[9].real() * pow(x[0], 5) + _coefficients[10].real() * pow(x[1], 5) +
+                    _coefficients[11].real() * x[0] * x[0] * x[1] + _coefficients[12].real() * x[0] * x[0] * x[0] * x[1] +
+                    _coefficients[13].real() * x[0] * x[0] * x[0] * x[0] * x[1] + _coefficients[14].real() * x[1] * x[1] * x[0] +
+                    _coefficients[15].real() * x[1] * x[1] * x[1] * x[0] + _coefficients[16].real() * x[1] * x[1] * x[1] * x[1] * x[0] +
+                    _coefficients[17].real() * x[0] * x[0] * x[0] * x[1] * x[1] + _coefficients[18].real() * x[1] * x[1] * x[1] * x[0] * x[0] +
+                    _coefficients[19].real() * x[0] * x[1] + _coefficients[20].real() * x[0] * x[0] * x[1] * x[1];
+
+            }
+
+          }
+          
+          if(element == 4){
+           
+              value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[0] * x[0] + _coefficients[4].real() * x[1] * x[1] + _coefficients[5].real() * x[0] * x[1];
+              
+              
+              
+          }
+      }
+      
+      if(_dim == 3){
+          
+          if(element == 0){
+          
+          value = _coefficients[0].real() + _coefficients[1].real() * x[0] + _coefficients[2].real() * x[1] +
+                    _coefficients[3].real() * x[2] + _coefficients[4].real() * x[0] * x[1] + _coefficients[5].real() * x[0] * x[2] +
+                     _coefficients[6].real() * x[1] * x[2] + _coefficients[7].real() * x[0] * x[0] +  _coefficients[8].real() * x[1] * x[1] + 
+                      _coefficients[9].real() * x[2] * x[2];
+          }
+      }
+
+      return value;
+
+}
 
 std::vector<std::vector<double>> EquivalentPolynomial::_A13_inverse = {{9. / 8., 0, -(15. / 8), 0}, {0, 75. / 8, 0, -(105. / 8)}, {-(15. / 8), 0, 45. / 8, 0}, {0, -(105. / 8), 0, 175. / 8}};
 
@@ -879,16 +908,31 @@ std::vector<std::vector<double>> EquivalentPolynomial::_A24_inverse = {{
   }, {0, 0, 0, 0, 0, -(315. / 16), 0, 0, 0, 0, 0, 0, 0, 0, 525. / 16}
 };
 
-std::vector<std::vector<double>> EquivalentPolynomial::_A22T_inverse = {{72, -240, -240, 180, 180, 360}, {-240, 1200, 
-  600, -1080, -360, -1440}, {-240, 600, 
-  1200, -360, -1080, -1440}, {180, -1080, -360, 1080, 180, 
-  1080}, {180, -360, -1080, 180, 1080, 1080}, {360, -1440, -1440, 
-  1080, 1080, 2880}};
+std::vector<std::vector<double>> EquivalentPolynomial::_A22T_inverse = {
+  {72, -240, -240, 180, 180, 360},
+  {-240, 1200, 600, -1080, -360, -1440},
+  {-240, 600, 1200, -360, -1080, -1440},
+  {180, -1080, -360, 1080, 180, 1080}, 
+  {180, -360, -1080, 180, 1080, 1080}, 
+  {360, -1440, -1440, 1080, 1080, 2880
+  }
+};
 
-  
-  std::vector<std::vector<double>> EquivalentPolynomial::_A32_inverse = {{19./32, 0, 0, 0, 0, 0, 0, -(15./32), -(15./32), -(15./32)}, {0, 3./8, 0, 
-  0, 0, 0, 0, 0, 0, 0}, {0, 0, 3./8, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 3./
-  8, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 9./8, 0, 0, 0, 0, 0}, {0, 0, 0, 0,
-   0, 9./8, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 9./8, 0, 0, 0}, {-(15./32), 
-  0, 0, 0, 0, 0, 0, 45./32, 0, 0}, {-(15./32), 0, 0, 0, 0, 0, 0, 0, 45./
-  32, 0}, {-(15./32), 0, 0, 0, 0, 0, 0, 0, 0, 45./32}};
+
+std::vector<std::vector<double>> EquivalentPolynomial::_A32_inverse = {{19. / 32, 0, 0, 0, 0, 0, 0, -(15. / 32), -(15. / 32), -(15. / 32)}, {
+    0, 3. / 8, 0,
+    0, 0, 0, 0, 0, 0, 0
+  }, {0, 0, 3. / 8, 0, 0, 0, 0, 0, 0, 0}, {
+    0, 0, 0, 3. /
+    8, 0, 0, 0, 0, 0, 0
+  }, {0, 0, 0, 0, 9. / 8, 0, 0, 0, 0, 0}, {
+    0, 0, 0, 0,
+    0, 9. / 8, 0, 0, 0, 0
+  }, {0, 0, 0, 0, 0, 0, 9. / 8, 0, 0, 0}, {
+    -(15. / 32),
+      0, 0, 0, 0, 0, 0, 45. / 32, 0, 0
+    }, {
+    -(15. / 32), 0, 0, 0, 0, 0, 0, 0, 45. /
+      32, 0
+    }, {-(15. / 32), 0, 0, 0, 0, 0, 0, 0, 0, 45. / 32}
+};
