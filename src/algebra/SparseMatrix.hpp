@@ -245,6 +245,8 @@ namespace femus {
 
       /** @deprecated print to hdf5 files */
       virtual void print_hdf5 (const std::string name = "NULL") const = 0;
+      
+      virtual void draw () const = 0;
 
       // Read
       /** Read */

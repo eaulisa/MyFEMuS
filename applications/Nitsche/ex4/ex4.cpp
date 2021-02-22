@@ -1,15 +1,8 @@
-/** tutorial/Ex1
- * This example shows how to:
- * initialize a femus application;
- * define the multilevel-mesh object mlMsh;
- * read from the file ./input/square.neu the coarse-level mesh and associate it to mlMsh;
- * add in mlMsh uniform refined level-meshes;
- * define the multilevel-solution object mlSol associated to mlMsh;
- * add in mlSol different types of finite element solution variables;
- * initialize the solution varables;
- * define vtk and gmv writer objects associated to mlSol;
- * print vtk and gmv binary-format files in ./output directory.
- **/
+// This is an experimental application which describes Nitsche coupling for a linear stress term
+// from both domains. GetParticleWeights computes and updates particle weights on the cut elements in a way that 
+// the new weights are exact upto m - degree polynomials and still close to the old weights.
+// GetInterfaceElementEigenvalues computes the averaging coefficents appearing in interface terms Nitsche formulation.
+// There are two initilization here, ball and rectanglular type.
 
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
@@ -27,18 +20,31 @@
 #include "Solid.hpp"
 #include "Parameter.hpp"
 
+#include "../support/particleInit.hpp"
+#include "../support/sharedFunctions.hpp"
+
+#include <algorithm>    // std::minmax_element
+
+
 using namespace femus;
 
-Line* line1;
-Line* line2;
+Line* line3;
 Line* lineI;
 
 unsigned DIM = 2;
+double eps = 0.5;
+double deps;
+double a0;
+double a1;
+double a3;
+double a5;
+double a7;
+double a9;
+
+
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
-
 void BuildFlag(MultiLevelSolution& mlSol);
-void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol);
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
@@ -71,9 +77,11 @@ int main(int argc, char** args) {
   unsigned ny = 11; // this should always be a odd number
   unsigned nz = 1;
 
-  double length = 1.;
-  double lengthx = 0.5;
+  const double length = 1.;
+  const double lengthx = 0.5;
 
+
+// TRI3-6-7 not working????
   if(DIM == 2) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, -lengthx / 2, lengthx / 2, -length / 2, length / 2, 0., 0., QUAD9, "seventh");
   }
@@ -82,10 +90,24 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, -lengthx / 2, lengthx / 2, -length / 2, length / 2, -length / 2, length / 2, HEX27, "seventh");
   }
 
+  double Hx = lengthx / nx;
+  double Hy = length / ny;
+  double H = sqrt(Hx * Hx + Hy * Hy);
+
+  deps = H * eps; // eps1
+  a0 = 0.5; // 128./256.;
+  a1 = pow(deps, -1.) * 1.23046875; // 315/256.;
+  a3 = -pow(deps, -3.) * 1.640625; //420./256.;
+  a5 = pow(deps, -5.) * 1.4765625; // 378./256.;
+  a7 = -pow(deps, -7.) * 0.703125; // 180./256.;
+  a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
+
+
+
   double Lref = 1.;
   double Uref = 1.;
   double rho1 = 1000;
-  double rho2 = 100;
+  double rho2 = 10;
   double mu1 = 1.e-03;
   double mu2 = 1.e-04;
 
@@ -102,7 +124,7 @@ int main(int argc, char** args) {
   // define the multilevel solution and attach the mlMsh object to it
   MultiLevelSolution mlSol(&mlMsh);
 
-  FEOrder femOrder = FIRST;
+  FEOrder femOrder = SECOND;
 
   mlSol.AddSolution("VX1", LAGRANGE, femOrder);
   mlSol.AddSolution("VY1", LAGRANGE, femOrder);
@@ -147,12 +169,12 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("VX1");
   system.AddSolutionToSystemPDE("VY1");
   if(DIM == 3) system.AddSolutionToSystemPDE("VZ1");
- // system.AddSolutionToSystemPDE("P1");
+// system.AddSolutionToSystemPDE("P1");
 
   system.AddSolutionToSystemPDE("VX2");
   system.AddSolutionToSystemPDE("VY2");
   if(DIM == 3) system.AddSolutionToSystemPDE("VZ2");
- // system.AddSolutionToSystemPDE("P2");
+// system.AddSolutionToSystemPDE("P2");
 
 
   // attach the assembling function to system
@@ -163,142 +185,104 @@ int main(int argc, char** args) {
 
   system.init();
 
-  //init marker
+    //BEGIN init particles
+
+  std::vector < std::vector <double> > xp;
+  std::vector <double> wp;
+  std::vector <double> dist;
+  std::vector < MarkerType > markerType;
+  
+  
+/// INIT Ball Marker Initilization
+  
+//   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
+//   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
+// 
+//   double xc = 0.;
+//   double yc = 0.;
+//   double zc = 0.;
+//   double R = 0.125;
+//   double Rmax = 0.225;
+//   double DR = H / 10.;
+//   unsigned nbl = 5;
+//   unsigned FI = 5;
+//   std::vector < double> Xc = {xc, yc, zc};
+// 
+//   InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
+// 
+// 
+//   unsigned solType = 2;
+//   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+// 
+//   std::vector < std::vector < std::vector < double > > >  line3Points(1);
+//   line3->GetLine(line3Points[0]);
+//   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
+// 
+// 
+//   ///interface stuff
+// 
+//   std::vector < std::vector < std::vector < double > > > T;
+// 
+//   InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
+// 
+//   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+// 
+//   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
+//   lineI->GetLine(lineIPoints[0]);
+//   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
+//   
+  
+//// END Ball Marker Initilization
+  
+
+//// INIT Rectange Particle Initilization 
+
+  //inner bulk solid markers + outer shell fluid markers
+  double Ls = 0.2;
+  double Hs = 3 * Ls;
+  double Lf = 0.4;
+  double Hf = 4 * Hs;
+  unsigned rows = 27;
+  std::vector < double> xc = { -0.1, -0.5};
+  unsigned cols = static_cast < unsigned >(ceil((Ls / Hs) * (rows + 0.5) - 1)) ; // ensures dx~=dy in rectangle.
+  unsigned nbl = 5; // odd number
+
+  double dL = Hs / rows;
+  double DB = 1.3241592 * dL;
 
 
-  //BEGIN init particles
-  unsigned size = 1;
-  std::vector < std::vector < double > > x; // marker
-
-  double xc = 0.;
-  double yc = 0.;
-
-  x.resize(size);
-  x[0].resize(DIM, 0.);
-  x[0][0] = xc;
-  x[0][1] = yc;
-
-  double R = 0.125;
-
-  unsigned NTHETA = 600; // number of partitions on the outer circle
-  unsigned NR = NTHETA / (2 * M_PI); // number of partitions on the radial direction
-  double DR = R / (NR + 0.5);
-
-  std::vector < double > volume(size, M_PI * 0.25 * DR * DR);   // volume of the central particle
-
-  double R2 = R - 0.5 * DR;
-
-  for(unsigned i = 0; i < NR; i++) {
-    double  r = R2 - i * DR;
-    unsigned Ntheta = static_cast <unsigned>(ceil(NTHETA * r / R)); // number of partitions on the current circle
-    double dtheta = 2 * M_PI / Ntheta;
-    unsigned sizeOld = x.size();
-    x.resize(sizeOld + Ntheta);
-    volume.resize(sizeOld + Ntheta, M_PI * ((r + 0.5 * DR) * (r + 0.5 * DR) - (r - 0.5 * DR) * (r - 0.5 * DR)) / Ntheta);
-
-    for(unsigned s = sizeOld; s < x.size(); s++) {
-      x[s].resize(DIM);
-    }
-    for(unsigned j = 0; j < Ntheta; j++) {
-      x[sizeOld + j][0] = xc + r * cos(j * dtheta);
-      x[sizeOld + j][1] = yc + r * sin(j * dtheta);
-    }
-  }
-
-  size = x.size();
-
-
-
-
-
-  std::vector < MarkerType > markerType(size, VOLUME);
+  InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
 
   unsigned solType = 2;
-  line2 = new Line(x, volume, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+  line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
-  std::vector < std::vector < std::vector < double > > >  line2Points(1);
-  line2->GetLine(line2Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk2", line2Points, 0);
-
-  x.resize(0);
-  volume.resize(0);
-
-  NR = static_cast <unsigned>(ceil(0.1 / DR));
-
-  double R1 = R + 0.5 * DR;
-
-  for(unsigned i = 0; i < NR; i++) {
-    double  r = R1 + i * DR;
-    unsigned Ntheta = static_cast <unsigned>(ceil(NTHETA * r / R)); // number of partitions on the current circle
-    double dtheta = 2 * M_PI / Ntheta;
-    unsigned sizeOld = x.size();
-    x.resize(sizeOld + Ntheta);
-    volume.resize(sizeOld + Ntheta, M_PI * ((r + 0.5 * DR) * (r + 0.5 * DR) - (r - 0.5 * DR) * (r - 0.5 * DR)) / Ntheta);
-
-    for(unsigned s = sizeOld; s < x.size(); s++) {
-      x[s].resize(DIM);
-    }
-    for(unsigned j = 0; j < Ntheta; j++) {
-      x[sizeOld + j][0] = xc + r * cos(j * dtheta);
-      x[sizeOld + j][1] = yc + r * sin(j * dtheta);
-    }
-  }
-
-  size = x.size();
-
-  markerType.assign(size, VOLUME);
-
-  line1 = new Line(x, volume, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-
-  std::vector < std::vector < std::vector < double > > >  line1Points(1);
-  line1->GetLine(line1Points[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "bulk1", line1Points, 0);
+  std::vector < std::vector < std::vector < double > > >  line3Points(1);
+  line3->GetLine(line3Points[0]);
+  PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
 
 
+  ///interface markers
 
-  //interface marker initialization
-  double Ntheta = NTHETA * 2;
-  x.resize(Ntheta);
-  markerType.assign(Ntheta, INTERFACE);
-
-  for(unsigned i = 0; i < Ntheta; i++) {
-    x[i].assign(DIM, 0.);
-  }
-  //std::vector < double > area(Ntheta, 2 * M_PI * R / Ntheta);  // uniform marker volume
-
+  unsigned FI = 1;
   std::vector < std::vector < std::vector < double > > > T;
-  T.resize(Ntheta);
-  for(unsigned i = 0; i < Ntheta; i++) {
-    T[i].resize(DIM - 1);
-    for(unsigned k = 0; k < DIM - 1; k++) {
-      T[i][k].resize(DIM, 0.);
-    }
-  }
-
-  double arcLenght = 2. * M_PI * R / Ntheta;
-  double dtheta = 2 * M_PI / Ntheta;
-
-  //BEGIN initialization
-  for(unsigned i = 0; i < Ntheta; i++) {
-
-    x[i][0] = xc + R * cos(i * dtheta);
-    x[i][1] = yc + R * sin(i * dtheta);
-
-    T[i][0][0] = -arcLenght * sin(i * dtheta);
-    T[i][0][1] = arcLenght * cos(i * dtheta);
-
-  }
-
-  lineI = new Line(x, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
+  InitRectangleInterface(DIM, Ls, Hs, DB, nbl, FI, xc, markerType, xp, T);
+  lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
+
+  PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
 
+ 
+  
+//// END Rectange Particle Initilization 
+  
+  
   BuildFlag(mlSol);
-
-  GetInterfaceElementEigenvalues(mlSol);
+  GetParticleWeights(mlSol, line3);
+  GetInterfaceElementEigenvalues(mlSol, line3, lineI, deps);
+  
 
   system.MGsolve();
 
@@ -330,6 +314,8 @@ int main(int argc, char** args) {
 
   ml_prob.clear();
 
+  delete line3;
+  delete lineI;
   return 0;
 }
 
@@ -364,11 +350,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   double rho2 = ml_prob.parameters.get<Solid> ("Fluid2").get_density();
 
   double mu1 = ml_prob.parameters.get<Solid> ("Fluid1").get_lame_shear_modulus();
-  
-  double mu2 = ml_prob.parameters.get<Solid> ("Fluid2").get_lame_shear_modulus();
-  
 
-  double g[DIM] = {0.,-1., 0.};
+  double mu2 = ml_prob.parameters.get<Solid> ("Fluid2").get_lame_shear_modulus();
+
+
+  double g[DIM] = {0., -1., 0.};
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
@@ -433,14 +419,10 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
-  std::vector<Marker*> particle1 = line1->GetParticles();
-  std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
-  unsigned imarker1 = markerOffset1[iproc];
 
-
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-  unsigned imarker2 = markerOffset2[iproc];
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
 
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
@@ -469,7 +451,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     }
 
 
-
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofV; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solVType);
@@ -492,8 +473,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       }
     }
 
+    
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
+    
+    // elements which are NOT cut by the interface
     if(eFlag == 0 || eFlag == 2) {
       // *** Element Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
@@ -542,13 +526,13 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
             if(eFlag == 0) {
               aResV1[k][i] += (- rho1 * g[k] * phi[i] + sigma1) * weight;
-              if(nodeFlag[i] != 1) { // fake equation for sugular matrix
+              if(nodeFlag[i] != 1) { // fake equation for singular matrix
                 aResV2[k][i] += sigma2 * weight;
               }
             }
             else if(eFlag == 2) {
               aResV2[k][i] += (- rho2 * g[k] * phi[i] + sigma2) * weight;
-              if(nodeFlag[i] != 1) { // fake equation for sugular matrix
+              if(nodeFlag[i] != 1) { // fake equation for singular matrix
                 aResV1[k][i] += sigma1 * weight;
               }
             }
@@ -558,29 +542,30 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       } // end gauss point loop
     }
 
+    // cut elements
     else {
 
-      double iM1C1 = 1. / (mu1 * (*sol->_Sol[CMIndex[0]])(iel));
-      double iM2C2 = 1. / (mu2 * (*sol->_Sol[CMIndex[1]])(iel));
+      double iM1C1 = 1. / (mu1 * (*sol->_Sol[CMIndex[0]])(iel)); // 1/Ce1: element-wise largest eigenvalue in region1
+      double iM2C2 = 1. / (mu2 * (*sol->_Sol[CMIndex[1]])(iel)); // 1/Ce2: element-wise largest eigenvalue in region2
 
       double denM = iM1C1 + iM2C2;
 
-      double gammaM1 = iM1C1 / denM;
+      double gammaM1 = iM1C1 / denM; // <u>_gamma  = gammaM1 * u1 + gammaM2 * u2
       double gammaM2 = iM2C2 / denM;
 
-      double thetaM = 8. / denM;
-      
-      std::cout << thetaM <<" ";
+      double thetaM = 8. * 10 / denM;   // penalty parameter, sharp version thetaM = 2 / denM
+
+      //std::cout << thetaM <<" ";
 
       //double iL1C1 = 1. / (lambda1 * (*sol->_Sol[CLIndex[0]])(iel));
       //double iL2C2 = 1. / (lambda2 * (*sol->_Sol[CLIndex[1]])(iel));
 
       //double denL = iL1C1 + iL2C2;
 
-     // double gammaL1 = iL1C1 / denL;
-     // double gammaL2 = iL2C2 / denL;
+      // double gammaL1 = iL1C1 / denL;
+      // double gammaL2 = iL2C2 / denL;
 
-     // double thetaL = 4. / denL;
+      // double thetaL = 4. / denL;
 
 
 //       double gammaL1 = 0.5;
@@ -594,29 +579,43 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //       double thetaM = mu1;
 
 
-
-      //bulk1
-      while (imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
-        imarker1++;
+      //bulk3
+      while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+        imarker3++;
       }
-      while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
+      while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
+        std::vector <double> xi = particle3[imarker3]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle1[imarker1]->GetMarkerMass();
+        double weight = particle3[imarker3]->GetMarkerMass();
 
+        double dg1 = particle3[imarker3]->GetMarkerDistance();
+
+        double dg2 = dg1 * dg1;
+        double chi;
+        if(dg1 < -deps)
+          chi = 0.;
+        else if(dg1 > deps) {
+          chi = 1.;
+        }
+        else {
+          chi = (a0 + dg1 * (a1 + dg2 * (a3 + dg2 * (a5 + dg2 * (a7 + dg2 * a9)))));
+        }
 
         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
         std::vector < std::vector < adept::adouble > > gradSolV1(dim);
+        std::vector < std::vector < adept::adouble > > gradSolV2(dim);
         for(unsigned k = 0; k < dim; k++) {
           gradSolV1[k].assign(nDofV, 0.);
+          gradSolV2[k].assign(nDofV, 0.);
         }
 
         for(unsigned i = 0; i < nDofV; i++) {
           for(unsigned k = 0; k < dim; k++) {
             for(unsigned j = 0; j < dim; j++) {
               gradSolV1[k][j] += phi_x[i * dim + j] * solV1[k][i];
+              gradSolV2[k][j] += phi_x[i * dim + j] * solV2[k][i];
             }
           }
         }
@@ -625,66 +624,33 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         for(unsigned i = 0; i < nDofV; i++) {
 
           adept::adouble divV1 = 0.;
+          adept::adouble divV2 = 0.;
           for(unsigned k = 0; k < dim; k++) {
             divV1 += gradSolV1[k][k];
+            divV2 += gradSolV2[k][k];
           }
 
           for(unsigned k = 0; k < dim; k++) {
             adept::adouble sigma1 = 0.;
-            for(unsigned j = 0; j < dim; j++) {
-              sigma1 += mu1 * (gradSolV1[k][j] + gradSolV1[j][k]) * phi_x[i * dim + j];
-            }
-            //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
-            aResV1[k][i] += (- rho1 * g[k] * phi[i] + sigma1) * weight;
-          }
-        } // end phi_i loop
-        imarker1++;
-      }
-
-      //bulk2
-      while (imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
-        imarker2++;
-      }
-      while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
-
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][solVType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle2[imarker2]->GetMarkerMass();
-
-        std::vector < std::vector < adept::adouble > > gradSolV2(dim);
-
-        for(unsigned k = 0; k < dim; k++) {
-          gradSolV2[k].assign(nDofV, 0.);
-        }
-
-        for(unsigned i = 0; i < nDofV; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            for(unsigned j = 0; j < dim; j++) {
-              gradSolV2[k][j] += phi_x[i * dim + j] * solV2[k][i];
-            }
-          }
-        }
-
-        // *** phi_i loop ***
-        for(unsigned i = 0; i < nDofV; i++) {
-          adept::adouble divV2 = 0.;
-          for(unsigned k = 0; k < dim; k++) {
-            divV2 += gradSolV2[k][k];
-          }
-          for(unsigned k = 0; k < dim; k++) {
             adept::adouble sigma2 = 0.;
             for(unsigned j = 0; j < dim; j++) {
+              sigma1 += mu1 * (gradSolV1[k][j] + gradSolV1[j][k]) * phi_x[i * dim + j];
               sigma2 += mu2 * (gradSolV2[k][j] + gradSolV2[j][k]) * phi_x[i * dim + j];
             }
-            //sigma2 += lambda2 * divD2 * phi_x[i * dim + k];
-            aResV2[k][i] += (- rho2 * g[k] * phi[i] + sigma2) * weight;
+            //sigma1 += lambda1 * divD1 * phi_x[i * dim + k];
+
+            aResV1[k][i] += (1. - chi) * (- rho1 * g[k] * phi[i] + sigma1) * weight;
+            aResV2[k][i] += chi * (- rho2 * g[k] * phi[i] + sigma2) * weight;
+
           }
-        }
-        imarker2++;
+        } // end phi_i loop
+        imarker3++;
       }
 
       // interface
+      while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
+        imarkerI++;
+      }
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
         // the local coordinates of the particles are the Gauss points in this context
@@ -816,7 +782,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //   PetscViewerPushFormat (viewer, PETSC_VIEWER_DRAW_LG);
 //   MatView ( (static_cast<PetscMatrix*> (KK))->mat(), viewer);
 //   //VecView ( (static_cast<PetscVector*> (RES))->vec(), viewer);
-// 
+//
 //   double a;
 //   std::cin >> a;
 
@@ -836,32 +802,54 @@ void BuildFlag(MultiLevelSolution& mlSol) {
 
   unsigned nflagType = mlSol.GetSolutionType(nflagIndex);
 
+  std::vector<Marker*> particle3 = line3->GetParticles();
+  std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
+  unsigned imarker3 = markerOffset3[iproc];
+
   sol->_Sol[eflagIndex]->zero();
   sol->_Sol[nflagIndex]->zero();
 
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  std::vector < std::vector<double> >  x(dim);
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+    bool inside = false;
+    bool outside = false;
+    bool interface = false;
 
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-
-  for(unsigned imarker = markerOffset2[iproc]; imarker < markerOffset2[iproc + 1]; imarker++) {
-    unsigned iel = particle2[imarker]->GetMarkerElement();
-    sol->_Sol[eflagIndex]->set(iel, 2.);
-  }
-
-
-  std::vector<Marker*> particleI = lineI->GetParticles();
-  std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
-
-  for(unsigned imarker = markerOffsetI[iproc]; imarker < markerOffsetI[iproc + 1]; imarker++) {
-    unsigned iel = particleI[imarker]->GetMarkerElement();
-    sol->_Sol[eflagIndex]->set(iel, 1.);
-    unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
-    for(unsigned i = 0; i < nDofu; i++) {
-      unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
-      sol->_Sol[nflagIndex]->set(iDof, 1.);
+    while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
+      imarker3++;
+    }
+    while(imarker3 < markerOffset3[iproc + 1] && iel == particle3[imarker3]->GetMarkerElement()) {
+      double dg1 = particle3[imarker3]->GetMarkerDistance();
+      if(dg1 < -1.0e-10) {
+        outside = true;
+        if(inside) {
+          interface = true;
+          break;
+        }
+      }
+      else if(dg1 > 1.0e-10) {
+        inside = true;
+        if(outside) {
+          interface = true;
+          break;
+        }
+      }
+      else {
+        interface = true;
+        break;
+      }
+      imarker3++;
+    }
+    if(interface) {
+      sol->_Sol[eflagIndex]->set(iel, 1.);
+      unsigned nDofu  = msh->GetElementDofNumber(iel, nflagType);  // number of solution element dofs
+      for(unsigned i = 0; i < nDofu; i++) {
+        unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
+        sol->_Sol[nflagIndex]->set(iDof, 1.);
+      }
+    }
+    else if(inside) {
+      sol->_Sol[eflagIndex]->set(iel, 2.);
     }
   }
 
@@ -869,499 +857,3 @@ void BuildFlag(MultiLevelSolution& mlSol) {
   sol->_Sol[nflagIndex]->close();
 
 }
-
-
-void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
-
-  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
-
-  Solution *sol  = mlSol.GetSolutionLevel(level);
-  Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
-  unsigned iproc  = msh->processor_id();
-
-  unsigned eflagIndex = mlSol.GetIndex("eflag");
-
-  unsigned CMIndex[2];
-  CMIndex[0] = mlSol.GetIndex("CM1");
-  CMIndex[1] = mlSol.GetIndex("CM2");
-
-  unsigned CLIndex[2];
-  CLIndex[0] = mlSol.GetIndex("CL1");
-  CLIndex[1] = mlSol.GetIndex("CL2");
-
-  unsigned solIndex = mlSol.GetIndex("VX1");
-  unsigned soluType = mlSol.GetSolutionType(solIndex);
-
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  std::vector < std::vector<double> >  x(dim);
-
-  vector <double> phi;  // local test function
-  vector <double> phi_x; // local test function first order partial derivatives
-  double weight; // gauss point weight
-
-  std::vector < std::vector < std::vector <double > > > aP(3);
-
-  std::vector<Marker*> particle1 = line1->GetParticles();
-  std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
-  unsigned imarker1 = markerOffset1[iproc];
-
-  std::vector<Marker*> particle2 = line2->GetParticles();
-  std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
-  unsigned imarker2 = markerOffset2[iproc];
-
-  std::vector<Marker*> particleI = lineI->GetParticles();
-  std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
-  unsigned imarkerI = markerOffsetI[iproc];
-
-  sol->_Sol[CMIndex[0]]->zero();
-  sol->_Sol[CMIndex[1]]->zero();
-
-  sol->_Sol[CLIndex[0]]->zero();
-  sol->_Sol[CLIndex[1]]->zero();
-
-  std::vector < double > aM;
-  std::vector < double > aM0;
-  std::vector < std::vector < double > > bM(2);
-
-  std::vector < double > aM1;
-  std::vector < double > bM1;
-
-
-  std::vector < double > aL;
-  std::vector < double > aL0;
-  std::vector < std::vector < double > > bL(2);
-
-  std::vector < double > aL1;
-  std::vector < double > bL1;
-
-
-//   std::vector < double > a2;
-//   std::vector < std::vector < double > > b2(2);
-
-  Mat A, B;
-  Vec v;
-  EPS eps;
-
-  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
-    unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
-    if(eFlag == 1) {
-
-      short unsigned ielGeom = msh->GetElementType(iel);
-      unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
-
-      unsigned sizeAll = dim * nDofu;
-
-      aM.assign(sizeAll * sizeAll, 0.);
-      bM[0].assign(sizeAll * sizeAll, 0.);
-      bM[1].assign(sizeAll * sizeAll, 0.);
-
-      aL.assign(sizeAll * sizeAll, 0.);
-      bL[0].assign(sizeAll * sizeAll, 0.);
-      bL[1].assign(sizeAll * sizeAll, 0.);
-
-      for(int k = 0; k < dim; k++) {
-        x[k].resize(nDofu);  // Now we
-      }
-
-      for(unsigned i = 0; i < nDofu; i++) {
-        unsigned xDof  = msh->GetSolutionDof(i, iel, 2);    // global to global mapping between coordinates node and coordinate dof
-        for(unsigned k = 0; k < dim; k++) {
-          x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
-        }
-      }
-
-      //bulk1
-      while (imarker1 < markerOffset1[iproc + 1] && iel > particle1[imarker1]->GetMarkerElement()) {
-        imarker1++;
-      }
-      while (imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
-      
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle1[imarker1]->GetMarkerMass();
-
-        // *** phi_i loop ***
-
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned i = 0; i < nDofu; i++) {
-            for(unsigned l = 0; l < dim; l++) {
-              for(unsigned j = 0; j < nDofu; j++) {
-                bM[0][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-
-                bL[0][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
-              }
-            }
-          }
-        }
-        imarker1++;
-      }
-
-      //bulk2
-      while (imarker2 < markerOffset2[iproc + 1] && iel > particle2[imarker2]->GetMarkerElement()) {
-        imarker2++;
-      }
-      while(imarker2 < markerOffset2[iproc + 1] && iel == particle2[imarker2]->GetMarkerElement()) {
-
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particle2[imarker2]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-        double weight = particle2[imarker2]->GetMarkerMass();
-
-        // *** phi_i loop ***
-
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned i = 0; i < nDofu; i++) {
-            for(unsigned l = 0; l < dim; l++) {
-              for(unsigned j = 0; j < nDofu; j++) {
-                bM[1][((nDofu * k) + i) * sizeAll + (k * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + l] * weight;
-                bM[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += 0.5 * phi_x[i * dim + l] * phi_x[j * dim + k] * weight;
-
-                bL[1][((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-              }
-            }
-          }
-        }
-        imarker2++;
-      }
-
-      // interface
-      while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
-
-        // the local coordinates of the particles are the Gauss points in this context
-        std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-
-        std::vector <std::vector < double > > T;
-        particleI[imarkerI]->GetMarkerTangent(T);
-
-        double weight;
-        std::vector < double > N(dim);
-        if(dim == 2) {
-          N[0] =  T[0][1];
-          N[1] = -T[0][0];
-          weight = sqrt(N[0] * N[0] + N[1] * N[1]);
-          N[0] /= weight;
-          N[1] /= weight;
-        }
-        else {
-          N[0] = T[0][1] * T[1][2] - T[0][2] * T[1][1];
-          N[1] = T[0][2] * T[1][0] - T[0][0] * T[1][2];
-          N[2] = T[0][0] * T[1][1] - T[0][1] * T[1][0];
-          weight = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
-          N[0] /= weight;
-          N[1] /= weight;
-          N[2] /= weight;
-        }
-
-        // *** phi_i loop ***
-
-        for(unsigned k = 0; k < dim; k++) {
-          for(int i = 0; i < nDofu; i++) {
-
-            double gradPhiiDotN = 0.;
-            for(unsigned l = 0; l < dim; l++) {
-              gradPhiiDotN += phi_x[i * dim + l] * N[l];
-            }
-            for(int j = 0; j < nDofu; j++) {
-              for(unsigned l = 0; l < dim; l++) {
-
-                aM[((nDofu * k) + i) * sizeAll + (k * nDofu + j) ] += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + l]  * weight;
-                aM[((nDofu * k) + i) * sizeAll + (l * nDofu + j) ] += 0.5 * gradPhiiDotN * 0.5 * N[l] *  phi_x[j * dim + k]  * weight;
-
-                aL[((nDofu * k) + i) * sizeAll + (l * nDofu + j)] += phi_x[i * dim + k] * phi_x[j * dim + l] * weight;
-
-              }
-              for(unsigned l1 = 0; l1 < dim; l1++) {
-                for(unsigned l2 = 0; l2 < dim; l2++) {
-                  aM[((nDofu * k) + i) * sizeAll + (l1 * nDofu + j)] += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l2]  * weight;
-                  aM[((nDofu * k) + i) * sizeAll + (l2 * nDofu + j)] += 0.5 * N[k] * phi_x[i * dim + l1] * 0.5 * N[l2] *  phi_x[j * dim + l1]  * weight;
-                }
-              }
-
-            }
-          } // end phi_i loop
-        }
-        imarkerI++;
-      }
-
-      unsigned sizeAll0 = sizeAll;
-      aM0 = aM;
-      aL0 = aL;
-
-      for(unsigned s = 0; s < 2; s++) {
-
-        sizeAll = sizeAll0;
-
-        //BEGIN DEFLATION
-
-        unsigned sizeAll1 = dim * (nDofu - 1);
-        aM1.resize(sizeAll1 * sizeAll1);
-        bM1.resize(sizeAll1 * sizeAll1);
-
-        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-        for(int k = 0; k < dim; k++) {
-          for(int i = 0; i < nDofu - 1; i++) {
-
-            int ip = i + 1;
-            int i1 = (nDofu - 1) * k + i;
-            for(int l = 0; l < dim; l++) {
-              for(int j = 0; j < nDofu - 1; j++) {
-                int jp = j + 1;
-                int j1 = (nDofu - 1) * l + j;
-                double value;
-                value = aM0[((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - aM0[(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                aM1[i1 * sizeAll1 + j1] = value;
-
-                value = bM[s][((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - bM[s][(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                bM1[i1 * sizeAll1 + j1] = value;
-                MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-
-              }
-            }
-          }
-        }
-
-        MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-
-        sizeAll = sizeAll1;
-        aM.swap(aM1);
-        bM[s].swap(bM1);
-
-        double real = 0.;
-        while(fabs(real) < 1.0e-12) {
-
-          MatCreateVecs(B, &v, NULL);
-
-          EPSCreate(PETSC_COMM_SELF, &eps);
-          EPSSetOperators(eps, B, NULL);
-          EPSSetFromOptions(eps);
-          EPSSetWhichEigenpairs(eps, EPS_SMALLEST_MAGNITUDE);
-          EPSSolve(eps);
-
-          double imaginary;
-          EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
-          EPSDestroy(&eps);
-
-          if(fabs(real) < 1.0e-12) {
-            PetscScalar *pv;
-            VecGetArray(v, &pv);
-            unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++) {
-              if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
-            }
-
-            unsigned sizeAll1 = sizeAll - 1;
-
-            aM1.resize(sizeAll1 * sizeAll1);
-            bM1.resize(sizeAll1 * sizeAll1);
-
-            MatDestroy(&B);
-
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-            for(unsigned i = 0; i < sizeAll; i++) {
-              if(i != ii) {
-                int i1 = (i < ii) ? i : i - 1;
-                for(unsigned j = 0; j < sizeAll; j++) {
-                  if(j != ii) {
-                    int j1 = (j < ii) ? j : j - 1;
-                    double value;
-                    value = aM[i * sizeAll + j] - 1. / pv[ii] * pv[i] * aM[ii * sizeAll + j];
-                    aM1[i1 * sizeAll1 + j1] = value;
-
-                    value = bM[s][i * sizeAll + j] - 1. / pv[ii] * pv[i] * bM[s][ii * sizeAll + j];
-                    bM1[i1 * sizeAll1 + j1] = value;
-                    MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-                  }
-                }
-              }
-            }
-            MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-            VecRestoreArray(v, &pv);
-
-            sizeAll = sizeAll1;
-            aM.swap(aM1);
-            bM[s].swap(bM1);
-          }
-          else {
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
-            for(int i = 0; i < sizeAll; i++) {
-              for(int j = 0; j < sizeAll; j++) {
-                MatSetValues(A, 1, &i, 1, &j, &aM[i * sizeAll + j], INSERT_VALUES);
-              }
-            }
-            MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-          }
-
-          VecDestroy(&v);
-        }
-
-        //END DEFLATION
-
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
-
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << real << " " << std::endl;
-
-        sol->_Sol[CMIndex[s]]->set(iel, real);
-
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
-
-      }
-
-      for(unsigned s = 0; s < 2; s++) {
-
-        sizeAll = sizeAll0;
-
-        //BEGIN DEFLATION
-
-        unsigned sizeAll1 = dim * (nDofu - 1);
-        aL1.resize(sizeAll1 * sizeAll1);
-        bL1.resize(sizeAll1 * sizeAll1);
-
-        MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-        for(int k = 0; k < dim; k++) {
-          for(int i = 0; i < nDofu - 1; i++) {
-
-            int ip = i + 1;
-            int i1 = (nDofu - 1) * k + i;
-            for(int l = 0; l < dim; l++) {
-              for(int j = 0; j < nDofu - 1; j++) {
-                int jp = j + 1;
-                int j1 = (nDofu - 1) * l + j;
-                double value;
-                value = aL0[((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - aL0[(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                aL1[i1 * sizeAll1 + j1] = value;
-
-                value = bL[s][((nDofu * k) + ip) * sizeAll0 + (nDofu * l + jp)] - bL[s][(nDofu * k) * sizeAll0 + (nDofu * l + jp)];
-                bL1[i1 * sizeAll1 + j1] = value;
-                MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-
-              }
-            }
-          }
-        }
-
-        MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-
-        sizeAll = sizeAll1;
-        aL.swap(aL1);
-        bL[s].swap(bL1);
-
-        double real = 0.;
-        while(fabs(real) < 1.0e-10) {
-
-          MatCreateVecs(B, &v, NULL);
-
-          EPSCreate(PETSC_COMM_SELF, &eps);
-          EPSSetOperators(eps, B, NULL);
-          EPSSetFromOptions(eps);
-          EPSSetWhichEigenpairs(eps, EPS_SMALLEST_MAGNITUDE);
-          EPSSolve(eps);
-
-          double imaginary;
-          EPSGetEigenpair(eps, 0, &real, &imaginary, v, NULL);
-          EPSDestroy(&eps);
-
-          if(fabs(real) < 1.0e-10) {
-            PetscScalar *pv;
-            VecGetArray(v, &pv);
-            unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++) {
-              if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
-            }
-
-            unsigned sizeAll1 = sizeAll - 1;
-
-            aL1.resize(sizeAll1 * sizeAll1);
-            bL1.resize(sizeAll1 * sizeAll1);
-
-            MatDestroy(&B);
-
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll1, sizeAll1, NULL, &B);
-
-            for(unsigned i = 0; i < sizeAll; i++) {
-              if(i != ii) {
-                int i1 = (i < ii) ? i : i - 1;
-                for(unsigned j = 0; j < sizeAll; j++) {
-                  if(j != ii) {
-                    int j1 = (j < ii) ? j : j - 1;
-                    double value;
-                    value = aL[i * sizeAll + j] - 1. / pv[ii] * pv[i] * aL[ii * sizeAll + j];
-                    aL1[i1 * sizeAll1 + j1] = value;
-
-                    value = bL[s][i * sizeAll + j] - 1. / pv[ii] * pv[i] * bL[s][ii * sizeAll + j];
-                    bL1[i1 * sizeAll1 + j1] = value;
-                    MatSetValues(B, 1, &i1, 1, &j1, &value, INSERT_VALUES);
-                  }
-                }
-              }
-            }
-            MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-            VecRestoreArray(v, &pv);
-
-            sizeAll = sizeAll1;
-            aL.swap(aL1);
-            bL[s].swap(bL1);
-          }
-          else {
-            MatCreateSeqDense(PETSC_COMM_SELF, sizeAll, sizeAll, NULL, &A);
-            for(int i = 0; i < sizeAll; i++) {
-              for(int j = 0; j < sizeAll; j++) {
-                MatSetValues(A, 1, &i, 1, &j, &aL[i * sizeAll + j], INSERT_VALUES);
-              }
-            }
-            MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-          }
-
-          VecDestroy(&v);
-        }
-
-        //END DEFLATION
-
-        EPSCreate(PETSC_COMM_SELF, &eps);
-        EPSSetOperators(eps, A, B);
-        EPSSetFromOptions(eps);
-        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
-        EPSSolve(eps);
-
-        EPSGetEigenpair(eps, 0, &real, NULL, NULL, NULL);
-        std::cout << real << " " << std::endl;
-
-        sol->_Sol[CLIndex[s]]->set(iel, real);
-
-        EPSDestroy(&eps);
-        MatDestroy(&A);
-        MatDestroy(&B);
-
-      }
-    }
-  }
-
-  sol->_Sol[CMIndex[0]]->close();
-  sol->_Sol[CMIndex[1]]->close();
-
-  sol->_Sol[CLIndex[0]]->close();
-  sol->_Sol[CLIndex[1]]->close();
-}
-
-
-

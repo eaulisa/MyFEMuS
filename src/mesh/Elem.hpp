@@ -108,6 +108,8 @@ namespace femus {
       /** To be Added */
       void SetElementGroupNumber(const unsigned& value);
 
+      unsigned GetFaceType(const unsigned& ielt, const unsigned& jface);
+      
       /** To be Added */
       int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
@@ -115,7 +117,7 @@ namespace femus {
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
-
+      
       /** To be Added */
       unsigned GetIndex(const char name[]) const;
 
@@ -243,6 +245,9 @@ namespace femus {
         return _materialElementCounter;
       }
       
+      unsigned GetFaceRangeStart(const unsigned &ielt) const;
+      
+      unsigned GetFaceRangeEnd(const unsigned &ielt) const;
       
     private:
 
@@ -285,6 +290,15 @@ namespace femus {
     {4, 8, 9, 1, 3}, //quad
     {3, 6, 7, 1, 3}, //tri
     {2, 3, 3, 1, 2}  //line
+  };
+  
+  const unsigned FACERANGE[6][2] = {
+    {20,26},
+    {10,14},
+    {15,20},
+    {4,8},
+    {3,6},
+    {2,3}
   };
 
   /**

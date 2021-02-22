@@ -29,91 +29,99 @@
 namespace femus {
 
   class basis {
-      
+
     public:
 
       const int _nc, _nf, _nlag0, _nlag1, _nlag2, _nlag3;
-                                  /* _nc: number of dofs of 1 element;  _nf: number of dofs in that element after refinement; 
-                                  _nlag[0] = number of linear dofs in 1 element;
-                                  _nlag[1] = number of serendipity dofs in 1 element; 
-                                  _nlag[2] = number of tensor-product quadratic dofs in 1 element; 
-                                  _nlag[3] = number of tensor-product quadratic dofs in that element after 1 refinement; 
-                                  */
+      /* _nc: number of dofs of 1 element;  _nf: number of dofs in that element after refinement;
+      _nlag[0] = number of linear dofs in 1 element;
+      _nlag[1] = number of serendipity dofs in 1 element;
+      _nlag[2] = number of tensor-product quadratic dofs in 1 element;
+      _nlag[3] = number of tensor-product quadratic dofs in that element after 1 refinement;
+      */
       int faceNumber[3]; /*this is only needed in 3d to handle faces of different types (wedges, pyramides, ...)*/
 
       basis(const int &nc, const int &nf, const int &nlag0, const int &nlag1, const int &nlag2, const int &nlag3,
-	    const int  &faceNumber0,const int  &faceNumber1, const int  &faceNumber2):
+            const int  &faceNumber0, const int  &faceNumber1, const int  &faceNumber2):
         _nc(nc),
         _nf(nf),
         _nlag0(nlag0),
         _nlag1(nlag1),
         _nlag2(nlag2),
-        _nlag3(nlag3)
-        {
-	  faceNumber[0] = faceNumber0;
-	  faceNumber[1] = faceNumber1;
-	  faceNumber[2] = faceNumber2;
-	};
+        _nlag3(nlag3) {
+        faceNumber[0] = faceNumber0;
+        faceNumber[1] = faceNumber1;
+        faceNumber[2] = faceNumber2;
+      };
 
       virtual void PrintType() const = 0 ;
-      
+
       double eval_phi(const unsigned &j, const std::vector < double > &x) const {
         return eval_phi(this->GetIND(j), &x[0]);
       };
-      
-     
+
+
       double eval_dphidx(const unsigned &j, const std::vector < double > &x) const {
-	return eval_dphidx(this->GetIND(j), &x[0]);
+        return eval_dphidx(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_dphidy(const unsigned &j, const std::vector < double > &x) const {
         return eval_dphidy(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_dphidz(const unsigned &j, const std::vector < double > &x) const {
         return eval_dphidz(this->GetIND(j), &x[0]);
       };
-      
+
       /** Evaluate the derivatives either in the x, y or z direction **/
       double eval_dphidxyz(const unsigned int dim, const int* j, const double* x) const {
-          
+
         assert(dim < 3); //0, 1, 2
 
         switch(dim) {
-            case(0): { return eval_dphidx(j, x); }
-            case(1): { return eval_dphidy(j, x); }
-            case(2): { return eval_dphidz(j, x); }
-            default: {std::cout << "Only up to dim 3" << std::endl; abort(); }
+          case(0): {
+            return eval_dphidx(j, x);
+          }
+          case(1): {
+            return eval_dphidy(j, x);
+          }
+          case(2): {
+            return eval_dphidz(j, x);
+          }
+          default: {
+            std::cout << "Only up to dim 3" << std::endl;
+            abort();
+          }
         }
-        
-    };
-      
+
+      };
+
       double eval_d2phidx2(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidx2(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_d2phidy2(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidy2(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_d2phidz2(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidz2(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_d2phidxdy(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidxdy(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_d2phidydz(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidydz(this->GetIND(j), &x[0]);
       };
-      
+
       double eval_d2phidzdx(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidzdx(this->GetIND(j), &x[0]);
       };
-      
-      
-      
+
+
+
       virtual double eval_phi(const int *I, const double* x) const {
         std::cout << "Error this phi is not available for this element \n";
         abort();
@@ -176,12 +184,12 @@ namespace femus {
       };
 
       virtual const unsigned GetFaceDof(const unsigned &i, const unsigned &j) const {
-	std::cout << "Warning AAA this function in not yet implemented for this element type" << std::endl;
-    return 0u;
+        std::cout << "Warning AAA this function in not yet implemented for this element type" << std::endl;
+        return 0u;
       }
 
     protected:
-        
+
       //1D basis
       // linear lagrangian
       inline double lagLinear(const double& x, const int& i) const {
@@ -193,7 +201,12 @@ namespace femus {
 
       //quadratic lagrangian
       inline double lagQuadratic(const double& x, const int& i) const {
-        return !i * (0.5) * (1. - x) + !(i - 1) * (1. - x) * (1. + x) + !(i - 2) * (0.5) * (1. + x);
+        if(!i)
+          return (0.5) * (1. - x);
+        else if(!(i - 1))
+          return (1. - x) * (1. + x);
+        else
+          return (0.5) * (1. + x);
       }
 
       inline double dlagQuadratic(const double& x, const int& i) const {
@@ -366,7 +379,7 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double Xc[27][3];
       double X[125][3];
       static const int IND[27][3];
@@ -581,7 +594,7 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double Xc[21][3];
       double X[95][3];
       static const int IND[21][3];
@@ -687,7 +700,7 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double X[32][3];
       static const int IND[4][3];
       static const int KVERT_IND[32][2];
@@ -799,7 +812,7 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double Xc[15][3];
       double X[67][3];
       static const int IND[15][3];
@@ -807,7 +820,7 @@ namespace femus {
 
       static const unsigned fine2CoarseVertexMapping[8][4];
       static const unsigned faceDofs[4][7];
-      
+
 
   };
 
@@ -907,11 +920,11 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double X[32][3];
       static const int IND[4][3];
       static const int KVERT_IND[32][2];
-      
+
   };
 
   class tet0: public tet_const {
@@ -1013,13 +1026,13 @@ namespace femus {
       const unsigned GetFine2CoarseVertexMapping(const int &i, const unsigned &j)  const {
         return fine2CoarseVertexMapping[i][j];
       };
-      
+
       const unsigned GetFaceDof(const unsigned &i, const unsigned &j) const {
         return faceDofs[i][j];
       };
 
     protected:
-        
+
       static const double Xc[9][2];
       double X[25][2];
       static const int IND[9][2];
@@ -1105,7 +1118,7 @@ namespace femus {
 
 
     protected:
-        
+
       static const double X[12][2];
       static const int IND[3][2];
       static const int KVERT_IND[12][2];
@@ -1192,13 +1205,13 @@ namespace femus {
       const unsigned GetFine2CoarseVertexMapping(const int &i, const unsigned &j)  const {
         return fine2CoarseVertexMapping[i][j];
       };
-      
+
       const unsigned GetFaceDof(const unsigned &i, const unsigned &j) const {
         return faceDofs[i][j];
       };
 
     protected:
-        
+
       static const double Xc[7][2];
       double X[19][2];
       static const int IND[7][2];
@@ -1286,7 +1299,7 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double X[12][2];
       static const int IND[3][2];
       static const int KVERT_IND[12][2];
@@ -1365,18 +1378,18 @@ namespace femus {
       const int* GetKVERT_IND(const int &i) const {
         return KVERT_IND[i];
       };
-      
+
       const unsigned GetFine2CoarseVertexMapping(const int &i, const unsigned &j)  const {
         return fine2CoarseVertexMapping[i][j];
       };
 
     protected:
-        
+
       static const double Xc[3][1];
       double X[5][2];  ///@todo why does this have 2 in the second component instead of 1?
       static const int IND[3][1];
       static const int KVERT_IND[5][2];
-      
+
       static const unsigned fine2CoarseVertexMapping[2][2];
   };
 
@@ -1425,11 +1438,11 @@ namespace femus {
       };
 
     protected:
-        
+
       static const double X[4][1];
       static const int IND[2][1];
       static const int KVERT_IND[4][2];
-      
+
   };
 
 

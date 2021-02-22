@@ -271,10 +271,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       for(unsigned i = 0; i < nDofs; i++) {
         for(unsigned k = 0; k < dim; k++) {
-          if(solidFlag[i]) {   //kinematic: v - dD/dt = 0 in the solid domain
+          if(solidFlag[i]) {   //kinematic: v - dD/dt = 0 in the sharp solid domain 
             aRhsV[k][i] += phiHat[i] * (solV[k][i] - (solD[k][i] - solDOld[k][i]) / dt) * weightHat;
           }
-          if(!solidFlag1[i]) {   //ALE equation: smooth displacement of the fluid mesh
+          if(!solidFlag1[i]) {   //ALE equation: smooth displacement of the un-sharp fluid mesh
             adept::adouble  wlaplaceD  = 0.;
             for(unsigned  j = 0; j < dim; j++) {
               wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
@@ -284,7 +284,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
       }
 
-      if(MPMmaterial < nDofs) {   //only cells that are not completely solid
+      if(MPMmaterial < nDofs) {   //only cells that are not completely solid: interface and fluid
         for(unsigned i = 0; i < nDofs; i++) {
           for(unsigned k = 0; k < dim; k++) {
             adept::adouble wlaplace = 0.;
@@ -310,13 +310,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
       for(unsigned i = 0; i < nDofsP; i++) {
-        if(MPMmaterial == 0) {
+        if(MPMmaterial == 0) {//FLUID
 
           for(unsigned  k = 0; k < dim; k++) {
             aRhsP[i] += phiP[i] *  gradSolVg[k][k] * weight;
           }
         }
-        else if (MPMmaterial < nDofs) {
+        else if (MPMmaterial < nDofs) { //INTERFACE
           double nu = 0.49; //almost incompressible fluid in interface cell. This is because of the compressiblity of the solid and it relaxes a little bit the incompressibility of the fluid
           double lameFluidInverse = (1. - 2. * nu) / (2. * muFluid * nu);
           aRhsP[i] += phiP[i] * solPg * lameFluidInverse * weight;
@@ -1509,7 +1509,7 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
         for(unsigned k = 0; k < dim; k++) {
           xp[k] = xp1[i * dim + k];
         }
-        Marker p(xp, 1, VOLUME, sol, solType, true, 1.);
+        Marker p(xp, 1, VOLUME, sol, solType,UINT_MAX, 1.);
         unsigned mproc = p.GetMarkerProc(sol);
         if(iproc == mproc) {
           unsigned jel = p.GetMarkerElement();

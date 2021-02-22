@@ -433,7 +433,7 @@ namespace femus
       searchHistory.resize(counter + 1);
       searchHistory[counter] = currentElem;
 
-      //previousElem = currentElem; commented after adding searchHistory
+      previousElem = currentElem; //commented after adding searchHistory
 
       // std::cout << previousElem << " " << currentElem << std::endl << std::flush;
 

@@ -1643,7 +1643,7 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
 
     else {
 
-      Marker marker (sgmQoIStandardized[m], 0., VOLUME, mlSol->GetLevel (level), 2, true);
+      Marker marker (sgmQoIStandardized[m], 0., VOLUME, mlSol->GetLevel (level), 2);
       unsigned iel = marker.GetMarkerElement();
       std::vector<double> sampleLocal;
       marker.GetMarkerLocalCoordinates (sampleLocal);
@@ -1758,7 +1758,7 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
       else {
 
         //BEGIN write finest histogram solution
-        Marker marker2 (sgmQoIStandardizedFinest[m], 0., VOLUME, mlSolFinest->GetLevel (level), 2, true);
+        Marker marker2 (sgmQoIStandardizedFinest[m], 0., VOLUME, mlSolFinest->GetLevel (level), 2);
         unsigned iel2 = marker2.GetMarkerElement();
 
         if (iel2 >= solFinest->GetMesh()->_elementOffset[iprocFinest]  &&  iel2 < solFinest->GetMesh()->_elementOffset[iprocFinest + 1]) {
@@ -1987,7 +1987,7 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
 
     else {
 
-      Marker marker (sgmQoIStandardized[m], 0., VOLUME, mlSol->GetLevel (level), 2, true);
+      Marker marker (sgmQoIStandardized[m], 0., VOLUME, mlSol->GetLevel (level), 2);
       unsigned iel = marker.GetMarkerElement();
       std::vector<double> sampleLocal;
       marker.GetMarkerLocalCoordinates (sampleLocal);
@@ -2069,7 +2069,7 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
       if (histoFinest) {
 
         //BEGIN evaluate the finest histogram at the sample
-        Marker marker2 (sgmQoIStandardized[m], 0., VOLUME, mlSolFinest->GetLevel (level), 2, true);
+        Marker marker2 (sgmQoIStandardized[m], 0., VOLUME, mlSolFinest->GetLevel (level), 2);
         unsigned iel2 = marker2.GetMarkerElement();
 
         if (iel2 >= solFinest->GetMesh()->_elementOffset[iprocFinest]  &&  iel2 < solFinest->GetMesh()->_elementOffset[iprocFinest + 1]) {
