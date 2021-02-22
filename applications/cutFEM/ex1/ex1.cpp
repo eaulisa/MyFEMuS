@@ -35,7 +35,7 @@ double GAMMA = 100.;   // 10, 45 in the paper.
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
-#include "./include/mpmFsi10.hpp"
+#include "./include/mpmFsi.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {

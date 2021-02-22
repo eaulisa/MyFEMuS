@@ -1,5 +1,5 @@
 
-void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
+void AssembleGhostPenalty(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   // ml_prob is the global object from/to where get/set all the data
   // level is the level of the PDE system to be assembled

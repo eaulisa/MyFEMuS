@@ -5,3 +5,5 @@ get_filename_component(APP_FOLDER_NAME_PARENT ${CMAKE_CURRENT_LIST_DIR} NAME)
 ADD_SUBDIRECTORY(ex1/)
 ADD_SUBDIRECTORY(eqPoly/)
 
+FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/applications/cutFEM/input/)
+FILE(COPY           ${PROJECT_SOURCE_DIR}/applications/cutFEM/input/ DESTINATION ${PROJECT_BINARY_DIR}/applications/cutFEM/input/)
