@@ -194,6 +194,8 @@ OPTION(BUILD_TUTORIAL "Build the tutorial problems" ON)
 # --
 OPTION(BUILD_MGAMR "Build the MGAMR" ON)
 
+OPTION(BUILD_CUTFEM "Build the cut FEM" ON)
+
 # --
 OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" ON)
 
