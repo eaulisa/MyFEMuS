@@ -242,7 +242,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
       for(unsigned  k = 0; k < dim; k++) {
-        vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // reference configuration
+        vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // reset configuration since there is no fitted FSI, solDOld[k][i] is reset to zero
         //vx[k][i] = vxHat[k][i] + solD[k][i]; // current configuration
         //vx[k][i] = (*msh->_topology->_Sol[k])(idofX) +  af * solD[k][i] + (1. - af) * solDOld[k][i]; // af configuration
         //vx[k][i] = vxHat[k][i] +  af * (solD[k][i] - solDOld[k][i]); // af configuration
@@ -357,7 +357,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               for(unsigned j = 0.; j < dim; j++) {
                 cauchy += sigma[k][j] * gradPhi[i * dim + j] ;
               }
-              aResD[k][i] += cauchy * weight;
+              aResD[k][i] += cauchy * weight; // laplace D+ (laplace D)^T = 0
             }
           }
         }
@@ -510,8 +510,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       }
 
-
-
       else if(eFlag == 2) {   // only solid cells: fake pressure //TODO
         for(unsigned i = 0; i < nDofsP; i++) {
           aResP[i] += 1.0e-10 * phiP[i] * solPg * weight;
@@ -523,7 +521,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
     //BEGIN BULK PARTICLE
-    if(eFlag > 0) {   // interface and solid
+    if(eFlag > 0) {   // cut interface and solid
       while(iBmarker < markerOffsetBulk[iproc + 1] && iel > particlesBulk[iBmarker]->GetMarkerElement()) {
         iBmarker++;
       }
@@ -710,7 +708,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               aResD[k][i] += (phi[i] * solApAm[k] + J_hat * CauchyDIR[k] / rhoMpm - gravity[k] * phi[i])  * dM;
 
               if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
-
                 aResV[k][i] += -phiHat[i] * (solVp[k] - solVpS[k]) * area;
               }
 
@@ -860,6 +857,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           imarkerI++;
         }
+        
+        //start working here
+        
       }
     }
     //END INTERFACE PARTICLES
