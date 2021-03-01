@@ -1,15 +1,14 @@
 
+#ifndef __femus_eqPoly_hpp__
+#define __femus_eqPoly_hpp__
 
 #include <iostream>
 #include <iomanip>
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
 
 #include "./LiSK/lisk.hpp"
 #include <cmath>       /* exp */
 
 using namespace std;
-using namespace Eigen;
 
 class EquivalentPolynomial {
   public:
@@ -22,7 +21,7 @@ class EquivalentPolynomial {
 
     void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element);
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
-    void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, unsigned &dim);
+    void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim);
     double GetValue(std::vector <double> &x, unsigned &element);
 
     const std::vector < complex < double > > &GetCoefficients() {
@@ -54,8 +53,10 @@ class EquivalentPolynomial {
     static std::vector<std::vector<double>> _A32_inverse;
 };
 
+#endif
 
 
+/*
 //TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
 void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element) {
 
@@ -620,7 +621,7 @@ void EquivalentPolynomial::MatrixVectorMultiply(const std::vector<std::vector <d
 
 //This function takes a vector of points as inputs and calculates the best fit plane for those points
 
-void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, unsigned &dim) {
+void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim) {
 
 
   unsigned cnt = 0;
@@ -631,9 +632,6 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
   _bestfit.resize(dim + 1);
   std::vector < double > N(dim, 0.);
   std::vector < double > centroid(dim, 0.);
-
-
-
 
 //Calculate average Normal and centroid from points
   for(unsigned i = 0; i < numberofpoints; i++) {
@@ -688,10 +686,10 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
 
   }
   
-  for(unsigned i = 0; i < dim; i++) {
-
-    std::cout << " coefficent before dot product "  << _bestfit[i] << endl;
-  }
+//   for(unsigned i = 0; i < dim; i++) {
+// 
+//     std::cout << " coefficent before dot product "  << _bestfit[i] << endl;
+//   }
 
   //Rotate normal by pi if Normal dot coefficents is less than zero
   if(normaldotcoefficients < 0) {
@@ -728,10 +726,10 @@ void EquivalentPolynomial::FindBestFit(const std::vector < double > &pts, const 
 
   _bestfit[dim] = d;
 
-  for(unsigned i = 0; i < dim + 1; i++) {
-
-    std::cout << " coefficent "  << _bestfit[i] << endl;
-  }
+//   for(unsigned i = 0; i < dim + 1; i++) {
+// 
+//     std::cout << " coefficent "  << _bestfit[i] << endl;
+//   }
 
 
 
@@ -935,4 +933,4 @@ std::vector<std::vector<double>> EquivalentPolynomial::_A32_inverse = {{19. / 32
     -(15. / 32), 0, 0, 0, 0, 0, 0, 0, 45. /
       32, 0
     }, {-(15. / 32), 0, 0, 0, 0, 0, 0, 0, 0, 45. / 32}
-};
+};*/

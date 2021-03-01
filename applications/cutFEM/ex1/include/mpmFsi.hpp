@@ -1,8 +1,9 @@
 #include "MultiLevelSolution.hpp"
 #include "PetscMatrix.hpp"
 #include "GhostPenalty.hpp"
-using namespace femus;
+#include "../../eqPoly/eqPoly.hpp"
 
+using namespace femus;
 
 //void GetParticlesToNodeFlag(MultiLevelSolution &mlSol, Line & solidLine, Line & fluidLine);
 //void GetPressureNeighbor(MultiLevelSolution &mlSol, Line & solidLine, Line & fluidLine);
@@ -99,15 +100,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   vector< vector< double > > solDOld(dim);      // local solution (displacement)
   vector< vector< double > > solVOld(dim);
- 
+
   vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
   vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
   vector< adept::adouble > aResP;    // local redidual vector
-  
+
   vector< double > rhs;    // local redidual vector
   vector < double > Jac;
   std::vector <unsigned> sysDofsAll; //localToGlobal mapping
-  
+
   vector < double > phi;
   vector < double > phiHat;
   vector < double > phiP;
@@ -125,6 +126,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   adept::adouble weight;
   double weightHat;
 
+  std::vector<double> xip;
+  xip.reserve(1000 * dim);
+  
+  std::vector<double> Np;
+  Np.reserve(1000 * dim);
+  
+  EquivalentPolynomial eqP;
 
   //reading parameters for MPM body
   double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
@@ -719,7 +727,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     }
     //END BULK PARTICLE
 
+
     if(true) {
+
+
 
       //BEGIN INTERFACE PARTICLE
 
@@ -736,10 +747,20 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           imarkerI++;
         }
 
+        xip.resize(0);
+        Np.resize(0);
+
         while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
           // the local coordinates of the particles are the Gauss points in this context
           std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
+
+          unsigned istart = xip.size();
+          xip.resize(istart + dim);
+          for(unsigned k = 0; k < dim; k++) {
+            xip[istart + k] = xi[k];
+          }
+
           msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
           msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
 
@@ -783,6 +804,22 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; k++) {
             N[k] *= -1.; // fluid to solid normal
           }
+          
+          std::vector < std::vector < adept::adouble> > Jac, JacI;
+          msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jac, JacI);
+          
+          istart = Np.size();
+          Np.resize(istart + dim);
+          
+          for(unsigned k = 0; k < dim; k++) {
+            Np[istart + k] = 0.;  
+            for(unsigned l = 0; l < dim; l++) { 
+              std::cout << JacI[k][l].value() << " "; 
+              Np[istart + k] += JacI[k][l].value() * N[l];
+            }
+          }
+          std::cout << std::endl;
+                         
 
           msh->_finiteElement[ielt][solTypeP]->GetPhi(phiP, xi);
           adept::adouble solPp = 0.;
@@ -857,14 +894,29 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           imarkerI++;
         }
-        
+
         //start working here
+        std::cout<< iel <<" "<< xip.size() / dim << std::endl;
+        for(unsigned i = 0; i < xip.size() / dim; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            std::cout << xip[i * dim + k] << " " ;
+          }
+          std::cout << "  ";
+          for(unsigned k = 0; k < dim; k++) {
+            std::cout << Np[i * dim + k] << " " ;
+          }
+          std::cout << std::endl;
+        }
+        eqP.FindBestFit(xip, Np, dim);
+        
         
       }
-    }
-    //END INTERFACE PARTICLES
 
-    //copy the value of the adept::adoube aRes in double Res and store them in RES
+
+    }
+//END INTERFACE PARTICLES
+
+//copy the value of the adept::adoube aRes in double Res and store them in RES
     rhs.resize(nDofsAll);   //resize
 
     for(int i = 0; i < nDofs; i++) {
@@ -881,7 +933,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
     Jac.resize(nDofsAll * nDofsAll);
-    // define the dependent variables
+// define the dependent variables
 
     for(unsigned  k = 0; k < dim; k++) {
       s.dependent(&aResD[k][0], nDofs);
@@ -891,7 +943,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     }
     s.dependent(&aResP[0], nDofsP);
 
-    // define the independent variables
+// define the independent variables
     for(unsigned  k = 0; k < dim; k++) {
       s.independent(&solD[k][0], nDofs);
     }
@@ -900,7 +952,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     }
     s.independent(&solP[0], nDofsP);
 
-    // get the and store jacobian matrix (row-major)
+// get the and store jacobian matrix (row-major)
     s.jacobian(&Jac[0], true);
     myKK->add_matrix_blocked(Jac, sysDofsAll, sysDofsAll);
 
@@ -1479,6 +1531,7 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
   std::cout << "COUNTER = " << counterAll << " " << msh->GetTotalNumberOfDofs(solType) << std::endl;
 
 }
+
 
 
 
