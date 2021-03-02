@@ -16,9 +16,6 @@ using namespace std;
 using namespace Eigen;
 
 
-
-
-
 std::vector < double > BestFit::FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim) {
 
 

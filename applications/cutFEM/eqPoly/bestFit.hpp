@@ -22,13 +22,9 @@ using namespace Eigen;
 
 class BestFit {
   public:
-    
-      BestFit();
-
-
+   
+    BestFit(){};
     std::vector < double > FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim); 
-    
-    
         
 };
 

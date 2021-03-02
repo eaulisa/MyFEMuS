@@ -1,12 +1,5 @@
 #include "eqPoly.hpp"
 
-
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
-
-
-using namespace Eigen;
-
 //TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
 void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element) {
 
