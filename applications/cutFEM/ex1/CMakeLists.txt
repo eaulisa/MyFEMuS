@@ -14,6 +14,7 @@ PROJECT(${THIS_APPLICATION})
 ADD_EXECUTABLE(${THIS_APPLICATION}
 ${CMAKE_PROJECT_DIR}./../../Nitsche/support/eigen.cpp
 ${CMAKE_PROJECT_DIR}./../eqPoly/eqPoly.cpp
+${CMAKE_PROJECT_DIR}./../eqPoly/bestFit.cpp
 ${CMAKE_PROJECT_DIR}ex1.cpp 
 )
 

@@ -2,6 +2,8 @@
 #include "PetscMatrix.hpp"
 #include "GhostPenalty.hpp"
 #include "../../eqPoly/eqPoly.hpp"
+#include "../../eqPoly/bestFit.hpp"
+
 
 using namespace femus;
 
@@ -133,6 +135,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   Np.reserve(1000 * dim);
   
   EquivalentPolynomial eqP;
+  BestFit bf;
 
   //reading parameters for MPM body
   double rhoMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
@@ -907,7 +910,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           std::cout << std::endl;
         }
-        eqP.FindBestFit(xip, Np, dim);
+        bf.FindBestFit(xip, Np, dim);
         
         
       }

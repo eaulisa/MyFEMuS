@@ -4,6 +4,7 @@
 #include "FemusInit.hpp"
 #include "Elem.hpp"
 #include <stdlib.h>
+#include "../eqPoly/bestFit.hpp"
 
 using namespace femus;
 using namespace std;
@@ -16,18 +17,20 @@ int main(int argc, char** args) {
   //SetCoefficients takes ( dim, degree of equivalent polynomial, rho, vector < a, b, c > for the dicontinuity ( point, line, or plane ), and element (3=triangle/tet, 4=square/cube
   // a*x + b*y + c*z + d = 0, and d) as inputs
   EquivalentPolynomial eqP;
+  //BestFit bf;
 
   //
    eqP.SetCoefficients(3, 2, 2, std::vector<double> {1., 2., 1.}, 0., 3);
    eqP.PrintCoefficients();
 //   std::cout << eqP.GetValue(std::vector<double> {0.5, 0.5}) << " " << std::endl;
 
-
   std::vector < double >points {1.,2.,4.,5.,7.,8.,-5.,23.,12.,15.,14.,14.};
   //std::vector < double >points(2000);
   std::vector < double >normal {1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0.};
   unsigned dim = 3;
-  eqP.FindBestFit(points, normal, dim);
+  std::vector < double > equation(dim, 0.);
+
+  //equation = bf.FindBestFit(points, normal, dim);
   std::vector < double > onepoint {1.,2.,3.};
   unsigned element = 0;
   std::cout << eqP.GetValue(onepoint, element) << "  value" << endl;
