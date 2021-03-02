@@ -1,0 +1,210 @@
+Lisp((-2 * ( _lisk->Li(2,-exp((a - b - d) * p)) +  _lisk->Li(2,-exp((b - d) * p)) -  _lisk->Li(2,-exp((a + b - d) * p)) +  _lisk->Li(2,-exp((-b + d) * p)) -  _lisk->Li(2,-exp((a - b + d) * p)) - 
+
+         _lisk->Li(2,-exp(-((b + d) * p))) -  _lisk->Li(2,-exp((b + d) * p)) +  _lisk->Li(2,-exp((a + b + d) * p))))/(a * b * pow(p,2)),
+
+   (2 * (a * p *  _lisk->Li(2,-exp(-((a + b - d) * p))) + a * p *  _lisk->Li(2,-exp((a - b + d) * p)) - a * p *  _lisk->Li(2,-exp((-a + b + d) * p)) - a * p *  _lisk->Li(2,-exp((a + b + d) * p)) + 
+
+         _lisk->Li(3,-exp(-((a + b - d) * p))) -  _lisk->Li(3,-exp((a - b + d) * p)) -  _lisk->Li(3,-exp((-a + b + d) * p)) +  _lisk->Li(3,-exp((a + b + d) * p))))/(pow(a,2) * b * pow(p,3)),
+
+   (-2 * (a * b * pow(p,2) * Log(1 + exp(-((a + b - d) * p))) + a * b * pow(p,2) * Log(1 + exp((a - b + d) * p)) + a * b * pow(p,2) * Log(1 + exp((-a + b + d) * p)) - 
+
+        a * b * pow(p,2) * Log(((1 + exp((a + b - d) * p)) * (1 + exp((-a + b + d) * p)))/exp((a + b - d) * p)) + a * b * pow(p,2) * Log(1 + exp((a + b + d) * p)) - 
+
+        a * b * pow(p,2) * Log((1 + exp((a - b + d) * p)) * (1 + exp((a + b + d) * p))) - b * p *  _lisk->Li(2,-exp(-((a + b - d) * p))) + b * p *  _lisk->Li(2,-exp((a - b + d) * p)) - 
+
+        b * p *  _lisk->Li(2,-exp((-a + b + d) * p)) + b * p *  _lisk->Li(2,-exp((a + b + d) * p)) -  _lisk->Li(3,-exp(-((a + b - d) * p))) +  _lisk->Li(3,-exp((a - b + d) * p)) + 
+
+         _lisk->Li(3,-exp((-a + b + d) * p)) -  _lisk->Li(3,-exp((a + b + d) * p))))/(a * pow(b,2) * pow(p,3)),
+
+   (-2 * (2 * pow(a,3) * b * pow(p,4) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp(-((a + b - d) * p))) - 3 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a - b + d) * p)) - 
+
+        3 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((-a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a + b + d) * p)) + 6 * a * p *  _lisk->Li(3,-exp(-((a + b - d) * p))) + 
+
+        6 * a * p *  _lisk->Li(3,-exp((a - b + d) * p)) - 6 * a * p *  _lisk->Li(3,-exp((-a + b + d) * p)) - 6 * a * p *  _lisk->Li(3,-exp((a + b + d) * p)) + 6 *  _lisk->Li(4,-exp(-((a + b - d) * p))) - 
+
+        6 *  _lisk->Li(4,-exp((a - b + d) * p)) - 6 *  _lisk->Li(4,-exp((-a + b + d) * p)) + 6 *  _lisk->Li(4,-exp((a + b + d) * p))))/(3. * pow(a,3) * b * pow(p,4)),
+
+   (-2 * (2 * a * pow(b,3) * pow(p,4) - 3 * pow(b,2) * pow(p,2) * (2 * a * b * pow(p,2) -  _lisk->Li(2,-exp((a - b - d) * p)) -  _lisk->Li(2,-exp((b - d) * p)) +  _lisk->Li(2,-exp((a + b - d) * p)) - 
+
+            _lisk->Li(2,-exp((-b + d) * p)) +  _lisk->Li(2,-exp((a - b + d) * p)) +  _lisk->Li(2,-exp(-((b + d) * p))) +  _lisk->Li(2,-exp((b + d) * p)) -  _lisk->Li(2,-exp((a + b + d) * p))) + 
+
+        6 * b * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) -  _lisk->Li(3,-exp((a - b + d) * p))) + 6 * b * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) -  _lisk->Li(3,-exp((a + b + d) * p))) + 
+
+        6 * ( _lisk->Li(4,-exp(-((a + b - d) * p))) -  _lisk->Li(4,-exp((a - b + d) * p))) - 6 *  _lisk->Li(4,-exp((-a + b + d) * p)) + 6 *  _lisk->Li(4,-exp((a + b + d) * p))))/(3. * a * pow(b,3) * pow(p,4)),
+
+   (2 * (pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp(-((a + b - d) * p))) + pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((a - b + d) * p)) - pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((-a + b + d) * p)) - 
+
+        pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp(-((a + b - d) * p))) - 3 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((a - b + d) * p)) - 
+
+        3 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((-a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((a + b + d) * p)) + 6 * a * p *  _lisk->Li(4,-exp(-((a + b - d) * p))) + 
+
+        6 * a * p *  _lisk->Li(4,-exp((a - b + d) * p)) - 6 * a * p *  _lisk->Li(4,-exp((-a + b + d) * p)) - 6 * a * p *  _lisk->Li(4,-exp((a + b + d) * p)) + 6 *  _lisk->Li(5,-exp(-((a + b - d) * p))) - 
+
+        6 *  _lisk->Li(5,-exp((a - b + d) * p)) - 6 *  _lisk->Li(5,-exp((-a + b + d) * p)) + 6 *  _lisk->Li(5,-exp((a + b + d) * p))))/(pow(a,4) * b * pow(p,5)),
+
+   (2 * (pow(b,3) * pow(p,3) *  _lisk->Li(2,-exp(-((a + b - d) * p))) - pow(b,3) * pow(p,3) *  _lisk->Li(2,-exp((a - b + d) * p)) + pow(b,3) * pow(p,3) *  _lisk->Li(2,-exp((-a + b + d) * p)) - 
+
+        pow(b,3) * pow(p,3) *  _lisk->Li(2,-exp((a + b + d) * p)) + 3 * pow(b,2) * pow(p,2) *  _lisk->Li(3,-exp(-((a + b - d) * p))) - 3 * pow(b,2) * pow(p,2) *  _lisk->Li(3,-exp((a - b + d) * p)) - 
+
+        3 * pow(b,2) * pow(p,2) *  _lisk->Li(3,-exp((-a + b + d) * p)) + 3 * pow(b,2) * pow(p,2) *  _lisk->Li(3,-exp((a + b + d) * p)) + 6 * b * p *  _lisk->Li(4,-exp(-((a + b - d) * p))) - 
+
+        6 * b * p *  _lisk->Li(4,-exp((a - b + d) * p)) + 6 * b * p *  _lisk->Li(4,-exp((-a + b + d) * p)) - 6 * b * p *  _lisk->Li(4,-exp((a + b + d) * p)) + 6 *  _lisk->Li(5,-exp(-((a + b - d) * p))) - 
+
+        6 *  _lisk->Li(5,-exp((a - b + d) * p)) - 6 *  _lisk->Li(5,-exp((-a + b + d) * p)) + 6 *  _lisk->Li(5,-exp((a + b + d) * p))))/(a * pow(b,4) * pow(p,5)),
+
+   (-2 * (2 * pow(a,5) * b * pow(p,6) + 5 * pow(a,4) * pow(p,4) *  _lisk->Li(2,-exp(-((a + b - d) * p))) - 5 * pow(a,4) * pow(p,4) *  _lisk->Li(2,-exp((a - b + d) * p)) - 
+
+        5 * pow(a,4) * pow(p,4) *  _lisk->Li(2,-exp((-a + b + d) * p)) + 5 * pow(a,4) * pow(p,4) *  _lisk->Li(2,-exp((a + b + d) * p)) + 
+
+        20 * (pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp(-((a + b - d) * p))) + pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((a - b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp(-((a + b - d) * p))) - 
+
+           3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((a - b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp(-((a + b - d) * p))) + 6 * a * p *  _lisk->Li(5,-exp((a - b + d) * p)) + 
+
+           6 *  _lisk->Li(6,-exp(-((a + b - d) * p))) - 6 *  _lisk->Li(6,-exp((a - b + d) * p))) - 
+
+        20 * (pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((-a + b + d) * p)) + pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((-a + b + d) * p)) - 
+
+           3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((a + b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp((-a + b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp((a + b + d) * p)) + 
+
+           6 *  _lisk->Li(6,-exp((-a + b + d) * p)) - 6 *  _lisk->Li(6,-exp((a + b + d) * p)))))/(5. * pow(a,5) * b * pow(p,6)),
+
+   (-2 * (2 * a * pow(b,5) * pow(p,6) + 5 * pow(b,4) * pow(p,4) *  _lisk->Li(2,-exp(-((a + b - d) * p))) - 5 * pow(b,4) * pow(p,4) *  _lisk->Li(2,-exp((a - b + d) * p)) - 
+
+        5 * pow(b,4) * pow(p,4) *  _lisk->Li(2,-exp((-a + b + d) * p)) + 5 * pow(b,4) * pow(p,4) *  _lisk->Li(2,-exp((a + b + d) * p)) + 20 * pow(b,3) * pow(p,3) *  _lisk->Li(3,-exp(-((a + b - d) * p))) - 
+
+        20 * pow(b,3) * pow(p,3) *  _lisk->Li(3,-exp((a - b + d) * p)) + 20 * pow(b,3) * pow(p,3) *  _lisk->Li(3,-exp((-a + b + d) * p)) - 20 * pow(b,3) * pow(p,3) *  _lisk->Li(3,-exp((a + b + d) * p)) + 
+
+        60 * pow(b,2) * pow(p,2) *  _lisk->Li(4,-exp(-((a + b - d) * p))) - 60 * pow(b,2) * pow(p,2) *  _lisk->Li(4,-exp((a - b + d) * p)) - 
+
+        60 * pow(b,2) * pow(p,2) *  _lisk->Li(4,-exp((-a + b + d) * p)) + 60 * pow(b,2) * pow(p,2) *  _lisk->Li(4,-exp((a + b + d) * p)) + 120 * b * p *  _lisk->Li(5,-exp(-((a + b - d) * p))) - 
+
+        120 * b * p *  _lisk->Li(5,-exp((a - b + d) * p)) + 120 * b * p *  _lisk->Li(5,-exp((-a + b + d) * p)) - 120 * b * p *  _lisk->Li(5,-exp((a + b + d) * p)) + 120 *  _lisk->Li(6,-exp(-((a + b - d) * p))) - 
+
+        120 *  _lisk->Li(6,-exp((a - b + d) * p)) - 120 *  _lisk->Li(6,-exp((-a + b + d) * p)) + 120 *  _lisk->Li(6,-exp((a + b + d) * p))))/(5. * a * pow(b,5) * pow(p,6)),
+
+   (6 * a * p * (a * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) -  _lisk->Li(3,-exp((a - b + d) * p))) + 2 * ( _lisk->Li(4,-exp(-((a + b - d) * p))) +  _lisk->Li(4,-exp((a - b + d) * p)))) + 
+
+      b * p * (pow(a,4) * pow(p,4) - 2 * pow(a,3) * pow(p,3) * Log(1 + exp((a + b - d) * p)) - 2 * pow(a,3) * pow(p,3) * Log(1 + exp((a - b + d) * p)) - 
+
+         2 * pow(a,3) * pow(p,3) * Log(1 + exp(-((-a + b + d) * p))) + 2 * pow(a,3) * pow(p,3) * Log(((1 + exp((a + b - d) * p)) * (1 + exp((-a + b + d) * p)))/exp((a + b - d) * p)) - 
+
+         2 * pow(a,3) * pow(p,3) * Log(1 + exp((a + b + d) * p)) + 2 * pow(a,3) * pow(p,3) * Log((1 + exp((a - b + d) * p)) * (1 + exp((a + b + d) * p))) - 
+
+         6 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a + b - d) * p)) - 6 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a - b + d) * p)) - 6 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp(-((-a + b + d) * p))) - 
+
+         6 * pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a + b + d) * p)) + 12 * a * p *  _lisk->Li(3,-exp((a + b - d) * p)) + 12 * a * p *  _lisk->Li(3,-exp((a - b + d) * p)) + 
+
+         12 * a * p *  _lisk->Li(3,-exp(-((-a + b + d) * p))) + 12 * a * p *  _lisk->Li(3,-exp((a + b + d) * p)) + 12 *  _lisk->Li(4,-exp((b - d) * p)) - 12 *  _lisk->Li(4,-exp((a + b - d) * p)) + 
+
+         12 *  _lisk->Li(4,-exp((-b + d) * p)) - 12 *  _lisk->Li(4,-exp((a - b + d) * p)) + 12 *  _lisk->Li(4,-exp(-((b + d) * p))) + 12 *  _lisk->Li(4,-exp((b + d) * p)) - 
+
+         12 *  _lisk->Li(4,-exp(-((-a + b + d) * p))) - 12 *  _lisk->Li(4,-exp((a + b + d) * p))) - 
+
+      6 * a * p * (a * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) -  _lisk->Li(3,-exp((a + b + d) * p))) + 2 * ( _lisk->Li(4,-exp((-a + b + d) * p)) +  _lisk->Li(4,-exp((a + b + d) * p)))) + 
+
+      12 * ( _lisk->Li(5,-exp(-((a + b - d) * p))) -  _lisk->Li(5,-exp((a - b + d) * p))) - 12 * ( _lisk->Li(5,-exp((-a + b + d) * p)) -  _lisk->Li(5,-exp((a + b + d) * p))))/
+
+    (3. * pow(a,3) * pow(b,2) * pow(p,5)),(2 * (pow(b,2) * pow(p,2) * (a * p *  _lisk->Li(2,-exp(-((a + b - d) * p))) + a * p *  _lisk->Li(2,-exp((a - b + d) * p)) +  _lisk->Li(3,-exp(-((a + b - d) * p))) - 
+
+            _lisk->Li(3,-exp((a - b + d) * p))) + pow(b,2) * pow(p,2) * (-(a * p * ( _lisk->Li(2,-exp((-a + b + d) * p)) +  _lisk->Li(2,-exp((a + b + d) * p)))) -  _lisk->Li(3,-exp((-a + b + d) * p)) + 
+
+            _lisk->Li(3,-exp((a + b + d) * p))) + 2 * b * p * (a * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) +  _lisk->Li(3,-exp((a - b + d) * p))) +  _lisk->Li(4,-exp(-((a + b - d) * p))) - 
+
+            _lisk->Li(4,-exp((a - b + d) * p))) + 2 * b * p * (a * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) +  _lisk->Li(3,-exp((a + b + d) * p))) +  _lisk->Li(4,-exp((-a + b + d) * p)) - 
+
+            _lisk->Li(4,-exp((a + b + d) * p))) + 2 * (a * p * ( _lisk->Li(4,-exp(-((a + b - d) * p))) +  _lisk->Li(4,-exp((a - b + d) * p))) +  _lisk->Li(5,-exp(-((a + b - d) * p))) - 
+
+            _lisk->Li(5,-exp((a - b + d) * p))) - 2 * (a * p * ( _lisk->Li(4,-exp((-a + b + d) * p)) +  _lisk->Li(4,-exp((a + b + d) * p))) +  _lisk->Li(5,-exp((-a + b + d) * p)) - 
+
+            _lisk->Li(5,-exp((a + b + d) * p)))))/(pow(a,2) * pow(b,3) * pow(p,5)),
+
+   (b * p * (-2 * pow(a,5) * pow(p,5) + 5 * pow(a,4) * pow(p,4) * Log(1 + exp((a + b - d) * p)) - 5 * pow(a,4) * pow(p,4) * Log(1 + exp((a - b + d) * p)) + 
+
+         5 * pow(a,4) * pow(p,4) * Log(1 + exp(-((-a + b + d) * p))) - 5 * pow(a,4) * pow(p,4) * Log(((1 + exp((a + b - d) * p)) * (1 + exp((-a + b + d) * p)))/exp((a + b - d) * p)) - 
+
+         5 * pow(a,4) * pow(p,4) * Log(1 + exp((a + b + d) * p)) + 5 * pow(a,4) * pow(p,4) * Log((1 + exp((a - b + d) * p)) * (1 + exp((a + b + d) * p))) + 
+
+         20 * pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((a + b - d) * p)) - 20 * pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((a - b + d) * p)) + 
+
+         20 * pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp(-((-a + b + d) * p))) - 20 * pow(a,3) * pow(p,3) *  _lisk->Li(2,-exp((a + b + d) * p)) - 
+
+         60 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((a + b - d) * p)) + 60 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((a - b + d) * p)) - 
+
+         60 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp(-((-a + b + d) * p))) + 60 * pow(a,2) * pow(p,2) *  _lisk->Li(3,-exp((a + b + d) * p)) + 120 * a * p *  _lisk->Li(4,-exp((a + b - d) * p)) - 
+
+         120 * a * p *  _lisk->Li(4,-exp((a - b + d) * p)) + 120 * a * p *  _lisk->Li(4,-exp(-((-a + b + d) * p))) - 120 * a * p *  _lisk->Li(4,-exp((a + b + d) * p)) + 120 *  _lisk->Li(5,-exp((b - d) * p)) - 
+
+         120 *  _lisk->Li(5,-exp((a + b - d) * p)) - 120 *  _lisk->Li(5,-exp((-b + d) * p)) + 120 *  _lisk->Li(5,-exp((a - b + d) * p)) + 120 *  _lisk->Li(5,-exp(-((b + d) * p))) - 
+
+         120 *  _lisk->Li(5,-exp((b + d) * p)) - 120 *  _lisk->Li(5,-exp(-((-a + b + d) * p))) + 120 *  _lisk->Li(5,-exp((a + b + d) * p))) - 
+
+      20 * (pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp(-((a + b - d) * p))) + pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((a - b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp(-((a + b - d) * p))) - 
+
+         3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((a - b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp(-((a + b - d) * p))) + 6 * a * p *  _lisk->Li(5,-exp((a - b + d) * p)) + 
+
+         6 *  _lisk->Li(6,-exp(-((a + b - d) * p))) - 6 *  _lisk->Li(6,-exp((a - b + d) * p))) + 
+
+      20 * (pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((-a + b + d) * p)) + pow(a,3) * pow(p,3) *  _lisk->Li(3,-exp((a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((-a + b + d) * p)) - 
+
+         3 * pow(a,2) * pow(p,2) *  _lisk->Li(4,-exp((a + b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp((-a + b + d) * p)) + 6 * a * p *  _lisk->Li(5,-exp((a + b + d) * p)) + 6 *  _lisk->Li(6,-exp((-a + b + d) * p)) - 
+
+         6 *  _lisk->Li(6,-exp((a + b + d) * p))))/(10. * pow(a,4) * pow(b,2) * pow(p,6)),
+
+   (2 * (pow(b,3) * pow(p,3) * (-(a * p * ( _lisk->Li(2,-exp(-((a + b - d) * p))) +  _lisk->Li(2,-exp((a - b + d) * p)))) -  _lisk->Li(3,-exp(-((a + b - d) * p))) +  _lisk->Li(3,-exp((a - b + d) * p))) + 
+
+        pow(b,3) * pow(p,3) * (-(a * p * ( _lisk->Li(2,-exp((-a + b + d) * p)) +  _lisk->Li(2,-exp((a + b + d) * p)))) -  _lisk->Li(3,-exp((-a + b + d) * p)) +  _lisk->Li(3,-exp((a + b + d) * p))) - 
+
+        3 * pow(b,2) * pow(p,2) * (a * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) +  _lisk->Li(3,-exp((a - b + d) * p))) +  _lisk->Li(4,-exp(-((a + b - d) * p))) -  _lisk->Li(4,-exp((a - b + d) * p))) + 
+
+        3 * pow(b,2) * pow(p,2) * (a * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) +  _lisk->Li(3,-exp((a + b + d) * p))) +  _lisk->Li(4,-exp((-a + b + d) * p)) -  _lisk->Li(4,-exp((a + b + d) * p))) - 
+
+        6 * b * p * (a * p * ( _lisk->Li(4,-exp(-((a + b - d) * p))) +  _lisk->Li(4,-exp((a - b + d) * p))) +  _lisk->Li(5,-exp(-((a + b - d) * p))) -  _lisk->Li(5,-exp((a - b + d) * p))) - 
+
+        6 * b * p * (a * p * ( _lisk->Li(4,-exp((-a + b + d) * p)) +  _lisk->Li(4,-exp((a + b + d) * p))) +  _lisk->Li(5,-exp((-a + b + d) * p)) -  _lisk->Li(5,-exp((a + b + d) * p))) - 
+
+        6 * (a * p * ( _lisk->Li(5,-exp(-((a + b - d) * p))) +  _lisk->Li(5,-exp((a - b + d) * p))) +  _lisk->Li(6,-exp(-((a + b - d) * p))) -  _lisk->Li(6,-exp((a - b + d) * p))) + 
+
+        6 * (a * p * ( _lisk->Li(5,-exp((-a + b + d) * p)) +  _lisk->Li(5,-exp((a + b + d) * p))) +  _lisk->Li(6,-exp((-a + b + d) * p)) -  _lisk->Li(6,-exp((a + b + d) * p)))))/
+
+    (pow(a,2) * pow(b,4) * pow(p,6)),(b * p * (-2 * pow(a,3) * pow(p,3) + 3 * pow(a,2) * pow(p,2) * Log(1 + exp((a + b - d) * p)) - 3 * pow(a,2) * pow(p,2) * Log(1 + exp((a - b + d) * p)) + 
+
+         3 * pow(a,2) * pow(p,2) * Log(1 + exp(-((-a + b + d) * p))) - 3 * pow(a,2) * pow(p,2) * Log(((1 + exp((a + b - d) * p)) * (1 + exp((-a + b + d) * p)))/exp((a + b - d) * p)) - 
+
+         3 * pow(a,2) * pow(p,2) * Log(1 + exp((a + b + d) * p)) + 3 * pow(a,2) * pow(p,2) * Log((1 + exp((a - b + d) * p)) * (1 + exp((a + b + d) * p))) + 
+
+         6 * a * p *  _lisk->Li(2,-exp((a + b - d) * p)) - 6 * a * p *  _lisk->Li(2,-exp((a - b + d) * p)) + 6 * a * p *  _lisk->Li(2,-exp(-((-a + b + d) * p))) - 6 * a * p *  _lisk->Li(2,-exp((a + b + d) * p)) + 
+
+         6 *  _lisk->Li(3,-exp((b - d) * p)) - 6 *  _lisk->Li(3,-exp((a + b - d) * p)) - 6 *  _lisk->Li(3,-exp((-b + d) * p)) + 6 *  _lisk->Li(3,-exp((a - b + d) * p)) + 6 *  _lisk->Li(3,-exp(-((b + d) * p))) - 
+
+         6 *  _lisk->Li(3,-exp((b + d) * p)) - 6 *  _lisk->Li(3,-exp(-((-a + b + d) * p))) + 6 *  _lisk->Li(3,-exp((a + b + d) * p))) - 
+
+      6 * (a * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) +  _lisk->Li(3,-exp((a - b + d) * p))) +  _lisk->Li(4,-exp(-((a + b - d) * p))) -  _lisk->Li(4,-exp((a - b + d) * p))) + 
+
+      6 * (a * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) +  _lisk->Li(3,-exp((a + b + d) * p))) +  _lisk->Li(4,-exp((-a + b + d) * p)) -  _lisk->Li(4,-exp((a + b + d) * p))))/
+
+    (3. * pow(a,2) * pow(b,2) * pow(p,4)),(-2 * (2 * pow(a,3) * pow(b,3) * pow(p,6) + 
+
+        9 * pow(b,2) * pow(p,2) * (pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp(-((a + b - d) * p))) - pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a - b + d) * p)) + 
+
+           2 * (a * p *  _lisk->Li(3,-exp(-((a + b - d) * p))) + a * p *  _lisk->Li(3,-exp((a - b + d) * p)) +  _lisk->Li(4,-exp(-((a + b - d) * p))) -  _lisk->Li(4,-exp((a - b + d) * p)))) - 
+
+        9 * pow(b,2) * pow(p,2) * (pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((-a + b + d) * p)) - pow(a,2) * pow(p,2) *  _lisk->Li(2,-exp((a + b + d) * p)) + 
+
+           2 * (a * p *  _lisk->Li(3,-exp((-a + b + d) * p)) + a * p *  _lisk->Li(3,-exp((a + b + d) * p)) +  _lisk->Li(4,-exp((-a + b + d) * p)) -  _lisk->Li(4,-exp((a + b + d) * p)))) + 
+
+        18 * b * p * (a * p * (a * p * ( _lisk->Li(3,-exp(-((a + b - d) * p))) -  _lisk->Li(3,-exp((a - b + d) * p))) + 2 * ( _lisk->Li(4,-exp(-((a + b - d) * p))) +  _lisk->Li(4,-exp((a - b + d) * p)))) + 
+
+           2 * ( _lisk->Li(5,-exp(-((a + b - d) * p))) -  _lisk->Li(5,-exp((a - b + d) * p)))) + 
+
+        18 * b * p * (a * p * (a * p * ( _lisk->Li(3,-exp((-a + b + d) * p)) -  _lisk->Li(3,-exp((a + b + d) * p))) + 2 * ( _lisk->Li(4,-exp((-a + b + d) * p)) +  _lisk->Li(4,-exp((a + b + d) * p)))) + 
+
+           2 * ( _lisk->Li(5,-exp((-a + b + d) * p)) -  _lisk->Li(5,-exp((a + b + d) * p)))) + 
+
+        18 * (a * p * (a * p * ( _lisk->Li(4,-exp(-((a + b - d) * p))) -  _lisk->Li(4,-exp((a - b + d) * p))) + 2 * ( _lisk->Li(5,-exp(-((a + b - d) * p))) +  _lisk->Li(5,-exp((a - b + d) * p)))) + 
+
+           2 * ( _lisk->Li(6,-exp(-((a + b - d) * p))) -  _lisk->Li(6,-exp((a - b + d) * p)))) - 
+
+        18 * (a * p * (a * p * ( _lisk->Li(4,-exp((-a + b + d) * p)) -  _lisk->Li(4,-exp((a + b + d) * p))) + 2 * ( _lisk->Li(5,-exp((-a + b + d) * p)) +  _lisk->Li(5,-exp((a + b + d) * p)))) + 
+
+           2 *  _lisk->Li(6,-exp((-a + b + d) * p)) - 2 *  _lisk->Li(6,-exp((a + b + d) * p)))))/(9. * pow(a,3) * pow(b,3) * pow(p,6)))
+
