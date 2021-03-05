@@ -130,10 +130,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   std::vector<double> xip;
   xip.reserve(1000 * dim);
-  
+
   std::vector<double> Np;
   Np.reserve(1000 * dim);
-  
+
   EquivalentPolynomial eqP;
   BestFit bf;
 
@@ -807,22 +807,22 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; k++) {
             N[k] *= -1.; // fluid to solid normal
           }
-          
+
           std::vector < std::vector < adept::adouble> > Jac, JacI;
           msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jac, JacI);
-          
+
           istart = Np.size();
           Np.resize(istart + dim);
-          
+
           for(unsigned k = 0; k < dim; k++) {
-            Np[istart + k] = 0.;  
-            for(unsigned l = 0; l < dim; l++) { 
-              std::cout << JacI[k][l].value() << " "; 
+            Np[istart + k] = 0.;
+            for(unsigned l = 0; l < dim; l++) {
+              std::cout << JacI[k][l].value() << " ";
               Np[istart + k] += JacI[k][l].value() * N[l];
             }
           }
           std::cout << std::endl;
-                         
+
 
           msh->_finiteElement[ielt][solTypeP]->GetPhi(phiP, xi);
           adept::adouble solPp = 0.;
@@ -899,20 +899,30 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
 
         //start working here
-        std::cout<< iel <<" "<< xip.size() / dim << std::endl;
+        //std::cout<< iel <<" "<< xip.size() / dim << std::endl;
         for(unsigned i = 0; i < xip.size() / dim; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            std::cout << xip[i * dim + k] << " " ;
+            //std::cout << xip[i * dim + k] << " " ;
           }
-          std::cout << "  ";
+          //std::cout << "  ";
           for(unsigned k = 0; k < dim; k++) {
-            std::cout << Np[i * dim + k] << " " ;
+            //std::cout << Np[i * dim + k] << " " ;
           }
-          std::cout << std::endl;
+          //std::cout << std::endl;
         }
-        bf.FindBestFit(xip, Np, dim);
-        
-        
+
+        std::vector <double> bestfit(dim + 1, 0.);
+
+        bestfit = bf.FindBestFit(xip, Np, dim);
+
+        for(unsigned k = 0; k < dim + 1; k++) {
+          std::cout << bestfit[k] << " best fit coefficients *****************************************" << std::endl;
+        }
+
+        eqP.SetCoefficients(dim, 2, 20, bestfit, 3);
+        eqP.PrintCoefficients();
+
+
       }
 
 

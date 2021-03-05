@@ -17,10 +17,10 @@ int main(int argc, char** args) {
   //SetCoefficients takes ( dim, degree of equivalent polynomial, rho, vector < a, b, c > for the dicontinuity ( point, line, or plane ), and element (3=triangle/tet, 4=square/cube
   // a*x + b*y + c*z + d = 0, and d) as inputs
   EquivalentPolynomial eqP;
-  //BestFit bf;
+  BestFit bf;
 
   //
-   eqP.SetCoefficients(3, 2, 2, std::vector<double> {1., 2., 1.}, 0., 3);
+   eqP.SetCoefficients(3, 2, 2, std::vector<double> {1., 2., 1., 0.}, 3);
    eqP.PrintCoefficients();
 //   std::cout << eqP.GetValue(std::vector<double> {0.5, 0.5}) << " " << std::endl;
 
@@ -28,12 +28,17 @@ int main(int argc, char** args) {
   //std::vector < double >points(2000);
   std::vector < double >normal {1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0.};
   unsigned dim = 3;
-  std::vector < double > equation(dim, 0.);
+  std::vector < double > equation(dim + 1, 0.);
 
-  //equation = bf.FindBestFit(points, normal, dim);
+  equation = bf.FindBestFit(points, normal, dim);
   std::vector < double > onepoint {1.,2.,3.};
   unsigned element = 0;
-  std::cout << eqP.GetValue(onepoint, element) << "  value" << endl;
+  
+  for(unsigned i = 0; i < dim +1; i++) {
+        std::cout << equation[i] << "  best fit" << endl;
+
+      
+  }
 
 //   clock_t t;
 //   t = clock();
@@ -82,7 +87,7 @@ int main(int argc, char** args) {
     double integral = 0.;
     unsigned dim = 1;
     element = 6;
-    eqP.SetCoefficients(1, 3, 50, std::vector<double> {1.}, -0.5, 4);
+    eqP.SetCoefficients(1, 3, 50, std::vector<double> {1., -0.5},  4);
     const elem_type * fe = new const elem_type_1D("line", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -101,7 +106,7 @@ int main(int argc, char** args) {
 
   element = 4;
   std::vector  <double> pt {0.5, 0.5};
-  eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1.}, -1., element);
+  eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1., -1.},  element);
   std::cout << eqP.GetValue(pt, element) << " triangle at 0.5, 0.5 " << std::endl;
      eqP.PrintCoefficients();
 
@@ -112,7 +117,7 @@ int main(int argc, char** args) {
     double integral = 0.;
     unsigned dim = 2;
     element = 4;
-    eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1.}, -1., element);
+    eqP.SetCoefficients(2, 2, 10, std::vector<double> {2., 1., -1}, element);
     const elem_type * fe = new const elem_type_2D("tri", "linear", "ninth");
     for(unsigned ig = 0; ig < fe->GetGaussPointNumber(); ig++) {
 

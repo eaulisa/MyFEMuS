@@ -19,7 +19,7 @@ class EquivalentPolynomial {
       delete _lisk;
     }
 
-    void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element);
+    void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const unsigned &element);
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
     //void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim);
     double GetValue(std::vector <double> &x, unsigned &element);
@@ -30,7 +30,7 @@ class EquivalentPolynomial {
 
     void PrintCoefficients() {
       for(unsigned i = 0; i < _coefficients.size(); i++) {
-        std::cout << std::setprecision(6) << _coefficients[i].real() << " ";
+        std::cout << std::setprecision(6) << _coefficients[i].real() << " printing coeffiecints++++++++++++++++++++++++++";
       }
       std::cout << std::endl;
     }

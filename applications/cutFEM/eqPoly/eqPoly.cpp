@@ -1,7 +1,7 @@
 #include "eqPoly.hpp"
 
 //TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
-void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const double & d, const unsigned &element) {
+void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const unsigned &element) {
 
   _dim = dim;
   _degree = degree;
@@ -14,6 +14,7 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
     _lisk = new LiSK::LiSK< complex<double> > (4);
 
     double a = c[0];
+    double d = c[1];
     double x1 = exp(d * p);
     double x2 = exp((a + d) * p);
     double x3 = exp((-a + d) * p);
@@ -61,6 +62,7 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
 
     double a = c[0];
     double b = c[1];
+    double d = c[2];
     unsigned n = ((degree + 1u) * (degree + 2u)) / 2u;
     _lisk = new LiSK::LiSK< complex<double> > (7);
     _b_vector.resize(n);
@@ -440,6 +442,7 @@ void EquivalentPolynomial::SetCoefficients(const unsigned &dim, const unsigned &
       double a = c[0];
       double b = c[1];
       double cz = c[2];
+      double d = c[3];
       unsigned n = ((degree + 1u) * (degree + 2u) * (degree + 3u)) / 6u;
       _lisk = new LiSK::LiSK< complex<double> > (7);
       _b_vector.resize(n);
