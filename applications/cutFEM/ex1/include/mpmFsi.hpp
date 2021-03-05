@@ -911,15 +911,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           //std::cout << std::endl;
         }
 
-        std::vector <double> bestfit(dim + 1, 0.);
-
-        bestfit = bf.FindBestFit(xip, Np, dim);
+        std::vector <double> bestfit = bf.FindBestFit(xip, Np, dim);
 
         for(unsigned k = 0; k < dim + 1; k++) {
           std::cout << bestfit[k] << " best fit coefficients *****************************************" << std::endl;
         }
 
-        eqP.SetCoefficients(dim, 2, 20, bestfit, 3);
+        eqP.SetCoefficients(dim, 2, 20, bestfit, ielt);
         eqP.PrintCoefficients();
 
 
