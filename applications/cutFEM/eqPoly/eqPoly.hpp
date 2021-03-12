@@ -23,6 +23,7 @@ class EquivalentPolynomial {
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
     //void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim);
     double GetValue(std::vector <double> &x, unsigned &element);
+    std::vector < double > BaseCases(const unsigned &dim, const unsigned &degree, const std::vector < double > &c,const double &p);
 
     const std::vector < complex < double > > &GetCoefficients() {
       return _coefficients;
@@ -30,7 +31,7 @@ class EquivalentPolynomial {
 
     void PrintCoefficients() {
       for(unsigned i = 0; i < _coefficients.size(); i++) {
-        std::cout << std::setprecision(6) << _coefficients[i].real() << " printing coeffiecints++++++++++++++++++++++++++";
+        std::cout << std::setprecision(10) << _coefficients[i].real() << " printing coeffiecints++++++++++++++++++++++++++" << std::endl;
       }
       std::cout << std::endl;
     }
@@ -40,10 +41,12 @@ class EquivalentPolynomial {
 
   private:
     std::vector < complex < double > > _coefficients;
+    std::vector <std::vector < complex < double > >> _basecases;
     //std::vector < double >  _bestfit;
-    std::vector < complex < double > > _b_vector;
+     std::vector < complex < double > >_b_vector[3];
     LiSK::LiSK< complex<double> > *_lisk;
     unsigned _dim, _degree;
+    bool _flag = true;
 
     static std::vector<std::vector<double>> _A13_inverse;
     static std::vector<std::vector<double>> _A22_inverse;
