@@ -917,8 +917,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           std::cout << bestfit[k] << " best fit coefficients *****************************************" << std::endl;
         }
 
-        eqP.SetCoefficients(dim, 2, 20, bestfit, ielt);
-        eqP.PrintCoefficients();
+       // eqP.SetCoefficients(dim, 2, 20, bestfit, ielt);
+        //eqP.PrintCoefficients();
 
 
       }
