@@ -70,7 +70,7 @@ std::vector < double > BestFit::FindBestFit(const std::vector < double > &pts, c
 
   }
 
-  //If dim = 3 and plane of best fit is desired, use singualr vector associated with min singular vector
+  //If dim = 3 and plane of best fit is desired, use singular vector associated with min singular vector
   if(dim == 3) {
 
     for(unsigned i = 0; i < dim; i++) {
