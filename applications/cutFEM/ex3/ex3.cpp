@@ -1,10 +1,8 @@
 
 #include "FemusInit.hpp"
 
-
 using namespace femus;
-using namespace std;
-using std::cout;
+
 
 #include "../eqPoly/LiSK/lisk.hpp"
 #include <algorithm>
@@ -43,9 +41,9 @@ int main(int argc, char** args) {
     }
   }
 
-  double a = 0.34, b = 0.74, c = 0.25, d = 0.5, t = 20., degree = 5;
+  double a = 0.34, b = 0.74, c = 0.25, d = 0.5, t = 20., degree = 2;
   unsigned N = degree + 1;
-  LiSK::LiSK< complex<double> > *lisk = new LiSK::LiSK< complex<double> > (N + 3);
+  LiSK::LiSK< std::complex<double> > *lisk = new LiSK::LiSK< std::complex<double> > (N + 3);
   {
     // 1D
     if(N > Nmax) {
@@ -84,8 +82,9 @@ int main(int argc, char** args) {
 
     std::cout << " 1D \n";
     for(unsigned i = 0; i < N; i++) {
-      std::cout << D[i] << std::endl;
+      std::cout << "D[" << i << "] = " << D[i] << std::endl;
     }
+    std::cout << std::endl;
   }
 
 
@@ -129,24 +128,24 @@ int main(int argc, char** args) {
     std::vector< std::vector< double > > Dl(N);
     std::vector< std::vector< double > > Dr(N);
 
-    for(unsigned i = 0; i < N; i++) { // int y^i
+    for(unsigned i = 0; i < N; i++) {
       Dl[i].assign(N - i, 0.);
       Dr[i].assign(N - i, 0.);
       for(unsigned j = 0; j < N - i; j++) {
-        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { // Li[j + l]
-          Dl[i][j] += (Cl[i][l] * Li[0][0][j + l] + Cr[i][l] * Li[0][1][j + l]) * bt2m[l];
-          Dr[i][j] += (Cl[i][l] * Li[1][0][j + l] + Cr[i][l] * Li[1][1][j + l]) * bt2m[l];
+        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //Transpse[D_s] = Bl.Li_sl + Br.Li_sr
+          Dl[j][i] += (Cl[i][l] * Li[0][0][l + j] + Cr[i][l] * Li[0][1][l + j]) * bt2m[l];
+          Dr[j][i] += (Cl[i][l] * Li[1][0][l + j] + Cr[i][l] * Li[1][1][l + j]) * bt2m[l];
         }
       }
     }
 
     std::vector < std::vector< double > > D(N);
-    for(unsigned i = 0; i < N; i++) { // int x^i
+    for(unsigned i = 0; i < N; i++) {
       D[i].resize(N - i);
-      for(unsigned j = 0; j < N - i; j++) { // int f(y) dy
+      for(unsigned j = 0; j < N - i; j++) {
         D[i][j] = M[i] * M[j];
-        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) {
-          D[i][j] += -2. * (Cl[i][l] * Dl[j][l] + Cr[i][l] * Dr[j][l]) * at2m[l];
+        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //D = Al.D_s + Ar.D_r
+          D[i][j] +=  -2 * (Cl[i][l] * Dl[l][j] + Cr[i][l] * Dr[l][j]) * at2m[l];
         }
       }
     }
@@ -154,22 +153,20 @@ int main(int argc, char** args) {
     std::cout << " 2D \n";
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
-        std::cout << D[i][j] << " ";
+        std::cout << "D[" << i << "][" << j << "] = " << D[i][j] << "\t";
       }
       std::cout << std::endl;
     }
+    std::cout << std::endl;
   }
 
 
-  // 3D
+// 3D
   {
     if(N + 2 > Nmax) {
       std::cout << "Warning degree is too high, for 3D the maximum degree allowed is " << Nmax - 3 << std::endl << std::flush;
       abort();
     }
-
-
-    std::cout << "debug \n \n";
 
     double e[2][2][2]; //left or right limits
     for(unsigned i = 0; i < 2; i++) {
@@ -182,6 +179,7 @@ int main(int argc, char** args) {
         }
       }
     }
+
     std::vector< double > Li[2][2][2]; //left or right limits
     for(unsigned i = 0; i < 2; i++) {
       for(unsigned j = 0; j < 2; j++) {
@@ -189,12 +187,10 @@ int main(int argc, char** args) {
           Li[i][j][k].resize(N);
           for(unsigned l = 0; l < N; l++) {
             Li[i][j][k][l] = (lisk->Li(3 + l, e[i][j][k])).real();
-            std::cout <<  Li[i][j][k][l] << "\n";
           }
         }
       }
     }
-
 
     double at2m1 = 1. / (a * t);
     double bt2m1 = 1. / (b * t);
@@ -210,63 +206,57 @@ int main(int argc, char** args) {
       bt2m[i] = bt2m[i - 1] * bt2m1;
       ct2m[i] = ct2m[i - 1] * ct2m1;
     }
-    std::cout << at2m[0] << " " << bt2m[0] << " " << ct2m[0] << std::endl;
-
-    std::vector< std::vector< double > > Dll(N);
-    std::vector< std::vector< double > > Dlr(N);
-    std::vector< std::vector< double > > Drl(N);
-    std::vector< std::vector< double > > Drr(N);
-
-    for(unsigned i = 0; i < N; i++) { //int z^i
-      Dll[i].resize(N - i);
-      Dlr[i].resize(N - i);
-      Drl[i].resize(N - i);
-      Drr[i].resize(N - i);
-      for(unsigned j = 0; j < N - i; j++) { // Li[j+l]
-        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) {
-          Dll[i][j] += (Cl[i][l] * Li[0][0][0][j + l] + Cr[i][l] * Li[0][0][1][j + l]) * ct2m[l];
-          Dlr[i][j] += (Cl[i][l] * Li[0][1][0][j + l] + Cr[i][l] * Li[0][1][1][j + l]) * ct2m[l];
-          Drl[i][j] += (Cl[i][l] * Li[1][0][0][j + l] + Cr[i][l] * Li[1][0][1][j + l]) * ct2m[l];
-          Drr[i][j] += (Cl[i][l] * Li[1][1][0][j + l] + Cr[i][l] * Li[1][1][1][j + l]) * ct2m[l];
-        }
-      }
-    }
-
-    std::vector< std::vector< double > > Dl(N);
-    std::vector< std::vector< double > > Dr(N);
-
-    for(unsigned i = 0; i < N; i++) { //int y^i
-      Dl[i].resize(N - i);
-      Dr[i].resize(N - i);
-      for(unsigned j = 0; j < N - i; j++) { // int f(z)
-        for(unsigned l = 0; l < std::min(N - j, i + 1); l++) {
-          Dl[i][j] += (Cl[i][l] * Dll[j][l] + Cr[i][l] * Dlr[j][l]) * bt2m[l];
-          Dr[i][j] += (Cl[i][l] * Drl[j][l] + Cr[i][l] * Drr[j][l]) * bt2m[l];
-        }
-      }
-    }
-
 
     std::vector< std::vector< std::vector< double > > > D(N);
     for(unsigned i = 0; i < N; i++) {
       D[i].resize(N - i);
       for(unsigned j = 0; j < N - i; j++) {
-        D[i][j].resize(N - i - j);
+        D[i][j].assign(N - i - j, 0.);
+      }
+    }
+    std::vector<std::vector< std::vector< double > > > Dll = D, Dlr = D, Drl = D, Drr = D;
+
+    for(unsigned i = 0; i < N; i++) {
+      for(unsigned j = 0; j < N - i; j++) {
         for(unsigned k = 0; k < N - i - j; k++) {
-          D[i][j][k] = M[i] * M[j] * M[k];
-          for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) {
-            D[i][j][k] += -2. * (Cl[i][l] * Dl[k+j][l] + Cr[i][l] * Dr[k+j][l]) * at2m[l];
+          for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) { // Transpose[D_st, 1<->2] = Cl.Li_stl + Cr.Li_str
+            Dll[j][i][k] += (Cl[i][l] * Li[0][0][0][l + j + k] + Cr[i][l] * Li[0][0][1][l + j + k]) * ct2m[l];
+            Dlr[j][i][k] += (Cl[i][l] * Li[0][1][0][l + j + k] + Cr[i][l] * Li[0][1][1][l + j + k]) * ct2m[l];
+            Drl[j][i][k] += (Cl[i][l] * Li[1][0][0][l + j + k] + Cr[i][l] * Li[1][0][1][l + j + k]) * ct2m[l];
+            Drr[j][i][k] += (Cl[i][l] * Li[1][1][0][l + j + k] + Cr[i][l] * Li[1][1][1][l + j + k]) * ct2m[l];
           }
         }
       }
     }
 
+    std::vector<std::vector< std::vector< double > > > Dl = D, Dr = D;
+    for(unsigned i = 0; i < N; i++) {
+      for(unsigned j = 0; j < N - i; j++) {
+        for(unsigned k = 0; k < N - i - j; k++) {
+          for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) { // Transpose[D_s, 3<->1] = Bl.D_sl + Br.D_sr
+            Dl[k][j][i] += (Cl[i][l] * Dll[l][j][k] + Cr[i][l] * Dlr[l][j][k]) * bt2m[l];
+            Dr[k][j][i] += (Cl[i][l] * Drl[l][j][k] + Cr[i][l] * Drr[l][j][k]) * bt2m[l];
+          }
+        }
+      }
+    }
+
+    for(unsigned i = 0; i < N; i++) {
+      for(unsigned j = 0; j < N - i; j++) {
+        for(unsigned k = 0; k < N - i - j; k++) {
+          D[i][k][j] = M[i] * M[j] * M[k];
+          for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) { // Transpose[D, 2<->3] = Al.D_l + Ar.D_r
+            D[i][k][j] += -2. * (Cl[i][l] * Dl[l][j][k]  + Cr[i][l] * Dr[l][j][k]) * at2m[l];
+          }
+        }
+      }
+    }
 
     std::cout << " 3D \n";
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
         for(unsigned k = 0; k < N - i - j; k++) {
-          std::cout << D[i][j][k] << " ";
+          std::cout << "D[" << i << "][" << j << "][" << k << "] = " << D[i][j][k] << "\t";
         }
         std::cout << std::endl;
       }
@@ -274,8 +264,6 @@ int main(int argc, char** args) {
     }
     std::cout << std::endl;
   }
-
-
 
   delete lisk;
   return 0;
