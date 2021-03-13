@@ -17,7 +17,7 @@ int main(int argc, char** args) {
   std::vector < double > M(Nmax);
 
   for(unsigned i = 0; i < Nmax; i++) {
-    M[i] = (i % 2 == 0) ? -2. / (i + 1.) : 0.;
+    M[i] = (i % 2 == 0) ? 2. / (i + 1.) : 0.;
 
     Cl[i].resize(i + 1);
     Cr[i].resize(i + 1);
@@ -71,7 +71,7 @@ int main(int argc, char** args) {
 
     std::vector< double > D(N, 0.);
     for(unsigned i = 0; i < N; i++) {
-      D[i] = M[i];
+      D[i] = -M[i];
       for(unsigned l = 0; l <= i; l++) {
         D[i] +=  -2. * (Cl[i][l] * Li[0][l] + Cr[i][l] * Li[1][l]) * at2m[l];
       }
@@ -137,7 +137,7 @@ int main(int argc, char** args) {
 
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
-        D[i][j] = M[i] * M[j];
+        D[i][j] = -M[i] * M[j];
         for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //D = Al.D_s + Ar.D_r
           D[i][j] +=  -2. * (Cl[i][l] * Dl[l][j] + Cr[i][l] * Dr[l][j]) * at2m[l];
         }
@@ -233,7 +233,7 @@ int main(int argc, char** args) {
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
         for(unsigned k = 0; k < N - i - j; k++) {
-          D[i][k][j] = M[i] * M[j] * M[k];
+          D[i][k][j] = -M[i] * M[j] * M[k];
           for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) { // Transpose[D, 2<->3] = Al.D_l + Ar.D_r
             D[i][k][j] += -2. * (Cl[i][l] * Dl[l][j][k]  + Cr[i][l] * Dr[l][j][k]) * at2m[l];
           }
