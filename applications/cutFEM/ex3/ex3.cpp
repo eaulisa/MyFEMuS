@@ -52,12 +52,10 @@ int main(int argc, char** args) {
     }
 
     double e[2];
-    for(unsigned i = 0; i < 2; i++) {
-      double sa = (i == 0) ? -a : a;
-      e[i] = -exp((sa + d) * t);
-    }
+    e[0] = -exp((-a + d) * t);
+    e[1] = -exp(( a + d) * t);
+    
     std::vector< double > Li[2];
-
     for(unsigned i = 0; i < 2; i++) {
       Li[i].resize(N);
       for(unsigned l = 0; l < N; l++) {
@@ -65,11 +63,10 @@ int main(int argc, char** args) {
       }
     }
 
-    double at2m1 = 1. / (a * t);
     std::vector< double > at2m(N);
-    at2m[0] = at2m1;
+    at2m[0] = 1. / (a * t);
     for(unsigned i = 1; i < N; i++) {
-      at2m[i] = at2m[i - 1] * at2m1;
+      at2m[i] = at2m[i - 1] * at2m[0];
     }
 
     std::vector< double > D(N, 0.);
@@ -96,10 +93,10 @@ int main(int argc, char** args) {
     }
 
     double e[2][2]; //left or right limits
-    for(unsigned i = 0; i < 2; i++) {
-      double sa = (i == 0) ? -a : a;
-      for(unsigned j = 0; j < 2; j++) {
-        double sb = (j == 0) ? -b : b;
+    double sa = -a;
+    for(unsigned i = 0; i < 2; i++, sa *= -1.) {
+      double sb = -b;
+      for(unsigned j = 0; j < 2; j++, sb *= -1.) {
         e[i][j] = -exp((sa + sb + d) * t);
       }
     }
@@ -113,24 +110,23 @@ int main(int argc, char** args) {
       }
     }
 
-
-    double at2m1 = 1. / (a * t);
-    double bt2m1 = 1. / (b * t);
     std::vector< double > at2m(N);
     std::vector< double > bt2m(N);
-    at2m[0] = at2m1;
-    bt2m[0] = bt2m1;
+    at2m[0] = 1. / (a * t);
+    bt2m[0] = 1. / (b * t);
     for(unsigned i = 1; i < N; i++) {
-      at2m[i] = at2m[i - 1] * at2m1;
-      bt2m[i] = bt2m[i - 1] * bt2m1;
+      at2m[i] = at2m[i - 1] * at2m[0];
+      bt2m[i] = bt2m[i - 1] * bt2m[0];
     }
 
-    std::vector< std::vector< double > > Dl(N);
-    std::vector< std::vector< double > > Dr(N);
+    std::vector < std::vector< double > > D(N);
+    for(unsigned i = 0; i < N; i++) {
+      D[i].assign(N - i, 0.);
+    }
+
+    std::vector< std::vector< double > > Dl = D, Dr = D;
 
     for(unsigned i = 0; i < N; i++) {
-      Dl[i].assign(N - i, 0.);
-      Dr[i].assign(N - i, 0.);
       for(unsigned j = 0; j < N - i; j++) {
         for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //Transpse[D_s] = Bl.Li_sl + Br.Li_sr
           Dl[j][i] += (Cl[i][l] * Li[0][0][l + j] + Cr[i][l] * Li[0][1][l + j]) * bt2m[l];
@@ -139,13 +135,11 @@ int main(int argc, char** args) {
       }
     }
 
-    std::vector < std::vector< double > > D(N);
     for(unsigned i = 0; i < N; i++) {
-      D[i].resize(N - i);
       for(unsigned j = 0; j < N - i; j++) {
         D[i][j] = M[i] * M[j];
         for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //D = Al.D_s + Ar.D_r
-          D[i][j] +=  -2 * (Cl[i][l] * Dl[l][j] + Cr[i][l] * Dr[l][j]) * at2m[l];
+          D[i][j] +=  -2. * (Cl[i][l] * Dl[l][j] + Cr[i][l] * Dr[l][j]) * at2m[l];
         }
       }
     }
@@ -169,12 +163,12 @@ int main(int argc, char** args) {
     }
 
     double e[2][2][2]; //left or right limits
-    for(unsigned i = 0; i < 2; i++) {
-      double sa = (i == 0) ? -a : a;
-      for(unsigned j = 0; j < 2; j++) {
-        double sb = (j == 0) ? -b : b;
-        for(unsigned k = 0; k < 2; k++) {
-          double sc = (k == 0) ? -c : c;
+    double sa = -a;
+    for(unsigned i = 0; i < 2; i++, sa *= -1.) {
+      double sb = -b;
+      for(unsigned j = 0; j < 2; j++, sb *= -1.) {
+        double sc = -c;
+        for(unsigned k = 0; k < 2; k++, sc *=-1.) {
           e[i][j][k] = -exp((sa + sb + sc + d) * t);
         }
       }
@@ -192,19 +186,14 @@ int main(int argc, char** args) {
       }
     }
 
-    double at2m1 = 1. / (a * t);
-    double bt2m1 = 1. / (b * t);
-    double ct2m1 = 1. / (c * t);
-    std::vector< double > at2m(N);
-    std::vector< double > bt2m(N);
-    std::vector< double > ct2m(N);
-    at2m[0] = at2m1;
-    bt2m[0] = bt2m1;
-    ct2m[0] = ct2m1;
+    std::vector< double > at2m(N), bt2m(N), ct2m(N);
+    at2m[0] = 1. / (a * t);
+    bt2m[0] = 1. / (b * t);
+    ct2m[0] = 1. / (c * t);
     for(unsigned i = 1; i < N; i++) {
-      at2m[i] = at2m[i - 1] * at2m1;
-      bt2m[i] = bt2m[i - 1] * bt2m1;
-      ct2m[i] = ct2m[i - 1] * ct2m1;
+      at2m[i] = at2m[i - 1] * at2m[0];
+      bt2m[i] = bt2m[i - 1] * bt2m[0];
+      ct2m[i] = ct2m[i - 1] * ct2m[0];
     }
 
     std::vector< std::vector< std::vector< double > > > D(N);
@@ -268,5 +257,6 @@ int main(int argc, char** args) {
   delete lisk;
   return 0;
 }
+
 
 
