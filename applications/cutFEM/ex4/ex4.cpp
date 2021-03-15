@@ -40,11 +40,19 @@ int main(int argc, char** args) {
     }
   }
 
-  double a = 0.34, b = 0.74, c = 0.25, d = 0.5, degree = 3;
+  //double a0 = 0.34, b0 = 0.74, c0 = 0.25, d0 = 0.5, degree = 3;
+  double a0 = 1, b0 = 1, c0 = 1., d0 = 0., degree = 3;
+  bool surface = true;
   unsigned N = degree + 1;
 
   {
-    // 1D
+    // 1D line
+    double a = a0;
+    double d = d0;
+    double scale = sqrt(a * a);
+    a /= scale;
+    d /= scale;
+
     if(N > Nmax) {
       std::cout << "Warning degree is too high, for 1D the maximum degree allowed is " << Nmax - 1 << std::endl << std::flush;
       abort();
@@ -60,10 +68,9 @@ int main(int argc, char** args) {
       if(e[i] > 0.) {
         edgeA[i] = true;
         Li[i].resize(N);
-        Li[i][0] = - e[i];
+        Li[i][0] = (surface) ? -1 : - e[i];
         for(unsigned l = 1; l < N; l++) {
-          Li[i][l] = Li[i][l - 1] * e[i] / (1. + l);
-          //Li[i][l] = -pow(e[i], 1 + l) / boost::math::factorial <double> (1 + l);
+          Li[i][l] = Li[i][l - 1] * e[i] / (1. - surface + l);
         }
       }
     }
@@ -76,10 +83,10 @@ int main(int argc, char** args) {
 
     std::vector< double > f(N, 0.);
     for(unsigned i = 0; i < N; i++) {
-      f[i] = -M[i];
+      f[i] = 0.;//-M[i];
       for(unsigned l = 0; l <= i; l++) {
-        if(edgeA[0]) f[i] +=  -2. * (Cl[i][l] * Li[0][l]) * a2m[l];
-        if(edgeA[1]) f[i] +=  -2. * (Cr[i][l] * Li[1][l]) * a2m[l];
+        if(edgeA[0]) f[i] +=  -1. * (Cl[i][l] * Li[0][l]) * a2m[l];
+        if(edgeA[1]) f[i] +=  -1. * (Cr[i][l] * Li[1][l]) * a2m[l];
       }
     }
 
@@ -91,12 +98,21 @@ int main(int argc, char** args) {
   }
 
 
-  // 2D
+  // 2D square
   {
     if(N + 1 > Nmax) {
       std::cout << "Warning degree is too high, for 2D the maximum degree allowed is " << Nmax - 2 << std::endl << std::flush;
       abort();
     }
+
+    double a = a0;
+    double b = b0;
+    double d = d0;
+    double scale = sqrt(a * a + b * b);
+
+    a /= scale;
+    b /= scale;
+    d /= scale;
 
     double e[2][2]; //left or right limits
     double sa = -a;
@@ -113,9 +129,9 @@ int main(int argc, char** args) {
         if(e[i][j] > 0.) {
           edgeB[i][j] = true;
           Li[i][j].resize(N);
-          Li[i][j][0] = - e[i][j] * e[i][j] / 2.;
+          Li[i][j][0] = (surface) ? - e[i][j] : - e[i][j] * e[i][j] / 2.;
           for(unsigned l = 1; l < N; l++) {
-            Li[i][j][l] = Li[i][j][l - 1]  * e[i][j] / (2. + l);
+            Li[i][j][l] = Li[i][j][l - 1]  * e[i][j] / (2. - surface + l);
           }
         }
       }
@@ -153,10 +169,10 @@ int main(int argc, char** args) {
 
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
-        D[i][j] = -M[i] * M[j];
+        D[i][j] = 0.;//-M[i] * M[j];
         for(unsigned l = 0; l < std::min(N - j, i + 1); l++) { //D = Al.D_s + Ar.D_r
-          if(edgeA[0]) D[i][j] +=  -2. * (Cl[i][l] * Dl[l][j]) * a2m[l];
-          if(edgeA[1]) D[i][j] +=  -2. * (Cr[i][l] * Dr[l][j]) * a2m[l];
+          if(edgeA[0]) D[i][j] +=  -1. * (Cl[i][l] * Dl[l][j]) * a2m[l];
+          if(edgeA[1]) D[i][j] +=  -1. * (Cr[i][l] * Dr[l][j]) * a2m[l];
         }
       }
     }
@@ -185,12 +201,25 @@ int main(int argc, char** args) {
   }
 
 
-// 3D
+// 3D cube
   {
     if(N + 2 > Nmax) {
       std::cout << "Warning degree is too high, for 3D the maximum degree allowed is " << Nmax - 3 << std::endl << std::flush;
       abort();
     }
+
+
+    double a = a0;
+    double b = b0;
+    double c = c0;
+    double d = d0;
+
+    double scale = sqrt(a * a + b * b + c * c);
+
+    a /= scale;
+    b /= scale;
+    c /= scale;
+    d /= scale;
 
     double e[2][2][2]; //left or right limits
     double sa = -a;
@@ -212,10 +241,9 @@ int main(int argc, char** args) {
           if(e[i][j][k] > 0.) {
             edgeC[i][j][k] = true;
             Li[i][j][k].resize(N);
-            Li[i][j][k][0] = -e[i][j][k] * e[i][j][k] * e[i][j][k] / 6.;
+            Li[i][j][k][0] = (surface) ? -e[i][j][k] * e[i][j][k] / 2. : -e[i][j][k] * e[i][j][k] * e[i][j][k] / 6.;
             for(unsigned l = 1; l < N; l++) {
-              Li[i][j][k][l] = Li[i][j][k][l - 1] * e[i][j][k] / (3. + l);
-              //Li[i][j][k][l] = -pow(e[i][j][k], 3 + l) / boost::math::factorial <double> (3 + l);
+              Li[i][j][k][l] = Li[i][j][k][l - 1] * e[i][j][k] / (3. - surface + l);
             }
           }
         }
@@ -227,11 +255,11 @@ int main(int argc, char** args) {
     edgeB[0][1] = edgeC[0][1][0] + edgeC[0][1][1];
     edgeB[1][0] = edgeC[1][0][0] + edgeC[1][0][1];
     edgeB[1][1] = edgeC[1][1][0] + edgeC[1][1][1];
-        
+
     bool edgeA[2];
     edgeA[0] = edgeB[0][0] + edgeB[0][1];
     edgeA[1] = edgeB[1][0] + edgeB[1][1];
-    
+
     std::vector< double > a2m(N), b2m(N), c2m(N);
     a2m[0] = 1. / a;
     b2m[0] = 1. / b;
@@ -285,10 +313,10 @@ int main(int argc, char** args) {
     for(unsigned i = 0; i < N; i++) {
       for(unsigned j = 0; j < N - i; j++) {
         for(unsigned k = 0; k < N - i - j; k++) {
-          D[i][k][j] = -M[i] * M[j] * M[k];
+          D[i][k][j] = - 0 * M[i] * M[j] * M[k];
           for(unsigned l = 0; l < std::min(N - j - k, i + 1); l++) { // Transpose[D, 2<->3] = Al.D_l + Ar.D_r
-            if(edgeA[0]) D[i][k][j] += -2. * (Cl[i][l] * Dl[l][j][k]) * a2m[l];
-            if(edgeA[1]) D[i][k][j] += -2. * (Cr[i][l] * Dr[l][j][k]) * a2m[l];
+            if(edgeA[0]) D[i][k][j] += -1. * (Cl[i][l] * Dl[l][j][k]) * a2m[l];
+            if(edgeA[1]) D[i][k][j] += -1. * (Cr[i][l] * Dr[l][j][k]) * a2m[l];
           }
         }
       }

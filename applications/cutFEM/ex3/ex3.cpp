@@ -41,7 +41,8 @@ int main(int argc, char** args) {
     }
   }
 
-  double a = 0.34, b = 0.74, c = 0.25, d = 0.5, t = 20., degree = 3;
+  //double a = 0.34, b = 0.74, c = 0.25, d = 0.5, t = 20., degree = 4;
+  double a = 1., b = 1., c = 1., d = 0., t = 20., degree = 3;
   unsigned N = degree + 1;
   LiSK::LiSK< std::complex<double> > *lisk = new LiSK::LiSK< std::complex<double> > (N + 3);
   {
@@ -285,6 +286,7 @@ int main(int argc, char** args) {
   delete lisk;
   return 0;
 }
+
 
 
 
