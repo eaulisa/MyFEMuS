@@ -41,8 +41,13 @@ int main(int argc, char** args) {
   }
 
   //double a0 = 0.34, b0 = 0.74, c0 = 0.25, d0 = 0.5, degree = 3;
-  double a0 = 1, b0 = 1, c0 = 1., d0 = 0., degree = 3;
-  bool surface = true;
+  double a0 = cos(M_PI/4.) * sin(M_PI/3.); 
+  double b0 = sin(M_PI/4.) * sin(M_PI/3.);
+  double c0 = cos(M_PI/3.); 
+  double d0 = 0.;
+  
+  unsigned degree = 2;
+  bool surface = false;
   unsigned N = degree + 1;
 
   {
