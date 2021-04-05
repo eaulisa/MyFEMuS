@@ -9,6 +9,13 @@ using boost::multiprecision::cpp_dec_float_50;
 using boost::multiprecision::cpp_dec_float_100;
 using boost::math::factorial;
 
+// namespace boost{ namespace multiprecision{
+//
+// typedef number<cpp_dec_float<200> > cpp_dec_float_200;
+//
+// }} // namespaces
+
+
 template <class Float1>
 typename boost::math::tools::promote_args<Float1>::type
 LimLi(const int &n, const Float1 &x) {
@@ -26,9 +33,13 @@ typename boost::math::tools::promote_args<Float1, Float2>::type
 Int0to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
-  Type TRI = 0.;
+  Type TRI(0.);
+  Type ma(1. / (-a));
+  Type f(factorial<Type>(m));
   for(unsigned i = 1; i <= m + 1; i++) {
-    TRI += pow(-1. / a, i) * LimLi(s + i, a + d) / factorial<Type>(m + 1 - i);
+    TRI += ma * LimLi(s + i, a + d) / f;
+    f /= (m + 1 - i);
+    ma /= (-a);
   }
   TRI += pow(-1. / a, m) * LimLi(s + m + 1, d) / a;
   TRI *= factorial<Type>(m);
@@ -334,8 +345,6 @@ int main(int, char**) {
       std::cout << std::scientific << std::setprecision(std::numeric_limits<double>::digits10);
       std::cout << "test volume failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n" << TriangleFull(0,  m, a, d) << "\n" << Triangle(0,  m, a, d) << std::endl;
-
-
     }
   }
   {
@@ -358,20 +367,20 @@ int main(int, char**) {
     std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(-1,  m, a, d) << " " << Tetrahedron(-1,  m, a, d) << std::endl;
     std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(0,  m, a, d) << " " << Tetrahedron(0,  m, a, d) << std::endl;
   }
-  
+
   {
-    std::vector<cpp_dec_float_100> a{0, 0, 0};
+    std::vector<boost::multiprecision::cpp_dec_float_100> a{0, 0, 0};
     std::vector<unsigned> m = {7, 7, 7};
 
     a[0] = 0.000000856861;
     a[1] = 0.;
     a[2] = 0.999963;
-    cpp_dec_float_100 d = 0.996042;
+    boost::multiprecision::cpp_dec_float_100 d = 0.996042;
 
-    if(fabs(a[0]) < 1.0e-8) a[0] = 0.;
-    if(fabs(a[1]) < 1.0e-8) a[1] = 0.;
-    if(fabs(a[2]) < 1.0e-8) a[2] = 0.;
-    cpp_dec_float_100 det = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+    if(fabs(a[0]) < 1.0e-18) a[0] = 0.;
+    if(fabs(a[1]) < 1.0e-18) a[1] = 0.;
+    if(fabs(a[2]) < 1.0e-18) a[2] = 0.;
+    boost::multiprecision::cpp_dec_float_100 det = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
     a[0] /= det;
     a[1] /= det;
     a[2] /= det;
@@ -382,3 +391,4 @@ int main(int, char**) {
 
 
 }
+
