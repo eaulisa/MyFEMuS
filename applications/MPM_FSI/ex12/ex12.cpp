@@ -17,7 +17,7 @@ using namespace femus;
 Line* bulk;
 Line* lineI;
 void BuildFlag(MultiLevelSolution& mlSol);
-double eps;
+double eps = 0.;
 
 double gravity[3] = {0., 0., 0.};
 bool weakP = true;
@@ -444,6 +444,9 @@ void BuildFlag(MultiLevelSolution& mlSol) {
     }
     else if(inside) {
       sol->_Sol[eflagIndex]->set(iel, 2.);
+    }
+    else if(outside) {
+      sol->_Sol[eflagIndex]->set(iel, .5);
     }
   }
   sol->_Sol[eflagIndex]->close();
