@@ -830,11 +830,9 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       V1NormL2 = sqrt(V1NormL2);
                       V2NormL2 = sqrt(V2NormL2);
 
-
                       double psiT1 = (mu / rho + (1. / 6.) * V1NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
                       double psiT2 = (mu / rho + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
                       double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2); // [h/velocity]
-
 
                       double C1 = (fluid) ? gammac * (mu + rho * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2)  + rho * h2 / (theta * dt)) :
                                   gammac * (mu + rho * h2 / (theta * dt * dt));
