@@ -22,7 +22,7 @@ double eps = 0.;
 double gravity[3] = {0., 0., 0.};
 bool weakP = true;
 
-double theta = 1.;
+double theta = .75;
 double af = 1. - theta;
 double am = af - 0.1;
 double beta = 0.25 + 0.5 * (af - am);
