@@ -269,7 +269,7 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  if(a[0] + a[1] + a[2] + d <= 0) {
+  if(a[0] + a[1] + d <= 0) {
     return PrismB(s, m, a, d);
   }
   switch(s) {
@@ -293,184 +293,286 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
 
 int main(int, char**) {
 
-
-  //typedef long double myType;
+  
+  //typedef double myType;
+  typedef double myType;  
+  //typedef boost::multiprecision::cpp_bin_float_oct myType;
+  
+  
   //typedef cpp_dec_float_50 myType;
   //typedef cpp_dec_float_100 myType;
   //typedef boost::multiprecision::cpp_dec_float_200 myType;
   //typedef boost::multiprecision::cpp_bin_float_double myType;
   //typedef boost::multiprecision::cpp_bin_float_double_extended myType; //long double
-  typedef boost::multiprecision::cpp_bin_float_quad myType;
-  //typedef boost::multiprecision::cpp_bin_float_oct myType;
+  //typedef boost::multiprecision::cpp_bin_float_quad myType;
+  //typedef double myTypeB;
+  typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
 
   std::cout << "testing the Thetrahedron \n";
-  std::vector<unsigned>m = {4, 4, 4};
+  std::vector<unsigned>m = {6, 6, 6};
   std::vector<myType>a = {0., 0., 0.};
+  std::vector<myTypeB> af = {0., 0., 0.};
+
   myType d;
+  myTypeB df;
 
-  for(unsigned i = 0; i < 100; i++) {
-    a[0] = static_cast <myType>(rand()) / RAND_MAX;
-    a[1] = static_cast <myType>(rand()) / RAND_MAX;
-    a[2] = -sqrt(1 - a[0] * a[0] + a[1] * a[1]);
-    d = static_cast <myType>(rand()) / RAND_MAX;
+  for(unsigned i = 0; i < 1000; i++) {
+    a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+    a[1] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+    a[2] = sqrt(1 - a[0] * a[0] + a[1] * a[1]);
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
+
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
-    a[0] = static_cast <myType>(rand()) / RAND_MAX;
+  for(unsigned i = 0; i < 1000; i++) {
+      
+    a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = -a[0];
     a[2] = sqrt(1 - a[0] * a[0] + a[1] * a[1]);
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }  
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
+
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
+  for(unsigned i = 0; i < 1000; i++) {
     a[0] = 0;
     a[1] = 0;
     a[2] = 1;
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
+
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
+  for(unsigned i = 0; i < 1000; i++) {
     a[0] = 0.;
     a[1] = 1.;
     a[2] = 0.;
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }
+    
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
+  for(unsigned i = 0; i < 1000; i++) {
     a[0] = 1.;
     a[1] = 0.;
     a[2] = 0.;
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+   if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
+
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
-    a[0] = 1.;
-    a[1] = 0.;
-    a[2] = 0.;
-    d = static_cast <myType>(rand()) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
-
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
-
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
-  }
-
-
-  for(unsigned i = 0; i < 100; i++) {
-    a[0] = static_cast <myType>(rand()) / RAND_MAX;
+  for(unsigned i = 0; i < 1000; i++) {
+    
+    a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = sqrt(1. - a[0] * a[0]);
     a[2] = 0.;
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }
+    
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12)
-      std::cout << "test surface failed" << std::endl;
+    if(fabs(Tetrahedron(-1,  m, af, df) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, af, df)<<" " << TetrahedronB(-1,  m, a, d) << std::endl;
+    }
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12)
-      std::cout << "test volume failed" << std::endl;
+    if(fabs(Tetrahedron(0,  m, af, df) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, af, df)<<" " << TetrahedronB(0,  m, a, d) << std::endl;
+    }
   }
 
-  for(unsigned i = 0; i < 100; i++) {
-    a[0] = static_cast <myType>(rand()) / RAND_MAX;
+  for(unsigned i = 0; i < 1000; i++) {
+    
+    a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = 0.;
-    a[2] = sqrt(1. - a[0] * a[0]);
-    d = static_cast <myType>(rand()) / RAND_MAX;
+    a[2] = sqrt(1. - a[0] * a[0]);;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    if(fabs(a[0]) < 1.0e-3) a[0] = 0.;
-    if(fabs(a[1]) < 1.0e-3) a[1] = 0.;
-    if(fabs(a[2]) < 1.0e-3) a[2] = 0.;
-    myType det = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
-    a[0] /= det;
-    a[1] /= det;
-    a[2] /= det;
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }  
+   
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
 
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
-
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12) {
-      std::cout << "test surface failed" << std::endl;
-      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(-1,  m, a, d) << " " << Tetrahedron(-1,  m, a, d) << std::endl;
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12) {
-      std::cout << "test volume failed" << std::endl;
-      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(0,  m, a, d) << " " << Tetrahedron(0,  m, a, d) << std::endl;
-    }
-  }
-
-  for(unsigned i = 0; i < 1; i++) {
-
-    std::cout << "AAA\n";
-    a[0] = 0.00856861;
-    a[1] = 0.;
-    a[2] = 0.999963;
-    d = 0.996042;
-
-    if(fabs(a[0]) < 1.0e-3) a[0] = 0.;
-    if(fabs(a[1]) < 1.0e-3) a[1] = 0.;
-    if(fabs(a[2]) < 1.0e-3) a[2] = 0.;
-    myType det = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
-    a[0] /= det;
-    a[1] /= det;
-    a[2] /= det;
-
-    if(a[0] + a[1] + d <= 0) std::cout << "Wrong choice of coefficients for the test\n";
-
-    if(fabs(TetrahedronB(-1,  m, a, d) - Tetrahedron(-1,  m, a, d)) > 1.0e-12) {
-      std::cout << "test surface failed" << std::endl;
-      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(-1,  m, a, d) << " " << Tetrahedron(-1,  m, a, d) << std::endl;
-    }
-
-    if(fabs(TetrahedronB(0,  m, a, d) - Tetrahedron(0,  m, a, d)) > 1.0e-12) {
-      std::cout << "test volume failed" << std::endl;
-      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(0,  m, a, d) << " " << Tetrahedron(0,  m, a, d) << std::endl;
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
+  
+  for(unsigned i = 0; i < 1000; i++) {
+    
+    a[0] = 0.;
+    a[1] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+    a[2] = sqrt(1. - a[0] * a[0]);;
+    d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+
+    if(a[0] + a[1] + d <= 0) {
+      a[0] = -a[0];  
+      a[1] = -a[1];
+      a[2] = -a[2];
+      d = -d;
+    }  
+   
+    af[0] = a[0];
+    af[1] = a[1];
+    af[2] = a[2];
+    df = d;
+
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+      std::cout << "surface test failed" << std::endl;
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+    }
+
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
+      std::cout << "volume test failed" << std::endl;  
+      std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
+      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+    }
+  }
 
 
   /*
