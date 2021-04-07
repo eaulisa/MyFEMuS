@@ -1,10 +1,7 @@
 
 void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
-  // ml_prob is the global object from/to where get/set all the data
-  // level is the level of the PDE system to be assembled
-  // levelMax is the Maximum level of the MultiLevelProblem
-  // assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
+  //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
 
   clock_t start_time;
 
@@ -41,21 +38,21 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   //quantities for jel will have index2
 
 
-  vector< vector< double > > solV1Old(dim);
-  vector< vector< double > > solV2Old(dim);
+  vector< vector< double > > sol1Old(dim);
+  vector< vector< double > > sol2Old(dim);
 
-  vector< vector< adept::adouble > > solV1(dim); // local solution (velocity)
+  vector< vector< adept::adouble > > sol1(dim); // local solution (velocity)
   vector< adept::adouble > solP1; // local solution (velocity)
 
-  vector< vector< adept::adouble > > solV2(dim); // local solution (velocity)
-  vector< vector< double > > solV2d(dim); // local solution (velocity)
+  vector< vector< adept::adouble > > sol2(dim); // local solution (velocity)
+  vector< vector< double > > sol2d(dim); // local solution (velocity)
   vector< adept::adouble > solP2; // local solution (velocity)
   vector< double > solP2d; // local solution (velocity)
 
-  vector< vector< adept::adouble > > aResV1(dim);     // local redidual vector
+  vector< vector< adept::adouble > > aRes1(dim);     // local redidual vector
   vector< adept::adouble > aResP1; // local redidual vector
 
-  vector< vector< adept::adouble > > aResV2(dim);     // local redidual vector
+  vector< vector< adept::adouble > > aRes2(dim);     // local redidual vector
   vector< adept::adouble > aResP2; // local redidual vector
 
   vector< double > rhs1; // local redidual vector
@@ -83,10 +80,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   vector <vector < double> > vx2(dim);
 
   //reading parameters for fluid FEM domain
-  double rhoFluid = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_density() :
-                    ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
-  double muFluid = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity() :
-                   ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
+  double rho = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_density() :
+               ml_prob.parameters.get<Solid> ("SolidMPM").get_density();
+  double mu = (fluid) ? ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity() :
+              ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
@@ -96,13 +93,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   //variable-name handling
   const char varname[10][5] = {"DX", "DY", "DZ", "VX", "VY", "VZ"};
 
-  vector <unsigned> indexSolV(dim);
-  vector <unsigned> indexPdeV(dim);
+  vector <unsigned> indexSol(dim);
+  vector <unsigned> indexPde(dim);
   for(unsigned ivar = 0; ivar < dim; ivar++) {
-    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3 * fluid][0]);
-    indexPdeV[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3 * fluid][0]);
+    indexSol[ivar] = mlSol->GetIndex(&varname[ivar + 3 * fluid][0]);
+    indexPde[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar + 3 * fluid][0]);
   }
-  unsigned solTypeV = mlSol->GetSolutionType(&varname[0][0]);
+  unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
   unsigned indexSolP = mlSol->GetIndex("P");
   unsigned indexPdeP = my_nnlin_impl_sys.GetSolPdeIndex("P");
@@ -124,40 +121,40 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
 
-      unsigned nDofsV1 = msh->GetElementDofNumber(iel, solTypeV);    // number of solution element dofs
+      unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
       unsigned nDofsP1 = msh->GetElementDofNumber(iel, solTypeP);    // number of solution element dofs
-      unsigned nDofs1 = dim * nDofsV1 + nDofsP1;
+      unsigned nDofsAll1 = dim * nDofs1 + nDofsP1;
 
       // resize local arrays
-      sysDofs1.resize(nDofs1);
-      //nodeFlag1.resize(nDofsV1);
+      sysDofs1.resize(nDofsAll1);
+      //nodeFlag1.resize(nDofs1);
 
       for(unsigned  k = 0; k < dim; k++) {
-        solV1[k].resize(nDofsV1);
-        solV1Old[k].resize(nDofsV1);
-        vx1[k].resize(nDofsV1);
+        sol1[k].resize(nDofs1);
+        sol1Old[k].resize(nDofs1);
+        vx1[k].resize(nDofs1);
       }
       solP1.resize(nDofsP1);
 
-      for(unsigned i = 0; i < nDofsV1; i++) {
-        unsigned idof = msh->GetSolutionDof(i, iel, solTypeV);
+      for(unsigned i = 0; i < nDofs1; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, solType);
 
         //nodeFlag1[i] = (*mysolution->_Sol[nflagIndex])(idof);
 
         for(unsigned  k = 0; k < dim; k++) {
-          solV1[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-          solV1Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-          sysDofs1[k * nDofsV1 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel);
+          sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+          sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+          sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
         }
       }
 
       for(unsigned i = 0; i < nDofsP1; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
         solP1[i] = (*mysolution->_Sol[indexSolP])(idof);
-        sysDofs1[dim * nDofsV1 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
+        sysDofs1[dim * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
       }
 
-      for(unsigned i = 0; i < nDofsV1; i++) {
+      for(unsigned i = 0; i < nDofs1; i++) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
         for(unsigned  k = 0; k < dim; k++) {
           vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
@@ -169,7 +166,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
         if(jel >= 0) { // iface is not a boundary of the domain
-          unsigned jproc = msh->IsdomBisectionSearch(jel , 3);
+          unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
             unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5));
 
@@ -177,39 +174,38 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
               short unsigned ielt2 = msh->GetElementType(jel);
 
-              unsigned nDofsV2 = msh->GetElementDofNumber(jel, solTypeV);    // number of solution element dofs
+              unsigned nDofs2 = msh->GetElementDofNumber(jel, solType);    // number of solution element dofs
               unsigned nDofsP2 = msh->GetElementDofNumber(jel, solTypeP);    // number of solution element dofs
-              unsigned nDofs2 = dim * nDofsV2 + nDofsP2;
+              unsigned nDofsAll2 = dim * nDofs2 + nDofsP2;
 
               // resize local arrays
-              sysDofs2.resize(nDofs2);
-              //nodeFlag2.resize(nDofsV2);
+              sysDofs2.resize(nDofsAll2);
+              //nodeFlag2.resize(nDofs2);
 
               for(unsigned  k = 0; k < dim; k++) {
-                solV2[k].resize(nDofsV2);
-                solV2Old[k].resize(nDofsV2);
-                vx2[k].resize(nDofsV2);
+                sol2[k].resize(nDofs2);
+                sol2Old[k].resize(nDofs2);
+                vx2[k].resize(nDofs2);
               }
               solP2.resize(nDofsP2);
 
 
-              for(unsigned i = 0; i < nDofsV2; i++) {
-                unsigned idof = msh->GetSolutionDof(i, jel, solTypeV);
-                //nodeFlag2[i] = (*mysolution->_Sol[nflagIndex])(idof);
+              for(unsigned i = 0; i < nDofs2; i++) {
+                unsigned idof = msh->GetSolutionDof(i, jel, solType);
                 for(unsigned  k = 0; k < dim; k++) {
-                  solV2[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-                  solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-                  sysDofs2[k * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, jel);
+                  sol2[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+                  sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                  sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                 }
               }
 
               for(unsigned i = 0; i < nDofsP2; i++) {
                 unsigned idof = msh->GetSolutionDof(i, jel, solTypeP);
                 solP2[i] = (*mysolution->_Sol[indexSolP])(idof);
-                sysDofs2[dim * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, jel);
+                sysDofs2[dim * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, jel);
               }
 
-              for(unsigned i = 0; i < nDofsV2; i++) {
+              for(unsigned i = 0; i < nDofs2; i++) {
                 unsigned idofX = msh->GetSolutionDof(i, jel, 2);
                 for(unsigned  k = 0; k < dim; k++) {
                   vx2[k][i] = (*msh->_topology->_Sol[k])(idofX);
@@ -217,8 +213,8 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
               }
 
               for(unsigned  k = 0; k < dim; k++) {
-                aResV1[k].assign(nDofsV1, 0.);
-                aResV2[k].assign(nDofsV2, 0.);
+                aRes1[k].assign(nDofs1, 0.);
+                aRes2[k].assign(nDofs2, 0.);
               }
               aResP1.assign(nDofsP1, 0.);
               aResP2.assign(nDofsP2, 0.);
@@ -227,7 +223,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
 
               const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
-              unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solTypeV);
+              unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
               std::vector  < std::vector  <  double > > faceVx(dim);    // A matrix holding the face coordinates rowwise.
               for(int k = 0; k < dim; k++) {
                 faceVx[k].resize(faceDofs);
@@ -239,27 +235,27 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
               }
 
-              double h = sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
-                              (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
+              double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
+                                              (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
               double h2 = h * h;
               double h3 = h * h * h;
 
 
               if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
                 aP1IsInitialized = true;
-                for(unsigned jtype = 0; jtype < solTypeV + 1; jtype++) {
+                for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                   ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
                 }
               }
 
-              for(unsigned jtype = 0; jtype < solTypeV + 1; jtype++) {
+              for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                 ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
               }
 
-              for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeV]->GetGaussPointNumber(); ig++) {
+              for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
 
                 std::vector < double> normal;
-                msh->_finiteElement[faceGeom][solTypeV]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+                msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
                 std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                 for(unsigned i = 0; i < faceDofs; i++) {
@@ -271,7 +267,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                 GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                bool inverseMapping = GetInverseMapping(solTypeV, ielt1, aP1, xg, xi1, 100);
+                bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
@@ -279,33 +275,33 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                 GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
 
-                inverseMapping = GetInverseMapping(solTypeV, ielt2, aP2, xg, xi2, 100);
+                inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
 
-                msh->_finiteElement[ielt1][solTypeV]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                msh->_finiteElement[ielt2][solTypeV]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+                msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
 
 
-                std::vector < double > solV1gOld(dim, 0.);
-                std::vector < double > solV2gOld(dim, 0.);
+                std::vector < double > sol1gOld(dim, 0.);
+                std::vector < double > sol2gOld(dim, 0.);
 
-                std::vector < adept::adouble > solV1g(dim, 0.);
-                std::vector < adept::adouble > solV2g(dim, 0.);
+                std::vector < adept::adouble > sol1g(dim, 0.);
+                std::vector < adept::adouble > sol2g(dim, 0.);
 
-                std::vector < adept::adouble > gradSolV1DotN(dim, 0.);
-                std::vector < adept::adouble > gradSolV2DotN(dim, 0.);
+                std::vector < adept::adouble > gradSol1DotN(dim, 0.);
+                std::vector < adept::adouble > gradSol2DotN(dim, 0.);
 
-                std::vector < adept::adouble >  hessSolV1DotN(dim, 0.);
-                std::vector < adept::adouble >  hessSolV2DotN(dim, 0.);
+                std::vector < adept::adouble >  hessSol1DotN(dim, 0.);
+                std::vector < adept::adouble >  hessSol2DotN(dim, 0.);
 
                 for(unsigned I = 0; I < dim; I++) {
-                  for(unsigned i = 0; i < nDofsV1; i++) {
-                    solV1g[I] += phi1[i] * solV1[I][i];
-                    solV1gOld[I] += phi1[i] * solV1Old[I][i];
+                  for(unsigned i = 0; i < nDofs1; i++) {
+                    sol1g[I] += phi1[i] * sol1[I][i];
+                    sol1gOld[I] += phi1[i] * sol1Old[I][i];
                     for(unsigned J = 0; J < dim; J++) {
-                      gradSolV1DotN[I] += solV1[I][i] * gradPhi1[i * dim + J] * normal[J];
+                      gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];
                       for(unsigned K = 0; K < dim; K++) {
                         //2D xx, yy, xy
                         //3D xx, yy, zz, xy, yz ,zx
@@ -314,18 +310,18 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         else if(1 == J + K) L = dim;     // xy
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
-                        hessSolV1DotN[I] += solV1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                        hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
                       }
                     }
                   }
                 }
 
                 for(unsigned I = 0; I < dim; I++) {
-                  for(unsigned i = 0; i < nDofsV2; i++) {
-                    solV2g[I] += phi2[i] * solV2[I][i];
-                    solV2gOld[I] += phi2[i] * solV2Old[I][i];
+                  for(unsigned i = 0; i < nDofs2; i++) {
+                    sol2g[I] += phi2[i] * sol2[I][i];
+                    sol2gOld[I] += phi2[i] * sol2Old[I][i];
                     for(unsigned J = 0; J < dim; J++) {
-                      gradSolV2DotN[I] += solV2[I][i] * gradPhi2[i * dim + J] * normal[J];
+                      gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
                       for(unsigned K = 0; K < dim; K++) {
                         //2D xx, yy, xy
                         //3D xx, yy, zz, xy, yz ,zx
@@ -334,7 +330,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         else if(1 == J + K) L = dim;     // xy
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
-                        hessSolV2DotN[I] += solV2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                        hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
                       }
                     }
                   }
@@ -345,26 +341,35 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 double V2NormL2 = 0.;
 
                 for(unsigned k = 0; k < dim; k++) {
-                  V1NormL2 += solV1gOld[k] * solV1gOld[k];
-                  V2NormL2 += solV2gOld[k] * solV2gOld[k];
+                  V1NormL2 += sol1gOld[k] * sol1gOld[k];
+                  V2NormL2 += sol2gOld[k] * sol2gOld[k];
                 }
 
                 V1NormL2 = sqrt(V1NormL2);
                 V2NormL2 = sqrt(V2NormL2);
 
 
-                double psiT1 = (muFluid / rhoFluid + (1. / 6.) * V1NormL2 * h + (1. / 12.) * h * h / (theta * dt));
-                double psiT2 = (muFluid / rhoFluid + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt));
-                double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2);
+                double psiT1 = (mu / rho + (1. / 6.) * V1NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                double psiT2 = (mu / rho + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2); // [h/velocity]
 
 
-                double C1 = gammac * (muFluid + rhoFluid * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2) + rhoFluid * h2 / (theta * dt));
-
+                double C1 = (fluid) ? gammac * (mu + rho * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2)  + rho * h2 / (theta * dt)) :
+                            gammac * (mu + rho * h2 / (theta * dt * dt));
+                // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
+                // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
+                // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
+                // [C1] for the solid is kg/(s^2 h)
 
                 for(unsigned I = 0; I < dim; I++) {
-                  for(unsigned i = 0; i < nDofsV1; i++) {
+                  for(unsigned i = 0; i < nDofs1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResV1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                      aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      // kg h /(s^2) = dimension of the weak momentum equation for the fluid and the solid
+                      // kg h /(s^2) = [C1] * h^2
+                      // [C1] for the solid should be kg/(s^2 h)
+
+
                       for(unsigned K = 0; K < dim; K++) {
 
                         unsigned L;
@@ -373,14 +378,14 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
 
-                        aResV1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                        aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
                       }
                     }
                   }
 
-                  for(unsigned i = 0; i < nDofsV2; i++) {
+                  for(unsigned i = 0; i < nDofs2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResV2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                      aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
 
                       for(unsigned K = 0; K < dim; K++) {
 
@@ -390,7 +395,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
 
-                        aResV2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                        aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
                       }
                     }
                   }
@@ -418,13 +423,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                   for(unsigned i = 0; i < nDofsP1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResP1[i] +=  gammap * psiC / rhoFluid * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                      aResP1[i] +=  gammap * psiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                     }
                   }
 
                   for(unsigned i = 0; i < nDofsP2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResP2[i] +=  - gammap * psiC / rhoFluid * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                      aResP2[i] +=  - gammap * psiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                     }
                   }
 
@@ -433,43 +438,43 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
               }
 
               //copy the value of the adept::adoube aRes in double Res and store them in RES
-              rhs1.resize(nDofs1);   //resize
-              for(int i = 0; i < nDofsV1; i++) {
+              rhs1.resize(nDofsAll1);   //resize
+              for(int i = 0; i < nDofs1; i++) {
                 for(unsigned  k = 0; k < dim; k++) {
-                  rhs1[ k * nDofsV1 + i ] = -aResV1[k][i].value();
+                  rhs1[ k * nDofs1 + i ] = -aRes1[k][i].value();
                 }
               }
               for(int i = 0; i < nDofsP1; i++) {
-                rhs1[ dim * nDofsV1 + i] = -aResP1[i].value();
+                rhs1[ dim * nDofs1 + i] = -aResP1[i].value();
               }
               myRES->add_vector_blocked(rhs1, sysDofs1);
 
 
-              rhs2.resize(nDofs2);   //resize
-              for(int i = 0; i < nDofsV2; i++) {
+              rhs2.resize(nDofsAll2);   //resize
+              for(int i = 0; i < nDofs2; i++) {
                 for(unsigned  k = 0; k < dim; k++) {
-                  rhs2[ k * nDofsV2 + i ] = -aResV2[k][i].value();
+                  rhs2[ k * nDofs2 + i ] = -aRes2[k][i].value();
                 }
               }
               for(int i = 0; i < nDofsP2; i++) {
-                rhs2[ dim * nDofsV2 + i] = -aResP2[i].value();
+                rhs2[ dim * nDofs2 + i] = -aResP2[i].value();
               }
               myRES->add_vector_blocked(rhs2, sysDofs2);
 
 
               // define the dependent variables J11 and J12
               for(unsigned  k = 0; k < dim; k++) {
-                s.dependent(&aResV1[k][0], nDofsV1);
+                s.dependent(&aRes1[k][0], nDofs1);
               }
               s.dependent(&aResP1[0], nDofsP1);
 
 
               // define the independent variables J11
               for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solV1[k][0], nDofsV1);
+                s.independent(&sol1[k][0], nDofs1);
               }
               s.independent(&solP1[0], nDofsP1);
-              Jac.resize(nDofs1 * nDofs1);
+              Jac.resize(nDofsAll1 * nDofsAll1);
               // get the and store jacobian matrix (row-major)
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
@@ -478,10 +483,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
               // define the independent variables J12
               for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solV2[k][0], nDofsV2);
+                s.independent(&sol2[k][0], nDofs2);
               }
               s.independent(&solP2[0], nDofsP2);
-              Jac.resize(nDofs1 * nDofs2);
+              Jac.resize(nDofsAll1 * nDofsAll2);
               // get the and store jacobian matrix (row-major)
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs2);
@@ -492,17 +497,17 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
               // define the dependent variables J21 and J22
               for(unsigned  k = 0; k < dim; k++) {
-                s.dependent(&aResV2[k][0], nDofsV2);
+                s.dependent(&aRes2[k][0], nDofs2);
               }
               s.dependent(&aResP2[0], nDofsP2);
 
 
               // define the independent variables J21
               for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solV1[k][0], nDofsV1);
+                s.independent(&sol1[k][0], nDofs1);
               }
               s.independent(&solP1[0], nDofsP1);
-              Jac.resize(nDofs2 * nDofs1);
+              Jac.resize(nDofsAll2 * nDofsAll1);
               // get the and store jacobian matrix (row-major)
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
@@ -511,10 +516,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
               // define the independent variables J22
               for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&solV2[k][0], nDofsV2);
+                s.independent(&sol2[k][0], nDofs2);
               }
               s.independent(&solP2[0], nDofsP2);
-              Jac.resize(nDofs2 * nDofs2);
+              Jac.resize(nDofsAll2 * nDofsAll2);
               // get the and store jacobian matrix (row-major)
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs2);
@@ -556,8 +561,8 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
             MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
 
             if(jel >= 0) { // iface is not a boundary of the domain
-              unsigned jproc = msh->IsdomBisectionSearch(jel , 3); // return  jproc for piece-wise constant discontinuous type (3)
-              if(jproc != kproc && (iproc == kproc || iproc == jproc) ) {
+              unsigned jproc = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
+              if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
 
                 unsigned eFlag2;
                 if(iproc == jproc) {
@@ -578,90 +583,90 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                     ielt1 = msh->GetElementType(iel);
                     MPI_Recv(&ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                   }
-                  else if (iproc == jproc) {
+                  else if(iproc == jproc) {
                     ielt2 = msh->GetElementType(jel);
                     MPI_Send(&ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
                   }
 
-                  unsigned nDofsV1;
-                  unsigned nDofsP1;
                   unsigned nDofs1;
+                  unsigned nDofsP1;
+                  unsigned nDofsAll1;
 
-                  unsigned nDofsV2 = el->GetNVE(ielt2, solTypeV);
+                  unsigned nDofs2 = el->GetNVE(ielt2, solType);
                   unsigned nDofsP2 = el->GetNVE(ielt2, solTypeP);
-                  unsigned nDofs2 = dim * nDofsV2 + nDofsP2;
+                  unsigned nDofsAll2 = dim * nDofs2 + nDofsP2;
 
-                  sysDofs2.resize(nDofs2);
+                  sysDofs2.resize(nDofsAll2);
                   for(unsigned  k = 0; k < dim; k++) {
-                    solV2d[k].resize(nDofsV2);
-                    solV2Old[k].resize(nDofsV2);
-                    vx2[k].resize(nDofsV2);
+                    sol2d[k].resize(nDofs2);
+                    sol2Old[k].resize(nDofs2);
+                    vx2[k].resize(nDofs2);
                   }
                   solP2d.resize(nDofsP2);
                   std::vector < MPI_Request > reqs(3 * dim + 2);
                   if(iproc == kproc) {
 
-                    nDofsV1 = el->GetNVE(ielt1, solTypeV);
+                    nDofs1 = el->GetNVE(ielt1, solType);
                     nDofsP1 = el->GetNVE(ielt1, solTypeP);
-                    nDofs1 = dim * nDofsV1 + nDofsP1;
+                    nDofsAll1 = dim * nDofs1 + nDofsP1;
 
-                    sysDofs1.resize(nDofs1);
+                    sysDofs1.resize(nDofsAll1);
 
                     for(unsigned  k = 0; k < dim; k++) {
-                      solV1[k].resize(nDofsV1);
-                      solV1Old[k].resize(nDofsV1);
-                      vx1[k].resize(nDofsV1);
+                      sol1[k].resize(nDofs1);
+                      sol1Old[k].resize(nDofs1);
+                      vx1[k].resize(nDofs1);
                     }
                     solP1.resize(nDofsP1);
 
-                    for(unsigned i = 0; i < nDofsV1; i++) {
-                      unsigned idof = msh->GetSolutionDof(i, iel, solTypeV);
+                    for(unsigned i = 0; i < nDofs1; i++) {
+                      unsigned idof = msh->GetSolutionDof(i, iel, solType);
 
                       for(unsigned  k = 0; k < dim; k++) {
-                        solV1[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-                        solV1Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-                        sysDofs1[k * nDofsV1 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel);
+                        sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+                        sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
                       }
                     }
 
                     for(unsigned i = 0; i < nDofsP1; i++) {
                       unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
                       solP1[i] = (*mysolution->_Sol[indexSolP])(idof);
-                      sysDofs1[dim * nDofsV1 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
+                      sysDofs1[dim * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
                     }
 
-                    for(unsigned i = 0; i < nDofsV1; i++) {
+                    for(unsigned i = 0; i < nDofs1; i++) {
                       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
                       for(unsigned  k = 0; k < dim; k++) {
                         vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
                       }
                     }
                     for(unsigned k = 0; k < dim; k++) {
-                      MPI_Irecv(solV2d[k].data(), solV2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Irecv(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
                     MPI_Irecv(solP2d.data(), solP2d.size(), MPI_DOUBLE, jproc, 3 * dim, PETSC_COMM_WORLD,  &reqs[3 * dim]);
                     MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 3 * dim + 1, PETSC_COMM_WORLD,  &reqs[3 * dim + 1]);
                   }
                   else if(iproc == jproc) {
-                    for(unsigned i = 0; i < nDofsV2; i++) {
-                      unsigned idof = msh->GetSolutionDof(i, jel, solTypeV);
+                    for(unsigned i = 0; i < nDofs2; i++) {
+                      unsigned idof = msh->GetSolutionDof(i, jel, solType);
 
                       for(unsigned  k = 0; k < dim; k++) {
-                        solV2d[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-                        solV2Old[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-                        sysDofs2[k * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, jel);
+                        sol2d[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+                        sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                       }
                     }
 
                     for(unsigned i = 0; i < nDofsP2; i++) {
                       unsigned idof = msh->GetSolutionDof(i, jel, solTypeP);
                       solP2d[i] = (*mysolution->_Sol[indexSolP])(idof);
-                      sysDofs2[dim * nDofsV2 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, jel);
+                      sysDofs2[dim * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, jel);
                     }
 
-                    for(unsigned i = 0; i < nDofsV2; i++) {
+                    for(unsigned i = 0; i < nDofs2; i++) {
                       unsigned idofX = msh->GetSolutionDof(i, jel, 2);
                       for(unsigned  k = 0; k < dim; k++) {
                         vx2[k][i] = (*msh->_topology->_Sol[k])(idofX);
@@ -669,8 +674,8 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                     }
 
                     for(unsigned k = 0; k < dim; k++) {
-                      MPI_Isend(solV2d[k].data(), solV2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Isend(solV2Old[k].data(), solV2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
                     MPI_Isend(solP2d.data(), solP2d.size(), MPI_DOUBLE, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
@@ -685,9 +690,9 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                   if(iproc == kproc) {
 
                     for(unsigned  k = 0; k < dim; k++) {
-                      solV2[k].resize(nDofsV2);
-                      for(unsigned i = 0; i < nDofsV2; i++) {
-                        solV2[k][i] = solV2d[k][i];
+                      sol2[k].resize(nDofs2);
+                      for(unsigned i = 0; i < nDofs2; i++) {
+                        sol2[k][i] = sol2d[k][i];
                       }
                     }
                     solP2.resize(nDofsP2);
@@ -697,8 +702,8 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
 
                     for(unsigned  k = 0; k < dim; k++) {
-                      aResV1[k].assign(nDofsV1, 0.);
-                      aResV2[k].assign(nDofsV2, 0.);
+                      aRes1[k].assign(nDofs1, 0.);
+                      aRes2[k].assign(nDofs2, 0.);
                     }
                     aResP1.assign(nDofsP1, 0.);
                     aResP2.assign(nDofsP2, 0.);
@@ -706,7 +711,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                     s.new_recording();
 
                     const unsigned faceGeom = el->GetFaceType(ielt1, iface);
-                    unsigned faceDofs = el->GetNFACENODES(ielt1, iface, solTypeV);
+                    unsigned faceDofs = el->GetNFACENODES(ielt1, iface, solType);
 
                     std::vector  < std::vector  <  double > > faceVx(dim);    // A matrix holding the face coordinates rowwise.
                     for(int k = 0; k < dim; k++) {
@@ -719,22 +724,22 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       }
                     }
 
-                    double h = sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
-                                    (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
+                    double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
+                                                    (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
                     double h2 = h * h;
                     double h3 = h * h * h;
 
                     //std::cout << " h = " << h << " ";
 
-                    for(unsigned jtype = 0; jtype < solTypeV + 1; jtype++) {
+                    for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                       ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
                       ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
                     }
 
-                    for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeV]->GetGaussPointNumber(); ig++) {
+                    for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
 
                       std::vector < double> normal;
-                      msh->_finiteElement[faceGeom][solTypeV]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+                      msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
                       std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                       for(unsigned i = 0; i < faceDofs; i++) {
@@ -746,40 +751,40 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                       GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                      bool inverseMapping = GetInverseMapping(solTypeV, ielt1, aP1, xg, xi1, 100);
+                      bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
 
                       std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                       GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
-                      
-                      inverseMapping = GetInverseMapping(solTypeV, ielt2, aP2, xg, xi2, 100);
+
+                      inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
 
-                      msh->_finiteElement[ielt1][solTypeV]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                      msh->_finiteElement[ielt2][solTypeV]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                      msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+                      msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
 
-                      std::vector < double > solV1gOld(dim, 0.);
-                      std::vector < double > solV2gOld(dim, 0.);
+                      std::vector < double > sol1gOld(dim, 0.);
+                      std::vector < double > sol2gOld(dim, 0.);
 
-                      std::vector < adept::adouble > solV1g(dim, 0.);
-                      std::vector < adept::adouble > solV2g(dim, 0.);
+                      std::vector < adept::adouble > sol1g(dim, 0.);
+                      std::vector < adept::adouble > sol2g(dim, 0.);
 
-                      std::vector < adept::adouble > gradSolV1DotN(dim, 0.);
-                      std::vector < adept::adouble > gradSolV2DotN(dim, 0.);
+                      std::vector < adept::adouble > gradSol1DotN(dim, 0.);
+                      std::vector < adept::adouble > gradSol2DotN(dim, 0.);
 
-                      std::vector < adept::adouble >  hessSolV1DotN(dim, 0.);
-                      std::vector < adept::adouble >  hessSolV2DotN(dim, 0.);
+                      std::vector < adept::adouble >  hessSol1DotN(dim, 0.);
+                      std::vector < adept::adouble >  hessSol2DotN(dim, 0.);
 
                       for(unsigned I = 0; I < dim; I++) {
-                        for(unsigned i = 0; i < nDofsV1; i++) {
-                          solV1g[I] += phi1[i] * solV1[I][i];
-                          solV1gOld[I] += phi1[i] * solV1Old[I][i];
+                        for(unsigned i = 0; i < nDofs1; i++) {
+                          sol1g[I] += phi1[i] * sol1[I][i];
+                          sol1gOld[I] += phi1[i] * sol1Old[I][i];
                           for(unsigned J = 0; J < dim; J++) {
-                            gradSolV1DotN[I] += solV1[I][i] * gradPhi1[i * dim + J] * normal[J];
+                            gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];
                             for(unsigned K = 0; K < dim; K++) {
                               //2D xx, yy, xy
                               //3D xx, yy, zz, xy, yz ,zx
@@ -788,18 +793,18 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                               else if(1 == J + K) L = dim;     // xy
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
-                              hessSolV1DotN[I] += solV1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                              hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
                             }
                           }
                         }
                       }
 
                       for(unsigned I = 0; I < dim; I++) {
-                        for(unsigned i = 0; i < nDofsV2; i++) {
-                          solV2g[I] += phi2[i] * solV2[I][i];
-                          solV2gOld[I] += phi2[i] * solV2Old[I][i];
+                        for(unsigned i = 0; i < nDofs2; i++) {
+                          sol2g[I] += phi2[i] * sol2[I][i];
+                          sol2gOld[I] += phi2[i] * sol2Old[I][i];
                           for(unsigned J = 0; J < dim; J++) {
-                            gradSolV2DotN[I] += solV2[I][i] * gradPhi2[i * dim + J] * normal[J];
+                            gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
                             for(unsigned K = 0; K < dim; K++) {
                               //2D xx, yy, xy
                               //3D xx, yy, zz, xy, yz ,zx
@@ -808,7 +813,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                               else if(1 == J + K) L = dim;     // xy
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
-                              hessSolV2DotN[I] += solV2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                              hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
                             }
                           }
                         }
@@ -818,24 +823,30 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       double V2NormL2 = 0.;
 
                       for(unsigned k = 0; k < dim; k++) {
-                        V1NormL2 += solV1gOld[k] * solV1gOld[k];
-                        V2NormL2 += solV2gOld[k] * solV2gOld[k];
+                        V1NormL2 += sol1gOld[k] * sol1gOld[k];
+                        V2NormL2 += sol2gOld[k] * sol2gOld[k];
                       }
 
                       V1NormL2 = sqrt(V1NormL2);
                       V2NormL2 = sqrt(V2NormL2);
 
 
-                      double psiT1 = (muFluid / rhoFluid + (1. / 6.) * V1NormL2 * h + (1. / 12.) * h * h / (theta * dt));
-                      double psiT2 = (muFluid / rhoFluid + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt));
-                      double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2);
+                      double psiT1 = (mu / rho + (1. / 6.) * V1NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                      double psiT2 = (mu / rho + (1. / 6.) * V2NormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                      double psiC = 0.5 * h * h * (1. / psiT1 + 1. / psiT2); // [h/velocity]
 
-                      double C1 = gammac * (muFluid + rhoFluid * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2) + rhoFluid * h2 / (theta * dt));
+
+                      double C1 = (fluid) ? gammac * (mu + rho * psiC * 0.5 * (V1NormL2 * V1NormL2 + V2NormL2 * V2NormL2)  + rho * h2 / (theta * dt)) :
+                                  gammac * (mu + rho * h2 / (theta * dt * dt));
+                      // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
+                      // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
+                      // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
+                      // [C1] for the solid is kg/(s^2 h)
 
                       for(unsigned I = 0; I < dim; I++) {
-                        for(unsigned i = 0; i < nDofsV1; i++) {
+                        for(unsigned i = 0; i < nDofs1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResV1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                            aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
                             for(unsigned K = 0; K < dim; K++) {
 
                               unsigned L;
@@ -844,14 +855,14 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
 
-                              aResV1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                              aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
                             }
                           }
                         }
 
-                        for(unsigned i = 0; i < nDofsV2; i++) {
+                        for(unsigned i = 0; i < nDofs2; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResV2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSolV1DotN[I] - gradSolV2DotN[I]) * weight;
+                            aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
 
                             for(unsigned K = 0; K < dim; K++) {
 
@@ -861,7 +872,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
 
-                              aResV2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSolV1DotN[I] - hessSolV2DotN[I]) * weight;
+                              aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
                             }
                           }
                         }
@@ -889,13 +900,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                         for(unsigned i = 0; i < nDofsP1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResP1[i] +=  gammap * psiC / rhoFluid * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                            aResP1[i] +=  gammap * psiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                           }
                         }
 
                         for(unsigned i = 0; i < nDofsP2; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResP2[i] +=  - gammap * psiC / rhoFluid * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                            aResP2[i] +=  - gammap * psiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                           }
                         }
 
@@ -904,40 +915,40 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                     }
 
                     //copy the value of the adept::adoube aRes in double Res and store them in RES
-                    rhs1.resize(nDofs1);   //resize
-                    for(int i = 0; i < nDofsV1; i++) {
+                    rhs1.resize(nDofsAll1);   //resize
+                    for(int i = 0; i < nDofs1; i++) {
                       for(unsigned  k = 0; k < dim; k++) {
-                        rhs1[ k * nDofsV1 + i ] = -aResV1[k][i].value();
+                        rhs1[ k * nDofs1 + i ] = -aRes1[k][i].value();
                       }
                     }
                     for(int i = 0; i < nDofsP1; i++) {
-                      rhs1[ dim * nDofsV1 + i] = -aResP1[i].value();
+                      rhs1[ dim * nDofs1 + i] = -aResP1[i].value();
                     }
                     myRES->add_vector_blocked(rhs1, sysDofs1);
 
-                    rhs2.resize(nDofs2);   //resize
-                    for(int i = 0; i < nDofsV2; i++) {
+                    rhs2.resize(nDofsAll2);   //resize
+                    for(int i = 0; i < nDofs2; i++) {
                       for(unsigned  k = 0; k < dim; k++) {
-                        rhs2[ k * nDofsV2 + i ] = -aResV2[k][i].value();
+                        rhs2[ k * nDofs2 + i ] = -aRes2[k][i].value();
                       }
                     }
                     for(int i = 0; i < nDofsP2; i++) {
-                      rhs2[ dim * nDofsV2 + i] = -aResP2[i].value();
+                      rhs2[ dim * nDofs2 + i] = -aResP2[i].value();
                     }
                     myRES->add_vector_blocked(rhs2, sysDofs2);
 
                     // define the dependent variables J11 and J12
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aResV1[k][0], nDofsV1);
+                      s.dependent(&aRes1[k][0], nDofs1);
                     }
                     s.dependent(&aResP1[0], nDofsP1);
 
                     // define the independent variables J11
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&solV1[k][0], nDofsV1);
+                      s.independent(&sol1[k][0], nDofs1);
                     }
                     s.independent(&solP1[0], nDofsP1);
-                    Jac.resize(nDofs1 * nDofs1);
+                    Jac.resize(nDofsAll1 * nDofsAll1);
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
@@ -945,10 +956,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                     // define the independent variables J12
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&solV2[k][0], nDofsV2);
+                      s.independent(&sol2[k][0], nDofs2);
                     }
                     s.independent(&solP2[0], nDofsP2);
-                    Jac.resize(nDofs1 * nDofs2);
+                    Jac.resize(nDofsAll1 * nDofsAll2);
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs2);
@@ -958,16 +969,16 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                     // define the dependent variables J21 and J22
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aResV2[k][0], nDofsV2);
+                      s.dependent(&aRes2[k][0], nDofs2);
                     }
                     s.dependent(&aResP2[0], nDofsP2);
 
                     // define the independent variables J21
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&solV1[k][0], nDofsV1);
+                      s.independent(&sol1[k][0], nDofs1);
                     }
                     s.independent(&solP1[0], nDofsP1);
-                    Jac.resize(nDofs2 * nDofs1);
+                    Jac.resize(nDofsAll2 * nDofsAll1);
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
@@ -975,10 +986,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                     // define the independent variables J22
                     for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&solV2[k][0], nDofsV2);
+                      s.independent(&sol2[k][0], nDofs2);
                     }
                     s.independent(&solP2[0], nDofsP2);
-                    Jac.resize(nDofs2 * nDofs2);
+                    Jac.resize(nDofsAll2 * nDofsAll2);
                     // get the and store jacobian matrix (row-major)
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs2);
