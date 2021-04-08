@@ -290,6 +290,9 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 std::vector < adept::adouble > sol1g(dim, 0.);
                 std::vector < adept::adouble > sol2g(dim, 0.);
 
+                adept::adouble divSol1g = 0.;
+                adept::adouble divSol2g = 0.;
+
                 std::vector < adept::adouble > gradSol1DotN(dim, 0.);
                 std::vector < adept::adouble > gradSol2DotN(dim, 0.);
 
@@ -298,6 +301,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
+                    divSol1g = sol1[I][i] * gradPhi1[i * dim + I];
                     sol1g[I] += phi1[i] * sol1[I][i];
                     sol1gOld[I] += phi1[i] * sol1Old[I][i];
                     for(unsigned J = 0; J < dim; J++) {
@@ -318,6 +322,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs2; i++) {
+                    divSol2g = sol2[I][i] * gradPhi2[i * dim + I];
                     sol2g[I] += phi2[i] * sol2[I][i];
                     sol2gOld[I] += phi2[i] * sol2Old[I][i];
                     for(unsigned J = 0; J < dim; J++) {
@@ -335,7 +340,6 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                     }
                   }
                 }
-
 
                 double V1NormL2 = 0.;
                 double V2NormL2 = 0.;
@@ -361,13 +365,21 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
                 // [C1] for the solid is kg/(s^2 h)
 
+                double C2 = (fluid) ? gammau * rho * psiC : 0.;
+                
+                //if(fluid) std::cout << C1 <<" "<<C2<<"\t";
+
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
+
+                    if(fluid) aRes1[I][i] +=  C2 * h * gradPhi1[i * dim + I] * (divSol1g - divSol2g) * weight;
+
                     for(unsigned J = 0; J < dim; J++) {
                       aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
                       // kg h /(s^2) = dimension of the weak momentum equation for the fluid and the solid
                       // kg h /(s^2) = [C1] * h^2
                       // [C1] for the solid should be kg/(s^2 h)
+
 
 
                       for(unsigned K = 0; K < dim; K++) {
@@ -384,6 +396,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                   }
 
                   for(unsigned i = 0; i < nDofs2; i++) {
+                    if(fluid) aRes2[I][i] +=  -C2 * h * gradPhi2[i * dim + I] * (divSol1g - divSol2g) * weight;
                     for(unsigned J = 0; J < dim; J++) {
                       aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
 
@@ -773,6 +786,9 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       std::vector < adept::adouble > sol1g(dim, 0.);
                       std::vector < adept::adouble > sol2g(dim, 0.);
 
+                      adept::adouble divSol1g = 0.;
+                      adept::adouble divSol2g = 0.;
+
                       std::vector < adept::adouble > gradSol1DotN(dim, 0.);
                       std::vector < adept::adouble > gradSol2DotN(dim, 0.);
 
@@ -781,6 +797,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
+                          divSol1g = sol1[I][i] * gradPhi1[i * dim + I];
                           sol1g[I] += phi1[i] * sol1[I][i];
                           sol1gOld[I] += phi1[i] * sol1Old[I][i];
                           for(unsigned J = 0; J < dim; J++) {
@@ -801,6 +818,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs2; i++) {
+                          divSol2g = sol2[I][i] * gradPhi2[i * dim + I];
                           sol2g[I] += phi2[i] * sol2[I][i];
                           sol2gOld[I] += phi2[i] * sol2Old[I][i];
                           for(unsigned J = 0; J < dim; J++) {
@@ -841,8 +859,11 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
                       // [C1] for the solid is kg/(s^2 h)
 
+                      double C2 = (fluid) ? gammau * rho * psiC : 0.;
+
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
+                          if(fluid) aRes1[I][i] +=  C2 * h * gradPhi1[i * dim + I] * (divSol1g - divSol2g) * weight;
                           for(unsigned J = 0; J < dim; J++) {
                             aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
                             for(unsigned K = 0; K < dim; K++) {
@@ -859,6 +880,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         }
 
                         for(unsigned i = 0; i < nDofs2; i++) {
+                          if(fluid) aRes2[I][i] +=  -C2 * h * gradPhi2[i * dim + I] * (divSol1g - divSol2g) * weight;
                           for(unsigned J = 0; J < dim; J++) {
                             aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
 

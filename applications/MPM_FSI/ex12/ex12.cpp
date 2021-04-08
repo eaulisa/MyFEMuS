@@ -20,7 +20,7 @@ void BuildFlag(MultiLevelSolution& mlSol);
 double eps = 0.;
 
 double gravity[3] = {0., 0., 0.};
-bool weakP = true;
+bool weakP = false;
 
 double theta = .75;
 double af = 1. - theta;
@@ -31,6 +31,8 @@ double Gamma = 0.5 + (af - am);
 
 double gammac = 0.05;
 double gammap = 0.05;
+double gammau = 0.05 * gammac;
+
 double GAMMA = 100.;   // 10, 45 in the paper.
 
 #include "../../Nitsche/support/particleInit.hpp"
