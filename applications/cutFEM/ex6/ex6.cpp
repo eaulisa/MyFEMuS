@@ -39,7 +39,24 @@ LimLi(const int &n, const Float1 &x) {
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Int0to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+Int0to1LimLiA(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+  Type TRI(0.);
+  Type x(a + d);
+
+  for(unsigned i = 1; i <= s; i++) {
+    TRI -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
+  }
+  TRI += pow(-a, s) / factorial<Type>(m + 1 + s);
+  TRI *= factorial<Type>(m);
+  return TRI;
+
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Int0to1LimLiB(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
   Type TRI(0.);
@@ -65,6 +82,96 @@ Int0to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) 
   return TRI;
 
 }
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Int0to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+
+  if(d >= 0 && a + d >= 0) {
+    return Int0to1LimLiA(s, m, a, d);
+  }
+  else {
+    return Int0to1LimLiB(s, m, a, d);
+  }
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Intm1to1LimLiA(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+  Type TRI(0.);
+  Type x(a + d);
+  Type y(-a + d);
+
+  for(unsigned i = 1; i <= s; i++) {
+    TRI += pow(-a, s - i) / factorial<Type>(m + 1 + s - i) *
+           (pow(x, i) + pow(-1, m + s - i) * pow(y, i)) / factorial<Type>(i);
+  }
+  TRI += pow(-a, s) * (1 + pow(-1, m + s)) / factorial<Type>(m + 1 + s);
+  TRI *= factorial<Type>(m);
+  return TRI;
+
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Intm1to1LimLiB(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+  Type TRI(0.);
+  Type x(a + d);
+  if(x >= 0) {
+    Type g = LimLi(s + 1, x) / (-a * factorial<Type>(m));
+    if(s + 1 != 0) {
+      for(unsigned i = 1; i <= m + 1; i++) {
+        TRI += g;
+        g *= x / (s + i + 1) * (m + 1 - i) / (-a);
+      }
+    }
+    else {
+      Type g = ((x > 0.) ?  -1. : -0.5) / (-a * factorial<Type>(m));
+      for(unsigned i = 1; i <= m + 1; i++) {
+        TRI += g;
+        g *= (m + 1 - i) / (-a);
+      }
+    }
+  }
+  x = -a + d;
+  if(x >= 0) {
+    Type g = LimLi(s + 1, x) / (pow(-1, m) * a * factorial<Type>(m));
+    if(s + 1 != 0) {
+      for(unsigned i = 1; i <= m + 1; i++) {
+        TRI += g;
+        g *= x / (s + i + 1) * (m + 1 - i) / a;
+      }
+    }
+    else {
+      Type g = ((x > 0.) ?  -1. : -0.5) / (pow(-1, m) * a * factorial<Type>(m));
+      for(unsigned i = 1; i <= m + 1; i++) {
+        TRI += g;
+        g *= (m + 1 - i) / a;
+      }
+    }
+  }
+
+  TRI *= factorial<Type>(m);
+  return TRI;
+
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Intm1to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
+
+  if(-a + d >= 0 && a + d >= 0) {
+    return Intm1to1LimLiA(s, m, a, d);
+  }
+  else {
+    return Intm1to1LimLiB(s, m, a, d);
+  }
+}
+
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
@@ -293,12 +400,23 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
 
 int main(int, char**) {
 
-  
+  double aa = -.000001;
+  double dd = 2;
+
+  unsigned mm = 5;
+  int ss = 4;
+
+  std::cout << Intm1to1LimLiA(ss, mm, aa, dd) << " " << Intm1to1LimLiB(ss, mm, aa, dd) << std::endl;
+
+  return 1;
+
+
+
   //typedef double myType;
-  typedef double myType;  
+  typedef double myType;
   //typedef boost::multiprecision::cpp_bin_float_oct myType;
-  
-  
+
+
   //typedef cpp_dec_float_50 myType;
   //typedef cpp_dec_float_100 myType;
   //typedef boost::multiprecision::cpp_dec_float_200 myType;
@@ -314,6 +432,8 @@ int main(int, char**) {
   std::vector<myType>a = {0., 0., 0.};
   std::vector<myTypeB> af = {0., 0., 0.};
 
+  myType eps = 1.0e-15;
+
   myType d;
   myTypeB df;
 
@@ -324,7 +444,7 @@ int main(int, char**) {
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
@@ -335,48 +455,48 @@ int main(int, char**) {
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
   for(unsigned i = 0; i < 1000; i++) {
-      
+
     a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = -a[0];
     a[2] = sqrt(1 - a[0] * a[0] + a[1] * a[1]);
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
-    }  
+    }
 
     af[0] = a[0];
     af[1] = a[1];
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
@@ -387,7 +507,7 @@ int main(int, char**) {
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
@@ -398,16 +518,16 @@ int main(int, char**) {
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
@@ -418,27 +538,27 @@ int main(int, char**) {
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
     }
-    
+
     af[0] = a[0];
     af[1] = a[1];
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
@@ -446,11 +566,11 @@ int main(int, char**) {
     a[0] = 1.;
     a[1] = 0.;
     a[2] = 0.;
-    
+
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
@@ -461,116 +581,116 @@ int main(int, char**) {
     af[2] = a[2];
     df = d;
 
-   if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
 
   for(unsigned i = 0; i < 1000; i++) {
-    
+
     a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = sqrt(1. - a[0] * a[0]);
     a[2] = 0.;
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
     }
-    
+
     af[0] = a[0];
     af[1] = a[1];
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, af, df) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
-      std::cout << Tetrahedron(-1,  m, af, df)<<" " << TetrahedronB(-1,  m, a, d) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, af, df) << " " << TetrahedronB(-1,  m, a, d) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, af, df) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
-      std::cout << Tetrahedron(0,  m, af, df)<<" " << TetrahedronB(0,  m, a, d) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, af, df) << " " << TetrahedronB(0,  m, a, d) << std::endl;
     }
   }
 
   for(unsigned i = 0; i < 1000; i++) {
-    
+
     a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[1] = 0.;
     a[2] = sqrt(1. - a[0] * a[0]);;
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
-    }  
-   
+    }
+
     af[0] = a[0];
     af[1] = a[1];
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
-  
+
   for(unsigned i = 0; i < 1000; i++) {
-    
+
     a[0] = 0.;
     a[1] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
     a[2] = sqrt(1. - a[0] * a[0]);;
     d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
     if(a[0] + a[1] + d <= 0) {
-      a[0] = -a[0];  
+      a[0] = -a[0];
       a[1] = -a[1];
       a[2] = -a[2];
       d = -d;
-    }  
-   
+    }
+
     af[0] = a[0];
     af[1] = a[1];
     af[2] = a[2];
     df = d;
 
-    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > 1.0e-12){
+    if(fabs(Tetrahedron(-1,  m, a, d) - TetrahedronB(-1,  m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(-1,  m, a, d)<<" " << TetrahedronB(-1,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(-1,  m, a, d) << " " << TetrahedronB(-1,  m, af, df) << std::endl;
     }
 
-    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > 1.0e-12){
-      std::cout << "volume test failed" << std::endl;  
+    if(fabs(Tetrahedron(0,  m, a, d) - TetrahedronB(0,  m, af, df)) > eps) {
+      std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << "\n";
-      std::cout << Tetrahedron(0,  m, a, d)<<" " << TetrahedronB(0,  m, af, df) << std::endl;
+      std::cout << Tetrahedron(0,  m, a, d) << " " << TetrahedronB(0,  m, af, df) << std::endl;
     }
   }
 
