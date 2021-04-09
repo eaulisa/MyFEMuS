@@ -1,29 +1,10 @@
 
 #include <iostream>
 #include <iomanip>
-#include <boost/multiprecision/cpp_dec_float.hpp>
-#include <boost/math/special_functions/bessel.hpp>
+
 #include <boost/math/special_functions/factorials.hpp>
-//#include <quadmath.h>
-#include <boost/multiprecision/cpp_bin_float.hpp>
 
-
-using boost::multiprecision::cpp_dec_float_50;
-using boost::multiprecision::cpp_dec_float_100;
 using boost::math::factorial;
-
-namespace boost {
-  namespace multiprecision {
-    typedef number<cpp_dec_float<200> > cpp_dec_float_200;
-
-    typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
-    typedef number < backends::cpp_bin_float < 53, backends::digit_base_2, void, boost::int16_t, -1022, 1023 >, et_off >       cpp_bin_float_double;
-    typedef number < backends::cpp_bin_float < 64, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >     cpp_bin_float_double_extended;
-    typedef number < backends::cpp_bin_float < 113, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >    cpp_bin_float_quad;
-    typedef number < backends::cpp_bin_float < 237, backends::digit_base_2, void, boost::int32_t, -262142, 262143 >, et_off >  cpp_bin_float_oct;
-  }
-} // namespaces
-
 
 template <class Float1>
 typename boost::math::tools::promote_args<Float1>::type
@@ -37,144 +18,110 @@ LimLi(const int &n, const Float1 &x) {
   else return -0.5;
 }
 
-template <class Float1, class Float2>
-typename boost::math::tools::promote_args<Float1, Float2>::type
-Int0to1LimLiA(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
-
-  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
-  Type TRI(0.);
-  Type x(a + d);
-
-  for(unsigned i = 1; i <= s; i++) {
-    TRI -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
-  }
-  TRI += pow(-a, s) / factorial<Type>(m + 1 + s);
-  TRI *= factorial<Type>(m);
-  return TRI;
-
-}
+#include "oldFunctions.hpp"
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Int0to1LimLiB(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
-
+Int0to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
-  Type TRI(0.);
-  Type x(a + d);
-  if(x >= 0) {
-    Type g = LimLi(s + 1, x) / (-a * factorial<Type>(m));
-    if(s + 1 != 0) {
-      for(unsigned i = 1; i <= m + 1; i++) {
-        std::cout << i <<" "<< g << "\n"; 
-        TRI += g;
-        g *= x / (s + i + 1) * (m + 1 - i) / (-a);
-      }
+
+  Type INT = 0.;
+  bool unitStepFunctionComplement = false;
+
+  if(d > 0) { //this assures that for s < 1, either limit a + d or d below is negative
+    if(s == -1) { //this is the Dirac distribution, the sign of the normal can be changed and INT(delta(ax+d)) = INT(delta(-ax-d))
+      a = -a;
+      d = -d;
     }
-    else {
-      Type g = ((x > 0.) ?  -1. : -0.5) / (-a * factorial<Type>(m));
+    else if(s == 0) { //this is the unit step function, the sign of the normal can be changed if INT(U(ax+d)) = INT(1) - INT(U(-ax-d))
+      a = -a;
+      d = -d;
+      unitStepFunctionComplement = true;
+      INT = -1. / (m + 1);
+    }
+  }
+
+  Type x(a + d);
+
+  if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
+    if(x >= 0.) {
+      Type g =  1. / (-a);
       for(unsigned i = 1; i <= m + 1; i++) {
-        std::cout << i <<" "<< g << "\n";   
-        TRI += g;
+        INT += g * LimLi(s + i, x);
         g *= (m + 1 - i) / (-a);
       }
     }
+    else if(d >= 0.) {
+      INT += pow(-1. / a, m) * LimLi(s + m + 1, d) / a * factorial<Type>(m);
+    }
   }
-  TRI += pow(-1. / a, m) * LimLi(s + m + 1, d) / a;
-  TRI *= factorial<Type>(m);
-  return TRI;
-
+  else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
+    for(unsigned i = 1; i <= s; i++) {
+      INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
+    }
+    INT += pow(-a, s) / factorial<Type>(m + 1 + s);
+    INT *= factorial<Type>(m);
+  }
+  return (unitStepFunctionComplement) ? -INT : INT;
 }
+
+
+
+
+
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Int0to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
-
-  std::cout << s <<std::endl;  
-    
-  if(s > 0 && d >= 0 && a + d >= 0) {
-    return Int0to1LimLiA(s, m, a, d);
-  }
-  else {
-    return Int0to1LimLiB(s, m, a, d);
-  }
-}
-
-template <class Float1, class Float2>
-typename boost::math::tools::promote_args<Float1, Float2>::type
-Intm1to1LimLiA(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
-
+Intm1to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
-  Type TRI(0.);
+
+  Type INT = 0.;
+  bool unitStepFunctionComplement = false;
+
+  if(d > 0) { //this assures that for s < 1, either limit x or y below is negative
+    if(s == -1) { //this is the Dirac distribution, the sign of the normal can be changed and INT(delta(ax+d)) = INT(delta(-ax-d))
+      a = -a;
+      d = -d;
+    }
+    else if(s == 0) { //this is the unit step function, the sign of the normal can be changed if INT(U(ax+d)) = INT(1) - INT(U(-ax-d))
+      a = -a;
+      d = -d;
+      unitStepFunctionComplement = true;
+      INT = -(1. + pow(-1., m)) / (m + 1);
+    }
+  }
+
   Type x(a + d);
   Type y(-a + d);
 
-  for(unsigned i = 1; i <= s; i++) {
-    TRI += pow(-a, s - i) / factorial<Type>(m + 1 + s - i) *
-           (pow(x, i) + pow(-1, m + s - i) * pow(y, i)) / factorial<Type>(i);
-  }
-  TRI += pow(-a, s) * (1 + pow(-1, m + s)) / factorial<Type>(m + 1 + s);
-  TRI *= factorial<Type>(m);
-  return TRI;
-
-}
-
-template <class Float1, class Float2>
-typename boost::math::tools::promote_args<Float1, Float2>::type
-Intm1to1LimLiB(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
-
-  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
-  Type TRI(0.);
-  Type x(a + d);
-  if(x >= 0) {
-    Type g = LimLi(s + 1, x) / (-a * factorial<Type>(m));
-    if(s + 1 != 0) {
+  if(x < 0 || y < 0) { // in all these cases no-significant digit cancellation occurs
+    if(x >= 0.) {
+      Type g =  1. / (-a);
       for(unsigned i = 1; i <= m + 1; i++) {
-        TRI += g;
-        g *= x / (s + i + 1) * (m + 1 - i) / (-a);
-      }
-    }
-    else {
-      Type g = ((x > 0.) ?  -1. : -0.5) / (-a * factorial<Type>(m));
-      for(unsigned i = 1; i <= m + 1; i++) {
-        TRI += g;
+        INT += g * LimLi(s + i, x);
         g *= (m + 1 - i) / (-a);
       }
     }
-  }
-  x = -a + d;
-  if(x >= 0) {
-    Type g = LimLi(s + 1, x) / (pow(-1, m) * a * factorial<Type>(m));
-    if(s + 1 != 0) {
+    else if(y >= 0.) {
+      Type g =  pow(-1., m) / a;
       for(unsigned i = 1; i <= m + 1; i++) {
-        TRI += g;
-        g *= x / (s + i + 1) * (m + 1 - i) / a;
-      }
-    }
-    else {
-      Type g = ((x > 0.) ?  -1. : -0.5) / (pow(-1, m) * a * factorial<Type>(m));
-      for(unsigned i = 1; i <= m + 1; i++) {
-        TRI += g;
+        INT += g * LimLi(s + i, y);
         g *= (m + 1 - i) / a;
       }
     }
   }
-
-  TRI *= factorial<Type>(m);
-  return TRI;
-
+  else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and (-a+d) are non-negative and d >> a
+    for(unsigned i = 1; i <= s; i++) {
+      INT += pow(-a, s - i) / factorial<Type>(m + 1 + s - i) *
+             (pow(x, i) + pow(-1, m + s - i) * pow(y, i)) / factorial<Type>(i);
+    }
+    INT += pow(-a, s) * (1 + pow(-1, m + s)) / factorial<Type>(m + 1 + s);
+    INT *= factorial<Type>(m);
+  }
+  return (unitStepFunctionComplement) ? -INT : INT;
 }
 
-template <class Float1, class Float2>
-typename boost::math::tools::promote_args<Float1, Float2>::type
-Intm1to1LimLi(const int &s, const unsigned &m, const Float1 &a, const Float2 &d) {
 
-  if(s > 0 && -a + d >= 0 && a + d >= 0) {
-    return Intm1to1LimLiA(s, m, a, d);
-  }
-  else {
-    return Intm1to1LimLiB(s, m, a, d);
-  }
-}
 
 
 template <class Float1, class Float2>
@@ -398,111 +345,147 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
   }
 }
 
-
-
-
-
 int main(int, char**) {
-
-//   double aa = -.000001;
-//   double dd = 2;
-//
-//   unsigned mm = 5;
-//   int ss = 4;
-//
-//   std::cout << Intm1to1LimLiA(ss, mm, aa, dd) << " " << Intm1to1LimLiB(ss, mm, aa, dd) << std::endl;
-//
-//   return 1;
-
-
-
-  //typedef double myType;
+    
   typedef double myType;
-  //typedef boost::multiprecision::cpp_bin_float_oct myType;
-
-
-  //typedef cpp_dec_float_50 myType;
-  //typedef cpp_dec_float_100 myType;
-  //typedef boost::multiprecision::cpp_dec_float_200 myType;
-  //typedef boost::multiprecision::cpp_bin_float_double myType;
-  //typedef boost::multiprecision::cpp_bin_float_double_extended myType; //long double
-  //typedef boost::multiprecision::cpp_bin_float_quad myType;
-  //typedef long double myTypeB;
+//  typedef double myTypeB;
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
+  bool line = true;
   bool triangle = true;
-  bool tetrahedron = false;
+  bool tetrahedron = true;
+  
+  
+  myType eps = 1.0e-15;
+  if (line) {
+    myType a;
+    myType d;
+
+    myTypeB af;
+    myTypeB df;
 
 
+    unsigned mm = 5;
+    int ss = 4;
+
+    std::cout << "testing the Line Integrals \n";
+
+    for(unsigned i = 0; i < 1000; i++) {
+      a = 0.1 * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;;
+      d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+
+      af = a;
+      df = d;
+
+      if(fabs(Intm1to1LimLiC(-1, mm, af, df) - Intm1to1LimLi(-1, mm, a, d)) > eps) {
+        std::cout << "surface test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Intm1to1LimLiC(-1, mm, af, df) << " " << Intm1to1LimLi(-1, mm, a, d) << std::endl;
+      }
+
+      if(fabs(Intm1to1LimLiC(0, mm, af, df) - Intm1to1LimLi(0, mm, a, d)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Intm1to1LimLiC(0, mm, af, df) << " " << Intm1to1LimLi(0, mm, a, d) << std::endl;
+      }
+
+      if(fabs(Intm1to1LimLiC(ss, mm, a, d) - Intm1to1LimLi(ss, mm, a, d)) > eps) {
+        std::cout << "ss test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Intm1to1LimLiC(ss, mm, a, d) << " " << Intm1to1LimLi(ss, mm, a, d) << std::endl;
+      }
+
+      //////////////////////////////////////////////////////////////////
+
+      if(fabs(Int0to1LimLiC(-1, mm, af, df) - Int0to1LimLi(-1, mm, a, d)) > eps) {
+        std::cout << "surface test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Int0to1LimLiC(-1, mm, af, df) << " " << Int0to1LimLi(-1, mm, a, d) << std::endl;
+      }
+
+      if(fabs(Int0to1LimLiC(0, mm, af, df) - Int0to1LimLi(0, mm, a, d)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Int0to1LimLiC(0, mm, af, df) << " " << Int0to1LimLi(0, mm, a, d) << std::endl;
+      }
+
+      if(fabs(Int0to1LimLiC(ss, mm, a, d) - Int0to1LimLi(ss, mm, a, d)) > eps) {
+        std::cout << "ss test failed" << std::endl;
+        std::cout << "normal = " << a << " " << d << "\n";
+        std::cout << Int0to1LimLiC(ss, mm, a, d) << " " << Int0to1LimLi(ss, mm, a, d) << std::endl;
+      }
+    }
+  }
+ 
   if(triangle) {
     std::cout << "testing the Triangle \n";
     std::vector<unsigned>m = {6, 6};
     std::vector<myType>a = {0., 0.};
     std::vector<myTypeB> af = {0., 0.};
 
-    myType eps = 1.0e-8;
+
 
     myType d;
     myTypeB df;
 
-//     for(unsigned i = 0; i < 1000; i++) {
-//       a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
-//       a[1] = sqrt(1 - a[0] * a[0]);
-//       d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
-// 
-//       if(a[0] + a[1] + d <= 0) {
-//         a[0] = -a[0];
-//         a[1] = -a[1];
-//         d = -d;
-//       }
-// 
-//       af[0] = a[0];
-//       af[1] = a[1];
-//       df = d;
-// 
-//       if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
-//         std::cout << "surface test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
-//         std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
-//       }
-// 
-//       if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
-//         std::cout << "volume test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << d << "\n";
-//         std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
-//       }
-//     }
-// 
-//     for(unsigned i = 0; i < 1000; i++) {
-// 
-//       a[0] = 0.5;
-//       a[1] = -a[0];
-//       d = 5. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
-// 
-//       if(a[0] + a[1] + d <= 0) {
-//         a[0] = -a[0];
-//         a[1] = -a[1];
-//         d = -d;
-//       }
-// 
-//       af[0] = a[0];
-//       af[1] = a[1];
-//       df = d;
-// 
-//       if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
-//         std::cout << "surface test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
-//         std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
-//       }
-// 
-//       if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
-//         std::cout << "volume test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << d << "\n";
-//         std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
-//       }
-//     }
+    for(unsigned i = 0; i < 1000; i++) {
+      a[0] = (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+      a[1] = sqrt(1 - a[0] * a[0]);
+      d = 10. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
 
-    for(unsigned i = 0; i < 1; i++) {
+      if(a[0] + a[1] + d <= 0) {
+        a[0] = -a[0];
+        a[1] = -a[1];
+        d = -d;
+      }
+
+      af[0] = a[0];
+      af[1] = a[1];
+      df = d;
+
+      if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
+        std::cout << "surface test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
+        std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
+      }
+
+      if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << d << "\n";
+        std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
+      }
+    }
+
+    for(unsigned i = 0; i < 1000; i++) {
+
+      a[0] = 0.5;
+      a[1] = -a[0];
+      d = 5. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+
+      if(a[0] + a[1] + d <= 0) {
+        a[0] = -a[0];
+        a[1] = -a[1];
+        d = -d;
+      }
+
+      af[0] = a[0];
+      af[1] = a[1];
+      df = d;
+
+      if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
+        std::cout << "surface test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
+        std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
+      }
+
+      if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << d << "\n";
+        std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
+      }
+    }
+
+    for(unsigned i = 0; i < 1000; i++) {
 
       a[0] = 0.;
       a[1] = 1.;
@@ -524,40 +507,41 @@ int main(int, char**) {
         std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
       }
 
-//       if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
-//         std::cout << "volume test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << d << "\n";
-//         std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
-//       }
+      if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << d << "\n";
+        std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
+      }
     }
-//
-//     for(unsigned i = 0; i < 1000; i++) {
-//       a[0] = 1.;
-//       a[1] = 0.;
-//       d = 5. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
-//
-//       if(a[0] + a[1] + d <= 0) {
-//         a[0] = -a[0];
-//         a[1] = -a[1];
-//         d = -d;
-//       }
-//
-//       af[0] = a[0];
-//       af[1] = a[1];
-//       df = d;
-//
-//       if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
-//         std::cout << "surface test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
-//         std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
-//       }
-//
-//       if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
-//         std::cout << "volume test failed" << std::endl;
-//         std::cout << a[0] << " " << a[1] << " " << d << "\n";
-//         std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
-//       }
-//     }
+
+    for(unsigned i = 0; i < 1000; i++) {
+
+      a[0] = 1.;
+      a[1] = 0.;
+      d = 5. * (0.5 * RAND_MAX - static_cast <myType>(rand())) / RAND_MAX;
+
+      if(a[0] + a[1] + d <= 0) {
+        a[0] = -a[0];
+        a[1] = -a[1];
+        d = -d;
+      }
+
+      af[0] = a[0];
+      af[1] = a[1];
+      df = d;
+
+      if(fabs(Triangle(-1,  m, a, d) - TriangleFull(-1,  m, af, df)) > eps) {
+        std::cout << "surface test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << " " << d << "\n";
+        std::cout << Triangle(-1,  m, a, d) << " " << TriangleFull(-1,  m, af, df) << std::endl;
+      }
+
+      if(fabs(Triangle(0,  m, a, d) - TriangleFull(0,  m, af, df)) > eps) {
+        std::cout << "volume test failed" << std::endl;
+        std::cout << a[0] << " " << a[1] << " " << d << "\n";
+        std::cout << Triangle(0,  m, a, d) << " " << TriangleFull(0,  m, af, df) << std::endl;
+      }
+    }
   }
 
   if(tetrahedron) {
@@ -931,6 +915,7 @@ int main(int, char**) {
     std::cout << a[0] << " " << a[1] << " " << a[2] << " " << d << " " << TetrahedronB(0,  m, a, d) << " " << Tetrahedron(0,  m, a, d) << std::endl;
   }*/
 }
+
 
 
 
