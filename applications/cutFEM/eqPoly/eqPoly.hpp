@@ -54,6 +54,11 @@ class EquivalentPolynomial {
     static std::vector<std::vector<double>> _A24_inverse;
     static std::vector<std::vector<double>> _A22T_inverse;
     static std::vector<std::vector<double>> _A32_inverse;
+    
+    static std::vector<std::vector<double>> _ATA_deg6_hex;
+    static std::vector<std::vector<double>> _ATA_deg8_hex;
+    static std::vector<std::vector<double>> _ATA_deg3_prism;
+
 };
 
 #endif
