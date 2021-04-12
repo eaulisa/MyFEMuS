@@ -140,3 +140,52 @@ Intm1to1LimLiC(const int &s, const unsigned &m, const Float1 &a, const Float2 &d
   }
 }
 
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCubeC(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  Type aiI = 1. / a[i];
+
+  Type dl = -a[i] + d;
+  Type dr = a[i] + d;
+
+  Type HPI = 0.;
+
+  int sl = (m[i] % 2 == 1) ? 1. : -1.; // this is (-1)^(m-1)
+  int sr = 1; // this is (-1)^(j-1) for j = 1, ..., m + 1
+  Type c = aiI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
+  if(i > 0) {
+    for(int j = 1; j <= m[i] + 1;  c *= aiI * (m[i] + 1 - j), sr *= -1, j++) {
+      HPI += c * (sl * HyperCubeC(s + j, i - 1, m, a, dl) + sr * HyperCubeC(s + j, i - 1, m, a, dr));
+    }
+  }
+  else {
+    for(int j = 1; j <= m[i] + 1;  c *= aiI * (m[i] + 1 - j), sr *= -1, j++) {
+      HPI += -c * (sl * LimLi(s + j, dl) + sr * LimLi(s + j, dr));
+    }
+  }
+  return HPI;
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+  Type HCI = 1.;
+  for(int i = a.size() - 1; i >= 0; i--) {
+    if(a[i] == 0) {
+      if(m[i] % 2 == 1) {
+        return 0.;
+      }
+      else {
+        HCI *= 2. / (m[i] + 1.);
+        a.erase(a.begin() + i);
+        m.erase(m.begin() + i);
+      }
+    }
+  }
+  return HCI * HyperCubeC(s, a.size() - 1, m, a, d);
+}
