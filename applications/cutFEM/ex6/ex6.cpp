@@ -194,13 +194,24 @@ TriangleFull(const int &s, const std::vector<unsigned> &m_input, const std::vect
     TRI *= factorial<Type>(n);
   }
   else { //generic case
-    for(unsigned j = 1; j <= n + 1; j++) {
-      TRI -= Int0to1LimLi(s + j, m + n + 1 - j, a + b, d) * pow(-1. / b, j)
-             / factorial<Type>(n + 1 - j);
+    if(fabs(a) < fabs(b)) { // |a| < |b|
+      for(unsigned j = 1; j <= n + 1; j++) {
+        TRI -= Int0to1LimLi(s + j, m + n + 1 - j, a + b, d) * pow(-1. / b, j)
+               / factorial<Type>(n + 1 - j);
+      }
+      TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
+      TRI *= factorial<Type>(n);
     }
-    TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
-    TRI *= factorial<Type>(n);
+    else { // |b| < |a|
+      for(unsigned j = 1; j <= m + 1; j++) {
+        TRI += (Int0to1LimLi(s + j, m + n + 1 - j, a + b, d) -
+                Int0to1LimLi(s + j, n, b, a + d)) * pow(-1. / a, j)
+               / factorial<Type>(m + 1 - j);
+      }
+      TRI *= factorial<Type>(m);
+    }
   }
+
   return TRI;
 }
 
@@ -434,15 +445,16 @@ int main(int, char**) {
 
   typedef double myType;
 
-  bool line = true;
-  bool quad = true;
+  bool line = true; // false;//true;
+  bool quad = true; //false;//true;
   bool triangle = true;
-  bool hexahedron = true;
-  bool tetrahedron = true;
+  bool hexahedron =true; //false;//true;
+  bool tetrahedron = true; //false;//true;
 
-  myType eps = 1.0e-15;
-
+  myType eps = 5.0e-11;
   if(line) TestLine(eps);
+
+  eps = 5.0e-11;
   if(triangle) TestTriangle(eps);
 
   eps = 1.0e-12;
@@ -457,6 +469,7 @@ int main(int, char**) {
 
 
 }
+
 
 
 
