@@ -223,21 +223,32 @@ Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <Float1
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  if(a[0] + a[1] + d <= 0) {
-    return TriangleReduced(s, m, a, d);
-  }
   switch(s) {
     case -1:
-      return TriangleReduced(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      if(a[0] + a[1] + d <= 0) {
+        return TriangleReduced(s, m, a, d);
+      }
+      else return TriangleReduced(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     case 0:
-      return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - TriangleReduced(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      if(a[0] + a[1] + d <= 0) {
+        return TriangleReduced(s, m, a, d);
+      }
+      else return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - Triangle(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     default:
-      return TriangleFull(s, m, a, d);
+      Type INT(0.);
+      Type m1f = factorial<Type>(m[1]);
+      INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
+             * Triangle(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
+
+      for(unsigned i = 0; i < s; i++) {
+        INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
+               * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+      }
+      return INT;
   }
 }
-
 
 
 template <class Float1, class Float2>
@@ -385,51 +396,81 @@ HyperCubeB(const int &s, unsigned i, const std::vector<unsigned> &m, const std::
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast = false) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
   Type HCI = 1.;
-  for(int i = a.size() - 1; i >= 0; i--) {
-    if(a[i] == 0) {
-      if(m[i] % 2 == 1) {
-        return 0.;
+  if(!fast) {
+    for(int i = a.size() - 1; i >= 0; i--) {
+      if(a[i] == 0) {
+        if(m[i] % 2 == 1) {
+          return 0.;
+        }
+        else {
+          HCI *= 2. / (m[i] + 1.);
+          a.erase(a.begin() + i);
+          m.erase(m.begin() + i);
+        }
       }
-      else {
-        HCI *= 2. / (m[i] + 1.);
-        a.erase(a.begin() + i);
-        m.erase(m.begin() + i);
+    }
+
+    for(unsigned i = 0; i < a.size() - 1; i++) {
+      for(unsigned j = 1; j < a.size(); j++) {
+        if(fabs(a[i]) > fabs(a[j])) {
+          std::swap(a[i], a[j]);
+          std::swap(m[i], m[j]);
+        }
       }
     }
   }
 
-  for(unsigned i = 0; i < a.size() - 1; i++) {
-    for(unsigned j = 1; j < a.size(); j++) {
-      if(fabs(a[i]) > fabs(a[j])) {
-        std::swap(a[i], a[j]);
-        std::swap(m[i], m[j]);
-      }
-    }
-  }
-
-  if(d <= 0) {
-    return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
-  }
   Type intOf1 = 1.;
   switch(s) {
     case -1:
-      for(unsigned i = 0; i < a.size(); i++) a[i] = -a[i];
-      return HCI * HyperCubeB(s, a.size() - 1, m, a, -d);
+      if(d <= 0) {
+        return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
+      }
+      else {
+        for(unsigned i = 0; i < a.size(); i++) a[i] = -a[i];
+        return HCI * HyperCubeB(s, a.size() - 1, m, a, -d);
+      }
       break;
     case 0:
-      for(unsigned i = 0; i < a.size(); i++) {
-        a[i] = -a[i];
-        intOf1 *= (1. + pow(-1., m[i])) / (m[i] + 1.);
+      if(d <= 0) {
+        return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
       }
-      return HCI * (intOf1 - HyperCubeB(s, a.size() - 1, m, a, -d));
+      else {
+        for(unsigned i = 0; i < a.size(); i++) {
+          a[i] = -a[i];
+          intOf1 *= (1. + pow(-1., m[i])) / (m[i] + 1.);
+        }
+        return HCI * (intOf1 - HyperCubeB(s, a.size() - 1, m, a, -d));
+      }
       break;
     default:
-      HCI * HyperCubeB(s, a.size() - 1, m, a, d);
+      int n = a.size() - 1;
+      if(n > 0) {
+        Type INT(0.);
+        Type an = a[n];
+        unsigned mn = m[n];
+        Type mnf = factorial<Type>(mn);
+        m[n] += s;
+        INT += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCube(0, m, a, d, true) ;
+
+        m.resize(n);
+        a.resize(n);
+
+        for(unsigned i = 0; i < s; i++) {
+          INT += mnf / factorial<Type>(mn + 1 + i) * pow(an, i)
+                 * (pow(-1, i) * HyperCube(s - i, m, a, an + d, true) +
+                    pow(-1, mn) * HyperCube(s - i, m, a, -an + d, true));
+        }
+        return HCI * INT;
+      }
+      else {
+        return HCI * HyperCubeB(s, n, m, a, d);
+      }
   }
 }
 
@@ -445,11 +486,11 @@ int main(int, char**) {
 
   typedef double myType;
 
-  bool line = true; // false;//true;
-  bool quad = true; //false;//true;
-  bool triangle = true;
-  bool hexahedron =true; //false;//true;
-  bool tetrahedron = true; //false;//true;
+  bool line = false;//true;
+  bool quad = true;//false;//true;
+  bool triangle = true;//false;//true;
+  bool hexahedron = false;//true;
+  bool tetrahedron = false;//true;
 
   myType eps = 5.0e-11;
   if(line) TestLine(eps);
@@ -469,6 +510,10 @@ int main(int, char**) {
 
 
 }
+
+
+
+
 
 
 
