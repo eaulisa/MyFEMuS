@@ -22,6 +22,9 @@ double eps = 0.;
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 
+unsigned imax;
+std::string pfile;
+
 double theta = .75;
 double af = 1. - theta;
 double am = af - 0.1;
@@ -105,6 +108,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 10000.;
   unsigned numberOfUniformLevels = 6; //for refinement in 3D
+  unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
@@ -248,19 +252,19 @@ int main(int argc, char** args) {
 
   system2.SetTolerances(1.e-10, 1.e-15, 1.e+50, 2, 2);
 
-   
+
   std::ifstream fin;
-  std::ostringstream level_number;    
-  level_number<<0;
-  
+  std::ostringstream level_number;
+  level_number << 0;
+
   //BEGIN bulk reading
-  
-  std::string bulkfile="../input/";
-  bulkfile+="beam";
-  bulkfile+=level_number.str(); 
-  bulkfile+=".bulk.txt";
-  
-  
+
+  std::string bulkfile = "../input/";
+  bulkfile += "beam";
+  bulkfile += level_number.str();
+  bulkfile += ".bulk.txt";
+
+
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
@@ -272,9 +276,9 @@ int main(int argc, char** args) {
   xp.resize(size);
   wp.resize(size);
   dist.resize(size);
-  markerType.assign(size,VOLUME);
+  markerType.assign(size, VOLUME);
   for(unsigned ip = 0; ip < xp.size(); ip++) {
-    xp[ip].resize(dim);  
+    xp[ip].resize(dim);
     for(unsigned k = 0; k < dim; k++) {
       fin >> xp[ip][k];
     }
@@ -282,8 +286,8 @@ int main(int argc, char** args) {
     fin >> dist[ip];
   }
   fin.close();
-  
-  
+
+
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
@@ -291,14 +295,14 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
 
   //END bulk reading
-  
+
   //BEGIN interface reading
-  
-  std::string interfacefile="../input/";
-  interfacefile+="beam";
-  interfacefile+=level_number.str(); 
-  interfacefile+=".interface.txt";
-  
+
+  std::string interfacefile = "../input/";
+  interfacefile += "beam";
+  interfacefile += level_number.str();
+  interfacefile += ".interface.txt";
+
   std::vector < std::vector < std::vector < double > > > T;
   fin.open(interfacefile);
   fin >> dim >> size;
@@ -306,28 +310,64 @@ int main(int argc, char** args) {
   T.resize(size);
   markerType.assign(size, INTERFACE);
   for(unsigned ip = 0; ip < xp.size(); ip++) {
-    xp[ip].resize(dim);  
+    xp[ip].resize(dim);
     for(unsigned k = 0; k < dim; k++) {
       fin >> xp[ip][k];
     }
-    T[ip].resize(dim-1);
+    T[ip].resize(dim - 1);
     for(unsigned l = 0; l < dim - 1; l++) {
-      T[ip][l].resize(dim);  
+      T[ip][l].resize(dim);
       for(unsigned k = 0; k < dim; k++) {
         fin >> T[ip][l][k];
       }
     }
   }
   fin.close();
- 
-  
+
+
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
+
+  double hmax = -1.0e10;
+  imax = lineIPoints[0].size();
+  for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
+    if(lineIPoints[0][i][1] > hmax) {
+      imax = i;
+      hmax = lineIPoints[0][i][1];
+    }
+  }
+  std::cout << "imax = " << imax << " hmax = " << hmax << std::endl;
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface reading
 
+
+  unsigned iproc = mlMsh.GetLevel(0)->processor_id();
+
+  std::ofstream fout;
+  std::ofstream pout;
+
+  level_number << numberOfUniformLevelsStart;
+
+  std::string ofile = "./save/";
+  ofile += "beamTipPositionLevel";
+  ofile += level_number.str();
+  ofile += ".COMSOL.txt";
+
+  
+  pfile = "./save/";
+  pfile += "pressureLevel";
+  pfile += level_number.str();
+  pfile += ".COMSOL.txt";
+
+  if(iproc == 0) {
+    fout.open(ofile);
+    fout << 0 << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
+
+    pout.open(pfile);
+    pout.close();
+  }
 
   lineI->GetParticlesToGridMaterial(false);
   bulk->GetParticlesToGridMaterial(false);
@@ -355,6 +395,8 @@ int main(int argc, char** args) {
   //return 1;
 
 
+
+
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 200;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
@@ -367,7 +409,24 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
 
+    
+
     system.MGsolve();
+
+    if(iproc == 0) {
+      pout.open(pfile,  std::ios_base::app);
+      pout << time_step;
+      pout.close();
+    }
+    
+    GetPressureDragAndLift(ml_prob);
+    
+    if(iproc == 0) {
+      pout.open(pfile,  std::ios_base::app);
+      pout <<std::endl;
+      pout.close();
+    }
+
 
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
@@ -376,7 +435,10 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
 
+    if(iproc == 0) fout << time_step << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
+
+  if(iproc == 0) fout.close();
 
   delete bulk;
   delete lineI;
