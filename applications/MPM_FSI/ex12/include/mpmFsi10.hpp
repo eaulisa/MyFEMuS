@@ -128,8 +128,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   vector <vector < adept::adouble> > vx(dim);
   vector <vector < double> > vxHat(dim);
+  vector <vector < adept::adouble> > vxNew(dim);
 
   adept::adouble weight;
+  adept::adouble weightNew;
   double weightHat;
 
   //double drag = 0.;
@@ -223,6 +225,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       vx[k].resize(nDofs);
       vxHat[k].resize(nDofs);
+      vxNew[k].resize(nDofs);
     }
     solP.resize(nDofsP);
     aResP.assign(nDofsP, 0.);
@@ -260,15 +263,19 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       for(unsigned  k = 0; k < dim; k++) {
         vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
         vx[k][i]  = vxHat[k][i] + (1. - af) * solD[k][i]; // deformed configuration at alpha_f/theta
+        vxNew[k][i]  = vxHat[k][i] + solD[k][i]; // deformed configuration at alpha_f/theta
       }
     }
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
 
+      msh->_finiteElement[ielt][solType]->Jacobian(vxNew, ig, weightNew, phi, gradPhi);
+
       msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, ig, weight, phiP, gradPhiP);
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weight, phi, gradPhi, nablaphi);
       msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightHat, phiHat, gradPhiHat);
+
 
       vector < adept::adouble > solVg(dim, 0.);
       vector < adept::adouble > solVgOld(dim, 0.);
@@ -472,14 +479,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             adept::adouble SupgDiv = tauC * divVgTheta * gradPhi[i * dim + k];
             adept::adouble SupgPressure = gradSolPg[k] * tauM_SupgPhi[i];
 
-            aResV[k][i] += (rhoFluid * (solVg[k] - solVgOld[k]) / dt * (phi[i] + tauM_SupgPhi[i])
-                            + advection
-                            + wlaplace + SupgLaplace
-                            - weakP * gradPhi[i * dim + k] * solPg
-                            + !weakP * phi[i] * gradSolPg[k]
-                            + SupgPressure
-                            + SupgDiv
-                           ) * weight;
+            aResV[k][i] += rhoFluid * (solVg[k] * weightNew - solVgOld[k] * weightHat) / dt * phi[i]
+                           + (rhoFluid * (solVg[k] - solVgOld[k]) / dt * tauM_SupgPhi[i]
+                              + advection
+                              + wlaplace + SupgLaplace
+                              - weakP * gradPhi[i * dim + k] * solPg
+                              + !weakP * phi[i] * gradSolPg[k]
+                              + SupgPressure
+                              + SupgDiv
+                             ) * weight;
           }
         }
 
@@ -560,10 +568,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         vector<vector < adept::adouble > > gradSolVpTheta(dim);
         vector<vector < adept::adouble > > gradSolDpHat(dim);
+        vector<vector < adept::adouble > > gradSolDpHatNew(dim);
 
         for(int j = 0; j < dim; j++) {
           gradSolVpTheta[j].assign(dim, 0.);
           gradSolDpHat[j].assign(dim, 0.);
+          gradSolDpHatNew[j].assign(dim, 0.);
         }
 
         for(int j = 0; j < dim; j++) {
@@ -572,7 +582,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             solVp[j] += phi[i] * solV[j][i];
             for(int k = 0; k < dim; k++) {
               gradSolVpTheta[j][k] +=  gradPhi[i * dim + k] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
-              gradSolDpHat[k][j] += ((1. - af) * solD[k][i]) * gradPhiHat[i * dim + j];
+              gradSolDpHat[k][j] += (1. - af) * solD[k][i] * gradPhiHat[i * dim + j];
+              gradSolDpHatNew[k][j] += solD[k][i] * gradPhiHat[i * dim + j];
             }
           }
         }
@@ -610,7 +621,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         FpOld = particlesBulk[iBmarker]->GetDeformationGradient(); //extraction of the deformation gradient
 
         adept::adouble FpNew[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        adept::adouble FpNewNew[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
         adept::adouble F[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+        adept::adouble FNew[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
         adept::adouble B[3][3];
         adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
         adept::adouble Cauchy[3][3];
@@ -618,6 +631,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned k = 0; k < dim; k++) {
             FpNew[j][k] += gradSolDpHat[j][k]; // with respect to the reference deformed configuration at alpha_f
+            FpNewNew[j][k] += gradSolDpHatNew[j][k]; // with respect to the reference deformed configuration at alpha_f
           }
         }
 
@@ -625,14 +639,31 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
               F[i][j] += FpNew[i][k] * FpOld[k][j];
+              FNew[i][j] += FpNewNew[i][k] * FpOld[k][j];
             }
           }
         }
 
-        if(dim == 2) F[2][2] = 1.;
+        if(dim == 2) {
+          F[2][2] = 1.;
+          FNew[2][2] = 1.;
+        }
+
+        adept::adouble J_hatOld;
+        if(dim == 2) {
+          J_hatOld = FpOld[0][0] * FpOld[1][1] - FpOld[0][1] + FpOld[1][0];
+        }
+        else {
+          J_hatOld = FpOld[0][0] * FpOld[1][1] * FpOld[2][2] + FpOld[0][1] * FpOld[1][2] * FpOld[2][0] + FpOld[0][2] * FpOld[1][0] * FpOld[2][1]
+                     - FpOld[2][0] * FpOld[1][1] * FpOld[0][2] - FpOld[2][1] * FpOld[1][2] * FpOld[0][0] - FpOld[2][2] * FpOld[1][0] * FpOld[0][1];
+        }
 
         adept::adouble J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
                                 - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+
+        adept::adouble J_hatNew =  FNew[0][0] * FNew[1][1] * FNew[2][2] + FNew[0][1] * FNew[1][2] * FNew[2][0] + FNew[0][2] * FNew[1][0] * FNew[2][1]
+                                   - FNew[2][0] * FNew[1][1] * FNew[0][2] - FNew[2][1] * FNew[1][2] * FNew[0][0] - FNew[2][2] * FNew[1][0] * FNew[0][1];
+
 
         for(unsigned i = 0; i < 3; i++) {
           for(int j = 0; j < 3; j++) {
@@ -658,7 +689,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         //BEGIN Navier-Stokes in the bulk interface cells (integration is on the particles in \Omega_f)
         if((1. - U) > 0 && eFlag == 1) {
 
+          adept::adouble dMOld = (1 - U) * area * rhoFluid * J_hatOld; // we need a * J_hat, to add also in the paper
           adept::adouble dM = (1 - U) * area * rhoFluid * J_hat; // we need a * J_hat, to add also in the paper
+          adept::adouble dMNew = (1 - U) * area * rhoFluid * J_hatNew; // we need a * J_hat, to add also in the paper
+
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned k = 0; k < dim; k++) {
               adept::adouble Vlaplace = 0.;
@@ -668,7 +702,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                 advection +=  phi[i] * (solVpTheta[j] - (solDp[j] - 0.) / dt) * gradSolVpTheta[k][j]; //ALE
               }
 
-              aResV[k][i] += (phi[i] * (solVp[k] - solVpOld[k]) / dt + advection +
+              aResV[k][i] += phi[i] * (solVp[k] * dMNew - solVpOld[k] * dMOld) / dt +
+                             (advection +
                               muFluid / rhoFluid * Vlaplace
                               - weakP * gradPhi[i * dim + k] * solPg / rhoFluid
                               + !weakP * phi[i] * gradSolPg[k] / rhoFluid
@@ -722,13 +757,11 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         double h = sqrt(dim) * sqrt((vxHat[0][0] - vxHat[0][1]) * (vxHat[0][0] - vxHat[0][1]) +
                                     (vxHat[1][0] - vxHat[1][1]) * (vxHat[1][0] - vxHat[1][1])) ;
 
-
         double thetaI = 1.; // t_{n + 1}
         double afI = 0.; // t_{n + 1}
         double afN = af; // t_{n + alpha_f}
 
-        double thetaM = GAMMA * muFluid / h;
-        double thetaL = GAMMA * rhoFluid / (theta * dt) * h  + thetaM;
+
 
         while(imarkerI < markerOffsetI[iproc + 1] && iel != particleI[imarkerI]->GetMarkerElement()) {
           imarkerI++;
@@ -853,6 +886,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
           }
 
+          double c = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            c += (v1[k].value() - v2[k].value()) * (v1[k].value() - v2[k].value());
+          }
+          c = sqrt(c);
+
+
+          double thetaM = GAMMA * muFluid / h; //  [rho L/ T]  
+          double thetaL = GAMMA * rhoFluid * ( (c / 6.) + h / (12. * theta * dt)) + thetaM; // [rho L/T]
 
 
 //           if(lineI->GetPrintList(imax) == imarkerI)  {
@@ -951,7 +993,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //   double dragAll, liftAll;
 //   MPI_Reduce(&drag, &dragAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
 //   MPI_Reduce(&lift, &liftAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
-// 
+//
 //   if(iproc == 0) {
 //     std::ofstream pout;
 //     pout.open(pfile,  std::ios_base::app);
@@ -1535,7 +1577,7 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
 
 
 
-void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
+void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, const unsigned &imax, const std::string &pfile) {
 
   //pointers and references
 
@@ -1546,7 +1588,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
 
   Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
   elem* el = msh->el;   // pointer to the elem object in msh (level)
-  
+
   const unsigned dim = msh->GetDimension();
 
   // reserve memory for the local standar vectors
@@ -1554,6 +1596,14 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
 
   // data
   unsigned iproc  = msh->processor_id();
+
+  std::ofstream pout;
+  if(iproc == 0) {
+    pout.open(pfile,  std::ios_base::app);
+    pout << time;
+    pout.close();
+  }
+
 
   vector< vector< double > > solD(dim);      // local solution (displacement)
   vector< vector< double > > solV(dim);      // local solution (velocity)
@@ -1565,7 +1615,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
   vector < double > phi;
   vector < double > phiHat;
   vector < double > phiP;
-  
+
   vector < double> gradPhi;  // phi_x
   vector < double > gradPhiHat;
 
@@ -1574,14 +1624,17 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
   vector <vector < double> > vx(dim);
   vector <vector < double> > vxHat(dim);
 
-  double drag = 0.;
-  double lift = 0.;
+  double dragF = 0.;
+  double liftF = 0.;
 
+  double dragS = 0.;
+  double liftS = 0.;
 
   //reading parameters for fluid FEM domain
-  double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
-  double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
+  double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
+  double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
+  double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
 
   std::cout.precision(10);
 
@@ -1613,9 +1666,8 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);  // number of pressure dofs
-   
-    double tempEflag = (*mysolution->_Sol[eflagIndex])(iel);
-    unsigned eFlag = static_cast <unsigned>(floor(tempEflag + 0.25));
+
+    unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
 
     for(unsigned  k = 0; k < dim; k++) {
       solD[k].resize(nDofs);
@@ -1652,7 +1704,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
       for(unsigned  k = 0; k < dim; k++) {
         vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
-        vx[k][i]  = vxHat[k][i] + (1. - af) * solD[k][i]; // deformed configuration at alpha_f/theta
+        vx[k][i]  = vxHat[k][i] + solD[k][i];
       }
     }
 
@@ -1660,18 +1712,14 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
 
     if(eFlag == 1) {  //interface markers
 
-      double thetaI = 1.; // t_{n + 1}
-      double afI = 0.; // t_{n + 1}
-      double afN = 0.; // t_{n + alpha_f}
-
       while(imarkerI < markerOffsetI[iproc + 1] && iel != particleI[imarkerI]->GetMarkerElement()) {
         imarkerI++;
       }
 
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
-        double weight;  
-          
+        double weight;
+
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weight, phiHat, gradPhiHat);
@@ -1684,7 +1732,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofs; i++) {
             for(int k = 0; k < dim; k++) {
-              gradSolDpHat[k][j] += ((1. - afN) * solD[k][i]) * gradPhiHat[i * dim + j];
+              gradSolDpHat[k][j] += (solD[k][i]) * gradPhiHat[i * dim + j];
             }
           }
         }
@@ -1696,10 +1744,13 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
         FpOld = particleI[imarkerI]->GetDeformationGradient(); //extraction of the deformation gradient
         double FpNew[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
         double F[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+        double B[3][3];
+        double Cauchy[3][3];
+        double Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
 
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned k = 0; k < dim; k++) {
-            FpNew[j][k] += gradSolDpHat[j][k]; // with respect to the reference deformed configuration at alpha_f
+            FpNew[j][k] += gradSolDpHat[j][k];
           }
         }
 
@@ -1711,6 +1762,26 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
           }
         }
 
+        if(dim == 2) F[2][2] = 1.;
+        double J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
+                        - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+
+        for(unsigned i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            B[i][j] = 0.;
+            for(unsigned k = 0; k < 3; k++) {
+              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+              B[i][j] += F[i][k] * F[j][k];
+            }
+          }
+        }
+
+        for(unsigned j = 0; j < 3; j++) {
+          for(unsigned k = 0; k < 3; k++) {
+            Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+          }
+        }
+
         std::vector <std::vector < double > > T;
         T.resize(THat.size());
 
@@ -1718,12 +1789,11 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
           T[k].assign(dim, 0.);
           for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              T[k][i] += F[i][j] * THat[k][j]; // can be improved
+              T[k][i] += F[i][j] * THat[k][j];
             }
           }
         }
 
-        
         std::vector < double > N(dim);
         if(dim == 2) {
           N[0] =  T[0][1];
@@ -1752,47 +1822,58 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob) {
           solPp += phiP[i] * solP[i];
         }
 
-        std::vector < double > tau(dim, 0.);
+        std::vector < double > tauF(dim, 0.);
+
 
         for(unsigned k = 0; k < dim; k++) {
-          tau[k] += solPp * N[k];
+          tauF[k] += solPp * N[k];
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              tau[k] += -muFluid * ((theta * solV[k][i] + (1. - theta) * solVOld[k][i]) * gradPhi[i * dim + j] +
-                                    (theta * solV[j][i] + (1. - theta) * solVOld[j][i]) * gradPhi[i * dim + k]) * N[j];
+              tauF[k] += -muFluid * (solV[k][i] * gradPhi[i * dim + j] + solV[j][i] * gradPhi[i * dim + k]) * N[j];
             }
           }
         }
 
+        std::vector < double > tauS(dim, 0.);
+        for(unsigned i = 0; i < dim; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            tauS[i] += Cauchy[i][j] * N[j];
+          }
+        }
 
 
         if(lineI->GetPrintList(imax) == imarkerI)  {
-          std::ofstream pout;
           pout.open(pfile,  std::ios_base::app);
           pout << " " << solPp;
           pout.close();
         }
 
         if(dim == 2) {
-          lift += (tau[0] * N[0] + tau[1] * N[1]) * weight;
-          drag += (-tau[0] * N[1] + tau[1] * N[0]) * weight;
+          liftF += (tauF[0] * N[0] + tauF[1] * N[1]) * weight;
+          dragF += (-tauF[0] * N[1] + tauF[1] * N[0]) * weight;
+          liftS += (tauS[0] * N[0] + tauS[1] * N[1]) * weight;
+          dragS += (-tauS[0] * N[1] + tauS[1] * N[0]) * weight;
         }
         else if(dim == 3) {
-          lift += (tau[0] * N[0] + tau[1] * N[1] + tau[2] * N[2]) * weight;
+          liftF += (tauF[0] * N[0] + tauF[1] * N[1] + tauF[2] * N[2]) * weight;
+          liftS += (tauS[0] * N[0] + tauS[1] * N[1] + tauS[2] * N[2]) * weight;
         }
         imarkerI++;
       }
     }
   }
 
-  double dragAll, liftAll;
-  MPI_Reduce(&drag, &dragAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
-  MPI_Reduce(&lift, &liftAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  double dragFAll, liftFAll;
+  double dragSAll, liftSAll;
+  MPI_Reduce(&dragF, &dragFAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  MPI_Reduce(&liftF, &liftFAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+
+  MPI_Reduce(&dragS, &dragSAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  MPI_Reduce(&liftS, &liftSAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
 
   if(iproc == 0) {
-    std::ofstream pout;
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << dragAll << " " << liftAll;
+    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << std::endl;
     pout.close();
   }
 

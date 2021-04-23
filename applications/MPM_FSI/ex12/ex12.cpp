@@ -22,21 +22,17 @@ double eps = 0.;
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 
-unsigned imax;
-std::string pfile;
-
 double theta = .75;
 double af = 1. - theta;
 double am = af - 0.1;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
-
 double gammac = 0.05;
 double gammap = 0.05;
 double gammau = 0.05 * gammac;
 
-double GAMMA = 100.;   // 10, 45 in the paper.
+double GAMMA = 45;   // 10, 45 in the paper.
 
 #include "../../Nitsche/support/particleInit.hpp"
 #include "../../Nitsche/support/sharedFunctions.hpp"
@@ -331,7 +327,7 @@ int main(int argc, char** args) {
   lineI->GetLine(lineIPoints[0]);
 
   double hmax = -1.0e10;
-  imax = lineIPoints[0].size();
+  unsigned imax = lineIPoints[0].size();
   for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
     if(lineIPoints[0][i][1] > hmax) {
       imax = i;
@@ -355,8 +351,7 @@ int main(int argc, char** args) {
   ofile += level_number.str();
   ofile += ".COMSOL.txt";
 
-  
-  pfile = "./save/";
+  std::string pfile = "./save/";
   pfile += "pressureLevel";
   pfile += level_number.str();
   pfile += ".COMSOL.txt";
@@ -398,7 +393,7 @@ int main(int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 200;
+  unsigned n_timesteps = 300;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
@@ -409,24 +404,11 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
 
+    system.MGsolve();   
     
-
-    system.MGsolve();
-
-    if(iproc == 0) {
-      pout.open(pfile,  std::ios_base::app);
-      pout << time_step;
-      pout.close();
-    }
+    double time = system.GetTime();
     
-    GetPressureDragAndLift(ml_prob);
-    
-    if(iproc == 0) {
-      pout.open(pfile,  std::ios_base::app);
-      pout <<std::endl;
-      pout.close();
-    }
-
+    GetPressureDragAndLift(ml_prob, time, imax, pfile);
 
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
@@ -435,7 +417,7 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
 
-    if(iproc == 0) fout << time_step << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
+    if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
 
   if(iproc == 0) fout.close();
