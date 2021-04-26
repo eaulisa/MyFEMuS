@@ -54,14 +54,23 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.e5;
 
-  mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+ // mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turekBeam2D.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
 
 
-  //mlMsh.RefineMesh(2, 2, NULL);
-
+  //mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 6 = 1 : default
+  //mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 7 = 2
+  //mlMsh.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3
+  
+  //mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 6 = 1 : default
+  mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 7 = 2
+  //mlMsh.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3
+  
+  
+  
   unsigned numberOfRefinement = 2;
 
   for(unsigned i = 0; i < numberOfRefinement; i++) {
@@ -86,7 +95,7 @@ int main(int argc, char** args) {
   // ******* Set boundary conditions *******
   mlSol.GenerateBdc("u", "Steady");
 
-  BuildMarkers(mlMsh, -0.6, 1.0E10, "beam");
+  BuildMarkers(mlMsh, -0.6, 1.0E10, "turekBeam2D");
 
   //******* Print solution *******
   mlSol.SetWriter(VTK);

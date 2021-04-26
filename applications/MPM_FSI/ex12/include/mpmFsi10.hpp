@@ -96,7 +96,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   // data
   unsigned iproc  = msh->processor_id();
 
-  vector< vector< adept::adouble > > solD(dim);      // local solution (displacement)
+  vector< vector< adept::adouble > > solDTld(dim);      // local solution (displacement)
   vector< vector< adept::adouble > > solV(dim);      // local solution (velocity)
   vector< adept::adouble > solP;
 
@@ -214,7 +214,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
     for(unsigned  k = 0; k < dim; k++) {
-      solD[k].resize(nDofs);
+      solDTld[k].resize(nDofs);
       solDOld[k].resize(nDofs);
 
       solV[k].resize(nDofs);
@@ -238,7 +238,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {
         solDOld[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idof);//t_n
-        solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
+        solDTld[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
 
         solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
         solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
@@ -262,8 +262,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
       for(unsigned  k = 0; k < dim; k++) {
         vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
-        vx[k][i]  = vxHat[k][i] + (1. - af) * solD[k][i]; // deformed configuration at alpha_f/theta
-        vxNew[k][i]  = vxHat[k][i] + solD[k][i]; // deformed configuration at alpha_f/theta
+        vx[k][i]  = vxHat[k][i] + (1. - af) * solDTld[k][i]; // deformed configuration at alpha_f/theta
+        vxNew[k][i]  = vxHat[k][i] + solDTld[k][i]; // deformed configuration at alpha_f/theta
       }
     }
 
@@ -306,9 +306,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the deformed reference configuration
           solVgTheta[j] += phi[i] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]); //velocity in the deformed theta configuration
 
-          solDg[j] += phi[i] * solD[j][i]; // new displacement
+          solDg[j] += phi[i] * solDTld[j][i]; // new displacement
           for(unsigned  k = 0; k < dim; k++) {
-            gradSolDgHat[k][j] += gradPhiHat[i * dim + j] * solD[k][i]; //gradient of new solution with respect to deformed reference configuration
+            gradSolDgHat[k][j] += gradPhiHat[i * dim + j] * solDTld[k][i]; //gradient of new solution with respect to deformed reference configuration
             gradSolVg[k][j] += gradPhi[i * dim + j] * solV[k][i]; // gradient of the new velocity with respect to the theta domain
             gradSolVgTheta[k][j] += gradPhi[i * dim + j] * (theta * solV[k][i] + (1. - theta) * solVOld[k][i]); // gradient of the theta velocity with respect to the theta domain
           }
@@ -578,12 +578,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofs; i++) {
-            solDp[j] += phi[i] * solD[j][i];
+            solDp[j] += phi[i] * solDTld[j][i];
             solVp[j] += phi[i] * solV[j][i];
             for(int k = 0; k < dim; k++) {
               gradSolVpTheta[j][k] +=  gradPhi[i * dim + k] * (theta * solV[j][i] + (1. - theta) * solVOld[j][i]);
-              gradSolDpHat[k][j] += (1. - af) * solD[k][i] * gradPhiHat[i * dim + j];
-              gradSolDpHatNew[k][j] += solD[k][i] * gradPhiHat[i * dim + j];
+              gradSolDpHat[k][j] += (1. - af) * solDTld[k][i] * gradPhiHat[i * dim + j];
+              gradSolDpHatNew[k][j] += solDTld[k][i] * gradPhiHat[i * dim + j];
             }
           }
         }
@@ -782,7 +782,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(int j = 0; j < dim; j++) {
             for(unsigned i = 0; i < nDofs; i++) {
               for(int k = 0; k < dim; k++) {
-                gradSolDpHat[k][j] += ((1. - afN) * solD[k][i]) * gradPhiHat[i * dim + j];
+                gradSolDpHat[k][j] += ((1. - afN) * solDTld[k][i]) * gradPhiHat[i * dim + j];
               }
             }
           }
@@ -869,7 +869,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(int k = 0; k < dim; k++) {
             for(unsigned i = 0; i < nDofs; i++) {
               v1[k] += phi[i] * (thetaI * solV[k][i] + (1. - thetaI) * solVOld[k][i]);
-              solDp[k] += phi[i] * solD[k][i];
+              solDp[k] += phi[i] * solDTld[k][i];
               solDpOld[k] += phi[i] * solDOld[k][i];
             }
             solAp[k] = (solDp[k] - solDpOld[k]) / (beta * dt * dt) - solVpOld[k] / (beta * dt) + (beta - 0.5) / beta * solApOld[k]; // Newmark acceleration
@@ -893,8 +893,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           c = sqrt(c);
 
 
-          double thetaM = GAMMA * muFluid / h; //  [rho L/ T]  
-          double thetaL = GAMMA * rhoFluid * ( (c / 6.) + h / (12. * theta * dt)) + thetaM; // [rho L/T]
+          double thetaM = GAMMA * muFluid / h; //  [rho L/ T]
+          double thetaL = GAMMA * rhoFluid * ((c / 6.) + h / (12. * theta * dt)) + thetaM;  // [rho L/T]
 
 
 //           if(lineI->GetPrintList(imax) == imarkerI)  {
@@ -974,7 +974,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
     // define the independent variables
     for(unsigned  k = 0; k < dim; k++) {
-      s.independent(&solD[k][0], nDofs);
+      s.independent(&solDTld[k][0], nDofs);
     }
     for(unsigned  k = 0; k < dim; k++) {
       s.independent(&solV[k][0], nDofs);
@@ -1048,7 +1048,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
   unsigned iproc  = msh->processor_id();
 
   // local objects
-  vector< vector < double > > solD(dim);
+  vector< vector < double > > solDTld(dim);
   vector< vector < double > > solDOld(dim);
   vector< vector < double > > gradSolDHat(dim);
 
@@ -1090,7 +1090,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
         ielt = msh->GetElementType(iel);
         nDofs = msh->GetElementDofNumber(iel, solType);
         for(int i = 0; i < dim; i++) {
-          solD[i].resize(nDofs);
+          solDTld[i].resize(nDofs);
           solDOld[i].resize(nDofs);
           vxHat[i].resize(nDofs);
         }
@@ -1100,7 +1100,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
           unsigned idofX = msh->GetSolutionDof(inode, iel, 2);   //local 2 global solution
           for(int i = 0; i < dim; i++) {
             solDOld[i][inode] = (*mysolution->_SolOld[indexSolD[i]])(idof);
-            solD[i][inode] = (*mysolution->_Sol[indexSolD[i]])(idof) - solDOld[i][inode];
+            solDTld[i][inode] = (*mysolution->_Sol[indexSolD[i]])(idof) - solDOld[i][inode];
             //moving domain
             vxHat[i][inode] = (*msh->_topology->_Sol[i])(idofX) + solDOld[i][inode];
           }
@@ -1121,7 +1121,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
       //update displacement and acceleration
       for(int i = 0; i < dim; i++) {
         for(unsigned inode = 0; inode < nDofs; inode++) {
-          solDp[i] += phiHat[inode] * solD[i][inode];
+          solDp[i] += phiHat[inode] * solDTld[i][inode];
         }
       }
 
@@ -1143,7 +1143,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
         for(int j = 0; j < dim; j++) {
           gradSolDHat[i][j] = 0.;
           for(unsigned inode = 0; inode < nDofs; inode++) {
-            gradSolDHat[i][j] +=  gradPhiHat[inode * dim + j] * solD[i][inode];
+            gradSolDHat[i][j] +=  gradPhiHat[inode * dim + j] * solDTld[i][inode];
           }
         }
       }
@@ -1188,7 +1188,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
         ielt = msh->GetElementType(iel);
         nDofs = msh->GetElementDofNumber(iel, solType);
         for(int i = 0; i < dim; i++) {
-          solD[i].resize(nDofs);
+          solDTld[i].resize(nDofs);
           solDOld[i].resize(nDofs);
           vxHat[i].resize(nDofs);
         }
@@ -1198,7 +1198,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
           unsigned idofX = msh->GetSolutionDof(inode, iel, 2);   //local 2 global solution
           for(int i = 0; i < dim; i++) {
             solDOld[i][inode] = (*mysolution->_SolOld[indexSolD[i]])(idof);
-            solD[i][inode] = (*mysolution->_Sol[indexSolD[i]])(idof) - solDOld[i][inode];
+            solDTld[i][inode] = (*mysolution->_Sol[indexSolD[i]])(idof) - solDOld[i][inode];
             //moving domain
             vxHat[i][inode] = (*msh->_topology->_Sol[i])(idofX) + solDOld[i][inode];
           }
@@ -1219,7 +1219,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
       //update displacement and acceleration
       for(int i = 0; i < dim; i++) {
         for(unsigned inode = 0; inode < nDofs; inode++) {
-          solDp[i] += phiHat[inode] * solD[i][inode];
+          solDp[i] += phiHat[inode] * solDTld[i][inode];
         }
       }
 
@@ -1241,7 +1241,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
         for(int j = 0; j < dim; j++) {
           gradSolDHat[i][j] = 0.;
           for(unsigned inode = 0; inode < nDofs; inode++) {
-            gradSolDHat[i][j] +=  gradPhiHat[inode * dim + j] * solD[i][inode];
+            gradSolDHat[i][j] +=  gradPhiHat[inode * dim + j] * solDTld[i][inode];
           }
         }
       }
@@ -1571,12 +1571,6 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
 
 }
 
-
-
-
-
-
-
 void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, const unsigned &imax, const std::string &pfile) {
 
   //pointers and references
@@ -1605,24 +1599,23 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
   }
 
 
-  vector< vector< double > > solD(dim);      // local solution (displacement)
-  vector< vector< double > > solV(dim);      // local solution (velocity)
+  vector< vector< double > > solDTld(dim);      // as in the paper
+  vector< vector< double > > solV(dim);         // velocity at n+1
   vector< double > solP;
 
-  vector< vector< double > > solDOld(dim);      // local solution (displacement)
-  vector< vector< double > > solVOld(dim);
+  vector< vector< double > > solDOld(dim);      // displacement at n
 
   vector < double > phi;
-  vector < double > phiHat;
   vector < double > phiP;
+  double weight;
 
-  vector < double> gradPhi;  // phi_x
-  vector < double > gradPhiHat;
+   vector <vector < double> > vx(dim); // background mesh configuration at n + 1 
+  vector <vector < double> > vxOld(dim); // background mesh configuration at n
+  
+  vector < double> gradPhi;  // gradient with respect to vx
+  vector < double > gradOldPhi; // gradient with respect to vxOld
 
-  unsigned dim2 = 3 * (dim - 1);
-
-  vector <vector < double> > vx(dim);
-  vector <vector < double> > vxHat(dim);
+ 
 
   double dragF = 0.;
   double liftF = 0.;
@@ -1658,8 +1651,6 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
   unsigned imarkerI = markerOffsetI[iproc];
 
-
-
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielt = msh->GetElementType(iel);
@@ -1670,14 +1661,13 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
     unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
 
     for(unsigned  k = 0; k < dim; k++) {
-      solD[k].resize(nDofs);
+      solDTld[k].resize(nDofs);
       solDOld[k].resize(nDofs);
 
       solV[k].resize(nDofs);
-      solVOld[k].resize(nDofs);
 
       vx[k].resize(nDofs);
-      vxHat[k].resize(nDofs);
+      vxOld[k].resize(nDofs);
     }
     solP.resize(nDofsP);
 
@@ -1687,11 +1677,8 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
 
       for(unsigned  k = 0; k < dim; k++) {
         solDOld[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idof);//t_n
-        solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
-
+        solDTld[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
         solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-        solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-
       }
     }
 
@@ -1703,8 +1690,8 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
       for(unsigned  k = 0; k < dim; k++) {
-        vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
-        vx[k][i]  = vxHat[k][i] + solD[k][i];
+        vxOld[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
+        vx[k][i]  = vxOld[k][i] + solDTld[k][i]; // also equal to vxHat + SolD
       }
     }
 
@@ -1718,21 +1705,19 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
 
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
-        double weight;
-
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weight, phiHat, gradPhiHat);
+        msh->_finiteElement[ielt][solType]->Jacobian(vxOld, xi, weight, phi, gradOldPhi);
         msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
 
-        vector<vector < double > > gradSolDpHat(dim);
+        vector<vector < double > > gradOldSolDTld(dim); // $\widetilde{\nabla} \widetilde{\bm D}$
         for(int j = 0; j < dim; j++) {
-          gradSolDpHat[j].assign(dim, 0.);
+          gradOldSolDTld[j].assign(dim, 0.);
         }
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofs; i++) {
             for(int k = 0; k < dim; k++) {
-              gradSolDpHat[k][j] += (solD[k][i]) * gradPhiHat[i * dim + j];
+              gradOldSolDTld[k][j] += solDTld[k][i] * gradOldPhi[i * dim + j];
             }
           }
         }
@@ -1740,45 +1725,46 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
         std::vector <std::vector < double > > THat;
         particleI[imarkerI]->GetMarkerTangent(THat);
 
-        std::vector < std::vector < double > > FpOld;
-        FpOld = particleI[imarkerI]->GetDeformationGradient(); //extraction of the deformation gradient
-        double FpNew[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
-        double F[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+        std::vector < std::vector < double > > FHatOld;
+        FHatOld = particleI[imarkerI]->GetDeformationGradient(); //extraction of the deformation gradient
+
+        double FTld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        double FHat[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
         double B[3][3];
         double Cauchy[3][3];
         double Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
 
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned k = 0; k < dim; k++) {
-            FpNew[j][k] += gradSolDpHat[j][k];
+            FTld[j][k] += gradOldSolDTld[j][k];
           }
         }
 
         for(unsigned i = 0; i < dim; i++) {
           for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              F[i][j] += FpNew[i][k] * FpOld[k][j];
+              FHat[i][j] += FTld[i][k] * FHatOld[k][j];
             }
           }
         }
 
-        if(dim == 2) F[2][2] = 1.;
-        double J_hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
-                        - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+        if(dim == 2) FHat[2][2] = 1.;
+        double JHat =  FHat[0][0] * FHat[1][1] * FHat[2][2] + FHat[0][1] * FHat[1][2] * FHat[2][0] + FHat[0][2] * FHat[1][0] * FHat[2][1]
+                       - FHat[2][0] * FHat[1][1] * FHat[0][2] - FHat[2][1] * FHat[1][2] * FHat[0][0] - FHat[2][2] * FHat[1][0] * FHat[0][1];
 
         for(unsigned i = 0; i < 3; i++) {
           for(int j = 0; j < 3; j++) {
             B[i][j] = 0.;
             for(unsigned k = 0; k < 3; k++) {
               //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-              B[i][j] += F[i][k] * F[j][k];
+              B[i][j] += FHat[i][k] * FHat[j][k];
             }
           }
         }
 
         for(unsigned j = 0; j < 3; j++) {
           for(unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+            Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
           }
         }
 
@@ -1789,7 +1775,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
           T[k].assign(dim, 0.);
           for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              T[k][i] += F[i][j] * THat[k][j];
+              T[k][i] += FHat[i][j] * THat[k][j];
             }
           }
         }
@@ -1876,8 +1862,6 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
     pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << std::endl;
     pout.close();
   }
-
-
 }
 
 

@@ -24,7 +24,7 @@ bool weakP = false;
 
 double theta = .75;
 double af = 1. - theta;
-double am = af - 0.1;
+double am = af - 0.25;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
@@ -283,6 +283,18 @@ int main(int argc, char** args) {
   }
   fin.close();
 
+  double delta_max = 0.4e-5 / (numberOfUniformLevelsStart - 5);
+
+  for(int i = 0; i < xp.size(); i++) {
+    if(dist[i] < -delta_max) {
+      xp.erase(xp.begin() + i);
+      wp.erase(wp.begin() + i);
+      dist.erase(dist.begin() + i);
+      markerType.erase(markerType.begin() + i);
+      i--;
+    }
+  }
+
 
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
@@ -347,12 +359,12 @@ int main(int argc, char** args) {
   level_number << numberOfUniformLevelsStart;
 
   std::string ofile = "./save/";
-  ofile += "beamTipPositionLevel";
+  ofile += "beamTipPositionLevelWP";
   ofile += level_number.str();
   ofile += ".COMSOL.txt";
 
   std::string pfile = "./save/";
-  pfile += "pressureLevel";
+  pfile += "pressureLevelWP";
   pfile += level_number.str();
   pfile += ".COMSOL.txt";
 
@@ -404,10 +416,10 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
 
-    system.MGsolve();   
-    
+    system.MGsolve();
+
     double time = system.GetTime();
-    
+
     GetPressureDragAndLift(ml_prob, time, imax, pfile);
 
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
