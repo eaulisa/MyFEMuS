@@ -34,60 +34,69 @@ double gammau = 0.05 * gammac;
 
 double GAMMA = 45;   // 10, 45 in the paper.
 
-#include "./include/mpmFsi10.hpp"
+#include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
-  double dt =  0.005/*0.008*/;
+  double dt = 1.;
+  if(time < 2.) dt = 0.05;
+  else dt = 0.01;
+
   return dt;
 }
 
-bool SetBoundaryCondition(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
-  bool test = 1; //dirichlet
+
+
+bool SetBoundaryCondition(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
   value = 0.;
 
-  double H = 1.e-4; //channel length
-  double U = 0.05;
-  double t2 = t * t;
+  const double Ubar = 1.0;    // guess?
+  const double L = 0.41;
+  const double H = 2.5;
 
-  if(!strcmp(name, "DX")) {
-    if(3 == facename) {
+  if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
       test = 0;
-      value = 0;
+      value = 0.;
     }
   }
-  else if(!strcmp(name, "DY")) {
-    if(2 == facename || 4 == facename) {
+
+  else if(!strcmp(name, "DX")) {
+    if(3 == facename) {    //fluid wall
       test = 0;
-      value = 0;
+      value = 0.;
     }
   }
-  else if(!strcmp(name, "VX")) {
-    if(2 == facename) {
-      test = 0;
-      value = 0;
-    }
-    else if(4 == facename) {
-      value = (U * t2 / sqrt(pow((0.04 - t2), 2.) + pow((0.1 * t), 2.))) * 4. * (H - x[1]) * x[1] / (H * H);
-    }
-  }
+
   else if(!strcmp(name, "VY")) {
-    if(2 == facename) {
+    if(2 == facename) {     //outflow
       test = 0;
-      value = 0;
+      value = 0.;
     }
   }
+
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inflow
+      test = 1;
+      if(t < 2.0) {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21) * 0.5 * (1. - cos(0.5 * M_PI * t));
+      }
+      else {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21);
+      }
+    }
+    else if(2 == facename) {    //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
   else if(!strcmp(name, "P")) {
     if(weakP || 2 != facename) {
       test = 0;
     }
     value = 0;
-  }
-  else if(!strcmp(name, "M")) {
-    if(1 == facename) {
-      test = 0;
-      value = 0;
-    }
   }
 
   return test;
@@ -100,19 +109,21 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMsh;
-  double scalingFactor = 10000.;
-  unsigned numberOfUniformLevels = 6; //for refinement in 3D
+
+  double scalingFactor = 1.;
+  unsigned numberOfUniformLevels = 5; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
+
   double Lref = 1.;
   double Uref = 1.;
-  double rhos = 7850;
-  double rhof = 1000;
-  double nu = 0.3;
-  double E = 2.e05;
-  double muf = 1.0e-3;
+  double rhof = 1000.;
+  double muf = 1.;
+  double rhos = 10000.;
+  double nu = 0.4;
+  double E = 1400000;
 
 
   Parameter par(Lref, Uref);
@@ -121,7 +132,7 @@ int main(int argc, char** args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/fsi_bnc_2D.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -249,15 +260,14 @@ int main(int argc, char** args) {
 
   std::ifstream fin;
   std::ostringstream level_number;
-  level_number << 0;
+  level_number << 2;
 
   //BEGIN bulk reading
 
   std::string bulkfile = "../input/";
-  bulkfile += "beam";
+  bulkfile += "turekBeam2D";
   bulkfile += level_number.str();
   bulkfile += ".bulk.txt";
-
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
@@ -265,8 +275,10 @@ int main(int argc, char** args) {
   std::vector < MarkerType > markerType;
 
   fin.open(bulkfile);
+
   unsigned size;
-  fin >> dim >> size;
+
+  std::cout << dim << " " << size << std::endl << std::flush;
   xp.resize(size);
   wp.resize(size);
   dist.resize(size);
@@ -281,7 +293,8 @@ int main(int argc, char** args) {
   }
   fin.close();
 
-  double delta_max = 0.4e-5 / (numberOfUniformLevelsStart - 5);
+
+  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
 
   for(int i = 0; i < xp.size(); i++) {
     if(dist[i] < -delta_max) {
@@ -291,6 +304,12 @@ int main(int argc, char** args) {
       markerType.erase(markerType.begin() + i);
       i--;
     }
+  }
+
+
+  double shift = 1.0e-4;
+  for(int i = 0; i < xp.size(); i++) {
+    xp[i][0] += shift;
   }
 
 
@@ -304,8 +323,10 @@ int main(int argc, char** args) {
 
   //BEGIN interface reading
 
+
+
   std::string interfacefile = "../input/";
-  interfacefile += "beam";
+  interfacefile += "turekBeam2D";
   interfacefile += level_number.str();
   interfacefile += ".interface.txt";
 
@@ -330,23 +351,37 @@ int main(int argc, char** args) {
   }
   fin.close();
 
+  for(int i = 0; i < xp.size(); i++) {
+    xp[i][0] += shift;
+  }
+
 
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
 
-  double hmax = -1.0e10;
+  double xmax = -1.0e10;
+  double ymax =  1.0e10;
   unsigned imax = lineIPoints[0].size();
   for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
-    if(lineIPoints[0][i][1] > hmax) {
+    if(lineIPoints[0][i][0] > xmax) {
       imax = i;
-      hmax = lineIPoints[0][i][1];
+      xmax = lineIPoints[0][i][0];
+      ymax = fabs(lineIPoints[0][i][1]);
+    }
+    else if(lineIPoints[0][i][0] = xmax) {
+      if(fabs(lineIPoints[0][i][1]) < ymax) {
+        imax = i;
+        xmax = lineIPoints[0][i][0];
+        ymax = fabs(lineIPoints[0][i][1]);
+      }
     }
   }
-  std::cout << "imax = " << imax << " hmax = " << hmax << std::endl;
+
+  std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
-  //END interface reading
+//END interface reading
 
 
   unsigned iproc = mlMsh.GetLevel(0)->processor_id();
@@ -357,14 +392,14 @@ int main(int argc, char** args) {
   level_number << numberOfUniformLevelsStart;
 
   std::string ofile = "./save/";
-  ofile += "beamTipPositionLevelWP";
+  ofile += "beamTipPositionLevel";
   ofile += level_number.str();
-  ofile += ".COMSOL.txt";
+  ofile += ".turekFSI2.txt";
 
   std::string pfile = "./save/";
-  pfile += "pressureLevelWP";
+  pfile += "pressureLevel";
   pfile += level_number.str();
-  pfile += ".COMSOL.txt";
+  pfile += ".turekFSI2.txt";
 
   if(iproc == 0) {
     fout.open(ofile);
@@ -378,16 +413,14 @@ int main(int argc, char** args) {
   bulk->GetParticlesToGridMaterial(false);
 
   BuildFlag(mlSol);
-  //GetParticleWeights(mlSol, bulk);
-  //GetInterfaceElementEigenvalues(mlSol, bulk, lineI, eps);
 
-  // ******* Print solution *******
+// ******* Print solution *******
   mlSol.SetWriter(VTK);
 
   std::vector<std::string> mov_vars;
   mov_vars.push_back("DX");
   mov_vars.push_back("DY");
-  //mov_vars.push_back("DZ");
+  if(dim == 3) mov_vars.push_back("DZ");
   mlSol.GetWriter()->SetMovingMesh(mov_vars);
 
   std::vector<std::string> print_vars;
@@ -395,11 +428,7 @@ int main(int argc, char** args) {
 
   mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  //mlSol.GetWriter()->Write ("./output1", "biquadratic", print_vars, 0);
-
-  //return 1;
-
-
+  mlSol.GetWriter()->Write("./output1", "biquadratic", print_vars, 0);
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
