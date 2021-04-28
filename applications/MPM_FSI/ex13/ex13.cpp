@@ -83,7 +83,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
         value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
       }
       else {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21);
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
       }
     }
     else if(2 == facename) {    //outflow
