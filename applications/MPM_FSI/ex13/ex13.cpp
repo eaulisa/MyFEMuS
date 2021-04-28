@@ -29,10 +29,10 @@ double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
 double gammac = 0.05;
-double gammap = 0.05;
-double gammau = 0.05 * gammac;
+double gammap = 0.01;
+double gammau = 0.01 * gammac;
 
-double GAMMA = 45;   // 10, 45 in the paper.
+double GAMMA = 10;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
@@ -80,7 +80,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
     if(1 == facename) {     //inflow
       test = 1;
       if(t < 2.0) {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21) * 0.5 * (1. - cos(0.5 * M_PI * t));
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
       }
       else {
         value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.2) * (-x[1] + 0.21);
@@ -277,8 +277,9 @@ int main(int argc, char** args) {
   fin.open(bulkfile);
 
   unsigned size;
+  fin >> dim >> size;
 
-  std::cout << dim << " " << size << std::endl << std::flush;
+  //std::cout << dim << " " << size << std::endl << std::flush;
   xp.resize(size);
   wp.resize(size);
   dist.resize(size);
@@ -432,7 +433,7 @@ int main(int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 300;
+  unsigned n_timesteps = 3000;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
