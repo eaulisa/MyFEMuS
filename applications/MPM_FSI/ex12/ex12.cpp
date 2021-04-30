@@ -28,9 +28,12 @@ double am = af - 0.25;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
-double gammac = 0.05;
+double DTMIN = 0.01;
+
+double gammacF = 0.05;
+double gammacS = 0.05;
 double gammap = 0.05;
-double gammau = 0.05 * gammac;
+double gammau = 0.05 * gammacF;
 
 double GAMMA = 45;   // 10, 45 in the paper.
 

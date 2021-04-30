@@ -152,6 +152,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
+  double dtMin = std::max(DTMIN, dt);
+
   std::cout.precision(10);
 
   //variable-name handling
@@ -427,7 +429,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         adept::adouble tauM = 0.;
         double CI = 36.;
-        adept::adouble denom = pow(2 * rhoFluid / dt, 2.);
+        adept::adouble denom = pow(2 * rhoFluid / dtMin, 2.);
         for(unsigned i = 0; i < dim; i++) {
           for(unsigned j = 0; j < dim; j++) {
             denom += rhoFluid * (solVgTheta[i] - (solDg[i] - 0.) / dt) * G[i][j] * rhoFluid * (solVgTheta[j] - (solDg[j] - 0.) / dt) // we can get the mesh velocity at af
@@ -892,10 +894,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           c = sqrt(c);
 
-
           double thetaM = GAMMA * muFluid / h; //  [rho L/ T]
-          double thetaL = GAMMA * rhoFluid * ((c / 6.) + h / (12. * theta * dt)) + thetaM;  // [rho L/T]
-
+          double thetaL = GAMMA * rhoFluid * ((c / 6.) + h / (12. * theta * dtMin)) + thetaM;  // [rho L/T]
 
 //           if(lineI->GetPrintList(imax) == imarkerI)  {
 //             std::ofstream pout;
@@ -1453,13 +1453,19 @@ void ProjectGridVelocity(MultiLevelSolution &mlSol) {
               sol->_Sol[indexSolV[k]]->add(idof[i], solVk);
             }
           }
+          else {
+            sol->_Sol[indexNodeFlag]->add(idof[i], 1.);
+            counter++;
+            for(unsigned k = 0; k < dim; k++) {
+              sol->_Sol[indexSolV[k]]->add(idof[i], (*sol->_SolOld[indexSolV[k]])(idof[i]));
+            }
+          }
         }
       }
     }
   }
 
   sol->_Sol[indexNodeFlag]->close();
-
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexSolV[k]]->close();
   }
@@ -1609,13 +1615,13 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
   vector < double > phiP;
   double weight;
 
-   vector <vector < double> > vx(dim); // background mesh configuration at n + 1 
+  vector <vector < double> > vx(dim); // background mesh configuration at n + 1
   vector <vector < double> > vxOld(dim); // background mesh configuration at n
-  
+
   vector < double> gradPhi;  // gradient with respect to vx
   vector < double > gradOldPhi; // gradient with respect to vxOld
 
- 
+
 
   double dragF = 0.;
   double liftF = 0.;

@@ -28,9 +28,12 @@ double am = af - 0.25;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
-double gammac = 0.05;
+double DTMIN = 0.005;
+
+double gammacF = 0.05;
+double gammacS = 0.05;
 double gammap = 0.01;
-double gammau = 0.01 * gammac;
+double gammau = 0.01 * gammacF;
 
 double GAMMA = 10;   // 10, 45 in the paper.
 
@@ -40,7 +43,7 @@ using namespace femus;
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
   if(time < 2.) dt = 0.05;
-  else dt = 0.01;
+  else dt = 0.005;
 
   return dt;
 }
@@ -51,7 +54,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  const double Ubar = 1.0;    // guess?
+  const double Ubar = 2.0;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -121,9 +124,9 @@ int main(int argc, char** args) {
   double Uref = 1.;
   double rhof = 1000.;
   double muf = 1.;
-  double rhos = 10000.;
+  double rhos = 1000.;
   double nu = 0.4;
-  double E = 1400000;
+  double E = 4. * 1400000;
 
 
   Parameter par(Lref, Uref);
@@ -433,16 +436,17 @@ int main(int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 3000;
+  unsigned n_timesteps = 5000;
+  unsigned printTimeInterval = 10;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
 
-    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step);
+    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step/printTimeInterval);
     bulk->GetLine(bulkPoints[0]);
     PrintLine("output1", "bulk", bulkPoints, time_step);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step);
+    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step/printTimeInterval);
 
     system.MGsolve();
 
@@ -450,12 +454,12 @@ int main(int argc, char** args) {
 
     GetPressureDragAndLift(ml_prob, time, imax, pfile);
 
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step);
+    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step/printTimeInterval);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
     bulk->GetLine(bulkPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step);
+    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step/printTimeInterval);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step);
+    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step/printTimeInterval);
 
     if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
