@@ -428,7 +428,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
 
         adept::adouble tauM = 0.;
-        double CI = 36.;
+        double CI = 36;
         adept::adouble denom = pow(2 * rhoFluid / dtMin, 2.);
         for(unsigned i = 0; i < dim; i++) {
           for(unsigned j = 0; j < dim; j++) {
@@ -911,7 +911,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //           else if(dim == 3) {
 //             lift += (tau[0].value() * N[0].value() + tau[1].value() * N[1].value() + tau[2].value() * N[2].value()) * weight.value();
 //           }
-
+// 
 
           // *** phi_i loop ***
           for(unsigned i = 0; i < nDofs; i++) {

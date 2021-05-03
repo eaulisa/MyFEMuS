@@ -16,24 +16,28 @@
 using namespace femus;
 Line* bulk;
 Line* lineI;
+Line* intPoints;
 void BuildFlag(MultiLevelSolution& mlSol);
-double eps = 0.;
+void BuildIntegrationPoints(MultiLevelSolution& mlSol);
+void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::string &pfile);
+
+double eps = 0.001;
 
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 
-double theta = .75;
+double theta = 1.;
 double af = 1. - theta;
 double am = af - 0.25;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 
-double DTMIN = 0.005;
+double DTMIN = 0.02;
 
-double gammacF = 0.05;
-double gammacS = 0.05;
+double gammacF = 0.025;
+double gammacS = 0.025;
 double gammap = 0.01;
-double gammau = 0.01 * gammacF;
+double gammau = 0.025 * gammacF;
 
 double GAMMA = 10;   // 10, 45 in the paper.
 
@@ -42,7 +46,7 @@ using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
-  if(time < 2.) dt = 0.05;
+  if(time < 2.) dt = 0.005;
   else dt = 0.005;
 
   return dt;
@@ -261,6 +265,10 @@ int main(int argc, char** args) {
   system2.SetTolerances(1.e-10, 1.e-15, 1.e+50, 2, 2);
 
 
+  BuildIntegrationPoints(mlSol);
+
+
+
   std::ifstream fin;
   std::ostringstream level_number;
   level_number << 2;
@@ -298,7 +306,7 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
+  double delta_max = 0.0013 / (numberOfUniformLevelsStart - 4);
 
   for(int i = 0; i < xp.size(); i++) {
     if(dist[i] < -delta_max) {
@@ -413,6 +421,7 @@ int main(int argc, char** args) {
     pout.close();
   }
 
+  intPoints->GetParticlesToGridMaterial(false);
   lineI->GetParticlesToGridMaterial(false);
   bulk->GetParticlesToGridMaterial(false);
 
@@ -442,24 +451,24 @@ int main(int argc, char** args) {
 
     system.CopySolutionToOldSolution();
 
-    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step/printTimeInterval);
+    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step / printTimeInterval);
     bulk->GetLine(bulkPoints[0]);
     PrintLine("output1", "bulk", bulkPoints, time_step);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step/printTimeInterval);
+    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
 
     system.MGsolve();
 
     double time = system.GetTime();
 
-    GetPressureDragAndLift(ml_prob, time, imax, pfile);
+    GetDragAndLift(ml_prob, time, pfile);
 
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step/printTimeInterval);
+    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step / printTimeInterval);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
     bulk->GetLine(bulkPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step/printTimeInterval);
+    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step / printTimeInterval);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step/printTimeInterval);
+    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
 
     if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
@@ -468,12 +477,407 @@ int main(int argc, char** args) {
 
   delete bulk;
   delete lineI;
+  delete intPoints;
 
   return 0;
 
 } //end main
 
-void BuildFlag(MultiLevelSolution& mlSol) {
+
+
+
+void BuildIntegrationPoints(MultiLevelSolution& mlSol) {
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+
+  Solution *sol  = mlSol.GetSolutionLevel(level);
+  Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
+  elem* el = msh->el;   // pointer to the elem object in msh (level)
+  unsigned iproc  = msh->processor_id();
+
+  const unsigned dim = msh->GetDimension();
+  std::vector <std::vector < double> > vx(dim);
+
+  std::vector < double> normal;
+  std::vector < double> phi;
+  std::vector < double> phi_x;
+  double weight;
+
+  std::vector < std::vector <double> > x(dim);
+  std::vector < std::vector <double> > N(2);
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+    for(int k = 0; k < dim; k++) {
+      vx[k].resize(nDofs);
+    }
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+      for(unsigned  k = 0; k < dim; k++) {
+        vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
+      }
+    }
+    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+      if(el->GetBoundaryIndex(iel, jface) == 4) {
+
+        const unsigned typef = msh->GetElementFaceType(iel, jface);
+        unsigned nDofsf = msh->GetElementFaceDofNumber(iel, jface, 2);
+
+        std::vector  < std::vector  <  double> > vxf(dim);    // A matrix holding the face coordinates rowwise.
+        for(int k = 0; k < dim; k++) {
+          vxf[k].resize(nDofsf);
+        }
+
+        bool solid = true;
+        for(unsigned i = 0; i < nDofsf; i++) {
+          unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+          for(unsigned k = 0; k < dim; k++) {
+            vxf[k][i] =  vx[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+          }
+          if(vxf[0][i] < 0. || fabs(vxf[1][i]) > 0.01) solid = false;
+
+        }
+        if(solid) {
+          for(unsigned ig = 0; ig  <  msh->_finiteElement[typef][2]->GetGaussPointNumber(); ig++) {
+            msh->_finiteElement[typef][2]->JacobianSur(vxf, ig, weight, phi, phi_x, normal);
+            std::vector<double> xg(dim, 0);
+
+            unsigned n = x[0].size();
+
+            for(unsigned k = 0; k < dim; k++) {
+              x[k].resize(n + 1);
+            }
+            for(unsigned i = 0; i < nDofsf; i++) {
+              for(unsigned k = 0; k < dim; k++) {
+                x[k][n] += phi[i] * vxf[k][i];
+              }
+            }
+
+            N[0].resize(n + 1);
+            N[1].resize(n + 1);
+            N[0][n] = weight * normal[0];
+            N[1][n] = weight * normal[1];
+
+          }
+        }
+      }
+    }
+  }
+
+  unsigned sizeLocal = x[0].size();
+  unsigned sizeAll;
+
+  MPI_Allreduce(&sizeLocal, &sizeAll, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+
+  std::vector < std::vector <double> > xr(dim);
+  std::vector < std::vector <double> > Nr(2);
+
+  xr[0].resize(sizeAll);
+  xr[1].resize(sizeAll);
+  Nr[0].resize(sizeAll);
+  Nr[1].resize(sizeAll);
+
+  MPI_Allgather(x[0].data(), x[0].size(), MPI_DOUBLE, xr[0].data(), x[0].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgather(x[1].data(), x[1].size(), MPI_DOUBLE, xr[1].data(), x[1].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgather(N[0].data(), N[0].size(), MPI_DOUBLE, Nr[0].data(), N[0].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgather(N[1].data(), N[1].size(), MPI_DOUBLE, Nr[1].data(), N[1].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
+
+  std::vector < std::vector <double> > xp(sizeAll);
+  std::vector < std::vector < std::vector <double> > > Tp(sizeAll);
+  std::vector < MarkerType > markerType(sizeAll, INTERFACE);
+
+  for(unsigned i = 0; i < sizeAll; i++) {
+    xp[i].resize(dim);
+    Tp[i].resize(1);
+    Tp[i][0].resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      xp[i][k] = xr[k][i];
+    }
+    Tp[i][0][0] = -Nr[1][i];
+    Tp[i][0][1] = Nr[0][i];
+  }
+
+  intPoints = new Line(xp, Tp, markerType, mlSol.GetLevel(level), 2);
+
+  std::vector < std::vector < std::vector < double > > > integrationPoints(1);
+  intPoints->GetLine(integrationPoints[0]);
+
+  PrintLine(DEFAULT_OUTPUTDIR, "integrationPoints", integrationPoints, 0);
+
+}
+
+
+
+void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::string &pfile) {
+
+  //pointers and references
+
+  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("MPM_FSI");
+  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
+  Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
+
+  Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
+  elem* el = msh->el;   // pointer to the elem object in msh (level)
+
+  const unsigned dim = msh->GetDimension();
+
+  // reserve memory for the local standar vectors
+  const unsigned maxSize = static_cast< unsigned >(ceil(pow(3, dim)));          // conservative: based on line3, quad9, hex27
+
+  // data
+  unsigned iproc  = msh->processor_id();
+
+  std::ofstream pout;
+  if(iproc == 0) {
+    pout.open(pfile,  std::ios_base::app);
+    pout << time;
+    pout.close();
+  }
+
+
+  vector< vector< double > > solDTld(dim);      // as in the paper
+  vector< vector< double > > solV(dim);         // velocity at n+1
+  vector< double > solP;
+
+  vector< vector< double > > solDOld(dim);      // displacement at n
+
+  vector < double > phi;
+  vector < double > phiP;
+  double weight;
+
+  vector <vector < double> > vx(dim); // background mesh configuration at n + 1
+  vector <vector < double> > vxOld(dim); // background mesh configuration at n
+
+  vector < double> gradPhi;  // gradient with respect to vx
+  vector < double > gradOldPhi; // gradient with respect to vxOld
+
+
+
+  double dragF = 0.;
+  double liftF = 0.;
+
+  double dragS = 0.;
+  double liftS = 0.;
+
+  //reading parameters for fluid FEM domain
+
+  double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
+  double muMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
+  double lambdaMpm = ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_lambda();
+
+  std::cout.precision(10);
+
+  //variable-name handling
+  const char varname[10][5] = {"DX", "DY", "DZ", "VX", "VY", "VZ"};
+
+  vector <unsigned> indexSolD(dim);
+  vector <unsigned> indexSolV(dim);
+  for(unsigned ivar = 0; ivar < dim; ivar++) {
+    indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
+    indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
+  }
+  unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+
+  unsigned indexSolP = mlSol->GetIndex("P");
+  unsigned solTypeP = mlSol->GetSolutionType("P");
+
+  unsigned eflagIndex = mlSol->GetIndex("eflag");
+
+  std::vector<Marker*> particleI = intPoints->GetParticles();
+  std::vector<unsigned> markerOffsetI = intPoints->GetMarkerOffset();
+  unsigned imarkerI = markerOffsetI[iproc];
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    short unsigned ielt = msh->GetElementType(iel);
+
+    unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
+    unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);  // number of pressure dofs
+
+    unsigned eFlag = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
+
+    for(unsigned  k = 0; k < dim; k++) {
+      solDTld[k].resize(nDofs);
+      solDOld[k].resize(nDofs);
+
+      solV[k].resize(nDofs);
+
+      vx[k].resize(nDofs);
+      vxOld[k].resize(nDofs);
+    }
+    solP.resize(nDofsP);
+
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solType);
+
+      for(unsigned  k = 0; k < dim; k++) {
+        solDOld[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idof);//t_n
+        solDTld[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
+        solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
+      }
+    }
+
+    for(unsigned i = 0; i < nDofsP; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
+      solP[i] = (*mysolution->_Sol[indexSolP])(idof);
+    }
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+      for(unsigned  k = 0; k < dim; k++) {
+        vxOld[k][i] = (*msh->_topology->_Sol[k])(idofX) + solDOld[k][i]; // deformed reference configuration
+        vx[k][i]  = vxOld[k][i] + solDTld[k][i]; // also equal to vxHat + SolD
+      }
+    }
+
+    //BEGIN INTERFACE PARTICLE
+
+    if(eFlag >= 1) {  //interface markers
+
+      while(imarkerI < markerOffsetI[iproc + 1] && iel >= particleI[imarkerI]->GetMarkerElement()) {
+        std::cout<<imarkerI<< " " << particleI[imarkerI]->GetMarkerElement() <<" "<<iel<<std::endl;
+        imarkerI++;
+      }
+
+      while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
+          
+          
+
+        // the local coordinates of the particles are the Gauss points in this context
+        std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
+        msh->_finiteElement[ielt][solType]->Jacobian(vxOld, xi, weight, phi, gradOldPhi);
+        msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
+
+        vector<vector < double > > gradOldSolDTld(dim); // $\widetilde{\nabla} \widetilde{\bm D}$
+        for(int j = 0; j < dim; j++) {
+          gradOldSolDTld[j].assign(dim, 0.);
+        }
+        for(int j = 0; j < dim; j++) {
+          for(unsigned i = 0; i < nDofs; i++) {
+            for(int k = 0; k < dim; k++) {
+              gradOldSolDTld[k][j] += solDTld[k][i] * gradOldPhi[i * dim + j];
+            }
+          }
+        }
+
+        std::vector <std::vector < double > > T;
+        particleI[imarkerI]->GetMarkerTangent(T);
+
+        std::vector < std::vector < double > > FHatOld;
+        FHatOld = particleI[imarkerI]->GetDeformationGradient(); //extraction of the deformation gradient
+
+        double FTld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        double FHat[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+        std::vector<std::vector <double>> svFHat(dim);
+        double B[3][3];
+        double Cauchy[3][3];
+        double Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned k = 0; k < dim; k++) {
+            FTld[j][k] += gradOldSolDTld[j][k];
+          }
+        }
+
+        for(unsigned i = 0; i < dim; i++) {
+          svFHat[i].resize(dim);
+          for(unsigned j = 0; j < dim; j++) {
+            svFHat[i][j] = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              FHat[i][j] += FTld[i][k] * FHatOld[k][j];
+              svFHat[i][j] += FTld[i][k] * FHatOld[k][j];
+            }
+          }
+        }
+
+        particleI[imarkerI]->SetDeformationGradient(svFHat);
+
+
+        if(dim == 2) FHat[2][2] = 1.;
+        double JHat =  FHat[0][0] * FHat[1][1] * FHat[2][2] + FHat[0][1] * FHat[1][2] * FHat[2][0] + FHat[0][2] * FHat[1][0] * FHat[2][1]
+                       - FHat[2][0] * FHat[1][1] * FHat[0][2] - FHat[2][1] * FHat[1][2] * FHat[0][0] - FHat[2][2] * FHat[1][0] * FHat[0][1];
+
+
+        std::cout << JHat << " ";
+
+        for(unsigned i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            B[i][j] = 0.;
+            for(unsigned k = 0; k < 3; k++) {
+              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+              B[i][j] += FHat[i][k] * FHat[j][k];
+            }
+          }
+        }
+
+        for(unsigned j = 0; j < 3; j++) {
+          for(unsigned k = 0; k < 3; k++) {
+            Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+          }
+        }
+
+        std::vector < double > N(dim); // normal pointing toward the outside
+        if(dim == 2) {
+          N[0] =  T[0][1];
+          N[1] = -T[0][0];
+          weight = sqrt(N[0] * N[0] + N[1] * N[1]);
+          N[0] /= weight;
+          N[1] /= weight;
+        }
+        else {
+          N[0] = T[0][1] * T[1][2] - T[0][2] * T[1][1];
+          N[1] = T[0][2] * T[1][0] - T[0][0] * T[1][2];
+          N[2] = T[0][0] * T[1][1] - T[0][1] * T[1][0];
+          weight = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+          N[0] /= weight;
+          N[1] /= weight;
+          N[2] /= weight;
+        }
+
+        std::vector < double > tauS(dim, 0.);
+        for(unsigned i = 0; i < dim; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            tauS[i] += Cauchy[i][j] * N[j];
+          }
+        }
+
+        if(dim == 2) {
+          dragS += tauS[0] * weight;
+          liftS += tauS[1] * weight;
+        }
+        else if(dim == 3) {
+          liftS += (tauS[0] * N[0] + tauS[1] * N[1] + tauS[2] * N[2]) * weight;
+        }
+        imarkerI++;
+      }
+    }
+  }
+
+  double dragFAll, liftFAll;
+  double dragSAll, liftSAll;
+  MPI_Reduce(&dragF, &dragFAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  MPI_Reduce(&liftF, &liftFAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+
+  MPI_Reduce(&dragS, &dragSAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  MPI_Reduce(&liftS, &liftSAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+
+  if(iproc == 0) {
+    pout.open(pfile,  std::ios_base::app);
+    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << std::endl;
+    pout.close();
+  }
+}
+
+
+
+
+
+
+
+
+void BuildFlag(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
