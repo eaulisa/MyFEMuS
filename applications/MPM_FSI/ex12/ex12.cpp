@@ -19,6 +19,8 @@ Line* lineI;
 void BuildFlag(MultiLevelSolution& mlSol);
 double eps = 0.;
 
+bool particleSmoothingIsOn = false;
+
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 

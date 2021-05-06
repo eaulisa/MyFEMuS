@@ -21,23 +21,27 @@ void BuildFlag(MultiLevelSolution& mlSol);
 void BuildIntegrationPoints(MultiLevelSolution& mlSol);
 void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::string &pfile);
 
-double eps = 0.001;
+
+bool particleSmoothingIsOn = true;
+double eps = 0.00;
 
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 
 double theta = 1.;
 double af = 1. - theta;
-double am = af - 0.25;
-double beta = 0.25 + 0.5 * (af - am);
-double Gamma = 0.5 + (af - am);
+double am = af - 0.;
+//double beta = 0.25 + 0.5 * (af - am);
+//double Gamma = 0.5 + (af - am);
+double beta = .5;
+double Gamma = 1.;
 
-double DTMIN = 0.02;
+double DTMIN = 0.005;
 
-double gammacF = 0.025;
-double gammacS = 0.025;
-double gammap = 0.01;
-double gammau = 0.025 * gammacF;
+double gammacF = 0.05;
+double gammacS = 0.05;
+double gammap = 0.05;
+double gammau = 0.05 * gammacF;
 
 double GAMMA = 10;   // 10, 45 in the paper.
 
@@ -652,8 +656,6 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
   vector < double> gradPhi;  // gradient with respect to vx
   vector < double > gradOldPhi; // gradient with respect to vxOld
 
-
-
   double dragF = 0.;
   double liftF = 0.;
 
@@ -683,6 +685,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
   unsigned solTypeP = mlSol->GetSolutionType("P");
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");
+
+  std::vector < std::vector < std::vector <double > > > aP(3);
 
   std::vector<Marker*> particleI = intPoints->GetParticles();
   std::vector<unsigned> markerOffsetI = intPoints->GetMarkerOffset();
@@ -732,18 +736,91 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
       }
     }
 
+    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+      if(el->GetBoundaryIndex(iel, jface) == 4) {
+
+        const unsigned typef = msh->GetElementFaceType(iel, jface);
+        unsigned nDofsf = msh->GetElementFaceDofNumber(iel, jface, solType);
+
+        std::vector  < std::vector  <  double> > vxf(dim);    // A matrix holding the face coordinates rowwise.
+        for(int k = 0; k < dim; k++) {
+          vxf[k].resize(nDofsf);
+        }
+
+        bool solid = true;
+        for(unsigned i = 0; i < nDofsf; i++) {
+          unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);    // face-to-element local node mapping.
+          for(unsigned k = 0; k < dim; k++) {
+            vxf[k][i] =  vx[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+          }
+          if(vxf[0][i] < 0. || fabs(vxf[1][i]) > 0.01) solid = false;
+
+        }
+        if(!solid) {
+
+          for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+            ProjectNodalToPolynomialCoefficients(aP[jtype], vx, ielt, jtype);
+          }
+
+          for(unsigned ig = 0; ig  <  msh->_finiteElement[typef][solType]->GetGaussPointNumber(); ig++) {
+
+            std::vector<double> normal(dim);
+            double area;
+            msh->_finiteElement[typef][solType]->JacobianSur(vxf, ig, area, phi, gradPhi, normal);
+            std::vector<double> xg(dim, 0);
+
+            for(unsigned i = 0; i < nDofsf; i++) {
+              for(unsigned k = 0; k < dim; k++) {
+                xg[k] += phi[i] * vxf[k][i];
+              }
+            }
+
+            std::vector <double> xi;//local coordinates of the face gauss point with respect to iel
+            GetClosestPointInReferenceElement(vx, xg, ielt, xi);
+            bool inverseMapping = GetInverseMapping(solType, ielt, aP, xg, xi, 100);
+
+            std::vector < double > tauF(dim, 0.);
+
+            msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
+            for(unsigned k = 0; k < dim; k++) {
+              for(unsigned i = 0; i < nDofs; i++) {
+                for(unsigned j = 0; j < dim; j++) {
+                  tauF[k] += -muFluid * (solV[k][i] * gradPhi[i * dim + j] + solV[j][i] * gradPhi[i * dim + k]) * normal[j];
+                }
+              }
+            }
+
+            msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, xi, weight, phi, gradPhi);
+            for(unsigned k = 0; k < dim; k++) {
+              for(unsigned i = 0; i < nDofsP; i++) {
+                tauF[k] += solP[i] * phi[i] * normal[k];
+              }
+            }
+
+            if(dim == 2) {
+              dragF += tauF[0] * area;
+              liftF += tauF[1] * area;
+            }
+            else if(dim == 3) {
+              liftF += (tauF[0] * normal[0] + tauF[1] * normal[1] + tauF[2] * normal[2]) * area;
+            }
+          }
+        }
+      }
+    }
+
+
     //BEGIN INTERFACE PARTICLE
 
     if(eFlag >= 1) {  //interface markers
 
-      while(imarkerI < markerOffsetI[iproc + 1] && iel >= particleI[imarkerI]->GetMarkerElement()) {
-        std::cout<<imarkerI<< " " << particleI[imarkerI]->GetMarkerElement() <<" "<<iel<<std::endl;
+      while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
         imarkerI++;
       }
 
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
-          
-          
+
+        std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
@@ -865,7 +942,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
   if(iproc == 0) {
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << std::endl;
+    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll <<" "<<dragFAll+dragSAll << " " << liftFAll + liftSAll << std::endl;
     pout.close();
   }
 }
