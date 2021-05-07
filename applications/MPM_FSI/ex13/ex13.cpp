@@ -21,8 +21,9 @@ void BuildFlag(MultiLevelSolution& mlSol);
 void BuildIntegrationPoints(MultiLevelSolution& mlSol);
 void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::string &pfile);
 
+bool NeoHookean = false;
+bool particleSmoothingIsOn = false;
 
-bool particleSmoothingIsOn = true;
 double eps = 0.00;
 
 double gravity[3] = {0., 0., 0.};
@@ -848,7 +849,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
         double FTld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
         double FHat[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
         std::vector<std::vector <double>> svFHat(dim);
-        double B[3][3];
+
         double Cauchy[3][3];
         double Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
 
@@ -877,23 +878,66 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
                        - FHat[2][0] * FHat[1][1] * FHat[0][2] - FHat[2][1] * FHat[1][2] * FHat[0][0] - FHat[2][2] * FHat[1][0] * FHat[0][1];
 
 
-        std::cout << JHat << " ";
+        //std::cout << JHat << " ";
 
-        for(unsigned i = 0; i < 3; i++) {
-          for(int j = 0; j < 3; j++) {
-            B[i][j] = 0.;
+        if(NeoHookean) {
+          double B[3][3];
+          for(unsigned i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+              B[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+                B[i][j] += FHat[i][k] * FHat[j][k];
+              }
+            }
+          }
+
+          for(unsigned j = 0; j < 3; j++) {
             for(unsigned k = 0; k < 3; k++) {
-              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-              B[i][j] += FHat[i][k] * FHat[j][k];
+              Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+            }
+          }
+        }
+        else {
+          double E[3][3];
+          double S[3][3];
+
+          for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
+            for(unsigned j = 0; j < 3; j++) {
+              E[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                E[i][j] += FHat[k][i] * FHat[k][j];
+              }
+              E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
+            for(unsigned j = 0; j < 3; j++) {
+              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+            }
+          }
+
+          double SFt[3][3];
+          for(unsigned i = 0; i < 3; i++) { // S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              SFt[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                SFt[i][j] += S[i][k] * FHat[j][k];
+              }
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              Cauchy[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                Cauchy[i][j] += FHat[i][k] * SFt[k][j] / JHat;
+              }
             }
           }
         }
 
-        for(unsigned j = 0; j < 3; j++) {
-          for(unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
-          }
-        }
 
         std::vector < double > N(dim); // normal pointing toward the outside
         if(dim == 2) {
@@ -942,7 +986,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
   if(iproc == 0) {
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll <<" "<<dragFAll+dragSAll << " " << liftFAll + liftSAll << std::endl;
+    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << " " << dragFAll + dragSAll << " " << liftFAll + liftSAll << std::endl;
     pout.close();
   }
 }

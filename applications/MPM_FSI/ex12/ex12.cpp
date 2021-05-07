@@ -19,6 +19,7 @@ Line* lineI;
 void BuildFlag(MultiLevelSolution& mlSol);
 double eps = 0.;
 
+bool NeoHookean = true;
 bool particleSmoothingIsOn = false;
 
 double gravity[3] = {0., 0., 0.};

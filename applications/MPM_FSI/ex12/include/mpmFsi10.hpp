@@ -625,7 +625,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         adept::adouble FpNewNew[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
         adept::adouble F[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
         adept::adouble FNew[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-        adept::adouble B[3][3];
         adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
         adept::adouble Cauchy[3][3];
 
@@ -666,24 +665,67 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                                    - FNew[2][0] * FNew[1][1] * FNew[0][2] - FNew[2][1] * FNew[1][2] * FNew[0][0] - FNew[2][2] * FNew[1][0] * FNew[0][1];
 
 
-        for(unsigned i = 0; i < 3; i++) {
-          for(int j = 0; j < 3; j++) {
-            B[i][j] = 0.;
+        if(NeoHookean) {
+          adept::adouble B[3][3];
+          for(unsigned i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+              B[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+                B[i][j] += F[i][k] * F[j][k];
+              }
+            }
+          }
+
+          adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+
+          for(unsigned j = 0; j < 3; j++) {
             for(unsigned k = 0; k < 3; k++) {
-              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-              B[i][j] += F[i][k] * F[j][k];
+              Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+            }
+          }
+          //END computation of the Cauchy Stress
+        }
+
+        else {
+          adept::adouble E[3][3];
+          adept::adouble S[3][3];
+
+          for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
+            for(unsigned j = 0; j < 3; j++) {
+              E[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                E[i][j] += F[k][i] * F[k][j];
+              }
+              E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
+            for(unsigned j = 0; j < 3; j++) {
+              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+            }
+          }
+
+          adept::adouble SFt[3][3];
+          for(unsigned i = 0; i < 3; i++) { // S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              SFt[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                SFt[i][j] += S[i][k] * F[j][k];
+              }
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              Cauchy[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                Cauchy[i][j] += F[i][k] * SFt[k][j] / J_hat;
+              }
             }
           }
         }
-
-        adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
-
-        for(unsigned j = 0; j < 3; j++) {
-          for(unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log(J_hat) / J_hat * Id2th[j][k] + muMpm / J_hat * (B[j][k] - Id2th[j][k]);     //alternative formulation
-          }
-        }
-        //END computation of the Cauchy Stress
 
 
 
@@ -1817,7 +1859,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
 
         double FTld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
         double FHat[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-        double B[3][3];
+
         double Cauchy[3][3];
         double Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
 
@@ -1839,19 +1881,61 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
         double JHat =  FHat[0][0] * FHat[1][1] * FHat[2][2] + FHat[0][1] * FHat[1][2] * FHat[2][0] + FHat[0][2] * FHat[1][0] * FHat[2][1]
                        - FHat[2][0] * FHat[1][1] * FHat[0][2] - FHat[2][1] * FHat[1][2] * FHat[0][0] - FHat[2][2] * FHat[1][0] * FHat[0][1];
 
-        for(unsigned i = 0; i < 3; i++) {
-          for(int j = 0; j < 3; j++) {
-            B[i][j] = 0.;
+        if(NeoHookean) {
+          double B[3][3];
+          for(unsigned i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+              B[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+                B[i][j] += FHat[i][k] * FHat[j][k];
+              }
+            }
+          }
+
+          for(unsigned j = 0; j < 3; j++) {
             for(unsigned k = 0; k < 3; k++) {
-              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-              B[i][j] += FHat[i][k] * FHat[j][k];
+              Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
             }
           }
         }
+        else {
+          double E[3][3];
+          double S[3][3];
 
-        for(unsigned j = 0; j < 3; j++) {
-          for(unsigned k = 0; k < 3; k++) {
-            Cauchy[j][k] = lambdaMpm * log(JHat) / JHat * Id2th[j][k] + muMpm / JHat * (B[j][k] - Id2th[j][k]);     //alternative formulation
+          for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
+            for(unsigned j = 0; j < 3; j++) {
+              E[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                E[i][j] += FHat[k][i] * FHat[k][j];
+              }
+              E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
+            for(unsigned j = 0; j < 3; j++) {
+              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+            }
+          }
+
+          double SFt[3][3];
+          for(unsigned i = 0; i < 3; i++) { // S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              SFt[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                SFt[i][j] += S[i][k] * FHat[j][k];
+              }
+            }
+          }
+
+          for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
+            for(unsigned j = 0; j < 3; j++) {
+              Cauchy[i][j] = 0.;
+              for(unsigned k = 0; k < 3; k++) {
+                Cauchy[i][j] += FHat[i][k] * SFt[k][j] / JHat;
+              }
+            }
           }
         }
 
