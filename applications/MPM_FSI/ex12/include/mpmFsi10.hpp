@@ -151,6 +151,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
+  std::cout<<muMpm<<" "<<lambdaMpm<<" "<<nuMpm<<std::endl;
+  std::cout<<rhoMpm<<" "<<EMpm<<" "<<std::endl;
+  std::cout<<rhoFluid<<" "<<muFluid<<" "<<std::endl;
+  
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
   double dtMin = std::max(DTMIN, dt);

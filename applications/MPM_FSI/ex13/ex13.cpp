@@ -44,15 +44,15 @@ double gammacS = 0.05;
 double gammap = 0.05;
 double gammau = 0.05 * gammacF;
 
-double GAMMA = 45;   // 10, 45 in the paper.
+double GAMMA = 10;//45;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   double dt = 1.;
-  if(time < 2.) dt = 0.005;
-  else dt = 0.005;
+  if(time < 2.) dt = 1.;
+  else dt = 1.;
 
   return dt;
 }
@@ -63,7 +63,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  const double Ubar = 2.0;    // FSI3
+  const double Ubar = 0.2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -135,7 +135,7 @@ int main(int argc, char** args) {
   double muf = 1.;
   double rhos = 1000.;
   double nu = 0.4;
-  double E = 4. * 1400000;
+  double E = 1400000;
 
 
   Parameter par(Lref, Uref);
@@ -144,7 +144,7 @@ int main(int argc, char** args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -275,14 +275,15 @@ int main(int argc, char** args) {
 
 
   std::ifstream fin;
+  std::ostringstream fileName;
+  fileName<<"../input/turekBeam2DNew";
   std::ostringstream level_number;
-  level_number << 2;
+  level_number << 4;
+  fileName<<level_number.str();
 
   //BEGIN bulk reading
 
-  std::string bulkfile = "../input/";
-  bulkfile += "turekBeam2D";
-  bulkfile += level_number.str();
+  std::string bulkfile = fileName.str();
   bulkfile += ".bulk.txt";
 
   std::vector < std::vector <double> > xp;
@@ -311,7 +312,9 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  double delta_max = 0.0013 / (numberOfUniformLevelsStart - 4);
+  //double delta_max = 0.0013 / (numberOfUniformLevelsStart - 3);
+
+  double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
     if(dist[i] < -delta_max) {
@@ -342,9 +345,7 @@ int main(int argc, char** args) {
 
 
 
-  std::string interfacefile = "../input/";
-  interfacefile += "turekBeam2D";
-  interfacefile += level_number.str();
+  std::string interfacefile = fileName.str();
   interfacefile += ".interface.txt";
 
   std::vector < std::vector < std::vector < double > > > T;
@@ -371,19 +372,18 @@ int main(int argc, char** args) {
   for(int i = 0; i < xp.size(); i++) {
     xp[i][0] += shift;
   }
-
-
   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
 
-
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
 
+  
   double xmax = -1.0e10;
   double ymax =  1.0e10;
-  unsigned imax = lineIPoints[0].size();
+  unsigned imax = 0;
+
   for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
     if(lineIPoints[0][i][0] > xmax) {
       imax = i;
@@ -401,7 +401,6 @@ int main(int argc, char** args) {
   std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
 
 //END interface reading
-
 
   unsigned iproc = mlMsh.GetLevel(0)->processor_id();
 
@@ -653,6 +652,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
   vector < double > phiP;
   double weight;
 
+  double lenght = 0.;
+
   vector <vector < double> > vx(dim); // background mesh configuration at n + 1
   vector <vector < double> > vxOld(dim); // background mesh configuration at n
 
@@ -782,13 +783,13 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
             GetClosestPointInReferenceElement(vx, xg, ielt, xi);
             bool inverseMapping = GetInverseMapping(solType, ielt, aP, xg, xi, 100);
 
-            std::vector < double > tauF(dim, 0.);
-
             msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
+
+            std::vector < double > tauF(dim, 0.);
             for(unsigned k = 0; k < dim; k++) {
               for(unsigned i = 0; i < nDofs; i++) {
                 for(unsigned j = 0; j < dim; j++) {
-                  tauF[k] += -muFluid * (solV[k][i] * gradPhi[i * dim + j] + solV[j][i] * gradPhi[i * dim + k]) * normal[j];
+                  tauF[k] += muFluid * (solV[k][i] * gradPhi[i * dim + j] + solV[j][i] * gradPhi[i * dim + k]) * normal[j];
                 }
               }
             }
@@ -796,9 +797,11 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
             msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, xi, weight, phi, gradPhi);
             for(unsigned k = 0; k < dim; k++) {
               for(unsigned i = 0; i < nDofsP; i++) {
-                tauF[k] += solP[i] * phi[i] * normal[k];
+                tauF[k] -= solP[i] * phi[i] * normal[k];
               }
             }
+
+            lenght += area;
 
             if(dim == 2) {
               dragF += tauF[0] * area;
@@ -823,7 +826,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
-        std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
+        //std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
@@ -915,7 +918,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
           }
 
           double traceE = E[0][0] + E[1][1] + E[2][2];
-          
+
           for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
             for(unsigned j = 0; j < 3; j++) {
               S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
@@ -961,6 +964,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
           N[2] /= weight;
         }
 
+        lenght += weight;
+
         std::vector < double > tauS(dim, 0.);
         for(unsigned i = 0; i < dim; i++) {
           for(unsigned j = 0; j < dim; j++) {
@@ -980,6 +985,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
     }
   }
 
+  std::cout << "AAAAAAAAAAAAAAAAA = " << lenght << " " << 2.*M_PI * 0.05 << std::endl;
+
   double dragFAll, liftFAll;
   double dragSAll, liftSAll;
   MPI_Reduce(&dragF, &dragFAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
@@ -990,7 +997,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
   if(iproc == 0) {
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll << " " << dragFAll + dragSAll << " " << liftFAll + liftSAll << std::endl;
+    pout << " " << -dragFAll << " " << -liftFAll << " " << -dragSAll << " " << -liftSAll 
+         << " " << -dragFAll - dragSAll << " " << -liftFAll - liftSAll << std::endl;
     pout.close();
   }
 }
