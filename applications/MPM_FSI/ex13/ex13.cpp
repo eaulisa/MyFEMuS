@@ -44,7 +44,7 @@ double gammacS = 0.05;
 double gammap = 0.05;
 double gammau = 0.05 * gammacF;
 
-double GAMMA = 10;   // 10, 45 in the paper.
+double GAMMA = 45;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
@@ -378,6 +378,9 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
   lineI->GetLine(lineIPoints[0]);
 
+
+  PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
+
   double xmax = -1.0e10;
   double ymax =  1.0e10;
   unsigned imax = lineIPoints[0].size();
@@ -387,7 +390,7 @@ int main(int argc, char** args) {
       xmax = lineIPoints[0][i][0];
       ymax = fabs(lineIPoints[0][i][1]);
     }
-    else if(lineIPoints[0][i][0] = xmax) {
+    else if(lineIPoints[0][i][0] == xmax) {
       if(fabs(lineIPoints[0][i][1]) < ymax) {
         imax = i;
         xmax = lineIPoints[0][i][0];
@@ -395,9 +398,8 @@ int main(int argc, char** args) {
       }
     }
   }
-
   std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
-  PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
+
 //END interface reading
 
 
@@ -912,9 +914,11 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
             }
           }
 
+          double traceE = E[0][0] + E[1][1] + E[2][2];
+          
           for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
             for(unsigned j = 0; j < 3; j++) {
-              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+              S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
             }
           }
 
