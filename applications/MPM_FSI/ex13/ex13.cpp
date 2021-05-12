@@ -50,9 +50,11 @@ double GAMMA = 10;//45;   // 10, 45 in the paper.
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
-  double dt = 1.;
-  if(time < 2.) dt = 1.;
-  else dt = 1.;
+  //double dt = 1.; //FSI1
+  double dt = 0.005; //FSI3
+  
+  //if(time < 2.) dt = 1.;
+  //else dt = 1.;
 
   return dt;
 }
@@ -63,7 +65,8 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  const double Ubar = 0.2;    // FSI3
+  //const double Ubar = 0.2;    // FSI1
+  const double Ubar = 2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -135,7 +138,8 @@ int main(int argc, char** args) {
   double muf = 1.;
   double rhos = 1000.;
   double nu = 0.4;
-  double E = 1400000;
+  //double E = 1400000; //FSI1
+  double E = 4 * 1400000; //FSI3
 
 
   Parameter par(Lref, Uref);
@@ -144,7 +148,8 @@ int main(int argc, char** args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor);
+  mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor); // FSI_mesh1
+  //mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor); // FSI_mesh2
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -276,9 +281,10 @@ int main(int argc, char** args) {
 
   std::ifstream fin;
   std::ostringstream fileName;
-  fileName<<"../input/turekBeam2DNew";
-  std::ostringstream level_number;
-  level_number << 4;
+   std::ostringstream level_number;
+  fileName<<"../input/turekBeam2D"; level_number << 2;
+  //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
+   
   fileName<<level_number.str();
 
   //BEGIN bulk reading
@@ -312,9 +318,8 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  //double delta_max = 0.0013 / (numberOfUniformLevelsStart - 3);
-
-  double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
+  double delta_max = 0.0013 / (numberOfUniformLevelsStart - 4);
+  //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
     if(dist[i] < -delta_max) {
@@ -326,12 +331,10 @@ int main(int argc, char** args) {
     }
   }
 
-
   double shift = 1.0e-4;
   for(int i = 0; i < xp.size(); i++) {
     xp[i][0] += shift;
   }
-
 
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
@@ -342,8 +345,6 @@ int main(int argc, char** args) {
   //END bulk reading
 
   //BEGIN interface reading
-
-
 
   std::string interfacefile = fileName.str();
   interfacefile += ".interface.txt";
