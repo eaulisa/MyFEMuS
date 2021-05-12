@@ -453,10 +453,14 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       double mu1f = 0.;
       double mu2f = 0.;
 
+      double weightAll = 0.;
       for(unsigned iface = 0; iface < nFaces; iface++) {
 
         unsigned irow = msh->GetSolutionDof(localDofOffset + iface, iel, faceType);
 
+        double weight = ((*sol->_Sol[indexCntEdge])(irow) == 2) ? 1 : 10;
+        weightAll += weight;
+        
         //double thetae = (*theta0)(irow);
         double thetae = atan2((*mu2)(irow), (*mu1)(irow));
         double normMue = (*normMu)(irow);
@@ -467,9 +471,12 @@ void UpdateMu(MultiLevelSolution & mlSol) {
         double a = cos(eAngle[iface]);
         double b = sin(eAngle[iface]);
 
-        mu1f += ((a * a - b * b) * mu1e - 2. * a * b * mu2e) / nFaces;
-        mu2f += (2. * a * b * mu1e + (a * a - b * b) * mu2e) / nFaces;
+        mu1f += weight * ((a * a - b * b) * mu1e - 2. * a * b * mu2e);
+        mu2f += weight * (2. * a * b * mu1e + (a * a - b * b) * mu2e);
       }
+      
+      mu1f /= weightAll;
+      mu2f /= weightAll;
 
       sol->_Sol[indexMu[0]]->set(iel, mu1f);
       sol->_Sol[indexMu[1]]->set(iel, mu2f);

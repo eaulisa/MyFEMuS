@@ -78,9 +78,9 @@ int main(int argc, char** args) {
 
   //std::cout << "aaaaaaaaaaaaaaaaa";
 
-  ParametrizeIntersection();
+  //ParametrizeIntersection();
 
-  return 1;
+  //return 1;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
