@@ -39,19 +39,21 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.005;
 
-double gammacF = 0.05;
-double gammacS = 0.05;
-double gammap = 0.05;
+double factor = 2.;
+
+double gammacF = factor * 0.05;
+double gammacS = factor * 0.05;
+double gammap = factor * 0.05;
 double gammau = 0.05 * gammacF;
 
-double GAMMA = 10;//45;   // 10, 45 in the paper.
+double GAMMA = 45;//45;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
-  //double dt = 1.; //FSI1
-  double dt = 0.005; //FSI3
+  double dt = 1.; //FSI1
+  //double dt = 0.005; //FSI3
   
   //if(time < 2.) dt = 1.;
   //else dt = 1.;
@@ -65,8 +67,8 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  //const double Ubar = 0.2;    // FSI1
-  const double Ubar = 2;    // FSI3
+  const double Ubar = 0.2;    // FSI1
+  //const double Ubar = 2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -138,8 +140,8 @@ int main(int argc, char** args) {
   double muf = 1.;
   double rhos = 1000.;
   double nu = 0.4;
-  //double E = 1400000; //FSI1
-  double E = 4 * 1400000; //FSI3
+  double E = 1400000; //FSI1
+  //double E = 4 * 1400000; //FSI3
 
 
   Parameter par(Lref, Uref);
@@ -453,7 +455,7 @@ int main(int argc, char** args) {
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 5000;
-  unsigned printTimeInterval = 10;
+  unsigned printTimeInterval = 1;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
