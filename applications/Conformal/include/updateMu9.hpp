@@ -319,10 +319,17 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   unsigned indexCntEdge = mlSol.GetIndex("cntEdge");
 
-  NumericVector  *theta0 = NumericVector::build().release();
-  theta0->init(*sol->_Sol[indexCntEdge]);
-  NumericVector  *theta1 = NumericVector::build().release();
-  theta1->init(*sol->_Sol[indexCntEdge]);
+//   NumericVector  *theta0 = NumericVector::build().release();
+//   theta0->init(*sol->_Sol[indexCntEdge]);
+//   NumericVector  *theta1 = NumericVector::build().release();
+//   theta1->init(*sol->_Sol[indexCntEdge]);
+
+  NumericVector  *mu1 = NumericVector::build().release();
+  mu1->init(*sol->_Sol[indexCntEdge]);
+  NumericVector  *mu2 = NumericVector::build().release();
+  mu2->init(*sol->_Sol[indexCntEdge]);
+
+
   NumericVector  *normMu = NumericVector::build().release();
   normMu->init(*sol->_Sol[indexCntEdge]);
 
@@ -340,8 +347,11 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
-    theta0->zero();
-    theta1->zero();
+//     theta0->zero();
+//     theta1->zero();
+
+    mu1->zero();
+    mu2->zero();
     normMu->zero();
     sol->_Sol[indexCntEdge]->zero();
 
@@ -363,9 +373,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       double mu2f = (*sol->_Sol[indexMu[1]])(iel);
 
       for(unsigned iface = 0; iface < nFaces; iface++) {
-
-        int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
-
+      
         unsigned irow = msh->GetSolutionDof(localDofOffset + iface, iel, faceType);
 
         double a = cos(eAngle[iface]);
@@ -375,13 +383,21 @@ void UpdateMu(MultiLevelSolution & mlSol) {
         double mu2e = - 2. * a * b * mu1f + (a * a - b * b) * mu2f;
 
         double normMue = sqrt(mu1e * mu1e + mu2e * mu2e);
-        double thetae = atan2(mu2e, mu1e);
-        if(jel > iel) {
-          theta0->add(irow, thetae);
-        }
-        else {
-          theta1->add(irow, thetae);
-        }
+
+        mu1e /= normMue;
+        mu2e /= normMue;
+        
+//        int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+//        double thetae = atan2(mu2e, mu1e);
+//         if(jel > iel) {
+//           theta0->add(irow, thetae);
+//         }
+//         else {
+//           theta1->add(irow, thetae);
+//         }
+        
+        mu1->add(irow, mu1e);
+        mu2->add(irow, mu2e);
         normMu->add(irow, normMue);
 
         sol->_Sol[indexCntEdge]->add(irow, 1);
@@ -389,27 +405,34 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     }
 
     sol->_Sol[indexCntEdge]->close();
-    theta0->close();
+    mu1->close();
+    mu2->close();
+    //theta1->close();
+    //theta0->close();
     normMu->close();
 
     for(int iface = msh->_dofOffset[faceType][iproc]; iface < msh->_dofOffset[faceType][iproc + 1]; iface++) {
       double value = (*sol->_Sol[indexCntEdge])(iface);
       if(value > 0.5) {
         normMu->set(iface, (*normMu)(iface) / value);
-        if(value == 2) {
-          double thetae0 = (*theta0)(iface);
-          double thetae1 = (*theta1)(iface);
-          if(fabs(thetae1 - thetae0) > M_PI) {
-            //std::cout << "AA " << fabs(thetae1 - thetae0) << " " << thetae1 * 180 / M_PI << " " << thetae0 * 180 / M_PI << std::endl;
-            if(thetae1 < 0) thetae1 += 2. * M_PI;
-            else thetae1 -= 2. * M_PI;
-          }
-          theta0->set(iface, 0.5 * (thetae0 + thetae1));
-        }
+        mu1->set(iface, (*mu1)(iface) / value);
+        mu2->set(iface, (*mu2)(iface) / value);
+//         if(value == 2) {
+//           double thetae0 = (*theta0)(iface);
+//           double thetae1 = (*theta1)(iface);
+//           if(fabs(thetae1 - thetae0) > M_PI) {
+//             //std::cout << "AA " << fabs(thetae1 - thetae0) << " " << thetae1 * 180 / M_PI << " " << thetae0 * 180 / M_PI << std::endl;
+//             if(thetae1 < 0) thetae1 += 2. * M_PI;
+//             else thetae1 -= 2. * M_PI;
+//           }
+//           theta0->set(iface, 0.5 * (thetae0 + thetae1));
+//         }
       }
     }
 
-    theta0->close();
+    mu1->close();
+    mu2->close();
+    //theta0->close();
     normMu->close();
 
 
@@ -434,7 +457,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
         unsigned irow = msh->GetSolutionDof(localDofOffset + iface, iel, faceType);
 
-        double thetae = (*theta0)(irow);
+        //double thetae = (*theta0)(irow);
+        double thetae = atan2((*mu2)(irow), (*mu1)(irow));
         double normMue = (*normMu)(irow);
 
         double mu1e = normMue * cos(thetae);
@@ -457,8 +481,10 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
   }
 
-  delete theta0;
-  delete theta1;
+  delete mu1;
+  delete mu2;
+//   delete theta0;
+//   delete theta1;
   delete normMu;
 
 

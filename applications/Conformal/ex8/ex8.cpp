@@ -29,8 +29,10 @@ using namespace femus;
 Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
-#include "../include/updateMu8.hpp"
+#include "../include/updateMu9.hpp"
 #include "../include/assembleConformalMinimization9.hpp"
+
+void ParametrizeIntersection();
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -49,7 +51,8 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
 bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 500, 1, 0.811569);
+//const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 4, 1, true, 500, 1, 0.805200);
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
@@ -71,6 +74,13 @@ const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995
 
 // Main program starts here.
 int main(int argc, char** args) {
+
+
+  //std::cout << "aaaaaaaaaaaaaaaaa";
+
+  ParametrizeIntersection();
+
+  return 1;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -190,7 +200,7 @@ int main(int argc, char** args) {
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
   }
 
-  mlMsh.RefineMesh(parameter.numberOfUniformLevels , parameter.numberOfUniformLevels, NULL);
+  mlMsh.RefineMesh(parameter.numberOfUniformLevels, parameter.numberOfUniformLevels, NULL);
 
   // Erase all the coarse mesh levels.
   mlMsh.EraseCoarseLevels(parameter.numberOfUniformLevels - 1);
@@ -511,5 +521,90 @@ void UpdateMesh(MultiLevelSolution &mlSol) {
   }
 
   delete mysol;
+
+}
+
+
+
+
+double T1(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
+  return sqrt(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R + sqrt(r * r - pow(w * cos(phi) + rho * sin(phi), 2.)), 2.));
+}
+double T2(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
+  return -T1(w, R, r, phi, rho);
+}
+double T3(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
+  return sqrt(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R - sqrt(r * r - pow(w * cos(phi) + rho * sin(phi), 2.)), 2.));
+}
+double T4(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
+  return -T3(w, R, r, phi, rho);
+}
+
+double GetW(const double &z) {
+  return (z <= 0) ? -2. + (1. + sqrt(2)) * (z + 1.) : (1. - sqrt(2.)) * (z - 1.);
+}
+
+std::vector<double> GetXq(const double &rho, const double &alpha, const double &phi) {
+  std::vector <double> xq(3);
+  xq[0] = rho * cos(alpha) * cos(phi);
+  xq[1] = rho * sin(alpha) * cos(phi);
+  xq[2] = rho * sin(phi);
+  return xq;
+}
+
+std::vector<double> L(const double& w, const std::vector<double> &xq, const double &alpha, const double &phi, const double &T) {
+  std::vector <double> xp(3);
+  xp[0] = xq[0] + T * sin(alpha) - w * cos(alpha) * sin(phi);
+  xp[1] = xq[1] - T * cos(alpha) - w * sin(alpha) * sin(phi);
+  xp[2] = xq[2] + w * cos(phi);
+  
+  //std::cout<<xq[0] <<" "<<T<<" "<< T * sin(alpha) <<" " <<- w * cos(alpha) * sin(phi)<<" "<<xp[0]<<std::endl;
+  return xp;
+}
+
+void ParametrizeIntersection() {
+  double R = sqrt(2.);
+  double r = 1;
+  double phi = M_PI / 4.;
+  double alpha = M_PI / 2.;
+  double rho = 1.;
+  std::vector <double> xq = GetXq(rho, alpha, phi);
+  unsigned np = 1000;
+  double dt = 2. * M_PI / np;
+
+  //std::cout << np << std::endl;
+  for(unsigned i = 0; i <= np; i++) {
+    double x = cos(i * dt);
+    double z = sin(i * dt);
+
+    std::vector <double> xp;
+    double w = GetW(z);
+    double T;
+
+    if(x >= 0.) {
+      if(z <= 0.) {
+        T = T1(w, R, r, phi, rho);
+      }
+      else {
+        T = T3(w, R, r, phi, rho);
+      }
+    }
+    else {
+      if(z <= 0.) {
+        T = T2(w, R, r, phi, rho);
+      }
+      else {
+        T = T4(w, R, r, phi, rho);
+      }
+    }
+    xp = L(w, xq, alpha, phi, T);
+    
+    std::cout <<xp[0] << " " << xp[1] << " " << xp[2] << std::endl;
+    //std::cout << x<<" "<<z<<" "<<w<<" "<<xq[0]<<" "<<T<<" "<<xp[0] << " " << xp[1] << " " << xp[2] << std::endl;
+    
+    //std::cout << xq[0]<< " "<< T * sin(alpha) <<" "<<- w * cos(alpha) * sin(phi)<< " " << xp[0]<< std::endl;
+  }
+
+
 
 }
