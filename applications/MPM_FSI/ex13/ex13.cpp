@@ -52,11 +52,11 @@ double GAMMA = 45;//45;   // 10, 45 in the paper.
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
-  double dt = 1.; //FSI1
-  //double dt = 0.005; //FSI3
+  //double dt = 1.; //FSI1
+  double dt = 0.005; //FSI3
   
-  //if(time < 2.) dt = 1.;
-  //else dt = 1.;
+  if(time < 2.) dt = .05;
+  else dt = 0.005;
 
   return dt;
 }
@@ -67,8 +67,8 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  const double Ubar = 0.2;    // FSI1
-  //const double Ubar = 2;    // FSI3
+  //const double Ubar = 0.2;    // FSI1
+  const double Ubar = 2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -140,8 +140,8 @@ int main(int argc, char** args) {
   double muf = 1.;
   double rhos = 1000.;
   double nu = 0.4;
-  double E = 1400000; //FSI1
-  //double E = 4 * 1400000; //FSI3
+  //double E = 1400000; //FSI1
+  double E = 4 * 1400000; //FSI3
 
 
   Parameter par(Lref, Uref);
@@ -455,7 +455,7 @@ int main(int argc, char** args) {
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 5000;
-  unsigned printTimeInterval = 1;
+  unsigned printTimeInterval = 10;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
