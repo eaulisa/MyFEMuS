@@ -32,10 +32,10 @@ bool weakP = false;
 double theta = 1.;
 double af = 1. - theta;
 double am = af - 0.;
-//double beta = 0.25 + 0.5 * (af - am);
-//double Gamma = 0.5 + (af - am);
-double beta = .5;
-double Gamma = 1.;
+double beta = 0.25 + 0.5 * (af - am);
+double Gamma = 0.5 + (af - am);
+// double beta = .5;
+// double Gamma = 1.;
 
 double DTMIN = 0.005;
 
