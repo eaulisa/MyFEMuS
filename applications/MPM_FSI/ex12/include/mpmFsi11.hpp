@@ -694,11 +694,14 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
           }
 
+          adept::adouble traceE = E[0][0] + E[1][1] + E[2][2];
+
           for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
             for(unsigned j = 0; j < 3; j++) {
-              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+              S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
             }
           }
+
 
           adept::adouble SFt[3][3];
           for(unsigned i = 0; i < 3; i++) { // S F^t
@@ -1906,12 +1909,13 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
             }
           }
 
+          double traceE = E[0][0] + E[1][1] + E[2][2];
+
           for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
             for(unsigned j = 0; j < 3; j++) {
-              S[i][j] = lambdaMpm * E[i][j] * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+              S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
             }
           }
-
           double SFt[3][3];
           for(unsigned i = 0; i < 3; i++) { // S F^t
             for(unsigned j = 0; j < 3; j++) {
@@ -2023,8 +2027,8 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
 
   if(iproc == 0) {
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll 
-    << std::endl;
+    pout << " " << dragFAll << " " << liftFAll << " " << dragSAll << " " << liftSAll
+         << std::endl;
     pout.close();
   }
 }
