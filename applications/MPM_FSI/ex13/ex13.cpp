@@ -32,10 +32,10 @@ bool weakP = false;
 double theta = 1.;
 double af = 1. - theta;
 double am = af - 0.;
-//double beta = 0.25 + 0.5 * (af - am);
-//double Gamma = 0.5 + (af - am);
-double beta = .5;
-double Gamma = 1.;
+double beta = 0.25 + 0.5 * (af - am);
+double Gamma = 0.5 + (af - am);
+// double beta = .5;
+// double Gamma = 1.;
 
 double DTMIN = 0.005;
 
@@ -821,7 +821,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
 
-        std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
+        //std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
