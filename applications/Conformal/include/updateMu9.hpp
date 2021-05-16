@@ -458,7 +458,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
 
         unsigned irow = msh->GetSolutionDof(localDofOffset + iface, iel, faceType);
 
-        double weight = ((*sol->_Sol[indexCntEdge])(irow) == 2) ? 1 : 10;
+        double weight = ((*sol->_Sol[indexCntEdge])(irow) == 2) ? 1 : 1;
         weightAll += weight;
         
         //double thetae = (*theta0)(irow);

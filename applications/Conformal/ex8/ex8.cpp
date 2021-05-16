@@ -29,10 +29,10 @@ using namespace femus;
 Parameter parameter;
 
 #include "../include/supportFunctions.hpp"
-#include "../include/updateMu9.hpp"
+#include "../include/updateMu8.hpp"
 #include "../include/assembleConformalMinimization9.hpp"
 
-void ParametrizeIntersection();
+void ParametrizeIntersection(const double &phi);
 
 double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
@@ -50,6 +50,7 @@ bool SetBoundaryConditionZero(const std::vector < double >& x, const char solNam
 bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
+bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solName[], double & value, const int faceName, const double time);
 
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 500, 1, 0.811569);
 //const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
@@ -57,7 +58,7 @@ const Parameter squareTri = Parameter("square with triangles", 1, false, false, 
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
-const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 1000, 1, 0.793786); //normal constraint
+const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 200, 1, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
@@ -71,46 +72,17 @@ const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.5
 const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.602613);
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
-
+const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 60, 0.793786); //normal constraint
 // Main program starts here.
 int main(int argc, char** args) {
 
+//   ParametrizeIntersection(M_PI / 6.);
+//
+//
+//   return 1;
 
-  //std::cout << "aaaaaaaaaaaaaaaaa";
 
-  //ParametrizeIntersection();
-
-  //return 1;
-
-  // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
-//   std::vector <double> angle(3);
-//   std::vector < std::vector <double> > xC(2);
-// //   xC[0].resize(4);
-// //   xC[1].resize(4);
-// //
-// //   angle[0] = angle[1] = angle[2] = 2. * M_PI / 4.;
-// //   angle[3] = 2. * M_PI / 3.;
-//
-//   xC[0].resize(3);
-//   xC[1].resize(3);
-//
-//   angle[2] = angle[1] = M_PI / 3.;
-//   angle[0] = M_PI / 2.;
-//
-//
-//   GetConformalStructure(angle, xC);
-//
-//   for(unsigned i = 0; i <= xC[0].size(); i++) {
-//     unsigned ii = i % xC[0].size();
-//     std::cout << xC[0][ii] << " " << xC[1][ii]   << std::endl;
-//   }
-//  return 1;
-
-
-
-
 
   if(argc >= 2) {
     if(!strcmp("0", args[1])) { // square with triangles
@@ -142,6 +114,9 @@ int main(int argc, char** args) {
     }
     else if(!strcmp("9", args[1])) { // moai
       parameter = fert;
+    }
+    else if(!strcmp("10", args[1])) { // moai
+      parameter = torusConstrained;
     }
     else {
       goto generic;
@@ -195,6 +170,9 @@ int main(int argc, char** args) {
   }
   else if(parameter.simulation == 9) {
     mlMsh.ReadCoarseMesh("../../Willmore/WillmoreSurface/input/stupid.med", "seventh", scalingFactor, false, false);
+  }
+  else if(parameter.simulation == 10) {
+    mlMsh.ReadCoarseMesh("../input/torus.neu", "seventh", scalingFactor);
   }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
@@ -269,6 +247,9 @@ int main(int argc, char** args) {
   }
   else if(parameter.simulation < 10) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
+  }
+  else if(parameter.simulation < 11) {
+    mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionTorus);
   }
   else { // generic pick your boundary
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionSquare);
@@ -349,8 +330,8 @@ int main(int argc, char** args) {
 
   system.CopySolutionToOldSolution();
   for(unsigned k = 0; k < parameter.numberOfIterations; k++) {
-//     if(k == parameter.numberOfIterations - 1)  {
-//       system.SetMaxNumberOfNonLinearIterations(1000);
+//     if(parameter.simulation == 10 && k >= 50)  {
+//       system.SetMaxNumberOfNonLinearIterations(20);
 //     }
     system.MGsolve();
     //ProjectSolution(mlSol);
@@ -528,13 +509,13 @@ void UpdateMesh(MultiLevelSolution &mlSol) {
 
 
 double T1(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
-  return sqrt(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R + sqrt(r * r - pow(w * cos(phi) + rho * sin(phi), 2.)), 2.));
+  return sqrt(std::max(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R + sqrt(std::max(r * r - pow(w * cos(phi) + rho * sin(phi), 2.), 0.)), 2.), 0.));
 }
 double T2(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
   return -T1(w, R, r, phi, rho);
 }
 double T3(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
-  return sqrt(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R - sqrt(r * r - pow(w * cos(phi) + rho * sin(phi), 2.)), 2.));
+  return sqrt(std::max(-pow(rho * cos(phi) - w * sin(phi), 2.) + pow(R - sqrt(std::max(r * r - pow(w * cos(phi) + rho * sin(phi), 2.), 0.)), 2.), 0.));
 }
 double T4(const double& w, const double &R, const double &r, const double &phi, const double & rho) {
   return -T3(w, R, r, phi, rho);
@@ -557,54 +538,256 @@ std::vector<double> L(const double& w, const std::vector<double> &xq, const doub
   xp[0] = xq[0] + T * sin(alpha) - w * cos(alpha) * sin(phi);
   xp[1] = xq[1] - T * cos(alpha) - w * sin(alpha) * sin(phi);
   xp[2] = xq[2] + w * cos(phi);
-  
+
   //std::cout<<xq[0] <<" "<<T<<" "<< T * sin(alpha) <<" " <<- w * cos(alpha) * sin(phi)<<" "<<xp[0]<<std::endl;
   return xp;
 }
 
-void ParametrizeIntersection() {
+void ParametrizeIntersection(const double &phi) {
   double R = sqrt(2.);
   double r = 1;
-  double phi = M_PI / 4.;
   double alpha = M_PI / 2.;
-  double rho = 1.;
+  double rho = sqrt(2.) * cos(phi);
   std::vector <double> xq = GetXq(rho, alpha, phi);
-  unsigned np = 1000;
+  unsigned np = 100;
   double dt = 2. * M_PI / np;
 
-  //std::cout << np << std::endl;
-  for(unsigned i = 0; i <= np; i++) {
+  double wa = -1. - sqrt(2) * sin(phi);
+  double wb =  1. - sqrt(2) * sin(phi);
+  double wc =  1. / cos(phi) - sqrt(2) * sin(phi);
+
+  std::vector < double > a = L(wc, xq, alpha, phi, T3(wc, R, r, phi, rho));
+  a[1] -= R;
+  std::vector < double > b = L(wb, xq, alpha, phi, T3(wb, R, r, phi, rho));
+  b[1] -= R;
+  double theta0 = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
+                       sqrt((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+  double theta1 = 0.5 * M_PI - theta0;
+  double theta2 = 0.5 * M_PI + theta0;
+
+  for(unsigned i = 0; i <= 1 * np; i++) {
     double x = cos(i * dt);
     double z = sin(i * dt);
 
-    std::vector <double> xp;
-    double w = GetW(z);
-    double T;
+    double t = atan2(z, x);
+    if(t < - 0.5 * M_PI) t += 2 * M_PI;
 
-    if(x >= 0.) {
-      if(z <= 0.) {
+    double w;
+    double T;
+    if(t <= theta1) {
+      double w0 = wa;
+      double w1 = wc;
+      while(fabs(w0 - w1) > 1.e-5) {
+        double w = w0 + 0.5 * (w1 - w0);
         T = T1(w, R, r, phi, rho);
+        std::vector < double > c = L(w, xq, alpha, phi, T);
+        c[1] -= R;
+        double y = 0.5 * M_PI - acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                     sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+        if(y < t) {
+          w0 = w;
+        }
+        else {
+          w1 = w;
+        }
       }
-      else {
+    }
+    else if(t <= 0.5 * M_PI) {
+      double w0 = wc;
+      double w1 = wb;
+      while(fabs(w0 - w1) > 1.e-5) {
+        double w = w0 + 0.5 * (w1 - w0);
         T = T3(w, R, r, phi, rho);
+        std::vector < double > c = L(w, xq, alpha, phi, T);
+        c[1] -= R;
+        double y = 0.5 * M_PI - acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                     sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+        if(y < t) {
+          w0 = w;
+        }
+        else {
+          w1 = w;
+        }
+      }
+    }
+    else if(t <= theta2) {
+      double w0 = wb;
+      double w1 = wc;
+      while(fabs(w0 - w1) > 1.e-5) {
+        double w = w0 + 0.5 * (w1 - w0);
+        T = T4(w, R, r, phi, rho);
+        std::vector < double > c = L(w, xq, alpha, phi, T);
+        c[1] -= R;
+        double y = 0.5 * M_PI + acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                     sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+        if(y < t) {
+          w0 = w;
+        }
+        else {
+          w1 = w;
+        }
       }
     }
     else {
-      if(z <= 0.) {
+      double w0 = wc;
+      double w1 = wa;
+      while(fabs(w0 - w1) > 1.e-5) {
+        double w = w0 + 0.5 * (w1 - w0);
         T = T2(w, R, r, phi, rho);
-      }
-      else {
-        T = T4(w, R, r, phi, rho);
+        std::vector < double > c = L(w, xq, alpha, phi, T);
+        c[1] -= R;
+        double y = 0.5 * M_PI + acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                     sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+        if(y < t) {
+          w0 = w;
+        }
+        else {
+          w1 = w;
+        }
       }
     }
-    xp = L(w, xq, alpha, phi, T);
-    
-    std::cout <<xp[0] << " " << xp[1] << " " << xp[2] << std::endl;
+
+    std::vector <double> xp = L(w, xq, alpha, phi, T);
+
+    std::cout << t / M_PI * 180 << " " << xp[0] << " " << xp[1] << " " << xp[2] << std::endl;
     //std::cout << x<<" "<<z<<" "<<w<<" "<<xq[0]<<" "<<T<<" "<<xp[0] << " " << xp[1] << " " << xp[2] << std::endl;
-    
+
     //std::cout << xq[0]<< " "<< T * sin(alpha) <<" "<<- w * cos(alpha) * sin(phi)<< " " << xp[0]<< std::endl;
   }
 
-
-
 }
+
+bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solName[], double & value, const int faceName, const double time) {
+
+  bool dirichlet = true;
+  value = 0.;
+
+  if(!strcmp(solName, "Lambda")) {
+    dirichlet = false;
+  }
+  else if(!strcmp(solName, "vAngle")) {
+    value = M_PI;
+  }
+  else if(!strcmp(solName, "Dx1") || !strcmp(solName, "Dx2") || !strcmp(solName, "Dx3")) {
+
+    double phi = M_PI * 6. / 18. * time / parameter.numberOfIterations;
+
+    if(phi > 0) {
+
+      double R = sqrt(2.);
+      double r = 1;
+      double alpha = M_PI / 2.;
+      double rho = sqrt(2.) * cos(phi);
+      std::vector <double> xq = GetXq(rho, alpha, phi);
+
+      double wa = -1. - sqrt(2) * sin(phi);
+      double wb =  1. - sqrt(2) * sin(phi);
+      double wc =  1. / cos(phi) - sqrt(2) * sin(phi);
+
+      std::vector < double > a = L(wc, xq, alpha, phi, T3(wc, R, r, phi, rho));
+      a[1] -= R;
+      std::vector < double > b = L(wb, xq, alpha, phi, T3(wb, R, r, phi, rho));
+      b[1] -= R;
+      double theta0 = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
+                           sqrt((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+      double theta1 = 0.5 * M_PI - theta0;
+      double theta2 = 0.5 * M_PI + theta0;
+
+      double t = atan2(x[2], x[0]);
+      if(t < - 0.5 * M_PI) t += 2 * M_PI;
+
+      double w;
+      double T;
+      if(t <= theta1) {
+        double w0 = wa;
+        double w1 = wc;
+        while(fabs(w0 - w1) > 1.e-5) {
+          double w = w0 + 0.5 * (w1 - w0);
+          T = T1(w, R, r, phi, rho);
+          std::vector < double > c = L(w, xq, alpha, phi, T);
+          c[1] -= R;
+          double y = 0.5 * M_PI - acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                       sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+          if(y < t) {
+            w0 = w;
+          }
+          else {
+            w1 = w;
+          }
+        }
+      }
+      else if(t <= 0.5 * M_PI) {
+        double w0 = wc;
+        double w1 = wb;
+        while(fabs(w0 - w1) > 1.e-5) {
+          double w = w0 + 0.5 * (w1 - w0);
+          T = T3(w, R, r, phi, rho);
+          std::vector < double > c = L(w, xq, alpha, phi, T);
+          c[1] -= R;
+          double y = 0.5 * M_PI - acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                       sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+          if(y < t) {
+            w0 = w;
+          }
+          else {
+            w1 = w;
+          }
+        }
+      }
+      else if(t <= theta2) {
+        double w0 = wb;
+        double w1 = wc;
+        while(fabs(w0 - w1) > 1.e-5) {
+          double w = w0 + 0.5 * (w1 - w0);
+          T = T4(w, R, r, phi, rho);
+          std::vector < double > c = L(w, xq, alpha, phi, T);
+          c[1] -= R;
+          double y = 0.5 * M_PI + acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                       sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+          if(y < t) {
+            w0 = w;
+          }
+          else {
+            w1 = w;
+          }
+        }
+      }
+      else {
+        double w0 = wc;
+        double w1 = wa;
+        while(fabs(w0 - w1) > 1.e-5) {
+          double w = w0 + 0.5 * (w1 - w0);
+          T = T2(w, R, r, phi, rho);
+          std::vector < double > c = L(w, xq, alpha, phi, T);
+          c[1] -= R;
+          double y = 0.5 * M_PI + acos((c[0] * b[0] + c[1] * b[1] + c[2] * b[2]) /
+                                       sqrt((c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+          if(y < t) {
+            w0 = w;
+          }
+          else {
+            w1 = w;
+          }
+        }
+      }
+
+      std::vector <double> xp = L(w, xq, alpha, phi, T);
+
+      if(!strcmp(solName, "Dx1")) {
+        value = (xp[0] - x[0]);
+      }
+      else if(!strcmp(solName, "Dx2")) {
+        value = (xp[1] - x[1]);
+      }
+      else if(!strcmp(solName, "Dx3")) {
+        value = (xp[2] - x[2]);
+      }
+    }
+  }
+
+  return dirichlet;
+}
+
+
+
+

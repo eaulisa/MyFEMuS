@@ -351,15 +351,18 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     }
     double muNormMax;
     MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    std::cout << "smoothed mu infinity norm = " << muNormMax << std::endl;
+    std::cout << "smoothed mu infinity norm = " << MuNormAverageBefore * muNormMax << std::endl;
 
     MPI_Allreduce(&MuNormLocalSum, &MuNormAverageAfter, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MuNormAverageAfter /= msh->_dofOffset[solType1][nprocs];
 
+    MuNormAverageAfter *= MuNormAverageBefore;
+    
     std::cout << "smoothed mu average norm = " << MuNormAverageAfter << std::endl;
     std::cout << "relative difference = " << (muNormMax - MuNormAverageAfter) / MuNormAverageAfter << std::endl;
 
   }
+
 
 
   if(parameter.finalSmoothIsOn) {
@@ -374,8 +377,11 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       double cosTheta = mu[0] / norm;
       double sinTheta = mu[1] / norm;
 
-      sol->_Sol[indexMu[0]]->set(i, MuNormAverageAfter * cosTheta);
-      sol->_Sol[indexMu[1]]->set(i, MuNormAverageAfter * sinTheta);
+//       sol->_Sol[indexMu[0]]->set(i, MuNormAverageAfter * cosTheta);
+//       sol->_Sol[indexMu[1]]->set(i, MuNormAverageAfter * sinTheta);
+
+      sol->_Sol[indexMu[0]]->set(i, MuNormAverageBefore * cosTheta);
+      sol->_Sol[indexMu[1]]->set(i, MuNormAverageBefore * sinTheta);
 
     }
     for(unsigned k = 0; k < 2; k++) {
@@ -620,7 +626,6 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       }
     }
 
-    std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
     std::cout << energyBefore << " " << energyAfter << " " << energyT << std::endl;
   }
 }
@@ -1342,23 +1347,23 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   temp = SparseMatrix::build().release();
 
   PtP[0][0] = SparseMatrix::build().release();
-  PtP[0][0]->matrix_ABC(*PIJt[0], *I , *PIJ[0], false);
-  temp->matrix_ABC(*PIJt[1], *I , *PIJ[2], false);
+  PtP[0][0]->matrix_ABC(*PIJt[0], *I, *PIJ[0], false);
+  temp->matrix_ABC(*PIJt[1], *I, *PIJ[2], false);
   PtP[0][0]->add(1., *temp);
 
   PtP[0][1] = SparseMatrix::build().release();
-  PtP[0][1]->matrix_ABC(*PIJt[0], *I , *PIJ[1], false);
-  temp->matrix_ABC(*PIJt[1], *I , *PIJ[3], false);
+  PtP[0][1]->matrix_ABC(*PIJt[0], *I, *PIJ[1], false);
+  temp->matrix_ABC(*PIJt[1], *I, *PIJ[3], false);
   PtP[0][1]->add(1., *temp);
 
   PtP[1][0] = SparseMatrix::build().release();
-  PtP[1][0]->matrix_ABC(*PIJt[2], *I , *PIJ[0], false);
-  temp->matrix_ABC(*PIJt[3], *I , *PIJ[2], false);
+  PtP[1][0]->matrix_ABC(*PIJt[2], *I, *PIJ[0], false);
+  temp->matrix_ABC(*PIJt[3], *I, *PIJ[2], false);
   PtP[1][0]->add(1., *temp);
 
   PtP[1][1] = SparseMatrix::build().release();
-  PtP[1][1]->matrix_ABC(*PIJt[2], *I , *PIJ[1], false);
-  temp->matrix_ABC(*PIJt[3], *I , *PIJ[3], false);
+  PtP[1][1]->matrix_ABC(*PIJt[2], *I, *PIJ[1], false);
+  temp->matrix_ABC(*PIJt[3], *I, *PIJ[3], false);
   PtP[1][1]->add(1., *temp);
 
   for(unsigned k = 0; k < 4; k++) {
@@ -1576,6 +1581,13 @@ double EvaluateMuNew(MultiLevelSolution & mlSol) {
 
   std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
   std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
+  
+  for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
+    sol->_Sol[indexMu[0]]->set(i, (*sol->_Sol[indexMu[0]])(i) / MuNormAverage);
+    sol->_Sol[indexMu[1]]->set(i, (*sol->_Sol[indexMu[1]])(i) / MuNormAverage);
+  }
+  sol->_Sol[indexMu[0]]->close();
+  sol->_Sol[indexMu[1]]->close();
 
   return MuNormAverage;
 }
