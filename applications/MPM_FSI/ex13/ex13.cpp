@@ -54,7 +54,7 @@ using namespace femus;
 double SetVariableTimeStep(const double time) {
   //double dt = 1.; //FSI1
   double dt = 0.005; //FSI3
-  
+
   if(time < 2.) dt = .05;
   else dt = 0.005;
 
@@ -276,18 +276,16 @@ int main(int argc, char** args) {
 
   system2.SetTolerances(1.e-10, 1.e-15, 1.e+50, 2, 2);
 
-
   BuildIntegrationPoints(mlSol);
-
-
 
   std::ifstream fin;
   std::ostringstream fileName;
-   std::ostringstream level_number;
-  fileName<<"../input/turekBeam2D"; level_number << 2;
+  std::ostringstream level_number;
+  fileName << "../input/turekBeam2D";
+  level_number << 2;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
-   
-  fileName<<level_number.str();
+
+  fileName << level_number.str();
 
   //BEGIN bulk reading
 
@@ -382,7 +380,7 @@ int main(int argc, char** args) {
 
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
 
-  
+
   double xmax = -1.0e10;
   double ymax =  1.0e10;
   unsigned imax = 0;
@@ -586,10 +584,21 @@ void BuildIntegrationPoints(MultiLevelSolution& mlSol) {
   Nr[0].resize(sizeAll);
   Nr[1].resize(sizeAll);
 
-  MPI_Allgather(x[0].data(), x[0].size(), MPI_DOUBLE, xr[0].data(), x[0].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
-  MPI_Allgather(x[1].data(), x[1].size(), MPI_DOUBLE, xr[1].data(), x[1].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
-  MPI_Allgather(N[0].data(), N[0].size(), MPI_DOUBLE, Nr[0].data(), N[0].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
-  MPI_Allgather(N[1].data(), N[1].size(), MPI_DOUBLE, Nr[1].data(), N[1].size(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  unsigned nprocs = msh->n_processors();
+  std::vector <int> sizeLocals(nprocs);
+
+  MPI_Allgather(&sizeLocal, 1, MPI_UNSIGNED, sizeLocals.data(), 1, MPI_UNSIGNED, PETSC_COMM_WORLD);
+
+  std::vector <int> relPos(nprocs);
+  relPos[0] = 0.;
+  for(unsigned i = 1; i < relPos.size(); i++) {
+    relPos[i] = relPos[i - 1] + sizeLocals[i - 1];
+  }
+    
+  MPI_Allgatherv(x[0].data(), x[0].size(), MPI_DOUBLE, xr[0].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgatherv(x[1].data(), x[1].size(), MPI_DOUBLE, xr[1].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgatherv(N[0].data(), N[0].size(), MPI_DOUBLE, Nr[0].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
+  MPI_Allgatherv(N[1].data(), N[1].size(), MPI_DOUBLE, Nr[1].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
 
   std::vector < std::vector <double> > xp(sizeAll);
   std::vector < std::vector < std::vector <double> > > Tp(sizeAll);
@@ -602,6 +611,7 @@ void BuildIntegrationPoints(MultiLevelSolution& mlSol) {
     for(unsigned k = 0; k < dim; k++) {
       xp[i][k] = xr[k][i];
     }
+
     Tp[i][0][0] = -Nr[1][i];
     Tp[i][0][1] = Nr[0][i];
   }
@@ -988,7 +998,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
     }
   }
 
-  std::cout << "AAAAAAAAAAAAAAAAA = " << lenght << " " << 2.*M_PI * 0.05 << std::endl;
+  std::cout << "arclength = " << lenght << " " << 2.*M_PI * 0.05 << std::endl;
 
   double dragFAll, liftFAll;
   double dragSAll, liftSAll;
@@ -1000,7 +1010,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
   if(iproc == 0) {
     pout.open(pfile,  std::ios_base::app);
-    pout << " " << -dragFAll << " " << -liftFAll << " " << -dragSAll << " " << -liftSAll 
+    pout << " " << -dragFAll << " " << -liftFAll << " " << -dragSAll << " " << -liftSAll
          << " " << -dragFAll - dragSAll << " " << -liftFAll - liftSAll << std::endl;
     pout.close();
   }
