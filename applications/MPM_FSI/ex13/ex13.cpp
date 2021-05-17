@@ -37,9 +37,9 @@ double Gamma = 0.5 + (af - am);
 // double beta = .5;
 // double Gamma = 1.;
 
-double DTMIN = 0.005;
+double DTMIN = 0.001;
 
-double factor = 2.;
+double factor = 1.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
@@ -53,10 +53,10 @@ using namespace femus;
 
 double SetVariableTimeStep(const double time) {
   //double dt = 1.; //FSI1
-  double dt = 0.005; //FSI3
+  double dt = 0.001; //FSI3
 
   if(time < 2.) dt = .05;
-  else dt = 0.005;
+  else dt = 0.001;
 
   return dt;
 }
@@ -128,7 +128,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 5; //for refinement in 3D
+  unsigned numberOfUniformLevels = 6; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -282,7 +282,7 @@ int main(int argc, char** args) {
   std::ostringstream fileName;
   std::ostringstream level_number;
   fileName << "../input/turekBeam2D";
-  level_number << 2;
+  level_number << 3;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
 
   fileName << level_number.str();
@@ -452,8 +452,8 @@ int main(int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 5000;
-  unsigned printTimeInterval = 10;
+  unsigned n_timesteps = 20000;
+  unsigned printTimeInterval = 20;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
