@@ -128,7 +128,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 6; //for refinement in 3D
+  unsigned numberOfUniformLevels = 5; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -282,7 +282,7 @@ int main(int argc, char** args) {
   std::ostringstream fileName;
   std::ostringstream level_number;
   fileName << "../input/turekBeam2D";
-  level_number << 3;
+  level_number << 2;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
 
   fileName << level_number.str();
