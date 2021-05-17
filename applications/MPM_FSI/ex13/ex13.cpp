@@ -318,7 +318,7 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  double delta_max = 0.0013 / (numberOfUniformLevelsStart - 4);
+  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
   //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
