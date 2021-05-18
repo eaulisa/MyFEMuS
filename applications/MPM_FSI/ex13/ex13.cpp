@@ -39,7 +39,7 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.001;
 
-double factor = 1.;
+double factor = 2.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
@@ -453,7 +453,7 @@ int main(int argc, char** args) {
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 20000;
-  unsigned printTimeInterval = 20;
+  unsigned printTimeInterval = 50;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
