@@ -39,14 +39,14 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.001;
 
-double factor = 2.;
+double factor = 3.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
 double gammap = factor * 0.05;
 double gammau = 0.05 * gammacF;
 
-double GAMMA = 45;//45;   // 10, 45 in the paper.
+double GAMMA = factor * 45;//45;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
