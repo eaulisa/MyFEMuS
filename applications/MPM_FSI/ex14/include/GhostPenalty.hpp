@@ -87,6 +87,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
+  double dtMin = std::max(DTMIN, dt);
 
   std::cout.precision(10);
 
@@ -127,7 +128,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
+    unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
     if(eFlag1 == 1) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
@@ -181,7 +182,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
         if(jel >= 0) { // iface is not a boundary of the domain
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
-            unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5));
+            unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
 
             if(eFlag2 == 0 + !fluid * 2 || (eFlag2 == 1 && jel > iel)) {
 
@@ -356,13 +357,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
 
 
-                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
-                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dtMin)); //[velocity * h]
+                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dtMin)); //[velocity * h]
                 double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
 
-                double C1 = (fluid) ? gammac * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (theta * dt)) :
-                            gammac * (mu + rho * h2 / (theta * dt * dt));
+                double C1 = (fluid) ? gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (theta * dtMin)) :
+                            gammacS * (mu + rho * h2 / (theta * dtMin * dtMin));
                 // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                 // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                 // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
@@ -370,7 +371,14 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 double C2 = (fluid) ? gammau * rho * phiC : 0.;
 
-                //if(fluid) std::cout << C1 <<" "<<C2<<"\t";
+//                 if(fluid) {
+//                   std::cout << "Fluid " << mu << " " << rho * phiC * cNormL2 * cNormL2
+//                             << " " << rho * h2 / (theta * dtMin)<< " "<< rho * phiC<<std::endl;
+//                 }
+//                 else{
+//                    std::cout << "Solid " << mu << " " << rho * h2 / (theta * dtMin * dtMin)<<std::endl;  
+//                 }
+
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
@@ -557,7 +565,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
         unsigned eFlag1;
 
         if(iproc == kproc) {
-          eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.5));
+          eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
         }
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
@@ -582,7 +590,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 unsigned eFlag2;
                 if(iproc == jproc) {
-                  eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.5));
+                  eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
                   MPI_Send(&eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
                 }
                 else if(iproc == kproc) {
@@ -843,12 +851,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         cNormL2 = sqrt(cNormL2);
                       }
 
-                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
-                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dtMin)); //[velocity * h]
+                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dtMin)); //[velocity * h]
                       double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
-                      double C1 = (fluid) ? gammac * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (theta * dt)) :
-                                  gammac * (mu + rho * h2 / (theta * dt * dt));
+                      double C1 = (fluid) ? gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (theta * dtMin)) :
+                                  gammacS * (mu + rho * h2 / (theta * dtMin * dtMin));
                       // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                       // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                       // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
@@ -1024,5 +1032,6 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 }
+
 
 
