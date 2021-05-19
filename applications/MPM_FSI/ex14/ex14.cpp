@@ -57,7 +57,7 @@ using namespace femus;
 double SetVariableTimeStep(const double time) {
   double dt;
   double dt0 = 0.05;
-  double dt1 = 0.005; //FSI3
+  double dt1 = 0.001; //FSI3
 
   double T = 2.;
   if(time < T)
@@ -251,7 +251,7 @@ int main(int argc, char** args) {
   system.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
   system.SetMaxNumberOfLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-9);
-  system.SetMaxNumberOfNonLinearIterations(2);
+  system.SetMaxNumberOfNonLinearIterations(5);
 
   system.SetNumberPreSmoothingStep(1);
   system.SetNumberPostSmoothingStep(1);
