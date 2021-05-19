@@ -42,7 +42,7 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.001;
 
-double factor = 3.;
+double factor = 2.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
@@ -57,7 +57,7 @@ using namespace femus;
 double SetVariableTimeStep(const double time) {
   double dt;
   double dt0 = 0.05;
-  double dt1 = 0.001; //FSI3
+  double dt1 = 0.005; //FSI3
 
   double T = 2.;
   if(time < T)
@@ -205,9 +205,9 @@ int main(int argc, char** args) {
   if(dim > 2) mlSol.GenerateBdc("VZ", "Steady");
   mlSol.GenerateBdc("P", "Steady");
 
-  
+
   ////////////////////////////////////////////////////////////////
-  
+
 
   MultiLevelProblem ml_prob(&mlSol);
 
@@ -221,7 +221,7 @@ int main(int argc, char** args) {
   }
 
   BuidProjection(ml_prob);
- 
+
   ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
   ml_prob.parameters.set<Solid> ("SolidFEM") = solid;
   ml_prob.parameters.set<Fluid> ("FluidFEM") = fluid;
@@ -466,7 +466,7 @@ int main(int argc, char** args) {
 
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step / printTimeInterval);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
-    
+
     bulk->GetLine(bulkPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step / printTimeInterval);
     lineI->GetLine(lineIPoints[0]);
@@ -655,6 +655,12 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
   vector< double > solP;
 
   vector< vector< double > > solDOld(dim);      // displacement at n
+  
+  vector < vector< vector < double > > > gradSolDTld(dim);
+
+  for(int k = 0; k < dim; k++) {
+    gradSolDTld[k].resize(dim);
+  }
 
   vector < double > phi;
   vector < double > phiP;
@@ -692,6 +698,17 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
     indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+  
+  
+  const char gradVarname[9][4] = {"DXx", "DXy", "DXz", "DYx", "DYy", "DYz", "DZx", "DZy", "DZz"};
+  std::vector < vector <unsigned> > indexGradSolD(dim);
+  for(unsigned j = 0; j < dim; j++) {
+    indexGradSolD[j].resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      indexGradSolD[j][k] = mlSol->GetIndex(&gradVarname[j * 3 + k][0]);
+    }
+  }
+
 
   unsigned indexSolP = mlSol->GetIndex("P");
   unsigned solTypeP = mlSol->GetSolutionType("P");
@@ -721,6 +738,9 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
       vx[k].resize(nDofs);
       vxOld[k].resize(nDofs);
+      for(int j = 0; j < dim; j++) {
+        gradSolDTld[k][j].resize(nDofs);
+      }
     }
     solP.resize(nDofsP);
 
@@ -732,6 +752,11 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
         solDOld[k][i] = (*mysolution->_SolOld[indexSolD[k]])(idof);//t_n
         solDTld[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof) - solDOld[k][i]; //t_{n+1} -t_n
         solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
+
+        for(int j = 0; j < dim; j++) {
+          gradSolDTld[k][j][i] = (*mysolution->_Sol[indexGradSolD[k][j]])(idof);;
+        }
+
       }
     }
 
@@ -831,24 +856,19 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
       while(imarkerI < markerOffsetI[iproc + 1] && iel > particleI[imarkerI]->GetMarkerElement()) {
         imarkerI++;
       }
-
       while(imarkerI < markerOffsetI[iproc + 1] && iel == particleI[imarkerI]->GetMarkerElement()) {
-
-        //std::cout << imarkerI << " " << particleI[imarkerI]->GetMarkerElement() << " " << iel << std::endl;
 
         // the local coordinates of the particles are the Gauss points in this context
         std::vector <double> xi = particleI[imarkerI]->GetMarkerLocalCoordinates();
-        msh->_finiteElement[ielt][solType]->Jacobian(vxOld, xi, weight, phi, gradOldPhi);
-        msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, weight, phi, gradPhi);
+        msh->_finiteElement[ielt][solType]->GetPhi(xi, phi);
 
-        vector<vector < double > > gradOldSolDTld(dim); // $\widetilde{\nabla} \widetilde{\bm D}$
-        for(int j = 0; j < dim; j++) {
-          gradOldSolDTld[j].assign(dim, 0.);
-        }
-        for(int j = 0; j < dim; j++) {
-          for(unsigned i = 0; i < nDofs; i++) {
-            for(int k = 0; k < dim; k++) {
-              gradOldSolDTld[k][j] += solDTld[k][i] * gradOldPhi[i * dim + j];
+        std::vector<std::vector<double>>gradOldSolDgTld(dim);
+        //   update the deformation gradient
+        for(int i = 0; i < dim; i++) {
+          gradOldSolDgTld[i].assign(dim, 0.);
+          for(int j = 0; j < dim; j++) {
+            for(unsigned inode = 0; inode < nDofs; inode++) {
+              gradOldSolDgTld[i][j] +=  phi[inode] * gradSolDTld[i][j][inode];
             }
           }
         }
@@ -868,7 +888,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
 
         for(unsigned j = 0; j < dim; j++) {
           for(unsigned k = 0; k < dim; k++) {
-            FTld[j][k] += gradOldSolDTld[j][k];
+            FTld[j][k] += gradOldSolDgTld[j][k];
           }
         }
 
@@ -993,7 +1013,9 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
     }
   }
 
-  std::cout << "arclength = " << lenght << " " << 2.*M_PI * 0.05 << std::endl;
+  double lenghtAll;
+  MPI_Reduce(&lenght, &lenghtAll, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD);
+  std::cout << "arclength = " << lenghtAll << " " << 2.*M_PI * 0.05 << std::endl;
 
   double dragFAll, liftFAll;
   double dragSAll, liftSAll;
@@ -1114,7 +1136,7 @@ void BuidProjection(MultiLevelProblem& ml_prob) {
     P[k] = sysP[k]->_KK;
     P[k]->zero();
   }
-  
+
   vector < vector < double > > x(dim);
   unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 

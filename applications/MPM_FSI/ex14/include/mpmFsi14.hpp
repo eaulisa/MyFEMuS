@@ -1094,7 +1094,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
 
   //variable-name handling
   const char varname[3][3] = {"DX", "DY", "DZ"};
-  const char gradVarname[9][4] = {"DXx", "DXy", "DXz", "DYx", "DYy", "DYz", "DZx", "DZy", "DZz"};
+  
 
   vector <unsigned> indexSolD(dim);
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
@@ -1103,6 +1103,7 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
     indexSolD[k] = mlSol->GetIndex(&varname[k][0]);
   }
 
+  const char gradVarname[9][4] = {"DXx", "DXy", "DXz", "DYx", "DYy", "DYz", "DZx", "DZy", "DZz"};
   std::vector < vector <unsigned> > indexGradSolD(dim);
   for(unsigned j = 0; j < dim; j++) {
     indexGradSolD[j].resize(dim);
