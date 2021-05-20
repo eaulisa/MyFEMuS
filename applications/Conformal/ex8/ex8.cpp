@@ -72,7 +72,7 @@ const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.5
 const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.602613);
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
-const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 60, 0.793786); //normal constraint
+const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 50, 0.793786); //normal constraint
 // Main program starts here.
 int main(int argc, char** args) {
 
@@ -670,7 +670,7 @@ bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solNa
   }
   else if(!strcmp(solName, "Dx1") || !strcmp(solName, "Dx2") || !strcmp(solName, "Dx3")) {
 
-    double phi = M_PI * 6. / 18. * time / parameter.numberOfIterations;
+    double phi = M_PI * 5. / 18. * time / parameter.numberOfIterations;
 
     if(phi > 0) {
 
