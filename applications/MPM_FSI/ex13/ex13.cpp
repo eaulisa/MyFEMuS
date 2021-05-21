@@ -22,7 +22,7 @@ void BuildIntegrationPoints(MultiLevelSolution& mlSol);
 void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::string &pfile);
 
 bool NeoHookean = false;
-bool particleSmoothingIsOn = true;
+bool particleSmoothingIsOn = false;
 
 double eps = 0.00;
 

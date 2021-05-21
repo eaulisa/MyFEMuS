@@ -1204,19 +1204,19 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
           }
         }
       }
-      if(particles[iMarker]->GetMarkerDistance() < 0)   {//fluid particles
-        double jac;
-        if(dim == 2) {
-          jac =  FpNew[0][0] * FpNew[1][1] - FpNew[1][0] * FpNew[0][1];
-          Fp = {{1., 0.}, {0., 1.}};
-        }
-        else {
-          jac =  FpNew[0][0] * FpNew[1][1] * FpNew[2][2] + FpNew[0][1] * FpNew[1][2] * FpNew[2][0] + FpNew[0][2] * FpNew[1][0] * FpNew[2][1]
-                 - FpNew[2][0] * FpNew[1][1] * FpNew[0][2] - FpNew[2][1] * FpNew[1][2] * FpNew[0][0] - FpNew[2][2] * FpNew[1][0] * FpNew[0][1];
-          Fp = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
-        }
-        particles[iMarker]->SetMarkerMass(particles[iMarker]->GetMarkerMass() * jac);
-      }
+//       if(particles[iMarker]->GetMarkerDistance() < 0)   {//fluid particles
+//         double jac;
+//         if(dim == 2) {
+//           jac =  FpNew[0][0] * FpNew[1][1] - FpNew[1][0] * FpNew[0][1];
+//           Fp = {{1., 0.}, {0., 1.}};
+//         }
+//         else {
+//           jac =  FpNew[0][0] * FpNew[1][1] * FpNew[2][2] + FpNew[0][1] * FpNew[1][2] * FpNew[2][0] + FpNew[0][2] * FpNew[1][0] * FpNew[2][1]
+//                  - FpNew[2][0] * FpNew[1][1] * FpNew[0][2] - FpNew[2][1] * FpNew[1][2] * FpNew[0][0] - FpNew[2][2] * FpNew[1][0] * FpNew[0][1];
+//           Fp = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+//         }
+//         particles[iMarker]->SetMarkerMass(particles[iMarker]->GetMarkerMass() * jac);
+//       }
       particles[iMarker]->SetDeformationGradient(Fp);
       ielOld = iel;
 

@@ -32,9 +32,9 @@ double eps = 0.00;
 double gravity[3] = {0., 0., 0.};
 bool weakP = false;
 
-double theta = 1.;
+double theta = .8;
 double af = 1. - theta;
-double am = af - 0.;
+double am = af - 0.1;
 double beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
 // double beta = .5;
@@ -42,7 +42,7 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.001;
 
-double factor = 2.;
+double factor = 1.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
@@ -251,7 +251,7 @@ int main(int argc, char** args) {
   system.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
   system.SetMaxNumberOfLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-9);
-  system.SetMaxNumberOfNonLinearIterations(5);
+  system.SetMaxNumberOfNonLinearIterations(3);
 
   system.SetNumberPreSmoothingStep(1);
   system.SetNumberPostSmoothingStep(1);
