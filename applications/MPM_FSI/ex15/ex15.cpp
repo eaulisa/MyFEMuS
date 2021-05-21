@@ -51,13 +51,14 @@ double gammau = 0.05 * gammacF;
 
 double GAMMA = factor * 45;//45;   // 10, 45 in the paper.
 
-#include "./include/mpmFsi14.hpp"
+#include "./include/mpmFsi15.hpp"
 using namespace femus;
 
+double dt;
 double SetVariableTimeStep(const double time) {
-  double dt;
-  double dt0 = 0.05;
-  double dt1 = 0.001; //FSI3
+
+  double dt0 = 1. / 360;
+  double dt1 = 1. / 360; //FSI3
 
   double T = 2.;
   if(time < T)
@@ -73,55 +74,41 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  //const double Ubar = 0.2;    // FSI1
-  const double Ubar = 2;    // FSI3
-  const double L = 0.41;
-  const double H = 2.5;
+  const double R = 0.2;
+  const double W = -2. * M_PI;
 
-  if(!strcmp(name, "DY")) {
-    if(1 == facename || 2 == facename) {
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "DX")) {
-    if(3 == facename) {    //fluid wall
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "VY")) {
-    if(2 == facename) {     //outflow
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "VX")) {
-    if(1 == facename) {     //inflow
-      test = 1;
-      if(t < 2.0) {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
-      }
-      else {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
-      }
-    }
-    else if(2 == facename) {    //outflow
+  if(1 == facename) {
+    if(!strcmp(name, "DX")) {
       test = 0;
     }
   }
-
-  else if(!strcmp(name, "P")) {
-    if(weakP && 2 != facename) {
+  else if(2 == facename || 3 == facename) {    //fluid inlet outlet neuman zero
+    if(!strcmp(name, "DY") || !strcmp(name, "VX") || !strcmp(name, "VY")) {
       test = 0;
     }
-    else{
-      test = 0;  
+  }
+  if(4 == facename) {
+    if(!strcmp(name, "VX")) {
+      value = -R * W * x[1] / R;
     }
-    
+    else if(!strcmp(name, "VY")) {
+      value = R * W * x[0] / R;
+    }
+    else if(!strcmp(name, "DX")) {
+      double theta = atan2(x[1], x[0]);
+      double dtheta = W * dt;
+      std::cout << dtheta << " ";
+      value = R * cos(theta + dtheta) - x[0];
+    }
+    else if(!strcmp(name, "DY")) {
+      double theta = atan2(x[1], x[0]);
+      double dtheta = W * dt;
+      value = R * sin(theta + dtheta) - x[1];
+    }
+  }
+
+  if(!strcmp(name, "P")) {
+    test = 0;
   }
 
   return test;
@@ -136,7 +123,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 5; //for refinement in 3D
+  unsigned numberOfUniformLevels = 3; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -149,7 +136,7 @@ int main(int argc, char** args) {
   double rhos = 1000.;
   double nu = 0.4;
   //double E = 1400000; //FSI1
-  double E = 4 * 1400000; //FSI3
+  double E = 40 * 1400000; //FSI3
 
 
   Parameter par(Lref, Uref);
@@ -158,7 +145,7 @@ int main(int argc, char** args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor); // FSI_mesh1
+  mlMsh.ReadCoarseMesh("../input/blade2DBackground.neu", "fifth", scalingFactor); // FSI_mesh1
   //mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor); // FSI_mesh2
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
@@ -199,11 +186,11 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
   // ******* Set boundary conditions *******
-  mlSol.GenerateBdc("DX", "Steady");
-  if(dim > 1) mlSol.GenerateBdc("DY", "Steady");
+  mlSol.GenerateBdc("DX", "Time_dependent");
+  if(dim > 1) mlSol.GenerateBdc("DY", "Time_dependent");
   if(dim > 2) mlSol.GenerateBdc("DZ", "Steady");
   mlSol.GenerateBdc("VX", "Time_dependent");
-  if(dim > 1) mlSol.GenerateBdc("VY", "Steady");
+  if(dim > 1) mlSol.GenerateBdc("VY", "Time_dependent");
   if(dim > 2) mlSol.GenerateBdc("VZ", "Steady");
   mlSol.GenerateBdc("P", "Steady");
 
@@ -271,13 +258,13 @@ int main(int argc, char** args) {
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
 
-  BuildIntegrationPoints(mlSol);
+  //BuildIntegrationPoints(mlSol);
 
   std::ifstream fin;
   std::ostringstream fileName;
   std::ostringstream level_number;
-  fileName << "../input/turekBeam2D";
-  level_number << 2;
+  fileName << "../input/blade2D";
+  level_number << 0;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
 
   fileName << level_number.str();
@@ -294,8 +281,12 @@ int main(int argc, char** args) {
 
   fin.open(bulkfile);
 
+
+
   unsigned size;
   fin >> dim >> size;
+
+
 
   //std::cout << dim << " " << size << std::endl << std::flush;
   xp.resize(size);
@@ -313,7 +304,7 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
+  double delta_max = 0.075 * 1.5 / numberOfUniformLevelsStart;
   //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
@@ -326,10 +317,12 @@ int main(int argc, char** args) {
     }
   }
 
-  double shift = 1.0e-4;
+  double shift = .0e-4;
   for(int i = 0; i < xp.size(); i++) {
     xp[i][0] += shift;
   }
+
+
 
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
 
@@ -376,54 +369,54 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
 
 
-  double xmax = -1.0e10;
-  double ymax =  1.0e10;
-  unsigned imax = 0;
-
-  for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
-    if(lineIPoints[0][i][0] > xmax) {
-      imax = i;
-      xmax = lineIPoints[0][i][0];
-      ymax = fabs(lineIPoints[0][i][1]);
-    }
-    else if(lineIPoints[0][i][0] == xmax) {
-      if(fabs(lineIPoints[0][i][1]) < ymax) {
-        imax = i;
-        xmax = lineIPoints[0][i][0];
-        ymax = fabs(lineIPoints[0][i][1]);
-      }
-    }
-  }
-  std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
+//   double xmax = -1.0e10;
+//   double ymax =  1.0e10;
+//   unsigned imax = 0;
+//
+//   for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
+//     if(lineIPoints[0][i][0] > xmax) {
+//       imax = i;
+//       xmax = lineIPoints[0][i][0];
+//       ymax = fabs(lineIPoints[0][i][1]);
+//     }
+//     else if(lineIPoints[0][i][0] == xmax) {
+//       if(fabs(lineIPoints[0][i][1]) < ymax) {
+//         imax = i;
+//         xmax = lineIPoints[0][i][0];
+//         ymax = fabs(lineIPoints[0][i][1]);
+//       }
+//     }
+//   }
+//   std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
 
 //END interface reading
 
   unsigned iproc = mlMsh.GetLevel(0)->processor_id();
 
-  std::ofstream fout;
-  std::ofstream pout;
+// std::ofstream fout;
+// std::ofstream pout;
 
-  level_number << numberOfUniformLevelsStart;
-
-  std::string ofile = "./save/";
-  ofile += "beamTipPositionLevel";
-  ofile += level_number.str();
-  ofile += ".turekFSI2.txt";
-
-  std::string pfile = "./save/";
-  pfile += "pressureLevel";
-  pfile += level_number.str();
-  pfile += ".turekFSI2.txt";
-
-  if(iproc == 0) {
-    fout.open(ofile);
-    fout << 0 << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
-
-    pout.open(pfile);
-    pout.close();
-  }
-
-  intPoints->GetParticlesToGridMaterial(false);
+//   level_number << numberOfUniformLevelsStart;
+//
+//   std::string ofile = "./save/";
+//   ofile += "beamTipPositionLevel";
+//   ofile += level_number.str();
+//   ofile += ".turekFSI2.txt";
+//
+//   std::string pfile = "./save/";
+//   pfile += "pressureLevel";
+//   pfile += level_number.str();
+//   pfile += ".turekFSI2.txt";
+//
+//   if(iproc == 0) {
+//     fout.open(ofile);
+//     fout << 0 << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
+//
+//     pout.open(pfile);
+//     pout.close();
+//   }
+//
+//   intPoints->GetParticlesToGridMaterial(false);
   lineI->GetParticlesToGridMaterial(false);
   bulk->GetParticlesToGridMaterial(false);
 
@@ -447,8 +440,8 @@ int main(int argc, char** args) {
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
-  unsigned n_timesteps = 20000;
-  unsigned printTimeInterval = 50;
+  unsigned n_timesteps = 2000;
+  unsigned printTimeInterval = 1;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
@@ -464,7 +457,7 @@ int main(int argc, char** args) {
 
     double time = system.GetTime();
 
-    GetDragAndLift(ml_prob, time, pfile);
+    // GetDragAndLift(ml_prob, time, pfile);
 
     mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step / printTimeInterval);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
@@ -474,14 +467,14 @@ int main(int argc, char** args) {
     lineI->GetLine(lineIPoints[0]);
     PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
 
-    if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
+    //  if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
 
-  if(iproc == 0) fout.close();
+// if(iproc == 0) fout.close();
 
   delete bulk;
   delete lineI;
-  delete intPoints;
+// delete intPoints;
 
   return 0;
 
@@ -657,7 +650,7 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
   vector< double > solP;
 
   vector< vector< double > > solDOld(dim);      // displacement at n
-  
+
   vector < vector< vector < double > > > gradSolDTld(dim);
 
   for(int k = 0; k < dim; k++) {
@@ -700,8 +693,8 @@ void GetDragAndLift(MultiLevelProblem& ml_prob, const double & time, const std::
     indexSolV[ivar] = mlSol->GetIndex(&varname[ivar + 3][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
-  
-  
+
+
   const char gradVarname[9][4] = {"DXx", "DXy", "DXz", "DYx", "DYy", "DYz", "DZx", "DZy", "DZz"};
   std::vector < vector <unsigned> > indexGradSolD(dim);
   for(unsigned j = 0; j < dim; j++) {
