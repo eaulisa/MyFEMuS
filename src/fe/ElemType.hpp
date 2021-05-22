@@ -93,6 +93,17 @@ namespace femus {
                               boost::optional < vector < double >& > gradphi = boost::none,
                               boost::optional < vector < double > & > nablaphi = boost::none) const;
 
+      /* mixed adept - double */
+      void GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const vector < double >& xi,
+                             vector < vector < adept::adouble > > & Jac,
+                             vector < vector < adept::adouble > > & JacI) const;
+
+
+      /* all double */
+      void GetJacobianMatrix(const vector < vector < double > >& vt, const  vector < double >& xi,
+                             vector < vector < double > > & Jac,
+                             vector < vector < double > > & JacI) const;
+
 
       /////////////////////////////////////
 
@@ -342,6 +353,12 @@ namespace femus {
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
 
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const  vector < double >& xi,
+                                  vector < vector < type > > & Jac,
+                                  vector < vector < type > > & JacI) const;
+
+
       ////////////////////////////////////////////
 
       /* all type minus a double */
@@ -504,6 +521,11 @@ namespace femus {
                                    const double *&phi,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
+
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
+                                  vector < vector < type > > & Jac,
+                                  vector < vector < type > > & JacI) const;
 
       /////////////////////////////////////
 
@@ -686,6 +708,11 @@ namespace femus {
                                    const double *&phi,
                                    boost::optional < vector < type >& > gradphi,
                                    boost::optional < vector < type > & > nablaphi) const;
+
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
+                                  vector < vector < type > > & Jac,
+                                  vector < vector < type > > & JacI) const;
 
       /////////////////////////////////////
 
