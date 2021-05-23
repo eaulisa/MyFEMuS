@@ -74,7 +74,7 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  const double R = 0.2;
+  const double R = 0.002;
   const double W = -2. * M_PI;
 
   if(1 == facename) {
@@ -88,27 +88,27 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
     }
   }
   if(4 == facename) {
+    double theta = atan2(x[1], x[0]);
+    double dtheta = W * dt;
     if(!strcmp(name, "VX")) {
-      value = -R * W * x[1] / R;
+      value = R * W * (- sin(theta + dtheta));
     }
     else if(!strcmp(name, "VY")) {
-      value = R * W * x[0] / R;
+      value = R * W * (cos(theta + dtheta));
     }
     else if(!strcmp(name, "DX")) {
-      double theta = atan2(x[1], x[0]);
-      double dtheta = W * dt;
-      std::cout << dtheta << " ";
       value = R * cos(theta + dtheta) - x[0];
     }
     else if(!strcmp(name, "DY")) {
-      double theta = atan2(x[1], x[0]);
-      double dtheta = W * dt;
+
       value = R * sin(theta + dtheta) - x[1];
     }
   }
 
   if(!strcmp(name, "P")) {
-    test = 0;
+    if(2 != facename && 3 != facename) {
+      test = 0;
+    }
   }
 
   return test;
@@ -122,8 +122,8 @@ int main(int argc, char** args) {
 
   MultiLevelMesh mlMsh;
 
-  double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 3; //for refinement in 3D
+  double scalingFactor = 100.;
+  unsigned numberOfUniformLevels = 4; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -240,7 +240,7 @@ int main(int argc, char** args) {
   system.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
   system.SetMaxNumberOfLinearIterations(1);
   system.SetNonLinearConvergenceTolerance(1.e-9);
-  system.SetMaxNumberOfNonLinearIterations(3);
+  system.SetMaxNumberOfNonLinearIterations(5);
 
   system.SetNumberPreSmoothingStep(1);
   system.SetNumberPostSmoothingStep(1);
@@ -264,7 +264,7 @@ int main(int argc, char** args) {
   std::ostringstream fileName;
   std::ostringstream level_number;
   fileName << "../input/blade2D";
-  level_number << 0;
+  level_number << 1;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
 
   fileName << level_number.str();
@@ -304,7 +304,7 @@ int main(int argc, char** args) {
   fin.close();
 
 
-  double delta_max = 0.075 * 1.5 / numberOfUniformLevelsStart;
+  double delta_max = 0.075 / scalingFactor * 1.5 / numberOfUniformLevelsStart;
   //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
@@ -1308,3 +1308,5 @@ void ProjectSolutionIntoGradient(MultiLevelProblem& ml_prob) {
   }
 
 }
+
+

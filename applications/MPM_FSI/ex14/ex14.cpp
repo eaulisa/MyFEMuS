@@ -111,17 +111,15 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
     }
     else if(2 == facename) {    //outflow
       test = 0;
+      value = 0.;
     }
   }
 
   else if(!strcmp(name, "P")) {
-    if(weakP && 2 != facename) {
+    if(weakP || 2 != facename) {
       test = 0;
     }
-    else{
-      test = 0;  
-    }
-    
+    value = 0;
   }
 
   return test;

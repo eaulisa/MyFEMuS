@@ -53,7 +53,7 @@ int main(int argc, char** args) {
 
   MultiLevelMesh mlMsh;
   //double scalingFactor = 1.e5; //COMSOL
-  double scalingFactor = 1.; //turekBeam2D
+  double scalingFactor = 100.; //turekBeam2D
   
   
  // mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
@@ -70,7 +70,7 @@ int main(int argc, char** args) {
   
   //mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 6 = 1 : default
   //mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 7 = 2
-  mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3
+  mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3
   
   
   
