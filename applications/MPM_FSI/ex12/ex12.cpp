@@ -1,3 +1,5 @@
+// This is the 2D immersed beam simulation. For the particle initialization
+// dont forget to run the particle generator in ex11 with the appropriate mesh file. 
 #include "FemusInit.hpp"
 #include "MultiLevelProblem.hpp"
 #include "VTKWriter.hpp"
