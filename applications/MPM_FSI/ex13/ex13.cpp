@@ -128,7 +128,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 5; //for refinement in 3D
+  unsigned numberOfUniformLevels = 4; //for refinement in 3D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -150,8 +150,8 @@ int main(int argc, char** args) {
   Solid solid(par, E, nu, rhos, "Neo-Hookean");
   Fluid fluid(par, muf, rhof, "Newtonian");
 
-  mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor); // FSI_mesh1
-  //mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor); // FSI_mesh2
+  //mlMsh.ReadCoarseMesh("../input/turek2D.neu", "fifth", scalingFactor); // FSI_mesh1
+  mlMsh.ReadCoarseMesh("../input/turek2DNew.neu", "fifth", scalingFactor); // FSI_mesh2
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -281,9 +281,16 @@ int main(int argc, char** args) {
   std::ifstream fin;
   std::ostringstream fileName;
   std::ostringstream level_number;
+<<<<<<< HEAD
   fileName << "../input/turekBeam2D";
   level_number << 2;
   //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
+=======
+  //fileName << "../input/turekBeam2D";
+  //level_number << 1;
+  fileName<<"../input/turekBeam2DNew"; 
+  level_number << 4;
+>>>>>>> 766270bdc68e6b565708e039a513ddff5d8178e0
 
   fileName << level_number.str();
 
@@ -298,7 +305,7 @@ int main(int argc, char** args) {
   std::vector < MarkerType > markerType;
 
   fin.open(bulkfile);
-
+  
   unsigned size;
   fin >> dim >> size;
 
@@ -317,8 +324,9 @@ int main(int argc, char** args) {
   }
   fin.close();
 
+  
 
-  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
+  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4); //erase markers away from the interface after refinement.
   //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
 
   for(int i = 0; i < xp.size(); i++) {
@@ -348,7 +356,6 @@ int main(int argc, char** args) {
 
   std::string interfacefile = fileName.str();
   interfacefile += ".interface.txt";
-
   std::vector < std::vector < std::vector < double > > > T;
   fin.open(interfacefile);
   fin >> dim >> size;
@@ -384,12 +391,18 @@ int main(int argc, char** args) {
   double xmax = -1.0e10;
   double ymax =  1.0e10;
   unsigned imax = 0;
-
+ 
+  for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
+  std::cout << lineIPoints[0][i][1] << std::endl;
+      
+}
+  
   for(unsigned i = 0; i < lineIPoints[0].size(); i++) {
     if(lineIPoints[0][i][0] > xmax) {
       imax = i;
       xmax = lineIPoints[0][i][0];
       ymax = fabs(lineIPoints[0][i][1]);
+      
     }
     else if(lineIPoints[0][i][0] == xmax) {
       if(fabs(lineIPoints[0][i][1]) < ymax) {
@@ -399,6 +412,7 @@ int main(int argc, char** args) {
       }
     }
   }
+ 
   std::cout << "imax = " << imax << " xmax = " << xmax << " ymax = " << ymax << std::endl;
 
 //END interface reading
