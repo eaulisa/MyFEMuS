@@ -254,10 +254,10 @@ int main(int argc, char** args) {
 
   system2.SetTolerances(1.e-10, 1.e-15, 1.e+50, 2, 2);
 
-
+  
   std::ifstream fin;
   std::ostringstream level_number;
-  level_number << 0;
+  level_number << 1;
 
   //BEGIN bulk reading
 
@@ -275,6 +275,7 @@ int main(int argc, char** args) {
   fin.open(bulkfile);
   unsigned size;
   fin >> dim >> size;
+  
   xp.resize(size);
   wp.resize(size);
   dist.resize(size);
@@ -288,7 +289,7 @@ int main(int argc, char** args) {
     fin >> dist[ip];
   }
   fin.close();
-
+  
   double delta_max = 0.4e-5 / (numberOfUniformLevelsStart - 5);
 
   for(int i = 0; i < xp.size(); i++) {
@@ -300,10 +301,8 @@ int main(int argc, char** args) {
       i--;
     }
   }
-
-
+  
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
-
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
