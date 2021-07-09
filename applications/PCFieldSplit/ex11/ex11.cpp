@@ -14,6 +14,7 @@
  */
 
 #include "FemusInit.hpp"
+#include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
 #include "NumericVector.hpp"
 #include "VTKWriter.hpp"
@@ -24,7 +25,7 @@
 #include <stdlib.h>
 
 double Prandtl = 0.1;
-double Rayleigh =10000.;
+double Rayleigh = 10000.;
 
 using namespace femus;
 
@@ -104,6 +105,7 @@ int main(int argc, char** args) {
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
+  
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu","seventh",scalingFactor);
   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
@@ -115,7 +117,7 @@ int main(int argc, char** args) {
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
   // erase all the coarse mesh levels
-  //mlMsh.EraseCoarseLevels(2);
+  mlMsh.EraseCoarseLevels(3);
 
   // print mesh info
   mlMsh.PrintInfo();
@@ -129,7 +131,7 @@ int main(int argc, char** args) {
 
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
 
-  mlSol.AddSolution("P",  DISCONTINOUS_POLYNOMIAL, FIRST);
+  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
 
   mlSol.AssociatePropertyToSolution("P", "Pressure");
   mlSol.Initialize("All");
@@ -199,19 +201,20 @@ int main(int argc, char** args) {
   if(precType == FS_TVp) FS2.push_back(&FS_NS);   //Navier-Stokes block last
 
   FieldSplitTree FS_NST(RICHARDSON, FIELDSPLIT_PRECOND, FS2, "Benard");
+  FS_NST.SetRichardsonScaleFactor(.6);
 
   //END buid fieldSplitTree
-  if(precType == FS_VTp || precType == FS_TVp) system.SetMgSmoother(FIELDSPLIT_SMOOTHER);    // Field-Split preconditioned
-  else if(precType == ASM_VTp || precType == ASM_TVp) system.SetMgSmoother(ASM_SMOOTHER);  // Additive Swartz preconditioner
-  else if(precType == ILU_VTp || precType == ILU_TVp) system.SetMgSmoother(GMRES_SMOOTHER);
+  if(precType == FS_VTp || precType == FS_TVp) system.SetLinearEquationSolverType(FEMuS_FIELDSPLIT);    // Field-Split preconditioned
+  else if(precType == ASM_VTp || precType == ASM_TVp) system.SetLinearEquationSolverType(FEMuS_ASM);  // Additive Swartz preconditioner
+  else if(precType == ILU_VTp || precType == ILU_TVp) system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleBoussinesqAppoximation);
 
   system.SetMaxNumberOfNonLinearIterations(10);
   system.SetNonLinearConvergenceTolerance(1.e-8);
-  //system.SetMaxNumberOfResidualUpdatesForNonlinearIteration(10);
-  //system.SetResidualUpdateConvergenceTolerance(1.e-15);
+  //system.SetMaxNumberOfResidualUpdatesForNonlinearIteration(2);
+  //system.SetResidualUpdateConvergenceTolerance(1.e-12);
 
   //system.SetMaxNumberOfLinearIterations(10);
   //system.SetAbsoluteLinearConvergenceTolerance(1.e-15);
@@ -229,16 +232,24 @@ int main(int argc, char** args) {
 
   system.SetSolverFineGrids(RICHARDSON);
   system.SetPreconditionerFineGrids(ILU_PRECOND);
+  
+  system.SetRichardsonScaleFactor(.6);
 
   if(precType == FS_VTp || precType == FS_TVp) system.SetFieldSplitTree(&FS_NST);
 
-  system.SetTolerances(1.e-5, 1.e-20, 1.e+50, 30, 30); //GMRES tolerances
+  system.SetTolerances(1.e-5, 1.e-8, 1.e+50, 30, 30); //GMRES tolerances
 
   system.ClearVariablesToBeSolved();
   system.AddVariableToBeSolved("All");
-  system.SetNumberOfSchurVariables(1);
-  system.SetElementBlockNumber(4);
-
+  
+  if(precType == ASM_VTp || precType == ASM_TVp){
+    system.SetNumberOfSchurVariables(1);
+    system.SetElementBlockNumber(4);
+  }
+  else if(precType == ILU_VTp || precType == ILU_TVp){
+    system.SetElementBlockNumber("All");
+  }
+  
   system.MGsolve();
 
   // print solutions
@@ -927,14 +938,14 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         unsigned irow = nDofsT + dim * nDofsV + i;
 
         for(int k = 0; k < dim; k++) {
-          Res[irow] += (gradSolV_gss[k][k]) * phiP[i]  * weight;
+          Res[irow] += -(gradSolV_gss[k][k]) * phiP[i]  * weight;
 
           if(assembleMatrix) {
             unsigned irowMat = nDofsTVP * irow;
 
             for(unsigned j = 0; j < nDofsV; j++) {
               unsigned jcol = (nDofsT + k * nDofsV + j);
-              Jac[ irowMat + jcol ] += - phiP[i] * phiV_x[j * dim + k] * weight;
+              Jac[ irowMat + jcol ] += phiP[i] * phiV_x[j * dim + k] * weight;
             }
           }
 

@@ -6,6 +6,8 @@
 # we might install the code in other environments where petsc and mpi are already there,
 # so in that case the PETSC_DIR and PETSC_ARCH will be set by the system administrator
 
+PETSC_VERSION_GIT_TAG=v3.13
+
 
 echo Install petsc
 
@@ -32,16 +34,22 @@ FM_PETSC_DIR_REL=petsc
 FM_PETSC_DIR_ABS=$SOFTWARE_DIR/$FM_PETSC_DIR_REL
 export PETSC_DIR=$FM_PETSC_DIR_ABS
 
-myarchs=(linux-opt linux-dbg)
+myarchs=(arch-linux2-cxx-opt arch-linux2-cxx-dbg)
 debugflag=(0 1)
 
 
 echo =========== Remove previous installations
 rm -rf $FM_PETSC_DIR_REL/
 echo =========== Clone
-git clone -b maint https://bitbucket.org/petsc/petsc $FM_PETSC_DIR_REL
+
+git clone https://gitlab.com/petsc/petsc $FM_PETSC_DIR_REL
+
 
 cd $FM_PETSC_DIR_REL
+
+git checkout $PETSC_VERSION_GIT_TAG -b petsc_current
+
+
 
 for i in 0 #1 let us only install the optimized version, to speed up the installation
 do

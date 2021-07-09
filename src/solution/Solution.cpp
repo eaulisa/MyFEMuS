@@ -33,7 +33,7 @@ namespace femus {
   using std::endl;
 
   /**
-   *  Contructor
+   *  Constructor
    **/
 // ------------------------------------------------------------------
   Solution::Solution(Mesh *other_msh) {
@@ -106,6 +106,73 @@ namespace femus {
 
   }
 
+
+  
+  void Solution::AddSolution_par(const int n_sols, const char name[], const FEFamily fefamily, const FEOrder order,
+                             const unsigned& tmorder, const bool &Pde_type) {
+
+   const unsigned old_size = _Sol.size();
+   const int      new_size = old_size + n_sols;
+    
+    ResizeSolution_par(new_size);
+    
+    //initialize
+    if ( n_sols > 0 ) {
+        
+   for(int s = 0; s < n_sols; s++) {
+       
+       _Sol[old_size + s] = NULL;
+    _SolOld[old_size + s] = NULL;
+       _Res[old_size + s] = NULL;
+       _Eps[old_size + s] = NULL; 
+       _Bdc[old_size + s] = NULL;       
+       
+     _GradVec[old_size + s].resize(_msh->GetDimension());
+         for(int i = 0; i < _msh->GetDimension(); i++) {     _GradVec[old_size + s][i] = NULL; }  
+         
+  _ResEpsBdcFlag[old_size + s] = Pde_type;       
+         _family[old_size + s] = fefamily;
+          _order[old_size + s] = order;
+        _SolType[old_size + s] = order - ((fefamily == LAGRANGE) ? 1 : 0) + fefamily * 3;
+     _SolTmOrder[old_size + s] = tmorder;
+        _SolName[old_size + s] = new char [DEFAULT_SOL_NCHARS];
+ strcpy(_SolName[old_size + s], name);
+_removeNullSpace[old_size + s] = false;
+    
+      }
+
+    }   
+   
+   
+  }  
+  
+
+
+  void Solution::ResizeSolution_par(const int new_size) {
+      
+// it seems that the destructors of the NumericVectors are not called after a shrink...      
+      
+         _SolType.resize(new_size);
+         _SolName.resize(new_size);
+      _SolTmOrder.resize(new_size);
+          _family.resize(new_size);
+           _order.resize(new_size);
+   _ResEpsBdcFlag.resize(new_size);        
+ _removeNullSpace.resize(new_size);
+           
+// NumericVector objects
+             _Sol.resize(new_size); 
+          _SolOld.resize(new_size); 
+         _GradVec.resize(new_size); 
+             _Res.resize(new_size); 
+             _Eps.resize(new_size); 
+             _Bdc.resize(new_size);
+
+      
+  }
+  
+
+  
   /**
    * Get the solution index for the variable called name
    **/
@@ -615,7 +682,8 @@ namespace femus {
 
 
 
-  bool Solution::FlagAMRRegionBasedOnErroNormAdaptive(const vector <unsigned> &solIndex, std::vector <double> &AMRthreshold, const unsigned& normType) {
+  bool Solution::FlagAMRRegionBasedOnErroNormAdaptive(const vector <unsigned> &solIndex, std::vector <double> &AMRthreshold, 
+						      const unsigned& normType, const double &neighborThresholdValue) {
 
     const double scale2[3][2] = {{0.111111, 1.}, {0.0204081632653, 0.111111}, {0.0204081632653, 0.111111} };
     //const double scale2[3][2] = {{1., 1.}, {1., 1.}, {1., 1.} };
@@ -811,7 +879,8 @@ namespace femus {
             ielVolume[iel-offset] += weight;
           }
 
-          if(ielErrNorm2[iel-offset] > eps2 * ielVolume[iel-offset]  || (*AMR->_Sol[AMRIndex])(iel) == 2.) {
+          if(ielErrNorm2[iel-offset] > eps2 * ielVolume[iel-offset]  || 
+	    ( (*AMR->_Sol[AMRIndex])(iel) == 2. && ielErrNorm2[iel-offset] > neighborThresholdValue * eps2 * ielVolume[iel-offset] ) ) {
             AMR->_Sol[AMRIndex]->set(iel, 1.);
             volumeTestFalse += ielVolume[iel-offset];
 
@@ -823,7 +892,7 @@ namespace femus {
 		    if(jel > iel) {
                       AMR->_Sol[AMRIndex]->set(jel, 2.);
                     }
-                    else if( (*AMR->_Sol[AMRIndex])(jel) == 0. ) {
+                    else if( (*AMR->_Sol[AMRIndex])(jel) == 0. &&  ielErrNorm2[jel-offset] > neighborThresholdValue * eps2 * ielVolume[jel-offset] ) {
 		      errTestTrue2 -= ielErrNorm2[jel-offset];
 		      AMR->_Sol[AMRIndex]->set(jel, 1.);
 		      volumeTestFalse += ielVolume[jel-offset];
@@ -835,6 +904,7 @@ namespace femus {
 
           }
           else {
+	    AMR->_Sol[AMRIndex]->set(iel, 0.);
             errTestTrue2 += ielErrNorm2[iel-offset];
           }
         }
@@ -849,7 +919,9 @@ namespace femus {
       errTestTrue2 = parallelVec->l1_norm();
 
       if(volumeTestFalse != 0) {
-        std::cout  << errTestTrue2 << " " << solNorm2 << " " << volume << " " << volumeRefined << " " << volumeTestFalse << std::endl;
+	cout.precision(24);
+	printf("%e %e %e %e %e \n",errTestTrue2, solNorm2, volume, volumeRefined, volumeTestFalse);
+        //std::cout  << errTestTrue2 << " " << solNorm2 << " " << volume << " " << volumeRefined << " " << volumeTestFalse << std::endl;
 	AMRthreshold[k] = sqrt(AMRthreshold[k] * AMRthreshold[k] * volumeRefined / volumeTestFalse - errTestTrue2 / solNorm2 * volume / volumeTestFalse);
         std::cout << AMRthreshold[k] << std::endl;  
       }
@@ -1141,6 +1213,15 @@ namespace femus {
       // Copy the old vector
       if(_SolTmOrder[i] == 2) {
         *(_SolOld[i]) = *(_Sol[i]);
+      }
+    }
+  }
+  
+  void Solution::ResetSolutionToOldSolution() {
+    for(unsigned i = 0; i < _Sol.size(); i++) {
+      // Copy the old vector
+      if(_SolTmOrder[i] == 2) {
+        *(_Sol[i]) = *(_SolOld[i]);
       }
     }
   }

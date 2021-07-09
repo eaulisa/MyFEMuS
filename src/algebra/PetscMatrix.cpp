@@ -93,7 +93,7 @@ namespace femus {
       ierr = MatSetSizes(_mat, m_l, n_l, m, n);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-      ierr = MatSetType(_mat, MATMPIAIJ); // Automatically chooses seqaij or mpiaij
+      ierr = MatSetType(_mat, MATMPIAIJ);  // Automatically chooses seqaij or mpiaij
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
       ierr = MatMPIAIJSetPreallocation(_mat, nnz, PETSC_NULL, noz, PETSC_NULL);
@@ -102,6 +102,63 @@ namespace femus {
     }
 
     this->zero();
+  }
+
+  void PetscMatrix::init(const int nr, const int nc, const std::vector < SparseMatrix*> &P) {
+
+    unsigned dim = P.size();
+
+    if(nr * nc != dim) {
+      std::cout << "error in function PetscMatrix::init (const int nr, const int nc, const std::vector < SparseMatrix*> &P)\n";
+      std::cout << "the product of nr * nc should be equal to the dimension of P\n";
+      abort();
+    }
+
+    int numprocs;
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+
+    std::cout << "matrix block structure:";
+    std::vector < Mat > KK(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      if(k % (nc) == 0)  std::cout << std::endl;
+      if(P[k] != NULL) {
+        KK[k] = (static_cast<PetscMatrix*>(P[k]))->mat();
+        std::cout << "A_" << k / nc << k % nc << " ";
+      }
+      else {
+        KK[k] = PETSC_NULL;
+        std::cout << "  0  ";
+      }
+    }
+    std::cout << std::endl << std::endl;
+
+    if(dim != 1) {
+      Mat nMat;
+      MatCreateNest(MPI_COMM_WORLD, nr, NULL, nc, NULL, &KK[0], &nMat);
+
+      if(numprocs == 1) {
+        MatConvert(nMat, MATSEQAIJ, MAT_INITIAL_MATRIX, &_mat);
+      }
+      else {
+        MatConvert(nMat, MATMPIAIJ, MAT_INITIAL_MATRIX, &_mat);
+      }
+
+      MatDestroy(&nMat);
+    }
+    else {
+      if(numprocs == 1) {
+        MatConvert(KK[0], MATSEQAIJ, MAT_INITIAL_MATRIX, &_mat);
+      }
+      else {
+        MatConvert(KK[0], MATMPIAIJ, MAT_INITIAL_MATRIX, &_mat);
+      }
+    }
+
+    this->_is_initialized = true;
+    MatGetSize(_mat, &_m, &_n);
+    MatGetLocalSize(_mat, &_m_l, &_n_l);
+    _destroy_mat_on_exit = true;
+
   }
 
   void PetscMatrix::init(const  int m, const  int n, const  int m_l, const  int n_l,
@@ -226,10 +283,10 @@ namespace femus {
         ierr = MatSetSizes(_mat, m_local, n_local, m_global, n_global);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-        ierr = MatSetType(_mat, MATMPIAIJ); // Automatically chooses seqaij or mpiaij
+        ierr = MatSetType(_mat, MATMPIAIJ);  // Automatically chooses seqaij or mpiaij
         CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-        ierr = MatMPIAIJSetPreallocation(_mat, 0, (int*)&n_nz[0], 0, (int*)&n_oz[0]);
+        ierr = MatMPIAIJSetPreallocation(_mat, 0, (int*) &n_nz[0], 0, (int*) &n_oz[0]);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
 
       }
@@ -277,8 +334,13 @@ namespace femus {
     const unsigned int n_l = sparsity_pattern._nl;
     const unsigned int m_l = sparsity_pattern._ml;
     const unsigned int ml_start = sparsity_pattern._ml_start;
-    std::vector<unsigned int> n_nz(m_l);
-    std::vector<unsigned int> n_oz(m_l);
+
+    //     std::vector<unsigned int> n_nz(m_l); //TODO eugenio
+    //     std::vector<unsigned int> n_oz(m_l); //TODO eugenio
+
+    std::vector<int> n_nz(m_l);  //TODO eugenio
+    std::vector<int> n_oz(m_l);  //TODO eugenio
+
     for(uint i = 0; i < m_l; i++) {
       uint len = sparsity_pattern[ml_start + i].size() - 1; //this is the real number of nonzero dofs in each row
       n_oz[i]  = sparsity_pattern[ml_start + i][len];    //in the last position we put the number of offset dofs
@@ -311,11 +373,13 @@ namespace femus {
     if(numprocs == 1)    {
       assert((m_l == m) && (n_l == n));
       if(n_nz.empty())
-        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
-                               PETSC_NULL, (int*) PETSC_NULL, &_mat);
+//         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, //TODO eugenio
+//                                PETSC_NULL, (int*) PETSC_NULL, &_mat);
+        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, PETSC_DEFAULT, PETSC_NULL, &_mat);  //TODO eugenio
       else
-        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
-                               PETSC_NULL, (int*) &n_nz[0], &_mat);
+//         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, //TODO eugenio
+//                                PETSC_NULL, (int*) &n_nz[0], &_mat);
+        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, PETSC_DEFAULT, &n_nz[0], &_mat);  //TODO eugenio
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
       ierr = MatSetFromOptions(_mat);
@@ -324,17 +388,30 @@ namespace femus {
     else    {
       parallel_only();
       if(n_nz.empty())
-        ierr = MatCreateAIJ(MPI_COMM_WORLD,
+//         ierr = MatCreateAIJ(MPI_COMM_WORLD, //TODO eugenio
+//                             m_local, n_local,
+//                             m_global, n_global,
+//                             PETSC_NULL, (int*) PETSC_NULL,
+//                             PETSC_NULL, (int*) PETSC_NULL, &_mat);
+
+        ierr = MatCreateAIJ(MPI_COMM_WORLD,  //TODO eugenio
                             m_local, n_local,
                             m_global, n_global,
-                            PETSC_NULL, (int*) PETSC_NULL,
-                            PETSC_NULL, (int*) PETSC_NULL, &_mat);
+                            PETSC_DEFAULT, PETSC_NULL,
+                            PETSC_DEFAULT, PETSC_NULL, &_mat);
       else
-        ierr = MatCreateAIJ(MPI_COMM_WORLD,
+//         ierr = MatCreateAIJ(MPI_COMM_WORLD, //TODO eugenio
+//                             m_local, n_local,
+//                             m_global, n_global,
+//                             PETSC_NULL, (int*) &n_nz[0],
+//                             PETSC_NULL, (int*) &n_oz[0], &_mat);
+
+        ierr = MatCreateAIJ(MPI_COMM_WORLD,  //TODO eugenio
                             m_local, n_local,
                             m_global, n_global,
-                            PETSC_NULL, (int*) &n_nz[0],
-                            PETSC_NULL, (int*) &n_oz[0], &_mat);
+                            PETSC_DEFAULT, &n_nz[0],
+                            PETSC_DEFAULT, &n_oz[0], &_mat);
+
       CHKERRABORT(MPI_COMM_WORLD, ierr);
       ierr = MatSetFromOptions(_mat);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -365,7 +442,7 @@ namespace femus {
     assert(this->initialized());
     semiparallel_only();
     int ierr = 0;
-    if(!rows.empty()) ierr = MatZeroRows(_mat, rows.size(), &rows[0], diag_value, 0, 0);  // add,0,0,)    !!!!
+    if(!rows.empty()) ierr = MatZeroRows(_mat, rows.size(), &rows[0], diag_value, 0, 0);   // add,0,0,)    !!!!
     else   ierr = MatZeroRows(_mat, 0, PETSC_NULL, diag_value, 0, 0);                     // add,0,0,)    !!!!
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
@@ -415,10 +492,10 @@ namespace femus {
   ) const {// =========================================
     assert(this->initialized());
     std::cout << "\n PetscMatrix::print_personal \n";
-#ifndef NDEBUG
-    if(os != std::cout)
-      std::cerr << "Warning! PETSc can only print to std::cout!" << std::endl;
-#endif
+// #ifndef NDEBUG
+//     if(os != std::cout)
+//       std::cerr << "Warning! PETSc can only print to std::cout!" << std::endl;
+// #endif
     int ierr = 0;
     ierr = MatView(_mat, PETSC_VIEWER_STDOUT_WORLD);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -427,77 +504,86 @@ namespace femus {
 
 
 
-void PetscMatrix::print_matlab(const std::string& name, const std::string& format) const
-{
+  void PetscMatrix::print_matlab(const std::string& name, const std::string& format) const {
 
-  this->close();
+    this->close();
 
-  PetscErrorCode ierr=0;
-  PetscViewer petsc_viewer;
-  ierr = PetscViewerCreate (MPI_COMM_WORLD, 
-			    &petsc_viewer);
-  CHKERRABORT(MPI_COMM_WORLD,ierr);
+    PetscErrorCode ierr = 0;
+    PetscViewer petsc_viewer;
+    ierr = PetscViewerCreate(MPI_COMM_WORLD,
+                             &petsc_viewer);
+    CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-  /**
-   * Create a binary file containing the matrix
-   * if a filename was provided.
-   */
-  if (name != "")
-    {
-      
-     if (format == "binary") {
-      
-         ierr = PetscViewerBinaryOpen( MPI_COMM_WORLD,
-                                      name.c_str(),
-                                      FILE_MODE_WRITE,
-                                      &petsc_viewer);
-         CHKERRABORT(MPI_COMM_WORLD,ierr);
+    /**
+     * Create a binary file containing the matrix
+     * if a filename was provided.
+     */
+    if(name != "") {
 
-         ierr = MatView (_mat, petsc_viewer);
-         CHKERRABORT(MPI_COMM_WORLD,ierr);
-     }
-     else if (format == "ascii") {
-         ierr = PetscViewerASCIIOpen( MPI_COMM_WORLD,
-                                      name.c_str(),
-                                      &petsc_viewer);
-         CHKERRABORT(MPI_COMM_WORLD,ierr);
+      if(format == "binary") {
 
-         ierr = PetscViewerSetFormat (petsc_viewer,
-                                      PETSC_VIEWER_ASCII_MATLAB);
-         CHKERRABORT(MPI_COMM_WORLD,ierr);
+        ierr = PetscViewerBinaryOpen(MPI_COMM_WORLD,
+                                     name.c_str(),
+                                     FILE_MODE_WRITE,
+                                     &petsc_viewer);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-         ierr = MatView (_mat, petsc_viewer);
-         CHKERRABORT(MPI_COMM_WORLD,ierr);
-     }
-     else {
-       std::cout << "Provide either \"ascii\" or \"binary\" for the second argument" << std::endl;
-       abort(); 
-     }
-    
+        ierr = MatView(_mat, petsc_viewer);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);
+      }
+      else if(format == "ascii") {
+        ierr = PetscViewerASCIIOpen(MPI_COMM_WORLD,
+                                    name.c_str(),
+                                    &petsc_viewer);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);
+
+        ierr = PetscViewerPushFormat(petsc_viewer,
+                                     PETSC_VIEWER_ASCII_MATLAB);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);
+
+        ierr = MatView(_mat, petsc_viewer);
+        CHKERRABORT(MPI_COMM_WORLD, ierr);
+      }
+      else {
+        std::cout << "Provide either \"ascii\" or \"binary\" for the second argument" << std::endl;
+        abort();
+      }
+
     }
 
-  /**
-   * Otherwise the matrix will be dumped to the screen, regardless of the format you provide
-   */
-  else
-    {
-      ierr = PetscViewerSetFormat (PETSC_VIEWER_STDOUT_WORLD,
+    /**
+     * Otherwise the matrix will be dumped to the screen, regardless of the format you provide
+     */
+    else {
+      ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,
                                    PETSC_VIEWER_ASCII_MATLAB);
-      CHKERRABORT(MPI_COMM_WORLD,ierr);
-      ierr = MatView (_mat, PETSC_VIEWER_STDOUT_WORLD);
-      CHKERRABORT(MPI_COMM_WORLD,ierr);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+      ierr = MatView(_mat, PETSC_VIEWER_STDOUT_WORLD);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
 
-  /**
-   * Destroy the viewer.
-   */
-  ierr = PetscViewerDestroy (&petsc_viewer);
-      CHKERRABORT(MPI_COMM_WORLD,ierr);
-      
-}
+    /**
+     * Destroy the viewer.
+     */
+    ierr = PetscViewerDestroy(&petsc_viewer);
+    CHKERRABORT(MPI_COMM_WORLD, ierr);
 
+  }
 
+  // =====================================================
 
+  void PetscMatrix::draw() const {
+    PetscViewer viewer;
+    PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
+    PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
+
+    PetscObjectSetName((PetscObject) viewer, "Sparsity Pattern");
+    MatView(_mat, viewer);
+    std::cout << "Input any key to continue" << std::endl;
+    double a;
+    std::cin >> a;
+    PetscViewerDestroy(&viewer);
+  }
 
 // =====================================================
   void PetscMatrix::print_hdf5(const std::string /*name*/) const {
@@ -608,16 +694,16 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
                                const std::vector<unsigned int>& cols) {
     assert(this->initialized());
     const  int m = dm.m();
-    assert((int)rows.size() == m);
+    assert((int) rows.size() == m);
     const  int n = dm.n();
-    assert((int)cols.size() == n);
+    assert((int) cols.size() == n);
 
     int ierr = 0;
     // These casts are required for PETSc <= 2.1.5
     ierr = MatSetValues(_mat,
                         m, (int*) &rows[0],
                         n, (int*) &cols[0],
-                        (PetscScalar*) &dm.get_values()[0],
+                        (PetscScalar*) &dm.get_values() [0],
                         ADD_VALUES);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
@@ -630,29 +716,31 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
     const std::vector< int>& cols) { // column vector indices
     // ==================================================
     assert(this->initialized());
-    int ierr = 0;
-//   const  int m = dm.m();  //senza DenseMatrix non puoi fare questo controllo, oppure aggiungi altri argomenti
-//   const  int n = dm.n();
-//   assert ((int)rows.size() == m);
-//   assert ((int)cols.size() == n);
-    // These casts are required for PETSc <= 2.1.5
-//   ierr = MatSetValuesBlocked(_mat,/*m*/rows.size(), (int*) &rows[0],
-// 			          /*n*/cols.size(), (int*) &cols[0],
-//                       (PetscScalar*) mat_ptr/*&dm.get_values()[0]*/,ADD_VALUES);
-//   CHKERRABORT(MPI_COMM_WORLD,ierr);
-    const  int m = (int)rows.size();
-    const  int n = (int)cols.size();
+
+    const int m = rows.size();
+    const int n = cols.size();
     assert(m * n == mat_values.size());
 
-    //These casts are required for PETSc <= 2.1.5
-    ierr = MatSetValuesBlocked(_mat, m, &rows[0], n, &cols[0],
-                               (PetscScalar*) &mat_values[0], ADD_VALUES);
-    CHKERRABORT(MPI_COMM_WORLD, ierr);
+    MatSetValuesBlocked(_mat, m, &rows[0], n, &cols[0], &mat_values[0], ADD_VALUES);
 
     return;
   }
 
+  void PetscMatrix::add_matrix_blocked(
+    const std::vector< double > &mat_values,  // blocked matrix stored as an m*n array
+    const std::vector< unsigned >& rows, // row vector indexes
+    const std::vector< unsigned >& cols) { // column vector indices
+    // ==================================================
+    assert(this->initialized());
 
+    const int m = rows.size();
+    const int n = cols.size();
+    assert(m * n == mat_values.size());
+
+    MatSetValuesBlocked(_mat, m, (int*) &rows[0], n, (int*) &cols[0], &mat_values[0], ADD_VALUES);
+
+    return;
+  }
 
 // // ============================================================
 
@@ -672,8 +760,89 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
       this->clear();
       ierr = MatPtAP(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(P)->mat(), MAT_INITIAL_MATRIX , 1.0, &_mat);
       this->_is_initialized = true;
+      MatGetSize(_mat, &_m, &_n);
+      MatGetLocalSize(_mat, &_m_l, &_n_l);
+      _destroy_mat_on_exit = true;
     }
     CHKERRABORT(MPI_COMM_WORLD, ierr);
+  }
+
+// // ============================================================
+
+  void PetscMatrix::RemoveZeroEntries(double & tolerance) {
+
+    int rowStart, rowEnd;
+    MatGetOwnershipRange(_mat, &rowStart, &rowEnd);
+    int colStart, colEnd;
+    MatGetOwnershipRangeColumn(_mat, &colStart, &colEnd);
+
+    std::vector < int > sizeDiag(rowEnd - rowStart, 0);
+    std::vector < int > sizeOff(rowEnd - rowStart, 0);
+
+    std::vector < std::vector < int > > nCols(rowEnd - rowStart);
+    std::vector < std::vector < double > > nVals(rowEnd - rowStart);
+
+    int n;
+    const int *cols;
+    const double *vals;
+
+    for(int i = 0; i < rowEnd - rowStart; i++) {
+
+      int row = rowStart + i;
+
+      MatGetRow(_mat, row, &n, &cols, &vals);
+
+      nCols[i].resize(n);
+      nVals[i].resize(n);
+
+      int k = 0;
+      for(int j = 0; j < n; j++) {
+        if(fabs(vals[j]) >= tolerance) {
+          if(colStart <= cols[j] && cols[j] < colEnd) {
+            sizeDiag[i]++;
+          }
+          else {
+            sizeOff[i]++;
+          }
+          nCols[i][k] = cols[j];
+          nVals[i][k] = vals[j];
+          k++;
+        }
+      }
+
+      MatRestoreRow(_mat, i, &n, &cols, &vals);
+      nCols[i].resize(sizeDiag[i] + sizeOff[i]);
+      nVals[i].resize(sizeDiag[i] + sizeOff[i]);
+    }
+
+    MatDestroy(&_mat);
+
+    MatCreate(MPI_COMM_WORLD, &_mat);
+    MatSetSizes(_mat, _m_l, _n_l, _m, _n);
+
+    int n_procs;
+    MPI_Comm_size(MPI_COMM_WORLD, &n_procs);
+
+    // create a sequential matrix on one processor
+    if(n_procs == 1) {
+      MatCreateSeqAIJ(MPI_COMM_WORLD, _m, _n, 0, &sizeDiag[0], &_mat);
+      MatSetFromOptions(_mat);
+    }
+    else {
+      MatSetType(_mat, MATMPIAIJ);
+      MatMPIAIJSetPreallocation(_mat, 0, &sizeDiag[0], 0, &sizeOff[0]);
+      MatSetFromOptions(_mat);
+    }
+
+    for(int i = 0; i < rowEnd - rowStart; i++) {
+      int row = rowStart + i;
+      int n = nCols[i].size();
+      MatSetValues(_mat, 1, &row, n, &nCols[i][0], &nVals[i][0], INSERT_VALUES);
+    }
+
+    MatAssemblyBegin(_mat, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(_mat, MAT_FINAL_ASSEMBLY);
+
   }
 
 // // ============================================================
@@ -699,6 +868,9 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
       ierr = MatMatMatMult(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(B)->mat(),
                            const_cast<PetscMatrix*>(C)->mat(), MAT_INITIAL_MATRIX, 1.0, &_mat);
       this->_is_initialized = true;
+      MatGetSize(_mat, &_m, &_n);
+      MatGetLocalSize(_mat, &_m_l, &_n_l);
+      _destroy_mat_on_exit = true;
     }
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
@@ -714,15 +886,18 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
 
     this->clear();
 
-    MatMatMult(matCopy, A->mat(),MAT_INITIAL_MATRIX, 1.0, &_mat);
-    
+    MatMatMult(matCopy, A->mat(), MAT_INITIAL_MATRIX, 1.0, &_mat);
+
     ierr = MatDestroy(&matCopy);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
-   
+
     this->_is_initialized = true;
+    MatGetSize(_mat, &_m, &_n);
+    MatGetLocalSize(_mat, &_m_l, &_n_l);
+    _destroy_mat_on_exit = true;
 
   }
-  
+
   void PetscMatrix::matrix_LeftMatMult(const SparseMatrix &mat_A) {
 
     PetscMatrix* A = const_cast< PetscMatrix* >(static_cast < const PetscMatrix* >(&mat_A));
@@ -734,15 +909,18 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
 
     this->clear();
 
-    MatMatMult(A->mat(),matCopy, MAT_INITIAL_MATRIX, 1.0, &_mat);
-    
+    MatMatMult(A->mat(), matCopy, MAT_INITIAL_MATRIX, 1.0, &_mat);
+
     ierr = MatDestroy(&matCopy);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
-   
+
     this->_is_initialized = true;
+    MatGetSize(_mat, &_m, &_n);
+    MatGetLocalSize(_mat, &_m_l, &_n_l);
+    _destroy_mat_on_exit = true;
 
   }
-  
+
 
 // ===========================================================
 
@@ -753,6 +931,13 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
       CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
   }
+
+// ===========================================================
+
+  void PetscMatrix::matrix_set_diagonal_values(NumericVector& D) {
+    MatDiagonalSet(_mat, (static_cast< PetscVector& >(D)).vec(), INSERT_VALUES);
+  }
+
 
 // ===========================================================
 
@@ -773,6 +958,24 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
     }
   }
 
+// ===========================================================
+  void PetscMatrix::matrix_set_off_diagonal_values_blocked(const std::vector< int > &index_rows, const std::vector< int > &index_cols, const double &value) {
+    assert(index_rows.size() == index_cols.size());
+    for(int i = 0; i < index_rows.size(); i++) {
+      int ierr = MatSetValuesBlocked(_mat, 1, &index_rows[i], 1, &index_cols[i], &value, INSERT_VALUES);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+    }
+  }
+
+// ===========================================================
+  void PetscMatrix::matrix_set_off_diagonal_values_blocked(const std::vector< int > &index_rows, const std::vector< int > &index_cols, const std::vector<double> &value) {
+    assert(index_rows.size() == index_cols.size());
+    assert(index_rows.size() == value.size());
+    for(int i = 0; i < index_rows.size(); i++) {
+      int ierr = MatSetValuesBlocked(_mat, 1, &index_rows[i], 1, &index_cols[i], &value[i], INSERT_VALUES);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+    }
+  }
 
 
 // ===========================================================
@@ -786,7 +989,7 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
     this->close();
 
     // Make sure the SparseMatrix passed in is really a PetscMatrix
-    PetscMatrix* petsc_submatrix = libmeshM_cast_ptr<PetscMatrix*>(&submatrix);
+    PetscMatrix* petsc_submatrix = libmeshM_cast_ptr<PetscMatrix*> (&submatrix);
 
     // If we're not reusing submatrix and submatrix is already initialized
     // then we need to clear it, otherwise we get a memory leak.
@@ -795,7 +998,7 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
     int ierr = 0;
     IS isrow, iscol;
 
-    ierr = ISCreateGeneral(MPI_COMM_WORLD, rows.size(), (int*) &rows[0], PETSC_COPY_VALUES, &isrow); // PETSC_COPY_VALUES is my first choice; see also PETSC_OWN_POINTER, PETSC_USE_POINTER
+    ierr = ISCreateGeneral(MPI_COMM_WORLD, rows.size(), (int*) &rows[0], PETSC_COPY_VALUES, &isrow);  // PETSC_COPY_VALUES is my first choice; see also PETSC_OWN_POINTER, PETSC_USE_POINTER
     CHKERRABORT(MPI_COMM_WORLD, ierr);
 
     ierr = ISCreateGeneral(MPI_COMM_WORLD, cols.size(), (int*) &cols[0], PETSC_COPY_VALUES, &iscol);
@@ -804,11 +1007,16 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
 //---
 
 #if !PETSC_VERSION_LESS_THAN(3,0,1) || !PETSC_VERSION_RELEASE
-    ierr = MatGetSubMatrix(_mat,
-                           isrow,
-                           iscol,
-                           (reuse_submatrix ? MAT_REUSE_MATRIX : MAT_INITIAL_MATRIX),
-                           &(petsc_submatrix->_mat));
+//     ierr = MatGetSubMatrix(_mat,
+//                            isrow,
+//                            iscol,
+//                            (reuse_submatrix ? MAT_REUSE_MATRIX : MAT_INITIAL_MATRIX),
+//                            &(petsc_submatrix->_mat));
+    ierr = MatCreateSubMatrix(_mat,
+                              isrow,
+                              iscol,
+                              (reuse_submatrix ? MAT_REUSE_MATRIX : MAT_INITIAL_MATRIX),
+                              & (petsc_submatrix->_mat));
     CHKERRABORT(MPI_COMM_WORLD, ierr);
 #else
     ierr = MatGetSubMatrix(_mat,
@@ -816,7 +1024,7 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
                            iscol,
                            PETSC_DECIDE,
                            (reuse_submatrix ? MAT_REUSE_MATRIX : MAT_INITIAL_MATRIX),
-                           &(petsc_submatrix->_mat));
+                           & (petsc_submatrix->_mat));
     CHKERRABORT(MPI_COMM_WORLD, ierr);
 #endif
 
@@ -836,7 +1044,7 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
 // ======================================================
   void PetscMatrix::get_diagonal(NumericVector& dest) const {
     // Make sure the NumericVector passed in is really a PetscVector
-    PetscVector& petsc_dest = libmeshM_cast_ref<PetscVector&>(dest);
+    PetscVector& petsc_dest = libmeshM_cast_ref<PetscVector&> (dest);
     // Call PETSc function.
     // Needs a const_cast since PETSc does not work with const.
     int ierr =  MatGetDiagonal(const_cast<PetscMatrix*>(this)->mat(), petsc_dest.vec());
@@ -851,7 +1059,7 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
   ) const {
 
     // Make sure the SparseMatrix passed in is really a PetscMatrix
-    PetscMatrix& petsc_dest = libmeshM_cast_ref<PetscMatrix&>(dest);
+    PetscMatrix& petsc_dest = libmeshM_cast_ref<PetscMatrix&> (dest);
 
     // If we aren't reusing the matrix then need to clear dest,
     // otherwise we get a memory leak
@@ -867,34 +1075,35 @@ void PetscMatrix::print_matlab(const std::string& name, const std::string& forma
 #else
     // FIXME - we can probably use MAT_REUSE_MATRIX in more situations
     if(&petsc_dest == this)
-      ierr = MatTranspose(_mat, MAT_REUSE_MATRIX, &petsc_dest._mat);
+      //ierr = MatTranspose(_mat, MAT_REUSE_MATRIX, &petsc_dest._mat);
+      ierr = MatTranspose(_mat, MAT_INPLACE_MATRIX, &petsc_dest._mat);
     else
       ierr = MatTranspose(_mat, MAT_INITIAL_MATRIX, &petsc_dest._mat);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
 #endif
-    
+
     int temp = _m;
     petsc_dest._m = _n;
     petsc_dest._n = temp;
-  
+
     temp = _m_l;
     petsc_dest._m_l = _n_l;
     petsc_dest._n_l = temp;
-    
+
     // Specify that the transposed matrix is initialized and close it.
     petsc_dest._is_initialized = true;
     petsc_dest.close();
   }
-  
-  
+
+
   void PetscMatrix::mat_zero_rows(const std::vector <int> &index, const double &diagonal_value) const {
     MatSetOption(_mat, MAT_NO_OFF_PROC_ZERO_ROWS, PETSC_TRUE);
     MatSetOption(_mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
     MatZeroRows(_mat, index.size(), &index[0], diagonal_value, 0, 0);
   }
-  
-  
-   
+
+
+
 } //end namespace femus
 
 

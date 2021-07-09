@@ -83,6 +83,11 @@ namespace femus {
       short unsigned GetElementType(const unsigned& iel);
 
       /** To be Added */
+      MyVector< short unsigned > & GetElementTypeArray() { return _elementType; }
+      
+      MyMatrix <int> &  GetElementNearFaceArray() { return _elementNearFace; } 
+    
+      /** To be Added */
       void SetElementType(const unsigned& iel, const short unsigned& value);
 
       /** To be Added */
@@ -103,6 +108,8 @@ namespace femus {
       /** To be Added */
       void SetElementGroupNumber(const unsigned& value);
 
+      unsigned GetFaceType(const unsigned& ielt, const unsigned& jface);
+      
       /** To be Added */
       int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
@@ -110,7 +117,7 @@ namespace femus {
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
-
+      
       /** To be Added */
       unsigned GetIndex(const char name[]) const;
 
@@ -229,7 +236,19 @@ namespace femus {
       }
 
       void GetAMRRestriction(Mesh *msh);
-
+      
+      void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter){
+        _materialElementCounter = materialElementCounter;
+      }
+      
+      std::vector<unsigned> GetMaterialElementCounter(){
+        return _materialElementCounter;
+      }
+      
+      unsigned GetFaceRangeStart(const unsigned &ielt) const;
+      
+      unsigned GetFaceRangeEnd(const unsigned &ielt) const;
+      
     private:
 
       elem* _coarseElem;
@@ -250,9 +269,10 @@ namespace femus {
       MyVector< short unsigned> _elementType;
       MyVector< short unsigned> _elementGroup;
       MyVector< short unsigned> _elementMaterial;
+      std::vector<unsigned> _materialElementCounter;
 
       MyMatrix <unsigned> _elementDof;
-      MyMatrix <int> _elementNearFace;
+      MyMatrix <int> _elementNearFace;  //@todo this is about the elements attached to each face, but it is used for BCs as well
 
       MyMatrix <unsigned> _childElem;
       MyMatrix <unsigned> _childElemDof;
@@ -262,7 +282,7 @@ namespace femus {
 
   };
 
-//linear, quadratic, biquadratic, picewise costant, picewise linear discontinuous
+//linear, quadratic, biquadratic, piecewise costant, piecewise linear discontinuous
   const unsigned NVE[6][5] = {
     {8, 20, 27, 1, 4}, //hex
     {4, 10, 15, 1, 4}, //tet
@@ -270,6 +290,15 @@ namespace femus {
     {4, 8, 9, 1, 3}, //quad
     {3, 6, 7, 1, 3}, //tri
     {2, 3, 3, 1, 2}  //line
+  };
+  
+  const unsigned FACERANGE[6][2] = {
+    {20,26},
+    {10,14},
+    {15,20},
+    {4,8},
+    {3,6},
+    {2,3}
   };
 
   /**
@@ -279,6 +308,8 @@ namespace femus {
 
   /**
    * Number of FACES(3D), edges(2D) or point-extrema(1D) for each considered element
+   * The 1st number is the quadrilaterals
+   * The 2nd number is such that the different "2nd - 1st" is the number of triangular faces
    **/
   const unsigned NFC[6][2] = {
     {6, 6},

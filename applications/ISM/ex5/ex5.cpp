@@ -5,6 +5,7 @@
 #include "Marker.hpp"
 #include "Line.hpp"
 #include "MultiLevelMesh.hpp"
+#include "MultiLevelSolution.hpp"
 #include "VTKWriter.hpp"
 #include "NonLinearImplicitSystem.hpp"
 #include "MyVector.hpp"
@@ -196,7 +197,7 @@ int main(int argc, char** args)
   if (dim == 3) mlSol.Initialize("W", InitalValueW);
 
   std::cout << " --------------------------------------------------------------------------------------------- " << std::endl;
-// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType, true);
+// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType);
   //Marker a( x, VOLUME, mlMsh.GetLevel(numberOfUniformLevels + numberOfSelectiveLevels -1) );
   //std::cout << " The coordinates of the marker are " << x[0] << " ," << x[1] << " ," << x[2] << std::endl;
   //std::cout << " The marker type is " <<  a1Quad.GetMarkerType() << std::endl;
@@ -211,7 +212,7 @@ int main(int argc, char** args)
   clock_t init_time = clock();
 
 
-  unsigned size = 100;
+  unsigned size = 10000;
 
   std::vector < std::vector < double > > x; // marker
   std::vector < MarkerType > markerType;
@@ -227,7 +228,7 @@ int main(int argc, char** args)
     markerType[j] = VOLUME;
   }
 
-  // srand(2); //TODO 3D rotation n=10, problem at iteration 6 with seed srand(1);    FIXED
+   srand(2); //TODO 3D rotation n=10, problem at iteration 6 with seed srand(1);    FIXED
              //TODO 3D vortex n=16, problem at iteration 11 with seed srand(2);     FIXED
              //TODO 3D vortex srand(2) gives different errors
   double pi = acos(-1.);
@@ -247,32 +248,31 @@ int main(int argc, char** args)
 //       x[j][2] = r_rad * cos(r_phi);
 //     }
     //END
-
-    
-  
  
  //  if(j==1012) std::cout<< std::setprecision(14)<<x[j][0] <<" "<< x[j][1]<<" "<<x[j][2]<<std::endl;
+
+//BEGIN ordered initialization
     x[j][0] = 0. + 0.125 * cos(2.*pi / size * j);
     x[j][1] = .25 + 0.125 * sin(2.*pi / size * j);
     if (dim == 3) {
       x[j][2] = 0.;
     }
-  }
-  
-//      x[0][0] =  -0.026254446447862;
-//      x[0][1] =  0.017548942620618;
-//      x[0][2] =  0.28141676995866;
+//END 
+    
+    
+  } //end for on initialization
+
      
  //exit(0);
 
   Line linea(x, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
 
   linea.GetLine(line0[0]);
-  PrintLine(DEFAULT_OUTPUTDIR, line0, false, 0);
+  PrintLine(DEFAULT_OUTPUTDIR, "line", line0, 0);
 
   double T = 2 * acos(-1.);
 
-  unsigned n = 16;
+  unsigned n = 4;
 
   std::cout << std::endl << " init in  " << std::setw(11) << std::setprecision(6) << std::fixed
             << static_cast<double>((clock() - init_time)) / CLOCKS_PER_SEC << " s" << std::endl;
@@ -289,7 +289,7 @@ int main(int argc, char** args)
     if (dim == 3) mlSol.UpdateSolution("W" , InitalValueW, pi * k / n);
     linea.AdvectionParallel(40, T / n, 4);
     linea.GetLine(line[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, line, false, k);
+    PrintLine(DEFAULT_OUTPUTDIR, "line",line, k);
   }
 
 

@@ -27,7 +27,8 @@
 #include "PetscVector.hpp"
 
 #include <mpi.h>
-
+#include "petscpc.h" 
+#include <petscksp.h>
 
 namespace femus {
 
@@ -122,10 +123,10 @@ namespace femus {
         else {
           ierr = PCSetType(pc, (char*) PCLU);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
-
-          ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
+	  
+	  ierr = PCFactorSetMatSolverType(pc, MATSOLVERMUMPS);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
-          ierr = PCFactorSetUpMatSolverPackage(pc);
+          ierr = PCFactorSetUpMatSolverType(pc);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
           Mat       F;
           ierr = PCFactorGetMatrix(pc, &F);
@@ -139,7 +140,7 @@ namespace femus {
       case SLU_PRECOND:
         ierr = PCSetType(pc, (char*) PCLU);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERSUPERLU_DIST);
+        ierr = PCFactorSetMatSolverType(pc, MATSOLVERSUPERLU_DIST);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;    //here we set the SuperLU_dist solver package
 
@@ -147,9 +148,9 @@ namespace femus {
         ierr = PCSetType(pc, (char*) PCLU);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-        ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
+        ierr = PCFactorSetMatSolverType(pc, MATSOLVERMUMPS);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = PCFactorSetUpMatSolverPackage(pc);
+        ierr = PCFactorSetUpMatSolverType(pc);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         Mat       F;
         ierr = PCFactorGetMatrix(pc, &F);
@@ -162,29 +163,49 @@ namespace femus {
         ierr = PCSetType(pc, (char*) PCLU);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-        ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERUMFPACK);
+        ierr = PCFactorSetMatSolverType(pc, MATSOLVERUMFPACK);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = PCFactorSetUpMatSolverPackage(pc);
+        ierr = PCFactorSetUpMatSolverType(pc);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;
 
       case MCC_PRECOND:
         ierr = PCSetType(pc, (char*) PCCHOLESKY);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
-        ierr = PCFactorSetMatSolverPackage(pc, MATSOLVERMUMPS);
+        ierr = PCFactorSetMatSolverType(pc, MATSOLVERMUMPS);
         CHKERRABORT(MPI_COMM_WORLD, ierr);                   //here we set the MUMPS parallel direct solver package
         break;
 
       case ASM_PRECOND:
-        ierr = PCSetType(pc, (char*) PCASM);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
+      case ASM_MULTIPLICATIVE_PRECOND:
+        PCSetType(pc, (char*) PCASM);
+        PCASMSetType (pc,  PC_ASM_BASIC);
+        PCASMSetLocalType (pc, PC_COMPOSITE_MULTIPLICATIVE);
         break;
+      case ASM_ADDITIVE_PRECOND:
+        PCSetType(pc, (char*) PCASM);
+        PCASMSetType (pc,  PC_ASM_BASIC);
+        PCASMSetLocalType (pc, PC_COMPOSITE_ADDITIVE);
+        break;  
 
       case FIELDSPLIT_PRECOND:
-        ierr = PCSetType(pc, (char*) PCFIELDSPLIT);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
+      case FIELDSPLIT_ADDITIVE_PRECOND:
+        PCSetType(pc, (char*) PCFIELDSPLIT);
+        PCFieldSplitSetType (pc, PC_COMPOSITE_ADDITIVE);
         break;
-
+      case FIELDSPLIT_MULTIPLICATIVE_PRECOND:
+        PCSetType(pc, (char*) PCFIELDSPLIT);
+        PCFieldSplitSetType (pc, PC_COMPOSITE_MULTIPLICATIVE);
+        break;
+      case FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND:
+        PCSetType(pc, (char*) PCFIELDSPLIT);
+        PCFieldSplitSetType (pc, PC_COMPOSITE_SYMMETRIC_MULTIPLICATIVE);
+        break;
+      case FIELDSPLIT_SCHUR_PRECOND:
+        PCSetType(pc, (char*) PCFIELDSPLIT);
+        PCFieldSplitSetType (pc, PC_COMPOSITE_SCHUR);
+        break;  
+        
       case JACOBI_PRECOND:
         ierr = PCSetType(pc, (char*) PCJACOBI);
         CHKERRABORT(MPI_COMM_WORLD, ierr);

@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include "MgSmootherEnum.hpp"
+#include "LinearEquationSolverEnum.hpp"
 #include "MgTypeEnum.hpp"
 
 namespace femus {
@@ -51,7 +51,8 @@ public:
     /** Constructor.  Initializes required data structures.  */
     TransientSystem (MultiLevelProblem& ml_probl,
                      const std::string& name,
-                     const unsigned int number, const MgSmoother & smoother_type);
+                     const unsigned int number, 
+                     const LinearEquationSolverType & smoother_type);
 
     /** Destructor. */
     virtual ~TransientSystem ();
@@ -64,9 +65,6 @@ public:
         return *this;
     }
 
-    /** Clear all the data structures associated with the system. */
-    virtual void clear ();
-
     /**
      * @returns \p "Transient" prepended to T::system_type().
      * Helps in identifying the system type in an equation
@@ -78,13 +76,11 @@ public:
     /** Update the old solution with new ones. It calls the update solution function of the Solution class */
     virtual void CopySolutionToOldSolution();
 
-
-    /** calling the parent solve */
-    virtual void MLsolve();
-
+    /** Set up before calling the parent solve */
+    void SetUpForSolve();
+   
     /** calling the parent solve */
     virtual void MGsolve( const MgSmootherType& mgSmootherType = MULTIPLICATIVE );
-
 
     /** update the Newmark variables */
     void NewmarkAccUpdate();
@@ -118,12 +114,12 @@ public:
 protected:
 
     double _dt;
+    
+    double _time;
 
 private:
 
     bool _is_selective_timestep;
-
-    double _time;
 
     unsigned int _time_step;
 

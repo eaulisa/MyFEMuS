@@ -9,6 +9,7 @@
  */
 
 #include "FemusInit.hpp"
+#include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
 #include "NumericVector.hpp"
 #include "VTKWriter.hpp"
@@ -63,8 +64,9 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu","seventh",scalingFactor);
-  //mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
+//  mlMsh.ReadCoarseMesh("./input/square_tri.neu", "seventh", scalingFactor);
   mlMsh.ReadCoarseMesh("./input/quadAMR01.neu", "seventh", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/square_tri.neu", "seventh", scalingFactor);
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
@@ -82,7 +84,7 @@ int main(int argc, char** args) {
 
   MultiLevelSolution mlSol(&mlMsh);
   
-  mlSol.AddSolution("Error",  DISCONTINOUS_POLYNOMIAL, ZERO);
+  mlSol.AddSolution("Error",  DISCONTINUOUS_POLYNOMIAL, ZERO);
 
   mlSol.AddSolution("U", LAGRANGE, SECOND);
 
@@ -131,8 +133,8 @@ int main(int argc, char** args) {
     // add solution "u" to system
     system.AddSolutionToSystemPDE("U");
 
-    //system.SetMgSmoother(GMRES_SMOOTHER);
-    system.SetMgSmoother(ASM_SMOOTHER);  // Additive Swartz Method
+    //system.SetLinearEquationSolverType(FEMuS_DEFAULT);
+    system.SetLinearEquationSolverType(FEMuS_ASM);  // Additive Swartz Method
     // attach the assembling function to system
     system.SetAssembleFunction(AssemblePoisson_AD);
 
@@ -159,8 +161,8 @@ int main(int argc, char** args) {
     GetError(&mlSol);
     
     std::pair< double , double > norm = GetError (&mlSol);
-      H1normE[i][0]  = norm.first;
-      H1norm[i][0] = norm.second;
+    H1normE[i][0]  = norm.first;
+    H1norm[i][0] = norm.second;
     
     // print solutions
     std::vector < std::string > variablesToBePrinted;
@@ -171,7 +173,7 @@ int main(int argc, char** args) {
     
     //refine the mesh
     MeshRefinement meshcoarser(*mlMsh.GetLevel(numberOfUniformLevels-1));
-    bool elementsHaveBeenRefined = meshcoarser.FlagElementsToBeRefined(0.005, mlSol.GetSolutionLevel(numberOfUniformLevels-1)->GetSolutionName("Error"));  //non-uniform
+    bool elementsHaveBeenRefined = meshcoarser.FlagElementsToBeRefined(0.0001, mlSol.GetSolutionLevel(numberOfUniformLevels-1)->GetSolutionName("Error"));  //non-uniform
     
     //bool elementsHaveBeenRefined = true; //uniform
     //meshcoarser.FlagAllElementsToBeRefined();//uniform
@@ -185,9 +187,6 @@ int main(int argc, char** args) {
     mlSol.RefineSolution(numberOfUniformLevels);
     //}
     numberOfUniformLevels += 1;
-    
-    
-
   }
   
   
@@ -245,7 +244,6 @@ int main(int argc, char** args) {
   
   return 0;
 }
-
 
 
 
@@ -640,7 +638,7 @@ std::pair < double, double > GetError(MultiLevelSolution* mlSol) {
    
   //std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << (2.*sqrt(N)) / ( 3.*H1norm ) <<std::endl;
  
-  *sol->_Sol[errorIndex] *= (2.*sqrt(N)) / ( 3.*L2norm );
+  *sol->_Sol[errorIndex] *= (2.*sqrt(N)) / ( 3.*H1norm );
   
   std::pair < double, double > norm;
   norm.first  = H1normE;

@@ -75,11 +75,11 @@ public:
 
   /** Builds a \p NumericVector using the linear solver package */
   /** specified by \p solver_package */
-  static std::auto_ptr<NumericVector>
+  static std::unique_ptr<NumericVector>
   build(const SolverPackage solver_package = LSOLVER);
   
   /** Creates a copy of this vector and returns it in an \p AutoPtr. */
-  virtual std::auto_ptr<NumericVector > clone () const = 0;
+  virtual std::unique_ptr<NumericVector > clone () const = 0;
 
   /** Destructor, deallocates memory. */
   virtual ~NumericVector () {
@@ -94,6 +94,7 @@ public:
 
   /** Call the assemble functions */
   virtual void close () = 0;
+  virtual void closeWithMinValues () = 0;
   
   /**
    * Change the dimension of the vector to \p N. The reserved memory for
@@ -262,6 +263,12 @@ public:
 
   /// \f$ U+=v \f$ where \p v is a std::vector !!!fast
   virtual void add_vector_blocked(const std::vector<double>& v,
+			const std::vector< int>& dof_indices) =0;
+      
+  virtual void add_vector_blocked(const std::vector<double>& v,
+                                  const std::vector< unsigned>& dof_indices) = 0;
+            
+  virtual void insert_vector_blocked(const std::vector<double>& v,
 			const std::vector< int>& dof_indices) =0;
   
   /// \f$ U+=v \f$ where v is a DenseVector

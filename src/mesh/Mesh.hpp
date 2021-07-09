@@ -83,6 +83,10 @@ public:
       return _nelem;
     }
 
+    elem * GetElementArray() const {
+      return el;
+    }
+    
     /** Get if element is refined*/
     short unsigned GetRefinedElementIndex(const unsigned &iel) const;
 
@@ -112,7 +116,7 @@ public:
     /** Only for parallel */
     unsigned GetElementFaceNumber(const unsigned &iel, const unsigned &type=1) const;
 
-    void GetElementNodeCoordinates(std::vector < std::vector <double > > &xv, const unsigned &iel);
+    void GetElementNodeCoordinates(std::vector < std::vector <double > > &xv, const unsigned &iel, const unsigned &solType = 2);
 
     /** Set the grid number */
     void SetLevel(const unsigned &i) {
@@ -160,10 +164,18 @@ public:
     /** To be Added */
     void SetFiniteElementPtr(const elem_type* otheFiniteElement[6][5]);
 
-    /** Generate mesh functions */
+    void Partition();
+    
+    void InitializeTopologyStructures();
+  
+    /** Only file reading */
+    void ReadCoarseMeshFile (const std::string& name, const double Lref, std::vector<bool>& type_elem_flag, const bool read_groups, const bool read_boundary_groups);
 
-    /** This function generates the coarse mesh level, $l_0$, from an input mesh file */
+      /** This function generates the coarse mesh level, $l_0$, from an input mesh file */
     void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag);
+
+    /** This function generates the coarse mesh level, $l_0$, from an input mesh file, with option to not read groups */
+    void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag, const bool read_groups, const bool read_boundary_groups);
 
     /** This function generates a coarse box mesh */
     void GenerateCoarseBoxMesh(const unsigned int nx,
@@ -175,7 +187,7 @@ public:
                                const ElemType type, std::vector<bool> &type_elem_flag);
 
     /** To be added */
-    void FillISvector(vector < int > &epart);
+    void FillISvector(vector < unsigned > &partition);
 
     /** To be added */
     void Buildkel();
@@ -201,7 +213,7 @@ public:
     vector < unsigned > _dofOffset[5];
     vector< vector < int > > _ghostDofs[5];
 
-    elem *el;  // topology object
+    elem *el;  // topology object - list of all elements
     static bool (* _SetRefinementFlag)(const std::vector < double >& x,
                                        const int &ElemGroupNumber,const int &level);
     static bool _IsUserRefinementFunctionDefined;
@@ -209,6 +221,9 @@ public:
 
     /** Get the projection matrix between Lagrange FEM at the same level mesh*/
     SparseMatrix* GetQitoQjProjection(const unsigned& itype, const unsigned& jtype);
+
+    /** Get the coarse to the fine projection matrix and use it to restrict only on coarse nodes i.e. projection*/
+    SparseMatrix* GetCoarseToFineProjectionRestrictionOnCoarse(const unsigned& solType);
 
     /** Get the coarse to the fine projection matrix*/
     SparseMatrix* GetCoarseToFineProjection(const unsigned& solType);
@@ -226,6 +241,14 @@ public:
       _meshIsHomogeneous = value ;
     }
 
+    void SetCharacteristicLength(const double & cLength){
+      _cLenght = cLength;
+    }
+    
+    double GetCharacteristicLength(){
+      return _cLenght;
+    };
+    
     const unsigned GetXIndex()          const { return _xIndex; };
     const unsigned GetYIndex()          const { return _yIndex; };
     const unsigned GetZIndex()          const { return _zIndex; };
@@ -246,7 +269,7 @@ private:
     void BuildQitoQjProjection(const unsigned& itype, const unsigned& jtype);
 
     /** Build the coarse to the fine projection matrix */
-    void BuildCoarseToFineProjection(const unsigned& solType);
+    void BuildCoarseToFineProjection(const unsigned& solType, const char el_dofs[]);
 
     /** Weights used to build the baricentric coordinate **/
     static const double _baricentricWeight[6][5][18];
@@ -277,6 +300,7 @@ private:
     std::vector < std::map < unsigned,  std::map < unsigned, double  > > > _amrRestriction;
     std::vector < std::map < unsigned, bool > > _amrSolidMark;
 
+    double _cLenght;
 };
 
 } //end namespace femus

@@ -4,6 +4,7 @@
 #include "FemusInit.hpp"
 #include "Marker.hpp"
 #include "MultiLevelMesh.hpp"
+#include "MultiLevelSolution.hpp"
 #include "VTKWriter.hpp"
 #include "NonLinearImplicitSystem.hpp"
 #include "MyVector.hpp"
@@ -159,7 +160,7 @@ int main(int argc, char** args) {
 
 
   std::cout << " --------------------------------------------------------------------------------------------- " << std::endl;
-// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType, true);
+// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType);
   //Marker a( x, VOLUME, mlMsh.GetLevel(numberOfUniformLevels + numberOfSelectiveLevels -1) );
   //std::cout << " The coordinates of the marker are " << x[0] << " ," << x[1] << " ," << x[2] << std::endl;
   //std::cout << " The marker type is " <<  a1Quad.GetMarkerType() << std::endl;
@@ -206,7 +207,7 @@ int main(int argc, char** args) {
     x[0] = 0. + 0.125 * cos(2.*pi / pSize * j);
     x[1] = .25 + 0.125 * sin(2.*pi / pSize * j);
     x[2] = 0.;
-    particle[j] = new Marker(x, VOLUME, mlSol.GetLevel(numberOfUniformLevels - 1), solType, true);
+    particle[j] = new Marker(x, 0., VOLUME, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
   }
 
 
@@ -219,7 +220,7 @@ int main(int argc, char** args) {
   particle[0]->GetMarkerCoordinates(line[0][pSize]);
 
   std::vector < std::vector < std::vector < double > > > line0 = line; // saves the initial position
-  PrintLine(DEFAULT_OUTPUTDIR, line, false, 0);
+  PrintLine(DEFAULT_OUTPUTDIR, "line", line, 0);
 
   n = 30;
 
@@ -245,7 +246,7 @@ int main(int argc, char** args) {
       particle[j]->GetMarkerCoordinates(line[0][j]);
     }
     particle[0]->GetMarkerCoordinates(line[0][pSize]);
-    PrintLine(DEFAULT_OUTPUTDIR, line, false, k);
+    PrintLine(DEFAULT_OUTPUTDIR,"line", line, k);
   }
 
 

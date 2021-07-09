@@ -16,6 +16,7 @@ config/FemusConfig.hpp
 
 
 # folders
+.DS_Store/
 output/
 packs/
 templates/
@@ -24,6 +25,7 @@ contrib/lib/
 contrib/hdf5-1.8.5-patch1-linux-x86_64-shared/
 lib/
 applications/*/lib/
+applications/tutorial/ex11
 
 # kdevelop files
 .kdev4/
@@ -46,6 +48,9 @@ codeblocks/
 *.ind
 *.out
 *.toc
+*.synctex.gz
+*.kate-swp
+*.tex.backup
 
 # gambit junk stuff
 *.trn
@@ -72,6 +77,7 @@ codeblocks/
 *.h5
 *.pvsm
 *.prn
+.DS_Store
 
 # objects
 *.o
