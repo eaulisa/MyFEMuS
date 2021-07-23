@@ -151,10 +151,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
-  std::cout<<muMpm<<" "<<lambdaMpm<<" "<<nuMpm<<std::endl;
-  std::cout<<rhoMpm<<" "<<EMpm<<" "<<std::endl;
-  std::cout<<rhoFluid<<" "<<muFluid<<" "<<std::endl;
-  
+  std::cout << muMpm << " " << lambdaMpm << " " << nuMpm << std::endl;
+  std::cout << rhoMpm << " " << EMpm << " " << std::endl;
+  std::cout << rhoFluid << " " << muFluid << " " << std::endl;
+
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
   double dtMin = std::max(DTMIN, dt);
@@ -1204,8 +1204,23 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
           }
         }
       }
+//       if(particles[iMarker]->GetMarkerDistance() < 0)   {//fluid particles
+//         double jac;
+//         if(dim == 2) {
+//           jac =  FpNew[0][0] * FpNew[1][1] - FpNew[1][0] * FpNew[0][1];
+//           Fp = {{1., 0.}, {0., 1.}};
+//         }
+//         else {
+//           jac =  FpNew[0][0] * FpNew[1][1] * FpNew[2][2] + FpNew[0][1] * FpNew[1][2] * FpNew[2][0] + FpNew[0][2] * FpNew[1][0] * FpNew[2][1]
+//                  - FpNew[2][0] * FpNew[1][1] * FpNew[0][2] - FpNew[2][1] * FpNew[1][2] * FpNew[0][0] - FpNew[2][2] * FpNew[1][0] * FpNew[0][1];
+//           Fp = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+//         }
+//         particles[iMarker]->SetMarkerMass(particles[iMarker]->GetMarkerMass() * jac);
+//       }
       particles[iMarker]->SetDeformationGradient(Fp);
       ielOld = iel;
+
+
 
       if(particleSmoothingIsOn) {
         // from the solid particles of iel to the nodes of iel
@@ -1229,22 +1244,22 @@ void GridToParticlesProjection(MultiLevelProblem & ml_prob,
             }
           }
           for(unsigned jMarker = offset0;  jMarker <= iMarker; jMarker++) {
-            //if(particles[jMarker]->GetMarkerDistance() >= 0.) {
-            std::vector <double> xi = particles[jMarker]->GetMarkerLocalCoordinates();
-            msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
-            std::vector < std::vector < double > > Fp(dim);
-            for(unsigned i = 0; i < dim; i++) {
-              Fp[i].assign(dim, 0.);
-              for(unsigned j = 0; j < dim; j++) {
-                for(unsigned inode = 0; inode < nDofs; inode++) {
-                  Fp[i][j] += Fs[inode][i][j] * phiHat[inode];
+            if(particles[jMarker]->GetMarkerDistance() >= 0.) {
+              std::vector <double> xi = particles[jMarker]->GetMarkerLocalCoordinates();
+              msh->_finiteElement[ielt][solType]->Jacobian(vxHat, xi, weightHat, phiHat, gradPhiHat);
+              std::vector < std::vector < double > > Fp(dim);
+              for(unsigned i = 0; i < dim; i++) {
+                Fp[i].assign(dim, 0.);
+                for(unsigned j = 0; j < dim; j++) {
+                  for(unsigned inode = 0; inode < nDofs; inode++) {
+                    Fp[i][j] += Fs[inode][i][j] * phiHat[inode];
+                  }
                 }
               }
+              particles[jMarker]->SetDeformationGradient(Fp);
             }
-            particles[jMarker]->SetDeformationGradient(Fp);
           }
         }
-        //}
       }
     }
     else {
@@ -1920,7 +1935,7 @@ void GetPressureDragAndLift(MultiLevelProblem& ml_prob, const double & time, con
           }
 
           double traceE = E[0][0] + E[1][1] + E[2][2];
-          
+
           for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
             for(unsigned j = 0; j < 3; j++) {
               S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation

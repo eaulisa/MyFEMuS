@@ -39,24 +39,30 @@ double Gamma = 0.5 + (af - am);
 
 double DTMIN = 0.001;
 
-double factor = 2.;
+double factor = 3.;
 
 double gammacF = factor * 0.05;
 double gammacS = factor * 0.05;
 double gammap = factor * 0.05;
 double gammau = 0.05 * gammacF;
 
-double GAMMA = 45;//45;   // 10, 45 in the paper.
+double GAMMA = factor * 45;//45;   // 10, 45 in the paper.
 
 #include "../ex12/include/mpmFsi10.hpp"
 using namespace femus;
 
 double SetVariableTimeStep(const double time) {
-  //double dt = 1.; //FSI1
-  double dt = 0.001; //FSI3
+  double dt; 
+  double dt0 = 0.1;
+  double dt1 = 0.001; //FSI3
+  //double dt1 = 0.15;  // Steady state-FSI1
 
-  if(time < 2.) dt = .05;
-  else dt = 0.001;
+  double T = 6.;
+  if(time < T)
+    dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
+    //dt = dt0; // steady state-FSI1
+  else
+    dt = dt1;
 
   return dt;
 }
@@ -67,8 +73,8 @@ bool SetBoundaryCondition(const std::vector < double >&x, const char name[], dou
   bool test = 1;      //dirichlet
   value = 0.;
 
-  //const double Ubar = 0.2;    // FSI1
-  const double Ubar = 2;    // FSI3
+  const double Ubar = 0.2;    // FSI1
+  //const double Ubar = 2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -128,7 +134,7 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   double scalingFactor = 1.;
-  unsigned numberOfUniformLevels = 4; //for refinement in 3D
+  unsigned numberOfUniformLevels = 5; //for refinement in 3D 6 for turek2D
   unsigned numberOfUniformLevelsStart = numberOfUniformLevels;
   //unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
@@ -140,8 +146,8 @@ int main(int argc, char** args) {
   double muf = 1.;
   double rhos = 1000.;
   double nu = 0.4;
-  //double E = 1400000; //FSI1
-  double E = 4 * 1400000; //FSI3
+  double E = 1400000; //FSI1
+  //double E = 4 * 1400000; //FSI3
 
 
   Parameter par(Lref, Uref);
@@ -281,16 +287,11 @@ int main(int argc, char** args) {
   std::ifstream fin;
   std::ostringstream fileName;
   std::ostringstream level_number;
-<<<<<<< HEAD
   fileName << "../input/turekBeam2D";
-  level_number << 2;
-  //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
-=======
-  //fileName << "../input/turekBeam2D";
-  //level_number << 1;
-  fileName<<"../input/turekBeam2DNew"; 
+  //level_number << 2;
+  //level_number << 3;
   level_number << 4;
->>>>>>> 766270bdc68e6b565708e039a513ddff5d8178e0
+  //  fileName<<"../input/turekBeam2DNew"; level_number << 4;
 
   fileName << level_number.str();
 
@@ -304,12 +305,13 @@ int main(int argc, char** args) {
   std::vector <double> dist;
   std::vector < MarkerType > markerType;
 
+  std::cout << bulkfile << std::endl;
   fin.open(bulkfile);
   
   unsigned size;
   fin >> dim >> size;
 
-  //std::cout << dim << " " << size << std::endl << std::flush;
+  std::cout << dim << " " << size << std::endl << std::flush;
   xp.resize(size);
   wp.resize(size);
   dist.resize(size);
@@ -323,11 +325,10 @@ int main(int argc, char** args) {
     fin >> dist[ip];
   }
   fin.close();
-
   
-
-  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4); //erase markers away from the interface after refinement.
-  //double delta_max = 0.005 / (numberOfUniformLevelsStart - 3);
+  double delta_max = 0.013 / (numberOfUniformLevelsStart - 4);
+  //double delta_max = 0.005 / (numberOfUniformLevelsStart - 4);
+  std::cout << "delta_max = " << delta_max << std::endl;
 
   for(int i = 0; i < xp.size(); i++) {
     if(dist[i] < -delta_max) {
@@ -344,8 +345,10 @@ int main(int argc, char** args) {
     xp[i][0] += shift;
   }
 
+  
   bulk = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), 2);
-
+ 
+  
   std::vector < std::vector < std::vector < double > > >  bulkPoints(1);
   bulk->GetLine(bulkPoints[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, 0);
@@ -387,7 +390,7 @@ int main(int argc, char** args) {
 
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
 
-
+  
   double xmax = -1.0e10;
   double ymax =  1.0e10;
   unsigned imax = 0;
@@ -427,12 +430,12 @@ int main(int argc, char** args) {
   std::string ofile = "./save/";
   ofile += "beamTipPositionLevel";
   ofile += level_number.str();
-  ofile += ".turekFSI2.txt";
+  ofile += ".turekFSI1Level4.txt";
 
   std::string pfile = "./save/";
   pfile += "pressureLevel";
   pfile += level_number.str();
-  pfile += ".turekFSI2.txt";
+  pfile += ".turekFSI1Level4.txt";
 
   if(iproc == 0) {
     fout.open(ofile);
@@ -460,36 +463,39 @@ int main(int argc, char** args) {
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
 
+  std::string MyOutBefore = "./FSI1BeforeLevel4";
+  std::string MyOutAfter = "./FSI1AfterLevel4";
   mlSol.GetWriter()->SetDebugOutput(true);
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  mlSol.GetWriter()->Write("./output1", "biquadratic", print_vars, 0);
+  mlSol.GetWriter()->Write(MyOutAfter, "biquadratic", print_vars, 0);
+  mlSol.GetWriter()->Write(MyOutBefore, "biquadratic", print_vars, 0);
 
 
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   unsigned n_timesteps = 20000;
-  unsigned printTimeInterval = 50;
+  unsigned printTimeInterval = 10;
   for(unsigned time_step = 1; time_step <= n_timesteps; time_step++) {
 
     system.CopySolutionToOldSolution();
 
-    mlSol.GetWriter()->Write("output1", "biquadratic", print_vars, time_step / printTimeInterval);
+    mlSol.GetWriter()->Write(MyOutBefore, "biquadratic", print_vars, time_step / printTimeInterval);
     bulk->GetLine(bulkPoints[0]);
-    PrintLine("output1", "bulk", bulkPoints, time_step);
+    PrintLine(MyOutBefore, "bulk", bulkPoints, time_step);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine("output1", "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
+    PrintLine(MyOutBefore, "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
 
     system.MGsolve();
 
     double time = system.GetTime();
 
+    std::cout << pfile << std::endl;
     GetDragAndLift(ml_prob, time, pfile);
 
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, time_step / printTimeInterval);
+    mlSol.GetWriter()->Write(MyOutAfter, "biquadratic", print_vars, time_step / printTimeInterval);
     GridToParticlesProjection(ml_prob, *bulk, *lineI);
     bulk->GetLine(bulkPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "bulk", bulkPoints, time_step / printTimeInterval);
+    PrintLine(MyOutAfter, "bulk", bulkPoints, time_step / printTimeInterval);
     lineI->GetLine(lineIPoints[0]);
-    PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
+    PrintLine(MyOutAfter, "interfaceMarkers", lineIPoints, time_step / printTimeInterval);
 
     if(iproc == 0) fout << time << " " << lineIPoints[0][imax][0] << " " << lineIPoints[0][imax][1] << std::endl;
   }
@@ -608,7 +614,7 @@ void BuildIntegrationPoints(MultiLevelSolution& mlSol) {
   for(unsigned i = 1; i < relPos.size(); i++) {
     relPos[i] = relPos[i - 1] + sizeLocals[i - 1];
   }
-    
+
   MPI_Allgatherv(x[0].data(), x[0].size(), MPI_DOUBLE, xr[0].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
   MPI_Allgatherv(x[1].data(), x[1].size(), MPI_DOUBLE, xr[1].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
   MPI_Allgatherv(N[0].data(), N[0].size(), MPI_DOUBLE, Nr[0].data(), sizeLocals.data(), relPos.data(), MPI_DOUBLE, PETSC_COMM_WORLD);
