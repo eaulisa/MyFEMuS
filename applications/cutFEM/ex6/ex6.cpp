@@ -18,6 +18,7 @@ LimLi(const int &n, const Float1 &x) {
   else return -0.5;
 }
 
+
 #include "oldFunctions.hpp"
 
 template <class Float1, class Float2>
@@ -67,55 +68,109 @@ Int0to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
 
 
 
+
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Intm1to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
+LSIm1(const int &m, const Float1 &a, const Float2 &d) {
+
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  Type INT = 0.;
-  bool unitStepFunctionComplement = false;
+  if(fabs(d / a) < 1.) {
+    return pow(-d / a, m);
+  }
+  else if(fabs(d / a) == 1) {
+    return 0.5 * pow(-d / a, m);
+  }
+  else {
+    return 0;
+  }
+}
 
-  if(d > 0) { //this assures that for s < 1, either limit x or y below is negative
-    if(s == -1) { //this is the Dirac distribution, the sign of the normal can be changed and INT(delta(ax+d)) = INT(delta(-ax-d))
-      a = -a;
-      d = -d;
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+LSI0(const int &m, const Float1 &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  if(d <= -fabs(a)) {
+    return 0.;
+  }
+  else if(d >= fabs(a)) {
+    return (1. + pow(-1., m)) / (m + 1.);
+  }
+  else {
+    if(a > 0.) {
+      return (1. - pow(-d / a, m + 1)) / (m + 1.);
     }
-    else if(s == 0) { //this is the unit step function, the sign of the normal can be changed if INT(U(ax+d)) = INT(1) - INT(U(-ax-d))
-      a = -a;
-      d = -d;
-      unitStepFunctionComplement = true;
-      INT = -(1. + pow(-1., m)) / (m + 1);
+    else {
+      return (pow(-d / a, m + 1) + pow(-1., m)) / (m + 1.);
     }
   }
+}
 
-  Type x(a + d);
-  Type y(-a + d);
 
-  if(x < 0 || y < 0) { // in all these cases no-significant digit cancellation occurs
-    if(x >= 0.) {
-      Type g =  1. / (-a);
-      for(unsigned i = 1; i <= m + 1; i++) {
-        INT += g * LimLi(s + i, x);
-        g *= (m + 1 - i) / (-a);
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+LSI(const int &s, const unsigned &m, Float1 a, Float2 d) {
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  switch(s) {
+    case -1:
+      return LSIm1(m, a, d);
+      break;
+
+    case 0:
+      return LSI0(m, a, d);
+      break;
+
+    default:
+      Type INT = 0.;
+
+      Type x(a + d);
+      Type y(-a + d);
+
+      if(d < fabs(a)) { // in all these cases no-significant digit cancellation occurs
+        if(x > 0.) {
+          Type xDa = x / a;
+          Type c1 = s + 1;
+          Type c2 = m + 1;
+          Type fx =  pow(x, c1) / (a * factorial<Type>(s + 1));
+          for(unsigned i = 0; i < m + 1; i++) {
+            INT += fx;
+            fx *= - xDa * (--c2) / (++c1);
+          }
+        }
+        else if(y > 0.) {
+          Type yDa = y / a;
+          Type c1 = s + 1;
+          Type c2 = m + 1;
+          Type fy =  - pow(-1., m) * pow(y, c1) / (a * factorial<Type>(s + 1));
+          for(unsigned i = 0; i < m + 1; i++) {
+            INT += fy;
+            fy *= yDa * (--c2) / (++c1);
+          }
+        }
       }
-    }
-    else if(y >= 0.) {
-      Type g =  pow(-1., m) / a;
-      for(unsigned i = 1; i <= m + 1; i++) {
-        INT += g * LimLi(s + i, y);
-        g *= (m + 1 - i) / a;
+      else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and (-a+d) are non-negative and d >> a
+
+        Type px = 1.;
+        Type py = pow(-1, m + s);
+
+        Type c1 = m + 1 + s;
+        Type c2 = 1;
+        Type f1 = pow(-a, s) / factorial<Type>(m + 1 + s);
+
+        for(unsigned i = 0; i < s + 1; i++) {
+          INT += f1 * (px + py);
+          f1 *= -(c1--) / (a * c2++);
+          px *= x;
+          py *= -y;
+        }
+        INT *= factorial<Type>(m);
       }
-    }
+      return INT;
+      break;
   }
-  else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and (-a+d) are non-negative and d >> a
-    for(unsigned i = 1; i <= s; i++) {
-      INT += pow(-a, s - i) / factorial<Type>(m + 1 + s - i) *
-             (pow(x, i) + pow(-1, m + s - i) * pow(y, i)) / factorial<Type>(i);
-    }
-    INT += pow(-a, s) * (1 + pow(-1, m + s)) / factorial<Type>(m + 1 + s);
-    INT *= factorial<Type>(m);
-  }
-  return (unitStepFunctionComplement) ? -INT : INT;
 }
 
 
@@ -370,9 +425,10 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
   }
 }
 
+
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCubeB(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
+HyperCubeBOld(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
@@ -385,38 +441,72 @@ HyperCubeB(const int &s, unsigned i, const std::vector<unsigned> &m, const std::
     Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
     for(int j = 1; j <= m[i] + 1;  c *= aI * (m[i] + 1 - j), sr *= -1, j++) {
-      HPI += c * (sl * HyperCubeB(s + j, i - 1, m, a, -a[i] + d) + sr * HyperCubeB(s + j, i - 1, m, a, a[i] + d));
+      HPI += c * (sl * HyperCubeBOld(s + j, i - 1, m, a, -a[i] + d) + sr * HyperCubeBOld(s + j, i - 1, m, a, a[i] + d));
     }
   }
   else {
-    HPI = Intm1to1LimLi(s, m[0], a[0], d);
+    HPI = LSI(s, m[0], a[0], d);
   }
+  return HPI;
+}
+
+
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast = false);
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCubeB(const int &s, unsigned i, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  Type HPI = 0.;
+//   if(i > 0) {
+  Type aI = 1. / a[i];
+
+  int sl = (m[i] % 2 == 1) ? 1. : -1.; // this is (-1)^(m-1)
+  int sr = 1; // this is (-1)^(j-1) for j = 1, ..., m + 1
+  Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
+
+  m.resize(i);
+  a.resize(i);
+
+  for(int j = 1; j <= m[i] + 1;  c *= aI * (m[i] + 1 - j), sr *= -1, j++) {
+    //HPI += c * (sl * HyperCubeB(s + j, i - 1, m, a, -a[i] + d) + sr * HyperCubeB(s + j, i - 1, m, a, a[i] + d));
+    HPI += c * (sl * HyperCube(s + j, m, a, -a[i] + d, true) + sr * HyperCube(s + j, m, a, a[i] + d, true));
+  }
+//   }
+//   else {
+//     HPI = LSI(s, m[0], a[0], d);
+//   }
   return HPI;
 }
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast = false) {
+HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
   Type HCI = 1.;
-  if(!fast) {
+  if(!fast) { // this function may have recursive calls, the reordering is done only at the highest level
     for(int i = a.size() - 1; i >= 0; i--) {
       if(a[i] == 0) {
-        if(m[i] % 2 == 1) {
+        if(m[i] % 2 == 1) { // odd monomial on symmetric domain
           return 0.;
         }
-        else {
+        else { // integral of the even monomial from -1 to 1
           HCI *= 2. / (m[i] + 1.);
           a.erase(a.begin() + i);
           m.erase(m.begin() + i);
         }
       }
     }
-
-    for(unsigned i = 0; i < a.size() - 1; i++) {
-      for(unsigned j = 1; j < a.size(); j++) {
+    // all the left a[i] coefficients \ne 0
+    for(unsigned i = 0; i < a.size() - 1; i++) { // reorder iterated integral from the smallest to the largest coefficient a[i]
+      for(unsigned j = i + 1; j < a.size(); j++) {
         if(fabs(a[i]) > fabs(a[j])) {
           std::swap(a[i], a[j]);
           std::swap(m[i], m[j]);
@@ -425,9 +515,10 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
     }
   }
 
-  Type intOf1 = 1.;
+  if(a.size() == 1)  return HCI * LSI(s, m[0], a[0], d);
+
   switch(s) {
-    case -1:
+    case -1: // interface integral
       if(d <= 0) {
         return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
       }
@@ -436,11 +527,12 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
         return HCI * HyperCubeB(s, a.size() - 1, m, a, -d);
       }
       break;
-    case 0:
+    case 0: // step function integral
       if(d <= 0) {
         return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
       }
       else {
+        Type intOf1 = 1.;
         for(unsigned i = 0; i < a.size(); i++) {
           a[i] = -a[i];
           intOf1 *= (1. + pow(-1., m[i])) / (m[i] + 1.);
@@ -448,29 +540,24 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
         return HCI * (intOf1 - HyperCubeB(s, a.size() - 1, m, a, -d));
       }
       break;
-    default:
+    default: // all other integrals, whatever they mean
       int n = a.size() - 1;
-      if(n > 0) {
-        Type INT(0.);
-        Type an = a[n];
-        unsigned mn = m[n];
-        Type mnf = factorial<Type>(mn);
-        m[n] += s;
-        INT += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCube(0, m, a, d, true) ;
+      Type INT(0.);
+      Type an = a[n];
+      unsigned mn = m[n];
+      Type mnf = factorial<Type>(mn);
+      m[n] += s;
+      INT += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCube(0, m, a, d, true) ;
 
-        m.resize(n);
-        a.resize(n);
+      m.resize(n);
+      a.resize(n);
 
-        for(unsigned i = 0; i < s; i++) {
-          INT += mnf / factorial<Type>(mn + 1 + i) * pow(an, i)
-                 * (pow(-1, i) * HyperCube(s - i, m, a, an + d, true) +
-                    pow(-1, mn) * HyperCube(s - i, m, a, -an + d, true));
-        }
-        return HCI * INT;
+      for(unsigned i = 0; i < s; i++) {
+        INT += mnf / factorial<Type>(mn + 1 + i) * pow(an, i)
+               * (pow(-1, i) * HyperCube(s - i, m, a, an + d, true) +
+                  pow(-1, mn) * HyperCube(s - i, m, a, -an + d, true));
       }
-      else {
-        return HCI * HyperCubeB(s, n, m, a, d);
-      }
+      return HCI * INT;
   }
 }
 
@@ -486,10 +573,10 @@ int main(int, char**) {
 
   typedef double myType;
 
-  bool line = false;//true;
+  bool line = true;//true;
   bool quad = true;//false;//true;
-  bool triangle = true;//false;//true;
-  bool hexahedron = false;//true;
+  bool triangle = false;//false;//true;
+  bool hexahedron = true;//true;
   bool tetrahedron = false;//true;
 
   myType eps = 5.0e-11;
@@ -510,6 +597,7 @@ int main(int, char**) {
 
 
 }
+
 
 
 

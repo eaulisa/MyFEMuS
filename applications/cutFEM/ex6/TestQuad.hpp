@@ -6,8 +6,8 @@ void TestQuad(const Float1 &eps) {
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
   std::cout << "testing the Quadrilateral \n";
-  std::vector<unsigned> m = {6, 7};
-  std::vector<myType> a = {0.0000001, 0.0000001};
+  std::vector<unsigned> m = {6, 6};
+  std::vector<myType> a = {0.0000000001, 0.0000000001};
   std::vector<myTypeB> af = {0., 0.};
 
   myType d = 0.5;
@@ -20,8 +20,8 @@ void TestQuad(const Float1 &eps) {
   }
   df = d;
 
-  std::cout << HyperCubeB(6, a.size() - 1, m, a, d) << std::endl;
-  std::cout << HyperCubeB(6, af.size() - 1, m, af, df) << std::endl;
+  std::cout << HyperCubeBOld(6, a.size() - 1, m, a, d) << std::endl;
+  std::cout << HyperCubeBOld(6, af.size() - 1, m, af, df) << std::endl;
   std::cout << HyperCube(6, m, a, d) << std::endl;
   std::cout << HyperCube(6, m, af, df) << std::endl;
   
@@ -40,22 +40,22 @@ void TestQuad(const Float1 &eps) {
     af[1] = a[1];
     df = d;
 
-    if(fabs(HyperCube(-1, m, a, d) - HyperCubeB(-1, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(-1, m, a, d) - HyperCubeBOld(-1, 1, m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeB(-1, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeBOld(-1, 1, m, af, df) << std::endl;
     }
 
-    if(fabs(HyperCube(0, m, a, d) - HyperCubeB(0, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(0, m, a, d) - HyperCubeBOld(0, 1, m, af, df)) > eps) {
       std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeB(0, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeBOld(0, 1, m, af, df) << std::endl;
     }
     
-    if(fabs(HyperCube(5, m, a, d) - HyperCubeB(5, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(5, m, a, d) - HyperCubeBOld(5, 1, m, af, df)) > eps) {
       std::cout << "s test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(5, m, a, d) << " " << HyperCubeB(5, 1, m, af, df) <<  " " << HyperCube(5, m, af, df) << std::endl;
+      std::cout << HyperCube(5, m, a, d) << " " << HyperCubeBOld(5, 1, m, af, df) <<  " " << HyperCube(5, m, af, df) << std::endl;
     }
   }
 
@@ -73,16 +73,16 @@ void TestQuad(const Float1 &eps) {
     af[1] = a[1];
     df = d;
 
-    if(fabs(HyperCube(-1, m, a, d) - HyperCubeB(-1, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(-1, m, a, d) - HyperCubeBOld(-1, 1, m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeB(-1, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeBOld(-1, 1, m, af, df) << std::endl;
     }
 
-    if(fabs(HyperCube(0, m, a, d) - HyperCubeB(0, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(0, m, a, d) - HyperCubeBOld(0, 1, m, af, df)) > eps) {
       std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeB(0, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeBOld(0, 1, m, af, df) << std::endl;
     }
   }
 
@@ -100,16 +100,16 @@ void TestQuad(const Float1 &eps) {
     af[1] = a[1];
     df = d;
 
-    if(fabs(HyperCube(-1, m, a, d) - HyperCubeB(-1, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(-1, m, a, d) - HyperCubeBOld(-1, 1, m, af, df)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeB(-1, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(-1, m, a, d) << " " << HyperCubeBOld(-1, 1, m, af, df) << std::endl;
     }
 
-    if(fabs(HyperCube(0, m, a, d) - HyperCubeB(0, 1, m, af, df)) > eps) {
+    if(fabs(HyperCube(0, m, a, d) - HyperCubeBOld(0, 1, m, af, df)) > eps) {
       std::cout << "volume test failed" << std::endl;
       std::cout << a[0] << " " << a[1] << " " << d << "\n";
-      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeB(0, 1, m, af, df) << std::endl;
+      std::cout << HyperCube(0, m, a, d) << " " << HyperCubeBOld(0, 1, m, af, df) << std::endl;
     }
   }
 }
