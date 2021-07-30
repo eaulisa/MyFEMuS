@@ -20,8 +20,8 @@ int main(int argc, char** args) {
   BestFit bf;
 
   //
-  eqP.SetCoefficients(3, 2, 10, std::vector<double> {0.34,0.74,0.25, 0.5}, 3);
-  eqP.PrintCoefficients();
+  //eqP.SetCoefficients(3, 2, 10, std::vector<double> {0.34,0.74,0.25, 0.5}, 3);
+  //eqP.PrintCoefficients();
 
   //eqP.SetCoefficients(2, 2, 20, std::vector<double> {2., 0., 1.}, 3);
   //eqP.PrintCoefficients();

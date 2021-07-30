@@ -817,7 +817,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; k++) {
             Np[istart + k] = 0.;
             for(unsigned l = 0; l < dim; l++) {
-              std::cout << JacI[k][l].value() << " ";
+              //std::cout << JacI[k][l].value() << " "; TODO 
               Np[istart + k] += JacI[k][l].value() * N[l];
             }
           }

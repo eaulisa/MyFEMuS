@@ -182,6 +182,7 @@ int main(int argc, char** args) {
       }
     }
 
+    //2D basis convention
     unsigned cnt = N * (N + 1) / 2;
     std::vector < std::vector < unsigned > > idx(cnt);
     std::vector < double > f(cnt);

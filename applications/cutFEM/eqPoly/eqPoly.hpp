@@ -13,34 +13,39 @@ using namespace std;
 class EquivalentPolynomial {
   public:
     EquivalentPolynomial() {
-      _lisk = new LiSK::LiSK< complex<double> > (5);
+      //_lisk = new LiSK::LiSK< complex<double> > (5);
     }
-    ~EquivalentPolynomial() {
-      delete _lisk;
-    }
+//     ~EquivalentPolynomial() {
+//       delete _lisk;
+//     }
 
     void SetCoefficients(const unsigned &dim, const unsigned &degree, const double &p, const std::vector < double > &c, const unsigned &element);
     void MatrixVectorMultiply(const std::vector<std::vector <double>> &A, const std::vector < complex < double > > &bv, std::vector < complex < double > > &xv);
     //void FindBestFit(const std::vector < double > &pts, const std::vector < double > &Npts, const unsigned &dim);
     double GetValue(std::vector <double> &x, unsigned &element);
+    double IntegrationValue(const int &s, const unsigned &dim, const unsigned &degree, std::vector < double > &normal, const double &d, const unsigned &element);
     std::vector < double > BaseCases(const unsigned &dim, const unsigned &degree, const std::vector < double > &c,const double &p);
+    double HyperCubeA(const int &s, std::vector<unsigned> &m, std::vector <double> &a, const double &d);
+    double LimLi(const int &n, const double & x);
+    double HyperCubeB(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <double> &a, const double &d);
 
-    const std::vector < complex < double > > &GetCoefficients() {
-      return _coefficients;
-    };
+//     const std::vector < complex < double > > &GetCoefficients() {
+//       return _coefficients;
+    
 
-    void PrintCoefficients() {
-      for(unsigned i = 0; i < _coefficients.size(); i++) {
-        std::cout << std::setprecision(10) << _coefficients[i].real() << " printing coeffiecints++++++++++++++++++++++++++" << std::endl;
-      }
-      std::cout << std::endl;
-    }
+//     void PrintCoefficients() {
+//       for(unsigned i = 0; i < _coefficients.size(); i++) {
+//         //std::cout << std::setprecision(10) << _coefficients[i].real() << " printing coeffiecints++++++++++++++++++++++++++" << std::endl;
+//       }
+//       std::cout << std::endl;
+//     }
 
 
 
 
   private:
-    std::vector < complex < double > > _coefficients;
+    std::vector <  double >  _coefficients;
+    std::vector < double > _polycoeffs;
     std::vector <std::vector < complex < double > >> _basecases;
     //std::vector < double >  _bestfit;
      std::vector < complex < double > >_b_vector[3];
