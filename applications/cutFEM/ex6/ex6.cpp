@@ -454,111 +454,138 @@ HyperCubeBOld(const int &s, unsigned i, const std::vector<unsigned> &m, const st
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast = false);
+HyperCubeA(const unsigned &nn, const int &s, std::vector<unsigned> &m,
+           const std::vector <Float1> &a, const std::vector <Float1> &ma,
+           const Float2 &d, const Float2 &md);
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCubeB(const int &s, unsigned i, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+HyperCubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
+           const std::vector <Float1> &a, const std::vector <Float1> &ma,
+           const Float2 &d, const Float2 &md) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  Type HPI = 0.;
-//   if(i > 0) {
-  Type aI = 1. / a[i];
+  Type HCI = 0.;
+  Type aI = 1. / a[n];
 
-  int sl = (m[i] % 2 == 1) ? 1. : -1.; // this is (-1)^(m-1)
+  int sl = (m[n] % 2 == 1) ? 1. : -1.; // this is (-1)^(m-1)
   int sr = 1; // this is (-1)^(j-1) for j = 1, ..., m + 1
   Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
-  m.resize(i);
-  a.resize(i);
-
-  for(int j = 1; j <= m[i] + 1;  c *= aI * (m[i] + 1 - j), sr *= -1, j++) {
-    //HPI += c * (sl * HyperCubeB(s + j, i - 1, m, a, -a[i] + d) + sr * HyperCubeB(s + j, i - 1, m, a, a[i] + d));
-    HPI += c * (sl * HyperCube(s + j, m, a, -a[i] + d, true) + sr * HyperCube(s + j, m, a, a[i] + d, true));
+  for(int j = 1; j <= m[n] + 1;  c *= aI * (m[n] + 1 - j), sr = -sr, j++) {
+    HCI += c * (sl * HyperCubeA(n - 1, s + j, m, a, ma, -a[n] + d, a[n] - d) + sr * HyperCubeA(n - 1, s + j, m, a, ma, a[n] + d, -a[n] - d));
   }
-//   }
-//   else {
-//     HPI = LSI(s, m[0], a[0], d);
-//   }
-  return HPI;
+  return HCI;
 }
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d, const bool &fast) {
+HyperCubeC(const unsigned &n, const int &s, std::vector<unsigned>& m,
+           const std::vector <Float1> &a, const std::vector <Float1> &ma,
+           const Float2 &d, const Float2 &md) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  Type HCI = 1.;
-  if(!fast) { // this function may have recursive calls, the reordering is done only at the highest level
-    for(int i = a.size() - 1; i >= 0; i--) {
-      if(a[i] == 0) {
-        if(m[i] % 2 == 1) { // odd monomial on symmetric domain
-          return 0.;
-        }
-        else { // integral of the even monomial from -1 to 1
-          HCI *= 2. / (m[i] + 1.);
-          a.erase(a.begin() + i);
-          m.erase(m.begin() + i);
-        }
-      }
-    }
-    // all the left a[i] coefficients \ne 0
-    for(unsigned i = 0; i < a.size() - 1; i++) { // reorder iterated integral from the smallest to the largest coefficient a[i]
-      for(unsigned j = i + 1; j < a.size(); j++) {
-        if(fabs(a[i]) > fabs(a[j])) {
-          std::swap(a[i], a[j]);
-          std::swap(m[i], m[j]);
-        }
-      }
-    }
-  }
+  Type HCI = 0.;
+  Type an = a[n];
 
-  if(a.size() == 1)  return HCI * LSI(s, m[0], a[0], d);
+  unsigned mn = m[n];
+  Type mnf = factorial<Type>(mn);
+  m[n] += s;
+  HCI += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
+  m[n] -= s;
+
+  Type s1 = 1;
+  Type s2 = (mn % 2 == 0) ? 1. : -1.; //this is pow(-1, mn);
+  Type c1 = 1. / (mn + 1);
+
+  for(unsigned i = 0; i < s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
+    HCI += c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, an + d, -an - d) +
+                 s2 * HyperCubeA(n - 1, s - i, m, a, ma, -an + d, an - d));
+  }
+  return  HCI;
+
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCubeA(const unsigned &n, const int &s, std::vector<unsigned> &m,
+           const std::vector <Float1> &a, const std::vector <Float1> &ma,
+           const Float2 &d, const Float2 &md) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  if(n == 0)  return LSI(s, m[0], a[0], d);
 
   switch(s) {
     case -1: // interface integral
       if(d <= 0) {
-        return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
+        return HyperCubeB(n, s, m, a, ma, d, md);
       }
       else {
-        for(unsigned i = 0; i < a.size(); i++) a[i] = -a[i];
-        return HCI * HyperCubeB(s, a.size() - 1, m, a, -d);
+        return HyperCubeB(n, s, m, ma, a, md, d);
       }
       break;
     case 0: // step function integral
       if(d <= 0) {
-        return HCI * HyperCubeB(s, a.size() - 1, m, a, d);
+        return HyperCubeB(n, s, m, a, ma, d, md);
       }
       else {
-        Type intOf1 = 1.;
-        for(unsigned i = 0; i < a.size(); i++) {
-          a[i] = -a[i];
-          intOf1 *= (1. + pow(-1., m[i])) / (m[i] + 1.);
+        Type fullIntegral = 1.;
+        for(unsigned i = 0; i <= n; i++) {
+          fullIntegral *= (m[i] % 2 == 0) ? 2. / (m[i] + 1.) : 0;
         }
-        return HCI * (intOf1 - HyperCubeB(s, a.size() - 1, m, a, -d));
+        return (fullIntegral - HyperCubeB(n, s, m, ma, a, md, d));
       }
       break;
-    default: // all other integrals, whatever they mean
-      int n = a.size() - 1;
-      Type INT(0.);
-      Type an = a[n];
-      unsigned mn = m[n];
-      Type mnf = factorial<Type>(mn);
-      m[n] += s;
-      INT += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCube(0, m, a, d, true) ;
-
-      m.resize(n);
-      a.resize(n);
-
-      for(unsigned i = 0; i < s; i++) {
-        INT += mnf / factorial<Type>(mn + 1 + i) * pow(an, i)
-               * (pow(-1, i) * HyperCube(s - i, m, a, an + d, true) +
-                  pow(-1, mn) * HyperCube(s - i, m, a, -an + d, true));
+    default: // all other cases, whatever they mean
+      if(d < fabs(a[n])) {
+        return HyperCubeB(n, s, m, a, ma, d, md);
       }
-      return HCI * INT;
+      else {
+        return HyperCubeC(n, s, m, a, ma, d, md);
+      }
   }
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  Type HCI = 1.;
+
+  for(int i = a.size() - 1; i >= 0; i--) {
+    if(a[i] == 0) {
+      if(m[i] % 2 == 1) { // odd monomial on symmetric domain
+        return 0.;
+      }
+      else { // integral of the even monomial from -1 to 1
+        HCI *= 2. / (m[i] + 1.);
+        a.erase(a.begin() + i);
+        m.erase(m.begin() + i);
+      }
+    }
+  }
+
+
+  // all the left a[i] coefficients \ne 0
+  for(unsigned i = 0; i < a.size() - 1; i++) { // reorder iterated integral from the smallest to the largest coefficient a[i]
+    for(unsigned j = i + 1; j < a.size(); j++) {
+      if(fabs(a[i]) > fabs(a[j])) {
+        std::swap(a[i], a[j]);
+        std::swap(m[i], m[j]);
+      }
+    }
+
+  }
+  std::vector <Float1> ma(a.size());
+  for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
+
+
+  return HCI * HyperCubeA(a.size() - 1, s, m, a, ma, d, -d);
 }
 
 
@@ -579,24 +606,45 @@ int main(int, char**) {
   bool hexahedron = true;//true;
   bool tetrahedron = false;//true;
 
-  myType eps = 5.0e-11;
-  if(line) TestLine(eps);
-
+  myType eps = 5.0e-12;
+  if(line) {
+    clock_t time = clock();
+    TestLine(eps);
+    std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+  }
   eps = 5.0e-11;
   if(triangle) TestTriangle(eps);
 
   eps = 1.0e-12;
-  if(quad) TestQuad(eps);
+  if(quad) {
+    clock_t time = clock();
+    TestQuad(eps);
+    std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+  }
+  eps = 1.0e-12;
+  if(hexahedron) {
 
-  eps = 1.0e-10;
-  if(hexahedron) TestHexahedron(eps);
-
+    TestHexahedron(eps);
+    clock_t time = clock();
+    TestHexahedronTime(eps);
+    std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    
+      std::vector<double>a = {.25, .15, .335, .455, 0.75};
+      std::vector<unsigned>m = {0, 0, 0, 0,0};
+      std::cout << HyperCube(0, m, a, 0) << std::endl;
+      
+      a = {1., 0., 0., 0.};
+      m = {0, 0, 0, 0};
+      std::cout << HyperCube(-1, m, a, 0) << std::endl;
+    
+  }
   eps = 1.0e-10;
   if(tetrahedron) TestTetrahedron(eps);
 
 
 
 }
+
 
 
 

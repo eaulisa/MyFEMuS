@@ -142,7 +142,7 @@ Intm1to1LimLiC(const int &s, const unsigned &m, const Float1 &a, const Float2 &d
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCubeC(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
+HyperCubeCold(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
@@ -158,7 +158,7 @@ HyperCubeC(const int &s, unsigned i, const std::vector<unsigned> &m, const std::
   Type c = aiI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
   if(i > 0) {
     for(int j = 1; j <= m[i] + 1;  c *= aiI * (m[i] + 1 - j), sr *= -1, j++) {
-      HPI += c * (sl * HyperCubeC(s + j, i - 1, m, a, dl) + sr * HyperCubeC(s + j, i - 1, m, a, dr));
+      HPI += c * (sl * HyperCubeCold(s + j, i - 1, m, a, dl) + sr * HyperCubeCold(s + j, i - 1, m, a, dr));
     }
   }
   else {
@@ -171,7 +171,7 @@ HyperCubeC(const int &s, unsigned i, const std::vector<unsigned> &m, const std::
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+HyperCubeAold(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
   Type HCI = 1.;
@@ -187,5 +187,5 @@ HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const 
       }
     }
   }
-  return HCI * HyperCubeC(s, a.size() - 1, m, a, d);
+  return HCI * HyperCubeCold(s, a.size() - 1, m, a, d);
 }
