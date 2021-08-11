@@ -187,12 +187,10 @@ TriangleReduced(const int &s, const std::vector<unsigned> &m_input, const std::v
   const unsigned &n = m_input[1];
 
   Type TRI = 0.;
-  //std::cout << "REDC " << a << " " << b << " " << d << " ";
   if(b == 0) { //parallel to right edge
-    if(a == 0) TRI = -LimLi(s, d) / ((m + n + 2) * (n + 1));
-    else TRI = (-LimLi(s + 1, a + d) +
-                  factorial<Type>(m + n + 1) * pow(-1. / a, m + n + 1) * LimLi(s + m + n + 2, d)
-                 ) / (a * (n + 1.));
+    TRI = (-LimLi(s + 1, a + d) +
+           factorial<Type>(m + n + 1) * pow(-1. / a, m + n + 1) * LimLi(s + m + n + 2, d)
+          ) / (a * (n + 1.));
   }
   else if(a == 0) { //parallel to bottom edge
     TRI = (factorial<Type>(n) * pow(-1. / b, n) * LimLi(s + n + 1, d) -
@@ -200,20 +198,41 @@ TriangleReduced(const int &s, const std::vector<unsigned> &m_input, const std::v
           ) / (b * (m + 1.));
   }
   else if(a + b == 0) { // parallel to y=x edge//TODO
-    for(unsigned i = 1; i <= m + 1; i++) {
-      TRI += pow(-1. / a, i) * LimLi(s + n + 1 + i, a + d) / factorial<Type>(m + 1 - i);
+    if(a + d  >= 0.) {
+      for(unsigned i = 1; i <= m + 1; i++) {
+        TRI += pow(-1. / a, i) * LimLi(s + n + 1 + i, a + d) / factorial<Type>(m + 1 - i);
+      }
+      TRI *= factorial<Type>(n) * factorial<Type>(m) * pow(1. / a, n + 1);
     }
-    TRI *= factorial<Type>(n) * factorial<Type>(m) * pow(1. / a, n + 1);
     TRI += LimLi(s + 1, d) / (a * (m + n + 1));
   }
   else { // general case
-    for(unsigned i = 1; i <= n + 1; i++) {
-      TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(n + 1 - i) * pow((a + b) / b, i);
+    if(fabs(b) > fabs(a)) {
+      if(d > 0.) {
+        for(unsigned i = 1; i <= n + 1; i++) {
+          TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(n + 1 - i) * pow((a + b) / b, i);
+        }
+        TRI *= LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
+      }
+      TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
+      TRI *= factorial<Type>(n);
     }
-    TRI *= pow(-1., m + n) * LimLi(s + m + n + 2, d) / pow(a + b, m + n + 2) ;
-
-    TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
-    TRI *= factorial<Type>(n);
+    else {
+      if(d > 0.) {
+        for(unsigned i = 1; i <= m + 1; i++) {
+          TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(m + 1 - i) * pow((a + b) / a, i);
+        }
+        TRI *= - LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
+      }
+      if(a + d > 0.) {
+        Type TRI2 = 0.;
+        for(unsigned i = 1; i <= m + 1; i++) {
+          TRI2 +=  LimLi(s + n + i + 1, a + d) / (factorial<Type>(m + 1 - i) * pow(-a, i));
+        }
+        TRI += TRI2 * factorial<Type>(n) / pow(-b, n + 1) ;
+      }
+      TRI *= factorial<Type>(m);
+    }
 
   }
   return TRI;
@@ -274,35 +293,60 @@ TriangleFull(const int &s, const std::vector<unsigned> &m_input, const std::vect
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
+TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  if(a[0] == 0 && a[1] == 0) return -LimLi(s, d) / ((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
+
 
   switch(s) {
     case -1:
       if(a[0] + a[1] + d <= 0) {
-        return TriangleReduced(s, m, a, d);
+        return TriangleReduced(-1, m, a, d);
       }
-      else return TriangleReduced(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      else return TriangleReduced(-1, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     case 0:
       if(a[0] + a[1] + d <= 0) {
-        return TriangleReduced(s, m, a, d);
+        return TriangleReduced(0, m, a, d);
       }
-      else return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - Triangle(s, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      else return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - TriangleReduced(0, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     default:
-      Type INT(0.);
-      Type m1f = factorial<Type>(m[1]);
-      INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
-             * Triangle(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
 
-      for(unsigned i = 0; i < s; i++) {
-        INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
-               * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+      if(a[0] + a[1] + d <= 0) {
+        return TriangleReduced(s, m, a, d);
       }
-      return INT;
+      else if(a[0] + a[1] + d > 0 && d > 0 && a[1] > 0 && d/a[1] < 0.01 && fabs((a[0] + a[1]) / (a[0] - a[1])) < 0.015) {
+        //std::cout << a[0] << " "<<a[1]<<" "<<d<<std::endl;  
+        return TriangleFull(s, m, a, d);
+      }
+      else {
+        Type INT(0.);
+        Type m1f = factorial<Type>(m[1]);
+        INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
+               * TriangleA(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
+
+        //std::cout << INT << " ";
+
+        for(int i = s - 1; i >= 0; i--) {
+          INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
+                 * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+          //std::cout << INT << " ";
+        }
+        return INT;
+      }
   }
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  return TriangleA(s, m,  std::vector<Type> {-a[0], a[1]}, d + a[0]);
 }
 
 
@@ -323,26 +367,70 @@ TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vect
   if(c == 0) {  //plane is parallel to z-axis
     for(unsigned i = 0; i <= o + 1; i++)  {
       TET += pow(-1., i) / (factorial<Type>(i) * factorial<Type>(o + 1 - i)) *
-             Triangle(s, std::vector<unsigned> {m + o + 1 - i, n + i}, std::vector<Type> {a, b}, d);
+             TriangleA(s, std::vector<unsigned> {m + o + 1 - i, n + i}, std::vector<Type> {a, b}, d);
     }
     TET *= factorial<Type>(o);
   }
   else { //all other cases
-    //std::cout<<"BBB\n";
     for(unsigned i = 1; i <= o + 1; i++)  {
       Type TETi = 0.;
       for(unsigned j = 0; j <= o + 1 - i; j++)  {
         TETi -= pow(-1., j) / (factorial<Type>(j) * factorial<Type>(o + 1 - i - j)) *
-                Triangle(s + i, std::vector<unsigned> {m + o + 1 - i - j, n + j}, std::vector<Type> {a + c, b - c}, d);
+                TriangleA(s + i, std::vector<unsigned> {m + o + 1 - i - j, n + j}, std::vector<Type> {a + c, b - c}, d);
       }
       TET += TETi * pow(-1. / c, i);
     }
-    TET -= pow(-1. / c, o) * Triangle(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c;
+    TET -= pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c;
     TET *= factorial<Type>(o);
   }
   return TET;
 }
 
+#include <bits/stdc++.h>
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+TetrahedronA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const Float2 &d) {
+
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  if(fabs(a[2]) < fabs(a[1])) {
+    std::swap(a[2], a[1]);
+    std::swap(m[2], m[1]);
+  }
+
+  switch(s) {
+    case -1:
+      if(a[0] + a[1] + d <= 0) return TetrahedronB(-1, m, a, d);
+      else return TetrahedronB(-1, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
+      break;
+    case 0:
+      if(a[0] + a[1] + d <= 0) {
+        return TetrahedronB(0, m, a, d);
+      }
+      else return factorial<Type>(m[1]) * factorial<Type>(m[2]) /
+                    (factorial<Type>(2. + m[1] + m[2]) * (3. + m[0] + m[1] + m[2]))
+                    - TetrahedronB(0, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
+      break;
+    default:
+      //return TetrahedronB(s, m, a, d);
+
+      Type TET =  pow(-a[2], s) / factorial<Type>(m[2] + s) *
+                  TetrahedronA(0, std::vector<unsigned> {m[0], m[1], m[2] + s}, a, d) ;
+      for(unsigned i = 1; i <= s; i++)  {
+        Type TETi = 0.;
+        for(unsigned j = 0; j <= m[2] + i; j++)  {
+          TETi += pow(-1., j) / (factorial<Type>(j) * factorial<Type>(m[2] + i - j)) *
+                  TriangleA(s + 1 - i, std::vector<unsigned> {m[0] + m[2] + i - j, m[1] + j}, std::vector<Type> {a[0] + a[2], a[1] - a[2]}, d);
+        }
+        TET += TETi * pow(-a[2], i - 1);
+      }
+      TET *= factorial <Type> (m[2]);
+
+      return TET;
+
+  }
+}
 
 
 template <class Float1, class Float2>
@@ -350,23 +438,27 @@ typename boost::math::tools::promote_args<Float1, Float2>::type
 Tetrahedron(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+  if(fabs(a[0]) <= fabs(a[1]) && fabs(a[0]) <= fabs(a[2])) {
+    if(fabs(a[1]) <= fabs(a[2]))
+      return TetrahedronA(s, std::vector<unsigned> {m[0], m[1], m[2]}, std::vector<Type> {-a[0], a[1], a[2]}, d + a[0]) ;
+    else
+      return TetrahedronA(s, std::vector<unsigned> {m[0], m[2], m[1]}, std::vector<Type> {-a[0], a[2], a[1]}, d + a[0]) ;
+  }
+  else if(fabs(a[1]) <= fabs(a[2])) {
+    if(fabs(a[0]) <= fabs(a[2]))
+      return TetrahedronA(s, std::vector<unsigned> {m[1], m[0], m[2]}, std::vector<Type> {-a[1], a[0], a[2]}, d + a[1]) ;
+    else
+      return TetrahedronA(s, std::vector<unsigned> {m[1], m[2], m[0]}, std::vector<Type> {-a[1], a[2], a[0]}, d + a[1]) ;
+  }
+  else {
+    if(fabs(a[0]) <= fabs(a[1]))
+      return TetrahedronA(s, std::vector<unsigned> {m[2], m[0], m[1]}, std::vector<Type> {-a[2], a[0], a[1]}, d + a[2]) ;
+    else
+      return TetrahedronA(s, std::vector<unsigned> {m[2], m[1], m[0]}, std::vector<Type> {-a[2], a[1], a[0]}, d + a[2]) ;
+  }
 
-  if(a[0] + a[1] + d <= 0) {
-    return TetrahedronB(s, m, a, d);
-  }
-  switch(s) {
-    case -1:
-      return TetrahedronB(s, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
-      break;
-    case 0:
-      return factorial<Type>(m[1]) * factorial<Type>(m[2]) /
-             (factorial<Type>(2. + m[1] + m[2]) * (3. + m[0] + m[1] + m[2]))
-             - TetrahedronB(s, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
-      break;
-    default:
-      return TetrahedronB(s, m, a, d);
-  }
 }
+
 
 
 
@@ -600,11 +692,11 @@ int main(int, char**) {
 
   typedef double myType;
 
-  bool line = true;//true;
-  bool quad = true;//false;//true;
-  bool triangle = false;//false;//true;
-  bool hexahedron = true;//true;
-  bool tetrahedron = false;//true;
+  bool line = false;//true;//true;
+  bool quad = false;//true;//false;//true;
+  bool triangle = true;//false;//true;
+  bool hexahedron = false;//true;
+  bool tetrahedron = true;//true;//false;//true;//true;
 
   myType eps = 5.0e-12;
   if(line) {
@@ -628,15 +720,15 @@ int main(int, char**) {
     clock_t time = clock();
     TestHexahedronTime(eps);
     std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
-    
-      std::vector<double>a = {.25, .15, .335, .455, 0.75};
-      std::vector<unsigned>m = {0, 0, 0, 0,0};
-      std::cout << HyperCube(0, m, a, 0) << std::endl;
-      
-      a = {1., 0., 0., 0.};
-      m = {0, 0, 0, 0};
-      std::cout << HyperCube(-1, m, a, 0) << std::endl;
-    
+
+    std::vector<double>a = {.25, .15, .335, .455, 0.75};
+    std::vector<unsigned>m = {0, 0, 0, 0, 0};
+    std::cout << HyperCube(0, m, a, 0) << std::endl;
+
+    a = {1., 0., 0., 0.};
+    m = {0, 0, 0, 0};
+    std::cout << HyperCube(-1, m, a, 0) << std::endl;
+
   }
   eps = 1.0e-10;
   if(tetrahedron) TestTetrahedron(eps);
@@ -644,6 +736,10 @@ int main(int, char**) {
 
 
 }
+
+
+
+
 
 
 

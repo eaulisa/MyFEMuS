@@ -13,6 +13,19 @@ namespace boost {
     typedef number < backends::cpp_bin_float < 64, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >     cpp_bin_float_double_extended;
     typedef number < backends::cpp_bin_float < 113, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >    cpp_bin_float_quad;
     typedef number < backends::cpp_bin_float < 237, backends::digit_base_2, void, boost::int32_t, -262142, 262143 >, et_off >  cpp_bin_float_oct;
+
+    typedef number<cpp_dec_float<7> > cpp_dec_float_7;
+    typedef number<cpp_dec_float<14> > cpp_dec_float_14;
+    typedef number<cpp_dec_float<21> > cpp_dec_float_21;
+    typedef number<cpp_dec_float<28> > cpp_dec_float_28;
+    typedef number<cpp_dec_float<35> > cpp_dec_float_35;
+    typedef number<cpp_dec_float<42> > cpp_dec_float_42;
+    typedef number<cpp_dec_float<49> > cpp_dec_float_49;
+    typedef number<cpp_dec_float<56> > cpp_dec_float_56;
+    typedef number<cpp_dec_float<63> > cpp_dec_float_63;
+    typedef number<cpp_dec_float<63> > cpp_dec_float_70;
+
+
   }
 } // namespaces
 
@@ -189,3 +202,58 @@ HyperCubeAold(const int &s, std::vector<unsigned> m, std::vector <Float1> a, con
   }
   return HCI * HyperCubeCold(s, a.size() - 1, m, a, d);
 }
+
+
+// {
+//   INT = 0;
+//   Type m0f = factorial<Type>(m[0]);
+// 
+//   INT += m0f / factorial<Type>(m[0] + s) * pow(-a[0], s)
+//          * TriangleA(0, std::vector<unsigned> {m[0] + s, m[1]}, a, d) ;
+// 
+//   std::cout << INT << " ";
+// 
+//   for(int i = s - 1; i >= 0; i--) {
+//     INT += m0f / factorial<Type>(m[0] + 1 + i) * pow(-a[0], i) * (
+//            Int0to1LimLi(s - i, m[1], a[1], a[0] + d)
+// 
+//            - Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d));
+//     std::cout << INT << " ";
+//   }
+// }
+
+//  if(d > 0.) {
+//         for(unsigned i = 1; i <= m + 1; i++) {
+//           TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(m + 1 - i) * pow((a + b) / a, i);
+//           std::cout << TRI << " ";
+//         }
+//         std::cout << "d = " << d << " ";
+//         TRI *= pow(-1., m + n + 1) * LimLi(s + m + n + 2, d) / pow(a + b, m + n + 2) ;
+//         std::cout << TRI << " ";
+//       }
+//       if( a + d > 0.){
+//         Type TRI2 = 0.;  
+//         for(unsigned i = 1; i <= m + 1; i++) {
+//           TRI2 +=  LimLi(s + n + i + 1, a + d) / (factorial<Type>(m + 1 - i) * pow(-a, i));
+//           std::cout << TRI2 << " ";
+//         }
+//         std::cout << "d = " << d << " ";
+//         TRI += TRI2 * factorial<Type>(n) / pow(-b, n + 1) ;
+//         std::cout << TRI2 << " ";  
+//       }
+//       if(d > 0.) std::cout << TRI << "\n";
+//       TRI *= factorial<Type>(m);
+//     }
+
+//    Type TET =  pow(-a[2], s) / factorial<Type>(m[2] + s) *
+//                   Tetrahedron(0, std::vector<unsigned> {m[0], m[1], m[2] + s}, a, d) ;
+//       for(unsigned i = 1; i <= s; i++)  {
+//         Type TETi = 0.;
+//         for(unsigned j = 0; j <= m[2] + i; j++)  {
+//           TETi += pow(-1., j) / (factorial<Type>(j) * factorial<Type>(m[2] + i - j)) *
+//                   Triangle(s + 1 - i, std::vector<unsigned> {m[0] + m[2] + i - j, m[1] + j}, std::vector<Type> {a[0] + a[2], a[1] - a[2]}, d);
+//         }
+//         TET += TETi * pow(-a[2], i - 1);
+//       }
+//       TET *= factorial <Type> (m[2]);
+
