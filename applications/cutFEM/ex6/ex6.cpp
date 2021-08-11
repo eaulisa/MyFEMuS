@@ -314,16 +314,29 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
       else return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - TriangleReduced(0, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     default:
-      Type INT(0.);
-      Type m1f = factorial<Type>(m[1]);
-      INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
-             * TriangleA(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
 
-      for(unsigned i = 0; i < s; i++) {
-        INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
-               * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+      if(a[0] + a[1] + d <= 0) {
+        return TriangleReduced(s, m, a, d);
       }
-      return INT;
+      else if(a[0] + a[1] + d > 0 && d > 0 && a[1] > 0 && d/a[1] < 0.01 && fabs((a[0] + a[1]) / (a[0] - a[1])) < 0.015) {
+        //std::cout << a[0] << " "<<a[1]<<" "<<d<<std::endl;  
+        return TriangleFull(s, m, a, d);
+      }
+      else {
+        Type INT(0.);
+        Type m1f = factorial<Type>(m[1]);
+        INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
+               * TriangleA(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
+
+        //std::cout << INT << " ";
+
+        for(int i = s - 1; i >= 0; i--) {
+          INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
+                 * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+          //std::cout << INT << " ";
+        }
+        return INT;
+      }
   }
 }
 
@@ -683,7 +696,7 @@ int main(int, char**) {
   bool quad = false;//true;//false;//true;
   bool triangle = true;//false;//true;
   bool hexahedron = false;//true;
-  bool tetrahedron = false;//true;//false;//true;//true;
+  bool tetrahedron = true;//true;//false;//true;//true;
 
   myType eps = 5.0e-12;
   if(line) {

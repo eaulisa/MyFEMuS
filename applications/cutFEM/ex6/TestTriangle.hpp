@@ -4,297 +4,437 @@ void TestTriangle(const Float1 &eps) {
   typedef typename boost::math::tools::promote_args<Float1>::type myType;
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
+  myType eps1 = 1.0e-12;
+
   std::cout << "testing the Triangle \n";
   std::vector<unsigned>m = {13, 5};
-  std::vector<myType>a = { -1, 1};
+  //std::vector<myType>a = { -1e-05, -1e-5};
+  std::vector<myType>a = { 0., 0. };
   std::vector<myTypeB> af(2);
   af[0] = a[0];
   af[1] = a[1];
 
-
-  myType d = 0.01;
+  myType d = 1;
   myTypeB df = d;
 
   int s = 6;
 
   std::cout.precision(14);
 
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d <<std::endl;
-  std::cout << TriangleFull(s, m, af, df) << std::endl;
+  std::cout << "a+b+d = "<<a[0] + a[1] +d <<std::endl;
+  std::cout << "d = " << d << std::endl;
+  std::cout << "d/b = "<<d/a[1] << std::endl;
+  std::cout << "|a+b|/|a-b| = "  <<fabs((a[0]+a[1])/(a[0]-a[1]))<<std::endl;
+  
+  std::cout << "s + m + n= " << s+m[0]+m[1] << " a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+  std::cout << TriangleA(s, m, af, df) << std::endl;
   std::cout << TriangleA(s, m, a, d) << std::endl;
-
+  std::cout << fabs((TriangleA(s, m, af, df)- TriangleA(s, m, a, d))/TriangleA(s, m, af, df)) << std::endl; 
+  
+  std::cout << TriangleFull(s, m, af, df) << std::endl;
+  std::cout << TriangleFull(s, m, a, d) << std::endl;
+  std::cout << fabs((TriangleFull(s, m, af, df)- TriangleFull(s, m, a, d))/TriangleFull(s, m, af, df)) << std::endl; 
   
   
-  
-  myType c1 = 1.;
-  myType c2 = 0.01;
+  //return;
+  for(unsigned j = 0; j < 2; j++) {
 
-  std::cout << "Epsilon cases\n";
+    myType c1 = (j == 0) ? eps1 : 1.;
+    myType c2 = (j == 0) ? 1. : eps1;
 
-  std::cout << "\na = 0, b = +-eps\n";
+    std::cout << "Epsilon cases\n";
 
-  a = {0.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
+    std::cout << "\na = 0, b = +-eps\n";
 
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << "I = " << TriangleA(s,  m, a, d) << std::endl;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\n";
-  else
-    std::cout << "failed\n";
-
-  a = { 0.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = {0.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
 
 
-  a = { 0.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
+    myType I1 = TriangleA(s,  m, a, d);
+    myTypeB I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = { 0.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
 
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = { 0.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
+    a = { 0.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
 
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
+    a = { 0.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
 
-  //////////////////////////////////////////////
-  std::cout << "\na = +-eps, b = 0\n";
-
-  a = {-c1, 0.0};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = {-c1, 0.0};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = {c1, 0.0};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = {c1, 0.0};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  //////////////////////////////////////////////
-  std::cout << "\na = -+eps, b = +-eps\n";
-
-  a = { c1, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = { c1, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = {-c1, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
 
-  a = {-c1, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    //////////////////////////////////////////////
+    std::cout << "\na = +-eps, b = 0\n";
 
-  //////////////////////////////////////////////
-  std::cout << "\na = +-eps, b = +-eps\n";
+    a = {-c1, 0.0};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = { c1, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = {-c1, 0.0};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = { c1, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = {c1, 0.0};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = {-c1, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = {-c1, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  //////////////////////////////////////////////
-  std::cout << "\na = +-1, b = +-eps\n";
-
-  a = { 1.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = { 1.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
-
-  a = { 1.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = {c1, 0.0};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
 
-  a = { 1.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    //////////////////////////////////////////////
+    std::cout << "\na = -+eps, b = +-eps\n";
+
+    a = { c1, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { c1, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = {-c1, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
 
-  a = { -1.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = {-c1, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = { -1.0, -c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    //////////////////////////////////////////////
+    std::cout << "\na = +-eps, b = +-eps\n";
 
-  a = { -1.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = -c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = { c1, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
 
-  a = { -1.0, c1};
-  af[0] = a[0];
-  af[1] = a[1];
-  df = d = c2;
-  if(fabs(TriangleA(s,  m, a, d) - TriangleFull(s,  m, af, df)) < eps)
-    std::cout << "passed\t";
-  else
-    std::cout << "failed\t";
-  std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << TriangleA(s,  m, a, d) << std::endl;
+    a = { c1, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = {-c1, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = {-c1, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    //////////////////////////////////////////////
+    std::cout << "\na = +-1, b = +-eps\n";
+
+    a = { 1.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { 1.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { 1.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+
+    a = { 1.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+
+    a = { -1.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { -1.0, -c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { -1.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = -c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+
+    a = { -1.0, c1};
+    af[0] = a[0];
+    af[1] = a[1];
+    df = d = c2;
+    I1 = TriangleA(s,  m, a, d);
+    I2 = TriangleA(s,  m, af, df);
+    if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
+      std::cout << "passed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+    }
+    else {
+      std::cout << "Warning failed ";
+      std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+    }
+  }
+
+
+
+
+
+
+
 
 
   for(unsigned i = 0; i < 1000; i++) {
