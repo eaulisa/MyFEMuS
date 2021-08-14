@@ -4,6 +4,14 @@
 
 #include <boost/math/special_functions/factorials.hpp>
 
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/sum_kahan.hpp>
+
+using namespace boost;
+using namespace accumulators;
+
+
 using boost::math::factorial;
 
 template <class Float1>
@@ -297,7 +305,7 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  if(a[0] == 0 && a[1] == 0) return -LimLi(s, d) / ((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
+  if(fabs(a[0]) <= 1.0e-10 && fabs(a[1]) <= 1.0e-10) return -LimLi(s, d) / ((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
 
 
   switch(s) {
@@ -318,24 +326,35 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
       if(a[0] + a[1] + d <= 0) {
         return TriangleReduced(s, m, a, d);
       }
-      else if(a[0] + a[1] + d > 0 && d > 0 && a[1] > 0 && d/a[1] < 0.01 && fabs((a[0] + a[1]) / (a[0] - a[1])) < 0.015) {
-        //std::cout << a[0] << " "<<a[1]<<" "<<d<<std::endl;  
-        return TriangleFull(s, m, a, d);
+      else if(a[0] + a[1] + d > 0 && d > 0 && a[1] > 0 && d / a[1] < 0.1 && fabs((a[0] + a[1]) / (a[0] - a[1])) < 0.015) {
+        Type INT = TriangleFull(s, m, a, d);
+        //std::cout<< INT << " ";
+        return INT;
       }
       else {
+
+        accumulator_set<Type, stats<tag::sum_kahan> > acc;
+
+
         Type INT(0.);
         Type m1f = factorial<Type>(m[1]);
         INT += m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
                * TriangleA(0, std::vector<unsigned> {m[0], m[1] + s}, a, d) ;
+
+        acc(m1f / factorial<Type>(m[1] + s) * pow(-a[1], s)
+            * TriangleA(0, std::vector<unsigned> {m[0], m[1] + s}, a, d)) ;
 
         //std::cout << INT << " ";
 
         for(int i = s - 1; i >= 0; i--) {
           INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
                  * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+          acc(m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
+              * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d));
           //std::cout << INT << " ";
         }
-        return INT;
+        //std::cout << INT << "\n";
+        return sum_kahan(acc);
       }
   }
 }
@@ -377,10 +396,15 @@ TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vect
       for(unsigned j = 0; j <= o + 1 - i; j++)  {
         TETi -= pow(-1., j) / (factorial<Type>(j) * factorial<Type>(o + 1 - i - j)) *
                 TriangleA(s + i, std::vector<unsigned> {m + o + 1 - i - j, n + j}, std::vector<Type> {a + c, b - c}, d);
+        //std::cout << TETi << " ";
       }
       TET += TETi * pow(-1. / c, i);
+      //std::cout << TET << std::endl;
     }
+    //std::cout << TET << " ";
+    //std::cout << pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c << " ";
     TET -= pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c;
+    //std::cout << TET << " ";
     TET *= factorial<Type>(o);
   }
   return TET;
@@ -399,6 +423,8 @@ TetrahedronA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, cons
     std::swap(m[2], m[1]);
   }
 
+  return TetrahedronB(s, m, a, d);
+
   switch(s) {
     case -1:
       if(a[0] + a[1] + d <= 0) return TetrahedronB(-1, m, a, d);
@@ -414,6 +440,7 @@ TetrahedronA(const int &s, std::vector<unsigned> m, std::vector <Float1> a, cons
       break;
     default:
       //return TetrahedronB(s, m, a, d);
+
 
       Type TET =  pow(-a[2], s) / factorial<Type>(m[2] + s) *
                   TetrahedronA(0, std::vector<unsigned> {m[0], m[1], m[2] + s}, a, d) ;
@@ -694,9 +721,9 @@ int main(int, char**) {
 
   bool line = false;//true;//true;
   bool quad = false;//true;//false;//true;
-  bool triangle = true;//false;//true;
+  bool triangle = false;//false;//true;
   bool hexahedron = false;//true;
-  bool tetrahedron = true;//true;//false;//true;//true;
+  bool tetrahedron = false;//true;//false;//true;//true;
 
   myType eps = 5.0e-12;
   if(line) {
@@ -734,8 +761,61 @@ int main(int, char**) {
   if(tetrahedron) TestTetrahedron(eps);
 
 
+  //typedef double Type;
+  //typedef boost::multiprecision::cpp_bin_float_oct Type;
+  typedef boost::multiprecision::cpp_bin_float_quad Type;
+  //typedef boost::multiprecision::cpp_bin_float_double_extended Type;
+  //typedef boost::multiprecision::cpp_bin_float_double Type;
 
+    
+  Type a = Type(0.), b = Type(0.), c = Type(-1.), d = Type(0.1);
+  int s = -1;
+  unsigned m = 7, n = 5, o = 6;
+
+  std::cout.precision(40);
+  std::cout << TetrahedronA(s, std::vector<unsigned> {m, n, o}, std::vector<Type> {a, b, c}, d) << std::endl;
+
+
+  Type S0 = TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / pow(-c, o + 1) ;
+
+  Type fn = factorial<Type>(n);
+  Type cMb = c - b;
+  Type cMbOc = (c - b) / c;
+
+  Type S1 = 0;
+  Type fi = Type(1 / fn);
+  for(unsigned i = 1; i <= o + 1; i++) {
+
+    fi = -fi / (n + i);
+    Type fj =  pow(cMbOc, i) * fn;
+    Type S1i = fj;
+    for(unsigned j = 1; j < i; j++) {
+      fj = fj / cMbOc * (n + j) / j;
+      S1i += fj;
+    }
+    S1 -= fi * TriangleA(s, std::vector<unsigned> {m + o + 1 - i, n + i}, std::vector<Type> {a + c, b - c}, d) /
+          factorial<Type>(o + 1 - i) * S1i;
+
+  }
+
+  Type S2 = 0;
+  for(unsigned i = 1; i <= o + 1; i++) {
+    Type S2i = 0.;
+    for(unsigned k = 1; k <= i; k++) {
+      Type S2ik = 0.;
+      Type f =  fn / factorial<Type>(n + k);
+      for(unsigned j = 0; j <= o + 1 - i; j++) {
+        S2ik += f / factorial<Type>(o + 1 - i - j);
+        f = - f * (n + j + 1) / ((j + 1) * (n + k + j + 1)) ;
+      }
+      S2i += pow(cMb, k - 1) * Int0to1LimLi(s + i + 1 - k, m + n + o + 1 - i + k, a + b, d) * S2ik;
+    }
+    S2 -= S2i / pow(-c, i);
+  }
+  //std::cout << S0 * factorial<Type>(o) << " " << S1 * factorial<Type>(o) <<" "<<S2 * factorial<Type>(o) <<std::endl;
+  std::cout << (S0 + S1 + S2) * factorial<Type>(o) << std::endl;
 }
+
 
 
 
