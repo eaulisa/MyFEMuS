@@ -60,22 +60,22 @@ void TestLine(const Float1 &eps) {
 
     //////////////////////////////////////////////////////////////////
 
-    if(fabs(Int0to1LimLiC(-1, m, af, df) - Int0to1LimLi(-1, m, a, d)) > eps) {
+    if(fabs(Int0to1LimLiC(-1, m, af, df) - mInt0to1LimLi(-1, m, a, d)) > eps) {
       std::cout << "surface test failed" << std::endl;
       std::cout << "normal = " << a << " " << d << "\n";
-      std::cout << Int0to1LimLiC(-1, m, af, df) << " " << Int0to1LimLi(-1, m, a, d) << std::endl;
+      std::cout << Int0to1LimLiC(-1, m, af, df) << " " << mInt0to1LimLi(-1, m, a, d) << std::endl;
     }
 
-    if(fabs(Int0to1LimLiC(0, m, af, df) - Int0to1LimLi(0, m, a, d)) > eps) {
+    if(fabs(Int0to1LimLiC(0, m, af, df) - mInt0to1LimLi(0, m, a, d)) > eps) {
       std::cout << "volume test failed" << std::endl;
       std::cout << "normal = " << a << " " << d << "\n";
-      std::cout << Int0to1LimLiC(0, m, af, df) << " " << Int0to1LimLi(0, m, a, d) << std::endl;
+      std::cout << Int0to1LimLiC(0, m, af, df) << " " << mInt0to1LimLi(0, m, a, d) << std::endl;
     }
 
-    if(fabs(Int0to1LimLiC(ss, m, a, d) - Int0to1LimLi(ss, m, a, d)) > eps) {
+    if(fabs(Int0to1LimLiC(ss, m, a, d) - mInt0to1LimLi(ss, m, a, d)) > eps) {
       std::cout << "ss test failed" << std::endl;
       std::cout << "normal = " << a << " " << d << "\n";
-      std::cout << Int0to1LimLiC(ss, m, a, d) << " " << Int0to1LimLi(ss, m, a, d) << std::endl;
+      std::cout << Int0to1LimLiC(ss, m, a, d) << " " << mInt0to1LimLi(ss, m, a, d) << std::endl;
     }
   }
 

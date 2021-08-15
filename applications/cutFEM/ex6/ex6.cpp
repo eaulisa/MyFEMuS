@@ -11,7 +11,6 @@
 using namespace boost;
 using namespace accumulators;
 
-
 using boost::math::factorial;
 
 template <class Float1>
@@ -20,10 +19,10 @@ LimLi(const int &n, const Float1 &x) {
 
   typedef typename boost::math::tools::promote_args<Float1>::type Type;
 
-  if(x < 0.) return 0.;
+  if(x < 0) return Type(0);
   else if(n != 0) return -pow(x, n) / factorial<Type>(n);
-  else if(x > 0.) return -1.;
-  else return -0.5;
+  else if(x > 0) return Type(-1);
+  else return Type(-0.5);
 }
 
 
@@ -31,50 +30,96 @@ LimLi(const int &n, const Float1 &x) {
 
 template <class Float1, class Float2>
 typename boost::math::tools::promote_args<Float1, Float2>::type
-Int0to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
+mInt0to1LimLim1(const int &m, const Float1 &a, Float2 d) {
+
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  Type INT = 0.;
-  bool unitStepFunctionComplement = false;
-
-  if(d > 0) { //this assures that for s < 1, either limit a + d or d below is negative
-    if(s == -1) { //this is the Dirac distribution, the sign of the normal can be changed and INT(delta(ax+d)) = INT(delta(-ax-d))
-      a = -a;
-      d = -d;
-    }
-    else if(s == 0) { //this is the unit step function, the sign of the normal can be changed if INT(U(ax+d)) = INT(1) - INT(U(-ax-d))
-      a = -a;
-      d = -d;
-      unitStepFunctionComplement = true;
-      INT = -1. / (m + 1);
-    }
+  if(a == 0) {
+    std::cout << "Something is wrong! The function mInt0to1LimLim1 can not be called with a = 0" << std::endl;
+    abort();
   }
 
-  Type x(a + d);
-
-  if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
-    if(x >= 0.) {
-      Type g =  1. / (-a);
-      for(unsigned i = 1; i <= m + 1; i++) {
-        INT += g * LimLi(s + i, x);
-        g *= (m + 1 - i) / (-a);
-      }
-    }
-    else if(d >= 0.) {
-      INT += pow(-1. / a, m) * LimLi(s + m + 1, d) / a * factorial<Type>(m);
-    }
+  d = -d / a;
+  if(d > 0 && d < 1) {
+    return pow(d, m) / fabs(a);
   }
-  else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
-    for(unsigned i = 1; i <= s; i++) {
-      INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
-    }
-    INT += pow(-a, s) / factorial<Type>(m + 1 + s);
-    INT *= factorial<Type>(m);
+  else if(d == 0 || d == 1) {
+    return (m == 0) ? 0.5 / fabs(a) : 0.5 * pow(d, m) / fabs(a);
   }
-  return (unitStepFunctionComplement) ? -INT : INT;
+  else {
+    return Type(0);
+  }
 }
 
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+mInt0to1LimLi0(const int &m, const Float1 &a, Float2 d) {
 
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  if(a == 0) {
+    return -LimLi(0, d) / Type(m + 1);
+  }
+
+  d = -d / a;
+
+  if(a > 0) {
+    if(d <= 0) return 1 / Type(m + 1);
+    else if(d < 1) return (Type(1) - pow(d, m + 1)) / Type(m + 1);
+    else return Type(0);
+  }
+  else if(a < 0) {
+    if(d >= 1) return 1 / Type(m + 1);
+    else if(d > 0) pow(d, m + 1) / Type(m + 1);
+    else return 0;
+  }
+}
+
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+mInt0to1LimLi(const int &s, const unsigned &m, Float1 a, Float2 d) {
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  switch(s) {
+    case -1:
+      return mInt0to1LimLim1(m, a, d);
+      break;
+
+    case 0:
+      return mInt0to1LimLi0(m, a, d);
+      break;
+
+    default:
+
+      if(a == 0) {
+        return -LimLi(s, d) / Type(m + 1);
+      }
+
+      Type INT(0);
+      Type x(a + d);
+
+      if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
+        if(x >= 0) {
+          Type g =  1 / (-a);
+          for(unsigned i = 1; i <= m + 1; i++) {
+            INT += g * LimLi(s + i, x);
+            g *= (m + 1 - i) / (-a);
+          }
+        }
+        else if(d >= 0.) {
+          INT += factorial<Type>(m) * LimLi(s + m + 1, d) / (a * pow(-a, m));
+        }
+      }
+      else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
+        for(int i = 1; i <= s; i++) {
+          INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
+        }
+        INT += pow(-a, s) / factorial<Type>(m + 1 + s);
+        INT *= factorial<Type>(m);
+      }
+      return INT;
+  }
+}
 
 
 template <class Float1, class Float2>
@@ -83,14 +128,19 @@ LSIm1(const int &m, const Float1 &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
-  if(fabs(d / a) < 1.) {
-    return pow(-d / a, m);
+  if(a == 0) {
+    std::cout << "Something is wrong! The function LSIm1 can not be called with a = 0" << std::endl;
+    abort();
+  }
+
+  if(fabs(d / a) < 1) {
+    return (m == 0) ? Type(1) / fabs(a) : pow(-d / a, m) / fabs(a);
   }
   else if(fabs(d / a) == 1) {
-    return 0.5 * pow(-d / a, m);
+    return 0.5 * pow(-d / a, m) / fabs(a);
   }
   else {
-    return 0;
+    return Type(0);
   }
 }
 
@@ -100,18 +150,22 @@ LSI0(const int &m, const Float1 &a, const Float2 &d) {
 
   typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
 
+  if(a == 0) {
+    return -LimLi(0, d) * (1 + pow(-1, m)) / Type(m + 1);
+  }
+
   if(d <= -fabs(a)) {
     return 0.;
   }
   else if(d >= fabs(a)) {
-    return (1. + pow(-1., m)) / (m + 1.);
+    return (1. + pow(-1., m)) / Type(m + 1);
   }
   else {
-    if(a > 0.) {
-      return (1. - pow(-d / a, m + 1)) / (m + 1.);
+    if(a > 0) {
+      return (1. - pow(-d / a, m + 1)) / Type(m + 1);
     }
     else {
-      return (pow(-d / a, m + 1) + pow(-1., m)) / (m + 1.);
+      return (pow(-d / a, m + 1) + pow(-1., m)) / Type(m + 1);
     }
   }
 }
@@ -132,7 +186,12 @@ LSI(const int &s, const unsigned &m, Float1 a, Float2 d) {
       break;
 
     default:
-      Type INT = 0.;
+
+      if(a == 0) {
+        return -LimLi(s, d) * (1 + pow(-1, m)) / Type(m + 1);
+      }
+
+      Type INT(0);
 
       Type x(a + d);
       Type y(-a + d);
@@ -168,7 +227,7 @@ LSI(const int &s, const unsigned &m, Float1 a, Float2 d) {
         Type c2 = 1;
         Type f1 = pow(-a, s) / factorial<Type>(m + 1 + s);
 
-        for(unsigned i = 0; i < s + 1; i++) {
+        for(int i = 0; i < s + 1; i++) {
           INT += f1 * (px + py);
           f1 *= -(c1--) / (a * c2++);
           px *= x;
@@ -180,6 +239,8 @@ LSI(const int &s, const unsigned &m, Float1 a, Float2 d) {
       break;
   }
 }
+
+
 
 
 
@@ -222,7 +283,7 @@ TriangleReduced(const int &s, const std::vector<unsigned> &m_input, const std::v
         }
         TRI *= LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
       }
-      TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
+      TRI += mInt0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
       TRI *= factorial<Type>(n);
     }
     else {
@@ -263,31 +324,31 @@ TriangleFull(const int &s, const std::vector<unsigned> &m_input, const std::vect
   //std::cout << "FULL " << a << " " << b << " " << d << " ";
   if(b == 0) { //parallel to right edge
     if(a == 0) TRI = -LimLi(s, d) / ((m + n + 2) * (n + 1));
-    else TRI = Int0to1LimLi(s, m + n + 1, a, d) / (n + 1.);
+    else TRI = mInt0to1LimLi(s, m + n + 1, a, d) / (n + 1.);
   }
   else if(a == 0) { //parallel to bottom edge
-    TRI = (Int0to1LimLi(s, n, b, d) - Int0to1LimLi(s, m + n + 1, b, d)) / (m + 1.);
+    TRI = (mInt0to1LimLi(s, n, b, d) - mInt0to1LimLi(s, m + n + 1, b, d)) / (m + 1.);
   }
   else if(a + b == 0) { //parallel to y = x edge //TODO
     for(unsigned i = 1; i <= n + 1; i++) {
       TRI += pow(1. / a, i) * LimLi(s + i, d) / (factorial<Type>(n + 1 - i) * (m + n + 2 - i));
     }
-    TRI += Int0to1LimLi(s + n + 1, m, a, d) / pow(a, n + 1);
+    TRI += mInt0to1LimLi(s + n + 1, m, a, d) / pow(a, n + 1);
     TRI *= factorial<Type>(n);
   }
   else { //generic case
     if(fabs(a) < fabs(b)) { // |a| < |b|
       for(unsigned j = 1; j <= n + 1; j++) {
-        TRI -= Int0to1LimLi(s + j, m + n + 1 - j, a + b, d) * pow(-1. / b, j)
+        TRI -= mInt0to1LimLi(s + j, m + n + 1 - j, a + b, d) * pow(-1. / b, j)
                / factorial<Type>(n + 1 - j);
       }
-      TRI += Int0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
+      TRI += mInt0to1LimLi(s + n + 1, m, a, d) * pow(-1. / b, n + 1);
       TRI *= factorial<Type>(n);
     }
     else { // |b| < |a|
       for(unsigned j = 1; j <= m + 1; j++) {
-        TRI += (Int0to1LimLi(s + j, m + n + 1 - j, a + b, d) -
-                Int0to1LimLi(s + j, n, b, a + d)) * pow(-1. / a, j)
+        TRI += (mInt0to1LimLi(s + j, m + n + 1 - j, a + b, d) -
+                mInt0to1LimLi(s + j, n, b, a + d)) * pow(-1. / a, j)
                / factorial<Type>(m + 1 - j);
       }
       TRI *= factorial<Type>(m);
@@ -319,7 +380,7 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
       if(a[0] + a[1] + d <= 0) {
         return TriangleReduced(0, m, a, d);
       }
-      else return 1. / ((1. + m[1]) * (2. + m[1] + m[0])) - TriangleReduced(0, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      else return Type(1) / ((1 + m[1]) * (2 + m[1] + m[0])) - TriangleReduced(0, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     default:
 
@@ -348,9 +409,9 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
 
         for(int i = s - 1; i >= 0; i--) {
           INT += m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
-                 * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
+                 * mInt0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d);
           acc(m1f / factorial<Type>(m[1] + 1 + i) * pow(-a[1], i)
-              * Int0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d));
+              * mInt0to1LimLi(s - i, m[0] + m[1] + 1 + i, a[0] + a[1], d));
           //std::cout << INT << " ";
         }
         //std::cout << INT << "\n";
@@ -401,8 +462,10 @@ TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vect
       TET += TETi * pow(-1. / c, i);
       //std::cout << TET << std::endl;
     }
-    //std::cout << TET << " ";
-    //std::cout << pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c << " ";
+
+    std::cout << -pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c << " ";
+    std::cout << TET << " ";
+
     TET -= pow(-1. / c, o) * TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / c;
     //std::cout << TET << " ";
     TET *= factorial<Type>(o);
@@ -505,7 +568,7 @@ PrismB(const int &s, const std::vector<unsigned> &m_input, const std::vector <Fl
   Type PRI = 0.;
   if(c == 0) { //plane is parallel to z-axis
     if(o % 2 == 0)
-      PRI = 2. / (o + 1) * Triangle(s, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d);
+      PRI = Type(2) / (o + 1) * Triangle(s, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d);
     else
       PRI = 0.;
   }
@@ -536,7 +599,7 @@ Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Float1> &
       return PrismB(s, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
       break;
     case 0:
-      return ((1. + pow(-1., m[2])) / (m[2] + 1)) / ((m[0] + m[1] + 2) * (m[1] + 1))
+      return (Type(1. + pow(-1, m[2])) / Type(m[2] + 1)) / Type((m[0] + m[1] + 2) * (m[1] + 1))
              - PrismB(s, m, std::vector<Type> {-a[0], -a[1], -a[2]}, -d);
       break;
     default:
@@ -617,7 +680,7 @@ HyperCubeC(const unsigned &n, const int &s, std::vector<unsigned>& m,
 
   Type s1 = 1;
   Type s2 = (mn % 2 == 0) ? 1. : -1.; //this is pow(-1, mn);
-  Type c1 = 1. / (mn + 1);
+  Type c1 = 1 / Type(mn + 1);
 
   for(unsigned i = 0; i < s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
     HCI += c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, an + d, -an - d) +
@@ -651,9 +714,9 @@ HyperCubeA(const unsigned &n, const int &s, std::vector<unsigned> &m,
         return HyperCubeB(n, s, m, a, ma, d, md);
       }
       else {
-        Type fullIntegral = 1.;
+        Type fullIntegral = 1;
         for(unsigned i = 0; i <= n; i++) {
-          fullIntegral *= (m[i] % 2 == 0) ? 2. / (m[i] + 1.) : 0;
+          fullIntegral *= (m[i] % 2 == 0) ? 2 / Type(m[i] + 1.) : 0;
         }
         return (fullIntegral - HyperCubeB(n, s, m, ma, a, md, d));
       }
@@ -682,7 +745,7 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
         return 0.;
       }
       else { // integral of the even monomial from -1 to 1
-        HCI *= 2. / (m[i] + 1.);
+        HCI *= 2 / Type(m[i] + 1);
         a.erase(a.begin() + i);
         m.erase(m.begin() + i);
       }
@@ -761,20 +824,22 @@ int main(int, char**) {
   if(tetrahedron) TestTetrahedron(eps);
 
 
+
+
   //typedef double Type;
-  //typedef boost::multiprecision::cpp_bin_float_oct Type;
-  typedef boost::multiprecision::cpp_bin_float_quad Type;
+  typedef boost::multiprecision::cpp_bin_float_oct Type;
+  //typedef boost::multiprecision::cpp_bin_float_quad Type;
   //typedef boost::multiprecision::cpp_bin_float_double_extended Type;
   //typedef boost::multiprecision::cpp_bin_float_double Type;
 
-    
-  Type a = Type(0.), b = Type(0.), c = Type(-1.), d = Type(0.1);
-  int s = -1;
+  std::cout.precision(40);
+  Type a = Type(0.), b = Type(0.), c = Type(-1.), d = Type(0.001);
+  int s = 0;
   unsigned m = 7, n = 5, o = 6;
 
-  std::cout.precision(40);
-  std::cout << TetrahedronA(s, std::vector<unsigned> {m, n, o}, std::vector<Type> {a, b, c}, d) << std::endl;
+  Type G0 = TetrahedronA(s, std::vector<unsigned> {m, n, o}, std::vector<Type> {a, b, c}, d);
 
+  
 
   Type S0 = TriangleA(s + o + 1, std::vector<unsigned> {m, n}, std::vector<Type> {a, b}, d) / pow(-c, o + 1) ;
 
@@ -806,14 +871,15 @@ int main(int, char**) {
       Type f =  fn / factorial<Type>(n + k);
       for(unsigned j = 0; j <= o + 1 - i; j++) {
         S2ik += f / factorial<Type>(o + 1 - i - j);
-        f = - f * (n + j + 1) / ((j + 1) * (n + k + j + 1)) ;
+        f = - f * Type(n + j + 1) / Type((j + 1) * (n + k + j + 1)) ;
       }
-      S2i += pow(cMb, k - 1) * Int0to1LimLi(s + i + 1 - k, m + n + o + 1 - i + k, a + b, d) * S2ik;
+      S2i += pow(cMb, k - 1) * mInt0to1LimLi(s + i + 1 - k, m + n + o + 1 - i + k, a + b, d) * S2ik;
     }
     S2 -= S2i / pow(-c, i);
   }
-  //std::cout << S0 * factorial<Type>(o) << " " << S1 * factorial<Type>(o) <<" "<<S2 * factorial<Type>(o) <<std::endl;
+  std::cout << S0 << " " << S1 + S2 << " " << S0 + S2 << std::endl;
   std::cout << (S0 + S1 + S2) * factorial<Type>(o) << std::endl;
+  std::cout << G0 << std::endl;
 }
 
 

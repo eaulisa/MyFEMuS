@@ -203,6 +203,50 @@ HyperCubeAold(const int &s, std::vector<unsigned> m, std::vector <Float1> a, con
   return HCI * HyperCubeCold(s, a.size() - 1, m, a, d);
 }
 
+template <class Float1, class Float2>
+typename boost::math::tools::promote_args<Float1, Float2>::type
+Int0to1LimLiAAAA(const int &s, const unsigned &m, Float1 a, Float2 d) {
+  typedef typename boost::math::tools::promote_args<Float1, Float2>::type Type;
+
+  Type INT = 0.;
+  bool unitStepFunctionComplement = false;
+
+  if(d > 0) { //this assures that for s < 1, either limit a + d or d below is negative
+    if(s == -1) { //this is the Dirac distribution, the sign of the normal can be changed and INT(delta(ax+d)) = INT(delta(-ax-d))
+      a = -a;
+      d = -d;
+    }
+    else if(s == 0) { //this is the unit step function, the sign of the normal can be changed if INT(U(ax+d)) = INT(1) - INT(U(-ax-d))
+      a = -a;
+      d = -d;
+      unitStepFunctionComplement = true;
+      INT = -1. / (m + 1);
+    }
+  }
+
+  Type x(a + d);
+
+  if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
+    if(x >= 0.) {
+      Type g =  1. / (-a);
+      for(unsigned i = 1; i <= m + 1; i++) {
+        INT += g * LimLi(s + i, x);
+        g *= (m + 1 - i) / (-a);
+      }
+    }
+    else if(d >= 0.) {
+      INT += pow(-1. / a, m) * LimLi(s + m + 1, d) / a * factorial<Type>(m);
+    }
+  }
+  else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
+    for(int i = 1; i <= s; i++) {
+      INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * LimLi(i, x) ;
+    }
+    INT += pow(-a, s) / factorial<Type>(m + 1 + s);
+    INT *= factorial<Type>(m);
+  }
+  return (unitStepFunctionComplement) ? -INT : INT;
+}
 
 // {
 //   INT = 0;
