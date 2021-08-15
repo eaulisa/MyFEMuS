@@ -6,13 +6,15 @@ void TestQuad(const Float1 &eps) {
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
   std::cout << "testing the Quadrilateral \n";
-  std::vector<unsigned> m = {6, 6};
+  std::vector<unsigned> m = {13, 5};
   std::vector<myType> a = {0.0000000001, 0.0000000001};
   std::vector<myTypeB> af = {0., 0.};
 
   myType d = 0.5;
   myTypeB df;
 
+  std::cout.precision(14);
+  
   for(unsigned i = 0; i < a.size(); i++) {
     af[0] = a[0];
     af[1] = a[1];
@@ -23,7 +25,7 @@ void TestQuad(const Float1 &eps) {
   unsigned s = 5;
 
   for(unsigned j = 0; j < 2; j++) {
-    myType eps1 = 1.0e-5;
+    myType eps1 = 1.0e-8;
     myType c1 = (j == 0) ? eps1 : 1.;
     myType c2 = (j == 0) ? 1. : eps1;
 
