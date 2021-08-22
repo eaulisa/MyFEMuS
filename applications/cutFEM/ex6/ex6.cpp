@@ -426,7 +426,7 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
         else {
           Type m0f = factorial<Type>(m[0]);
           I1 = m0f / factorial<Type>(m[0] + s + 1) * pow(-a[0], s + 1)
-               * TriangleA(-1, std::vector<unsigned> {m[0] + s + 1, m[1]}, a, d) ;
+               * TriangleReduced(-1, std::vector<unsigned> {m[0] + s + 1, m[1]}, std::vector<Type> {-a[0], -a[1]}, -d);
 
           I2 = Type(0);
           for(int i = 0; i <= s; i++) {
