@@ -405,7 +405,6 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
 //       }
 //       break;
     default:
-
       if(a[0] + a[1] + d <= 0) {
         return TriangleReduced(s, m, a, d);
       }
@@ -413,7 +412,7 @@ TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Float
         Type I1, I2;
         if(fabs(a[0] <= fabs(a[1]))) {
           Type m1f = factorial<Type>(m[1]);
-          
+
           I1 = m1f / factorial<Type>(m[1] + s + 1) * pow(-a[1], s + 1)
                * TriangleReduced(-1, std::vector<unsigned> {m[0], m[1] + s + 1}, std::vector<Type> {-a[0], -a[1]}, -d);
 
@@ -702,18 +701,25 @@ HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
   unsigned mn = m[n];
   Type mnf = factorial<Type>(mn);
   m[n] += s;
-  HCI += mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
+  Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
   m[n] -= s;
+  Type I2 = 0;
 
   Type s1 = 1;
   Type s2 = (mn % 2 == 0) ? 1 : -1; //this is pow(-1, mn);
   Type c1 = 1 / Type(mn + 1);
 
   for(unsigned i = 0; i < s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
-    HCI += c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, an + d, -an - d) +
-                 s2 * HyperCubeA(n - 1, s - i, m, a, ma, -an + d, an - d));
+    I2 += c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, an + d, -an - d) +
+                s2 * HyperCubeA(n - 1, s - i, m, a, ma, -an + d, an - d));
   }
-  return  HCI;
+
+  if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) { // || fabs(I1 + I2) > 1.0e-14) {
+    return I1 + I2;
+  }
+  else  {
+    return HyperCubeB(n, s, m, a, ma, d, md);
+  }
 
 }
 
@@ -750,9 +756,11 @@ HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
       break;
     default: // all other cases, whatever they mean
       if(d < fabs(a[n])) {
+        std::cout << "!";
         return HyperCubeB(n, s, m, a, ma, d, md);
       }
       else {
+        std::cout << "*";
         return HyperCubeC(n, s, m, a, ma, d, md);
       }
   }
@@ -807,11 +815,13 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
 
 int main(int, char**) {
 
+  //typedef boost::multiprecision::cpp_bin_float_oct myType;
   typedef boost::multiprecision::cpp_bin_float_quad myType;
+  //typedef double myType;
 
-  bool line = false;//true;//true;
-  bool quad = false;//true;//false;//true;
-  bool triangle = true;//false;//false;//true;
+  bool line = false;//true;
+  bool quad = false;//false
+  bool triangle = true;//true;
   bool hexahedron = false;//true;
   bool tetrahedron = false;//true;//false;//true;//true;
 
