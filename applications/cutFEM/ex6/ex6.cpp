@@ -682,7 +682,8 @@ HyperCubeB(const unsigned & n, const int &s, std::vector<unsigned> &m,
   Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
   for(int j = 1; j <= m[n] + 1;  c *= aI * (m[n] + 1 - j), sr = -sr, j++) {
-    HCI += c * (sl * HyperCubeA(n - 1, s + j, m, a, ma, -a[n] + d, a[n] - d) + sr * HyperCubeA(n - 1, s + j, m, a, ma, a[n] + d, -a[n] - d));
+    HCI += c * (sl * HyperCubeA(n - 1, s + j, m, a, ma, d - a[n], -d + a[n]) +
+                sr * HyperCubeA(n - 1, s + j, m, a, ma, d + a[n], -d - a[n]));
   }
   return HCI;
 }
@@ -700,24 +701,27 @@ HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
 
   unsigned mn = m[n];
   Type mnf = factorial<Type>(mn);
-  m[n] += s;
-  Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
-  m[n] -= s;
+  m[n] += s + 1;
+  //Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
+  Type I1 = mnf / factorial<Type>(mn + s + 1) * pow(-an, s + 1) * HyperCubeA(n, -1, m, a, ma, d, md) ;
+  m[n] -= s - 1;
   Type I2 = 0;
+  Type I3 = 0;
 
   Type s1 = 1;
   Type s2 = (mn % 2 == 0) ? 1 : -1; //this is pow(-1, mn);
   Type c1 = 1 / Type(mn + 1);
 
-  for(unsigned i = 0; i < s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
-    I2 += c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, an + d, -an - d) +
-                s2 * HyperCubeA(n - 1, s - i, m, a, ma, -an + d, an - d));
+  for(unsigned i = 0; i <= s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
+    I2 -= c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, d + an, -(d + an)));
+    I3 -= c1 * (s2 * HyperCubeA(n - 1, s - i, m, ma, a, d - an, -(d - an)));
   }
-
-  if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) { // || fabs(I1 + I2) > 1.0e-14) {
-    return I1 + I2;
+  //std::cout << I2 << " " << I3 << std::endl;
+  if(std::max(fabs(I1), fabs(I2 + I3)) == 0 || fabs(I1 / (I2 + I3) + 1)  > 1.0e-3) { // || fabs(I1 + I2) > 1.0e-14) {
+    return I1 + I2 + I3;
   }
   else  {
+    std::cout << "?";
     return HyperCubeB(n, s, m, a, ma, d, md);
   }
 
@@ -796,9 +800,19 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
         std::swap(m[i], m[j]);
       }
     }
-
   }
-  std::vector <Float1> ma(a.size());
+//   if(d > 0) {
+//     for(unsigned i = 1; i < a.size(); i++) {
+//       if(fabs(a[i] / d) < 1.0e-4) {
+//         std::cout << "AAAAAAAA";  
+//       }
+//     }
+//   }
+
+
+
+
+  std::vector <Type> ma(a.size());
   for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
 
 
@@ -820,8 +834,8 @@ int main(int, char**) {
   //typedef double myType;
 
   bool line = false;//true;
-  bool quad = false;//false
-  bool triangle = true;//true;
+  bool quad = true;//false
+  bool triangle = false;//true;
   bool hexahedron = false;//true;
   bool tetrahedron = false;//true;//false;//true;//true;
 
