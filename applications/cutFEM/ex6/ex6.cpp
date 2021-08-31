@@ -701,10 +701,15 @@ HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
 
   unsigned mn = m[n];
   Type mnf = factorial<Type>(mn);
-  m[n] += s + 1;
-  //Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
-  Type I1 = mnf / factorial<Type>(mn + s + 1) * pow(-an, s + 1) * HyperCubeA(n, -1, m, a, ma, d, md) ;
-  m[n] -= s - 1;
+  
+  m[n] += s;
+  Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
+  m[n] -= s;
+  
+  
+//   m[n] += (s + 1);
+//   Type I1 = mnf / factorial<Type>(mn + s + 1) * pow(-an, s + 1) * HyperCubeA(n, -1, m, a, ma, d, md) ;
+//   m[n] -= (s + 1);
   Type I2 = 0;
   Type I3 = 0;
 
@@ -712,9 +717,10 @@ HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
   Type s2 = (mn % 2 == 0) ? 1 : -1; //this is pow(-1, mn);
   Type c1 = 1 / Type(mn + 1);
 
-  for(unsigned i = 0; i <= s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
-    I2 -= c1 * (s1 * HyperCubeA(n - 1, s - i, m, ma, a, d + an, -(d + an)));
-    I3 -= c1 * (s2 * HyperCubeA(n - 1, s - i, m, ma, a, d - an, -(d - an)));
+  for(unsigned i = 0; i < s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
+  //for(unsigned i = 0; i <= s; s1 = -s1, c1 *= an / (mn + 2 + i), i++) {
+    I2 += c1 * (s1 * HyperCubeA(n - 1, s - i, m, a, ma, d + an, -(d + an)));
+    I3 += c1 * (s2 * HyperCubeA(n - 1, s - i, m, a, ma, d - an, -(d - an)));
   }
   //std::cout << I2 << " " << I3 << std::endl;
   if(std::max(fabs(I1), fabs(I2 + I3)) == 0 || fabs(I1 / (I2 + I3) + 1)  > 1.0e-3) { // || fabs(I1 + I2) > 1.0e-14) {
@@ -830,8 +836,8 @@ HyperCube(const int &s, std::vector<unsigned> m, std::vector <Float1> a, const F
 int main(int, char**) {
 
   //typedef boost::multiprecision::cpp_bin_float_oct myType;
-  typedef boost::multiprecision::cpp_bin_float_quad myType;
-  //typedef double myType;
+  //typedef boost::multiprecision::cpp_bin_float_quad myType;
+  typedef double myType;
 
   bool line = false;//true;
   bool quad = true;//false
