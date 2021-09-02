@@ -24,7 +24,7 @@ void TestQuad(const Float1 &eps) {
 
   unsigned s = 5;
 
-  myType eps1 = 1.0e-12;
+  myType eps1 = 1.0e-6;
   std::vector<std::vector<myType>> epsCut{{0, 0, 0},
     {eps1, 0, 0}, {-eps1, 0, 0}, {0, eps1, 0}, {0, -eps1, 0}, {0, 0, eps1}, {0, 0, -eps1},
     {eps1, eps1, 0}, {eps1, -eps1, 0}, {-eps1, eps1, 0}, {-eps1, -eps1, 0},
@@ -34,7 +34,7 @@ void TestQuad(const Float1 &eps) {
   
   std::vector<std::vector<myType>> smallCut{{0, 0, 0}, {0, 0, 1}, {0, 0, -1},
     {-1, -1, -2}, {-1, 0, -1}, {-1, 1, -2}, {0, 1, -1},
-    {1, 1, -2}, {1, 0, -2}, {-1, -1, -2}, {0, -1, -2}};
+    {1, 1, -2}, {1, 0, -1}, {-1, -1, -2}, {0, -1, -1}};
     
   for(unsigned i = 0; i < smallCut.size(); i++) {
     for(unsigned j = 0; j < epsCut.size(); j++) {
@@ -61,13 +61,13 @@ void TestQuad(const Float1 &eps) {
     std::cout << std::endl;
   }
 
-  
+ 
 
 
 
 
   for(unsigned j = 0; j < 2; j++) {
-    myType eps1 = 1.0e-4;
+    myType eps1 = 1.0e-8;
     myType c1 = (j == 0) ? eps1 : 1.;
     myType c2 = (j == 0) ? 1. : eps1;
 
@@ -78,8 +78,8 @@ void TestQuad(const Float1 &eps) {
     a = {0.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
-
+    d = -c2;
+    df = d;
 
     myType I1 = HyperCube(s,  m, a, d);
     myTypeB I2 = HyperCube(s,  m, af, df);
@@ -95,7 +95,8 @@ void TestQuad(const Float1 &eps) {
     a = { 0.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
 
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
@@ -111,7 +112,8 @@ void TestQuad(const Float1 &eps) {
     a = { 0.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
 
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
@@ -127,7 +129,8 @@ void TestQuad(const Float1 &eps) {
     a = { 0.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
 
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
@@ -147,7 +150,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, 0.0};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -162,7 +167,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, 0.0};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -177,7 +184,9 @@ void TestQuad(const Float1 &eps) {
     a = {c1, 0.0};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -192,7 +201,9 @@ void TestQuad(const Float1 &eps) {
     a = {c1, 0.0};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -211,7 +222,9 @@ void TestQuad(const Float1 &eps) {
     a = { c1, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -226,7 +239,9 @@ void TestQuad(const Float1 &eps) {
     a = { c1, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -241,7 +256,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -257,7 +274,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -275,7 +294,9 @@ void TestQuad(const Float1 &eps) {
     a = { c1, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -290,7 +311,9 @@ void TestQuad(const Float1 &eps) {
     a = { c1, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -305,7 +328,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -320,7 +345,9 @@ void TestQuad(const Float1 &eps) {
     a = {-c1, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -338,7 +365,9 @@ void TestQuad(const Float1 &eps) {
     a = { 1.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -353,7 +382,9 @@ void TestQuad(const Float1 &eps) {
     a = { 1.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -368,7 +399,9 @@ void TestQuad(const Float1 &eps) {
     a = { 1.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -384,7 +417,9 @@ void TestQuad(const Float1 &eps) {
     a = { 1.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -400,7 +435,9 @@ void TestQuad(const Float1 &eps) {
     a = { -1.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -415,7 +452,9 @@ void TestQuad(const Float1 &eps) {
     a = { -1.0, -c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -430,7 +469,9 @@ void TestQuad(const Float1 &eps) {
     a = { -1.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = -c2;
+    d = -c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s,  m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -445,7 +486,9 @@ void TestQuad(const Float1 &eps) {
     a = { -1.0, c1};
     af[0] = a[0];
     af[1] = a[1];
-    df = d = c2;
+    d = c2;
+    df = d;
+    
     I1 = HyperCube(s,  m, a, d);
     I2 = HyperCube(s, m, af, df);
     if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
@@ -459,7 +502,7 @@ void TestQuad(const Float1 &eps) {
   }
 
 
-
+   return;
 
   std::cout << HyperCubeBOld(6, a.size() - 1, m, a, d) << std::endl;
   std::cout << HyperCubeBOld(6, af.size() - 1, m, af, df) << std::endl;
