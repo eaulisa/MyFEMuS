@@ -70,7 +70,7 @@ mInt0to1LimLi0(const int &m, const Float1 &a, Float2 d) {
   }
   else if(a < 0) {
     if(d >= 1) return 1 / Type(m + 1);
-    else if(d > 0) pow(d, m + 1) / Type(m + 1);
+    else if(d > 0) return pow(d, m + 1) / Type(m + 1);
     else return 0;
   }
 }

@@ -77,6 +77,7 @@ Type LSI0(const int &m, const Type &a, Type d) {
 
   d = -d / a;
 
+  
   if(a > 0) {
     if(d <= 0) return 1 / Type(m + 1);
     else if(d < 1) return (Type(1) - pow(d, m + 1)) / Type(m + 1);
@@ -84,13 +85,15 @@ Type LSI0(const int &m, const Type &a, Type d) {
   }
   else if(a < 0) {
     if(d >= 1) return 1 / Type(m + 1);
-    else if(d > 0) pow(d, m + 1) / Type(m + 1);
+    else if(d > 0) return pow(d, m + 1) / Type(m + 1);
     else return 0;
   }
 }
 
 template <class Type>
-Type LSI(const int &s, const unsigned &m, const Type a, Type d) {
+Type LSI(const int &s, const unsigned &m, const Type &a, Type d) {
+  
+  Type I1;
     
   switch(s) {
     case -1:
@@ -163,16 +166,7 @@ Type HyperCubeB(const unsigned & n, const int &s, std::vector<unsigned> &m,
   }
 
   Type I2 = factorial<Type>(m[n]) * pow(-aI, m[n] + 1) * HyperCubeA(n - 1, s + m[n] + 1, m, a, ma, d, -d);
-  //std::cout << I1 << " " << I2 << "\n";
   return I1 + I2;
-
-//   if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
-//     return I1 + I2;
-//   }
-//   else  {
-//     std::cout << "?";
-//     return HyperCubeC(n, s, m, a, ma, d, md);
-//   }
 
 
 }
@@ -201,7 +195,6 @@ Type HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
   for(unsigned i = 0; i < s; c1 *= -an / (mn + 2 + i), i++) {
     I2 += c1 * HyperCubeA(n - 1, s - i, m, a, ma, d + an, -(d + an));
   }
-  //std::cout << I1 << " " << I2 << "\n";
   if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
     return I1 + I2;
   }
@@ -218,41 +211,9 @@ Type HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
            const Type & d, const Type & md) {
 
   
-  if(n == 0)  return LSI(s, m[0], a[0], d);
-
-//   Type sum = d;
-//   for(unsigned i = 0; i < a.size(); i++) {
-//     sum += a[i];
-//   }
-//
-//   Type I1, I2;
-//
-//   if(sum <= 0) {
-//     std::cout << "!";
-//     return HyperCubeB(n, s, m, a, ma, d, md);
-//   }
-//   else {
-//     switch(s) {
-//       case -1:
-//         return HyperCubeB(n, -1, m, ma, a, md, d);
-//       case 0:
-//         I1 = 1;
-//         for(unsigned i = 0; i < a.size(); i++) {
-//           I1 *= 1. / Type(m[i] + 1);
-//         }
-//         I2 = -HyperCubeB(n, 0, m, ma, a, md, d);
-//         if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
-//           return I1 + I2;
-//         }
-//         else  {
-//           std::cout << "@";
-//           return HyperCubeB(n, 0, m, a, ma, d, md);
-//         }
-//       default:
-//         std::cout << "*";
-//         return HyperCubeC(n, s, m, a, ma, d, md);
-//     }
-//   }
+  if(n == 0)  {    
+    return LSI(s, m[0], a[0], d);
+  }
 
   switch(s) {
     case -1: // interface integral
@@ -301,17 +262,14 @@ Type HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
 template <class Type>
 Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type d) {
 
-//   for(unsigned i = 0; i < a.size(); i++) {
-//     d -= a[i];
-//     a[i] *= 2;
-//   }
+  for(unsigned i = 0; i < a.size(); i++) {
+    d -= a[i];
+    a[i] *= 2;
+  }
 
-  //std::cout<<a.size();
+  Type HCI = pow(Type(2), a.size());
   
-  int dim = a.size();
-  Type HCI = (dim == 2 ) ? 4 : 8;
-  //std::cout << HCI;
-
+  
   for(int i = a.size() - 1; i >= 0; i--) {
     if(a[i] == 0) {
       HCI *= 1 / Type(m[i] + 1);
@@ -333,8 +291,8 @@ Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type
 
     std::vector <Type> ma(a.size());
     for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
-
-    return HCI * HyperCubeA(a.size() - 1, s, m, a, ma, d, -d);
+    
+    return HCI * HyperCubeA(-1 + a.size(), s, m, a, ma, d, -d);
   }
   else {
     return -HCI * LimLi(s, d);
@@ -350,12 +308,12 @@ int main(int, char**) {
 
   typedef double Type;
 
-  std::vector<Type> a = {-1, 1};
+  std::vector<Type> a = {1, -1};
   Type norm = sqrt(a[0] * a[0] + a[1] * a[1]);
   a[0] /= norm;
   a[1] /= norm;
   std::vector<Type> ma(2);
-  std::vector<unsigned> m = {0, 0};
+  std::vector<unsigned> m = {1, 2};
   Type d = 0. / norm;
 
   ma[0] = -a[0];
@@ -363,9 +321,9 @@ int main(int, char**) {
 
   std::cout.precision(16);
 
-  std::cout << HyperCube(-1, m, a, d) << std::endl;
+  std::cout << HyperCube(0, m, a, d) << std::endl;
 
-  //return 1;
+  return 1;
 
   bool quad = false;//false
   bool hex = true;//false

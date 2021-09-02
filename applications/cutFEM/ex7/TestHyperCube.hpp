@@ -5,7 +5,7 @@ void TestQuad(Float1 &eps) {
   typedef typename boost::math::tools::promote_args<Float1>::type myType;
   
   //typedef double myTypeB;
-  //typedef boost::multiprecision::cpp_bin_float_quad myType;
+  //typedef boost::multiprecision::cpp_bin_float_quad myTypeB;
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
   
   
@@ -158,10 +158,9 @@ void TestHex(myType &eps) {
 
   //typedef typename boost::math::tools::promote_args<Float1>::type myType;
   
-  //typedef double myTypeB;
-  //typedef boost::multiprecision::cpp_bin_float_quad myType;
+  //typedef long double myTypeB;
+  //typedef boost::multiprecision::cpp_bin_float_quad myTypeB;
   typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
-  
   
 
   std::cout << "testing the Hexahedron \n";
