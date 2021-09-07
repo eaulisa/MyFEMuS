@@ -10,6 +10,7 @@
 
 using namespace std;
 
+
 class EquivalentPolynomial {
   public:
     EquivalentPolynomial() {
@@ -25,9 +26,13 @@ class EquivalentPolynomial {
     double GetValue(std::vector <double> &x, unsigned &element);
     double IntegrationValue(const int &s, const unsigned &dim, const unsigned &degree, std::vector < double > &normal, const double &d, const unsigned &element);
     std::vector < double > BaseCases(const unsigned &dim, const unsigned &degree, const std::vector < double > &c,const double &p);
-    double HyperCubeA(const int &s, std::vector<unsigned> &m, std::vector <double> &a, const double &d);
+    double HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
+           const std::vector <double> &a, const std::vector <double> &ma,
+           const double & d, const double & md);
     double LimLi(const int &n, const double & x);
-    double HyperCubeB(const int &s, unsigned i, const std::vector<unsigned> &m, const std::vector <double> &a, const double &d);
+    double HyperCubeB(const unsigned & n, const int &s, std::vector<unsigned> &m,
+           const std::vector <double> &a, const std::vector <double> &ma,
+           const double & d, const double & md);
 
 //     const std::vector < complex < double > > &GetCoefficients() {
 //       return _coefficients;
