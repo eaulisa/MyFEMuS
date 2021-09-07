@@ -7,10 +7,10 @@
 using boost::math::factorial;
 
 template <class Type>
-Type LimLi(const int &n, const Type &x) {
+Type LimLi(const int &s, const Type &x) {
 
   if(x < 0) return Type(0);
-  else if(n != 0) return -pow(x, n) / factorial<Type>(n);
+  else if(s != 0) return -pow(x, s) / factorial<Type>(s);
   else if(x > 0) return Type(-1);
   else return Type(-0.5);
 }
