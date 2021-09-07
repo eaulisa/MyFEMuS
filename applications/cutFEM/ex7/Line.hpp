@@ -20,7 +20,7 @@ template <class Type>
 Type LSIm1(const int &m, const Type &a, Type d) {
 
   if(a == 0) {
-    std::cout << "Something is wrong! The function mInt0to1LimLim1 can not be called with a = 0" << std::endl;
+    std::cout << "Something is wrong! The function LSIm1 can not be called with a = 0" << std::endl;
     abort();
   }
 
