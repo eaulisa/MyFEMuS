@@ -20,6 +20,7 @@ using boost::multiprecision::cpp_bin_float_quad;
 
 #include "TestHyperCube.hpp"
 #include "TestTriangle.hpp"
+#include "TestTetrahedron.hpp"
 
 int main(int, char**) {
 
@@ -27,7 +28,8 @@ int main(int, char**) {
 
   bool quad = false;//false
   bool hex = false;//false
-  bool triangle = true;//false
+  bool triangle = false;//false
+  bool tetrahedron = true;//false
 
   Type eps = 1.0e-11;
 
@@ -47,6 +49,11 @@ int main(int, char**) {
   eps = 5.0e-11;
   if(triangle) TestTriangle(eps);
 
+  
+  //cpp_bin_float_quad deps = 5.0e-10;
+  double deps = 5.0e-10;
+  if(tetrahedron) TestTetrahedron(deps);
+    
   
   return 1;
 

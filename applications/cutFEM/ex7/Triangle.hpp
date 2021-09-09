@@ -50,7 +50,7 @@ Type TriangleReduced(const int &s, const std::vector<unsigned> &m_input, const s
         }
         TRI *= - LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
       }
-      if(a + d > 0.) {
+      if(a + d > 0) {
         Type TRI2 = 0.;
         for(unsigned i = 1; i <= m + 1; i++) {
           TRI2 +=  LimLi(s + n + i + 1, a + d) / (factorial<Type>(m + 1 - i) * pow(-a, i));
@@ -121,12 +121,7 @@ Type TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <
   Type sum = a[0] + a[1] + d;
   switch(s) {
     case -1:
-      if(sum <= 0) {
-        return TriangleReduced(-1, m, a, d);
-      }
-//       else if(sum <= std::max(fabs(a[1]), fabs(a[0]))) {
-//         return TriangleFull(-1, m, a, d);
-//       }
+      if(sum <= 0) return TriangleReduced(-1, m, a, d);
       else return TriangleReduced(-1, m, std::vector<Type> {-a[0], -a[1]}, -d);
       break;
     default:
@@ -169,7 +164,7 @@ Type TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <
           return I1 + I2;
         }
         else  {
-
+          std::cout << "@";
           Type I3 = TriangleFull(s, m, a, d);
           //std::cout << "@" << I1 << " " << I2 << " " << I3 << " " << sum << " " << a[0] << " " << a[1] << " " << d << std::endl;
           //std::cout << "!"<<fabs(I1 / I2 + 1)<<" ";// << " " << I1 + I2 << " " << I3 / (I1 + I2) << " " << I3 << std::endl;
