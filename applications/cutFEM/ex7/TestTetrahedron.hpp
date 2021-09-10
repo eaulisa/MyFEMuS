@@ -14,23 +14,25 @@ void TestTetrahedron(myType &eps) {
   //typedef cpp_bin_float_quad myTypeB;
   typedef cpp_bin_float_oct myTypeB;
 
-  std::vector<myType> a = {0.98, 1., 1.1};
+  std::vector<myType> a = {0.98, 1, 1.1};
   myType norm = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
 
   a[0] /= norm;
   a[1] /= norm;
   a[2] /= norm;
 
-  std::vector<unsigned> m = {3, 4, 5};
+  std::vector<unsigned> m = {1,3, 2};
   myType d = 0 / norm;
 
   std::cout.precision(14);
 
   //std::cout << Tetrahedron(1, m, a, d) << std::endl;
   //std::cout << TetrahedronA(1, m, a, d) << std::endl;
-  //std::cout << TetrahedronB(1, m, a, d) << std::endl;
-  //std::cout << TetrahedronB1(1, m, a, d) << std::endl;
+  std::cout << TetrahedronB(0, m, a, d) << std::endl;
+  std::cout << TetrahedronC(0, m, a, d) << std::endl;
 
+  return;
+  
   std::vector<myTypeB> af(3);
   af[0] = a[0];
   af[1] = a[1];

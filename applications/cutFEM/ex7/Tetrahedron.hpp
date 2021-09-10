@@ -12,7 +12,7 @@ Type TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vecto
 
 template <class Type>
 Type TetrahedronCast(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type & d) {
-  if(false && //(a[2] < 0 && fabs((a[0] + a[1]) * (fabs(a[0] / a[2]) + fabs(a[1] / a[2]) + fabs(d / a[2])))  < 1.0e-10) || 
+  if(false && //(a[2] < 0 && fabs((a[0] + a[1]) * (fabs(a[0] / a[2]) + fabs(a[1] / a[2]) + fabs(d / a[2])))  < 1.0e-10) ||
       (a[2] > 0 && (fabs(a[0] / a[2]) + fabs(a[1] / a[2]) + fabs((a[2] + d) / a[2]) < 1.0e-5))) {
     //std::cout << "c";
     cast++;
@@ -45,30 +45,22 @@ Type TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std:
   const unsigned &n = m_input[1];
   const unsigned &o = m_input[2];
 
-  Type I1 = 0.;
-  if(c == 0) {  //plane is parallel to z-axis
-    for(unsigned i = 0; i <= o + 1; i++)  {
-      I1 += TriangleA<Type>(s, {m + o + 1u - i, n + i}, std::vector<Type> {a, b}, d) *  pow(-1, i) / (factorial<Type>(i) * factorial<Type>(o + 1 - i));
-    }
-    I1 *= factorial<Type>(o);
-  }
-  else { //all other cases
+  Type TET = 0.;
+  if(fabs(c) >= fabs(b)) {
     for(unsigned i = 1; i <= o + 1; i++)  {
-      Type TETi = 0.;
-      Type sgn = -1;
-      for(unsigned j = 0; j <= o + 1 - i; sgn = -sgn, j++)  {
-        TETi += sgn * TriangleA<Type>(s + i, {m + o + 1u - i - j, n + j}, {a + c, b - c}, d) / (factorial<Type>(j) * factorial<Type>(o + 1 - i - j));
-        //std::cout << TETi << " ";
-      }
-      I1 += TETi / pow(-c, i);
-      //std::cout << I1 << "\n";
-
+      TET -= TriangleA<Type>(s + i, {m, n + o + 1u - i}, {a, b + c}, d) / (factorial<Type> (o + 1u - i) * pow(-c, i));
     }
-    Type I2 = TriangleA<Type>(s + o + 1, {m, n}, {a, b}, d) / pow(-c, o + 1);
-    //std::cout << I1 << " " << I2 << std::endl;
-    I1 = (I1 + I2) * factorial<Type>(o);
+    TET += TriangleA<Type>(s + o + 1, {m, n}, {a, b}, d) / pow(-c, o + 1);
+    TET * factorial<Type>(o);
   }
-  return I1;
+  else {
+    std::cout<<"^";  
+    for(unsigned i = 1; i <= n + 1; i++)  {
+      TET = (-TriangleA<Type>(s + i, {m + n + 1u - i, o}, {a + b, c}, d) +
+             TriangleA<Type>(s + i, {m, n + o + 1u - i}, {a, b + c}, d)) / (factorial<Type> (n + 1u - i) * pow(-b, i));
+    }
+  }
+  return TET;
 }
 
 template <class Type>
@@ -83,15 +75,12 @@ Type TetrahedronC(const int &s, const std::vector<unsigned> &m_input, const std:
   const unsigned &n = m_input[1];
   const unsigned &o = m_input[2];
 
-  Type TET = TetrahedronA<Type>(-1, {m, n, o + s + 1u}, a_input, d) * pow(-c, s + 1) / factorial<Type>(o + s + 1);
+  Type TET = 0;
   for(unsigned i = 1; i <= s + 1; i++)  {
-    Type TETi = 0;
-    Type sgn = 1;
-    for(unsigned j = 0; j <= o + i; sgn = -sgn, j++)  {
-      TETi += sgn * TriangleA<Type>(s + 1 - i, {m + o + i - j, n + j}, {a + c, b - c}, d) / (factorial<Type>(j) * factorial<Type>(o + i - j));
-    }
-    TET += TETi * pow(-c, i - 1);
+    TET += TriangleA<Type>(s + 1 - i, {m, n + o + i}, {a, b + c}, d) * pow(-c, i - 1) / factorial<Type>(o + i);
   }
+  TET += TetrahedronA<Type>(-1, {m, n, o + s + 1u}, a_input, d) * pow(-c, s + 1u) / factorial<Type>(o + s + 1);
+
   TET *= factorial <Type> (o);
 
   return TET;
