@@ -21,15 +21,18 @@ using boost::multiprecision::cpp_bin_float_quad;
 #include "TestHyperCube.hpp"
 #include "TestTriangle.hpp"
 #include "TestTetrahedron.hpp"
+#include "TestPrism.hpp"
+
 
 int main(int, char**) {
 
   typedef double Type;
 
-  bool quad = false;//false
-  bool hex = false;//false
-  bool triangle = false;//false
+  bool quad = true;//false
+  bool hex = true;//false
+  bool triangle = true;//false
   bool tetrahedron = true;//false
+  bool prism = true;//false
 
   Type eps = 1.0e-11;
 
@@ -49,10 +52,9 @@ int main(int, char**) {
   eps = 5.0e-11;
   if(triangle) TestTriangle(eps);
 
+  if(tetrahedron) TestTetrahedron(eps);
   
-  //cpp_bin_float_quad deps = 5.0e-10;
-  double deps = 5.0e-10;
-  if(tetrahedron) TestTetrahedron(deps);
+  if(prism) TestPrism(eps);
     
   
   return 1;

@@ -21,28 +21,20 @@ void TestTetrahedron(myType &eps) {
   a[1] /= norm;
   a[2] /= norm;
 
-  std::vector<unsigned> m = {1,3, 2};
-  myType d = 0 / norm;
+  std::vector<unsigned> m = {3, 4, 5};
+  myType d = -0.25 / norm;
 
   std::cout.precision(14);
 
-  //std::cout << Tetrahedron(1, m, a, d) << std::endl;
-  //std::cout << TetrahedronA(1, m, a, d) << std::endl;
-  std::cout << TetrahedronB(0, m, a, d) << std::endl;
-  std::cout << TetrahedronC(0, m, a, d) << std::endl;
-
-  return;
+  int s = 0;
   
-  std::vector<myTypeB> af(3);
-  af[0] = a[0];
-  af[1] = a[1];
-  af[2] = a[2];
+  std::cout << TetrahedronB(s, m, a, d) << std::endl;
+  std::cout << TetrahedronC(s, m, a, d) << std::endl;
 
-  myTypeB df = d;
+  std::cout << Tetrahedron<myType, myType>(s, m, a, d) << std::endl;
+  std::cout << Tetrahedron<myType, myTypeB>(s, m, a, d) << std::endl;
 
-//   std::cout << TetrahedronA(1, m, af, df) << std::endl;
-//   std::cout << TetrahedronB(1, m, af, df) << std::endl;
-  //std::cout << TetrahedronB1(1, m, af, df) << std::endl;
+// return;
 
   double eps1 = 1.e-12;
   std::vector<std::vector<double>> epsCut = { {0, 0, 0, 0},
@@ -71,66 +63,20 @@ void TestTetrahedron(myType &eps) {
     {0, 0, 1, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {-1, -1, -1, 1}
   };
 
-  int s = 0;
-
-  std::vector<myType> a1(3);
-  myType d1;
-
-//   for(unsigned i = 8; i <9 + 0*smallCut.size(); i++) {
-//     for(unsigned j = 7; j <8 + 0* epsCut.size(); j++) {
+  s = 0;
 
   for(unsigned i = 0; i < smallCut.size(); i++) {
     for(unsigned j = 0; j < epsCut.size(); j++) {
       a.resize(3);
-      a1.resize(3);
-      af.resize(3);
 
-      a1[0] = myType(smallCut[i][0] + epsCut[j][0]);
-      a1[1] = myType(smallCut[i][1] + epsCut[j][1]);
-      a1[2] = myType(smallCut[i][2] + epsCut[j][2]);
-      d1 = myType(smallCut[i][3] + epsCut[j][3]);
 
-      if(fabs(a1[0]) <= fabs(a1[1]) && fabs(a1[0]) <= fabs(a1[2])) {
-        if(fabs(a1[1]) <= fabs(a1[2])) {
-          a = {-a1[0], a1[1], a1[2]};
-          d = d1 + a1[0];
-        }
-        else {
-          a = {-a1[0], a1[2], a1[1]};
-          d = d1 + a1[0];
-        }
-      }
-      else if(fabs(a1[1]) <= fabs(a1[2])) {
-        if(fabs(a1[0]) <= fabs(a1[2])) {
-          a = {-a1[1], a1[0], a1[2]};
-          d = d1 + a1[1];
-        }
-        else {
-          a = {-a1[1], a1[2], a1[0]};
-          d = d1 + a1[1];
-        }
-      }
-      else {
-        if(fabs(a1[0]) <= fabs(a1[1])) {
-          a = {-a1[2], a1[0], a1[1]};
-          d = d1 + a1[2] ;
-        }
-        else {
-          a = {-a1[2], a1[1], a1[0]};
-          d = d1 + a1[2];
-        }
-      }
+      a[0] = myType(smallCut[i][0] + epsCut[j][0]);
+      a[1] = myType(smallCut[i][1] + epsCut[j][1]);
+      a[2] = myType(smallCut[i][2] + epsCut[j][2]);
+      d = myType(smallCut[i][3] + epsCut[j][3]);
 
-//       a=a1;
-//       d=d1;
-
-      af[0] = myTypeB(a[0]);
-      af[1] = myTypeB(a[1]);
-      af[2] = myTypeB(a[2]);
-      df = myTypeB(d);
-
-      myType I1 = TetrahedronCast(s,  m, a, d);
-      myTypeB I2 = TetrahedronCast(s,  m, af, df);
+      myType I1 = Tetrahedron<myType, myType>(s, m, a, d);
+      myType I2 = Tetrahedron<myType, myTypeB>(s, m, a, d);
 
       if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
         //std::cout << "passed " << i << " " << j << " ";
@@ -143,8 +89,6 @@ void TestTetrahedron(myType &eps) {
 
     }
   }
-
-  std::cout <<" cast = "<< cast <<" uncast = "<< uncast <<std::endl;
 
 
 }

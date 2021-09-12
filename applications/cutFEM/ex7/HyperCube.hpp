@@ -5,10 +5,10 @@
 #include "Line.hpp"
 
 template <class Type>
-Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type d);
+Type HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Type> a, const Type &d);
 
 template <class Type>
-Type HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
+Type HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                 const std::vector <Type> &a, const std::vector <Type> &ma,
                 const Type & d, const Type & md);
 
@@ -22,17 +22,23 @@ Type HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
                 const std::vector <Type> &a, const std::vector <Type> &ma,
                 const Type & d, const Type & md);
 
+template <class Type, class Type2>
+Type HyperCube(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type &d) {
+  std::vector<Type2> a2(a.size());
+  Type d1 = d;
+  for(unsigned i = 0; i < a.size(); i++) {
+    d1 -= a[i];
+    a2[i] = static_cast<Type2>(2 * a[i]);
+  }
+  Type2 d2 = static_cast<Type2>(d1);
+  return static_cast<Type>(pow(Type(2), a2.size()) * HyperCubeA<Type2>(s, m, a2, d2));
+}
+
 template <class Type>
-Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type d) {
+Type HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Type> a, const Type &d) {
 
-//   for(unsigned i = 0; i < a.size(); i++) {
-//     d -= a[i];
-//     a[i] *= 2;
-//   }
-
-  Type HCI = pow(Type(2), a.size());
-
-
+  Type HCI = 1;
+  
   for(int i = a.size() - 1; i >= 0; i--) {
     if(a[i] == 0) {
       HCI *= 1 / Type(m[i] + 1);
@@ -55,7 +61,7 @@ Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type
     std::vector <Type> ma(a.size());
     for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
 
-    return HCI * HyperCubeA(-1 + a.size(), s, m, a, ma, d, -d);
+    return HCI * HyperCubeA1(-1 + a.size(), s, m, a, ma, d, -d);
   }
   else {
     return -HCI * LimLi(s, d);
@@ -63,11 +69,10 @@ Type HyperCube(const int &s, std::vector<unsigned> m, std::vector <Type> a, Type
 }
 
 template <class Type>
-Type HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
+Type HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                 const std::vector <Type> &a, const std::vector <Type> &ma,
                 const Type & d, const Type & md) {
 
-  //std::cout << "A";
   if(n == 0)  {
     return LSI(s, m[0], a[0], d);
   }
@@ -86,34 +91,28 @@ Type HyperCubeA(const unsigned & n, const int &s, std::vector<unsigned> &m,
       break;
     default:
       if(sum <= fabs(a[n])) {
-        //std::cout << "!";
         return HyperCubeB(n, s, m, a, ma, d, md);
       }
       else {
-        //std::cout << "*";
         return HyperCubeC(n, s, m, a, ma, d, md);
       }
   }
 }
 
 template <class Type>
-Type HyperCubeB(const unsigned & n, const int &s, std::vector<unsigned> &m,
+Type HyperCubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
                 const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md) {
+                const Type &d, const Type &md) {
 
-  Type aI = 1. / a[n];
+  Type aI = 1 / a[n];
   Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
   Type I1 = 0;
-
   for(int j = 1; j <= m[n] + 1;  c *= -aI * (m[n] + 1 - j), j++) {
-    I1 += HyperCubeA(n - 1, s + j, m, a, ma, d + a[n], -d - a[n]) * c;
+    I1 += HyperCubeA1(n - 1, s + j, m, a, ma, d + a[n], -d - a[n]) * c;
   }
-
-  Type I2 = HyperCubeA(n - 1, s + m[n] + 1, m, a, ma, d, -d) * factorial<Type>(m[n]) * pow(-aI, m[n] + 1);
-
+  Type I2 = HyperCubeA1(n - 1, s + m[n] + 1, m, a, ma, d, -d) * factorial<Type>(m[n]) * pow(-aI, m[n] + 1);
   return I1 + I2;
-
 
 }
 
@@ -122,128 +121,20 @@ Type HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
                 const std::vector <Type> &a, const std::vector <Type> &ma,
                 const Type & d, const Type & md) { //alternative formula at s = -1
 
-  Type HCI = 0.;
   Type an = a[n];
-
   unsigned mn = m[n];
-  Type mnf = factorial<Type>(mn);
+  
   m[n] += (s + 1);
-  Type I1 = HyperCubeA(n, -1, m, a, ma, d, md) * mnf * pow(-an, s + 1) / factorial<Type>(mn + s + 1) ;
+  Type I1 = HyperCubeA1(n, -1, m, a, ma, d, md) * pow(-an, s + 1) * factorial<Type>(mn) / factorial<Type>(mn + s + 1) ;
   m[n] -= (s + 1);
 
   Type I2 = 0;
   Type c1 = 1 / Type(mn + 1);
-
   for(unsigned i = 0; i <= s; c1 *= -an / (mn + 2 + i), i++) {
-    I2 += HyperCubeA(n - 1, s - i, m, a, ma, d + an, -(d + an)) * c1;
+    I2 += HyperCubeA1(n - 1, s - i, m, a, ma, d + an, -(d + an)) * c1;
   }
   return I1 + I2;
-//   if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
-//     return I1 + I2;
-//   }
-//   else  {
-//     std::cout << "?";
-//     return HyperCubeB(n, s, m, a, ma, d, md);
-//   }
 
-}
-
-
-
-//These below are alternative formulations. They work too!
-
-
-template <class Type>
-Type HyperCubeC0(const unsigned & n, const int &s, std::vector<unsigned>& m,
-                 const std::vector <Type> &a, const std::vector <Type> &ma,
-                 const Type & d, const Type & md) { //alternative formula at s = 0
-
-  //std::cout << "C";
-  Type HCI = 0.;
-  Type an = a[n];
-
-  unsigned mn = m[n];
-  Type mnf = factorial<Type>(mn);
-//   m[n] += (s + 1);
-//   Type I1 = mnf / factorial<Type>(mn + s + 1) * pow(-an, s + 1) * HyperCubeA(n, -1, m, a, ma, d, md) ;
-//   m[n] -= (s + 1);
-
-  m[n] += s;
-  Type I1 = mnf / factorial<Type>(mn + s) * pow(-an, s) * HyperCubeA(n, 0, m, a, ma, d, md) ;
-  m[n] -= s;
-
-  Type I2 = 0;
-  Type c1 = 1 / Type(mn + 1);
-
-  for(unsigned i = 0; i < s; c1 *= -an / (mn + 2 + i), i++) {
-    I2 += c1 * HyperCubeA(n - 1, s - i, m, a, ma, d + an, -(d + an));
-  }
-  if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
-    return I1 + I2;
-  }
-  else  {
-    std::cout << "?";
-    return HyperCubeB(n, s, m, a, ma, d, md);
-  }
-
-}
-
-
-
-
-template <class Type>
-Type HyperCubeA0(const unsigned & n, const int &s, std::vector<unsigned> &m,
-                 const std::vector <Type> &a, const std::vector <Type> &ma,
-                 const Type & d, const Type & md) {
-
-  //std::cout << "A";
-  if(n == 0)  {
-    return LSI(s, m[0], a[0], d);
-  }
-
-  Type sum = d;
-  for(unsigned i = 0; i <= n; i++) sum += a[i];
-
-  switch(s) {
-    case -1: // interface integral
-      if(sum <= 0) {
-        return HyperCubeB(n, -1, m, a, ma, d, md);
-      }
-      else {
-        return HyperCubeB(n, -1, m, ma, a, md, d);
-      }
-      break;
-    case 0: // step function integral
-      if(sum <= fabs(a[n])) {
-        //std::cout << "%";
-        return HyperCubeB(n, 0, m, a, ma, d, md);
-      }
-      else {
-        //std::cout << "^";
-        Type I1 = 1;
-        for(unsigned i = 0; i <= n; i++) {
-          I1 *= 1 / Type(m[i] + 1);
-        }
-        Type I2 = -HyperCubeB(n, 0, m, ma, a, md, d);
-        if(std::max(fabs(I1), fabs(I2)) == 0 || fabs(I1 / I2 + 1)  > 1.0e-3) {
-          return I1 + I2;
-        }
-        else  {
-          std::cout << "@";
-          return HyperCubeB(n, 0, m, a, ma, d, md);
-        }
-      }
-      break;
-    default: // all other cases, whatever they mean
-      if(sum <= fabs(a[n])) {
-        //std::cout << "!";
-        return HyperCubeB(n, s, m, a, ma, d, md);
-      }
-      else {
-        //std::cout << "*";
-        return HyperCubeC(n, s, m, a, ma, d, md);
-      }
-  }
 }
 
 #endif
