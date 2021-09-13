@@ -160,6 +160,7 @@ int main(int argc, char** args) {
   print_vars.push_back("All");
   mlSol.GetWriter()->SetDebugOutput(false);
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 1);
 
   return 0;
 
@@ -184,6 +185,7 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
   std::vector <std::vector < double> > vx(dim);
   std::vector <std::vector < double> > solD(dim);
 
+  std::vector <double> dmax2 = {12.,2.,6.,8.,2.,4.};
   std::vector < unsigned> idof;
 
   // solution and coordinate variables
@@ -230,21 +232,32 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
         vx[k][i] = (*msh->_topology->_Sol[k])(idof[i]) + solD[k][i];
       }
     }
+
+    std::vector<std::vector<double>> xi(dim); //local coordinate of the i-faceDof
+    for(int k = 0; k < dim; k++) {
+      xi[k].resize(nDofs);
+      for(unsigned i = 0; i < nDofs; i++) {
+        xi[k][i] = *(msh->_finiteElement[ielt][solType]->GetBasis()->GetXcoarse(i) + k);
+      }
+    }
+
+
+
     double ielArea = 0.;
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
       double jac;
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
       ielArea += jac;
 
-      std::vector< std::vector< double > > gradSolDig(dim);
-      std::vector< double > Xig(dim, 0.);
+      std::vector< std::vector< double > > gradSolDg(dim);
+      std::vector< double > xig(dim, 0.);
 
       for(unsigned  k = 0; k < dim; k++) { //solution
-        gradSolDig[k].assign(dim, 0.);
+        gradSolDg[k].assign(dim, 0.);
         for(unsigned i = 0; i < nDofs; i++) { //node
-          Xig[k] += vx[k][i] * phi[i];
+          xig[k] += xi[k][i] * phi[i];
           for(unsigned j = 0; j < dim; j++) { // derivative
-            gradSolDig[k][j] += solD[k][i] * gradPhi[dim * i + j];
+            gradSolDg[k][j] += solD[k][i] * gradPhi[dim * i + j];
           }
         }
       }
@@ -252,13 +265,13 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
       for(unsigned i = 0; i < nDofs; i++) { //node
         double d2 = 0.;
         for(unsigned  k = 0; k < dim; k++) { //solution
-          d2 += (vx[k][i] - Xig[k]) * (vx[k][i] - Xig[k]);
+          d2 += (xi[k][i] - xig[k]) * (xi[k][i] - xig[k]);
         }
 
-        sol->_Sol[SolKernelIdx]->add(idof[i], jac / d2);
+        sol->_Sol[SolKernelIdx]->add(idof[i], jac * (dmax2[ielt] - d2) * (dmax2[ielt] - d2));
         for(unsigned  k = 0; k < dim; k++) {
           for(unsigned j = 0; j < dim; j++) {
-            sol->_Sol[gradSolDIdx[k][j]]->add(idof[i], gradSolDig[k][j] * jac / d2);
+            sol->_Sol[gradSolDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * (dmax2[ielt] - d2) * (dmax2[ielt] - d2));
           }
         }
       }
@@ -297,14 +310,14 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
   const char SolN[3][4] = {"Nx", "Ny", "Nz"};
 
   std::vector < unsigned > SolNIdx(dim);
-  for(unsigned k = 0; k < dim - 1; k++) {
+  for(unsigned k = 0; k < dim; k++) {
     SolNIdx[k] = mlSol.GetIndex(&SolN[k][0]);
   }
 
   unsigned SolAreaIdx = mlSol.GetIndex("area");
   sol->_Sol[SolAreaIdx]->zero();
   sol->_Sol[SolKernelIdx]->zero();
-  for(unsigned k = 0; k < dim - 1; k++) {
+  for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[SolNIdx[k]]->zero();
   }
 
@@ -346,6 +359,15 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
               }
             }
 
+            std::vector<std::vector<double>> xi(dim - 1); //local coordinate of the i-faceDof
+            for(int k = 0; k < dim - 1; k++) {
+              xi[k].resize(faceDofs);
+              for(unsigned i = 0; i < faceDofs; i++) {
+                xi[k][i] = *(msh->_finiteElement[faceGeom][solType]->GetBasis()->GetXcoarse(i) + k);
+              }
+            }
+
+
             double faceArea = 0.;
             for(unsigned ig = 0; ig < msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
               double jac;
@@ -353,22 +375,22 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
               msh->_finiteElement[faceGeom][solType]->JacobianSur(fvx, ig, jac, phi, gradPhi, normal);
               faceArea += jac;
 
-              std::vector< double > Xig(dim, 0.);
-              for(unsigned  k = 0; k < dim; k++) { //solution
+              std::vector< double > xig(dim - 1, 0.);
+              for(unsigned  k = 0; k < dim - 1; k++) { //solution
                 for(unsigned i = 0; i < faceDofs; i++) { //node
-                  Xig[k] += fvx[k][i] * phi[i];
+                  xig[k] += xi[k][i] * phi[i];
                 }
               }
 
               for(unsigned i = 0; i < faceDofs; i++) { //node
                 double d2 = 0.;
-                for(unsigned  k = 0; k < dim; k++) { //solution
-                  d2 += (fvx[k][i] - Xig[k]) * (fvx[k][i] - Xig[k]);
+                for(unsigned  k = 0; k < dim - 1; k++) { //solution
+                  d2 += (xi[k][i] - xig[k]) * (xi[k][i] - xig[k]);
                 }
 
-                sol->_Sol[SolKernelIdx]->add(fdof[i], jac / d2);
+                sol->_Sol[SolKernelIdx]->add(fdof[i], jac * (dmax2[faceGeom] - d2) * (dmax2[faceGeom] - d2));
                 for(unsigned  k = 0; k < dim; k++) {
-                  sol->_Sol[SolNIdx[k]]->add(fdof[i], normal[k] * jac / d2);
+                  sol->_Sol[SolNIdx[k]]->add(fdof[i], normal[k] * jac * (dmax2[faceGeom] - d2) * (dmax2[faceGeom] - d2));
                 }
               }
             }
@@ -390,10 +412,16 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
   for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     double kernel = (*sol->_Sol[SolKernelIdx])(i);
     if(kernel != 0) {
+      double norm = 0;  
       for(unsigned k = 0; k < dim; k++) {
         double value = (*sol->_Sol[SolNIdx[k]])(i);
-        sol->_Sol[SolNIdx[k]]->set(i, value / kernel);
-
+        norm += value * value;
+      }
+      norm = sqrt(norm);
+      double area = (*sol->_Sol[SolAreaIdx])(i);
+      for(unsigned k = 0; k < dim; k++) {
+        double value = (*sol->_Sol[SolNIdx[k]])(i) * area / norm;  
+        sol->_Sol[SolNIdx[k]]->set(i, value);  
       }
     }
   }
