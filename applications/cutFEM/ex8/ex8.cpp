@@ -9,6 +9,8 @@
 
 using boost::multiprecision::cpp_dec_float_50;
 using boost::multiprecision::cpp_dec_float_100;
+using namespace boost;
+
 
 namespace boost {
   namespace multiprecision {
@@ -34,6 +36,8 @@ namespace boost {
   }
 } // namespaces
 
+//This file Gives the lower triangular matrix A, which gives the polynomial orthonormal basis in terms of the standard basis, or specified basis. All neccassry functions were built in order to complete the task.
+
 using boost::math::factorial;
 
 template <class Type>
@@ -55,7 +59,14 @@ template <class Type>
 std::vector<Type> ExtractVector(std::vector<std::vector<Type>> M, unsigned n, bool ROW);
 
 template <class Type>
-std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree);
+std::vector<std::vector<Type>> GetMassMatrix(int element, int degree);
+
+template <class Type>
+Type BinomialCoefficient(unsigned n, unsigned o);
+
+unsigned Factorial(unsigned n);
+
+
 
 
 template <class Type>
@@ -72,43 +83,14 @@ std::vector<std::vector<Type>> ModifiedGramSchmidt(std::vector<std::vector<Type>
 
   for(int i = 0; i < size; i++) {
 
-
     A[i][i] = Type(1);
 
-    for(int j = 0; j < size; j++) {
-
-      M[i][j] = Type(1) / (i + j + 1);
-//       std::cout << A[i][j] << "  ";
-//       if(j ==  M[0].size() - 1) {
-//         std::cout << std::endl;
-//       }
-
-    }
-
   }
-
-
 
   Type vN = pow((DotProduct(ExtractVector(A, 0, true), MatrixVectorMultiply(M, ExtractVector(A, 0, true)))), 0.5);
   Type vNd = (DotProduct(ExtractVector(A, 0, true), MatrixVectorMultiply(M, ExtractVector(A, 0, true))));
 
-//
-//   for(int i = 0; i < size; i++) {
-//     std::cout << test[i] << "  ";
-//   }
-//   std::cout <<  std::endl;
-//
-//   test = MatrixVectorMultiply(M, ExtractVector(A, 0, true));
-//
-//   for(int i = 0; i < size; i++) {
-//     std::cout << test[i] << "  ";
-//   }
-//   std::cout <<  std::endl;
-//   std::cout << vN << "  Should work..after mults. " << std::endl;
-
-
   for(int i = 0; i < size; i++) {
-
 
     if(vN != 0) {
       A[0][i] = A[0][i] / vN;
@@ -121,27 +103,17 @@ std::vector<std::vector<Type>> ModifiedGramSchmidt(std::vector<std::vector<Type>
 
   }
 
-
   for(unsigned i = 0; i < size - 1; i++) {
 
     for(unsigned j = i + 1; j < size; j++) {
 
       DP = DotProduct(ExtractVector(A, j, true), MatrixVectorMultiply(M, ExtractVector(A, i, true)));
-      //test = MatrixVectorMultiply(M, ExtractVector(A, i, true));
-      test = ExtractVector(A, j, true);
-//       for(unsigned h = 0; h < size; h++) {
-//
-//         std::cout << test[h] << " should be AT " << std::endl;
-//
-//       }
 
-      //std::cout << DP << "  this is DP  ";
       for(unsigned k = 0; k < size; k++) {
 
         A[j][k] = A[j][k] - (DP * A[i][k]);
 
       }
-
 
     }
     std::cout << std::endl;
@@ -151,15 +123,13 @@ std::vector<std::vector<Type>> ModifiedGramSchmidt(std::vector<std::vector<Type>
 
     if(vN == -1) std::cout <<  " negative number under sqrt " << std::endl;
 
-    std::cout << vNd << " vNd " << std::endl;
+    //std::cout << vNd << " vNd " << std::endl;
     for(int l = 0; l < size; l++) {
 
       //std::cout << vN << " vN " << std::endl;
 
-
       A[c][l] = A[c][l] / vN;
       //std::cout << A[c][l] << "  ";
-
 
     }
 
@@ -200,7 +170,6 @@ std::vector<std::vector<Type>> ModifiedGramSchmidt(std::vector<std::vector<Type>
 
 template <class Type>
 std::vector<std::vector<Type>> MatrixMatrixMultiply(std::vector<std::vector<Type>> M, std::vector<std::vector<Type>> N) {
-
 
   int row = M.size();
   //std::cout << row << std::endl;
@@ -277,7 +246,6 @@ std::vector<Type> MatrixVectorMultiply(std::vector<std::vector<Type>> M, std::ve
 
 }
 
-
 template <class Type>
 Type DotProduct(std::vector<Type> M, std::vector<Type> Nv) {
 
@@ -309,7 +277,6 @@ Type DotProduct(std::vector<Type> M, std::vector<Type> Nv) {
 
 }
 
-
 template <class Type>
 std::vector<Type> ExtractVector(std::vector<std::vector<Type>> M, unsigned n, bool ROW) {
 
@@ -324,17 +291,14 @@ std::vector<Type> ExtractVector(std::vector<std::vector<Type>> M, unsigned n, bo
     return bad;
   }
 
-
   if(ROW) {
     std::vector<Type> result(column, Type(0));
 
     for(int i = 0; i < column; i++) {
       result[i] = M[n][i];
 
-
     }
     return result;
-
 
   }
 
@@ -349,16 +313,9 @@ std::vector<Type> ExtractVector(std::vector<std::vector<Type>> M, unsigned n, bo
     }
     return result;
 
-
   }
 
-
-
-
 }
-
-
-
 
 template <class Type>
 std::vector<std::vector<Type>> Transpose(std::vector<std::vector<Type>> M) {
@@ -380,31 +337,128 @@ std::vector<std::vector<Type>> Transpose(std::vector<std::vector<Type>> M) {
 
 }
 
-
 template <class Type>
-std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree) {
-
+std::vector<std::vector<Type>> GetMassMatrix(int element, int degree) {
 
   //TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
 
   unsigned size = 1;
   unsigned count = 0;
-  std::vector<std::vector<Type>> MM(size, std::vector<Type>(size, Type(0)));
+  unsigned k = 0;
 
 
-
-
-  if(element == 0 || element == 1) {
+  if(element == 0 || element == 1 || element == 2) {
 
     size = ((degree + 1) * (degree + 2) * (degree + 3)) / 6;
     std::vector<std::vector<Type>> MM(size, std::vector<Type>(size, Type(0)));
+    std::vector<unsigned> m(size, 0);
+    std::vector<unsigned> n(size, 0);
+    std::vector<unsigned> o(size, 0);
+
+    for(int l = 0; l <= degree; l++) {
+
+      for(int i = l; i >= 0; i--) {
+
+        for(int j = l - i; j >= 0; j--) {
+
+          k = l - i - j;
+          m[count] = i;
+          n[count] = j;
+          o[count] = k;
+          count++;
+          //std::cout << "i = " << i << " j = " << j << " k = " << k << std::endl;
+
+        }
+
+      }
+
+    }
+
+    if(element == 0) {
+
+      for(int h = 0; h < size; h++) {
+        count = 0;
+        for(int l = 0; l <= degree; l++) {
+
+          for(int i = l; i >= 0; i--) {
+
+            for(int j = l - i; j >= 0; j--) {
+
+              MM[h][count] = Type(1) / ((m[h] + m[count] + 1) * (n[h] + n[count] + 1) * (o[h] + o[count] + 1));
+              count++;
+              //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
+    else if(element == 1) {
+      unsigned temp1 = 0;
+      unsigned temp2 = 0;
+      for(int h = 0; h < size; h++) {
+        count = 0;
+        for(int l = 0; l <= degree; l++) {
+
+          for(int i = l; i >= 0; i--) {
+
+            for(int j = l - i; j >= 0; j--) {
+
+                // n! o! / (m + n + o + 3) * (n + o + 2)!)
+              MM[h][count] = (Type)(Factorial(n[h] + n[count]) * Factorial(o[h] + o[count])) / (Type)((m[h] + m[count] + n[h] + n[count] + o[h] + o[count] + 3) * (Factorial(n[h] + n[count] + o[h] + o[count] + 2)));
+
+              
+//               temp1 = n[h] + n[count];
+//               temp2 = o[h] + o[count];
+//               MM[h][count] = BinomialCoefficient<Type>(temp1, temp2) / ((m[h] + m[count] + n[h] + n[count] + o[h] + o[count] + 3) * (o[h] + o[count] + 1));
+              //temp = Factorial(n[h] + n[count]);
+              //std::cout << "In here" << temp <<  std::endl;
+              count++;
 
 
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
+    else if(element == 2) {
+
+      for(int h = 0; h < size; h++) {
+        count = 0;
+        for(int l = 0; l <= degree; l++) {
+
+          for(int i = l; i >= 0; i--) {
+
+            for(int j = l - i; j >= 0; j--) {
+
+              MM[h][count] = Type(1) / ((m[h] + m[count] + n[h] + n[count] + 2) * (n[h] + n[count] + 1) * (o[h] + o[count] + 1));
+              count++;
+              //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }
 
     return MM;
   }
 
-  if(element == 3 || element == 4) {
+  else if(element == 3 || element == 4) {
 
     size = ((degree + 1) * (degree + 2)) / 2;
     std::vector<std::vector<Type>> MM(size, std::vector<Type>(size, Type(0)));
@@ -412,15 +466,12 @@ std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree) {
     std::vector<unsigned> m(size, 0);
     std::vector<unsigned> n(size, 0);
 
-
     for(int i = 0; i <= degree; i++) {
 
       for(int j = i; j >= 0; j--) {
 
-
         m[count] = j;
         n[count] = i - j;
-        std::cout << "count = " << count << std::endl;
         count++;
         //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
 
@@ -440,24 +491,37 @@ std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree) {
             count++;
             //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
 
+          }
 
+        }
+
+      }
+
+      return MM;
+    }
+
+    else if(element == 4) {
+
+      for(int k = 0; k < size; k++) {
+        count = 0;
+        for(int i = 0; i <= degree; i++) {
+
+          for(int j = i; j >= 0; j--) {
+
+            MM[k][count] = Type(1) / ((m[k] + m[count] + n[k] + n[count] + 2) * (n[k] + n[count] + 1));
+            count++;
+            //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
 
           }
 
         }
 
-
       }
-
-
-//         for(int k = count; k >= 0; k--) {
-//             std::cout << "m_" << k << " = " << m[k] << "n_" << k << " = " << n[k] << std::endl;
-//         }
 
       return MM;
     }
 
-    if(element == 5) {
+    else if(element == 5) {
 
       size = degree + 1;
       std::vector<std::vector<Type>> MM(size, std::vector<Type>(size, Type(0)));
@@ -467,7 +531,6 @@ std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree) {
         for(int j = 0; j < size; j++) {
 
           MM[i][j] = Type(1) / (i + j + 1);
-
 
         }
 
@@ -481,11 +544,68 @@ std::vector<std::vector<Type>> GetMassMatrix(Type h, int element, int degree) {
     std::cout << " Not an appropriate element " << std::endl;
     return MM;
 
+  }
+
+}
+
+
+template <class Type>
+Type BinomialCoefficient(unsigned n, unsigned o) {
+
+  Type sum = 0;
+  Type temp = 0;
+  
+  for(unsigned j = 0; j <= o + 1; j++) {
+
+    temp = (Type)Factorial(o + 1) / (Type)(Factorial(o + 1 - j) * Factorial(j));
+    sum += pow(-1., j) * temp * (1. / (Type)(n + j + 1));
+
+    temp = 0;
 
 
   }
 
+
+  return sum;
+
 }
+
+
+
+unsigned Factorial(unsigned n) {
+
+  unsigned result = 1;
+
+
+
+  if(n > 0) {
+
+
+    for(unsigned i = 1; i <= n; i++) {
+
+      result = result * i;
+    }
+
+    return result;
+
+  }
+
+  else if(n == 0) {
+
+    return result;
+
+  }
+
+  else {
+
+    std::cout << "Must enter a non negative integer" << std::endl;
+    result = 0;
+
+    return result;
+
+  }
+}
+
 
 
 int main(int, char**) {
@@ -512,8 +632,8 @@ int main(int, char**) {
   //Avr = MatrixVectorMultiply(AA, Av);
   //AA = ModifiedGramSchmidt(AT);
   //AT = Transpose(A);
-  AT = GetMassMatrix(f, 3, 2);
-
+  AT = GetMassMatrix <myTypeB>(2, 2);
+  ModifiedGramSchmidt(AT);
 
 //   for(unsigned i = 0; i < R.size(); i++) {
 //
@@ -521,7 +641,7 @@ int main(int, char**) {
 //
 //   }
 
-  std::string space = "  ";
+
   for(unsigned i = 0; i < AT.size(); i++) {
 
     for(unsigned j = 0; j < AT[0].size(); j++) {
