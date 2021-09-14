@@ -36,6 +36,8 @@ namespace boost {
   }
 } // namespaces
 
+//This file Gives the lower triangular matrix A, which gives the polynomial orthonormal basis in terms of the standard basis, or specified basis. All neccassry functions were built in order to complete the task.
+
 using boost::math::factorial;
 
 template <class Type>
@@ -439,7 +441,7 @@ std::vector<std::vector<Type>> GetMassMatrix(int element, int degree) {
 
             for(int j = l - i; j >= 0; j--) {
 
-              MM[h][count] = Type(1) / ((m[h] + m[count] + 1) * (n[h] + n[count] + 1) * (o[h] + o[count] + 1));
+              MM[h][count] = Type(1) / ((m[h] + m[count] + n[h] + n[count] + 2) * (n[h] + n[count] + 1) * (o[h] + o[count] + 1));
               count++;
               //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
 
@@ -630,7 +632,7 @@ int main(int, char**) {
   //Avr = MatrixVectorMultiply(AA, Av);
   //AA = ModifiedGramSchmidt(AT);
   //AT = Transpose(A);
-  AT = GetMassMatrix <myTypeB>(1, 2);
+  AT = GetMassMatrix <myTypeB>(2, 2);
   ModifiedGramSchmidt(AT);
 
 //   for(unsigned i = 0; i < R.size(); i++) {
