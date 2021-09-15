@@ -55,9 +55,8 @@ double InitVariableDY(const std::vector < double >& x) {
   return value;
 }
 
-void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut, const std::string &filename);
 void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers);
-void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const double &dmaxCut, const std::string &filename);
+void UpdateMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const double &dmaxCut, const std::string &filename);
 void BuildD2Max(MultiLevelSolution& mlSol);
 
 int main(int argc, char** args) {
@@ -93,16 +92,14 @@ int main(int argc, char** args) {
   mlMsh.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
 
-  unsigned numberOfRefinement = 2;
+  unsigned numberOfRefinement = 3;
 
   for(unsigned i = 0; i < numberOfRefinement; i++) {
-    FlagElements(mlMsh, 1);
+    FlagElements(mlMsh, 2);
     mlMsh.AddAMRMeshLevel();
   }
 
   mlMsh.EraseCoarseLevels(numberOfRefinement);
-
-
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -145,8 +142,8 @@ int main(int argc, char** args) {
 
   BuildD2Max(mlSol);
 
-  BuildMeshQuantities(mlSol, -0.6, 1.0E10, "benchmarkFSISolid");
-  
+  UpdateMeshQuantities(mlSol, -0.6, 1.0E10, "benchmarkFSISolid");
+
 
   //******* Print solution *******
   mlSol.SetWriter(VTK);
@@ -226,13 +223,14 @@ void BuildD2Max(MultiLevelSolution& mlSol) {
 
 
 
-void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const double &dmaxCut, const std::string &filename) {
+void UpdateMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const double &dmaxCut, const std::string &filename) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
   Solution *sol  = mlSol.GetSolutionLevel(level);
   Mesh     *msh   = mlSol._mlMesh->GetLevel(level);
   unsigned iproc  = msh->processor_id();
+  unsigned nprocs  = msh->n_processors();
 
   const unsigned dim = msh->GetDimension();
 
@@ -457,6 +455,123 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
     }
   }
 
+  if(nprocs > 1) {
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+        unsigned ielMat;
+        unsigned test = 0u;
+        unsigned faceNumber;
+        if(iproc == kproc) {
+          ielMat = msh->GetElementMaterial(iel);
+          if(ielMat == 4) {
+            test = 1u;
+            unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+            for(unsigned  k = 0; k < dim; k++) {
+              vx[k].resize(nDofs);
+              solD[k].resize(nDofs);
+            }
+            d2max.resize(nDofs);
+            idof.resize(nDofs);
+            for(unsigned i = 0; i < nDofs; i++) {
+              idof[i] = msh->GetSolutionDof(i, iel, solType);
+              d2max[i] = (*sol->_Sol[d2maxIdx])(idof[i]);
+              for(unsigned  k = 0; k < dim; k++) {
+                solD[k][i] = (*sol->_Sol[DIdx[k]])(idof[i]);
+                vx[k][i] = (*msh->_topology->_Sol[k])(idof[i]) + solD[k][i];
+              }
+            }
+            faceNumber = msh->GetElementFaceNumber(iel);
+          }
+        }
+        MPI_Bcast(&test, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        if(test == 1) {
+          MPI_Bcast(&faceNumber, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+          for(unsigned iface = 0; iface < faceNumber; iface++) {
+            int jel;
+            if(iproc == kproc) {
+              jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+            }
+            MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+
+            if(jel >= 0) { // iface is not a boundary of the domain
+              unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+              if(jproc != kproc) {
+                unsigned jelMat;
+                if(iproc == jproc) {
+                  jelMat = msh->GetElementMaterial(jel);
+                  MPI_Send(&jelMat, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+                }
+                if(iproc == kproc) {
+                  MPI_Recv(&jelMat, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  if(ielMat != jelMat) { //iel and jel are on the FSI interface
+                    const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
+                    unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
+                    std::vector  < std::vector  <  double > > fvx(dim);    // A matrix holding the face coordinates rowwise.
+                    std::vector  < std::vector  <  double > > fsolD(dim);
+                    std::vector  <  double > fd2max;
+                    for(int k = 0; k < dim; k++) {
+                      fvx[k].resize(faceDofs);
+                      fsolD[k].resize(faceDofs);
+                    }
+                    fd2max.resize(faceDofs);
+
+                    std::vector<unsigned> fdof(faceDofs);
+                    for(unsigned i = 0; i < faceDofs; i++) {
+                      unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);    // face-to-element local node mapping.
+                      fdof[i] = idof[inode];
+                      fd2max[i] = d2max[inode];
+                      for(unsigned k = 0; k < dim; k++) {
+                        fvx[k][i] =  vx[k][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+                        fsolD[k][i] = solD[k][inode];
+                      }
+                    }
+
+
+                    double faceArea = 0.;
+                    for(unsigned ig = 0; ig < msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
+                      double jac;
+                      std::vector < double> normal;
+                      msh->_finiteElement[faceGeom][solType]->JacobianSur(fvx, ig, jac, phi, gradPhi, normal);
+                      faceArea += jac;
+
+                      std::vector< double > xg(dim - 1, 0.);
+                      for(unsigned  k = 0; k < dim - 1; k++) { //solution
+                        for(unsigned i = 0; i < faceDofs; i++) { //node
+                          xg[k] += (fvx[k][i] - fsolD[k][i]) * phi[i];
+                        }
+                      }
+
+                      for(unsigned i = 0; i < faceDofs; i++) { //node
+                        double d2 = 0.;
+                        for(unsigned  k = 0; k < dim - 1; k++) { //solution
+                          d2 += ((fvx[k][i] - fsolD[k][i]) - xg[k]) * ((fvx[k][i] - fsolD[k][i]) - xg[k]);
+                        }
+
+                        for(unsigned  k = 0; k < dim; k++) {
+                          sol->_Sol[NIdx[k]]->add(fdof[i], normal[k] * jac * (fd2max[i] - d2) * (fd2max[i] - d2));
+                        }
+                      }
+                    }
+                    for(unsigned i = 0; i < faceDofs; i++) {
+                      sol->_Sol[areaIdx]->add(fdof[i], faceArea * WEIGHT[faceGeom][i]);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+       }
+     }
+  }
+
+
+
+
+
+
+
+
   sol->_Sol[areaIdx]->close();
   sol->_Sol[kernelIdx]->close();
   for(unsigned k = 0; k < dim; k++) {
@@ -486,17 +601,6 @@ void BuildMeshQuantities(MultiLevelSolution& mlSol, const double &dminCut, const
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
 
   unsigned level = mlMesh.GetNumberOfLevels() - 1;
@@ -510,10 +614,10 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
       bool refine = 0;
       unsigned ielMat = msh->GetElementMaterial(iel);
 
-      for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel, 1); j++) {
+      for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel, 1); j++) { //loop all over the neighboring elements
         int jel = msh->el->GetElementNearElement(iel, j);
 
-        if(jel >= 0) { // iface is not a boundary of the domain
+        if(jel >= 0) { // jel is not outside the domain
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(iproc == jproc) {
             unsigned jelMat = msh->GetElementMaterial(jel);
@@ -529,8 +633,6 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
       }
     }
   }
-  msh->_topology->_Sol[msh->GetAmrIndex()]->close();
-
 
   if(nprocs > 1) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
@@ -545,15 +647,15 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
         MPI_Bcast(&test, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         if(test) {
           unsigned ielMat;
-          unsigned nSurroundingElem;
+          unsigned neighboringElemNumber;
           if(iproc == kproc) {
             ielMat = msh->GetElementMaterial(iel);
-            nSurroundingElem = msh->el->GetElementNearElementSize(iel, 1);
+            neighboringElemNumber = msh->el->GetElementNearElementSize(iel, 1);
           }
 
-          MPI_Bcast(&nSurroundingElem, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(&neighboringElemNumber, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
-          for(unsigned j = 0; j < nSurroundingElem; j++) {
+          for(unsigned j = 0; j < neighboringElemNumber; j++) { //loop all over the neighboring elements
             int jel;
             if(iproc == kproc) {
               jel = msh->el->GetElementNearElement(iel, j);
@@ -590,36 +692,95 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
     }
   }
 
+  msh->_topology->_Sol[msh->GetAmrIndex()]->close();
+
+  for(unsigned k = 1; k < layers; k++) {
+    for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      if(msh->el->GetIfElementCanBeRefined(iel) && (*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.) {
+        bool refine = 0;
+
+        for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel, 1); j++) {
+          int jel = msh->el->GetElementNearElement(iel, j);
+          if(jel >= 0) {
+            unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+            if(iproc == jproc && (*msh->_topology->_Sol[msh->GetAmrIndex()])(jel) == 1.) { // iface is not a boundary of the domain
+              refine = true;
+              break;
+            }
+          }
+        }
+        if(refine)  {
+          msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 0.5);
+        }
+      }
+    }
+
+    if(nprocs > 1) {
+      for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+        for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+          int test = 0;
+          bool refine = 0;
+          if(iproc == kproc) {
+            if(msh->el->GetIfElementCanBeRefined(iel) && (*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0) {
+              test = 1;
+            }
+          }
+          MPI_Bcast(&test, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+          if(test) {
+            unsigned ielMat;
+            unsigned neighboringElemNumber;
+            if(iproc == kproc) {
+              ielMat = msh->GetElementMaterial(iel);
+              neighboringElemNumber = msh->el->GetElementNearElementSize(iel, 1);
+            }
+
+            MPI_Bcast(&neighboringElemNumber, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+            for(unsigned j = 0; j < neighboringElemNumber; j++) {
+              int jel;
+              if(iproc == kproc) {
+                jel = msh->el->GetElementNearElement(iel, j);
+              }
+              MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+              if(jel >= 0) {
+                unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+
+                if(jproc != kproc) {
+                  unsigned jelIsRefined = 0;
+
+                  if(iproc == jproc) {
+                    if((*msh->_topology->_Sol[msh->GetAmrIndex()])(jel) == 1.) jelIsRefined = 1.;
+                    MPI_Send(&jelIsRefined, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+                  }
+
+                  if(iproc == kproc) {
+                    MPI_Recv(&jelIsRefined, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                    if(1 == jelIsRefined) { // jel was been refined at the previous layer
+                      refine = true;
+                    }
+                  }
+                }
+              }
+            }//end sourrounding element loop
+            if(iproc == kproc && refine)  {
+              msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, .5);
+            }
+          }//endif test
+        }
+      }
+    }
+
+    for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
+      if((*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.5) {
+        msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
+      }
+    }
+    msh->_topology->_Sol[msh->GetAmrIndex()]->close();
+
+  }
 
 
 
-//   for(unsigned k = 1; k < layers; k++) {
-//     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-//       if(msh->el->GetIfElementCanBeRefined(iel) && (*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.) {
-//         bool refine = 0;
-//
-//         for(unsigned j = 0; j < msh->el->GetElementNearElementSize(iel, 1); j++) {
-//           int jel = msh->el->GetElementNearElement(iel, j);
-//           //for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-//           //int jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
-//           if(jel >= 0) {
-//             unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-//             if(iproc == jproc && (*msh->_topology->_Sol[msh->GetAmrIndex()])(jel) == 1.) { // iface is not a boundary of the domain
-//               refine = true;
-//               break;
-//             }
-//           }
-//         }
-//         if(refine)  {
-//           msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 0.5);
-//         }
-//       }
-//     }
-//     for(unsigned iel = 0; iel < msh->el->GetElementNumber(); iel++) {
-//       if((*msh->_topology->_Sol[msh->GetAmrIndex()])(iel) == 0.5) {
-//         msh->_topology->_Sol[msh->GetAmrIndex()]->set(iel, 1.);
-//       }
-//     }
-//     msh->_topology->_Sol[msh->GetAmrIndex()]->close();
-//   }
+
+
 }
