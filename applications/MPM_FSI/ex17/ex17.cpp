@@ -64,9 +64,10 @@ int main(int argc, char** args) {
   mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
 
   Projection projection(&mlSolM, &mlSolB);
+  projection.SetNewmarkParameters(1./6., 1./2., 1.);
   for(unsigned t = 1; t <= 10; t++) {
     clock_t time = clock();
-    projection.Init();
+    projection.Init(); // creates the mapping and allocate memory
     projection.FromMarkerToBackground();
     projection.FakeMovement();
     projection.FromBackgroundToMarker();

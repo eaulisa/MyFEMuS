@@ -1,4 +1,4 @@
- 
+
 #include "Marker.hpp"
 const double WEIGHT[6][27] = {
   {
@@ -27,8 +27,8 @@ const double WEIGHT[6][27] = {
     0.25, 0.25, 0.25, 0.
   },
   {0.25, 0.25, .5}
-} ; 
- 
+} ;
+
 bool SetBoundaryCondition(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
   bool test = 1; //dirichlet
   value = 0.;
@@ -51,28 +51,28 @@ void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers);
 
 void InitializeMarkerVariables(MultiLevelSolution &mlSol);
 void UpdateMeshQuantities(MultiLevelSolution& mlSol);
-void BuildD2Max(MultiLevelSolution& mlSol);
+void BuildInvariants(MultiLevelSolution& mlSol);
 
 
 
-void InitializeMarkerVariables(MultiLevelSolution &mlSol){
+void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
 
   unsigned dim = mlSol._mlMesh->GetDimension();
 
   FEOrder femOrder = SECOND;
-   
+
   //add variables to mlSol
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("DY", LAGRANGE, femOrder, 0, false);
   if(dim == 3) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 0, false);
 
-  mlSol.AddSolution("weight", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("area", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("iel", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
-  mlSol.AddSolution("dist", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("kernel", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("d2max", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
- 
+  mlSol.AddSolution("VX", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("VY", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("VZ", LAGRANGE, femOrder, 0, false);
+
+  mlSol.AddSolution("AX", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("AY", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("AZ", LAGRANGE, femOrder, 0, false);
 
   mlSol.AddSolution("DXx", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("DXy", LAGRANGE, femOrder, 0, false);
@@ -86,9 +86,20 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol){
   if(dim == 3) mlSol.AddSolution("DZy", LAGRANGE, femOrder, 0, false);
   if(dim == 3) mlSol.AddSolution("DZz", LAGRANGE, femOrder, 0, false);
 
-  mlSol.AddSolution("Nx", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("Ny", LAGRANGE, femOrder, 0, false);
-  if(dim == 3) mlSol.AddSolution("Nz", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("mtype", LAGRANGE, femOrder, 0, false);
+
+  mlSol.AddSolution("NX", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("NY", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("NZ", LAGRANGE, femOrder, 0, false);
+
+
+
+  mlSol.AddSolution("weight", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("area", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("iel", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
+  mlSol.AddSolution("dist", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("kernel", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("d2max", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
 
 
   mlSol.Initialize("All");
@@ -96,11 +107,11 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol){
   //mlSol.Initialize("DY", InitVariableDY);
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-  
-  BuildD2Max(mlSol);
+
+  BuildInvariants(mlSol);
 }
 
-void BuildD2Max(MultiLevelSolution& mlSol) {
+void BuildInvariants(MultiLevelSolution& mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
 
@@ -119,10 +130,14 @@ void BuildD2Max(MultiLevelSolution& mlSol) {
   std::vector < unsigned> idof;
 
   unsigned d2maxIdx = mlSol.GetIndex("d2max");
+  unsigned mtypeIdx = mlSol.GetIndex("mtype");
 
   sol->_Sol[d2maxIdx]->zero();
+  sol->_Sol[mtypeIdx]->zero();
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned ielMat = msh->GetElementMaterial(iel);
 
     short unsigned ielt = msh->GetElementType(iel);
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
@@ -150,9 +165,29 @@ void BuildD2Max(MultiLevelSolution& mlSol) {
           sol->_Sol[d2maxIdx]->set(idof[i], d2max);
         }
       }
+      if(ielMat == 4) sol->_Sol[mtypeIdx]->set(idof[i], 2);
     }
   }
   sol->_Sol[d2maxIdx]->closeWithMaxValue();
+  sol->_Sol[mtypeIdx]->close();
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned ielMat = msh->GetElementMaterial(iel);
+    if(ielMat == 2) {
+
+      short unsigned ielt = msh->GetElementType(iel);
+      unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+
+      for(unsigned i = 0; i < nDofs; i++) {
+        unsigned idof = msh->GetSolutionDof(i, iel, solType);
+        if((*sol->_Sol[mtypeIdx])(idof) == 2) {
+          sol->_Sol[mtypeIdx]->set(idof, 1);
+        }
+      }
+    }
+  }
+  sol->_Sol[mtypeIdx]->close();
 }
 
 
@@ -290,7 +325,7 @@ void UpdateMeshQuantities(MultiLevelSolution& mlSol) {
 
 
   //END bulk markers
-  const char Nname[3][4] = {"Nx", "Ny", "Nz"};
+  const char Nname[3][4] = {"NX", "NY", "NZ"};
 
   std::vector < unsigned > NIdx(dim);
   for(unsigned k = 0; k < dim; k++) {
@@ -389,8 +424,8 @@ void UpdateMeshQuantities(MultiLevelSolution& mlSol) {
       }
     }
   }
-   
-  
+
+
 
   if(nprocs > 1) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
@@ -498,8 +533,8 @@ void UpdateMeshQuantities(MultiLevelSolution& mlSol) {
             }
           }
         }
-       }
-     }
+      }
+    }
   }
 
   sol->_Sol[areaIdx]->close();
