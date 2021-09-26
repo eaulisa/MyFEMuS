@@ -90,6 +90,8 @@ namespace femus {
 
       // ****************
       const std::string &status();
+      
+      void localize(std::vector<Type> &v_local) const ;
 
       // ******************
       Type& operator[](const unsigned &i);

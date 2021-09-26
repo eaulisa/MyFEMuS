@@ -6,25 +6,25 @@ class Projection {
       _mlSolM = mlSolM;
       _mlSolB = mlSolB;
     }
-
+    ~Projection(){};
+    
     void Init();
     void Allocate(const unsigned & dim, const unsigned & iproc, std::vector < unsigned > &pPntCnt);
 
-    void SetNewmarkParameters(const double &beta,const double &gamma,const double &DT){
+    void SetNewmarkParameters(const double &beta, const double &gamma, const double &DT) {
       _beta = beta;
       _gamma = gamma;
       _DT = DT;
     }
-    
+
     void FromMarkerToBackground();
     void FromBackgroundToMarker();
-    void FakeMovement();
   private:
 
     double _gamma;
     double _beta;
     double _DT;
-    
+
     unsigned _dim;
     unsigned _nprocs;
     unsigned _iproc;
@@ -43,6 +43,7 @@ class Projection {
     std::vector<std::vector<unsigned> > _ielm; // marker elements
     std::vector<std::vector<unsigned> > _mtypem; // marker mtype
 
+    std::vector < std::vector < std::vector <double > > > _xib; // background coordinates
     std::vector < std::vector < std::vector <double > > > _Xb; // background coordinates
     std::vector < std::vector < std::vector <double > > > _Vb; // background velocity
     std::vector < std::vector < std::vector <double > > > _Ab; // background acceleration
@@ -52,6 +53,13 @@ class Projection {
     std::vector<std::vector<double> > _weightb; // background weight
     std::vector<std::vector<unsigned> > _ielb; // background elements
     std::vector<std::vector<unsigned> > _mtypeb; // mbackground mtype
+
+
+    const char _Dname[3][3] = {"DX", "DY", "DZ"};
+    const char _Vname[3][3] = {"VX", "VY", "VZ"};
+    const char _Aname[3][3] = {"AX", "AY", "AZ"};
+    const char _Nname[3][3] = {"NX", "NY", "NZ"};
+    const char _gradDname[3][3][4] = {{"DXx", "DXy", "DXz"}, {"DYx", "DYy", "DYz"}, {"DZx", "DZy", "DZz"}};
 
 };
 
@@ -63,6 +71,7 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
   _nprocs = pPntCnt.size() - 1;
   _Xm.resize(_nprocs);
   _Xb.resize(_nprocs);
+  _xib.resize(_nprocs);
   _Vm.resize(_nprocs);
   _Vb.resize(_nprocs);
   _Am.resize(_nprocs);
@@ -86,6 +95,7 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     _Xm[kproc].resize(_dim);
     _Xb[kproc].resize(_dim);
+    _xib[kproc].resize(_dim);
     _Vm[kproc].resize(_dim);
     _Vb[kproc].resize(_dim);
     _Am[kproc].resize(_dim);
@@ -139,6 +149,7 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
     _mtypeb[kproc].resize(vsize[kproc]);
     for(unsigned k = 0; k < _dim; k++) {
       _Xb[kproc][k].resize(vsize[kproc]);
+      _xib[kproc][k].resize(vsize[kproc]);
       _Vb[kproc][k].resize(vsize[kproc]);
       _Ab[kproc][k].resize(vsize[kproc]);
       _Db[kproc][k].resize(vsize[kproc]);
@@ -167,20 +178,19 @@ void Projection::Init() {
   unsigned nprocs  = mshM->n_processors();
 
   const unsigned dim = mshM->GetDimension();
-  const char Dname[3][3] = {"DX", "DY", "DZ"};
 
   std::vector < unsigned > DIdx(dim);
   for(unsigned k = 0; k < dim; k++) {
-    DIdx[k] = _mlSolM->GetIndex(&Dname[k][0]);
+    DIdx[k] = _mlSolM->GetIndex(&_Dname[k][0]);
   }
 
   unsigned ielIdx = _mlSolM->GetIndex("iel");
 
-  unsigned solType = 2;
+  unsigned solTypeM = 2;
 
   std::vector <double> xm(dim);
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(unsigned k = mshM->_dofOffset[solType][kproc]; k < mshM->_dofOffset[solType][kproc + 1]; k++) {
+    for(unsigned k = mshM->_dofOffset[solTypeM][kproc]; k < mshM->_dofOffset[solTypeM][kproc + 1]; k++) {
 
       xm.assign(dim, 0.);
       if(iproc == kproc) {
@@ -190,7 +200,7 @@ void Projection::Init() {
       }
       MPI_Bcast(xm.data(), xm.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
 
-      Marker *gp = new Marker(xm, VOLUME, solB, solType);
+      Marker *gp = new Marker(xm, VOLUME, solB, solTypeM);
       unsigned kel = gp->GetMarkerElement();
 
       solM->_Sol[ielIdx]->set(k, kel);
@@ -202,12 +212,11 @@ void Projection::Init() {
 
   solM->_Sol[ielIdx]->close();
 
-  unsigned dof0 = mshM->_dofOffset[solType][iproc];
-  unsigned dof1 = mshM->_dofOffset[solType][iproc + 1];
+  unsigned dof0 = mshM->_dofOffset[solTypeM][iproc];
+  unsigned dof1 = mshM->_dofOffset[solTypeM][iproc + 1];
   unsigned size = dof1 - dof0; // number of markers iproc owns
 
   std::vector < unsigned > pPntCnt(nprocs + 1, 0); //process Marker counter
-  //std::vector<unsigned> &map = projection.GetMap();
   _map.resize(size);
 
   unsigned iel0 = UINT_MAX - 1;
@@ -236,16 +245,12 @@ void Projection::Init() {
 ////////////////////////////////////
 
 void Projection::FromMarkerToBackground() {
+    
+  this->Init(); // creates the mapping and allocate memory  
 
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
   Mesh     *mshM   = _mlSolM->_mlMesh->GetLevel(levelM);
-
-  const char Dname[3][3] = {"DX", "DY", "DZ"};
-  const char Vname[3][3] = {"VX", "VY", "VZ"};
-  const char Aname[3][3] = {"AX", "AY", "AZ"};
-  const char Nname[3][3] = {"NX", "NY", "NZ"};
-  const char gradDname[3][3][4] = {{"DXx", "DXy", "DXz"}, {"DYx", "DYy", "DYz"}, {"DZx", "DZy", "DZz"}};
 
   std::vector < unsigned > DIdx(_dim);
   std::vector < unsigned > VIdx(_dim);
@@ -254,12 +259,12 @@ void Projection::FromMarkerToBackground() {
   std::vector < std::vector < unsigned > > gradDIdx(_dim);
   for(unsigned k = 0; k < _dim; k++) {
     gradDIdx[k].resize(_dim);
-    DIdx[k] = _mlSolM->GetIndex(&Dname[k][0]);
-    VIdx[k] = _mlSolM->GetIndex(&Vname[k][0]);
-    AIdx[k] = _mlSolM->GetIndex(&Aname[k][0]);
-    NIdx[k] = _mlSolM->GetIndex(&Nname[k][0]);
+    DIdx[k] = _mlSolM->GetIndex(&_Dname[k][0]);
+    VIdx[k] = _mlSolM->GetIndex(&_Vname[k][0]);
+    AIdx[k] = _mlSolM->GetIndex(&_Aname[k][0]);
+    NIdx[k] = _mlSolM->GetIndex(&_Nname[k][0]);
     for(unsigned l = 0; l < _dim; l++) {
-      gradDIdx[k][l] = _mlSolM->GetIndex(&gradDname[k][l][0]);
+      gradDIdx[k][l] = _mlSolM->GetIndex(&_gradDname[k][l][0]);
     }
   }
 
@@ -267,10 +272,10 @@ void Projection::FromMarkerToBackground() {
   unsigned ielIdx = _mlSolM->GetIndex("iel");
   unsigned mtypeIdx = _mlSolM->GetIndex("mtype");
 
-  unsigned solType = 2;
+  unsigned solTypeM = 2;
 
-  unsigned offset0 = mshM->_dofOffset[solType][_iproc];
-  unsigned offset1 = mshM->_dofOffset[solType][_iproc + 1];
+  unsigned offset0 = mshM->_dofOffset[solTypeM][_iproc];
+  unsigned offset1 = mshM->_dofOffset[solTypeM][_iproc + 1];
   unsigned size = offset1 - offset0;
 
   unsigned jproc = 0; // process on the background grid to which the i marker belongs
@@ -366,57 +371,139 @@ void Projection::FromMarkerToBackground() {
     }
   }
 
+  //Flag the elements on the background grid and the get inverse mapping of the particles immersed in the background mesh
+  unsigned levelB = _mlSolB->_mlMesh->GetNumberOfLevels() - 1;
+  Solution *solB  = _mlSolB->GetSolutionLevel(levelB);
+  Mesh     *mshB  = _mlSolB->_mlMesh->GetLevel(levelB);
+  unsigned eflagIdx = _mlSolB->GetIndex("eflag");
+  unsigned nflagIdx = _mlSolB->GetIndex("nflag");
+  unsigned nodeType = _mlSolB->GetSolutionType(nflagIdx);
+
+  solB->_Sol[eflagIdx]->zero();
+  solB->_Sol[nflagIdx]->zero();
+
+  std::vector < std::vector < std::vector <double > > > aP(3);
+  std::vector<std::vector<double>> vx(_dim);
+  std::vector <double> x(_dim);
+  std::vector <double> xi(_dim);
+  std::vector < unsigned > im(_nprocs, 0);
+  for(int iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
+    bool ielIsInitialized = false;
+    short unsigned ielType = mshB->GetElementType(iel);
+
+    for(unsigned kp = 0; kp < _nprocs; kp++) {
+      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
+        if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
+          solB->_Sol[eflagIdx]->set(iel, 1);
+          unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+          for(unsigned i = 0; i < nDofu; i++) {
+            unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+            solB->_Sol[nflagIdx]->set(idof, 1);
+          }
+        }
+        else if(_mtypeb[kp][im[kp]] == 2 && (*solB->_Sol[eflagIdx])(iel) == 0) {
+          solB->_Sol[eflagIdx]->set(iel, 2);
+        }
+
+        if(!ielIsInitialized) {
+          ielIsInitialized = true;
+          unsigned nDofs = mshB->GetElementDofNumber(iel, nodeType);
+          for(unsigned k = 0; k < _dim; k++) {
+            vx[k].resize(nDofs);
+            for(unsigned i = 0; i < nDofs; i++) {
+              unsigned idofX = mshB->GetSolutionDof(i, iel, 2);
+              vx[k][i] = (*mshB->_topology->_Sol[k])(idofX);
+            }
+          }
+          for(unsigned jtype = 0; jtype <= nodeType; jtype++) {
+            ProjectNodalToPolynomialCoefficients(aP[jtype], vx, ielType, jtype) ;
+          }
+        }
+
+
+        for(unsigned k = 0; k < _dim; k++) {
+          x[k] = _Xb[kp][k][im[kp]];
+        }
+
+        GetClosestPointInReferenceElement(vx, x, ielType, xi);
+        bool inverseMapping = GetInverseMapping(nodeType, ielType, aP, x, xi, 100);
+        if(!inverseMapping) {
+          std::cout << "InverseMapping failed at " << iel << " " << im[kp] << std::endl;
+        }
+        for(unsigned k = 0; k < _dim; k++) {
+          _xib[kp][k][im[kp]] = xi[k];
+        }
+        im[kp]++;
+      }
+    }
+  }
+  solB->_Sol[eflagIdx]->close();
+  solB->_Sol[nflagIdx]->close();
 }
 
 void Projection::FromBackgroundToMarker() {
 
-  unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
-  Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
-  Mesh     *mshM   = _mlSolM->_mlMesh->GetLevel(levelM);
+  unsigned levelB = _mlSolB->_mlMesh->GetNumberOfLevels() - 1;
+  Solution *solB  = _mlSolB->GetSolutionLevel(levelB);
+  Mesh     *mshB  = _mlSolB->_mlMesh->GetLevel(levelB);
 
   const char Dname[3][3] = {"DX", "DY", "DZ"};
   const char Vname[3][3] = {"VX", "VY", "VZ"};
   const char Aname[3][3] = {"AX", "AY", "AZ"};
 
-  std::vector < unsigned > DIdx(_dim);
-  std::vector < unsigned > VIdx(_dim);
-  std::vector < unsigned > AIdx(_dim);
+  std::vector < unsigned > DIdxB(_dim);
   for(unsigned k = 0; k < _dim; k++) {
-    DIdx[k] = _mlSolM->GetIndex(&Dname[k][0]);
-    VIdx[k] = _mlSolM->GetIndex(&Vname[k][0]);
-    AIdx[k] = _mlSolM->GetIndex(&Aname[k][0]);
+    DIdxB[k] = _mlSolM->GetIndex(&Dname[k][0]);
   }
-//
-//   unsigned ielIdx = _mlSolM->GetIndex("iel");
-//
-  unsigned solType = 2;
-//
-//   unsigned offset0 = mshM->_dofOffset[solType][_iproc];
-//   unsigned offset1 = mshM->_dofOffset[solType][_iproc + 1];
-//   unsigned size = offset1 - offset0;
-//
-//   unsigned jproc = 0; // process on the background grid to which the i marker belongs
-//   unsigned nj = _ielm[0].size(); //offset on the send vectors
-//
-//   for(unsigned i = 0; i < size; i++) { // local marker loop
-//     unsigned mapi = offset0 + _map[i]; //global vector mapped index
-//
-//     unsigned j;
-//     for(unsigned kproc = jproc; kproc < _nprocs; kproc++) {
-//       if(i < nj)  {
-//         jproc = kproc;
-//         j = (i + _ielm[kproc].size()) - nj ;
-//         break;
-//       }
-//       else {
-//         nj += _ielm[kproc + 1].size();
-//       }
-//     }
-//     _ielm[jproc][j] = (*solM->_Sol[ielIdx])(mapi);
-//     for(unsigned k = 0; k < _dim; k++) {
-//       _Xm[jproc][k][j] = (*mshM->_topology->_Sol[k])(mapi) + (*solM->_Sol[DIdx[k]])(mapi);
-//     }
-//   }
+
+  unsigned solTypeB = _mlSolB->GetSolutionType(DIdxB[0]);
+
+  std::vector<std::vector<double>> vx(_dim);
+  std::vector<std::vector<double>> D(_dim);
+  std::vector<double> phi;
+
+  std::vector < unsigned > im(_nprocs, 0);
+  std::vector<double> xi(_dim);
+  for(int iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
+    bool ielIsInitialized = false;
+    short unsigned ielType = mshB->GetElementType(iel);
+    unsigned nDofs;
+    for(unsigned kp = 0; kp < _nprocs; kp++) {
+      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
+        if(!ielIsInitialized) {
+          ielIsInitialized = true;
+          nDofs = mshB->GetElementDofNumber(iel, solTypeB);
+          for(unsigned k = 0; k < _dim; k++) {
+            vx[k].resize(nDofs);
+            D[k].resize(nDofs);
+            for(unsigned i = 0; i < nDofs; i++) {
+              unsigned idofX = mshB->GetSolutionDof(i, iel, 2);
+              vx[k][i] = (*mshB->_topology->_Sol[k])(idofX);
+              unsigned idof = mshB->GetSolutionDof(i, iel, solTypeB);
+              D[k][i] = (*solB->_Sol[DIdxB[k]])(idof);
+            }
+          }
+        }
+        for(unsigned k = 0; k < _dim; k++) {
+          xi[k] = _xib[kp][k][im[kp]];
+        }
+        mshB->_finiteElement[ielType][solTypeB]->GetPhi(phi, xi);
+
+        for(unsigned k = 0; k < _dim; k++) {
+          _Db[kp][k][im[kp]] = 0.;
+          for(unsigned i = 0; i < nDofs; i++) {
+            _Db[kp][k][im[kp]] += phi[i] * D[k][i];
+          }
+        }
+
+        im[kp]++;
+      }
+    }
+  }
+
+
+
+  unsigned solTypeM = 2;
 
   std::vector<std::vector < MPI_Request >> reqsSend(_nprocs) ;
   std::vector<std::vector < MPI_Request >> reqsRecv(_nprocs) ;
@@ -444,59 +531,53 @@ void Projection::FromBackgroundToMarker() {
     }
   }
 
+  unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
+  Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
+  Mesh     *mshM   = _mlSolM->_mlMesh->GetLevel(levelM);
 
-  unsigned offset0 = mshM->_dofOffset[solType][_iproc];
+  std::vector < unsigned > DIdxM(_dim);
+  std::vector < unsigned > VIdxM(_dim);
+  std::vector < unsigned > AIdxM(_dim);
+  for(unsigned k = 0; k < _dim; k++) {
+    DIdxM[k] = _mlSolM->GetIndex(&Dname[k][0]);
+    VIdxM[k] = _mlSolM->GetIndex(&Vname[k][0]);
+    AIdxM[k] = _mlSolM->GetIndex(&Aname[k][0]);
+  }
+
+  unsigned offset0 = mshM->_dofOffset[solTypeM][_iproc];
   unsigned i = 0;
   for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
     for(unsigned j = 0; j < _Dm[jproc][0].size(); j++) {
       unsigned mapi = offset0 + _map[i];
       for(unsigned k = 0; k < _dim; k++) {
 
-        double D = _Dm[jproc][k][j];
-        double Xold = (*solM->_Sol[DIdx[k]])(mapi);
-        double Vold = (*solM->_Sol[VIdx[k]])(mapi);
-        double Aold = (*solM->_Sol[AIdx[k]])(mapi);
+        double Xold = (*solM->_Sol[DIdxM[k]])(mapi);
+        double Vold = (*solM->_Sol[VIdxM[k]])(mapi);
+        double Aold = (*solM->_Sol[AIdxM[k]])(mapi);
 
-        double Xnew = Xold + D;
-        double Anew = D / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
+        double Dnew = _Dm[jproc][k][j];
+
+        double Xnew = Xold + Dnew;
+        double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
         double Vnew = Vold + (Aold * (1. - _gamma) + Anew * _gamma) * _DT;
-        
-        //std::cout<<Vnew <<" ";
 
-        solM->_Sol[DIdx[k]]->set(mapi, Xnew);
-        solM->_Sol[VIdx[k]]->set(mapi, Vnew);
-        solM->_Sol[AIdx[k]]->set(mapi, Anew);
+        if(i == 0 && k == 1) std::cout << Dnew << " " << Vnew << " " << Anew << " ";
+
+        solM->_Sol[DIdxM[k]]->set(mapi, Xnew);
+        solM->_Sol[VIdxM[k]]->set(mapi, Vnew);
+        solM->_Sol[AIdxM[k]]->set(mapi, Anew);
 
       }
       i++;
     }
   }
   for(unsigned k = 0; k < _dim; k++) {
-    solM->_Sol[DIdx[k]]->close();
-    solM->_Sol[VIdx[k]]->close();
-    solM->_Sol[AIdx[k]]->close();
+    solM->_Sol[DIdxM[k]]->close();
+    solM->_Sol[VIdxM[k]]->close();
+    solM->_Sol[AIdxM[k]]->close();
   }
+  
+  UpdateMeshQuantities(_mlSolM);
+  
 }
 
-
-void Projection::FakeMovement() {
-
-  for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
-    for(unsigned j = 0; j < _Db[jproc][0].size(); j++) {
-
-      double x = _Xb[jproc][0][j];
-      _Db[jproc][0][j] = 0.1 * ((1. - x / 5.) * x / 5 * 0.5 + x / 5 * x / 5. * (-0.5));
-
-
-      _Db[jproc][1][j] = -0.1;
-    }
-  }
-
-
-
-
-
-
-
-
-}

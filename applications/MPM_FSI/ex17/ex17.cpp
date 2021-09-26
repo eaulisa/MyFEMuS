@@ -34,7 +34,7 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSolM(&mlMshM);
   InitializeMarkerVariables(mlSolM);
 
-  UpdateMeshQuantities(mlSolM);
+  UpdateMeshQuantities(&mlSolM);
 
   MultiLevelMesh mlMshB;
   mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
@@ -54,7 +54,7 @@ int main(int argc, char** args) {
   mov_vars.push_back("DY");
   if(dim == 3) mov_vars.push_back("DZ");
   mlSolM.GetWriter()->SetMovingMesh(mov_vars);
-  mlSolB.GetWriter()->SetMovingMesh(mov_vars);
+  //mlSolB.GetWriter()->SetMovingMesh(mov_vars);
   mlSolM.GetWriter()->SetDebugOutput(false);
   mlSolB.GetWriter()->SetDebugOutput(false);
   std::vector<std::string> print_vars;
@@ -64,17 +64,15 @@ int main(int argc, char** args) {
   mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
 
   Projection projection(&mlSolM, &mlSolB);
-  projection.SetNewmarkParameters(1./6., 1./2., 1.);
-  for(unsigned t = 1; t <= 10; t++) {
+  //projection.SetNewmarkParameters(.4, .6, 1.);
+  projection.SetNewmarkParameters(.25, .5, 1.);
+  for(unsigned t = 1; t <= 20; t++) {
     clock_t time = clock();
-    projection.Init(); // creates the mapping and allocate memory
     projection.FromMarkerToBackground();
-    projection.FakeMovement();
+        
+    
     projection.FromBackgroundToMarker();
     std::cout << "time" << t << " = "<< static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
-    
-    UpdateMeshQuantities(mlSolM);
-
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
   }
