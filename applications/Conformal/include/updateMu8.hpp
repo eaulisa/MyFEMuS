@@ -389,7 +389,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     }
   }
 
-  if(counter > 1) {
+  if(counter > 0) {
     //start line search algorithm
     unsigned DIM = (parameter.surface) ? 3 : 2;
     std::vector < unsigned > indexDx(DIM);
@@ -627,6 +627,16 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     }
 
     std::cout << energyBefore << " " << energyAfter << " " << energyT << std::endl;
+    
+    std::fstream fout;
+    if(counter == 2) 
+      fout.open("Energy.txt", std::fstream::out);
+    else
+      fout.open("Energy.txt", std::fstream::app);
+    
+    fout<<counter<<" "<<energyBefore<<" "<<energyT<<std::endl;
+    fout.close();
+    
   }
 }
 

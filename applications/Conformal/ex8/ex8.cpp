@@ -73,6 +73,7 @@ const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.60261
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
 const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 50, 0.793786); //normal constraint
+const Parameter doubleTorus = Parameter("double torus", 11, true, true, 2, 2, true, 500, 1, 0.793786); //normal constraint
 // Main program starts here.
 int main(int argc, char** args) {
 
@@ -117,6 +118,9 @@ int main(int argc, char** args) {
     }
     else if(!strcmp("10", args[1])) { // moai
       parameter = torusConstrained;
+    }
+    else if(!strcmp("11", args[1])) { // moai
+      parameter = doubleTorus;
     }
     else {
       goto generic;
@@ -173,6 +177,9 @@ int main(int argc, char** args) {
   }
   else if(parameter.simulation == 10) {
     mlMsh.ReadCoarseMesh("../input/torus.neu", "seventh", scalingFactor);
+  }
+  else if(parameter.simulation == 11) {
+    mlMsh.ReadCoarseMesh("../input/double_torus.neu", "seventh", scalingFactor);
   }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
@@ -251,6 +258,9 @@ int main(int argc, char** args) {
   else if(parameter.simulation < 11) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionTorus);
   }
+  else if(parameter.simulation < 12) {
+    mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
+  }
   else { // generic pick your boundary
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionSquare);
   }
@@ -310,6 +320,7 @@ int main(int argc, char** args) {
   systemMu.init();
 
 
+  EvaluateMu(mlSol);
   counter = 0;
 
   mlSol.SetWriter(VTK);
