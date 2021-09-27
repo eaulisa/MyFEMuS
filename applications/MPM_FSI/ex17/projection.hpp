@@ -391,8 +391,8 @@ void Projection::FromMarkerToBackground() {
     bool ielIsInitialized = false;
     short unsigned ielType = mshB->GetElementType(iel);
 
-    for(unsigned kp = 0; kp < _nprocs; kp++) {
-      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
+    for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
+      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) { 
         if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
           solB->_Sol[eflagIdx]->set(iel, 1);
           unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
