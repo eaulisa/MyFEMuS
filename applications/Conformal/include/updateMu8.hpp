@@ -629,7 +629,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     std::cout << energyBefore << " " << energyAfter << " " << energyT << std::endl;
     
     std::fstream fout;
-    if(counter == 2) 
+    if(counter == 1) 
       fout.open("Energy.txt", std::fstream::out);
     else
       fout.open("Energy.txt", std::fstream::app);

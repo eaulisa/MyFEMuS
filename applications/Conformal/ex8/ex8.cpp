@@ -24,13 +24,13 @@ unsigned conformalType = 2;
 
 using namespace femus;
 
-#include "../include/parameter.hpp"
+#include "./include/parameter.hpp"
 
 Parameter parameter;
 
-#include "../include/supportFunctions.hpp"
-#include "../include/updateMu8.hpp"
-#include "../include/assembleConformalMinimization9.hpp"
+#include "./include/supportFunctions.hpp"
+#include "./include/updateMu.hpp"
+#include "./include/assembleConformalMinimization.hpp"
 
 void ParametrizeIntersection(const double &phi);
 
@@ -58,7 +58,7 @@ const Parameter squareTri = Parameter("square with triangles", 1, false, false, 
 //const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 12, false, 30, 1, 0.910958);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
-const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 2, true, 200, 1, 0.793786); //normal constraint
+const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 5, 2, true, 200, 1, 0.793786); //normal constraint
 const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
@@ -73,7 +73,7 @@ const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.60261
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
 const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 50, 0.793786); //normal constraint
-const Parameter doubleTorus = Parameter("double torus", 11, true, true, 2, 2, true, 500, 1, 0.793786); //normal constraint
+const Parameter doubleTorus = Parameter("double torus", 11, true, true, 2, 2, true, 500, 1, 0.464815); //normal constraint
 // Main program starts here.
 int main(int argc, char** args) {
 
@@ -306,19 +306,6 @@ int main(int argc, char** args) {
   system.SetTime(0.);
   system.SetMaxNumberOfNonLinearIterations(parameter.numberOfNonLinearSteps);
   system.init();
-
-
-  // Add system Conformal or Shear Minimization in mlProb.
-  LinearImplicitSystem& systemMu = mlProb.add_system < LinearImplicitSystem > ("mu"); //for conformal
-
-  // Add solutions newDX, Lambda to system.
-  systemMu.AddSolutionToSystemPDE("mu1");
-  systemMu.AddSolutionToSystemPDE("mu2");
-  systemMu.AddSolutionToSystemPDE("lmu1");
-  systemMu.AddSolutionToSystemPDE("lmu2");
-  systemMu.SetAssembleFunction(AssembleResMu);
-  systemMu.init();
-
 
   EvaluateMu(mlSol);
   counter = 0;
