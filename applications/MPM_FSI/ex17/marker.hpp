@@ -247,6 +247,8 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielt = msh->GetElementType(iel);
+    unsigned ielMat = msh->GetElementMaterial(iel);
+
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
     for(unsigned  k = 0; k < dim; k++) {
       vx[k].resize(nDofs);
@@ -270,29 +272,29 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
       ielArea += jac;
 
-      std::vector< std::vector< double > > gradSolDg(dim);
-      std::vector< double > xg(dim, 0.);
-
-      for(unsigned  k = 0; k < dim; k++) { //solution
-        gradSolDg[k].assign(dim, 0.);
-        for(unsigned i = 0; i < nDofs; i++) { //node
-          xg[k] += vx[k][i] * phi[i];
-          for(unsigned j = 0; j < dim; j++) { // derivative
-            gradSolDg[k][j] += solD[k][i] * gradPhi[dim * i + j];
+      if(ielMat == 4) {
+        std::vector< std::vector< double > > gradSolDg(dim);
+        std::vector< double > xg(dim, 0.);
+        for(unsigned  k = 0; k < dim; k++) { //solution
+          gradSolDg[k].assign(dim, 0.);
+          for(unsigned i = 0; i < nDofs; i++) { //node
+            xg[k] += vx[k][i] * phi[i];
+            for(unsigned j = 0; j < dim; j++) { // derivative
+              gradSolDg[k][j] += solD[k][i] * gradPhi[dim * i + j];
+            }
           }
         }
-      }
+        for(unsigned i = 0; i < nDofs; i++) { //node
+          double d2 = 0.;
+          for(unsigned  k = 0; k < dim; k++) { //solution
+            d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
+          }
 
-      for(unsigned i = 0; i < nDofs; i++) { //node
-        double d2 = 0.;
-        for(unsigned  k = 0; k < dim; k++) { //solution
-          d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
-        }
-
-        sol->_Sol[kernelIdx]->add(idof[i], jac * (d2max[i] - d2) * (d2max[i] - d2));
-        for(unsigned  k = 0; k < dim; k++) {
-          for(unsigned j = 0; j < dim; j++) {
-            sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * (d2max[i] - d2) * (d2max[i] - d2));
+          sol->_Sol[kernelIdx]->add(idof[i], jac * (d2max[i] - d2) * (d2max[i] - d2));
+          for(unsigned  k = 0; k < dim; k++) {
+            for(unsigned j = 0; j < dim; j++) {
+              sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * (d2max[i] - d2) * (d2max[i] - d2));
+            }
           }
         }
       }
@@ -312,10 +314,12 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
 
   for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     double kernel = (*sol->_Sol[kernelIdx])(i);
-    for(unsigned k = 0; k < dim; k++) {
-      for(unsigned j = 0; j < dim; j++) {
-        double value = (*sol->_Sol[gradDIdx[k][j]])(i);
-        sol->_Sol[gradDIdx[k][j]]->set(i, value / kernel);
+    if(kernel > 0) {
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < dim; j++) {
+          double value = (*sol->_Sol[gradDIdx[k][j]])(i);
+          sol->_Sol[gradDIdx[k][j]]->set(i, value / kernel);
+        }
       }
     }
   }

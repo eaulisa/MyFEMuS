@@ -5,9 +5,15 @@ class Projection {
     Projection(MultiLevelSolution *mlSolM, MultiLevelSolution *mlSolB) {
       _mlSolM = mlSolM;
       _mlSolB = mlSolB;
+      unsigned levelB = _mlSolB->_mlMesh->GetNumberOfLevels() - 1;
+      Mesh *mshB   = _mlSolB->_mlMesh->GetLevel(levelB);
+      _iproc  = mshB->processor_id();
+      _nprocs = mshB->n_processors();
+      _ielb.resize(_nprocs);
+      for(unsigned kp = 0; kp < _nprocs; kp++) _ielb[kp].resize(0);
     }
-    ~Projection(){};
-    
+    ~Projection() {};
+
     void Init();
     void Allocate(const unsigned & dim, const unsigned & iproc, std::vector < unsigned > &pPntCnt);
 
@@ -245,8 +251,8 @@ void Projection::Init() {
 ////////////////////////////////////
 
 void Projection::FromMarkerToBackground() {
-    
-  this->Init(); // creates the mapping and allocate memory  
+
+  this->Init(); // creates the mapping and allocate memory
 
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
@@ -392,7 +398,7 @@ void Projection::FromMarkerToBackground() {
     short unsigned ielType = mshB->GetElementType(iel);
 
     for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
-      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) { 
+      while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
         if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
           solB->_Sol[eflagIdx]->set(iel, 1);
           unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
@@ -561,7 +567,7 @@ void Projection::FromBackgroundToMarker() {
         double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
         double Vnew = Vold + (Aold * (1. - _gamma) + Anew * _gamma) * _DT;
 
-        if(i == 0 && k == 1) std::cout << Dnew << " " << Vnew << " " << Anew << " ";
+        //if(i == 0 && k == 1) std::cout << Dnew << " " << Vnew << " " << Anew << " ";
 
         solM->_Sol[DIdxM[k]]->set(mapi, Xnew);
         solM->_Sol[VIdxM[k]]->set(mapi, Vnew);
@@ -576,8 +582,8 @@ void Projection::FromBackgroundToMarker() {
     solM->_Sol[VIdxM[k]]->close();
     solM->_Sol[AIdxM[k]]->close();
   }
-  
+
   UpdateMeshQuantities(_mlSolM);
-  
+
 }
 
