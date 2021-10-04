@@ -69,11 +69,11 @@ const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086
 //const Parameter cat = Parameter("cat", 5, true, true, 1, 25, false, 3, 1, 0.986754); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, true, 1, 12, false, 10, 1, 0.580335);
 //const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
-const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 10, 1, 0.602613);
+const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 50, 1, 0.602613);
 const Parameter moai = Parameter("moai", 8, true, true, 1, 20, true, 20, 1, 0.888489);
 const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
 const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 50, 0.793786); //normal constraint
-const Parameter doubleTorus = Parameter("double torus", 11, true, true, 2, 2, true, 500, 1, 0.464815); //normal constraint
+const Parameter doubleTorus = Parameter("double torus", 11, true, true, 2, 1, true, 500, 1, 0.464815); //normal constraint
 // Main program starts here.
 int main(int argc, char** args) {
 
@@ -147,8 +147,8 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
   if(parameter.simulation == 0) {
-    mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
-    //mlMsh.ReadCoarseMesh("../input/squareReg.neu", "seventh", scalingFactor);
+    //mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
+    mlMsh.ReadCoarseMesh("../input/squareReg.neu", "seventh", scalingFactor);
     //mlMsh.ReadCoarseMesh("../input/square1.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 1) {
