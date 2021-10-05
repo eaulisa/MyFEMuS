@@ -6,7 +6,7 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
 
   unsigned dim = mlSol._mlMesh->GetDimension();
 
-  FEOrder femOrder = SECOND;
+  FEOrder femOrder = FIRST;
 
   //add variables to mlSol
   mlSol.AddSolution("DX", LAGRANGE, femOrder, 2);
@@ -393,7 +393,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         tauMtrG *= tauM;
         adept::adouble tauC = 1. / tauMtrG;
 
-        tauM = 0.; tauC = 0.;
+        //tauM = 0.; tauC = 0.;
 
         //end SUPG parameters
         std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
