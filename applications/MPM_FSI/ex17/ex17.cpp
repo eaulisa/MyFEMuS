@@ -13,7 +13,7 @@
 
 #include "PetscMatrix.hpp"
 
-bool weakP = false;
+bool weakP = true;
 double theta = 1.;
 double af = 1. - theta;
 double am = af;
@@ -136,7 +136,7 @@ int main(int argc, char** args) {
   print_vars.push_back("All");
 
   mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
+  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   Projection projection(&mlSolM, &mlSolB);
  
@@ -221,9 +221,9 @@ bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], do
   }
 
   else if(!strcmp(name, "P")) {
-    if(weakP || 2 != facename) {
+    //if(weakP || 2 != facename) {
       test = 0;
-    }
+    //}
   }
 
   return test;
