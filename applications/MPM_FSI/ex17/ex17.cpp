@@ -19,12 +19,18 @@ double af = 1. - theta;
 double am = af;
 double Beta = 0.25 + 0.5 * (af - am);
 double Gamma = 0.5 + (af - am);
+bool NeoHookean = true;
+double gravity[3] ={0., 0., 0.};
+double GAMMA = 45.;
+
 
 using namespace femus;
 
 #include "marker.hpp"
-#include "background.hpp"
 #include "projection.hpp"
+Projection *projection;
+
+#include "background.hpp"
 
 int main(int argc, char** args) {
 
@@ -138,10 +144,12 @@ int main(int argc, char** args) {
   mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
   mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
-  Projection projection(&mlSolM, &mlSolB);
- 
+  projection = new Projection(&mlSolM, &mlSolB);
+  
+  
+  
   for(unsigned t = 1; t <= 20; t++) {
-    projection.SetNewmarkParameters(Beta, Gamma, 1.);  
+    projection->SetNewmarkParameters(Beta, Gamma, 1.);  
     clock_t time = clock();
     //projection.FromMarkerToBackground();
 
@@ -153,6 +161,8 @@ int main(int argc, char** args) {
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
   }
 
+  
+  delete projection;
   return 0;
 
 } //end main

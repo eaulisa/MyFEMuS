@@ -216,6 +216,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
 
   std::vector < unsigned> idof;
   std::vector < double > d2max;
+  std::vector < unsigned > mtype;
 
   // solution and coordinate variables
   const char Dname[3][3] = {"DX", "DY", "DZ"};
@@ -233,6 +234,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
   unsigned weightIdx = mlSol->GetIndex("weight");
   unsigned kernelIdx = mlSol->GetIndex("kernel");
   unsigned d2maxIdx = mlSol->GetIndex("d2max");
+  unsigned mtypeIdx = mlSol->GetIndex("mtype");
 
   //return;
 
@@ -256,9 +258,11 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
     }
     idof.resize(nDofs);
     d2max.resize(nDofs);
+    mtype.resize(nDofs);
 
     for(unsigned i = 0; i < nDofs; i++) {
       idof[i] = msh->GetSolutionDof(i, iel, solType);
+      mtype[i] = (*sol->_Sol[mtypeIdx])(idof[i]);
       d2max[i] = (*sol->_Sol[d2maxIdx])(idof[i]);
       for(unsigned  k = 0; k < dim; k++) {
         solD[k][i] = (*sol->_Sol[DIdx[k]])(idof[i]);
@@ -272,19 +276,21 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
       ielArea += jac;
 
-      if(ielMat == 4) {
-        std::vector< std::vector< double > > gradSolDg(dim);
-        std::vector< double > xg(dim, 0.);
-        for(unsigned  k = 0; k < dim; k++) { //solution
-          gradSolDg[k].assign(dim, 0.);
-          for(unsigned i = 0; i < nDofs; i++) { //node
-            xg[k] += vx[k][i] * phi[i];
-            for(unsigned j = 0; j < dim; j++) { // derivative
-              gradSolDg[k][j] += solD[k][i] * gradPhi[dim * i + j];
-            }
+
+      std::vector< std::vector< double > > gradSolDg(dim);
+      std::vector< double > xg(dim, 0.);
+      for(unsigned  k = 0; k < dim; k++) { //solution
+        gradSolDg[k].assign(dim, 0.);
+        for(unsigned i = 0; i < nDofs; i++) { //node
+          xg[k] += vx[k][i] * phi[i];
+          for(unsigned j = 0; j < dim; j++) { // derivative
+            gradSolDg[k][j] += solD[k][i] * gradPhi[dim * i + j];
           }
         }
-        for(unsigned i = 0; i < nDofs; i++) { //node
+      }
+      for(unsigned i = 0; i < nDofs; i++) { //node
+
+        if(ielMat == 4 || mtype[i] == 0) {
           double d2 = 0.;
           for(unsigned  k = 0; k < dim; k++) { //solution
             d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
@@ -298,6 +304,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
           }
         }
       }
+
 
     }
     for(unsigned i = 0; i < nDofs; i++) {

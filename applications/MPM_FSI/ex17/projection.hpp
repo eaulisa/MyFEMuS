@@ -1,4 +1,4 @@
-
+#include "Marker.hpp"
 
 class Projection {
   public:
@@ -25,6 +25,38 @@ class Projection {
 
     void FromMarkerToBackground();
     void FromBackgroundToMarker();
+
+    const std::vector<std::vector<unsigned> > & GetIelb() {
+      return _ielb;
+    }
+    const std::vector < std::vector < std::vector <double > > > & GetXib() {
+      return _xib;
+    }
+    const std::vector<std::vector<unsigned> > & GetMtypeb() {
+      return _mtypeb;
+    }
+    const std::vector<std::vector<double> > & GetWeightb() {
+      return _weightb;
+    }
+    const std::vector < std::vector < std::vector <double > > > & GetXb() {
+      return _Xb;
+    } 
+    const std::vector < std::vector < std::vector <double > > > & GetVb() {
+      return _Vb;
+    } 
+    const std::vector < std::vector < std::vector <double > > > & GetAb() {
+      return _Ab;
+    } 
+    const std::vector < std::vector<std::vector<double> > > & GetDb() {
+      return _Db;
+    } 
+    const std::vector < std::vector<std::vector<double> > > & GetNb() {
+      return _Nb;
+    } 
+    const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradDb() {
+      return _gradDb;
+    } 
+
   private:
 
     double _gamma;
