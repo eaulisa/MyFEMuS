@@ -26,34 +26,34 @@ class Projection {
     void FromMarkerToBackground();
     void FromBackgroundToMarker();
 
-    const std::vector<std::vector<unsigned> > & GetIelb() {
+    const std::vector<std::vector<unsigned> > & GetIel() {
       return _ielb;
     }
-    const std::vector < std::vector < std::vector <double > > > & GetXib() {
+    const std::vector < std::vector < std::vector <double > > > & GetXi() {
       return _xib;
     }
-    const std::vector<std::vector<unsigned> > & GetMtypeb() {
+    const std::vector<std::vector<unsigned> > & GetMtype() {
       return _mtypeb;
     }
-    const std::vector<std::vector<double> > & GetWeightb() {
+    const std::vector<std::vector<double> > & GetWeight() {
       return _weightb;
     }
-    const std::vector < std::vector < std::vector <double > > > & GetXb() {
+    const std::vector < std::vector < std::vector <double > > > & GetX() {
       return _Xb;
     } 
-    const std::vector < std::vector < std::vector <double > > > & GetVb() {
+    const std::vector < std::vector < std::vector <double > > > & GetV() {
       return _Vb;
     } 
-    const std::vector < std::vector < std::vector <double > > > & GetAb() {
+    const std::vector < std::vector < std::vector <double > > > & GetA() {
       return _Ab;
     } 
-    const std::vector < std::vector<std::vector<double> > > & GetDb() {
+    const std::vector < std::vector<std::vector<double> > > & GetD() {
       return _Db;
     } 
-    const std::vector < std::vector<std::vector<double> > > & GetNb() {
+    const std::vector < std::vector<std::vector<double> > > & GetN() {
       return _Nb;
     } 
-    const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradDb() {
+    const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradD() {
       return _gradDb;
     } 
 

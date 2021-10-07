@@ -68,11 +68,11 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   unsigned iproc  = msh->processor_id();
   unsigned nprocs  = msh->n_processors();
 
-  vector< vector< adept::adouble > > solDb(dim);   // local background solution (displacement)
-  vector< adept::adouble > solP;
+  vector< vector< adept::adouble > > solD(dim);   // background displacement at n+1
+  vector< adept::adouble > solP; // fluid pressure at theta
 
-  vector< vector< double > > solVOld(dim);
-  vector< vector< adept::adouble > > solVNew(dim);      // local solution (velocity)
+  vector< vector< double > > solVOld(dim); // fluid velocity at n
+  vector< vector< adept::adouble > > solVNew(dim); // fluid velocity at n+1
 
 
   vector< double > rhs;    // local redidual vector
@@ -152,16 +152,14 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   start_time = clock();
 
-  const std::vector<std::vector<unsigned> > & ielb = projection->GetIelb();
-  const std::vector < std::vector < std::vector <double > > > & xib = projection->GetXib();
-  const std::vector<std::vector<unsigned> > & mtypeb = projection->GetMtypeb();
-  const std::vector<std::vector<double> > & weightb = projection->GetWeightb();
-  const std::vector < std::vector < std::vector <double > > > & Xb = projection->GetXb();
-  const std::vector < std::vector < std::vector <double > > > & Vb = projection->GetVb();
-  const std::vector < std::vector < std::vector <double > > > & Ab = projection->GetAb();
-  const std::vector < std::vector<std::vector<double> > > & Db = projection->GetDb();
-  const std::vector < std::vector<std::vector<double> > > & Nb = projection->GetNb();
-  const std::vector < std::vector < std::vector < std::vector <double > > > > & gradDb = projection->GetGradDb();
+  const std::vector<std::vector<unsigned> > & ielp = projection->GetIel();
+  const std::vector < std::vector < std::vector <double > > > & Xip = projection->GetXi();
+  const std::vector<std::vector<unsigned> > & mtypep = projection->GetMtype();
+  const std::vector<std::vector<double> > & weightpOld = projection->GetWeight();
+  const std::vector < std::vector < std::vector <double > > > & VpOld = projection->GetV();
+  const std::vector < std::vector < std::vector <double > > > & ApOld = projection->GetA();
+  const std::vector < std::vector<std::vector<double> > > & NpOld = projection->GetN();
+  const std::vector < std::vector < std::vector < std::vector <double > > > > & gradDpOld = projection->GetGradD();
 
   std::vector < unsigned > im(nprocs, 0);
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -186,7 +184,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
     for(unsigned  k = 0; k < dim; k++) {
-      solDb[k].resize(nDofs);
+      solD[k].resize(nDofs);
 
       solVOld[k].resize(nDofs);
       solVNew[k].resize(nDofs);
@@ -208,7 +206,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       nodeFlag[i] = (*mysolution->_Sol[nflagIndex])(idof);
 
       for(unsigned  k = 0; k < dim; k++) {
-        solDb[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof); //t_{n+1} -t_n
+        solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof); //t_{n+1} -t_n
 
         solVNew[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);//t_{n+1}
         solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);//t_n
@@ -231,8 +229,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
       for(unsigned  k = 0; k < dim; k++) {
         vxOld[k][i] = (*msh->_topology->_Sol[k])(idofX); // undeformed background configuration at t_{n}
-        vx[k][i]  = vxOld[k][i] + (1. - af) * solDb[k][i]; // deformed background configuration at alpha_f/theta
-        vxNew[k][i]  = vxOld[k][i] + solDb[k][i]; // deformed background configuration at t_{n+1}
+        vx[k][i]  = vxOld[k][i] + (1. - af) * solD[k][i]; // deformed background configuration at alpha_f/theta
+        vxNew[k][i]  = vxOld[k][i] + solD[k][i]; // deformed background configuration at t_{n+1}
       }
     }
 
@@ -268,9 +266,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         for(unsigned j = 0; j < dim; j++) {
           solVgNew[j] += phi[i] * solVNew[j][i]; // new velocity of background grid
           solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the undeformed reference configuration
-          solDg[j] += phi[i] * solDb[j][i]; // new displacement
+          solDg[j] += phi[i] * solD[j][i]; // new displacement
           for(unsigned  k = 0; k < dim; k++) {
-            gradSolDgOld[k][j] += gradPhiOld[i * dim + j] * solDb[k][i]; //gradient of new solution with respect to deformed reference configuration
+            gradSolDgOld[k][j] += gradPhiOld[i * dim + j] * solD[k][i]; //gradient of new solution with respect to deformed reference configuration
             gradSolVgNew[k][j] += gradPhiNew[i * dim + j] * solVNew[k][i]; // gradient of the new velocity with respect to the theta domain
             gradSolVg[k][j] += gradPhi[i * dim + j] * (theta * solVNew[k][i] + (1. - theta) * solVOld[k][i]); // gradient of the theta velocity with respect to the theta domain
           }
@@ -498,20 +496,20 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
     if(eFlag > 0) {   //BEGIN BULK PARTICLE
       for(unsigned kp = 0; kp < nprocs; kp++) {
-        while(im[kp] < ielb[kp].size() && iel == ielb[kp][im[kp]]) {
+        while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
 
-          // the local coordinates of the particles are the Gauss points in this context
+          // the local coordinates of the particles are the integration points in this context
           std::vector <double> xi(dim);
-          for(unsigned  k = 0; k < dim; k++) xi[k] = xib[kp][k][im[kp]];
+          for(unsigned  k = 0; k < dim; k++) xi[k] = Xip[kp][k][im[kp]];
 
-          double U = mtypeb[kp][im[kp]] / 2.; // U = 0 fluid, U = 0.5 interface, U = 1 solid
-          double areaOld = weightb[kp][im[kp]];
+          double U = mtypep[kp][im[kp]] / 2.; // U = 0 fluid, U = 0.5 interface, U = 1 solid
+          double areaOld = weightpOld[kp][im[kp]];
 
-          msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, agaussWeight, phi, gradPhi, nablaphi);
+          msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, agaussWeight, phi, gradPhi);
           msh->_finiteElement[ielt][solType]->Jacobian(vxOld, xi, gaussWeight, phi, gradPhiOld);
 
           // BEGIN EVALUATION Quantities at the particles need by both fluid and solid particles
-          vector<adept::adouble> solDp(dim, 0.);
+          vector<adept::adouble> solDb(dim, 0.);
           vector<vector < adept::adouble > > gradSolDb(dim);
           vector<vector < adept::adouble > > gradSolDbNew(dim);
 
@@ -522,10 +520,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
           for(int j = 0; j < dim; j++) {
             for(unsigned i = 0; i < nDofs; i++) {
-              solDp[j] += phi[i] * solDb[j][i];
+              solDb[j] += phi[i] * solD[j][i];
               for(int k = 0; k < dim; k++) {
-                gradSolDb[k][j] += gradPhiOld[i * dim + j] * (1. - af) * solDb[k][i];
-                gradSolDbNew[k][j] += gradPhiOld[i * dim + j] * solDb[k][i];
+                gradSolDb[k][j] += gradPhiOld[i * dim + j] * (1. - af) * solD[k][i];
+                gradSolDbNew[k][j] += gradPhiOld[i * dim + j] * solD[k][i];
               }
             }
           }
@@ -554,17 +552,17 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                     FbNew[2][0] * FbNew[1][1] * FbNew[0][2] - FbNew[2][1] * FbNew[1][2] * FbNew[0][0] - FbNew[2][2] * FbNew[1][0] * FbNew[0][1];
           }
 
-          vector<adept::adouble> solV1pOld(dim, 0.); //old fluid velocity
-          vector<adept::adouble> solV1p(dim, 0.); // fluid velocity
-          vector<adept::adouble> solVpNew(dim, 0.);  //new fluid velocity
+          vector<adept::adouble> solVFpOld(dim, 0.); //old fluid velocity
+          vector<adept::adouble> solVFp(dim, 0.); // fluid velocity
+          vector<adept::adouble> solVFpNew(dim, 0.);  //new fluid velocity
           for(int j = 0; j < dim; j++) {
             for(unsigned i = 0; i < nDofs; i++) {
-              solV1pOld[j] += phi[i] * solVOld[j][i];
-              solVpNew[j] += phi[i] * solVNew[j][i];
+              solVFpOld[j] += phi[i] * solVOld[j][i];
+              solVFpNew[j] += phi[i] * solVNew[j][i];
             }
           }
           for(int j = 0; j < dim; j++) {
-            solV1p[j] = theta * solVpNew[j] + (1. - theta) * solV1pOld[j];
+            solVFp[j] = theta * solVFpNew[j] + (1. - theta) * solVFpOld[j];
           }
 
           
@@ -590,7 +588,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               }
             }
 
-
             // Here we missed the if for piecewise  linear discontinuous //TODO
             // std::vector <std::vector <adept::adouble> > JacMatrixI;
             // std::vector <std::vector <adept::adouble> > JacMatrix;
@@ -614,10 +611,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                 adept::adouble advection = 0.;
                 for(unsigned j = 0; j < dim; j++) {
                   laplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
-                  advection +=  phi[i] * (solV1p[j] - (solDp[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
+                  advection +=  phi[i] * (solVFp[j] - (solDb[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
                 }
 
-                aResV[k][i] += rhoFluid * phi[i] * (solVpNew[k] * weightNew - solV1pOld[k] * weightOld) / dt +
+                aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * weightNew - solVFpOld[k] * weightOld) / dt +
                                (rhoFluid * advection
                                 +
                                 muFluid * laplace
@@ -636,34 +633,32 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
           //BEGIN solid Momentum in the bulk interface and solid cells (integration is on the particles in \Omega_s)
-          std::vector < adept::adouble > solV2p(dim); // solid particle velocity
+          std::vector < adept::adouble > solVSp(dim); // solid particle velocity
           if(U > 0) {
 
-            std::vector <double> solV2pOld(dim); //old solid particle velocity
+            std::vector <double> solVSpOld(dim); //old solid particle velocity
             std::vector <double> solApOld(dim);
 
             std::vector<adept::adouble> solApNew(dim);
             std::vector < adept::adouble > solAp(dim); //centered at am
 
             for(unsigned k = 0; k < dim; k++) {
-              solV2pOld[k] = Vb[kp][k][im[kp]];
-              solApOld[k] = Ab[kp][k][im[kp]];
+              solVSpOld[k] = VpOld[kp][k][im[kp]];
+              solApOld[k] = ApOld[kp][k][im[kp]];
             }
 
             for(int j = 0; j < dim; j++) {
-              solApNew[j] = (solDp[j] - 0.) / (Beta * dt * dt) - solV2pOld[j] / (Beta * dt) + solApOld[j] * (Beta - 0.5) / Beta ;   //NEWMARK ACCELERATION
-              solV2p[j] = solV2pOld[j] + dt * (Gamma * solApNew[j] + (1. - Gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
+              solApNew[j] = (solDb[j] - 0.) / (Beta * dt * dt) - solVSpOld[j] / (Beta * dt) + solApOld[j] * (Beta - 0.5) / Beta ;   //NEWMARK ACCELERATION
+              solVSp[j] = solVSpOld[j] + dt * (Gamma * solApNew[j] + (1. - Gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
               solAp[j] = (1. - am) * solApNew[j] + am * solApOld[j];
             }
 
             double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
             adept::adouble Fp[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-            adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
-            adept::adouble Cauchy[3][3];
-
+            
             for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                FpOld[j][k] += gradDb[kp][j][k][im[kp]];
+                FpOld[j][k] += gradDpOld[kp][j][k][im[kp]];
               }
             }
 
@@ -692,6 +687,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                    Fp[2][0] * Fp[1][1] * Fp[0][2] - Fp[2][1] * Fp[1][2] * Fp[0][0] - Fp[2][2] * Fp[1][0] * Fp[0][1];
             }
 
+            //BEGIN computation of the Cauchy Stress
+            adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+            adept::adouble Cauchy[3][3];
             if(NeoHookean) {
               adept::adouble B[3][3];
               for(unsigned i = 0; i < 3; i++) {
@@ -711,13 +709,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                   Cauchy[j][k] = lambdaMpm * log(Jp) / Jp * Id2th[j][k] + muMpm / Jp * (B[j][k] - Id2th[j][k]);     //alternative formulation
                 }
               }
-              //END computation of the Cauchy Stress
             }
-
             else { //Saint Venant
               adept::adouble E[3][3];
               adept::adouble S[3][3];
-
               for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
                 for(unsigned j = 0; j < 3; j++) {
                   E[i][j] = 0.;
@@ -727,15 +722,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                   E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
                 }
               }
-
               adept::adouble traceE = E[0][0] + E[1][1] + E[2][2];
-
               for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
                 for(unsigned j = 0; j < 3; j++) {
                   S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
                 }
               }
-
               adept::adouble SFt[3][3];
               for(unsigned i = 0; i < 3; i++) { // S F^t
                 for(unsigned j = 0; j < 3; j++) {
@@ -745,7 +737,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                   }
                 }
               }
-
               for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
                 for(unsigned j = 0; j < 3; j++) {
                   Cauchy[i][j] = 0.;
@@ -755,6 +746,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                 }
               }
             }
+            //END computation of the Cauchy Stress
 
             double dM = U * (areaOld / JpOld) * rhoMpm; // (areaOld / JpOld) = areaHat
             for(unsigned i = 0; i < nDofs; i++) {
@@ -767,7 +759,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               for(unsigned k = 0; k < dim; k++) {
                 aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - gravity[k] * phi[i])  * dM;
                 if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
-                  aResV[k][i] += -phi[i] * (solV1p[k] - solV2p[k]) * areaOld; //TODO
+                  aResV[k][i] += -phi[i] * (solVFp[k] - solVSp[k]) * areaOld; //TODO
                 }
               }
             }
@@ -784,7 +776,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             double afN = af; // t_{n + alpha_f}
 
             std::vector < adept::adouble > N(dim);
-            for(unsigned k = 0; k < dim; k++) N[k] = -Nb[kp][k][im[kp]];
+            for(unsigned k = 0; k < dim; k++) N[k] = -NpOld[kp][k][im[kp]]; // from the fluid to the solid
             if(dim == 2) {
               weight = sqrt(N[0] * N[0] + N[1] * N[1]);
               N[0] /= weight;
@@ -808,7 +800,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
             double c = 0.;
             for(unsigned k = 0; k < dim; k++) {
-              c += (solV1p[k].value() - solV2p[k].value()) * (solV1p[k].value() - solV2p[k].value());
+              c += (solVFp[k].value() - solVSp[k].value()) * (solVFp[k].value() - solVSp[k].value());
             }
             c = sqrt(c);
 
@@ -819,17 +811,17 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             for(unsigned i = 0; i < nDofs; i++) {
               for(unsigned k = 0; k < dim; k++) {
                 aResV[k][i] += (tau[k] - !weakP * solPp * N[k]) * phi[i] * weight;  // correct sign due to the normal
-                aResV[k][i] += thetaM * (solV1p[k] - solV2p[k]) * phi[i] * weight;
+                aResV[k][i] += thetaM * (solVFp[k] - solVSp[k]) * phi[i] * weight;
 
                 aResD[k][i] += -tau[k] * phi[i] * weight; // correct sign due to the normal
-                aResD[k][i] +=  thetaM * (solV1p[k] - solV2p[k]) * (-phi[i]) * weight;
+                aResD[k][i] +=  thetaM * (solVFp[k] - solVSp[k]) * (-phi[i]) * weight;
 
                 for(unsigned j = 0; j < dim; j++) {
-                  aResV[k][i] += - muFluid * gradPhi[i * dim + j] * N[j] * (solV1p[k] - solV2p[k]) * weight;
-                  aResV[k][i] += - muFluid * gradPhi[i * dim + j] * N[k] * (solV1p[j] - solV2p[j]) * weight;
+                  aResV[k][i] += - muFluid * gradPhi[i * dim + j] * N[j] * (solVFp[k] - solVSp[k]) * weight;
+                  aResV[k][i] += - muFluid * gradPhi[i * dim + j] * N[k] * (solVFp[j] - solVSp[j]) * weight;
 
-                  aResV[k][i] += thetaL * (solV1p[j] - solV2p[j]) * N[j] * phi[i] * N[k] * weight;
-                  aResD[k][i] += thetaL * (solV1p[j] - solV2p[j]) * N[j] * (-phi[i]) * N[k] * weight;
+                  aResV[k][i] += thetaL * (solVFp[j] - solVSp[j]) * N[j] * phi[i] * N[k] * weight;
+                  aResD[k][i] += thetaL * (solVFp[j] - solVSp[j]) * N[j] * (-phi[i]) * N[k] * weight;
 
                 }
               }
@@ -837,11 +829,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
             for(unsigned i = 0; i < nDofsP; i++) {
               for(unsigned k = 0; k < dim; k++) {
-                aResP[i] += - (phiP[i]  * (solV1p[k] - solV2p[k]) * N[k]) * weight;
+                aResP[i] += - (phiP[i]  * (solVFp[k] - solVSp[k]) * N[k]) * weight;
               }
             }
           }
-
           im[kp]++;
         }
       }
@@ -877,7 +868,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
     // define the independent variables
     for(unsigned  k = 0; k < dim; k++) {
-      s.independent(&solDb[k][0], nDofs);
+      s.independent(&solD[k][0], nDofs);
     }
     for(unsigned  k = 0; k < dim; k++) {
       s.independent(&solVNew[k][0], nDofs);
