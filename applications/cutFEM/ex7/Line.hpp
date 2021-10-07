@@ -4,10 +4,45 @@
 #include <iostream>
 #include <boost/math/special_functions/factorials.hpp>
 
+#include <map>
+
 using boost::math::factorial;
 
 template <class Type>
-Type LimLi(const int &s, const Type &x) {
+class LSImap {
+  public:
+
+    LSImap() {};
+    ~LSImap() {};
+
+    Type LimLi(const int &s, const Type &x);
+    Type LSIm1(const int &m, const Type &a, Type d);
+    Type LSI0(const int &m, const Type &a, Type d);
+    Type LSI(const int &s, const unsigned &m, const Type &a, Type d);
+    
+    void clear() {
+      _LSImap.clear();
+    };
+
+    Type operator()(const int &s, const unsigned &m, const Type &a, const Type &d) {
+      _index = std::make_pair(std::make_pair(s, m), std::make_pair(a, d));
+      _it = _LSImap.find(_index);
+      if(_it == _LSImap.end()) {
+        std::cout << "new ";
+        _LSImap[_index] = LSI(s, m, a, d);
+      }
+      return _LSImap[_index];
+    }
+
+  private:
+    std::map< std::pair< std::pair<int, unsigned>, std::pair<Type, Type> >, Type > _LSImap;
+    typename std::map< std::pair< std::pair<int, unsigned>, std::pair<Type, Type> >, Type >::iterator _it;
+    std::pair< std::pair<int, unsigned>, std::pair<Type, Type> > _index;
+};
+
+
+template <class Type>
+Type LSImap<Type>::LimLi(const int &s, const Type &x) {
 
   if(x < 0) return Type(0);
   else if(s != 0) return -pow(x, s) / factorial<Type>(s);
@@ -17,7 +52,7 @@ Type LimLi(const int &s, const Type &x) {
 
 
 template <class Type>
-Type LSIm1(const int &m, const Type &a, Type d) {
+Type LSImap<Type>::LSIm1(const int &m, const Type &a, Type d) {
 
   if(a == 0) {
     std::cout << "Something is wrong! The function LSIm1 can not be called with a = 0" << std::endl;
@@ -37,7 +72,7 @@ Type LSIm1(const int &m, const Type &a, Type d) {
 }
 
 template <class Type>
-Type LSI0(const int &m, const Type &a, Type d) {
+Type LSImap<Type>::LSI0(const int &m, const Type &a, Type d) {
 
   if(a == 0) {
     return -LimLi(0, d) / Type(m + 1);
@@ -59,7 +94,7 @@ Type LSI0(const int &m, const Type &a, Type d) {
 }
 
 template <class Type>
-Type LSI(const int &s, const unsigned &m, const Type &a, Type d) {
+Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
 
   Type I1;
 
@@ -80,7 +115,7 @@ Type LSI(const int &s, const unsigned &m, const Type &a, Type d) {
 
       Type INT(0);
       Type x(a + d);
-            
+
       if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
         if(x >= 0) {
           Type g =  1 / (-a);
@@ -103,5 +138,8 @@ Type LSI(const int &s, const unsigned &m, const Type &a, Type d) {
       return INT;
   }
 }
- 
+
+
+
+
 #endif
