@@ -43,7 +43,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char name[], do
   return test;
 }
 
-void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut);
+void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut, const std::string &filename);
 void FlagElements(MultiLevelMesh& mlMesh, const unsigned &layers);
 
 int main(int argc, char** args) {
@@ -52,16 +52,33 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMsh;
-  double scalingFactor = 1.;
-
+  double scalingFactor = 1.e5; //COMSOL
+  //double scalingFactor = 1.; //turekBeam2D
+  
+  
   //mlMsh.ReadCoarseMesh("../input/beam.neu", "fifth", scalingFactor);
-  mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/turekBeam2D.neu", "fifth", scalingFactor);
+   //mlMsh.ReadCoarseMesh("../input/turekBeam2DNew.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/3dbeam.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/blades.neu", "fifth", scalingFactor);
+  //mlMsh.ReadCoarseMesh("../input/blade2D.neu", "fifth", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/mindcraft_valve.neu", "fifth", scalingFactor);
+   
+   mlMsh.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
 
 
-  //mlMsh.RefineMesh(2, 2, NULL);
-
+  //mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 6 = 1 : default
+  //mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 7 = 2
+  //mlMsh.RefineMesh(4, 4, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3
+  
+  //mlMsh.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 6 = 1 : default
+  //mlMsh.RefineMesh(2, 2, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 7 = 2
+  //mlMsh.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  //mlMsh.RefineMesh(4, 4, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  //mlMsh.RefineMesh(5, 5, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  mlMsh.RefineMesh(7, 7, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  
+  
   unsigned numberOfRefinement = 2;
 
   for(unsigned i = 0; i < numberOfRefinement; i++) {
@@ -86,7 +103,8 @@ int main(int argc, char** args) {
   // ******* Set boundary conditions *******
   mlSol.GenerateBdc("u", "Steady");
 
-  BuildMarkers(mlMsh, -0.6, 1.0E10);
+  //BuildMarkers(mlMsh, -0.6, 1.0E10, "beam");
+  BuildMarkers(mlMsh, -0.6, 1.0E10, "benchmarkFSISolid");
 
   //******* Print solution *******
   mlSol.SetWriter(VTK);
@@ -103,7 +121,7 @@ int main(int argc, char** args) {
 
 
 
-void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut) {
+void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &dmaxCut, const std::string &filename) {
 
   unsigned level = mlMesh.GetNumberOfLevels() - 1;
   Mesh *msh   = mlMesh.GetLevel(level);
@@ -409,10 +427,23 @@ void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &d
   //END remove bulk markers that are too far from the interface
  
   std::ofstream fout;
+  
+  std::ostringstream level_number;    
+  level_number<<level;
+  
+  std::string bulkfile="../input/";
+  bulkfile+=filename;
+  bulkfile+=level_number.str(); 
+  bulkfile+=".bulk.txt";
+  
+  std::string interfacefile="../input/";
+  interfacefile+=filename;
+  interfacefile+=level_number.str(); 
+  interfacefile+=".interface.txt";
 
   //BEGIN bulk printing
-  fout.open("../input/bulk.txt");
-  std::cout << dim << " " << xp.size() << std::endl;
+  fout.open(bulkfile);
+  fout << dim << " " << xp.size() << std::endl;
   for(unsigned ip = 0; ip < xp.size(); ip++) {
     for(unsigned k = 0; k < dim; k++) {
       fout << xp[ip][k] << " ";
@@ -423,9 +454,12 @@ void BuildMarkers(MultiLevelMesh& mlMesh, const double &dminCut, const double &d
   fout.close();
   //END bulk printing
 
+  
+  
+  
   //BEGIN bulk printing
-  fout.open("../input/interface.txt");
-  std::cout << dim << " " << xpI.size() << std::endl;
+  fout.open(interfacefile);
+  fout << dim << " " << xpI.size() << std::endl;
   for(unsigned ip = 0; ip < xpI.size(); ip++) {
     for(unsigned k = 0; k < dim; k++) {
       fout << xpI[ip][k] << " ";

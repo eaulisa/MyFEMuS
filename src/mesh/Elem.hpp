@@ -249,6 +249,8 @@ namespace femus {
       
       unsigned GetFaceRangeEnd(const unsigned &ielt) const;
       
+      const MyVector< short unsigned> GetElementMaterial(){return _elementMaterial;}
+      
     private:
 
       elem* _coarseElem;
