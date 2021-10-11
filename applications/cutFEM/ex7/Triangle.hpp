@@ -4,60 +4,138 @@
 
 #include "Line.hpp"
 
-template <class Type>
-Type TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <Type> &a_input, const Type &d) {
 
-  const Type &a = a_input[0];
-  const Type &b = a_input[1];
+template <class TypeIO, class TypeA>
+class TRImap : public LSImap <TypeA> {
+  public:
+
+    TRImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LSImap <TypeA> (mMax + 1, sMax, mMax + 1) {
+      
+      _TRImap.resize(2u + sMax + ds);
+      unsigned max = 2u + mMax + sMax;
+      
+      for(unsigned s = 0; s < _TRImap.size(); s++) {
+        _TRImap[s].resize(max);
+        for(unsigned i = 0; i < _TRImap[s].size(); i++) {
+          _TRImap[s][i].resize(max - i);
+        }
+      }
+      
+//       for(unsigned s = 2u + sMax; s < _TRImap.size(); s++) {
+//         _TRImap[s].resize(mMax + 1 - (s - (2u + sMax)));
+//         for(unsigned i = 0; i < _TRImap[s].size(); i++) {
+//           _TRImap[s][i].resize(mMax + 1 - i);
+//         }
+//       }
+      
+      
+    };
+    ~TRImap() {};
+
+    void clear() {
+      LSImap<TypeA>::clear();
+      for(unsigned s = 0; s < _TRImap.size(); s++) {
+        for(unsigned i = 0; i < _TRImap[s].size(); i++) {
+          for(unsigned j = 0; j < _TRImap[s][i].size(); j++) {
+            _TRImap[s][i][j].clear();
+          }
+        }
+      }
+      cnt = 0;
+    };
+    
+    void printCounter() {
+      LSImap<TypeA>::printCounter();
+      std::cout << "TRI counter = " << cnt << std::endl;
+    }
+
+    TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
+    TypeA TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TriangleBFull(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeIO Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d);
+
+    TypeA tria(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
+      _index = std::make_pair(a, d);
+      _it = _TRImap[s + 1][m[0]][m[1]].find(_index);
+      if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
+        cnt++;  
+        _TRImap[s + 1][m[0]][m[1]][_index] = TriangleA(s, m, a, d);
+        std::cout << cnt<<" s = "<< s << " m = "<< m[0] <<", "<< m[1] <<" a = "<< a[0] << ", "<< a[1] <<" d = " << d <<" "<<_TRImap[s + 1][m[0]][m[1]][_index] <<std::endl;
+      }
+      return _TRImap[s + 1][m[0]][m[1]][_index];
+    }
+
+    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
+      return this->Triangle(s, m, a, d);
+    }
+
+  private:
+    std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
+    typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    std::pair<std::vector<TypeA>, TypeA> _index;
+    
+    static unsigned cnt;
+};
+
+template <class TypeIO, class TypeA> unsigned TRImap <TypeIO, TypeA>::cnt = 0;
+
+
+
+template <class TypeIO, class TypeA>
+TypeA TRImap<TypeIO, TypeA>::TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
+
+  const TypeA &a = a_input[0];
+  const TypeA &b = a_input[1];
   const unsigned &m = m_input[0];
   const unsigned &n = m_input[1];
 
-  Type TRI = 0.;
+  TypeA TRI = 0.;
   if(b == 0) { //parallel to right edge
-    TRI = (-LimLi(s + 1, a + d) +
-           LimLi(s + m + n + 2, d) * factorial<Type>(m + n + 1) * pow(-1 / a, m + n + 1)
+    TRI = (-this->limLi(s + 1, a + d) +
+           this->limLi(s + m + n + 2, d) * factorial<TypeA>(m + n + 1) * pow(-1 / a, m + n + 1)
           ) / (a * (n + 1));
   }
   else if(a == 0) { //parallel to bottom edge
-    TRI = (LimLi(s + n + 1, d) * factorial<Type>(n) * pow(-1. / b, n) -
-           LimLi(s + m + n + 2, d) * factorial<Type>(m + n + 1) * pow(-1 / b, m + n + 1)
+    TRI = (this->limLi(s + n + 1, d) * factorial<TypeA>(n) * pow(-1. / b, n) -
+           this->limLi(s + m + n + 2, d) * factorial<TypeA>(m + n + 1) * pow(-1 / b, m + n + 1)
           ) / (b * (m + 1));
   }
   else if(a + b == 0) { // parallel to y=x edge//TODO
     if(a + d  >= 0.) {
       for(unsigned i = 1; i <= m + 1; i++) {
-        TRI += LimLi(s + n + 1 + i, a + d) * pow(-1 / a, i) / factorial<Type>(m + 1 - i);
+        TRI += this->limLi(s + n + 1 + i, a + d) * pow(-1 / a, i) / factorial<TypeA>(m + 1 - i);
       }
-      TRI *= factorial<Type>(n) * factorial<Type>(m) * pow(1 / a, n + 1);
+      TRI *= factorial<TypeA>(n) * factorial<TypeA>(m) * pow(1 / a, n + 1);
     }
-    TRI += LimLi(s + 1, d) / (a * (m + n + 1));
+    TRI += this->limLi(s + 1, d) / (a * (m + n + 1));
   }
   else { // general case
     if(fabs(b) > fabs(a)) {
       if(d > 0) {
         for(unsigned i = 1; i <= n + 1; i++) {
-          TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(n + 1 - i) * pow((a + b) / b, i);
+          TRI += factorial<TypeA>(m + n + 1 - i) / factorial<TypeA>(n + 1 - i) * pow((a + b) / b, i);
         }
-        TRI *= LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
+        TRI *= this->limLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
       }
-      TRI += LSI(s + n + 1, m, a, d) * pow(-1 / b, n + 1);
-      TRI *= factorial<Type>(n);
+      TRI += this->lsi(s + n + 1, m, a, d) * pow(-1 / b, n + 1);
+      TRI *= factorial<TypeA>(n);
     }
     else {
       if(d > 0) {
         for(unsigned i = 1; i <= m + 1; i++) {
-          TRI += factorial<Type>(m + n + 1 - i) / factorial<Type>(m + 1 - i) * pow((a + b) / a, i);
+          TRI += factorial<TypeA>(m + n + 1 - i) / factorial<TypeA>(m + 1 - i) * pow((a + b) / a, i);
         }
-        TRI *= - LimLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
+        TRI *= - this->limLi(s + m + n + 2, d) / pow(-a - b, m + n + 2) ;
       }
       if(a + d > 0) {
-        Type TRI2 = 0.;
+        TypeA TRI2 = 0.;
         for(unsigned i = 1; i <= m + 1; i++) {
-          TRI2 +=  LimLi(s + n + i + 1, a + d) / (factorial<Type>(m + 1 - i) * pow(-a, i));
+          TRI2 +=  this->limLi(s + n + i + 1, a + d) / (factorial<TypeA>(m + 1 - i) * pow(-a, i));
         }
-        TRI += TRI2 * factorial<Type>(n) / pow(-b, n + 1) ;
+        TRI += TRI2 * factorial<TypeA>(n) / pow(-b, n + 1) ;
       }
-      TRI *= factorial<Type>(m);
+      TRI *= factorial<TypeA>(m);
     }
 
   }
@@ -66,90 +144,90 @@ Type TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const 
 
 
 
-template <class Type>
-Type TriangleBFull(const int &s, const std::vector<unsigned> &m_input, const std::vector <Type> &a_input, const Type &d) {
+template <class TypeIO, class TypeA>
+TypeA TRImap<TypeIO, TypeA>::TriangleBFull(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
 
-  const Type &a = a_input[0];
-  const Type &b = a_input[1];
+  const TypeA &a = a_input[0];
+  const TypeA &b = a_input[1];
   const unsigned &m = m_input[0];
   const unsigned &n = m_input[1];
 
-  Type TRI = 0;
+  TypeA TRI = 0;
   if(b == 0) { //parallel to right edge
-    if(a == 0) TRI = -LimLi(s, d) / ((m + n + 2) * (n + 1));
-    else TRI = LSI(s, m + n + 1, a, d) / (n + 1);
+    if(a == 0) TRI = -this->limLi(s, d) / ((m + n + 2) * (n + 1));
+    else TRI = this->lsi(s, m + n + 1, a, d) / (n + 1);
   }
   else if(a == 0) { //parallel to bottom edge
-    TRI = (LSI(s, n, b, d) - LSI(s, m + n + 1, b, d)) / (m + 1);
+    TRI = (this->lsi(s, n, b, d) - this->lsi(s, m + n + 1, b, d)) / (m + 1);
   }
   else if(a + b == 0) { //parallel to y = x edge //TODO
     for(unsigned i = 1; i <= n + 1; i++) {
-      TRI += LimLi(s + i, d) * pow(1. / a, i) / (factorial<Type>(n + 1 - i) * (m + n + 2 - i));
+      TRI += this->limLi(s + i, d) * pow(1. / a, i) / (factorial<TypeA>(n + 1 - i) * (m + n + 2 - i));
     }
-    TRI += LSI(s + n + 1, m, a, d) / pow(a, n + 1);
-    TRI *= factorial<Type>(n);
+    TRI += this->lsi(s + n + 1, m, a, d) / pow(a, n + 1);
+    TRI *= factorial<TypeA>(n);
   }
   else { //generic case
     if(fabs(a) < fabs(b)) { // |a| < |b|
       for(unsigned j = 1; j <= n + 1; j++) {
-        TRI -= LSI(s + j, m + n + 1 - j, a + b, d) * pow(-1 / b, j)
-               / factorial<Type>(n + 1 - j);
+        TRI -= this->lsi(s + j, m + n + 1 - j, a + b, d) * pow(-1 / b, j)
+               / factorial<TypeA>(n + 1 - j);
       }
-      TRI += LSI(s + n + 1, m, a, d) * pow(-1 / b, n + 1);
-      TRI *= factorial<Type>(n);
+      TRI += this->lsi(s + n + 1, m, a, d) * pow(-1 / b, n + 1);
+      TRI *= factorial<TypeA>(n);
     }
     else { // |b| < |a|
       for(unsigned j = 1; j <= m + 1; j++) {
-        TRI += (LSI(s + j, m + n + 1 - j, a + b, d) -
-                LSI(s + j, n, b, a + d)) * pow(-1 / a, j)
-               / factorial<Type>(m + 1 - j);
+        TRI += (this->lsi(s + j, m + n + 1 - j, a + b, d) -
+                this->lsi(s + j, n, b, a + d)) * pow(-1 / a, j)
+               / factorial<TypeA>(m + 1 - j);
       }
-      TRI *= factorial<Type>(m);
+      TRI *= factorial<TypeA>(m);
     }
   }
 
   return TRI;
 }
 
-template <class Type>
-Type TriangleC(const int &s, const std::vector<unsigned> &m_input, const std::vector <Type> &a_input, const Type &d) {
+template <class TypeIO, class TypeA>
+TypeA TRImap<TypeIO, TypeA>::TriangleC(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
 
-  const Type &a = a_input[0];
-  const Type &b = a_input[1];
+  const TypeA &a = a_input[0];
+  const TypeA &b = a_input[1];
   const unsigned &m = m_input[0];
   const unsigned &n = m_input[1];
 
-  Type TRI = 0;
+  TypeA TRI = 0;
   if(true && fabs(b) > fabs(a)) {
-    //std::cout<<"!"; 
+    //std::cout<<"!";
     for(int i = s; i >= 0; i--) {
-      TRI += LSI(s - i, m + n + 1 + i, a + b, d) * pow(-b, i) / factorial<Type>(n + 1 + i);
+      TRI += this->lsi(s - i, m + n + 1 + i, a + b, d) * pow(-b, i) / factorial<TypeA>(n + 1 + i);
     }
-    TRI += TriangleBReduced<Type>(-1, {m, n + s + 1}, {-a, -b}, -d) * pow(-b, s + 1) / factorial<Type>(n + s + 1);
-    TRI *= factorial<Type>(n);
+    TRI += this->TriangleBReduced(-1, {m, n + s + 1}, {-a, -b}, -d) * pow(-b, s + 1) / factorial<TypeA>(n + s + 1);
+    TRI *= factorial<TypeA>(n);
   }
   else {
-    //std::cout<<"#";   
+    //std::cout<<"#";
     for(int i = 0; i <= s; i++) {
-      TRI += (LSI(s - i, n, b, a + d) - LSI(s - i, m + n + 1 + i, a + b, d)) * pow(-a, i) / factorial<Type>(m + 1 + i);
+      TRI += (this->lsi(s - i, n, b, a + d) - this->lsi(s - i, m + n + 1 + i, a + b, d)) * pow(-a, i) / factorial<TypeA>(m + 1 + i);
     }
-    TRI += TriangleBReduced(-1, {m + s + 1, n}, {-a, -b}, -d) * pow(-a, s + 1) / factorial<Type>(m + s + 1);
-    TRI *= factorial<Type>(m);
+    TRI += TriangleBReduced(-1, {m + s + 1, n}, {-a, -b}, -d) * pow(-a, s + 1) / factorial<TypeA>(m + s + 1);
+    TRI *= factorial<TypeA>(m);
   }
   return TRI;
 }
 
 
-template <class Type>
-Type TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type &d) {
+template <class TypeIO, class TypeA>
+TypeA TRImap<TypeIO, TypeA>::TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d) {
 
-  if(a[0] == 0 && a[1] == 0) return -LimLi(s, d) / Type((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
+  if(a[0] == 0 && a[1] == 0) return -this->limLi(s, d) / TypeA((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
 
-  Type sum = a[0] + a[1] + d;
+  TypeA sum = a[0] + a[1] + d;
   switch(s) {
     case -1:
       if(sum <= 0) return TriangleBReduced(-1, m, a, d);
-      else return TriangleBReduced(-1, m, std::vector<Type> {-a[0], -a[1]}, -d);
+      else return TriangleBReduced(-1, m, std::vector<TypeA> {-a[0], -a[1]}, -d);
       break;
     default:
       if(sum <= 0) {
@@ -164,9 +242,9 @@ Type TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <
   }
 }
 
-template <class Type, class Type2>
-Type Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type &d) {
-  return static_cast<Type>(TriangleA<Type2>(s, m, {-a[0], a[1]}, d + a[0]));
+template <class TypeIO, class TypeA>
+TypeIO TRImap<TypeIO, TypeA>::Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
+  return static_cast<TypeIO>(this->tria(s, m, {static_cast<TypeA>(-a[0]), static_cast<TypeA>(a[1])}, static_cast<TypeA>(d + a[0])));
 }
 
 #endif
