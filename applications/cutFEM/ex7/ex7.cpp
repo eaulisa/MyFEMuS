@@ -60,7 +60,7 @@ int main(int, char**) {
 
 
   int s = 0;
-  unsigned qMax = 5;
+  unsigned qMax = 8;
   double a = 0.8;
   double b = 0.9;
   double c = 1;
@@ -128,8 +128,8 @@ int main(int, char**) {
         //std::cout << tti(0, {i, j, k}, {a, b, c}, d) <<" ";
         //std::cout << tti(4, {i, j, k}, {-a, -b, -c}, -d) << " ";
         //std::cout << 
-        tti(4, {i, j, k}, {a, b, c}, d);// << " ";
-        tti(4, {i, j, k}, {-a, -b, -c}, -d);
+        tti(0, {i, j, k}, {a, b, c}, d);// << " ";
+        tti(0, {i, j, k}, {-a, -b, -c}, -d);
         tti(-1, {i, j, k}, {-a, -b, -c}, -d);
         //std::cout << std::endl;
 

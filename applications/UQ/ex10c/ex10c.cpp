@@ -78,7 +78,7 @@ double bLaplace = 1.5;
 double muLaplace = 0.;
 //END
 
-unsigned numberOfUniformLevels = 4; //refinement for the PDE mesh
+unsigned numberOfUniformLevels = 5; //refinement for the PDE mesh
 
 int main (int argc, char** argv) {
 
@@ -233,7 +233,7 @@ int main (int argc, char** argv) {
 
   //systemSG.SetOuterSolver(FGMRES);
   uSG.SetRichardsonScaleFactor (1.); // 0.6 is the best choice
-  //uSG.SetTolerances (1.e-3, 1.e-30, 1.e+50, 1);
+  uSG.SetTolerances (1.e-300, 1.e-300, 1.e+50, 4);
   //END buid fieldSplitTree
   systemSG.SetLinearEquationSolverType (FEMuS_FIELDSPLIT);
   // ******* System FEM Assembly *******
@@ -244,8 +244,8 @@ int main (int argc, char** argv) {
 
   systemSG.SetAbsoluteLinearConvergenceTolerance (1.e-50);
 
-  systemSG.SetNumberPreSmoothingStep (1);
-  systemSG.SetNumberPostSmoothingStep (1);
+  systemSG.SetNumberPreSmoothingStep (3);
+  systemSG.SetNumberPostSmoothingStep (3);
 
   // ******* Set Preconditioner *******
   // systemSG.SetLinearEquationSolverType (FEMuS_DEFAULT);

@@ -61,7 +61,7 @@ class TRImap : public LSImap <TypeA> {
       if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
         cnt++;  
         _TRImap[s + 1][m[0]][m[1]][_index] = TriangleA(s, m, a, d);
-        std::cout << cnt<<" s = "<< s << " m = "<< m[0] <<", "<< m[1] <<" a = "<< a[0] << ", "<< a[1] <<" d = " << d <<" "<<_TRImap[s + 1][m[0]][m[1]][_index] <<std::endl;
+        //std::cout << cnt<<" s = "<< s << " m = "<< m[0] <<", "<< m[1] <<" a = "<< a[0] << ", "<< a[1] <<" d = " << d <<" "<<_TRImap[s + 1][m[0]][m[1]][_index] <<std::endl;
       }
       return _TRImap[s + 1][m[0]][m[1]][_index];
     }
