@@ -181,3 +181,4 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
 
 
 #endif
+

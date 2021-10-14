@@ -56,30 +56,35 @@ class HCImap : public LSImap <TypeA> {
                      const TypeA & d, const TypeA & md);
 
     TypeA hcia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-        
-      std::cout<<"AAAAA";  
+
       _index = std::make_pair(m, std::make_pair(a, d));
       _it = _HCImapA[a.size() - 1][s + 1].find(_index);
       if(_it == _HCImapA[a.size() - 1][s + 1].end()) {
-        std::cout<<"BBBB";    
-        _HCImapA[a.size() - 1][s + 1][_index] = HyperCubeA(s, m, a, d);
+        _I1 = HyperCubeA(s, m, a, d);   
+        _HCImapA[a.size() - 1][s + 1][_index] = _I1;
+        return _I1;
       }
-      return _HCImapA[a.size() - 1][s + 1][_index];
+      else{
+        return _it->second;    
+      }
+      
     }
 
     TypeA hcia1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
 
-      std::cout<<"CCCC"<<n;  
       _index = std::make_pair(m, std::make_pair(a, d));
       _it = _HCImapA1[n][s + 1].find(_index);
       if(_it == _HCImapA1[n][s + 1].end()) {
-        std::cout<<"DDDD";    
         _cnt[n]++;
-        _HCImapA1[n][s + 1][_index] = HyperCubeA1(n, s, m, a, ma, d, md);
+        _I1 = HyperCubeA1(n, s, m, a, ma, d, md);
+        _HCImapA1[n][s + 1][_index] = _I1;
+        return _I1;
       }
-      return _HCImapA1[n][s + 1][_index];
+      else{
+        return _it->second;    
+      }
     }
 
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
@@ -95,6 +100,9 @@ class HCImap : public LSImap <TypeA> {
     typename std::map < std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> >, TypeA >::iterator _it;
     std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> > _index;
 
+    //std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  _index;
+    
+    TypeA _I1;
     std::vector <unsigned> _cnt;
 };
 
@@ -148,8 +156,8 @@ TypeA HCImap<TypeIO, TypeA>::HyperCubeA(const int &s, std::vector<unsigned> m, s
 
 template <class TypeIO, class TypeA>
 TypeA HCImap<TypeIO, TypeA>::HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
-    const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
-    const TypeA & d, const TypeA & md) {
+                                         const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                                         const TypeA & d, const TypeA & md) {
 
   if(n == 0)  {
     return this->lsi(s, m[0], a[0], d);

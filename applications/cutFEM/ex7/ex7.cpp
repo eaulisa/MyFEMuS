@@ -148,7 +148,7 @@ int main(int, char**) {
  // HyperCubeA(s, {1,2,3}, {a,b,c}, d);
   
   std::cout << "Square \n";
-  qMax = 0;
+  qMax = 5;
   HCImap <double, double> hci2(2, qMax, 4);
  
   hci2.clear();
@@ -157,11 +157,11 @@ int main(int, char**) {
       unsigned i = q - j;
       std::cout << q << " " << i << " " << j << "\n";
       std::cout << hci2(-1, {i, j}, {a, b}, d) << " "<< HyperCube<double, double>(-1, {i,j}, {a,b}, d)<< std::endl;
-      //std::cout << hci2(-1, {i, j}, {-a, -b}, -d) << " "<< HyperCube<double, double>(-1, {i,j}, {-a,-b}, -d)<< std::endl;
-      //std::cout << hci2(s, {i, j}, {a, b}, d) << " "<< HyperCube<double, double>(s, {i,j}, {a,b}, d)<< std::endl;
-      //std::cout << hci2(s, {i, j}, {-a, -b}, -d) << " "<<HyperCube<double, double>(s, {i,j}, {-a,-b}, -d)<< std::endl;
-      //std::cout << hci2(s, {i, j}, {a, b}, d) + hci2(s, {i, j}, {-a, -b}, -d) - 4 / ((j + 1) * (j + 1));
-      //std::cout<< std::endl;
+      std::cout << hci2(-1, {i, j}, {-a, -b}, -d) << " "<< HyperCube<double, double>(-1, {i,j}, {-a,-b}, -d)<< std::endl;
+      std::cout << hci2(s, {i, j}, {a, b}, d) << " "<< HyperCube<double, double>(s, {i,j}, {a,b}, d)<< std::endl;
+      std::cout << hci2(s, {i, j}, {-a, -b}, -d) << " "<<HyperCube<double, double>(s, {i,j}, {-a,-b}, -d)<< std::endl;
+      std::cout << hci2(0, {i, j}, {a, b}, d) + hci2(0, {i, j}, {-a, -b}, -d) - 4. / ((i + 1) * (j + 1));
+      std::cout<< std::endl<< std::endl;
     }
   }
   hci2.printCounter();
