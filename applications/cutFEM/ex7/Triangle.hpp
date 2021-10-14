@@ -42,35 +42,62 @@ class TRImap : public LSImap <TypeA> {
       std::cout << "TRI counter = " << _cnt << std::endl;
     }
 
-    TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
-    TypeA TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TriangleBFull(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeIO Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d);
-
+    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
+      return static_cast<TypeIO>(this->tria(s, m, {static_cast<TypeA>(-a[0]), static_cast<TypeA>(a[1])}, static_cast<TypeA>(d + a[0])));
+    }
+    
+protected:
     TypeA tria(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-      _index = std::make_pair(a, d);
-      _it = _TRImap[s + 1][m[0]][m[1]].find(_index);
+      _key = std::make_pair(a, d);
+      _it = _TRImap[s + 1][m[0]][m[1]].find(_key);
       if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
         _cnt++;
-        _TRImap[s + 1][m[0]][m[1]][_index] = TriangleA(s, m, a, d);
-        //std::cout << cnt<<" s = "<< s << " m = "<< m[0] <<", "<< m[1] <<" a = "<< a[0] << ", "<< a[1] <<" d = " << d <<" "<<_TRImap[s + 1][m[0]][m[1]][_index] <<std::endl;
+        _I1 = TriangleA(s, m, a, d);
+        _TRImap[s + 1][m[0]][m[1]][_key] = _I1;
+        return _I1;
       }
-      return _TRImap[s + 1][m[0]][m[1]][_index];
+      else {
+        return _it->second;
+      }
     }
-
-    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
-      return this->Triangle(s, m, a, d);
-    }
-
+   
   private:
+    TypeA TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
+    TypeA TriangleBFull(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);  
+      
     std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
     typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    std::pair<std::vector<TypeA>, TypeA> _index;
+    std::pair<std::vector<TypeA>, TypeA> _key;
 
+    TypeA _I1;
     unsigned _cnt;
 };
 
+template <class TypeIO, class TypeA>
+TypeA TRImap<TypeIO, TypeA>::TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d) {
+
+  if(a[0] == 0 && a[1] == 0) return -this->limLi(s, d) / TypeA((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
+
+  TypeA sum = a[0] + a[1] + d;
+  switch(s) {
+    case -1:
+      if(sum <= 0) return TriangleBReduced(-1, m, a, d);
+      else return TriangleBReduced(-1, m, std::vector<TypeA> {-a[0], -a[1]}, -d);
+      break;
+    default:
+      if(sum <= 0) {
+        return TriangleBReduced(s, m, a, d);
+      }
+      else if(sum <= std::max(fabs(a[1]), fabs(a[0]))) {
+        return TriangleBFull(s, m, a, d);
+      }
+      else {
+        return TriangleC(s, m, a, d);
+      }
+  }
+}
 
 template <class TypeIO, class TypeA>
 TypeA TRImap<TypeIO, TypeA>::TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
@@ -205,36 +232,6 @@ TypeA TRImap<TypeIO, TypeA>::TriangleC(const int &s, const std::vector<unsigned>
     TRI *= factorial<TypeA>(m);
   }
   return TRI;
-}
-
-
-template <class TypeIO, class TypeA>
-TypeA TRImap<TypeIO, TypeA>::TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d) {
-
-  if(a[0] == 0 && a[1] == 0) return -this->limLi(s, d) / TypeA((m[0] + m[1] + 2) * (m[1] + 1)); // only from higher dimensions calls n = <0,0,c>
-
-  TypeA sum = a[0] + a[1] + d;
-  switch(s) {
-    case -1:
-      if(sum <= 0) return TriangleBReduced(-1, m, a, d);
-      else return TriangleBReduced(-1, m, std::vector<TypeA> {-a[0], -a[1]}, -d);
-      break;
-    default:
-      if(sum <= 0) {
-        return TriangleBReduced(s, m, a, d);
-      }
-      else if(sum <= std::max(fabs(a[1]), fabs(a[0]))) {
-        return TriangleBFull(s, m, a, d);
-      }
-      else {
-        return TriangleC(s, m, a, d);
-      }
-  }
-}
-
-template <class TypeIO, class TypeA>
-TypeIO TRImap<TypeIO, TypeA>::Triangle(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
-  return static_cast<TypeIO>(this->tria(s, m, {static_cast<TypeA>(-a[0]), static_cast<TypeA>(a[1])}, static_cast<TypeA>(d + a[0])));
 }
 
 #endif

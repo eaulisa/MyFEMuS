@@ -24,7 +24,9 @@ class TTImap : public TRImap <TypeA, TypeA> {
       _cnt = 0;
     };
 
-    ~TTImap() { clear();};
+    ~TTImap() {
+      clear();
+    };
 
     void clear() {
       TRImap<TypeA, TypeA>::clear();
@@ -45,34 +47,80 @@ class TTImap : public TRImap <TypeA, TypeA> {
       std::cout << "TTI counter = " << _cnt << std::endl;
     }
 
-    TypeA TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TetrahedronB(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TetrahedronC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeIO Tetrahedron(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d);
+    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
 
+  protected:
     TypeA ttia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-      _index = std::make_pair(a, d);
-      _it = _TTImap[s + 1][m[0]][m[1]][m[2]].find(_index);
+      _key = std::make_pair(a, d);
+      _it = _TTImap[s + 1][m[0]][m[1]][m[2]].find(_key);
       if(_it == _TTImap[s + 1][m[0]][m[1]][m[2]].end()) {
-        _cnt++;  
-        //std::cout << "n3 s = " << s << " m = " << m[0] << ", " << m[1] << ", " << m[2] << " a = " << a[0] << ", " << a[1] << ", " << a[1] << " d = " << d << std::endl;;
-        _TTImap[s + 1][m[0]][m[1]][m[2]][_index] = TetrahedronA(s, m, a, d);
+        _cnt++;
+        _I1 = TetrahedronA(s, m, a, d);
+        _TTImap[s + 1][m[0]][m[1]][m[2]][_key] = _I1;
+        return _I1;
       }
-      return _TTImap[s + 1][m[0]][m[1]][m[2]][_index];
-    }
-
-    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
-      return this->Tetrahedron(s, m, a, d);
+      else {
+        return _it->second;
+      }
     }
 
   private:
+    TypeA TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TetrahedronB(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TetrahedronC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+      
     std::vector<std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > >_TTImap;
     typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    std::pair<std::vector<TypeA>, TypeA> _index;
+    std::pair<std::vector<TypeA>, TypeA> _key;
 
+    TypeA _I1;
     unsigned _cnt;
 };
 
+template <class TypeIO, class TypeA>
+TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO & d) {
+
+  TypeIO m1 = std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]));
+  TypeIO m2 = std::max(fabs(a[2] + a[1]), fabs(a[0] - a[2]));
+  TypeIO m3 = std::max(fabs(a[0] + a[2]), fabs(a[1] - a[0]));
+
+  if(m1 > m2 && m1 > m3) {
+    return static_cast<TypeIO>(
+    this->ttia(s, {m[0], m[1], m[2]},
+    {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] + a[0]), static_cast<TypeA>(a[2] - a[1])},
+    static_cast<TypeA>(d)));
+  }
+  else if(m2 > m3) {
+    return static_cast<TypeIO>(
+    this->ttia(s, {m[1], m[2], m[0]},
+    {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] + a[1]), static_cast<TypeA>(a[0] - a[2])},
+    static_cast<TypeA>(d)));
+  }
+  else {
+    return static_cast<TypeIO>(
+    this->ttia(s, {m[2], m[0], m[1]},
+    {static_cast<TypeA>(a[2]), static_cast<TypeA>(a[0] + a[2]), static_cast<TypeA>(a[1] - a[0])},
+    static_cast<TypeA>(d)));
+  }
+}
+
+template <class TypeIO, class TypeA>
+TypeA TTImap<TypeIO, TypeA>::TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA & d) {
+
+  switch(s) {
+    case -1:
+      if(a[0] + a[1] + a[2] + d <= 0) return TetrahedronB(-1, m, a, d);
+      else return TetrahedronB(-1, m, {-a[0], -a[1], -a[2]}, -d);
+      break;
+    default:
+      if(a[0] + a[1] + a[2] + d <= std::max(fabs(a[1]), fabs(a[2]))) {
+        return TetrahedronB(s, m, a, d);
+      }
+      else {
+        return TetrahedronC(s, m, a, d);
+      }
+  }
+}
 
 template <class TypeIO, class TypeA>
 TypeA TTImap<TypeIO, TypeA>::TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA & d) {
@@ -131,57 +179,13 @@ TypeA TTImap<TypeIO, TypeA>::TetrahedronC(const int &s, const std::vector<unsign
     TET *= factorial <TypeA> (n);
   }
 
-
   return TET;
 }
 
 
-template <class TypeIO, class TypeA>
-TypeA TTImap<TypeIO, TypeA>::TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA & d) {
-
-  switch(s) {
-    case -1:
-      if(a[0] + a[1] + a[2] + d <= 0) return TetrahedronB(-1, m, a, d);
-      else return TetrahedronB(-1, m, {-a[0], -a[1], -a[2]}, -d);
-      break;
-    default:
-      if(a[0] + a[1] + a[2] + d <= std::max(fabs(a[1]), fabs(a[2]))) {
-        return TetrahedronB(s, m, a, d);
-      }
-      else {
-        return TetrahedronC(s, m, a, d);
-      }
-  }
-}
 
 
-template <class TypeIO, class TypeA>
-TypeIO TTImap<TypeIO, TypeA>::Tetrahedron(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO & d) {
 
-  TypeIO m1 = std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]));
-  TypeIO m2 = std::max(fabs(a[2] + a[1]), fabs(a[0] - a[2]));
-  TypeIO m3 = std::max(fabs(a[0] + a[2]), fabs(a[1] - a[0]));
-
-  if(m1 > m2 && m1 > m3) {
-    return static_cast<TypeIO>(
-    this->ttia(s, {m[0], m[1], m[2]},
-    {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] + a[0]), static_cast<TypeA>(a[2] - a[1])},
-    static_cast<TypeA>(d)));
-  }
-  else if(m2 > m3) {
-    return static_cast<TypeIO>(
-    this->ttia(s, {m[1], m[2], m[0]},
-    {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] + a[1]), static_cast<TypeA>(a[0] - a[2])},
-    static_cast<TypeA>(d)));
-  }
-  else {
-    return static_cast<TypeIO>(
-    this->ttia(s, {m[2], m[0], m[1]},
-    {static_cast<TypeA>(a[2]), static_cast<TypeA>(a[0] + a[2]), static_cast<TypeA>(a[1] - a[0])},
-    static_cast<TypeA>(d)));
-  }
-
-}
 
 
 

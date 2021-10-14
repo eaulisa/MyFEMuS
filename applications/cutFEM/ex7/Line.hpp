@@ -10,14 +10,14 @@ using boost::math::factorial;
 
 template <class Type>
 class LimLimap {
-  public:
 
+  protected:
     LimLimap(const unsigned &sMax) {
       _LimLimap.resize(2u + sMax);
     };
-    ~LimLimap() { _cnt = 0;};
-
-    Type LimLi(const int &s, const Type &x);
+    ~LimLimap() {
+      _cnt = 0;
+    };
 
     void clear() {
       for(unsigned s = 0; s < _LimLimap.size(); s++) {
@@ -33,20 +33,22 @@ class LimLimap {
       _it = _LimLimap[s + 1].find(d);
       if(_it == _LimLimap[s + 1].end()) {
         _cnt++;
-        _LimLimap[s + 1][d] = this->LimLi(s, d);
-        //std::cout << "n0 s = "<<s<<" d = "<< d <<std::endl;
+        _I1 = this->LimLi(s, d);
+        _LimLimap[s + 1][d] = _I1;
+        return _I1;
       }
-      return _LimLimap[s + 1][d];
-    }
-
-    Type operator()(const int &s, const Type &d) {
-      return this->limLi(s, d);
+      else {
+        return _it->second;
+      }
     }
 
   private:
+    Type LimLi(const int &s, const Type &x);
+
     std::vector< std::map < Type, Type > > _LimLimap;
     typename std::map< Type, Type >::iterator _it;
 
+    Type _I1;
     unsigned _cnt;
 };
 
@@ -63,7 +65,7 @@ Type LimLimap<Type>::LimLi(const int &s, const Type &x) {
 
 template <class Type>
 class LSImap : public LimLimap <Type> {
-  public:
+  protected:
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {
       _LSImap.resize(2u + sMax + ds);
@@ -73,9 +75,6 @@ class LSImap : public LimLimap <Type> {
       _cnt = 0;
     };
     ~LSImap() {};
-
-    Type LSIm1(const int &m, const Type &a, Type d);
-    Type LSI(const int &s, const unsigned &m, const Type &a, Type d);
 
     void clear() {
       LimLimap<Type>::clear();
@@ -92,26 +91,29 @@ class LSImap : public LimLimap <Type> {
       std::cout << "LSI counter = " << _cnt << std::endl;
     }
 
+    Type LSIm1(const int &m, const Type &a, Type d);
+    Type LSI(const int &s, const unsigned &m, const Type &a, Type d);
+
     Type lsi(const int &s, const unsigned &m, const Type &a, const Type &d) {
-      _index = std::make_pair(a, d);
-      _it = _LSImap[s + 1][m].find(_index);
+      _key = std::make_pair(a, d);
+      _it = _LSImap[s + 1][m].find(_key);
       if(_it == _LSImap[s + 1][m].end()) {
         _cnt++;
-        _LSImap[s + 1][m][_index] = LSI(s, m, a, d);
-        //std::cout << "n1 s = " << s << " m = " << m << " a = " << a << " d = " << d << std::endl;
+        _I1 = LSI(s, m, a, d);
+        _LSImap[s + 1][m][_key] = _I1;
+        return _I1;
       }
-      return _LSImap[s + 1][m][_index];
-    }
-
-    Type operator()(const int &s, const unsigned &m, const Type &a, const Type &d) {
-      return this->lsi(s, m, a, d);
+      else {
+        return _it->second;
+      }
     }
 
   private:
     std::vector<std::vector<std::map < std::pair<Type, Type>, Type > > > _LSImap;
     typename std::map< std::pair<Type, Type>, Type >::iterator _it;
-    std::pair<Type, Type> _index;
+    std::pair<Type, Type> _key;
 
+    Type _I1;
     unsigned _cnt;
 };
 
@@ -176,9 +178,6 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
       return INT;
   }
 }
-
-
-
 
 #endif
 
