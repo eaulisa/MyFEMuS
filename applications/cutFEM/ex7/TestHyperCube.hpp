@@ -2,7 +2,7 @@
 #ifndef __femus_cut_fem_HCItest_hpp__
 #define __femus_cut_fem_HCItest_hpp__
 
-#include "HyperCube.hpp"
+#include "HyperCubeOld.hpp"
 
 template <class myType>
 void TestQuad(myType &eps) {

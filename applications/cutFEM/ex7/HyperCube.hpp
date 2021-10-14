@@ -2,46 +2,124 @@
 #ifndef __femus_cut_fem_HCI_hpp__
 #define __femus_cut_fem_HCI_hpp__
 
-#include "Line.hpp"
 
-template <class Type>
-Type HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Type> a, const Type &d);
+template <class TypeIO, class TypeA>
+class HCImap : public LSImap <TypeA> {
+  public:
 
-template <class Type>
-Type HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md);
+    HCImap(const unsigned &dim, const unsigned &mMax, const unsigned &sMax = 0) : LSImap <TypeA> (mMax + dim - 1, sMax, mMax + dim - 1) {
 
-template <class Type>
-Type HyperCubeB(const unsigned & n, const int &s, std::vector<unsigned> &m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md);
+      _HCImapA.resize(dim);
+      _HCImapA1.resize(dim);
 
-template <class Type>
-Type HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md);
+      _cnt.assign(dim, 0);
 
-template <class Type, class Type2>
-Type HyperCube(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type &d) {
-  std::vector<Type2> a2(a.size());
-  Type d1 = d;
+      for(unsigned d = dim; d >= 1; d--) {
+        _HCImapA[d - 1].resize(2u + sMax + (d != dim) * (mMax + dim - d));
+        _HCImapA1[d - 1].resize(2u + sMax + (d != dim) * (mMax + dim - d));
+      }
+    };
+
+    ~HCImap() {
+      clear();
+    };
+
+    void printCounter() {
+      LSImap<TypeA>::printCounter();
+      for(unsigned d = 0; d < _cnt.size(); d++) {
+        std::cout << "HCI" << d << " counters = " << _cnt[d] << std::endl;
+      }
+    }
+
+    void clear() {
+      LSImap<TypeA>::clear();
+      for(unsigned d = 0; d < _HCImapA.size(); d++) {
+        for(unsigned s = 0; s < _HCImapA[d].size(); s++) {
+          _HCImapA[d][s].clear();
+          _HCImapA1[d][s].clear();
+        }
+        _cnt[d] = 0;
+      }
+    };
+
+
+    TypeIO HyperCube(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d);
+    TypeA HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <TypeA> a, const TypeA &d);
+    TypeA HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+                      const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                      const TypeA & d, const TypeA & md);
+    TypeA HyperCubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
+                     const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                     const TypeA &d, const TypeA &md);
+    TypeA HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
+                     const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                     const TypeA & d, const TypeA & md);
+
+    TypeA hcia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
+        
+      std::cout<<"AAAAA";  
+      _index = std::make_pair(m, std::make_pair(a, d));
+      _it = _HCImapA[a.size() - 1][s + 1].find(_index);
+      if(_it == _HCImapA[a.size() - 1][s + 1].end()) {
+        std::cout<<"BBBB";    
+        _HCImapA[a.size() - 1][s + 1][_index] = HyperCubeA(s, m, a, d);
+      }
+      return _HCImapA[a.size() - 1][s + 1][_index];
+    }
+
+    TypeA hcia1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+                const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                const TypeA & d, const TypeA & md) {
+
+      std::cout<<"CCCC"<<n;  
+      _index = std::make_pair(m, std::make_pair(a, d));
+      _it = _HCImapA1[n][s + 1].find(_index);
+      if(_it == _HCImapA1[n][s + 1].end()) {
+        std::cout<<"DDDD";    
+        _cnt[n]++;
+        _HCImapA1[n][s + 1][_index] = HyperCubeA1(n, s, m, a, ma, d, md);
+      }
+      return _HCImapA1[n][s + 1][_index];
+    }
+
+    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
+      return this->HyperCube(s, m, a, d);
+    }
+
+
+
+  private:
+    std::vector<std::vector< std::map < std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> >, TypeA > > > _HCImapA;
+    std::vector<std::vector< std::map < std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> >, TypeA > > > _HCImapA1;
+
+    typename std::map < std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> >, TypeA >::iterator _it;
+    std::pair< std::vector <unsigned>, std::pair<std::vector<TypeA>, TypeA> > _index;
+
+    std::vector <unsigned> _cnt;
+};
+
+
+
+template <class TypeIO, class TypeA>
+TypeIO HCImap<TypeIO, TypeA>::HyperCube(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
+  std::vector<TypeA> a2(a.size());
+  TypeIO d1 = d;
   for(unsigned i = 0; i < a.size(); i++) {
     d1 -= a[i];
-    a2[i] = static_cast<Type2>(2 * a[i]);
+    a2[i] = static_cast<TypeA>(2 * a[i]);
   }
-  Type2 d2 = static_cast<Type2>(d1);
-  return static_cast<Type>(pow(Type(2), a2.size()) * HyperCubeA<Type2>(s, m, a2, d2));
+  TypeA d2 = static_cast<TypeA>(d1);
+  return static_cast<TypeIO>(pow(TypeIO(2), a2.size()) * this->hcia(s, m, a2, d2));
 }
 
-template <class Type>
-Type HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Type> a, const Type &d) {
+template <class TypeIO, class TypeA>
+TypeA HCImap<TypeIO, TypeA>::HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <TypeA> a, const TypeA &d) {
 
-  Type HCI = 1;
-  
+  TypeA HCI = 1;
+
   for(int i = a.size() - 1; i >= 0; i--) {
     if(a[i] == 0) {
-      HCI *= 1 / Type(m[i] + 1);
+      HCI *= 1 / TypeA(m[i] + 1);
       a.erase(a.begin() + i);
       m.erase(m.begin() + i);
     }
@@ -58,26 +136,26 @@ Type HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <Type> a, con
       }
     }
 
-    std::vector <Type> ma(a.size());
+    std::vector <TypeA> ma(a.size());
     for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
 
-    return HCI * HyperCubeA1(-1 + a.size(), s, m, a, ma, d, -d);
+    return HCI * this->hcia1(-1 + a.size(), s, m, a, ma, d, -d);
   }
   else {
-    return -HCI * LimLi(s, d);
+    return -HCI * this->limLi(s, d);
   }
 }
 
-template <class Type>
-Type HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md) {
+template <class TypeIO, class TypeA>
+TypeA HCImap<TypeIO, TypeA>::HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+    const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+    const TypeA & d, const TypeA & md) {
 
   if(n == 0)  {
-    return LSI(s, m[0], a[0], d);
+    return this->lsi(s, m[0], a[0], d);
   }
 
-  Type sum = d;
+  TypeA sum = d;
   for(unsigned i = 0; i <= n; i++) sum += a[i];
 
   switch(s) {
@@ -99,42 +177,43 @@ Type HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
   }
 }
 
-template <class Type>
-Type HyperCubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type &d, const Type &md) {
+template <class TypeIO, class TypeA>
+TypeA HCImap<TypeIO, TypeA>::HyperCubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
+                                        const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                                        const TypeA &d, const TypeA &md) {
 
-  Type aI = 1 / a[n];
-  Type c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
+  TypeA aI = 1 / a[n];
+  TypeA c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
-  Type I1 = 0;
+  TypeA I1 = 0;
   for(int j = 1; j <= m[n] + 1;  c *= -aI * (m[n] + 1 - j), j++) {
-    I1 += HyperCubeA1(n - 1, s + j, m, a, ma, d + a[n], -d - a[n]) * c;
+    I1 += this->hcia1(n - 1, s + j, m, a, ma, d + a[n], -d - a[n]) * c;
   }
-  Type I2 = HyperCubeA1(n - 1, s + m[n] + 1, m, a, ma, d, -d) * factorial<Type>(m[n]) * pow(-aI, m[n] + 1);
+  TypeA I2 = this->hcia1(n - 1, s + m[n] + 1, m, a, ma, d, -d) * factorial<TypeA>(m[n]) * pow(-aI, m[n] + 1);
   return I1 + I2;
 
 }
 
-template <class Type>
-Type HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
-                const std::vector <Type> &a, const std::vector <Type> &ma,
-                const Type & d, const Type & md) { //alternative formula at s = -1
+template <class TypeIO, class TypeA>
+TypeA HCImap<TypeIO, TypeA>::HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
+                                        const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                                        const TypeA & d, const TypeA & md) { //alternative formula at s = -1
 
-  Type an = a[n];
+  TypeA an = a[n];
   unsigned mn = m[n];
-  
+
   m[n] += (s + 1);
-  Type I1 = HyperCubeA1(n, -1, m, a, ma, d, md) * pow(-an, s + 1) * factorial<Type>(mn) / factorial<Type>(mn + s + 1) ;
+  TypeA I1 = this->hcia1(n, -1, m, a, ma, d, md) * pow(-an, s + 1) * factorial<TypeA>(mn) / factorial<TypeA>(mn + s + 1) ;
   m[n] -= (s + 1);
 
-  Type I2 = 0;
-  Type c1 = 1 / Type(mn + 1);
+  TypeA I2 = 0;
+  TypeA c1 = 1 / TypeA(mn + 1);
   for(unsigned i = 0; i <= s; c1 *= -an / (mn + 2 + i), i++) {
-    I2 += HyperCubeA1(n - 1, s - i, m, a, ma, d + an, -(d + an)) * c1;
+    I2 += this->hcia1(n - 1, s - i, m, a, ma, d + an, -(d + an)) * c1;
   }
   return I1 + I2;
 
 }
 
 #endif
+

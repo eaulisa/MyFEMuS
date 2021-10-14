@@ -10,25 +10,18 @@ class TRImap : public LSImap <TypeA> {
   public:
 
     TRImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LSImap <TypeA> (mMax + 1, sMax, mMax + 1) {
-      
+
       _TRImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
-      
+
       for(unsigned s = 0; s < _TRImap.size(); s++) {
         _TRImap[s].resize(max);
         for(unsigned i = 0; i < _TRImap[s].size(); i++) {
           _TRImap[s][i].resize(max - i);
         }
       }
-      
-//       for(unsigned s = 2u + sMax; s < _TRImap.size(); s++) {
-//         _TRImap[s].resize(mMax + 1 - (s - (2u + sMax)));
-//         for(unsigned i = 0; i < _TRImap[s].size(); i++) {
-//           _TRImap[s][i].resize(mMax + 1 - i);
-//         }
-//       }
-      
-      
+      _cnt = 0;
+
     };
     ~TRImap() {};
 
@@ -41,12 +34,12 @@ class TRImap : public LSImap <TypeA> {
           }
         }
       }
-      cnt = 0;
+      _cnt = 0;
     };
-    
+
     void printCounter() {
       LSImap<TypeA>::printCounter();
-      std::cout << "TRI counter = " << cnt << std::endl;
+      std::cout << "TRI counter = " << _cnt << std::endl;
     }
 
     TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
@@ -59,7 +52,7 @@ class TRImap : public LSImap <TypeA> {
       _index = std::make_pair(a, d);
       _it = _TRImap[s + 1][m[0]][m[1]].find(_index);
       if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
-        cnt++;  
+        _cnt++;
         _TRImap[s + 1][m[0]][m[1]][_index] = TriangleA(s, m, a, d);
         //std::cout << cnt<<" s = "<< s << " m = "<< m[0] <<", "<< m[1] <<" a = "<< a[0] << ", "<< a[1] <<" d = " << d <<" "<<_TRImap[s + 1][m[0]][m[1]][_index] <<std::endl;
       }
@@ -74,12 +67,9 @@ class TRImap : public LSImap <TypeA> {
     std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
     typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
     std::pair<std::vector<TypeA>, TypeA> _index;
-    
-    static unsigned cnt;
+
+    unsigned _cnt;
 };
-
-template <class TypeIO, class TypeA> unsigned TRImap <TypeIO, TypeA>::cnt = 0;
-
 
 
 template <class TypeIO, class TypeA>

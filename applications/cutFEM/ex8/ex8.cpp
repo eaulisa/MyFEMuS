@@ -135,34 +135,34 @@ std::vector<std::vector<Type>> ModifiedGramSchmidt(std::vector<std::vector<Type>
 
   }
 
-  for(unsigned i = 0; i < size; i++) {
-
-    for(unsigned j = 0; j < size; j++) {
-
-      std::cout << A[i][j] << "  " ;
-      if(j ==  A.size() - 1) {
-        std::cout << std::endl;
-      }
-
-    }
-  }
+//   for(unsigned i = 0; i < size; i++) {
+// 
+//     for(unsigned j = 0; j < size; j++) {
+// 
+//       std::cout << A[i][j] << "  " ;
+//       if(j ==  A.size() - 1) {
+//         std::cout << std::endl;
+//       }
+// 
+//     }
+//   }
 
   std::cout << std::endl;
   std::cout << std::endl;
 
   Atest = MatrixMatrixMultiply(A, MatrixMatrixMultiply(M, Transpose(A)));
 
-  for(unsigned i = 0; i < size; i++) {
-
-    for(unsigned j = 0; j < size; j++) {
-
-      std::cout << Atest[i][j] << "  " ;
-      if(j ==  Atest.size() - 1) {
-        std::cout << std::endl;
-      }
-
-    }
-  }
+//   for(unsigned i = 0; i < size; i++) {
+// 
+//     for(unsigned j = 0; j < size; j++) {
+// 
+//       std::cout << Atest[i][j] << "  " ;
+//       if(j ==  Atest.size() - 1) {
+//         std::cout << std::endl;
+//       }
+// 
+//     }
+//   }
 
   return A;
 
@@ -366,7 +366,7 @@ std::vector<std::vector<Type>> GetMassMatrix(int element, int degree) {
           n[count] = j;
           o[count] = k;
           count++;
-          //std::cout << "i = " << i << " j = " << j << " k = " << k << std::endl;
+          std::cout << "i = " << i << " j = " << j << " k = " << k << std::endl;
 
         }
 
@@ -622,8 +622,8 @@ int main(int, char**) {
   std::vector<std::vector<myTypeB>> AAP;
   AAP.resize(AA.size());
   AAP[0].resize(A[0].size());
-  int d = 4;
-  int c = ((d + 1) * (d + 2)) / 2;
+  int d = 5;
+  int c = ((d + 1) * (d + 2) * (d + 3)) / 6;
   myTypeB f = 0;
   std::vector<std::vector<myTypeB>> AT(c, std::vector<myTypeB>(c, myTypeB(0)));
   //DotProduct(Av, Avv);
@@ -632,7 +632,7 @@ int main(int, char**) {
   //Avr = MatrixVectorMultiply(AA, Av);
   //AA = ModifiedGramSchmidt(AT);
   //AT = Transpose(A);
-  AT = GetMassMatrix <myTypeB>(2, 2);
+  AT = GetMassMatrix <myTypeB>(0, d);
   ModifiedGramSchmidt(AT);
 
 //   for(unsigned i = 0; i < R.size(); i++) {
@@ -642,17 +642,17 @@ int main(int, char**) {
 //   }
 
 
-  for(unsigned i = 0; i < AT.size(); i++) {
-
-    for(unsigned j = 0; j < AT[0].size(); j++) {
-
-      std::cout << AT[i][j] << "  ";
-      if(j ==  AT[0].size() - 1) {
-        std::cout << std::endl;
-      }
-
-    }
-  }
+//   for(unsigned i = 0; i < AT.size(); i++) {
+// 
+//     for(unsigned j = 0; j < AT[0].size(); j++) {
+// 
+//       std::cout << AT[i][j] << "  ";
+//       if(j ==  AT[0].size() - 1) {
+//         std::cout << std::endl;
+//       }
+// 
+//     }
+//   }
 //
 //   for(unsigned i = 0; i < AA.size(); i++) {
 //

@@ -22,6 +22,8 @@ using boost::multiprecision::cpp_bin_float_quad;
 // #include "TestHyperCube.hpp"
 // #include "TestTriangle.hpp"
 #include "Tetrahedron.hpp"
+#include "HyperCube.hpp"
+#include "TestHyperCube.hpp"
 // #include "TestPrism.hpp"
 
 #include "Triangle.hpp"
@@ -64,7 +66,7 @@ int main(int, char**) {
   double a = 0.8;
   double b = 0.9;
   double c = 1;
-  double d = -0.5;
+  double d = 0;
 
 //   LSImap <double> lsi(qMax);
 //   for(unsigned i = 0; i <= qMax ; i++) {
@@ -109,35 +111,62 @@ int main(int, char**) {
 //       std::cout << tri2(-1, {i, j}, {-a, -b}, -d) << " ";
 //       std::cout << tri2(3, {i, j}, {a, b}, d) << " ";
 //       std::cout << tri2(3, {i, j}, {-a, -b}, -d) << " ";
-//       std::cout << tri2(s, {i, j}, {a, b}, d) + tri(s, {i, j}, {-a, -b}, -d) - 1. / ((j + 1) * (i + j + 2)) << std::endl;
+//       std::cout << tri2(s, {i, j}, {a, b}, d) + tri2(s, {i, j}, {-a, -b}, -d) - 1. / ((j + 1) * (i + j + 2)) << std::endl;
 //     }
 //   }
 
   std::cout << "Tetrahedron\n";
 
-  TTImap <double, double> tti(qMax, 4);
-  tti.clear();
-  for(unsigned q = 0; q <= qMax; q++) {
-    for(unsigned k = 0; k <= q; k++) {
-      for(unsigned j = 0; j <= q - k ; j++) {
-        unsigned i = q - j - k;
-        //std::cout << q << " " << i << " " << j << " " << k << " ";
-        //std::cout << tti(-1, {i, j, k}, {a, b, c}, d) << " ";
-        //std::cout << tti(-1, {i, j, k}, {-a, -b, -c}, -d) << " ";
-        //std::cout << tti(0, {i, j, k}, {-a, -b, -c}, -d) << " ";
-        //std::cout << tti(0, {i, j, k}, {a, b, c}, d) <<" ";
-        //std::cout << tti(4, {i, j, k}, {-a, -b, -c}, -d) << " ";
-        //std::cout << 
-        tti(0, {i, j, k}, {a, b, c}, d);// << " ";
-        tti(0, {i, j, k}, {-a, -b, -c}, -d);
-        tti(-1, {i, j, k}, {-a, -b, -c}, -d);
-        //std::cout << std::endl;
+//   TTImap <double, double> tti(qMax, 4);
+//   tti.clear();
+// 
+//   unsigned cnt =0;
+//   for(unsigned q = 0; q <= qMax; q++) {
+//     for(int ii = q; ii >= 0; ii--) {
+//       for(int jj = q - ii; jj >= 0; jj--) {
+//         unsigned i = static_cast<unsigned>(ii);
+//         unsigned j = static_cast<unsigned>(jj);
+//         unsigned k = q - i - j;
+//         cnt++;
+//         std::cout <<cnt<<" "<< q << " " << i << " " << j << " " << k << "\n";
+//         //std::cout << tti(-1, {i, j, k}, {a, b, c}, d) << " ";
+//         //std::cout << tti(-1, {i, j, k}, {-a, -b, -c}, -d) << " ";
+//         //std::cout << tti(0, {i, j, k}, {-a, -b, -c}, -d) << " ";
+//         //std::cout << tti(0, {i, j, k}, {a, b, c}, d) <<" ";
+//         //std::cout << tti(4, {i, j, k}, {-a, -b, -c}, -d) << " ";
+//         //std::cout <<
+//         //tti(0, {i, j, k}, {a, b, c}, d);// << " ";
+//         tti(0, {i, j, k}, {-a, -b, -c}, -d);
+//         //tti(-1, {i, j, k}, {-a, -b, -c}, -d);
+//         //std::cout << std::endl;
+// 
+//       }
+//     }
+//   }
+//   tti.printCounter();
 
-      }
+ // HyperCubeA(s, {1,2,3}, {a,b,c}, d);
+  
+  std::cout << "Square \n";
+  qMax = 0;
+  HCImap <double, double> hci2(2, qMax, 4);
+ 
+  hci2.clear();
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(unsigned j = 0; j <= q; j++) {
+      unsigned i = q - j;
+      std::cout << q << " " << i << " " << j << "\n";
+      std::cout << hci2(-1, {i, j}, {a, b}, d) << " "<< HyperCube<double, double>(-1, {i,j}, {a,b}, d)<< std::endl;
+      //std::cout << hci2(-1, {i, j}, {-a, -b}, -d) << " "<< HyperCube<double, double>(-1, {i,j}, {-a,-b}, -d)<< std::endl;
+      //std::cout << hci2(s, {i, j}, {a, b}, d) << " "<< HyperCube<double, double>(s, {i,j}, {a,b}, d)<< std::endl;
+      //std::cout << hci2(s, {i, j}, {-a, -b}, -d) << " "<<HyperCube<double, double>(s, {i,j}, {-a,-b}, -d)<< std::endl;
+      //std::cout << hci2(s, {i, j}, {a, b}, d) + hci2(s, {i, j}, {-a, -b}, -d) - 4 / ((j + 1) * (j + 1));
+      //std::cout<< std::endl;
     }
   }
-  tti.printCounter();
-
+  hci2.printCounter();
+  
+  
   return 1;
 
 

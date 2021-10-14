@@ -21,9 +21,10 @@ class TTImap : public TRImap <TypeA, TypeA> {
           }
         }
       }
+      _cnt = 0;
     };
 
-    ~TTImap() {};
+    ~TTImap() { clear();};
 
     void clear() {
       TRImap<TypeA, TypeA>::clear();
@@ -36,12 +37,12 @@ class TTImap : public TRImap <TypeA, TypeA> {
           }
         }
       }
-      cnt = 0;
+      _cnt = 0;
     };
 
     void printCounter() {
       TRImap<TypeIO, TypeA>::printCounter();
-      std::cout << "TTI counter = " << cnt << std::endl;
+      std::cout << "TTI counter = " << _cnt << std::endl;
     }
 
     TypeA TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
@@ -53,7 +54,7 @@ class TTImap : public TRImap <TypeA, TypeA> {
       _index = std::make_pair(a, d);
       _it = _TTImap[s + 1][m[0]][m[1]][m[2]].find(_index);
       if(_it == _TTImap[s + 1][m[0]][m[1]][m[2]].end()) {
-        cnt++;  
+        _cnt++;  
         //std::cout << "n3 s = " << s << " m = " << m[0] << ", " << m[1] << ", " << m[2] << " a = " << a[0] << ", " << a[1] << ", " << a[1] << " d = " << d << std::endl;;
         _TTImap[s + 1][m[0]][m[1]][m[2]][_index] = TetrahedronA(s, m, a, d);
       }
@@ -69,10 +70,9 @@ class TTImap : public TRImap <TypeA, TypeA> {
     typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
     std::pair<std::vector<TypeA>, TypeA> _index;
 
-    static unsigned cnt;
+    unsigned _cnt;
 };
 
-template <class TypeIO, class TypeA> unsigned TTImap <TypeIO, TypeA>::cnt = 0;
 
 template <class TypeIO, class TypeA>
 TypeA TTImap<TypeIO, TypeA>::TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA & d) {

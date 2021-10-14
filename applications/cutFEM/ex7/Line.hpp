@@ -15,24 +15,24 @@ class LimLimap {
     LimLimap(const unsigned &sMax) {
       _LimLimap.resize(2u + sMax);
     };
-    ~LimLimap() {};
+    ~LimLimap() { _cnt = 0;};
 
     Type LimLi(const int &s, const Type &x);
 
     void clear() {
       for(unsigned s = 0; s < _LimLimap.size(); s++) {
         _LimLimap[s].clear();
-        cnt = 0;
+        _cnt = 0;
       }
     };
     void printCounter() {
-      std::cout << "limLi counter = " << cnt << std::endl;
+      std::cout << "limLi counter = " << _cnt << std::endl;
     }
 
     Type limLi(const int &s, const Type &d) {
       _it = _LimLimap[s + 1].find(d);
       if(_it == _LimLimap[s + 1].end()) {
-        cnt++;
+        _cnt++;
         _LimLimap[s + 1][d] = this->LimLi(s, d);
         //std::cout << "n0 s = "<<s<<" d = "<< d <<std::endl;
       }
@@ -47,10 +47,9 @@ class LimLimap {
     std::vector< std::map < Type, Type > > _LimLimap;
     typename std::map< Type, Type >::iterator _it;
 
-    static unsigned cnt;
+    unsigned _cnt;
 };
 
-template <class Type> unsigned LimLimap<Type>::cnt = 0;
 
 template <class Type>
 Type LimLimap<Type>::LimLi(const int &s, const Type &x) {
@@ -71,6 +70,7 @@ class LSImap : public LimLimap <Type> {
       unsigned max = 2u + mMax + sMax;
 
       for(unsigned s = 0; s < _LSImap.size(); s++) _LSImap[s].resize(max);
+      _cnt = 0;
     };
     ~LSImap() {};
 
@@ -84,19 +84,19 @@ class LSImap : public LimLimap <Type> {
           _LSImap[s][i].clear();
         }
       }
-      cnt = 0;
+      _cnt = 0;
     };
 
     void printCounter() {
       LimLimap<Type>::printCounter();
-      std::cout << "LSI counter = " << cnt << std::endl;
+      std::cout << "LSI counter = " << _cnt << std::endl;
     }
 
     Type lsi(const int &s, const unsigned &m, const Type &a, const Type &d) {
       _index = std::make_pair(a, d);
       _it = _LSImap[s + 1][m].find(_index);
       if(_it == _LSImap[s + 1][m].end()) {
-        cnt++;
+        _cnt++;
         _LSImap[s + 1][m][_index] = LSI(s, m, a, d);
         //std::cout << "n1 s = " << s << " m = " << m << " a = " << a << " d = " << d << std::endl;
       }
@@ -112,10 +112,8 @@ class LSImap : public LimLimap <Type> {
     typename std::map< std::pair<Type, Type>, Type >::iterator _it;
     std::pair<Type, Type> _index;
 
-    static unsigned cnt;
+    unsigned _cnt;
 };
-
-template <class Type> unsigned LSImap <Type>::cnt = 0;
 
 
 template <class Type>
