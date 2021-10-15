@@ -1,5 +1,5 @@
-#ifndef __femus_cut_fem_TET_hpp__
-#define __femus_cut_fem_TET_hpp__
+#ifndef __femus_cut_fem_TET_Old_hpp__
+#define __femus_cut_fem_TET__Old_hpp__
 
 #include "TriangleOld.hpp"
 

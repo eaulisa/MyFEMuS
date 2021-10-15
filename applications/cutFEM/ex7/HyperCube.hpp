@@ -2,6 +2,12 @@
 #ifndef __femus_cut_fem_HCI_hpp__
 #define __femus_cut_fem_HCI_hpp__
 
+template<typename T>
+std::vector<T> slice(const std::vector<T> &v, const unsigned &m, const unsigned &n) {
+  std::vector<T> vec(n - m + 1);
+  std::copy(v.begin() + m, v.begin() + n + 1, vec.begin());
+  return vec;
+}
 
 template <class TypeIO, class TypeA>
 class HCImap : public LSImap <TypeA> {
@@ -13,9 +19,9 @@ class HCImap : public LSImap <TypeA> {
 
       _cnt.assign(dim, 0);
 
-      for(unsigned d = dim; d >= 1; d--) {
-        _HCImapA[d - 1].resize(2u + sMax + (d != dim) * (mMax + dim - d));
-        _HCImapA1[d - 1].resize(2u + sMax + (d != dim) * (mMax + dim - d));
+      for(unsigned d = 0; d < _HCImapA.size(); d++) {
+        _HCImapA[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
+        _HCImapA1[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
       }
     };
 
@@ -26,7 +32,7 @@ class HCImap : public LSImap <TypeA> {
     void printCounter() {
       LSImap<TypeA>::printCounter();
       for(unsigned d = 0; d < _cnt.size(); d++) {
-        std::cout << "HCI" << d << " counters = " << _cnt[d] << std::endl;
+        std::cout << "HCI_" << d + 1 << " counters = " << _cnt[d] << std::endl;
       }
     }
 
@@ -40,39 +46,47 @@ class HCImap : public LSImap <TypeA> {
         _cnt[d] = 0;
       }
     };
-    
+
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
 
-protected:    
+  protected:
     TypeA hcia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-      _key = std::make_tuple(m, a, d);
-      _it = _HCImapA[a.size() - 1][s + 1].find(_key);
-      if(_it == _HCImapA[a.size() - 1][s + 1].end()) {
+
+      typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator it;
+      std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  key;
+
+      key = std::make_tuple(m, a, d);
+      it = _HCImapA[a.size() - 1][s + 1].find(key);
+      if(it == _HCImapA[a.size() - 1][s + 1].end()) {
         _I1 = HyperCubeA(s, m, a, d);
-        _HCImapA[a.size() - 1][s + 1][_key] = _I1;
+        _HCImapA[a.size() - 1][s + 1][key] = _I1;
         return _I1;
       }
       else {
-        return _it->second;
+        return it->second;
       }
     }
 
     TypeA hcia1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
-      _key = std::make_tuple(m, a, d);  
-      _it = _HCImapA1[n][s + 1].find(_key);
-      if(_it == _HCImapA1[n][s + 1].end()) {
+
+      typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator it;
+      std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  key;
+
+      key = std::make_tuple(slice(m, 0, n), slice(a, 0, n), d);
+      it = _HCImapA1[n][s + 1].find(key);
+      if(it == _HCImapA1[n][s + 1].end()) {
         _cnt[n]++;
         _I1 = HyperCubeA1(n, s, m, a, ma, d, md);
-        _HCImapA1[n][s + 1][_key] = _I1;
+        _HCImapA1[n][s + 1][key] = _I1;
         return _I1;
       }
       else {
-        return _it->second;
+        return it->second;
       }
     }
-    
+
   private:
     TypeA HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <TypeA> a, const TypeA &d);
     TypeA HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
@@ -84,12 +98,12 @@ protected:
     TypeA HyperCubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
                      const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                      const TypeA & d, const TypeA & md);
-  
-      
+
+
     std::vector<std::vector< std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA > > > _HCImapA;
     std::vector<std::vector< std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA > > > _HCImapA1;
-    typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  _key;
+    //typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    //std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  _key;
 
     TypeA _I1;
     std::vector <unsigned> _cnt;
