@@ -50,22 +50,6 @@ class HCImap : public LSImap <TypeA> {
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
 
   protected:
-    TypeA hcia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-
-      typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator it;
-      std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  key;
-
-      key = std::make_tuple(m, a, d);
-      it = _HCImapA[a.size() - 1][s + 1].find(key);
-      if(it == _HCImapA[a.size() - 1][s + 1].end()) {
-        _I1 = HyperCubeA(s, m, a, d);
-        _HCImapA[a.size() - 1][s + 1][key] = _I1;
-        return _I1;
-      }
-      else {
-        return it->second;
-      }
-    }
 
     TypeA hcia1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
@@ -88,7 +72,21 @@ class HCImap : public LSImap <TypeA> {
     }
 
   private:
-    TypeA HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <TypeA> a, const TypeA &d);
+
+    TypeA hcia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
+      _key = std::make_tuple(m, a, d);
+      _it = _HCImapA[a.size() - 1][s + 1].find(_key);
+      if(_it == _HCImapA[a.size() - 1][s + 1].end()) {
+        _I1 = HyperCubeA(s, m, a, d);
+        _HCImapA[a.size() - 1][s + 1][_key] = _I1;
+        return _I1;
+      }
+      else {
+        return _it->second;
+      }
+    }
+
+    TypeA HyperCubeA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
     TypeA HyperCubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
                       const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                       const TypeA & d, const TypeA & md);
@@ -102,55 +100,62 @@ class HCImap : public LSImap <TypeA> {
 
     std::vector<std::vector< std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA > > > _HCImapA;
     std::vector<std::vector< std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA > > > _HCImapA1;
-    //typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    //std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  _key;
+    typename std::map < std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA>  _key;
 
     TypeA _I1;
     std::vector <unsigned> _cnt;
+    std::vector <unsigned> _m;
+    std::vector <TypeA> _a;
+    std::vector <TypeA> _ma;
+    std::vector<TypeA> _a2;
 };
 
 
 
 template <class TypeIO, class TypeA>
 TypeIO HCImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
-  std::vector<TypeA> a2(a.size());
+  _a2.resize(a.size());
   TypeIO d1 = d;
   for(unsigned i = 0; i < a.size(); i++) {
     d1 -= a[i];
-    a2[i] = static_cast<TypeA>(2 * a[i]);
+    _a2[i] = static_cast<TypeA>(2 * a[i]);
   }
   TypeA d2 = static_cast<TypeA>(d1);
-  return static_cast<TypeIO>(pow(TypeIO(2), a2.size()) * this->hcia(s, m, a2, d2));
+  return static_cast<TypeIO>(pow(TypeIO(2), _a2.size()) * this->hcia(s, m, _a2, d2));
 }
 
 template <class TypeIO, class TypeA>
-TypeA HCImap<TypeIO, TypeA>::HyperCubeA(const int &s, std::vector<unsigned> m, std::vector <TypeA> a, const TypeA &d) {
+TypeA HCImap<TypeIO, TypeA>::HyperCubeA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d) {
+
+  _a = a;
+  _m = m;
 
   TypeA HCI = 1;
 
-  for(int i = a.size() - 1; i >= 0; i--) {
-    if(a[i] == 0) {
-      HCI *= 1 / TypeA(m[i] + 1);
-      a.erase(a.begin() + i);
-      m.erase(m.begin() + i);
+  for(int i = _a.size() - 1; i >= 0; i--) {
+    if(_a[i] == 0) {
+      HCI *= 1 / TypeA(_m[i] + 1);
+      _a.erase(_a.begin() + i);
+      _m.erase(_m.begin() + i);
     }
   }
 
-  if(a.size() > 0) {
+  if(_a.size() > 0) {
     // all the left a[i] coefficients \ne 0
-    for(unsigned i = 0; i < a.size() - 1; i++) { // reorder iterated integral from the smallest to the largest coefficient a[i]
-      for(unsigned j = i + 1; j < a.size(); j++) {
-        if(fabs(a[i]) > fabs(a[j])) {
-          std::swap(a[i], a[j]);
-          std::swap(m[i], m[j]);
+    for(unsigned i = 0; i < _a.size() - 1; i++) { // reorder iterated integral from the smallest to the largest coefficient a[i]
+      for(unsigned j = i + 1; j < _a.size(); j++) {
+        if(fabs(_a[i]) > fabs(_a[j])) {
+          std::swap(_a[i], _a[j]);
+          std::swap(_m[i], _m[j]);
         }
       }
     }
 
-    std::vector <TypeA> ma(a.size());
-    for(unsigned i = 0; i < a.size(); i++)  ma[i] = -a[i];
+    _ma.resize(_a.size());
+    for(unsigned i = 0; i < _a.size(); i++)  _ma[i] = -_a[i];
 
-    return HCI * this->hcia1(-1 + a.size(), s, m, a, ma, d, -d);
+    return HCI * this->hcia1(-1 + _a.size(), s, _m, _a, _ma, d, -d);
   }
   else {
     return -HCI * this->limLi(s, d);

@@ -162,45 +162,130 @@ int main(int, char**) {
   tti.printCounter();
 
 
+  std::cout << "Line \n";
+  qMax = 5;
+  s = 4;
+  HCImap <double, double> hci1(1, qMax, s);
 
-//   std::cout << "Square \n";
-//   qMax = 5;
-//   s = 4;
-//   HCImap <double, double> hci2(2, qMax, s);
-//
-//   hci2.clear();
-//
-//   cnt = 0;
-//   for(unsigned q = 0; q <= qMax; q++) {
-//     for(unsigned j = 0; j <= q; j++) {
-//       unsigned i = q - j;
-//       std::cout << ++cnt <<" "<< q << " " << i << " " << j << " ";
-//       std::cout << hci2(-1, {i, j}, {a, b}, d) - HyperCube<double, double>(-1, {i, j}, {a, b}, d) << " ";
-//       std::cout << hci2(-1, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(-1, {i, j}, {-a, -b}, -d) << " ";
-//       std::cout << hci2(s, {i, j}, {a, b}, d) - HyperCube<double, double>(s, {i, j}, {a, b}, d) << " ";
-//       std::cout << hci2(s, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(s, {i, j}, {-a, -b}, -d) << " ";
-//       std::cout << hci2(0, {i, j}, {a, b}, d) + hci2(0, {i, j}, {-a, -b}, -d) - 4. / ((i + 1) * (j + 1));
-//       std::cout << std::endl;
-//     }
-//   }
-//   hci2.printCounter();
-//
-//   cnt = 0;
-//   for(unsigned q = 0; q <= qMax; q++) {
-//     for(unsigned j = 0; j <= q; j++) {
-//       unsigned i = q - j;
-//       std::cout << ++cnt <<" "<< q << " " << i << " " << j << " ";
-//       std::cout << hci2(-1, {i, j}, {a, b}, d) - HyperCube<double, double>(-1, {i, j}, {a, b}, d) << " ";
-//       std::cout << hci2(-1, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(-1, {i, j}, {-a, -b}, -d) << " ";
-//       std::cout << hci2(s, {i, j}, {a, b}, d) - HyperCube<double, double>(s, {i, j}, {a, b}, d) << " ";
-//       std::cout << hci2(s, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(s, {i, j}, {-a, -b}, -d) << " ";
-//       std::cout << hci2(0, {i, j}, {a, b}, d) + hci2(0, {i, j}, {-a, -b}, -d) - 4. / ((i + 1) * (j + 1));
-//       std::cout << std::endl;
-//     }
-//   }
-//
-//
-//   hci2.printCounter();
+  hci1.clear();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(unsigned i = 0; i <= q; i++) {
+      std::cout << ++cnt << " " << q << " " << i << " ";
+      std::cout << hci1(-1, {i}, {a}, d) - HyperCube<double, double>(-1, {i}, {a}, d) << " ";
+      std::cout << hci1(-1, {i}, {-a}, -d) - HyperCube<double, double>(-1, {i}, {-a}, -d) << " ";
+      std::cout << hci1(s, {i}, {a}, d) - HyperCube<double, double>(s, {i}, {a}, d) << " ";
+      std::cout << hci1(s, {i}, {-a}, -d) - HyperCube<double, double>(s, {i}, {-a}, -d) << " ";
+      std::cout << hci1(0, {i}, {a}, d) + hci1(0, {i}, {-a}, -d) - 2. / (i + 1);
+      std::cout << std::endl;
+    }
+  }
+  hci1.printCounter();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(unsigned i = 0; i <= q; i++) {
+      std::cout << ++cnt << " " << q << " " << i << " ";
+      std::cout << hci1(-1, {i}, {a}, d) - HyperCube<double, double>(-1, {i}, {a}, d) << " ";
+      std::cout << hci1(-1, {i}, {-a}, -d) - HyperCube<double, double>(-1, {i}, {-a}, -d) << " ";
+      std::cout << hci1(s, {i}, {a}, d) - HyperCube<double, double>(s, {i}, {a}, d) << " ";
+      std::cout << hci1(s, {i}, {-a}, -d) - HyperCube<double, double>(s, {i}, {-a}, -d) << " ";
+      std::cout << hci1(0, {i}, {a}, d) + hci1(0, {i}, {-a}, -d) - 2. / (i + 1);
+      std::cout << std::endl;
+    }
+  }
+  hci1.printCounter();
+
+
+
+
+  std::cout << "Square \n";
+  qMax = 5;
+  s = 4;
+  HCImap <double, double> hci2(2, qMax, s);
+
+  hci2.clear();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(unsigned j = 0; j <= q; j++) {
+      unsigned i = q - j;
+      std::cout << ++cnt << " " << q << " " << i << " " << j << " ";
+      std::cout << hci2(-1, {i, j}, {a, b}, d) - HyperCube<double, double>(-1, {i, j}, {a, b}, d) << " ";
+      std::cout << hci2(-1, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(-1, {i, j}, {-a, -b}, -d) << " ";
+      std::cout << hci2(s, {i, j}, {a, b}, d) - HyperCube<double, double>(s, {i, j}, {a, b}, d) << " ";
+      std::cout << hci2(s, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(s, {i, j}, {-a, -b}, -d) << " ";
+      std::cout << hci2(0, {i, j}, {a, b}, d) + hci2(0, {i, j}, {-a, -b}, -d) - 4. / ((i + 1) * (j + 1));
+      std::cout << std::endl;
+    }
+  }
+  hci2.printCounter();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(unsigned j = 0; j <= q; j++) {
+      unsigned i = q - j;
+      std::cout << ++cnt << " " << q << " " << i << " " << j << " ";
+      std::cout << hci2(-1, {i, j}, {a, b}, d) - HyperCube<double, double>(-1, {i, j}, {a, b}, d) << " ";
+      std::cout << hci2(-1, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(-1, {i, j}, {-a, -b}, -d) << " ";
+      std::cout << hci2(s, {i, j}, {a, b}, d) - HyperCube<double, double>(s, {i, j}, {a, b}, d) << " ";
+      std::cout << hci2(s, {i, j}, {-a, -b}, -d) - HyperCube<double, double>(s, {i, j}, {-a, -b}, -d) << " ";
+      std::cout << hci2(0, {i, j}, {a, b}, d) + hci2(0, {i, j}, {-a, -b}, -d) - 4. / ((i + 1) * (j + 1));
+      std::cout << std::endl;
+    }
+  }
+
+
+  hci2.printCounter();
+
+
+
+  std::cout << "Cube \n";
+  qMax = 3;
+  s = 4;
+  HCImap <double, double> hci3(3, qMax, s);
+
+  hci3.clear();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(int ii = q; ii >= 0; ii--) {
+      for(int jj = q - ii; jj >= 0; jj--) {
+        unsigned i = static_cast<unsigned>(ii);
+        unsigned j = static_cast<unsigned>(jj);
+        unsigned k = q - i - j;
+        std::cout << ++cnt << " " << q << " " << i << " " << j << " ";
+        std::cout << hci3(-1, {i, j, k}, {a, b, c}, d) - HyperCube<double, double>(-1, {i, j, k}, {a, b, c}, d) << " ";
+        std::cout << hci3(-1, {i, j, k}, {-a, -b, -c}, -d) - HyperCube<double, double>(-1, {i, j, k}, {-a, -b, -c}, -d) << " ";
+        std::cout << hci3(s, {i, j, k}, {a, b, c}, d) - HyperCube<double, double>(s, {i, j, k}, {a, b, c}, d) << " ";
+        std::cout << hci3(s, {i, j, k}, {-a, -b, -c}, -d) - HyperCube<double, double>(s, {i, j, k}, {-a, -b, -c}, -d) << " ";
+        std::cout << hci3(0, {i, j, k}, {a, b, c}, d) + hci3(0, {i, j, k}, {-a, -b, -c}, -d) - 8. / ((i + 1) * (j + 1) *(k + 1));
+        std::cout << std::endl;
+      }
+    }
+  }
+  hci3.printCounter();
+
+  cnt = 0;
+  for(unsigned q = 0; q <= qMax; q++) {
+    for(int ii = q; ii >= 0; ii--) {
+      for(int jj = q - ii; jj >= 0; jj--) {
+        unsigned i = static_cast<unsigned>(ii);
+        unsigned j = static_cast<unsigned>(jj);
+        unsigned k = q - i - j;
+        std::cout << ++cnt << " " << q << " " << i << " " << j << " ";
+        std::cout << hci3(-1, {i, j, k}, {a, b, c}, d) - HyperCube<double, double>(-1, {i, j, k}, {a, b, c}, d) << " ";
+        std::cout << hci3(-1, {i, j, k}, {-a, -b, -c}, -d) - HyperCube<double, double>(-1, {i, j, k}, {-a, -b, -c}, -d) << " ";
+        std::cout << hci3(s, {i, j, k}, {a, b, c}, d) - HyperCube<double, double>(s, {i, j, k}, {a, b, c}, d) << " ";
+        std::cout << hci3(s, {i, j, k}, {-a, -b, -c}, -d) - HyperCube<double, double>(s, {i, j, k}, {-a, -b, -c}, -d) << " ";
+        std::cout << hci3(0, {i, j, k}, {a, b, c}, d) + hci3(0, {i, j, k}, {-a, -b, -c}, -d) - 8. / ((i + 1) * (j + 1) *(k + 1));
+        std::cout << std::endl;
+      }
+    }
+  }
+  
+  hci3.printCounter();
 
 
   return 1;
