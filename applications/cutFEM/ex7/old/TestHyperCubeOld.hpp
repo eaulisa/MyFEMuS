@@ -1,13 +1,11 @@
 
-#ifndef __femus_cut_fem_HCItest_hpp__
-#define __femus_cut_fem_HCItest_hpp__
+#ifndef __femus_cut_fem_HCItestOld_hpp__
+#define __femus_cut_fem_HCItestOld_hpp__
 
-#include "HyperCube.hpp"
-#include "Square.hpp"
-
+#include "HyperCubeOld.hpp"
 
 template <class myType>
-void TestQuad(myType &eps) {
+void TestQuadOld(myType &eps) {
 
   std::cout << "testing the Quadrilateral \n";
 
@@ -25,12 +23,7 @@ void TestQuad(myType &eps) {
 
   std::cout.precision(16);
 
-  //HCImap <myType, myType> sqi(2,18, 5);
-  
-  SQImap <myType, myType> sqi(18, 5);
-  SQImap <myType, myTypeB> sqiB(18, 5);
-
-  std::cout << sqi(0, m, a, d) << std::endl;
+  std::cout << HyperCube<myType, myType>(0, m, a, d) << std::endl;
 
 
   for(unsigned i = 0; i < a.size(); i++) {
@@ -42,8 +35,8 @@ void TestQuad(myType &eps) {
   ma[0] = -a[0];
   ma[1] = -a[1];
 
-//   std::cout << 4 * HyperCubeA1(1, 0, m, a, ma, d, -d) << std::endl;
-//   std::cout << 4 * HyperCubeC(1, 0, m, a, ma, d, -d) << std::endl << std::endl;
+  std::cout << 4 * HyperCubeA1(1, 0, m, a, ma, d, -d) << std::endl;
+  std::cout << 4 * HyperCubeC(1, 0, m, a, ma, d, -d) << std::endl << std::endl;
 
   ///////////////////////////////////////////////////////////////////
 
@@ -67,7 +60,6 @@ void TestQuad(myType &eps) {
     {-1, -1, 2}, {-1, 0, 1}, {-1, 1, 2}, {0, 1, 1}
   };
 
-
   for(unsigned i = 0; i < smallCut.size(); i++) {
     for(unsigned j = 0; j < epsCut.size(); j++) {
 
@@ -76,9 +68,8 @@ void TestQuad(myType &eps) {
       a[1] = myType(smallCut[i][1] + epsCut[j][1]);
       d = myType(smallCut[i][2] + epsCut[j][2]);
 
-      myType I1 = sqi(s, m, a, d);
-      myType I2 = sqiB(s,  m, a, d);
-      //myType I2 = HyperCube<myType, myTypeB>(s,  m, a, d);
+      myType I1 = HyperCube<myType, myType>(s,  m, a, d);
+      myType I2 = HyperCube<myType, myTypeB>(s,  m, a, d);
 
       if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
         //std::cout << "passed "<< i << " " << j<<" ";
@@ -93,7 +84,7 @@ void TestQuad(myType &eps) {
 }
 
 template <class myType>
-void TestHex(myType &eps) {
+void TestHexOld(myType &eps) {
 
   std::cout << "testing the Hexahedron \n";
 
@@ -111,10 +102,7 @@ void TestHex(myType &eps) {
   std::vector<unsigned> m = {0, 0, 0};
   myType d = 0 / norm;
 
-  CBImap <myType, myType> cube(18, 0);
-  HCImap <myType, myType> hci3B(3, 18, 0);
-
-  std::cout << cube(0, m, a, d) << std::endl;
+  std::cout << HyperCube<myType, myType>(0, m, a, d) << std::endl;
 
   for(unsigned i = 0; i < a.size(); i++) {
     d -= a[i];
@@ -126,8 +114,8 @@ void TestHex(myType &eps) {
   ma[1] = -a[1];
   ma[2] = -a[2];
 
-//   std::cout << 8 * HyperCubeB(2, 0, m, a, ma, d, -d) << std::endl;
-//   std::cout << 8 * HyperCubeC(2, 0, m, a, ma, d, -d) << std::endl;
+  std::cout << 8 * HyperCubeB(2, 0, m, a, ma, d, -d) << std::endl;
+  std::cout << 8 * HyperCubeC(2, 0, m, a, ma, d, -d) << std::endl;
 
   ////////////////////////////////////////
 
@@ -168,18 +156,16 @@ void TestHex(myType &eps) {
 
   int s = 0;
 
-  for(unsigned i = 0; i <0 * 12 + smallCut.size(); i++) {
-    for(unsigned j = 0; j <0 * 2 + epsCut.size(); j++) {
+  for(unsigned i = 0; i < smallCut.size(); i++) {
+    for(unsigned j = 0; j < epsCut.size(); j++) {
       a.resize(3);
       a[0] = myType(smallCut[i][0] + epsCut[j][0]);
       a[1] = myType(smallCut[i][1] + epsCut[j][1]);
       a[2] = myType(smallCut[i][2] + epsCut[j][2]);
       d = myType(smallCut[i][3] + epsCut[j][3]);
-      //std::cout<<std::endl;
-      myType I2 = hci3B(s,  m, a, d); 
-      //std::cout<<std::endl;
-      myType I1 = cube(s,  m, a, d);
-      
+
+      myType I1 = HyperCube<myType, myType>(s,  m, a, d);
+      myType I2 = HyperCube<myType, myTypeB>(s,  m, a, d);
 
       if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
         //std::cout << "passed " << i << " " << j << " ";
@@ -192,7 +178,6 @@ void TestHex(myType &eps) {
 
     }
   }
-  //exit(1);
 
 }
 

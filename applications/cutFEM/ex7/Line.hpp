@@ -30,6 +30,7 @@ class LimLimap {
     }
 
     Type limLi(const int &s, const Type &d) {
+      //std::cout<<s<<" "<<_LimLimap.size()<<"   "<<std::flush;
       _it = _LimLimap[s + 1].find(d);
       if(_it == _LimLimap[s + 1].end()) {
         _cnt++;
@@ -55,10 +56,16 @@ class LimLimap {
 
 template <class Type>
 Type LimLimap<Type>::LimLi(const int &s, const Type &x) {
-  if(x < 0) return Type(0);
-  else if(s != 0) return -pow(x, s) / factorial<Type>(s);
-  else if(x > 0) return Type(-1);
-  else return Type(-0.5);
+
+  if(x > 0) return -pow(x, s) / factorial<Type>(s);
+  else if(x < 0) return Type(0);
+  else return (s == 0) * Type(-0.5);
+
+
+//   if(x < 0) return Type(0);
+//   else if(s != 0) return -pow(x, s) / factorial<Type>(s);
+//   else if(x > 0) return Type(-1);
+//   else return Type(-0.5);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -68,6 +75,8 @@ class LSImap : public LimLimap <Type> {
   protected:
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {
+      //std::cout << mMax << " " << sMax << "\n";  
+        
       _LSImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
@@ -92,14 +101,15 @@ class LSImap : public LimLimap <Type> {
     }
 
     Type LSIm1(const int &m, const Type &a, Type d);
-    Type LSI(const int &s, const unsigned &m, const Type &a, Type d);
+    Type LSI(const int &s, const unsigned &m, const Type &a, const Type &d);
 
     Type lsi(const int &s, const unsigned &m, const Type &a, const Type &d) {
+               
       _key = std::make_pair(a, d);
       _it = _LSImap[s + 1][m].find(_key);
       if(_it == _LSImap[s + 1][m].end()) {
         _cnt++;
-        _I1 = LSI(s, m, a, d);
+        _I1 = this->LSI(s, m, a, d);
         _LSImap[s + 1][m][_key] = _I1;
         return _I1;
       }
@@ -140,11 +150,11 @@ Type LSImap<Type>::LSIm1(const int &m, const Type &a, Type d) {
 
 
 template <class Type>
-Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
+Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Type &d) {
 
   switch(s) {
     case -1:
-      return LSIm1(m, a, d);
+      return this->LSIm1(m, a, d);
       break;
 
     default:
@@ -164,14 +174,19 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
             g *= (m + 1 - i) / (-a);
           }
         }
-        else if(d >= 0.) {
-          INT += factorial<Type>(m) * this->limLi(s + m + 1, d) / (a * pow(-a, m));
-        }
+        //else if(d >= 0.) {
+        INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
+        //}
       }
       else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
-        for(int i = 1; i <= s; i++) {
-          INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * this->limLi(i, x) ;
+//         for(int i = 1; i <= s; i++) {
+//           INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * this->limLi(i, x) ;
+//         }
+        
+        for(unsigned i = 0; i < s; i++) {
+          INT -= pow(-a, i) / factorial<Type>(m + 1 + i) * this->limLi(s - i, x) ;
         }
+        
         INT += pow(-a, s) / factorial<Type>(m + 1 + s);
         INT *= factorial<Type>(m);
       }
@@ -180,4 +195,5 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, Type d) {
 }
 
 #endif
+
 
