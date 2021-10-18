@@ -110,7 +110,7 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
 
   mlSol.Initialize("All");
   //mlSol.Initialize("DX", InitVariableDX);
-  mlSol.Initialize("VY", InitVariableVY);
+  //mlSol.Initialize("VY", InitVariableVY);
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 

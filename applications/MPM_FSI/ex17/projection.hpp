@@ -40,22 +40,22 @@ class Projection {
     }
     const std::vector < std::vector < std::vector <double > > > & GetX() {
       return _Xb;
-    } 
+    }
     const std::vector < std::vector < std::vector <double > > > & GetV() {
       return _Vb;
-    } 
+    }
     const std::vector < std::vector < std::vector <double > > > & GetA() {
       return _Ab;
-    } 
+    }
     const std::vector < std::vector<std::vector<double> > > & GetD() {
       return _Db;
-    } 
+    }
     const std::vector < std::vector<std::vector<double> > > & GetN() {
       return _Nb;
-    } 
+    }
     const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradD() {
       return _gradDb;
-    } 
+    }
 
   private:
 
@@ -430,6 +430,12 @@ void Projection::FromMarkerToBackground() {
     short unsigned ielType = mshB->GetElementType(iel);
 
     for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
+      
+      im[kp] = 0;
+      while(im[kp] < _ielb[kp].size() && _ielb[kp][im[kp]] < iel) {
+        im[kp]++;
+      }  
+        
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
         if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
           solB->_Sol[eflagIdx]->set(iel, 1);
@@ -507,6 +513,11 @@ void Projection::FromBackgroundToMarker() {
     short unsigned ielType = mshB->GetElementType(iel);
     unsigned nDofs;
     for(unsigned kp = 0; kp < _nprocs; kp++) {
+      im[kp] = 0;
+      while(im[kp] < _ielb[kp].size() && _ielb[kp][im[kp]] < iel) {
+        im[kp]++;
+      }
+
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
         if(!ielIsInitialized) {
           ielIsInitialized = true;
@@ -539,7 +550,9 @@ void Projection::FromBackgroundToMarker() {
     }
   }
 
-
+  for(unsigned k = 0; k < _dim; k++) { //reset the background displacement
+    solB->_Sol[DIdxB[k]]->zero();
+  }
 
   unsigned solTypeM = 2;
 

@@ -23,6 +23,10 @@ bool NeoHookean = true;
 double gravity[3] ={0., 0., 0.};
 double GAMMA = 45.;
 
+double gammacF = 0.05;
+double gammacS = 0.05;
+double gammap = 0.05;
+double gammau = 0.05 * gammacF;
 
 using namespace femus;
 
@@ -39,7 +43,7 @@ int main(int argc, char** args) {
 
   MultiLevelMesh mlMshM;
   mlMshM.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
-  mlMshM.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  mlMshM.RefineMesh(5, 5, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
   unsigned numberOfRefinementM = 3;
   for(unsigned i = 0; i < numberOfRefinementM; i++) {
@@ -55,8 +59,8 @@ int main(int argc, char** args) {
   
   unsigned numberOfRefinementB = numberOfRefinementM;
   MultiLevelMesh mlMshB;
-  //mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
-  mlMshB.ReadCoarseMesh("../input/turek2D.neu", "fifth", 1); // FSI_mesh2
+  mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
+  //mlMshB.ReadCoarseMesh("../input/turek2D.neu", "fifth", 1); // FSI_mesh2
   mlMshB.RefineMesh(numberOfRefinementB, numberOfRefinementB, NULL);
   mlMshB.EraseCoarseLevels(numberOfRefinementB - 1u);
 
@@ -151,11 +155,11 @@ int main(int argc, char** args) {
   for(unsigned t = 1; t <= 20; t++) {
     projection->SetNewmarkParameters(Beta, Gamma, 1.);  
     clock_t time = clock();
-    //projection.FromMarkerToBackground();
+    projection->FromMarkerToBackground();
 
     system.MGsolve();
     
-    //projection.FromBackgroundToMarker();
+    projection->FromBackgroundToMarker();
     std::cout << "time" << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
@@ -180,10 +184,48 @@ double SetVariableTimeStepB(const double time) {
   else
     dt = dt1;
 
-  return dt;
+  return 0.1;
 }
 
 
+bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;      
+
+if(!strcmp(name, "DY")) {
+    if(3 == facename) {
+      test = 0;   // neumann do-nothing
+    }
+  }
+  else if(!strcmp(name, "DX")) {
+    if(1 == facename || 2 == facename) {
+      test = 0; // neumann do-nothing
+    }
+  }
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename || 2 == facename) {
+      test = 0; // neumann do-nothing
+    }
+  }
+  else if(!strcmp(name, "VY")) {
+    if(3 == facename) {
+      test = 0; // neumann do-nothing
+    }
+  }
+  else if(!strcmp(name, "P")) {
+    if(facename == 1){
+        value = 0.1;
+    }
+    else{
+        test = 0.;
+    }
+  }
+
+  return test;
+
+}
+
+/*
 bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
   bool test = 1;      //dirichlet
   value = 0.;
@@ -238,4 +280,4 @@ bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], do
 
   return test;
 
-}
+}*/

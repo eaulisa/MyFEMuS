@@ -1,4 +1,6 @@
 
+#include "./include/GhostPenalty.hpp"
+
 bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 double SetVariableTimeStepB(const double time);
 
@@ -52,8 +54,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   myKK->zero();
   myRES->zero();
 
-  //AssembleGhostPenaltyP(ml_prob, true);
-  //AssembleGhostPenaltyP(ml_prob, false);
+  AssembleGhostPenaltyP(ml_prob, true);
+  AssembleGhostPenaltyP(ml_prob, false);
 
 
   // call the adept stack object
@@ -495,7 +497,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
     if(eFlag > 0) {   //BEGIN BULK PARTICLE
+
       for(unsigned kp = 0; kp < nprocs; kp++) {
+        im[kp] = 0;
+        while(im[kp] < ielp[kp].size() && ielp[kp][im[kp]] < iel) {
+          im[kp]++;
+        }
+
         while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
 
           // the local coordinates of the particles are the integration points in this context
@@ -565,14 +573,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             solVFp[j] = theta * solVFpNew[j] + (1. - theta) * solVFpOld[j];
           }
 
-          
+
           //BEGIN Navier-Stokes in the bulk interface cells (integration is on the particles in \Omega_f)
           vector<vector < adept::adouble > > gradSolVp(dim);
           adept::adouble solPp = 0.;
-          
+
           if(eFlag == 1 && (1. - U) > 0) {
+
             msh->_finiteElement[ielt][solType]->Jacobian(vxNew, xi, agaussWeight, phi, gradPhiNew);
-            
+
             vector<vector < adept::adouble > > gradSolVpNew(dim);
             vector<adept::adouble> gradSolPp(dim, 0.);
             for(int j = 0; j < dim; j++) {
@@ -655,7 +664,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
             double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
             adept::adouble Fp[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-            
+
             for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
                 FpOld[j][k] += gradDpOld[kp][j][k][im[kp]];
@@ -767,7 +776,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
           //BEGIN Nietsche coupling
           if(U == 0.5) {
-
             double h = sqrt(dim) * sqrt((vxOld[0][0] - vxOld[0][1]) * (vxOld[0][0] - vxOld[0][1]) +
                                         (vxOld[1][0] - vxOld[1][1]) * (vxOld[1][0] - vxOld[1][1])) ;
 
@@ -889,11 +897,11 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
 //   PetscViewer    viewer1;
-//   PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 1800, 1800, &viewer1);
-//   PetscObjectSetName ( (PetscObject) viewer1, "FSI matrix");
-//   PetscViewerPushFormat (viewer1, PETSC_VIEWER_DRAW_LG);
-//   MatView ( (static_cast< PetscMatrix* > (myKK))->mat(), viewer1);
-//
+//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 1800, 1800, &viewer1);
+//   PetscObjectSetName((PetscObject) viewer1, "FSI matrix");
+//   PetscViewerPushFormat(viewer1, PETSC_VIEWER_DRAW_LG);
+//   MatView((static_cast< PetscMatrix* >(myKK))->mat(), viewer1);
+
 //   double a;
 //   std::cin >> a;
 
