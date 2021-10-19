@@ -6,9 +6,9 @@ template <class TypeIO, class TypeA>
 class SQImap : public LSImap <TypeA> {
   public:
     SQImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LSImap <TypeA> (mMax + 1, sMax, mMax + 1) {
-        
-    //  std::cout << mMax << " " << sMax << "\n";
-      
+
+      //  std::cout << mMax << " " << sMax << "\n";
+
       _SQImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
@@ -28,7 +28,7 @@ class SQImap : public LSImap <TypeA> {
 
     void printCounter() {
       LSImap<TypeA>::printCounter();
-      std::cout << "SQI counters = " << _cnt <<" "<<_cntB << std::endl;
+      std::cout << "SQI counters = " << _cnt << " " << _cntB << std::endl;
     }
 
     void clear() {
@@ -53,8 +53,7 @@ class SQImap : public LSImap <TypeA> {
 
       //return this->SquareA(s, m, a, d);
 
-//       _keyA = std::make_tuple(std::vector<TypeA>(a.begin(), a.begin() + 2), d);
-      _keyA = std::make_tuple(a, d);  
+      _keyA = std::make_tuple(a[0], a[1], d);
       _itA = _SQImap[s + 1][m[0]][m[1]].find(_keyA);
 
       if(_itA == _SQImap[s + 1][m[0]][m[1]].end()) {
@@ -64,7 +63,7 @@ class SQImap : public LSImap <TypeA> {
         return _IA;
       }
       else {
-        _cntB++;  
+        _cntB++;
         return _itA->second;
       }
     }
@@ -73,10 +72,9 @@ class SQImap : public LSImap <TypeA> {
     TypeA sqiA1(const int &s, std::vector<unsigned> &m,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
-      //std::cout << 1<<" "<< s<<" " << m[0]<<" "<< m[1]<<" "<<m[2]<<std::endl;
-      //return this->SquareA1(s, m, a, ma, d, md);
 
-      _keyA1 = std::make_tuple(std::vector<TypeA>(a.begin(), a.begin() + 2), d);
+      //return this->SquareA1(s, m, a, ma, d, md);
+      _keyA1 = std::make_tuple(a[0], a[1], d);
       _itA1 = _SQImap[s + 1][m[0]][m[1]].find(_keyA1);
 
       if(_itA1 == _SQImap[s + 1][m[0]][m[1]].end()) {
@@ -86,10 +84,32 @@ class SQImap : public LSImap <TypeA> {
         return _IA;
       }
       else {
-        _cntB++;    
+        _cntB++;
         return _itA1->second;
       }
     }
+
+
+    TypeA sqiA1(const int &s, std::vector<unsigned> &m, const std::tuple<TypeA, TypeA, TypeA> &keyA1,
+                const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                const TypeA & d, const TypeA & md) {
+
+      //return this->SquareA1(s, m, a, ma, d, md);
+      //keyA1 = std::make_tuple(a[0], a[1], d);
+      _itA1 = _SQImap[s + 1][m[0]][m[1]].find(keyA1);
+
+      if(_itA1 == _SQImap[s + 1][m[0]][m[1]].end()) {
+        _cnt++;
+        _IA = this->SquareA1(s, m, a, ma, d, md);
+        _SQImap[s + 1][m[0]][m[1]][keyA1] = _IA;
+        return _IA;
+      }
+      else {
+        _cntB++;
+        return _itA1->second;
+      }
+    }
+
 
   private:
     TypeA SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
@@ -101,7 +121,7 @@ class SQImap : public LSImap <TypeA> {
                   const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                   const TypeA & d, const TypeA & md);
 
-    typedef std::tuple< std::vector<TypeA>, TypeA> keydef;
+    typedef std::tuple< TypeA, TypeA, TypeA> keydef;
     std::vector<std::vector<std::vector< std::map < keydef, TypeA > > > > _SQImap;
 
     typename std::map < keydef, TypeA >::iterator _itA, _itA1;
@@ -160,7 +180,7 @@ TypeA SQImap<TypeIO, TypeA>::SquareA(const int &s, const std::vector<unsigned> &
     return HCI * this->SquareA1(s, _m, _a, _ma, d, -d);
   }
   else if(_a.size() > 0) {
-    return HCI * this->lsi(s, _m[0], _a[0], d);
+    return HCI * this->lsi(s, _m[0], std::make_pair(_a[0], d));
   }
   else {
     return -HCI * this->limLi(s, d);
@@ -205,12 +225,14 @@ TypeA SQImap<TypeIO, TypeA>::SquareB(const int &s, const std::vector<unsigned> &
   TypeA aI = 1 / a[1];
   TypeA c = aI;
 
+  std::pair <TypeA, TypeA> lsikey(a[0], dpa);
+
   TypeA SQIb = 0;
   for(unsigned j = 1; j <= m[1]; c *= -aI * (mp1 - j), j++) {
-    SQIb += this->lsi(s + j, m[0], a[0], dpa) * c;
+    SQIb += this->lsi(s + j, m[0], lsikey) * c;
   }
-  SQIb += this->lsi(spmp1, m[0], a[0], dpa) * c;
-  SQIb -= this->lsi(spmp1, m[0], a[0], d) * c;
+  SQIb += this->lsi(spmp1, m[0], lsikey) * c;
+  SQIb -= this->lsi(spmp1, m[0], std::make_pair(a[0], d)) * c;
   return SQIb;
 
 }
@@ -224,12 +246,14 @@ TypeA SQImap<TypeIO, TypeA>::SquareC(const int &s, std::vector<unsigned>& m,
   TypeA mdpa = -dpa;
   unsigned mp1 = m[1] + 1;
 
+  std::pair <TypeA, TypeA> lsikey(a[0], dpa);
+
   TypeA c = 1 / TypeA(mp1);
   TypeA SQIc = 0;
   for(unsigned i = 0; i < s; i++, c *= -a[1] / (mp1 + i)) {
-    SQIc += this->lsi(s - i, m[0], a[0], dpa) * c;
+    SQIc += this->lsi(s - i, m[0], lsikey) * c;
   }
-  SQIc += this->lsi(0, m[0], a[0], dpa) * c;
+  SQIc += this->lsi(0, m[0], lsikey) * c;
   c *= -a[1];
 
   m[1] += (s + 1);
@@ -241,6 +265,7 @@ TypeA SQImap<TypeIO, TypeA>::SquareC(const int &s, std::vector<unsigned>& m,
 }
 
 #endif
+
 
 
 
