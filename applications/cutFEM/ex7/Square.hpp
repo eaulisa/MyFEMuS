@@ -2,6 +2,8 @@
 #ifndef __femus_cut_fem_SQUARE_hpp__
 #define __femus_cut_fem_SQUARE_hpp__
 
+#include "Line.hpp"
+
 template <class TypeIO, class TypeA>
 class SQImap : public LSImap <TypeA> {
   public:
@@ -93,9 +95,7 @@ class SQImap : public LSImap <TypeA> {
     TypeA sqiA1(const int &s, std::vector<unsigned> &m, const std::tuple<TypeA, TypeA, TypeA> &keyA1,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
-
-      //return this->SquareA1(s, m, a, ma, d, md);
-      //keyA1 = std::make_tuple(a[0], a[1], d);
+      
       _itA1 = _SQImap[s + 1][m[0]][m[1]].find(keyA1);
 
       if(_itA1 == _SQImap[s + 1][m[0]][m[1]].end()) {

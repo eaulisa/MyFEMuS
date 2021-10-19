@@ -2,6 +2,8 @@
 #ifndef __femus_cut_fem_CBI_hpp__
 #define __femus_cut_fem_CBI_hpp__
 
+#include "Square.hpp"
+
 template <class TypeIO, class TypeA>
 class CBImap : public SQImap <TypeA, TypeA> {
   public:
@@ -99,7 +101,7 @@ class CBImap : public SQImap <TypeA, TypeA> {
                 const TypeA & d, const TypeA & md);
 
     typedef std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA> keydef;
-    typedef std::tuple < TypeA, TypeA, TypeA> keySqrdef;
+    typedef std::tuple < TypeA, TypeA, TypeA> sqrKeydef;
 
 
     std::vector<std::vector< std::map < keydef, TypeA > > > _CBImapA;
@@ -107,7 +109,7 @@ class CBImap : public SQImap <TypeA, TypeA> {
 
     typename std::map < keydef, TypeA >::iterator _it;
     keydef _key;
-    keySqrdef _keySqr;
+    sqrKeydef _sqrKey;
 
 
     TypeA _IA, _sum;
@@ -224,11 +226,11 @@ TypeA CBImap<TypeIO, TypeA>::CubeB(const unsigned &n, const int &s, std::vector<
 
   TypeA CBIb = 0;
 
-  _keySqr = std::make_tuple(a[0], a[1], dpa);
+  _sqrKey = std::make_tuple(a[0], a[1], dpa);
   for(unsigned j = 1; j <= m[n]; c *= -aI * (mp1 - j), j++) {
-    CBIb += this->sqiA1(s + j, m, _keySqr, a, ma, dpa, mdpa) * c;
+    CBIb += this->sqiA1(s + j, m, _sqrKey, a, ma, dpa, mdpa) * c;
   }
-  CBIb += this->sqiA1(spmp1, m, _keySqr, a, ma, dpa, mdpa) * c;
+  CBIb += this->sqiA1(spmp1, m, _sqrKey, a, ma, dpa, mdpa) * c;
   CBIb -= this->sqiA1(spmp1, m, a, ma, d, md) * c;
   return CBIb;
 
@@ -246,11 +248,11 @@ TypeA CBImap<TypeIO, TypeA>::CubeC(const unsigned & n, const int &s, std::vector
 
   TypeA c = 1 / TypeA(mp1);
   TypeA CBIc = 0;
-  _keySqr = std::make_tuple(a[0], a[1], dpa);
+  _sqrKey = std::make_tuple(a[0], a[1], dpa);
   for(unsigned i = 0; i < s; i++, c *= -a[n] / (mp1 + i)) {
-    CBIc += this->sqiA1(s - i, m, _keySqr, a, ma, dpa, mdpa) * c;
+    CBIc += this->sqiA1(s - i, m, _sqrKey, a, ma, dpa, mdpa) * c;
   }
-  CBIc += this->sqiA1(0, m, _keySqr, a, ma, dpa, mdpa) * c;
+  CBIc += this->sqiA1(0, m, _sqrKey, a, ma, dpa, mdpa) * c;
   c *= -a[n];
 
   _fast = true;

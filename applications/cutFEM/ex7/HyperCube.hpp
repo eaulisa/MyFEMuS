@@ -2,6 +2,8 @@
 #ifndef __femus_cut_fem_HCI_hpp__
 #define __femus_cut_fem_HCI_hpp__
 
+#include "Line.hpp"
+
 template <class TypeIO, class TypeA>
 class HCImap : public LSImap <TypeA> {
   public:
