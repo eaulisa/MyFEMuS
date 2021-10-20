@@ -5,6 +5,7 @@
 #include "HyperCube.hpp"
 #include "Square.hpp"
 
+#include "./old/HyperCubeOld.hpp"
 
 template <class myType>
 void TestQuad(myType &eps) {
@@ -115,7 +116,8 @@ void TestHex(myType &eps) {
   HCImap <myType, myType> hci3B(3, 18, 0);
 
   std::cout << cube(0, m, a, d) << std::endl;
-
+  cube.clear();
+  
   for(unsigned i = 0; i < a.size(); i++) {
     d -= a[i];
     a[i] *= 2;
@@ -176,10 +178,11 @@ void TestHex(myType &eps) {
       a[2] = myType(smallCut[i][2] + epsCut[j][2]);
       d = myType(smallCut[i][3] + epsCut[j][3]);
       //std::cout<<std::endl;
-      myType I2 = hci3B(s,  m, a, d); 
+      //myType I2 = hci3B(s,  m, a, d); 
+      myType I2 = HyperCube<myType, myTypeB>(s,  m, a, d);
       //std::cout<<std::endl;
       myType I1 = cube(s,  m, a, d);
-      
+      cube.clear();
 
       if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
         //std::cout << "passed " << i << " " << j << " ";

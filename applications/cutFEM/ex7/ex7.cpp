@@ -56,7 +56,7 @@ int main(int, char**) {
 
   if(quad) {
     clock_t time = clock();
-    TestQuad(eps);
+    //TestQuad(eps);
     //TestQuadOld(eps);
     std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
 
@@ -97,14 +97,14 @@ int main(int, char**) {
     std::cout << "Old Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
   }
 
-  
+
 
   if(hex) {
 
     TestHex(eps);
     //TestHexOld(eps);
 
-    
+
     CBImap <double, double> cube(qMax, 0);
     srand(0);
     clock_t time = clock();
@@ -125,16 +125,17 @@ int main(int, char**) {
           }
         }
       }
+      //cube.printCounter();
     }
     std::cout << "Map Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     cube.printCounter();
-    
-    
+
+
     HCImap <double, double> hci3(3, qMax, 0);
     srand(0);
     time = clock();
     for(unsigned tt = 0; tt < 1000; tt++) {
-      hci3.clear();  
+      hci3.clear();
       a = -1. + 2. * rand() / RAND_MAX;
       b = -1. + 2. * rand() / RAND_MAX;
       c = -1. + 2. * rand() / RAND_MAX;
@@ -153,6 +154,8 @@ int main(int, char**) {
     }
     std::cout << "Old Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     hci3.printCounter();
+
+
   }
 
   return 1;

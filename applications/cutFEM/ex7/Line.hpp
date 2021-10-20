@@ -187,20 +187,21 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Typ
 
       if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
         if(x >= 0) {
-          Type g =  1 / (-a);
+          Type mxoa = -x / a;  
+          //Type g =  1 / (-a);
+          Type g =  pow(x,s) * mxoa;
           for(unsigned i = 1; i <= m + 1; i++) {
-            INT += g * this->limLi(s + i, x);
-            g *= (m + 1 - i) / (-a);
+            //INT += g * this->limLi(s + i, x);  
+            INT -= g / factorial<Type>(s+i);
+            //g *= (m + 1 - i) / (-a);
+            g *= (m + 1 - i) * mxoa;
           }
         }
-        //else if(d >= 0.) {
-        INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
-        //}
+        else if(d > 0) {
+          INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
+        }
       }
       else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
-//         for(int i = 1; i <= s; i++) {
-//           INT -= pow(-a, s - i) / factorial<Type>(m + 1 + s - i) * this->limLi(i, x) ;
-//         }
 
         for(unsigned i = 0; i < s; i++) {
           INT -= pow(-a, i) / factorial<Type>(m + 1 + i) * this->limLi(s - i, x) ;

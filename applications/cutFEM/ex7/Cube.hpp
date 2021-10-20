@@ -51,11 +51,11 @@ class CBImap : public SQImap <TypeA, TypeA> {
 
   protected:
 
-    TypeA cbia1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+    TypeA cbia1(const int &s, std::vector<unsigned> &m, const TypeA &a0,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
-//    std::cout << n<<" "<< s<<" " << m[0]<<" "<< m[1]<<" "<<m[2]<<std::endl;
-      return this->CubeA1(n, s, m, a, ma, d, md);
+
+      return this->CubeA1(s, m, a0, a, ma, d, md);
 
 //       keydef  key = std::make_tuple(std::vector<unsigned>(m.begin(), m.begin() + n + 1),
 //                                     std::vector<TypeA>(a.begin(), a.begin() + n + 1), d);
@@ -90,13 +90,13 @@ class CBImap : public SQImap <TypeA, TypeA> {
     }
 
     TypeA CubeA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA CubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+    TypeA CubeA1(const int &s, std::vector<unsigned> &m, const TypeA &a0,
                  const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                  const TypeA & d, const TypeA & md);
-    TypeA CubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
+    TypeA CubeB(const int &s, std::vector<unsigned> &m, const TypeA &a0,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA &d, const TypeA &md);
-    TypeA CubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
+    TypeA CubeC(const int &s, std::vector<unsigned>& m, const TypeA &a0,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md);
 
@@ -163,7 +163,7 @@ TypeA CBImap<TypeIO, TypeA>::CubeA(const int &s, const std::vector<unsigned> &m,
       }
       _ma[i] = -_a[i];
     }
-    if(_a.size() == 3)return CBI * this->cbia1(2, s, _m, _a, _ma, d, -d);
+    if(_a.size() == 3) return CBI * this->cbia1(s, _m, _a[0], _a, _ma, d, -d);
     else return CBI * this->sqiA1(s, _m, _a, _ma, d, -d);
   }
   else if(_a.size() > 0) {
@@ -175,90 +175,87 @@ TypeA CBImap<TypeIO, TypeA>::CubeA(const int &s, const std::vector<unsigned> &m,
 }
 
 template <class TypeIO, class TypeA>
-TypeA CBImap<TypeIO, TypeA>::CubeA1(const unsigned & n, const int &s, std::vector<unsigned> &m,
+TypeA CBImap<TypeIO, TypeA>::CubeA1(const int &s, std::vector<unsigned> &m, const TypeA &a0,
                                     const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                                     const TypeA & d, const TypeA & md) {
 
-  if(_fast) goto fast;
-
-  if(n == 0)  {
-    return this->lsi(s, m[0], a[0], d);
-  }
-
-  _sum = d;
-  for(unsigned i = 0; i <= n; i++) _sum += a[i];
+  _sum = a[0] + a[1] + a[2] + d;
 
   switch(s) {
     case -1: // interface integral
       if(_sum <= 0) {
-        return this->CubeB(n, -1, m, a, ma, d, md);
+        return this->CubeB(-1, m, a0, a, ma, d, md);
       }
       else {
-      fast:
-        _fast = false;
-        return this->CubeB(n, -1, m, ma, a, md, d);
-
+        return this->CubeB(-1, m, a0, ma, a, md, d);
       }
       break;
     default:
-      if(_sum <= fabs(a[n])) {
-        return this->CubeB(n, s, m, a, ma, d, md);
+      if(_sum <= fabs(a[2])) {
+        return this->CubeB(s, m, a0, a, ma, d, md);
       }
       else {
-        return this->CubeC(n, s, m, a, ma, d, md);
+        return this->CubeC(s, m, a0, a, ma, d, md);
       }
   }
 }
 
 template <class TypeIO, class TypeA>
-TypeA CBImap<TypeIO, TypeA>::CubeB(const unsigned &n, const int &s, std::vector<unsigned> &m,
+TypeA CBImap<TypeIO, TypeA>::CubeB(const int &s, std::vector<unsigned> &m, const TypeA &a0,
                                    const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                                    const TypeA &d, const TypeA &md) {
 
-  TypeA dpa = d + a[n];
+  unsigned shift = (a[0] == a0) ? 0 : 2;  
+    
+  TypeA dpa = d + a[2];
   TypeA mdpa = -dpa;
-  unsigned mp1 = m[n] + 1;
-  unsigned nm1 = n - 1;
+  unsigned mp1 = m[2] + 1;
   int spmp1 = s + mp1;
 
-  TypeA aI = 1 / a[n];
+  TypeA aI = 1 / a[2];
   TypeA c = aI; // this is m!/(m+1-j)! 1/a^j for j = 1,...,m + 1
 
   TypeA CBIb = 0;
 
-  _sqrKey = std::make_tuple(a[0], a[1], dpa);
-  for(unsigned j = 1; j <= m[n]; c *= -aI * (mp1 - j), j++) {
-    CBIb += this->sqiA1(s + j, m, _sqrKey, a, ma, dpa, mdpa) * c;
+  //_sqrKey = std::make_tuple(a[0], a[1], dpa);
+  for(unsigned j = 1; j <= m[2]; c *= -aI * (mp1 - j), j++) {
+    //CBIb += this->sqiA1(s + j, m, _sqrKey, a, ma, dpa, mdpa) * c;  
+    CBIb += this->sqiA2(s + j, m, shift + 1, a, ma, dpa, mdpa) * c;
   }
-  CBIb += this->sqiA1(spmp1, m, _sqrKey, a, ma, dpa, mdpa) * c;
-  CBIb -= this->sqiA1(spmp1, m, a, ma, d, md) * c;
+  //CBIb += this->sqiA1(spmp1, m, _sqrKey, a, ma, dpa, mdpa) * c;
+  CBIb += this->sqiA2(spmp1, m, shift + 1, a, ma, dpa, mdpa) * c;
+  
+  //CBIb -= this->sqiA1(spmp1, m, a, ma, d, md) * c;
+  CBIb -= this->sqiA2(spmp1, m, shift, a, ma, d, md) * c;
   return CBIb;
 
 }
 
 template <class TypeIO, class TypeA>
-TypeA CBImap<TypeIO, TypeA>::CubeC(const unsigned & n, const int &s, std::vector<unsigned>& m,
+TypeA CBImap<TypeIO, TypeA>::CubeC(const int &s, std::vector<unsigned>& m, const TypeA &a0,
                                    const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                                    const TypeA & d, const TypeA & md) { //alternative formula at s = -1
 
-  TypeA dpa = d + a[n];
+ 
+  TypeA dpa = d + a[2];
   TypeA mdpa = -dpa;
-  unsigned mp1 = m[n] + 1;
-  unsigned nm1 = n - 1;
+  unsigned mp1 = m[2] + 1;
 
   TypeA c = 1 / TypeA(mp1);
   TypeA CBIc = 0;
-  _sqrKey = std::make_tuple(a[0], a[1], dpa);
-  for(unsigned i = 0; i < s; i++, c *= -a[n] / (mp1 + i)) {
-    CBIc += this->sqiA1(s - i, m, _sqrKey, a, ma, dpa, mdpa) * c;
+  //_sqrKey = std::make_tuple(a[0], a[1], dpa);
+  for(unsigned i = 0; i < s; i++, c *= -a[2] / (mp1 + i)) {
+    //CBIc += this->sqiA1(s - i, m, _sqrKey, a, ma, dpa, mdpa) * c;
+    CBIc += this->sqiA2(s - i, m, 1, a, ma, dpa, mdpa) * c;
   }
-  CBIc += this->sqiA1(0, m, _sqrKey, a, ma, dpa, mdpa) * c;
-  c *= -a[n];
+  //CBIc += this->sqiA1(0, m, _sqrKey, a, ma, dpa, mdpa) * c;
+  CBIc += this->sqiA2(0, m, 1, a, ma, dpa, mdpa) * c;
+  c *= -a[2];
 
   _fast = true;
-  m[n] += (s + 1);
-  CBIc += this->cbia1(n, -1, m, a, ma, d, md) * c ;
-  m[n] -= (s + 1);
+  m[2] += (s + 1);
+  CBIc += this->cbia1(-1, m, a0, a, ma, d, md) * c ;
+  m[2] -= (s + 1);
 
   return CBIc;
 

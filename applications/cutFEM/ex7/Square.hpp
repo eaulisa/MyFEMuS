@@ -12,12 +12,22 @@ class SQImap : public LSImap <TypeA> {
       //  std::cout << mMax << " " << sMax << "\n";
 
       _SQImap.resize(2u + sMax + ds);
+      _SQI2.resize(2u + sMax + ds);
+      _SQI2init.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
       for(unsigned s = 0; s < _SQImap.size(); s++) {
         _SQImap[s].resize(max);
+        _SQI2[s].resize(max);
+        _SQI2init[s].resize(max);
         for(unsigned i = 0; i < _SQImap[s].size(); i++) {
           _SQImap[s][i].resize(max - i);
+          _SQI2[s][i].resize(max - i);
+          _SQI2init[s][i].resize(max - i);
+          for(unsigned j = 0; j < _SQImap[s][i].size(); j++) {
+            _SQI2[s][i][j].resize(4);
+            _SQI2init[s][i][j].assign(4, false);
+          }
         }
       }
       _cnt = 0;
@@ -31,6 +41,15 @@ class SQImap : public LSImap <TypeA> {
     void printCounter() {
       LSImap<TypeA>::printCounter();
       std::cout << "SQI counters = " << _cnt << " " << _cntB << std::endl;
+//       for(int s = 0; s < _SQImap.size(); s++) {
+//         std::cout << "s = " << -1 + s << std::endl;
+//         for(unsigned i = 0; i < _SQImap[s].size(); i++) {
+//           for(unsigned j = 0; j < _SQImap[s][i].size(); j++) {
+//             std::cout << _SQImap[s][i][j].size() << " ";
+//           }
+//           std::cout << std::endl;
+//         }
+//       }
     }
 
     void clear() {
@@ -39,6 +58,7 @@ class SQImap : public LSImap <TypeA> {
         for(unsigned i = 0; i < _SQImap[s].size(); i++) {
           for(unsigned j = 0; j < _SQImap[s][i].size(); j++) {
             _SQImap[s][i][j].clear();
+            _SQI2init[s][i][j].assign(4, false);
           }
         }
       }
@@ -71,6 +91,8 @@ class SQImap : public LSImap <TypeA> {
     }
 
 
+
+
     TypeA sqiA1(const int &s, std::vector<unsigned> &m,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
@@ -95,7 +117,7 @@ class SQImap : public LSImap <TypeA> {
     TypeA sqiA1(const int &s, std::vector<unsigned> &m, const std::tuple<TypeA, TypeA, TypeA> &keyA1,
                 const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
                 const TypeA & d, const TypeA & md) {
-      
+
       _itA1 = _SQImap[s + 1][m[0]][m[1]].find(keyA1);
 
       if(_itA1 == _SQImap[s + 1][m[0]][m[1]].end()) {
@@ -110,6 +132,18 @@ class SQImap : public LSImap <TypeA> {
       }
     }
 
+    TypeA sqiA2(const int &s, std::vector<unsigned> &m, const unsigned &idx,
+                const std::vector <TypeA> &a, const std::vector <TypeA> &ma,
+                const TypeA & d, const TypeA & md) {
+
+      if(!_SQI2init[s + 1][m[0]][m[1]][idx]) {
+        _SQI2[s + 1][m[0]][m[1]][idx] = this->SquareA1(s, m, a, ma, d, md);
+        _SQI2init[s + 1][m[0]][m[1]][idx] = true;
+      }
+      return _SQI2[s + 1][m[0]][m[1]][idx];
+    }
+
+
 
   private:
     TypeA SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
@@ -123,6 +157,9 @@ class SQImap : public LSImap <TypeA> {
 
     typedef std::tuple< TypeA, TypeA, TypeA> keydef;
     std::vector<std::vector<std::vector< std::map < keydef, TypeA > > > > _SQImap;
+
+    std::vector<std::vector<std::vector< std::vector<TypeA > > > > _SQI2;
+    std::vector<std::vector<std::vector< std::vector<bool > > > > _SQI2init;
 
     typename std::map < keydef, TypeA >::iterator _itA, _itA1;
     keydef _keyA, _keyA1;
@@ -265,6 +302,7 @@ TypeA SQImap<TypeIO, TypeA>::SquareC(const int &s, std::vector<unsigned>& m,
 }
 
 #endif
+
 
 
 
