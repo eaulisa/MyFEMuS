@@ -42,10 +42,12 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMshM;
-  mlMshM.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
-  mlMshM.RefineMesh(5, 5, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  mlMshM.ReadCoarseMesh("../input/beam.neu", "fifth", 1.e5);
+  mlMshM.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  //mlMshM.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
+  //mlMshM.RefineMesh(5, 5, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
-  unsigned numberOfRefinementM = 3;
+  unsigned numberOfRefinementM = 2;
   for(unsigned i = 0; i < numberOfRefinementM; i++) {
     FlagElements(mlMshM, 2);
     mlMshM.AddAMRMeshLevel();
@@ -57,9 +59,11 @@ int main(int argc, char** args) {
 
   UpdateMeshQuantities(&mlSolM);
   
-  unsigned numberOfRefinementB = numberOfRefinementM;
+  unsigned numberOfRefinementB = numberOfRefinementM + 4;
   MultiLevelMesh mlMshB;
-  mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
+  
+  mlMshB.ReadCoarseMesh("../input/fsi_bnc_2D.neu", "fifth", 10000);
+  //mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
   //mlMshB.ReadCoarseMesh("../input/turek2D.neu", "fifth", 1); // FSI_mesh2
   mlMshB.RefineMesh(numberOfRefinementB, numberOfRefinementB, NULL);
   mlMshB.EraseCoarseLevels(numberOfRefinementB - 1u);
@@ -79,14 +83,24 @@ int main(int argc, char** args) {
   mlSolB.GenerateBdc("P", "Steady");
 
 
+//   double Lref = 1.;
+//   double Uref = 1.;
+//   double rhof = 1000.;
+//   double muf = 1.;
+//   double rhos = 1000.;
+//   double nu = 0.4;
+//   double E = 1400000; //FSI1
+//   //double E = 4 * 1400000; //FSI3
+//   
   double Lref = 1.;
   double Uref = 1.;
-  double rhof = 1000.;
-  double muf = 1.;
-  double rhos = 1000.;
-  double nu = 0.4;
-  double E = 1400000; //FSI1
-  //double E = 4 * 1400000; //FSI3
+  double rhos = 7850;
+  double rhof = 1000;
+  double nu = 0.3;
+  double E = 2.e05;
+  double muf = 1.0e-3;
+
+  
   
   Parameter par(Lref, Uref);
   // Generate Solid Object
@@ -146,7 +160,7 @@ int main(int argc, char** args) {
   print_vars.push_back("All");
 
   mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
+  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
 
   projection = new Projection(&mlSolM, &mlSolB);
   
@@ -162,7 +176,7 @@ int main(int argc, char** args) {
     projection->FromBackgroundToMarker();
     std::cout << "time" << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
-    mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
+    mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
   }
 
   
@@ -171,59 +185,110 @@ int main(int argc, char** args) {
 
 } //end main
 
+// double SetVariableTimeStepB(const double time) {
+//   double dt; 
+//   double dt0 = 0.1;
+//   double dt1 = 0.1; //FSI3
+//   //double dt1 = 0.15;  // Steady state-FSI1
+// 
+//   double T = 6.;
+//   if(time < T)
+//     dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
+//     //dt = dt0; // steady state-FSI1
+//   else
+//     dt = dt1;
+// 
+//   return 0.1;
+// }
+
 double SetVariableTimeStepB(const double time) {
-  double dt; 
-  double dt0 = 0.1;
-  double dt1 = 0.1; //FSI3
-  //double dt1 = 0.15;  // Steady state-FSI1
-
-  double T = 6.;
-  if(time < T)
-    dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
-    //dt = dt0; // steady state-FSI1
-  else
-    dt = dt1;
-
-  return 0.1;
+  double dt =  0.005/*0.008*/;
+  return dt;
 }
 
+// bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+//   bool test = 1;      //dirichlet
+//   value = 0.;      
+// 
+// if(!strcmp(name, "DY")) {
+//     if(3 == facename) {
+//       test = 0;   // neumann do-nothing
+//     }
+//   }
+//   else if(!strcmp(name, "DX")) {
+//     if(1 == facename || 2 == facename) {
+//       test = 0; // neumann do-nothing
+//     }
+//   }
+//   else if(!strcmp(name, "VX")) {
+//     if(1 == facename || 2 == facename) {
+//       test = 0; // neumann do-nothing
+//     }
+//   }
+//   else if(!strcmp(name, "VY")) {
+//     if(3 == facename) {
+//       test = 0; // neumann do-nothing
+//     }
+//   }
+//   else if(!strcmp(name, "P")) {
+//     if(facename == 1){
+//         value = 0.1;
+//     }
+//     else{
+//         test = 0.;
+//     }
+//   }
+// 
+//   return test;
+// 
+// }
 
-bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
-  bool test = 1;      //dirichlet
-  value = 0.;      
+bool SetBoundaryConditionB(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
+  bool test = 1; //dirichlet
+  value = 0.;
 
-if(!strcmp(name, "DY")) {
+  double H = 1.e-4; //channel length
+  double U = 0.05;
+  double t2 = t * t;
+
+  if(!strcmp(name, "DX")) {
     if(3 == facename) {
-      test = 0;   // neumann do-nothing
+      test = 0;
+      value = 0;
     }
   }
-  else if(!strcmp(name, "DX")) {
-    if(1 == facename || 2 == facename) {
-      test = 0; // neumann do-nothing
+  else if(!strcmp(name, "DY")) {
+    if(2 == facename || 4 == facename) {
+      test = 0;
+      value = 0;
     }
   }
   else if(!strcmp(name, "VX")) {
-    if(1 == facename || 2 == facename) {
-      test = 0; // neumann do-nothing
+    if(2 == facename) {
+      test = 0;
+      value = 0;
+    }
+    else if(4 == facename) {
+      value = (U * t2 / sqrt(pow((0.04 - t2), 2.) + pow((0.1 * t), 2.))) * 4. * (H - x[1]) * x[1] / (H * H);
     }
   }
   else if(!strcmp(name, "VY")) {
-    if(3 == facename) {
-      test = 0; // neumann do-nothing
+    if(2 == facename) {
+      test = 0;
+      value = 0;
     }
   }
   else if(!strcmp(name, "P")) {
-    if(facename == 1){
-        value = 0.1;
+    if(weakP || 2 != facename) {
+      test = 0;
     }
-    else{
-        test = 0.;
-    }
+    value = 0;
   }
 
   return test;
 
 }
+
 
 /*
 bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
