@@ -39,7 +39,7 @@ int main(int, char**) {
 
   typedef double Type;
 
-  bool quad = false;
+  bool quad = true;
   bool hex = true;
 //     bool triangle = false;
   bool tetrahedron = false; //true;
@@ -56,9 +56,9 @@ int main(int, char**) {
 
   if(quad) {
     clock_t time = clock();
-    //TestQuad(eps);
+    TestQuad(eps);
     //TestQuadOld(eps);
-    std::cout << "Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    
 
     SQImap <double, double> sqr(qMax, 0);
 
@@ -100,14 +100,15 @@ int main(int, char**) {
 
 
   if(hex) {
-
+    clock_t time;
     TestHex(eps);
     //TestHexOld(eps);
 
-
+        
     CBImap <double, double> cube(qMax, 0);
     srand(0);
-    clock_t time = clock();
+    time = clock();
+    
     for(unsigned tt = 0; tt < 1000; tt++) {
       cube.clear();
       a = -1. + 2. * rand() / RAND_MAX;
@@ -129,6 +130,7 @@ int main(int, char**) {
     }
     std::cout << "Map Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     cube.printCounter();
+    cube.clear();
 
 
     HCImap <double, double> hci3(3, qMax, 0);
@@ -154,6 +156,9 @@ int main(int, char**) {
     }
     std::cout << "Old Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     hci3.printCounter();
+    hci3.clear();
+    
+    
 
 
   }

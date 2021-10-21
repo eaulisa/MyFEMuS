@@ -30,9 +30,9 @@ class LimLimap {
     }
 
     Type limLi(const int &s, const Type &d) {
-        
-      //return this->LimLi(s, d);  
-      
+
+      //return this->LimLi(s, d);
+
       _it = _LimLimap[s + 1].find(d);
       if(_it == _LimLimap[s + 1].end()) {
         _cnt++;
@@ -78,7 +78,7 @@ class LSImap : public LimLimap <Type> {
   protected:
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {
-      
+
       _LSImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
@@ -106,7 +106,7 @@ class LSImap : public LimLimap <Type> {
     Type LSI(const int &s, const unsigned &m, const Type &a, const Type &d);
 
     Type lsi(const int &s, const unsigned &m, const Type &a, const Type &d) {
-      
+
       _key = std::make_pair(a, d);
       _it = _LSImap[s + 1][m].find(_key);
       if(_it == _LSImap[s + 1][m].end()) {
@@ -120,9 +120,9 @@ class LSImap : public LimLimap <Type> {
         return _it->second;
       }
     }
-    
+
     Type lsi(const int &s, const unsigned &m, const std::pair<Type, Type> &key) {
-      
+
       _it = _LSImap[s + 1][m].find(key);
       if(_it == _LSImap[s + 1][m].end()) {
         _cnt++;
@@ -135,7 +135,7 @@ class LSImap : public LimLimap <Type> {
         return _it->second;
       }
     }
-    
+
 
   private:
     std::vector<std::vector<std::map < std::pair<Type, Type>, Type > > > _LSImap;
@@ -185,18 +185,24 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Typ
       Type INT(0);
       Type x(a + d);
 
-      if(x < 0 || d < 0) { // in all these cases no-significant digit cancellation occurs
-        if(x >= 0) {
-          Type mxoa = -x / a;  
-          //Type g =  1 / (-a);
-          Type g =  pow(x,s) * mxoa;
+      if(x <= 0 || d <= 0) { // in all these cases no-significant digit cancellation occurs
+//         if(x > 0) {
+//           Type mxoa = -x / a;
+//           Type c = this->limLi(s, x) * mxoa / (s + 1);
+//           for(unsigned i = 1; i < m + 1; i++, c *= (m + 2 - i) * mxoa / (s + i)) {
+//             INT += c;
+//           }
+//           INT += c;
+//         }
+        
+        if(x > 0) {
+          Type g =  1 / (-a);
           for(unsigned i = 1; i <= m + 1; i++) {
-            //INT += g * this->limLi(s + i, x);  
-            INT -= g / factorial<Type>(s+i);
-            //g *= (m + 1 - i) / (-a);
-            g *= (m + 1 - i) * mxoa;
+            INT += g * this->limLi(s + i, x);
+            g *= (m + 1 - i) / (-a);
           }
         }
+        
         else if(d > 0) {
           INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
         }

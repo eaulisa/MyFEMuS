@@ -73,7 +73,7 @@ class SQImap : public LSImap <TypeA> {
     TypeA sqiA(const int &s, const std::vector<unsigned> &m,
                const std::vector <TypeA> &a, const TypeA & d) {
 
-      //return this->SquareA(s, m, a, d);
+      return this->SquareA(s, m, a, d);
 
       _keyA = std::make_tuple(a[0], a[1], d);
       _itA = _SQImap[s + 1][m[0]][m[1]].find(_keyA);
@@ -294,7 +294,8 @@ TypeA SQImap<TypeIO, TypeA>::SquareC(const int &s, std::vector<unsigned>& m,
   c *= -a[1];
 
   m[1] += (s + 1);
-  SQIc += this->sqiA1(-1, m, a, ma, d, md) * c ;
+  //SQIc += this->sqiA1(-1, m, a, ma, d, md) * c ;
+  SQIc += this->SquareA1(-1, m, a, ma, d, md) * c ;
   m[1] -= (s + 1);
 
   return SQIc;
