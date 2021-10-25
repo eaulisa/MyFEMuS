@@ -355,19 +355,19 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
 
 
-                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
-                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
                 double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
 
-                double C1 = (fluid) ? gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (theta * dt)) :
-                            gammacS * (mu + rho * h2 / (theta * dt * dt));
+                double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (par->_theta * dt)) :
+                            par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
                 // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                 // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                 // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
                 // [C1] for the solid is kg/(s^2 h)
 
-                double C2 = (fluid) ? gammau * rho * phiC : 0.;
+                double C2 = (fluid) ? par->_gammau * rho * phiC : 0.;
 
 //                 if(fluid) {
 //                   std::cout << "Fluid " << mu << " " << rho * phiC * cNormL2 * cNormL2
@@ -445,13 +445,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                   for(unsigned i = 0; i < nDofsP1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResP1[i] +=  gammap * phiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                      aResP1[i] +=  par->_gammap * phiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                     }
                   }
 
                   for(unsigned i = 0; i < nDofsP2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aResP2[i] +=  - gammap * phiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                      aResP2[i] +=  - par->_gammap * phiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                     }
                   }
 
@@ -849,18 +849,18 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         cNormL2 = sqrt(cNormL2);
                       }
 
-                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
-                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (theta * dt)); //[velocity * h]
+                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
                       double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
-                      double C1 = (fluid) ? gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (theta * dt)) :
-                                  gammacS * (mu + rho * h2 / (theta * dt * dt));
+                      double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (par->_theta * dt)) :
+                                  par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
                       // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                       // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                       // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
                       // [C1] for the solid is kg/(s^2 h)
 
-                      double C2 = (fluid) ? gammau * rho * phiC : 0.;
+                      double C2 = (fluid) ? par->_gammau * rho * phiC : 0.;
 
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
@@ -921,13 +921,13 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                         for(unsigned i = 0; i < nDofsP1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResP1[i] +=  gammap * phiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                            aResP1[i] +=  par->_gammap * phiC / rho * h *  gradPhi1[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                           }
                         }
 
                         for(unsigned i = 0; i < nDofsP2; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aResP2[i] +=  - gammap * phiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
+                            aResP2[i] +=  - par->_gammap * phiC / rho * h * gradPhi2[i * dim + J] * normal[J] * (gradSolP1DotN - gradSolP2DotN) * weight;
                           }
                         }
 

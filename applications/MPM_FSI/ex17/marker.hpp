@@ -290,7 +290,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       }
       for(unsigned i = 0; i < nDofs; i++) { //node
 
-        if(ielMat == 4 || mtype[i] == 0) {
+        if(ielMat == 4){// || mtype[i] == 0) {
           double d2 = 0.;
           for(unsigned  k = 0; k < dim; k++) { //solution
             d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
@@ -321,7 +321,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
 
   for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     double kernel = (*sol->_Sol[kernelIdx])(i);
-    if(kernel > 0) {
+    if(kernel != 0) {
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned j = 0; j < dim; j++) {
           double value = (*sol->_Sol[gradDIdx[k][j]])(i);
@@ -436,7 +436,6 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
     }
   }
   sol->_Sol[areaIdx]->close();
-  sol->_Sol[kernelIdx]->close();
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[NIdx[k]]->close();
   }
@@ -531,5 +530,7 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
   }
 
 }
+
+
 
 

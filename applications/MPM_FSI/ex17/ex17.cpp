@@ -13,22 +13,11 @@
 
 #include "PetscMatrix.hpp"
 
-bool weakP = true;
-double theta = 1.;
-double af = 1. - theta;
-double am = af;
-double Beta = 0.25 + 0.5 * (af - am);
-double Gamma = 0.5 + (af - am);
-bool NeoHookean = true;
-double gravity[3] ={0., 0., 0.};
-double GAMMA = 45.;
-
-double gammacF = 0.05;
-double gammacS = 0.05;
-double gammap = 0.05;
-double gammau = 0.05 * gammacF;
+#include "./include/parameter.hpp"
 
 using namespace femus;
+
+parameter *par;
 
 #include "marker.hpp"
 #include "projection.hpp"
@@ -36,37 +25,55 @@ Projection *projection;
 
 #include "background.hpp"
 
+
+double TimeStepBeam(const double time);
+bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t);
+
+parameter beam = parameter(false, 1., {0., 0., 0.},
+                           45., 0.05, 0.05, 0.05,
+                           false, 7850., 1000., 0.3, 2.e05, 1.0e-03,
+                           "../input/beam.neu", 1.e5, 1, 2, 
+                           "../input/fsi_bnc_2D.neu", 10000., 5,
+                           BoundaryConditionBeam, TimeStepBeam);
+
+
+parameter turek1 = parameter(false, 1., {0., 0., 0.},
+                           45., 0.05, 0.05, 0.05,
+                           false, 7850., 1000., 0.3, 2.e05, 1.0e-03,
+                           "../input/beam.neu", 1.e5, 1, 2, 
+                           "../input/fsi_bnc_2D.neu", 10000., 5,
+                           BoundaryConditionBeam, TimeStepBeam);
+
+
+
 int main(int argc, char** args) {
+
+  par = &beam;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMshM;
-  mlMshM.ReadCoarseMesh("../input/beam.neu", "fifth", 1.e5);
-  mlMshM.RefineMesh(1, 1, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
-  //mlMshM.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
-  //mlMshM.RefineMesh(5, 5, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
-
-  unsigned numberOfRefinementM = 2;
-  for(unsigned i = 0; i < numberOfRefinementM; i++) {
+  mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
+  mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+ 
+  for(unsigned i = 0; i < par->_mAdaptive; i++) {
     FlagElements(mlMshM, 2);
     mlMshM.AddAMRMeshLevel();
   }
-  mlMshM.EraseCoarseLevels(numberOfRefinementM);
+  mlMshM.EraseCoarseLevels(par->_mUniform + par->_mAdaptive -1u);
 
   MultiLevelSolution mlSolM(&mlMshM);
   InitializeMarkerVariables(mlSolM);
 
   UpdateMeshQuantities(&mlSolM);
-  
-  unsigned numberOfRefinementB = numberOfRefinementM + 4;
+
+  unsigned numberOfRefinementB = par->_mUniform;
   MultiLevelMesh mlMshB;
-  
-  mlMshB.ReadCoarseMesh("../input/fsi_bnc_2D.neu", "fifth", 10000);
-  //mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
-  //mlMshB.ReadCoarseMesh("../input/turek2D.neu", "fifth", 1); // FSI_mesh2
-  mlMshB.RefineMesh(numberOfRefinementB, numberOfRefinementB, NULL);
-  mlMshB.EraseCoarseLevels(numberOfRefinementB - 1u);
+
+  mlMshB.ReadCoarseMesh(par->_bMesh.c_str(), "fifth", par->_bScale);
+  mlMshB.RefineMesh(par->_bUniform, par->_bUniform, NULL);
+  mlMshB.EraseCoarseLevels(par->_bUniform - 1u);
 
   MultiLevelSolution mlSolB(&mlMshB);
   InitializeBackgroundVariables(mlSolB);
@@ -82,30 +89,13 @@ int main(int argc, char** args) {
   if(dim > 2) mlSolB.GenerateBdc("VZ", "Steady");
   mlSolB.GenerateBdc("P", "Steady");
 
-
-//   double Lref = 1.;
-//   double Uref = 1.;
-//   double rhof = 1000.;
-//   double muf = 1.;
-//   double rhos = 1000.;
-//   double nu = 0.4;
-//   double E = 1400000; //FSI1
-//   //double E = 4 * 1400000; //FSI3
-//   
   double Lref = 1.;
   double Uref = 1.;
-  double rhos = 7850;
-  double rhof = 1000;
-  double nu = 0.3;
-  double E = 2.e05;
-  double muf = 1.0e-3;
 
-  
-  
-  Parameter par(Lref, Uref);
+  Parameter physics(Lref, Uref);
   // Generate Solid Object
-  Solid solid(par, E, nu, rhos, "Neo-Hookean");
-  Fluid fluid(par, muf, rhof, "Newtonian");
+  Solid solid(physics, par->_E, par->_nu, par->_rhos, "Neo-Hookean");
+  Fluid fluid(physics, par->_muf, par->_rhof, "Newtonian");
   MultiLevelProblem ml_prob(&mlSolB);
   ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
   ml_prob.parameters.set<Fluid> ("FluidFEM") = fluid;
@@ -142,12 +132,12 @@ int main(int argc, char** args) {
   system.SetPreconditionerFineGrids(ILU_PRECOND);
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
-  system.AttachGetTimeIntervalFunction(SetVariableTimeStepB);
+  system.AttachGetTimeIntervalFunction(par->_timeFunction);
 
   //******* Print solution *******
   mlSolM.SetWriter(VTK);
   mlSolB.SetWriter(VTK);
-  
+
   std::vector<std::string> mov_vars;
   mov_vars.push_back("DX");
   mov_vars.push_back("DY");
@@ -163,87 +153,31 @@ int main(int argc, char** args) {
   mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
 
   projection = new Projection(&mlSolM, &mlSolB);
-  
-  
-  
-  for(unsigned t = 1; t <= 20; t++) {
-    projection->SetNewmarkParameters(Beta, Gamma, 1.);  
+
+
+
+  for(unsigned t = 1; t <= 200; t++) {
+
+    system.CopySolutionToOldSolution();
+
+    projection->SetNewmarkParameters(par->_beta, par->_gamma, 1.);
     clock_t time = clock();
     projection->FromMarkerToBackground();
-
     system.MGsolve();
-    
     projection->FromBackgroundToMarker();
     std::cout << "time" << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
   }
 
-  
+
   delete projection;
   return 0;
 
 } //end main
 
-// double SetVariableTimeStepB(const double time) {
-//   double dt; 
-//   double dt0 = 0.1;
-//   double dt1 = 0.1; //FSI3
-//   //double dt1 = 0.15;  // Steady state-FSI1
-// 
-//   double T = 6.;
-//   if(time < T)
-//     dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
-//     //dt = dt0; // steady state-FSI1
-//   else
-//     dt = dt1;
-// 
-//   return 0.1;
-// }
 
-double SetVariableTimeStepB(const double time) {
-  double dt =  0.005/*0.008*/;
-  return dt;
-}
-
-// bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
-//   bool test = 1;      //dirichlet
-//   value = 0.;      
-// 
-// if(!strcmp(name, "DY")) {
-//     if(3 == facename) {
-//       test = 0;   // neumann do-nothing
-//     }
-//   }
-//   else if(!strcmp(name, "DX")) {
-//     if(1 == facename || 2 == facename) {
-//       test = 0; // neumann do-nothing
-//     }
-//   }
-//   else if(!strcmp(name, "VX")) {
-//     if(1 == facename || 2 == facename) {
-//       test = 0; // neumann do-nothing
-//     }
-//   }
-//   else if(!strcmp(name, "VY")) {
-//     if(3 == facename) {
-//       test = 0; // neumann do-nothing
-//     }
-//   }
-//   else if(!strcmp(name, "P")) {
-//     if(facename == 1){
-//         value = 0.1;
-//     }
-//     else{
-//         test = 0.;
-//     }
-//   }
-// 
-//   return test;
-// 
-// }
-
-bool SetBoundaryConditionB(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
+bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
   bool test = 1; //dirichlet
   value = 0.;
 
@@ -279,7 +213,7 @@ bool SetBoundaryConditionB(const std::vector < double >& x, const char name[], d
     }
   }
   else if(!strcmp(name, "P")) {
-    if(weakP || 2 != facename) {
+    if(par->_weakP || 2 != facename) {
       test = 0;
     }
     value = 0;
@@ -289,60 +223,8 @@ bool SetBoundaryConditionB(const std::vector < double >& x, const char name[], d
 
 }
 
+double TimeStepBeam(const double time) {
+  double dt =  0.005;
+  return dt;
+}
 
-/*
-bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
-  bool test = 1;      //dirichlet
-  value = 0.;
-
-  const double Ubar = 0.2;    // FSI1
-  //const double Ubar = 2;    // FSI3
-  const double L = 0.41;
-  const double H = 2.5;
-
-  if(!strcmp(name, "DY")) {
-    if(1 == facename || 2 == facename) {
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "DX")) {
-    if(3 == facename) {    //fluid wall
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "VY")) {
-    if(2 == facename) {     //outflow
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "VX")) {
-    if(1 == facename) {     //inflow
-      test = 1;
-      if(t < 2.0) {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
-      }
-      else {
-        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
-      }
-    }
-    else if(2 == facename) {    //outflow
-      test = 0;
-      value = 0.;
-    }
-  }
-
-  else if(!strcmp(name, "P")) {
-    //if(weakP || 2 != facename) {
-      test = 0;
-    //}
-  }
-
-  return test;
-
-}*/

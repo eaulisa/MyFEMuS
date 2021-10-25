@@ -445,8 +445,11 @@ void Projection::FromMarkerToBackground() {
             solB->_Sol[nflagIdx]->set(idof, 1);
           }
         }
-        else if(_mtypeb[kp][im[kp]] == 2 && (*solB->_Sol[eflagIdx])(iel) == 0) {
+        else if(_mtypeb[kp][im[kp]] == 2 && (*solB->_Sol[eflagIdx])(iel) != 1) {
           solB->_Sol[eflagIdx]->set(iel, 2);
+        }
+        else if(_mtypeb[kp][im[kp]] == 0 && (*solB->_Sol[eflagIdx])(iel) == 0) {
+          solB->_Sol[eflagIdx]->set(iel, 0.5);
         }
 
         if(!ielIsInitialized) {
