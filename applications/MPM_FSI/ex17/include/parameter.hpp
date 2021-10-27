@@ -12,7 +12,7 @@ class parameter {
       _weakP = weakP;
       _theta = theta;
       _af = 1 - theta;
-      _am = _af;
+      _am = _af - 0.1;
       _beta = 0.25 + 0.5 * (_af - _am);
       _gamma = 0.5 + (_af - _am);
       _gravity = gravity;
