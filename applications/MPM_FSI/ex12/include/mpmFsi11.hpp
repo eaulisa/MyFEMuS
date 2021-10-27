@@ -670,7 +670,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
           }
 
-          //adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+          adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
 
           for(unsigned j = 0; j < 3; j++) {
             for(unsigned k = 0; k < 3; k++) {

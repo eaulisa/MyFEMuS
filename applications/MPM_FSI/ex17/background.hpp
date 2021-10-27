@@ -21,7 +21,7 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
   mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
 
   mlSol.Initialize("All");
   //mlSol.Initialize("DX", InitVariableDX);
@@ -150,6 +150,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");
   unsigned nflagIndex = mlSol->GetIndex("nflag");
+  unsigned meshType = 2;
   std::vector < unsigned >  nodeFlag; // local solution
 
   start_time = clock();
@@ -171,12 +172,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);  // number of pressure dofs
 
+    unsigned nDofsMesh = msh->GetElementDofNumber(iel, meshType);
+
+
     unsigned nDofsAll = 2 * dim * nDofs + nDofsP;
 
     // resize local arrays
     sysDofsAll.resize(nDofsAll);
 
-    nodeFlag.resize(nDofs);
+    nodeFlag.resize(nDofsMesh);
     double tempEflag = (*mysolution->_Sol[eflagIndex])(iel);
     unsigned eFlag = static_cast <unsigned>(floor(tempEflag + 0.25));
     unsigned eFlag1 = 2; // interface or solid
@@ -201,12 +205,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     solP.resize(nDofsP);
     aResP.assign(nDofsP, 0.);
 
+    for(unsigned i = 0; i < nDofsMesh; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, meshType);
+      nodeFlag[i] = (*mysolution->_Sol[nflagIndex])(idof);
+    }
+
 
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, solType);
-
-      nodeFlag[i] = (*mysolution->_Sol[nflagIndex])(idof);
-
+     
       for(unsigned  k = 0; k < dim; k++) {
         solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof); //t_{n+1} -t_n
 
@@ -228,7 +235,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     s.new_recording();
 
     for(unsigned i = 0; i < nDofs; i++) {
-      unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+      unsigned idofX = msh->GetSolutionDof(i, iel, meshType);
       for(unsigned  k = 0; k < dim; k++) {
         vxOld[k][i] = (*msh->_topology->_Sol[k])(idofX); // undeformed background configuration at t_{n}
         vx[k][i]  = vxOld[k][i] + (1. - par->_af) * solD[k][i]; // deformed background configuration at alpha_f/theta
@@ -293,64 +300,69 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
       if(eFlag == 0) { //bulk fluid: all this equation is centered at a_f, There are no time derivatives
 
-        adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
-        for(unsigned j = 0; j < dim; j++) {
-          for(unsigned k = 0; k < dim; k++) {
-            F[j][k] += gradSolDgOld[j][k]; //tilde F in the ALE equation
-          }
-        }
-
-        adept::adouble J_Old =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
-                                - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
-
-        adept::adouble B[3][3];
-        for(unsigned i = 0; i < 3; i++) {
-          for(int j = 0; j < 3; j++) {
-            B[i][j] = 0.;
-            for(unsigned k = 0; k < 3; k++) {
-              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-              B[i][j] += F[i][k] * F[j][k];
-            }
-          }
-        }
-
-        adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
-        adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
-        adept::adouble sigma[3][3];
+//         adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+//         for(unsigned j = 0; j < dim; j++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             F[j][k] += gradSolDgOld[j][k]; //tilde F in the ALE equation
+//           }
+//         }
+//
+//         adept::adouble J_Old =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
+//                                 - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+//
+//         adept::adouble B[3][3];
+//         for(unsigned i = 0; i < 3; i++) {
+//           for(int j = 0; j < 3; j++) {
+//             B[i][j] = 0.;
+//             for(unsigned k = 0; k < 3; k++) {
+//               //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+//               B[i][j] += F[i][k] * F[j][k];
+//             }
+//           }
+//         }
+//
+//         adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+//         adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+//         adept::adouble sigma[3][3];
+//
+//         double E = pow(10., eFlag1);
+//         double nu = 0.4;
+//
+//         double mu = E / (2. * (1. + nu));
+//         double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
+//
+//         for(unsigned j = 0; j < 3; j++) {
+//           for(unsigned k = 0; k < 3; k++) {
+//             sigma[j][k] = lambda * log(J_Old) / J_Old * Id2th[j][k] + mu / J_Old * (B[j][k] - Id2th[j][k]);    // alternative formulation
+//           }
+//         }
+//         //END computation of the Cauchy Stress
+//         for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
+//           if(nodeFlag[i] == 0) {
+//             for(unsigned k = 0.; k < dim; k++) {
+//               adept::adouble cauchy = 0.;
+//               for(unsigned j = 0.; j < dim; j++) {
+//                 cauchy += sigma[k][j] * gradPhi[i * dim + j] ;
+//                 //cauchy += gradSolDgOld[k][j] * gradPhi[i * dim + j] ;
+//               }
+//               aResD[k][i] += cauchy * weight;
+//             }
+//           }
+//         }
 
         double E = pow(10., eFlag1);
-        double nu = 0.4;
-
-        double mu = E / (2. * (1. + nu));
-        double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
-
-        for(unsigned j = 0; j < 3; j++) {
-          for(unsigned k = 0; k < 3; k++) {
-            sigma[j][k] = lambda * log(J_Old) / J_Old * Id2th[j][k] + mu / J_Old * (B[j][k] - Id2th[j][k]);    // alternative formulation
-          }
-        }
-        //END computation of the Cauchy Stress
-        for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
+        for(unsigned i = 0; i < nDofs; i++) {
           if(nodeFlag[i] == 0) {
             for(unsigned k = 0.; k < dim; k++) {
-              adept::adouble cauchy = 0.;
-              for(unsigned j = 0.; j < dim; j++) {
-                cauchy += sigma[k][j] * gradPhi[i * dim + j] ;
-                //cauchy += gradSolDgOld[k][j] * gradPhi[i * dim + j] ;
+              adept::adouble wlaplaceD  = 0.;
+              for(unsigned  j = 0; j < dim; j++) {
+                wlaplaceD +=  E * gradPhiOld[i * dim + j] * (gradSolDgOld[k][j] + gradSolDgOld[j][k]);
               }
-              aResD[k][i] += cauchy * weight;
+              aResD[k][i] +=  wlaplaceD * weightOld;
             }
           }
         }
       }
-
-
-//               adept::adouble wlaplaceD  = 0.;
-//               for(unsigned  j = 0; j < dim; j++) {
-//                 wlaplaceD +=  gradPhiHat[i * dim + j] * (gradSolDgHat[k][j] + gradSolDgHat[j][k]);
-//               }
-//               aResD[k][i] +=  wlaplaceD * weightHat;
-
 
 
       if(eFlag == 0) {   // only fluid cells
@@ -488,8 +500,17 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
       }
       else if(eFlag == 2) {   // only solid cells: fake pressure //TODO
-        for(unsigned i = 0; i < nDofsP; i++) {
-          aResP[i] += 1.0e-10 * phiP[i] * solP[i] * weight;
+        if(solTypeP >= 3) {
+          for(unsigned i = 0; i < nDofsP; i++) {
+            aResP[i] += phiP[i] * solP[i] * weight;
+          }
+        }
+        else {
+          for(unsigned i = 0; i < nDofsP; i++) {
+            if(nodeFlag[i] == 0) {
+              aResP[i] += phiP[i] * solP[i] * weight;
+            }
+          }
         }
       }
     } // end gauss point loop
@@ -910,6 +931,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
+
+
+
 
 
 

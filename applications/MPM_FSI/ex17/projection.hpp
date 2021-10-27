@@ -416,6 +416,7 @@ void Projection::FromMarkerToBackground() {
   unsigned eflagIdx = _mlSolB->GetIndex("eflag");
   unsigned nflagIdx = _mlSolB->GetIndex("nflag");
   unsigned nodeType = _mlSolB->GetSolutionType(nflagIdx);
+  unsigned solType = _mlSolB->GetSolutionType("DX");
 
   solB->_Sol[eflagIdx]->zero();
   solB->_Sol[nflagIdx]->zero();
@@ -454,7 +455,7 @@ void Projection::FromMarkerToBackground() {
 
         if(!ielIsInitialized) {
           ielIsInitialized = true;
-          unsigned nDofs = mshB->GetElementDofNumber(iel, nodeType);
+          unsigned nDofs = mshB->GetElementDofNumber(iel, solType);
           for(unsigned k = 0; k < _dim; k++) {
             vx[k].resize(nDofs);
             for(unsigned i = 0; i < nDofs; i++) {
@@ -462,7 +463,7 @@ void Projection::FromMarkerToBackground() {
               vx[k][i] = (*mshB->_topology->_Sol[k])(idofX);
             }
           }
-          for(unsigned jtype = 0; jtype <= nodeType; jtype++) {
+          for(unsigned jtype = 0; jtype <= solType; jtype++) {
             ProjectNodalToPolynomialCoefficients(aP[jtype], vx, ielType, jtype) ;
           }
         }
@@ -473,7 +474,7 @@ void Projection::FromMarkerToBackground() {
         }
 
         GetClosestPointInReferenceElement(vx, x, ielType, xi);
-        bool inverseMapping = GetInverseMapping(nodeType, ielType, aP, x, xi, 100);
+        bool inverseMapping = GetInverseMapping(solType, ielType, aP, x, xi, 100);
         if(!inverseMapping) {
           std::cout << "InverseMapping failed at " << iel << " " << im[kp] << std::endl;
         }
