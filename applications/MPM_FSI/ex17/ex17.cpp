@@ -44,7 +44,7 @@ parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
                            45., 0.05, 0.05, 0.05,
                            false, 1000., 1000., 0.4, 1400000., 1.,
                            "../input/turekBeam2D.neu", 1., 2, 3, 
-                           "../input/turek2D.neu", 2., 3,
+                           "../input/turek2D.neu", 1., 0,
                            BoundaryConditionTurek, TimeStepTurek);
   
       
