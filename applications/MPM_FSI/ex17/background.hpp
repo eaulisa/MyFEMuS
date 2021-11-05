@@ -680,7 +680,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               solVSp[j] = solVSpOld[j] + dt * (par->_gamma * solApNew + (1. - par->_gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
               solAp[j] = (1. - par->_am) * solApNew + par->_am * solApOld[j];
               
-              solVSp[j] = solAp[j] = 0.;
+             // solVSp[j] = solAp[j] = 0.;
             }
 
             double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};

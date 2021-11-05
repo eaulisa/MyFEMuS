@@ -29,6 +29,9 @@ Projection *projection;
 double TimeStepBeam(const double time);
 bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t);
 
+double TimeStepTurek3(const double time);
+bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
 double TimeStepTurek1(const double time);
 bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 
@@ -57,6 +60,14 @@ parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
                              "../input/turekBeam2DFine.neu", 1., 5, 1,
                              "../input/turek2D.neu", 1., -2,
                              BoundaryConditionTurek1, TimeStepTurek1);
+
+
+parameter turek3 = parameter(false, 0.8, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 1000., 1000., 0.4, 4*1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 5, 1,
+                             "../input/turek2D.neu", 1., -2,
+                             BoundaryConditionTurek3, TimeStepTurek3);
 
 
 
@@ -353,6 +364,65 @@ bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], 
   return test;
 
 }
+
+
+bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  const double Ubar = 2.;    // FSI1
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {     //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inflow
+      test = 1;
+      if(t < 2.0) {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
+      }
+      else {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
+      }
+    }
+    else if(2 == facename) {    //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "P")) {
+    if(par->_weakP || 2 != facename) {
+      test = 0;
+    }
+    value = 0;
+  }
+
+  return test;
+
+}
+
+
 
 double TimeStepTurek1(const double time) {
   double dt;
