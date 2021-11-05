@@ -176,7 +176,6 @@ namespace femus
 
   void Marker::GetElement(const bool &useInitialSearch, const unsigned &initialElem, Solution* sol, const double &s)
   {
-
     std::vector < unsigned > processorMarkerFlag(_nprocs, 3);
 
     unsigned iel = initialElem;

@@ -11,6 +11,7 @@ class Projection {
       _nprocs = mshB->n_processors();
       _ielb.resize(_nprocs);
       for(unsigned kp = 0; kp < _nprocs; kp++) _ielb[kp].resize(0);
+      _ielMInitialized = false;
     }
     ~Projection() {};
 
@@ -92,6 +93,7 @@ class Projection {
     std::vector<std::vector<unsigned> > _ielb; // background elements
     std::vector<std::vector<unsigned> > _mtypeb; // mbackground mtype
 
+    bool _ielMInitialized;
 
     const char _Dname[3][3] = {"DX", "DY", "DZ"};
     const char _Vname[3][3] = {"VX", "VY", "VZ"};
@@ -226,65 +228,102 @@ void Projection::Init() {
 
   unsigned solTypeM = 2;
 
-  std::vector <double> xm(dim);
-  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(unsigned k = mshM->_dofOffset[solTypeM][kproc]; k < mshM->_dofOffset[solTypeM][kproc + 1]; k++) {
+  if(!_ielMInitialized) {
+    std::vector <double> xm(dim);
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      for(unsigned k = mshM->_dofOffset[solTypeM][kproc]; k < mshM->_dofOffset[solTypeM][kproc + 1]; k++) {
 
-      xm.assign(dim, 0.);
-      if(iproc == kproc) {
-        for(unsigned j = 0; j < dim; j++) {
-          xm[j] = (*mshM->_topology->_Sol[j])(k) + (*solM->_Sol[DIdx[j]])(k);
+        xm.assign(dim, 0.);
+        if(iproc == kproc) {
+          for(unsigned j = 0; j < dim; j++) {
+            xm[j] = (*mshM->_topology->_Sol[j])(k) + (*solM->_Sol[DIdx[j]])(k);
+          }
         }
+        MPI_Bcast(xm.data(), xm.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+
+        Marker *gp = new Marker(xm, VOLUME, solB, solTypeM);
+        unsigned kel = gp->GetMarkerElement();
+
+        unsigned kelold = (*solM->_Sol[ielIdx])(k);
+
+        if(kel == UINT_MAX) std::cout << "error";
+
+        solM->_Sol[ielIdx]->set(k, kel);
+
+        delete gp;
+
       }
-      MPI_Bcast(xm.data(), xm.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
-
-      Marker *gp = new Marker(xm, VOLUME, solB, solTypeM);
-      unsigned kel = gp->GetMarkerElement();
-
-      solM->_Sol[ielIdx]->set(k, kel);
-
-      delete gp;
-
     }
+    solM->_Sol[ielIdx]->close();
   }
 
-  solM->_Sol[ielIdx]->close();
-
+  clock_t time = clock();
   unsigned dof0 = mshM->_dofOffset[solTypeM][iproc];
   unsigned dof1 = mshM->_dofOffset[solTypeM][iproc + 1];
   unsigned size = dof1 - dof0; // number of markers iproc owns
 
+  std::vector < unsigned > pSize(nprocs, 0);
   std::vector < unsigned > pPntCnt(nprocs + 1, 0); //process Marker counter
   _map.resize(size);
 
-  unsigned iel0 = UINT_MAX - 1;
+  std::vector<unsigned> ielp(size);
+  std::vector<unsigned*> vec(ielp.size());
 
-  for(unsigned i = 0; i < _map.size(); i++) _map[i] = i;
+  for(unsigned i = 0; i < ielp.size(); i++) {
+    ielp[i] = static_cast<unsigned>((*solM->_Sol[ielIdx])(dof0 + i));
+    vec[i] = &ielp[i];
+    unsigned kproc = mshB->IsdomBisectionSearch(ielp[i], 3);
+    pSize[kproc]++;
+  }
+
+  std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
+    return *a < *b;
+  });
+  
   for(unsigned i = 0; i < _map.size(); i++) {
-    unsigned iel = (*solM->_Sol[ielIdx])(dof0 + _map[i]);
-    for(unsigned j = i + 1; j < _map.size(); j++) {
-      unsigned jel = (*solM->_Sol[ielIdx])(dof0 + _map[j]);
-      if(jel < iel) {
-        iel = jel;
-        unsigned mapi = _map[j];
-        _map[j] = _map[i];
-        _map[i] = mapi;
-      }
-    }
-    unsigned kproc = mshB->IsdomBisectionSearch(iel, 3);
-    pPntCnt[kproc + 1] = i + 1;
+    _map[i] =  static_cast<unsigned>(vec[i] - &ielp[0]);
   }
+  
   for(unsigned kproc = 1; kproc <= nprocs; kproc++) {
-    if(pPntCnt[kproc] == 0)  pPntCnt[kproc] = pPntCnt[kproc - 1];
+    pPntCnt[kproc] = pPntCnt[kproc - 1] + pSize[kproc - 1];
   }
+  
+//   for(unsigned i = 0; i < _map.size(); i++) _map[i] = i;
+//   for(unsigned i = 0; i < _map.size(); i++) {
+//     unsigned iel = (*solM->_Sol[ielIdx])(dof0 + _map[i]);
+//     for(unsigned j = i + 1; j < _map.size(); j++) {
+//       unsigned jel = (*solM->_Sol[ielIdx])(dof0 + _map[j]);
+//       if(jel < iel) {
+//         iel = jel;
+//         std::swap(_map[j], _map[i]);
+//         //_map[j] = _map[i];
+//         //_map[i] = mapi;
+//       }
+//     }
+//     unsigned kproc = mshB->IsdomBisectionSearch(iel, 3);
+//     pPntCnt[kproc + 1] = i + 1;
+//     
+//     //std::cout << (*solM->_Sol[ielIdx])(dof0 + _map[i]) << " ";
+//     
+//     if((*solM->_Sol[ielIdx])(dof0 + _map[i]) != (*solM->_Sol[ielIdx])(dof0 + map1[i])) std::cout<< _map[i] << " " << map1[i]<<"   ";
+//   }
+//   for(unsigned kproc = 1; kproc <= nprocs; kproc++) {
+//     if(pPntCnt[kproc] == 0)  pPntCnt[kproc] = pPntCnt[kproc - 1];
+//   }
+  std::cout << "sort time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+
+  time = clock();
   this->Allocate(dim, iproc, pPntCnt);
+  std::cout << "allocate time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
 }
 
 ////////////////////////////////////
 
 void Projection::FromMarkerToBackground() {
 
+  clock_t time = clock();
   this->Init(); // creates the mapping and allocate memory
+  std::cout << "init time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
 
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
@@ -431,12 +470,12 @@ void Projection::FromMarkerToBackground() {
     short unsigned ielType = mshB->GetElementType(iel);
 
     for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
-      
+
       im[kp] = 0;
       while(im[kp] < _ielb[kp].size() && _ielb[kp][im[kp]] < iel) {
         im[kp]++;
-      }  
-        
+      }
+
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
         if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
           solB->_Sol[eflagIdx]->set(iel, 1);
@@ -553,22 +592,51 @@ void Projection::FromBackgroundToMarker() {
       }
     }
   }
-
   for(unsigned k = 0; k < _dim; k++) { //reset the background displacement
     solB->_Sol[DIdxB[k]]->zero();
   }
+
+
+  for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+    for(unsigned jp = 0; jp < _nprocs; jp++) {
+      unsigned np;
+      if(_iproc == kproc) np = _ielb[jp].size();
+      MPI_Bcast(&np, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+      for(unsigned im = 0; im < np; im++) {
+        unsigned iel;
+        std::vector < double > xp(_dim);
+        if(_iproc == kproc) {
+          iel = _ielb[jp][im];
+          for(unsigned k = 0; k < _dim; k++) {
+            xp[k] = _Xb[jp][k][im] + _Db[jp][k][im];
+          }
+        }
+        MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+
+        Marker gp = Marker(xp, VOLUME, solB, 2, iel);
+        if(_iproc == kproc) {
+          _ielb[jp][im] = gp.GetMarkerElement();
+          if(_ielb[jp][im] == UINT_MAX) std::cout << "error";
+        }
+      }
+    }
+  }
+
+
 
   unsigned solTypeM = 2;
 
   std::vector<std::vector < MPI_Request >> reqsSend(_nprocs) ;
   std::vector<std::vector < MPI_Request >> reqsRecv(_nprocs) ;
 
-  unsigned nOfMessages = _dim;
+  unsigned nOfMessages = _dim + 1;
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     reqsRecv[kproc].resize(nOfMessages);
     for(unsigned k = 0; k < _dim; k++) {
       MPI_Irecv(_Dm[kproc][k].data(), _Dm[kproc][k].size(), MPI_DOUBLE, kproc, k, MPI_COMM_WORLD, &reqsRecv[kproc][k]);
     }
+    MPI_Irecv(_ielm[kproc].data(), _ielm[kproc].size(), MPI_UNSIGNED, kproc, _dim, MPI_COMM_WORLD, &reqsRecv[kproc][_dim]);
   }
 
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
@@ -576,6 +644,7 @@ void Projection::FromBackgroundToMarker() {
     for(unsigned k = 0; k < _dim; k++) {
       MPI_Isend(_Db[kproc][k].data(), _Db[kproc][k].size(), MPI_DOUBLE, kproc, k, MPI_COMM_WORLD, &reqsSend[kproc][k]);
     }
+    MPI_Isend(_ielb[kproc].data(), _ielb[kproc].size(), MPI_UNSIGNED, kproc, _dim, MPI_COMM_WORLD, &reqsSend[kproc][_dim]);
   }
 
   MPI_Status status;
@@ -598,12 +667,16 @@ void Projection::FromBackgroundToMarker() {
     VIdxM[k] = _mlSolM->GetIndex(&Vname[k][0]);
     AIdxM[k] = _mlSolM->GetIndex(&Aname[k][0]);
   }
+  unsigned ielIdx = _mlSolM->GetIndex("iel");
 
   unsigned offset0 = mshM->_dofOffset[solTypeM][_iproc];
   unsigned i = 0;
   for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
     for(unsigned j = 0; j < _Dm[jproc][0].size(); j++) {
       unsigned mapi = offset0 + _map[i];
+
+      solM->_Sol[ielIdx]->set(mapi, _ielm[jproc][j]);
+
       for(unsigned k = 0; k < _dim; k++) {
 
         double Xold = (*solM->_Sol[DIdxM[k]])(mapi);
@@ -626,12 +699,15 @@ void Projection::FromBackgroundToMarker() {
       i++;
     }
   }
+
+  solM->_Sol[ielIdx]->close();
   for(unsigned k = 0; k < _dim; k++) {
     solM->_Sol[DIdxM[k]]->close();
     solM->_Sol[VIdxM[k]]->close();
     solM->_Sol[AIdxM[k]]->close();
   }
 
+  _ielMInitialized = true;
   UpdateMeshQuantities(_mlSolM);
 
 }

@@ -29,40 +29,88 @@ Projection *projection;
 double TimeStepBeam(const double time);
 bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t);
 
-double TimeStepTurek(const double time);
-bool BoundaryConditionTurek(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+double TimeStepTurek1(const double time);
+bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+double TimeStepTurek0(const double time);
+bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
 
 parameter beam = parameter(false, 1., {0., 0., 0.},
                            45., 0.05, 0.05, 0.05,
-                           false, 7850., 1000., 0.3, 2.e05, 1.0e-03,
-                           "../input/beam.neu", 1.e5, 1, 2, 
+                           true, 7850., 1000., 0.3, 2.e05, 1.0e-03,
+                           "../input/beam.neu", 1.e5, 1, 2,
                            "../input/fsi_bnc_2D.neu", 10000., 5,
                            BoundaryConditionBeam, TimeStepBeam);
 
 
+// parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
+//                              45., 0.05, 0.05, 0.05,
+//                              false, 1000., 1000., 0.4, 1400000., 1.,
+//                              "../input/turekBeam2D.neu", 1., 3, 2,
+//                              "../input/turek2D.neu", 1., 1,
+//                              BoundaryConditionTurek1, TimeStepTurek1);
+
 parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
-                           45., 0.05, 0.05, 0.05,
-                           false, 1000., 1000., 0.4, 1400000., 1.,
-                           "../input/turekBeam2D.neu", 1., 2, 3, 
-                           "../input/turek2D.neu", 1., 0,
-                           BoundaryConditionTurek, TimeStepTurek);
-  
-      
+                             45., 0.05, 0.05, 0.05,
+                             false, 1000., 1000., 0.4, 1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 5, 1,
+                             "../input/turek2D.neu", 1., -2,
+                             BoundaryConditionTurek1, TimeStepTurek1);
+
+
+
+parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             true, 1000., 1000., 0.4, 4 * 14000., 1.,
+                             "../input/turekBeam2DMarker.neu", 1., 3, 3,
+                             "../input/turekBeam2DEnvelope.neu", 1., 0,
+                             BoundaryConditionTurek0, TimeStepTurek0);
+
+
+
+
 //     parameter(bool weakP, double theta, std::vector < double > gravity,
 //               double GAMMA, double gammacF, double gammacS, double gammap,
 //               bool NeoHookean, double rhos, double rhof, double nu, double E, double muf,
 //               std::string mMesh, double mScale, unsigned mUniform, unsigned mAdaptive,
-//               std::string bMesh, double bScale, unsigned deltaUniform, 
+//               std::string bMesh, double bScale, unsigned deltaUniform,
 //               BoundaryFunc bdcFunction, TimeFunc timeFunction)
 
 
 
-
+#include <iostream>
+#include <vector>
+#include <algorithm>
 
 
 int main(int argc, char** args) {
 
+//   std::vector<unsigned> a = {3, 2, 1};
+// 
+//   std::vector<unsigned*> vec(a.size());
+//   for(unsigned i = 0; i < a.size(); i++) {
+//     vec[i] = &a[i];
+//   }
+// 
+//   std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
+//     return *a < *b;
+//   });
+// 
+//   std::cout << "vec = " << static_cast<unsigned>(vec[0] - &a[0]) << ", " << vec[1] - &a[0] << ", " << vec[2] - &a[0] << '\n';
+//   std::cout << "abc = " << &a[0] << ", " << &a[1] << ", " << &a[2] << '\n';
+// 
+//   std::cout << "vec = " << *vec[0] << ", " << *vec[1] << ", " << *vec[2] << '\n';
+//   std::cout << "abc = " << a[0] << ", " << a[1] << ", " << a[2] << '\n';
+// 
+// 
+//   return 1;
+
+
+
+
   par = &turek1;
+  //par = &beam;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -70,12 +118,12 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMshM;
   mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
   mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
- 
+
   for(unsigned i = 0; i < par->_mAdaptive; i++) {
     FlagElements(mlMshM, 2);
     mlMshM.AddAMRMeshLevel();
   }
-  mlMshM.EraseCoarseLevels(par->_mUniform + par->_mAdaptive -1u);
+  mlMshM.EraseCoarseLevels(par->_mUniform + par->_mAdaptive - 1u);
 
   MultiLevelSolution mlSolM(&mlMshM);
   InitializeMarkerVariables(mlSolM);
@@ -124,7 +172,7 @@ int main(int argc, char** args) {
   if(dim > 2) system.AddSolutionToSystemPDE("VZ");
   system.AddSolutionToSystemPDE("P");
 
-  system.SetSparsityPatternMinimumSize(1000);
+  system.SetSparsityPatternMinimumSize(250);
 
   // ******* System MPM-FSI Assembly *******
   system.SetAssembleFunction(AssembleMPMSys);
@@ -177,11 +225,18 @@ int main(int argc, char** args) {
     projection->SetNewmarkParameters(par->_beta, par->_gamma, 1.);
     clock_t time = clock();
     projection->FromMarkerToBackground();
+    std::cout << "forward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    time = clock();
     system.MGsolve();
-    projection->FromBackgroundToMarker();
-    std::cout << "time" << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
-    mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
+    std::cout << "solve time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
+    
+    time = clock();
+    projection->FromBackgroundToMarker();
+    std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
+   
   }
 
 
@@ -243,12 +298,11 @@ double TimeStepBeam(const double time) {
 }
 
 
-bool BoundaryConditionTurek(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
   bool test = 1;      //dirichlet
   value = 0.;
 
-  //const double Ubar = 0.2;    // FSI1
-  const double Ubar = 2;    // FSI3
+  const double Ubar = 0.2;    // FSI1
   const double L = 0.41;
   const double H = 2.5;
 
@@ -300,16 +354,97 @@ bool BoundaryConditionTurek(const std::vector < double >&x, const char name[], d
 
 }
 
-double TimeStepTurek(const double time) {
+double TimeStepTurek1(const double time) {
   double dt;
-  double dt0 = 0.05;
-  double dt1 = 0.001; //FSI3
+  double dt0 = 0.1;
+  double dt1 = 1.; //FSI3
+  double dt2 = 10.; //FSI3
 
-  double T = 2.;
-  if(time < T)
-    dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
+  double T0 = 2.;
+  double T1 = 20.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
   else
-    dt = dt1;
+    dt = dt2;
 
   return dt;
+}
+
+
+
+double TimeStepTurek3(const double time) {
+  double dt;
+  double dt0 = 0.05;
+  double dt1 = 0.005; //FSI3
+  double dt2 = 0.001; //FSI3
+
+  double T0 = 2.;
+  double T1 = 15.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
+  else
+    dt = dt2;
+
+  return dt;
+}
+
+
+double TimeStepTurek0(const double time) {
+  return 1.;
+}
+
+bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  //const double Ubar = 0.2;    // FSI1
+  const double Ubar = 2;    // FSI3
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(2 == facename || 3 == facename) {
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(2 == facename || 3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+//   else if(!strcmp(name, "VX")) {
+//     if(3 == facename) {    //fluid wall
+//       test = 0;
+//       value = 0.;
+//     }
+//   }
+//
+//   else if(!strcmp(name, "VY")) {
+//     if(3 == facename) {    //fluid wall
+//       test = 0;
+//       value = 0.;
+//     }
+//   }
+//
+  else if(!strcmp(name, "P")) {
+    if(par->_weakP && 3 != facename) {
+      test = 0;
+      value = 0;
+    }
+    else {
+      value = 10;
+    }
+
+  }
+
+  return test;
+
 }

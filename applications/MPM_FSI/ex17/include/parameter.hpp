@@ -7,7 +7,7 @@ class parameter {
               double GAMMA, double gammacF, double gammacS, double gammap,
               bool NeoHookean, double rhos, double rhof, double nu, double E, double muf,
               std::string mMesh, double mScale, unsigned mUniform, unsigned mAdaptive,
-              std::string bMesh, double bScale, unsigned deltaUniform, 
+              std::string bMesh, double bScale, int deltaUniform, 
               BoundaryFunc bdcFunction, TimeFunc timeFunction) {
       _weakP = weakP;
       _theta = theta;
