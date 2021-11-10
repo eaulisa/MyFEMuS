@@ -243,6 +243,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       }
     }
 
+    double elementArea = 0.;
+    
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
 
@@ -252,6 +254,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       msh->_finiteElement[ielt][solType]->Jacobian(vx,    ig, weight,    phi, gradPhi, nablaphi);
       msh->_finiteElement[ielt][solType]->Jacobian(vxNew, ig, weightNew, phi, gradPhiNew);
 
+      elementArea += weightOld;
+      
       vector < adept::adouble > solVgNew(dim, 0.);
       vector < adept::adouble > solVg(dim, 0.);
       vector < adept::adouble > solVgOld(dim, 0.);
@@ -420,7 +424,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         tauMtrG *= tauM;
         adept::adouble tauC = 1. / tauMtrG;
 
-        tauM = 0.; tauC = 0.;
+        //tauM = 0.; tauC = 0.;
 
         //end SUPG parameters
         std::vector < adept::adouble > tauM_SupgPhi(nDofs, 0.);
@@ -516,15 +520,27 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
     } // end gauss point loop
 
 
-
+    
     if(eFlag > 0) {   //BEGIN BULK PARTICLE
 
+      double particleArea = 0.;  
+      
       for(unsigned kp = 0; kp < nprocs; kp++) {
         //im[kp] = 0;
         while(im[kp] < ielp[kp].size() && ielp[kp][im[kp]] < iel) {
           im[kp]++;
         }
-
+        unsigned im0 = im[kp];
+        while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
+         particleArea += weightpOld[kp][im[kp]];   
+         im[kp]++;
+        }
+        im[kp] =im0;
+      }
+      double scale = elementArea / particleArea;
+      
+      
+      for(unsigned kp = 0; kp < nprocs; kp++) {
         while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
 
           // the local coordinates of the particles are the integration points in this context
@@ -532,7 +548,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned  k = 0; k < dim; k++) xi[k] = Xip[kp][k][im[kp]];
 
           double U = mtypep[kp][im[kp]] / 2.; // U = 0 fluid, U = 0.5 interface, U = 1 solid
-          double areaOld = weightpOld[kp][im[kp]];
+          double areaOld = scale * weightpOld[kp][im[kp]];
 
           msh->_finiteElement[ielt][solType]->Jacobian(vx, xi, agaussWeight, phi, gradPhi);
           msh->_finiteElement[ielt][solType]->Jacobian(vxOld, xi, gaussWeight, phi, gradPhiOld);
@@ -680,7 +696,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               solVSp[j] = solVSpOld[j] + dt * (par->_gamma * solApNew + (1. - par->_gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
               solAp[j] = (1. - par->_am) * solApNew + par->_am * solApOld[j];
               
-             // solVSp[j] = solAp[j] = 0.;
+              //solVSp[j] = solAp[j] = 0.;
             }
 
             double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};

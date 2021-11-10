@@ -57,8 +57,8 @@ parameter beam = parameter(false, 1., {0., 0., 0.},
 parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 5, 1,
-                             "../input/turek2D.neu", 1., -2,
+                             "../input/turekBeam2DFine.neu", 1., 4, 3,
+                             "../input/turek2DNew.neu", 1., -1,  // 5-2 >= 3
                              BoundaryConditionTurek1, TimeStepTurek1);
 
 
@@ -66,7 +66,7 @@ parameter turek3 = parameter(false, 0.8, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 4*1400000., 1.,
                              "../input/turekBeam2DFine.neu", 1., 5, 1,
-                             "../input/turek2D.neu", 1., -2,
+                             "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek3, TimeStepTurek3);
 
 
@@ -75,7 +75,7 @@ parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              true, 1000., 1000., 0.4, 4 * 14000., 1.,
                              "../input/turekBeam2DMarker.neu", 1., 3, 3,
-                             "../input/turekBeam2DEnvelope.neu", 1., 0,
+                             "../input/turekBeam2DEnvelopeNew.neu", 1., -2,
                              BoundaryConditionTurek0, TimeStepTurek0);
 
 
@@ -120,7 +120,7 @@ int main(int argc, char** args) {
 
 
 
-  par = &turek1;
+  par = &turek3;
   //par = &beam;
 
   // init Petsc-MPI communicator
@@ -131,7 +131,7 @@ int main(int argc, char** args) {
   mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
   for(unsigned i = 0; i < par->_mAdaptive; i++) {
-    FlagElements(mlMshM, 2);
+    FlagElements(mlMshM, 0);
     mlMshM.AddAMRMeshLevel();
   }
   mlMshM.EraseCoarseLevels(par->_mUniform + par->_mAdaptive - 1u);
@@ -428,7 +428,7 @@ double TimeStepTurek1(const double time) {
   double dt;
   double dt0 = 0.1;
   double dt1 = 1.; //FSI3
-  double dt2 = 10.; //FSI3
+  double dt2 = 1.; //FSI3
 
   double T0 = 2.;
   double T1 = 20.;

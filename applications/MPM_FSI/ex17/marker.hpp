@@ -159,19 +159,21 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
       }
     }
 
-    for(unsigned i = 0; i < nDofs; i++) {
-      double d2max = (*sol->_Sol[d2maxIdx])(idof[i]);
-      for(unsigned j = 0; j < nDofs; j++) {
-        double d2maxj = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          d2maxj += (vx[k][i] - vx[k][j]) * (vx[k][i] - vx[k][j]);
+    if(ielMat == 4) {
+      for(unsigned i = 0; i < nDofs; i++) {
+        double d2max = (*sol->_Sol[d2maxIdx])(idof[i]);
+        for(unsigned j = 0; j < nDofs; j++) {
+          double d2maxj = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            d2maxj += (vx[k][i] - vx[k][j]) * (vx[k][i] - vx[k][j]);
+          }
+          if(d2maxj > d2max) {
+            d2max = d2maxj;
+            sol->_Sol[d2maxIdx]->set(idof[i], d2max);
+          }
         }
-        if(d2maxj > d2max) {
-          d2max = d2maxj;
-          sol->_Sol[d2maxIdx]->set(idof[i], d2max);
-        }
+        sol->_Sol[mtypeIdx]->set(idof[i], 2);
       }
-      if(ielMat == 4) sol->_Sol[mtypeIdx]->set(idof[i], 2);
     }
   }
   sol->_Sol[d2maxIdx]->closeWithMaxValue();
@@ -290,22 +292,21 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       }
       for(unsigned i = 0; i < nDofs; i++) { //node
 
-        if(ielMat == 4){// || mtype[i] == 0) {
+        if(ielMat == 4) { // || mtype[i] == 0) {
           double d2 = 0.;
           for(unsigned  k = 0; k < dim; k++) { //solution
             d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
           }
+          if(d2max[i] < d2) std::cout<<"e";
 
-          sol->_Sol[kernelIdx]->add(idof[i], jac * (d2max[i] - d2) * (d2max[i] - d2));
+          sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 0) );
           for(unsigned  k = 0; k < dim; k++) {
             for(unsigned j = 0; j < dim; j++) {
-              sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * (d2max[i] - d2) * (d2max[i] - d2));
+              sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 0));
             }
           }
         }
       }
-
-
     }
     for(unsigned i = 0; i < nDofs; i++) {
       sol->_Sol[weightIdx]->add(idof[i], ielArea * WEIGHT[ielt][i]);
