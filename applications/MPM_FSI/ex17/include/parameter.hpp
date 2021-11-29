@@ -9,12 +9,13 @@ class parameter {
               std::string mMesh, double mScale, unsigned mUniform, unsigned mAdaptive,
               std::string bMesh, double bScale, int deltaUniform, 
               BoundaryFunc bdcFunction, TimeFunc timeFunction) {
-      _weakP = weakP;
-      _theta = theta;
-      _af = 1 - theta;
-      _am = _af - 0.1;
-      _beta = 0.25 + 0.5 * (_af - _am);
-      _gamma = 0.5 + (_af - _am);
+//       _weakP = weakP;
+      //_theta = theta;
+      //_af = 1 - theta;
+      //_am = _af;// - 0.1;
+      //_beta = 0.25 + 0.5 * (_af - _am);
+      _beta = 0.25;// + 0.5 * (_af - _am);
+      _gamma = 0.5;// + (_af - _am);
       _gravity = gravity;
 
       _GAMMA = GAMMA;
@@ -45,8 +46,9 @@ class parameter {
     }
 
   public:
-    bool _weakP;
-    double _theta, _af, _am, _beta, _gamma;
+//     bool _weakP;
+    //double _theta, _af, _am, 
+    double _beta, _gamma;
     std::vector < double > _gravity;
 
     double _GAMMA;

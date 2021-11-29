@@ -54,17 +54,17 @@ parameter beam = parameter(false, 1., {0., 0., 0.},
 //                              "../input/turek2D.neu", 1., 1,
 //                              BoundaryConditionTurek1, TimeStepTurek1);
 
-parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
+parameter turek1 = parameter(true, 0.8, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 4, 3,
+                             "../input/turekBeam2DFine.neu", 1., 4, 1,
                              "../input/turek2DNew.neu", 1., -1,  // 5-2 >= 3
                              BoundaryConditionTurek1, TimeStepTurek1);
 
 
-parameter turek3 = parameter(false, 0.8, {0., 0., 0.},
+parameter turek3 = parameter(true, 1., {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
-                             false, 1000., 1000., 0.4, 4*1400000., 1.,
+                             false, 1000., 1000., 0.4, 4 * 1400000., 1.,
                              "../input/turekBeam2DFine.neu", 1., 5, 1,
                              "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek3, TimeStepTurek3);
@@ -73,8 +73,8 @@ parameter turek3 = parameter(false, 0.8, {0., 0., 0.},
 
 parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
-                             true, 1000., 1000., 0.4, 4 * 14000., 1.,
-                             "../input/turekBeam2DMarker.neu", 1., 3, 3,
+                             false, 1000., 1000., 0.4, 4 * 14000., 1.,
+                             "../input/turekBeam2DMarker.neu", 1., 3, 0,
                              "../input/turekBeam2DEnvelopeNew.neu", 1., -2,
                              BoundaryConditionTurek0, TimeStepTurek0);
 
@@ -97,29 +97,7 @@ parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
 
 int main(int argc, char** args) {
 
-//   std::vector<unsigned> a = {3, 2, 1};
-// 
-//   std::vector<unsigned*> vec(a.size());
-//   for(unsigned i = 0; i < a.size(); i++) {
-//     vec[i] = &a[i];
-//   }
-// 
-//   std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
-//     return *a < *b;
-//   });
-// 
-//   std::cout << "vec = " << static_cast<unsigned>(vec[0] - &a[0]) << ", " << vec[1] - &a[0] << ", " << vec[2] - &a[0] << '\n';
-//   std::cout << "abc = " << &a[0] << ", " << &a[1] << ", " << &a[2] << '\n';
-// 
-//   std::cout << "vec = " << *vec[0] << ", " << *vec[1] << ", " << *vec[2] << '\n';
-//   std::cout << "abc = " << a[0] << ", " << a[1] << ", " << a[2] << '\n';
-// 
-// 
-//   return 1;
-
-
-
-
+  //par = &turek1;
   par = &turek3;
   //par = &beam;
 
@@ -233,21 +211,22 @@ int main(int argc, char** args) {
 
     system.CopySolutionToOldSolution();
 
-    projection->SetNewmarkParameters(par->_beta, par->_gamma, 1.);
+
     clock_t time = clock();
     projection->FromMarkerToBackground();
     std::cout << "forward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     time = clock();
     system.MGsolve();
+    projection->SetNewmarkParameters(par->_beta, par->_gamma, system.GetIntervalTime());
     std::cout << "solve time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
-    
+
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
-    
+
     time = clock();
     projection->FromBackgroundToMarker();
     std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
-   
+
   }
 
 
@@ -293,9 +272,9 @@ bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], d
     }
   }
   else if(!strcmp(name, "P")) {
-    if(par->_weakP || 2 != facename) {
-      test = 0;
-    }
+    //  if(par->_weakP || 2 != facename) {
+    test = 0;
+    //}
     value = 0;
   }
 
@@ -355,9 +334,9 @@ bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], 
   }
 
   else if(!strcmp(name, "P")) {
-    if(par->_weakP || 2 != facename) {
-      test = 0;
-    }
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
+    // }
     value = 0;
   }
 
@@ -412,9 +391,9 @@ bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], 
   }
 
   else if(!strcmp(name, "P")) {
-    if(par->_weakP || 2 != facename) {
-      test = 0;
-    }
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
+    //}
     value = 0;
   }
 
@@ -446,6 +425,11 @@ double TimeStepTurek1(const double time) {
 
 double TimeStepTurek3(const double time) {
   double dt;
+
+//   double dt0 = 0.1;
+//   double dt1 = 0.1; //FSI3
+//   double dt2 = 0.1; //FSI3
+
   double dt0 = 0.05;
   double dt1 = 0.005; //FSI3
   double dt2 = 0.001; //FSI3
@@ -464,7 +448,7 @@ double TimeStepTurek3(const double time) {
 
 
 double TimeStepTurek0(const double time) {
-  return 1.;
+  return 0.05;
 }
 
 bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
@@ -505,12 +489,12 @@ bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], 
 //   }
 //
   else if(!strcmp(name, "P")) {
-    if(par->_weakP && 3 != facename) {
+    if(/*par->_weakP && */ 3 != facename) {
       test = 0;
       value = 0;
     }
     else {
-      value = 10;
+      value = 10.;
     }
 
   }

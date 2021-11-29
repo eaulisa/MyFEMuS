@@ -57,6 +57,10 @@ class Projection {
     const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradD() {
       return _gradDb;
     }
+    
+    const std::vector < std::vector < std::vector < std::vector <double > > > > & GetF() {
+      return _Fb;
+    }
 
   private:
 
@@ -78,6 +82,7 @@ class Projection {
     std::vector < std::vector<std::vector<double> > > _Dm;     // marker displacement
     std::vector < std::vector<std::vector<double> > > _Nm;     // marker normal
     std::vector < std::vector < std::vector < std::vector <double > > > > _gradDm; // marker grad D
+    std::vector < std::vector < std::vector < std::vector <double > > > > _Fm; // marker grad D
     std::vector<std::vector<double> > _weightm; // marker weight
     std::vector<std::vector<unsigned> > _ielm; // marker elements
     std::vector<std::vector<unsigned> > _mtypem; // marker mtype
@@ -89,6 +94,7 @@ class Projection {
     std::vector < std::vector<std::vector<double> > > _Db;     // background displacement
     std::vector < std::vector<std::vector<double> > > _Nb;     // background normal
     std::vector < std::vector < std::vector < std::vector <double > > > > _gradDb; // background grad D
+    std::vector < std::vector < std::vector < std::vector <double > > > > _Fb;
     std::vector<std::vector<double> > _weightb; // background weight
     std::vector<std::vector<unsigned> > _ielb; // background elements
     std::vector<std::vector<unsigned> > _mtypeb; // mbackground mtype
@@ -100,6 +106,7 @@ class Projection {
     const char _Aname[3][3] = {"AX", "AY", "AZ"};
     const char _Nname[3][3] = {"NX", "NY", "NZ"};
     const char _gradDname[3][3][4] = {{"DXx", "DXy", "DXz"}, {"DYx", "DYy", "DYz"}, {"DZx", "DZy", "DZz"}};
+    const char _Fname[3][3][4] = {{"F11", "F12", "F13"}, {"F21", "F22", "F23"}, {"F31", "F32", "F33"}};
 
 };
 
@@ -125,6 +132,9 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
   _gradDm.resize(_nprocs);
   _gradDb.resize(_nprocs);
 
+  _Fm.resize(_nprocs);
+  _Fb.resize(_nprocs);
+
   _weightm.resize(_nprocs);
   _weightb.resize(_nprocs);
 
@@ -146,6 +156,9 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
     _Nb[kproc].resize(_dim);
     _gradDm[kproc].resize(_dim);
     _gradDb[kproc].resize(_dim);
+    _Fm[kproc].resize(_dim);
+    _Fb[kproc].resize(_dim);
+
     unsigned size = pPntCnt[kproc + 1] - pPntCnt[kproc]; // size of the iproc marker grid belonging to the jproc background grid
     for(unsigned k = 0; k < _dim; k++) {
       _Xm[kproc][k].resize(size);
@@ -155,8 +168,11 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
       _Nm[kproc][k].resize(size);
       _gradDm[kproc][k].resize(_dim);
       _gradDb[kproc][k].resize(_dim);
+      _Fm[kproc][k].resize(_dim);
+      _Fb[kproc][k].resize(_dim);
       for(unsigned l = 0; l < _dim; l++) {
         _gradDm[kproc][k][l].resize(size);
+        _Fm[kproc][k][l].resize(size);
       }
     }
     _weightm[kproc].resize(size);
@@ -196,6 +212,7 @@ void Projection::Allocate(const unsigned & dim, const unsigned & iproc, std::vec
       _Nb[kproc][k].resize(vsize[kproc]);
       for(unsigned l = 0; l < _dim; l++) {
         _gradDb[kproc][k][l].resize(vsize[kproc]);
+        _Fb[kproc][k][l].resize(vsize[kproc]);
       }
     }
   }
@@ -279,15 +296,15 @@ void Projection::Init() {
   std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
     return *a < *b;
   });
-  
+
   for(unsigned i = 0; i < _map.size(); i++) {
     _map[i] =  static_cast<unsigned>(vec[i] - &ielp[0]);
   }
-  
+
   for(unsigned kproc = 1; kproc <= nprocs; kproc++) {
     pPntCnt[kproc] = pPntCnt[kproc - 1] + pSize[kproc - 1];
   }
-  
+
 //   for(unsigned i = 0; i < _map.size(); i++) _map[i] = i;
 //   for(unsigned i = 0; i < _map.size(); i++) {
 //     unsigned iel = (*solM->_Sol[ielIdx])(dof0 + _map[i]);
@@ -302,19 +319,19 @@ void Projection::Init() {
 //     }
 //     unsigned kproc = mshB->IsdomBisectionSearch(iel, 3);
 //     pPntCnt[kproc + 1] = i + 1;
-//     
+//
 //     //std::cout << (*solM->_Sol[ielIdx])(dof0 + _map[i]) << " ";
-//     
+//
 //     if((*solM->_Sol[ielIdx])(dof0 + _map[i]) != (*solM->_Sol[ielIdx])(dof0 + map1[i])) std::cout<< _map[i] << " " << map1[i]<<"   ";
 //   }
 //   for(unsigned kproc = 1; kproc <= nprocs; kproc++) {
 //     if(pPntCnt[kproc] == 0)  pPntCnt[kproc] = pPntCnt[kproc - 1];
 //   }
-  std::cout << "sort time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "sort time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl << std::flush;
 
   time = clock();
   this->Allocate(dim, iproc, pPntCnt);
-  std::cout << "allocate time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "allocate time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl << std::flush;
 }
 
 ////////////////////////////////////
@@ -323,7 +340,7 @@ void Projection::FromMarkerToBackground() {
 
   clock_t time = clock();
   this->Init(); // creates the mapping and allocate memory
-  std::cout << "init time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "init time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl << std::flush;
 
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
@@ -334,14 +351,17 @@ void Projection::FromMarkerToBackground() {
   std::vector < unsigned > AIdx(_dim);
   std::vector < unsigned > NIdx(_dim);
   std::vector < std::vector < unsigned > > gradDIdx(_dim);
+  std::vector < std::vector < unsigned > > FIdx(_dim);
   for(unsigned k = 0; k < _dim; k++) {
     gradDIdx[k].resize(_dim);
+    FIdx[k].resize(_dim);
     DIdx[k] = _mlSolM->GetIndex(&_Dname[k][0]);
     VIdx[k] = _mlSolM->GetIndex(&_Vname[k][0]);
     AIdx[k] = _mlSolM->GetIndex(&_Aname[k][0]);
     NIdx[k] = _mlSolM->GetIndex(&_Nname[k][0]);
     for(unsigned l = 0; l < _dim; l++) {
       gradDIdx[k][l] = _mlSolM->GetIndex(&_gradDname[k][l][0]);
+      FIdx[k][l] = _mlSolM->GetIndex(&_Fname[k][l][0]);
     }
   }
 
@@ -382,6 +402,7 @@ void Projection::FromMarkerToBackground() {
       _Nm[jproc][k][j] = (*solM->_Sol[NIdx[k]])(mapi);
       for(unsigned l = 0; l < _dim; l++) {
         _gradDm[jproc][k][l][j] = (*solM->_Sol[gradDIdx[k][l]])(mapi);
+        _Fm[jproc][k][l][j] = (*solM->_Sol[FIdx[k][l]])(mapi);
       }
     }
   }
@@ -389,7 +410,7 @@ void Projection::FromMarkerToBackground() {
   std::vector<std::vector < MPI_Request >> reqsSend(_nprocs) ;
   std::vector<std::vector < MPI_Request >> reqsRecv(_nprocs) ;
 
-  unsigned nOfMessages = 3 + 4 * _dim + _dim * _dim;
+  unsigned nOfMessages = 3 + 4 * _dim + 2 * _dim * _dim;
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     reqsRecv[kproc].resize(nOfMessages);
     int cnt = 0;
@@ -404,6 +425,8 @@ void Projection::FromMarkerToBackground() {
       cnt++;
       for(unsigned l = 0; l < _dim; l++) {
         MPI_Irecv(_gradDb[kproc][k][l].data(), _gradDb[kproc][k][l].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsRecv[kproc][cnt]);
+        cnt++;
+        MPI_Irecv(_Fb[kproc][k][l].data(), _Fb[kproc][k][l].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsRecv[kproc][cnt]);
         cnt++;
       }
     }
@@ -429,6 +452,8 @@ void Projection::FromMarkerToBackground() {
       cnt++;
       for(unsigned l = 0; l < _dim; l++) {
         MPI_Isend(_gradDm[kproc][k][l].data(), _gradDm[kproc][k][l].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsSend[kproc][cnt]);
+        cnt++;
+        MPI_Isend(_Fm[kproc][k][l].data(), _Fm[kproc][k][l].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsSend[kproc][cnt]);
         cnt++;
       }
     }
@@ -548,6 +573,8 @@ void Projection::FromBackgroundToMarker() {
   std::vector<std::vector<double>> vx(_dim);
   std::vector<std::vector<double>> D(_dim);
   std::vector<double> phi;
+  std::vector<double> gradPhi;
+  double weight;
 
   std::vector < unsigned > im(_nprocs, 0);
   std::vector<double> xi(_dim);
@@ -579,12 +606,39 @@ void Projection::FromBackgroundToMarker() {
         for(unsigned k = 0; k < _dim; k++) {
           xi[k] = _xib[kp][k][im[kp]];
         }
-        mshB->_finiteElement[ielType][solTypeB]->GetPhi(phi, xi);
+        mshB->_finiteElement[ielType][solTypeB]->Jacobian(vx, xi, weight, phi, gradPhi);
 
         for(unsigned k = 0; k < _dim; k++) {
           _Db[kp][k][im[kp]] = 0.;
           for(unsigned i = 0; i < nDofs; i++) {
             _Db[kp][k][im[kp]] += phi[i] * D[k][i];
+          }
+        }
+
+
+        std::vector<double> Fold(pow(_dim, 2));
+        for(unsigned k = 0; k < _dim; k++) {
+          for(unsigned j = 0; j < _dim; j++) {
+            Fold[k * _dim + j] = _Fb[kp][k][j][im[kp]];
+          }
+        }
+
+        std::vector<double> Fnew(pow(_dim, 2));
+        for(unsigned k = 0; k < _dim; k++) {
+          for(unsigned j = 0; j < _dim; j++) {
+            Fnew[k * _dim + j] = (k == j) ? 1. : 0.;
+            for(unsigned i = 0; i < nDofs; i++) {
+              Fnew[k * _dim + j] +=  gradPhi[i * _dim + j] * D[k][i];
+            }
+          }
+        }
+
+        for(unsigned k = 0; k < _dim; k++) {
+          for(unsigned j = 0; j < _dim; j++) {
+            _Fb[kp][k][j][im[kp]] = 0.;
+            for(unsigned l = 0; l < _dim; l++) {
+              _Fb[kp][k][j][im[kp]] += Fnew[k * _dim + l] * Fold[l * _dim + j];
+            }
           }
         }
 
@@ -630,21 +684,35 @@ void Projection::FromBackgroundToMarker() {
   std::vector<std::vector < MPI_Request >> reqsSend(_nprocs) ;
   std::vector<std::vector < MPI_Request >> reqsRecv(_nprocs) ;
 
-  unsigned nOfMessages = _dim + 1;
+  unsigned nOfMessages = _dim + _dim * _dim + 1;
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     reqsRecv[kproc].resize(nOfMessages);
+    int cnt = 0;
     for(unsigned k = 0; k < _dim; k++) {
-      MPI_Irecv(_Dm[kproc][k].data(), _Dm[kproc][k].size(), MPI_DOUBLE, kproc, k, MPI_COMM_WORLD, &reqsRecv[kproc][k]);
+      MPI_Irecv(_Dm[kproc][k].data(), _Dm[kproc][k].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsRecv[kproc][cnt]);
+      cnt++;
+      for(unsigned j = 0; j < _dim; j++) {
+        MPI_Irecv(_Fm[kproc][k][j].data(), _Fm[kproc][k][j].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsRecv[kproc][cnt]);
+        cnt++;
+      }
     }
-    MPI_Irecv(_ielm[kproc].data(), _ielm[kproc].size(), MPI_UNSIGNED, kproc, _dim, MPI_COMM_WORLD, &reqsRecv[kproc][_dim]);
+    MPI_Irecv(_ielm[kproc].data(), _ielm[kproc].size(), MPI_UNSIGNED, kproc, cnt, MPI_COMM_WORLD, &reqsRecv[kproc][cnt]);
+    cnt++;
   }
 
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     reqsSend[kproc].resize(nOfMessages);
+    int cnt = 0;
     for(unsigned k = 0; k < _dim; k++) {
-      MPI_Isend(_Db[kproc][k].data(), _Db[kproc][k].size(), MPI_DOUBLE, kproc, k, MPI_COMM_WORLD, &reqsSend[kproc][k]);
+      MPI_Isend(_Db[kproc][k].data(), _Db[kproc][k].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsSend[kproc][cnt]);
+      cnt++;
+      for(unsigned j = 0; j < _dim; j++) {
+        MPI_Isend(_Fb[kproc][k][j].data(), _Fb[kproc][k][j].size(), MPI_DOUBLE, kproc, cnt, MPI_COMM_WORLD, &reqsSend[kproc][cnt]);
+        cnt++;
+      }
     }
-    MPI_Isend(_ielb[kproc].data(), _ielb[kproc].size(), MPI_UNSIGNED, kproc, _dim, MPI_COMM_WORLD, &reqsSend[kproc][_dim]);
+    MPI_Isend(_ielb[kproc].data(), _ielb[kproc].size(), MPI_UNSIGNED, kproc, cnt, MPI_COMM_WORLD, &reqsSend[kproc][cnt]);
+    cnt++;
   }
 
   MPI_Status status;
@@ -655,6 +723,8 @@ void Projection::FromBackgroundToMarker() {
     }
   }
 
+ 
+  
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
   Mesh     *mshM   = _mlSolM->_mlMesh->GetLevel(levelM);
@@ -662,10 +732,15 @@ void Projection::FromBackgroundToMarker() {
   std::vector < unsigned > DIdxM(_dim);
   std::vector < unsigned > VIdxM(_dim);
   std::vector < unsigned > AIdxM(_dim);
+  std::vector < std::vector < unsigned > > FIdxM(_dim);
   for(unsigned k = 0; k < _dim; k++) {
+    FIdxM[k].resize(_dim);  
     DIdxM[k] = _mlSolM->GetIndex(&Dname[k][0]);
     VIdxM[k] = _mlSolM->GetIndex(&Vname[k][0]);
     AIdxM[k] = _mlSolM->GetIndex(&Aname[k][0]);
+    for(unsigned j = 0; j < _dim; j++) {
+      FIdxM[k][j] = _mlSolM->GetIndex(&_Fname[k][j][0]);
+    }
   }
   unsigned ielIdx = _mlSolM->GetIndex("iel");
 
@@ -689,11 +764,16 @@ void Projection::FromBackgroundToMarker() {
         double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
         double Vnew = Vold + (Aold * (1. - _gamma) + Anew * _gamma) * _DT;
 
-        //if(i == 0 && k == 1) std::cout << Dnew << " " << Vnew << " " << Anew << " ";
+//         std::cout.precision(12);
+//         if(mapi == 0) std::cout << Dnew << " " << Vnew << " " << Anew << " " << Vold << " "<< Aold <<std::endl;
 
         solM->_Sol[DIdxM[k]]->set(mapi, Xnew);
         solM->_Sol[VIdxM[k]]->set(mapi, Vnew);
         solM->_Sol[AIdxM[k]]->set(mapi, Anew);
+
+        for(unsigned l = 0; l < _dim; l++) {
+          solM->_Sol[FIdxM[k][l]]->set(mapi, _Fm[jproc][k][l][j]);
+        }
 
       }
       i++;
@@ -705,6 +785,9 @@ void Projection::FromBackgroundToMarker() {
     solM->_Sol[DIdxM[k]]->close();
     solM->_Sol[VIdxM[k]]->close();
     solM->_Sol[AIdxM[k]]->close();
+    for(unsigned j = 0; j < _dim; j++) {
+      solM->_Sol[FIdxM[k][j]]->close();
+    }
   }
 
   _ielMInitialized = true;

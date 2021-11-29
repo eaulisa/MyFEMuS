@@ -86,7 +86,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
               ml_prob.parameters.get<Solid> ("SolidMPM").get_lame_shear_modulus();
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
-  
+
   std::cout.precision(10);
 
   //variable-name handling
@@ -355,13 +355,23 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
 
 
-                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
-                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+//                 double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+//                 double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+
+                double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (dt)); //[velocity * h]
+                double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (dt)); //[velocity * h]
+
                 double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
 
-                double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (par->_theta * dt)) :
-                            par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
+//                 double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (par->_theta * dt)) :
+//                             par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
+
+
+                double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (dt)) :
+                            par->_gammacS * (mu + rho * h2 / (dt * dt));
+
+
                 // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                 // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                 // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
@@ -374,7 +384,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 //                             << " " << rho * h2 / (theta * dt)<< " "<< rho * phiC<<std::endl;
 //                 }
 //                 else{
-//                    std::cout << "Solid " << mu << " " << rho * h2 / (theta * dt * dt)<<std::endl;  
+//                    std::cout << "Solid " << mu << " " << rho * h2 / (theta * dt * dt)<<std::endl;
 //                 }
 
 
@@ -849,12 +859,22 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                         cNormL2 = sqrt(cNormL2);
                       }
 
-                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
-                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+//                       double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+//                       double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
+
+
+                      double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (dt)); //[velocity * h]
+                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (dt)); //[velocity * h]
+
+
                       double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 
-                      double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (par->_theta * dt)) :
-                                  par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
+//                       double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (par->_theta * dt)) :
+//                                   par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
+
+                      double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2 + rho * h2 / (dt)) :
+                                  par->_gammacS * (mu + rho * h2 / (dt * dt));
+
                       // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                       // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
                       // [C1] for the fluid is [rho * velocity * h] = kg / h /s = kg/(s h)
