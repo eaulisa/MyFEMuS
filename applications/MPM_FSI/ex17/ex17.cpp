@@ -35,6 +35,9 @@ bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], 
 double TimeStepTurek1(const double time);
 bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 
+double TimeStepTurek2(const double time);
+bool BoundaryConditionTurek2(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
 double TimeStepTurek0(const double time);
 bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 
@@ -60,6 +63,13 @@ parameter turek1 = parameter(true, 0.8, {0., 0., 0.},
                              "../input/turekBeam2DFine.neu", 1., 4, 1,
                              "../input/turek2DNew.neu", 1., -1,  // 5-2 >= 3
                              BoundaryConditionTurek1, TimeStepTurek1);
+
+parameter turek2 = parameter(true, 1., {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 10000., 1000., 0.4, 1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 6, 1,
+                             "../input/turek2DNew.neu", 1., -2,
+                             BoundaryConditionTurek2, TimeStepTurek2);
 
 
 parameter turek3 = parameter(true, 1., {0., 0., 0.},
@@ -98,7 +108,8 @@ parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
 int main(int argc, char** args) {
 
   //par = &turek1;
-  par = &turek3;
+    par = &turek2;
+  //par = &turek3;
   //par = &beam;
 
   // init Petsc-MPI communicator
@@ -401,6 +412,61 @@ bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], 
 
 }
 
+bool BoundaryConditionTurek2(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  const double Ubar = 1.;    // FSI1
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {     //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inflow
+      test = 1;
+      if(t < 2.0) {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
+      }
+      else {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
+      }
+    }
+    else if(2 == facename) {    //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "P")) {
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
+    //}
+    value = 0;
+  }
+
+  return test;
+
+}
 
 
 double TimeStepTurek1(const double time) {
@@ -421,7 +487,28 @@ double TimeStepTurek1(const double time) {
   return dt;
 }
 
+double TimeStepTurek2(const double time) {
+  double dt;
 
+//   double dt0 = 0.1;
+//   double dt1 = 0.1; //FSI3
+//   double dt2 = 0.1; //FSI3
+
+  double dt0 = 0.05;
+  double dt1 = 0.005; //FSI3
+  double dt2 = 0.001; //FSI3
+
+  double T0 = 2.;
+  double T1 = 15.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
+  else
+    dt = dt2;
+
+  return dt;
+}
 
 double TimeStepTurek3(const double time) {
   double dt;
