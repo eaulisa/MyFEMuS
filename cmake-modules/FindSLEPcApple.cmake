@@ -26,7 +26,8 @@ endif()
 ##############
 if(EXISTS "${SLEPC_DIR}/include" AND
    EXISTS "${SLEPC_DIR}/${PETSC_ARCH}/include")
- set(SLEPC_INC "${SLEPC_DIR}/include" "${SLEPC_DIR}/${PETSC_ARCH}/include")
+  set(SLEPC_INC "${SLEPC_DIR}/include" "${SLEPC_DIR}/${PETSC_ARCH}/include")
+  set(SLEPC_FOUND TRUE)
 else()
   message(SEND_ERROR "SLEPc includes not found")
 endif()
@@ -34,16 +35,23 @@ endif()
 ## Library ##
 #############
 if(EXISTS "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.so")
-  set(SLEPC_LIBRARIES "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.so")
+  set(SLEPC_LIB "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.so")
 elseif(EXISTS "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.a")
-  set(SLEPC_LIBRARIES "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.a")
+  set(SLEPC_LIB "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.a")
 elseif(EXISTS "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.dylib")
-  set(SLEPC_LIBRARIES "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.dylib")
+  set(SLEPC_LIB "${SLEPC_DIR}/${PETSC_ARCH}/lib/libslepc.dylib")
 else()
   message(SEND_ERROR "SLEPc library not found")
 endif()
 
-####### PUT BACK THE OLD FILE ###########
+## CMake check and done ##
+##########################
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(SLEPc
+  "SLEPc could not be found: be sure to set SLEPC_DIR in your environment variables"
+  SLEPC_LIB SLEPC_INC SLEPC_DIR)
+
+####### PUT BACK THE OLD FILE WITH SOME NAME CHANGES ###########
 
 # Configure SLEPc IMPORT (this involves creating an 'imported' target
 # and attaching 'properties')
@@ -52,12 +60,12 @@ if (SLEPC_FOUND AND NOT TARGET SLEPC::slepc)
 
   # Add include paths
   set_property(TARGET SLEPC::slepc PROPERTY
-    INTERFACE_INCLUDE_DIRECTORIES ${SLEPC_INCLUDE_DIRS})
+    INTERFACE_INCLUDE_DIRECTORIES ${SLEPC_INC})
 
   # Add libraries
   unset(_libs)
-  foreach (lib ${SLEPC_LIBRARIES})
-    find_library(LIB_${lib} NAMES ${lib} PATHS ${SLEPC_LIBRARY_DIRS} NO_DEFAULT_PATH)
+  foreach (lib ${SLEPC_LIB})
+    find_library(LIB_${lib} NAMES ${lib} PATHS ${SLEPC_DIR} NO_DEFAULT_PATH)
     list(APPEND _libs ${LIB_${lib}})
   endforeach()
   set_property(TARGET SLEPC::slepc PROPERTY INTERFACE_LINK_LIBRARIES "${_libs}")
@@ -68,8 +76,8 @@ if (SLEPC_FOUND AND NOT TARGET SLEPC::slepc_static)
 
   # Add libraries (static)
   unset(_libs)
-  foreach (lib ${SLEPC_STATIC_LIBRARIES})
-    find_library(LIB_${lib} ${lib} HINTS ${SLEPC_STATIC_LIBRARY_DIRS})
+  foreach (lib ${SLEPC_LIB})
+    find_library(LIB_${lib} ${lib} HINTS ${SLEPC_DIR})
     list(APPEND _libs ${LIB_${lib}})
   endforeach()
   set_property(TARGET SLEPC::slepc_static PROPERTY INTERFACE_LINK_LIBRARIES "${_libs}")
@@ -88,8 +96,8 @@ elseif (SLEPC_FOUND)
   set(SLEPC_TEST_LIB_CPP
     "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/slepc_test_lib.cpp")
   file(WRITE ${SLEPC_TEST_LIB_CPP} "
-#include \"petsc.h\"
-#include \"slepceps.h\"
+include \"petsc.h\"
+include \"slepceps.h\"
 int main()
 {
   PetscErrorCode ierr;
@@ -172,23 +180,16 @@ int main()
 endif()
 
 # Standard package handling
-include(FindPackageHandleStandardArgs)
-if (SLEPC_FOUND)
-  find_package_handle_standard_args(SLEPc
-    REQUIRED_VARS SLEPC_FOUND SLEPC_TEST_RUNS
-    VERSION_VAR SLEPC_VERSION
-    FAIL_MESSAGE "SLEPc could not be configured.")
-else()
-  find_package_handle_standard_args(SLEPc
-    REQUIRED_VARS SLEPC_FOUND
-    FAIL_MESSAGE "SLEPc could not be found. Be sure to set SLEPC_DIR.")
-endif()
+#include(FindPackageHandleStandardArgs)
+#if (SLEPC_FOUND)
+#  find_package_handle_standard_args(SLEPc
+#    REQUIRED_VARS SLEPC_FOUND SLEPC_TEST_RUNS
+#    VERSION_VAR SLEPC_VERSION
+#    FAIL_MESSAGE "SLEPc could not be configured.")
+#else()
+#  find_package_handle_standard_args(SLEPc
+#    REQUIRED_VARS SLEPC_FOUND
+#    FAIL_MESSAGE "SLEPc could not be found. Be sure to set SLEPC_DIR.")
+#endif()
 
 ######## END OLD FILE #########
-
-## CMake check and done ##
-##########################
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(SLEPc
-  "SLEPc could not be found: be sure to set SLEPC_DIR in your environment variables"
-  SLEPC_LIB SLEPC_INC SLEPC_DIR)
