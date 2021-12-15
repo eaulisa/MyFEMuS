@@ -33,7 +33,7 @@ Line* line1;
 Line* line2;
 Line* lineI;
 
-unsigned DIM = 2;
+const unsigned DIM = 2;
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
