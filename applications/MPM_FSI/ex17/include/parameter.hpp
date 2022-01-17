@@ -1,21 +1,23 @@
 class parameter {
   public:
-    typedef bool (*BoundaryFunc) (const std::vector < double >& x, const char name[], double &value, const int FaceName, const double time);  
-    typedef double (*TimeFunc) (const double time);
-    
-    parameter(bool weakP, double theta, std::vector < double > gravity,
+    typedef bool (*BoundaryFunc)(const std::vector < double >& x, const char name[], double &value, const int FaceName, const double time);
+    typedef double (*TimeFunc)(const double time);
+
+    parameter(bool weakP, double rhoInf, std::vector < double > gravity,
               double GAMMA, double gammacF, double gammacS, double gammap,
               bool NeoHookean, double rhos, double rhof, double nu, double E, double muf,
               std::string mMesh, double mScale, unsigned mUniform, unsigned mAdaptive,
-              std::string bMesh, double bScale, int deltaUniform, 
+              std::string bMesh, double bScale, int deltaUniform,
               BoundaryFunc bdcFunction, TimeFunc timeFunction) {
 //       _weakP = weakP;
-      //_theta = theta;
-      //_af = 1 - theta;
-      //_am = _af;// - 0.1;
-      //_beta = 0.25 + 0.5 * (_af - _am);
-      _beta = 0.25;// + 0.5 * (_af - _am);
-      _gamma = 0.5;// + (_af - _am);
+
+      _af = rhoInf / (rhoInf + 1.);
+      _am = (2. * rhoInf - 1.) / (rhoInf + 1.);
+
+      _beta = 0.25 + (1. + _af - _am) * (1. + _af - _am);
+      _gamma = 0.5 + _af - _am;
+
+      _theta = 1. - _af;
       _gravity = gravity;
 
       _GAMMA = GAMMA;
@@ -30,24 +32,24 @@ class parameter {
       _nu = nu;
       _E = E;
       _muf = muf;
-      
+
       _mMesh = mMesh;
       _mScale = mScale;
       _mUniform = mUniform;
       _mAdaptive = mAdaptive;
-      
+
       _bMesh = bMesh;
       _bScale = bScale;
       _bUniform = _mUniform + deltaUniform;
-      
+
       _bdcFunction = bdcFunction;
       _timeFunction = timeFunction;
-      
+
     }
 
   public:
 //     bool _weakP;
-    //double _theta, _af, _am, 
+    double _theta, _af, _am;
     double _beta, _gamma;
     std::vector < double > _gravity;
 
@@ -71,8 +73,8 @@ class parameter {
     double _bScale;
     std::string _bMesh;
     unsigned _bUniform;
-    
+
     BoundaryFunc _bdcFunction;
     TimeFunc _timeFunction;
 
-}; 
+};

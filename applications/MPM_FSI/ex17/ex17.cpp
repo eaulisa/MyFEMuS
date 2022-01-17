@@ -42,7 +42,7 @@ double TimeStepTurek0(const double time);
 bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 
 
-parameter beam = parameter(false, 1., {0., 0., 0.},
+parameter beam = parameter(false, .3, {0., 0., 0.},
                            45., 0.05, 0.05, 0.05,
                            true, 7850., 1000., 0.3, 2.e05, 1.0e-03,
                            "../input/beam.neu", 1.e5, 1, 2,
@@ -57,22 +57,22 @@ parameter beam = parameter(false, 1., {0., 0., 0.},
 //                              "../input/turek2D.neu", 1., 1,
 //                              BoundaryConditionTurek1, TimeStepTurek1);
 
-parameter turek1 = parameter(true, 0.8, {0., 0., 0.},
+parameter turek1 = parameter(true, 0.3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 1400000., 1.,
                              "../input/turekBeam2DFine.neu", 1., 4, 1,
                              "../input/turek2DNew.neu", 1., -1,  // 5-2 >= 3
                              BoundaryConditionTurek1, TimeStepTurek1);
 
-parameter turek2 = parameter(true, 1., {0., 0., 0.},
+parameter turek2 = parameter(true, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 10000., 1000., 0.4, 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 6, 1,
+                             "../input/turekBeam2DFine.neu", 1., 6, 0,
                              "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek2, TimeStepTurek2);
 
 
-parameter turek3 = parameter(true, 1., {0., 0., 0.},
+parameter turek3 = parameter(true, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 4 * 1400000., 1.,
                              "../input/turekBeam2DFine.neu", 1., 5, 1,
@@ -81,7 +81,7 @@ parameter turek3 = parameter(true, 1., {0., 0., 0.},
 
 
 
-parameter turek0 = parameter(false, 0.8, {0., 0., 0.},
+parameter turek0 = parameter(false, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 4 * 14000., 1.,
                              "../input/turekBeam2DMarker.neu", 1., 3, 0,
