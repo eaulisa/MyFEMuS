@@ -18,6 +18,7 @@
 #include "adept.h"
 
 
+
 using namespace femus;
 using namespace std;
 
@@ -61,7 +62,7 @@ int main(int argc, char** args) {
   unsigned maxNumberOfMeshes; // The number of mesh levels.
 
   if (dim == 2) {
-    maxNumberOfMeshes = 7; 
+    maxNumberOfMeshes = 4; 
   } else {
     maxNumberOfMeshes = 4;
   }

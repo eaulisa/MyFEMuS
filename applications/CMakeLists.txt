@@ -9,6 +9,9 @@ IF(BUILD_NAVIERSTOKESAPPS)
 
   # Time-dependent BE NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/BackwardEulerNavierStokesParallel/)
+  
+   # Time-dependent BE NavierStokes
+  ADD_SUBDIRECTORY(${NS_FOLDER}/FlowPastCylinder/)
 
   # Time-dependent Generalized-alpha NavierStokes
   ADD_SUBDIRECTORY(${NS_FOLDER}/TaylorGreenVortexFlowGeneralisedalpha/)
@@ -28,6 +31,10 @@ IF(BUILD_FSIAPPS)
   unset(FSI_FOLDER)
   
 ENDIF(BUILD_FSIAPPS)
+
+IF(BUILD_CUTFEM)
+  ADD_SUBDIRECTORY(cutFEM/)
+ENDIF(BUILD_CUTFEM)
 
 
 IF(BUILD_OPTCONTROLAPPS)

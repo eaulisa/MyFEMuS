@@ -72,6 +72,7 @@ namespace femus {
     }
 
     if ( world_rank != 0) {
+    if ( i != 0) {
       std::cout.rdbuf(NULL);
     }
 #endif
