@@ -75,7 +75,7 @@ parameter turek2 = parameter(true, .3, {0., 0., 0.},
 parameter turek3 = parameter(true, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 4 * 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 5, 1,
+                             "../input/turekBeam2DFine.neu", 1., 6, 0,
                              "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek3, TimeStepTurek3);
 

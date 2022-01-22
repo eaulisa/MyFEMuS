@@ -20,7 +20,7 @@
 #include "adept.h"
 
 
-const unsigned DIM = 3;
+const unsigned DIM = 2;
 const double BETA = 0.25;
 const double GAMMA = 0.5;
 bool UseNewmarkUpdateWithD = true;
