@@ -172,7 +172,8 @@ bool nonLocalAssembly = true;
 
 //DELTA sizes: martaTest1: 0.4, martaTest2: 0.01, martaTest3: 0.53, martaTest4: 0.2, maxTest1: both 0.4, maxTest2: both 0.01, maxTest3: both 0.53, maxTest4: both 0.2, maxTest5: both 0.1, maxTest6: both 0.8,  maxTest7: both 0.05, maxTest8: both 0.025, maxTest9: both 0.0125, maxTest10: both 0.00625
 
-double delta1 = 0.15; //DELTA SIZES (w 2 refinements): interface: delta1 = 0.4, delta2 = 0.2, nonlocal_boundary_test.neu: 0.0625 * 4
+//double delta1 = 0.2; //cubic, quartic, consistency
+double delta1 = 0.2; //parallel
 double delta2 = 0.2;
 // double epsilon = ( delta1 > delta2 ) ? delta1 : delta2;
 double kappa1 = 1.;
@@ -266,6 +267,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
   unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
 
+  unsigned cntIndex = mlSol->GetIndex("cnt");    // get the position of "u" in the ml_sol object
+
   std::vector < double >  solu1; // local solution for the nonlocal assembly
   std::vector < double >  solu2; // local solution for the nonlocal assembly
 
@@ -289,43 +292,90 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 3;
+  //unsigned lmax1 = 3; // consistency form 3 -> 7
+  unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
-
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level+2);
+
+
+//   //consistency
+//   double dMax = 0.1;
+//   double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
+
+  //cubic
+  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
+  //double eps = 0.125 * dMax;
+
+  //quartic
+  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+  //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
+  //double eps = 0.125 * dMax;
+
+  //parallel
+  //double dMax = 0.0125 * pow(1./2., level); //marta4finer
+  //double eps = 0.5 * dMax;
+
+
+
+  //consistency 3D
+//   double dMax = 0.1;
+//   double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
+
+
+  //convergence 3D
+  double dMax = 0.1 * pow(2. / 3., level - 1); //marta4-3D
+  //double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
   double eps = 0.125 * dMax;
+
+  double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
 
-  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax1 = " << lmax1 << std::endl;
+  std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
 
-  refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+  NonLocal *nonlocal;
 
-  refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
-  refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+  if(dim == 3) {
+    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
+    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
 
-  refineElement[3][soluType]->SetConstants(eps);
-  refineElement[4][soluType]->SetConstants(eps);
+    refineElement[0][soluType]->SetConstants(eps);
 
-  //NonLocal *nonlocal = new NonLocalBox();
-  NonLocal *nonlocal = new NonLocalBall();
+
+    nonlocal = new NonLocalBall3D();
+
+  }
+  else if (dim == 2) {
+    refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
+    refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+
+    refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
+    refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
+    refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+
+    refineElement[3][soluType]->SetConstants(eps);
+    refineElement[4][soluType]->SetConstants(eps);
+
+    nonlocal = new NonLocalBall();
+    //nonlocal = new NonLocalBox();
+  }
+
   nonlocal->SetKernel(kappa1, delta1, eps);
 
-  fout.open("mesh.txt");
-  fout.close();
+//   fout.open("mesh.txt");
+//   fout.close();
 
   time_t sSearchTime = 0.;
   time_t sAssemblyTime = 0.;
 
   std::vector <double> kprocMinMax(nprocs * dim * 2);
   for(unsigned k = 0; k < dim; k++) {
-    unsigned kk = iproc * (dim * 2) + k * dim;
+    unsigned kk = iproc * (dim * 2) + k * 2;
     kprocMinMax[kk] = 1.0e10;
     kprocMinMax[kk + 1] = -1.0e10;
   }
@@ -338,7 +388,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     for(unsigned i = 0; i < nDof; i++) {
       unsigned iDof  = msh->GetSolutionDof(i, iel, xType);
       for(unsigned k = 0; k < dim; k++) {
-        unsigned kk = iproc * (dim * 2) + k * dim;
+        unsigned kk = iproc * (dim * 2) + k * 2;
         double xk = (*msh->_topology->_Sol[k])(iDof);
         if(xk < kprocMinMax[kk]) kprocMinMax[kk] = xk;
         if(xk > kprocMinMax[kk + 1]) kprocMinMax[kk + 1] = xk;
@@ -347,20 +397,20 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
 
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+    MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
   }
-  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(unsigned k = 0; k < dim; k++) {
-      unsigned kk = kproc * (dim * 2) + k * dim;
-      //std::cout << kproc << " " << k << " " << kprocMinMax[kk] << " " << kprocMinMax[kk + 1] << "\n";
-    }
-  }
+//   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//     for(unsigned k = 0; k < dim; k++) {
+//       unsigned kk = kproc * (dim * 2) + k * dim;
+//       //std::cout << kproc << " " << k << " " << kprocMinMax[kk] << " " << kprocMinMax[kk + 1] << "\n";
+//     }
+//   }
 
   std::vector < std::vector < unsigned > > orElements(nprocs);
   std::vector < unsigned > orCntSend(nprocs, 0);
-  std::vector < unsigned > orCntRecv(nprocs);
+  std::vector < unsigned > orCntRecv(nprocs, 0);
   std::vector < unsigned > orSizeSend(nprocs, 0);
-  std::vector < unsigned > orSizeRecv(nprocs);
+  std::vector < unsigned > orSizeRecv(nprocs, 0);
   std::vector < std::vector < unsigned > > orGeomSend(nprocs);
   std::vector < std::vector < unsigned > > orGeomRecv(nprocs);
 
@@ -389,16 +439,18 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
   }
 
+  sol->_Sol[cntIndex]->zero();
+
+
+
+
   //BEGIN nonlocal assembly
   for(unsigned iel = offset; iel < offsetp1; iel++) {
 
-    short unsigned ielGeom;
-    short unsigned ielGroup;
-    unsigned nDof1;
+    std::cout << iel << " " << std::flush;
 
-    ielGeom = msh->GetElementType(iel);
-    ielGroup = msh->GetElementGroup(iel);
-    nDof1  = msh->GetElementDofNumber(iel, soluType);
+    unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDof1  = msh->GetElementDofNumber(iel, soluType);
 
     l2GMap1.resize(nDof1);
     solu1.resize(nDof1);
@@ -430,7 +482,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       if(kproc != iproc) {
         bool coarseIntersectionTest = true;
         for(unsigned k = 0; k < dim; k++) {
-          unsigned kk = kproc * dim * 2 + k * dim;
+          unsigned kk = kproc * dim * 2 + k * 2;
           if((*x1MinMax[k].first  - kprocMinMax[kk + 1]) > delta1 + eps  || (kprocMinMax[kk]  - *x1MinMax[k].second) > delta1 + eps) {
             coarseIntersectionTest = false;
             break;
@@ -452,6 +504,30 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
     }
 
+
+    //assemble and store RHS
+    std::vector <double> res1(nDof1, 0.);
+    double weight1;
+    const double *phi1;
+    const elem_type* fem1 = refineElement[ielGeom][soluType]->GetFem1();
+    for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
+      fem1->GetGaussQuantities(x1, ig, weight1, phi1);
+      std::vector< double > x1g(dim, 0);
+      for(unsigned i = 0; i < nDof1; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          x1g[k] += x1[k][i] * phi1[i];
+        }
+      }
+      for(unsigned i = 0; i < nDof1; i++) {
+
+        for(unsigned k = 0; k < dim; k++) {
+//           res1[i] -= -2 * phi1[i] * weight1; // consistency
+//           res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
+          res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
+        }
+      }
+    }
+    RES->add_vector_blocked(res1, l2GMap1);
 
 
     time_t start = clock();
@@ -488,6 +564,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       }
 
       if(coarseIntersectionTest) {
+        sol->_Sol[cntIndex]->add(jel, 1);
         l2GMap2.resize(nDof2);
         solu2.resize(nDof2);
         for(unsigned j = 0; j < nDof2; j++) {
@@ -495,7 +572,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           solu2[j] = (*sol->_Sol[soluIndex])(uDof);
           l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
         }
-        region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
+        region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2(), minmax2);
       }
     }
 
@@ -511,21 +588,27 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       jelIndex[j] = j;
     }
 
-    nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                          *refineElement[ielGeom][soluType], region2, jelIndex,
-                          solu1, kappa1, delta1, printMesh);
+    nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                        *refineElement[ielGeom][soluType], region2, jelIndex,
+                        solu1, kappa1, delta1, printMesh);
 
-    RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
-
-    //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
     for(unsigned jel = 0; jel < region2.size(); jel++) {
-      KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+
+      std::vector<double> & J21 = nonlocal->GetJac21(jel);
+      for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
+        if(fabs(J21[ii]) > 1.0e-12 * areaEl) {
+          KK->add_matrix_blocked(J21, region2.GetMapping(jel), l2GMap1);
+          break;
+        }
+      }
+
       KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
       RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
     }
     sAssemblyTime += clock() - start;
-
   } //end iel loop
+
+  KK->flush();
 
   std::cout << "[" << iproc << "]  ";
   std::cout << "serial Search Time = " << static_cast<double>(sSearchTime) / CLOCKS_PER_SEC << std::endl;
@@ -559,36 +642,29 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Irecv(&orCntRecv[kproc], 1, MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsRecv[kproc][0]);
-      MPI_Irecv(&orSizeRecv[kproc], 1, MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsRecv[kproc][1]);
+      MPI_Irecv(&orCntRecv[kproc], 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsRecv[kproc][0]);
+      MPI_Irecv(&orSizeRecv[kproc], 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsRecv[kproc][1]);
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Isend(&orCntSend[kproc], 1, MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsSend[kproc][0]);
-      MPI_Isend(&orSizeSend[kproc], 1, MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsSend[kproc][1]);
+      MPI_Isend(&orCntSend[kproc], 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsSend[kproc][0]);
+      MPI_Isend(&orSizeSend[kproc], 1, MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsSend[kproc][1]);
     }
 
+    //wait and check that all the sends and receives have been completed successfully
     MPI_Status status;
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 2; m++) {
-        MPI_Wait(&reqsRecv[kproc][m], &status);
-        MPI_Wait(&reqsSend[kproc][m], &status);
+        int test = MPI_Wait(&reqsRecv[kproc][m], &status);
+        if(test != MPI_SUCCESS) {
+          abort();
+        }
+        test = MPI_Wait(&reqsSend[kproc][m], &status);
+        if(test != MPI_SUCCESS) {
+          abort();
+        }
       }
     }
-
-//     std::cout << "[" << iproc << "]  ";
-//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-//       std::cout << orSizeSend[kproc] << " ";
-//     }
-//     std::cout << std::endl;
-//
-//     MPI_Barrier(MPI_COMM_WORLD);
-//     std::cout << "[" << iproc << "]  ";
-//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-//       std::cout << orSizeRecv[kproc] << " ";
-//     }
-//     std::cout << std::endl;
-//     MPI_Barrier(MPI_COMM_WORLD);
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       orGeomRecv[kproc].resize(orCntRecv[kproc]);
@@ -600,27 +676,34 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Irecv(orGeomRecv[kproc].data(), orGeomRecv[kproc].size(), MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsRecv[kproc][0]);
-      MPI_Irecv(orDofsRecv[kproc].data(), orDofsRecv[kproc].size(), MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsRecv[kproc][1]);
-      MPI_Irecv(orSolRecv[kproc].data(), orSolRecv[kproc].size(), MPI_DOUBLE, kproc, 2, MPI_COMM_WORLD, &reqsRecv[kproc][2]);
+      MPI_Irecv(orGeomRecv[kproc].data(), orGeomRecv[kproc].size(), MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsRecv[kproc][0]);
+      MPI_Irecv(orDofsRecv[kproc].data(), orDofsRecv[kproc].size(), MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsRecv[kproc][1]);
+      MPI_Irecv(orSolRecv[kproc].data(), orSolRecv[kproc].size(), MPI_DOUBLE, kproc, 2, PETSC_COMM_WORLD, &reqsRecv[kproc][2]);
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Irecv(orXRecv[kproc][k].data(), orXRecv[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, MPI_COMM_WORLD, &reqsRecv[kproc][3 + k]);
+        MPI_Irecv(orXRecv[kproc][k].data(), orXRecv[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, PETSC_COMM_WORLD, &reqsRecv[kproc][3 + k]);
       }
     }
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-      MPI_Isend(orGeomSend[kproc].data(), orGeomSend[kproc].size(), MPI_UNSIGNED, kproc, 0, MPI_COMM_WORLD, &reqsSend[kproc][0]);
-      MPI_Isend(orDofsSend[kproc].data(), orDofsSend[kproc].size(), MPI_UNSIGNED, kproc, 1, MPI_COMM_WORLD, &reqsSend[kproc][1]);
-      MPI_Isend(orSolSend[kproc].data(), orSolSend[kproc].size(), MPI_DOUBLE, kproc, 2, MPI_COMM_WORLD, &reqsSend[kproc][2]);
+      MPI_Isend(orGeomSend[kproc].data(), orGeomSend[kproc].size(), MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD, &reqsSend[kproc][0]);
+      MPI_Isend(orDofsSend[kproc].data(), orDofsSend[kproc].size(), MPI_UNSIGNED, kproc, 1, PETSC_COMM_WORLD, &reqsSend[kproc][1]);
+      MPI_Isend(orSolSend[kproc].data(), orSolSend[kproc].size(), MPI_DOUBLE, kproc, 2, PETSC_COMM_WORLD, &reqsSend[kproc][2]);
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Isend(orXSend[kproc][k].data(), orXSend[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, MPI_COMM_WORLD, &reqsSend[kproc][3 + k]);
+        MPI_Isend(orXSend[kproc][k].data(), orXSend[kproc][k].size(), MPI_DOUBLE, kproc, 3 + k, PETSC_COMM_WORLD, &reqsSend[kproc][3 + k]);
       }
     }
 
+    //wait and check that all the sends and receives have been completed successfully
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned m = 0; m < 3 + dim; m++) {
-        MPI_Wait(&reqsRecv[kproc][m], &status);
-        MPI_Wait(&reqsSend[kproc][m], &status);
+        int test = MPI_Wait(&reqsRecv[kproc][m], &status);
+        if(test != MPI_SUCCESS) {
+          abort();
+        }
+        test = MPI_Wait(&reqsSend[kproc][m], &status);
+        if(test != MPI_SUCCESS) {
+          abort();
+        }
       }
     }
     std::cout << "[" << iproc << "]  ";
@@ -630,7 +713,22 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     time_t pSearchTime = 0.;
     time_t pAssemblyTime = 0.;
 
-    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+    std::vector<unsigned > procOrder (nprocs);
+    for(unsigned i = 0; i < procOrder.size(); i++) {
+      procOrder[i] = i;
+    }
+    for(unsigned i = 0; i < procOrder.size() - 1; i++) {
+      for(unsigned j = i + 1; j < procOrder.size(); j++) {
+        if(orGeomRecv[procOrder[i]].size() < orGeomRecv[procOrder[j]].size() ) {
+          unsigned procOrderi = procOrder[i];
+          procOrder[i] = procOrder[j];
+          procOrder[j] = procOrderi;
+        }
+      }
+    }
+
+    for(unsigned lproc = 0; lproc < nprocs; lproc++) {
+      unsigned kproc = procOrder[lproc];
       if(kproc != iproc) {
         unsigned cnt1 = 0;
         for(unsigned iel = 0; iel < orGeomRecv[kproc].size(); iel++) { // these elements are not own by iproc
@@ -692,13 +790,16 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             }
 
             if(coarseIntersectionTest) {
+
+              sol->_Sol[cntIndex]->add(orElements[kproc][jel], 1);
+
               l2GMap2.resize(nDof2);
               solu2.resize(nDof2);
               for(unsigned j = 0; j < nDof2; j++) {
                 solu2[j] = orSolSend[kproc][cnt2 + j];
                 l2GMap2[j] = orDofsSend[kproc][cnt2 + j];
               }
-              region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
+              region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2(), minmax2);
             }
             cnt2 += nDof2;
           }
@@ -715,15 +816,23 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
               jelIndex[j] = j;
             }
 
-            nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                                  *refineElement[ielGeom][soluType], region2, jelIndex,
-                                  solu1, kappa1, delta1, printMesh);
+            nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
+                                *refineElement[ielGeom][soluType], region2, jelIndex,
+                                solu1, kappa1, delta1, printMesh);
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
                  This is okay, since the rows of the global matrix KK and residual RES belong to iproc, and this should optimize
                  the bufferization and exchange of information when closing the KK matrix and the RES vector */
-              KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
+
+              std::vector<double> & J21 = nonlocal->GetJac21(jel);
+              for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
+                if( fabs(J21[ii]) > 1.0e-12 * areaEl) {
+                  KK->add_matrix_blocked(J21, region2.GetMapping(jel), l2GMap1);
+                  break;
+                }
+              }
+
               KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
               RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
             }
@@ -731,6 +840,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           pAssemblyTime += clock() - start;
         }//end iel loop
       }
+      KK->flush();
     }
 
     std::cout << "[" << iproc << "]  ";
@@ -758,267 +868,31 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     KK->close();
   }
 
+  sol->_Sol[cntIndex]->close();
 
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
-  
-  //KK->draw();
-  
+//
+//   KK->draw();
 
   delete nonlocal;
-  delete refineElement[3][0];
-  delete refineElement[3][1];
-  delete refineElement[3][2];
-  delete refineElement[4][0];
-  delete refineElement[4][1];
-  delete refineElement[4][2];
-
-
-
+  if(dim == 3) {
+    delete refineElement[0][0];
+    delete refineElement[0][1];
+    delete refineElement[0][2];
+  }
+  else if(dim == 2) {
+    delete refineElement[3][0];
+    delete refineElement[3][1];
+    delete refineElement[3][2];
+    delete refineElement[4][0];
+    delete refineElement[4][1];
+    delete refineElement[4][2];
+  }
 
 // ***************** END ASSEMBLY *******************
 }
 
-
-
-void AssembleNonLocalRefinedOld(MultiLevelProblem& ml_prob) {
-
-  LinearImplicitSystem* mlPdeSys;
-
-  mlPdeSys = &ml_prob.get_system<LinearImplicitSystem> ("NonLocal");
-
-  const unsigned level = mlPdeSys->GetLevelToAssemble();
-
-  Mesh*                    msh = ml_prob._ml_msh->GetLevel(level);
-  elem*                     el = msh->el;
-
-  MultiLevelSolution*    mlSol = ml_prob._ml_sol;
-  Solution*                sol = ml_prob._ml_sol->GetSolutionLevel(level);
-
-  LinearEquationSolver* pdeSys = mlPdeSys->_LinSolver[level];
-  SparseMatrix*            KK = pdeSys->_KK;
-  NumericVector*           RES = pdeSys->_RES;
-
-  Region region2(10);
-
-  const unsigned  dim = msh->GetDimension();
-
-  unsigned iproc = msh->processor_id(); // get the process_id (for parallel computation)
-  unsigned nprocs = msh->n_processors(); // get the noumber of processes (for parallel computation)
-
-  unsigned soluIndex;
-  unsigned soluPdeIndex;
-
-  soluIndex = mlSol->GetIndex("u");    // get the position of "u" in the ml_sol object
-  soluPdeIndex = mlPdeSys->GetSolPdeIndex("u");    // get the position of "u" in the pdeSys object
-  unsigned soluType = mlSol->GetSolutionType(soluIndex);    // get the finite element type for "u"
-
-  std::vector < double >  solu1; // local solution for the nonlocal assembly
-  std::vector < double >  solu2; // local solution for the nonlocal assembly
-
-  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
-  std::vector < vector < double > > x1(dim);
-  std::vector < vector < double > > x2(dim);
-
-  std::vector< unsigned > l2GMap1; // local to global mapping
-  std::vector< unsigned > l2GMap2; // local to global mapping
-
-  std::vector < std::vector < double > > xg1;
-  std::vector <double> weight1;
-  std::vector <const double *> phi1x;
-
-  std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > x1MinMax(dim);
-  std::vector < std::pair<std::vector<double>::iterator, std::vector<double>::iterator> > x2MinMax(dim);
-  std::vector < std::vector <double> > minmax2;
-
-  RES->zero();
-  KK->zero(); // Set to zero all the entries of the Global Matrix
-
-  //BEGIN setup for adaptive integration
-
-  unsigned lmax1 = 3;
-  unsigned lmin1 = 1;
-
-  if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
-  double dMax = 0.133333 * pow(0.66, level);
-  double eps = 0.125 * dMax;
-
-  std::cout << "level = " << level << " ";
-
-  std::cout << "EPS = " << eps << " " << "delta1 + EPS = " << delta1 + eps << " " << " lmax1 = " << lmax1 << std::endl;
-
-  RefineElement *refineElement[6][3];
-
-  refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
-  refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
-
-  refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
-  refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
-  refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
-
-  refineElement[3][soluType]->SetConstants(eps);
-  refineElement[4][soluType]->SetConstants(eps);
-
-  //NonLocal *nonlocal = new NonLocalBox();
-  NonLocal *nonlocal = new NonLocalBall();
-  nonlocal->SetKernel(kappa1, delta1, eps);
-
-  fout.open("mesh.txt");
-  fout.close();
-
-  time_t searchTime = 0.;
-  time_t assemblyTime = 0.;
-
-  //BEGIN nonlocal assembly
-  for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-    for(unsigned iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
-
-      short unsigned ielGeom;
-      short unsigned ielGroup;
-      unsigned nDof1;
-
-      if(iproc == kproc) {
-        ielGeom = msh->GetElementType(iel);
-        ielGroup = msh->GetElementGroup(iel);
-        nDof1  = msh->GetElementDofNumber(iel, soluType);
-      }
-
-      MPI_Bcast(&ielGeom, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&ielGroup, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&nDof1, 1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
-
-      l2GMap1.resize(nDof1);
-      solu1.resize(nDof1);
-      for(unsigned k = 0; k < dim; k++) {
-        x1[k].resize(nDof1);
-      }
-
-      if(iproc == kproc) {
-        for(unsigned i = 0; i < nDof1; i++) {
-
-          unsigned uDof = msh->GetSolutionDof(i, iel, soluType);
-          solu1[i] = (*sol->_Sol[soluIndex])(uDof);
-
-          l2GMap1[i] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, i, iel);
-
-          unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
-          for(unsigned k = 0; k < dim; k++) {
-            x1[k][i] = (*msh->_topology->_Sol[k])(xDof);
-          }
-        }
-      }
-
-      MPI_Bcast(&l2GMap1[0], nDof1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&solu1[0], nDof1, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
-      for(unsigned k = 0; k < dim; k++) {
-        MPI_Bcast(&x1[k][0], nDof1, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
-      }
-
-      refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
-
-      for(unsigned k = 0; k < dim; k++) {
-        x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
-      }
-
-      time_t start = clock();
-      region2.Reset();
-      for(int jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
-
-        short unsigned jelGeom = msh->GetElementType(jel);
-        short unsigned jelGroup = msh->GetElementGroup(jel);
-        unsigned nDof2  = msh->GetElementDofNumber(jel, soluType);
-
-        for(int k = 0; k < dim; k++) {
-          x2[k].resize(nDof2);
-        }
-        for(unsigned j = 0; j < nDof2; j++) {
-          unsigned xDof  = msh->GetSolutionDof(j, jel, xType);
-          for(unsigned k = 0; k < dim; k++) {
-            x2[k][j] = (*msh->_topology->_Sol[k])(xDof);
-          }
-        }
-
-        minmax2.resize(dim);
-        for(unsigned k = 0; k < dim; k++) {
-          minmax2[k].resize(2);
-          x2MinMax[k] = std::minmax_element(x2[k].begin(), x2[k].end());
-          minmax2[k][0] = *x2MinMax[k].first;
-          minmax2[k][1] = *x2MinMax[k].second;
-        }
-        bool coarseIntersectionTest = true;
-        for(unsigned k = 0; k < dim; k++) {
-          if((*x1MinMax[k].first  - *x2MinMax[k].second) > delta1 + eps  || (*x2MinMax[k].first  - *x1MinMax[k].second) > delta1 + eps) {
-            coarseIntersectionTest = false;
-            break;
-          }
-        }
-
-
-        if(coarseIntersectionTest) {
-          l2GMap2.resize(nDof2);
-          solu2.resize(nDof2);
-          for(unsigned j = 0; j < nDof2; j++) {
-            unsigned uDof = msh->GetSolutionDof(j, jel, soluType);
-            solu2[j] = (*sol->_Sol[soluIndex])(uDof);
-            l2GMap2[j] = pdeSys->GetSystemDof(soluIndex, soluPdeIndex, j, jel);
-          }
-          region2.AddElement(x2, l2GMap2, solu2, refineElement[jelGeom][soluType]->GetFem2Pointer(), minmax2);
-        }
-      }
-
-      searchTime += clock() - start;
-
-      start = clock();
-
-      nonlocal->ZeroLocalQuantities(nDof1, region2, lmax1);
-      bool printMesh = false;
-
-//       nonlocal->Assembly1(0, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-//                           *refineElement[ielGeom][soluType], region2,
-//                           solu1, kappa1, delta1, printMesh);
-
-      std::vector<unsigned>jelIndex(region2.size());
-      for(unsigned j = 0; j < jelIndex.size(); j++) {
-        jelIndex[j] = j;
-      }
-
-      nonlocal->Assembly1WR(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                            *refineElement[ielGeom][soluType], region2, jelIndex,
-                            solu1, kappa1, delta1, printMesh);
-
-      if(iproc == kproc) {
-        RES->add_vector_blocked(nonlocal->GetRes1(), l2GMap1);
-      }
-      //KK->add_matrix_blocked(nonlocal->GetJac11(), l2GMap1, l2GMap1);
-      for(unsigned jel = 0; jel < region2.size(); jel++) {
-        KK->add_matrix_blocked(nonlocal->GetJac21(jel), region2.GetMapping(jel), l2GMap1);
-        KK->add_matrix_blocked(nonlocal->GetJac22(jel), region2.GetMapping(jel), region2.GetMapping(jel));
-        RES->add_vector_blocked(nonlocal->GetRes2(jel), region2.GetMapping(jel));
-      }
-      assemblyTime += clock() - start;
-
-    } //end iel loop
-  } //end kproc loop
-
-  RES->close();
-  KK->close();
-
-  delete nonlocal;
-  delete refineElement[3][0];
-  delete refineElement[3][1];
-  delete refineElement[3][2];
-  delete refineElement[4][0];
-  delete refineElement[4][1];
-  delete refineElement[4][2];
-
-  //KK->draw();
-
-  std::cout << "Search Time = " << static_cast<double>(searchTime) / CLOCKS_PER_SEC << std::endl;
-  std::cout << "Assembly Time = " << static_cast<double>(assemblyTime) / CLOCKS_PER_SEC << std::endl;
-
-  // ***************** END ASSEMBLY *******************
-}
 
 
 void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
@@ -1119,9 +993,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
         nDof2  = msh->GetElementDofNumber(jel, soluType);
       }
 
-      MPI_Bcast(&jelGeom, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&jelGroup, 1, MPI_UNSIGNED_SHORT, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&nDof2, 1, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&jelGeom, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&jelGroup, 1, MPI_UNSIGNED_SHORT, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&nDof2, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
       l2GMap2.resize(nDof2);
       solu2.resize(nDof2);
@@ -1146,11 +1020,11 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
         typej = ReorderElement(l2GMap2, solu2, x2);
       }
 
-      MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, MPI_COMM_WORLD);
-      MPI_Bcast(&solu2[0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+      MPI_Bcast(&l2GMap2[0], nDof2, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+      MPI_Bcast(&solu2[0], nDof2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
 
       for(unsigned k = 0; k < dim; k++) {
-        MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, MPI_COMM_WORLD);
+        MPI_Bcast(& x2[k][0], nDof2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
       }
 
       for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -1641,19 +1515,15 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
           laplace   +=  aCoeff * phi_x[i * dim + jdim] * gradSolu_gss[jdim];
         }
 
-//                 double srcTerm =  12. * x_gss[0] * x_gss[0] ; // so f = - 12 x^2
-        double srcTerm =  2. ; // so f = - 2
-        //double srcTerm =  6. * x_gss[0]; // so f = - 12 x^2
-//         double srcTerm =  - 1. ; // so f = 1
-//         double srcTerm;
-//         if (x_gss[0] < 0.) {
-//           srcTerm = - cos (x_gss[1]) * (- 0.5 * x_gss[0] * x_gss[0] * x_gss[0] * x_gss[0] - kappa1 / 8. * x_gss[0] * x_gss[0] * x_gss[0] + 11. / 2. * x_gss[0] * x_gss[0] + kappa1 / 16. * x_gss[0] * x_gss[0] + kappa1 * 5. / 8. * x_gss[0] + 1. - 1. / 16. * kappa1); // f = cos(y) * ( - 0.5 * x^4 - kappa1 / 8 * x^3 + 11. / 2. * x^2 + kappa1 / 16. * x^2 + kappa1 * 5. / 8. * x + 1. - 1. / 16. * k1)
-//         }
-//         else {
-//           srcTerm =  - cos (x_gss[1]) * (sin (x_gss[0]) * (-kappa2 / 12. - 2 * x_gss[0]) + cos (x_gss[0]) * (kappa2 / 8. + 1. - kappa2 / 12. * x_gss[0] - x_gss[0] * x_gss[0])); //so f = cos(y) * (sin(x) * (-k2 / 12. - 2 * x) + cos(x) * (k2 / 8. + 1. - k2 / 12. * x - x^2))
-//         }
-        //double srcTerm =  0./*- GetExactSolutionLaplace(x_gss)*/ ;
-        aRes[i] += (srcTerm * phi[i] + laplace) * weight;
+
+        double srcTerm = 0.;
+
+        for(unsigned k = 0; k < dim; k++) {
+//           srcTerm +=  -2. ; // so f = - 2 //consistency
+//           srcTerm +=  -6. * x_gss[k] ; // cubic
+          srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
+        }
+        aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
 
       } // end phi_i loop
     } // end gauss point loop

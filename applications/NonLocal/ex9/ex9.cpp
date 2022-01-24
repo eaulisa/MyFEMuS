@@ -21,28 +21,14 @@
 using namespace femus;
 
 double InitalValueU(const std::vector < double >& x) {
-  double value;
+  double value = 0.;
 
-//     value =  x[0] + 0. * ( 0.51 * 0.51 - x[0] * x[0] ) * ( 0.51 * 0.51 - x[1] * x[1] );
-//     value =  x[0];
-  value =  x[0] * x[0];
-//     value =  x[0] * x[0] * x[0] ;
-//     value =  x[0] * x[0] * x[0] + x[1] * x[1] * x[1];
-//     value =  x[0] * x[0] * x[0] * x[0] + 0.1 * x[0] * x[0]; //this is x^4 + delta x^2
-//     value =  x[0] * x[0] * x[0] * x[0]; //this is x^4
-//     value =  2 * x[0] + x[0] * x[0] * x[0] * x[0] * x[0]; //this is 2x + x^5
+  for(unsigned k = 0; k < x.size(); k++) {
+//     value +=  x[k] * x[k]; //consistency
+//     value +=  x[k] * x[k] * x[k]; //cubic
+    value +=  x[k] * x[k] * x[k] * x[k];//quartic
+  }
 
-
-//      value = (x[0] < 0.) ? x[0] * x[0] * x[0] : 3 * x[0] * x[0] * x[0];
-
-//   double u1 = a1 + b1 * x[0] - 1. / (2. * kappa1) * x[0] * x[0] ;
-//   double u2 = a2 + b2 * x[0] - 1. / (2. * kappa2) * x[0] * x[0] ;
-
-//   double u1 = (a1 + b1 * x[0] - 1. / (2. * kappa1) * x[0] * x[0]) * (1. + x[0] * x[0]) * cos (x[1]) ;
-//   double u2 = (a2 + b2 * x[0] - 1. / (2. * kappa2) * x[0] * x[0]) * cos (x[0]) * cos (x[1]);
-//
-//
-//   value = (x[0] < 0.) ? u1 : u2;
 
 
   return value;
@@ -53,39 +39,23 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine);
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
 
   bool dirichlet = true;
+
   value = 0.;
-//  value = x[0];
-  value = x[0] * x[0];
-//     value = x[0] * x[0] * x[0] ;
-//   value = (x[0] < 0.) ? x[0] * x[0] * x[0] : 3 * x[0] * x[0] * x[0];
-//     value = x[0] * x[0] * x[0] + x[1] * x[1] * x[1];
-//     value = x[0] * x[0] * x[0] * x[0] + 0.1 * x[0] * x[0]; //this is x^4 + delta x^2
-//     value = x[0] * x[0] * x[0] * x[0];
-//        value =  2 * x[0] + x[0] * x[0] * x[0] * x[0] * x[0]; //this is 2x + x^5
 
-//   double u1 = a1 + b1 * x[0] - 1. / (2. * kappa1) * x[0] * x[0] ;
-//   double u2 = a2 + b2 * x[0] - 1. / (2. * kappa2) * x[0] * x[0] ;
-
-//   double u1 = (a1 + b1 * x[0] - 1. / (2. * kappa1) * x[0] * x[0]) * (1. + x[0] * x[0]) * cos (x[1]) ;
-//   double u2 = (a2 + b2 * x[0] - 1. / (2. * kappa2) * x[0] * x[0]) * cos (x[0]) * cos (x[1]);
-//
-//   value = (x[0] < 0.) ? u1 : u2;
-//
-//   if (facename == 2) {
-//     if (!strcmp (SolName, "u_local")) {
-// //       value = a1 ;
-//       value = a1 * cos (x[1]) ;
-//     }
-//     else {
-//       dirichlet = false; //Neumann at the interface boundaries
-//       value = 0.;
-//     }
-//   }
-
+  for(unsigned k = 0; k < x.size(); k++) {
+//     value +=  x[k] * x[k]; //consistency
+//     value +=  x[k] * x[k] * x[k]; //cubic
+    value +=  x[k] * x[k] * x[k] * x[k];//quartic
+  }
+  
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 4;
+// unsigned numberOfUniformLevels = 2; //consistency
+unsigned numberOfUniformLevels = 3; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+//unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
+
+
 unsigned numberOfUniformLevelsFine = 1;
 
 int main(int argc, char** argv) {
@@ -100,60 +70,27 @@ int main(int argc, char** argv) {
 
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-//     mlMsh.ReadCoarseMesh ( "../input/nonlocal_boundary_test.neu", "second", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/interface.neu", "second", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest1.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest2.neu", "second", scalingFactor );
-//         mlMsh.ReadCoarseMesh ( "../input/maxTest3.neu", "second", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest4.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest5.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest6.neu", "eighth", scalingFactor );
-//   mlMsh.ReadCoarseMesh ("../input/maxTest7.neu", "eighth", scalingFactor);
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest8.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest9.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest10.neu", "eighth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/maxTest2Continuous.neu", "second", scalingFactor );
-  //mlMsh.ReadCoarseMesh ( "../input/martaTest0.neu", "second", scalingFactor );
-//      mlMsh.ReadCoarseMesh ( "../input/martaTest1.neu", "second", scalingFactor );
-//    mlMsh.ReadCoarseMesh ( "../input/martaTest2.neu", "second", scalingFactor );
-  //mlMsh.ReadCoarseMesh ( "../input/martaTest3.neu", "second", scalingFactor );
-  mlMsh.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
-//  mlMsh.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
-//     mlMsh.ReadCoarseMesh ( "../input/martaTest5.neu", "fifth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/martaTest7.neu", "fifth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/martaTest8.neu", "fifth", scalingFactor );
-//            mlMsh.ReadCoarseMesh ( "../input/martaTest9.neu", "fifth", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/martaTest4Coarser.neu", "second", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/trial1.neu", "second", scalingFactor );
-//     mlMsh.ReadCoarseMesh ( "../input/trial2.neu", "second", scalingFactor );
-//   mlMsh.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
-//    mlMsh.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5.neu", "second", scalingFactor);
-//    mlMsh.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6.neu", "second", scalingFactor);
-//     mlMsh.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7.neu", "second", scalingFactor);
-//        mlMsh.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8.neu", "second", scalingFactor);
-//    mlMsh.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4_bis.neu", "eighth", scalingFactor);
-//    mlMsh.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5_bis.neu", "eighth", scalingFactor);
-//    mlMsh.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6_bis.neu", "eighth", scalingFactor);
-//   mlMsh.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7_bis.neu", "eighth", scalingFactor);
-//      mlMsh.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8_bis.neu", "eighth", scalingFactor);
+
+
+
+  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
+//   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
+  //char fileName[100] = "../input/martaTest4Tri.neu";
+  //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
+  char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
+  //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
+
+  mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
+  MPI_Barrier(MPI_COMM_WORLD);
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
 
-  //mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4.neu", "second", scalingFactor);
-  mlMshFine.ReadCoarseMesh("../input/martaTest4Fine.neu", "fifth", scalingFactor);
-// mlMshFine.ReadCoarseMesh("../input/martaTest4Tri.neu", "second", scalingFactor);
-//   mlMshFine.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5.neu", "second", scalingFactor);
-//   mlMshFine.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6.neu", "second", scalingFactor);
-//     mlMshFine.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7.neu", "second", scalingFactor);
-//       mlMshFine.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8.neu", "second", scalingFactor);
-//    mlMshFine.ReadCoarseMesh ("../input/d1_2e-4_d2_2e-3_h_2e-4_bis.neu", "eighth", scalingFactor);
-//    mlMshFine.ReadCoarseMesh ("../input/d1_2e-5_d2_2e-4_h_2e-5_bis.neu", "eighth", scalingFactor);
-//    mlMshFine.ReadCoarseMesh ("../input/d1_2e-6_d2_2e-5_h_2e-6_bis.neu", "eighth", scalingFactor);
-//   mlMshFine.ReadCoarseMesh ("../input/d1_2e-7_d2_2e-6_h_2e-7_bis.neu", "eighth", scalingFactor);
-//     mlMshFine.ReadCoarseMesh ("../input/d1_2e-8_d2_2e-7_h_2e-8_bis.neu", "eighth", scalingFactor);
+  MPI_Barrier(MPI_COMM_WORLD);
+  //consistency
+  mlMshFine.ReadCoarseMesh(fileName, "fifth", scalingFactor);
   mlMshFine.RefineMesh(numberOfUniformLevelsFine + numberOfSelectiveLevels, numberOfUniformLevelsFine , NULL);
 
 //   mlMsh.EraseCoarseLevels (numberOfUniformLevels - 1);
-
 //   mlMshFine.EraseCoarseLevels (numberOfUniformLevelsFine - 1);
 
   unsigned dim = mlMsh.GetDimension();
@@ -162,17 +99,21 @@ int main(int argc, char** argv) {
   MultiLevelSolution mlSolFine(&mlMshFine);
 
   // add variables to mlSol
-
   FEOrder femType = SERENDIPITY;
-  //FEOrder femType = FIRST;
+//   FEOrder femType = FIRST;
+
   std::vector < std::string > femTypeName = {"zero", "linear", "quadratic", "biquadratic"};
 
   mlSol.AddSolution("u", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_local", LAGRANGE,  femType, 0);
   mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
 
+  mlSol.AddSolution("cnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+
+
   mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
   mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
+  mlSolFine.AddSolution("cnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
   mlSol.Initialize("All");
   mlSolFine.Initialize("All");
@@ -225,7 +166,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  system.SetSparsityPatternMinimumSize(10000u);    //TODO tune
+  system.SetSparsityPatternMinimumSize(60000u);    //TODO tune
 
   system.init();
 
@@ -302,7 +243,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   systemFine.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  systemFine.SetSparsityPatternMinimumSize(5000u);    //TODO tune
+  //systemFine.SetSparsityPatternMinimumSize(5000u);    //TODO tune
 
 
   systemFine.init();
@@ -317,7 +258,7 @@ int main(int argc, char** argv) {
 
 // ******* Solution *******
 
-  systemFine.MGsolve(); //TODO
+  //systemFine.MGsolve(); //TODO
 
   //END assemble and solve nonlocal problem
 
@@ -419,36 +360,24 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
       msh->_finiteElement[ielGeom][soluType]->Jacobian(x1, ig, weight, phi, phi_x);
       double soluNonLoc_gss = 0.;
       double soluLoc_gss = 0.;
-      double soluExact_gss = 0.;
-      double x_gss = 0.;
-      double y_gss = 0.;
+      std::vector < double > xg(dim, 0.);
 
       for(unsigned i = 0; i < nDofu; i++) {
         soluNonLoc_gss += phi[i] * soluNonLoc[i];
         soluLoc_gss += phi[i] * soluLoc[i];
-        x_gss += phi[i] * x1[0][i]; // this is x at the Gauss point
-        y_gss += phi[i] * x1[1][i]; // this is y at the Gauss point
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += phi[i] * x1[k][i]; // this is x at the Gauss point
+        }
       }
 
-//       double u1 = a1 + b1 * x_gss - 1. / (2. * kappa1) * x_gss * x_gss;
-//       double u2 = a2 + b2 * x_gss - 1. / (2. * kappa2) * x_gss * x_gss;
 
-//       double u1 = (a1 + b1 * x_gss - 1. / (2. * kappa1) * x_gss * x_gss) * (1. + x_gss * x_gss) * cos (y_gss) ;
-//       double u2 = (a2 + b2 * x_gss - 1. / (2. * kappa2) * x_gss * x_gss) * cos (x_gss) * cos (y_gss);
 
-//       soluExact_gss = (x_gss < 0.) ? u1 : u2;
-
-//             soluExact_gss = x_gss * x_gss * x_gss * x_gss + 0.1 * x_gss * x_gss; // this is x^4 + delta * x^2
-
-      soluExact_gss = x_gss * x_gss ; // this is x^2
-
-//             soluExact_gss = (x_gss < 0.) ? x_gss * x_gss * x_gss : 3.* x_gss * x_gss * x_gss; // this is x^3 for x< 0 and 3 x^3 for x >= 0
-
-//             soluExact_gss = x_gss * x_gss * x_gss + y_gss * y_gss * y_gss ; // this is x^3 + y^3
-
-//             soluExact_gss = x_gss * x_gss * x_gss * x_gss; // this is x^4
-
-//             soluExact_gss = 2 * x_gss  + x_gss * x_gss * x_gss * x_gss * x_gss ; // this is 2x + x^5
+      double soluExact_gss = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+//         soluExact_gss += xg[k] * xg[k];//consistency
+//         soluExact_gss += xg[k] * xg[k] * xg[k]; // cubic
+        soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
+      }
 
       error_solExact_norm2 += (soluNonLoc_gss - soluExact_gss) * (soluNonLoc_gss - soluExact_gss) * weight;
 
