@@ -1,4 +1,6 @@
 
+#include "GeomElTypeEnum.hpp"
+
 #include "Line.hpp"
 #include "Square.hpp"
 #include "Cube.hpp"
@@ -29,6 +31,8 @@ using boost::multiprecision::cpp_bin_float_quad;
 //#include "./old/TetrahedronOld.hpp"
 //#include "./old/HyperCubeOld.hpp"
 
+#include "GramSchmidt.hpp"
+
 #include "TestHyperCube.hpp"
 // #include "TestTriangle.hpp"
 // #include "TestPrism.hpp"
@@ -38,6 +42,8 @@ using boost::multiprecision::cpp_bin_float_quad;
 int main(int, char**) {
 
   typedef double Type;
+
+  typedef cpp_bin_float_oct Type2;
 
   bool quad = true;
   bool hex = false;
@@ -58,7 +64,7 @@ int main(int, char**) {
     clock_t time = clock();
     //TestQuad(eps);
     //TestQuadOld(eps);
-    
+
 
     SQImap <double, double> sqr(qMax, 0);
 
@@ -70,7 +76,7 @@ int main(int, char**) {
       for(unsigned q = 0; q <= qMax; q++) {
         for(unsigned j = 0; j <= q; j++) {
           unsigned i = q - j;
-          std::cout <<i<<" "<< j<<" "<< sqr(-1, {i, j}, {a, b}, d)<<" ";
+          std::cout << i << " " << j << " " << sqr(-1, {i, j}, {a, b}, d) << " ";
           std::cout << sqr(0, {i, j}, {a, b}, d) << std::endl;
         }
       }
@@ -104,11 +110,11 @@ int main(int, char**) {
     TestHex(eps);
     //TestHexOld(eps);
 
-        
+
     CBImap <double, double> cube(qMax, 0);
     srand(0);
     time = clock();
-    
+
     for(unsigned tt = 0; tt < 1000; tt++) {
       cube.clear();
       a = -1. + 2. * rand() / RAND_MAX;
@@ -157,13 +163,104 @@ int main(int, char**) {
     std::cout << "Old Time = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     hci3.printCounter();
     hci3.clear();
-    
-    
+
+
 
 
   }
 
+
+  std::vector<std::vector<Type2>> ATA;
+  std::cout << "Hex" << std::endl;
+  Get_GS_ATA_Matrix(HEX, 2, ATA, false);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+
+  std::cout << "Tet" << std::endl;
+  Get_GS_ATA_Matrix(TET, 2, ATA, false);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+
+  std::cout << "Wedge" << std::endl;
+  Get_GS_ATA_Matrix(WEDGE, 2, ATA, false);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout << "Quad" << std::endl;
+  Get_GS_ATA_Matrix(QUAD, 2, ATA, false);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout << "Tri" << std::endl;
+  Get_GS_ATA_Matrix(TRI, 2, ATA, false);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+
+  unsigned qM = 6;
+  HCImap <Type2, Type2> hci1(1, qM, 0);
+  std::vector< std::vector<Type2> > f(1,std::vector<Type2>(qM + 1));
+
+  std::cout << "line" << std::endl;
+
+  for(unsigned i = 0; i <= qM; i++) {
+    f[0][i] = hci1(0, {i}, {1.}, 0) / 2;
+    std::cout << f[0][i] << std::endl;
+  }
+ 
+  Get_GS_ATA_Matrix(LINE, 6, ATA, false);
+  
+  std::cout.precision(20);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < ATA.size(); i++) {
+    for(unsigned j = 0; j < ATA[i].size(); j++) {
+      std::cout << ATA[i][j]<< " ";
+    }
+    std::cout << std::endl;
+  }
+
+   
+  std::vector< std::vector<Type2> > fATA = MatrixMatrixMultiply(f, ATA);
+
+  std::cout.precision(20);
+  std::cout << std::endl;
+  for(unsigned i = 0; i < fATA.size(); i++) {
+    for(unsigned j = 0; j < fATA[i].size(); j++) {
+      std::cout << fATA[i][j] +Type2(1.0e-15)<< " ";
+    }
+    std::cout << std::endl;
+  }
+  
+  
   return 1;
+
 
 //
 //
@@ -434,6 +531,10 @@ int main(int, char**) {
 //   }
 //
 //   hci3.printCounter();
+
+
+
+
 
 
   return 1;

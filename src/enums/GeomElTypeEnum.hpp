@@ -1,6 +1,8 @@
 #ifndef __femus_enums_GeomElTypeEnum_hpp__
 #define __femus_enums_GeomElTypeEnum_hpp__
 
+#include <vector>
+
 #include <string>
 namespace femus {
     
