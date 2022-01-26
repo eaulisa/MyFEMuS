@@ -17,7 +17,7 @@ using boost::math::binomial_coefficient;
 //This file Gives the lower triangular matrix A, which gives the polynomial orthonormal basis in terms of the standard basis, or specified basis. All neccassry functions were built in order to complete the task.
 
 template <class Type>
-void ModifiedGramSchmidt(const std::vector<std::vector<Type>> &M,std::vector<std::vector<Type>> &A, bool &testIdentity);
+void ModifiedGramSchmidt(const std::vector<std::vector<Type>> &M, std::vector<std::vector<Type>> &A, bool &testIdentity);
 
 template <class Type>
 std::vector<std::vector<Type>> Transpose(const std::vector<std::vector<Type>> &M);
@@ -86,8 +86,32 @@ void ModifiedGramSchmidt(const std::vector<std::vector<Type>> &M, std::vector<st
 
   if(testIdentity) {
 
+    std::cout.precision(14);
+
     std::vector<std::vector<Type>> Atest(size, std::vector<Type>(size, 0));
     Atest = MatrixMatrixMultiply(A, MatrixMatrixMultiply(M, Transpose(A)));
+
+    for(unsigned i = 0; i < size; i++) {
+      for(unsigned j = 0; j < size; j++) {
+        std::cout << M[i][j] << "  " ;
+        if(j ==  M.size() - 1) {
+          std::cout << std::endl;
+        }
+      }
+    }
+
+    std::cout << std::endl;
+
+    for(unsigned i = 0; i < size; i++) {
+      for(unsigned j = 0; j < size; j++) {
+        std::cout << A[i][j] << "  " ;
+        if(j ==  A.size() - 1) {
+          std::cout << std::endl;
+        }
+      }
+    }
+
+    std::cout << std::endl;
 
     for(unsigned i = 0; i < size; i++) {
       for(unsigned j = 0; j < size; j++) {
@@ -275,23 +299,23 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
 
   //TODO hexahedron = 0, tet = 1, wedge =2, quad = 3, tri = 4, line = 5, point = 6
 
-  unsigned size = 1;
-  unsigned count = 0;
-  unsigned k = 0;
+
+
 
   if(element == 0 || element == 1 || element == 2) { //3D
 
-    size = ((degree + 1) * (degree + 2) * (degree + 3)) / 6;
+    unsigned size = ((degree + 1) * (degree + 2) * (degree + 3)) / 6;
 
     MM.assign(size, std::vector<Type>(size, Type(0)));
     std::vector<unsigned> m(size, 0);
     std::vector<unsigned> n(size, 0);
     std::vector<unsigned> o(size, 0);
 
+    unsigned count = 0;
     for(int l = 0; l <= degree; l++) {
       for(int i = l; i >= 0; i--) {
         for(int j = l - i; j >= 0; j--) {
-          k = l - i - j;
+          unsigned k = l - i - j;
           m[count] = i;
           n[count] = j;
           o[count] = k;
@@ -351,25 +375,31 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
   } //3D
 
   else if(element == 3 || element == 4) {  //2D
-    size = ((degree + 1) * (degree + 2)) / 2;
+    unsigned size = ((degree + 1) * (degree + 2)) / 2;
     MM.assign(size, std::vector<Type>(size, Type(0)));
     std::vector<unsigned> m(size, 0);
     std::vector<unsigned> n(size, 0);
 
-    for(int i = 0; i <= degree; i++) {
-      for(int j = i; j >= 0; j--) {
-        m[count] = j;
-        n[count] = i - j;
+    unsigned count = 0;
+    for(unsigned q = 0; q <= degree; q++) {
+      for(unsigned j = 0; j <= q; j++) {
+        unsigned i = q - j;
+        m[count] = i;
+        n[count] = j;
         count++;
-        //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
+        //std::cout << "i = " << i << " j = " << j <<  std::endl;
       }
     }
 
     if(element == 3) {
       for(int k = 0; k < size; k++) {
         count = 0;
-        for(int i = 0; i <= degree; i++) {
-          for(int j = i; j >= 0; j--) {
+
+        for(unsigned q = 0; q <= degree; q++) {
+          for(unsigned j = 0; j <= q; j++) {
+            unsigned i = q - j;
+//         for(int i = 0; i <= degree; i++) {
+//           for(int j = i; j >= 0; j--) {
             MM[k][count] = Type(1) / ((m[k] + m[count] + 1) * (n[k] + n[count] + 1));
             count++;
             //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
@@ -382,8 +412,12 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
     else if(element == 4) {
       for(int k = 0; k < size; k++) {
         count = 0;
-        for(int i = 0; i <= degree; i++) {
-          for(int j = i; j >= 0; j--) {
+        for(unsigned q = 0; q <= degree; q++) {
+          for(unsigned j = 0; j <= q; j++) {
+            unsigned i = q - j;
+
+//         for(int i = 0; i <= degree; i++) {
+//           for(int j = i; j >= 0; j--) {
             MM[k][count] = Type(1) / ((m[k] + m[count] + n[k] + n[count] + 2) * (n[k] + n[count] + 1));
             count++;
             //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
@@ -394,8 +428,9 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
   }  //2D
 
   else if(element == 5) { //1D
-    size = degree + 1;
+    unsigned size = degree + 1;
     MM.assign(size, std::vector<Type>(size, Type(0)));
+    unsigned count = 0;
     for(int i = 0; i < size; i++) {
       for(int j = 0; j < size; j++) {
         MM[i][j] = Type(1) / (i + j + 1);
@@ -417,6 +452,18 @@ void Get_GS_ATA_Matrix(const GeomElType &geom, const unsigned &d, std::vector<st
   std::vector<std::vector<Type>> A;
   ModifiedGramSchmidt(M, A, testIdentity);
   ATA = MatrixMatrixMultiply(Transpose(A), A);
+  
+  if(testIdentity){
+    std::cout.precision(20);
+    std::cout << std::endl;
+    for(unsigned i = 0; i < ATA.size(); i++) {
+      for(unsigned j = 0; j < ATA[i].size(); j++) {
+        std::cout << ATA[i][j] << " ";
+      }
+      std::cout << std::endl;
+    }
+  } 
+  
   return;
 }
 
