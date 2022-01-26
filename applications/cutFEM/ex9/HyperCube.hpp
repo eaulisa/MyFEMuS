@@ -126,7 +126,7 @@ TypeIO HCImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigne
     _a2[i] = static_cast<TypeA>(2 * a[i]);
   }
   TypeA d2 = static_cast<TypeA>(d1);
-  return pow(2, _a2.size()) * static_cast<TypeIO>(this->hcia(s, m, _a2, d2));
+  return/* pow(2, _a2.size()) **/ static_cast<TypeIO>(this->hcia(s, m, _a2, d2));
 }
 
 template <class TypeIO, class TypeA>
