@@ -1,8 +1,8 @@
 #ifndef __femus_cut_fem_PRI_hpp__
 #define __femus_cut_fem_PRI_hpp__
 
-#include "Triangle.hpp"
-#include "HyperCube.hpp"
+#include "./old/TriangleOld.hpp"
+#include "./old/HyperCubeOld.hpp"
 
 template <class Type>
 Type PrismA(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type & d);
@@ -106,7 +106,7 @@ Type PrismA(const int &s, const std::vector<unsigned> &m, const std::vector <Typ
 
 template <class Type, class Type2>
 Type Prism(const int &s, const std::vector<unsigned> &m, const std::vector <Type> &a, const Type & d) {
-  return static_cast<Type>(2 * PrismA<Type2>(s, {m[0], m[1], m[2]}, {-a[0], a[1], 2 * a[2]}, d + a[0] - a[2]));
+  return static_cast<Type>(/*2 **/ PrismA<Type2>(s, {m[0], m[1], m[2]}, {-a[0], a[1], 2 * a[2]}, d + a[0] - a[2]));
 }
 
 #endif

@@ -7,6 +7,7 @@
 #include "HyperCube.hpp"
 #include "Triangle.hpp"
 #include "Tetrahedron.hpp"
+#include "Prism.hpp" 
 
 
 #include <iostream>
@@ -383,6 +384,51 @@ int main(int, char**) {
     }
     std::cout << std::endl;
   }
+  
+    {
+    unsigned qM = 3;
+    HCImap <Type2, Type2> hci3(3, qM, 0);
+    std::vector< std::vector<Type2> > f(1, std::vector<Type2>((qM + 1) * (qM + 2) * (qM + 3) / 6));
+
+    std::cout << "pri" << std::endl;
+
+    unsigned count = 0;
+
+    for(unsigned q = 0; q <= qM; q++) {
+      for(int ii = q; ii >= 0; ii--) {
+        for(int jj = q - ii; jj >= 0; jj--) {
+          unsigned i = static_cast<unsigned>(ii);
+          unsigned j = static_cast<unsigned>(jj);
+          unsigned k = q - i - j;
+          f[0][count] = Prism<Type2, Type2>(-1, {i, j, k}, {-0.1/sqrt(1.02), 0.1/sqrt(1.02), 1./sqrt(1.02)}, 0);
+//           std::cout << count << " " << i << " " << j << " " << k << std::endl << std::flush;
+          count++;
+        }
+      }
+    }
+
+    std::vector<std::vector<Type2>> ATA;
+    Get_GS_ATA_Matrix(WEDGE, qM, ATA, false);
+
+    std::vector< std::vector<Type2> > Co = MatrixMatrixMultiply(f, ATA);
+
+    //print
+    std::cout.precision(20);
+    std::cout << "fo = ";
+    for(unsigned i = 0; i < f[0].size(); i++) {
+      std::cout << f[0][i] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Co = ";
+    for(unsigned i = 0; i < Co.size(); i++) {
+      for(unsigned j = 0; j < Co[i].size(); j++) {
+        std::cout << "C"<<j<<" = "<<((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
+      }
+      std::cout << std::endl;
+    }
+    std::cout << std::endl;
+  }
 
   return 1;
 
@@ -670,6 +716,12 @@ int main(int, char**) {
 
 
 }
+
+
+
+
+
+
 
 
 
