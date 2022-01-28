@@ -350,7 +350,10 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
             for(int j = l - i; j >= 0; j--) {
               // n! o! / (m + n + o + 3) * (n + o + 2)!)
               //MM[h][count] = (Type)(Factorial(n[h] + n[count]) * Factorial(o[h] + o[count])) / (Type)((m[h] + m[count] + n[h] + n[count] + o[h] + o[count] + 3) * (Factorial(n[h] + n[count] + o[h] + o[count] + 2)));
-              MM[h][count] = (Type)(factorial<Type>(n[h] + n[count]) * factorial<Type>(o[h] + o[count])) / (Type)((m[h] + m[count] + n[h] + n[count] + o[h] + o[count] + 3) * (factorial<Type>(n[h] + n[count] + o[h] + o[count] + 2)));
+//               MM[h][count] = (Type)(factorial<Type>(n[h] + n[count]) * factorial<Type>(o[h] + o[count])) / (Type)((m[h] + m[count] + n[h] + n[count] + o[h] + o[count] + 3) * (factorial<Type>(n[h] + n[count] + o[h] + o[count] + 2)));
+//                 
+                MM[h][count] = (Type)(1) / ( (3 + m[h] + m[count] + n[h] + n[count] + o[h] + o[count]) * (2 + n[h] + n[count] + o[h] + o[count]) * (1 + o[h] + o[count])); 
+                
               count++;
             }
           }
