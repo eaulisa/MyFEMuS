@@ -13,7 +13,7 @@
 #include <iostream>
 #include <boost/multiprecision/cpp_bin_float.hpp>
 
-#include "CutFEM_Integration.hpp"
+// #include "CutFemIntegration.hpp"
 
 
 namespace boost {
@@ -447,7 +447,7 @@ int main(int, char**) {
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
-          f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(2), 1/sqrt(2), -1/sqrt(2)}, 0);
+          f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
 //           f[0][count] = tet3(0, {i, j, k}, {0.1, 1, -0.5}, 0.05);
           count++;
         }
