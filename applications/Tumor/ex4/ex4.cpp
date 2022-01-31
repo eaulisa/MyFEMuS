@@ -38,7 +38,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0.;
 
   if(!strcmp(SolName, "P")) {   // left boundary condition.
-    value = 400;
+    value = 400 + 40 * (1. - x[0]);
   }
 
   return dirichlet;
@@ -75,12 +75,12 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
   // erase all the coarse mesh levels
-  //mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
+  mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
 
   // print mesh info
   mlMsh.PrintInfo();
@@ -112,7 +112,7 @@ int main(int argc, char** args) {
   MultiLevelProblem mlProb(&mlSol);
 
   // add system Poisson in mlProb as a Linear Implicit System
-  TransientLinearImplicitSystem & system = mlProb.add_system< TransientLinearImplicitSystem > ("PorousMedia");
+  TransientNonlinearImplicitSystem & system = mlProb.add_system< TransientNonlinearImplicitSystem > ("PorousMedia");
 
   // add solution "u" to system
   system.AddSolutionToSystemPDE("DX");
@@ -139,16 +139,13 @@ int main(int argc, char** args) {
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
-
-   
-  
+ 
 
   for(unsigned t = 1; t <= n_timesteps; t++) {
 
     system.CopySolutionToOldSolution();
     system.MGsolve();
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
-
+    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
 
   }
 
@@ -167,7 +164,7 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   //  extract pointers to the several objects that we are going to use
-  NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("PorousMedia");   // pointer to the linear implicit system named "Poisson"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("PorousMedia");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -257,8 +254,6 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   
-  
-  
   // element loop: each process loops only on the elements that owns
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -270,20 +265,16 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
     unsigned nDofsAll = dim * nDofsD + nDofsP;
 
     sysDof.resize(nDofsAll);
-    Res.assign(nDofsAll, 0.);
-    Jac.assign(nDofsAll * nDofsAll, 0.);
-
-    
-    
+       
     for(unsigned  k = 0; k < dim; k++) {
       solDOld[k].resize(nDofsD);
       solD[k].resize(nDofsD);
       coordX[k].resize(nDofsD);
+      aResD[k].assign(nDofsD, 0.);
     }
     solP.resize(nDofsP);
+    aResP.assign(nDofsP, 0.);
 
-    std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"<< nDofsD  << std::endl;
-    
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofsD; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solDType);    // local to global mapping between solution node and solution dof
@@ -291,7 +282,6 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
       for(unsigned  k = 0; k < dim; k++) {
           
         solDOld[k][i] = (*sol->_SolOld[solDIndex[k]])(iDof);
-         std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
         solD[k][i] = (*sol->_Sol[solDIndex[k]])(iDof);      // global extraction and local storage for the solution
         sysDof[k * nDofsD + i] = pdeSys->GetSystemDof(solDIndex[k], solDPdeIndex[k], i, iel);    // global to global mapping between solution node and pdeSys dof
       }
@@ -312,8 +302,6 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
-
-
     
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
@@ -383,9 +371,6 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
       vector < adept::adouble > gradSolP_gss(dim, 0);
       adept::adouble solP_gss = 0;
 
-
-
-
       for(unsigned  k = 0; k < dim; k++) {
         gradSolD_gss[k].assign(dim, 0.);
         gradSolDOld_gss[k].assign(dim, 0.);
@@ -406,17 +391,18 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
       }
 
 
+      
       for(unsigned i = 0; i < nDofsP; i++) {
         solP_gss += phiP[i] * solP[i];
       }
 
 
-      for(unsigned i = 0; i < nDofsD; i++) {
+      for(unsigned i = 0; i < nDofsP; i++) {
         for(unsigned k = 0; k < dim; k++) {
           gradSolP_gss[k] += solP[i] * gradPhiP[i * dim + k];
         }
       }
-
+      
       adept::adouble div = 0;
       double divOld = 0;
       for(unsigned k = 0; k < dim; k++) {
@@ -460,6 +446,8 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
     //--------------------------------------------------------------------------------------------------------
     // Add the local Matrix/Vector into the global Matrix/Vector
 
+   
+    
     //copy the value of the adept::adoube aRes in double Res and store them in RES
     Res.resize(nDofsAll);    //resize
 
@@ -475,8 +463,7 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
 
     RES->add_vector_blocked(Res, sysDof);
 
-    //Extract and store the Jacobian
-
+    //Extract and store the Jacobian          
     Jac.resize(nDofsAll * nDofsAll);
     // define the dependent variables
 
@@ -497,7 +484,7 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
 
     s.clear_independents();
     s.clear_dependents();
-
+    
   } //end element loop for each process
 
   RES->close();
