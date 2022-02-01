@@ -8,7 +8,7 @@
 #include "Tetrahedron.hpp"
 #include "Prism.hpp"
 
-#include "GramSchmidt.hpp"
+// #include "GramSchmidt.hpp"
 
 #include "GaussPoints.hpp"
 
@@ -34,9 +34,9 @@ using namespace femus;
 
 
 template <class Type>
-class CutFEM_Integral {
+class CutFemIntegral {
   public:
-    CutFEM_Integral(const char* geom_elem, const unsigned &qM, const char* gauss_type) {
+    CutFemIntegral(const char* geom_elem, const unsigned &qM, const char* gauss_type) {
       if ( !strcmp(geom_elem, "hex") )         _GeomElemType = HEX;
       else if ( !strcmp(geom_elem, "tet") )    _GeomElemType = TET;
       else if ( !strcmp(geom_elem, "wedge") )  _GeomElemType = WEDGE;
@@ -47,11 +47,26 @@ class CutFEM_Integral {
         std::cout << " No " << geom_elem << " implemented" << std::endl;
         abort();
       }
-      const char* order_gauss = 2 * qM;
-      _gauss = new Gauss(geom_elem, order_gauss, gauss_type);
+
+
+      if ( _GeomElemType == HEX || _GeomElemType == _GeomElemType || _GeomElemType = TET) _dim = 3;
+      if ( _GeomElemType == QUAD || _GeomElemType == TRI ) _dim = 2;
+      if ( _GeomElemType == LINE) _dim = 1;
+
+      _orderGauss = 2 * qM;
+      _gauss = new Gauss(geom_elem, _orderGauss, gauss_type);
+
+      _gn = _gauss.GetGaussPointsNumber();
+      for(unsigned k = 0; k < _dim; k++) {
+        _xg[k] = _gauss.GetGaussCoordinatePointer(k);
+      }
+      
+      _L = 1;
+      for( unsigned idim = 0; idim < _dim; idim++) _L *= ( (qM + 1 + idim) / (idim + 1) );
+
     }
 
-    ~CutFEM_Integral() {
+    ~CutFemIntegral() {
       clear();
     };
 
@@ -65,31 +80,41 @@ class CutFEM_Integral {
 
   protected:
 //     void foComputation( std::vector< std::vector<Type> > &f, const unsigned &qM );
+    void polyBasis( std::vector<Type> &bo, const unsigned &qM, std::vector<Type> GaussCoords );
 
   private:
+    unsigned _dim;
     GeomElType _GeomElemType;
     const Gauss _gauss;
     std::vector<std::vector<Type>> _ATA;
+    unsigned _L;
+
+    const char* _orderGauss;
+    unsigned _gn;
+    std::vector<Type> _xg;
+    
 };
 
 std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
 
 template <class Type>
-Type CutFEM_Integral<Type>::operator()(const GeomElType &geom, const unsigned &qM, const char* gauss_type, const int &s, const std::vector <Type> &a, const Type & d) {
+Type CutFemIntegral<Type>::operator()(const GeomElType &geom, const unsigned &qM, const char* gauss_type, const int &s, const std::vector <Type> &a, const Type & d) {
 
-  std::vector< std::vector<Type> > f(1, std::vector<Type>((qM + 1) * (qM + 2) * (qM + 3) / 6));
 
-  const unsigned dim = 3; //TODO put here the function to have the space dim from geom_el
+  
+
+
+  std::vector< std::vector<Type> > f(1, std::vector<Type>(_L));
 //     TODO very bad programming here, put something more sofisticated.
   if ( geom == HEX || geom == QUAD || geom = LINE ) {
-    HCImap <Type, Type> obj(dim, qM, 0);
+    HCImap <Type, Type> obj(_dim, qM, 0);
 //       TODO is it possible to put HCImap, TTImap, ... as variables? In this way we can pass it to foComputation.
   }
   else if ( geom == TET ) {
-    TTImap <Type, Type> obj(dim, qM, 0);
+    TTImap <Type, Type> obj(_dim, qM, 0);
   }
   else if ( geom == TRI ) {
-    TRImap <Type, Type> obj(dim, qM, 0);
+    TRImap <Type, Type> obj(_dim, qM, 0);
   }
   else if( geom == WEDGE ) {
   }
@@ -98,60 +123,110 @@ Type CutFEM_Integral<Type>::operator()(const GeomElType &geom, const unsigned &q
     abort();
   }
 
-//   TODO this should be replaced with the function foComputation if possible
-  {
+  unsigned count = 0;
 
-    unsigned count = 0;
-
-    if(dim == 3) {
-      for(unsigned q = 0; q <= qM; q++) {
-        for(int ii = q; ii >= 0; ii--) {
-          for(int jj = q - ii; jj >= 0; jj--) {
-            unsigned i = static_cast<unsigned>(ii);
-            unsigned j = static_cast<unsigned>(jj);
-            unsigned k = q - i - j;
-            if( geom == WEDGE ) Prism<Type, Type>(s, {i, j, k}, a, d);
-            else f[0][count] = obj(s, {i, j, k}, a, d);
-            count++;
-          }
-        }
-      }
-
-    }
-    else if (dim == 2) {
-      for(unsigned q = 0; q <= qM; q++) {
-        for(unsigned j = 0; j <= q; j++) {
-          unsigned i = q - j;
-          f[0][count] = obj(s, {i, j}, a, d);
+  if(_dim == 3) {
+    for(unsigned q = 0; q <= qM; q++) {
+      for(int ii = q; ii >= 0; ii--) {
+        for(int jj = q - ii; jj >= 0; jj--) {
+          unsigned i = static_cast<unsigned>(ii);
+          unsigned j = static_cast<unsigned>(jj);
+          unsigned k = q - i - j;
+          if( geom == WEDGE ) Prism<Type, Type>(s, {i, j, k}, a, d);
+          else f[0][count] = obj(s, {i, j, k}, a, d);
           count++;
         }
       }
     }
-    else if (dim == 1) {
-        for(unsigned i = 0; i <= qM; i++) {
-      f[0][i] = obj(s, {i}, a, d);
-    }
-    }
-    else {
-      std::cout << " Dimension =" << dim << " not admissible" << std::endl;
-      abort();
+
+  }
+  else if (_dim == 2) {
+    for(unsigned q = 0; q <= qM; q++) {
+      for(unsigned j = 0; j <= q; j++) {
+        unsigned i = q - j;
+        f[0][count] = obj(s, {i, j}, a, d);
+        count++;
+      }
     }
   }
+  else if (_dim == 1) {
+    for(unsigned i = 0; i <= qM; i++) {
+      f[0][i] = obj(s, {i}, a, d);
+    }
+  }
+  else {
+    std::cout << " Dimension =" << _dim << " not admissible" << std::endl;
+    abort();
+  }
 
-  if(_ATA.dimension != (qM + 1) * (qM + 1)) {
+  if(_ATA.dimension != _L) { // TODO verify L
     Get_GS_ATA_Matrix(_GeomElemType, qM, _ATA, false);
   }
 
   std::vector< std::vector<Type> > Co = MatrixMatrixMultiply(f, _ATA);
 
+  std::vector<Type> bo;
+  std::vector<Type> GaussCoords; //TODO
+
+  polyBasis( bo, qM, _dim, GaussCoords );
+
+  std::vector <Type> weightCF;
+  weightCF.assign(_gn, 0);
+
+  for( unsigned ig = 0; ig < _gn; ig++) {
+    for( unsigned i = 0; i <= _L; i++ ) {
+      weightCF[ig] += Co[0][i] * bo[i]; //TODO
+    }
+  }
+
 
 };
 
+
+template <class Type>
+void CutFemIntegral<Type>::polyBasis( std::vector<Type> &bo, const unsigned &qM, std::vector<Type> GaussCoords ) {
+  unsigned count = 0;
+
+  if(_dim == 3) {
+    for(unsigned q = 0; q <= qM; q++) {
+      for(int ii = q; ii >= 0; ii--) {
+        for(int jj = q - ii; jj >= 0; jj--) {
+          unsigned i = static_cast<unsigned>(ii);
+          unsigned j = static_cast<unsigned>(jj);
+          unsigned k = q - i - j;
+          bo[count] = pow(GaussCoords[0], i) * pow(GaussCoords[1], j) * pow(GaussCoords[2], k); //TODO pay attention here, to verify
+          count++;
+        }
+      }
+    }
+
+  }
+  else if (_dim == 2) {
+    for(unsigned q = 0; q <= qM; q++) {
+      for(unsigned j = 0; j <= q; j++) {
+        unsigned i = q - j;
+        bo[count] = pow(GaussCoords[0], i) * pow(GaussCoords[1], j);
+        count++;
+      }
+    }
+  }
+  else if (_dim == 1) {
+    for(unsigned i = 0; i <= qM; i++) {
+      bo[i] = pow(GaussCoords[0], i);
+    }
+  }
+  else {
+    std::cout << " Dimension =" << _dim << " not admissible" << std::endl;
+    abort();
+  }
+
+}
+
 // template <class Type>
-// void CutFEM_Integral<Type>::foComputation( std::vector< std::vector<Type> > &f, const unsigned &qM ) {
-// 
+// void CutFemIntegral<Type>::foComputation( std::vector< std::vector<Type> > &f, const unsigned &qM ) {
+//
 //   unsigned count = 0;
-// 
+//
 //   for(unsigned q = 0; q <= qM; q++) {
 //     for(int ii = q; ii >= 0; ii--) {
 //       for(int jj = q - ii; jj >= 0; jj--) {

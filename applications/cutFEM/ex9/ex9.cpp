@@ -434,7 +434,8 @@ int main(int, char**) {
   
   {
     unsigned qM = 3;
-    TTImap <Type2, Type2> tet3(3, qM, 0);
+    cutFEMmap <Type2, Type2> *tet3p  = new TTImap <Type2, Type2> (3, qM, 0);
+//     TTImap <Type2, Type2> tet3(3, qM, 0);
     std::vector< std::vector<Type2> > f(1, std::vector<Type2>((qM + 1) * (qM + 2) * (qM + 3) / 6));
 
     std::cout << "tet" << std::endl;
@@ -447,7 +448,8 @@ int main(int, char**) {
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
-          f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
+//           f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
+          f[0][count] = (*tet3p)(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
 //           f[0][count] = tet3(0, {i, j, k}, {0.1, 1, -0.5}, 0.05);
           count++;
         }

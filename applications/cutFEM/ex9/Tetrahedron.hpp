@@ -2,9 +2,10 @@
 #define __femus_cut_fem_TET_hpp__
 
 #include "Triangle.hpp"
+#include "cutFem.hpp"
 
 template <class TypeIO, class TypeA>
-class TTImap : public TRImap <TypeA, TypeA> {
+class TTImap : public cutFEMmap<TypeIO, TypeA> , public TRImap <TypeA, TypeA> {
   public:
 
     TTImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : TRImap <TypeA, TypeA> (mMax + 1, sMax, mMax + 1) {
