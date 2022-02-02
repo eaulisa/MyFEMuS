@@ -3,8 +3,9 @@
 
 #include <iostream>
 #include <boost/math/special_functions/factorials.hpp>
-
 #include <map>
+#include "CutFem.hpp"
+
 
 using boost::math::factorial;
 
@@ -74,7 +75,7 @@ Type LimLimap<Type>::LimLi(const int &s, const Type &x) {
 /////////////////////////////////////////////////////////////////////////
 
 template <class Type>
-class LSImap : public LimLimap <Type> {
+class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
   protected:
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {

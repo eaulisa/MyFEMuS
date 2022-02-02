@@ -3,10 +3,10 @@
 #define __femus_cut_fem_HCI_hpp__
 
 #include "Line.hpp"
-#include "cutFem.hpp"
+#include "CutFem.hpp"
 
 template <class TypeIO, class TypeA>
-class HCImap : public cutFEMmap<TypeIO, TypeA>, public LSImap <TypeA> {
+class HCImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
   public:
     HCImap(const unsigned &dim, const unsigned &mMax, const unsigned &sMax = 0) : LSImap <TypeA> (mMax + dim - 1, sMax, mMax + dim - 1) {
 

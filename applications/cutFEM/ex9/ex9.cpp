@@ -434,7 +434,7 @@ int main(int, char**) {
   
   {
     unsigned qM = 3;
-    cutFEMmap <Type2, Type2> *tet3p  = new TTImap <Type2, Type2> (3, qM, 0);
+    CutFEMmap <Type2> *tet3p  = new TTImap <Type2, Type2> (3, qM, 0);
 //     TTImap <Type2, Type2> tet3(3, qM, 0);
     std::vector< std::vector<Type2> > f(1, std::vector<Type2>((qM + 1) * (qM + 2) * (qM + 3) / 6));
 
@@ -477,6 +477,8 @@ int main(int, char**) {
       std::cout << std::endl;
     }
     std::cout << std::endl;
+    
+    delete tet3p;
   }
 
   return 1;

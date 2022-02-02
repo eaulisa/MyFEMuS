@@ -6,7 +6,7 @@
 #include <string>
 namespace femus {
     
-  static const std::vector< std::string >  geom_elems = {"hex", "tet", "wedge", "quad", "tri", "line"};
+  static const std::vector< std::string >  geom_elems = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
   static const std::vector< std::string >  fe_fams    = {"linear", "quadratic", "biquadratic", "constant", "disc_linear"};
 
 }
@@ -16,7 +16,8 @@ enum  GeomElType { HEX=0,
 		   WEDGE, //2
 		   QUAD,  //3
 		   TRI,   //4
-		   LINE   //5
+		   LINE,  //5
+		   POINT  //6
   
                  };
 
