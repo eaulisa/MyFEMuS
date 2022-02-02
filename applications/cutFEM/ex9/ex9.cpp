@@ -13,7 +13,7 @@
 #include <iostream>
 #include <boost/multiprecision/cpp_bin_float.hpp>
 
-// #include "CutFemIntegration.hpp"
+#include "CutFemIntegration.hpp"
 
 
 namespace boost {

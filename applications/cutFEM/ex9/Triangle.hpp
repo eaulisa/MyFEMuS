@@ -3,10 +3,11 @@
 #define __femus_cut_fem_TRI_hpp__
 
 #include "Line.hpp"
+#include "cutFem.hpp"
 
 
 template <class TypeIO, class TypeA>
-class TRImap : public LSImap <TypeA> {
+class TRImap : public cutFEMmap<TypeIO, TypeA>, public LSImap <TypeA> {
   public:
 
     TRImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LSImap <TypeA> (mMax + 1, sMax, mMax + 1) {

@@ -1,3 +1,6 @@
+#ifndef __femus_cut_fem_int_hpp__
+#define __femus_cut_fem_int_hpp__
+
 #include "GeomElTypeEnum.hpp"
 
 #include "Line.hpp"
@@ -7,6 +10,8 @@
 #include "Triangle.hpp"
 #include "Tetrahedron.hpp"
 #include "Prism.hpp"
+
+#include "cutFem.hpp"
 
 // #include "GramSchmidt.hpp"
 
@@ -53,14 +58,30 @@ class CutFemIntegral {
       if ( _GeomElemType == QUAD || _GeomElemType == TRI ) _dim = 2;
       if ( _GeomElemType == LINE) _dim = 1;
 
+      if ( _GeomElemType == HEX || _GeomElemType == QUAD || _GeomElemType = LINE ) {
+        *_obj = new HCImap <Type, Type> (_dim, qM, 0);
+      }
+      else if ( _GeomElemType == TET ) {
+        *_obj = new TTImap <Type, Type> (_dim, qM, 0);
+      }
+      else if ( _GeomElemType == TRI ) {
+        *_obj = new TRImap <Type, Type> (_dim, qM, 0);
+      }
+      else if( _GeomElemType == WEDGE ) {
+      }
+      else {
+        std::cout << " No " << _GeomElemType << " implemented" << std::endl;
+        abort();
+      }
+
       _orderGauss = 2 * qM;
       _gauss = new Gauss(geom_elem, _orderGauss, gauss_type);
 
       _gn = _gauss.GetGaussPointsNumber();
       for(unsigned k = 0; k < _dim; k++) {
-        _xg[k] = _gauss.GetGaussCoordinatePointer(k);
+        _xgp[k] = _gauss.GetGaussCoordinatePointer(k);
       }
-      
+
       _L = 1;
       for( unsigned idim = 0; idim < _dim; idim++) _L *= ( (qM + 1 + idim) / (idim + 1) );
 
@@ -91,8 +112,10 @@ class CutFemIntegral {
 
     const char* _orderGauss;
     unsigned _gn;
-    std::vector<Type> _xg;
-    
+    double *_xgp;
+
+    cutFEMmap <Type, Type> *_obj;
+
 };
 
 std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
@@ -101,27 +124,10 @@ template <class Type>
 Type CutFemIntegral<Type>::operator()(const GeomElType &geom, const unsigned &qM, const char* gauss_type, const int &s, const std::vector <Type> &a, const Type & d) {
 
 
-  
+
 
 
   std::vector< std::vector<Type> > f(1, std::vector<Type>(_L));
-//     TODO very bad programming here, put something more sofisticated.
-  if ( geom == HEX || geom == QUAD || geom = LINE ) {
-    HCImap <Type, Type> obj(_dim, qM, 0);
-//       TODO is it possible to put HCImap, TTImap, ... as variables? In this way we can pass it to foComputation.
-  }
-  else if ( geom == TET ) {
-    TTImap <Type, Type> obj(_dim, qM, 0);
-  }
-  else if ( geom == TRI ) {
-    TRImap <Type, Type> obj(_dim, qM, 0);
-  }
-  else if( geom == WEDGE ) {
-  }
-  else {
-    std::cout << " No " << geom << " implemented" << std::endl;
-    abort();
-  }
 
   unsigned count = 0;
 
@@ -133,7 +139,7 @@ Type CutFemIntegral<Type>::operator()(const GeomElType &geom, const unsigned &qM
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
           if( geom == WEDGE ) Prism<Type, Type>(s, {i, j, k}, a, d);
-          else f[0][count] = obj(s, {i, j, k}, a, d);
+          else f[0][count] = (*_obj)(s, {i, j, k}, a, d);
           count++;
         }
       }
@@ -144,14 +150,14 @@ Type CutFemIntegral<Type>::operator()(const GeomElType &geom, const unsigned &qM
     for(unsigned q = 0; q <= qM; q++) {
       for(unsigned j = 0; j <= q; j++) {
         unsigned i = q - j;
-        f[0][count] = obj(s, {i, j}, a, d);
+        f[0][count] = (*_obj)(s, {i, j}, a, d);
         count++;
       }
     }
   }
   else if (_dim == 1) {
     for(unsigned i = 0; i <= qM; i++) {
-      f[0][i] = obj(s, {i}, a, d);
+      f[0][i] = (*_obj)(s, {i}, a, d);
     }
   }
   else {
@@ -166,14 +172,14 @@ Type CutFemIntegral<Type>::operator()(const GeomElType &geom, const unsigned &qM
   std::vector< std::vector<Type> > Co = MatrixMatrixMultiply(f, _ATA);
 
   std::vector<Type> bo;
-  std::vector<Type> GaussCoords; //TODO
-
-  polyBasis( bo, qM, _dim, GaussCoords );
+  std::vector<Type> GaussCoords(_dim); //TODO
 
   std::vector <Type> weightCF;
   weightCF.assign(_gn, 0);
 
   for( unsigned ig = 0; ig < _gn; ig++) {
+    for ( unsigned idim = 0; idim < _dim; idim++ ) GaussCoords[idim] = *(_xgp[idim] + ig);  //TODO verify if it is correct
+    polyBasis( bo, qM, _dim, GaussCoords );
     for( unsigned i = 0; i <= _L; i++ ) {
       weightCF[ig] += Co[0][i] * bo[i]; //TODO
     }
@@ -239,4 +245,7 @@ void CutFemIntegral<Type>::polyBasis( std::vector<Type> &bo, const unsigned &qM,
 //     }
 //   }
 // };
+
+
+#endif
 
