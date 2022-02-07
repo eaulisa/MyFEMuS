@@ -7,7 +7,7 @@
 #include "HyperCube.hpp"
 #include "Triangle.hpp"
 #include "Tetrahedron.hpp"
-#include "Prism.hpp" 
+#include "Prism.hpp"
 
 
 #include <iostream>
@@ -355,7 +355,7 @@ int main(int, char**) {
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
-          f[0][count] = hci3(-1, {i, j, k}, {0.1/sqrt(1.02), 0.1/sqrt(1.02), -1./sqrt(1.02)}, 0);
+          f[0][count] = hci3(-1, {i, j, k}, {0.1 / sqrt(1.02), 0.1 / sqrt(1.02), -1. / sqrt(1.02)}, 0);
 //           std::cout << count << " " << i << " " << j << " " << k << std::endl << std::flush;
           count++;
 
@@ -380,13 +380,13 @@ int main(int, char**) {
     std::cout << "Co = ";
     for(unsigned i = 0; i < Co.size(); i++) {
       for(unsigned j = 0; j < Co[i].size(); j++) {
-        std::cout << "C"<<j<<" = "<<((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
+        std::cout << "C" << j << " = " << ((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
       }
       std::cout << std::endl;
     }
     std::cout << std::endl;
   }
-  
+
   {
     unsigned qM = 3;
     HCImap <Type2, Type2> hci3(3, qM, 0);
@@ -402,7 +402,7 @@ int main(int, char**) {
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
-          f[0][count] = Prism<Type2, Type2>(-1, {i, j, k}, {-0.1/sqrt(1.02), 0.1/sqrt(1.02), 1./sqrt(1.02)}, 0);
+          f[0][count] = Prism<Type2, Type2>(-1, {i, j, k}, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0);
 //           std::cout << count << " " << i << " " << j << " " << k << std::endl << std::flush;
           count++;
         }
@@ -425,13 +425,13 @@ int main(int, char**) {
     std::cout << "Co = ";
     for(unsigned i = 0; i < Co.size(); i++) {
       for(unsigned j = 0; j < Co[i].size(); j++) {
-        std::cout << "C"<<j<<" = "<<((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
+        std::cout << "C" << j << " = " << ((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
       }
       std::cout << std::endl;
     }
     std::cout << std::endl;
   }
-  
+
   {
     unsigned qM = 3;
     CutFEMmap <Type2> *tet3p  = new TTImap <Type2, Type2> (3, qM, 0);
@@ -450,7 +450,7 @@ int main(int, char**) {
           unsigned k = q - i - j;
 //           f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
 //           f[0][count] = (*tet3p)(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
-          f[0][count] = (*tet3p)(0, {i, j, k}, {-1,-1,-2}, 1);
+          f[0][count] = (*tet3p)(0, {i, j, k}, {-1, -1, -2}, 1);
 //           f[0][count] = tet3(0, {i, j, k}, {0.1, 1, -0.5}, 0.05);
           count++;
         }
@@ -473,15 +473,37 @@ int main(int, char**) {
     std::cout << "Co = ";
     for(unsigned i = 0; i < Co.size(); i++) {
       for(unsigned j = 0; j < Co[i].size(); j++) {
-        std::cout << "C"<<j<<" = "<<((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
+        std::cout << "C" << j << " = " << ((fabs(Co[i][j]) < 1.0e-60) ? 0. : Co[i][j]) << "; ";
       }
       std::cout << std::endl;
     }
     std::cout << std::endl;
-    
+
     delete tet3p;
   }
 
+  {
+    unsigned qM = 3;
+    CutFemIntegral <Type2, Type2>line = CutFemIntegral<Type2, Type2>(LINE, qM, "legendre");
+    CutFemIntegral <Type2, Type2> quad = CutFemIntegral<Type2, Type2 >(QUAD, qM, "legendre");
+    CutFemIntegral <Type2, Type2> tri = CutFemIntegral<Type2, Type2 >(TRI, qM, "legendre");
+    CutFemIntegral <Type2, Type2> hex = CutFemIntegral<Type2, Type2 >(HEX, qM, "legendre");
+    CutFemIntegral <Type2, Type2> wedge = CutFemIntegral<Type2, Type2 >(WEDGE, qM, "legendre");
+    CutFemIntegral <Type2, Type2> tet = CutFemIntegral<Type2, Type2 >(TET, qM, "legendre");
+
+
+    std::vector <double> weightCF;
+    line(qM, 0, {-1.},  0,  weightCF);
+
+    const double* weight = line.GetGaussWeightPointer();
+    const double* x = line.GetGaussCoordinatePointer(0);
+
+    double sum = 0.;
+    for(unsigned ig = 0; ig < weightCF.size(); ig++) sum += pow(x[ig], 3) * weight[ig] * weightCF[ig];
+
+    std::cout << " sum = " << sum << std::endl;
+
+  }
   return 1;
 
 

@@ -1,4 +1,7 @@
 
+#ifndef __femus_GramSchmidt_hpp__
+#define __femus_GramSchmidt_hpp__
+
 #include <iostream>
 #include <iomanip>
 
@@ -470,9 +473,7 @@ void Get_GS_ATA_Matrix(const GeomElType &geom, const unsigned &d, std::vector<st
   return;
 }
 
-
-
-
+#endif
 
 
 

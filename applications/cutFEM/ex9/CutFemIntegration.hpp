@@ -13,7 +13,7 @@
 
 #include "CutFem.hpp"
 
-// #include "GramSchmidt.hpp"
+#include "GramSchmidt.hpp"
 
 #include "GaussPoints.hpp"
 
@@ -40,12 +40,12 @@ std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line
 template <class TypeIO, class TypeA>
 class CutFemIntegral {
   public:
-    CutFemIntegral(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType):
-      _geomElemType(geomElemType),
-      _qM(qM),
-      _gaussType(gaussType) {
+    CutFemIntegral(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) {
+      _geomElemType = geomElemType;
+      _qM = qM;
+      _gaussType = gaussType;
 
-      if(_geomElemType == HEX || _geomElemType == WEDGE || _geomElemType = TET) _dim = 3;
+      if(_geomElemType == HEX || _geomElemType == WEDGE || _geomElemType == TET) _dim = 3;
       if(_geomElemType == QUAD || _geomElemType == TRI) _dim = 2;
       if(_geomElemType == LINE) _dim = 1;
       this->build();
@@ -53,14 +53,14 @@ class CutFemIntegral {
 
     void build() {
       _gaussOrder = 2 * _qM;
-      if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType = LINE) {
-        *_obj = new HCImap <TypeIO, TypeA> (_dim, _qM, 0);
+      if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
+        _obj = new HCImap <TypeIO, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == TET) {
-        *_obj = new TTImap <TypeIO, TypeA> (_dim, _qM, 0);
+        _obj = new TTImap <TypeIO, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == TRI) {
-        *_obj = new TRImap <TypeIO, TypeA> (_dim, _qM, 0);
+        _obj = new TRImap <TypeIO, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == WEDGE) {
       }
@@ -71,10 +71,10 @@ class CutFemIntegral {
       _gaussOrder = 2 * _qM;
       _gauss = new Gauss(_geomElemType, _gaussOrder, _gaussType.c_str());
 
-      _gn = _gauss.GetGaussPointsNumber();
-      _xgp.resize(_dim);
+      _gn = _gauss->GetGaussPointsNumber();
+      //_xgp.resize(_dim);
       for(unsigned k = 0; k < _dim; k++) {
-        _xgp[k] = _gauss.GetGaussCoordinatePointer(k);
+        _xgp[k] = _gauss->GetGaussCoordinatePointer(k);
       }
 
       _L = 1;
@@ -96,15 +96,21 @@ class CutFemIntegral {
 
     void operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <double> &weightCF);
 
+    const double* GetGaussWeightPointer() {
+      return _gauss->GetGaussWeightsPointer();
+    };
+    const double* GetGaussCoordinatePointer(const unsigned &k) {
+      return _gauss->GetGaussCoordinatePointer(k);
+    };
+
 
   protected:
-//     void foComputation( std::vector< std::vector<Type> > &f, const unsigned &qM );
     void polyBasis(const unsigned &qM, const std::vector<double> &x, std::vector<double> &bo);
 
   private:
     unsigned _dim;
     GeomElType _geomElemType;
-    const Gauss _gauss;
+    Gauss *_gauss;
     std::vector<std::vector<TypeA>> _ATA;
     unsigned _L;
 
@@ -112,11 +118,13 @@ class CutFemIntegral {
     std::string _gaussType;
     unsigned _gaussOrder;
     unsigned _gn;
-    std::vector<double*> _xgp;
+    const double * _xgp[3];
 
     CutFEMmap <TypeA> *_obj;
 
 };
+
+
 
 
 
@@ -130,7 +138,9 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
     build();
   }
 
-  std::vector< std::vector<TypeIO> > f(1, std::vector<TypeIO>(_L));
+  //std::vector< std::vector<TypeIO> > f(1, std::vector<TypeIO>(_L));
+  std::vector< std::vector<TypeA> > f(1, std::vector<TypeA>(_L));
+
 
   unsigned count = 0;
 
@@ -170,23 +180,20 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
   std::vector< std::vector<TypeA> > Co = MatrixMatrixMultiply(f, _ATA);
 
 
-  std::vector<double> bo;
+  std::vector<double> bo(_L);
   std::vector<double> x(_dim); //TODO
 
   unsigned TEType = 2;
   if(_geomElemType == TET) {
-    TypeIO m1 = std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]));
-    TypeIO m2 = std::max(fabs(a[2] + a[1]), fabs(a[0] - a[2]));
-    TypeIO m3 = std::max(fabs(a[0] + a[2]), fabs(a[1] - a[0]));
-
-    if(m1 > m2 && m1 > m3) TEType = 0;
-    else if(m2 > m3) TEType = 1;
+    TEType = (std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 0 : 1;
   }
 
 
 
   weightCF.assign(_gn, 0);
   for(unsigned ig = 0; ig < _gn; ig++) {
+
+
 
     if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
       for(unsigned k = 0; k < _dim; k++)  x[k] = 0.5 * (1. + _xgp[k][ig]);
@@ -206,23 +213,21 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
         x[1] = _xgp[1][ig] + _xgp[2][ig];
         x[2] = _xgp[2][ig];
       }
-      else if(TEType == 1) {
+      else {
         x[1] = _xgp[2][ig] + _xgp[0][ig];
         x[2] = _xgp[0][ig];
       }
-      else {
-        x[1] = _xgp[0][ig] + _xgp[1][ig];
-        x[2] = _xgp[1][ig];
-      }
     }
 
-    polyBasis(bo, _qM, _dim, x);
-    for(unsigned i = 0; i <= _L; i++) {
-      weightCF[ig] += Co[0][i] * bo[i];
+
+    polyBasis(_qM, x, bo);
+
+    TypeA weight(0);
+    for(unsigned i = 0; i < _L; i++) {
+      weight += Co[0][i] * bo[i];
     }
+    weightCF[ig] = static_cast<double>(weight);
   }
-
-
 };
 
 
@@ -264,13 +269,11 @@ void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned &qM, const std::vec
             }
           }
 
-
-          bo[count] = pow(x[0], i) * pow(x[1], j) * pow(x[2], k); //TO BE OPTIMIZED
+          //bo[count] = pow(x[0], i) * pow(x[1], j) * pow(x[2], k); //TO BE OPTIMIZED
           count++;
         }
       }
     }
-
   }
   else if(_dim == 2) {
     std::vector<std::vector<double>> bOld(qM, std::vector<double>(qM));
