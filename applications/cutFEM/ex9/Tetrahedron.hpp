@@ -80,29 +80,29 @@ class TTImap : public TRImap <TypeA, TypeA> {
 template <class TypeIO, class TypeA>
 TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO & d) {
 
-  TypeIO m1 = std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]));
-  TypeIO m2 = std::max(fabs(a[2] + a[1]), fabs(a[0] - a[2]));
-  TypeIO m3 = std::max(fabs(a[0] + a[2]), fabs(a[1] - a[0]));
+  TypeIO m1 = std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]));
+  TypeIO m2 = std::max(fabs(a[2] - a[1]), fabs(a[0] - a[2]));
+  TypeIO m3 = std::max(fabs(a[0] - a[2]), fabs(a[1] - a[0]));
 
   if(m1 > m2 && m1 > m3) {
     std::cout<<"case x ";
     return static_cast<TypeIO>(
     this->ttia(s, {m[0], m[1], m[2]},
-    {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] + a[0]), static_cast<TypeA>(a[2] - a[1])},
+    {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] - a[0]), static_cast<TypeA>(a[2] - a[1])},
     static_cast<TypeA>(d)));
   }
   else if(m2 > m3) {
     std::cout<<"case y ";
     return static_cast<TypeIO>(
     this->ttia(s, {m[1], m[2], m[0]},
-    {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] + a[1]), static_cast<TypeA>(a[0] - a[2])},
+    {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] - a[1]), static_cast<TypeA>(a[0] - a[2])},
     static_cast<TypeA>(d)));
   }
   else {
     std::cout<<"case z "; 
     return static_cast<TypeIO>(
     this->ttia(s, {m[2], m[0], m[1]},
-    {static_cast<TypeA>(a[2]), static_cast<TypeA>(a[0] + a[2]), static_cast<TypeA>(a[1] - a[0])},
+    {static_cast<TypeA>(a[2]), static_cast<TypeA>(a[0] - a[2]), static_cast<TypeA>(a[1] - a[0])},
     static_cast<TypeA>(d)));
   }
 }

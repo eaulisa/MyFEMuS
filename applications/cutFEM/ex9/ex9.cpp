@@ -449,7 +449,8 @@ int main(int, char**) {
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
 //           f[0][count] = tet3(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
-          f[0][count] = (*tet3p)(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
+//           f[0][count] = (*tet3p)(-1, {i, j, k}, {0/sqrt(5), 2/sqrt(5), -1/sqrt(5)}, 0);
+          f[0][count] = (*tet3p)(0, {i, j, k}, {-1,-1,-2}, 1);
 //           f[0][count] = tet3(0, {i, j, k}, {0.1, 1, -0.5}, 0.05);
           count++;
         }
