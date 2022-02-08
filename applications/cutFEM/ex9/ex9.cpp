@@ -491,7 +491,8 @@ int main(int, char**) {
     CutFemIntegral <Type2, Type2> wedge = CutFemIntegral<Type2, Type2 >(WEDGE, qM, "legendre");
     CutFemIntegral <Type2, Type2> tet = CutFemIntegral<Type2, Type2 >(TET, qM, "legendre");
 
-
+//    Line test
+    
     std::vector <double> weightCF;
     line(qM, 0, {-1.},  0,  weightCF);
 
@@ -501,7 +502,53 @@ int main(int, char**) {
     double sum = 0.;
     for(unsigned ig = 0; ig < weightCF.size(); ig++) sum += pow(x[ig], 3) * weight[ig] * weightCF[ig];
 
-    std::cout << " sum = " << sum << std::endl;
+    std::cout << " sum line test = " << sum << std::endl;
+    
+//     Quad test
+    std::vector <double> weightCFQuad;
+    quad(qM, -1, {1./sqrt(2), 1./sqrt(2)}, 0.,  weightCFQuad);
+
+    const double* weightQ = quad.GetGaussWeightPointer();
+    const double* xQ = quad.GetGaussCoordinatePointer(0);
+    const double* yQ = quad.GetGaussCoordinatePointer(1);
+
+    sum = 0.;
+    for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
+        sum += pow(xQ[ig], 0) * pow(yQ[ig], 0) * weightQ[ig] * weightCFQuad[ig];
+    }
+
+    std::cout << " sum quad test = " << sum << std::endl;
+    
+    //     Triangle test
+    std::vector <double> weightCFTri;
+    tri(qM, 0, {1., -1.}, 0.,  weightCFTri);
+
+    const double* weightT = tri.GetGaussWeightPointer();
+    const double* xT = tri.GetGaussCoordinatePointer(0);
+    const double* yT = tri.GetGaussCoordinatePointer(1);
+
+    sum = 0.;
+    for(unsigned ig = 0; ig < weightCFTri.size(); ig++) {
+        sum += pow(xT[ig], 1) * pow(yT[ig], 0) * weightT[ig] * weightCFTri[ig];
+    }
+    std::cout << " sum tri test = " << sum << std::endl;
+    
+    //     Hexahedron test
+    std::vector <double> weightCFHex;
+    hex(qM, 0, {0., -1., 2.}, 1.,  weightCFHex);
+
+    const double* weightH = hex.GetGaussWeightPointer();
+    const double* xH = hex.GetGaussCoordinatePointer(0);
+    const double* yH = hex.GetGaussCoordinatePointer(1);
+    const double* zH = hex.GetGaussCoordinatePointer(2);
+
+    sum = 0.;
+    for(unsigned ig = 0; ig < weightCFHex.size(); ig++) {
+        sum += pow(xH[ig], 0) * pow(yH[ig], 2) * pow(zH[ig], 0) * weightH[ig] * weightCFHex[ig];
+    }
+    std::cout << " sum hex test = " << sum << std::endl;
+    
+    
 
   }
   return 1;

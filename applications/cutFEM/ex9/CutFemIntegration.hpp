@@ -179,7 +179,6 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
 
   std::vector< std::vector<TypeA> > Co = MatrixMatrixMultiply(f, _ATA);
 
-
   std::vector<double> bo(_L);
   std::vector<double> x(_dim); //TODO
 
@@ -232,16 +231,16 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
 
 
 template <class TypeIO, class TypeA>
-void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned &qM, const std::vector<double> &x, std::vector<double> &bo) {
+void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vector<double> &x, std::vector<double> &bo) {
   unsigned count = 0;
 
   if(_dim == 3) {
 
-    std::vector<std::vector<std::vector<double>>> bOld(qM);
-    std::vector<std::vector<std::vector<double>>> bNew(qM);
+    std::vector<std::vector<std::vector<double>>> bOld(qM+1);
+    std::vector<std::vector<std::vector<double>>> bNew(qM+1);
     for(unsigned q = 0; q <= qM; q++) {
-      bOld[q].assign(qM, std::vector<double>(qM));
-      bNew[q].assign(qM, std::vector<double>(qM));
+      bOld[q].assign(qM+1, std::vector<double>(qM+1));
+      bNew[q].assign(qM+1, std::vector<double>(qM+1));
     }
 
     bo[0] = bNew[0][0][0] = 1.;
@@ -249,6 +248,7 @@ void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned &qM, const std::vec
       bOld.swap(bNew);
       for(int ii = q; ii >= 0; ii--) {
         for(int jj = q - ii; jj >= 0; jj--) {
+          count++;
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
@@ -270,22 +270,22 @@ void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned &qM, const std::vec
           }
 
           //bo[count] = pow(x[0], i) * pow(x[1], j) * pow(x[2], k); //TO BE OPTIMIZED
-          count++;
         }
       }
     }
   }
   else if(_dim == 2) {
-    std::vector<std::vector<double>> bOld(qM, std::vector<double>(qM));
-    std::vector<std::vector<double>> bNew(qM, std::vector<double>(qM));
+    std::vector<std::vector<double>> bOld(qM + 1, std::vector<double>(qM + 1));
+    std::vector<std::vector<double>> bNew(qM + 1, std::vector<double>(qM + 1));
     bo[0] = bNew[0][0] = 1.;
     for(unsigned q = 1; q <= qM; q++) {
       bOld.swap(bNew);
       for(unsigned j = 0; j <= q; j++) {
+        count++;
         unsigned i = q - j;
         if(i > j) bo[count] = bNew[i][j] = bOld[i - 1][j] * x[0];
         else bo[count] = bNew[i][j] = bOld[i][j - 1] * x[1];
-        count++;
+
       }
     }
   }
