@@ -389,7 +389,7 @@ int main(int, char**) {
 
   {
     unsigned qM = 3;
-    HCImap <Type2, Type2> hci3(3, qM, 0);
+//     HCImap <Type2, Type2> hci3(3, qM, 0);
     std::vector< std::vector<Type2> > f(1, std::vector<Type2>((qM + 1) * (qM + 2) * (qM + 3) / 6));
 
     std::cout << "pri" << std::endl;
@@ -402,7 +402,7 @@ int main(int, char**) {
           unsigned i = static_cast<unsigned>(ii);
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
-          f[0][count] = Prism<Type2, Type2>(-1, {i, j, k}, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0);
+          f[0][count] = Prism<Type2, Type2>(0, {i, j, k}, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0);
 //           std::cout << count << " " << i << " " << j << " " << k << std::endl << std::flush;
           count++;
         }
@@ -535,7 +535,7 @@ int main(int, char**) {
     
     //     Hexahedron test
     std::vector <double> weightCFHex;
-    hex(qM, 0, {0., -1., 2.}, 1.,  weightCFHex);
+    hex(qM, 0, {-0.1, -0.1, +1.}, 0.05,  weightCFHex);
 
     const double* weightH = hex.GetGaussWeightPointer();
     const double* xH = hex.GetGaussCoordinatePointer(0);
@@ -544,9 +544,42 @@ int main(int, char**) {
 
     sum = 0.;
     for(unsigned ig = 0; ig < weightCFHex.size(); ig++) {
-        sum += pow(xH[ig], 0) * pow(yH[ig], 2) * pow(zH[ig], 0) * weightH[ig] * weightCFHex[ig];
+        sum += pow(xH[ig], 0) * pow(yH[ig], 1) * pow(zH[ig], 2) * weightH[ig] * weightCFHex[ig];
     }
     std::cout << " sum hex test = " << sum << std::endl;
+    
+    //     Wedge test
+    std::vector <double> weightCFWed;
+    wedge(qM, -1, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0.,  weightCFWed);
+
+    const double* weightW = wedge.GetGaussWeightPointer();
+    const double* xW = wedge.GetGaussCoordinatePointer(0);
+    const double* yW = wedge.GetGaussCoordinatePointer(1);
+    const double* zW = wedge.GetGaussCoordinatePointer(2);
+
+    sum = 0.;
+    for(unsigned ig = 0; ig < weightCFWed.size(); ig++) {
+        sum += pow(xW[ig], 0) * pow(yW[ig], 0) * pow(zW[ig], 2) * weightW[ig] * weightCFWed[ig];
+    }
+    std::cout << " sum wedge test = " << sum << std::endl;
+    
+    //     Tet test
+    std::vector <double> weightCFTet;
+    tet(qM, 0, {-1, -1, -1}, +0.5,  weightCFTet);
+
+    const double* weightTet = tet.GetGaussWeightPointer();
+    const double* xTet = tet.GetGaussCoordinatePointer(0);
+    const double* yTet = tet.GetGaussCoordinatePointer(1);
+    const double* zTet = tet.GetGaussCoordinatePointer(2);
+
+    sum = 0.;
+    int m = 1;
+    int n = 0;
+    int o = 2;
+    for(unsigned ig = 0; ig < weightCFTet.size(); ig++) {
+        sum += pow(xTet[ig], m) * pow(yTet[ig], n) * pow(zTet[ig], o) * weightTet[ig] * weightCFTet[ig];
+    }
+    std::cout << " sum tet test = " << sum << std::endl;
     
     
 
