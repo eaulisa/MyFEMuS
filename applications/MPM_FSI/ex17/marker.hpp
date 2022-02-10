@@ -92,6 +92,18 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
   if(dim == 3) mlSol.AddSolution("DZy", LAGRANGE, femOrder, 0, false);
   if(dim == 3) mlSol.AddSolution("DZz", LAGRANGE, femOrder, 0, false);
 
+  mlSol.AddSolution("F11", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("F12", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("F13", LAGRANGE, femOrder, 0, false);
+
+  mlSol.AddSolution("F21", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("F22", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("F23", LAGRANGE, femOrder, 0, false);
+
+  if(dim == 3) mlSol.AddSolution("F31", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("F32", LAGRANGE, femOrder, 0, false);
+  if(dim == 3) mlSol.AddSolution("F33", LAGRANGE, femOrder, 0, false);
+
   mlSol.AddSolution("mtype", LAGRANGE, femOrder, 0, false);
 
   mlSol.AddSolution("NX", LAGRANGE, femOrder, 0, false);
@@ -110,7 +122,7 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
 
   mlSol.Initialize("All");
   //mlSol.Initialize("DX", InitVariableDX);
-  mlSol.Initialize("VY", InitVariableVY);
+  //mlSol.Initialize("VY", InitVariableVY);
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
@@ -159,19 +171,21 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
       }
     }
 
-    for(unsigned i = 0; i < nDofs; i++) {
-      double d2max = (*sol->_Sol[d2maxIdx])(idof[i]);
-      for(unsigned j = 0; j < nDofs; j++) {
-        double d2maxj = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          d2maxj += (vx[k][i] - vx[k][j]) * (vx[k][i] - vx[k][j]);
+    if(ielMat == 4) {
+      for(unsigned i = 0; i < nDofs; i++) {
+        double d2max = (*sol->_Sol[d2maxIdx])(idof[i]);
+        for(unsigned j = 0; j < nDofs; j++) {
+          double d2maxj = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            d2maxj += (vx[k][i] - vx[k][j]) * (vx[k][i] - vx[k][j]);
+          }
+          if(d2maxj > d2max) {
+            d2max = d2maxj;
+            sol->_Sol[d2maxIdx]->set(idof[i], d2max);
+          }
         }
-        if(d2maxj > d2max) {
-          d2max = d2maxj;
-          sol->_Sol[d2maxIdx]->set(idof[i], d2max);
-        }
+        sol->_Sol[mtypeIdx]->set(idof[i], 2);
       }
-      if(ielMat == 4) sol->_Sol[mtypeIdx]->set(idof[i], 2);
     }
   }
   sol->_Sol[d2maxIdx]->closeWithMaxValue();
@@ -194,6 +208,25 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
     }
   }
   sol->_Sol[mtypeIdx]->close();
+
+  const char Fname[3][3][4] = {{"F11", "F12", "F13"}, {"F21", "F22", "F23"}, {"F31", "F32", "F33"}};
+  std::vector < std::vector < unsigned > > FIdx(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    FIdx[k].resize(dim);
+    for(unsigned j = 0; j < dim; j++) {
+      FIdx[k][j] = mlSol.GetIndex(&Fname[k][j][0]);
+    }
+  }
+  for(unsigned k = 0; k < dim; k++) {
+    for(unsigned j = 0; j < dim; j++) {
+      (*sol->_Sol[FIdx[k][j]]) = (j == k) ?  1. : 0.;
+    }
+  }
+  for(unsigned k = 0; k < dim; k++) {
+    for(unsigned j = 0; j < dim; j++) {
+      sol->_Sol[FIdx[k][j]]->close();
+    }
+  }
 }
 
 void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
@@ -212,6 +245,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
   std::vector < double > phi;
   std::vector < double > gradPhi;
   std::vector <std::vector < double> > vx(dim);
+  std::vector <std::vector < double> > vxD(dim);
   std::vector <std::vector < double> > solD(dim);
 
   std::vector < unsigned> idof;
@@ -253,8 +287,9 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
     for(unsigned  k = 0; k < dim; k++) {
-      vx[k].resize(nDofs);
       solD[k].resize(nDofs);
+      vx[k].resize(nDofs);
+      vxD[k].resize(nDofs);
     }
     idof.resize(nDofs);
     d2max.resize(nDofs);
@@ -267,16 +302,14 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       for(unsigned  k = 0; k < dim; k++) {
         solD[k][i] = (*sol->_Sol[DIdx[k]])(idof[i]);
         vx[k][i] = (*msh->_topology->_Sol[k])(idof[i]);
+        vxD[k][i] = vx[k][i] + solD[k][i];
       }
     }
 
-    double ielArea = 0.;
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
       double jac;
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
-      ielArea += jac;
-
-
+    
       std::vector< std::vector< double > > gradSolDg(dim);
       std::vector< double > xg(dim, 0.);
       for(unsigned  k = 0; k < dim; k++) { //solution
@@ -290,22 +323,27 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
       }
       for(unsigned i = 0; i < nDofs; i++) { //node
 
-        if(ielMat == 4 || mtype[i] == 0) {
+        if(ielMat == 4) { // || mtype[i] == 0) {
           double d2 = 0.;
           for(unsigned  k = 0; k < dim; k++) { //solution
             d2 += (vx[k][i] - xg[k]) * (vx[k][i] - xg[k]);
           }
+          if(d2max[i] < d2) std::cout << "e";
 
-          sol->_Sol[kernelIdx]->add(idof[i], jac * (d2max[i] - d2) * (d2max[i] - d2));
+          sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 2));
           for(unsigned  k = 0; k < dim; k++) {
             for(unsigned j = 0; j < dim; j++) {
-              sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * (d2max[i] - d2) * (d2max[i] - d2));
+              sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 2));
             }
           }
         }
       }
-
-
+    }
+    double ielArea = 0.;
+    for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
+      double jac;
+      msh->_finiteElement[ielt][solType]->Jacobian(vxD, ig, jac, phi, gradPhi);
+      ielArea += jac;
     }
     for(unsigned i = 0; i < nDofs; i++) {
       sol->_Sol[weightIdx]->add(idof[i], ielArea * WEIGHT[ielt][i]);
@@ -321,7 +359,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
 
   for(unsigned i = msh->_dofOffset[solType][iproc]; i < msh->_dofOffset[solType][iproc + 1]; i++) {
     double kernel = (*sol->_Sol[kernelIdx])(i);
-    if(kernel > 0) {
+    if(kernel != 0) {
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned j = 0; j < dim; j++) {
           double value = (*sol->_Sol[gradDIdx[k][j]])(i);
@@ -436,7 +474,6 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
     }
   }
   sol->_Sol[areaIdx]->close();
-  sol->_Sol[kernelIdx]->close();
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[NIdx[k]]->close();
   }
@@ -531,5 +568,9 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
   }
 
 }
+
+
+
+
 
 

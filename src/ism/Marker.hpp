@@ -54,7 +54,7 @@ namespace femus {
 
         _MPMSize = 3 * _dim + 3 + (_markerType == INTERFACE) * (_dim - 1) * _dim ; //added distance
         if(elem == UINT_MAX) { //parallel search
-          GetElement(1, UINT_MAX, sol, s1);
+          GetElement(true, UINT_MAX, sol, s1);
         }
         else { //try first a serial search starting from elem
 

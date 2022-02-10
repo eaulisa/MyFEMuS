@@ -13,18 +13,11 @@
 
 #include "PetscMatrix.hpp"
 
-bool weakP = true;
-double theta = 1.;
-double af = 1. - theta;
-double am = af;
-double Beta = 0.25 + 0.5 * (af - am);
-double Gamma = 0.5 + (af - am);
-bool NeoHookean = true;
-double gravity[3] ={0., 0., 0.};
-double GAMMA = 45.;
-
+#include "./include/parameter.hpp"
 
 using namespace femus;
+
+parameter *par;
 
 #include "marker.hpp"
 #include "projection.hpp"
@@ -32,33 +25,117 @@ Projection *projection;
 
 #include "background.hpp"
 
+
+double TimeStepBeam(const double time);
+bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t);
+
+double TimeStepTurek3(const double time);
+bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+double TimeStepTurek1(const double time);
+bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+double TimeStepTurek2(const double time);
+bool BoundaryConditionTurek2(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+double TimeStepTurek0(const double time);
+bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+
+parameter beam = parameter(false, .3, {0., 0., 0.},
+                           45., 0.05, 0.05, 0.05,
+                           true, 7850., 1000., 0.3, 2.e05, 1.0e-03,
+                           "../input/beam.neu", 1.e5, 1, 2,
+                           "../input/fsi_bnc_2D.neu", 10000., 5,
+                           BoundaryConditionBeam, TimeStepBeam);
+
+
+// parameter turek1 = parameter(false, 0.8, {0., 0., 0.},
+//                              45., 0.05, 0.05, 0.05,
+//                              false, 1000., 1000., 0.4, 1400000., 1.,
+//                              "../input/turekBeam2D.neu", 1., 3, 2,
+//                              "../input/turek2D.neu", 1., 1,
+//                              BoundaryConditionTurek1, TimeStepTurek1);
+
+parameter turek1 = parameter(true, 0.3, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 1000., 1000., 0.4, 1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 4, 1,
+                             "../input/turek2DNew.neu", 1., -1,  // 5-2 >= 3
+                             BoundaryConditionTurek1, TimeStepTurek1);
+
+parameter turek2 = parameter(true, .3, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 10000., 1000., 0.4, 1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 6, 0,
+                             "../input/turek2DNew.neu", 1., -2,
+                             BoundaryConditionTurek2, TimeStepTurek2);
+
+
+parameter turek3 = parameter(true, .3, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 1000., 1000., 0.4, 4 * 1400000., 1.,
+                             "../input/turekBeam2DFine.neu", 1., 6, 0,
+                             "../input/turek2DNew.neu", 1., -2,
+                             BoundaryConditionTurek3, TimeStepTurek3);
+
+
+
+parameter turek0 = parameter(false, .3, {0., 0., 0.},
+                             45., 0.05, 0.05, 0.05,
+                             false, 1000., 1000., 0.4, 4 * 14000., 1.,
+                             "../input/turekBeam2DMarker.neu", 1., 3, 0,
+                             "../input/turekBeam2DEnvelopeNew.neu", 1., -2,
+                             BoundaryConditionTurek0, TimeStepTurek0);
+
+
+
+
+//     parameter(bool weakP, double theta, std::vector < double > gravity,
+//               double GAMMA, double gammacF, double gammacS, double gammap,
+//               bool NeoHookean, double rhos, double rhof, double nu, double E, double muf,
+//               std::string mMesh, double mScale, unsigned mUniform, unsigned mAdaptive,
+//               std::string bMesh, double bScale, unsigned deltaUniform,
+//               BoundaryFunc bdcFunction, TimeFunc timeFunction)
+
+
+
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+
 int main(int argc, char** args) {
+
+  //par = &turek1;
+    par = &turek2;
+  //par = &turek3;
+  //par = &beam;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMshM;
-  mlMshM.ReadCoarseMesh("../input/benchmarkFSISolid.neu", "fifth", 1);
-  mlMshM.RefineMesh(3, 3, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
+  mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
+  mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
-  unsigned numberOfRefinementM = 3;
-  for(unsigned i = 0; i < numberOfRefinementM; i++) {
-    FlagElements(mlMshM, 2);
+  for(unsigned i = 0; i < par->_mAdaptive; i++) {
+    FlagElements(mlMshM, 0);
     mlMshM.AddAMRMeshLevel();
   }
-  mlMshM.EraseCoarseLevels(numberOfRefinementM);
+  mlMshM.EraseCoarseLevels(par->_mUniform + par->_mAdaptive - 1u);
 
   MultiLevelSolution mlSolM(&mlMshM);
   InitializeMarkerVariables(mlSolM);
 
   UpdateMeshQuantities(&mlSolM);
-  
-  unsigned numberOfRefinementB = numberOfRefinementM;
+
+  unsigned numberOfRefinementB = par->_mUniform;
   MultiLevelMesh mlMshB;
-  //mlMshB.ReadCoarseMesh("../input/benchmarkFSI.neu", "fifth", 1);
-  mlMshB.ReadCoarseMesh("../input/turek2D.neu", "fifth", 1); // FSI_mesh2
-  mlMshB.RefineMesh(numberOfRefinementB, numberOfRefinementB, NULL);
-  mlMshB.EraseCoarseLevels(numberOfRefinementB - 1u);
+
+  mlMshB.ReadCoarseMesh(par->_bMesh.c_str(), "fifth", par->_bScale);
+  mlMshB.RefineMesh(par->_bUniform, par->_bUniform, NULL);
+  mlMshB.EraseCoarseLevels(par->_bUniform - 1u);
 
   MultiLevelSolution mlSolB(&mlMshB);
   InitializeBackgroundVariables(mlSolB);
@@ -74,20 +151,13 @@ int main(int argc, char** args) {
   if(dim > 2) mlSolB.GenerateBdc("VZ", "Steady");
   mlSolB.GenerateBdc("P", "Steady");
 
-
   double Lref = 1.;
   double Uref = 1.;
-  double rhof = 1000.;
-  double muf = 1.;
-  double rhos = 1000.;
-  double nu = 0.4;
-  double E = 1400000; //FSI1
-  //double E = 4 * 1400000; //FSI3
-  
-  Parameter par(Lref, Uref);
+
+  Parameter physics(Lref, Uref);
   // Generate Solid Object
-  Solid solid(par, E, nu, rhos, "Neo-Hookean");
-  Fluid fluid(par, muf, rhof, "Newtonian");
+  Solid solid(physics, par->_E, par->_nu, par->_rhos, "Neo-Hookean");
+  Fluid fluid(physics, par->_muf, par->_rhof, "Newtonian");
   MultiLevelProblem ml_prob(&mlSolB);
   ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
   ml_prob.parameters.set<Fluid> ("FluidFEM") = fluid;
@@ -102,7 +172,7 @@ int main(int argc, char** args) {
   if(dim > 2) system.AddSolutionToSystemPDE("VZ");
   system.AddSolutionToSystemPDE("P");
 
-  system.SetSparsityPatternMinimumSize(1000);
+  system.SetSparsityPatternMinimumSize(250);
 
   // ******* System MPM-FSI Assembly *******
   system.SetAssembleFunction(AssembleMPMSys);
@@ -124,12 +194,12 @@ int main(int argc, char** args) {
   system.SetPreconditionerFineGrids(ILU_PRECOND);
   system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
-  system.AttachGetTimeIntervalFunction(SetVariableTimeStepB);
+  system.AttachGetTimeIntervalFunction(par->_timeFunction);
 
   //******* Print solution *******
   mlSolM.SetWriter(VTK);
   mlSolB.SetWriter(VTK);
-  
+
   std::vector<std::string> mov_vars;
   mov_vars.push_back("DX");
   mov_vars.push_back("DY");
@@ -142,54 +212,98 @@ int main(int argc, char** args) {
   print_vars.push_back("All");
 
   mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
-  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
+  mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
 
   projection = new Projection(&mlSolM, &mlSolB);
-  
-  
-  
-  for(unsigned t = 1; t <= 20; t++) {
-    projection->SetNewmarkParameters(Beta, Gamma, 1.);  
-    clock_t time = clock();
-    //projection.FromMarkerToBackground();
 
+
+
+  for(unsigned t = 1; t <= 20000; t++) {
+
+    system.CopySolutionToOldSolution();
+
+
+    clock_t time = clock();
+    projection->FromMarkerToBackground();
+    std::cout << "forward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    time = clock();
     system.MGsolve();
-    
-    //projection.FromBackgroundToMarker();
-    std::cout << "time" << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+    projection->SetNewmarkParameters(par->_beta, par->_gamma, system.GetIntervalTime());
+    std::cout << "solve time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
+
+    mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
+
+    time = clock();
+    projection->FromBackgroundToMarker();
+    std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
-    mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
+
   }
 
-  
+
   delete projection;
   return 0;
 
 } //end main
 
-double SetVariableTimeStepB(const double time) {
-  double dt; 
-  double dt0 = 0.1;
-  double dt1 = 0.1; //FSI3
-  //double dt1 = 0.15;  // Steady state-FSI1
 
-  double T = 6.;
-  if(time < T)
-    dt = (0.5 * (1. + cos(M_PI * time / T))) * dt0    + (0.5 * (1. - cos(M_PI * time / T))) * dt1;
-    //dt = dt0; // steady state-FSI1
-  else
-    dt = dt1;
+bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
+  bool test = 1; //dirichlet
+  value = 0.;
 
+  double H = 1.e-4; //channel length
+  double U = 0.05;
+  double t2 = t * t;
+
+  if(!strcmp(name, "DX")) {
+    if(3 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "DY")) {
+    if(2 == facename || 4 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "VX")) {
+    if(2 == facename) {
+      test = 0;
+      value = 0;
+    }
+    else if(4 == facename) {
+      value = (U * t2 / sqrt(pow((0.04 - t2), 2.) + pow((0.1 * t), 2.))) * 4. * (H - x[1]) * x[1] / (H * H);
+    }
+  }
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "P")) {
+    //  if(par->_weakP || 2 != facename) {
+    test = 0;
+    //}
+    value = 0;
+  }
+
+  return test;
+
+}
+
+double TimeStepBeam(const double time) {
+  double dt =  0.005;
   return dt;
 }
 
 
-bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+bool BoundaryConditionTurek1(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
   bool test = 1;      //dirichlet
   value = 0.;
 
   const double Ubar = 0.2;    // FSI1
-  //const double Ubar = 2;    // FSI3
   const double L = 0.41;
   const double H = 2.5;
 
@@ -231,9 +345,245 @@ bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], do
   }
 
   else if(!strcmp(name, "P")) {
-    //if(weakP || 2 != facename) {
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
+    // }
+    value = 0;
+  }
+
+  return test;
+
+}
+
+
+bool BoundaryConditionTurek3(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  const double Ubar = 2.;    // FSI1
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
       test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {     //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inflow
+      test = 1;
+      if(t < 2.0) {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
+      }
+      else {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
+      }
+    }
+    else if(2 == facename) {    //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "P")) {
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
     //}
+    value = 0;
+  }
+
+  return test;
+
+}
+
+bool BoundaryConditionTurek2(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  const double Ubar = 1.;    // FSI1
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {     //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inflow
+      test = 1;
+      if(t < 2.0) {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2) * 0.5 * (1. - cos(0.5 * M_PI * t));
+      }
+      else {
+        value = 1.5 * Ubar * 4.0 / 0.1681 * (x[1] + 0.21) * (-x[1] + 0.2);
+      }
+    }
+    else if(2 == facename) {    //outflow
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "P")) {
+    //if(par->_weakP || 2 != facename) {
+    test = 0;
+    //}
+    value = 0;
+  }
+
+  return test;
+
+}
+
+
+double TimeStepTurek1(const double time) {
+  double dt;
+  double dt0 = 0.1;
+  double dt1 = 1.; //FSI3
+  double dt2 = 1.; //FSI3
+
+  double T0 = 2.;
+  double T1 = 20.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
+  else
+    dt = dt2;
+
+  return dt;
+}
+
+double TimeStepTurek2(const double time) {
+  double dt;
+
+//   double dt0 = 0.1;
+//   double dt1 = 0.1; //FSI3
+//   double dt2 = 0.1; //FSI3
+
+  double dt0 = 0.05;
+  double dt1 = 0.005; //FSI3
+  double dt2 = 0.001; //FSI3
+
+  double T0 = 2.;
+  double T1 = 15.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
+  else
+    dt = dt2;
+
+  return dt;
+}
+
+double TimeStepTurek3(const double time) {
+  double dt;
+
+//   double dt0 = 0.1;
+//   double dt1 = 0.1; //FSI3
+//   double dt2 = 0.1; //FSI3
+
+  double dt0 = 0.05;
+  double dt1 = 0.005; //FSI3
+  double dt2 = 0.001; //FSI3
+
+  double T0 = 2.;
+  double T1 = 15.;
+  if(time < T0)
+    dt = (0.5 * (1. + cos(M_PI * time / T0))) * dt0    + (0.5 * (1. - cos(M_PI * time / T0))) * dt1;
+  else if(time < T1)
+    dt = (0.5 * (1. + cos(M_PI * (time - T0) / (T1 - T0)))) * dt1 + (0.5 * (1. - cos(M_PI * (time - T0) / (T1 - T0)))) * dt2;
+  else
+    dt = dt2;
+
+  return dt;
+}
+
+
+double TimeStepTurek0(const double time) {
+  return 0.05;
+}
+
+bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t) {
+  bool test = 1;      //dirichlet
+  value = 0.;
+
+  //const double Ubar = 0.2;    // FSI1
+  const double Ubar = 2;    // FSI3
+  const double L = 0.41;
+  const double H = 2.5;
+
+  if(!strcmp(name, "DY")) {
+    if(2 == facename || 3 == facename) {
+      test = 0;
+      value = 0.;
+    }
+  }
+
+  else if(!strcmp(name, "DX")) {
+    if(2 == facename || 3 == facename) {    //fluid wall
+      test = 0;
+      value = 0.;
+    }
+  }
+
+//   else if(!strcmp(name, "VX")) {
+//     if(3 == facename) {    //fluid wall
+//       test = 0;
+//       value = 0.;
+//     }
+//   }
+//
+//   else if(!strcmp(name, "VY")) {
+//     if(3 == facename) {    //fluid wall
+//       test = 0;
+//       value = 0.;
+//     }
+//   }
+//
+  else if(!strcmp(name, "P")) {
+    if(/*par->_weakP && */ 3 != facename) {
+      test = 0;
+      value = 0;
+    }
+    else {
+      value = 10.;
+    }
+
   }
 
   return test;
