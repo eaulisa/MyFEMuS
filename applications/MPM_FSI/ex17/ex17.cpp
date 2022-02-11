@@ -19,6 +19,10 @@ using namespace femus;
 
 parameter *par;
 
+
+#include "./include/MyMarker/MyMarker.hpp"
+#include "./include/MyMarker/MyMarker.cpp"
+
 #include "marker.hpp"
 #include "projection.hpp"
 Projection *projection;
@@ -67,7 +71,7 @@ parameter turek1 = parameter(true, 0.3, {0., 0., 0.},
 parameter turek2 = parameter(true, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 10000., 1000., 0.4, 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 6, 0,
+                             "../input/turekBeam2DFine.neu", 1., 5, 0,
                              "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek2, TimeStepTurek2);
 
@@ -158,43 +162,73 @@ int main(int argc, char** args) {
   // Generate Solid Object
   Solid solid(physics, par->_E, par->_nu, par->_rhos, "Neo-Hookean");
   Fluid fluid(physics, par->_muf, par->_rhof, "Newtonian");
-  MultiLevelProblem ml_prob(&mlSolB);
-  ml_prob.parameters.set<Solid> ("SolidMPM") = solid;
-  ml_prob.parameters.set<Fluid> ("FluidFEM") = fluid;
+ 
 
+  MultiLevelProblem ml_probM(&mlSolM);
   // ******* Add MPM system to the MultiLevel problem *******
-  TransientNonlinearImplicitSystem& system = ml_prob.add_system < TransientNonlinearImplicitSystem > ("MPM_FSI");
-  system.AddSolutionToSystemPDE("DX");
-  if(dim > 1) system.AddSolutionToSystemPDE("DY");
-  if(dim > 2) system.AddSolutionToSystemPDE("DZ");
-  system.AddSolutionToSystemPDE("VX");
-  if(dim > 1) system.AddSolutionToSystemPDE("VY");
-  if(dim > 2) system.AddSolutionToSystemPDE("VZ");
-  system.AddSolutionToSystemPDE("P");
-
-  system.SetSparsityPatternMinimumSize(250);
+  NonLinearImplicitSystem& systemM = ml_probM.add_system < NonLinearImplicitSystem > ("Marker");
+  systemM.AddSolutionToSystemPDE("DX");
+  if(dim > 1) systemM.AddSolutionToSystemPDE("DY");
+  if(dim > 2) systemM.AddSolutionToSystemPDE("DZ");
 
   // ******* System MPM-FSI Assembly *******
-  system.SetAssembleFunction(AssembleMPMSys);
+  systemM.SetAssembleFunction(AssembleMarkerStructure);
   // ******* set MG-Solver *******
-  system.SetMgType(V_CYCLE);
-  system.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
-  system.SetMaxNumberOfLinearIterations(1);
-  system.SetNonLinearConvergenceTolerance(1.e-9);
-  system.SetMaxNumberOfNonLinearIterations(5);
-  system.SetNumberPreSmoothingStep(1);
-  system.SetNumberPostSmoothingStep(1);
+  systemM.SetMgType(V_CYCLE);
+  systemM.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
+  systemM.SetMaxNumberOfLinearIterations(1);
+  systemM.SetNonLinearConvergenceTolerance(1.e-7);
+  systemM.SetMaxNumberOfNonLinearIterations(3);
+  systemM.SetNumberPreSmoothingStep(1);
+  systemM.SetNumberPostSmoothingStep(1);
 
   // ******* Set Preconditioner *******
-  system.SetLinearEquationSolverType(FEMuS_DEFAULT);
-  system.init();
+  systemM.SetLinearEquationSolverType(FEMuS_DEFAULT);
+  systemM.init();
 
   // ******* Set Smoother *******
-  system.SetSolverFineGrids(GMRES);
-  system.SetPreconditionerFineGrids(ILU_PRECOND);
-  system.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
+  systemM.SetSolverFineGrids(GMRES);
+  systemM.SetPreconditionerFineGrids(ILU_PRECOND);
+  systemM.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
-  system.AttachGetTimeIntervalFunction(par->_timeFunction);
+    
+  MultiLevelProblem ml_probB(&mlSolB);
+  ml_probB.parameters.set<Solid> ("SolidMPM") = solid;
+  ml_probB.parameters.set<Fluid> ("FluidFEM") = fluid;
+  
+  // ******* Add MPM system to the MultiLevel problem *******
+  TransientNonlinearImplicitSystem& systemB = ml_probB.add_system < TransientNonlinearImplicitSystem > ("MPM_FSI");
+  systemB.AddSolutionToSystemPDE("DX");
+  if(dim > 1) systemB.AddSolutionToSystemPDE("DY");
+  if(dim > 2) systemB.AddSolutionToSystemPDE("DZ");
+  systemB.AddSolutionToSystemPDE("VX");
+  if(dim > 1) systemB.AddSolutionToSystemPDE("VY");
+  if(dim > 2) systemB.AddSolutionToSystemPDE("VZ");
+  systemB.AddSolutionToSystemPDE("P");
+
+  systemB.SetSparsityPatternMinimumSize(250);
+
+  // ******* System MPM-FSI Assembly *******
+  systemB.SetAssembleFunction(AssembleMPMSys);
+  // ******* set MG-Solver *******
+  systemB.SetMgType(V_CYCLE);
+  systemB.SetAbsoluteLinearConvergenceTolerance(1.0e-10);
+  systemB.SetMaxNumberOfLinearIterations(1);
+  systemB.SetNonLinearConvergenceTolerance(1.e-7);
+  systemB.SetMaxNumberOfNonLinearIterations(3);
+  systemB.SetNumberPreSmoothingStep(1);
+  systemB.SetNumberPostSmoothingStep(1);
+
+  // ******* Set Preconditioner *******
+  systemB.SetLinearEquationSolverType(FEMuS_DEFAULT);
+  systemB.init();
+
+  // ******* Set Smoother *******
+  systemB.SetSolverFineGrids(GMRES);
+  systemB.SetPreconditionerFineGrids(ILU_PRECOND);
+  systemB.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
+
+  systemB.AttachGetTimeIntervalFunction(par->_timeFunction);
 
   //******* Print solution *******
   mlSolM.SetWriter(VTK);
@@ -206,8 +240,8 @@ int main(int argc, char** args) {
   if(dim == 3) mov_vars.push_back("DZ");
   mlSolM.GetWriter()->SetMovingMesh(mov_vars);
   //mlSolB.GetWriter()->SetMovingMesh(mov_vars);
-  mlSolM.GetWriter()->SetDebugOutput(false);
-  mlSolB.GetWriter()->SetDebugOutput(true);
+  mlSolM.GetWriter()->SetDebugOutput(true);
+  mlSolB.GetWriter()->SetDebugOutput(false);
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
 
@@ -216,25 +250,23 @@ int main(int argc, char** args) {
 
   projection = new Projection(&mlSolM, &mlSolB);
 
-
-
   for(unsigned t = 1; t <= 20000; t++) {
 
-    system.CopySolutionToOldSolution();
+    systemB.CopySolutionToOldSolution();
 
 
     clock_t time = clock();
     projection->FromMarkerToBackground();
     std::cout << "forward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     time = clock();
-    system.MGsolve();
-    projection->SetNewmarkParameters(par->_beta, par->_gamma, system.GetIntervalTime());
+    systemB.MGsolve();
+    projection->SetNewmarkParameters(par->_beta, par->_gamma, systemB.GetIntervalTime());
     std::cout << "solve time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
 
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
 
     time = clock();
-    projection->FromBackgroundToMarker();
+    projection->FromBackgroundToMarker( (t%50==0), systemM);
     std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
 

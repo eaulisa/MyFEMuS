@@ -1,5 +1,5 @@
 
-#include "Marker.hpp"
+
 const double WEIGHT[6][27] = {
   {
     1. / 64., 1. / 64., 1. / 64., 1. / 64.,
@@ -30,7 +30,7 @@ const double WEIGHT[6][27] = {
 } ;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
-  bool test = 1; //dirichlet
+  bool test = (1 == facename)? 1 : 0; //dirichlet
   value = 0.;
   return test;
 }
@@ -68,9 +68,9 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
   FEOrder femOrder = SECOND;
 
   //add variables to mlSol
-  mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("DY", LAGRANGE, femOrder, 0, false);
-  if(dim == 3) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 0, false);
+  mlSol.AddSolution("DX", LAGRANGE, femOrder, 0, true);
+  mlSol.AddSolution("DY", LAGRANGE, femOrder, 0, true);
+  if(dim == 3) mlSol.AddSolution("DZ", LAGRANGE, femOrder, 0, true);
 
   mlSol.AddSolution("VX", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("VY", LAGRANGE, femOrder, 0, false);
@@ -114,7 +114,7 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
 
   mlSol.AddSolution("weight", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("area", LAGRANGE, femOrder, 0, false);
-  mlSol.AddSolution("iel", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
+  mlSol.AddSolution("iel", LAGRANGE, femOrder, 0, false); // for each node it stores the background element
   mlSol.AddSolution("dist", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("kernel", LAGRANGE, femOrder, 0, false);
   mlSol.AddSolution("d2max", LAGRANGE, femOrder, 0, false); // for each node it stores the maximum distance2 in the support
@@ -125,6 +125,9 @@ void InitializeMarkerVariables(MultiLevelSolution &mlSol) {
   //mlSol.Initialize("VY", InitVariableVY);
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+  mlSol.GenerateBdc("DX", "Steady");
+  if(dim > 1) mlSol.GenerateBdc("DY", "Steady");
+  if(dim > 2) mlSol.GenerateBdc("DZ", "Steady");
 
   BuildInvariants(mlSol);
 }
@@ -149,6 +152,14 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
 
   unsigned d2maxIdx = mlSol.GetIndex("d2max");
   unsigned mtypeIdx = mlSol.GetIndex("mtype");
+
+  const char Dname[3][3] = {"DX", "DY", "DZ"};
+
+  std::vector < unsigned > DIdx(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    DIdx[k] = sol->GetIndex(&Dname[k][0]);
+    //(*sol->_Bdc[DIdx[k]]) = 2.;
+  }
 
   sol->_Sol[d2maxIdx]->zero();
   sol->_Sol[mtypeIdx]->zero();
@@ -185,18 +196,26 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
           }
         }
         sol->_Sol[mtypeIdx]->set(idof[i], 2);
+
+        for(unsigned k = 0; k < dim; k++) {
+          sol->_Bdc[DIdx[k]]->set(idof[i], 0.);
+        }
+
       }
     }
   }
   sol->_Sol[d2maxIdx]->closeWithMaxValue();
   sol->_Sol[mtypeIdx]->close();
 
+  for(unsigned k = 0; k < dim; k++) {
+    sol->_Bdc[DIdx[k]]->close();
+  }
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     unsigned ielMat = msh->GetElementMaterial(iel);
     if(ielMat == 2) {
 
-      short unsigned ielt = msh->GetElementType(iel);
       unsigned nDofs = msh->GetElementDofNumber(iel, solType);
 
       for(unsigned i = 0; i < nDofs; i++) {
@@ -208,6 +227,7 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
     }
   }
   sol->_Sol[mtypeIdx]->close();
+
 
   const char Fname[3][3][4] = {{"F11", "F12", "F13"}, {"F21", "F22", "F23"}, {"F31", "F32", "F33"}};
   std::vector < std::vector < unsigned > > FIdx(dim);
@@ -309,7 +329,7 @@ void UpdateMeshQuantities(MultiLevelSolution *mlSol) {
     for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
       double jac;
       msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, jac, phi, gradPhi);
-    
+
       std::vector< std::vector< double > > gradSolDg(dim);
       std::vector< double > xg(dim, 0.);
       for(unsigned  k = 0; k < dim; k++) { //solution
@@ -570,6 +590,222 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
 }
 
 
+void AssembleMarkerStructure(MultiLevelProblem& ml_prob) {
+
+  clock_t AssemblyTime = 0;
+  clock_t start_time, end_time;
+
+  //pointers and references
+
+  NonLinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<NonLinearImplicitSystem> ("Marker");
+  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
+  Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
+
+  LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];  // pointer to the equation (level) object
+
+  Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
+  elem* el = msh->el;   // pointer to the elem object in msh (level)
+  SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
+
+  myKK->zero();
+  myRES->zero();
+
+
+  // call the adept stack object
+  adept::Stack& s = FemusInit::_adeptStack;
+
+  const unsigned dim = msh->GetDimension();
+
+  // data
+  unsigned iproc  = msh->processor_id();
+  unsigned nprocs  = msh->n_processors();
+
+  vector< vector< adept::adouble > > solD(dim);   // background displacement at n+1
+
+
+  vector< double > rhs;    // local redidual vector
+  vector< vector< adept::adouble > > aResD(dim);     // local redidual vector
+  vector < double > Jac;
+
+  std::vector <unsigned> sysDofsAll;
+
+  vector < double > phi;
+
+  vector < double > gradPhiHat;
+  vector < adept::adouble> gradPhi;     // phi_x
+
+  vector <vector < double> > vxHat(dim);
+  vector <vector < adept::adouble> > vx(dim);
+
+  double weightHat;
+  adept::adouble weight;
+
+  std::cout.precision(10);
+
+  //variable-name handling
+  const char varname[10][5] = {"DX", "DY", "DZ"};
+
+  vector <unsigned> indexSolD(dim);
+  vector <unsigned> indexPdeD(dim);
+  for(unsigned ivar = 0; ivar < dim; ivar++) {
+    indexSolD[ivar] = mlSol->GetIndex(&varname[ivar][0]);
+    indexPdeD[ivar] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[ivar][0]);       // DX, DY, DZ
+  }
+  unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+  unsigned meshType = 2;
+
+  start_time = clock();
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned ielMat = msh->GetElementMaterial(iel);
+
+    short unsigned ielt = msh->GetElementType(iel);
+
+    unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
+    unsigned nDofsAll = dim * nDofs;
+
+    // resize local arrays
+    sysDofsAll.resize(nDofsAll);
+
+    for(unsigned  k = 0; k < dim; k++) {
+      solD[k].resize(nDofs);
+      aResD[k].assign(nDofs, 0.);
+      vxHat[k].resize(nDofs);
+      vx[k].resize(nDofs);
+    }
+
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solType);
+      for(unsigned  k = 0; k < dim; k++) {
+        solD[k][i] = (*mysolution->_Sol[indexSolD[k]])(idof); //t_{n+1} -t_n
+        sysDofsAll[i + k * nDofs] = myLinEqSolver->GetSystemDof(indexSolD[k], indexPdeD[k], i, iel);
+      }
+    }
+
+    if(ielMat == 2) {
+      // start a new recording of all the operations involving adept::adouble variables
+      s.new_recording();
+
+      for(unsigned i = 0; i < nDofs; i++) {
+        unsigned idofX = msh->GetSolutionDof(i, iel, meshType);
+        for(unsigned  k = 0; k < dim; k++) {
+          vxHat[k][i] = (*msh->_topology->_Sol[k])(idofX); // undeformed background configuration at t_{n}
+          vx[k][i]  = vxHat[k][i] + solD[k][i]; // deformed background configuration at alpha_f/theta
+        }
+      }
+
+      // *** Gauss point loop ***
+      for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solType]->GetGaussPointNumber(); ig++) {
+
+        msh->_finiteElement[ielt][solType]->Jacobian(vxHat, ig, weightHat, phi, gradPhiHat);
+        msh->_finiteElement[ielt][solType]->Jacobian(vx,    ig, weight,    phi, gradPhi);
+
+        vector < vector < adept::adouble > > gradSolDgHat(dim, vector < adept::adouble >(dim, 0.));
+        for(unsigned i = 0; i < nDofs; i++) {
+          for(unsigned j = 0; j < dim; j++) {
+            for(unsigned  k = 0; k < dim; k++) {
+              gradSolDgHat[k][j] += gradPhiHat[i * dim + j] * solD[k][i]; //gradient of new solution with respect to deformed reference configuration
+            }
+          }
+        }
+
+        adept::adouble F[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned k = 0; k < dim; k++) {
+            F[j][k] += gradSolDgHat[j][k];
+          }
+        }
+
+        adept::adouble J_Hat =  F[0][0] * F[1][1] * F[2][2] + F[0][1] * F[1][2] * F[2][0] + F[0][2] * F[1][0] * F[2][1]
+                                - F[2][0] * F[1][1] * F[0][2] - F[2][1] * F[1][2] * F[0][0] - F[2][2] * F[1][0] * F[0][1];
+
+        adept::adouble B[3][3];
+        for(unsigned i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            B[i][j] = 0.;
+            for(unsigned k = 0; k < 3; k++) {
+              //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+              B[i][j] += F[i][k] * F[j][k];
+            }
+          }
+        }
+
+        adept::adouble I1_B = B[0][0] + B[1][1] + B[2][2];
+        adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+        adept::adouble sigma[3][3];
+
+        double E = 1.;
+        double nu = 0.4;
+
+        double mu = E / (2. * (1. + nu));
+        double lambda = (E * nu) / ((1. + nu) * (1. - 2.*nu));
+
+        for(unsigned j = 0; j < 3; j++) {
+          for(unsigned k = 0; k < 3; k++) {
+            sigma[j][k] = lambda * log(J_Hat) / J_Hat * Id2th[j][k] + mu / J_Hat * (B[j][k] - Id2th[j][k]);    // alternative formulation
+          }
+        }
+        //END computation of the Cauchy Stress
+        for(unsigned i = 0; i < nDofs; i++) {//Auxiliary Equations
+          for(unsigned k = 0.; k < dim; k++) {
+            adept::adouble cauchy = 0.;
+            for(unsigned j = 0.; j < dim; j++) {
+              cauchy += sigma[k][j] * gradPhi[i * dim + j] ;
+            }
+            aResD[k][i] += cauchy * weight;
+          }
+        }
+      } // end gauss point loop
+    }
+    //copy the value of the adept::adoube aRes in double Res and store them in RES
+    rhs.resize(nDofsAll);   //resize
+
+    for(int i = 0; i < nDofs; i++) {
+      for(unsigned  k = 0; k < dim; k++) {
+        rhs[ i +  k * nDofs ] = -aResD[k][i].value();
+      }
+    }
+    myRES->add_vector_blocked(rhs, sysDofsAll);
+    Jac.resize(nDofsAll * nDofsAll);
+    // define the dependent variables
+    for(unsigned  k = 0; k < dim; k++) {
+      s.dependent(&aResD[k][0], nDofs);
+    }
+    // define the independent variables
+    for(unsigned  k = 0; k < dim; k++) {
+      s.independent(&solD[k][0], nDofs);
+    }
+
+    // get the and store jacobian matrix (row-major)
+    s.jacobian(&Jac[0], true);
+    myKK->add_matrix_blocked(Jac, sysDofsAll, sysDofsAll);
+
+    s.clear_independents();
+    s.clear_dependents();
+
+  }
+
+  myRES->close();
+  myKK->close();
+
+//   PetscViewer    viewer1;
+//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 1800, 1800, &viewer1);
+//   PetscObjectSetName((PetscObject) viewer1, "FSI matrix");
+//   PetscViewerPushFormat(viewer1, PETSC_VIEWER_DRAW_LG);
+//   MatView((static_cast< PetscMatrix* >(myKK))->mat(), viewer1);
+// 
+//   double a;
+//   std::cin >> a;
+
+// *************************************
+  end_time = clock();
+  AssemblyTime += (end_time - start_time);
+// ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
+
+}
 
 
 

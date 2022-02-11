@@ -29,6 +29,7 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
 
   mlSol.AttachSetBoundaryConditionFunction(par->_bdcFunction);
 
+  mlSol.SetIfFSI(true);
 }
 
 

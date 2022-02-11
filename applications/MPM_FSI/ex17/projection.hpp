@@ -1,4 +1,3 @@
-#include "Marker.hpp"
 
 class Projection {
   public:
@@ -25,7 +24,7 @@ class Projection {
     }
 
     void FromMarkerToBackground();
-    void FromBackgroundToMarker();
+    void FromBackgroundToMarker(const bool &systemSolve, NonLinearImplicitSystem& system) ;
 
     const std::vector<std::vector<unsigned> > & GetIel() {
       return _ielb;
@@ -57,7 +56,7 @@ class Projection {
     const std::vector < std::vector < std::vector < std::vector <double > > > > & GetGradD() {
       return _gradDb;
     }
-    
+
     const std::vector < std::vector < std::vector < std::vector <double > > > > & GetF() {
       return _Fb;
     }
@@ -98,6 +97,7 @@ class Projection {
     std::vector<std::vector<double> > _weightb; // background weight
     std::vector<std::vector<unsigned> > _ielb; // background elements
     std::vector<std::vector<unsigned> > _mtypeb; // mbackground mtype
+    std::vector<std::vector<bool> > _elemFoundb; // mbackground mtype
 
     bool _ielMInitialized;
 
@@ -245,8 +245,9 @@ void Projection::Init() {
 
   unsigned solTypeM = 2;
 
-  if(!_ielMInitialized) {
+  if(!_ielMInitialized) { // this search in parallel but non-scalable
     std::vector <double> xm(dim);
+    MyMarker mrk = MyMarker();
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(unsigned k = mshM->_dofOffset[solTypeM][kproc]; k < mshM->_dofOffset[solTypeM][kproc + 1]; k++) {
 
@@ -257,22 +258,15 @@ void Projection::Init() {
           }
         }
         MPI_Bcast(xm.data(), xm.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
-
-        Marker *gp = new Marker(xm, VOLUME, solB, solTypeM);
-        unsigned kel = gp->GetMarkerElement();
-
-        unsigned kelold = (*solM->_Sol[ielIdx])(k);
-
-        if(kel == UINT_MAX) std::cout << "error";
-
-        solM->_Sol[ielIdx]->set(k, kel);
-
-        delete gp;
+        bool elemSearch = mrk.ParallelElementSearch(xm, solB, solTypeM);
+        if(!elemSearch) std::cout << "error";
+        solM->_Sol[ielIdx]->set(k, mrk.GetElement());
 
       }
     }
     solM->_Sol[ielIdx]->close();
   }
+  _ielMInitialized = true;
 
   clock_t time = clock();
   unsigned dof0 = mshM->_dofOffset[solTypeM][iproc];
@@ -305,28 +299,6 @@ void Projection::Init() {
     pPntCnt[kproc] = pPntCnt[kproc - 1] + pSize[kproc - 1];
   }
 
-//   for(unsigned i = 0; i < _map.size(); i++) _map[i] = i;
-//   for(unsigned i = 0; i < _map.size(); i++) {
-//     unsigned iel = (*solM->_Sol[ielIdx])(dof0 + _map[i]);
-//     for(unsigned j = i + 1; j < _map.size(); j++) {
-//       unsigned jel = (*solM->_Sol[ielIdx])(dof0 + _map[j]);
-//       if(jel < iel) {
-//         iel = jel;
-//         std::swap(_map[j], _map[i]);
-//         //_map[j] = _map[i];
-//         //_map[i] = mapi;
-//       }
-//     }
-//     unsigned kproc = mshB->IsdomBisectionSearch(iel, 3);
-//     pPntCnt[kproc + 1] = i + 1;
-//
-//     //std::cout << (*solM->_Sol[ielIdx])(dof0 + _map[i]) << " ";
-//
-//     if((*solM->_Sol[ielIdx])(dof0 + _map[i]) != (*solM->_Sol[ielIdx])(dof0 + map1[i])) std::cout<< _map[i] << " " << map1[i]<<"   ";
-//   }
-//   for(unsigned kproc = 1; kproc <= nprocs; kproc++) {
-//     if(pPntCnt[kproc] == 0)  pPntCnt[kproc] = pPntCnt[kproc - 1];
-//   }
   std::cout << "sort time " << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl << std::flush;
 
   time = clock();
@@ -553,7 +525,7 @@ void Projection::FromMarkerToBackground() {
   solB->_Sol[nflagIdx]->close();
 }
 
-void Projection::FromBackgroundToMarker() {
+void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplicitSystem& system) {
 
   unsigned levelB = _mlSolB->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solB  = _mlSolB->GetSolutionLevel(levelB);
@@ -564,14 +536,17 @@ void Projection::FromBackgroundToMarker() {
   const char Aname[3][3] = {"AX", "AY", "AZ"};
 
   std::vector < unsigned > DIdxB(_dim);
+  std::vector < unsigned > VIdxB(_dim);
   for(unsigned k = 0; k < _dim; k++) {
     DIdxB[k] = _mlSolM->GetIndex(&Dname[k][0]);
+    VIdxB[k] = _mlSolM->GetIndex(&Vname[k][0]);
   }
 
   unsigned solTypeB = _mlSolB->GetSolutionType(DIdxB[0]);
 
   std::vector<std::vector<double>> vx(_dim);
   std::vector<std::vector<double>> D(_dim);
+  std::vector<std::vector<double>> V(_dim);
   std::vector<double> phi;
   std::vector<double> gradPhi;
   double weight;
@@ -615,7 +590,6 @@ void Projection::FromBackgroundToMarker() {
           }
         }
 
-
         std::vector<double> Fold(pow(_dim, 2));
         for(unsigned k = 0; k < _dim; k++) {
           for(unsigned j = 0; j < _dim; j++) {
@@ -646,37 +620,229 @@ void Projection::FromBackgroundToMarker() {
       }
     }
   }
-  for(unsigned k = 0; k < _dim; k++) { //reset the background displacement
-    solB->_Sol[DIdxB[k]]->zero();
-  }
 
+  {
+    //BEGIN backgroud grid velocity projection
 
-  for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
-    for(unsigned jp = 0; jp < _nprocs; jp++) {
-      unsigned np;
-      if(_iproc == kproc) np = _ielb[jp].size();
-      MPI_Bcast(&np, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
-      for(unsigned im = 0; im < np; im++) {
+    for(unsigned k = 0; k < _dim; k++) {
+      solB->_SolOld[VIdxB[k]] = solB->_Sol[VIdxB[k]];
+    }
+
+    unsigned offset = mshB->_dofOffset[solTypeB][_iproc];
+    unsigned offsetp1 = mshB->_dofOffset[solTypeB][_iproc + 1];
+    unsigned size = offsetp1 - offset;
+    std::vector <int> elemFound(size);
+
+    for(unsigned iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
+      unsigned nDofs = nDofs = mshB->GetElementDofNumber(iel, solTypeB);
+      for(unsigned inode = 0; inode < nDofs; inode++) {
+        unsigned i = mshB->GetSolutionDof(inode, iel, solTypeB);
+        if(i >= offset && i < offsetp1) { // if the node is owned by the process
+          elemFound[i - offset] = iel; // set iel as best guess, which is always owned by the process
+        }
+      }
+    }
+
+    // scalable parallel search
+    unsigned nfcLoc = 0;
+    MyMarker mrk = MyMarker();
+    for(unsigned i = offset; i < offsetp1; i++) {
+      std::vector<double> xp(_dim);
+      for(unsigned k = 0; k < _dim; k++) {
+        xp[k] = (*mshB->_topology->_Sol[k])(i);
+      }
+      bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, solB, solTypeB, elemFound[i - offset], 1.);
+
+      if(elemSearch) {//the node is inside the _iproc domain, we can straightforward interpolate the velocity
+        unsigned iel = mrk.GetElement();
+        elemFound[i - offset] = iel;
+
+        short unsigned ielType = mshB->GetElementType(iel);
+        unsigned nDofs = mshB->GetElementDofNumber(iel, solTypeB);
+
+        for(unsigned k = 0; k < _dim; k++) {
+          V[k].resize(nDofs);
+        }
+        for(unsigned j = 0; j < nDofs; j++) {
+          unsigned jdof = mshB->GetSolutionDof(j, iel, solTypeB);
+          for(unsigned k = 0; k < _dim; k++) {
+            V[k][j] = (*solB->_SolOld[VIdxB[k]])(jdof);
+          }
+        }
+
+        std::vector <double> xi = mrk.GetIprocLocalCoordinates();
+        mshB->_finiteElement[ielType][solTypeB]->GetPhi(phi, xi);
+
+        for(unsigned k = 0; k < _dim; k++) {
+          double Vnew = 0.;
+          for(unsigned j = 0; j < nDofs; j++) {
+            Vnew += phi[j] * V[k][j];
+          }
+          solB->_Sol[VIdxB[k]]->set(i, Vnew);
+        }
+      }
+      else {//the node is not in the _iproc domain, a full parallel search is needed
+        elemFound[i - offset] = -elemFound[i - offset] - 1;
+        nfcLoc++;
+      }
+    }
+
+    // non-scalable parallel search, only for the grid nodes that were not found before
+    std::vector<unsigned> nfc(_nprocs);
+    MPI_Allgather(&nfcLoc, 1, MPI_UNSIGNED, nfc.data(), 1, MPI_UNSIGNED, PETSC_COMM_WORLD);
+    std::cout << "Grid nodes not-found in the scalable parallel search:\n";
+    for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+      std::cout << "kproc=" << kproc << " #" << nfc[kproc] << std::endl;
+      unsigned cnt = 0;
+      for(unsigned i = 0; i < nfc[kproc]; i++) {
         unsigned iel;
         std::vector < double > xp(_dim);
         if(_iproc == kproc) {
-          iel = _ielb[jp][im];
+          while(elemFound[cnt] >= 0) cnt++;
+          iel = static_cast <unsigned>(-(elemFound[cnt] + 1));
           for(unsigned k = 0; k < _dim; k++) {
-            xp[k] = _Xb[jp][k][im] + _Db[jp][k][im];
+            xp[k] = (*mshB->_topology->_Sol[k])(offset + cnt);;
           }
         }
         MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
 
-        Marker gp = Marker(xp, VOLUME, solB, 2, iel);
+        unsigned inode = offset + cnt;
+        MPI_Bcast(&inode, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        bool elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, solB, solTypeB, iel, 1.);
+
+        if(elemSearch && mrk.GetProc() == _iproc) { 
+          unsigned iel = mrk.GetElement();
+          short unsigned ielType = mshB->GetElementType(iel);
+          unsigned nDofs = mshB->GetElementDofNumber(iel, solTypeB);
+          for(unsigned k = 0; k < _dim; k++) {
+            V[k].resize(nDofs);
+          }
+          for(unsigned j = 0; j < nDofs; j++) {
+            unsigned jdof = mshB->GetSolutionDof(j, iel, solTypeB);
+            for(unsigned k = 0; k < _dim; k++) {
+              V[k][j] = (*solB->_SolOld[VIdxB[k]])(jdof);
+            }
+          }
+          std::vector <double> xi = mrk.GetIprocLocalCoordinates();
+          mshB->_finiteElement[ielType][solTypeB]->GetPhi(phi, xi);
+          for(unsigned k = 0; k < _dim; k++) {
+            double Vnew = 0.;
+            for(unsigned j = 0; j < nDofs; j++) {
+              Vnew += phi[j] * V[k][j];
+            }
+            solB->_Sol[VIdxB[k]]->set(inode, Vnew);
+          }
+        }
         if(_iproc == kproc) {
-          _ielb[jp][im] = gp.GetMarkerElement();
-          if(_ielb[jp][im] == UINT_MAX) std::cout << "error";
+          elemFound[cnt] = mrk.GetElement();
+          if(!elemSearch) std::cout << "error in parallel velocity Projection\n";
         }
       }
     }
+
+    for(unsigned k = 0; k < _dim; k++) {
+      solB->_Sol[VIdxB[k]]->close();
+    }
+    //END backgroud grid velocity projection
   }
 
+
+  for(unsigned k = 0; k < _dim; k++) { //reset the background displacement
+    solB->_Sol[DIdxB[k]]->zero();
+  }
+
+  if(!systemSolve) {
+    // scalable parallel search
+    MyMarker mrk = MyMarker();
+    _elemFoundb.resize(_nprocs);
+    std::vector<unsigned> nfcBcast(_nprocs, 0); //non-found counter
+    for(unsigned jp = 0; jp < _nprocs; jp++) {
+      unsigned np = _ielb[jp].size();
+      _elemFoundb[jp].assign(np, false);
+      for(unsigned im = 0; im < np; im++) {
+        unsigned iel;
+        std::vector < double > xp(_dim);
+        iel = _ielb[jp][im];
+        for(unsigned k = 0; k < _dim; k++) {
+          xp[k] = _Xb[jp][k][im] + _Db[jp][k][im];
+        }
+        bool elemSearch = mrk.SerialElementSearch(xp, solB, 2, iel);
+        if(elemSearch) {
+          _ielb[jp][im] = mrk.GetElement();
+          _elemFoundb[jp][im] = true;
+        }
+        else {
+          nfcBcast[jp]++;
+        }
+      }
+    }
+
+    // non-scalable parallel search, only for those points not found before
+    std::vector<unsigned> nfc(_nprocs);
+    std::cout << "Markers not-found in scalable parallel search:\n";
+    for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+      nfc = nfcBcast;
+      MPI_Bcast(nfc.data(), nfc.size(), MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+      for(unsigned jp = 0; jp < _nprocs; jp++) {
+        unsigned im = 0;
+        std::cout << "kproc=" << kproc << " jproc=" << jp << " #" << nfc[jp] << std::endl;
+        for(unsigned i = 0; i < nfc[jp]; i++) {
+          unsigned iel;
+          std::vector < double > xp(_dim);
+          if(_iproc == kproc) {
+            while(_elemFoundb[jp][im] == true) im++;
+            iel = _ielb[jp][im];
+            for(unsigned k = 0; k < _dim; k++) {
+              xp[k] = _Xb[jp][k][im] + _Db[jp][k][im];
+            }
+          }
+          MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+          MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+
+          mrk.ParallelElementSearch(xp, solB, 2, iel);
+          if(_iproc == kproc) {
+            _ielb[jp][im] = mrk.GetElement();
+            if(_ielb[jp][im] == UINT_MAX) std::cout << "error";
+          }
+        }
+      }
+    }
+
+
+
+
+
+
+
+//     for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+//       for(unsigned jp = 0; jp < _nprocs; jp++) {
+//         unsigned np;
+//         if(_iproc == kproc) np = _ielb[jp].size();
+//         MPI_Bcast(&np, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//         for(unsigned im = 0; im < np; im++) {
+//           unsigned iel;
+//           std::vector < double > xp(_dim);
+//           if(_iproc == kproc) {
+//             iel = _ielb[jp][im];
+//             for(unsigned k = 0; k < _dim; k++) {
+//               xp[k] = _Xb[jp][k][im] + _Db[jp][k][im];
+//             }
+//           }
+//           MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//           MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
+//
+//           MyMarker gp = MyMarker(xp, solB, 2, iel);
+//
+//           if(_iproc == kproc) {
+//             _ielb[jp][im] = gp.GetMarkerElement();
+//             if(_ielb[jp][im] == UINT_MAX) std::cout << "error";
+//           }
+//         }
+//       }
+//     }
+  }
 
 
   unsigned solTypeM = 2;
@@ -723,8 +889,8 @@ void Projection::FromBackgroundToMarker() {
     }
   }
 
- 
-  
+
+
   unsigned levelM = _mlSolM->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solM  = _mlSolM->GetSolutionLevel(levelM);
   Mesh     *mshM   = _mlSolM->_mlMesh->GetLevel(levelM);
@@ -734,7 +900,7 @@ void Projection::FromBackgroundToMarker() {
   std::vector < unsigned > AIdxM(_dim);
   std::vector < std::vector < unsigned > > FIdxM(_dim);
   for(unsigned k = 0; k < _dim; k++) {
-    FIdxM[k].resize(_dim);  
+    FIdxM[k].resize(_dim);
     DIdxM[k] = _mlSolM->GetIndex(&Dname[k][0]);
     VIdxM[k] = _mlSolM->GetIndex(&Vname[k][0]);
     AIdxM[k] = _mlSolM->GetIndex(&Aname[k][0]);
@@ -790,8 +956,11 @@ void Projection::FromBackgroundToMarker() {
     }
   }
 
-  _ielMInitialized = true;
+  if(systemSolve == true) system.MGsolve();
+
+  _ielMInitialized = !systemSolve;
   UpdateMeshQuantities(_mlSolM);
+
 
 }
 
