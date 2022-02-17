@@ -87,7 +87,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     DT = theta[1] - theta[0];
   }
 
-  std::cout << theta[0] / M_PI * 180 << " " << theta[1] / M_PI * 180 << " " << DT / M_PI * 180 << std::endl;
+// std::cout << theta[0] / M_PI * 180 << " " << theta[1] / M_PI * 180 << " " << DT / M_PI * 180 << std::endl;
 
   std::vector < double > xm(dim);
 
@@ -96,7 +96,6 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
   a.resize(dim);
   a[0] = -cos(theta[0] + 0.5 * DT);
   a[1] = -sin(theta[0] + 0.5 * DT);
-
 
   xm[0] = (a[0] == 0) ? 0 : 0.5 * (-d / a[0]);
 
