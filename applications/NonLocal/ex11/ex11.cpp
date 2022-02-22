@@ -144,7 +144,9 @@ int main(int argc, char** argv) {
     unsigned cut;
 
     GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
-
+    
+    double h2 = ( (EX_2 - EX_1) / ( N_X * pow(2,N_UNIFORM_LEVELS-1) ) ) * ( (EY_2 - EY_1) / ( N_Y * pow(2,N_UNIFORM_LEVELS-1) ) );
+    
     if(cut == 1) {
       std::vector <TypeIO> weightCFQuad;
       quad(qM, 0, b, db, weightCFQuad);
@@ -155,10 +157,10 @@ int main(int argc, char** argv) {
       for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
         sum += weightQ[ig] * weightCFQuad[ig] ; //TODO use the correct quad rule!!!!!
       }
-      CircArea += sum;
+      CircArea += sum / 4. * h2;
     }
     else if ( cut == 0 ){
-      CircArea +=   ( (EX_2 - EX_1) / ( N_X * pow(2,N_UNIFORM_LEVELS-1) ) ) * ( (EY_2 - EY_1) / ( N_Y * pow(2,N_UNIFORM_LEVELS-1) ) ); //TODO
+      CircArea += h2; //TODO
     }
 
 //     /* trivial print for xmgrace */
@@ -172,6 +174,7 @@ int main(int argc, char** argv) {
 //       fprintf(fp, "\n \n");
 //     }
   }
+  std::cout.precision(14);
   std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
 
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
@@ -321,7 +324,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
     b[0] /= bNorm;
     b[1] /= bNorm;
-    db = - b[0] * xm[0] - b[1] * xm[1];
+    db = - b[0] * xi[0] - b[1] * xi[1];
 
   }
 
