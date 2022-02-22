@@ -5,6 +5,7 @@
 #include "CurrentElem.hpp"
 #include "LinearImplicitSystem.hpp"
 
+#include "PolynomialBases.hpp"
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
 
 #include <vector>
@@ -20,12 +21,10 @@ using namespace femus;
 #define EY_1       -1.
 #define EY_2        1.
 
-double InitialValueU(const std::vector < double >& x)
-{
+double InitialValueU(const std::vector < double >& x) {
   return 0. * x[0] * x[0];
 }
-bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time)
-{
+bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true; //dirichlet
   value = 0.;
 
@@ -41,10 +40,15 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d, bool &cut);
-void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob);
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d,  std::vector<double> &xm, bool &cut);
+void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob);
+
+
+const elem_type *finiteElementQuad;
 
 int main(int argc, char** argv) {
+
+
 
   const std::string fe_quad_rule_1 = "seventh";
   const std::string fe_quad_rule_2 = "eighth";
@@ -52,11 +56,12 @@ int main(int argc, char** argv) {
   // ======= Init ========================
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
+  finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
+
   unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
 
-
   MultiLevelMesh mlMsh;
-    double scalingFactor = 1.;
+  double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.GenerateCoarseBoxMesh(20, 20, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
@@ -66,7 +71,7 @@ int main(int argc, char** argv) {
   mlMsh.EraseCoarseLevels(erased_levels);
 
   const unsigned level = N_UNIFORM_LEVELS - N_ERASED_LEVELS - 1;
-  
+
   MultiLevelSolution mlSol(&mlMsh);
 
   // add variables to mlSol
@@ -82,7 +87,7 @@ int main(int argc, char** argv) {
   mlSol.GenerateBdc("All");
 
   MultiLevelProblem ml_prob(&mlSol);
-  
+
   LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("FracProblem");
 
 
@@ -100,21 +105,20 @@ int main(int argc, char** argv) {
 
   FILE * fp;
 
-  fp = fopen ("lines.dat", "w");
+  fp = fopen("lines.dat", "w");
 
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned nDof = 4; //TODO msh->GetElementDofNumber(iel, xType);  // number of coordinate element dofs
-    x1.resize(nDof);
-    std::vector < std::vector < double > > x1(nDof);
-    for(unsigned i = 0; i < nDof; i++) {
-      x1[i].resize(dim);
+    x1.resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      x1[k].resize(nDof);
     }
 
-    for(unsigned i = 0; i < nDof; i++) {
-      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-      for(unsigned k = 0; k < dim; k++) {
-        x1[i][k] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned i = 0; i < nDof; i++) {
+        unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
+        x1[k][i] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
       }
     }
 
@@ -123,27 +127,26 @@ int main(int argc, char** argv) {
     xg[1] -= 0.2;
     double R = 0.5;
     std::vector<double> a;
+    std::vector<double> xm;
     double d;
     bool cut;
 
-    GetNormalQuad(x1, xg, R, a, d, cut);
+    GetNormalQuad(x1, xg, R, a, d, xm, cut);
 
     /* trivial print for xmgrace */
     if(cut) {
-      double xx = 0.;
-      double yy = 0.;
-      for( unsigned j = 0; j < 50; j++ ) {
-        xx = x1[0][0] + ( j * (x1[1][0] - x1[0][0]) / 50 );
-        yy = - ( a[0] / a[1] ) * xx - ( d / a[1] );
-        fprintf(fp, "%f %f \n", xx, yy );
-      }
-
+      double xx = xm[0] - 0.5 * a[1];
+      double yy = xm[1] + 0.5 * a[0];
+      fprintf(fp, "%f %f \n", xx, yy);
+      xx = xm[0] + 0.5 * a[1];
+      yy = xm[1] - 0.5 * a[0];
+      fprintf(fp, "%f %f \n", xx, yy);
       fprintf(fp, "\n \n");
     }
   }
-  
+
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
-  SimpleNonlocalAssembly(ml_prob);
+  //SimpleNonlocalAssembly(ml_prob);
 
 //   /* Basic numerical tests for the circle - no mesh involved*/
 //   std::vector < std::vector<double> > xva = {{1., 1.}, {2., 1.}, {2., 2.}, {1., 2.}};
@@ -161,10 +164,10 @@ int main(int argc, char** argv) {
 //   GetNormalQuad(xvc, xg, R, a, d, cut);
 //   GetNormalQuad(xvd, xg, R, a, d, cut);
 //   GetNormalQuad(xve, xg, R, a, d, cut);
-// 
+//
 //   xg[0] -= 2;
 //   xg[1] -= 2;
-// 
+//
 //   for(unsigned i = 0; i < xva.size(); i++) {
 //     for(unsigned k = 0; k < xva[i].size(); k++) {
 //       xva[i][k] -= 2;
@@ -182,22 +185,25 @@ int main(int argc, char** argv) {
 
   fclose(fp);
 
+  delete finiteElementQuad;
   return 1;
 }
 
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d, bool &cut) {
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d,  std::vector<double> &xm, bool &cut) {
 
-  unsigned nve =  xv.size();
-  unsigned dim =  xv[0].size();
+  unsigned dim =  xv.size();
+  unsigned nve =  xv[0].size();
+
+  //std::cout<< dim << " " << nve <<std::endl;
 
   std::vector<double> dist(nve, 0);
   for(unsigned i = 0; i < nve; i++) {
     for(unsigned k = 0;  k < dim; k++) {
-      dist[i] += (xv[i][k] - xg[k]) * (xv[i][k] - xg[k]);
+      dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
     }
     dist[i] = sqrt(dist[i]) - R;
-    if(dist[i] == 0.) dist[i] = 1.0e-10;
+    if(fabs(dist[i]) < 1.0e-10) dist[i] = (dist[i] < 0) ? -1.0e-10 : 1.0e-10;
   }
 
   std::vector <double> theta(2);
@@ -207,13 +213,13 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     if(dist[e] * dist[ep1] < 0) {
 
       double s = 0.5  * (1 + (dist[e] + dist[ep1]) / (dist[e] - dist[ep1]));
-      theta[cnt] = atan2((1 - s) * xv[e][1] + s * xv[ep1 ][1]  - xg[1], (1 - s) * xv[e][0] + s * xv[ep1][0] - xg[0]) ;
+      theta[cnt] = atan2((1 - s) * xv[1][e] + s * xv[1][ep1]  - xg[1], (1 - s) * xv[0][e] + s * xv[0][ep1] - xg[0]) ;
       cnt++;
 
     }
 
   }
-  if(cnt == 0 ) {
+  if(cnt == 0) {
     cut = 0;
 //     std::cout << "Empty/Full cell\n";
     return;
@@ -235,7 +241,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
 // std::cout << theta[0] / M_PI * 180 << " " << theta[1] / M_PI * 180 << " " << DT / M_PI * 180 << std::endl;
 
-    std::vector < double > xm(dim);
+    xm.resize(dim);
 
 
     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
@@ -254,12 +260,46 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
+
+    std::vector <  std::vector < std::vector <double > > > aP(1);
+    short unsigned quad = 3;
+    unsigned linear = 0;
+    bool ielIsInitialized = false;
+    if(!ielIsInitialized) {
+      ielIsInitialized = true;
+      ProjectNodalToPolynomialCoefficients(aP[0], xv, quad, linear) ;
+    }
+
+    std::vector<double> xi(dim);
+    GetClosestPointInReferenceElement(xv, xm, quad, xi);
+    bool inverseMapping = GetInverseMapping(linear, quad, aP, xm, xi, 100);
+    if(!inverseMapping) {
+      std::cout << "InverseMapping failed" << std::endl;
+    }
+
+    vector < vector < double > > Jac;
+    vector < vector < double > > JacI;
+    finiteElementQuad->GetJacobianMatrix(xv, xi, Jac, JacI);
+
+    std::vector<double> b;
+    b.assign(dim, 0);
+
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        b[k] += JacI[k][j] * b[j];
+      }
+    }
+    double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
+    b[0] /= bNorm;
+    b[1] /= bNorm;
+    double db = - b[0] * xm[0] - b[1] * xm[1];
+
   }
 
 }
 
 
-void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob) {
+void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob) {
 
   LinearImplicitSystem* mlPdeSys  = &ml_prob.get_system<LinearImplicitSystem> ("FracProblem");
 
@@ -300,10 +340,10 @@ void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < /*const*/ elem_type_templ_base< double, double > *  > > elem_all;
   ml_prob.get_all_abstract_fe(elem_all);
-  
+
   FILE * fp1;
 
-  fp1 = fopen ("lines_qp.dat", "w");
+  fp1 = fopen("lines_qp.dat", "w");
 
   for(int kproc = 0; kproc < nprocs; kproc++) {
     for(int jel = msh->_elementOffset[kproc]; jel < msh->_elementOffset[kproc + 1]; jel++) {
@@ -330,10 +370,6 @@ void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob) {
       for(int k = 0; k < dim; k++) {
         x2[k].resize(nDofx2);
       }
-      vector < vector < double > > x2i(nDofLin);
-      for(unsigned j = 0; j < nDofLin; j++) {
-        x2i[j].resize(dim);
-      }
 
       vector < double > phi;
       vector < double > phi_x;
@@ -349,11 +385,6 @@ void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; k++) {
             x2[k][j] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
           }
-        }
-        for(unsigned j = 0; j < nDofLin; j++) {
-           for(unsigned k = 0; k < dim; k++) {
-              x2i[j][k] = x2[k][j];
-        } 
         }
       }
       for(unsigned k = 0; k < dim; k++) {
@@ -435,17 +466,17 @@ void SimpleNonlocalAssembly (MultiLevelProblem& ml_prob) {
           std::vector<double> a;
           double d;
           bool cut;
-          GetNormalQuad(x2i, xg1, R, a, d, cut);
+          std::vector<double> xm;
+          GetNormalQuad(x2, xg1, R, a, d, xm, cut);
 
           if(cut && iel == 110 && ig == 0) { //TODO
-            double xx = 0.;
-            double yy = 0.;
-            for( unsigned j = 0; j < 50; j++ ) {
-              xx = x2i[0][0] + ( j * (x2i[1][0] - x2i[0][0]) / 50 );
-              yy = - ( a[0] / a[1] ) * xx - ( d / a[1] );
-              fprintf(fp1, "%f %f \n", xx, yy );
-            }
 
+            double xx = xm[0] - 0.5 * a[1];
+            double yy = xm[1] + 0.5 * a[0];
+            fprintf(fp1, "%f %f \n", xx, yy);
+            xx = xm[0] + 0.5 * a[1];
+            yy = xm[1] - 0.5 * a[0];
+            fprintf(fp1, "%f %f \n", xx, yy);
             fprintf(fp1, "\n \n");
           }
 
