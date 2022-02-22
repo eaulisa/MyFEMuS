@@ -6,7 +6,8 @@
 #include "LinearImplicitSystem.hpp"
 
 #include "PolynomialBases.hpp"
-//2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
+
+#include "CutFemIntegration.hpp"
 
 #include <vector>
 #include <cmath>
@@ -20,6 +21,8 @@ using namespace femus;
 #define EX_2        1.
 #define EY_1       -1.
 #define EY_2        1.
+#define N_X         2
+#define N_Y         2
 
 double InitialValueU(const std::vector < double >& x) {
   return 0. * x[0] * x[0];
@@ -40,13 +43,16 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d,  std::vector<double> &xm, bool &cut);
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
 void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob);
 
 
 const elem_type *finiteElementQuad;
 
 int main(int argc, char** argv) {
+
+  typedef double TypeIO;
+  typedef cpp_bin_float_oct TypeA;
 
 
 
@@ -63,7 +69,7 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-  mlMsh.GenerateCoarseBoxMesh(20, 20, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   // erase all the coarse mesh levels
@@ -107,6 +113,14 @@ int main(int argc, char** argv) {
 
   fp = fopen("lines.dat", "w");
 
+  unsigned qM = 3;
+  CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
+
+  std::vector<double> xg(2, 0);
+  xg[0] -= 0.;
+  xg[1] -= 0.;
+  double R = 0.5;
+  double CircArea = 0.;
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned nDof = 4; //TODO msh->GetElementDofNumber(iel, xType);  // number of coordinate element dofs
@@ -122,28 +136,43 @@ int main(int argc, char** argv) {
       }
     }
 
-    std::vector<double> xg(2, 0);
-    xg[0] -= 0.2;
-    xg[1] -= 0.2;
-    double R = 0.5;
     std::vector<double> a;
+    std::vector<double> b;
     std::vector<double> xm;
     double d;
-    bool cut;
+    double db;
+    unsigned cut;
 
-    GetNormalQuad(x1, xg, R, a, d, xm, cut);
+    GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
 
-    /* trivial print for xmgrace */
-    if(cut) {
-      double xx = xm[0] - 0.5 * a[1];
-      double yy = xm[1] + 0.5 * a[0];
-      fprintf(fp, "%f %f \n", xx, yy);
-      xx = xm[0] + 0.5 * a[1];
-      yy = xm[1] - 0.5 * a[0];
-      fprintf(fp, "%f %f \n", xx, yy);
-      fprintf(fp, "\n \n");
+    if(cut == 1) {
+      std::vector <TypeIO> weightCFQuad;
+      quad(qM, 0, b, db, weightCFQuad);
+
+      const double* weightQ = quad.GetGaussWeightPointer();
+
+      double sum = 0.;
+      for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
+        sum += weightQ[ig] * weightCFQuad[ig] ; //TODO use the correct quad rule!!!!!
+      }
+      CircArea += sum;
     }
+    else if ( cut == 0 ){
+      CircArea +=   ( (EX_2 - EX_1) / ( N_X * pow(2,N_UNIFORM_LEVELS-1) ) ) * ( (EY_2 - EY_1) / ( N_Y * pow(2,N_UNIFORM_LEVELS-1) ) ); //TODO
+    }
+
+//     /* trivial print for xmgrace */
+//     if(cut == 1) {
+//       double xx = xm[0] - 0.5 * a[1];
+//       double yy = xm[1] + 0.5 * a[0];
+//       fprintf(fp, "%f %f \n", xx, yy);
+//       xx = xm[0] + 0.5 * a[1];
+//       yy = xm[1] - 0.5 * a[0];
+//       fprintf(fp, "%f %f \n", xx, yy);
+//       fprintf(fp, "\n \n");
+//     }
   }
+  std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
 
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
   //SimpleNonlocalAssembly(ml_prob);
@@ -190,7 +219,7 @@ int main(int argc, char** argv) {
 }
 
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R,  std::vector<double> &a, double &d,  std::vector<double> &xm, bool &cut) {
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut) {
 
   unsigned dim =  xv.size();
   unsigned nve =  xv[0].size();
@@ -220,7 +249,8 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
   }
   if(cnt == 0) {
-    cut = 0;
+    if(dist[0] <= 0) cut = 0; // cell inside the ball
+    else cut = 2; // cell outside the ball
 //     std::cout << "Empty/Full cell\n";
     return;
   }
@@ -255,7 +285,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       xm[k] = -a[k] * d;
       xm[k] += xg[k];
     }
-    d += - a[0] * xg[0] - a[1] * xg[1];
+    d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
 
     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
@@ -281,18 +311,17 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     vector < vector < double > > JacI;
     finiteElementQuad->GetJacobianMatrix(xv, xi, Jac, JacI);
 
-    std::vector<double> b;
     b.assign(dim, 0);
 
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        b[k] += JacI[k][j] * b[j];
+        b[k] += JacI[k][j] * a[j];
       }
     }
     double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
     b[0] /= bNorm;
     b[1] /= bNorm;
-    double db = - b[0] * xm[0] - b[1] * xm[1];
+    db = - b[0] * xm[0] - b[1] * xm[1];
 
   }
 
@@ -464,10 +493,12 @@ void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob) {
           }
           double R = 0.5;
           std::vector<double> a;
+          std::vector<double> b;
           double d;
-          bool cut;
+          double db;
+          unsigned cut;
           std::vector<double> xm;
-          GetNormalQuad(x2, xg1, R, a, d, xm, cut);
+          GetNormalQuad(x2, xg1, R, a, d, xm, b, db, cut);
 
           if(cut && iel == 110 && ig == 0) { //TODO
 
