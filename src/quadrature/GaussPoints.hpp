@@ -35,7 +35,7 @@
 #include "TriGaussLobattoPoints.hpp"
 #include "LineGaussLobattoPoints.hpp"
 
-
+#include "GeomElTypeEnum.hpp"
 
 namespace femus {
   
@@ -44,38 +44,39 @@ namespace femus {
   public:
 
     Gauss(const char *geom_elem, const char *order_gauss, const char *gauss_type = "legendre" );
+    Gauss(const GeomElType &GeomElemType, const unsigned &gauss_order, const char *gauss_type = "legendre" );
     
   inline const double *  GetGaussWeightsPointer() const {
-    return GaussWeight;
+    return _GaussWeight;
   };
   
   inline const double *  GetGaussCoordinatePointer (const unsigned &k) const {
-    return GaussWeight + (k+1) * GaussPoints;
+    return _GaussWeight + (k+1) * _GaussPoints;
   };
   
   
   inline const double  GetGaussWeight(const unsigned ig) const {
-    return GaussWeight[ig];
+    return _GaussWeight[ig];
   };
   
   inline const unsigned GetGaussPointsNumber() const {
-      return GaussPoints;
+      return _GaussPoints;
   };     
 
   inline const std::string  GetGaussOrderString() const {
     return _order;
   };
   
-  inline int  GetGaussOrderIdx() const {
-    return gauss_order;
+  inline unsigned GetGaussOrderIdx() const {
+    return _gauss_order;
   };
   
   protected:
     
-    int gauss_order;
+    unsigned _gauss_order;
     std::string _order;
-    unsigned GaussPoints;  
-    const double *GaussWeight;
+    unsigned _GaussPoints;  
+    const double *_GaussWeight;
    
   };
      

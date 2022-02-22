@@ -1,16 +1,12 @@
 /*=========================================================================
-
  Program: FEMUS
  Module: FemusInit
  Authors: Simone Bnà
-
  Copyright (c) FEMTTU
  All rights reserved.
-
  This software is distributed WITHOUT ANY WARRANTY; without even
  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  PURPOSE.  See the above copyright notice for more information.
-
 =========================================================================*/
 
 //----------------------------------------------------------------------------
@@ -50,7 +46,7 @@ FemusInit::FemusInit(
 
 
     if ( i != 0) {
-      std::cout.rdbuf(NULL);
+        std::cout.rdbuf(NULL);
     }
 #endif
 
@@ -72,5 +68,4 @@ FemusInit::~FemusInit() {
 
 
 } //end namespace femus
-
 

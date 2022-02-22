@@ -17,17 +17,21 @@ int main(int argc, char** args) {
   //SetCoefficients takes ( dim, degree of equivalent polynomial, rho, vector < a, b, c > for the dicontinuity ( point, line, or plane ), and element (3=triangle/tet, 4=square/cube
   // a*x + b*y + c*z + d = 0, and d) as inputs
   EquivalentPolynomial eqP;
-  BestFit bf;
+  
+  std::vector < double > N {1.};
+  
+  
+  eqP.IntegrationValue(0, 1, 4, N, 0., 5 );
 
   //
-  eqP.SetCoefficients(3, 2, 10, std::vector<double> {0.000001, 0.0000001, -5., 1.}, 3);
-  eqP.PrintCoefficients();
+  //eqP.SetCoefficients(3, 2, 10, std::vector<double> {0.34,0.74,0.25, 0.5}, 3);
+  //eqP.PrintCoefficients();
 
   //eqP.SetCoefficients(2, 2, 20, std::vector<double> {2., 0., 1.}, 3);
   //eqP.PrintCoefficients();
 
 
-  std::cout <<  "  made it here in ex2" << endl;
+  
   //eqP.PrintCoefficients();
 
   //std::cout <<  "  made it here in ex2" << endl;

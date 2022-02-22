@@ -17,24 +17,19 @@ class RefineElement {
       if(dg1 < - _eps)
         return 0.;
       else if(dg1 < _eps) {
-        double dg2 = dg1 * dg1;  
+        double dg2 = dg1 * dg1;
         return (_a0 + dg1 * (_a1 + dg2 * (_a3 + dg2 * (_a5 + dg2 * (_a7 + dg2 * _a9)))));
       }
       else
         return 1.;
     };
 
-    const elem_type &GetFem1() const {
-      return *_finiteElement1;
+    const elem_type *GetFem1() const {
+      return _finiteElement1;
     }
-    const elem_type &GetFem2() const {
-      return *_finiteElement2;
-    }
-
-    const elem_type *GetFem2Pointer() const {
+    const elem_type *GetFem2() const {
       return _finiteElement2;
     }
-
     const unsigned &GetNumberOfNodes() const {
       return _numberOfNodes;
     }
@@ -171,20 +166,21 @@ void RefineElement::BuildPMat() {
 
   for(unsigned i = 0; i < _numberOfChildren; i++) {
     for(unsigned j = 0; j < _numberOfLinearNodes; j++) {
-      for(int k = 0; k < _dim; k++)  xvLinearChild[k][j] = *(_basis->GetXcoarse(_basis->GetFine2CoarseVertexMapping(i, j)) + k);
+      for(unsigned k = 0; k < _dim; k++)  xvLinearChild[k][j] = *(_basis->GetXcoarse(_basis->GetFine2CoarseVertexMapping(i, j)) + k);
     }
 
 
     for(unsigned j = 0; j < _numberOfNodes; j++) {
 
       std::vector<double> xij(_dim);
-      for(int k = 0; k < _dim; k++)  xij[k] = * (_basis->GetXcoarse(j) + k);
+      for(unsigned k = 0; k < _dim; k++)  xij[k] = * (_basis->GetXcoarse(j) + k);
 
       _finiteElementLinear->GetPhi(phiLinear, xij);
       xiChild.assign(_dim, 0.);
-      for(unsigned jj = 0; jj < _numberOfLinearNodes; jj++) {
-        xiChild[0] += phiLinear[jj] * xvLinearChild[0][jj];
-        xiChild[1] += phiLinear[jj] * xvLinearChild[1][jj];
+      for(unsigned k = 0; k < _dim; k++) {
+        for(unsigned jj = 0; jj < _numberOfLinearNodes; jj++) {
+          xiChild[k] += phiLinear[jj] * xvLinearChild[k][jj];
+        }
       }
 
       PMatrix[i][j].resize(_numberOfNodes);

@@ -27,27 +27,20 @@ class NonLocal {
 
     void ZeroLocalQuantities(const unsigned &nDof1, const Region &region2, const unsigned &levelMax1);
 
-    void Assembly1WR(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
-                     const OctTreeElement &octTreeElement1, RefineElement &element1,
-                     const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
-                     const double &kappa, const double &delta, const bool &printMesh);
+    void Assembly1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
+                   const OctTreeElement &octTreeElement1, RefineElement &element1,
+                   const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
+                   const double &kappa, const double &delta, const bool &printMesh);
 
-    double Assembly2WR(const RefineElement &element1, const Region &region2, const std::vector<unsigned> & jelIndex,
-                       const unsigned &nDof1, const vector < double > &xg1,
-                       const double &twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
-                       const double &delta, const bool &printMesh);
+    double Assembly2(const RefineElement &element1, const Region &region2, const std::vector<unsigned> & jelIndex,
+                     const unsigned &nDof1, const vector < double > &xg1,
+                     const double &twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
+                     const double &delta, const bool &printMesh);
 
     double GetSmoothTestFunction(const double &dg1, const double &eps);
 
-    std::vector < double > & GetRes1() {
-      return _res1;
-    };
     std::vector < double > & GetRes2(const unsigned &jel) {
       return _res2[jel];
-    };
-
-    std::vector < double > & GetJac11() {
-      return _jac11;
     };
 
     std::vector < double > & GetJac21(const unsigned &jel) {
@@ -58,8 +51,6 @@ class NonLocal {
     };
 
   private:
-    std::vector < double > _res1;
-    std::vector < double >  _jac11;
     std::vector < std::vector < double > > _res2;
     std::vector < std::vector < double > > _jac21;
     std::vector < std::vector < double > > _jac22;
@@ -75,9 +66,6 @@ class NonLocal {
 };
 
 void NonLocal::ZeroLocalQuantities(const unsigned &nDof1, const Region &region2, const unsigned &levelMax1) {
-
-  _res1.assign(nDof1, 0.);
-  _jac11.assign(nDof1 * nDof1, 0.);
   _res2.resize(region2.size());
   _jac21.resize(region2.size());
   _jac22.resize(region2.size());
@@ -97,19 +85,18 @@ void NonLocal::ZeroLocalQuantities(const unsigned &nDof1, const Region &region2,
 
 }
 
-
-void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
-                           const OctTreeElement &octTreeElement1, RefineElement &element1,
-                           const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
-                           const double &kappa, const double &delta, const bool &printMesh) {
+void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
+                         const OctTreeElement &octTreeElement1, RefineElement &element1,
+                         const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
+                         const double &kappa, const double &delta, const bool &printMesh) {
 
 
   if(level < levelMin1) {
     element1.BuildElement1Prolongation(level, iFather);
     for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
-      Assembly1WR(level + 1, levelMin1, levelMax1, i,
-                  *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, jelIndexF,
-                  solu1, kappa, delta, printMesh);
+      Assembly1(level + 1, levelMin1, levelMax1, i,
+                *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, jelIndexF,
+                solu1, kappa, delta, printMesh);
     }
   }
   else if(level == levelMax1 - 1) {
@@ -119,7 +106,7 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
     const unsigned &nDof1 = element1.GetNumberOfNodes();
     //double kernel = this->GetKernel(kappa, delta, eps);
 
-    const elem_type &fem1 = element1.GetFem1();
+    const elem_type *fem1 = element1.GetFem1();
 
     std::vector < double> xg1(dim);
     double weight1;
@@ -127,8 +114,8 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
 
     const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions();
 
-    for(unsigned ig = 0; ig < fem1.GetGaussPointNumber(); ig++) {
-      fem1.GetGaussQuantities(xv1, ig, weight1, phi1);
+    for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
+      fem1->GetGaussQuantities(xv1, ig, weight1, phi1);
       xg1.assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned i = 0; i < nDof1; i++) {
@@ -136,16 +123,8 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
         }
       }
 
-      for(unsigned i = 0; i < nDof1; i++) {
-        _res1[i] -=  - 2. * weight1  * phi1F[ig][i]; //Ax - f (so f = - 2)
-//         for(unsigned j = 0; j < nDof1; j++) {
-//           _jac11[i * nDof1 + j] -=  2. * weight1 * kernel * phi1F[ig][i] * phi1F[ig][j] * GetArea(delta, eps);
-//           _res1[i] +=  2. * weight1 * kernel * phi1F[ig][i] * phi1F[ig][j] * solu1[j] * GetArea(delta, eps);
-//         }
-      }
-
-      Assembly2WR(element1, region2, jelIndexF, nDof1, xg1, 2. * weight1 * _kernel,
-                  phi1F[ig], solu1, delta, printMesh);
+      Assembly2(element1, region2, jelIndexF, nDof1, xg1, 2. * weight1 * _kernel,
+                phi1F[ig], solu1, delta, printMesh);
     }
   }
   else {
@@ -201,7 +180,7 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
     }
     if(_jelIndexI.size() > 0) {
       const unsigned &nDof1 = element1.GetNumberOfNodes();
-      const elem_type &fem1 = element1.GetFem1();
+      const elem_type *fem1 = element1.GetFem1();
 
       std::vector < double> xg1(dim);
       double weight1;
@@ -209,24 +188,24 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
 
       const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions();
 
-      for(unsigned ig = 0; ig < fem1.GetGaussPointNumber(); ig++) {
-        fem1.GetGaussQuantities(xv1, ig, weight1, phi1);
+      for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
+        fem1->GetGaussQuantities(xv1, ig, weight1, phi1);
         xg1.assign(dim, 0.);
         for(unsigned k = 0; k < dim; k++) {
           for(unsigned i = 0; i < nDof1; i++) {
             xg1[k] += xv1[k][i] * phi1[i];
           }
         }
-        Assembly2WR(element1, region2, _jelIndexI, nDof1, xg1, 2. * weight1 * _kernel,
-                    phi1F[ig], solu1, delta, printMesh);
+        Assembly2(element1, region2, _jelIndexI, nDof1, xg1, 2. * weight1 * _kernel,
+                  phi1F[ig], solu1, delta, printMesh);
       }
     }
     if(_jelIndexR[level].size() > 0) {
       element1.BuildElement1Prolongation(level, iFather);
       for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
-        Assembly1WR(level + 1, levelMin1, levelMax1, i,
-                    *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, _jelIndexR[level],
-                    solu1, kappa, delta, printMesh);
+        Assembly1(level + 1, levelMin1, levelMax1, i,
+                  *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, _jelIndexR[level],
+                  solu1, kappa, delta, printMesh);
       }
     }
   }
@@ -236,10 +215,10 @@ void NonLocal::Assembly1WR(const unsigned &level, const unsigned &levelMin1, con
 
 
 
-double NonLocal::Assembly2WR(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
-                             const unsigned & nDof1, const vector < double > &xg1,
-                             const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
-                             const double & delta, const bool & printMesh) {
+double NonLocal::Assembly2(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
+                           const unsigned & nDof1, const vector < double > &xg1,
+                           const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
+                           const double & delta, const bool & printMesh) {
 
   double area = 0.;
 
@@ -282,7 +261,7 @@ double NonLocal::Assembly2WR(const RefineElement & element1, const Region & regi
       mCphi2iSum.assign(nDof2, 0.);
 
       for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
-        phi2 = fem->GetPhi(jg);  
+        phi2 = fem->GetPhi(jg);
         U = element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta));
         if(U > 0.) {
           double C =  U * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
@@ -356,6 +335,39 @@ class NonLocalBall: public NonLocal {
       return 1.;
     }
 };
+
+class NonLocalBall3D: public NonLocal {
+  public:
+    NonLocalBall3D(): NonLocal() {};
+    ~NonLocalBall3D() {};
+
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
+      double distance  = 0.;
+      for(unsigned k = 0; k < xc.size(); k++) {
+        distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
+      }
+      distance = radius - sqrt(distance);
+      return distance;
+    };
+
+    void SetKernel(const double  &kappa, const double &delta, const double &eps) {
+      _kernel = 15. * kappa / (4. * M_PI  * delta * delta * delta * delta * delta)
+                / (1. + 10. / 11. * pow(eps / delta, 2) + 15. / 143. * pow(eps / delta, 4.));
+    }
+
+    double GetArea(const double &delta, const double &eps) const {
+      return 4./3. * M_PI * (delta * delta * delta) * ( 1. + 3./11. * pow(eps/delta,2 ) );
+    };
+
+    double GetGamma(const double &d) const {
+      return 1.;
+    }
+
+    double GetGamma(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
+      return 1.;
+    }
+};
+
 
 
 class NonLocalBall1: public NonLocal {
