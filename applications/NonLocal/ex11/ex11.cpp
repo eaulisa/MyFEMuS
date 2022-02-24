@@ -56,142 +56,146 @@ int main(int argc, char** argv) {
 
 
 
-  const std::string fe_quad_rule_1 = "seventh";
-  const std::string fe_quad_rule_2 = "eighth";
-
-  // ======= Init ========================
-  FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
-
+//   const std::string fe_quad_rule_1 = "seventh";
+//   const std::string fe_quad_rule_2 = "eighth";
+//
+//   // ======= Init ========================
+//   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
+//
   finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
-
-  unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
-
-  MultiLevelMesh mlMsh;
-  double scalingFactor = 1.;
-  unsigned numberOfSelectiveLevels = 0;
-  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
-
-  // erase all the coarse mesh levels
-  const unsigned erased_levels = N_ERASED_LEVELS;
-  mlMsh.EraseCoarseLevels(erased_levels);
-
-  const unsigned level = N_UNIFORM_LEVELS - N_ERASED_LEVELS - 1;
-
-  MultiLevelSolution mlSol(&mlMsh);
-
-  // add variables to mlSol
-  mlSol.AddSolution("u", LAGRANGE, SECOND, 2);
-
-
-  mlSol.Initialize("All");
-  mlSol.Initialize("u", InitialValueU);
-
-  mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-
-  // ******* Set boundary conditions *******
-  mlSol.GenerateBdc("All");
-
-  MultiLevelProblem ml_prob(&mlSol);
-
-  LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("FracProblem");
-
-
-  Mesh*                    msh = mlMsh.GetLevel(level);    // pointer to the mesh (level) object
-  elem*                     el = msh->el;  // pointer to the elem object in msh (level)
-
-  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
-  unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
-  unsigned xType = 2;
-
-  const unsigned  dim = msh->GetDimension();
-
-  std::vector < std::vector < double > > x1;
-
-  FILE * fp;
-
-  fp = fopen("lines.dat", "w");
-
-  unsigned qM = 3;
-  CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
-
-  std::vector<double> xg(2, 0);
-  xg[0] -= 0.;
-  xg[1] -= 0.;
-  double R = 0.5;
-  double CircArea = 0.;
-
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-    unsigned nDof = 4; //TODO msh->GetElementDofNumber(iel, xType);  // number of coordinate element dofs
-    x1.resize(dim);
-    for(unsigned k = 0; k < dim; k++) {
-      x1[k].resize(nDof);
-    }
-
-    for(unsigned k = 0; k < dim; k++) {
-      for(unsigned i = 0; i < nDof; i++) {
-        unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-        x1[k][i] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
-      }
-    }
-
-    std::vector<double> a;
-    std::vector<double> b;
-    std::vector<double> xm;
-    double d;
-    double db;
-    unsigned cut;
-
-    GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
-    
-    double h2 = ( (EX_2 - EX_1) / ( N_X * pow(2,N_UNIFORM_LEVELS-1) ) ) * ( (EY_2 - EY_1) / ( N_Y * pow(2,N_UNIFORM_LEVELS-1) ) );
-    
-    if(cut == 1) {
-      std::vector <TypeIO> weightCFQuad;
-      quad(qM, 0, b, db, weightCFQuad);
-
-      const double* weightQ = quad.GetGaussWeightPointer();
-
-      double sum = 0.;
-      for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
-        sum += weightQ[ig] * weightCFQuad[ig] ; //TODO use the correct quad rule!!!!!
-      }
-      CircArea += sum / 4. * h2;
-    }
-    else if ( cut == 0 ){
-      CircArea += h2; //TODO
-    }
-
-//     /* trivial print for xmgrace */
-//     if(cut == 1) {
-//       double xx = xm[0] - 0.5 * a[1];
-//       double yy = xm[1] + 0.5 * a[0];
-//       fprintf(fp, "%f %f \n", xx, yy);
-//       xx = xm[0] + 0.5 * a[1];
-//       yy = xm[1] - 0.5 * a[0];
-//       fprintf(fp, "%f %f \n", xx, yy);
-//       fprintf(fp, "\n \n");
+//
+//   unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
+//
+//   MultiLevelMesh mlMsh;
+//   double scalingFactor = 1.;
+//   unsigned numberOfSelectiveLevels = 0;
+//   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+//   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
+//
+//   // erase all the coarse mesh levels
+//   const unsigned erased_levels = N_ERASED_LEVELS;
+//   mlMsh.EraseCoarseLevels(erased_levels);
+//
+//   const unsigned level = N_UNIFORM_LEVELS - N_ERASED_LEVELS - 1;
+//
+//   MultiLevelSolution mlSol(&mlMsh);
+//
+//   // add variables to mlSol
+//   mlSol.AddSolution("u", LAGRANGE, SECOND, 2);
+//
+//
+//   mlSol.Initialize("All");
+//   mlSol.Initialize("u", InitialValueU);
+//
+//   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+//
+//   // ******* Set boundary conditions *******
+//   mlSol.GenerateBdc("All");
+//
+//   MultiLevelProblem ml_prob(&mlSol);
+//
+//   LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("FracProblem");
+//
+//
+//   Mesh*                    msh = mlMsh.GetLevel(level);    // pointer to the mesh (level) object
+//   elem*                     el = msh->el;  // pointer to the elem object in msh (level)
+//
+//   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+//   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
+//
+//   unsigned xType = 2;
+//
+//   const unsigned  dim = msh->GetDimension();
+//
+//   std::vector < std::vector < double > > x1;
+//
+//   FILE * fp;
+//
+//   fp = fopen("lines.dat", "w");
+//
+//   unsigned qM = 3;
+//   CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
+//
+//   std::vector<double> xg(2, 0);
+//   xg[0] -= 0.;
+//   xg[1] -= 0.;
+//   double R = 0.5;
+//   double CircArea = 0.;
+//
+//   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+//     unsigned nDof = 4; //TODO msh->GetElementDofNumber(iel, xType);  // number of coordinate element dofs
+//     x1.resize(dim);
+//     for(unsigned k = 0; k < dim; k++) {
+//       x1[k].resize(nDof);
 //     }
-  }
-  std::cout.precision(14);
-  std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
+//
+//     for(unsigned k = 0; k < dim; k++) {
+//       for(unsigned i = 0; i < nDof; i++) {
+//         unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
+//         x1[k][i] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
+//       }
+//     }
+//
+//     std::vector<double> a;
+//     std::vector<double> b;
+//     std::vector<double> xm;
+//     double d;
+//     double db;
+//     unsigned cut;
+//
+//     GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
+//
+//     double h2 = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
+//
+//     if(cut == 1) {
+//       std::vector <TypeIO> weightCFQuad;
+//       quad(qM, 0, b, db, weightCFQuad);
+//
+//       const double* weightQ = quad.GetGaussWeightPointer();
+//
+//       double sum = 0.;
+//       for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
+//         sum += weightQ[ig] * weightCFQuad[ig] ; //TODO use the correct quad rule!!!!!
+//       }
+//       CircArea += sum / 4. * h2;
+//     }
+//     else if(cut == 0) {
+//       CircArea += h2; //TODO
+//     }
+//
+// //     /* trivial print for xmgrace */
+// //     if(cut == 1) {
+// //       double xx = xm[0] - 0.5 * a[1];
+// //       double yy = xm[1] + 0.5 * a[0];
+// //       fprintf(fp, "%f %f \n", xx, yy);
+// //       xx = xm[0] + 0.5 * a[1];
+// //       yy = xm[1] - 0.5 * a[0];
+// //       fprintf(fp, "%f %f \n", xx, yy);
+// //       fprintf(fp, "\n \n");
+// //     }
+//   }
+//  std::cout.precision(14);
+//  std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
 
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
   //SimpleNonlocalAssembly(ml_prob);
 
 //   /* Basic numerical tests for the circle - no mesh involved*/
-//   std::vector < std::vector<double> > xva = {{1., 1.}, {2., 1.}, {2., 2.}, {1., 2.}};
+  std::vector < std::vector<double> > xva = {{1., 2., 4., 1.}, {1., 1., 4., 2.}};
 //   std::vector < std::vector<double> > xvb =  {{2., 1.}, {2., 2.}, {1., 2.}, {1., 1.}};
 //   std::vector < std::vector<double> > xvc = {{2., 2.}, {1., 2.}, {1., 1.}, {2., 1.}};
 //   std::vector < std::vector<double> > xvd = {{1., 2.}, {1., 1.}, {2., 1.}, {2., 2.}};
 //   std::vector < std::vector<double> > xve = {{-1., -0.5}, {-1., 0.5}, {-2., .5}, {-2., -0.5}};
-//   std::vector<double> xg(2, 0);
-//   double R = 2.;
-//   std::vector<double> a;
-//   double d;
-//   bool cut;
-//   GetNormalQuad(xva, xg, R, a, d, cut);
+  std::vector<double> xg(2, 0);
+  double R = 2.;
+  std::vector<double> a;
+  double d;
+  std::vector<double> xm;
+  std::vector<double> b;
+  double db;
+  unsigned  cut;
+  
+  GetNormalQuad(xva, xg, R, a, d, xm, b, db, cut);
 //   GetNormalQuad(xvb, xg, R, a, d, cut);
 //   GetNormalQuad(xvc, xg, R, a, d, cut);
 //   GetNormalQuad(xvd, xg, R, a, d, cut);
@@ -215,7 +219,7 @@ int main(int argc, char** argv) {
 //   GetNormalQuad(xvd, xg, R, a, d, cut);
 //   GetNormalQuad(xve, xg, R, a, d, cut);
 
-  fclose(fp);
+//  fclose(fp);
 
   delete finiteElementQuad;
   return 1;
@@ -294,6 +298,53 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
 
+    std::vector < std::vector<std::vector<unsigned> > > idx = { {{0, 1}, {2, 3}}, {{3, 0}, {1, 2}} };
+
+    std::vector<double> xib(dim);
+
+    for(unsigned i = 0; i < 2; i++) {
+      double A[2], B[2], C[2];
+      for(unsigned j = 0 ; j < 2; j++) {
+        A[j] = xv[1][idx[i][j][0]] - xv[1][idx[i][j][1]]; // y0 - y1
+        B[j] = xv[0][idx[i][j][1]] - xv[0][idx[i][j][0]]; // x1 - x0
+        C[j] = - A[j] * xv[0][idx[i][j][0]] - B[j] * xv[1][idx[i][j][0]];
+      }
+
+      double det = A[0] * B[1] - A[1] * B[0];
+      if(fabs(det) > 1.0e-10) {
+        double xc = -(B[1] * C[0] - B[0] * C[1]) / det;
+        double yc = (A[1] * C[0] - A[0] * C[1]) / det;
+
+        std::cout<<"int " << xc<< " " <<yc<<std::endl;
+        
+        double tm = atan2(xm[1] - yc, xm[0] - xc);
+        std::cout<<tm / M_PI * 180 <<std::endl;
+
+        double t[2];
+        for(unsigned j = 0; j < 2; j++) {
+            
+          double xj = xv[0][idx[i][j][0]] - xc;  
+          double yj = xv[1][idx[i][j][0]] - yc;  
+            
+          t[j] = atan2(sin(-tm) * xj + cos(-tm) * yj,  //y' = sin t x + cos t y
+                       cos(-tm) * xj - sin(-tm) * yj); //x'= cos t x - sin t y
+          
+          std::cout<< j<<" " << xj <<" "<<yj << std::endl;
+        }
+        std::cout<<t[0] / M_PI * 180 << " "<<  t[1] / M_PI * 180  <<std::endl;
+        
+        xib[i] =  -1. + 2 * t[0] / (t[0] - t[1]);
+      }
+      else {
+        double d[2];
+        for(unsigned j = 0; j < 2; j++) {
+          d[j] = (A[j] * xm[0] + B[j] * xm[1] + C[j]) / sqrt(A[j] * A[j] + B[j] * B[j]);
+        }
+        xib[i] = -1. + 2 * d[0] / (d[0] + d[1]);
+      }
+    }
+    std::cout << xib[0] <<" "<<xib[1]<<std::endl;
+
     std::vector <  std::vector < std::vector <double > > > aP(1);
     short unsigned quad = 3;
     unsigned linear = 0;
@@ -309,6 +360,8 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     if(!inverseMapping) {
       std::cout << "InverseMapping failed" << std::endl;
     }
+    
+    std::cout << xi[0] <<" "<<xi[1]<<std::endl;
 
     vector < vector < double > > Jac;
     vector < vector < double > > JacI;
