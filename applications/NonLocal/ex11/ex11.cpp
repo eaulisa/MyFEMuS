@@ -181,11 +181,16 @@ int main(int argc, char** argv) {
   //SimpleNonlocalAssembly(ml_prob);
 
 //   /* Basic numerical tests for the circle - no mesh involved*/
-  std::vector < std::vector<double> > xva = {{1., 2., 4., 1.}, {1., 1., 4., 2.}};
-//   std::vector < std::vector<double> > xvb =  {{2., 1.}, {2., 2.}, {1., 2.}, {1., 1.}};
-//   std::vector < std::vector<double> > xvc = {{2., 2.}, {1., 2.}, {1., 1.}, {2., 1.}};
-//   std::vector < std::vector<double> > xvd = {{1., 2.}, {1., 1.}, {2., 1.}, {2., 2.}};
-//   std::vector < std::vector<double> > xve = {{-1., -0.5}, {-1., 0.5}, {-2., .5}, {-2., -0.5}};
+  std::vector < std::vector<double> > xva = {{0., 1., 1., 0.}, {1., 0., 3., 2.}};
+  std::vector < std::vector<double> > xvb = {{0., 4., 3., 2.}, {0., 0., 1., 1.}};
+  std::vector < std::vector<double> > xv0 = {{1., 2., 2., 1.}, {1., 1., 2., 2.}};
+  std::vector < std::vector<double> > xv1 = {{1., 1., 2., 2.}, {2., 1., 1., 2.}};
+  std::vector < std::vector<double> > xv2 = {{2., 1., 1., 2.}, {2., 2., 1., 1.}};
+  std::vector < std::vector<double> > xv3 = {{2., 2., 1., 1.}, {1., 2., 2., 1.}};
+  std::vector < std::vector<double> > xvr0 = {{1., 2., 3., 2.}, {1., 2., 4., 3.}};
+  std::vector < std::vector<double> > xvr1 = {{2., 1., 2., 3.}, {3., 1., 2., 4.}};
+  std::vector < std::vector<double> > xvr2 = {{3., 2., 1., 2.}, {4., 3., 1., 2.}};
+  std::vector < std::vector<double> > xvr3 = {{2., 3., 2., 1.}, {2., 4., 3., 1.}};
   std::vector<double> xg(2, 0);
   double R = 2.;
   std::vector<double> a;
@@ -194,13 +199,26 @@ int main(int argc, char** argv) {
   std::vector<double> b;
   double db;
   unsigned  cut;
-  
+
   GetNormalQuad(xva, xg, R, a, d, xm, b, db, cut);
-//   GetNormalQuad(xvb, xg, R, a, d, cut);
-//   GetNormalQuad(xvc, xg, R, a, d, cut);
-//   GetNormalQuad(xvd, xg, R, a, d, cut);
-//   GetNormalQuad(xve, xg, R, a, d, cut);
-//
+  std::cout << std::endl;
+  GetNormalQuad(xvb, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xv0, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xv1, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xv2, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xv3, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xvr0, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xvr1, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xvr2, xg, R, a, d, xm, b, db, cut);
+  std::cout << std::endl;
+  GetNormalQuad(xvr3, xg, R, a, d, xm, b, db, cut);
 //   xg[0] -= 2;
 //   xg[1] -= 2;
 //
@@ -276,10 +294,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       DT = theta[1] - theta[0];
     }
 
-// std::cout << theta[0] / M_PI * 180 << " " << theta[1] / M_PI * 180 << " " << DT / M_PI * 180 << std::endl;
-
     xm.resize(dim);
-
 
     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
     a.resize(dim);
@@ -294,56 +309,94 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     }
     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
 
+    std::cout.precision(14);
+
     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
+    std::vector<double> xib(dim, 0.);
 
-    std::vector < std::vector<std::vector<unsigned> > > idx = { {{0, 1}, {2, 3}}, {{3, 0}, {1, 2}} };
+    const double& x1 = xv[0][0];
+    const double& x2 = xv[0][1];
+    const double& x3 = xv[0][2];
+    const double& x4 = xv[0][3];
+    const double& y1 = xv[1][0];
+    const double& y2 = xv[1][1];
+    const double& y3 = xv[1][2];
+    const double& y4 = xv[1][3];
 
-    std::vector<double> xib(dim);
+    double dx12 = x1 - x2;
+    double dx34 = x3 - x4;
+    double dy12 = y1 - y2;
+    double dy34 = y3 - y4;
+    double h1 = dx34 * dy12 - dx12 * dy34;
 
-    for(unsigned i = 0; i < 2; i++) {
-      double A[2], B[2], C[2];
-      for(unsigned j = 0 ; j < 2; j++) {
-        A[j] = xv[1][idx[i][j][0]] - xv[1][idx[i][j][1]]; // y0 - y1
-        B[j] = xv[0][idx[i][j][1]] - xv[0][idx[i][j][0]]; // x1 - x0
-        C[j] = - A[j] * xv[0][idx[i][j][0]] - B[j] * xv[1][idx[i][j][0]];
+    double dx14 = (x1 - x4);
+    double dy23 = (y2 - y3);
+    double dx23 = (x2 - x3);
+    double dy14 = (y1 - y4);
+    double h2 = dx14 * dy23 - dx23 * dy14;
+
+    if(fabs(h1) > 1.0e-10) {//edges 1 and 3 are not parallel
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double g1 = -x4 * y1 + x3 * y2 - x2 * y3 + x1 * y4;
+      double fpg1 = f + g1;
+
+      double det = sqrt(h1 * (- 2. * xm[0] * (dy14 + dy23)
+                              + (2. * xm[1] - y3 - y4) * (x1 + x2)
+                              - (2. * xm[1] - y1 - y2) * (x3 + x4))
+                        + fpg1 * fpg1);
+      xib[0] = (fpg1 + det) / h1;
+      if(fabs(h2) > 1.0e-10) { //edges 2 and 4 are not parallel
+        double g2 = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+        double fpg2 = f + g2;
+        xib[1] = (fpg2 - det) / h2;
       }
-
-      double det = A[0] * B[1] - A[1] * B[0];
-      if(fabs(det) > 1.0e-10) {
-        double xc = -(B[1] * C[0] - B[0] * C[1]) / det;
-        double yc = (A[1] * C[0] - A[0] * C[1]) / det;
-
-        std::cout<<"int " << xc<< " " <<yc<<std::endl;
-        
-        double tm = atan2(xm[1] - yc, xm[0] - xc);
-        std::cout<<tm / M_PI * 180 <<std::endl;
-
-        double t[2];
-        for(unsigned j = 0; j < 2; j++) {
-            
-          double xj = xv[0][idx[i][j][0]] - xc;  
-          double yj = xv[1][idx[i][j][0]] - yc;  
-            
-          t[j] = atan2(sin(-tm) * xj + cos(-tm) * yj,  //y' = sin t x + cos t y
-                       cos(-tm) * xj - sin(-tm) * yj); //x'= cos t x - sin t y
-          
-          std::cout<< j<<" " << xj <<" "<<yj << std::endl;
-        }
-        std::cout<<t[0] / M_PI * 180 << " "<<  t[1] / M_PI * 180  <<std::endl;
-        
-        xib[i] =  -1. + 2 * t[0] / (t[0] - t[1]);
+      else { //edges 2 and 4 are parallel
+        std::cout << "2 and 4 are parallel\n";
+        double den = ((-1. + xib[0]) * (x1 - x4) + (1. + xib[0]) * (x3 - x2));
+        xib[1] = (fabs(den) > 1.0e-10) ?
+                 ((-1. + xib[0]) * (x1 + x4) - (1. + xib[0]) * (x3 + x2) + 4. * xm[0]) / den :
+                 ((-1. + xib[0]) * (y1 + y4) - (1. + xib[0]) * (y3 + y2) + 4. * xm[1]) /
+                 ((-1. + xib[0]) * (y1 - y4) + (1. + xib[0]) * (y3 - y2));
       }
-      else {
-        double d[2];
-        for(unsigned j = 0; j < 2; j++) {
-          d[j] = (A[j] * xm[0] + B[j] * xm[1] + C[j]) / sqrt(A[j] * A[j] + B[j] * B[j]);
+    }
+    else if(fabs(h2) > 1.0e-10) { //edges 1 and 3 are parallel, but edges 2 and 4 are not
+      std::cout << "1 and 2 are parallel\n";
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double g2 = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+      double fpg2 = f + g2;
+
+      double det = sqrt(h2 * (- 2. * xm[0] * (dy12 - dy34)
+                              + (2. * xm[1] - y2 - y3) * (x1 + x4)
+                              - (2. * xm[1] - y1 - y4) * (x2 + x3))
+                        +  fpg2 * fpg2);
+
+      xib[1] = (fpg2 - det) / h2;
+      double den = ((-1. + xib[1]) * (x1 - x2) + (1. + xib[1]) * (x3 - x4));
+      xib[0] = (fabs(den) > 1.0e-10) ?
+               ((-1. + xib[1]) * (x1 + x2) - (1. + xib[1]) * (x3 + x4) + 4. * xm[0]) / den :
+               ((-1. + xib[1]) * (y1 + y2) - (1. + xib[1]) * (y3 + y4) + 4. * xm[1]) /
+               ((-1. + xib[1]) * (y1 - y2) + (1. + xib[1]) * (y3 - y4));
+    }
+    else { //edges 1 and 3, and  edges 2 and 4 are parallel
+      std::cout << "Romboid\n";
+      std::vector<std::vector<unsigned> > idx = {{3, 1}, {0, 2}};
+
+      double A[2][2] = {{-dy14, dy23}, {dy12, dy34}};
+      double B[2][2] = {{dx14, -dx23}, {-dx12,-dx34}};
+      
+      for(unsigned i = 0; i < 2; i++) {
+        double d[2];  
+        for(unsigned j = 0 ; j < 2; j++) {
+          double Cij = - A[i][j] * xv[0][idx[i][j]] - B[i][j] * xv[1][idx[i][j]];
+          d[j] = (A[i][j] * xm[0] + B[i][j] * xm[1] + Cij) / sqrt(A[i][j] * A[i][j] + B[i][j] * B[i][j]);
         }
         xib[i] = -1. + 2 * d[0] / (d[0] + d[1]);
       }
     }
-    std::cout << xib[0] <<" "<<xib[1]<<std::endl;
+
+    std::cout << xib[0] << " " << xib[1] << std::endl;
 
     std::vector <  std::vector < std::vector <double > > > aP(1);
     short unsigned quad = 3;
@@ -360,8 +413,8 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     if(!inverseMapping) {
       std::cout << "InverseMapping failed" << std::endl;
     }
-    
-    std::cout << xi[0] <<" "<<xi[1]<<std::endl;
+
+    std::cout << xi[0] << " " << xi[1] << std::endl;
 
     vector < vector < double > > Jac;
     vector < vector < double > > JacI;
@@ -384,7 +437,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 }
 
 
-void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob) {
+void SimpleNonlocalAssembly(MultiLevelProblem & ml_prob) {
 
   LinearImplicitSystem* mlPdeSys  = &ml_prob.get_system<LinearImplicitSystem> ("FracProblem");
 
@@ -575,6 +628,7 @@ void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob) {
   }
   fclose(fp1);
 }
+
 
 
 
