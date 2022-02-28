@@ -768,8 +768,9 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
         if(eFlag != 10) {
 
           //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
-          std::vector <std::vector <double> > JacMatrix;
-          msh->_finiteElement[ielt][solType]->GetJacobian(vxHat, ig, weightV, JacMatrix);
+          std::vector <std::vector <double> > Jac;
+          std::vector <std::vector <double> > JacI;
+          msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vxHat, ig, weightV, Jac, JacI);
 
 
           std::vector <std::vector <adept::adouble> > G(dim); // J^T . J
@@ -777,7 +778,7 @@ void AssembleFluid(MultiLevelProblem& ml_prob) {
             G[i].assign(dim, 0.);
             for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                G[i][j] += JacMatrix[k][i] * JacMatrix[k][j];
+                G[i][j] += JacI[k][i] * JacI[k][j];
               }
             }
           }

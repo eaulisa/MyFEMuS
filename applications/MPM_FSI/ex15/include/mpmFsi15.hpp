@@ -396,9 +396,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       if(eFlag == 0) {   // only fluid cells
 
         //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
-        std::vector <std::vector <adept::adouble> > JacMatrix;
-        std::vector <std::vector <double> > JacMatrixHat;
-        msh->_finiteElement[ielt][solType]->GetJacobian(vx, ig, weight, JacMatrix); //centered at theta
+        
+        std::vector <std::vector <adept::adouble> > Jac;  
+        std::vector <std::vector <adept::adouble> > JacI;
+        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, ig, weight, Jac, JacI); //centered at theta
 
 
         if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases centered at theta
@@ -407,7 +408,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
           for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
-              gradPhiP[(i + 1) * dim + j] = JacMatrix[i][j];
+              gradPhiP[(i + 1) * dim + j] = JacI[i][j];
             }
           }
         }
@@ -425,7 +426,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           G[i].assign(dim, 0.);
           for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              G[i][j] += JacMatrix[k][i] * JacMatrix[k][j];
+              G[i][j] += JacI[k][i] * JacI[k][j];
             }
           }
         }
@@ -554,9 +555,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         double area = particlesBulk[iBmarker]->GetMarkerMass();
 
-        std::vector <std::vector <adept::adouble> > JacMatrix1;
-        std::vector <std::vector <adept::adouble> > JacMatrix;
-        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, JacMatrix1, JacMatrix); //centered at theta
+        std::vector <std::vector <adept::adouble> > Jac;
+        std::vector <std::vector <adept::adouble> > JacI;
+        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jac, JacI); //centered at theta
 
         msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, xi, weight, phiP, gradPhiP);
 
@@ -644,7 +645,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           G[i].assign(dim, 0.);
           for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              G[i][j] += JacMatrix[k][i] * JacMatrix[k][j];
+              G[i][j] += JacI[k][i] * JacI[k][j];
             }
           }
         }

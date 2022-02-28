@@ -68,13 +68,6 @@ namespace femus {
       void BuildProlongation(const Mesh& mymesh, const int& iel, SparseMatrix* Projmat, NumericVector* NNZ_d, NumericVector* NNZ_o, const unsigned& itype) const;
 
 
-      virtual void GetJacobian(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
-                               vector< vector < adept::adouble > >& jacobianMatrix) const = 0;
-
-      virtual void GetJacobian(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
-                               vector< vector < double > >& jacobianMatrix) const = 0;
-
-
       ///////////////////////////////////
 
 
@@ -98,6 +91,11 @@ namespace femus {
                              vector < vector < adept::adouble > > & Jac,
                              vector < vector < adept::adouble > > & JacI) const;
 
+      void GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                             vector< vector < adept::adouble > >& Jac, vector< vector < adept::adouble > >& jacI) const;
+
+      void GetJacobianMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
+                             vector< vector < double > >& Jac, vector< vector < double > >& JacI) const;
 
       /* all double */
       void GetJacobianMatrix(const vector < vector < double > >& vt, const  vector < double >& xi,
@@ -329,21 +327,6 @@ namespace femus {
         deallocate_volume_shape_at_reference_boundary_quadrature_points();
       }
 
-
-
-      template <class type>
-      void GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                            vector < vector < type > >& jacobianMatrix) const;
-
-      void GetJacobian(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
-                       vector < vector < adept::adouble > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-      void GetJacobian(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
-                       vector < vector < double > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-
       /////////////////////////////////////////
 
       template <class type>
@@ -357,6 +340,10 @@ namespace femus {
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const  vector < double >& xi,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
+
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                  vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
 
 
       ////////////////////////////////////////////
@@ -499,19 +486,6 @@ namespace femus {
       }
 
 
-      template <class type>
-      void GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                            vector < vector < type > >& jacobianMatrix) const;
-
-      void GetJacobian(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
-                       vector < vector < adept::adouble > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-      void GetJacobian(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
-                       vector < vector < double > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-
       ///////////////////////////////////
 
       /* all type minus a double */
@@ -526,6 +500,9 @@ namespace femus {
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                  vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
 
       /////////////////////////////////////
 
@@ -685,20 +662,6 @@ namespace femus {
       }
 
 
-
-      template <class type>
-      void GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                            vector < vector < type > >& jacobianMatrix) const;
-
-      void GetJacobian(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
-                       vector < vector < adept::adouble > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-      void GetJacobian(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
-                       vector < vector < double > >& jacobianMatrix) const {
-        GetJacobian_type(vt, ig, Weight, jacobianMatrix);
-      }
-
       ///////////////////////////////////
 
       /* all type minus a double */
@@ -713,6 +676,10 @@ namespace femus {
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
+
+      template <class type>
+      void GetJacobianMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                  vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
 
       /////////////////////////////////////
 
@@ -877,28 +844,6 @@ namespace femus {
 
   //---------------------------------------------------------------------------------------------------------
 
-  template <class type>
-  void elem_type_1D::GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                                      vector < vector < type > >& jacobianMatrix) const {
-
-    jacobianMatrix.resize(1);
-    jacobianMatrix[1].resize(1);
-
-
-    type Jac = 0.;
-
-    const double* dxi = _dphidxi[ig];
-
-    for(int inode = 0; inode < _nc; inode++, dxi++) {
-      Jac += (*dxi) * vt[0][inode];
-    }
-
-    jacobianMatrix[0][0] = 1 / Jac;
-
-    Weight = Jac * _gauss.GetGaussWeightsPointer()[ig];
-
-  }
-
 
 //---------------------------------------------------------------------------------------------------------
 
@@ -988,8 +933,6 @@ namespace femus {
 
 //---------------------------------------------------------------------------------------------------------
 
-
-
   template <class type>
   void elem_type_1D::JacobianSur_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
                                       vector < double >& phi, vector < type >& gradphi, vector < type >& normal) const {
@@ -1038,39 +981,6 @@ namespace femus {
     ///@todo warning the surface gradient is missing!!!!!!!!!!!!!!!
 
   }
-
-//---------------------------------------------------------------------------------------------------------
-
-  template <class type>
-  void elem_type_2D::GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                                      vector < vector < type > >& jacobianMatrix) const {
-
-    jacobianMatrix.resize(2);
-    jacobianMatrix[0].resize(2);
-    jacobianMatrix[1].resize(2);
-
-    type Jac[2][2] = {{0, 0}, {0, 0}};
-    const double* dxi = _dphidxi[ig];
-    const double* deta = _dphideta[ig];
-
-    for(int inode = 0; inode < _nc; inode++, dxi++, deta++) {
-      Jac[0][0] += (*dxi) * vt[0][inode];
-      Jac[0][1] += (*dxi) * vt[1][inode];
-      Jac[1][0] += (*deta) * vt[0][inode];
-      Jac[1][1] += (*deta) * vt[1][inode];
-    }
-
-    type det = (Jac[0][0] * Jac[1][1] - Jac[0][1] * Jac[1][0]);
-
-    jacobianMatrix[0][0] = Jac[1][1] / det;
-    jacobianMatrix[0][1] = -Jac[0][1] / det;
-    jacobianMatrix[1][0] = -Jac[1][0] / det;
-    jacobianMatrix[1][1] = Jac[0][0] / det;
-
-    Weight = det * _gauss.GetGaussWeightsPointer()[ig];
-
-  }
-
 
 //---------------------------------------------------------------------------------------------------------
 
@@ -1265,56 +1175,6 @@ namespace femus {
     ///@todo warning the surface gradient is missing!!!!!!!!!!!!!!!
   }
 
-
-
-
-
-
-//---------------------------------------------------------------------------------------------------------
-  template <class type>
-  void elem_type_3D::GetJacobian_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
-                                      vector< vector < type > >& jacobianMatrix) const {
-
-    jacobianMatrix.resize(3);
-    jacobianMatrix[0].resize(3);
-    jacobianMatrix[1].resize(3);
-    jacobianMatrix[2].resize(3);
-
-    type Jac[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-
-    const double* dxi = _dphidxi[ig];
-    const double* deta = _dphideta[ig];
-    const double* dzeta = _dphidzeta[ig];
-
-    for(int inode = 0; inode < _nc; inode++, dxi++, deta++, dzeta++) {
-      Jac[0][0] += (*dxi) * vt[0][inode];
-      Jac[0][1] += (*dxi) * vt[1][inode];
-      Jac[0][2] += (*dxi) * vt[2][inode];
-      Jac[1][0] += (*deta) * vt[0][inode];
-      Jac[1][1] += (*deta) * vt[1][inode];
-      Jac[1][2] += (*deta) * vt[2][inode];
-      Jac[2][0] += (*dzeta) * vt[0][inode];
-      Jac[2][1] += (*dzeta) * vt[1][inode];
-      Jac[2][2] += (*dzeta) * vt[2][inode];
-    }
-
-    type det = (Jac[0][0] * (Jac[1][1] * Jac[2][2] - Jac[1][2] * Jac[2][1]) +
-                Jac[0][1] * (Jac[1][2] * Jac[2][0] - Jac[1][0] * Jac[2][2]) +
-                Jac[0][2] * (Jac[1][0] * Jac[2][1] - Jac[1][1] * Jac[2][0]));
-
-    jacobianMatrix[0][0] = (-Jac[1][2] * Jac[2][1] + Jac[1][1] * Jac[2][2]) / det;
-    jacobianMatrix[0][1] = (Jac[0][2] * Jac[2][1] - Jac[0][1] * Jac[2][2]) / det;
-    jacobianMatrix[0][2] = (-Jac[0][2] * Jac[1][1] + Jac[0][1] * Jac[1][2]) / det;
-    jacobianMatrix[1][0] = (Jac[1][2] * Jac[2][0] - Jac[1][0] * Jac[2][2]) / det;
-    jacobianMatrix[1][1] = (-Jac[0][2] * Jac[2][0] + Jac[0][0] * Jac[2][2]) / det;
-    jacobianMatrix[1][2] = (Jac[0][2] * Jac[1][0] - Jac[0][0] * Jac[1][2]) / det;
-    jacobianMatrix[2][0] = (-Jac[1][1] * Jac[2][0] + Jac[1][0] * Jac[2][1]) / det;
-    jacobianMatrix[2][1] = (Jac[0][1] * Jac[2][0] - Jac[0][0] * Jac[2][1]) / det;
-    jacobianMatrix[2][2] = (-Jac[0][1] * Jac[1][0] + Jac[0][0] * Jac[1][1]) / det;
-
-    Weight = det * _gauss.GetGaussWeightsPointer()[ig];
-
-  }
 
 
 //---------------------------------------------------------------------------------------------------------
