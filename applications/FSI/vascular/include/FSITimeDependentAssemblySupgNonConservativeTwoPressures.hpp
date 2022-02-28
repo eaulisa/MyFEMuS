@@ -555,12 +555,13 @@ namespace femus {
           if (flag_mat != 4) {
             if (middle) {
               vector < adept::adouble > gradPf (dim, 0.);
-              std::vector <std::vector <adept::adouble> > jacobianMatrix;
-              mymsh->_finiteElement[ielt][SolType2]->GetJacobian (vx, ig, Weight, jacobianMatrix);
+              std::vector <std::vector <adept::adouble> > JacI;
+              std::vector <std::vector <adept::adouble> > Jac;
+              mymsh->_finiteElement[ielt][SolType2]->GetJacobianMatrix (vx, ig, Weight, Jac, JacI);
 
               for (unsigned i = 0; i < dim; i++) {
                 for (unsigned j = 0; j < dim; j++) {
-                  gradPf[i] +=  Soli[indexVAR[nBlocks * dim + jP]][ 1 + j ] * jacobianMatrix[j][i];
+                  gradPf[i] +=  Soli[indexVAR[nBlocks * dim + jP]][ 1 + j ] * JacI[j][i];
                 }
               }
 
