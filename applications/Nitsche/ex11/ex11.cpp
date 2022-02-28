@@ -24,10 +24,14 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& mlProb);
 
 void BuildFlag (MultiLevelSolution& mlSol);
 
-unsigned DIM = 3;
+unsigned DIM = 2;
 
 bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
+  // solution does not depend on y and z, only on x. Then dirichlet boundary conditions are fixed only on the left-right side of the domain. Everyelse it is Neumann.
+  // u1 has 0 Dirichlet on the left
+  // u2 has 0 Dirichlet on the left
+  
   if (DIM == 1 || DIM == 3) {
     if (facename == 1  && !strcmp (SolName, "u1")) dirichlet = true;
     if (facename == 2  && !strcmp (SolName, "u2")) dirichlet = true;
@@ -53,15 +57,16 @@ int main (int argc, char** args) {
   unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
-  unsigned nx = 101; // this should always be a odd number
+  unsigned nx = 11; // this should always be a odd number
 
+  double lengthX = 3.;
   double length = 1.;
 
   if (DIM == 1) {
-    mlMsh.GenerateCoarseBoxMesh (nx, 0, 0, -length / 2, length / 2, 0., 0., 0., 0., EDGE3, "seventh");
+    mlMsh.GenerateCoarseBoxMesh (nx, 0, 0, -lengthX / 2, lengthX / 2, 0., 0., 0., 0., EDGE3, "seventh");
   }
   else if (DIM == 2) {
-    mlMsh.GenerateCoarseBoxMesh (nx, 4, 0, -length / 2, length / 2, -length / 2, length / 2, 0., 0., QUAD9, "seventh");
+    mlMsh.GenerateCoarseBoxMesh (nx, 4, 0, -lengthX / 2, lengthX / 2, 0, 1, 0., 0., QUAD9, "seventh");
   }
   else if (DIM == 3) {
     mlMsh.ReadCoarseMesh ("./input/cube.neu", "seventh", scalingFactor);
