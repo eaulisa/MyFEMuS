@@ -11,6 +11,8 @@
 
 #include <vector>
 #include <cmath>
+#include <iostream>
+
 using namespace std;
 using namespace femus;
 
