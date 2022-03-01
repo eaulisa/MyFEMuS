@@ -16,7 +16,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  1
+#define N_UNIFORM_LEVELS  4
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned i = 0; i < nDof; i++) {
         unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-        x1[k][(i + 1) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+        x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
       }
     }
 
@@ -259,12 +259,41 @@ int main(int argc, char** argv) {
   double db;
   unsigned  cut;
 
+  std::vector <TypeIO> weightCF;
+  const double* weightG;
+  double sum;
+
   GetNormalTri(xva, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
+  tri(qM, 0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+  //std::cout << sum << std::endl;
+
+
   GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
+  tri(qM, 0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+  //std::cout << sum << std::endl;
+
+
   GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
+  tri(qM, 0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+  //std::cout << sum << std::endl;
+
+
+
 //   GetNormalQuad(xvc1, xg, R, a, d, xm, b, db, cut);
 //   std::cout << std::endl;
 //   GetNormalQuad(xvc2, xg, R, a, d, xm, b, db, cut);
@@ -495,13 +524,13 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
     }
 
-    double det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    std::vector < std::vector < double > > Ji = {{J[1][1] / det, -J[0][1] / det}, {-J[1][0] / det, J[0][0] / det}};
+//     double det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+//     std::vector < std::vector < double > > Ji = {{J[1][1] / det, -J[0][1] / det}, {-J[1][0] / det, J[0][0] / det}};
 
     b.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        b[k] += Ji[k][j] * a[j];
+        b[k] += J[j][k] * a[j];
       }
     }
     double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
@@ -542,7 +571,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 //
 //     for(unsigned k = 0; k < dim; k++) {
 //       for(unsigned j = 0; j < dim; j++) {
-//         b2[k] += JacI2[k][j] * a[j];
+//         b2[k] += JacI2[j][k] * a[j];
 //       }
 //     }
 //     double b2Norm = sqrt(b2[0] * b2[0] + b2[1] * b2[1]);
@@ -651,13 +680,17 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
     }
     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
 
+    //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+    //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
 
     std::cout.precision(14);
 
-    //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
-    //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+
+
+
 
     std::vector<double> xi(dim);
 
@@ -674,15 +707,13 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
     xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
 
 
-    //std::cout << xi[0] << " " <<xi[1] <<std::endl;
-
-    double det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    std::vector < std::vector < double > > Ji = {{J[1][1] / det, -J[0][1] / det}, {-J[1][0] / det, J[0][0] / det}};
+    //std::cout << xi[0] << " " << xi[1] << std::endl;
+   
 
     b.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        b[k] += Ji[k][j] * a[j];
+        b[k] += J[j][k] * a[j];
       }
     }
     double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
