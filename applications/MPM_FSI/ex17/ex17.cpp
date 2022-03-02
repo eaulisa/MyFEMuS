@@ -312,7 +312,7 @@ bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char na
   else if(!strcmp(name, "VX")) {
     if(1 == facename) {     //inlet
       if(t < 10.0) {
-        value = 0.5 * 0.06067 * (1. - cos(M_PI * t / 10));
+        value = 0.5 * 0.06067 * (1. - cos(M_PI * t / 10))*4*x[1]*(0.5-x[1]);
       }
       else {
         value = 0.06067;
