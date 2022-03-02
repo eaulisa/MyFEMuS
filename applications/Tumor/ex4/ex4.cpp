@@ -38,7 +38,8 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0.;
 
   if(!strcmp(SolName, "P")) {   // left boundary condition.
-    value = 400 + 40 * (1. - x[0]);
+     value = 400 + 40 * (1. - x[0]);
+      //value =  400.;
   }
 
   return dirichlet;
@@ -58,11 +59,11 @@ int main(int argc, char** args) {
   // define multilevel mesh
   MultiLevelMesh mlMsh;
 
-  unsigned nx = 10;
-  unsigned ny = 2;
+  unsigned nx = 5;
+  unsigned ny = 5;
   unsigned nz = 1;
 
-  double length = .1;
+  double length = 1;
   double lengthx = 1;
 
   if(DIM == 2) {
@@ -129,7 +130,7 @@ int main(int argc, char** args) {
   //system.SetOuterSolver(PREONLY);
 
   system.AttachGetTimeIntervalFunction(GetTimeStep);
-  const unsigned int n_timesteps = 60;
+  const unsigned int n_timesteps = 1440;
 
 
   // print solutions
@@ -444,10 +445,9 @@ void AssemblePorousMediaSystem(MultiLevelProblem& ml_prob) {
     } // end gauss point loop
 
     //--------------------------------------------------------------------------------------------------------
-    // Add the local Matrix/Vector into the global Matrix/Vector
-
-   
     
+    
+    // Add the local Matrix/Vector into the global Matrix/Vector
     //copy the value of the adept::adoube aRes in double Res and store them in RES
     Res.resize(nDofsAll);    //resize
 
