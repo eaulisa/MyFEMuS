@@ -30,10 +30,12 @@ namespace boost {
 using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
 
+std::vector<bool> statements(18, false);
+
 template <class TypeA>
 TypeA F(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &x1, const TypeA &x2) {
 
-  std::cout << "F" << std::endl;
+  //std::cout << "F" << std::endl;
 
   TypeA sum(0);
   for(unsigned i = 0; i <= s; i++) {
@@ -49,31 +51,31 @@ TypeA F(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> 
 template <class TypeA>
 TypeA G(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &x1, const TypeA &x2) {
 
-  std::cout << "G" << std::endl;
+  //std::cout << "G" << std::endl;
 
   TypeA sum1 = ((m[1] % 2 == 0) ? -1 : 1) * (factorial<TypeA>(m[1]) / pow(a[1], m[1] + 1));
 
-  std::cout << sum1 << std::endl;
+  //std::cout << sum1 << std::endl;
 
   TypeA sum = 0;
   for(unsigned j = 0; j <= s + m[1] + 1; j++) {
     sum += (pow(x2, m[0] + j + 1) - pow(x1, m[0] + j + 1)) * (pow(a[0], j) * pow(d, s + m[1] + 1 - j)) / (factorial<TypeA>(s + m[1] + 1 - j) * factorial<TypeA>(j) * (m[0] + j + 1));
 
   }
-  std::cout << sum << std::endl;
-  
+  //std::cout << sum << std::endl;
+
   return sum * sum1;
 }
 
 template <class TypeIO, class TypeA>
 TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
 
-  std::vector<TypeA> aA ={a[0], a[1]};
+  std::vector<TypeA> aA = {a[0], a[1]};
   TypeA dA(d);
-  
+
   TypeA xf = (-aA[1] - dA) / aA[0];
   TypeA xg = - dA / aA[0];
-  
+
 
   TypeA INT(0);
 
@@ -81,34 +83,43 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
     if(xf < 0) {
       if(xg < 0) {
         INT = F<TypeA>(s, m, aA, dA, 0, 1);
+        statements[0] = true;
       }
       else if(xg < 1) {
         INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, 0, xg) ;
+        statements[1] = true;
       }
       else {
         INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, 0, 1)  ;
+        statements[2] = true;
       }
     }
     else if(xf < 1) {
       if(xg < 0) {
         INT = G<TypeA>(s, m, aA, dA, 0, xf) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        statements[3] = true;
       }
       else if(xg < xf) {
         INT = G<TypeA>(s, m, aA, dA, xg, xf) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        statements[4] = true;
       }
       else if(xg < 1) {
         INT = -G<TypeA>(s, m, aA, dA, xf, xg) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        statements[5] = true;
       }
       else {
         INT =  F<TypeA>(s, m, aA, dA, xf, 1) - G<TypeA>(s, m, aA, dA, xf, 1)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
+        statements[6] = true;
       }
     }
     else {
       if(xg < 0) {
         INT = G<TypeA>(s, m, aA, dA, 0, 1);
+        statements[7] = true;
       }
       else if(xg < 1) {
         INT = G<TypeA>(s, m, aA, dA, xg, 1);
+        statements[8] = true;
       }
     }
   }
@@ -116,37 +127,49 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
     if(xf > 1) {
       if(xg > 1) {
         INT =  F<TypeA>(s, m, aA, dA, 0, 1);
+        statements[9] = true;
       }
       else if(xg > 0) {
         INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, 0, xg);
+        statements[10] = true;
       }
       else {
         INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, 0, 1); //xf=1,xg=0,a[0]=-1,a[1]=1,d=0
+        statements[11] = true;
       }
     }
     else if(xf > 0) {
       if(xg > 1) {
         INT =  F<TypeA>(s, m, aA, dA, 0, xf) + G<TypeA>(s, m, aA, dA, xf, 1);
+        statements[12] = true;
       }
       else if(xg > xf) {
         INT =  F<TypeA>(s, m, aA, dA, 0, xf) + G<TypeA>(s, m, aA, dA, xf, xg);
+        statements[13] = true;
       }
       else if(xg > 0) {
         INT =  F<TypeA>(s, m, aA, dA, 0, xf) - G<TypeA>(s, m, aA, dA, xg, xf);
+        statements[14] = true;
       }
       else {
         INT =  F<TypeA>(s, m, aA, dA, 0, xf) - G<TypeA>(s, m, aA, dA, 0, xf)  ;
+        statements[15] = true;
       }
     }
     else {
       if(xg > 1) {
         INT = G<TypeA>(s, m, aA, dA, 0, 1);
+        statements[16] = true;
       }
       else if(xg > 0) {
         INT =  G<TypeA>(s, m, aA, dA, 0, xg);
+        statements[17] = true;
       }
     }
   }
+//   for(unsigned i = 0; i < statements.size(); i++) {
+//     std::cout << "conditional statement " << i << " is " << statements[i] << std::endl;
+//   }
 
   return static_cast<TypeIO>(INT);
 }
@@ -190,17 +213,17 @@ int main() {
 // //     }
 //   }
 
-  for(unsigned k = 0; k < q; k++) {
-
-    for(unsigned j = 0; j < q; j++) {
-      double temp  = 1 / (double)((j + 1) * (k + j + 2));
-      double diff = temp - SquareA <double, double> (0, {k, j}, a, d);//TODO Fix ordering...?
-
-      //std::cout << "new = " << SquareA<double, double>(0, {k, j}, a, d) << std::endl;
-      //std::cout << "analytical = " << temp << std::endl;
-      std::cout << "difference for m = " << k << " and n = " << j << "difference = " << diff << std::endl;
-    }
-  }
+//   for(unsigned k = 0; k < q; k++) {
+// 
+//     for(unsigned j = 0; j < q; j++) {
+//       double temp  = 1 / (double)((j + 1) * (k + j + 2));
+//       double diff = temp - SquareA <double, double> (0, {k, j}, a, d);//TODO Fix ordering...?
+// 
+//       //std::cout << "new = " << SquareA<double, double>(0, {k, j}, a, d) << std::endl;
+//       //std::cout << "analytical = " << temp << std::endl;
+//       std::cout << "difference for m = " << k << " and n = " << j << "difference = " << diff << std::endl;
+//     }
+//   }
 
   a[0] = -1;
   a[1] = -1;
@@ -209,19 +232,32 @@ int main() {
   m[1] = 5;
   d = 1.0e-10;
 
-  double I1 = pow(d, 2 + m[0] + m[1]) * factorial<double> (m[0]) * factorial<double>(m[1]) / factorial<double> (2 + m[0] + m[1]);
+  //double I1 = pow(d, 2 + m[0] + m[1]) * factorial<double> (m[0]) * factorial<double>(m[1]) / factorial<double> (2 + m[0] + m[1]);
 
-  std::cout << I1 << " " << SquareA<double, double>(0, m, a, d) << std::endl;
+  //std::cout << I1 << " " << SquareA<double, double>(0, m, a, d) << std::endl;
+  
+  double eps1 = 1.0e-5;
+  
+  std::vector<std::vector<double>> epsCut{{0, 0, 0},
+    {eps1, 0, 0}, {-eps1, 0, 0}, {0, eps1, 0}, {0, -eps1, 0}, {0, 0, eps1}, {0, 0, -eps1},
+    {eps1, eps1, 0}, {eps1, -eps1, 0}, {-eps1, eps1, 0}, {-eps1, -eps1, 0},
+    {eps1, eps1, 0}, {eps1, -eps1, eps1}, {-eps1, eps1, 0}, {-eps1, -eps1, eps1},
+    {eps1, eps1, 0}, {eps1, -eps1, -eps1}, {-eps1, eps1, 0}, {-eps1, -eps1, -eps1}
+  };
+  
+  std::vector<std::vector<double>> smallCut{{0, 0, 0}, {0, 0, 1}, {0, 0, -1},
+    {-1, 1, -1}, {-1, 0, -1}, {-1, 1, 1}, {0, 1, -1},
+    {1, 1, 0}, {1, 0, -1}, {0, 1, 0}, {0, -1, -1}};
 
 
-  double eps = 1.0e-10;
+  
 
-  a[0] = -1;
-  a[1] = -eps;
+  a[0] = 0.;
+  a[1] = 1;
 
-  m[0] = 3;
-  m[1] = 5;
-  d = eps;
+  m[0] = 0;
+  m[1] = 0;
+  d = -eps1;
 
   //I1 = pow(eps, -1 - m[1]) * beta<double> (m[1]+1,  m[0]+2, eps) / (1 + m[0]);
   std::cout << SquareA<double, double>(0, m, a, d) << std::endl;
