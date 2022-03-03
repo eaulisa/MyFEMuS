@@ -76,6 +76,8 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
   TypeA xf = (-aA[1] - dA) / aA[0];
   TypeA xg = - dA / aA[0];
 
+  std::cout << xf << " " << xg << std::endl;
+
 
   TypeA INT(0);
 
@@ -130,7 +132,7 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
         statements[9] = true;
       }
       else if(xg > 0) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, 0, xg);
+        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G<TypeA>(s, m, aA, dA, xg, 1);
         statements[10] = true;
       }
       else {
@@ -187,42 +189,154 @@ int main() {
 
 //   for(unsigned k = 0; k < 401; k++) {
 //
+//     a[1] = 1;
 //     a[0] = -1 / (1. - (2 * delta));
 //     d = delta / (1 - (2 * delta));
+//
+//     if(abs(delta - 0.5) > 0.00000000001) {
+//       dt = SquareA<double, double>(0, m, a, d);
+//     }
+//
+//     if(!(abs(dt - 0.5) < 0.000000000000001)) {
+//       std::cout << "failedmmm!! " << dt << std::endl;
+//     }
+//
+//     a[1] *= -1;
+//     a[0] *= -1;
+//     d *= -1;
+//     if(abs(delta - 0.5) > 0.00000000001) {
+//       dt = SquareA<double, double>(0, m, a, d);
+//     }
+//     if(!(abs(dt - 0.5) < 0.000000000000001)) {
+//       std::cout << "failedmmm!! " << dt << std::endl;
+//     }
+//
+//     a[0] = 1;
+//     a[1] = -1 / (1. - (2 * delta));
+//     d = delta / (1 - (2 * delta));
+//
+//     if(abs(delta - 0.5) > 0.00000000001) {
+//       dt = SquareA<double, double>(0, m, a, d);
+//     }
+//
+//     if(!(abs(dt - 0.5) < 0.000000000000001)) {
+//       std::cout << "failedmmm!! " << dt << std::endl;
+//     }
+//
+//     a[1] *= -1;
+//     a[0] *= -1;
+//     d *= -1;
+//     if(abs(delta - 0.5) > 0.00000000001) {
+//       dt = SquareA<double, double>(0, m, a, d);
+//     }
+//     if(!(abs(dt - 0.5) < 0.000000000000001)) {
+//       std::cout << "failedmmm!! " << dt << std::endl;
+//     }
 //     delta += 0.005;
+//   }
 //
-//     if(abs(delta - 0.5) > 0.00000000001){
-//         dt = SquareA<double, double>(0, m, a, d);
+//
+//   a[0] = 1;
+//   a[1] = 1;
+//   d = 0;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   a[0] = -1;
+//   a[1] = -1;
+//   d = 0;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//
+//   a[0] = -1;
+//   a[1] = -1;
+//   d = 2;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   a[0] = 1;
+//   a[1] = 1;
+//   d = -2;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//
+//   a[0] = -1;
+//   a[1] = 1;
+//   d = 1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   a[0] = 1;
+//   a[1] = -1;
+//   d = -1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   a[0] = 1;
+//   a[1] = -1;
+//   d = 1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   a[0] = -1;
+//   a[1] = 1;
+//   d = -1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << "\n";
+//
+//
+//   d = -1;
+//   a[0] = a[1] = 1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//   d = 1;
+//   a[0] = a[1] = -1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << "\n";
+// //   d = -1;
+// //   a[0] = -1;
+// //   a[1] = 1;
+// //   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+// //   d = 1;
+// //   a[0] = 1;
+// //   a[1] = -1;
+// //   std::cout << SquareA<double, double>(0, m, a, d) << "\n";
+//
+//   d = 1;
+//   a[0] = 1;
+//   a[1] = 1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//   d = 2;
+//   a[0] = -1;
+//   a[1] = 1;
+//   std::cout << SquareA<double, double>(0, m, a, d) << " ";
+//
+//
+//   std::cout << std::endl;
+//   for(unsigned j = 0; j < statements.size(); j++) {
+//
+//     if(!statements[j]) {
+//       std::cout << "Case " << j << " has not been tested yet!" << std::endl;
 //     }
-//     temp1 = dt - 0.5;
-//     //std::cout << "dt =  " << dt << std::endl;
 //
-//     if(!(abs(temp1) < 0.000000000000001)){
-//
-//         std::cout << "failedmmm!! " << dt << std::endl;
-//     }
-// //     std::cout << "new = " << SquareA<double, double>(0, m, a, d) << std::endl;
-//      std::cout << "a = " << a[0] << std::endl;
-// //     std::cout << "delta = " << delta << std::endl;
-//
-//
-// //     for(unsigned j = 0; j < 10; j++) {
-// //
-// //
-// //
-// //     }
 //   }
 
+
 //   for(unsigned k = 0; k < q; k++) {
-// 
+//
+//     a[0] = -1;
+//     a[1] = -1;
+//     d=-1;
+//
 //     for(unsigned j = 0; j < q; j++) {
 //       double temp  = 1 / (double)((j + 1) * (k + j + 2));
 //       double diff = temp - SquareA <double, double> (0, {k, j}, a, d);//TODO Fix ordering...?
-// 
+//
 //       //std::cout << "new = " << SquareA<double, double>(0, {k, j}, a, d) << std::endl;
 //       //std::cout << "analytical = " << temp << std::endl;
 //       std::cout << "difference for m = " << k << " and n = " << j << "difference = " << diff << std::endl;
 //     }
+//   }
+//
+//   for(unsigned j = 0; j < statements.size(); j++) {
+//
+//     if(!statements[j]) {
+//       std::cout << "Case " << j << " has not been tested yet!" << std::endl;
+//     }
+//
 //   }
 
   a[0] = -1;
@@ -230,27 +344,35 @@ int main() {
 
   m[0] = 3;
   m[1] = 5;
-  d = 1.0e-10;
+  d = 1.1;
 
-  //double I1 = pow(d, 2 + m[0] + m[1]) * factorial<double> (m[0]) * factorial<double>(m[1]) / factorial<double> (2 + m[0] + m[1]);
+  double I1 = pow(d, 2 + m[0] + m[1]) * factorial<double> (m[0]) * factorial<double>(m[1]) / factorial<double> (2 + m[0] + m[1]);
 
-  //std::cout << I1 << " " << SquareA<double, double>(0, m, a, d) << std::endl;
-  
+  std::cout << I1 << " " << SquareA<double, double>(0, m, a, d) << std::endl;
+
+  for(unsigned j = 0; j < statements.size(); j++) {
+
+    if(!statements[j]) {
+      std::cout << "Case " << j << " has not been tested yet!" << std::endl;
+    }
+
+  }
+
   double eps1 = 1.0e-5;
-  
+
   std::vector<std::vector<double>> epsCut{{0, 0, 0},
     {eps1, 0, 0}, {-eps1, 0, 0}, {0, eps1, 0}, {0, -eps1, 0}, {0, 0, eps1}, {0, 0, -eps1},
     {eps1, eps1, 0}, {eps1, -eps1, 0}, {-eps1, eps1, 0}, {-eps1, -eps1, 0},
     {eps1, eps1, 0}, {eps1, -eps1, eps1}, {-eps1, eps1, 0}, {-eps1, -eps1, eps1},
     {eps1, eps1, 0}, {eps1, -eps1, -eps1}, {-eps1, eps1, 0}, {-eps1, -eps1, -eps1}
   };
-  
+
   std::vector<std::vector<double>> smallCut{{0, 0, 0}, {0, 0, 1}, {0, 0, -1},
     {-1, 1, -1}, {-1, 0, -1}, {-1, 1, 1}, {0, 1, -1},
     {1, 1, 0}, {1, 0, -1}, {0, 1, 0}, {0, -1, -1}};
 
 
-  
+
 
   a[0] = 0.;
   a[1] = 1;
