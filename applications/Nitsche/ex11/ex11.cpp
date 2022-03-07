@@ -533,39 +533,42 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
 
 void BuildFlag (MultiLevelSolution& mlSol) {
 
-  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1?
+  //object we have is multilevel Solution. we need to extract highest level of the solution.
 
-  Solution *sol  = mlSol.GetSolutionLevel (level);
-  Mesh     *msh   = mlSol._mlMesh->GetLevel (level);
-  unsigned iproc  = msh->processor_id();
+  Solution *sol  = mlSol.GetSolutionLevel (level);//extracting top level solution where we are going look for solution
+  Mesh     *msh   = mlSol._mlMesh->GetLevel (level);//extracting the mesh relating to that level
+  unsigned iproc  = msh->processor_id();//extracting the processor that is handeling the problem
 
-  unsigned eflagIndex = mlSol.GetIndex ("eflag");
+  unsigned eflagIndex = mlSol.GetIndex ("eflag");//identifier where eflag is stored 
   unsigned nflagIndex = mlSol.GetIndex ("nflag");
 
-  unsigned nflagType = mlSol.GetSolutionType (nflagIndex);
+  unsigned nflagType = mlSol.GetSolutionType (nflagIndex);//giving us the type order of finite element (lagrange second)
+  //we already know eflag type as it is piecewise constant
 
-  sol->_Sol[eflagIndex]->zero();
+  sol->_Sol[eflagIndex]->zero();//setting elagindex to zero
   sol->_Sol[nflagIndex]->zero();
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  std::vector < std::vector<double> >  x (dim);
+  std::vector < std::vector<double> >  x (dim);//standard vector which will store coordinates of dofs?
 
+  //loop on the element
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    short unsigned ielGeom = msh->GetElementType (iel);
+    short unsigned ielGeom = msh->GetElementType (iel);//since we are paticular element we can extract the geomery of the element. it can be square, triangle..1D 2D
     unsigned nDofs  = msh->GetElementDofNumber (iel, nflagType); // number of solution element dofs
 
     for (int k = 0; k < dim; k++) {
-      x[k].resize (nDofs); // Now we
+      x[k].resize (nDofs); // rezising to storing coodinates related to nDofs
     }
-
+    //extracting coodinates of the dofs
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned xDof  = msh->GetSolutionDof (i, iel, 2);   // global to global mapping between coordinates node and coordinate dof
       for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k]) (xDof);     // global extraction and local storage for the element coordinates
       }
     }
-
+    //just going to identify element is cutfem or not based on the position of the nodes
     bool interface = false;
     double signi = (x[0][0] < 0.) ? -1. : 1.;
     for (unsigned j = 1; j < nDofs; j++) {
@@ -575,14 +578,14 @@ void BuildFlag (MultiLevelSolution& mlSol) {
         break;
       }
     }
-
+    //if the interface is true,
     if (interface) {
       sol->_Sol[eflagIndex]->set (iel, 1.);
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned iDof = msh->GetSolutionDof (i, iel, nflagType);
         sol->_Sol[nflagIndex]->set (iDof, 1.);
       }
-    }
+    }// if the interface is not true only thing we have to do is change eflag from 0 to 2
     else if (x[0][0] > 0. && x[0][1] > 0.) {
       sol->_Sol[eflagIndex]->set (iel, 2.);
     }
