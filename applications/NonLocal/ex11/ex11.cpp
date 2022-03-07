@@ -16,7 +16,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  8
+#define N_UNIFORM_LEVELS  1
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -68,15 +68,15 @@ int main(int argc, char** argv) {
   // ======= Init ========================
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
-  finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
+//   finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
 
   unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
 
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-  //mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+  //mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   /*
@@ -138,8 +138,8 @@ int main(int argc, char** argv) {
 
 
   std::vector<double> xg(2, 0);
-  xg[0] -= 0.054;
-  xg[1] -= 0.012;
+  xg[0] -= -0.4852;
+  xg[1] -= -0.0017;
   double R = 0.5;
   double CircArea = 0.;
 
@@ -177,10 +177,12 @@ int main(int argc, char** argv) {
       h2 = 0.5 * ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
     }
     if(cut == 1) {
+      bool wMap = 1;
       if(ielType == 3) {
         std::vector <TypeIO> weightCF;
-        //quad.clear();
-        quad(qM, 0, b, db, weightCF);
+        quad.clear();
+        quad(qM, 0, b, db, weightCF, wMap);
+//         quad(qM, 0, b, db, weightCF, wMap); // Additional call to test the weights Map 
 
         const double* weightG = quad.GetGaussWeightPointer();
 
@@ -192,8 +194,9 @@ int main(int argc, char** argv) {
       }
       else if(ielType == 4) {
         std::vector <TypeIO> weightCF;
-        //tri.clear();
-        tri(qM, 0, b, db, weightCF);
+        tri.clear();
+        tri(qM, 0, b, db, weightCF, wMap);
+        tri(qM, 0, b, db, weightCF, wMap);  // Additional call to test the weights Map 
 
         const double* weightG = tri.GetGaussWeightPointer();
 
@@ -222,6 +225,11 @@ int main(int argc, char** argv) {
       fprintf(fp, "\n \n");
     }
   }
+  
+  std::cout<< "numnber of calls in QUAD " << quad.GetCounter() << std::endl;
+  std::cout<< "numnber of calls in TRI  " << tri.GetCounter() << std::endl;
+  
+  
   std::cout.precision(14);
   std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
 
@@ -262,9 +270,10 @@ int main(int argc, char** argv) {
   std::vector <TypeIO> weightCF;
   const double* weightG;
   double sum;
+  bool wMap = 0;
 
   GetNormalTri(xva, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF);
+  tri(qM, 0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -274,7 +283,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF);
+  tri(qM, 0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -284,7 +293,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF);
+  tri(qM, 0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {

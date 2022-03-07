@@ -50,6 +50,8 @@ class CutFemIntegral {
     }
 
     void build() {
+
+      _cntCall = 0;
       _gaussOrder = 2 * _qM;
       if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
         _obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
@@ -81,20 +83,21 @@ class CutFemIntegral {
         _L /= (idim + 1);
       }
       Get_GS_ATA_Matrix(_geomElemType, _qM, _ATA, false);
-      
+
       _f.resize(1, std::vector<cpp_bin_float_oct>(_L));
     }
 
     ~CutFemIntegral() {
       clear();
+      delete _gauss;
+      if(_geomElemType != WEDGE) delete _obj;
     };
 
     void clear() {
-      if(_geomElemType != WEDGE) delete _obj;
-      delete _gauss;
+      if(_geomElemType != WEDGE) _obj->clear();
     };
 
-    void operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
+    void operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF, const bool &wMap = 0);
 
     const double* GetGaussWeightPointer() {
       return _gauss->GetGaussWeightsPointer();
@@ -103,6 +106,13 @@ class CutFemIntegral {
       return _gauss->GetGaussCoordinatePointer(k);
     };
 
+    const unsigned& GetCounter() {
+      return _cntCall;
+    }
+
+    void ClearMap() {
+      _WeightMap.clear();
+    }
 
   protected:
     void polyBasis(const unsigned &qM, const std::vector<TypeIO> &x, std::vector<TypeIO> &bo);
@@ -120,9 +130,15 @@ class CutFemIntegral {
     unsigned _gn;
     const double * _xgp[3];
 
+    unsigned _cntCall;
+
     CutFEMmap <TypeA> *_obj;
-    
+
     std::vector< std::vector<cpp_bin_float_oct> > _f;
+
+    std::map < std::pair<std::vector<TypeIO>, TypeIO>, std::vector<TypeIO> > _WeightMap;
+    typename std::map < std::pair<std::vector<TypeIO>, TypeIO>, std::vector<TypeIO> >::iterator _it;
+    std::pair<std::vector<TypeIO>, TypeIO> _key;
 
 };
 
@@ -131,15 +147,28 @@ class CutFemIntegral {
 
 
 template <class TypeIO, class TypeA>
-void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
-
+void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF, const bool &wMap) {
 
   if(_qM != qM) {
     clear();
+    delete _gauss;
+    _WeightMap.clear();
     _qM = qM;
     build();
   }
 
+
+  if(wMap) {
+    _key = std::make_pair(a, d);
+    _it = _WeightMap.find(_key);
+    if(_it != _WeightMap.end()) {
+      weightCF.clear();
+      weightCF = _WeightMap[_key];
+      return;
+    }
+  }
+
+  _cntCall++;
   //std::vector< std::vector<TypeIO> > f(1, std::vector<TypeIO>(_L));
 //   std::vector< std::vector<cpp_bin_float_oct> > f(1, std::vector<cpp_bin_float_oct>(_L));
 
@@ -158,8 +187,8 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
           _f[0][count] = static_cast<cpp_bin_float_oct>((_geomElemType == WEDGE) ?
-                        Prism<TypeA, TypeA>(s, {i, j, k}, aA, dA) :
-                        (*_obj)(s, {i, j, k}, aA, dA));
+                         Prism<TypeA, TypeA>(s, {i, j, k}, aA, dA) :
+                         (*_obj)(s, {i, j, k}, aA, dA));
           count++;
         }
       }
@@ -233,6 +262,10 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
       weight += Co[0][i] * bo[i];
     }
     weightCF[ig] = static_cast<TypeIO>(weight);
+  }
+
+  if(wMap) {
+    _WeightMap[_key] = weightCF;
   }
 };
 
