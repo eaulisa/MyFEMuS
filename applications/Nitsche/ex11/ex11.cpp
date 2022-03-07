@@ -142,23 +142,23 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
   //  extract pointers to the several objects that we are going to use
 
   LinearImplicitSystem* mlPdeSys  = &ml_prob.get_system<LinearImplicitSystem> ("Nitsche");   // pointer to the linear implicit system named "Poisson"
+
   const unsigned level = mlPdeSys->GetLevelToAssemble(); // We have different level of meshes. we assemble the problem on the specified one.
+  
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
+  Solution *sol  = mlSol->GetSolutionLevel (level);//extracting top level solution where we are going look for solution
+  Mesh     *msh   = mlSol->_mlMesh->GetLevel (level);//extracting the mesh relating to that level
+  elem *el = msh->el;  // pointer to the elem object in msh (level)
+  unsigned iproc  = msh->processor_id();//extracting the process id
 
-  Mesh*                    msh = ml_prob._ml_msh->GetLevel (level);   // pointer to the mesh (level) object
-  elem*                     el = msh->el;  // pointer to the elem object in msh (level)
-
-  MultiLevelSolution*    mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
-  Solution*                sol = ml_prob._ml_sol->GetSolutionLevel (level);   // pointer to the solution (level) object
 
   LinearEquationSolver* pdeSys = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
-  SparseMatrix*             KK = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  SparseMatrix*            JAC = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*           RES = pdeSys->_RES; // pointer to the global residual vector object in pdeSys (level)
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
-  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
-
-  //solution variable
+   //solution variable
   unsigned solu1Index = mlSol->GetIndex ("u1");   // get the position of "u" in the ml_sol object
   unsigned solu2Index = mlSol->GetIndex ("u2");   // get the position of "u" in the ml_sol object
   unsigned soluType = mlSol->GetSolutionType (solu1Index);   // get the finite element type for "u"
@@ -177,7 +177,7 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
   vector < unsigned >  nodeFlag; // local solution
 
   vector < vector < double > > x (dim);   // local coordinates. x is now dim x m matrix.
-  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned biquadraticType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   vector <double> phi;  // local test function
   vector <double> phi_x; // local test function first order partial derivatives
@@ -190,7 +190,7 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
   vector< double > Res; // local redidual vector
   vector < double > Jac;
 
-  KK->zero(); // Set to zero all the entries of the Global Matrix
+  JAC->zero(); // Set to zero all the entries of the Global Matrix
   RES->zero(); // Set to zero all the entries of the Global Residual
 
   std::vector < std::vector < std::vector <double > > > aP (3);
@@ -212,22 +212,24 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
       x[k].resize (nDofu);
     }
 
-    aResu1.assign (nDofu, 0.);   //resize
-    aResu2.assign (nDofu, 0.);   //resize
+    aResu1.assign (nDofu, 0.);   //assign
+    aResu2.assign (nDofu, 0.);   //assign
 
     // local storage of global mapping and solution
     for (unsigned i = 0; i < nDofu; i++) {
-      unsigned solDof = msh->GetSolutionDof (i, iel, soluType);   // global to global mapping between solution node and solution dof
-      solu1[i] = (*sol->_Sol[solu1Index]) (solDof);                 // global extraction and local storage for the solution
-      solu2[i] = (*sol->_Sol[solu2Index]) (solDof);                 // global extraction and local storage for the solution
-      nodeFlag[i] = (*sol->_Sol[nflagIndex]) (solDof);
-      l2GMap[i] = pdeSys->GetSystemDof (solu1Index, solu1PdeIndex, i, iel);   // global to global mapping between solution node and pdeSys dof
-      l2GMap[nDofu + i] = pdeSys->GetSystemDof (solu2Index, solu2PdeIndex, i, iel);   // global to global mapping between solution node and pdeSys dof
+      unsigned iDof = msh->GetSolutionDof (i, iel, soluType);   // local to global mapping between solution node and solution dof
+      solu1[i] = (*sol->_Sol[solu1Index]) (iDof);                 // global extraction and local storage for the solution
+      solu2[i] = (*sol->_Sol[solu2Index]) (iDof);                 // global extraction and local storage for the solution
+      nodeFlag[i] = (*sol->_Sol[nflagIndex]) (iDof);
+      
+      l2GMap[i] = pdeSys->GetSystemDof (solu1Index, solu1PdeIndex, i, iel);   // local to global mapping between u1 and pdeSys dof
+      l2GMap[nDofu + i] = pdeSys->GetSystemDof (solu2Index, solu2PdeIndex, i, iel);   // local to global mapping between u2 and pdeSys dof
+      
     }
 
     // local storage of coordinates
     for (unsigned i = 0; i < nDofu; i++) {
-      unsigned xDof  = msh->GetSolutionDof (i, iel, 2);   // global to global mapping between coordinates node and coordinate dof
+      unsigned xDof  = msh->GetSolutionDof (i, iel, biquadraticType);   // global to global mapping between coordinates node and coordinate dof
       for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k]) (xDof);     // global extraction and local storage for the element coordinates
       }
@@ -506,7 +508,7 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
     s.jacobian (&Jac[0], true);
 
     //store K in the global matrix KK
-    KK->add_matrix_blocked (Jac, l2GMap, l2GMap);
+    JAC->add_matrix_blocked (Jac, l2GMap, l2GMap);
 
     s.clear_independents();
     s.clear_dependents();
@@ -514,7 +516,7 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
   } //end element loop for each process
 
   RES->close();
-  KK->close();
+  JAC->close();
 
 //   PetscViewer    viewer;
 //   //PetscViewerDrawOpen (PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
@@ -533,12 +535,12 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
 
 void BuildFlag (MultiLevelSolution& mlSol) {
 
-  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1?
+  unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1? c/c++ notation
   //object we have is multilevel Solution. we need to extract highest level of the solution.
 
   Solution *sol  = mlSol.GetSolutionLevel (level);//extracting top level solution where we are going look for solution
   Mesh     *msh   = mlSol._mlMesh->GetLevel (level);//extracting the mesh relating to that level
-  unsigned iproc  = msh->processor_id();//extracting the processor that is handeling the problem
+  unsigned iproc  = msh->processor_id();//extracting the process id
 
   unsigned eflagIndex = mlSol.GetIndex ("eflag");//identifier where eflag is stored 
   unsigned nflagIndex = mlSol.GetIndex ("nflag");
@@ -546,6 +548,8 @@ void BuildFlag (MultiLevelSolution& mlSol) {
   unsigned nflagType = mlSol.GetSolutionType (nflagIndex);//giving us the type order of finite element (lagrange second)
   //we already know eflag type as it is piecewise constant
 
+  unsigned biquadraticType = 2;
+  
   sol->_Sol[eflagIndex]->zero();//setting elagindex to zero
   sol->_Sol[nflagIndex]->zero();
 
@@ -563,7 +567,7 @@ void BuildFlag (MultiLevelSolution& mlSol) {
     }
     //extracting coodinates of the dofs
     for (unsigned i = 0; i < nDofs; i++) {
-      unsigned xDof  = msh->GetSolutionDof (i, iel, 2);   // global to global mapping between coordinates node and coordinate dof
+      unsigned xDof  = msh->GetSolutionDof (i, iel, biquadraticType);   // global to global mapping between coordinates node and coordinate dof
       for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k]) (xDof);     // global extraction and local storage for the element coordinates
       }
@@ -580,13 +584,13 @@ void BuildFlag (MultiLevelSolution& mlSol) {
     }
     //if the interface is true,
     if (interface) {
-      sol->_Sol[eflagIndex]->set (iel, 1.);
+      sol->_Sol[eflagIndex]->set (iel, 1.);//since this is a piecewise defined quantity, the local to global mapping is an identity: iel->iel
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned iDof = msh->GetSolutionDof (i, iel, nflagType);
         sol->_Sol[nflagIndex]->set (iDof, 1.);
       }
     }// if the interface is not true only thing we have to do is change eflag from 0 to 2
-    else if (x[0][0] > 0. && x[0][1] > 0.) {
+    else if (x[0][0] > 0.) {
       sol->_Sol[eflagIndex]->set (iel, 2.);
     }
   }
