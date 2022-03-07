@@ -21,9 +21,6 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
 
-  MatSetOption((static_cast< PetscMatrix* >(myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-
-
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -126,7 +123,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
+    unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.2));
     if(eFlag1 == 1) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
@@ -180,7 +177,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
         if(jel >= 0) { // iface is not a boundary of the domain
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
-            unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
+            unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.2));
 
             if(eFlag2 == 0 + !fluid * 2 || (eFlag2 == 1 && jel > iel)) {
 
@@ -247,10 +244,22 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 }
               }
 
-              double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
-                                              (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
-              double h2 = h * h;
-              double h3 = h * h * h;
+//               double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
+//                                               (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
+
+//               double h = sqrt(dim - 1) * sqrt((vx1[0][0] - vx1[0][2]) * (vx1[0][0] - vx1[0][2]) +
+//                                               (vx1[1][0] - vx1[1][2]) * (vx1[1][0] - vx1[1][2])) ;
+
+              //double h2 = h * h;
+              //double h3 = h * h * h;
+
+              double h11 = (vx1[0][2] - vx1[0][0]);
+              double h12 = (vx1[1][2] - vx1[1][0]);
+
+              double h21 = (vx2[0][2] - vx2[0][0]);
+              double h22 = (vx2[1][2] - vx2[1][0]);
+
+
 
 
               if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
@@ -268,6 +277,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 std::vector < double> normal;
                 msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+
+                double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1]));
+                double h2 = h * h;
+                double h3 = h * h * h;
 
                 std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                 for(unsigned i = 0; i < faceDofs; i++) {
@@ -362,7 +375,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
 
                 double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (par->_theta * dt)) :
-                             par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
+                            par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
 
 
                 // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
@@ -566,7 +579,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
         unsigned eFlag1;
 
         if(iproc == kproc) {
-          eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
+          eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.2));
         }
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
@@ -591,7 +604,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 unsigned eFlag2;
                 if(iproc == jproc) {
-                  eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
+                  eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.2));
                   MPI_Send(&eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
                 }
                 else if(iproc == kproc) {
@@ -751,12 +764,19 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       }
                     }
 
-                    double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
-                                                    (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
-                    double h2 = h * h;
-                    double h3 = h * h * h;
+//                     double h = sqrt(dim - 1) * sqrt((faceVx[0][0] - faceVx[0][1]) * (faceVx[0][0] - faceVx[0][1]) +
+//                                                     (faceVx[1][0] - faceVx[1][1]) * (faceVx[1][0] - faceVx[1][1])) ;
+//                     double h2 = h * h;
+//                     double h3 = h * h * h;
 
                     //std::cout << " h = " << h << " ";
+
+                    double h11 = (vx1[0][2] - vx1[0][0]);
+                    double h12 = (vx1[1][2] - vx1[1][0]);
+
+                    double h21 = (vx2[0][2] - vx2[0][0]);
+                    double h22 = (vx2[1][2] - vx2[1][0]);
+
 
                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                       ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
@@ -767,6 +787,10 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                       std::vector < double> normal;
                       msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+
+                      double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1]));
+                      double h2 = h * h;
+                      double h3 = h * h * h;
 
                       std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                       for(unsigned i = 0; i < faceDofs; i++) {
@@ -853,7 +877,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       }
 
                       double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
-                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]               
+                      double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
 
                       double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
 

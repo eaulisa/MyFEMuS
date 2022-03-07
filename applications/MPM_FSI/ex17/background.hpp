@@ -21,6 +21,8 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
   mlSol.AddSolution("P", LAGRANGE, FIRST, 2);
 
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("fldCnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol.AddSolution("sldCnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
 
   mlSol.Initialize("All");
@@ -52,6 +54,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
 
+  MatResetPreallocation((static_cast< PetscMatrix* >(myKK))->mat());
+  MatSetOption((static_cast< PetscMatrix* >(myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  
   myKK->zero();
   myRES->zero();
 
@@ -152,6 +157,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");
   unsigned nflagIndex = mlSol->GetIndex("nflag");
+  
   unsigned meshType = 2;
   std::vector < unsigned >  nodeFlag; // local solution
 
@@ -185,7 +191,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
     nodeFlag.resize(nDofsMesh);
     double tempEflag = (*mysolution->_Sol[eflagIndex])(iel);
-    unsigned eFlag = static_cast <unsigned>(floor(tempEflag + 0.25));
+    unsigned eFlag = static_cast <unsigned>(floor(tempEflag + 0.2));
     unsigned eFlag1 = 2; // interface or solid
     if(eFlag == 0) {
       eFlag1 = (tempEflag < 0.25) ?  0 : 1; //fluid or fluid-particle
@@ -529,7 +535,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               for(unsigned  j = 0; j < dim; j++) {
                 wlaplaceV +=  gradPhi[i * dim + j] * gradSolVg[k][j];
               }
-              aResV[k][i] +=  wlaplaceV * weight;
+              aResV[k][i] +=  1.0e-10 * wlaplaceV * weight;
             }
           }
         }
@@ -820,9 +826,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
               for(unsigned k = 0; k < dim; k++) {
                 aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
-//                 if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
-//                   aResV[k][i] += -phi[i] * 1.0E-10 * (solVFp[k] - 0 * solVSp[k]) * areaOld; //TODO
-//                 }
+                //if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
+                if(eFlag == 2) {
+                  aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
+                }
               }
             }
           }
@@ -963,6 +970,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
+
+
+
+
 
 
 

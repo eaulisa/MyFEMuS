@@ -454,8 +454,14 @@ void Projection::FromMarkerToBackground() {
   unsigned nodeType = _mlSolB->GetSolutionType(nflagIdx);
   unsigned solType = _mlSolB->GetSolutionType("DX");
 
+  unsigned fldCntIndex = _mlSolB->GetIndex("fldCnt");
+  unsigned sldCntIndex = _mlSolB->GetIndex("sldCnt");
+
   solB->_Sol[eflagIdx]->zero();
   solB->_Sol[nflagIdx]->zero();
+
+  solB->_Sol[fldCntIndex]->zero();
+  solB->_Sol[sldCntIndex]->zero();
 
   std::vector < std::vector < std::vector <double > > > aP(3);
   std::vector<std::vector<double>> vx(_dim);
@@ -474,19 +480,29 @@ void Projection::FromMarkerToBackground() {
       }
 
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
-        if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
-          solB->_Sol[eflagIdx]->set(iel, 1);
-          unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
-          for(unsigned i = 0; i < nDofu; i++) {
-            unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
-            solB->_Sol[nflagIdx]->set(idof, 1);
+        if(_mtypeb[kp][im[kp]] == 1) {
+          solB->_Sol[fldCntIndex]->add(iel, 1);
+          solB->_Sol[sldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) != 1) {
+            solB->_Sol[eflagIdx]->set(iel, 1);
+            unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+            for(unsigned i = 0; i < nDofu; i++) {
+              unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+              solB->_Sol[nflagIdx]->set(idof, 1);
+            }
           }
         }
-        else if(_mtypeb[kp][im[kp]] == 2 && (*solB->_Sol[eflagIdx])(iel) != 1) {
-          solB->_Sol[eflagIdx]->set(iel, 2);
+        else if(_mtypeb[kp][im[kp]] == 2) {
+          solB->_Sol[sldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) != 1) {
+            solB->_Sol[eflagIdx]->set(iel, 2);
+          }
         }
-        else if(_mtypeb[kp][im[kp]] == 0 && (*solB->_Sol[eflagIdx])(iel) == 0) {
-          solB->_Sol[eflagIdx]->set(iel, 0.5);
+        else if(_mtypeb[kp][im[kp]] == 0) {
+          solB->_Sol[fldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) == 0) {
+            solB->_Sol[eflagIdx]->set(iel, 0.5);
+          }
         }
 
         if(!ielIsInitialized) {
@@ -523,6 +539,46 @@ void Projection::FromMarkerToBackground() {
   }
   solB->_Sol[eflagIdx]->close();
   solB->_Sol[nflagIdx]->close();
+  solB->_Sol[fldCntIndex]->close();
+  solB->_Sol[sldCntIndex]->close();
+
+
+  solB->_Sol[eflagIdx]->zero();
+  solB->_Sol[nflagIdx]->zero();
+  for(int iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
+
+    unsigned solidCnt = (*solB->_Sol[sldCntIndex])(iel);
+    unsigned fluidCnt = (*solB->_Sol[fldCntIndex])(iel);
+    if(solidCnt != 0 || fluidCnt != 0) {
+      if(fluidCnt == 0) {
+        solB->_Sol[eflagIdx]->set(iel, 2);
+      }
+      else if(solidCnt == 0) {
+        solB->_Sol[eflagIdx]->set(iel, 0.5);
+      }
+      else {
+        if(solidCnt <= 0) {
+          solB->_Sol[eflagIdx]->set(iel, 0.75);
+        }
+        else {
+          solB->_Sol[eflagIdx]->set(iel, 1.);
+          unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+          for(unsigned i = 0; i < nDofu; i++) {
+            unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+            solB->_Sol[nflagIdx]->set(idof, 1.);
+          }
+        }
+      }
+    }
+    solB->_Sol[eflagIdx]->close();
+    solB->_Sol[nflagIdx]->close();
+
+  }
+
+
+
+
+
 }
 
 void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplicitSystem& system) {
@@ -712,7 +768,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
 
         bool elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, solB, solTypeB, iel, 1.);
 
-        if(elemSearch && mrk.GetProc() == _iproc) { 
+        if(elemSearch && mrk.GetProc() == _iproc) {
           unsigned iel = mrk.GetElement();
           short unsigned ielType = mshB->GetElementType(iel);
           unsigned nDofs = mshB->GetElementDofNumber(iel, solTypeB);

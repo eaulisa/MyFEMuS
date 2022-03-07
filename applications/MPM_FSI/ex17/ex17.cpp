@@ -98,7 +98,7 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
                              BoundaryConditionTurek0, TimeStepTurek0);
 
 
-parameter channelFlip = parameter(false, .6, {0., 0., 0.},
+parameter channelFlip = parameter(false, .3, {0., 0., 0.},
                                   45., 0.05, 0.05, 0.05,
                                   false, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
                                   "../input/ChannelFlipBeam.neu", 1., 2, 0,
@@ -262,7 +262,7 @@ int main(int argc, char** args) {
 
   projection = new Projection(&mlSolM, &mlSolB);
 
-  for(unsigned t = 1; t <= 2500; t++) {
+  for(unsigned t = 1; t <= 500; t++) {
 
     systemB.CopySolutionToOldSolution();
 
@@ -278,7 +278,7 @@ int main(int argc, char** args) {
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
 
     time = clock();
-    projection->FromBackgroundToMarker((t % 50 == 0), systemM);
+    projection->FromBackgroundToMarker((t % 10 == 0), systemM);
     std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
 
@@ -312,13 +312,13 @@ bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char na
   else if(!strcmp(name, "VX")) {
     if(1 == facename) {     //inlet
       if(t < 10.0) {
-        value = 0.5 * 0.06067 * (1. - cos(M_PI * t / 10))*4*x[1]*(0.5-x[1]);
+        value = 0.5 * 0.06067 * (1. - cos(M_PI * t / 10)) * 2. * x[1] * (1. - x[1]);
       }
       else {
-        value = 0.06067;
+        value = 0.06067 * 2. * x[1] * (1. - x[1]);
       }
     }
-    else if(2 == facename || 3 == facename ) {    //outlet
+    else if(2 == facename || 3 == facename) {     //outlet
       test = 0;
       value = 0.;
     }
@@ -330,8 +330,8 @@ bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char na
     }
   }
   else if(!strcmp(name, "P")) {
-      test = 0;
-      value = 0;
+    test = 0;
+    value = 0;
   }
 
   return test;
@@ -339,10 +339,10 @@ bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char na
 }
 
 
-double TimeStepChannelFlip(const double time){
-    double dt = 0.001;  
-    
-    return dt;
+double TimeStepChannelFlip(const double time) {
+  double dt = 0.05;
+
+  return dt;
 }
 
 
