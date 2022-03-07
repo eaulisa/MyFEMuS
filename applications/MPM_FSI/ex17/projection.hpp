@@ -474,9 +474,10 @@ void Projection::FromMarkerToBackground() {
 
     for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
 
-      im[kp] = 0;
+//       im[kp] = 0;
       while(im[kp] < _ielb[kp].size() && _ielb[kp][im[kp]] < iel) {
         im[kp]++;
+        std::cout << "C";
       }
 
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
@@ -537,11 +538,12 @@ void Projection::FromMarkerToBackground() {
       }
     }
   }
+
+
   solB->_Sol[eflagIdx]->close();
   solB->_Sol[nflagIdx]->close();
   solB->_Sol[fldCntIndex]->close();
   solB->_Sol[sldCntIndex]->close();
-
 
   solB->_Sol[eflagIdx]->zero();
   solB->_Sol[nflagIdx]->zero();
@@ -570,13 +572,10 @@ void Projection::FromMarkerToBackground() {
         }
       }
     }
-    solB->_Sol[eflagIdx]->close();
-    solB->_Sol[nflagIdx]->close();
-
   }
 
-
-
+  solB->_Sol[eflagIdx]->close();
+  solB->_Sol[nflagIdx]->close();
 
 
 }
