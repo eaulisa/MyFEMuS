@@ -330,9 +330,11 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
     std::vector < double> xg1(dim);
     double weight1;
+    //these are the shape functions of the refined elememnt evaluated in the gauss points of the refined element
     const double *phi1;
 
-    const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions();
+    //these are the shape functions of iel evaluated in the gauss points of the refined elements
+    const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions(); 
 
     //preloop to store commo quatiies in iel
     for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
