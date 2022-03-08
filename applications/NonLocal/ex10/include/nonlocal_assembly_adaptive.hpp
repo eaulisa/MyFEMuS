@@ -292,7 +292,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 5; // consistency form 3 -> 7
+  unsigned lmax1 = 4; // consistency form 3 -> 7
   //unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
@@ -300,7 +300,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //consistency
   double dMax = 0.1;
-  double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
+  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
   //cubic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
@@ -328,13 +328,14 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   //double dMax = 0.1 * pow(2. / 3., level); //marta4-3D-fine
 //   double eps = 0.125 * dMax;
 
-  double areaEl = pow( 0.1 * pow(1. / 2., level - 1), dim);
+  double areaEl = pow(0.1 * pow(1. / 2., level - 1), dim);
 
   std::cout << "level = " << level << " ";
 
   std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
+  RefineElement *refineElementCF[6][3];
 
   NonLocal *nonlocal;
 
@@ -345,11 +346,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     refineElement[0][soluType]->SetConstants(eps);
 
+    refineElementCF[0][0] = new RefineElement(lmax1, "hex", "linear", "seventh", "seventh", "legendre");
+    refineElementCF[0][1] = new RefineElement(lmax1, "hex", "quadratic", "seventh", "seventh", "legendre");
+    refineElementCF[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "seventh", "seventh", "legendre");
+
+    refineElementCF[0][soluType]->SetConstants(eps);
+
 
     nonlocal = new NonLocalBall3D();
 
   }
-  else if (dim == 2) {
+  else if(dim == 2) {
     refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
     refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
     refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
@@ -360,6 +367,21 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
     refineElement[3][soluType]->SetConstants(eps);
     refineElement[4][soluType]->SetConstants(eps);
+
+
+    refineElementCF[3][0] = new RefineElement(lmax1, "quad", "linear", "seventh", "seventh", "legendre");
+    refineElementCF[3][1] = new RefineElement(lmax1, "quad", "quadratic", "seventh", "seventh", "legendre");
+    refineElementCF[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "seventh", "seventh", "legendre");
+
+    refineElementCF[4][0] = new RefineElement(lmax1, "tri", "linear", "seventh", "seventh", "legendre");
+    refineElementCF[4][1] = new RefineElement(lmax1, "tri", "quadratic", "seventh", "seventh", "legendre");
+    refineElementCF[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "seventh", "seventh", "legendre");
+
+    refineElementCF[3][soluType]->SetConstants(eps);
+    refineElementCF[4][soluType]->SetConstants(eps);
+
+
+
 
     nonlocal = new NonLocalBall();
     //nonlocal = new NonLocalBox();
@@ -472,6 +494,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     }
 
     refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
+    refineElementCF[ielGeom][soluType]->InitElement1(x1, lmax1);
 
     for(unsigned k = 0; k < dim; k++) {
       x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
@@ -591,10 +614,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //     nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
 //                         *refineElement[ielGeom][soluType], region2, jelIndex,
 //                         solu1, kappa1, delta1, printMesh);
-    
-    nonlocal->AssemblyCutFem1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                        *refineElement[ielGeom][soluType], region2, jelIndex,
-                        solu1, kappa1, delta1, printMesh);
+
+    nonlocal->AssemblyCutFem1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(), refineElementCF[ielGeom][soluType]->GetOctTreeElement1(),
+                              *refineElement[ielGeom][soluType], *refineElementCF[ielGeom][soluType], region2, jelIndex,
+                              solu1, kappa1, delta1, printMesh);
 
     for(unsigned jel = 0; jel < region2.size(); jel++) {
 
@@ -717,13 +740,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     time_t pSearchTime = 0.;
     time_t pAssemblyTime = 0.;
 
-    std::vector<unsigned > procOrder (nprocs);
+    std::vector<unsigned > procOrder(nprocs);
     for(unsigned i = 0; i < procOrder.size(); i++) {
       procOrder[i] = i;
     }
     for(unsigned i = 0; i < procOrder.size() - 1; i++) {
       for(unsigned j = i + 1; j < procOrder.size(); j++) {
-        if(orGeomRecv[procOrder[i]].size() < orGeomRecv[procOrder[j]].size() ) {
+        if(orGeomRecv[procOrder[i]].size() < orGeomRecv[procOrder[j]].size()) {
           unsigned procOrderi = procOrder[i];
           procOrder[i] = procOrder[j];
           procOrder[j] = procOrderi;
@@ -755,6 +778,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
           }
 
           refineElement[ielGeom][soluType]->InitElement1(x1, lmax1);
+          refineElementCF[ielGeom][soluType]->InitElement1(x1, lmax1);
           for(unsigned k = 0; k < dim; k++) {
             x1MinMax[k] = std::minmax_element(x1[k].begin(), x1[k].end());
           }
@@ -823,10 +847,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //             nonlocal->Assembly1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
 //                                 *refineElement[ielGeom][soluType], region2, jelIndex,
 //                                 solu1, kappa1, delta1, printMesh);
-            
-             nonlocal->AssemblyCutFem1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(),
-                                *refineElement[ielGeom][soluType], region2, jelIndex,
-                                solu1, kappa1, delta1, printMesh);
+
+            nonlocal->AssemblyCutFem1(0, lmin1, lmax1, 0, refineElement[ielGeom][soluType]->GetOctTreeElement1(), refineElementCF[ielGeom][soluType]->GetOctTreeElement1(),
+                                      *refineElement[ielGeom][soluType], *refineElementCF[ielGeom][soluType], region2, jelIndex,
+                                      solu1, kappa1, delta1, printMesh);
 
             for(unsigned jel = 0; jel < region2.size(); jel++) {
               /* The rows of J21, J22 and Res2 are mostly own by iproc, while the columns of J21 and J22 are mostly own by kproc
@@ -835,7 +859,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
               std::vector<double> & J21 = nonlocal->GetJac21(jel);
               for(unsigned ii = 0; ii < J21.size(); ii++) { // assembly only if one of the entries is different from zero
-                if( fabs(J21[ii]) > 1.0e-12 * areaEl) {
+                if(fabs(J21[ii]) > 1.0e-12 * areaEl) {
                   KK->add_matrix_blocked(J21, region2.GetMapping(jel), l2GMap1);
                   break;
                 }

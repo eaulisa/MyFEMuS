@@ -38,7 +38,8 @@ class NonLocal {
                      const double &delta, const bool &printMesh);
 
     void AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
-                         const OctTreeElement &octTreeElement1, RefineElement &element1,
+                         const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
+                         RefineElement &element1, RefineElement &element1CF,
                          const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                          const double &kappa, const double &delta, const bool &printMesh);
 
@@ -306,7 +307,8 @@ double NonLocal::Assembly2(const RefineElement & element1, const Region & region
 
 
 void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
-                               const OctTreeElement &octTreeElement1, RefineElement &element1,
+                               const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
+                               RefineElement &element1, RefineElement &element1CF,
                                const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                                const double &kappa, const double &delta, const bool &printMesh) {
 
@@ -315,7 +317,9 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
     element1.BuildElement1Prolongation(level, iFather);
     for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
       AssemblyCutFem1(level + 1, levelMin1, levelMax1, i,
-                      *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, jelIndexF,
+                      *octTreeElement1.GetElement(std::vector<unsigned> {i}),
+                      *octTreeElement1CF.GetElement(std::vector<unsigned> {i}),
+                      element1, element1CF, region2, jelIndexF,
                       solu1, kappa, delta, printMesh);
     }
   }
@@ -327,59 +331,104 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
     //double kernel = this->GetKernel(kappa, delta, eps);
 
     const elem_type *fem1 = element1.GetFem1();
+    const elem_type *fem1CF = element1CF.GetFem1();
 
-    std::vector < double> xg1(dim);
-    double weight1;
+    //these are the shape functions of iel evaluated in the gauss points of the refined elements
+    const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions();
+    const std::vector < std::vector < double> > & phi1FCF = octTreeElement1CF.GetGaussShapeFunctions();
+
     //these are the shape functions of the refined elememnt evaluated in the gauss points of the refined element
     const double *phi1;
 
-    //these are the shape functions of iel evaluated in the gauss points of the refined elements
-    const std::vector < std::vector < double> > & phi1F = octTreeElement1.GetGaussShapeFunctions(); 
+    std::vector< std::vector < double> > xg1(fem1->GetGaussPointNumber(), std::vector < double>(dim));
+    std::vector< std::vector < double> > xg1CF(fem1CF->GetGaussPointNumber(), std::vector < double>(dim));
+    //std::vector < double> xg1CF(dim);
+    std::vector < double> weight1(fem1->GetGaussPointNumber());
+    std::vector < double> weight1CF(fem1CF->GetGaussPointNumber());
 
     //preloop to store commo quatiies in iel
     for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
-      fem1->GetGaussQuantities(xv1, ig, weight1, phi1);
-      xg1.assign(dim, 0.);
+      fem1->GetGaussQuantities(xv1, ig, weight1[ig], phi1);
+      xg1[ig].assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned i = 0; i < nDof1; i++) {
-          xg1[k] += xv1[k][i] * phi1[i];
+          xg1[ig][k] += xv1[k][i] * phi1[i];
         }
       }
-      //close prelop
+    }
 
-      std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+    for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
+      fem1CF->GetGaussQuantities(xv1, ig, weight1CF[ig], phi1);
+      xg1CF[ig].assign(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
-        x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
-      }
-
-      //BEGIN NEW STUFF
-      
-      for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
-        unsigned jel = jelIndexF[jj];
-        const unsigned &dim = region2.GetDimension(jel);
-        const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
-
-        const elem_type *fem = region2.GetFem(jel);
-
-        const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
-        const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
-        const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
-
-        for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
-
-          bool coarseIntersectionTest = true;
-          for(unsigned k = 0; k < dim; k++) {
-            if((xg2[jg][k]  - * (x1MinMax[k].second)) > delta + eps  || (*(x1MinMax[k].first) - xg2[jg][k]) > delta + eps) {
-              coarseIntersectionTest = false;
-              break;
-            }
-          }
+        for(unsigned i = 0; i < nDof1; i++) {
+          xg1CF[ig][k] += xv1[k][i] * phi1[i];
         }
       }
+    }
 
-      //END NEW STUFF
-      AssemblyCutFem2(element1, region2, jelIndexF, nDof1, xg1, 2. * weight1 * _kernel,
-                      phi1F[ig], solu1, delta, printMesh);
+
+
+
+
+
+//       //BEGIN NEW STUFF
+//
+//       std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+//       for(unsigned k = 0; k < dim; k++) {
+//         x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
+//       }
+//
+//       for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
+//         unsigned jel = jelIndexF[jj];
+//         const unsigned &dim = region2.GetDimension(jel);
+//         const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+//
+//         const elem_type *fem = region2.GetFem(jel);
+//
+//         const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
+//         const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
+//         const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+//
+//         for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+//
+//           bool coarseIntersectionTest = true;
+//           for(unsigned k = 0; k < dim; k++) {
+//             if((xg2[jg][k]  - * (x1MinMax[k].second)) > delta + eps  || (*(x1MinMax[k].first) - xg2[jg][k]) > delta + eps) { // this can be improved with the l2 norm
+//               coarseIntersectionTest = false;
+//               break;
+//             }
+//           }
+//
+//
+//           if(coarseIntersectionTest) {
+//             std::vector<double> a(dim);
+//             double d;
+//             unsigned cut;
+//             // call cut fem
+//             if(cut == 2) { //interior
+//               // use the quantities for full cell integration
+//             }
+//             else if(cut == 1) { //cut
+//               // evaluate WeightCF
+//               // integrate using the quantities for cutfem integration
+//             }
+//
+//           }
+//
+//
+//         }
+//       }
+
+    //for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
+
+    //END NEW STUFF
+//       AssemblyCutFem2(element1, region2, jelIndexF, nDof1, xg1[ig], 2. * weight1[ig] * _kernel,
+//                       phi1F[ig], solu1, delta, printMesh);
+    //}
+    for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
+      AssemblyCutFem2(element1CF, region2, jelIndexF, nDof1, xg1CF[ig], 2. * weight1CF[ig] * _kernel,
+                      phi1FCF[ig], solu1, delta, printMesh);
     }
   }
   else {
@@ -459,7 +508,9 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       element1.BuildElement1Prolongation(level, iFather);
       for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
         AssemblyCutFem1(level + 1, levelMin1, levelMax1, i,
-                        *octTreeElement1.GetElement(std::vector<unsigned> {i}), element1, region2, _jelIndexR[level],
+                        *octTreeElement1.GetElement(std::vector<unsigned> {i}),
+                        *octTreeElement1CF.GetElement(std::vector<unsigned> {i}),
+                        element1, element1CF, region2, _jelIndexR[level],
                         solu1, kappa, delta, printMesh);
       }
     }
