@@ -1,6 +1,8 @@
 #ifndef __femus_NonLocal_hpp__
 #define __femus_NonLocal_hpp__
 
+#include "GetNormal.hpp"
+
 std::ofstream fout;
 
 class NonLocal {
@@ -68,6 +70,12 @@ class NonLocal {
 
     std::vector <unsigned> _jelIndexI;
     std::vector < std::vector <unsigned> >_jelIndexR;
+    
+    BallApproximation _ballAprx;
+    std::vector<double> _a; 
+    std::vector<double> _weightCF;
+    double _d;
+    unsigned _cut;
 
     void PrintElement(const std::vector < std::vector < double> > &xv, const RefineElement &refineElement);
 
@@ -372,53 +380,54 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
 
 
-//       //BEGIN NEW STUFF
-//
-//       std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
-//       for(unsigned k = 0; k < dim; k++) {
-//         x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
-//       }
-//
-//       for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
-//         unsigned jel = jelIndexF[jj];
-//         const unsigned &dim = region2.GetDimension(jel);
-//         const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
-//
-//         const elem_type *fem = region2.GetFem(jel);
-//
-//         const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
-//         const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
-//         const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
-//
-//         for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
-//
-//           bool coarseIntersectionTest = true;
-//           for(unsigned k = 0; k < dim; k++) {
-//             if((xg2[jg][k]  - * (x1MinMax[k].second)) > delta + eps  || (*(x1MinMax[k].first) - xg2[jg][k]) > delta + eps) { // this can be improved with the l2 norm
-//               coarseIntersectionTest = false;
-//               break;
-//             }
-//           }
-//
-//
-//           if(coarseIntersectionTest) {
-//             std::vector<double> a(dim);
-//             double d;
-//             unsigned cut;
-//             // call cut fem
-//             if(cut == 2) { //interior
-//               // use the quantities for full cell integration
-//             }
-//             else if(cut == 1) { //cut
-//               // evaluate WeightCF
-//               // integrate using the quantities for cutfem integration
-//             }
-//
-//           }
-//
-//
-//         }
-//       }
+      //BEGIN NEW STUFF
+
+      std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+      for(unsigned k = 0; k < dim; k++) {
+        x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
+      }
+
+      for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
+        unsigned jel = jelIndexF[jj];
+        const unsigned &dim = region2.GetDimension(jel);
+        const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+
+        const elem_type *fem = region2.GetFem(jel);
+
+        const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
+        const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
+        const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+
+        for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+
+          bool coarseIntersectionTest = true;
+          for(unsigned k = 0; k < dim; k++) {
+            if((xg2[jg][k]  - * (x1MinMax[k].second)) > delta + eps  || (*(x1MinMax[k].first) - xg2[jg][k]) > delta + eps) { // this can be improved with the l2 norm
+              coarseIntersectionTest = false;
+              break;
+            }
+          }
+
+
+          if(coarseIntersectionTest) {
+            _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+            // call cut fem
+            if(_cut == 2) { //interior
+              // use the quantities for full cell integration
+            }
+            else if(_cut == 1) { //cut
+              bool wMap = true;  
+              element1CF.GetCutFem()->clear();
+              (*element1CF.GetCutFem())(element1CF.GetQuadratureOrder(), 0, _a,_d, _weightCF, wMap);                  
+              // evaluate WeightCF
+              // integrate using the quantities for cutfem integration
+            }
+
+          }
+
+
+        }
+      }
 
     //for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
 
@@ -500,7 +509,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             xg1[k] += xv1[k][i] * phi1[i];
           }
         }
-        AssemblyCutFem2(element1, region2, _jelIndexI, nDof1, xg1, 2. * weight1 * _kernel,
+        Assembly2(element1, region2, _jelIndexI, nDof1, xg1, 2. * weight1 * _kernel,
                         phi1F[ig], solu1, delta, printMesh);
       }
     }

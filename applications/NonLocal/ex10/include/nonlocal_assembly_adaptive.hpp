@@ -188,14 +188,14 @@ double B2 = - 1. / 24.;
 double xc = -1;
 double yc = -1;
 
-const unsigned swap[4][9] = {
+const unsigned mySwap[4][9] = {
   {0, 1, 2, 3, 4, 5, 6, 7, 8},
   {3, 0, 1, 2, 7, 4, 5, 6, 8},
   {2, 3, 0, 1, 6, 7, 4, 5, 8},
   {1, 2, 3, 0, 5, 6, 7, 4, 8}
 };
 
-const unsigned swapI[4][9] = {
+const unsigned mySwapI[4][9] = {
   {0, 1, 2, 3, 4, 5, 6, 7, 8},
   {1, 2, 3, 0, 5, 6, 7, 4, 8},
   {2, 3, 0, 1, 6, 7, 4, 5, 8},
@@ -1309,9 +1309,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
                       std::cout << std::endl;
 
                       for(unsigned i = 0; i < nDof1; i++) {
-                        unsigned ii = swapI[typei][i];
+                        unsigned ii = mySwapI[typei][i];
                         for(unsigned j = 0; j < nDof1; j++) {
-                          unsigned jj = swapI[typei][j];
+                          unsigned jj = mySwapI[typei][j];
                           std::cout << Jac11[ii * nDof1 + jj] << " ";
                         }
                         std::cout << std::endl;
@@ -1319,9 +1319,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
                       std::cout << std::endl;
 
                       for(unsigned i = 0; i < nDof1; i++) {
-                        unsigned ii = swapI[typei][i];
+                        unsigned ii = mySwapI[typei][i];
                         for(unsigned j = 0; j < nDof2; j++) {
-                          unsigned jj = swapI[typej][j];
+                          unsigned jj = mySwapI[typej][j];
                           std::cout << Jac12[ii * nDof2 + jj] << " ";
                         }
                         std::cout << std::endl;
@@ -1329,9 +1329,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
                       std::cout << std::endl;
 
                       for(unsigned i = 0; i < nDof2; i++) {
-                        unsigned ii = swapI[typej][i];
+                        unsigned ii = mySwapI[typej][i];
                         for(unsigned j = 0; j < nDof1; j++) {
-                          unsigned jj = swapI[typei][j];
+                          unsigned jj = mySwapI[typei][j];
                           std::cout << Jac21[ii * nDof1 + jj] << " ";
                         }
                         std::cout << std::endl;
@@ -1339,9 +1339,9 @@ void AssembleNonLocalSys(MultiLevelProblem& ml_prob) {
                       std::cout << std::endl;
 
                       for(unsigned i = 0; i < nDof2; i++) {
-                        unsigned ii = swapI[typej][i];
+                        unsigned ii = mySwapI[typej][i];
                         for(unsigned j = 0; j < nDof2; j++) {
-                          unsigned jj = swapI[typej][j];
+                          unsigned jj = mySwapI[typej][j];
                           std::cout << Jac22[ii * nDof2 + jj] << " ";
                         }
                         std::cout << std::endl;
@@ -1738,11 +1738,11 @@ unsigned ReorderElement(std::vector < int > &dofs, std::vector < double > & sol,
     std::vector < std::vector < double > > xCopy = x;
 
     for(unsigned i = 0; i < dofs.size(); i++) {
-      dofs[i] = dofsCopy[swap[type][i]];
-      sol[i] = solCopy[swap[type][i]];
+      dofs[i] = dofsCopy[mySwap[type][i]];
+      sol[i] = solCopy[mySwap[type][i]];
 
       for(unsigned k = 0; k < x.size(); k++) {
-        x[k][i] = xCopy[k][swap[type][i]];
+        x[k][i] = xCopy[k][mySwap[type][i]];
       }
     }
   }

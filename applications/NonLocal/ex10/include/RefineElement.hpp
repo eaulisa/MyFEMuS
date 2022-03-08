@@ -2,6 +2,9 @@
 #define __femus_RefineElement_hpp__
 
 #include "OctTreeElement.hpp"
+#include "CutFemIntegration.hpp"
+
+unsigned GetGaussOrder(const char* order_gauss);
 
 class RefineElement {
   public:
@@ -69,6 +72,18 @@ class RefineElement {
       return _eps;
     }
 
+    const unsigned &GetElementType() {
+      return _elType;
+    }
+
+    CutFemIntegral <double, double> *GetCutFem() const {
+      return _cutFem;
+    }
+
+    const unsigned GetQuadratureOrder() {
+      return _quadOrder;
+    }
+
   private:
     unsigned _dim;
     unsigned _numberOfChildren;
@@ -78,12 +93,16 @@ class RefineElement {
     const elem_type *_finiteElement2;
     const elem_type *_finiteElementLinear;
 
+    CutFemIntegral <double, double> *_cutFem;
+    unsigned _quadOrder;
+
     OctTreeElement _octTreeElement1;
     std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > _PMatrix;
     void BuildPMat();
     basis* _basis;
     std::vector< std::vector < std::vector < std::vector <double> > > > _xv1l;/*
     std::vector< std::vector < std::vector < std::vector <double> > > > _xi1l;*/
+    unsigned _elType;
 
     double _a0, _a1, _a3, _a5, _a7, _a9, _eps;
 
@@ -92,25 +111,41 @@ class RefineElement {
 
 RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const char* fe_order,
                              const char* order_gauss_fem1, const char* order_gauss_fem2, const char* gauss_type) {
+
+  _quadOrder = GetGaussOrder(order_gauss_fem1);
   if(!strcmp(geom_elem, "line")) {
     _numberOfChildren = 2;
-
     _finiteElement1 = new const elem_type_1D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
     _finiteElement2 = new const elem_type_1D(geom_elem, fe_order, order_gauss_fem2, gauss_type);;
     _finiteElementLinear = new const elem_type_1D(geom_elem, "linear", "zero", gauss_type);
+    _elType = 5;
   }
   else if(!strcmp(geom_elem, "quad") || !strcmp(geom_elem, "tri")) {
     _numberOfChildren = 4;
     _finiteElement1 = new const elem_type_2D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
     _finiteElement2 = new const elem_type_2D(geom_elem, fe_order, order_gauss_fem2, gauss_type);
     _finiteElementLinear = new const elem_type_2D(geom_elem, "linear", "zero", gauss_type);
+
+    if(!strcmp(geom_elem, "quad")) {
+      _elType = 3;
+      _cutFem  = new CutFemIntegral<double, double >(QUAD, _quadOrder, "legendre");
+
+    }
+    else {
+      _elType = 4;
+      _cutFem  = new CutFemIntegral<double, double >(TRI, _quadOrder, "legendre");
+    }
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {
     _numberOfChildren = 8;
     _finiteElement1 = new const elem_type_3D(geom_elem, fe_order, order_gauss_fem1, gauss_type);
     _finiteElement2 = new const elem_type_3D(geom_elem, fe_order, order_gauss_fem2, gauss_type);
     _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", "zero", gauss_type);
+
+    _elType = (!strcmp(geom_elem, "hex")) ? 0 : (_elType = (!strcmp(geom_elem, "tet")) ? 1 : 2) ;
   }
+
+
 
   _dim = _finiteElement1->GetDim();
   _numberOfNodes = _finiteElement1->GetNDofs();
@@ -140,6 +175,9 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
 RefineElement::~RefineElement() {
   delete _finiteElement1;
   delete _finiteElement2;
+  if(_elType == 3 || _elType == 4) {
+    delete _cutFem;
+  }
 }
 
 const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & RefineElement::GetProlongationMatrix() {
@@ -235,5 +273,125 @@ void RefineElement::SetConstants(const double &eps) {
   _a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
+unsigned GetGaussOrder(const char* order_gauss) {
+  if(!strcmp(order_gauss, "zero")) {
+    return 0;
+  }
+  else if(!strcmp(order_gauss, "first")) {
+    return 1;
+  }
+  else if(!strcmp(order_gauss, "second")) {
+    return 2;
+  }
+  else if(!strcmp(order_gauss, "third")) {
+    return 3;
+  }
+  else if(!strcmp(order_gauss, "fourth")) {
+    return 4;
+  }
+  else if(!strcmp(order_gauss, "fifth")) {
+    return 5;
+  }
+  else if(!strcmp(order_gauss, "sixth")) {
+    return 6;
+  }
+  else if(!strcmp(order_gauss, "seventh")) {
+    return 7;
+  }
+  else if(!strcmp(order_gauss, "eighth")) {
+    return 8;
+  }
+  else if(!strcmp(order_gauss, "ninth")) {
+    return 9;
+  }
+  else if(!strcmp(order_gauss, "tenth")) {
+    return 10;
+  }
+  else if(!strcmp(order_gauss, "eleventh")) {
+    return 11;
+  }
+  else if(!strcmp(order_gauss, "twelfth")) {
+    return 12;
+  }
+  else if(!strcmp(order_gauss, "thirteenth")) {
+    return 13;
+  }
+  else if(!strcmp(order_gauss, "fourteenth")) {
+    return 14;
+  }
+  else if(!strcmp(order_gauss, "fifteenth")) {
+    return 15;
+  }
+  else if(!strcmp(order_gauss, "sixteenth")) {
+    return 16;
+  }
+  else if(!strcmp(order_gauss, "seventeenth")) {
+    return 17;
+  }
+  else if(!strcmp(order_gauss, "eighteenth")) {
+    return 18;
+  }
+  else if(!strcmp(order_gauss, "nineteenth")) {
+    return 19;
+  }
+  else if(!strcmp(order_gauss, "twentieth")) {
+    return 20;
+  }
+  else if(!strcmp(order_gauss, "twenty first")) {
+    return 21;
+  }
+  else if(!strcmp(order_gauss, "twenty second")) {
+    return 22;
+  }
+  else if(!strcmp(order_gauss, "twenty third")) {
+    return 23;
+  }
+  else if(!strcmp(order_gauss, "twenty fourth")) {
+    return 24;
+  }
+  else if(!strcmp(order_gauss, "twenty fifth")) {
+    return 25;
+  }
+  else if(!strcmp(order_gauss, "twenty sixth")) {
+    return 26;
+  }
+  else if(!strcmp(order_gauss, "twenty seventh")) {
+    return 27;
+  }
+  else if(!strcmp(order_gauss, "twenty eighth")) {
+    return 28;
+  }
+  else if(!strcmp(order_gauss, "twenty ninth")) {
+    return 29;
+  }
+  else if(!strcmp(order_gauss, "thirtieth")) {
+    return 30;
+  }
+  else if(!strcmp(order_gauss, "thirty first")) {
+    return 31;
+  }
+  else if(!strcmp(order_gauss, "thirty second")) {
+    return 32;
+  }
+  else if(!strcmp(order_gauss, "thirty third")) {
+    return 33;
+  }
+  else if(!strcmp(order_gauss, "thirty fourth")) {
+    return 34;
+  }
+  else if(!strcmp(order_gauss, "thirty fifth")) {
+    return 35;
+  }
+  else if(!strcmp(order_gauss, "thirty sixth")) {
+    return 36;
+  }
+  else if(!strcmp(order_gauss, "thirty seventh")) {
+    return 37;
+  }
+  else {
+    std::cout << order_gauss << " is not a valid option for the Gauss points\n";
+    abort();
+  }
+}
 
 #endif
