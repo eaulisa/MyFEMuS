@@ -31,6 +31,48 @@ using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
 std::vector<bool> statements(18, false);
 
+template <class TypeA>
+TypeA F0(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &x2) {
+
+  //std::cout << "F" << std::endl;
+
+  TypeA sum(0);
+  for(unsigned i = 0; i <= s; i++) {
+    TypeA c1 = pow(a[1], i) / ((m[1] + i + 1) * factorial<TypeA>(i));
+    for(unsigned k = 0; k <= s - i; k++) {
+      sum += c1 * pow(a[0], k) * pow(d, s - i - k) * (pow(x2, m[0] + k + 1)) /
+             (factorial<TypeA>(s - i - k) *  factorial<TypeA>(k) * (m[0] + k + 1));
+    }
+  }
+  return  sum;
+}
+
+template <class TypeA>
+TypeA F1(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &onemx1) {
+
+  //std::cout << "F" << std::endl;
+
+  TypeA sum(0);
+  for(unsigned i = 0; i <= s; i++) {
+    unsigned M = m[0] + i + 1;
+    TypeA c1 = pow(a[1], i) / ((m[1] + i + 1) * factorial<TypeA>(i));
+    for(unsigned j = 0; j <= s - i; j++) {
+
+      TypeA sumk(0);
+
+      for(unsigned k = 1; k <= M; k++) {
+        sumk -= pow(-onemx1, k) / (factorial<TypeA>(k) * factorial<TypeA>(M - k));
+      }
+
+      sum += (sumk * c1 * pow(a[0], j) * pow(d, s - i - j)) / (factorial<TypeA>(s - i - j) *  factorial<TypeA>(j) * (m[0] + j + 1));
+
+    }
+  }
+
+  return sum;
+
+}
+
 
 template <class TypeA>
 TypeA F(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &x1, const TypeA &x2) {
@@ -90,12 +132,20 @@ TypeA G(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> 
 }
 
 template <class TypeIO, class TypeA>
-TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
+TypeIO SquareA(const int &s, std::vector<unsigned> &m, std::vector <TypeIO> &a, const TypeIO &d) {
 
   //std::vector<bool> statements(18, false);
 
   std::vector<TypeA> aA = {a[0], a[1]};
   TypeA dA(d);
+
+  if(fabs(aA[1]) > fabs(aA[0])) {
+    std::swap(aA[1], aA[0]);
+    std::swap(a[1], a[0]);
+    std::swap(m[1], m[0]);
+    std::cout << "Swap has occurred, a[0] = " << a[0] << std::endl;
+
+  }
 
   TypeA xf = (-aA[1] - dA) / aA[0];
   TypeA xg = - dA / aA[0];
@@ -103,38 +153,40 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
   //std::cout << xf << " " << xg << std::endl;
 
 
+
+
   TypeA INT(0);
 
   if(a[0] > 0) {
     if(xf < 0) {
       if(xg < 0) {
-        INT = F<TypeA>(s, m, aA, dA, 0, 1);
+        INT = F0<TypeA>(s, m, aA, dA, 1);
         statements[0] = true;
       }
       else if(xg < 1) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G0<TypeA>(s, m, aA, dA, xg) ;
+        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, xg) ;
         statements[1] = true;
       }
       else {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G0<TypeA>(s, m, aA, dA, 1)  ;
+        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, 1)  ;
         statements[2] = true;
       }
     }
     else if(xf < 1) {
       if(xg < 0) {
-        INT = G0<TypeA>(s, m, aA, dA, xf) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        INT = G0<TypeA>(s, m, aA, dA, xf) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
         statements[3] = true;
       }
       else if(xg < xf) {
-        INT = G<TypeA>(s, m, aA, dA, xg, xf) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        INT = G<TypeA>(s, m, aA, dA, xg, xf) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
         statements[4] = true;
       }
       else if(xg < 1) {
-        INT = -G<TypeA>(s, m, aA, dA, xf, xg) +  F<TypeA>(s, m, aA, dA, xf, 1);
+        INT = -G<TypeA>(s, m, aA, dA, xf, xg) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
         statements[5] = true;
       }
       else {
-        INT =  F<TypeA>(s, m, aA, dA, xf, 1) - G1<TypeA>(s, m, aA, dA, 1 - xf)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
+        INT =  F1<TypeA>(s, m, aA, dA, 1 - xf) - G1<TypeA>(s, m, aA, dA, 1 - xf)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
         statements[6] = true;
       }
     }
@@ -152,33 +204,33 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m, const std::vector <
   else {
     if(xf > 1) {
       if(xg > 1) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1);
+        INT =  F0<TypeA>(s, m, aA, dA, 1);
         statements[9] = true;
       }
       else if(xg > 0) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G1<TypeA>(s, m, aA, dA, 1 - xg);
+        INT =  F0<TypeA>(s, m, aA, dA, 1) - G1<TypeA>(s, m, aA, dA, 1 - xg);
         statements[10] = true;
       }
       else {
-        INT =  F<TypeA>(s, m, aA, dA, 0, 1) - G0<TypeA>(s, m, aA, dA, 1); //xf=1,xg=0,a[0]=-1,a[1]=1,d=0
+        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, 1); //xf=1,xg=0,a[0]=-1,a[1]=1,d=0
         statements[11] = true;
       }
     }
     else if(xf > 0) {
       if(xg > 1) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, xf) + G1<TypeA>(s, m, aA, dA, 1 - xf);
+        INT =  F0<TypeA>(s, m, aA, dA, xf) + G1<TypeA>(s, m, aA, dA, 1 - xf);
         statements[12] = true;
       }
       else if(xg > xf) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, xf) + G<TypeA>(s, m, aA, dA, xf, xg);
+        INT =  F0<TypeA>(s, m, aA, dA, xf) + G<TypeA>(s, m, aA, dA, xf, xg);
         statements[13] = true;
       }
       else if(xg > 0) {
-        INT =  F<TypeA>(s, m, aA, dA, 0, xf) - G<TypeA>(s, m, aA, dA, xg, xf);
+        INT =  F0<TypeA>(s, m, aA, dA, xf) - G<TypeA>(s, m, aA, dA, xg, xf);
         statements[14] = true;
       }
       else {
-        INT =  F<TypeA>(s, m, aA, dA, 0, xf) - G0<TypeA>(s, m, aA, dA, xf)  ;
+        INT =  F0<TypeA>(s, m, aA, dA, xf) - G0<TypeA>(s, m, aA, dA, xf)  ;
         statements[15] = true;
       }
     }
@@ -407,124 +459,80 @@ int main() {
   d = eps1;
   double an = (d * d) / 2.;
 
-  std::cout << "small cut in lower left corner *************************************************************" << std::endl;
-  for(unsigned i = 0; i < 10; i++) {
-
-    std::cout << "Double with eps = " << d << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
-    std::cout << "Oct with eps = " << d << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
-    //std::cout << "analytical = " << an << std::endl;
-
-
-    d /= 10.;
-    an = (d * d) / 2.;
-  }
-
-  // small cut in upper left corner **************************************************************************
-  eps1 = 0.1;
-  a[0] = -1.;
-  a[1] = 1.;
-
-  d = -1. + eps1;
-  std::cout << "small cut in upper left corner *************************************************************" << std::endl;
-
-  for(unsigned i = 0; i < 10; i++) {
-
-    std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
-    std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
-
-    eps1 /= 10.;
-    d = -1 + eps1;
-  }
-
-  // small cut in upper right corner **************************************************************************
-  eps1 = 0.1;
-  a[0] = 1.;
-  a[1] = 1.;
-
-  d = -2. + eps1;
-  std::cout << "small cut in upper right corner *************************************************************" << std::endl;
-
-  for(unsigned i = 0; i < 10; i++) {
-
-    std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
-    std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
-
-    eps1 /= 10.;
-    d = -2. + eps1;
-  }
-
-
-  // small cut in lower right corner **************************************************************************
-  eps1 = 0.1;
-  a[0] = 1.;
-  a[1] = -1.;
-
-  d = -1. + eps1;
-  std::cout << "small cut in lower right corner *************************************************************" << std::endl;
-
-  std::vector<cpp_bin_float_oct> af(2);
-  af[0] = static_cast<cpp_bin_float_oct>(a[0]);
-  af[1] = static_cast<cpp_bin_float_oct>(a[1]);
-
-
-  for(unsigned i = 0; i < 10; i++) {
-
-    cpp_bin_float_oct df = static_cast<cpp_bin_float_oct>(d);
-
-    std::cout.precision(40);
-    std::cout << a[0] << " " << a[1] << std::endl;
-    std::cout << af[0] << " " << af[1] << std::endl;
-    std::cout << d << "\n" << df << std::endl;
-
-    std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
-    std::cout << "Oct with eps    = " << eps1 << ": " << SquareA<cpp_bin_float_oct, cpp_bin_float_oct>(0, m, af, df) << std::endl;
-
-    eps1 = pow(0.1, i + 2);
-    d = -1 + eps1;
-  }
-
-  for(unsigned j = 0; j < statements.size(); j++) {
-
-    if(!statements[j]) {
-      std::cout << "Case " << j << " has not been tested yet!" << std::endl;
-    }
-
-  }
-
-
+//   std::cout << "small cut in lower left corner *************************************************************" << std::endl;
+//   for(unsigned i = 0; i < 10; i++) {
+//
+//     std::cout << "Double with eps = " << d << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
+//     std::cout << "Oct with eps = " << d << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
+//     //std::cout << "analytical = " << an << std::endl;
+//
+//
+//     d /= 10.;
+//     an = (d * d) / 2.;
+//   }
+//
+//   // small cut in upper left corner **************************************************************************
 //   eps1 = 0.1;
 //   a[0] = -1.;
-//   a[1] = -eps1;
+//   a[1] = 1.;
 //
-//   d = eps1;
-//   std::cout << "small cut with line approaching vertical x = 1 ******************************************" << std::endl;
+//   d = -1. + eps1;
+//   std::cout << "small cut in upper left corner *************************************************************" << std::endl;
 //
-//   for(unsigned i = 0; i < 30; i++) {
+//   for(unsigned i = 0; i < 10; i++) {
 //
 //     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
 //     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
 //
 //     eps1 /= 10.;
-//     a[1] = -eps1;
-//     d = eps1;
+//     d = -1 + eps1;
+//   }
+//
+//   // small cut in upper right corner **************************************************************************
+//   eps1 = 0.1;
+//   a[0] = -1.;
+//   a[1] = -1.;
+//
+//   d = 2. - eps1;
+//   std::cout << "small cut in upper right corner *************************************************************" << std::endl;
+//
+//   for(unsigned i = 0; i < 10; i++) {
+//     std::cout.precision(50);
+//     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
+//     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
+//
+//     eps1 /= 10.;
+//     d = 2. - eps1;
 //   }
 //
 //
+//   // small cut in lower right corner **************************************************************************
 //   eps1 = 0.1;
-//   a[0] = -eps1;
+//   a[0] = 1.;
 //   a[1] = -1.;
 //
-//   d = eps1;
-//   std::cout << "small cut with line approaching horizontal y = 0 ******************************************" << std::endl;
+//   d = -1. + eps1;
+//   std::cout << "small cut in lower right corner *************************************************************" << std::endl;
 //
-//   for(unsigned i = 0; i < 30; i++) {
+//   std::vector<cpp_bin_float_oct> af(2);
+//   af[0] = static_cast<cpp_bin_float_oct>(a[0]);
+//   af[1] = static_cast<cpp_bin_float_oct>(a[1]);
+//
+//
+//   for(unsigned i = 0; i < 10; i++) {
+//
+//     cpp_bin_float_oct df = static_cast<cpp_bin_float_oct>(d);
+//
+//     std::cout.precision(40);
+//     std::cout << a[0] << " " << a[1] << std::endl;
+//     std::cout << af[0] << " " << af[1] << std::endl;
+//     std::cout << d << "\n" << df << std::endl;
 //
 //     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
-//     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
+//     std::cout << "Oct with eps    = " << eps1 << ": " << SquareA<cpp_bin_float_oct, cpp_bin_float_oct>(0, m, af, df) << std::endl;
 //
-//     eps1 /= 10.;
-//     a[0] = -eps1;
-//     d = eps1;
+//     eps1 = pow(0.1, i + 2);
+//     d = -1 + eps1;
 //   }
 //
 //   for(unsigned j = 0; j < statements.size(); j++) {
@@ -535,12 +543,57 @@ int main() {
 //
 //   }
 
-//   a[0] = 0.;
-//   a[1] = 1;
+
+  eps1 = 0.1;
+  a[0] = -1.;
+  a[1] = -eps1;
+
+  d = eps1;
+//   std::cout << "small cut with line approaching vertical x = 1 ******************************************" << std::endl;
+// 
+//   for(unsigned i = 0; i < 10; i++) {
+// 
+//     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
+//     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
+// 
+//     eps1 /= 10.;
+//     a[1] = -eps1;
+//     d = eps1;
+//   }
+
+
+  eps1 = 0.1;
+  a[0] = -eps1;
+  a[1] = -1.;
+
+  d = eps1;
+  std::cout << "small cut with line approaching horizontal y = 0 ******************************************" << std::endl;
+
+  for(unsigned i = 0; i < 10; i++) {
+
+    std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
+    std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
+
+    eps1 /= 10.;
+    a[0] = -eps1;
+    a[1] = -1.;
+    d = eps1;
+  }
 //
-//   m[0] = 0;
-//   m[1] = 0;
-//   d = -eps1;
+//   for(unsigned j = 0; j < statements.size(); j++) {
+//
+//     if(!statements[j]) {
+//       std::cout << "Case " << j << " has not been tested yet!" << std::endl;
+//     }
+//
+//   }
+
+  a[0] = 0.;
+  a[1] = 1;
+
+  m[0] = 0;
+  m[1] = 0;
+  d = -eps1;
 
   //I1 = pow(eps, -1 - m[1]) * beta<double> (m[1]+1,  m[0]+2, eps) / (1 + m[0]);
 //   std::cout << SquareA<double, double>(0, m, a, d) << std::endl;
@@ -550,3 +603,4 @@ int main() {
 
   return 1;
 }
+
