@@ -36,9 +36,9 @@ using namespace femus;
 std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
 
 template <class TypeIO, class TypeA>
-class CutFemIntegral {
+class CutFemWeight {
   public:
-    CutFemIntegral(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) {
+    CutFemWeight(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) {
       _geomElemType = geomElemType;
       _qM = qM;
       _gaussType = gaussType;
@@ -94,7 +94,7 @@ class CutFemIntegral {
       _f.resize(_L);
     }
 
-    ~CutFemIntegral() {
+    ~CutFemWeight() {
       clear();
       delete _gauss;
       if(_geomElemType != WEDGE) delete _obj;
@@ -104,7 +104,17 @@ class CutFemIntegral {
       if(_geomElemType != WEDGE) _obj->clear();
     };
 
-    void operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF, const bool &wMap = 0);
+    void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
+    void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF, const bool &wMap);
+
+    void updateQuadratureRule(const unsigned &qM) {
+      clear();
+      delete _gauss;
+      ClearMap();
+
+      _qM = qM;
+      build();
+    }
 
     const double* GetGaussWeightPointer() {
       return _gauss->GetGaussWeightsPointer();
@@ -118,7 +128,8 @@ class CutFemIntegral {
     }
 
     void ClearMap() {
-      _WeightMap.clear();
+      for(unsigned i = 0; i < _WeightMap.size(); i++)  _WeightMap[i].clear();
+      _WeightMap.resize(0);
     }
 
   protected:
@@ -128,7 +139,6 @@ class CutFemIntegral {
     unsigned _dim;
     GeomElType _geomElemType;
     Gauss *_gauss;
-
 
     std::vector<std::vector<cpp_bin_float_oct>> _ATAoct;
 
@@ -149,10 +159,9 @@ class CutFemIntegral {
 
 
 
-    std::map < std::pair<std::vector<TypeIO>, TypeIO>, std::vector<TypeIO> > _WeightMap;
-    typename std::map < std::pair<std::vector<TypeIO>, TypeIO>, std::vector<TypeIO> >::iterator _it;
-    std::pair<std::vector<TypeIO>, TypeIO> _key;
-
+    std::vector < std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> > > _WeightMap;
+    typename std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> >::iterator _it;
+    std::pair<std::vector<float>, float> _key;
 
 
     std::vector<std::vector<TypeIO>> _bOld2d;
@@ -166,32 +175,40 @@ class CutFemIntegral {
 };
 
 
+template <class TypeIO, class TypeA>
+void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF, const bool &wMap) {
+  _WeightMap.resize(s + 2);
+  std::vector <float> af(a.begin(), a.end());
+  float df = static_cast<float>(d);
+  _key = std::make_pair(af, df);
+  _it = _WeightMap[s + 1].find(_key);
+  if(_it != _WeightMap[s + 1].end()) {
+    weightCF.clear();
+    weightCF = _WeightMap[s + 1][_key];
+    return;
+  }
 
+  operator()(s, a, d, weightCF);
+
+  _WeightMap[s + 1][_key] = weightCF;
+
+}
 
 
 template <class TypeIO, class TypeA>
-void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF, const bool &wMap) {
+void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
 
   clock_t time = clock();
 
-  if(_qM != qM) {
-    clear();
-    delete _gauss;
-    _WeightMap.clear();
-    _qM = qM;
-    build();
-  }
-
-
-  if(wMap) {
-    _key = std::make_pair(a, d);
-    _it = _WeightMap.find(_key);
-    if(_it != _WeightMap.end()) {
-      weightCF.clear();
-      weightCF = _WeightMap[_key];
-      return;
-    }
-  }
+//   if(wMap) {
+//     _key = std::make_pair(a, d);
+//     _it = _WeightMap[s+1].find(_key);
+//     if(_it != _WeightMap[s+1].end()) {
+//       weightCF.clear();
+//       weightCF = _WeightMap[s+1][_key];
+//       return;
+//     }
+//   }
 
   _cntCall++;
 
@@ -289,9 +306,9 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
     weightCF[ig] = static_cast<TypeIO>(weight);
   }
 
-  if(wMap) {
-    _WeightMap[_key] = weightCF;
-  }
+//   if(wMap) {
+//     _WeightMap[s+1][_key] = weightCF;
+//   }
 
   //time3 += clock() - time;
   //std::cout << time1 << " " << time2 << " " << time3 << std::endl;
@@ -299,7 +316,7 @@ void CutFemIntegral<TypeIO, TypeA>::operator()(const unsigned &qM, const int &s,
 
 
 template <class TypeIO, class TypeA>
-void CutFemIntegral<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vector<double> &x, std::vector<double> &bo) {
+void CutFemWeight<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vector<double> &x, std::vector<double> &bo) { //TODO remove qM?
   unsigned count = 0;
 
   if(_dim == 3) {

@@ -2,7 +2,7 @@
 #define __femus_RefineElement_hpp__
 
 #include "OctTreeElement.hpp"
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
 std::vector<std::string> numberName = {
   "zero", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
@@ -100,7 +100,7 @@ class RefineElement {
       return _elType;
     }
 
-    CutFemIntegral <double, double> *GetCutFem() const {
+    CutFemWeight <double, double> *GetCutFem() const {
       return _cutFem;
     }
 
@@ -118,7 +118,7 @@ class RefineElement {
     const elem_type *_finiteElementCF;
     const elem_type *_finiteElementLinear;
 
-    CutFemIntegral <double, double> *_cutFem;
+    CutFemWeight <double, double> *_cutFem;
     unsigned _quadOrder;
 
     OctTreeElement _octTreeElement1;
@@ -157,11 +157,11 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
 
     if(!strcmp(geom_elem, "quad")) {
       _elType = 3;
-      _cutFem  = new CutFemIntegral<double, double >(QUAD, _quadOrder, "legendre");
+      _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
     }
     else {
       _elType = 4;
-      _cutFem  = new CutFemIntegral<double, double >(TRI, _quadOrder, "legendre");
+      _cutFem  = new CutFemWeight<double, double >(TRI, _quadOrder, "legendre");
     }
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {

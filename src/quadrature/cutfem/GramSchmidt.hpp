@@ -2,7 +2,7 @@
 #ifndef __femus_GramSchmidt_hpp__
 #define __femus_GramSchmidt_hpp__
 
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
 #include <iostream>
 #include <iomanip>

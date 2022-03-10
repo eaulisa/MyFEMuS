@@ -410,9 +410,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             // use the quantities for full cell integration
           }
           else if(_cut == 1) { //cut
-            bool wMap = false;
+            bool wMap = true;
             element1.GetCutFem()->clear();
-            (*element1.GetCutFem())(element1.GetQuadratureOrder(), 0, _a, _d, _weightCF, wMap);
+            (*element1.GetCutFem())(/*element1.GetQuadratureOrder(),*/ 0, _a, _d, _weightCF, wMap);
+//             (*element1.GetCutFem())(/*element1.GetQuadratureOrder(),*/ 0, _a, _d, _weightCF);
             // evaluate WeightCF
             // integrate using the quantities for cutfem integration
           }
