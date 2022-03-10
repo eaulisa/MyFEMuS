@@ -44,10 +44,14 @@ class NonLocal {
                          RefineElement &element1, const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                          const double &kappa, const double &delta, const bool &printMesh);
 
-    double AssemblyCutFem2(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
-                           const unsigned & nDof1, const vector < double > &xg1,
-                           const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
-                           const double & delta, const bool & printMesh);
+    double AssemblyCutFem2(const std::vector < std::vector <double> > &phi1,
+                           const std::vector<double> &solu1g,
+                           const std::vector<double> &weight1,
+                           const unsigned &jel,
+                           const unsigned &nDof2,
+                           const double *phi2,
+                           const double &solu2g,
+                           const double &twoWeigh2Kernel);
 
     double GetSmoothTestFunction(const double &dg1, const double &eps);
 
@@ -315,7 +319,7 @@ double NonLocal::Assembly2(const RefineElement & element1, const Region & region
 
 void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
                                const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
-                               RefineElement &element1, const Region &region2, 
+                               RefineElement &element1, const Region &region2,
                                const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                                const double &kappa, const double &delta, const bool &printMesh) {
 
@@ -349,6 +353,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
     std::vector< std::vector < double> > xg1(fem1->GetGaussPointNumber(), std::vector < double>(dim));
     std::vector< std::vector < double> > xg1CF(fem1CF->GetGaussPointNumber(), std::vector < double>(dim));
+
+    std::vector < double> solu1g(fem1->GetGaussPointNumber(), 0.);
+    std::vector < double> solu1gCF(fem1CF->GetGaussPointNumber(), 0.);
+
     //std::vector < double> xg1CF(dim);
     std::vector < double> weight1(fem1->GetGaussPointNumber());
     std::vector < double> weight1CF(fem1CF->GetGaussPointNumber());
@@ -362,6 +370,11 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
           xg1[ig][k] += xv1[k][i] * phi1[i];
         }
       }
+      for(unsigned i = 0; i < nDof1; i++) {
+        solu1g[ig] += phi1F[ig][i] * solu1[i];
+      }
+
+
     }
 
     for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
@@ -371,6 +384,9 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         for(unsigned i = 0; i < nDof1; i++) {
           xg1CF[ig][k] += xv1[k][i] * phi1[i];
         }
+      }
+      for(unsigned i = 0; i < nDof1; i++) {
+        solu1gCF[ig] += phi1FCF[ig][i] * solu1[i];
       }
     }
 
@@ -407,13 +423,27 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
           _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
           // call cut fem
           if(_cut == 2) { //interior
-            // use the quantities for full cell integration
+            /*phi1F,  solu1g, weight1, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] , 2. * weight2[jg] * _kernel,*/
+  
+//             std::cout<<"A";
+//             
+            AssemblyCutFem2(phi1F, solu1g, weight1, 
+                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel); 
+            
           }
           else if(_cut == 1) { //cut
             bool wMap = true;
             element1.GetCutFem()->clear();
-            (*element1.GetCutFem())(/*element1.GetQuadratureOrder(),*/ 0, _a, _d, _weightCF, wMap);
-//             (*element1.GetCutFem())(/*element1.GetQuadratureOrder(),*/ 0, _a, _d, _weightCF);
+            (*element1.GetCutFem())(0, _a, _d, _weightCF, wMap);
+
+            for(unsigned ig = 0; ig < _weightCF.size(); ig++) {
+              _weightCF[ig] *= weight1CF[ig];
+            }
+            
+             AssemblyCutFem2(phi1FCF, solu1gCF, _weightCF, 
+                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel); 
+
+
             // evaluate WeightCF
             // integrate using the quantities for cutfem integration
           }
@@ -431,8 +461,8 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 //                       phi1F[ig], solu1, delta, printMesh);
     //}
     for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
-      AssemblyCutFem2(element1, region2, jelIndexF, nDof1, xg1CF[ig], 2. * weight1CF[ig] * _kernel,
-                      phi1FCF[ig], solu1, delta, printMesh);
+      Assembly2(element1, region2, jelIndexF, nDof1, xg1CF[ig], 2. * weight1CF[ig] * _kernel,
+                phi1FCF[ig], solu1, delta, printMesh);
     }
   }
   else {
@@ -524,79 +554,118 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
 
 
-double NonLocal::AssemblyCutFem2(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
-                                 const unsigned & nDof1, const vector < double > &xg1,
-                                 const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
-                                 const double & delta, const bool & printMesh) {
+double NonLocal::AssemblyCutFem2(const std::vector < std::vector <double> > &phi1,
+                                 const std::vector<double> &solu1g,
+                                 const std::vector<double> &weight1,
+                                 const unsigned &jel,
+                                 const unsigned &nDof2,
+                                 const double *phi2,
+                                 const double &solu2g,
+                                 const double &weight2g) {
 
-  double area = 0.;
 
-  double solu1g = 0.;
-  for(unsigned i = 0; i < nDof1; i++) {
-    solu1g += solu1[i] * phi1[i];
+  const unsigned & nDof1 = phi1[0].size();
+  double W1W2 = 0.;
+  double solu1W1W2 = 0.;
+  std::vector < double > phi1W1W2(nDof1, 0.);
+  
+  for(unsigned ig = 0; ig < phi1.size(); ig++) {
+    W1W2 += weight1[ig];
+    for(unsigned j = 0; j < nDof1; j++) {
+      phi1W1W2[j] += phi1[ig][j] * weight1[ig];
+    }
+    solu1W1W2 += solu1g[ig] * weight1[ig];
+  }
+  W1W2 *= weight2g;
+  solu1W1W2 *= weight2g;
+    
+  double solu2gW1W2 = solu2g * W1W2;
+  for(unsigned j = 0; j < nDof1; j++) {
+    phi1W1W2[j] *= weight2g;
   }
 
-  const double *phi2;
-  const double *phi2pt;
-  double U;
-
-  std::vector< double > mCphi2iSum;
-
-  const double& eps = element1.GetEps();
-
-  for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
-
-    unsigned jel = jelIndex[jj];
-
-    const unsigned &dim = region2.GetDimension(jel);
-    const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
-
-    bool coarseIntersectionTest = true;
-    for(unsigned k = 0; k < dim; k++) {
-      if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
-        coarseIntersectionTest = false;
-        break;
-      }
+  for(unsigned i = 0; i < nDof2; i++) {
+    for(unsigned j = 0; j < nDof1; j++) {
+      /*_jac21[jel][i * nDof2 + j] -=*/ phi2[i] * phi1W1W2[j];
     }
-
-    if(coarseIntersectionTest) {
-
-      const unsigned &nDof2 = region2.GetDofNumber(jel);
-      const elem_type *fem = region2.GetFem(jel);
-      const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
-      const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
-      const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
-
-      mCphi2iSum.assign(nDof2, 0.);
-
-      for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
-        phi2 = fem->GetPhi(jg);
-        U = element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta));
-        if(U > 0.) {
-          double C =  U * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
-          double *jac22pt = &_jac22[jel][0];
-          for(unsigned i = 0; i < nDof2; i++) {
-            double cPhi2i = C * phi2[i];
-            mCphi2iSum[i] -= cPhi2i;
-            unsigned j = 0;
-            for(phi2pt = phi2; j < nDof2; j++, phi2pt++, jac22pt++) {
-              *jac22pt -= cPhi2i * (*phi2pt);
-            }
-            _res2[jel][i] += cPhi2i * solu2g[jg];
-          }
-        }//end if U > 0.
-      }//end jg loop
-
-      unsigned ijIndex = 0;
-      for(unsigned i = 0; i < nDof2; i++) {
-        for(unsigned j = 0; j < nDof1; j++, ijIndex++) {
-          _jac21[jel][ijIndex] -= mCphi2iSum[i] * phi1[j];
-        }
-        _res2[jel][i] += mCphi2iSum[i] * solu1g;
-      }
+    /*_res2[jel][i] +=*/ phi2[i] * solu1W1W2;
+    for(unsigned j = 0; j < nDof2; j++) {
+     /* _jac22[jel][i * nDof2 + j] +=*/ phi2[i] * phi2[j] * W1W2;
     }
+    /*_res2[jel][i] -=*/ phi2[i] * solu2gW1W2;
   }
-  return area;
+
+
+
+
+//   double area = 0.;
+//
+//   double solu1g = 0.;
+//   for(unsigned i = 0; i < nDof1; i++) {
+//     solu1g += solu1[i] * phi1[i];
+//   }
+//
+//   const double *phi2;
+//   const double *phi2pt;
+//   double U;
+//
+//   std::vector< double > mCphi2iSum;
+//
+//   const double& eps = element1.GetEps();
+//
+//   for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
+//
+//     unsigned jel = jelIndex[jj];
+//
+//     const unsigned &dim = region2.GetDimension(jel);
+//     const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+//
+//     bool coarseIntersectionTest = true;
+//     for(unsigned k = 0; k < dim; k++) {
+//       if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
+//         coarseIntersectionTest = false;
+//         break;
+//       }
+//     }
+//
+//     if(coarseIntersectionTest) {
+//
+//       const unsigned &nDof2 = region2.GetDofNumber(jel);
+//       const elem_type *fem = region2.GetFem(jel);
+//       const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
+//       const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
+//       const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+//
+//       mCphi2iSum.assign(nDof2, 0.);
+//
+//       for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+//         phi2 = fem->GetPhi(jg);
+//         U = element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta));
+//         if(U > 0.) {
+//           double C =  U * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
+//           double *jac22pt = &_jac22[jel][0];
+//           for(unsigned i = 0; i < nDof2; i++) {
+//             double cPhi2i = C * phi2[i];
+//             mCphi2iSum[i] -= cPhi2i;
+//             unsigned j = 0;
+//             for(phi2pt = phi2; j < nDof2; j++, phi2pt++, jac22pt++) {
+//               *jac22pt -= cPhi2i * (*phi2pt);
+//             }
+//             _res2[jel][i] += cPhi2i * solu2g[jg];
+//           }
+//         }//end if U > 0.
+//       }//end jg loop
+//
+//       unsigned ijIndex = 0;
+//       for(unsigned i = 0; i < nDof2; i++) {
+//         for(unsigned j = 0; j < nDof1; j++, ijIndex++) {
+//           _jac21[jel][ijIndex] -= mCphi2iSum[i] * phi1[j];
+//         }
+//         _res2[jel][i] += mCphi2iSum[i] * solu1g;
+//       }
+//     }
+//   }
+  return W1W2;
 }
 
 

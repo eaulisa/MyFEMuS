@@ -4,22 +4,6 @@
 #include "OctTreeElement.hpp"
 #include "CutFemWeight.hpp"
 
-// std::vector<std::string> numberName = {
-//   "zero", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
-//   "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
-//   "twentieth", "twenty first", "twenty second", "twenty third", "twenty fourth", "twenty fifth", "twenty sixth", "twenty seventh", "twenty eighth", "twenty ninth",
-//   "thirtieth", "thirty first", "thirty second", "thirty third", "thirty fourth", "thirty fifth", "thirty sixth", "thirty seventh"
-// };
-// 
-// unsigned GetGaussOrder(const char* order_gauss) {
-//   for(unsigned i = 0; i < numberName.size(); i++) {
-//     if(!strcmp(order_gauss, numberName[i].c_str())) {
-//       return i;
-//     }
-//   }
-//   std::cout << order_gauss << " is not a valid option for the Gauss points\n";
-//   abort();
-// }
 
 class RefineElement {
   public:
