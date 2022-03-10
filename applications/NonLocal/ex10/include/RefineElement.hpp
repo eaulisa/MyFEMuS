@@ -2,24 +2,24 @@
 #define __femus_RefineElement_hpp__
 
 #include "OctTreeElement.hpp"
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
-std::vector<std::string> numberName = {
-  "zero", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
-  "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
-  "twentieth", "twenty first", "twenty second", "twenty third", "twenty fourth", "twenty fifth", "twenty sixth", "twenty seventh", "twenty eighth", "twenty ninth",
-  "thirtieth", "thirty first", "thirty second", "thirty third", "thirty fourth", "thirty fifth", "thirty sixth", "thirty seventh"
-};
-
-unsigned GetGaussOrder(const char* order_gauss) {
-  for(unsigned i = 0; i < numberName.size(); i++) {
-    if(!strcmp(order_gauss, numberName[i].c_str())) {
-      return i;
-    }
-  }
-  std::cout << order_gauss << " is not a valid option for the Gauss points\n";
-  abort();
-}
+// std::vector<std::string> numberName = {
+//   "zero", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
+//   "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
+//   "twentieth", "twenty first", "twenty second", "twenty third", "twenty fourth", "twenty fifth", "twenty sixth", "twenty seventh", "twenty eighth", "twenty ninth",
+//   "thirtieth", "thirty first", "thirty second", "thirty third", "thirty fourth", "thirty fifth", "thirty sixth", "thirty seventh"
+// };
+// 
+// unsigned GetGaussOrder(const char* order_gauss) {
+//   for(unsigned i = 0; i < numberName.size(); i++) {
+//     if(!strcmp(order_gauss, numberName[i].c_str())) {
+//       return i;
+//     }
+//   }
+//   std::cout << order_gauss << " is not a valid option for the Gauss points\n";
+//   abort();
+// }
 
 class RefineElement {
   public:
@@ -100,7 +100,7 @@ class RefineElement {
       return _elType;
     }
 
-    CutFemIntegral <double, double> *GetCutFem() const {
+    CutFemWeight <double, double> *GetCutFem() const {
       return _cutFem;
     }
 
@@ -118,7 +118,7 @@ class RefineElement {
     const elem_type *_finiteElementCF;
     const elem_type *_finiteElementLinear;
 
-    CutFemIntegral <double, double> *_cutFem;
+    CutFemWeight <double, double> *_cutFem;
     unsigned _quadOrder;
 
     OctTreeElement _octTreeElement1;
@@ -157,11 +157,11 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
 
     if(!strcmp(geom_elem, "quad")) {
       _elType = 3;
-      _cutFem  = new CutFemIntegral<double, double >(QUAD, _quadOrder, "legendre");
+      _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
     }
     else {
       _elType = 4;
-      _cutFem  = new CutFemIntegral<double, double >(TRI, _quadOrder, "legendre");
+      _cutFem  = new CutFemWeight<double, double >(TRI, _quadOrder, "legendre");
     }
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {
