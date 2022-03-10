@@ -9,6 +9,8 @@
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/sum_kahan.hpp>
 
+#include "LineOld.hpp"
+
 using namespace boost;
 using namespace accumulators;
 
@@ -132,124 +134,142 @@ TypeA G(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> 
 }
 
 template <class TypeIO, class TypeA>
-TypeIO SquareA(const int &s, std::vector<unsigned> &m, std::vector <TypeIO> &a, const TypeIO &d) {
+TypeIO SquareA(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeIO> &a_input, const TypeIO &d_input) {
 
   //std::vector<bool> statements(18, false);
 
-  std::vector<TypeA> aA = {a[0], a[1]};
-  TypeA dA(d);
+  std::vector<unsigned> m = m_input;
+  std::vector<TypeA> a(a_input.begin(), a_input.end());
+  TypeA d(d_input);
 
-  if(fabs(aA[1]) > fabs(aA[0])) {
-    std::swap(aA[1], aA[0]);
-    std::swap(a[1], a[0]);
-    std::swap(m[1], m[0]);
-    std::cout << "Swap has occurred, a[0] = " << a[0] << std::endl;
+  TypeA SQI(1);
 
+  for(int i = a.size() - 1; i >= 0; i--) {
+    if(a[i] == 0) {
+      SQI /= TypeA(m[i] + 1);
+      a.erase(a.begin() + i);
+      m.erase(m.begin() + i);
+    }
   }
 
-  TypeA xf = (-aA[1] - dA) / aA[0];
-  TypeA xg = - dA / aA[0];
+  if(a.size() == 0) {
+    return static_cast <TypeIO>( -SQI * LimLi(s, d) );
+  }
+  else if(a.size() == 1) {
+    return static_cast <TypeIO>(SQI * LSI(s, m[0], a[0], d)) ;
+  }
+  else if(a.size() == 2) {
 
-  //std::cout << xf << " " << xg << std::endl;
-
-
-
-
-  TypeA INT(0);
-
-  if(a[0] > 0) {
-    if(xf < 0) {
-      if(xg < 0) {
-        INT = F0<TypeA>(s, m, aA, dA, 1);
-        statements[0] = true;
-      }
-      else if(xg < 1) {
-        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, xg) ;
-        statements[1] = true;
-      }
-      else {
-        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, 1)  ;
-        statements[2] = true;
-      }
+    if(fabs(a[1]) > fabs(a[0])) {
+      std::swap(a[1], a[0]);
+      std::swap(m[1], m[0]);
+      std::cout << "Swap has occurred, a[0] = " << a[0] << std::endl;
     }
-    else if(xf < 1) {
-      if(xg < 0) {
-        INT = G0<TypeA>(s, m, aA, dA, xf) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
-        statements[3] = true;
+
+    TypeA xf = (-a[1] - d) / a[0];
+    TypeA xg = - d / a[0];
+
+    //std::cout << xf << " " << xg << std::endl;
+
+
+
+
+    SQI = 0;
+
+    if(a[0] > 0) {
+      if(xf < 0) {
+        if(xg < 0) {
+          SQI = F0<TypeA>(s, m, a, d, 1);
+          statements[0] = true;
+        }
+        else if(xg < 1) {
+          SQI =  F0<TypeA>(s, m, a, d, 1) - G0<TypeA>(s, m, a, d, xg) ;
+          statements[1] = true;
+        }
+        else {
+          SQI =  F0<TypeA>(s, m, a, d, 1) - G0<TypeA>(s, m, a, d, 1)  ;
+          statements[2] = true;
+        }
       }
-      else if(xg < xf) {
-        INT = G<TypeA>(s, m, aA, dA, xg, xf) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
-        statements[4] = true;
-      }
-      else if(xg < 1) {
-        INT = -G<TypeA>(s, m, aA, dA, xf, xg) +  F1<TypeA>(s, m, aA, dA, 1 - xf);
-        statements[5] = true;
+      else if(xf < 1) {
+        if(xg < 0) {
+          SQI = G0<TypeA>(s, m, a, d, xf) +  F1<TypeA>(s, m, a, d, 1 - xf);
+          statements[3] = true;
+        }
+        else if(xg < xf) {
+          SQI = G<TypeA>(s, m, a, d, xg, xf) +  F1<TypeA>(s, m, a, d, 1 - xf);
+          statements[4] = true;
+        }
+        else if(xg < 1) {
+          SQI = -G<TypeA>(s, m, a, d, xf, xg) +  F1<TypeA>(s, m, a, d, 1 - xf);
+          statements[5] = true;
+        }
+        else {
+          SQI =  F1<TypeA>(s, m, a, d, 1 - xf) - G1<TypeA>(s, m, a, d, 1 - xf)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
+          statements[6] = true;
+        }
       }
       else {
-        INT =  F1<TypeA>(s, m, aA, dA, 1 - xf) - G1<TypeA>(s, m, aA, dA, 1 - xf)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
-        statements[6] = true;
+        if(xg < 0) {
+          SQI = G0<TypeA>(s, m, a, d, 1);
+          statements[7] = true;
+        }
+        else if(xg < 1) {
+          SQI = G1<TypeA>(s, m, a, d, 1 - xg);
+          statements[8] = true;
+        }
       }
     }
     else {
-      if(xg < 0) {
-        INT = G0<TypeA>(s, m, aA, dA, 1);
-        statements[7] = true;
+      if(xf > 1) {
+        if(xg > 1) {
+          SQI =  F0<TypeA>(s, m, a, d, 1);
+          statements[9] = true;
+        }
+        else if(xg > 0) {
+          SQI =  F0<TypeA>(s, m, a, d, 1) - G1<TypeA>(s, m, a, d, 1 - xg);
+          statements[10] = true;
+        }
+        else {
+          SQI =  F0<TypeA>(s, m, a, d, 1) - G0<TypeA>(s, m, a, d, 1); //xf=1,xg=0,a[0]=-1,a[1]=1,d=0
+          statements[11] = true;
+        }
       }
-      else if(xg < 1) {
-        INT = G1<TypeA>(s, m, aA, dA, 1 - xg);
-        statements[8] = true;
-      }
-    }
-  }
-  else {
-    if(xf > 1) {
-      if(xg > 1) {
-        INT =  F0<TypeA>(s, m, aA, dA, 1);
-        statements[9] = true;
-      }
-      else if(xg > 0) {
-        INT =  F0<TypeA>(s, m, aA, dA, 1) - G1<TypeA>(s, m, aA, dA, 1 - xg);
-        statements[10] = true;
-      }
-      else {
-        INT =  F0<TypeA>(s, m, aA, dA, 1) - G0<TypeA>(s, m, aA, dA, 1); //xf=1,xg=0,a[0]=-1,a[1]=1,d=0
-        statements[11] = true;
-      }
-    }
-    else if(xf > 0) {
-      if(xg > 1) {
-        INT =  F0<TypeA>(s, m, aA, dA, xf) + G1<TypeA>(s, m, aA, dA, 1 - xf);
-        statements[12] = true;
-      }
-      else if(xg > xf) {
-        INT =  F0<TypeA>(s, m, aA, dA, xf) + G<TypeA>(s, m, aA, dA, xf, xg);
-        statements[13] = true;
-      }
-      else if(xg > 0) {
-        INT =  F0<TypeA>(s, m, aA, dA, xf) - G<TypeA>(s, m, aA, dA, xg, xf);
-        statements[14] = true;
+      else if(xf > 0) {
+        if(xg > 1) {
+          SQI =  F0<TypeA>(s, m, a, d, xf) + G1<TypeA>(s, m, a, d, 1 - xf);
+          statements[12] = true;
+        }
+        else if(xg > xf) {
+          SQI =  F0<TypeA>(s, m, a, d, xf) + G<TypeA>(s, m, a, d, xf, xg);
+          statements[13] = true;
+        }
+        else if(xg > 0) {
+          SQI =  F0<TypeA>(s, m, a, d, xf) - G<TypeA>(s, m, a, d, xg, xf);
+          statements[14] = true;
+        }
+        else {
+          SQI =  F0<TypeA>(s, m, a, d, xf) - G0<TypeA>(s, m, a, d, xf)  ;
+          statements[15] = true;
+        }
       }
       else {
-        INT =  F0<TypeA>(s, m, aA, dA, xf) - G0<TypeA>(s, m, aA, dA, xf)  ;
-        statements[15] = true;
+        if(xg > 1) {
+          SQI = G0<TypeA>(s, m, a, d, 1);
+          statements[16] = true;
+        }
+        else if(xg > 0) {
+          SQI =  G0<TypeA>(s, m, a, d, xg);
+          statements[17] = true;
+        }
       }
     }
-    else {
-      if(xg > 1) {
-        INT = G0<TypeA>(s, m, aA, dA, 1);
-        statements[16] = true;
-      }
-      else if(xg > 0) {
-        INT =  G0<TypeA>(s, m, aA, dA, xg);
-        statements[17] = true;
-      }
-    }
-  }
 //   for(unsigned i = 0; i < statements.size(); i++) {
 //     std::cout << "conditional statement " << i << " is " << statements[i] << std::endl;
 //   }
 
-  return static_cast<TypeIO>(INT);
+    return static_cast<TypeIO>(SQI);
+  }
 }
 
 
@@ -550,12 +570,12 @@ int main() {
 
   d = eps1;
 //   std::cout << "small cut with line approaching vertical x = 1 ******************************************" << std::endl;
-// 
+//
 //   for(unsigned i = 0; i < 10; i++) {
-// 
+//
 //     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
 //     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
-// 
+//
 //     eps1 /= 10.;
 //     a[1] = -eps1;
 //     d = eps1;
