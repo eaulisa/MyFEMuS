@@ -16,7 +16,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  1
+#define N_UNIFORM_LEVELS  8
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
