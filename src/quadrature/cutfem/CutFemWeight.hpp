@@ -133,7 +133,7 @@ class CutFemWeight {
     }
 
   protected:
-    void polyBasis(const unsigned &qM, const std::vector<double> &x, std::vector<double> &bo);
+    void polyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
     unsigned _dim;
@@ -297,7 +297,7 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
       }
     }
 
-    polyBasis(_qM, x, bo);
+    polyBasis(x, bo);
 
     double weight = 0.;
     for(unsigned i = 0; i < _L; i++) {
@@ -316,20 +316,20 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
 
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vector<double> &x, std::vector<double> &bo) { //TODO remove qM?
+void CutFemWeight<TypeIO, TypeA>::polyBasis(const std::vector<double> &x, std::vector<double> &bo) { 
   unsigned count = 0;
 
   if(_dim == 3) {
 
-    _bOld3d.resize(qM + 1);
-    _bNew3d.resize(qM + 1);
-    for(unsigned q = 0; q <= qM; q++) {
-      _bOld3d[q].assign(qM + 1, std::vector<TypeIO>(qM + 1));
-      _bNew3d[q].assign(qM + 1, std::vector<TypeIO>(qM + 1));
+    _bOld3d.resize(_qM + 1);
+    _bNew3d.resize(_qM + 1);
+    for(unsigned q = 0; q <= _qM; q++) {
+      _bOld3d[q].assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
+      _bNew3d[q].assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
     }
 
     bo[0] = _bNew3d[0][0][0] = 1.;
-    for(unsigned q = 1; q <= qM; q++) {
+    for(unsigned q = 1; q <= _qM; q++) {
       _bOld3d.swap(_bNew3d);
       for(int ii = q; ii >= 0; ii--) {
         for(int jj = q - ii; jj >= 0; jj--) {
@@ -358,10 +358,10 @@ void CutFemWeight<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vect
     }
   }
   else if(_dim == 2) {
-    _bOld2d.assign(qM + 1, std::vector<TypeIO>(qM + 1));
-    _bNew2d.assign(qM + 1, std::vector<TypeIO>(qM + 1));
+    _bOld2d.assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
+    _bNew2d.assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
     bo[0] = _bNew2d[0][0] = 1.;
-    for(unsigned q = 1; q <= qM; q++) {
+    for(unsigned q = 1; q <= _qM; q++) {
       _bOld2d.swap(_bNew2d);
       for(unsigned j = 0; j <= q; j++) {
         count++;
@@ -373,7 +373,7 @@ void CutFemWeight<TypeIO, TypeA>::polyBasis(const unsigned & qM, const std::vect
   }
   else if(_dim == 1) {
     bo[0] = 1;
-    for(unsigned i = 1; i <= qM; i++) {
+    for(unsigned i = 1; i <= _qM; i++) {
       bo[i] = bo[i - 1] * x[0];
     }
   }
