@@ -292,7 +292,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 4; // consistency form 3 -> 7
+  unsigned lmax1 = 2; // consistency form 3 -> 7
   //unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
@@ -300,7 +300,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //consistency
   double dMax = 0.1;
-  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
+  double eps =0* 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
   //cubic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured

@@ -421,15 +421,12 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
         if(coarseIntersectionTest) {
           _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+                    
           // call cut fem
-          if(_cut == 2) { //interior
-            /*phi1F,  solu1g, weight1, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] , 2. * weight2[jg] * _kernel,*/
-  
-//             std::cout<<"A";
-//             
-            AssemblyCutFem2(phi1F, solu1g, weight1, 
-                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel); 
-            
+          if(_cut == 0) { //interior
+            AssemblyCutFem2(phi1F, solu1g, weight1,
+                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel);
+
           }
           else if(_cut == 1) { //cut
             bool wMap = true;
@@ -439,13 +436,11 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             for(unsigned ig = 0; ig < _weightCF.size(); ig++) {
               _weightCF[ig] *= weight1CF[ig];
             }
-            
-             AssemblyCutFem2(phi1FCF, solu1gCF, _weightCF, 
-                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel); 
+
+            AssemblyCutFem2(phi1FCF, solu1gCF, _weightCF,
+                            jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg], 2. * weight2[jg] * _kernel);
 
 
-            // evaluate WeightCF
-            // integrate using the quantities for cutfem integration
           }
 
         }
@@ -454,16 +449,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       }
     }
 
-    //for(unsigned ig = 0; ig < fem1->GetGaussPointNumber(); ig++) {
-
-    //END NEW STUFF
-//       AssemblyCutFem2(element1, region2, jelIndexF, nDof1, xg1[ig], 2. * weight1[ig] * _kernel,
-//                       phi1F[ig], solu1, delta, printMesh);
-    //}
-    for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
-      Assembly2(element1, region2, jelIndexF, nDof1, xg1CF[ig], 2. * weight1CF[ig] * _kernel,
-                phi1FCF[ig], solu1, delta, printMesh);
-    }
+//     for(unsigned ig = 0; ig < fem1CF->GetGaussPointNumber(); ig++) {
+//       Assembly2(element1, region2, jelIndexF, nDof1, xg1CF[ig], 2. * weight1CF[ig] * _kernel,
+//                 phi1FCF[ig], solu1, delta, printMesh);
+//     }
   }
   else {
     const unsigned &dim = element1.GetDimension();
@@ -568,7 +557,7 @@ double NonLocal::AssemblyCutFem2(const std::vector < std::vector <double> > &phi
   double W1W2 = 0.;
   double solu1W1W2 = 0.;
   std::vector < double > phi1W1W2(nDof1, 0.);
-  
+
   for(unsigned ig = 0; ig < phi1.size(); ig++) {
     W1W2 += weight1[ig];
     for(unsigned j = 0; j < nDof1; j++) {
@@ -578,7 +567,7 @@ double NonLocal::AssemblyCutFem2(const std::vector < std::vector <double> > &phi
   }
   W1W2 *= weight2g;
   solu1W1W2 *= weight2g;
-    
+
   double solu2gW1W2 = solu2g * W1W2;
   for(unsigned j = 0; j < nDof1; j++) {
     phi1W1W2[j] *= weight2g;
@@ -586,13 +575,13 @@ double NonLocal::AssemblyCutFem2(const std::vector < std::vector <double> > &phi
 
   for(unsigned i = 0; i < nDof2; i++) {
     for(unsigned j = 0; j < nDof1; j++) {
-      /*_jac21[jel][i * nDof2 + j] -=*/ phi2[i] * phi1W1W2[j];
+      _jac21[jel][i * nDof2 + j] += phi2[i] * phi1W1W2[j];
     }
-    /*_res2[jel][i] +=*/ phi2[i] * solu1W1W2;
+    _res2[jel][i] -= phi2[i] * solu1W1W2;
     for(unsigned j = 0; j < nDof2; j++) {
-     /* _jac22[jel][i * nDof2 + j] +=*/ phi2[i] * phi2[j] * W1W2;
+       _jac22[jel][i * nDof2 + j] -= phi2[i] * phi2[j] * W1W2;
     }
-    /*_res2[jel][i] -=*/ phi2[i] * solu2gW1W2;
+    _res2[jel][i] += phi2[i] * solu2gW1W2;
   }
 
 
