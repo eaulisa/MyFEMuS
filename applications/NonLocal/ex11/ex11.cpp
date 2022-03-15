@@ -7,7 +7,7 @@
 
 #include "PolynomialBases.hpp"
 
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
 #include <vector>
 #include <cmath>
@@ -16,7 +16,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  1
+#define N_UNIFORM_LEVELS  8
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
   fp = fopen("lines.dat", "w");
 
   unsigned qM = 3;
-  CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
-  CutFemIntegral <TypeIO, TypeA> tri  = CutFemIntegral<TypeIO, TypeA >(TRI, qM, "legendre");
+  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
+  CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
 
 
   std::vector<double> xg(2, 0);
@@ -181,8 +181,8 @@ int main(int argc, char** argv) {
       if(ielType == 3) {
         std::vector <TypeIO> weightCF;
         quad.clear();
-        quad(qM, 0, b, db, weightCF, wMap);
-//         quad(qM, 0, b, db, weightCF, wMap); // Additional call to test the weights Map 
+        quad(0, b, db, weightCF, wMap);
+//         quad(0, b, db, weightCF, wMap); // Additional call to test the weights Map 
 
         const double* weightG = quad.GetGaussWeightPointer();
 
@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
       else if(ielType == 4) {
         std::vector <TypeIO> weightCF;
         tri.clear();
-        tri(qM, 0, b, db, weightCF, wMap);
-        tri(qM, 0, b, db, weightCF, wMap);  // Additional call to test the weights Map 
+        tri(0, b, db, weightCF, wMap);
+        tri(0, b, db, weightCF, wMap);  // Additional call to test the weights Map 
 
         const double* weightG = tri.GetGaussWeightPointer();
 
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
   bool wMap = 0;
 
   GetNormalTri(xva, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF, wMap);
+  tri(0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF, wMap);
+  tri(0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
-  tri(qM, 0, b, db, weightCF, wMap);
+  tri(0, b, db, weightCF, wMap);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {

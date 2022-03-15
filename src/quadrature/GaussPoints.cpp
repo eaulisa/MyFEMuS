@@ -20,6 +20,17 @@
 
 namespace femus {
 
+  unsigned GetGaussOrder(const char* order_gauss) {
+    for(unsigned i = 0; i < numberName.size(); i++) {
+      if(!strcmp(order_gauss, numberName[i].c_str())) {
+        return i;
+      }
+    }
+    std::cout << order_gauss << " is not a valid option for the Gauss points\n";
+    abort();
+  }
+
+
   Gauss::Gauss(const GeomElType &GeomElemType, const unsigned &gauss_order, const char *gauss_type): _gauss_order(gauss_order) {
     _order = "unknown";
 
@@ -106,124 +117,126 @@ namespace femus {
 
 
   Gauss::Gauss(const char *geom_elem, const char *order_gauss, const char *gauss_type) : _order(order_gauss) {
-    if(!strcmp(order_gauss, "zero")) {
-      _gauss_order = 0;
-    }
-    else if(!strcmp(order_gauss, "first")) {
-      _gauss_order = 1;
-    }
-    else if(!strcmp(order_gauss, "second")) {
-      _gauss_order = 2;
-    }
-    else if(!strcmp(order_gauss, "third")) {
-      _gauss_order = 3;
-    }
-    else if(!strcmp(order_gauss, "fourth")) {
-      _gauss_order = 4;
-    }
-    else if(!strcmp(order_gauss, "fifth")) {
-      _gauss_order = 5;
-    }
-    else if(!strcmp(order_gauss, "sixth")) {
-      _gauss_order = 6;
-    }
-    else if(!strcmp(order_gauss, "seventh")) {
-      _gauss_order = 7;
-    }
-    else if(!strcmp(order_gauss, "eighth")) {
-      _gauss_order = 8;
-    }
-    else if(!strcmp(order_gauss, "ninth")) {
-      _gauss_order = 9;
-    }
-    else if(!strcmp(order_gauss, "tenth")) {
-      _gauss_order = 10;
-    }
-    else if(!strcmp(order_gauss, "eleventh")) {
-      _gauss_order = 11;
-    }
-    else if(!strcmp(order_gauss, "twelfth")) {
-      _gauss_order = 12;
-    }
-    else if(!strcmp(order_gauss, "thirteenth")) {
-      _gauss_order = 13;
-    }
-    else if(!strcmp(order_gauss, "fourteenth")) {
-      _gauss_order = 14;
-    }
-    else if(!strcmp(order_gauss, "fifteenth")) {
-      _gauss_order = 15;
-    }
-    else if(!strcmp(order_gauss, "sixteenth")) {
-      _gauss_order = 16;
-    }
-    else if(!strcmp(order_gauss, "seventeenth")) {
-      _gauss_order = 17;
-    }
-    else if(!strcmp(order_gauss, "eighteenth")) {
-      _gauss_order = 18;
-    }
-    else if(!strcmp(order_gauss, "nineteenth")) {
-      _gauss_order = 19;
-    }
-    else if(!strcmp(order_gauss, "twentieth")) {
-      _gauss_order = 20;
-    }
-    else if(!strcmp(order_gauss, "twenty first")) {
-      _gauss_order = 21;
-    }
-    else if(!strcmp(order_gauss, "twenty second")) {
-      _gauss_order = 22;
-    }
-    else if(!strcmp(order_gauss, "twenty third")) {
-      _gauss_order = 23;
-    }
-    else if(!strcmp(order_gauss, "twenty fourth")) {
-      _gauss_order = 24;
-    }
-    else if(!strcmp(order_gauss, "twenty fifth")) {
-      _gauss_order = 25;
-    }
-    else if(!strcmp(order_gauss, "twenty sixth")) {
-      _gauss_order = 26;
-    }
-    else if(!strcmp(order_gauss, "twenty seventh")) {
-      _gauss_order = 27;
-    }
-    else if(!strcmp(order_gauss, "twenty eighth")) {
-      _gauss_order = 28;
-    }
-    else if(!strcmp(order_gauss, "twenty ninth")) {
-      _gauss_order = 29;
-    }
-    else if(!strcmp(order_gauss, "thirtieth")) {
-      _gauss_order = 30;
-    }
-    else if(!strcmp(order_gauss, "thirty first")) {
-      _gauss_order = 31;
-    }
-    else if(!strcmp(order_gauss, "thirty second")) {
-      _gauss_order = 32;
-    }
-    else if(!strcmp(order_gauss, "thirty third")) {
-      _gauss_order = 33;
-    }
-    else if(!strcmp(order_gauss, "thirty fourth")) {
-      _gauss_order = 34;
-    }
-    else if(!strcmp(order_gauss, "thirty fifth")) {
-      _gauss_order = 35;
-    }
-    else if(!strcmp(order_gauss, "thirty sixth")) {
-      _gauss_order = 36;
-    }
-    else if(!strcmp(order_gauss, "thirty seventh")) {
-      _gauss_order = 37;
-    }
-    else {
-      std::cout << order_gauss << " is not a valid option for the Gauss points of " << geom_elem << std::endl;
-      abort();
-    }
+//     if(!strcmp(order_gauss, "zero")) {
+//       _gauss_order = 0;
+//     }
+//     else if(!strcmp(order_gauss, "first")) {
+//       _gauss_order = 1;
+//     }
+//     else if(!strcmp(order_gauss, "second")) {
+//       _gauss_order = 2;
+//     }
+//     else if(!strcmp(order_gauss, "third")) {
+//       _gauss_order = 3;
+//     }
+//     else if(!strcmp(order_gauss, "fourth")) {
+//       _gauss_order = 4;
+//     }
+//     else if(!strcmp(order_gauss, "fifth")) {
+//       _gauss_order = 5;
+//     }
+//     else if(!strcmp(order_gauss, "sixth")) {
+//       _gauss_order = 6;
+//     }
+//     else if(!strcmp(order_gauss, "seventh")) {
+//       _gauss_order = 7;
+//     }
+//     else if(!strcmp(order_gauss, "eighth")) {
+//       _gauss_order = 8;
+//     }
+//     else if(!strcmp(order_gauss, "ninth")) {
+//       _gauss_order = 9;
+//     }
+//     else if(!strcmp(order_gauss, "tenth")) {
+//       _gauss_order = 10;
+//     }
+//     else if(!strcmp(order_gauss, "eleventh")) {
+//       _gauss_order = 11;
+//     }
+//     else if(!strcmp(order_gauss, "twelfth")) {
+//       _gauss_order = 12;
+//     }
+//     else if(!strcmp(order_gauss, "thirteenth")) {
+//       _gauss_order = 13;
+//     }
+//     else if(!strcmp(order_gauss, "fourteenth")) {
+//       _gauss_order = 14;
+//     }
+//     else if(!strcmp(order_gauss, "fifteenth")) {
+//       _gauss_order = 15;
+//     }
+//     else if(!strcmp(order_gauss, "sixteenth")) {
+//       _gauss_order = 16;
+//     }
+//     else if(!strcmp(order_gauss, "seventeenth")) {
+//       _gauss_order = 17;
+//     }
+//     else if(!strcmp(order_gauss, "eighteenth")) {
+//       _gauss_order = 18;
+//     }
+//     else if(!strcmp(order_gauss, "nineteenth")) {
+//       _gauss_order = 19;
+//     }
+//     else if(!strcmp(order_gauss, "twentieth")) {
+//       _gauss_order = 20;
+//     }
+//     else if(!strcmp(order_gauss, "twenty first")) {
+//       _gauss_order = 21;
+//     }
+//     else if(!strcmp(order_gauss, "twenty second")) {
+//       _gauss_order = 22;
+//     }
+//     else if(!strcmp(order_gauss, "twenty third")) {
+//       _gauss_order = 23;
+//     }
+//     else if(!strcmp(order_gauss, "twenty fourth")) {
+//       _gauss_order = 24;
+//     }
+//     else if(!strcmp(order_gauss, "twenty fifth")) {
+//       _gauss_order = 25;
+//     }
+//     else if(!strcmp(order_gauss, "twenty sixth")) {
+//       _gauss_order = 26;
+//     }
+//     else if(!strcmp(order_gauss, "twenty seventh")) {
+//       _gauss_order = 27;
+//     }
+//     else if(!strcmp(order_gauss, "twenty eighth")) {
+//       _gauss_order = 28;
+//     }
+//     else if(!strcmp(order_gauss, "twenty ninth")) {
+//       _gauss_order = 29;
+//     }
+//     else if(!strcmp(order_gauss, "thirtieth")) {
+//       _gauss_order = 30;
+//     }
+//     else if(!strcmp(order_gauss, "thirty first")) {
+//       _gauss_order = 31;
+//     }
+//     else if(!strcmp(order_gauss, "thirty second")) {
+//       _gauss_order = 32;
+//     }
+//     else if(!strcmp(order_gauss, "thirty third")) {
+//       _gauss_order = 33;
+//     }
+//     else if(!strcmp(order_gauss, "thirty fourth")) {
+//       _gauss_order = 34;
+//     }
+//     else if(!strcmp(order_gauss, "thirty fifth")) {
+//       _gauss_order = 35;
+//     }
+//     else if(!strcmp(order_gauss, "thirty sixth")) {
+//       _gauss_order = 36;
+//     }
+//     else if(!strcmp(order_gauss, "thirty seventh")) {
+//       _gauss_order = 37;
+//     }
+//     else {
+//       std::cout << order_gauss << " is not a valid option for the Gauss points of " << geom_elem << std::endl;
+//       abort();
+//     }
+    
+    _gauss_order = GetGaussOrder(order_gauss);
 
     if(!strcmp(gauss_type, "legendre")) {
       if(!strcmp(geom_elem, "hex")) {
