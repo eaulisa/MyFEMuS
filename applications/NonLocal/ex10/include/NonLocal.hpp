@@ -89,6 +89,18 @@ class NonLocal {
     std::vector < double > _phi1W1W2;
     std::vector < double > _phi2W1W2;
 
+    std::vector<double>::iterator _jac21It;
+    std::vector<double>::iterator _jac21End;
+    std::vector<double>::iterator _jac22It;
+    std::vector<double>::iterator _res2It;
+    std::vector<double>::const_iterator _phi1W1It;
+    std::vector<double>::iterator _phi1W1W2It;
+    std::vector<double>::iterator _phi1W1W2Begin;
+    std::vector<double>::iterator _phi1W1W2End;
+    std::vector<double>::iterator _phi2W1W2It;
+    std::vector<double>::iterator _phi2W1W2Begin;
+    std::vector<double>::iterator _phi2W1W2End;
+    const double *_phi2pt;
 
 
     double _d;
@@ -417,7 +429,6 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         if(coarseIntersectionTest) {
           _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
 
-
           if(_cut == 0) { //interior element
             double W2 = 2. * weight2[jg] * _kernel;
             double W1W2 = W1 * W2;
@@ -429,17 +440,16 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight, wMap);
 
             double W1CF = 0.;
-
             _phi1W1CF.assign(nDof1, 0.);
-            for(unsigned ig = 0; ig < ng1CF; ig++) {
-              double weight = _weight1CF[ig] * _eqPolyWeight[ig];
-              W1CF += weight;
-              for(unsigned i = 0; i < nDof1; i++) {
-                _phi1W1CF[i] += phi1CF[ig][i] * weight;
+            for(unsigned ig = 0; ig != ng1CF; ++ig) {
+              double weightigjg = _weight1CF[ig] * _eqPolyWeight[ig];
+              W1CF += weightigjg;
+              for(unsigned i = 0; i != nDof1; ++i) {
+                _phi1W1CF[i] += phi1CF[ig][i] * weightigjg;
               }
             }
             double solu1W1CF = 0.;
-            for(unsigned i = 0; i < nDof1; i++) {
+            for(unsigned i = 0; i != nDof1; ++i) {
               solu1W1CF += solu1[i] * _phi1W1CF[i];
             }
 
@@ -513,7 +523,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       //these are the shape functions of iel evaluated in the gauss points of the refined elements
       const std::vector < std::vector < double> > & phi1 = octTreeElement1.GetGaussShapeFunctions();
       const unsigned &ng1 = fem1->GetGaussPointNumber();
-    
+
 
       double W1 = 0.;
       _phi1W1.assign(nDof1, 0.);
@@ -569,23 +579,31 @@ void NonLocal::AssemblyCutFem2(const std::vector <double> &phi1W1,
                                const double &solu2W1W2,
                                const double &W2) {
 
-  const unsigned & nDof1 = phi1W1.size();
-
-  _phi1W1W2.resize(nDof1);
-  _phi2W1W2.resize(nDof2);
-  for(unsigned j = 0; j < nDof2; j++) {
-    _phi1W1W2[j] = phi1W1[j] * W2;
-    _phi2W1W2[j] = phi2[j] * W1W2;
+  _phi1W1W2.resize(phi1W1.size());
+  _phi1W1W2Begin = _phi1W1W2.begin();
+  _phi1W1W2End = _phi1W1W2.end();
+  
+  for(_phi1W1W2It = _phi1W1W2Begin, _phi1W1It = phi1W1.begin(); _phi1W1W2It !=  _phi1W1W2End; ++_phi1W1W2It, ++_phi1W1It) {
+    *_phi1W1W2It = *_phi1W1It * W2;
   }
 
-  for(unsigned i = 0; i < nDof2; i++) {
-    for(unsigned j = 0; j < nDof1; j++) {
-      _jac21[jel][i * nDof2 + j] += phi2[i] * _phi1W1W2[j];
+  _phi2W1W2.resize(nDof2);
+  _phi2W1W2Begin = _phi2W1W2.begin();
+  _phi2W1W2End = _phi2W1W2.end();
+
+  for( _phi2pt = phi2, _phi2W1W2It = _phi2W1W2Begin; _phi2W1W2It != _phi2W1W2End; ++_phi2pt, ++_phi2W1W2It) {
+    *_phi2W1W2It = *_phi2pt * W1W2;
+  } 
+  
+  _jac21End = _jac21[jel].end();
+  for(_jac21It = _jac21[jel].begin(), _jac22It = _jac22[jel].begin(), _res2It = _res2[jel].begin(), _phi2pt = phi2; _jac21It != _jac21End; ++_phi2pt, ++_res2It) {
+    for(_phi1W1W2It = _phi1W1W2Begin; _phi1W1W2It != _phi1W1W2End; ++_phi1W1W2It, ++_jac21It) {
+      *_jac21It += *_phi2pt * (*_phi1W1W2It);
     }
-    for(unsigned j = 0; j < nDof2; j++) {
-      _jac22[jel][i * nDof2 + j] -= phi2[i] * _phi2W1W2[j];
+    for(_phi2W1W2It = _phi2W1W2Begin; _phi2W1W2It != _phi2W1W2End; ++_phi2W1W2It, ++_jac22It) {
+      *_jac22It -= *_phi2pt * (*_phi2W1W2It);
     }
-    _res2[jel][i] += phi2[i] * (solu2W1W2 - solu1W1W2);
+    *_res2It += *_phi2pt * (solu2W1W2 - solu1W1W2);
   }
 }
 
@@ -763,6 +781,7 @@ double NonLocalBox::GetInterfaceDistance(const std::vector < double>  &xc, const
 
 
 #endif
+
 
 
 

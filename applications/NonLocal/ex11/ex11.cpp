@@ -9,6 +9,8 @@
 
 #include "CutFemWeight.hpp"
 
+#include "CDWeights.hpp"
+
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -60,12 +62,52 @@ int main(int argc, char** argv) {
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
 
+  unsigned qM = 3;
+  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
+  CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
 
+  double dx = 0.025;
+  double dt = 2.;
+  CDWeighsQUAD <TypeA> quadCD(qM,dx,dt);
+  CDWeighsTRI <TypeA> triCD(qM,dx,dt);
+
+  double theta1 = 45;
+  std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
+  double d1 = 0.1 * sqrt(2);
+
+  std::vector<double> weight1;
+  quad(0, a1, d1, weight1, true);
+
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  std::vector<double> weight; 
+  quadCD.GetWeight(a1,d1, weight);
+    
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] << " ";
+  }
+  std::cout << std::endl;
+  
+  
+  tri(0, a1, d1, weight1, true);
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  triCD.GetWeight(a1,d1, weight);
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] << " ";
+  }
+  std::cout << std::endl;
+
+  //return 1;
 
   const std::string fe_quad_rule_1 = "seventh";
   const std::string fe_quad_rule_2 = "eighth";
 
-  // ======= Init ========================
+// ======= Init ========================
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
 //   finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
@@ -75,8 +117,8 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-  //mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+ // mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   /*
@@ -91,7 +133,7 @@ int main(int argc, char** argv) {
 
 
 
-  // erase all the coarse mesh levels
+// erase all the coarse mesh levels
   const unsigned erased_levels = N_ERASED_LEVELS;
   mlMsh.EraseCoarseLevels(erased_levels);
 
@@ -99,7 +141,7 @@ int main(int argc, char** argv) {
 
   MultiLevelSolution mlSol(&mlMsh);
 
-  // add variables to mlSol
+// add variables to mlSol
   mlSol.AddSolution("u", LAGRANGE, SECOND, 2);
 
 
@@ -108,7 +150,7 @@ int main(int argc, char** argv) {
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
-  // ******* Set boundary conditions *******
+// ******* Set boundary conditions *******
   mlSol.GenerateBdc("All");
 
   MultiLevelProblem ml_prob(&mlSol);
@@ -132,9 +174,7 @@ int main(int argc, char** argv) {
 
   fp = fopen("lines.dat", "w");
 
-  unsigned qM = 3;
-  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
-  CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
+
 
 
   std::vector<double> xg(2, 0);
@@ -180,10 +220,12 @@ int main(int argc, char** argv) {
       bool wMap = 1;
       if(ielType == 3) {
         std::vector <TypeIO> weightCF;
-        quad.clear();
-        quad(0, b, db, weightCF, wMap);
-//         quad(0, b, db, weightCF, wMap); // Additional call to test the weights Map 
+//        quad.clear();
+//        quad(0, b, db, weightCF, wMap);
+//         quad(0, b, db, weightCF, wMap); // Additional call to test the weights Map
 
+        quadCD.GetWeight(b,db,weightCF);
+        
         const double* weightG = quad.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -194,10 +236,11 @@ int main(int argc, char** argv) {
       }
       else if(ielType == 4) {
         std::vector <TypeIO> weightCF;
-        tri.clear();
-        tri(0, b, db, weightCF, wMap);
-        tri(0, b, db, weightCF, wMap);  // Additional call to test the weights Map 
+        //tri.clear();
+        //tri(0, b, db, weightCF, wMap);
+        //tri(0, b, db, weightCF, wMap);  // Additional call to test the weights Map
 
+        triCD.GetWeight(b,db, weightCF);
         const double* weightG = tri.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -225,11 +268,11 @@ int main(int argc, char** argv) {
       fprintf(fp, "\n \n");
     }
   }
-  
-  std::cout<< "numnber of calls in QUAD " << quad.GetCounter() << std::endl;
-  std::cout<< "numnber of calls in TRI  " << tri.GetCounter() << std::endl;
-  
-  
+
+  std::cout << "numnber of calls in QUAD " << quad.GetCounter() << std::endl;
+  std::cout << "numnber of calls in TRI  " << tri.GetCounter() << std::endl;
+
+
   std::cout.precision(14);
   std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
 
@@ -240,7 +283,7 @@ int main(int argc, char** argv) {
 
 
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
-  //SimpleNonlocalAssembly(ml_prob);
+//SimpleNonlocalAssembly(ml_prob);
 
 // //   /* Basic numerical tests for the circle - no mesh involved*/
   std::vector < std::vector<double> > xva = {{1., 2., 1.}, {1., 1., 2.}};
@@ -279,7 +322,7 @@ int main(int argc, char** argv) {
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
     sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
   }
-  //std::cout << sum << std::endl;
+//std::cout << sum << std::endl;
 
 
   GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
@@ -289,7 +332,7 @@ int main(int argc, char** argv) {
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
     sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
   }
-  //std::cout << sum << std::endl;
+//std::cout << sum << std::endl;
 
 
   GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
@@ -299,7 +342,7 @@ int main(int argc, char** argv) {
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
     sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
   }
-  //std::cout << sum << std::endl;
+//std::cout << sum << std::endl;
 
 
 
@@ -332,7 +375,7 @@ int main(int argc, char** argv) {
 }
 
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut) {
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &b, double & db, unsigned & cut) {
 
   const unsigned &dim =  xv.size();
   const unsigned &nve =  xv[0].size();
@@ -593,7 +636,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
 }
 
-void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut) {
+void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &b, double & db, unsigned & cut) {
 
   const unsigned &dim =  xv.size();
   const unsigned &nve =  xv[0].size();
@@ -717,7 +760,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
 
     //std::cout << xi[0] << " " << xi[1] << std::endl;
-   
+
 
     b.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
