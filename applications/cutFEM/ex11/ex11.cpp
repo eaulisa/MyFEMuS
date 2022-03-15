@@ -31,6 +31,10 @@ using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
 std::vector<bool> statements(18, false);
 
+
+
+
+
 template <class TypeA>
 TypeA F0(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d, const TypeA &x2) {
 
@@ -251,6 +255,21 @@ TypeIO SquareA(const int &s, std::vector<unsigned> &m, std::vector <TypeIO> &a, 
 
   return static_cast<TypeIO>(INT);
 }
+
+
+template <class TypeIO, class TypeA>
+TypeIO SQUmap(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO &d) {
+  std::vector<TypeA> a2(2);
+  TypeIO d1 = d;
+  d1 = d1 - a[0] - a[1];
+  a2[0] = static_cast<TypeA>(2 * a[0]);
+  a2[1] = static_cast<TypeA>(2 * a[1]);
+
+  TypeA d2 = static_cast<TypeA>(d1);
+  //return 4 * static_cast<TypeIO>(this->SquareA(s, m, _a2, d2));
+  return 4 * SquareA(s, m, a2, d2);
+}
+
 
 
 int main() {
@@ -550,12 +569,12 @@ int main() {
 
   d = eps1;
 //   std::cout << "small cut with line approaching vertical x = 1 ******************************************" << std::endl;
-// 
+//
 //   for(unsigned i = 0; i < 10; i++) {
-// 
+//
 //     std::cout << "Double with eps = " << eps1 << ": " << SquareA<double, double>(0, m, a, d) << std::endl;
 //     std::cout << "Oct with eps = " << eps1 << ": " << SquareA<double, cpp_bin_float_oct>(0, m, a, d) << std::endl;
-// 
+//
 //     eps1 /= 10.;
 //     a[1] = -eps1;
 //     d = eps1;
