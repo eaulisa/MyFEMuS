@@ -51,6 +51,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
 void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
 
+void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
 
 void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob);
 
@@ -67,9 +68,9 @@ int main(int argc, char** argv) {
   CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
 
   double dx = 0.025;
-  double dt = 2.;
-  CDWeighsQUAD <TypeA> quadCD(qM,dx,dt);
-  CDWeighsTRI <TypeA> triCD(qM,dx,dt);
+  double dt = 1.;
+  CDWeighsQUAD <TypeA> quadCD(qM, dx, dt);
+  CDWeighsTRI <TypeA> triCD(qM, dx, dt);
 
   double theta1 = 45;
   std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
@@ -82,21 +83,21 @@ int main(int argc, char** argv) {
     std::cout << weight1[j] << " ";
   }
   std::cout << std::endl;
-  std::vector<double> weight; 
-  quadCD.GetWeight(a1,d1, weight);
-    
+  std::vector<double> weight;
+  quadCD.GetWeight(a1, d1, weight);
+
   for(unsigned j = 0; j < weight.size(); j++) {
     std::cout << weight[j] << " ";
   }
   std::cout << std::endl;
-  
-  
+
+
   tri(0, a1, d1, weight1, true);
   for(unsigned j = 0; j < weight1.size(); j++) {
     std::cout << weight1[j] << " ";
   }
   std::cout << std::endl;
-  triCD.GetWeight(a1,d1, weight);
+  triCD.GetWeight(a1, d1, weight);
   for(unsigned j = 0; j < weight.size(); j++) {
     std::cout << weight[j] << " ";
   }
@@ -117,7 +118,7 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
- // mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+// mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
@@ -224,8 +225,8 @@ int main(int argc, char** argv) {
 //        quad(0, b, db, weightCF, wMap);
 //         quad(0, b, db, weightCF, wMap); // Additional call to test the weights Map
 
-        quadCD.GetWeight(b,db,weightCF);
-        
+        quadCD.GetWeight(b, db, weightCF);
+
         const double* weightG = quad.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -240,7 +241,7 @@ int main(int argc, char** argv) {
         //tri(0, b, db, weightCF, wMap);
         //tri(0, b, db, weightCF, wMap);  // Additional call to test the weights Map
 
-        triCD.GetWeight(b,db, weightCF);
+        triCD.GetWeight(b, db, weightCF);
         const double* weightG = tri.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -777,6 +778,227 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
     //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
   }
 }
+
+
+
+
+
+
+
+
+void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &a2, double & d2, unsigned & cut) {
+
+  const unsigned dim =  3;
+  const unsigned nve =  4;
+
+  //std::cout<<nve<<std::endl;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& x4 = xv[0][3];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+  const double& y4 = xv[1][3];
+
+  double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1) + fabs(x4 - x1) + fabs(x4 - x2) + fabs(x4 - x3)) / 6.;
+  double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1) + fabs(y4 - y1) + fabs(y4 - y2) + fabs(y4 - y3)) / 6.;
+  double h = sqrt(hx * hx + hy * hy);
+  double eps = 1.0e-10 * h;
+
+  std::vector<double> dist(nve, 0);
+  std::vector<double> dist0(nve);
+  unsigned cnt0 = 0;
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0;  k < dim; k++) {
+      dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
+    }
+    dist[i] = sqrt(dist[i]) - R;
+
+    if(fabs(dist[i]) < eps) {
+      dist0[i] = (dist[i] < 0) ? -eps : eps;
+      dist[i] = 0.;
+      cnt0++;
+    }
+    else {
+      dist0[i] = dist[i];
+    }
+  }
+
+  if(cnt0 > 0) {
+    unsigned cntp = 0;
+    for(unsigned i = 0; i < nve; i++) {
+      if(dist[i] > 0) cntp++;
+      dist[i] = dist0[i];
+    }
+    if(cntp == 0) { // the element is inside the ball
+      cut = 0;
+      return;
+    }
+    else if(cntp == nve - cnt0) {  // the element in outside the ball
+      cut = 2;
+      return;
+    }
+  }
+
+  std::vector < std::vector <double> > y(6, std::vector<double>(dim));
+  unsigned cnt = 0;
+  for(unsigned i = 0; i < nve - 1; i++) {
+    for(unsigned j = i + 1; j < nve; j++) {
+      if(dist[i] * dist[j] < 0) {
+        double s = 0.5  * (1 + (dist[i] + dist[j]) / (dist[i] - dist[j]));
+        for(unsigned k = 0; k < dim; k++) {
+          y[cnt][k] = (1. - s) * xv[k][i] + s * xv[k][j];
+        }
+        cnt++;
+      }
+    }
+  }
+
+  if(cnt == 0) {
+    if(dist[0] < 0) cut = 0; // cell inside the ball
+    else cut = 2; // cell outside the ball
+    return;
+  }
+  else {
+    cut = 1;
+
+    std::vector <double> yg(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned i = 0; i < cnt; i++) {
+        yg[k] += y[i][k];
+      }
+      yg[k] /= cnt;
+    }
+
+    std::vector < std::vector <double> > b(cnt, std::vector<double>(dim));
+    for(unsigned k = 0; k < dim; k++) {
+      a[k] = yg[k] - xg[k];
+      for(unsigned i = 0; i < cnt; i++) {
+        b[i][k] = y[i][k] - xg[k];
+      }
+    }
+    double an = 0.;
+    std::vector <double> bn(cnt, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      an += a[k] * a[k];
+      for(unsigned i = 0; i < cnt; i++) {
+        bn[i] += b[i][k] * b[i][k];
+      }
+    }
+    an = sqrt(an);
+    for(unsigned i = 0; i < cnt; i++) {
+      bn[i] = sqrt(bn[i]);
+    }
+
+
+    double phig = 0;
+    for(unsigned i = 0; i < cnt; i++) {
+      double phii = 0;
+      for(unsigned k = 0; k < dim; k++) {
+        phii += a[k] * b[i][k];
+      }
+      phii = acos(phii / (an * bn[i]));
+      phig += phii;
+    }
+    phig /= cnt;
+    double H = R * pow( 2. * (1. - cos(phig)) / ( tan(phig) * tan(phig) ), 1./3.);
+
+    xm.resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+        xm[k] = xg[k] - a[k] / an * H;
+    }
+
+
+/*
+    if(theta[0] > theta[1]) {
+      std::swap(theta[0], theta[1]);
+    }
+    double DT = theta[1] - theta[0];
+    if(DT > M_PI) {
+      std::swap(theta[0], theta[1]);
+      theta[1] += 2. * M_PI;
+      DT = theta[1] - theta[0];
+    }
+    xm.resize(dim);
+
+    d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+    a.resize(dim);
+    a[0] = -cos(theta[0] + 0.5 * DT);
+    a[1] = -sin(theta[0] + 0.5 * DT);
+
+    for(unsigned k = 0; k < dim; k++) {
+      xm[k] = -a[k] * d + xg[k];
+    }
+    d += - a[0] * xg[0] - a[1] * xg[1]; //TODO*/
+
+    //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+    //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+/*
+    double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+    d = d2 * tan(0.5 * DT);*/
+
+    std::cout.precision(14);
+
+
+
+
+
+    std::vector<double> xi(dim);
+
+    std::vector < std::vector < double > > J(2, std::vector<double>(2));
+    J[0][0] = (-x1 + x2);
+    J[0][1] = (-x1 + x3);
+
+    J[1][0] = (-y1 + y2);
+    J[1][1] = (-y1 + y3);
+
+    double den = (x3 * y1 - x1 * y3 + x2 * J[1][1] - y2 * J[0][1]);
+
+    xi[0] = (x3 * y1 - x1 * y3 + xm[0] * J[1][1] - xm[1] * J[0][1]) / den;
+    xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
+
+
+    //std::cout << xi[0] << " " << xi[1] << std::endl;
+
+
+    a2.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        a2[k] += J[j][k] * a[j];
+      }
+    }
+    double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1]);
+    a2[0] /= bNorm;
+    a2[1] /= bNorm;
+    d2 = - a2[0] * xi[0] - a2[1] * xi[1];
+
+
+    //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
