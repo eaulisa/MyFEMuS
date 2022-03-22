@@ -3,6 +3,7 @@
 
 #include "OctTreeElement.hpp"
 #include "CutFemWeight.hpp"
+#include "CDWeights.hpp"
 
 
 class RefineElement {
@@ -87,7 +88,11 @@ class RefineElement {
     CutFemWeight <double, double> *GetCutFem() const {
       return _cutFem;
     }
-
+    
+    CDWeight <double> *GetCDweight() const {
+      return _CDweight;
+    }
+    
     const unsigned GetQuadratureOrder() {
       return _quadOrder;
     }
@@ -104,6 +109,8 @@ class RefineElement {
 
     CutFemWeight <double, double> *_cutFem;
     unsigned _quadOrder;
+    
+    CDWeight <double> *_CDweight;
 
     OctTreeElement _octTreeElement1;
     OctTreeElement _octTreeElementCF;
@@ -142,10 +149,12 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
     if(!strcmp(geom_elem, "quad")) {
       _elType = 3;
       _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
+      _CDweight  = new CDWeightQUAD<double> (_quadOrder, 0.025, 1.);
     }
     else {
       _elType = 4;
       _cutFem  = new CutFemWeight<double, double >(TRI, _quadOrder, "legendre");
+      _CDweight = new CDWeightTRI <double>(_quadOrder, 0.025, 1.);
     }
   }
   else if(!strcmp(geom_elem, "hex") || !strcmp(geom_elem, "wedge") || !strcmp(geom_elem, "tet")) {
@@ -189,6 +198,7 @@ RefineElement::~RefineElement() {
   delete _finiteElementCF;
   if(_elType == 3 || _elType == 4) {
     delete _cutFem;
+    delete _CDweight;
   }
 }
 

@@ -435,9 +435,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             AssemblyCutFem2(_phi1W1, solu1W1 * W2,  W1W2, jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] * W1W2, W2);
           }
           else if(_cut == 1) { //cut element
-            bool wMap = true;
             element1.GetCutFem()->clear();
-            (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight, wMap);
+            element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
+//             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
+//           element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
 
             double W1CF = 0.;
             _phi1W1CF.assign(nDof1, 0.);

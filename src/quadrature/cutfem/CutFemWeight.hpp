@@ -105,9 +105,9 @@ class CutFemWeight {
     };
 
     void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
-    void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF, const bool &wMap);
+    void GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
 
-    void updateQuadratureRule(const unsigned &qM) {
+    void UpdateQuadratureRule(const unsigned &qM) {
       clear();
       delete _gauss;
       ClearMap();
@@ -133,7 +133,7 @@ class CutFemWeight {
     }
 
   protected:
-    void polyBasis(const std::vector<double> &x, std::vector<double> &bo);
+    void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
     unsigned _dim;
@@ -176,7 +176,7 @@ class CutFemWeight {
 
 
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF, const bool &wMap) {
+void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
   _WeightMap.resize(s + 2);
   std::vector <float> af(a.begin(), a.end());
   float df = static_cast<float>(d);
@@ -297,7 +297,7 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
       }
     }
 
-    polyBasis(x, bo);
+    PolyBasis(x, bo);
 
     double weight = 0.;
     for(unsigned i = 0; i < _L; i++) {
@@ -316,7 +316,7 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
 
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::polyBasis(const std::vector<double> &x, std::vector<double> &bo) { 
+void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::vector<double> &bo) { 
   unsigned count = 0;
 
   if(_dim == 3) {

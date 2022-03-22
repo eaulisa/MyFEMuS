@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
   double d1 = 0.1 * sqrt(2);
 
   std::vector<double> weight1;
-  quad(0, a1, d1, weight1, true);
+  quad.GetWeightWithMap(0, a1, d1, weight1);
 
   for(unsigned j = 0; j < weight1.size(); j++) {
     std::cout << weight1[j] << " ";
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
   std::cout << std::endl;
 
 
-  tri(0, a1, d1, weight1, true);
+  tri.GetWeightWithMap(0, a1, d1, weight1);
   for(unsigned j = 0; j < weight1.size(); j++) {
     std::cout << weight1[j] << " ";
   }
@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
   bool wMap = 0;
 
   GetNormalTri(xva, xg, R, a, d, xm, b, db, cut);
-  tri(0, b, db, weightCF, wMap);
+  tri.GetWeightWithMap(0, b, db, weightCF);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -327,7 +327,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
-  tri(0, b, db, weightCF, wMap);
+  tri.GetWeightWithMap(0, b, db, weightCF);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
 
 
   GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
-  tri(0, b, db, weightCF, wMap);
+  tri.GetWeightWithMap(0, b, db, weightCF);
   weightG = tri.GetGaussWeightPointer();
   sum = 0.;
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
