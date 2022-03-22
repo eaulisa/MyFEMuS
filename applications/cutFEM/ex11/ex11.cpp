@@ -78,13 +78,13 @@ TypeA F1(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA>
       }
 
       sum += (sumk * c1 * pow(a[0], j) * pow(d, s - i - j) * factorial<TypeA>(M)) / (factorial<TypeA>(s - i - j) *  factorial<TypeA>(j) * (m[0] + j + 1));
-        //std::cout << "sumk = " << sumk << std::endl;
+      //std::cout << "sumk = " << sumk << std::endl;
     }
   }
 
   if(d == -2) {
     //std::cout << "F1 = " << sum << std::endl;
-    
+
   }
 
   return sum;
@@ -102,13 +102,13 @@ TypeA F(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> 
     for(unsigned k = 0; k <= s - i; k++) {
       sum += c1 * pow(a[0], k) * pow(d, s - i - k) * (pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1)) / //TODO build F0 and F1
              (factorial<TypeA>(s - i - k) *  factorial<TypeA>(k) * (m[0] + k + 1));
-             //std::cout << "stuff = " << pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1) << std::endl;
+      //std::cout << "stuff = " << pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1) << std::endl;
     }
   }
   if(d == -2) {
     //std::cout << "F = " << sum << std::endl;
   }
-  
+
   return  sum;
 }
 
@@ -252,13 +252,13 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m_input, const std::ve
           statements[5] = true;
         }
         else {
-            
-            //SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
+
+          //SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
           SQI =  F1<TypeA>(s, m, a, d, 1 - xf) - G1<TypeA>(s, m, a, d, 1 - xf);   //xg=1,xf=0,d=-1,a[0]=a[1]=1
           //SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1); //xg=1,xf=0,d=-1,a[0]=a[1]=1
 
           //std::cout << "SQI11 = " << SQI << std::endl;
-          
+
           //std::cout << "SQI = " << SQI << std::endl;
           //std::cout << "statement 6**************** " << std::endl;
           statements[6] = true;
@@ -389,16 +389,11 @@ void TestQuad(const Float1 &eps) {
     for(unsigned j = 0; j < epsCut.size(); j++) {
 
       a[0] = smallCut[i][0] + epsCut[j][0];
-      a[1] = smallCut[i][1] + epsCut[j][1];
+      a[1] = smallCut[i][1] + 1.0001 * epsCut[j][1];
       d = smallCut[i][2] + epsCut[j][2];
 
-      af[0] = static_cast<myType>(a[0]);
-      af[1] = static_cast<myType>(a[1]);
-      df = static_cast<myType>(d);
-
-      myType I1 = SquareA<double, double>(s,  m, a, d);
-      //myTypeB I2 = SquareA<double, myTypeB>(s,  m, a, d);
-      myTypeB I2 = SquareA<double, myTypeB>(s,  m, a, d);
+      myType I1 = SquareA<myType, myType>(s,  m, a, d);
+      myType I2 = SquareA<myType, myTypeB>(s,  m, a, d);
       if((I2 != 0. &&  fabs((I1 - I2) / I2) < eps) || I1 == 0.) {
         std::cout << "passed ";
         std::cout << "s = " << s << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
