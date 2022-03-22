@@ -616,8 +616,11 @@ namespace femus {
               for (int I = 0; I < 3; ++I) {
                 for (int J = 0; J < 3; ++J) {
                   if (1 == solid_model) {   //Wood-Bonet J_hat  =1;
-                    Cauchy[I][J]     = mus * (B[I][J]     - Id2th[I][J]) - mus / 3.*I1_B     * SolVAR[2 * dim] * Id2th[I][J];
-                    Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J]) - mus / 3.*I1_B_old * SolVAR[2 * dim] * Id2th[I][J];
+                    //Cauchy[I][J]     = mus * (B[I][J]     - Id2th[I][J]) - mus / 3.*I1_B     * SolVAR[2 * dim] * Id2th[I][J];
+                    //Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J]) - mus / 3.*I1_B_old * SolVAR[2 * dim] * Id2th[I][J];
+                    //Wood-Bonet penalty
+                    Cauchy[I][J] = mus * (B[I][J] - Id2th[I][J])/J_hat + lambda / J_hat * log(J_hat)*Id2th[I][J];
+                    Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J])/J_hat_old + lambda / J_hat_old * log(J_hat_old)*Id2th[I][J];                    
                   }
 
 // 		    else if ( 2 == solid_model ) Cauchy[I][J] = mus/J_hat*B[I][J]

@@ -219,8 +219,8 @@ int main(int argc, char **args) {
   // Generate Solid Object
   Solid solid;
   //solid = Solid(par, E, ni, rhos, "Mooney-Rivlin");
-  //solid = Solid(par,E,ni,rhos,"Neo-Hookean");
-  solid = Solid(par, E, ni, rhos, "Saint-Venant");
+  solid = Solid(par, E, ni, rhos, "Neo-Hookean");
+  //solid = Solid(par, E, ni, rhos, "Saint-Venant");
 
   cout << "Solid properties: " << endl;
   cout << solid << endl;

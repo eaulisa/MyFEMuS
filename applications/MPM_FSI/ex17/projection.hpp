@@ -680,13 +680,14 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
     //BEGIN backgroud grid velocity projection
 
     for(unsigned k = 0; k < _dim; k++) {
-      solB->_SolOld[VIdxB[k]] = solB->_Sol[VIdxB[k]];
+      (*solB->_SolOld[VIdxB[k]]) = (*solB->_Sol[VIdxB[k]]);
     }
 
     unsigned offset = mshB->_dofOffset[solTypeB][_iproc];
     unsigned offsetp1 = mshB->_dofOffset[solTypeB][_iproc + 1];
     unsigned size = offsetp1 - offset;
     std::vector <int> elemFound(size);
+    std::vector < std::vector <double> > xv(size, std::vector<double>(_dim));
 
     for(unsigned iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
       unsigned nDofs = nDofs = mshB->GetElementDofNumber(iel, solTypeB);
@@ -694,6 +695,10 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         unsigned i = mshB->GetSolutionDof(inode, iel, solTypeB);
         if(i >= offset && i < offsetp1) { // if the node is owned by the process
           elemFound[i - offset] = iel; // set iel as best guess, which is always owned by the process
+          unsigned xdof = mshB->GetSolutionDof(inode, iel, 2);
+          for(unsigned k = 0; k < _dim; k++) {
+            xv[i - offset][k] = (*mshB->_topology->_Sol[k])(xdof);
+          }
         }
       }
     }
@@ -702,11 +707,11 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
     unsigned nfcLoc = 0;
     MyMarker mrk = MyMarker();
     for(unsigned i = offset; i < offsetp1; i++) {
-      std::vector<double> xp(_dim);
-      for(unsigned k = 0; k < _dim; k++) {
-        xp[k] = (*mshB->_topology->_Sol[k])(i);
-      }
-      bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, solB, solTypeB, elemFound[i - offset], 1.);
+      //std::vector<double> xp(_dim);
+      //for(unsigned k = 0; k < _dim; k++) {
+      //  xp[k] = (*mshB->_topology->_Sol[k])(i);
+      //}
+      bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xv[i - offset], solB, solTypeB, elemFound[i - offset], 1.);
 
       if(elemSearch) {//the node is inside the _iproc domain, we can straightforward interpolate the velocity
         unsigned iel = mrk.GetElement();
@@ -755,9 +760,10 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         if(_iproc == kproc) {
           while(elemFound[cnt] >= 0) cnt++;
           iel = static_cast <unsigned>(-(elemFound[cnt] + 1));
-          for(unsigned k = 0; k < _dim; k++) {
-            xp[k] = (*mshB->_topology->_Sol[k])(offset + cnt);;
-          }
+          xp = xv[cnt];
+//           for(unsigned k = 0; k < _dim; k++) {
+//             xp[k] = xv[cnt][k];//(*mshB->_topology->_Sol[k])(offset + cnt);;
+//           }
         }
         MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);

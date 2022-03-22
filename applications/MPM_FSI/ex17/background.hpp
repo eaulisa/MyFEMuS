@@ -4,6 +4,11 @@
 bool SetBoundaryConditionB(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
 double SetVariableTimeStepB(const double time);
 
+double InitalValue0(const std::vector < double >& x) {
+  return 0.;
+}
+
+
 void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
 
   unsigned dim = mlSol._mlMesh->GetDimension();
@@ -25,9 +30,21 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
   mlSol.AddSolution("sldCnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
 
-  mlSol.Initialize("All");
-  //mlSol.Initialize("DX", InitVariableDX);
-  //mlSol.Initialize("DY", InitVariableDY);
+  //mlSol.Initialize("All");
+  
+  
+  mlSol.Initialize("DX", InitalValue0);
+  mlSol.Initialize("DY", InitalValue0);
+  
+  mlSol.Initialize("VX", InitalValue0);
+  mlSol.Initialize("VY", InitalValue0);
+  
+  mlSol.Initialize("P", InitalValue0);
+  mlSol.Initialize("eflag", InitalValue0);
+  mlSol.Initialize("fldCnt", InitalValue0);
+  mlSol.Initialize("sldCnt", InitalValue0);
+  mlSol.Initialize("nflag", InitalValue0);
+  
 
   mlSol.AttachSetBoundaryConditionFunction(par->_bdcFunction);
 

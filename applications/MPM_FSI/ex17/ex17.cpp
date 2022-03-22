@@ -100,9 +100,9 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
 
 parameter channelFlip = parameter(false, .3, {0., 0., 0.},
                                   45., 0.05, 0.05, 0.05,
-                                  false, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
-                                  "../input/ChannelFlipBeam.neu", 1., 2, 0,
-                                  "../input/ChannelFlip.neu", 1., 0,
+                                  true, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
+                                  "../input/ChannelFlipBeam.neu", 1., 3, 0,
+                                  "../input/ChannelFlipBackground.neu", 1., -1,
                                   BoundaryConditionChannelFlip, TimeStepChannelFlip);
 
 
