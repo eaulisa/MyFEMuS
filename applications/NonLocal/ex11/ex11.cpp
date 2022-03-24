@@ -60,6 +60,23 @@ const elem_type *finiteElementQuad;
 
 int main(int argc, char** argv) {
 
+
+  std::vector<std::vector<double>> xt = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  std::vector< double > xg1 = {-1, -1, -1};
+  double R1 = 2.;
+  std::vector<double> a10;
+  double d10;
+  std::vector<double> xm1;
+  std::vector<double> b1;
+  double db1;
+  unsigned cut1;
+
+  GetNormalTet(xt, xg1, R1, a10, d10, xm1, b1, db1, cut1);
+
+
+  return 1;
+
+
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
 
@@ -872,6 +889,8 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
       yg[k] /= cnt;
     }
 
+    a.resize(dim);
+
     std::vector < std::vector <double> > b(cnt, std::vector<double>(dim));
     for(unsigned k = 0; k < dim; k++) {
       a[k] = yg[k] - xg[k];
@@ -903,79 +922,81 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
       phig += phii;
     }
     phig /= cnt;
-    double H = R * pow( 2. * (1. - cos(phig)) / ( tan(phig) * tan(phig) ), 1./3.);
+    double H = R * pow(2. * (1. - cos(phig)) / (tan(phig) * tan(phig)), 1. / 3.);
 
     xm.resize(dim);
     for(unsigned k = 0; k < dim; k++) {
-        xm[k] = xg[k] - a[k] / an * H;
+      xm[k] = xg[k] - a[k] / an * H;
     }
 
+    std::cout << a[0] << " " << a[1] << " " << a[2] << " " << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
 
-/*
-    if(theta[0] > theta[1]) {
-      std::swap(theta[0], theta[1]);
-    }
-    double DT = theta[1] - theta[0];
-    if(DT > M_PI) {
-      std::swap(theta[0], theta[1]);
-      theta[1] += 2. * M_PI;
-      DT = theta[1] - theta[0];
-    }
-    xm.resize(dim);
 
-    d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
-    a.resize(dim);
-    a[0] = -cos(theta[0] + 0.5 * DT);
-    a[1] = -sin(theta[0] + 0.5 * DT);
+    /*
+        if(theta[0] > theta[1]) {
+          std::swap(theta[0], theta[1]);
+        }
+        double DT = theta[1] - theta[0];
+        if(DT > M_PI) {
+          std::swap(theta[0], theta[1]);
+          theta[1] += 2. * M_PI;
+          DT = theta[1] - theta[0];
+        }
+        xm.resize(dim);
 
-    for(unsigned k = 0; k < dim; k++) {
-      xm[k] = -a[k] * d + xg[k];
-    }
-    d += - a[0] * xg[0] - a[1] * xg[1]; //TODO*/
+        d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+        a.resize(dim);
+        a[0] = -cos(theta[0] + 0.5 * DT);
+        a[1] = -sin(theta[0] + 0.5 * DT);
+
+        for(unsigned k = 0; k < dim; k++) {
+          xm[k] = -a[k] * d + xg[k];
+        }
+        d += - a[0] * xg[0] - a[1] * xg[1]; //TODO*/
 
     //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
-/*
-    double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
-    d = d2 * tan(0.5 * DT);*/
+    /*
+        double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+        d = d2 * tan(0.5 * DT);*/
 
-    std::cout.precision(14);
-
-
-
-
-
-    std::vector<double> xi(dim);
-
-    std::vector < std::vector < double > > J(2, std::vector<double>(2));
-    J[0][0] = (-x1 + x2);
-    J[0][1] = (-x1 + x3);
-
-    J[1][0] = (-y1 + y2);
-    J[1][1] = (-y1 + y3);
-
-    double den = (x3 * y1 - x1 * y3 + x2 * J[1][1] - y2 * J[0][1]);
-
-    xi[0] = (x3 * y1 - x1 * y3 + xm[0] * J[1][1] - xm[1] * J[0][1]) / den;
-    xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
-
-
-    //std::cout << xi[0] << " " << xi[1] << std::endl;
-
-
-    a2.assign(dim, 0);
-    for(unsigned k = 0; k < dim; k++) {
-      for(unsigned j = 0; j < dim; j++) {
-        a2[k] += J[j][k] * a[j];
-      }
-    }
-    double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1]);
-    a2[0] /= bNorm;
-    a2[1] /= bNorm;
-    d2 = - a2[0] * xi[0] - a2[1] * xi[1];
-
-
-    //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
+//     std::cout.precision(14);
+//
+//
+//
+//
+//
+//     std::vector<double> xi(dim);
+//
+//     std::vector < std::vector < double > > J(2, std::vector<double>(2));
+//     J[0][0] = (-x1 + x2);
+//     J[0][1] = (-x1 + x3);
+//
+//     J[1][0] = (-y1 + y2);
+//     J[1][1] = (-y1 + y3);
+//
+//     double den = (x3 * y1 - x1 * y3 + x2 * J[1][1] - y2 * J[0][1]);
+//
+//     xi[0] = (x3 * y1 - x1 * y3 + xm[0] * J[1][1] - xm[1] * J[0][1]) / den;
+//     xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
+//
+//
+//     //std::cout << xi[0] << " " << xi[1] << std::endl;
+//
+//
+//     a2.assign(dim, 0);
+//     for(unsigned k = 0; k < dim; k++) {
+//       for(unsigned j = 0; j < dim; j++) {
+//         a2[k] += J[j][k] * a[j];
+//       }
+//     }
+//     double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1]);
+//     a2[0] /= bNorm;
+//     a2[1] /= bNorm;
+//     d2 = - a2[0] * xi[0] - a2[1] * xi[1];
+//
+//
+//     //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
   }
 }
 

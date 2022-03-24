@@ -54,7 +54,7 @@ class CutFemWeight {
       //time1 = time2 = time3 = 0;
 
       _cntCall = 0;
-      _gaussOrder = 2 * _qM;
+
       if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
         _obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
       }
@@ -114,6 +114,13 @@ class CutFemWeight {
 
       _qM = qM;
       build();
+    }
+
+    unsigned GetCutFEMQuadratureOrder() {
+      return _qM;
+    }
+    unsigned GetGaussQuadratureOrder() {
+      return _gaussOrder;
     }
 
     const double* GetGaussWeightPointer() {
@@ -316,7 +323,7 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
 
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::vector<double> &bo) { 
+void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::vector<double> &bo) {
   unsigned count = 0;
 
   if(_dim == 3) {
@@ -384,6 +391,12 @@ void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::v
 }
 
 #endif
+
+
+
+
+
+
 
 
 
