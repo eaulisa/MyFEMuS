@@ -1,5 +1,5 @@
 
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
 int main(int, char**) {
 
@@ -14,17 +14,17 @@ int main(int, char**) {
 
   {
     unsigned qM = 3;
-    CutFemIntegral <TypeIO, TypeA>line   = CutFemIntegral<TypeIO, TypeA>(LINE, qM, "legendre");
-    CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
-    CutFemIntegral <TypeIO, TypeA> tri   = CutFemIntegral<TypeIO, TypeA >(TRI, qM, "legendre");
-    CutFemIntegral <TypeIO, TypeA> hex   = CutFemIntegral<TypeIO, TypeA >(HEX, qM, "legendre");
-    CutFemIntegral <TypeIO, TypeA> wedge = CutFemIntegral<TypeIO, TypeA >(WEDGE, qM, "legendre");
-    CutFemIntegral <TypeIO, TypeA> tet   = CutFemIntegral<TypeIO, TypeA >(TET, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA>line   = CutFemWeight<TypeIO, TypeA>(LINE, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA> tri   = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA> hex   = CutFemWeight<TypeIO, TypeA >(HEX, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA> wedge = CutFemWeight<TypeIO, TypeA >(WEDGE, qM, "legendre");
+    CutFemWeight <TypeIO, TypeA> tet   = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
 //    Line test
     
     std::vector <TypeIO> weightCF;
-    line(qM, 0, {-1.},  0,  weightCF);
+    line(0, {-1.},  0,  weightCF);
 
     const double* weight = line.GetGaussWeightPointer();
     const double* x = line.GetGaussCoordinatePointer(0);
@@ -36,7 +36,7 @@ int main(int, char**) {
     
 //     Quad test
     std::vector <TypeIO> weightCFQuad;
-    quad(qM, -1, {1./sqrt(2), 1./sqrt(2)}, 0.,  weightCFQuad);
+    quad(-1, {1./sqrt(2), 1./sqrt(2)}, 0.,  weightCFQuad);
 
     const double* weightQ = quad.GetGaussWeightPointer();
     const double* xQ = quad.GetGaussCoordinatePointer(0);
@@ -51,7 +51,7 @@ int main(int, char**) {
     
     //     Triangle test
     std::vector <TypeIO> weightCFTri;
-    tri(qM, 0, {1., -1.}, 0.,  weightCFTri);
+    tri(0, {1., -1.}, 0.,  weightCFTri);
 
     const double* weightT = tri.GetGaussWeightPointer();
     const double* xT = tri.GetGaussCoordinatePointer(0);
@@ -65,7 +65,7 @@ int main(int, char**) {
     
     //     Hexahedron test
     std::vector <TypeIO> weightCFHex;
-    hex(qM, 0, {-0.1, -0.1, +1.}, 0.05,  weightCFHex);
+    hex(0, {-0.1, -0.1, +1.}, 0.05,  weightCFHex);
 
     const double* weightH = hex.GetGaussWeightPointer();
     const double* xH = hex.GetGaussCoordinatePointer(0);
@@ -80,7 +80,7 @@ int main(int, char**) {
     
     //     Wedge test
     std::vector <TypeIO> weightCFWed;
-    wedge(qM, -1, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0.,  weightCFWed);
+    wedge(-1, {-0.1 / sqrt(1.02), 0.1 / sqrt(1.02), 1. / sqrt(1.02)}, 0.,  weightCFWed);
 
     const double* weightW = wedge.GetGaussWeightPointer();
     const double* xW = wedge.GetGaussCoordinatePointer(0);
@@ -95,7 +95,7 @@ int main(int, char**) {
     
     //     Tet test
     std::vector <TypeIO> weightCFTet;
-    tet(qM, 0, {-1, -1, -1}, +0.5,  weightCFTet);
+    tet(0, {-1, -1, -1}, +0.5,  weightCFTet);
 
     const double* weightTet = tet.GetGaussWeightPointer();
     const double* xTet = tet.GetGaussCoordinatePointer(0);

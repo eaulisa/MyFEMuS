@@ -2,7 +2,7 @@
 #ifndef __femus_GramSchmidt_hpp__
 #define __femus_GramSchmidt_hpp__
 
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -122,10 +122,10 @@ void ModifiedGramSchmidt(const std::vector<std::vector<Type>> &M, std::vector<st
 template <class TypeO, class TypeA>
 std::vector<std::vector<TypeO>> MatrixMatrixMultiply(const std::vector<std::vector<TypeA>> &M, const std::vector<std::vector<TypeA>> &N) {
 
-  int row = M.size();
-  int columnM = M[0].size();
-  int rowN = N.size();
-  int column = N[0].size();
+  const unsigned &row = M.size();
+  const unsigned &columnM = M[0].size();
+  const unsigned &rowN = N.size();
+  const unsigned &column = N[0].size();
 
   if(rowN == columnM) {
     TypeA temp;
@@ -150,6 +150,104 @@ std::vector<std::vector<TypeO>> MatrixMatrixMultiply(const std::vector<std::vect
   }
 
 }
+
+template <class TypeO, class TypeA>
+void MatrixMatrixMultiply(const std::vector<std::vector<TypeA>> &M, const std::vector<std::vector<TypeA>> &N, std::vector<std::vector<TypeO>> &MN) {
+
+  const unsigned &row = M.size();
+  const unsigned &columnM = M[0].size();
+  const unsigned &rowN = N.size();
+  const unsigned &column = N[0].size();
+
+  if(rowN == columnM) {
+    TypeA temp;
+    MN.assign(row, std::vector<TypeO>(column, 0));
+    for(unsigned i = 0; i < row; i++) {
+      for(unsigned j = 0; j < column; j++) {
+        temp = 0;
+        for(unsigned k = 0; k < rowN; k++) {
+          temp += M[i][k] * N[k][j];
+        }
+        MN[i][j] = static_cast<TypeO>(temp);
+      }
+    }
+    return;
+  }
+  else {
+    std::cout << " Dimension mismatch!!!!" << std::endl;
+    abort();
+  }
+
+}
+
+
+
+#include <eigen3/Eigen/Dense>
+template <class TypeA>
+void MatrixVectorMultiply(const Eigen::Matrix <TypeA, Eigen::Dynamic, Eigen::Dynamic> &M,
+                          const Eigen::Matrix <TypeA, Eigen::Dynamic, 1> &v,
+                          Eigen::Matrix <TypeA, Eigen::Dynamic, 1> &u) {
+  u = M * v;
+}
+
+template <class TypeA>
+void MatrixTransposeVectorMultiply(const Eigen::Matrix <TypeA, Eigen::Dynamic, Eigen::Dynamic> &M,
+                                   const Eigen::Matrix <TypeA, Eigen::Dynamic, 1> &v,
+                                   Eigen::Matrix <TypeA, Eigen::Dynamic, 1> &u) {
+  u = M.Transpose() * v;
+}
+
+
+template <class TypeO, class TypeA>
+void MatrixVectorMultiply(const std::vector<std::vector<TypeA>> &M, const std::vector<TypeA> &v, std::vector<TypeO> &u) {
+
+  const unsigned &row = M.size();
+  const unsigned &column = M[0].size();
+
+  if(column == v.size()) {
+    TypeA temp;
+    u.assign(row, 0);
+    for(unsigned i = 0; i < row; i++) {
+      temp = 0;
+      for(unsigned j = 0; j < column; j++) {
+        temp += M[i][j] * v[j];
+      }
+      u[i] = static_cast<TypeO>(temp);
+    }
+    return;
+  }
+  else {
+    std::cout << " Dimension mismatch!!!!" << std::endl;
+    abort();
+  }
+
+}
+
+template <class TypeO, class TypeA>
+void MatrixTransposeVectorMultiply(const std::vector<std::vector<TypeA>> &M, const std::vector<TypeA> &v, std::vector<TypeO> &u) {
+
+  const unsigned &column = M.size();
+  const unsigned &row = M[0].size();
+
+  if(column == v.size()) {
+    TypeA temp;
+    u.assign(row, 0);
+    for(unsigned i = 0; i < row; i++) {
+      temp = 0;
+      for(unsigned j = 0; j < column; j++) {
+        temp += M[j][i] * v[j];
+      }
+      u[i] = static_cast<TypeO>(temp);
+    }
+    return;
+  }
+  else {
+    std::cout << " Dimension mismatch!!!!" << std::endl;
+    abort();
+  }
+
+}
+
 
 template <class Type>
 std::vector<Type> MatrixVectorMultiply(const std::vector<std::vector<Type>> &M, const std::vector<Type> &Nv) {

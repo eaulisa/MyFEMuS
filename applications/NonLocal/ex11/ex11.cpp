@@ -7,7 +7,9 @@
 
 #include "PolynomialBases.hpp"
 
-#include "CutFemIntegration.hpp"
+#include "CutFemWeight.hpp"
+
+#include "CDWeights.hpp"
 
 #include <vector>
 #include <cmath>
@@ -16,15 +18,15 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  1
+#define N_UNIFORM_LEVELS  8
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
 #define EX_2        1.
 #define EY_1       -1.
 #define EY_2        1.
-#define N_X         2
-#define N_Y         2
+#define N_X         4
+#define N_Y         4
 
 double InitialValueU(const std::vector < double >& x) {
   return 0. * x[0] * x[0];
@@ -46,6 +48,11 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
+
+void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
+
+void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut);
+
 void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob);
 
 
@@ -56,149 +63,247 @@ int main(int argc, char** argv) {
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
 
+  unsigned qM = 3;
+  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
+  CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
+
+  double dx = 0.025;
+  double dt = 1.;
+  CDWeighsQUAD <TypeA> quadCD(qM, dx, dt);
+  CDWeighsTRI <TypeA> triCD(qM, dx, dt);
+
+  double theta1 = 45;
+  std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
+  double d1 = 0.1 * sqrt(2);
+
+  std::vector<double> weight1;
+  quad.GetWeightWithMap(0, a1, d1, weight1);
+
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  std::vector<double> weight;
+  quadCD.GetWeight(a1, d1, weight);
+
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] << " ";
+  }
+  std::cout << std::endl;
 
 
-//   const std::string fe_quad_rule_1 = "seventh";
-//   const std::string fe_quad_rule_2 = "eighth";
-//
-//   // ======= Init ========================
-//   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
-//
-  finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
-//
-//   unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
-//
-//   MultiLevelMesh mlMsh;
-//   double scalingFactor = 1.;
-//   unsigned numberOfSelectiveLevels = 0;
-//   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-//   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
-//
-//   // erase all the coarse mesh levels
-//   const unsigned erased_levels = N_ERASED_LEVELS;
-//   mlMsh.EraseCoarseLevels(erased_levels);
-//
-//   const unsigned level = N_UNIFORM_LEVELS - N_ERASED_LEVELS - 1;
-//
-//   MultiLevelSolution mlSol(&mlMsh);
-//
-//   // add variables to mlSol
-//   mlSol.AddSolution("u", LAGRANGE, SECOND, 2);
-//
-//
-//   mlSol.Initialize("All");
-//   mlSol.Initialize("u", InitialValueU);
-//
-//   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-//
-//   // ******* Set boundary conditions *******
-//   mlSol.GenerateBdc("All");
-//
-//   MultiLevelProblem ml_prob(&mlSol);
-//
-//   LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("FracProblem");
-//
-//
-//   Mesh*                    msh = mlMsh.GetLevel(level);    // pointer to the mesh (level) object
-//   elem*                     el = msh->el;  // pointer to the elem object in msh (level)
-//
-//   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
-//   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-//
-//   unsigned xType = 2;
-//
-//   const unsigned  dim = msh->GetDimension();
-//
-//   std::vector < std::vector < double > > x1;
-//
-//   FILE * fp;
-//
-//   fp = fopen("lines.dat", "w");
-//
-//   unsigned qM = 3;
-//   CutFemIntegral <TypeIO, TypeA> quad  = CutFemIntegral<TypeIO, TypeA >(QUAD, qM, "legendre");
-//
-//   std::vector<double> xg(2, 0);
-//   xg[0] -= 0.;
-//   xg[1] -= 0.;
-//   double R = 0.5;
-//   double CircArea = 0.;
-//
-//   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-//     unsigned nDof = 4; //TODO msh->GetElementDofNumber(iel, xType);  // number of coordinate element dofs
-//     x1.resize(dim);
-//     for(unsigned k = 0; k < dim; k++) {
-//       x1[k].resize(nDof);
-//     }
-//
-//     for(unsigned k = 0; k < dim; k++) {
-//       for(unsigned i = 0; i < nDof; i++) {
-//         unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-//         x1[k][i] = (*msh->_topology->_Sol[k])(xDof);  // global extraction and local storage for the element coordinates
-//       }
-//     }
-//
-//     std::vector<double> a;
-//     std::vector<double> b;
-//     std::vector<double> xm;
-//     double d;
-//     double db;
-//     unsigned cut;
-//
-//     GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
-//
-//     double h2 = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
-//
-//     if(cut == 1) {
-//       std::vector <TypeIO> weightCFQuad;
-//       quad(qM, 0, b, db, weightCFQuad);
-//
-//       const double* weightQ = quad.GetGaussWeightPointer();
-//
-//       double sum = 0.;
-//       for(unsigned ig = 0; ig < weightCFQuad.size(); ig++) {
-//         sum += weightQ[ig] * weightCFQuad[ig] ; //TODO use the correct quad rule!!!!!
-//       }
-//       CircArea += sum / 4. * h2;
-//     }
-//     else if(cut == 0) {
-//       CircArea += h2; //TODO
-//     }
-//
-// //     /* trivial print for xmgrace */
-// //     if(cut == 1) {
-// //       double xx = xm[0] - 0.5 * a[1];
-// //       double yy = xm[1] + 0.5 * a[0];
-// //       fprintf(fp, "%f %f \n", xx, yy);
-// //       xx = xm[0] + 0.5 * a[1];
-// //       yy = xm[1] - 0.5 * a[0];
-// //       fprintf(fp, "%f %f \n", xx, yy);
-// //       fprintf(fp, "\n \n");
-// //     }
-//   }
-//  std::cout.precision(14);
-//  std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
+  tri.GetWeightWithMap(0, a1, d1, weight1);
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  triCD.GetWeight(a1, d1, weight);
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] << " ";
+  }
+  std::cout << std::endl;
+
+  //return 1;
+
+  const std::string fe_quad_rule_1 = "seventh";
+  const std::string fe_quad_rule_2 = "eighth";
+
+// ======= Init ========================
+  FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
+
+//   finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
+
+  unsigned numberOfUniformLevels = N_UNIFORM_LEVELS;
+
+  MultiLevelMesh mlMsh;
+  double scalingFactor = 1.;
+  unsigned numberOfSelectiveLevels = 0;
+// mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
+
+  /*
+
+  char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
+  mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
+  MPI_Barrier(MPI_COMM_WORLD);
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);*/
+
+
+
+
+
+
+// erase all the coarse mesh levels
+  const unsigned erased_levels = N_ERASED_LEVELS;
+  mlMsh.EraseCoarseLevels(erased_levels);
+
+  const unsigned level = N_UNIFORM_LEVELS - N_ERASED_LEVELS - 1;
+
+  MultiLevelSolution mlSol(&mlMsh);
+
+// add variables to mlSol
+  mlSol.AddSolution("u", LAGRANGE, SECOND, 2);
+
+
+  mlSol.Initialize("All");
+  mlSol.Initialize("u", InitialValueU);
+
+  mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+
+// ******* Set boundary conditions *******
+  mlSol.GenerateBdc("All");
+
+  MultiLevelProblem ml_prob(&mlSol);
+
+  LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("FracProblem");
+
+
+  Mesh*                    msh = mlMsh.GetLevel(level);    // pointer to the mesh (level) object
+  elem*                     el = msh->el;  // pointer to the elem object in msh (level)
+
+  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+  unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
+
+  unsigned xType = 2;
+
+  const unsigned  dim = msh->GetDimension();
+
+  std::vector < std::vector < double > > x1;
+
+  FILE * fp;
+
+  fp = fopen("lines.dat", "w");
+
+
+
+
+  std::vector<double> xg(2, 0);
+  xg[0] -= -0.4852;
+  xg[1] -= -0.0017;
+  double R = 0.5;
+  double CircArea = 0.;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned ielType = msh->GetElementType(iel);
+    unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+    x1.resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      x1[k].resize(nDof);
+    }
+
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned i = 0; i < nDof; i++) {
+        unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
+        x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+      }
+    }
+
+    std::vector<double> a;
+    std::vector<double> b;
+    std::vector<double> xm;
+    double d;
+    double db;
+    unsigned cut;
+
+    double h2;
+
+    if(ielType == 3) {
+      GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
+      h2 = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
+    }
+    else {
+      GetNormalTri(x1, xg, R, a, d, xm, b, db, cut);
+      h2 = 0.5 * ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
+    }
+    if(cut == 1) {
+      bool wMap = 1;
+      if(ielType == 3) {
+        std::vector <TypeIO> weightCF;
+//        quad.clear();
+//        quad(0, b, db, weightCF, wMap);
+//         quad(0, b, db, weightCF, wMap); // Additional call to test the weights Map
+
+        quadCD.GetWeight(b, db, weightCF);
+
+        const double* weightG = quad.GetGaussWeightPointer();
+
+        double sum = 0.;
+        for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+          sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+        }
+        CircArea += sum / 4. * h2;
+      }
+      else if(ielType == 4) {
+        std::vector <TypeIO> weightCF;
+        //tri.clear();
+        //tri(0, b, db, weightCF, wMap);
+        //tri(0, b, db, weightCF, wMap);  // Additional call to test the weights Map
+
+        triCD.GetWeight(b, db, weightCF);
+        const double* weightG = tri.GetGaussWeightPointer();
+
+        double sum = 0.;
+        for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+          sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+        }
+        //std::cout << sum << " ";
+        CircArea += 2. * sum * h2;
+      }
+
+
+    }
+    else if(cut == 0) {
+      CircArea += h2; //TODO
+    }
+
+    /* trivial print for xmgrace */
+    if(cut == 1) {
+      double xx = xm[0] - a[1] * d;
+      double yy = xm[1] + a[0] * d;
+      fprintf(fp, "%f %f \n", xx, yy);
+      xx = xm[0] + a[1] * d;
+      yy = xm[1] - a[0] * d;
+      fprintf(fp, "%f %f \n", xx, yy);
+      fprintf(fp, "\n \n");
+    }
+  }
+
+  std::cout << "numnber of calls in QUAD " << quad.GetCounter() << std::endl;
+  std::cout << "numnber of calls in TRI  " << tri.GetCounter() << std::endl;
+
+
+  std::cout.precision(14);
+  std::cout << "AREA CIRCLE = " << CircArea << "  analytic value = " << M_PI * R * R << "\n";
+
+  mlSol.SetWriter(VTK);
+  std::vector<std::string> print_vars;
+  print_vars.push_back("All");
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "quadratic", print_vars, 0);
+
 
   /*Testing the function GetNormalQuad inside a nonlocal assembly-like function*/
-  //SimpleNonlocalAssembly(ml_prob);
+//SimpleNonlocalAssembly(ml_prob);
 
-//   /* Basic numerical tests for the circle - no mesh involved*/
-  std::vector < std::vector<double> > xva = {{1., 2., 4., 0.}, {0., 0., 4., 1.}};
-  std::vector < std::vector<double> > xvb = {{0., 4., 3., 2.}, {0., 0., 1., 1.}};
-  std::vector < std::vector<double> > xvc0 = {{0., 1., 2., 2.}, {0., 0., 1., 2.}};
-  std::vector < std::vector<double> > xvc1 = {{2., 0., 1., 2.}, {2., 0., 0., 1.}};
-  std::vector < std::vector<double> > xvc2 = {{2., 2., 0., 1.}, {1., 2., 0., 0.}};
-  std::vector < std::vector<double> > xvc3 = {{1., 2., 2., 0.}, {0., 1., 2., 0.}};
-  std::vector < std::vector<double> > xv0 = {{1., 2., 2., 1.}, {1., 1., 2., 2.}};
-  std::vector < std::vector<double> > xv1 = {{1., 1., 2., 2.}, {2., 1., 1., 2.}};
-  std::vector < std::vector<double> > xv2 = {{2., 1., 1., 2.}, {2., 2., 1., 1.}};
-  std::vector < std::vector<double> > xv3 = {{2., 2., 1., 1.}, {1., 2., 2., 1.}};
-  std::vector < std::vector<double> > xvr0 = {{1., 2., 3., 2.}, {1., 2., 4., 3.}};
-  std::vector < std::vector<double> > xvr1 = {{2., 1., 2., 3.}, {3., 1., 2., 4.}};
-  std::vector < std::vector<double> > xvr2 = {{3., 2., 1., 2.}, {4., 3., 1., 2.}};
-  std::vector < std::vector<double> > xvr3 = {{2., 3., 2., 1.}, {2., 4., 3., 1.}};
-  std::vector<double> xg(2, 0);
-  double R = 2.;
+// //   /* Basic numerical tests for the circle - no mesh involved*/
+  std::vector < std::vector<double> > xva = {{1., 2., 1.}, {1., 1., 2.}};
+  std::vector < std::vector<double> > xvb = {{1., 1., 2.}, {2., 1., 1.}};
+  std::vector < std::vector<double> > xvc = {{2., 1., 1.}, {1., 2., 1.}};
+//   std::vector < std::vector<double> > xvc0 = {{0., 1., 2., 2.}, {0., 0., 1., 2.}};
+//   std::vector < std::vector<double> > xvc1 = {{2., 0., 1., 2.}, {2., 0., 0., 1.}};
+//   std::vector < std::vector<double> > xvc2 = {{2., 2., 0., 1.}, {1., 2., 0., 0.}};
+//   std::vector < std::vector<double> > xvc3 = {{1., 2., 2., 0.}, {0., 1., 2., 0.}};
+//   std::vector < std::vector<double> > xv0 = {{1., 2., 2., 1.}, {1., 1., 2., 2.}};
+//   std::vector < std::vector<double> > xv1 = {{1., 1., 2., 2.}, {2., 1., 1., 2.}};
+//   std::vector < std::vector<double> > xv2 = {{2., 1., 1., 2.}, {2., 2., 1., 1.}};
+//   std::vector < std::vector<double> > xv3 = {{2., 2., 1., 1.}, {1., 2., 2., 1.}};
+//   std::vector < std::vector<double> > xvr0 = {{1., 2., 3., 2.}, {1., 2., 4., 3.}};
+//   std::vector < std::vector<double> > xvr1 = {{2., 1., 2., 3.}, {3., 1., 2., 4.}};
+//   std::vector < std::vector<double> > xvr2 = {{3., 2., 1., 2.}, {4., 3., 1., 2.}};
+//   std::vector < std::vector<double> > xvr3 = {{2., 3., 2., 1.}, {2., 4., 3., 1.}};
+  xg.assign(2, 0);
+  R = 1.5;
   std::vector<double> a;
   double d;
   std::vector<double> xm;
@@ -206,33 +311,63 @@ int main(int argc, char** argv) {
   double db;
   unsigned  cut;
 
-  GetNormalQuad(xva, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvb, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvc0, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvc1, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvc2, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvc3, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xv0, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xv1, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xv2, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xv3, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvr0, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvr1, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvr2, xg, R, a, d, xm, b, db, cut);
-  std::cout << std::endl;
-  GetNormalQuad(xvr3, xg, R, a, d, xm, b, db, cut);
+  std::vector <TypeIO> weightCF;
+  const double* weightG;
+  double sum;
+  bool wMap = 0;
+
+  GetNormalTri(xva, xg, R, a, d, xm, b, db, cut);
+  tri.GetWeightWithMap(0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+//std::cout << sum << std::endl;
+
+
+  GetNormalTri(xvb, xg, R, a, d, xm, b, db, cut);
+  tri.GetWeightWithMap(0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+//std::cout << sum << std::endl;
+
+
+  GetNormalTri(xvc, xg, R, a, d, xm, b, db, cut);
+  tri.GetWeightWithMap(0, b, db, weightCF);
+  weightG = tri.GetGaussWeightPointer();
+  sum = 0.;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+  }
+//std::cout << sum << std::endl;
+
+
+
+//   GetNormalQuad(xvc1, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvc2, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvc3, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xv0, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xv1, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xv2, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xv3, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvr0, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvr1, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvr2, xg, R, a, d, xm, b, db, cut);
+//   std::cout << std::endl;
+//   GetNormalQuad(xvr3, xg, R, a, d, xm, b, db, cut);
 
 //  fclose(fp);
 
@@ -241,7 +376,7 @@ int main(int argc, char** argv) {
 }
 
 
-void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, unsigned &cut) {
+void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &b, double & db, unsigned & cut) {
 
   const unsigned &dim =  xv.size();
   const unsigned &nve =  xv[0].size();
@@ -261,12 +396,38 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
   double eps = 1.0e-10 * h;
 
   std::vector<double> dist(nve, 0);
+  std::vector<double> dist0(nve);
+  unsigned cnt0 = 0;
   for(unsigned i = 0; i < nve; i++) {
     for(unsigned k = 0;  k < dim; k++) {
       dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
     }
     dist[i] = sqrt(dist[i]) - R;
-    if(fabs(dist[i]) < eps) dist[i] = (dist[i] < 0) ? -eps : eps;
+
+    if(fabs(dist[i]) < eps) {
+      dist0[i] = (dist[i] < 0) ? -eps : eps;
+      dist[i] = 0.;
+      cnt0++;
+    }
+    else {
+      dist0[i] = dist[i];
+    }
+  }
+
+  if(cnt0 > 0) {
+    unsigned cntp = 0;
+    for(unsigned i = 0; i < nve; i++) {
+      if(dist[i] > 0) cntp++;
+      dist[i] = dist0[i];
+    }
+    if(cntp == 0) { // the element is inside the ball
+      cut = 0;
+      return;
+    }
+    else if(cntp == nve - cnt0) {  // the element in outside the ball
+      cut = 2;
+      return;
+    }
   }
 
   std::vector <double> theta(2);
@@ -308,10 +469,13 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     }
     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
 
+    double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+    d = d2 * tan(0.5 * DT);
+
     std::cout.precision(14);
 
-    std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
-    std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+//     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+//     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
     std::vector<double> xi(dim);
     double &u = xi[0];
@@ -355,10 +519,10 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
       }
       else { //edges 2 and 4 are parallel
-        std::cout << "2 and 4 are parallel\n";
+        //   std::cout << "2 and 4 are parallel\n";
         J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
         J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
-        
+
         v = (J[0][1] > eps) ?
             (0.25 * ((-1. + u) * (x1 + x4) - (1. + u) * (x3 + x2)) + xm[0]) / J[0][1] :
             (0.25 * ((-1. + u) * (y1 + y4) - (1. + u) * (y3 + y2)) + xm[1]) / J[1][1];
@@ -369,7 +533,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       }
     }
     else if(fabs(hv) > eps2) {  //edges 1 and 3 are parallel, but edges 2 and 4 are not
-      std::cout << "1 and 3 are parallel\n";
+      // std::cout << "1 and 3 are parallel\n";
       double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
       double gv = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
       double fpgv = f + gv;
@@ -383,7 +547,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
       J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
       J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
-      
+
       u = (fabs(J[0][0]) > eps) ?
           (0.25 * ((-1. + v) * (x1 + x2) - (1. + v) * (x3 + x4)) + xm[0]) / J[0][0] :
           (0.25 * ((-1. + v) * (y1 + y2) - (1. + v) * (y3 + y4)) + xm[1]) / J[1][0];
@@ -392,7 +556,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
     }
     else { //edges 1 and 3, and  edges 2 and 4 are parallel
-      std::cout << "Romboid\n";
+      //   std::cout << "Romboid\n";
       std::vector<std::vector<unsigned> > idx = {{3, 1}, {0, 2}};
 
       double A[2][2] = {{-dy14, dy23}, {dy12, dy34}};
@@ -406,72 +570,436 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
         }
         xi[k] = -1. + 2. * d[0] / (d[0] + d[1]);
       }
-      
+
       J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
       J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
       J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
       J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
     }
 
-    double det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    std::vector < std::vector < double > > Ji = {{J[1][1] / det, -J[0][1] / det}, {-J[1][0] / det, J[0][0] / det}};
+//     double det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+//     std::vector < std::vector < double > > Ji = {{J[1][1] / det, -J[0][1] / det}, {-J[1][0] / det, J[0][0] / det}};
 
     b.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        b[k] += Ji[k][j] * a[j];
+        b[k] += J[j][k] * a[j];
       }
     }
     double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
     b[0] /= bNorm;
     b[1] /= bNorm;
     db = - b[0] * xi[0] - b[1] * xi[1];
-    std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
+//   std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
 
-    // Old inverse mapping for comparison
-
-    std::vector <  std::vector < std::vector <double > > > aP(1);
-    short unsigned quad = 3;
-    unsigned linear = 0;
-    bool ielIsInitialized = false;
-    if(!ielIsInitialized) {
-      ielIsInitialized = true;
-      ProjectNodalToPolynomialCoefficients(aP[0], xv, quad, linear) ;
-    }
-
-    std::vector<double> xib(dim);
-    GetClosestPointInReferenceElement(xv, xm, quad, xib);
-    bool inverseMapping = GetInverseMapping(linear, quad, aP, xm, xib, 100);
-    if(!inverseMapping) {
-      std::cout << "InverseMapping failed" << std::endl;
-    }
-
-    //std::cout << xib[0] << " " << xib[1] << std::endl;
-
-    vector < vector < double > > Jac2;
-    vector < vector < double > > JacI2;
-    finiteElementQuad->GetJacobianMatrix(xv, xib, Jac2, JacI2);
-
-
-    //std::swap(JacI[0][1],JacI[1][0]);
-    //std::cout << Jac[0][0] << " " << Jac[0][1] << " " << Jac[1][0] << " " <<Jac[1][1] << std::endl;
-
-    std::vector <double> b2(dim, 0.);
-
-    for(unsigned k = 0; k < dim; k++) {
-      for(unsigned j = 0; j < dim; j++) {
-        b2[k] += JacI2[k][j] * a[j];
-      }
-    }
-    double b2Norm = sqrt(b2[0] * b2[0] + b2[1] * b2[1]);
-    b2[0] /= b2Norm;
-    b2[1] /= b2Norm;
-    double db2 = - b2[0] * xi[0] - b2[1] * xi[1];
-    std::cout << b2[0] << " " << b2[1] << " " << db2 << " " << std::endl;
+//     // Old inverse mapping for comparison
+//
+//     std::vector <  std::vector < std::vector <double > > > aP(1);
+//     short unsigned quad = 3;
+//     unsigned linear = 0;
+//     bool ielIsInitialized = false;
+//     if(!ielIsInitialized) {
+//       ielIsInitialized = true;
+//       ProjectNodalToPolynomialCoefficients(aP[0], xv, quad, linear) ;
+//     }
+//
+//     std::vector<double> xib(dim);
+//     GetClosestPointInReferenceElement(xv, xm, quad, xib);
+//     bool inverseMapping = GetInverseMapping(linear, quad, aP, xm, xib, 100);
+//     if(!inverseMapping) {
+//       std::cout << "InverseMapping failed" << std::endl;
+//     }
+//
+//     //std::cout << xib[0] << " " << xib[1] << std::endl;
+//
+//     vector < vector < double > > Jac2;
+//     vector < vector < double > > JacI2;
+//     finiteElementQuad->GetJacobianMatrix(xv, xib, Jac2, JacI2);
+//
+//
+//     //std::swap(JacI[0][1],JacI[1][0]);
+//     //std::cout << Jac[0][0] << " " << Jac[0][1] << " " << Jac[1][0] << " " <<Jac[1][1] << std::endl;
+//
+//     std::vector <double> b2(dim, 0.);
+//
+//     for(unsigned k = 0; k < dim; k++) {
+//       for(unsigned j = 0; j < dim; j++) {
+//         b2[k] += JacI2[j][k] * a[j];
+//       }
+//     }
+//     double b2Norm = sqrt(b2[0] * b2[0] + b2[1] * b2[1]);
+//     b2[0] /= b2Norm;
+//     b2[1] /= b2Norm;
+//     double db2 = - b2[0] * xi[0] - b2[1] * xi[1];
+//     std::cout << b2[0] << " " << b2[1] << " " << db2 << " " << std::endl;
 
   }
 
 }
+
+void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &b, double & db, unsigned & cut) {
+
+  const unsigned &dim =  xv.size();
+  const unsigned &nve =  xv[0].size();
+
+  //std::cout<<nve<<std::endl;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+
+  double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1)) / 3.;
+  double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1)) / 3.;
+
+  double h = sqrt(hx * hx + hy * hy);
+  double eps = 1.0e-10 * h;
+
+  std::vector<double> dist(nve, 0);
+  std::vector<double> dist0(nve);
+  unsigned cnt0 = 0;
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0;  k < dim; k++) {
+      dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
+    }
+    dist[i] = sqrt(dist[i]) - R;
+
+    //std::cout << dist[i] << std::endl;
+
+    if(fabs(dist[i]) < eps) {
+      dist0[i] = (dist[i] < 0) ? -eps : eps;
+      dist[i] = 0.;
+      cnt0++;
+    }
+    else {
+      dist0[i] = dist[i];
+    }
+  }
+
+  if(cnt0 > 0) {
+    unsigned cntp = 0;
+    for(unsigned i = 0; i < nve; i++) {
+      if(dist[i] > 0) cntp++;
+      dist[i] = dist0[i];
+    }
+    if(cntp == 0) { // the element is inside the ball
+      cut = 0;
+      return;
+    }
+    else if(cntp == nve - cnt0) {  // the element in outside the ball
+      cut = 2;
+      return;
+    }
+  }
+
+  std::vector <double> theta(2);
+  unsigned cnt = 0;
+  for(unsigned e = 0; e < nve; e++) {
+    unsigned ep1 = (e + 1) % nve;
+    if(dist[e] * dist[ep1] < 0) {
+      double s = 0.5  * (1 + (dist[e] + dist[ep1]) / (dist[e] - dist[ep1]));
+      theta[cnt] = atan2((1 - s) * xv[1][e] + s * xv[1][ep1]  - xg[1], (1 - s) * xv[0][e] + s * xv[0][ep1] - xg[0]) ;
+      cnt++;
+    }
+  }
+
+  if(cnt == 0) {
+    if(dist[0] < 0) cut = 0; // cell inside the ball
+    else cut = 2; // cell outside the ball
+    return;
+  }
+  else {
+    cut = 1;
+    if(theta[0] > theta[1]) {
+      std::swap(theta[0], theta[1]);
+    }
+    double DT = theta[1] - theta[0];
+    if(DT > M_PI) {
+      std::swap(theta[0], theta[1]);
+      theta[1] += 2. * M_PI;
+      DT = theta[1] - theta[0];
+    }
+    xm.resize(dim);
+
+    d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+    a.resize(dim);
+    a[0] = -cos(theta[0] + 0.5 * DT);
+    a[1] = -sin(theta[0] + 0.5 * DT);
+
+    for(unsigned k = 0; k < dim; k++) {
+      xm[k] = -a[k] * d + xg[k];
+    }
+    d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
+
+    //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+    //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+
+    double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+    d = d2 * tan(0.5 * DT);
+
+    std::cout.precision(14);
+
+
+
+
+
+    std::vector<double> xi(dim);
+
+    std::vector < std::vector < double > > J(2, std::vector<double>(2));
+    J[0][0] = (-x1 + x2);
+    J[0][1] = (-x1 + x3);
+
+    J[1][0] = (-y1 + y2);
+    J[1][1] = (-y1 + y3);
+
+    double den = (x3 * y1 - x1 * y3 + x2 * J[1][1] - y2 * J[0][1]);
+
+    xi[0] = (x3 * y1 - x1 * y3 + xm[0] * J[1][1] - xm[1] * J[0][1]) / den;
+    xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
+
+
+    //std::cout << xi[0] << " " << xi[1] << std::endl;
+
+
+    b.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        b[k] += J[j][k] * a[j];
+      }
+    }
+    double bNorm = sqrt(b[0] * b[0] + b[1] * b[1]);
+    b[0] /= bNorm;
+    b[1] /= bNorm;
+    db = - b[0] * xi[0] - b[1] * xi[1];
+
+
+    //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
+  }
+}
+
+
+
+
+
+
+
+
+void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &a2, double & d2, unsigned & cut) {
+
+  const unsigned dim =  3;
+  const unsigned nve =  4;
+
+  //std::cout<<nve<<std::endl;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& x4 = xv[0][3];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+  const double& y4 = xv[1][3];
+
+  double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1) + fabs(x4 - x1) + fabs(x4 - x2) + fabs(x4 - x3)) / 6.;
+  double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1) + fabs(y4 - y1) + fabs(y4 - y2) + fabs(y4 - y3)) / 6.;
+  double h = sqrt(hx * hx + hy * hy);
+  double eps = 1.0e-10 * h;
+
+  std::vector<double> dist(nve, 0);
+  std::vector<double> dist0(nve);
+  unsigned cnt0 = 0;
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0;  k < dim; k++) {
+      dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
+    }
+    dist[i] = sqrt(dist[i]) - R;
+
+    if(fabs(dist[i]) < eps) {
+      dist0[i] = (dist[i] < 0) ? -eps : eps;
+      dist[i] = 0.;
+      cnt0++;
+    }
+    else {
+      dist0[i] = dist[i];
+    }
+  }
+
+  if(cnt0 > 0) {
+    unsigned cntp = 0;
+    for(unsigned i = 0; i < nve; i++) {
+      if(dist[i] > 0) cntp++;
+      dist[i] = dist0[i];
+    }
+    if(cntp == 0) { // the element is inside the ball
+      cut = 0;
+      return;
+    }
+    else if(cntp == nve - cnt0) {  // the element in outside the ball
+      cut = 2;
+      return;
+    }
+  }
+
+  std::vector < std::vector <double> > y(6, std::vector<double>(dim));
+  unsigned cnt = 0;
+  for(unsigned i = 0; i < nve - 1; i++) {
+    for(unsigned j = i + 1; j < nve; j++) {
+      if(dist[i] * dist[j] < 0) {
+        double s = 0.5  * (1 + (dist[i] + dist[j]) / (dist[i] - dist[j]));
+        for(unsigned k = 0; k < dim; k++) {
+          y[cnt][k] = (1. - s) * xv[k][i] + s * xv[k][j];
+        }
+        cnt++;
+      }
+    }
+  }
+
+  if(cnt == 0) {
+    if(dist[0] < 0) cut = 0; // cell inside the ball
+    else cut = 2; // cell outside the ball
+    return;
+  }
+  else {
+    cut = 1;
+
+    std::vector <double> yg(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned i = 0; i < cnt; i++) {
+        yg[k] += y[i][k];
+      }
+      yg[k] /= cnt;
+    }
+
+    std::vector < std::vector <double> > b(cnt, std::vector<double>(dim));
+    for(unsigned k = 0; k < dim; k++) {
+      a[k] = yg[k] - xg[k];
+      for(unsigned i = 0; i < cnt; i++) {
+        b[i][k] = y[i][k] - xg[k];
+      }
+    }
+    double an = 0.;
+    std::vector <double> bn(cnt, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      an += a[k] * a[k];
+      for(unsigned i = 0; i < cnt; i++) {
+        bn[i] += b[i][k] * b[i][k];
+      }
+    }
+    an = sqrt(an);
+    for(unsigned i = 0; i < cnt; i++) {
+      bn[i] = sqrt(bn[i]);
+    }
+
+
+    double phig = 0;
+    for(unsigned i = 0; i < cnt; i++) {
+      double phii = 0;
+      for(unsigned k = 0; k < dim; k++) {
+        phii += a[k] * b[i][k];
+      }
+      phii = acos(phii / (an * bn[i]));
+      phig += phii;
+    }
+    phig /= cnt;
+    double H = R * pow( 2. * (1. - cos(phig)) / ( tan(phig) * tan(phig) ), 1./3.);
+
+    xm.resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+        xm[k] = xg[k] - a[k] / an * H;
+    }
+
+
+/*
+    if(theta[0] > theta[1]) {
+      std::swap(theta[0], theta[1]);
+    }
+    double DT = theta[1] - theta[0];
+    if(DT > M_PI) {
+      std::swap(theta[0], theta[1]);
+      theta[1] += 2. * M_PI;
+      DT = theta[1] - theta[0];
+    }
+    xm.resize(dim);
+
+    d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+    a.resize(dim);
+    a[0] = -cos(theta[0] + 0.5 * DT);
+    a[1] = -sin(theta[0] + 0.5 * DT);
+
+    for(unsigned k = 0; k < dim; k++) {
+      xm[k] = -a[k] * d + xg[k];
+    }
+    d += - a[0] * xg[0] - a[1] * xg[1]; //TODO*/
+
+    //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+    //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
+/*
+    double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+    d = d2 * tan(0.5 * DT);*/
+
+    std::cout.precision(14);
+
+
+
+
+
+    std::vector<double> xi(dim);
+
+    std::vector < std::vector < double > > J(2, std::vector<double>(2));
+    J[0][0] = (-x1 + x2);
+    J[0][1] = (-x1 + x3);
+
+    J[1][0] = (-y1 + y2);
+    J[1][1] = (-y1 + y3);
+
+    double den = (x3 * y1 - x1 * y3 + x2 * J[1][1] - y2 * J[0][1]);
+
+    xi[0] = (x3 * y1 - x1 * y3 + xm[0] * J[1][1] - xm[1] * J[0][1]) / den;
+    xi[1] = (x1 * y2 - x2 * y1 - xm[0] * J[1][0] + xm[1] * J[0][0]) / den;
+
+
+    //std::cout << xi[0] << " " << xi[1] << std::endl;
+
+
+    a2.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        a2[k] += J[j][k] * a[j];
+      }
+    }
+    double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1]);
+    a2[0] /= bNorm;
+    a2[1] /= bNorm;
+    d2 = - a2[0] * xi[0] - a2[1] * xi[1];
+
+
+    //std::cout << b[0] << " " << b[1] << " " << db << " " << std::endl;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 void SimpleNonlocalAssembly(MultiLevelProblem & ml_prob) {
