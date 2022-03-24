@@ -90,7 +90,7 @@ int main (int argc, char** args) {
   mlSol.Initialize ("All");
 
   mlSol.AttachSetBoundaryConditionFunction (SetBoundaryCondition);
-  mlSol.GenerateBdc ("All");
+  mlSol.GenerateBdc ("All"); //??
 
   BuildFlag (mlSol);
 
@@ -126,18 +126,18 @@ int main (int argc, char** args) {
 
   return 0;
 }
-
-
+ 
 void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
+  //  ml_prob is a big guy. it has multilevel problem, solution, mesh 
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
-  //  levelMax is the Maximum level of the MultiLevelProblem
+//automatic differentiation//automatic differentiation//automatic differentiation  //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
+  //
   // call the adept stack object
 
 
-  adept::Stack& s = FemusInit::_adeptStack;
+  adept::Stack& s = FemusInit::_adeptStack;//due to automatic differentiation 
 
   //  extract pointers to the several objects that we are going to use
 
@@ -200,10 +200,11 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
     short unsigned ielGeom = msh->GetElementType (iel);
     unsigned nDofu  = msh->GetElementDofNumber (iel, soluType); // number of solution element dofs
 
+    
     unsigned eFlag = static_cast <unsigned> (floor ( (*sol->_Sol[eflagIndex]) (iel) + 0.5));
 
     // resize local arrays
-    l2GMap.resize (2 * nDofu);
+    l2GMap.resize (2 * nDofu);//at the end we have both u1 and u2. therefore size should be double 
     solu1.resize (nDofu);
     solu2.resize (nDofu);
     nodeFlag.resize (nDofu);
@@ -241,16 +242,19 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
 
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
+    
+    
     if (eFlag == 0 || eFlag == 2) {
       // *** Element Gauss point loop ***
-      for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
-        // *** get gauss point weight, test function and test function partial derivatives ***
+      for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) { 
+        // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
         msh->_finiteElement[ielGeom][soluType]->Jacobian (x, ig, weight, phi, phi_x);
 
         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
+        //why gradient of solution adouble?, because solution is adouble variable
         vector < adept::adouble > gradSolu1g (dim, 0.);
         vector < adept::adouble > gradSolu2g (dim, 0.);
-
+        //gradient of the solution at gauss point // 'k' is for dimension and 'i' is for nodes of the mesh 
         for (unsigned i = 0; i < nDofu; i++) {
           for (unsigned k = 0; k < dim; k++) {
             gradSolu1g[k] += phi_x[i * dim + k] * solu1[i];
@@ -263,17 +267,17 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
 
           adept::adouble graduGradphi1 = 0.;
           adept::adouble graduGradphi2 = 0.;
-
+          //right hand side a(u,v)
           for (unsigned k = 0; k < dim; k++) {
             graduGradphi1 += gradSolu1g[k] * phi_x[i * dim + k];
             graduGradphi2 += gradSolu2g[k] * phi_x[i * dim + k];
           }
 
 
-          if (eFlag == 0) {
+          if (eFlag == 0) {//we are on the left of the domain
             aResu1[i] += (- phi[i] + alpha1 * graduGradphi1) * weight;
             if (nodeFlag[i] != 1) {
-              aResu2[i] += (graduGradphi2) * weight;
+              aResu2[i] += (graduGradphi2) * weight;//fake equations?? 
             }
           }
           else if (eFlag == 2) {
@@ -548,26 +552,27 @@ void BuildFlag (MultiLevelSolution& mlSol) {
   unsigned nflagType = mlSol.GetSolutionType (nflagIndex);//giving us the type order of finite element (lagrange second)
   //we already know eflag type as it is piecewise constant
 
-  unsigned biquadraticType = 2;
+  unsigned biquadraticType = 2; //2 is the indicator of biquadratic type
   
   sol->_Sol[eflagIndex]->zero();//setting elagindex to zero
   sol->_Sol[nflagIndex]->zero();
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  std::vector < std::vector<double> >  x (dim);//standard vector which will store coordinates of dofs?
-
+  std::vector < std::vector<double> >  x (dim);//standard vector which will store coordinates of mesh
+  //each element has several nodes. each nodes has dim number of coodinates. 
+  
   //loop on the element
   for (int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType (iel);//since we are paticular element we can extract the geomery of the element. it can be square, triangle..1D 2D
-    unsigned nDofs  = msh->GetElementDofNumber (iel, nflagType); // number of solution element dofs
+    unsigned nDofs  = msh->GetElementDofNumber (iel, nflagType); // number of solution element dofs //number of ndofs depend on two parameters, element you are looking at and type of solution 
 
     for (int k = 0; k < dim; k++) {
       x[k].resize (nDofs); // rezising to storing coodinates related to nDofs
     }
-    //extracting coodinates of the dofs
+    //extracting coodinates of the ndofs
     for (unsigned i = 0; i < nDofs; i++) {
-      unsigned xDof  = msh->GetSolutionDof (i, iel, biquadraticType);   // global to global mapping between coordinates node and coordinate dof
+      unsigned xDof  = msh->GetSolutionDof (i, iel, biquadraticType);   // local to global mapping between coordinates node and coordinate dofs
       for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k]) (xDof);     // global extraction and local storage for the element coordinates
       }
