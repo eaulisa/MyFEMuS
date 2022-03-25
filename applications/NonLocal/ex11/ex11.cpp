@@ -60,10 +60,9 @@ const elem_type *finiteElementQuad;
 
 int main(int argc, char** argv) {
 
-
-  std::vector<std::vector<double>> xt = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-  std::vector< double > xg1 = {-1, -1, -1};
-  double R1 = 2.;
+  std::vector<std::vector<double>> xt = {{0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0 , 0, 1}};
+  std::vector< double > xg1 = {0., 0., -1.};
+  double R1 = 1.8;
   std::vector<double> a10;
   double d10;
   std::vector<double> xm1;
@@ -893,9 +892,9 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 
     std::vector < std::vector <double> > b(cnt, std::vector<double>(dim));
     for(unsigned k = 0; k < dim; k++) {
-      a[k] = yg[k] - xg[k];
+      a[k] = xg[k] - yg[k] /*- xg[k]*/;
       for(unsigned i = 0; i < cnt; i++) {
-        b[i][k] = y[i][k] - xg[k];
+        b[i][k] = xg[k] - y[i][k] /*- xg[k]*/;
       }
     }
     double an = 0.;
