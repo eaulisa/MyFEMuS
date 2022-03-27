@@ -310,8 +310,8 @@ void AssembleNitscheProblem_AD (MultiLevelProblem& ml_prob) {
       std::vector <double> N (dim, 0.);
       N[0] = -1.;
 
-      std::vector <double> H (dim);
-      std::vector <double> XC (dim);
+      std::vector <double> H (dim); //height of the element
+      std::vector <double> XC (dim);//center of the element
       if (dim == 1) {
         H[0] = fabs (x[0][1] - x[0][0]);
         XC[0] = 0.5 * (x[0][1] + x[0][0]);
