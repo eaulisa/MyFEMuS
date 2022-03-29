@@ -122,6 +122,10 @@ class CutFemWeight {
     unsigned GetGaussQuadratureOrder() {
       return _gaussOrder;
     }
+    
+    unsigned GetDimension() {
+      return _dim;
+    }
 
     const double* GetGaussWeightPointer() {
       return _gauss->GetGaussWeightsPointer();
