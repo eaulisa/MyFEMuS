@@ -840,8 +840,8 @@ int main(int, char**) {
   typedef double myType;
 
   bool line = false;//true;
-  bool quad = false;//false
-  bool triangle = true;//true;
+  bool quad = true;//false
+  bool triangle = false;//true;
   bool hexahedron = false;//true;
   bool tetrahedron = false;//true;//false;//true;//true;
 

@@ -473,7 +473,7 @@ std::vector<std::vector<Type>> GetMassMatrix(int element, int degree) {
         m[count] = j;
         n[count] = i - j;
         count++;
-        //std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
+        std::cout << "i - j = " << i - j << " j = " << j <<  std::endl;
 
       }
 
@@ -624,15 +624,16 @@ int main(int, char**) {
   AAP[0].resize(A[0].size());
   int d = 5;
   int c = ((d + 1) * (d + 2) * (d + 3)) / 6;
+  int c2 = ((d + 1) * (d + 2)) / 2;
   myTypeB f = 0;
-  std::vector<std::vector<myTypeB>> AT(c, std::vector<myTypeB>(c, myTypeB(0)));
+  std::vector<std::vector<myTypeB>> AT(c2, std::vector<myTypeB>(c, myTypeB(0)));
   //DotProduct(Av, Avv);
   //std::vector<myTypeB> R = ExtractVector(AA, 4, 1);
   //AAP = MatrixMatrixMultiply(AA, A);
   //Avr = MatrixVectorMultiply(AA, Av);
   //AA = ModifiedGramSchmidt(AT);
   //AT = Transpose(A);
-  AT = GetMassMatrix <myTypeB>(0, d);
+  AT = GetMassMatrix <myTypeB>(4, d);
   ModifiedGramSchmidt(AT);
 
 //   for(unsigned i = 0; i < R.size(); i++) {
