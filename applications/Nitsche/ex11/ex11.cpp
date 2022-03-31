@@ -24,7 +24,7 @@
 using namespace femus;
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
-void BuildFlag(MultiLevelSolution& mlSol);
+void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const double &d); // the normal a points to Omega1, a[0] x +a[1] y +a[2] z + d = 0
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut);
 
@@ -96,7 +96,7 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");  //??
 
-  BuildFlag(mlSol);
+  BuildFlag(mlSol, {-1, 0}, 0);
 
   MultiLevelProblem ml_prob(&mlSol);
 
@@ -284,7 +284,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
           if(eFlag == 0) { //we are on the left of the domain
             aResu1[i] += (- phi[i] + alpha1 * graduGradphi1) * weight;
             if(nodeFlag[i] != 1) {
-              aResu2[i] += (graduGradphi2) * weight;//fake equations for u2 in Omega1 open 
+              aResu2[i] += (graduGradphi2) * weight;//fake equations for u2 in Omega1 open
             }
           }
           else if(eFlag == 2) {
@@ -306,8 +306,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       getNormalInReferenceSystem(x, N, a);
       double d = 0; //plane passsing through center *************
 
-      std::cout << sqrt(a[0]*a[0] + a[1]*a[1]) << " ";
-
       std::vector<double> eqPoly1;
       quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0********
 
@@ -317,36 +315,25 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       std::vector<double> eqPolyI;
       quad.GetWeightWithMap(-1, a, d, eqPolyI);//s=-1************
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-      std::vector <double> H (dim); //height of the element
-      std::vector <double> XC (dim);//center of the element
-      if (dim == 1) {
-        H[0] = fabs (x[0][1] - x[0][0]);
-=======
-      std::vector <double> H(dim);
-      std::vector <double> XC(dim);
-      if(dim == 1) {
-        H[0] = fabs(x[0][1] - x[0][0]);
->>>>>>> bd905de57997eaf2d6b48cbd72ce92d4492dd903
-        XC[0] = 0.5 * (x[0][1] + x[0][0]);
-      }
-      else if(dim == 2) {
-        H[0] = fabs(x[0][2] - x[0][0]);
-        H[1] = fabs(x[1][2] - x[1][0]);
-=======
       const elem_type *thisfem = fem.GetFiniteElement(ielGeom, soluType);
->>>>>>> 06dd7f8f5718e47c475bd94b2eb5af344b4dcfc7
-
-
-      double L = 0.;
-
 
       for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
         // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
+
+        std::vector<std::vector<double>> Jac, JacI;
+        thisfem->GetJacobianMatrix(x, ig, weight, Jac, JacI);
+
         thisfem->Jacobian(x, ig, weight, phi, phi_x);
 
-        L += weight * eqPolyI[ig];
+        double dsN = 0;
+        for(unsigned i = 0; i < dim; i++) {
+          double dsi = 0.;
+          for(unsigned j = 0; j < dim; j++) {
+            dsi += JacI[j][i] * a[j];
+          }
+          dsN += dsi * dsi;
+        }
+        dsN = sqrt(dsN);
 
         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
         //why gradient of solution adouble?, because solution is adouble variable
@@ -368,7 +355,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         adept::adouble solu1g  = 0.;
         adept::adouble solu2g  = 0.;
         adept::adouble alphaGradSoluDotN = 0.;
-        
+
         //before gradsolu loop? ***************
         for(unsigned i = 0; i < nDofu; i++) {
           solu1g += phi[i] * solu1[i];
@@ -396,210 +383,14 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
             gradPhiDotN += phi_x[i * dim + k] * N[k];
           }
 
-          aResu1[i] += (solu2g - solu1g) * (-phi[i] * theta - alpha1 * gamma1 * gradPhiDotN) * weight * eqPolyI[ig]/(0.027027/2);
-          aResu1[i] += alphaGradSoluDotN * (+phi[i]) * weight * eqPolyI[ig]/(0.027027/2);
-          aResu2[i] += (solu2g - solu1g) * (+phi[i] * theta - alpha2 * gamma2 * gradPhiDotN) * weight * eqPolyI[ig]/(0.027027/2);
-          aResu2[i] += alphaGradSoluDotN * (-phi[i]) * weight * eqPolyI[ig]/(0.027027/2);
+          aResu1[i] += (solu2g - solu1g) * (-phi[i] * theta - alpha1 * gamma1 * gradPhiDotN) * weight * eqPolyI[ig] * dsN;
+          aResu1[i] += alphaGradSoluDotN * (+phi[i]) * weight * eqPolyI[ig] * dsN;
+          aResu2[i] += (solu2g - solu1g) * (+phi[i] * theta - alpha2 * gamma2 * gradPhiDotN) * weight * eqPolyI[ig] * dsN;
+          aResu2[i] += alphaGradSoluDotN * (-phi[i]) * weight * eqPolyI[ig] * dsN;
 
 
         } // end phi_i loop
       } // end gauss point loop
-
-      std::cout << L << " ";
-      /*
-            // *** Element Gauss point loop ***
-
-            std::string elemGeometry;
-            if(dim == 1) elemGeometry = "line";
-            else if(dim == 2) elemGeometry = "quad";
-            else if(dim == 3) elemGeometry = "hex";
-
-            Gauss gpBulk(elemGeometry.c_str(), "seventh");
-
-            for(unsigned jtype = 0; jtype < soluType + 1; jtype++) {
-              ProjectNodalToPolynomialCoefficients(aP[jtype], x, ielGeom, jtype) ;
-            }
-
-            //bulk1
-
-
-            std::vector <double> H(dim);
-            std::vector <double> XC(dim);
-            if(dim == 1) {
-              H[0] = fabs(x[0][1] - x[0][0]);
-              XC[0] = 0.5 * (x[0][1] + x[0][0]);
-            }
-            else if(dim == 2) {
-              H[0] = fabs(x[0][2] - x[0][0]);
-              H[1] = fabs(x[1][2] - x[1][0]);
-
-              XC[0] = 0.5 * (x[0][2] + x[0][0]);
-              XC[1] = 0.5 * (x[1][2] + x[1][0]);
-            }
-            else if(dim == 3) {
-              H[0] = fabs(x[0][6] - x[0][0]);
-              H[1] = fabs(x[1][6] - x[1][0]);
-              H[2] = fabs(x[2][6] - x[2][0]);
-
-              XC[0] = 0.5 * (x[0][6] + x[0][0]);
-              XC[1] = 0.5 * (x[1][6] + x[1][0]);
-              XC[2] = 0.5 * (x[2][6] + x[2][0]);
-            }
-
-
-            unsigned NGPB = gpBulk.GetGaussPointsNumber();
-            std::vector < const double * > xig(dim);
-            for(unsigned k = 0; k < dim; k++) {
-              xig[k] = gpBulk.GetGaussCoordinatePointer(k);
-            }*/
-
-//       for(unsigned ig = 0; ig < NGPB; ig++) {
-//         std::vector < double > xg(dim);
-//         xg[0] = (XC[0] - 0.25 * H[0]) + (xig[0][ig]) * 0.25 * H[0] ;
-//         for(unsigned k = 1; k < dim; k++) {
-//           xg[k] = XC[k] + (xig[k][ig]) * 0.5 * H[k] ;
-//         }
-//
-//         std::vector <double> xi(dim, 0.);
-//         GetClosestPointInReferenceElement(x, xg, ielGeom, xi);
-//         bool inverseMapping = GetInverseMapping(soluType, ielGeom, aP, xg, xi, 100);
-//
-//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-//         double Area = 0.5 * H[0];
-//         double Area0 = 2.;
-//         for(unsigned k = 1; k < dim; k++) {
-//           Area *= H[k];
-//           Area0 *= 2.;
-//         }
-//         weight = gpBulk.GetGaussWeight(ig) * Area / Area0;
-//
-//         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-//         vector < adept::adouble > gradSolu1g(dim, 0.);
-//         for(unsigned i = 0; i < nDofu; i++) {
-//           for(unsigned k = 0; k < dim; k++) {
-//             gradSolu1g[k] += phi_x[i * dim + k] * solu1[i];
-//           }
-//         }
-//
-//         // *** phi_i loop ***
-//         for(unsigned i = 0; i < nDofu; i++) {
-//           adept::adouble graduGradphi1 = 0.;
-//           for(unsigned k = 0; k < dim; k++) {
-//             graduGradphi1 += gradSolu1g[k] * phi_x[i * dim + k];
-//           }
-//           aResu1[i] += (-phi[i] + alpha1 * graduGradphi1) * weight;
-//         }
-//       }
-
-//       // interface
-//       std::string InterfaceGeometry;
-//       if(dim == 1) InterfaceGeometry = "point";
-//       else if(dim == 2) InterfaceGeometry = "line";
-//       else if(dim == 3) InterfaceGeometry = "quad";
-//
-//       Gauss gpInt(elemGeometry.c_str(), "seventh");
-//       unsigned NGPI = gpInt.GetGaussPointsNumber();
-//       for(unsigned k = 1; k < dim; k++) {
-//         xig[k] = gpInt.GetGaussCoordinatePointer(k - 1);
-//       }
-//
-//       for(unsigned ig = 0; ig < gpInt.GetGaussPointsNumber(); ig++) {
-//         std::vector < double > xg(dim);
-//
-//         xg[0] = XC[0];
-//
-//         for(unsigned k = 1; k < dim; k++) {
-//           xg[k] = XC[k] + xig[k][ig] * 0.5 * H[k] ;
-//         }
-//
-//         std::vector <double> xi(dim, 0.);
-//         GetClosestPointInReferenceElement(x, xg, ielGeom, xi);
-//         bool inverseMapping = GetInverseMapping(soluType, ielGeom, aP, xg, xi, 100);
-//
-//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-//         double Area = 1.;
-//         double Area0 = 1.;
-//         for(unsigned k = 1; k < dim; k++) {
-//           Area *= H[k];
-//           Area0 *= 2.;
-//         }
-//         weight = gpInt.GetGaussWeight(ig) * Area / Area0;
-//
-//         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-//
-//         double theta = 1.;
-//         double gamma1 = 0.5;
-//         double gamma2 = 0.5;
-//
-//         adept::adouble solu1g  = 0.;
-//         adept::adouble solu2g  = 0.;
-//         adept::adouble alphaGradSoluDotN = 0.;
-//
-//         for(unsigned i = 0; i < nDofu; i++) {
-//           solu1g += phi[i] * solu1[i];
-//           solu2g += phi[i] * solu2[i];
-//           for(unsigned k = 0; k < dim; k++) {
-//             alphaGradSoluDotN += (alpha1 * gamma1  * solu1[i] + alpha2 * gamma2 * solu2[i]) * phi_x[i * dim + k] * N[k];
-//           }
-//         }
-//
-//         // *** phi_i loop ***
-//         for(unsigned i = 0; i < nDofu; i++) {
-//
-//           adept::adouble gradPhiDotN = 0.;
-//           for(unsigned k = 0; k < dim; k++) {
-//             gradPhiDotN += phi_x[i * dim + k] * N[k];
-//           }
-//
-//           aResu1[i] += (solu2g - solu1g) * (-phi[i] * theta - alpha1 * gamma1 * gradPhiDotN) * weight;
-//           aResu1[i] += alphaGradSoluDotN * (+phi[i]) * weight;
-//           aResu2[i] += (solu2g - solu1g) * (+phi[i] * theta - alpha2 * gamma2 * gradPhiDotN) * weight;
-//           aResu2[i] += alphaGradSoluDotN * (-phi[i]) * weight;
-//         } // end phi_i loop
-//
-//       }
-
-//       //bulk2
-//       for(unsigned k = 0; k < dim; k++) {
-//         xig[k] = gpBulk.GetGaussCoordinatePointer(k);
-//       }
-
-//       for(unsigned ig = 0; ig < gpBulk.GetGaussPointsNumber(); ig++) {
-//         std::vector < double > xg(dim);
-//         xg[0] = (XC[0] + 0.25 * H[0]) + xig[0][ig] * 0.25 * H[0] ;
-//         for(unsigned k = 1; k < dim; k++) {
-//           xg[k] = XC[k] + xig[k][ig] * 0.5 * H[k] ;
-//         }
-//
-//         std::vector <double> xi(dim, 0.);
-//         GetClosestPointInReferenceElement(x, xg, ielGeom, xi);
-//         bool inverseMapping = GetInverseMapping(soluType, ielGeom, aP, xg, xi, 100);
-//
-//         msh->_finiteElement[ielGeom][soluType]->Jacobian(x, xi, weight, phi, phi_x);
-//         double Area = 0.5 * H[0];
-//         double Area0 = 2.;
-//         for(unsigned k = 1; k < dim; k++) {
-//           Area *= H[k];
-//           Area0 *= 2.;
-//         }
-//         weight = gpBulk.GetGaussWeight(ig) * Area / Area0;
-//
-//         vector < adept::adouble > gradSolu2g(dim, 0.);
-//         for(unsigned i = 0; i < nDofu; i++) {
-//           for(unsigned k = 0; k < dim; k++) {
-//             gradSolu2g[k] += phi_x[i * dim + k] * solu2[i];
-//           }
-//         }
-//
-//         // *** phi_i loop ***
-//         for(unsigned i = 0; i < nDofu; i++) {
-//           adept::adouble graduGradphi2 = 0.;
-//           for(unsigned k = 0; k < dim; k++) {
-//             graduGradphi2 += gradSolu2g[k] * phi_x[i * dim + k];
-//           }
-//           aResu2[i] += (-phi[i] + alpha2 * graduGradphi2) * weight;
-//         }
-//       }
     }
 
     //copy the value of the adept::adoube aRes in double Res and store
@@ -650,7 +441,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //***************** END ASSEMBLY *******************
 }
 
-void BuildFlag(MultiLevelSolution& mlSol) {
+void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const double &d) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1? c/c++ notation
   //object we have is multilevel Solution. we need to extract highest level of the solution.
@@ -684,38 +475,32 @@ void BuildFlag(MultiLevelSolution& mlSol) {
       x[k].resize(nDofs);  // rezising to storing coodinates related to nDofs
     }
     //extracting coodinates of the ndofs
+    double pcnt = 0;
+    double mcnt = 0;
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned xDof  = msh->GetSolutionDof(i, iel, biquadraticType);    // local to global mapping between coordinates node and coordinate dofs
+      double dist = d;
       for(unsigned k = 0; k < dim; k++) {
-        x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
+        x[k][i] = (*msh->_topology->_Sol[k])(xDof);
+        dist += a[k] * x[k][i];// global extraction and local storage for the element coordinates
       }
+      if(dist > 0) pcnt++;
+      else if(dist < 0) mcnt++;
     }
-    //just going to identify element is cutfem or not based on the position of the nodes
-    bool interface = false;
-    double signi = (x[0][0] < 0.) ? -1. : 1.;
-    for(unsigned j = 1; j < nDofs; j++) {
-      double signj = (x[0][j] < 0.) ? -1. : 1.;
-      if(signi != signj) {
-        interface = true;
-        break;
-      }
+
+    if(pcnt == 0) {
+      sol->_Sol[eflagIndex]->set(iel, 2.);
     }
-    //if the interface is true,
-    if(interface) {
-      sol->_Sol[eflagIndex]->set(iel, 1.); //since this is a piecewise defined quantity, the local to global mapping is an identity: iel->iel
+    else if(mcnt != 0) {
+      sol->_Sol[eflagIndex]->set(iel, 1.);
       for(unsigned i = 0; i < nDofs; i++) {
         unsigned iDof = msh->GetSolutionDof(i, iel, nflagType);
         sol->_Sol[nflagIndex]->set(iDof, 1.);
       }
-    }// if the interface is not true only thing we have to do is change eflag from 0 to 2
-    else if(x[0][0] > 0.) {
-      sol->_Sol[eflagIndex]->set(iel, 2.);
     }
   }
-
   sol->_Sol[eflagIndex]->close();
   sol->_Sol[nflagIndex]->close();
-
 }
 
 
