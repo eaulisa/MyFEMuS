@@ -78,13 +78,13 @@ TypeA F1(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA>
       }
 
       sum += (sumk * c1 * pow(a[0], j) * pow(d, s - i - j) * factorial<TypeA>(M)) / (factorial<TypeA>(s - i - j) *  factorial<TypeA>(j) * (m[0] + j + 1));
-        //std::cout << "sumk = " << sumk << std::endl;
+      //std::cout << "sumk = " << sumk << std::endl;
     }
   }
 
   if(d == -2) {
     //std::cout << "F1 = " << sum << std::endl;
-    
+
   }
 
   return sum;
@@ -102,13 +102,13 @@ TypeA F(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> 
     for(unsigned k = 0; k <= s - i; k++) {
       sum += c1 * pow(a[0], k) * pow(d, s - i - k) * (pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1)) / //TODO build F0 and F1
              (factorial<TypeA>(s - i - k) *  factorial<TypeA>(k) * (m[0] + k + 1));
-             //std::cout << "stuff = " << pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1) << std::endl;
+      //std::cout << "stuff = " << pow(x2, m[0] + k + 1) - pow(x1, m[0] + k + 1) << std::endl;
     }
   }
   if(d == -2) {
     //std::cout << "F = " << sum << std::endl;
   }
-  
+
   return  sum;
 }
 
@@ -252,15 +252,15 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m_input, const std::ve
           statements[5] = true;
         }
         else {
-            
-            //SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
-          SQI =  F1<TypeA>(s, m, a, d, 1 - xf) - G1<TypeA>(s, m, a, d, 1 - xf);   //xg=1,xf=0,d=-1,a[0]=a[1]=1
+
+          SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1)  ; //xg=1,xf=0,d=-1,a[0]=a[1]=1
+          //SQI =  F1<TypeA>(s, m, a, d, 1 - xf) - G1<TypeA>(s, m, a, d, 1 - xf);   //xg=1,xf=0,d=-1,a[0]=a[1]=1
           //SQI =  F<TypeA>(s, m, a, d, xf, 1) - G<TypeA>(s, m, a, d, xf, 1); //xg=1,xf=0,d=-1,a[0]=a[1]=1
 
           //std::cout << "SQI11 = " << SQI << std::endl;
-          
+
           //std::cout << "SQI = " << SQI << std::endl;
-          //std::cout << "statement 6**************** " << std::endl;
+          std::cout << "statement 6**************** " << std::endl;
           statements[6] = true;
         }
       }
@@ -317,6 +317,9 @@ TypeIO SquareA(const int &s, const std::vector<unsigned> &m_input, const std::ve
         }
         else if(xg > 0) {
           SQI =  G0<TypeA>(s, m, a, d, xg);
+          //SQI =  G<TypeA>(s, m, a, d, 0, xg);
+          //std::cout << "statement 17 ++++++++++++++++++++++ " << std::endl;
+
           statements[17] = true;
         }
       }
@@ -961,6 +964,8 @@ int main() {
   double dt = 0.;
   double delta = 0.;
   double temp1 = 0.;
+  
+  
 
 //   for(unsigned k = 0; k < 401; k++) {
 //
@@ -1304,23 +1309,39 @@ int main() {
 //
 //   }
 
+  typedef boost::multiprecision::cpp_bin_float_oct myTypeB;
 
-  a[0] = 1.001;
-  a[1] = 1;
+  a[0] = -1.0e-6;
+  a[1] = -1.0e-6;
 
   m[0] = 0;
   m[1] = 0;
-  d = -2.;
+  d = 1.0e-6;
+  double I1;
+  myTypeB I2;
   std::cout << "d =  -" << d << " m = " << m[0] << " n =  " << m[1] << " value = " << SquareA<double, double>(0, m, a, d) << std::endl;
 
-  for(int i = 0; i < 5; i++) {
-    m[0] = i + 1;
-    for(int k = 0; k < 5; k++) {
-
-      m[1] = k + 1;
-      std::cout << "d =  " << d << " m = " << m[0] << " n =  " << m[1] << " value = " << SquareA<double, double>(0, m, a, d) << std::endl;
-    }
-  }
+//   for(int i = 0; i < 28; i++) {
+//     m[0] = i + 1;
+//     for(int k = 0; k < 12; k++) {
+// 
+//       m[1] = k + 1;
+// //       std::cout << "d =  " << d << " m = " << m[0] << " n =  " << m[1] << " diff = " << abs(SquareA<double, double>(0, m, a, d) - SquareA<double, myTypeB>(0, m, a, d)) << std::endl;
+// 
+//       I1 = SquareA<double, double>(0,  m, a, d);
+//       I2 = SquareA<double, myTypeB>(0,  m, a, d);
+//       if((I2 != 0. &&  fabs((I1 - I2) / I2) < 5.0e-12) || I1 == 0.) {
+//         std::cout << "passed ";
+//         std::cout << "s = " << 0 << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I = " << I1 << std::endl;
+//       }
+//       else {
+//         std::cout << "Warning failed ";
+//         std::cout << "s = " << 0 << " a = " << a[0] << " b = " << a[1] << " d = " << d << " I1 =" << I1 << " I2 = " << I2 << std::endl;
+//         std::cout << " m = " << m[0] << " n =  " << m[1] << std::endl;
+//       }
+// 
+//     }
+//   }
 
 
 
