@@ -144,10 +144,13 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
-  std::cout << muMpm << " " << lambdaMpm << " " << nuMpm << std::endl;
-  std::cout << rhoMpm << " " << EMpm << " " << std::endl;
-  std::cout << rhoFluid << " " << muFluid << " " << std::endl;
+  std::cout << "mu_s = " << muMpm    << " lambda_s= " << lambdaMpm << " nu_s = " << nuMpm << std::endl;
+  std::cout << "rho_s = "<< rhoMpm   << " E_s = " << EMpm << std::endl;
+  std::cout << "rho_f = "<< rhoFluid << " mu_f = " << muFluid << std::endl;
 
+  std::cout << "a_f = " << par->_af << " a_m = " << par->_am << std::endl;
+  std::cout << "gamma = " << par->_gamma << " beta = " << par->_beta << std::endl;
+  
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
   double time =  my_nnlin_impl_sys.GetTime();
 
@@ -636,7 +639,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                     FbNew[2][0] * FbNew[1][1] * FbNew[0][2] - FbNew[2][1] * FbNew[1][2] * FbNew[0][0] - FbNew[2][2] * FbNew[1][0] * FbNew[0][1];
           }
 
-          vector<adept::adouble> solVFpOld(dim, 0.); //old fluid velocity
+          vector<double> solVFpOld(dim, 0.); //old fluid velocity
           vector<adept::adouble> solVFp(dim, 0.); // fluid velocity
           vector<adept::adouble> solVFpNew(dim, 0.);  //new fluid velocity
           for(int j = 0; j < dim; j++) {
@@ -685,9 +688,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               }
             }
 
-            weightOld = (1. - U) * areaOld; // areaOld = area at n
-            weight = (1. - U) * areaOld * Jb; // areaOld * Jb = area at theta
-            weightNew = (1. - U) * areaOld * JbNew; // areaOld * JbNew = area at n + 1
+            double dAOld = (1. - U) * areaOld; // areaOld = area at n
+            adept::adouble dA = (1. - U) * areaOld * Jb; // areaOld * Jb = area at theta
+            adept::adouble dANew = (1. - U) * areaOld * JbNew; // areaOld * JbNew = area at n + 1
 
             for(unsigned i = 0; i < nDofs; i++) {
               for(unsigned k = 0; k < dim; k++) {
@@ -698,18 +701,18 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                   advection +=  phi[i] * (solVFp[j] - (solDb[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
                 }
 
-                aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * weightNew - solVFpOld[k] * weightOld) / dt +
+                aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * dANew - solVFpOld[k] * dAOld) / dt +
                                (rhoFluid * advection
                                 + muFluid * laplace
                                 - /*par->_weakP **/ gradPhi[i * dim + k] * solPp
 //                                 + !par->_weakP * phi[i] * gradSolPp[k]
-                               ) * weight;
+                               ) * dA;
               }
             }
 
             for(unsigned i = 0; i < nDofsP; i++) {
               for(unsigned  k = 0; k < dim; k++) {
-                aResP[i] += phiP[i] *  gradSolVpNew[k][k] * weightNew;
+                aResP[i] += phiP[i] *  gradSolVpNew[k][k] * dANew;
               }
             }
           }
@@ -723,7 +726,6 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 
           if(U > 0.1) {
-
 
             std::vector < adept::adouble > solAp(dim); //centered at am
 
@@ -832,6 +834,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             //END computation of the Cauchy Stress
 
             double dM = U * (areaOld / JpOld) * rhoMpm; // (areaOld / JpOld) = areaHat
+            adept::adouble dA = U * areaOld * Jb;
             for(unsigned i = 0; i < nDofs; i++) {
               adept::adouble CauchyDIR[3] = {0., 0., 0.};
               for(unsigned j = 0.; j < dim; j++) {
@@ -842,7 +845,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               //par->_gravity[1] = (time < 2) ? 5 * sin(M_PI / 2.*time) : 0.;
 
               for(unsigned k = 0; k < dim; k++) {
-                aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
+                //aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
+                aResD[k][i] += phi[i] * solAp[k] * dM + CauchyDIR[k] * dA - phi[i] * par->_gravity[k] * dM;
                 //if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
                 if(eFlag == 2) {
                   aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO

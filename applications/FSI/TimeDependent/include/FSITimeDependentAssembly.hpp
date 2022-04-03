@@ -145,6 +145,11 @@ namespace femus {
       std::cout << "Error! Solid Model " << solid_model << "not implemented\n";
       abort();
     }
+    
+    std::cout << " solid_model = " << solid_model << std::endl;
+    std::cout << " mu_lame = " << mu_lame << std::endl;
+    std::cout << " lambda_lame = " << lambda_lame << std::endl;
+    std::cout << " nu = " << ml_prob.parameters.get<Solid>("Solid").get_poisson_coeff() << std::endl;
 
     bool incompressible = (0.5 == ml_prob.parameters.get<Solid>("Solid").get_poisson_coeff()) ? 1 : 0;
     const bool penalty = ml_prob.parameters.get<Solid>("Solid").get_if_penalty();
@@ -750,7 +755,8 @@ namespace femus {
                   aRhs[indexVAR[2 * dim]][i] += -(-phi1[i] * (I_e + (!incompressible) / lambda * SolVAR[2 * dim])) * Weight_hat;
                 }
                 else if (1 == solid_model || 5 == solid_model) {
-                  aRhs[indexVAR[2 * dim]][i] += phi1[i] * (J_hat - 1. + (!incompressible) / lambda * SolVAR[2 * dim]) * Weight_hat;
+                  //aRhs[indexVAR[2 * dim]][i] += phi1[i] * (J_hat - 1. + (!incompressible) / lambda * SolVAR[2 * dim]) * Weight_hat;
+                  aRhs[indexVAR[2*dim]][i] += -(-phi1[i]*( SolVAR[2*dim] ) )*Weight_hat;
                 }
 
 // 		  else if (2 == solid_model){

@@ -905,6 +905,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
 //     }
   }
 
+  std::cout << "gamma = " << _gamma << " beta = " << _beta << " dt = " << _DT << std::endl;
 
   unsigned solTypeM = 2;
 
@@ -988,7 +989,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         double Dnew = _Dm[jproc][k][j];
 
         double Xnew = Xold + Dnew;
-        double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
+        double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) + Aold * (_beta - 0.5) / _beta;
         double Vnew = Vold + (Aold * (1. - _gamma) + Anew * _gamma) * _DT;
 
 //         std::cout.precision(12);
