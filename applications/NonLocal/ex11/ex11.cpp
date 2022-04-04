@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  4
+#define N_UNIFORM_LEVELS  7
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -53,7 +53,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
 void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, double &vol, unsigned &cut);
 
-double getHeightPolyhedronSphereInt(std::vector < std::vector <double> > &b, const double &R);
+double getHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &aN, const std::vector <double> &a, const std::vector <double> &xg, const double &R);
 
 
 const elem_type *finiteElementQuad;
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
           sum += weightG[ig] * weightCF[ig] ;
         }
         volumeBall += 6. * sum * vol;
-        
+
       }
 
 
@@ -797,7 +797,8 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
     }
   }
 
-  std::vector < std::vector <double> > y(6, std::vector<double>(dim));
+  std::vector < std::vector <double> > y(4, std::vector<double>(dim));
+  std::vector < unsigned > i0(4);
   unsigned cnt = 0;
   for(unsigned i = 0; i < nve - 1; i++) {
     for(unsigned j = i + 1; j < nve; j++) {
@@ -806,6 +807,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
         for(unsigned k = 0; k < dim; k++) {
           y[cnt][k] = (1. - s) * xv[k][i] + s * xv[k][j];
         }
+        i0[cnt] = (i + j) - (i == 0);
         cnt++;
       }
     }
@@ -819,6 +821,23 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
   else {
     cut = 1;
 
+    if(cnt == 4) {
+      
+      if((i0[0] == 0 && i0[1] == 1) || (i0[0] == 1 && i0[1] == 2)) {
+        std::swap(y[2], y[3]);
+        std::swap(i0[2], i0[3]);
+      }
+      else {
+        std::swap(y[1], y[3]);
+        std::swap(y[1], y[2]);
+        
+        std::swap(i0[1], i0[3]);
+        std::swap(i0[1], i0[2]);
+      }
+
+      std::cout << i0[0] << " " << i0[1] << " " << i0[2] << " " << i0[3] << std::endl;
+    }
+
     std::vector <double> yg(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned i = 0; i < cnt; i++) {
@@ -831,9 +850,9 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 
     std::vector < std::vector <double> > b(cnt, std::vector<double>(dim));
     for(unsigned k = 0; k < dim; k++) {
-      a[k] = xg[k] - yg[k];
+      a[k] =  yg[k] - xg[k];
       for(unsigned i = 0; i < cnt; i++) {
-        b[i][k] = xg[k] - y[i][k];
+        b[i][k] = y[i][k] - xg[k];
       }
     }
     double an = 0.;
@@ -849,33 +868,45 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
       bn[i] = sqrt(bn[i]);
     }
 
-
-    double phig = 0;
-    for(unsigned i = 0; i < cnt; i++) {
-      double phii = 0;
-      for(unsigned k = 0; k < dim; k++) {
-        phii += a[k] * b[i][k];
+    for(unsigned k = 0; k < dim; k++) {
+      a[k] /= an;
+      for(unsigned i = 0; i < cnt; i++) {
+        b[i][k] /= bn[i];
       }
-      phii = acos(phii / (an * bn[i]));
-      phig += phii;
     }
-    phig /= cnt;
+
+
+
+
+//     double phig = 0;
+//     for(unsigned i = 0; i < cnt; i++) {
+//       double phii = 0;
+//       for(unsigned k = 0; k < dim; k++) {
+//         phii += a[k] * b[i][k];
+//       }
+//       phii = acos(phii / (an * bn[i]));
+//       phig += phii;
+//     }
+//     phig /= cnt;
     //double H = R * pow(2. * (1. - cos(phig)) / (tan(phig) * tan(phig)), 1. / 3.);
-    
-    double H = 0.;
-    
-    if(cnt == 3) H = getHeightPolyhedronSphereInt(b, R);
-    else H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
-    
-    H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
-    
+
+    double H = getHeightPolyhedronSphereInt(b, a, xg, R);
+    //else H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);;
+
+
+
+//     if(cnt == 3) H = getHeightPolyhedronSphereInt(bn, a, R);
+//     else H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
+
+    // H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
+
 
     xm.resize(dim);
     for(unsigned k = 0; k < dim; k++) {
-      xm[k] = xg[k] - a[k] / an * H;
+      xm[k] = xg[k] + a[k] * H;
     }
 
-    std::cout << a[0] << " " << a[1] << " " << a[2] << " \n" << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
+    // std::cout << "\nBBB " << H << " " << a[0] << " " << a[1] << " " << a[2] << " \n" << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
 
 
     /*
@@ -925,8 +956,8 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
     J[2][2] = (-z1 + z4);
 
     double den =   J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1])
-                 - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0])
-                 + J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+                   - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0])
+                   + J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
 
     volume = den / 6.;
 
@@ -947,34 +978,13 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
               x3 * (xm[1] * z1 + y1 * z2 - xm[1] * z2 - y1 * xm[2] + y2 * (-z1 + xm[2]))) / den;
 
 
-//     JI[0][0] = - J[1][2] * J[2][1] + J[1][1] * J[2][2];
-//     JI[0][1] = J[0][2] * J[2][1] - J[0][1] * J[2][2];
-//     JI[0][2] = - J[0][2] * J[1][1] + J[0][1] * J[1][2];
-//
-//     JI[1][0] = J[1][2] * J[2][0] - J[1][0] * J[2][2];
-//     JI[1][1] = - J[0][2] * J[2][0] + J[0][0] * J[2][2];
-//     JI[1][2] = J[0][2] * J[1][0] - J[0][0] * J[1][2];
-//
-//     JI[2][0] = - J[1][1] * J[2][0] + J[1][0] * J[2][1];
-//     JI[2][1] = J[0][1] * J[2][0] - J[0][0] * J[1][2];
-//     JI[2][2] = - J[0][1] * J[1][0] + J[0][0] * J[1][1];
-//
-//     double den = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1])
-//                  - J[0][1] * (J[0][0] * J[2][2] - J[0][2] * J[2][0])
-//                  + J[0][2] * (J[0][0] * J[1][1] - J[0][1] * J[1][0]);
-//
-//     xi[0] = (JI[0][0] * xm[0] + JI[0][1] * xm[1] + JI[0][2] * xm[2]) / den;
-//     xi[1] = (JI[1][0] * xm[0] + JI[1][1] * xm[1] + JI[1][2] * xm[2]) / den;
-//     xi[2] = (JI[2][0] * xm[0] + JI[2][1] * xm[1] + JI[2][2] * xm[2]) / den;
-
-
-    std::cout<<"AAA " << xi[0] << " " << xi[1] << " " << xi[2] <<" " << den << std::endl;
+    // std::cout << "AAA " << xi[0] << " " << xi[1] << " " << xi[2] << " " << den << std::endl;
 
 
     a2.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        a2[k] += J[j][k] * a[j];
+        a2[k] -= J[j][k] * a[j]; // this normal has to point toward the center of the ball, thus -=
       }
     }
     double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1] + a2[2] * a2[2]);
@@ -984,82 +994,78 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
     d2 = - a2[0] * xi[0] - a2[1] * xi[1] - a2[2] * xi[2];
 
 
-    std::cout << a2[0] << " " << a2[1] << " " << a2[2] << " " << d2 << " " << std::endl;
+    // std::cout << a2[0] << " " << a2[1] << " " << a2[2] << " " << d2 << " " << std::endl;
   }
 }
 
-double getHeightPolyhedronSphereInt(std::vector < std::vector <double> > &b, const double &R){
-  unsigned cnt = b.size();
-  unsigned dim = b[0].size();
-  std::vector < std::vector <double> > bn(cnt, std::vector<double>(dim, 0.));    
-  std::vector <double> norm(cnt, 0.);
-  std::vector < std::vector <double> > v(cnt, std::vector<double>(dim, 0.));   
-  std::vector < double > p1(dim, 0.);
-  std::vector < double > p2(dim, 0.);
-  std::vector < double > w(cnt, 0.);
-  
-  for(unsigned k = 0; k < dim; k++) {
-    for ( unsigned i = 0; i < cnt; i++ ){
-      norm[i] += b[i][k] * b[i][k];
-    }
+double getHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &b, const std::vector <double> &a, const std::vector <double> &xg, const double &R) {
+  const unsigned& cnt = b.size();
+  if(b.size() < 3) {
+    abort();
   }
-  for ( unsigned i = 0; i < cnt; i++ ) norm[i] = sqrt(norm[i]);
-  
-  for(unsigned k = 0; k < dim; k++) {
-    for ( unsigned i = 0; i < cnt; i++ ){
-      bn[i][k] = b[i][k] / norm[i]; 
-    }
-  }
-  
-  for(unsigned k = 0; k < dim; k++) {
-    for ( unsigned i = 0; i < cnt; i++ ){
-      v[i][k] += bn[(i+1)%cnt][k] - bn[i][k];
-    }
-  }
-  
-  double dot1 = 0.;
-  double dot2 = 0.;
-  double dot3;
-  double normP1;
-  double normP2;
-  double S = - R * R * M_PI;
-  
-  for ( unsigned i = 0; i < cnt; i++ ){
-    dot1 = 0.;
-    dot2 = 0.;
+  const unsigned& dim = b[0].size();
+
+  std::vector < std::vector <double> > v(cnt, std::vector<double>(dim, 0.));
+  for(unsigned i = 0; i < cnt; i++) {
+    unsigned ip1 = (i + 1) % cnt;
     for(unsigned k = 0; k < dim; k++) {
-      dot1 += v[i][k] * bn[i][k];
-      dot2 += v[(i-1+cnt)%cnt][k] * bn[i][k];
-    }  
-    dot3 = 0.;
-    normP1 = 0.;
-    normP2 = 0.;
-    for(unsigned k = 0; k < dim; k++) {
-      p1[k] = v[i][k] - dot1 * bn[i][k];
-      p2[k] = - v[(i-1+cnt)%cnt][k] + dot2 * bn[i][k];
-      dot3 += p1[k] * p2[k];
-      normP1 += p1[k] * p1[k];
-      normP2 += p2[k] * p2[k];
+      v[i][k] += b[ip1][k] - b[i][k];
     }
-    normP1 = sqrt(normP1);
-    normP2 = sqrt(normP2);
-    w[i] = acos(dot3 / (normP1 * normP2) );
-    S += ( R * R * w[i] );
   }
-  
-  double Ve = ( R / cnt ) * S;
-  
-  double detB;
-  /*TODO This is only for tethraedron: we need to extend it to cnt points*/
-  detB = bn[0][0] * (bn[1][1] * bn[2][2] - bn[1][2] * bn[2][1])
-           - bn[0][1] * (bn[1][0] * bn[2][2] - bn[1][2] * bn[2][0])
-           + bn[0][2] * (bn[1][0] * bn[2][1] - bn[1][1] * bn[2][0]);
-           
-  double Vt = fabs(detB) / 6.;
-  
-  double H = pow(Ve / Vt, 1./3.);
-  
-  return H;
+
+
+  double S = - M_PI * (cnt - 2u);
+  for(unsigned i = 0; i < cnt; i++) {
+    double dotf = 0.;
+    double dotb = 0.;
+    unsigned im1 = (cnt + i - 1u) % cnt;
+    for(unsigned k = 0; k < dim; k++) {
+      dotf += v[i][k] * b[i][k];
+      dotb += v[im1][k] * b[i][k];
+    }
+    double PfdotPb = 0.;
+    double normPf = 0.;
+    double normPb = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      double pf = v[i][k] - dotf * b[i][k];
+      double pb = - v[im1][k] + dotb * b[i][k];
+      PfdotPb += pf * pb;
+      normPf += pf * pf;
+      normPb += pb * pb;
+    }
+    normPf = sqrt(normPf);
+    normPb = sqrt(normPb);
+    S += acos(PfdotPb / (normPf * normPb));
+
+  }
+
+  std::vector < std::vector <double> > x(cnt, xg);
+
+  for(unsigned i = 0; i < cnt; i++) {
+    double h = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      h += b[i][k] * a[k];
+    }
+    h = 1. / h;
+    for(unsigned k = 0; k < dim; k++) {
+      x[i][k] += h * b[i][k];
+    }
+  }
+  for(unsigned i = 1; i < cnt; i++) {
+    for(unsigned k = 0; k < dim; k++) {
+      x[i][k] -= x[0][k];
+    }
+  }
+  x[0] = {0., 0., 0.};
+
+  double A = 0.;
+  for(unsigned i = 1; i < cnt - 1; i++) {
+    A += 0.5 * sqrt((x[i][1] * x[i + 1][2] - x[i][2] * x[i + 1][1]) * (x[i][1] * x[i + 1][2] - x[i][2] * x[i + 1][1]) +
+                    (x[i][2] * x[i + 1][0] - x[i][0] * x[i + 1][2]) * (x[i][2] * x[i + 1][0] - x[i][0] * x[i + 1][2]) +
+                    (x[i][0] * x[i + 1][1] - x[i][1] * x[i + 1][0]) * (x[i][0] * x[i + 1][1] - x[i][1] * x[i + 1][0]));
+  }
+
+  return R * pow(S / A, 1. / 3.);
 }
 
 

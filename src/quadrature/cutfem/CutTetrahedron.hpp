@@ -92,7 +92,7 @@ TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigne
 
   //if(m1 > m2 && m1 > m3) {
   if(m1 >= m2) {
-    std::cout << "case x ";
+    //std::cout << "case x ";
     return static_cast<TypeIO>(
     this->ttia(s, {m[0], m[1], m[2]},
     {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] - a[0]), static_cast<TypeA>(a[2] - a[1])},
@@ -100,7 +100,7 @@ TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigne
   }
 //   else if(m2 > m3) {
   else {
-    std::cout << "case y ";
+    //std::cout << "case y ";
     return static_cast<TypeIO>(
     this->ttia(s, {m[1], m[2], m[0]},
     {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] - a[1]), static_cast<TypeA>(a[0] - a[2])},
