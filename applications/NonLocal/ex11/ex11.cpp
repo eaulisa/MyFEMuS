@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  7
+#define N_UNIFORM_LEVELS  4
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -53,7 +53,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
 void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, double &vol, unsigned &cut);
 
-void SimpleNonlocalAssembly(MultiLevelProblem& ml_prob);
+double getHeightPolyhedronSphereInt(std::vector < std::vector <double> > &b, const double &R);
 
 
 const elem_type *finiteElementQuad;
@@ -61,8 +61,8 @@ const elem_type *finiteElementQuad;
 int main(int argc, char** argv) {
 
   std::vector<std::vector<double>> xt = {{0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
-  std::vector< double > xg1 = {0.0, 0., 2.};
-  double R1 = 1.3;
+  std::vector< double > xg1 = {0.0, 0., 1.5};
+  double R1 = 1.;
   std::vector<double> a10;
   double d10;
   std::vector<double> xm1;
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
   GetNormalTet(xt, xg1, R1, a10, d10, xm1, b1, db1, vol1, cut1);
 
 
-  //return 1;
+//   return 1;
 
 
   typedef double TypeIO;
@@ -86,8 +86,8 @@ int main(int argc, char** argv) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
 
-  double dx = 0.025;
-  double dt = 1.;
+  double dx = 1.;
+  double dt = 10.;
   CDWeighsQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeighsTRI <TypeA> triCD(qM, dx, dt);
 
@@ -862,7 +862,13 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
     phig /= cnt;
     //double H = R * pow(2. * (1. - cos(phig)) / (tan(phig) * tan(phig)), 1. / 3.);
     
-    double H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
+    double H = 0.;
+    
+    if(cnt == 3) H = getHeightPolyhedronSphereInt(b, R);
+    else H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
+    
+    H = R * pow(2. * cos(phig) * cos(phig) / (1. + cos(phig)), 1. / 3.);
+    
 
     xm.resize(dim);
     for(unsigned k = 0; k < dim; k++) {
@@ -982,8 +988,79 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
   }
 }
 
-
-
+double getHeightPolyhedronSphereInt(std::vector < std::vector <double> > &b, const double &R){
+  unsigned cnt = b.size();
+  unsigned dim = b[0].size();
+  std::vector < std::vector <double> > bn(cnt, std::vector<double>(dim, 0.));    
+  std::vector <double> norm(cnt, 0.);
+  std::vector < std::vector <double> > v(cnt, std::vector<double>(dim, 0.));   
+  std::vector < double > p1(dim, 0.);
+  std::vector < double > p2(dim, 0.);
+  std::vector < double > w(cnt, 0.);
+  
+  for(unsigned k = 0; k < dim; k++) {
+    for ( unsigned i = 0; i < cnt; i++ ){
+      norm[i] += b[i][k] * b[i][k];
+    }
+  }
+  for ( unsigned i = 0; i < cnt; i++ ) norm[i] = sqrt(norm[i]);
+  
+  for(unsigned k = 0; k < dim; k++) {
+    for ( unsigned i = 0; i < cnt; i++ ){
+      bn[i][k] = b[i][k] / norm[i]; 
+    }
+  }
+  
+  for(unsigned k = 0; k < dim; k++) {
+    for ( unsigned i = 0; i < cnt; i++ ){
+      v[i][k] += bn[(i+1)%cnt][k] - bn[i][k];
+    }
+  }
+  
+  double dot1 = 0.;
+  double dot2 = 0.;
+  double dot3;
+  double normP1;
+  double normP2;
+  double S = - R * R * M_PI;
+  
+  for ( unsigned i = 0; i < cnt; i++ ){
+    dot1 = 0.;
+    dot2 = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      dot1 += v[i][k] * bn[i][k];
+      dot2 += v[(i-1+cnt)%cnt][k] * bn[i][k];
+    }  
+    dot3 = 0.;
+    normP1 = 0.;
+    normP2 = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      p1[k] = v[i][k] - dot1 * bn[i][k];
+      p2[k] = - v[(i-1+cnt)%cnt][k] + dot2 * bn[i][k];
+      dot3 += p1[k] * p2[k];
+      normP1 += p1[k] * p1[k];
+      normP2 += p2[k] * p2[k];
+    }
+    normP1 = sqrt(normP1);
+    normP2 = sqrt(normP2);
+    w[i] = acos(dot3 / (normP1 * normP2) );
+    S += ( R * R * w[i] );
+  }
+  
+  double Ve = ( R / cnt ) * S;
+  
+  double detB;
+  /*TODO This is only for tethraedron: we need to extend it to cnt points*/
+  detB = bn[0][0] * (bn[1][1] * bn[2][2] - bn[1][2] * bn[2][1])
+           - bn[0][1] * (bn[1][0] * bn[2][2] - bn[1][2] * bn[2][0])
+           + bn[0][2] * (bn[1][0] * bn[2][1] - bn[1][1] * bn[2][0]);
+           
+  double Vt = fabs(detB) / 6.;
+  
+  double H = pow(Ve / Vt, 1./3.);
+  
+  return H;
+}
 
 
 
