@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  7
+#define N_UNIFORM_LEVELS  4
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -86,43 +86,61 @@ int main(int argc, char** argv) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
 
-  double dx = 1.;
-  double dt = 10.;
-  CDWeighsQUAD <TypeA> quadCD(qM, dx, dt);
-  CDWeighsTRI <TypeA> triCD(qM, dx, dt);
+  double dx = .1;
+  double dt = 2.;
+  CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
+  CDWeightTRI <TypeA> triCD(qM, dx, dt);
+  CDWeightTET <TypeA> tetCD(qM, dx, dt);
 
+  std::cout<<std::endl;
+  
   double theta1 = 45;
+  double phi1 = 30;
   std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
-  double d1 = 0.1 * sqrt(2);
+  std::vector<double> a2 = {cos(theta1 * M_PI / 180)* sin(phi1 * M_PI / 180), sin(theta1 * M_PI / 180) * sin(phi1 * M_PI / 180), cos(phi1 * M_PI / 180)};
+  double d1 = -0.1 * sqrt(2);
 
   std::vector<double> weight1;
-  quad.GetWeightWithMap(0, a1, d1, weight1);
-
-  for(unsigned j = 0; j < weight1.size(); j++) {
-    std::cout << weight1[j] << " ";
-  }
-  std::cout << std::endl;
+//   quad.GetWeightWithMap(0, a1, d1, weight1);
+//
+//   for(unsigned j = 0; j < weight1.size(); j++) {
+//     std::cout << weight1[j] << " ";
+//   }
+//   std::cout << std::endl;
   std::vector<double> weight;
-  quadCD.GetWeight(a1, d1, weight);
+//   quadCD.GetWeight(a1, d1, weight);
+//
+//   for(unsigned j = 0; j < weight.size(); j++) {
+//     std::cout << weight[j] << " ";
+//   }
+//   std::cout << std::endl;
+//
+//
+//   tri.GetWeightWithMap(0, a1, d1, weight1);
+//   for(unsigned j = 0; j < weight1.size(); j++) {
+//     std::cout << weight1[j] << " ";
+//   }
+//   std::cout << std::endl;
+//   triCD.GetWeight(a1, d1, weight);
+//   for(unsigned j = 0; j < weight.size(); j++) {
+//     std::cout << weight[j] << " ";
+//   }
+//   std::cout << std::endl;
 
-  for(unsigned j = 0; j < weight.size(); j++) {
-    std::cout << weight[j] << " ";
-  }
-  std::cout << std::endl;
-
-
-  tri.GetWeightWithMap(0, a1, d1, weight1);
+  tet.GetWeightWithMap(0, a2, d1, weight1);
   for(unsigned j = 0; j < weight1.size(); j++) {
     std::cout << weight1[j] << " ";
   }
   std::cout << std::endl;
-  triCD.GetWeight(a1, d1, weight);
+  tetCD.GetWeight(a2, d1, weight);
   for(unsigned j = 0; j < weight.size(); j++) {
     std::cout << weight[j] << " ";
   }
   std::cout << std::endl;
 
-  //return 1;
+
+
+  return 1;
 
   const std::string fe_quad_rule_1 = "seventh";
   const std::string fe_quad_rule_2 = "eighth";
@@ -278,7 +296,7 @@ int main(int argc, char** argv) {
         tet.clear();
         tet.GetWeightWithMap(0, b, db, weightCF);
 
-//         tetCD.GetWeight(b, db, weightCF);
+        tetCD.GetWeight(b, db, weightCF);
 
         const double* weightG = tet.GetGaussWeightPointer();
 
@@ -822,7 +840,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
     cut = 1;
 
     if(cnt == 4) {
-      
+
       if((i0[0] == 0 && i0[1] == 1) || (i0[0] == 1 && i0[1] == 2)) {
         std::swap(y[2], y[3]);
         std::swap(i0[2], i0[3]);
@@ -830,7 +848,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
       else {
         std::swap(y[1], y[3]);
         std::swap(y[1], y[2]);
-        
+
         std::swap(i0[1], i0[3]);
         std::swap(i0[1], i0[2]);
       }

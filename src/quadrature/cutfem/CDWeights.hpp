@@ -318,13 +318,15 @@ class CDWeightTET :
       _dt = dt;
       _df = dt;
 
-      _nx = floor(2. / _dx);
+      _nx = floor(1. / _dx);
       _nt = floor(90. / _dt);
       _nf = floor(90. / _df);
-      _dx = 2. / _nx;
+      
+      _dx = 1. / _nx;
       _dt = 90. / _nt;
       _df = 90. / _nf;
-      xi0 = - 1. - _dx;
+      
+      xi0 = -_dx;
       t0 = -_dt;
       f0 = -_df;
       _nx += 3;
@@ -335,7 +337,7 @@ class CDWeightTET :
         _weight[k].resize(_nx);
         for(unsigned i = 0; i < _nx; ++i) {
           _weight[k][i].resize(_nt);
-          for(unsigned j = 0; i < _nt; ++j) {
+          for(unsigned j = 0; j < _nt; ++j) {
             _weight[k][i][j].resize(_nf);
           }
         }
@@ -343,6 +345,7 @@ class CDWeightTET :
       for(unsigned k = 0; k < 8; k++) {
         std::vector<double> xi(3);
         for(unsigned i = 0; i < _nx; ++i) {
+          std::cout<< k <<" "<< i<<" "<<std::flush;  
           xi[0] = xi0 + i * _dx;
           switch(k) {
             case 1:
@@ -368,10 +371,10 @@ class CDWeightTET :
           }
 
           for(unsigned t = 0; t < _nt; ++t) {
-            for(unsigned f = 0; f < _nt; ++f) {
+            for(unsigned f = 0; f < _nf; ++f) {
 
-              std::vector<double> a = {cos((k % 4 * 90 + t0 + t * _dt) * M_PI / 180) * sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180),
-                                       sin((k % 4 * 90 + t0 + t * _dt) * M_PI / 180) * sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180),
+              std::vector<double> a = {sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180) * cos((k % 4 * 90 + t0 + t * _dt) * M_PI / 180),
+                                       sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180) * sin((k % 4 * 90 + t0 + t * _dt) * M_PI / 180),
                                        cos((k / 4 * 90 + f0 + f * _df) * M_PI / 180)
                                       };
               double d = -a[0] * xi[0] - a[1] * xi[1] - a[2] * xi[2];
@@ -396,6 +399,8 @@ class CDWeightTET :
           if(a[2] >= 0) {
             k = 0;
             xi = -d / (a[0] + a[1] + a[2]);
+            
+            std::cout << xi << " " << t <<" "<< f<<std::endl;
           }
           else {
             k = 4;
@@ -439,6 +444,8 @@ class CDWeightTET :
           }
         }
       }
+      
+      if( k >= 4) f -= 90;
 
 //       unsigned i1 = floor((xi - xi0) / _dx);
 //       double s1 = (xi - (xi0 + i1 * _dx)) / _dx;
@@ -488,7 +495,9 @@ class CDWeightTET :
         s3 = 1;
       }
 
-
+      std::cout << i1<< " " << s1<<std::endl;
+      std::cout << i2<< " " << s2<<std::endl;
+      std::cout << i3<< " " << s3<<std::endl;
 
       _phi1.resize(4);
       _phi2.resize(4);
@@ -509,7 +518,7 @@ class CDWeightTET :
       _phi3[2] = (s3 + 1.) * s3             * (s3 - 2.) / (-2.);
       _phi3[3] = (s3 + 1.) * s3 * (s3 - 1.) / (6.);
 
-      weight.assign(_weight[k][i1][i2].size(), 0.);
+      weight.assign(_weight[k][i1][i2][i3].size(), 0.);
 
       for(unsigned i = 0; i < weight.size(); i++) {
         for(int j1 = 0; j1 < 4; j1++) {
@@ -521,6 +530,7 @@ class CDWeightTET :
         }
       }
     }
+    
   private:
     std::vector < std::vector<std::vector < std::vector <double> > > > _weight[8];
     double _dx;
