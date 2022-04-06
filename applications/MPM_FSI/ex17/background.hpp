@@ -8,14 +8,6 @@ double InitalValue0(const std::vector < double >& x) {
   return 0.;
 }
 
-void FindBestFit(const std::vector < std::vector < double > > &xp, const std::vector < double > &ain, std::vector<double> &aout, double &d);
-
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
-
-using namespace Eigen;
-
-
 void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
 
   unsigned dim = mlSol._mlMesh->GetDimension();
@@ -191,8 +183,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   start_time = clock();
 
 
-  std::vector<std::vector<double>> xiI;
-  xiI.reserve(1000);
+//   std::vector<std::vector<double>> xiI;
+//   xiI.reserve(1000);
 
   const std::vector<std::vector<unsigned> > & ielp = projection->GetIel();
   const std::vector < std::vector < std::vector <double > > > & Xip = projection->GetXi();
@@ -596,8 +588,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       double scale = 1;//elementArea / particleArea;
 
 
-      xiI.resize(0);
+      unsigned icnt = 0;
       std::vector < double > ain(dim, 0);
+      std::vector < double > xc(dim, 0.);
 
       for(unsigned kp = 0; kp < nprocs; kp++) {
         while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
@@ -892,25 +885,26 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               N[2] /= weight.value();
             }
 
-
-            xiI.resize(xiI.size() + 1);
-            xiI[xiI.size() - 1] = xi;
-
             std::vector < std::vector <double> > Jac, JacI;
             msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vxOld, xi, Jac, JacI);
 
+            
+            icnt++;
             std::vector <double> a(dim, 0);
             double det = 0;
-            for(unsigned j = 0; j < dim; j++) {
-              for(unsigned k = 0; k < dim; k++) {
-                a[j] += Jac[k][j] * (-N[k]); //from the solid to the fluid in the parent element
+            for(unsigned k = 0; k < dim; k++) {
+              xc[k] += xi[k];
+              for(unsigned j = 0; j < dim; j++) {
+                a[k] += Jac[j][k] * (-N[j]); //from the solid to the fluid in the parent element
               }
-              det += a[j] * a[j];
+              det += a[k] * a[k];
             }
             det = 1. / sqrt(det);
             for(unsigned k = 0; k < dim; k++) {
-              ain[k] += a[k] / det;
+              ain[k] += a[k] * det;
             }
+            
+            
 
             std::vector < adept::adouble > tau(dim, 0.);
 
@@ -961,20 +955,19 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       }
       if(eFlag == 1) {
         std::vector<double> aout;
-        double d;
 
         double det = 0.;
         for(unsigned k = 0; k < dim; k++) {
           det += ain[k] * ain[k];
+          xc[k] /= icnt;
         }
         det = 1. / sqrt(det);
+        double d = 0.;
         for(unsigned k = 0; k < dim; k++) {
           ain[k] *= det;
+          d -= ain[k] * xc[k];
         }
 
-        FindBestFit(xiI, ain, aout, d);
-        std::cout << ain[0] << " " << ain[1] << " " << d << std::endl;
-        std::cout << aout[0] << " " << aout[1] << " " << d << std::endl << std::endl;
       }
     }
     //END PARTICLE
@@ -1042,64 +1035,4 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
-
-void FindBestFit(const std::vector < std::vector < double > > &xp, const std::vector < double > &ain, std::vector<double> &aout, double &d) {
-
-  const unsigned &dim = ain.size();
-  aout.resize(dim);
-
-  MatrixXd m(xp.size(), dim);
-  std::vector < double > xc(dim, 0.);
-
-//Calculate the centroid from points
-  for(unsigned i = 0; i < xp.size(); i++) {
-    for(unsigned k = 0; k < dim; k++) {
-      xc[k] += xp[i][k];
-    }
-  }
-  for(unsigned k = 0; k < dim; k++) {
-    xc[k] /= xp.size();
-  }
-
-  //Fill matrix to be passed to JacobiSVD
-  for(unsigned i = 0; i < xp.size(); i++) {
-    for(unsigned k = 0; k < dim; k++) {
-      m(i, k) = xp[i][k] - xc[k];
-    }
-
-  }
-
-  JacobiSVD<MatrixXd> svd(m, ComputeThinU | ComputeThinV);
-  MatrixXd v = svd.matrixV();
-
-  double ainDotaout = 0.;
-
-  unsigned col = (dim <= 2) ? 0 : dim - 1;
-  double det = 0;
-  for(unsigned k = 0; k < dim; k++) {
-    aout[k] = v(k, col);
-    ainDotaout += aout[k] * ain[k];
-    det += aout[k] * aout[k];
-  }
-  det = (ainDotaout > 0) ? 1. / sqrt(det) : -1. / sqrt(det);
-  for(unsigned k = 0; k < dim; k++) {
-    aout[k] *= det;
-  }
-
-  //Calculate constant d in aout.xc + d=0
-  for(unsigned k = 0; k < dim; k++) {
-    d -= aout[k] * xc[k];
-  }
-
-
-
-}
-
-
-
-
-
-
-
-
 
