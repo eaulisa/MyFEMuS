@@ -695,33 +695,33 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
               }
             }
 
-            double dAOld = (1. - U) * areaOld; // areaOld = area at n
-            adept::adouble dA = (1. - U) * areaOld * Jb; // areaOld * Jb = area at theta
-            adept::adouble dANew = (1. - U) * areaOld * JbNew; // areaOld * JbNew = area at n + 1
-
-            for(unsigned i = 0; i < nDofs; i++) {
-              for(unsigned k = 0; k < dim; k++) {
-                adept::adouble laplace = 0.;
-                adept::adouble advection = 0.;
-                for(unsigned j = 0; j < dim; j++) {
-                  laplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
-                  advection +=  phi[i] * (solVFp[j] - (solDb[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
-                }
-
-                aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * dANew - solVFpOld[k] * dAOld) / dt +
-                               (rhoFluid * advection
-                                + muFluid * laplace
-                                - /*par->_weakP **/ gradPhi[i * dim + k] * solPp
-//                                 + !par->_weakP * phi[i] * gradSolPp[k]
-                               ) * dA;
-              }
-            }
-
-            for(unsigned i = 0; i < nDofsP; i++) {
-              for(unsigned  k = 0; k < dim; k++) {
-                aResP[i] += phiP[i] *  gradSolVpNew[k][k] * dANew;
-              }
-            }
+//             double dAOld = (1. - U) * areaOld; // areaOld = area at n
+//             adept::adouble dA = (1. - U) * areaOld * Jb; // areaOld * Jb = area at theta
+//             adept::adouble dANew = (1. - U) * areaOld * JbNew; // areaOld * JbNew = area at n + 1
+// 
+//             for(unsigned i = 0; i < nDofs; i++) {
+//               for(unsigned k = 0; k < dim; k++) {
+//                 adept::adouble laplace = 0.;
+//                 adept::adouble advection = 0.;
+//                 for(unsigned j = 0; j < dim; j++) {
+//                   laplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
+//                   advection +=  phi[i] * (solVFp[j] - (solDb[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
+//                 }
+// 
+//                 aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * dANew - solVFpOld[k] * dAOld) / dt +
+//                                (rhoFluid * advection
+//                                 + muFluid * laplace
+//                                 - /*par->_weakP **/ gradPhi[i * dim + k] * solPp
+// //                                 + !par->_weakP * phi[i] * gradSolPp[k]
+//                                ) * dA;
+//               }
+//             }
+// 
+//             for(unsigned i = 0; i < nDofsP; i++) {
+//               for(unsigned  k = 0; k < dim; k++) {
+//                 aResP[i] += phiP[i] *  gradSolVpNew[k][k] * dANew;
+//               }
+//             }
           }
 
 
@@ -888,7 +888,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             std::vector < std::vector <double> > Jac, JacI;
             msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vxOld, xi, Jac, JacI);
 
-            
+
             icnt++;
             std::vector <double> a(dim, 0);
             double det = 0;
@@ -903,8 +903,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             for(unsigned k = 0; k < dim; k++) {
               ain[k] += a[k] * det;
             }
-            
-            
+
+
 
             std::vector < adept::adouble > tau(dim, 0.);
 
@@ -966,6 +966,70 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         for(unsigned k = 0; k < dim; k++) {
           ain[k] *= det;
           d -= ain[k] * xc[k];
+        }
+
+        std::vector<double> eqPl;
+        quad.clear();
+        quad(0, ain, d, eqPl);
+
+        const elem_type *femV = fem.GetFiniteElement(ielt, solType);
+        const elem_type *femP = fem.GetFiniteElement(ielt, solTypeP);
+        for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+          // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
+          femV->Jacobian(vxOld, ig, weightOld, phi, gradPhiOld);
+          femV->Jacobian(vx,    ig, weight,    phi, gradPhi);
+          femV->Jacobian(vxNew, ig, weightNew, phi, gradPhiNew);
+          double *phiP = femP->GetPhi(ig);
+
+          vector<vector < adept::adouble > > gradSolVgNew(dim, vector < adept::adouble>(dim, 0.));
+          vector<vector < adept::adouble > > gradSolVg(dim, vector < adept::adouble>(dim, 0.));
+          vector<double> solVgOld(dim, 0.);
+          vector<adept::adouble> solVg(dim, 0.);
+          vector<adept::adouble> solVgNew(dim, 0.);
+
+          vector<adept::adouble> solDb(dim, 0.);
+
+          for(unsigned i = 0; i < nDofs; i++) {
+            for(unsigned j = 0; j < dim; j++) {
+              solVgOld[j] += phi[i] * solVOld[j][i];
+              solVg[j]    += phi[i] * (par->_theta * solVNew[j][i] + (1. - par->_theta) * solVOld[j][i]);
+              solVgNew[j] += phi[i] * solVNew[j][i];
+
+              solDb[j] += phi[i] * solD[j][i];
+
+              for(unsigned k = 0; k < dim; k++) {
+                gradSolVgNew[j][k] +=  gradPhiNew[i * dim + k] * solVNew[j][i];
+                gradSolVg[j][k] +=  gradPhi[i * dim + k] * (par->_theta * solVNew[j][i] + (1. - par->_theta) * solVOld[j][i]);
+              }
+            }
+          }
+
+          adept::adouble solPg = 0.;
+          for(unsigned i = 0; i < nDofsP; i++) {
+            solPg += phiP[i] * solP[i];
+          }
+
+          for(unsigned i = 0; i < nDofs; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              adept::adouble laplace = 0.;
+              adept::adouble advection = 0.;
+              for(unsigned j = 0; j < dim; j++) {
+                laplace  +=  gradPhi[i * dim + j] * (gradSolVg[k][j] + gradSolVg[j][k]);
+                advection +=  phi[i] * (solVg[j] - (solDb[j] - 0.) / dt) * gradSolVg[k][j]; //ALE
+              }
+
+              aResV[k][i] += rhoFluid * phi[i] * (solVgNew[k] * weightNew - solVgOld[k] * weightOld) / dt +
+                             (rhoFluid * advection
+                              + muFluid * laplace
+                              - gradPhi[i * dim + k] * solPg
+                             ) * weight;
+            }
+          }
+          for(unsigned i = 0; i < nDofsP; i++) {
+            for(unsigned  k = 0; k < dim; k++) {
+              aResP[i] += phiP[i] *  gradSolVgNew[k][k] * weightNew;
+            }
+          }
         }
 
       }
@@ -1035,4 +1099,5 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
+
 

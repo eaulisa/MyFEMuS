@@ -20,6 +20,13 @@ using namespace femus;
 parameter *par;
 
 
+#include "CutFemWeight.hpp"
+#include "Fem.hpp"
+
+CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
+Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+
+
 #include "./include/MyMarker/MyMarker.hpp"
 #include "./include/MyMarker/MyMarker.cpp"
 
@@ -130,11 +137,15 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
+      
   MultiLevelMesh mlMshM;
   mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
   mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
+  
+  
+  
+  
   for(unsigned i = 0; i < par->_mAdaptive; i++) {
     FlagElements(mlMshM, 0);
     mlMshM.AddAMRMeshLevel();
