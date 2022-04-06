@@ -102,7 +102,7 @@ namespace femus {
       }
       
       unsigned GetGaussOrder(){ return _gaussOrder;}
-      const elem_type * GetFiniteElement(const GeomElType &geom, const unsigned &type ){ return _finiteElement[geom][type];}
+      const elem_type * GetFiniteElement(const unsigned &geom, const unsigned &type ){ return _finiteElement[geom][type];}
 
     private:
       unsigned _gaussOrder;
