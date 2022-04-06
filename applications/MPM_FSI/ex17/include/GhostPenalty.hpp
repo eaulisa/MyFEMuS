@@ -322,7 +322,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
-                    divSol1g = sol1[I][i] * gradPhi1[i * dim + I];
+                    divSol1g += sol1[I][i] * gradPhi1[i * dim + I];
                     if(fluid) aleVel[I] += phi1[i] * (sol1Old[I][i] - solDTld[I][i] / dt);
                     for(unsigned J = 0; J < dim; J++) {
                       gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];
@@ -342,7 +342,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs2; i++) {
-                    divSol2g = sol2[I][i] * gradPhi2[i * dim + I];
+                    divSol2g += sol2[I][i] * gradPhi2[i * dim + I];
                     for(unsigned J = 0; J < dim; J++) {
                       gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
                       for(unsigned K = 0; K < dim; K++) {
@@ -367,16 +367,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                   cNormL2 = sqrt(cNormL2);
                 }
 
-
                 double phiT1 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
                 double phiT2 = (mu / rho + (1. / 6.) * cNormL2 * h + (1. / 12.) * h * h / (par->_theta * dt)); //[velocity * h]
-
                 double phiC = 0.5 * h * h * (1. / phiT1 + 1. / phiT2); // [h/velocity]
-
 
                 double C1 = (fluid) ? par->_gammacF * (mu + rho * phiC * cNormL2 * cNormL2  + rho * h2 / (par->_theta * dt)) :
                             par->_gammacS * (mu + rho * h2 / (par->_theta * dt * dt));
-
 
                 // [mu_f] = Pa.s = F / h2 * s = kg / (s h)
                 // [mu_s] = Pa = F / h2 * s = kg / (s^2 h)
@@ -384,15 +380,6 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                 // [C1] for the solid is kg/(s^2 h)
 
                 double C2 = (fluid) ? par->_gammau * rho * phiC : 0.;
-
-//                 if(fluid) {
-//                   std::cout << "Fluid " << mu << " " << rho * phiC * cNormL2 * cNormL2
-//                             << " " << rho * h2 / (theta * dt)<< " "<< rho * phiC<<std::endl;
-//                 }
-//                 else{
-//                    std::cout << "Solid " << mu << " " << rho * h2 / (theta * dt * dt)<<std::endl;
-//                 }
-
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
@@ -405,10 +392,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                       // kg h /(s^2) = [C1] * h^2
                       // [C1] for the solid should be kg/(s^2 h)
 
-
-
                       for(unsigned K = 0; K < dim; K++) {
-
                         unsigned L;
                         if(J == K) L = J;
                         else if(1 == J + K) L = dim;     // xy
@@ -831,7 +815,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
-                          divSol1g = sol1[I][i] * gradPhi1[i * dim + I];
+                          divSol1g += sol1[I][i] * gradPhi1[i * dim + I];
                           if(fluid) aleVel[I] += phi1[i] * (sol1Old[I][i] - solDTld[I][i] / dt);
                           for(unsigned J = 0; J < dim; J++) {
                             gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];
@@ -851,7 +835,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
 
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs2; i++) {
-                          divSol2g = sol2[I][i] * gradPhi2[i * dim + I];
+                          divSol2g += sol2[I][i] * gradPhi2[i * dim + I];
                           for(unsigned J = 0; J < dim; J++) {
                             gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
                             for(unsigned K = 0; K < dim; K++) {

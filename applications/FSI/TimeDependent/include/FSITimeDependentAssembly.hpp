@@ -33,7 +33,7 @@ namespace femus {
     const unsigned dim = mymsh->GetDimension();
     const unsigned max_size = static_cast< unsigned >(ceil(pow(3, dim)));
     
-    double theta = 1.;
+    double theta = .5;
 
     // local objects
     vector<adept::adouble> SolVAR(2 * dim + 1);
@@ -728,9 +728,13 @@ namespace femus {
 
               for (int idim = 0; idim < dim; idim++) {
 
-                adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight
-                                                  - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_old);
+//                 adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight
+//                                                   - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_old);
 
+                adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight_hat
+                                                  - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_hat);
+  
+                  
                 adept::adouble value =  theta * dt * (rhos * phi[i] * _gravity[idim]      // body force
                                                     - CauchyDIR[idim]			  // stress
                                                    ) * Weight;                         // at time t

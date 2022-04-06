@@ -8,6 +8,13 @@ double InitalValue0(const std::vector < double >& x) {
   return 0.;
 }
 
+void FindBestFit(const std::vector < std::vector < double > > &xp, const std::vector < double > &ain, std::vector<double> &aout, double &d);
+
+#include </usr/include/eigen3/Eigen/Core>
+#include </usr/include/eigen3/Eigen/SVD>
+
+using namespace Eigen;
+
 
 void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
 
@@ -31,20 +38,20 @@ void InitializeBackgroundVariables(MultiLevelSolution &mlSol) {
   mlSol.AddSolution("nflag", LAGRANGE, SECOND, 0, false);
 
   //mlSol.Initialize("All");
-  
-  
+
+
   mlSol.Initialize("DX", InitalValue0);
   mlSol.Initialize("DY", InitalValue0);
-  
+
   mlSol.Initialize("VX", InitalValue0);
   mlSol.Initialize("VY", InitalValue0);
-  
+
   mlSol.Initialize("P", InitalValue0);
   mlSol.Initialize("eflag", InitalValue0);
   mlSol.Initialize("fldCnt", InitalValue0);
   mlSol.Initialize("sldCnt", InitalValue0);
   mlSol.Initialize("nflag", InitalValue0);
-  
+
 
   mlSol.AttachSetBoundaryConditionFunction(par->_bdcFunction);
 
@@ -73,7 +80,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   MatResetPreallocation((static_cast< PetscMatrix* >(myKK))->mat());
   MatSetOption((static_cast< PetscMatrix* >(myKK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-  
+
   myKK->zero();
   myRES->zero();
 
@@ -145,12 +152,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
   std::cout << "mu_s = " << muMpm    << " lambda_s= " << lambdaMpm << " nu_s = " << nuMpm << std::endl;
-  std::cout << "rho_s = "<< rhoMpm   << " E_s = " << EMpm << std::endl;
-  std::cout << "rho_f = "<< rhoFluid << " mu_f = " << muFluid << std::endl;
+  std::cout << "rho_s = " << rhoMpm   << " E_s = " << EMpm << std::endl;
+  std::cout << "rho_f = " << rhoFluid << " mu_f = " << muFluid << std::endl;
 
   std::cout << "a_f = " << par->_af << " a_m = " << par->_am << std::endl;
   std::cout << "gamma = " << par->_gamma << " beta = " << par->_beta << std::endl;
-  
+
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
   double time =  my_nnlin_impl_sys.GetTime();
 
@@ -177,11 +184,15 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");
   unsigned nflagIndex = mlSol->GetIndex("nflag");
-  
+
   unsigned meshType = 2;
   std::vector < unsigned >  nodeFlag; // local solution
 
   start_time = clock();
+
+
+  std::vector<std::vector<double>> xiI;
+  xiI.reserve(1000);
 
   const std::vector<std::vector<unsigned> > & ielp = projection->GetIel();
   const std::vector < std::vector < std::vector <double > > > & Xip = projection->GetXi();
@@ -585,6 +596,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
       double scale = 1;//elementArea / particleArea;
 
 
+      xiI.resize(0);
+      std::vector < double > ain(dim, 0);
+
       for(unsigned kp = 0; kp < nprocs; kp++) {
         while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
 
@@ -864,18 +878,38 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             //double afI = 0.; // t_{n + 1}
             //double afN = par->_af; // t_{n + alpha_f}
 
-            std::vector < adept::adouble > N(dim);
+            std::vector < double > N(dim);
             for(unsigned k = 0; k < dim; k++) N[k] = -NpOld[kp][k][im[kp]]; // from the fluid to the solid
             if(dim == 2) {
               weight = sqrt(N[0] * N[0] + N[1] * N[1]);
-              N[0] /= weight;
-              N[1] /= weight;
+              N[0] /= weight.value();
+              N[1] /= weight.value();
             }
             else {
               weight = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
-              N[0] /= weight;
-              N[1] /= weight;
-              N[2] /= weight;
+              N[0] /= weight.value();
+              N[1] /= weight.value();
+              N[2] /= weight.value();
+            }
+
+
+            xiI.resize(xiI.size() + 1);
+            xiI[xiI.size() - 1] = xi;
+
+            std::vector < std::vector <double> > Jac, JacI;
+            msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vxOld, xi, Jac, JacI);
+
+            std::vector <double> a(dim, 0);
+            double det = 0;
+            for(unsigned j = 0; j < dim; j++) {
+              for(unsigned k = 0; k < dim; k++) {
+                a[j] += Jac[k][j] * (-N[k]); //from the solid to the fluid in the parent element
+              }
+              det += a[j] * a[j];
+            }
+            det = 1. / sqrt(det);
+            for(unsigned k = 0; k < dim; k++) {
+              ain[k] += a[k] / det;
             }
 
             std::vector < adept::adouble > tau(dim, 0.);
@@ -918,12 +952,29 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
             for(unsigned i = 0; i < nDofsP; i++) {
               for(unsigned k = 0; k < dim; k++) {
-                aResP[i] += - (phiP[i]  * (solVFpNew[k] - solVSpNew[k]) * N[k]) * weight;
+                aResP[i] += -(phiP[i]  * (solVFpNew[k] - solVSpNew[k]) * N[k]) * weight;
               }
             }
           }
           im[kp]++;
         }
+      }
+      if(eFlag == 1) {
+        std::vector<double> aout;
+        double d;
+
+        double det = 0.;
+        for(unsigned k = 0; k < dim; k++) {
+          det += ain[k] * ain[k];
+        }
+        det = 1. / sqrt(det);
+        for(unsigned k = 0; k < dim; k++) {
+          ain[k] *= det;
+        }
+
+        FindBestFit(xiI, ain, aout, d);
+        std::cout << ain[0] << " " << ain[1] << " " << d << std::endl;
+        std::cout << aout[0] << " " << aout[1] << " " << d << std::endl << std::endl;
       }
     }
     //END PARTICLE
@@ -992,7 +1043,57 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
 }
 
+void FindBestFit(const std::vector < std::vector < double > > &xp, const std::vector < double > &ain, std::vector<double> &aout, double &d) {
 
+  const unsigned &dim = ain.size();
+  aout.resize(dim);
+
+  MatrixXd m(xp.size(), dim);
+  std::vector < double > xc(dim, 0.);
+
+//Calculate the centroid from points
+  for(unsigned i = 0; i < xp.size(); i++) {
+    for(unsigned k = 0; k < dim; k++) {
+      xc[k] += xp[i][k];
+    }
+  }
+  for(unsigned k = 0; k < dim; k++) {
+    xc[k] /= xp.size();
+  }
+
+  //Fill matrix to be passed to JacobiSVD
+  for(unsigned i = 0; i < xp.size(); i++) {
+    for(unsigned k = 0; k < dim; k++) {
+      m(i, k) = xp[i][k] - xc[k];
+    }
+
+  }
+
+  JacobiSVD<MatrixXd> svd(m, ComputeThinU | ComputeThinV);
+  MatrixXd v = svd.matrixV();
+
+  double ainDotaout = 0.;
+
+  unsigned col = (dim <= 2) ? 0 : dim - 1;
+  double det = 0;
+  for(unsigned k = 0; k < dim; k++) {
+    aout[k] = v(k, col);
+    ainDotaout += aout[k] * ain[k];
+    det += aout[k] * aout[k];
+  }
+  det = (ainDotaout > 0) ? 1. / sqrt(det) : -1. / sqrt(det);
+  for(unsigned k = 0; k < dim; k++) {
+    aout[k] *= det;
+  }
+
+  //Calculate constant d in aout.xc + d=0
+  for(unsigned k = 0; k < dim; k++) {
+    d -= aout[k] * xc[k];
+  }
+
+
+
+}
 
 
 

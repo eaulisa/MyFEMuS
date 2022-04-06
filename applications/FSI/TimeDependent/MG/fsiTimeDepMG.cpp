@@ -245,7 +245,7 @@ int main(int argc, char **args) {
   else if(simulation < 7)
     numberOfUniformRefinedMeshes = 2;
   else if(simulation == 8)
-    numberOfUniformRefinedMeshes = 2;
+    numberOfUniformRefinedMeshes = 1;
 
   numberOfAMRLevels = 0;
 
