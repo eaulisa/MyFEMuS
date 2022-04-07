@@ -698,7 +698,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //             double dAOld = (1. - U) * areaOld; // areaOld = area at n
 //             adept::adouble dA = (1. - U) * areaOld * Jb; // areaOld * Jb = area at theta
 //             adept::adouble dANew = (1. - U) * areaOld * JbNew; // areaOld * JbNew = area at n + 1
-// 
+//
 //             for(unsigned i = 0; i < nDofs; i++) {
 //               for(unsigned k = 0; k < dim; k++) {
 //                 adept::adouble laplace = 0.;
@@ -707,7 +707,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //                   laplace  +=  gradPhi[i * dim + j] * (gradSolVp[k][j] + gradSolVp[j][k]);
 //                   advection +=  phi[i] * (solVFp[j] - (solDb[j] - 0.) / dt) * gradSolVp[k][j]; //ALE
 //                 }
-// 
+//
 //                 aResV[k][i] += rhoFluid * phi[i] * (solVFpNew[k] * dANew - solVFpOld[k] * dAOld) / dt +
 //                                (rhoFluid * advection
 //                                 + muFluid * laplace
@@ -716,7 +716,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 //                                ) * dA;
 //               }
 //             }
-// 
+//
 //             for(unsigned i = 0; i < nDofsP; i++) {
 //               for(unsigned  k = 0; k < dim; k++) {
 //                 aResP[i] += phiP[i] *  gradSolVpNew[k][k] * dANew;
@@ -1018,16 +1018,16 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                 advection +=  phi[i] * (solVg[j] - (solDb[j] - 0.) / dt) * gradSolVg[k][j]; //ALE
               }
 
-              aResV[k][i] += rhoFluid * phi[i] * (solVgNew[k] * weightNew - solVgOld[k] * weightOld) / dt +
+              aResV[k][i] += rhoFluid * phi[i] * (solVgNew[k] * weightNew - solVgOld[k] * weightOld) / dt * eqPl[ig] +
                              (rhoFluid * advection
                               + muFluid * laplace
                               - gradPhi[i * dim + k] * solPg
-                             ) * weight;
+                             ) * weight * eqPl[ig];
             }
           }
           for(unsigned i = 0; i < nDofsP; i++) {
             for(unsigned  k = 0; k < dim; k++) {
-              aResP[i] += phiP[i] *  gradSolVgNew[k][k] * weightNew;
+              aResP[i] += phiP[i] *  gradSolVgNew[k][k] * weightNew * eqPl[ig];
             }
           }
         }
