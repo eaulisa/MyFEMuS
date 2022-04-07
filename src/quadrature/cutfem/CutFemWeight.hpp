@@ -302,6 +302,20 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
         x[1] = (_xgp[2][ig] + _xgp[0][ig]);
         x[2] = (_xgp[0][ig]);
       }
+        
+       
+//       if(TEType == 0) {
+//         x[0] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);  
+//         x[1] = (_xgp[1][ig] + _xgp[2][ig]);
+//         x[2] = (_xgp[2][ig]);
+//       }
+//       else {
+//         x[0] = (_xgp[0][ig]);
+//         x[1] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);  
+//         x[2] = (_xgp[2][ig] + _xgp[0][ig]);
+//       }
+        
+        
     }
 
     PolyBasis(x, bo);

@@ -79,18 +79,27 @@ int main(int argc, char** argv) {
 
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
+  
 
   unsigned qM = 3;
   CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
+  std::vector<double> weight1;
+  tet.GetWeightWithMap(0, {-0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1 );
+  for(unsigned j = 0; j < 1; j++) {
+    std::cout << weight1[j] << "\n ";
+  }
+  
+  //abort();
+  
 
   double dx = .1;
   double dt = 2.;
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
-  CDWeightTET <TypeA> tetCD(qM, dx, dt);
+  //CDWeightTET <TypeA> tetCD(qM, dx, dt);
 
   std::cout<<std::endl;
   
@@ -100,7 +109,7 @@ int main(int argc, char** argv) {
   std::vector<double> a2 = {cos(theta1 * M_PI / 180)* sin(phi1 * M_PI / 180), sin(theta1 * M_PI / 180) * sin(phi1 * M_PI / 180), cos(phi1 * M_PI / 180)};
   double d1 = -0.1 * sqrt(2);
 
-  std::vector<double> weight1;
+ 
 //   quad.GetWeightWithMap(0, a1, d1, weight1);
 //
 //   for(unsigned j = 0; j < weight1.size(); j++) {
@@ -127,20 +136,20 @@ int main(int argc, char** argv) {
 //   }
 //   std::cout << std::endl;
 
-  tet.GetWeightWithMap(0, a2, d1, weight1);
-  for(unsigned j = 0; j < weight1.size(); j++) {
-    std::cout << weight1[j] << " ";
-  }
-  std::cout << std::endl;
-  tetCD.GetWeight(a2, d1, weight);
-  for(unsigned j = 0; j < weight.size(); j++) {
-    std::cout << weight[j] << " ";
-  }
-  std::cout << std::endl;
-
-
-
-  return 1;
+//   tet.GetWeightWithMap(0, a2, d1, weight1);
+//   for(unsigned j = 0; j < weight1.size(); j++) {
+//     std::cout << weight1[j] << " ";
+//   }
+//   std::cout << std::endl;
+//   tetCD.GetWeight(a2, d1, weight);
+//   for(unsigned j = 0; j < weight.size(); j++) {
+//     std::cout << weight[j] << " ";
+//   }
+//   std::cout << std::endl;
+// 
+// 
+// 
+//   return 1;
 
   const std::string fe_quad_rule_1 = "seventh";
   const std::string fe_quad_rule_2 = "eighth";
@@ -296,7 +305,7 @@ int main(int argc, char** argv) {
         tet.clear();
         tet.GetWeightWithMap(0, b, db, weightCF);
 
-        tetCD.GetWeight(b, db, weightCF);
+        //tetCD.GetWeight(b, db, weightCF);
 
         const double* weightG = tet.GetGaussWeightPointer();
 
