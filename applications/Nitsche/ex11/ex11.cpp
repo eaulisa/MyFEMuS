@@ -28,7 +28,16 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut);
 
+void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
+                                const std::vector<double> &aIn, const double &dIn, unsigned & efla,
+                                std::vector<double> &aOut, double &dOut);
+
+
+
 unsigned DIM = 2;
+
+const std::vector<double> N = {-1., 0.33};
+const double D = 0.;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
@@ -96,7 +105,7 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");  //??
 
-  BuildFlag(mlSol, {-1, 0}, 0);
+  BuildFlag(mlSol, N, D);
 
   MultiLevelProblem ml_prob(&mlSol);
 
@@ -300,11 +309,17 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
     else {
 
-      std::vector <double> N = {-1., 0.};
-
       std::vector<double> a;
-      getNormalInReferenceSystem(x, N, a);
-      double d = 0; //plane passsing through center *************
+      double d = 0;
+      unsigned elemFlag;
+
+      GetPlaneInTheParentElement(x, N, D, elemFlag, a, d);
+
+      //getNormalInReferenceSystem(x, N, a);
+
+      std::cout << iel << " " << a[0] << " " << a[1] << " " << d << std::endl;
+
+      //plane passsing through center *************
 
       std::vector<double> eqPoly1;
       quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0 (volume integral)
@@ -337,7 +352,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
         vector < adept::adouble > gradSolu1g(dim, 0.);
         vector < adept::adouble > gradSolu2g(dim, 0.);
-        
+
         for(unsigned i = 0; i < nDofu; i++) {
           for(unsigned k = 0; k < dim; k++) {
             gradSolu1g[k] += phi_x[i * dim + k] * solu1[i];
@@ -481,9 +496,9 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
       for(unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);
         dist += a[k] * x[k][i];
-        
+
       }
-      
+
       if(dist > 0) pcnt++;
       else if(dist < 0) mcnt++;
     }
@@ -505,7 +520,7 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
 
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut) {
-//aIn is a input 
+//aIn is a input
   unsigned dim = 2;
 
   const double& x1 = xv[0][0];
@@ -555,8 +570,10 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
 
 
 //himali
-void centerpoint(const std::vector < std::vector<double> > &xv,const std::vector<double> &a, const double &d, unsigned & efla , std::vector<double> &xm, std::vector<double> &ym){
-      
+void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
+                                const std::vector<double> &aIn, const double &dIn, unsigned & efla,
+                                std::vector<double> &aOut, double &dOut) {
+
   unsigned dim = 2;
 
   const double& x1 = xv[0][0];
@@ -567,101 +584,210 @@ void centerpoint(const std::vector < std::vector<double> > &xv,const std::vector
   const double& y2 = xv[1][1];
   const double& y3 = xv[1][2];
   const double& y4 = xv[1][3];
-  
-  //setting characteristic epsilon 
-  double h1 = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x4 - x3) + fabs(x4-x1)) / 4.;
-  double h2 = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y4 - y3) + fabs(y4-y1)) / 4.;
+
+  std::vector<double> xm;
+
+  //setting characteristic epsilon
+  double h1 = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x4 - x3) + fabs(x4 - x1)) / 4.;
+  double h2 = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y4 - y3) + fabs(y4 - y1)) / 4.;
 
   double h = sqrt(h1 * h1 + h2 * h2);
   double eps = 1.0e-10 * h;
-  
+
   //extracting number of vertices (4)
-  unsigned l= xv[0].size();;
-  
-  //a vector to store distances 
-  std::vector<double> dist(l, d); 
+  unsigned l = 4;
+
+  //a vector to store distances
+  std::vector<double> dist(l, dIn);
   std::vector<double> distf(l);
-  
-  double den=0.;
-  unsigned t;
-  //calculating perpendicular distances 
-  for (int i ; i<l ; i++){
-    for(int k ; k < dim ; k++){
-        dist[i] += a[k] * xv[k][i];
-        den += a[k]*a[k];
+
+  double den = 0.;
+  for(unsigned k = 0 ; k < dim ; k++) {
+    den += aIn[k] * aIn[k];
+  }
+  den = 1. / sqrt(den);
+
+  unsigned t = 0;
+  //calculating perpendicular distances
+  for(unsigned i = 0 ; i < l ; i++) {
+    for(unsigned k = 0 ; k < dim ; k++) {
+      dist[i] += aIn[k] * xv[k][i];
     }
-    dist[i] =dist[i]/sqrt (den);
-    
+    dist[i] = dist[i] / sqrt(den);
+
     ////taking care of extream cases (updating dist and filling distf)
-    
-    if( fabs(dist[i]) < eps ){ //interface is very close to a vertex
-        distf[i] = (dist[i]<0.) ? -eps : eps;
-        dist[i]=0. ;
-        t++;
+
+    if(fabs(dist[i]) < eps) {  //interface is very close to a vertex
+      distf[i] = (dist[i] < 0.) ? -eps : eps;
+      dist[i] = 0. ;
+      t++;
     }
-    else{
-        distf[i]=dist[i];
+    else {
+      distf[i] = dist[i];
     }
   }
-        
-    //if we have a interface very close to vertex
-    if(t > 0) {
+
+  //if we have a interface very close to vertex
+  if(t > 0) {
     unsigned pcnt = 0;
     double mcnt = 0;
     for(unsigned i = 0; i < l; i++) {
-      if(dist[i] > 0.) {pcnt++;}
-      else if(dist[i] < 0.) {mcnt++;}
+      if(dist[i] > 0.) {
+        pcnt++;
+      }
+      else if(dist[i] < 0.) {
+        mcnt++;
+      }
       dist[i] = distf[i];
     }
-    
-    
-    if(pcnt == 0) { 
+
+    if(pcnt == 0) {
       efla = 2;
       return;
     }
-    else if(mcnt != 0) {  
-      efla = 1;
+    else if(mcnt == 0) {
+      efla = 0;
       return;
     }
-    
-        
+  }
+
+  //calculating s
+  std::vector < std::vector <double> > xe(dim, std::vector<double>(2, 0));
+  unsigned j = 0;
+  for(unsigned i = 0; i < l; i++) {
+    unsigned i1 = (i + 1) % l;
+    if(dist[i] * dist[i1] < 0) {
+      double s = fabs(dist[i]) / (fabs(dist[i]) + fabs(dist[i1]));
+      for(unsigned k = 0; k < dim; k++) {
+        xe[k][j] = (1 - s) * xv[k][i] + s * xv[k][i1];
+      }
+      j++;
     }
-    
-    //calculating s
-    std::vector <double> sx(2);
-    std::vector <double> sy(2);
-    unsigned j = 0;
-    
-    for(unsigned i = 0; i < l; i++) {
-        unsigned i1 = (i + 1) % l;
-        if(dist[i] * dist[i1] < 0) {
-            double s = fabs(dist[i]) / (fabs(dist[i]) + fabs(dist[i1]));
-            sx[j] = (1 - s) * xv[0][i] + s * xv[0][i1];
-            sy[j] = (1 - s) * xv[1][i] + s * xv[1][i1];
-            j++;
-        }
-    }
-  
-    if(j == 0) {
-        if(dist[0] < 0) efla = 0; 
-        else efla = 1; 
-        return;
-    }
-  
+  }
+
+  if(j == 0) {
+    efla = (dist[0] < 0) ? 2 : 0;
+    return;
+  }
   else {
     efla = 1;
     xm.resize(dim);
-    ym.resize(dim);
-
     for(unsigned k = 0; k < dim; k++) {
-      xm[k] = (sx[0]+sx[1])/2.;
-      ym[k] = (sy[0]+sy[1])/2.;
+      xm[k] = (xe[k][0] + xe[k][1]) / 2.;
     }
-    
+
+    std::vector<double> xi(dim);
+    double &u = xi[0];
+    double &v = xi[1];
+
+    std::vector < std::vector < double > > J(2, std::vector<double>(2));
+
+    double dx12 = x1 - x2;
+    double dx34 = x3 - x4;
+    double dy12 = y1 - y2;
+    double dy34 = y3 - y4;
+    double hu = dx34 * dy12 - dx12 * dy34;
+
+    double dx14 = (x1 - x4);
+    double dy23 = (y2 - y3);
+    double dx23 = (x2 - x3);
+    double dy14 = (y1 - y4);
+    double hv = dx14 * dy23 - dx23 * dy14;
+
+    double eps2 = 1.0e-10 * h * h;
+
+    if(fabs(hu) > eps2) {//edges 1 and 3 are not parallel
+      double gu = -x4 * y1 + x3 * y2 - x2 * y3 + x1 * y4;
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double fpgu = f + gu;
+
+      double det = sqrt(hu * (- 2. * xm[0] * (dy14 + dy23)
+                              + (2. * xm[1] - y3 - y4) * (x1 + x2)
+                              - (2. * xm[1] - y1 - y2) * (x3 + x4))
+                        + fpgu * fpgu);
+      u = (fpgu + det) / hu;
+
+      if(fabs(hv) > eps2) { //edges 2 and 4 are not parallel
+        double gv = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+        v = (f + gv - det) / hv;
+
+        J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+        J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+        J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+        J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+
+      }
+      else { //edges 2 and 4 are parallel
+        J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+        J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+
+        v = (J[0][1] > eps) ?
+            (0.25 * ((-1. + u) * (x1 + x4) - (1. + u) * (x3 + x2)) + xm[0]) / J[0][1] :
+            (0.25 * ((-1. + u) * (y1 + y4) - (1. + u) * (y3 + y2)) + xm[1]) / J[1][1];
+
+        J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+        J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+
+      }
+    }
+    else if(fabs(hv) > eps2) {  //edges 1 and 3 are parallel, but edges 2 and 4 are not
+      // std::cout << "1 and 3 are parallel\n";
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double gv = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+      double fpgv = f + gv;
+
+      double det = sqrt(hv * (- 2. * xm[0] * (dy12 - dy34)
+                              + (2. * xm[1] - y2 - y3) * (x1 + x4)
+                              - (2. * xm[1] - y1 - y4) * (x2 + x3))
+                        +  fpgv * fpgv);
+
+      v = (fpgv - det) / hv;
+
+      J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+      J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+
+      u = (fabs(J[0][0]) > eps) ?
+          (0.25 * ((-1. + v) * (x1 + x2) - (1. + v) * (x3 + x4)) + xm[0]) / J[0][0] :
+          (0.25 * ((-1. + v) * (y1 + y2) - (1. + v) * (y3 + y4)) + xm[1]) / J[1][0];
+
+      J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+      J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+    }
+    else { //edges 1 and 3, and  edges 2 and 4 are parallel
+      //   std::cout << "Romboid\n";
+      std::vector<std::vector<unsigned> > idx = {{3, 1}, {0, 2}};
+
+      double A[2][2] = {{-dy14, dy23}, {dy12, dy34}};
+      double B[2][2] = {{dx14, -dx23}, {-dx12, -dx34}};
+
+      for(unsigned k = 0; k < 2; k++) {
+        double d[2];
+        for(unsigned j = 0 ; j < 2; j++) {
+          double Ckj = - A[k][j] * xv[0][idx[k][j]] - B[k][j] * xv[1][idx[k][j]];
+          d[j] = (A[k][j] * xm[0] + B[k][j] * xm[1] + Ckj) / sqrt(A[k][j] * A[k][j] + B[k][j] * B[k][j]);
+        }
+        xi[k] = -1. + 2. * d[0] / (d[0] + d[1]);
+      }
+
+      J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+      J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+      J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+      J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+    }
+
+    aOut.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        aOut[k] += J[j][k] * aIn[j];
+      }
+    }
+    double aOutNorm = sqrt(aOut[0] * aOut[0] + aOut[1] * aOut[1]);
+    aOut[0] /= aOutNorm;
+    aOut[1] /= aOutNorm;
+    dOut = - aOut[0] * u - aOut[1] * v;
+
   }
-    
- 
-   
-   
-   
+
+
+
 }
