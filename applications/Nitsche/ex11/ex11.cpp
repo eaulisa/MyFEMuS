@@ -555,7 +555,7 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
 
 
 //himali
-void getapointinsideelement(const std::vector < std::vector<double> > &xv,const std::vector<double> &a, const double &d,unsigned & efla ,std::vector<double> &xm,std::vector<double> &ym){
+void centerpoint(const std::vector < std::vector<double> > &xv,const std::vector<double> &a, const double &d, unsigned & efla , std::vector<double> &xm, std::vector<double> &ym){
       
   unsigned dim = 2;
 
@@ -568,7 +568,7 @@ void getapointinsideelement(const std::vector < std::vector<double> > &xv,const 
   const double& y3 = xv[1][2];
   const double& y4 = xv[1][3];
   
-  //setting epsilon 
+  //setting characteristic epsilon 
   double h1 = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x4 - x3) + fabs(x4-x1)) / 4.;
   double h2 = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y4 - y3) + fabs(y4-y1)) / 4.;
 
@@ -592,7 +592,7 @@ void getapointinsideelement(const std::vector < std::vector<double> > &xv,const 
     }
     dist[i] =dist[i]/sqrt (den);
     
-    ////taking care of extream cases 
+    ////taking care of extream cases (updating dist and filling distf)
     
     if( fabs(dist[i]) < eps ){ //interface is very close to a vertex
         distf[i] = (dist[i]<0.) ? -eps : eps;
@@ -635,7 +635,7 @@ void getapointinsideelement(const std::vector < std::vector<double> > &xv,const 
     for(unsigned i = 0; i < l; i++) {
         unsigned i1 = (i + 1) % l;
         if(dist[i] * dist[i1] < 0) {
-            double s = dist[i] / (dist[i] + dist[i1]);
+            double s = fabs(dist[i]) / (fabs(dist[i]) + fabs(dist[i1]));
             sx[j] = (1 - s) * xv[0][i] + s * xv[0][i1];
             sy[j] = (1 - s) * xv[1][i] + s * xv[1][i1];
             j++;
@@ -654,8 +654,8 @@ void getapointinsideelement(const std::vector < std::vector<double> > &xv,const 
     ym.resize(dim);
 
     for(unsigned k = 0; k < dim; k++) {
-      xm[k] = (sx[0]+sx[1])/2;
-      ym[k] = (sy[0]+sy[1])/2;
+      xm[k] = (sx[0]+sx[1])/2.;
+      ym[k] = (sy[0]+sy[1])/2.;
     }
     
   }
