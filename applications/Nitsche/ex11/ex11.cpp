@@ -302,18 +302,18 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       std::vector <double> N = {-1., 0.};
 
-      std::vector<double> a;//rezise?**********************
+      std::vector<double> a;
       getNormalInReferenceSystem(x, N, a);
       double d = 0; //plane passsing through center *************
 
       std::vector<double> eqPoly1;
-      quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0********
+      quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0 (volume integral)
 
       std::vector<double> eqPoly2;
       quad.GetWeightWithMap(0, {-a[0], -a[1]}, -d, eqPoly2);
 
       std::vector<double> eqPolyI;
-      quad.GetWeightWithMap(-1, a, d, eqPolyI);//s=-1************
+      quad.GetWeightWithMap(-1, a, d, eqPolyI);//s=-1 (boundary integral)
 
       const elem_type *thisfem = fem.GetFiniteElement(ielGeom, soluType);
 
@@ -335,11 +335,9 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         }
         dsN = sqrt(dsN);
 
-        // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-        //why gradient of solution adouble?, because solution is adouble variable
         vector < adept::adouble > gradSolu1g(dim, 0.);
         vector < adept::adouble > gradSolu2g(dim, 0.);
-        //gradient of the solution at gauss point // 'k' is for dimension and 'i' is for nodes of the mesh
+        
         for(unsigned i = 0; i < nDofu; i++) {
           for(unsigned k = 0; k < dim; k++) {
             gradSolu1g[k] += phi_x[i * dim + k] * solu1[i];
@@ -482,8 +480,10 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
       double dist = d;
       for(unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);
-        dist += a[k] * x[k][i];// global extraction and local storage for the element coordinates
+        dist += a[k] * x[k][i];
+        
       }
+      
       if(dist > 0) pcnt++;
       else if(dist < 0) mcnt++;
     }
@@ -505,7 +505,7 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
 
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut) {
-
+//aIn is a input 
   unsigned dim = 2;
 
   const double& x1 = xv[0][0];
@@ -541,10 +541,127 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
   aOut.assign(dim, 0);
   for(unsigned k = 0; k < dim; k++) {
     for(unsigned j = 0; j < dim; j++) {
-      aOut[k] += J[j][k] * aIn[j]; ///aIn=physical normal , aOut=fem normal //aIn define???
+      aOut[k] += J[j][k] * aIn[j]; ///aIn=physical normal , aOut=fem normal/normal in the parent system, J[j][k] is jacobian transpose
     }
   }
   double aOutNorm = sqrt(aOut[0] * aOut[0] + aOut[1] * aOut[1]);
   aOut[0] /= aOutNorm;
   aOut[1] /= aOutNorm;
+}
+
+
+
+
+
+
+//himali
+void getapointinsideelement(const std::vector < std::vector<double> > &xv,const std::vector<double> &a, const double &d,unsigned & efla ,std::vector<double> &xm,std::vector<double> &ym){
+      
+  unsigned dim = 2;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& x4 = xv[0][3];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+  const double& y4 = xv[1][3];
+  
+  //setting epsilon 
+  double h1 = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x4 - x3) + fabs(x4-x1)) / 4.;
+  double h2 = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y4 - y3) + fabs(y4-y1)) / 4.;
+
+  double h = sqrt(h1 * h1 + h2 * h2);
+  double eps = 1.0e-10 * h;
+  
+  //extracting number of vertices (4)
+  unsigned l= xv[0].size();;
+  
+  //a vector to store distances 
+  std::vector<double> dist(l, d); 
+  std::vector<double> distf(l);
+  
+  double den=0.;
+  unsigned t;
+  //calculating perpendicular distances 
+  for (int i ; i<l ; i++){
+    for(int k ; k < dim ; k++){
+        dist[i] += a[k] * xv[k][i];
+        den += a[k]*a[k];
+    }
+    dist[i] =dist[i]/sqrt (den);
+    
+    ////taking care of extream cases 
+    
+    if( fabs(dist[i]) < eps ){ //interface is very close to a vertex
+        distf[i] = (dist[i]<0.) ? -eps : eps;
+        dist[i]=0. ;
+        t++;
+    }
+    else{
+        distf[i]=dist[i];
+    }
+  }
+        
+    //if we have a interface very close to vertex
+    if(t > 0) {
+    unsigned pcnt = 0;
+    double mcnt = 0;
+    for(unsigned i = 0; i < l; i++) {
+      if(dist[i] > 0.) {pcnt++;}
+      else if(dist[i] < 0.) {mcnt++;}
+      dist[i] = distf[i];
+    }
+    
+    
+    if(pcnt == 0) { 
+      efla = 2;
+      return;
+    }
+    else if(mcnt != 0) {  
+      efla = 1;
+      return;
+    }
+    
+        
+    }
+    
+    //calculating s
+    std::vector <double> sx(2);
+    std::vector <double> sy(2);
+    unsigned j = 0;
+    
+    for(unsigned i = 0; i < l; i++) {
+        unsigned i1 = (i + 1) % l;
+        if(dist[i] * dist[i1] < 0) {
+            double s = dist[i] / (dist[i] + dist[i1]);
+            sx[j] = (1 - s) * xv[0][i] + s * xv[0][i1];
+            sy[j] = (1 - s) * xv[1][i] + s * xv[1][i1];
+            j++;
+        }
+    }
+  
+    if(j == 0) {
+        if(dist[0] < 0) efla = 0; 
+        else efla = 1; 
+        return;
+    }
+  
+  else {
+    efla = 1;
+    xm.resize(dim);
+    ym.resize(dim);
+
+    for(unsigned k = 0; k < dim; k++) {
+      xm[k] = (sx[0]+sx[1])/2;
+      ym[k] = (sy[0]+sy[1])/2;
+    }
+    
+  }
+    
+ 
+   
+   
+   
 }
