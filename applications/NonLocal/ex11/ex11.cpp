@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  4
+#define N_UNIFORM_LEVELS  5
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
   double dt = 2.;
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
-  //CDWeightTET <TypeA> tetCD(qM, dx, dt);
+ // CDWeightTET <TypeA> tetCD(qM, dx, dt);
 
   std::cout<<std::endl;
   

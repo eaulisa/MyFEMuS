@@ -314,6 +314,8 @@ class CDWeightTET :
 
       CutFemWeight <double, TypeA> tet  = CutFemWeight<double, TypeA >(TET, qM, "legendre");
 
+      tet.SetTetBaseType(1);
+
       _dx = dx;
       _dt = dt;
       _df = dt;
@@ -369,24 +371,25 @@ class CDWeightTET :
               break;
           }
 
+          std::cout << k << " " << i << " " << std::flush;
           for(unsigned t = 0; t < _nt; ++t) {
             for(unsigned f = 0; f < _nf; ++f) {
 
-              std::vector<double> a = {sin( (k / 4 * 90 + f0 + f * _df) * M_PI / 180. ) * cos((k % 4 * 90 + t0 + t * _dt) * M_PI / 180.),
-                                       sin( (k / 4 * 90 + f0 + f * _df) * M_PI / 180. ) * sin((k % 4 * 90 + t0 + t * _dt) * M_PI / 180.),
-                                       cos( (k / 4 * 90 + f0 + f * _df) * M_PI / 180. )
+              std::vector<double> a = {sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180.) * cos((k % 4 * 90 + t0 + t * _dt) * M_PI / 180.),
+                                       sin((k / 4 * 90 + f0 + f * _df) * M_PI / 180.) * sin((k % 4 * 90 + t0 + t * _dt) * M_PI / 180.),
+                                       cos((k / 4 * 90 + f0 + f * _df) * M_PI / 180.)
                                       };
               double d = -a[0] * xi[0] - a[1] * xi[1] - a[2] * xi[2];
               tet.clear();
               tet(0, a, d, _weight[k][i][t][f]);
-              
-              if(i == 4 && t == 2){
-                std::cout << k << " " << xi[0] << " " <<xi[1] <<" "<< xi[2] <<" "<< (k % 4 * 90 + t0 + t * _dt) <<" "<< (k / 4 * 90 + f0 + f * _df) << std::endl;
-                std::cout << a[0]<< " " << a[1]<<" "<< a[2]<<" "<< d <<" "<< _weight[k][i][t][f][0] << std::endl << std::flush;
-              }
-              
+
+//               if(i == 4 && t == 2){
+//                 std::cout << k << " " << xi[0] << " " <<xi[1] <<" "<< xi[2] <<" "<< (k % 4 * 90 + t0 + t * _dt) <<" "<< (k / 4 * 90 + f0 + f * _df) << std::endl;
+//                 std::cout << a[0]<< " " << a[1]<<" "<< a[2]<<" "<< d <<" "<< _weight[k][i][t][f][0] << std::endl << std::flush;
+//               }
+
               //abort();
-              
+
             }
           }
         }
@@ -480,7 +483,7 @@ class CDWeightTET :
         i1 = _nx - 3;
         s1 = s1 + 1;
       }
-      else if (i1 == _nx - 1) {
+      else if(i1 == _nx - 1) {
         i1 = _nx - 3;
         s1 = 2;
       }
@@ -500,7 +503,7 @@ class CDWeightTET :
         i2 = _nt - 3;
         s2 = s2 + 1;
       }
-      else if (i2 == _nt - 1) {
+      else if(i2 == _nt - 1) {
         i2 = _nt - 3;
         s2 = 2;
       }
@@ -519,14 +522,14 @@ class CDWeightTET :
         i3 = _nf - 3;
         s3 = s3 + 1;
       }
-      else if (i3 == _nf - 1) {
+      else if(i3 == _nf - 1) {
         i3 = _nf - 3;
         s3 = 2;
       }
 
-      std::cout << i1 << " " << s1 << std::endl;
-      std::cout << i2 << " " << s2 << std::endl;
-      std::cout << i3 << " " << s3 << std::endl;
+//       std::cout << i1 << " " << s1 << std::endl;
+//       std::cout << i2 << " " << s2 << std::endl;
+//       std::cout << i3 << " " << s3 << std::endl;
 
       _phi1.resize(4);
       _phi2.resize(4);
@@ -554,9 +557,9 @@ class CDWeightTET :
           for(int j2 = 0; j2 < 4; j2++) {
             for(int j3 = 0; j3 < 4; j3++) {
               weight[i] += _phi1[j1] * _phi2[j2] * _phi3[j3] * _weight[k][i1 + j1 - 1][i2 + j2 - 1][i3 + j3 - 1][i];
-              if(i == 0) {
-                std::cout << i << " " << i1 + j1 - 1 << " " << i2 + j2 - 1  << " " << i3 + j3 - 1 << " " << _weight[k][i1 + j1 - 1][i2 + j2 - 1][i3 + j3 - 1][i] << std::endl;
-              }
+//               if(i == 0) {
+//                 std::cout << i << " " << i1 + j1 - 1 << " " << i2 + j2 - 1  << " " << i3 + j3 - 1 << " " << _weight[k][i1 + j1 - 1][i2 + j2 - 1][i3 + j3 - 1][i] << std::endl;
+//               }
             }
           }
         }

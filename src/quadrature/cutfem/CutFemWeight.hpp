@@ -42,6 +42,8 @@ class CutFemWeight {
       _geomElemType = geomElemType;
       _qM = qM;
       _gaussType = gaussType;
+      
+      _tetBaseType = 0;
 
       if(_geomElemType == HEX || _geomElemType == WEDGE || _geomElemType == TET) _dim = 3;
       if(_geomElemType == QUAD || _geomElemType == TRI) _dim = 2;
@@ -138,6 +140,8 @@ class CutFemWeight {
       for(unsigned i = 0; i < _WeightMap.size(); i++)  _WeightMap[i].clear();
       _WeightMap.resize(0);
     }
+    
+    void SetTetBaseType(const unsigned &value) {_tetBaseType = value;}
 
   protected:
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
@@ -164,6 +168,8 @@ class CutFemWeight {
 
     CutFEMmap <TypeA> *_obj;
 
+    
+    unsigned _tetBaseType;
 
 
     std::vector < std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> > > _WeightMap;
@@ -225,10 +231,13 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
   //time1 += clock() - time;
   //time = clock();
-
+   _obj->SetBaseType(_tetBaseType);
 
   unsigned count = 0;
-
+  
+  
+  
+  
   if(_dim == 3) {
     for(unsigned q = 0; q <= _qM; q++) {
       for(int ii = q; ii >= 0; ii--) {
