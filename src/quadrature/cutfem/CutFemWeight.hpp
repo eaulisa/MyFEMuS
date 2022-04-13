@@ -42,7 +42,7 @@ class CutFemWeight {
       _geomElemType = geomElemType;
       _qM = qM;
       _gaussType = gaussType;
-      
+
       _tetBaseType = 0;
 
       if(_geomElemType == HEX || _geomElemType == WEDGE || _geomElemType == TET) _dim = 3;
@@ -124,6 +124,11 @@ class CutFemWeight {
     unsigned GetGaussQuadratureOrder() {
       return _gaussOrder;
     }
+    
+    unsigned GetGaussQuadraturePointNumber() {
+      return _gn;
+    }
+    
 
     const double* GetGaussWeightPointer() {
       return _gauss->GetGaussWeightsPointer();
@@ -140,8 +145,10 @@ class CutFemWeight {
       for(unsigned i = 0; i < _WeightMap.size(); i++)  _WeightMap[i].clear();
       _WeightMap.resize(0);
     }
-    
-    void SetTetBaseType(const unsigned &value) {_tetBaseType = value;}
+
+    void SetTetBaseType(const unsigned &value) {
+      _tetBaseType = value;
+    }
 
   protected:
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
@@ -168,7 +175,7 @@ class CutFemWeight {
 
     CutFEMmap <TypeA> *_obj;
 
-    
+
     unsigned _tetBaseType;
 
 
@@ -213,16 +220,6 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
   clock_t time = clock();
 
-//   if(wMap) {
-//     _key = std::make_pair(a, d);
-//     _it = _WeightMap[s+1].find(_key);
-//     if(_it != _WeightMap[s+1].end()) {
-//       weightCF.clear();
-//       weightCF = _WeightMap[s+1][_key];
-//       return;
-//     }
-//   }
-
   _cntCall++;
 
   std::vector< TypeA > aA(_dim);
@@ -231,13 +228,10 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 
   //time1 += clock() - time;
   //time = clock();
-   _obj->SetBaseType(_tetBaseType);
+  _obj->SetBaseType(_tetBaseType);
 
   unsigned count = 0;
-  
-  
-  
-  
+
   if(_dim == 3) {
     for(unsigned q = 0; q <= _qM; q++) {
       for(int ii = q; ii >= 0; ii--) {
@@ -279,11 +273,11 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
   //time = clock();
 
   std::vector<double> bo(_L);
-  std::vector<double> x(_dim); //TODO
-
-  unsigned TEType = 2;
-  if(_geomElemType == TET) {
-    TEType = (std::max(fabs(a[1] + a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 0 : 1;
+  std::vector<double> x(_dim);
+  
+  unsigned TETtype = _tetBaseType;
+  if(_geomElemType == TET && _tetBaseType == 0) {
+    TETtype = (std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 1 : 2;
   }
 
   weightCF.assign(_gn, 0);
@@ -303,28 +297,14 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
     }
     else {
       x[0] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);
-      if(TEType == 0) {
+      if(TETtype == 1) {
         x[1] = (_xgp[1][ig] + _xgp[2][ig]);
         x[2] = (_xgp[2][ig]);
       }
-      else {
+      else { //TETtype == 2
         x[1] = (_xgp[2][ig] + _xgp[0][ig]);
         x[2] = (_xgp[0][ig]);
       }
-        
-       
-//       if(TEType == 0) {
-//         x[0] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);  
-//         x[1] = (_xgp[1][ig] + _xgp[2][ig]);
-//         x[2] = (_xgp[2][ig]);
-//       }
-//       else {
-//         x[0] = (_xgp[0][ig]);
-//         x[1] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);  
-//         x[2] = (_xgp[2][ig] + _xgp[0][ig]);
-//       }
-        
-        
     }
 
     PolyBasis(x, bo);
@@ -340,8 +320,8 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 //     _WeightMap[s+1][_key] = weightCF;
 //   }
 
-  //time3 += clock() - time;
-  //std::cout << time1 << " " << time2 << " " << time3 << std::endl;
+//time3 += clock() - time;
+//std::cout << time1 << " " << time2 << " " << time3 << std::endl;
 };
 
 
@@ -414,6 +394,7 @@ void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::v
 }
 
 #endif
+
 
 
 

@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  5
+#define N_UNIFORM_LEVELS  3
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -95,11 +95,11 @@ int main(int argc, char** argv) {
   //abort();
   
 
-  double dx = .1;
+  double dx = .05;
   double dt = 2.;
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
- // CDWeightTET <TypeA> tetCD(qM, dx, dt);
+  CDWeightTET <TypeA> tetCD(qM, dx, dt);
 
   std::cout<<std::endl;
   
@@ -136,16 +136,16 @@ int main(int argc, char** argv) {
 //   }
 //   std::cout << std::endl;
 
-//   tet.GetWeightWithMap(0, a2, d1, weight1);
-//   for(unsigned j = 0; j < weight1.size(); j++) {
-//     std::cout << weight1[j] << " ";
-//   }
-//   std::cout << std::endl;
-//   tetCD.GetWeight(a2, d1, weight);
-//   for(unsigned j = 0; j < weight.size(); j++) {
-//     std::cout << weight[j] << " ";
-//   }
-//   std::cout << std::endl;
+  tet.GetWeightWithMap(0, a2, d1, weight1);
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  tetCD.GetWeight(a2, d1, weight);
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] << " ";
+  }
+  std::cout << std::endl;
 // 
 // 
 // 
@@ -302,11 +302,12 @@ int main(int argc, char** argv) {
       }
       else if(ielType == 1) {
         std::vector <TypeIO> weightCF;
-        tet.clear();
-        tet.GetWeightWithMap(0, b, db, weightCF);
+        //tet.clear();
+        //tet.GetWeightWithMap(0, b, db, weightCF);
+        tetCD.GetWeight(b, db, weightCF);
 
-        //tetCD.GetWeight(b, db, weightCF);
-
+        //std::cout<<"a"<<std::flush;
+        
         const double* weightG = tet.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -862,7 +863,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
         std::swap(i0[1], i0[2]);
       }
 
-      std::cout << i0[0] << " " << i0[1] << " " << i0[2] << " " << i0[3] << std::endl;
+      //std::cout << i0[0] << " " << i0[1] << " " << i0[2] << " " << i0[3] << std::endl;
     }
 
     std::vector <double> yg(dim, 0);
