@@ -339,9 +339,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   NonLocal *nonlocal;
 
   if(dim == 3) {
-    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
-    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
+    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "third", "third", "legendre");
+    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "third", "third", "legendre");
+    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "third", "third", "legendre");
+    
+    refineElement[1][0] = new RefineElement(lmax1, "tet", "linear", "third", "third", "legendre");
+    refineElement[1][1] = new RefineElement(lmax1, "tet", "quadratic", "third", "third", "legendre");
+    refineElement[1][2] = new RefineElement(lmax1, "tet", "biquadratic", "third", "third", "legendre");
 
     refineElement[0][soluType]->SetConstants(eps); 
 
