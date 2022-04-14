@@ -33,13 +33,22 @@ class CDWeightQUAD :
       t0 = -_dt;
       _nx += 3;
       _nt += 3;
+      _ng = quad.GetGaussQuadraturePointNumber();
 
-      for(unsigned k = 0; k < 4; k++) {
-        _weight[k].resize(_nx);
-        for(unsigned i = 0; i < _nx; ++i) {
-          _weight[k][i].resize(_nt);
-        }
+      _weight.resize(4 * _nx * _nt * _ng);
+      
+      std::ostringstream fileName;
+      fileName << "./save/gaussQUAD_" << _nx << "_" << _nt << "_" << _ng << ".dat";
+      FILE *fp;
+
+      fp = fopen(fileName.str().c_str(), "r");
+      if(fp != NULL) {
+        fread(_weight.data(), sizeof(double), _weight.size(), fp);
+        fclose(fp);
       }
+      else {
+      std::vector<double> weight;
+      unsigned cnt = 0;
       for(unsigned k = 0; k < 4; k++) {
         std::vector<double> xi(2);
         for(unsigned i = 0; i < _nx; ++i) {
@@ -49,9 +58,16 @@ class CDWeightQUAD :
             std::vector<double> a = {cos((k * 90 + t0 + t * _dt) * M_PI / 180), sin((k * 90 + t0 + t * _dt) * M_PI / 180)};
             double d = -a[0] * xi[0] - a[1] * xi[1];
             quad.clear();
-            quad(0, a, d, _weight[k][i][t]);
+            quad(0, a, d, weight);
+            for(unsigned ig = 0; ig < _ng; ig++, cnt++) {
+              _weight[cnt] = weight[ig];
+            }
           }
         }
+      }
+      fp = fopen(fileName.str().c_str(), "w");
+      fwrite(_weight.data(), sizeof(double), _weight.size(), fp);
+      fclose(fp);
       }
     }
 
@@ -110,7 +126,6 @@ class CDWeightQUAD :
         s1 = 1;
       }
 
-
       int i2 = static_cast <int>(floor((t - t0) / _dt));
       double s2 = (t - (t0 + i2 * _dt)) / _dt;
       if(i2 < 1) {
@@ -121,8 +136,6 @@ class CDWeightQUAD :
         i2 = _nt - 3;
         s2 = 1;
       }
-
-
 
       _phi1.resize(4);
       _phi2.resize(4);
@@ -137,22 +150,26 @@ class CDWeightQUAD :
       _phi2[2] = (s2 + 1.) * s2             * (s2 - 2.) / (-2.);
       _phi2[3] = (s2 + 1.) * s2 * (s2 - 1.) / (6.);
 
-      weight.assign(_weight[k][i1][i2].size(), 0.);
+      weight.assign(_ng, 0.);
 
       for(unsigned i = 0; i < weight.size(); i++) {
         for(int j1 = 0; j1 < 4; j1++) {
           for(int j2 = 0; j2 < 4; j2++) {
-            weight[i] += _phi1[j1] * _phi2[j2] * _weight[k][i1 + j1 - 1][i2 + j2 - 1][i];
+            weight[i] += _phi1[j1] * _phi2[j2] * _weight[k * (_nx * _nt * _ng) +
+                                                        (i1 + j1 - 1) * (_nt * _ng) +
+                                                        (i2 + j2 - 1) * _ng +
+                                                        i];
           }
         }
       }
     }
   private:
-    std::vector < std::vector<std::vector <double> > > _weight[4];
+    std::vector<double> _weight;
     double _dx;
     double _dt;
     unsigned _nx;
     unsigned _nt;
+    unsigned _ng;
     double xi0;
     double t0;
 
@@ -179,13 +196,23 @@ template <class TypeA> class CDWeightTRI :
       t0 = -_dt;
       _nx += 3;
       _nt += 3;
+      _ng = tri.GetGaussQuadraturePointNumber();
 
-      for(unsigned k = 0; k < 4; k++) {
-        _weight[k].resize(_nx);
-        for(unsigned i = 0; i < _nx; ++i) {
-          _weight[k][i].resize(_nt);
-        }
+      _weight.resize(4 * _nx * _nt * _ng);
+
+      std::ostringstream fileName;
+      fileName << "./save/gaussTRI_" << _nx << "_" << _nt << "_" << _ng << ".dat";
+      FILE *fp;
+      
+      fp = fopen(fileName.str().c_str(), "r");
+      if(fp != NULL) {
+        fread(_weight.data(), sizeof(double), _weight.size(), fp);
+        fclose(fp);
       }
+      else {
+      unsigned cnt = 0;
+      std::vector<double> weight;
+      
       for(unsigned k = 0; k < 4; k++) {
         std::vector<double> xi(2);
         for(unsigned i = 0; i < _nx; ++i) {
@@ -195,9 +222,16 @@ template <class TypeA> class CDWeightTRI :
             std::vector<double> a = {cos((k * 90 + t0 + t * _dt) * M_PI / 180), sin((k * 90 + t0 + t * _dt) * M_PI / 180)};
             double d = -a[0] * xi[0] - a[1] * xi[1];
             tri.clear();
-            tri(0, a, d, _weight[k][i][t]);
+            tri(0, a, d, weight);
+            for(unsigned ig = 0; ig < _ng; ig++, cnt++) {
+              _weight[cnt] = weight[ig];
+            }
           }
         }
+      }
+      fp = fopen(fileName.str().c_str(), "w");
+      fwrite(_weight.data(), sizeof(double), _weight.size(), fp);
+      fclose(fp);
       }
     }
 
@@ -256,7 +290,6 @@ template <class TypeA> class CDWeightTRI :
         s1 = 1;
       }
 
-
       int i2 = static_cast <int>(floor((t - t0) / _dt));
       double s2 = (t - (t0 + i2 * _dt)) / _dt;
       if(i2 < 1) {
@@ -281,22 +314,26 @@ template <class TypeA> class CDWeightTRI :
       _phi2[2] = (s2 + 1.) * s2             * (s2 - 2.) / (-2.);
       _phi2[3] = (s2 + 1.) * s2 * (s2 - 1.) / (6.);
 
-      weight.assign(_weight[k][i1][i2].size(), 0.);
+      weight.assign(_ng, 0.);
 
       for(unsigned i = 0; i < weight.size(); i++) {
         for(int j1 = 0; j1 < 4; j1++) {
           for(int j2 = 0; j2 < 4; j2++) {
-            weight[i] += _phi1[j1] * _phi2[j2] * _weight[k][i1 + j1 - 1][i2 + j2 - 1][i];
+            weight[i] += _phi1[j1] * _phi2[j2] * _weight[k * (_nx * _nt * _ng) +
+                                                        (i1 + j1 - 1) * (_nt * _ng) +
+                                                        (i2 + j2 - 1) * _ng +
+                                                        i];
           }
         }
       }
     }
   private:
-    std::vector < std::vector<std::vector <double> > > _weight[4];
+    std::vector<double> _weight;  
     double _dx;
     double _dt;
     unsigned _nx;
     unsigned _nt;
+    unsigned _ng;
     double xi0;
     double t0;
 
@@ -340,7 +377,7 @@ class CDWeightTET :
 
 
       std::ostringstream fileName;
-      fileName << "./save/gaussTeT_" << _nx << "_" << _nt << "_" << _nf << "_" << _ng << ".dat";
+      fileName << "./save/gaussTET_" << _nx << "_" << _nt << "_" << _nf << "_" << _ng << ".dat";
       FILE *fp;
 
       fp = fopen(fileName.str().c_str(), "r");
@@ -377,7 +414,6 @@ class CDWeightTET :
                 xi[2] = xi[0];
                 break;
             }
-
 
             std::cout << k << " " << i << " " << std::flush;
             for(unsigned t = 0; t < _nt; ++t) {
@@ -483,7 +519,6 @@ class CDWeightTET :
 //       std::cout << t << std::endl;
 //       std::cout << f << std::endl << std::endl << std::flush;
 
-
       int i1 = static_cast <int>(floor((xi - xi0) / _dx));
       double s1 = (xi - (xi0 + i1 * _dx)) / _dx;
       if(i1 < 0) {
@@ -547,7 +582,6 @@ class CDWeightTET :
 //       std::cout << i2 << " " << s2 << std::endl;
 //       std::cout << i3 << " " << s3 << std::endl << std::endl << std::flush;
 
-
       _phi1.resize(4);
       _phi2.resize(4);
       _phi3.resize(4);
@@ -579,7 +613,6 @@ class CDWeightTET :
                                      (i2 + j2 - 1) * (_nf * _ng) +
                                      (i3 + j3 - 1) * _ng +
                                      i];
-
             }
           }
         }

@@ -164,10 +164,10 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-  // mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-  // mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+//   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
 
-  mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
+//   mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
 
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
