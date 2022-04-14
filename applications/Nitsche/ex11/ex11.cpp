@@ -20,6 +20,8 @@
 #include "LinearImplicitSystem.hpp"
 #include "CutFemWeight.hpp"
 #include "Fem.hpp"
+#include "PetscMatrix.hpp"
+#include "slepceps.h"
 
 using namespace femus;
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
@@ -60,8 +62,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
 int main(int argc, char** args) {
 
-  // init Petsc-MPI communicator
+  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+   
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -70,7 +73,7 @@ int main(int argc, char** args) {
   unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
-  unsigned nx = 111; // this should always be a odd number
+  unsigned nx = 211; // this should always be a odd number
 
   double lengthX = 3.;
   double length = 1.;
@@ -79,7 +82,7 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, 0, 0, -lengthX / 2, lengthX / 2, 0., 0., 0., 0., EDGE3, "seventh");
   }
   else if(DIM == 2) {
-    mlMsh.GenerateCoarseBoxMesh(nx, 4, 0, -lengthX / 2, lengthX / 2, 0, 1, 0., 0., QUAD9, "seventh");
+    mlMsh.GenerateCoarseBoxMesh(nx, 80, 0, -lengthX / 2, lengthX / 2, 0, 1, 0., 0., QUAD9, "seventh");
   }
   else if(DIM == 3) {
     mlMsh.ReadCoarseMesh("./input/cube.neu", "seventh", scalingFactor);
@@ -211,6 +214,13 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
+  std::vector < double > Av;
+  std::vector < std::vector < double > > Bv(2);
+
+  Mat A, B;
+  EPS eps;
+
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -332,6 +342,121 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       const elem_type *thisfem = fem.GetFiniteElement(ielGeom, soluType);
 
+      //solve eigenvalu problems to get theta, gamma1, gamma2
+
+
+      Av.assign(nDofu * nDofu, 0.);
+      Bv[0].assign(nDofu * nDofu, 0.);
+      Bv[1].assign(nDofu * nDofu, 0.);
+
+      for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
+        // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
+
+        std::vector<std::vector<double>> Jac, JacI;
+        thisfem->GetJacobianMatrix(x, ig, weight, Jac, JacI);
+
+        thisfem->Jacobian(x, ig, weight, phi, phi_x);
+
+        double dsN = 0;
+        for(unsigned i = 0; i < dim; i++) {
+          double dsi = 0.;
+          for(unsigned j = 0; j < dim; j++) {
+            dsi += JacI[j][i] * a[j];
+          }
+          dsN += dsi * dsi;
+        }
+        dsN = sqrt(dsN);
+
+
+        for(int i = 0; i < nDofu; i++) {
+          for(int j = 0; j < nDofu; j++) {
+            for(unsigned k = 0; k < dim; k++) {
+              Bv[0][ i * nDofu + j] += phi_x[i * dim + k] * phi_x[j * dim + k] * weight * eqPoly1[ig];
+              Bv[1][ i * nDofu + j] += phi_x[i * dim + k] * phi_x[j * dim + k] * weight * eqPoly2[ig];
+            }
+          }
+
+          double gradPhiiDotN = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            gradPhiiDotN += phi_x[i * dim + k] * N[k];
+          }
+          for(int j = 0; j < nDofu; j++) {
+            double gradPhijDotN = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              gradPhijDotN += phi_x[j * dim + k] * N[k];
+            }
+            Av[ i * nDofu + j] += gradPhiiDotN * gradPhijDotN  * weight * eqPolyI[ig] * dsN;
+          }
+        }
+      }
+
+      /* Careful B has one zero eigenvalue (it is singular) with nullspace x = [1,1,1,...]^T,
+      * thus the generalized eigenvalue problem
+      * $$A u = \lambda B u$$
+      * (or $B^{-1} A x = \lambda x$) has one indetermined eigenvalue, that makes the SLEPC solve very unstable,
+      * even using its built-in deflation method.
+      * Fortunately, A has at least one zero eigenvalue, with the same x = [1,1,1,...]^T being an element
+      * of its nullspace. Then, it is possible to deflate A and B simultaneously:
+      * $Ad = A - x^T. a1$ and $Bd = B - x^T.b1$, where a1 and b1 are the first rows of A and B, respectively.
+      * The generalized eigenvalue problem $Ab u = \lambda Bb u$, with matrices Ab and Bb,
+      * obtained as block matrices from Ad and Bd, removing the first row and the first column,
+      * has the same eigenvalues of the original one, except the indetermine one.
+      * Note that Bb is now invertible, and SLEPC has no problem in solving the deflated
+      * generalized eigenvalue problem.
+      */
+
+
+      double C[2];
+      for(unsigned k = 0; k < 2; k++) {
+        MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &A);
+        MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &B);
+
+        for(int i = 0; i < nDofu - 1; i++) {
+          for(int j = 0; j < nDofu - 1; j++) {
+            double value;
+            value = Bv[k][(i + 1) * nDofu + (j + 1)] - Bv[k][j + 1];
+            MatSetValues(B, 1, &i, 1, &j, &value, INSERT_VALUES);
+            value = Av[(i + 1) * nDofu + (j + 1)] - Av[j + 1];
+            MatSetValues(A, 1, &i, 1, &j, &value, INSERT_VALUES);
+          }
+        }
+
+        MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+        MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+
+        EPSCreate(PETSC_COMM_SELF, &eps);
+        EPSSetOperators(eps, A, B);
+        EPSSetFromOptions(eps);
+        EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+        EPSSolve(eps);
+
+        double imaginary;
+        EPSGetEigenpair(eps, 0, &C[k], &imaginary, NULL, NULL);
+
+        EPSDestroy(&eps);
+        MatDestroy(&A);
+        MatDestroy(&B);
+      }
+
+
+      double ia1C1 = 1. / (alpha1 * C[0]);
+      double ia2C2 = 1. / (alpha2 * C[1]);
+
+      double den = ia1C1 + ia2C2;
+
+      double gamma1 = ia1C1 / den;
+      double gamma2 = ia2C2 / den;
+
+      double theta = 2. / den;
+
+
+//       gamma1 = 0.5;
+//       gamma2 = 0.5;
+//       theta = 1;
+
       for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
         // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
 
@@ -359,11 +484,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
             gradSolu2g[k] += phi_x[i * dim + k] * solu2[i];
           }
         }
-
-
-        double theta = 1.;
-        double gamma1 = 0.5;
-        double gamma2 = 0.5;
 
         adept::adouble solu1g  = 0.;
         adept::adouble solu2g  = 0.;
@@ -454,7 +574,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //***************** END ASSEMBLY *******************
 }
 
-void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const double &d) {
+void BuildFlag(MultiLevelSolution & mlSol, const std::vector<double> &a, const double & d) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1? c/c++ notation
   //object we have is multilevel Solution. we need to extract highest level of the solution.
@@ -571,8 +691,8 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
 
 //himali
 void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
-                                const std::vector<double> &aIn, const double &dIn, unsigned & efla,
-                                std::vector<double> &aOut, double &dOut) {
+                                const std::vector<double> &aIn, const double & dIn, unsigned & efla,
+                                std::vector<double> &aOut, double & dOut) {
 
   unsigned dim = 2;
 
