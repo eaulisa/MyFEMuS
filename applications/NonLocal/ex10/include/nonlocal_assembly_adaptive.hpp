@@ -148,7 +148,6 @@ class Region {
 
 
 
-
 using namespace femus;
 
 // double GetExactSolutionValue(const std::vector < double >& x) {
