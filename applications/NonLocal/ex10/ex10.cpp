@@ -53,7 +53,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 // unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 2; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 
@@ -74,12 +74,12 @@ int main(int argc, char** argv) {
 
 
 
-  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
   //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
   //char fileName[100] = "../input/martaTest4Tri.neu";
   //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
-// char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
+  char fileName[100] = "../input/martaTest4-3D-tet.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
 
   mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);

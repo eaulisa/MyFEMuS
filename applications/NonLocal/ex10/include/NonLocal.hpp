@@ -436,9 +436,9 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
           }
           else if(_cut == 1) { //cut element
             element1.GetCutFem()->clear();
-            element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
+     //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
-//           element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+           element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
 
             double W1CF = 0.;
             _phi1W1CF.assign(nDof1, 0.);

@@ -167,7 +167,7 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
     
     if(!strcmp(geom_elem, "tet")) {
       _cutFem  = new CutFemWeight<double, double >(TET, _quadOrder, "legendre");
-      _CDweight = new CDWeightTET <double>(_quadOrder, 0.025, 1.);
+      _CDweight = new CDWeightTET <double>(_quadOrder, 0.05, 2.);
     }
   }
 
