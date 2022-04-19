@@ -376,56 +376,76 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
   std::vector<double> dist(nve, 0);
   std::vector<double> dist0(nve);
   unsigned cnt0 = 0;
-  for(unsigned i = 0; i < nve; i++) {
-    for(unsigned k = 0;  k < dim; k++) {
-      dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
-    }
-    dist[i] = sqrt(dist[i]) - R;
-
-    if(fabs(dist[i]) < eps) {
-      dist0[i] = (dist[i] < 0) ? -eps : eps;
-      dist[i] = 0.;
-      cnt0++;
-    }
-    else {
-      dist0[i] = dist[i];
-    }
-  }
-
-  if(cnt0 > 0) {
-    unsigned cntp = 0;
-    for(unsigned i = 0; i < nve; i++) {
-      if(dist[i] > 0) cntp++;
-      dist[i] = dist0[i];
-    }
-    if(cntp == 0) { // the element is inside the ball
-      cut = 0;
-      return;
-    }
-    else if(cntp == nve - cnt0) {  // the element in outside the ball
-      cut = 2;
-      return;
-    }
-  }
-
-  std::vector <double> theta(2);
+  
+  
+  
+  std::vector<double> A(2, 0.);
+  std::vector<std::vector<double>> xe(2, std::vector<double>(4));
+  double D = 0.;
+  unsigned intMax = 2;
+  unsigned nEdge = 0;
   unsigned cnt = 0;
-  for(unsigned e = 0; e < nve; e++) {
-    unsigned ep1 = (e + 1) % nve;
-    if(dist[e] * dist[ep1] < 0) {
-      double s = 0.5  * (1 + (dist[e] + dist[ep1]) / (dist[e] - dist[ep1]));
-      theta[cnt] = atan2((1 - s) * xv[1][e] + s * xv[1][ep1]  - xg[1], (1 - s) * xv[0][e] + s * xv[0][ep1] - xg[0]) ;
-      cnt++;
+  
+  for(unsigned i = 0; i < nve; i++) {
+    unsigned ip1 = (i + 1) % nve;
+    A[0] = xv[1][ip1] - xv[1][i];
+    A[1] = - xv[0][ip1] + xv[0][i];
+    D = - A[0] * xv[0][i] - A[1] * xv[1][i];
+   
+    
+    std::vector<double> inters(intMax, 0.);
+    unsigned dir = (fabs(A[0]) > fabs(A[1]))? 1 : 0 ;
+    unsigned dirp1 = (dir + 1)%2;
+    
+    double iMax = std::max(xv[dir][ip1], xv[dir][i]);
+    double iMin = std::min(xv[dir][ip1], xv[dir][i]);
+    
+    double delta = ((A[0] * A[0] + A[1] * A[1])* R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
+    a.resize(dim);
+    if(delta > 0.){
+      inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+      inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+      unsigned nInt = 0;
+      unsigned jInt = 2;
+      for(unsigned j = 0; j < intMax; j++){
+        if(inters[j] < iMax && inters[j] > iMin) {
+            nInt++;
+            jInt = j;
+        }
+      }
+      if(nInt == 1){   
+          xe[dir][cnt] = inters[jInt];
+          xe[dirp1][cnt] = ( - D - A[dir] * xe[dir][cnt] ) / A[dirp1];
+          cnt++;
+      }
     }
   }
-
-  if(cnt == 0) {
-    if(dist[0] < 0) cut = 0; // cell inside the ball
-    else cut = 2; // cell outside the ball
-    return;
-  }
-  else {
+  if(cnt == 0) cut = ( R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0 ) ? 0 : 2;
+  else if (cnt == 4) cut = 0;
+  else if(cnt == 2){
     cut = 1;
+    std::vector<double> theta(2);
+    
+    a[0] = xe[1][1] - xe[1][0] ;
+    a[1] = - xe[0][1] + xe[0][0] ;
+    
+    xm.resize(2);
+    xm[0] = 0.5 * (xe[0][0] + xe[0][1]);
+    xm[1] = 0.5 * (xe[1][0] + xe[1][1]);
+    
+    double det = 0;
+    for(unsigned k = 0; k < dim; k++) {
+      det += a[k] * ( xg[k] - xm[k] );
+    }
+    double sign = (det>=0) ? 1. : -1.;
+    
+    double norm = sign * sqrt(a[0] * a[0] + a[1] * a[1]);
+    a[0] /= norm;
+    a[1] /= norm;
+    
+    theta[0] = atan2(xe[1][0]  - xg[1], xe[0][0] - xg[0]);
+    theta[1] = atan2(xe[1][1]  - xg[1], xe[0][1] - xg[0]);
+    
     if(theta[0] > theta[1]) {
       std::swap(theta[0], theta[1]);
     }
@@ -449,9 +469,90 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
-
-    std::cout.precision(14);
-
+    
+    std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+    std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
+    
+    
+  
+  
+  
+//   for(unsigned i = 0; i < nve; i++) {
+//     for(unsigned k = 0;  k < dim; k++) {
+//       dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
+//     }
+//     dist[i] = sqrt(dist[i]) - R;
+// 
+//     if(fabs(dist[i]) < eps) {
+//       dist0[i] = (dist[i] < 0) ? -eps : eps;
+//       dist[i] = 0.;
+//       cnt0++;
+//     }
+//     else {
+//       dist0[i] = dist[i];
+//     }
+//   }
+// 
+//   if(cnt0 > 0) {
+//     unsigned cntp = 0;
+//     for(unsigned i = 0; i < nve; i++) {
+//       if(dist[i] > 0) cntp++;
+//       dist[i] = dist0[i];
+//     }
+//     if(cntp == 0) { // the element is inside the ball
+//       cut = 0;
+//       return;
+//     }
+//     else if(cntp == nve - cnt0) {  // the element in outside the ball
+//       cut = 2;
+//       return;
+//     }
+//   }
+// 
+//   std::vector <double> theta(2);
+//   unsigned cnt = 0;
+//   for(unsigned e = 0; e < nve; e++) {
+//     unsigned ep1 = (e + 1) % nve;
+//     if(dist[e] * dist[ep1] < 0) {
+//       double s = 0.5  * (1 + (dist[e] + dist[ep1]) / (dist[e] - dist[ep1]));
+//       theta[cnt] = atan2((1 - s) * xv[1][e] + s * xv[1][ep1]  - xg[1], (1 - s) * xv[0][e] + s * xv[0][ep1] - xg[0]) ;
+//       cnt++;
+//     }
+//   }
+// 
+//   if(cnt == 0) {
+//     if(dist[0] < 0) cut = 0; // cell inside the ball
+//     else cut = 2; // cell outside the ball
+//     return;
+//   }
+//   else {
+//     cut = 1;
+//     if(theta[0] > theta[1]) {
+//       std::swap(theta[0], theta[1]);
+//     }
+//     double DT = theta[1] - theta[0];
+//     if(DT > M_PI) {
+//       std::swap(theta[0], theta[1]);
+//       theta[1] += 2. * M_PI;
+//       DT = theta[1] - theta[0];
+//     }
+//     xm.resize(dim);
+// 
+//     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+//     a.resize(dim);
+//     a[0] = -cos(theta[0] + 0.5 * DT);
+//     a[1] = -sin(theta[0] + 0.5 * DT);
+// 
+//     for(unsigned k = 0; k < dim; k++) {
+//       xm[k] = -a[k] * d + xg[k];
+//     }
+//     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
+// 
+//     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+//     d = d2 * tan(0.5 * DT);
+// 
+//     std::cout.precision(14);
+// 
 //     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
 //     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
