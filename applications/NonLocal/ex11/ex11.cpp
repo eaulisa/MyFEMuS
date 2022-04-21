@@ -18,7 +18,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  3
+#define N_UNIFORM_LEVELS  8
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -164,8 +164,8 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
-  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
-//   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+//   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
 
 //   mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
 
@@ -376,7 +376,6 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
   std::vector<double> dist(nve, 0);
   std::vector<double> dist0(nve);
   unsigned cnt0 = 0;
-  
   
   
   std::vector<double> A(2, 0.);
@@ -720,16 +719,117 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
   const unsigned &dim =  xv.size();
   const unsigned &nve =  xv[0].size();
-
-  //std::cout<<nve<<std::endl;
-
+  
   const double& x1 = xv[0][0];
   const double& x2 = xv[0][1];
   const double& x3 = xv[0][2];
   const double& y1 = xv[1][0];
   const double& y2 = xv[1][1];
   const double& y3 = xv[1][2];
-
+  
+  
+  
+  
+  
+  
+//   std::vector<double> A(2, 0.);
+//   std::vector<std::vector<double>> xe(2, std::vector<double>(4));
+//   double D = 0.;
+//   unsigned intMax = 2;
+//   unsigned nEdge = 0;
+//   unsigned cnt = 0;
+//   
+//   for(unsigned i = 0; i < nve; i++) {
+//     unsigned ip1 = (i + 1) % nve;
+//     A[0] = xv[1][ip1] - xv[1][i];
+//     A[1] = - xv[0][ip1] + xv[0][i];
+//     D = - A[0] * xv[0][i] - A[1] * xv[1][i];
+//    
+//     
+//     std::vector<double> inters(intMax, 0.);
+//     unsigned dir = (fabs(A[0]) > fabs(A[1]))? 1 : 0 ;
+//     unsigned dirp1 = (dir + 1)%2;
+//     
+//     double iMax = std::max(xv[dir][ip1], xv[dir][i]);
+//     double iMin = std::min(xv[dir][ip1], xv[dir][i]);
+//     
+//     double delta = ((A[0] * A[0] + A[1] * A[1])* R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
+//     a.resize(dim);
+//     if(delta > 0.){
+//       inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+//       inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+//       unsigned nInt = 0;
+//       unsigned jInt = 2;
+//       for(unsigned j = 0; j < intMax; j++){
+//         if(inters[j] < iMax && inters[j] > iMin) {
+//             nInt++;
+//             jInt = j;
+//         }
+//       }
+//       if(nInt == 1){   
+//           xe[dir][cnt] = inters[jInt];
+//           xe[dirp1][cnt] = ( - D - A[dir] * xe[dir][cnt] ) / A[dirp1];
+//           cnt++;
+//       }
+//     }
+//   }
+//   if(cnt == 0) cut = ( R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0 ) ? 0 : 2;
+//   else if (cnt == 4) cut = 0;
+//   else if(cnt == 2){
+//     cut = 1;
+//     std::vector<double> theta(2);
+//     
+//     a[0] = xe[1][1] - xe[1][0] ;
+//     a[1] = - xe[0][1] + xe[0][0] ;
+//     
+//     xm.resize(2);
+//     xm[0] = 0.5 * (xe[0][0] + xe[0][1]);
+//     xm[1] = 0.5 * (xe[1][0] + xe[1][1]);
+//     
+//     double det = 0;
+//     for(unsigned k = 0; k < dim; k++) {
+//       det += a[k] * ( xg[k] - xm[k] );
+//     }
+//     double sign = (det>=0) ? 1. : -1.;
+//     
+//     double norm = sign * sqrt(a[0] * a[0] + a[1] * a[1]);
+//     a[0] /= norm;
+//     a[1] /= norm;
+//     
+//     theta[0] = atan2(xe[1][0]  - xg[1], xe[0][0] - xg[0]);
+//     theta[1] = atan2(xe[1][1]  - xg[1], xe[0][1] - xg[0]);
+//     
+//     if(theta[0] > theta[1]) {
+//       std::swap(theta[0], theta[1]);
+//     }
+//     double DT = theta[1] - theta[0];
+//     if(DT > M_PI) {
+//       std::swap(theta[0], theta[1]);
+//       theta[1] += 2. * M_PI;
+//       DT = theta[1] - theta[0];
+//     }
+//     xm.resize(dim);
+// 
+//     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
+//     a.resize(dim);
+//     a[0] = -cos(theta[0] + 0.5 * DT);
+//     a[1] = -sin(theta[0] + 0.5 * DT);
+// 
+//     for(unsigned k = 0; k < dim; k++) {
+//       xm[k] = -a[k] * d + xg[k];
+//     }
+//     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
+// 
+//     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
+//     d = d2 * tan(0.5 * DT);
+//     
+//     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+//     std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
+    
+    
+    
+    
+    
   double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1)) / 3.;
   double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1)) / 3.;
 
@@ -819,8 +919,6 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
     d = d2 * tan(0.5 * DT);
 
     std::cout.precision(14);
-
-
 
 
 
