@@ -71,31 +71,33 @@ namespace femus {
 
 
   void elem_type::GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const  vector < double  >& xi,
+                                    adept::adouble &det,
                                     vector < vector < adept::adouble > > & Jac,
                                     vector < vector < adept::adouble > > & JacI) const {
     if(_dim1) {
-      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
     else if(_dim2) {
-      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
     else {
-      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
   }
 
 
   void elem_type::GetJacobianMatrix(const vector < vector < double > >& vt, const  vector < double  >& xi,
+                                    double &det,
                                     vector < vector < double > > & Jac,
                                     vector < vector < double > > & JacI) const {
     if(_dim1) {
-      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
     else if(_dim2) {
-      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
     else {
-      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, Jac, JacI);
+      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
     }
   }
 
@@ -171,6 +173,7 @@ namespace femus {
 
   template <class type>
   void elem_type_1D::GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector < double > & xi,
+                                            type &det,
                                             vector < vector < type > > & Jac,
                                             vector < vector < type > > & JacI) const {
 
@@ -187,8 +190,9 @@ namespace femus {
     for(int inode = 0; inode < _nc; inode++, dxi++) {
       Jac[0][0] += (*dxi) * vt[0][inode];
     }
+    det = Jac[0][0];
 
-    JacI[0][0] = 1. / Jac[0][0];
+    JacI[0][0] = 1. / det;
   }
 
 
@@ -259,6 +263,7 @@ namespace femus {
 
   template <class type>
   void elem_type_2D::GetJacobianMatrix_type(const vector < vector < type > >& vt, const  vector < double  >& xi,
+                                            type &det,
                                             vector < vector < type > > & Jac,
                                             vector < vector < type > > & JacI) const {
 
@@ -283,7 +288,7 @@ namespace femus {
       Jac[1][1] += (*deta) * vt[1][inode];
     }
 
-    type det = (Jac[0][0] * Jac[1][1] - Jac[0][1] * Jac[1][0]);
+    det = (Jac[0][0] * Jac[1][1] - Jac[0][1] * Jac[1][0]);
 
     JacI[0][0] = +Jac[1][1] / det;
     JacI[0][1] = -Jac[0][1] / det;
@@ -366,27 +371,27 @@ namespace femus {
 
         for(int inode = 0; inode < _nc; inode++, dxi2++, deta2++, dzeta2++, dxideta++, detadzeta++, dzetadxi++) {
 
-          type dxdxi   = ((*dxi2)     * JacI[0][0] + (*dxideta)   * JacI[1][0] + (*dzetadxi)  * JacI[2][0]);  
+          type dxdxi   = ((*dxi2)     * JacI[0][0] + (*dxideta)   * JacI[1][0] + (*dzetadxi)  * JacI[2][0]);
           type dxdeta  = ((*dxideta)  * JacI[0][0] + (*deta2)     * JacI[1][0] + (*detadzeta) * JacI[2][0]);
           type dxdzeta = ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[1][0] + (*dzeta2)    * JacI[2][0]);
-          
+
           type dydxi   = ((*dxi2)     * JacI[0][1] + (*dxideta)   * JacI[1][1] + (*dzetadxi)  * JacI[2][1]);
           type dydeta  = ((*dxideta)  * JacI[0][1] + (*deta2)     * JacI[1][1] + (*detadzeta) * JacI[2][1]);
           type dydzeta = ((*dzetadxi) * JacI[0][1] + (*detadzeta) * JacI[1][1] + (*dzeta2)    * JacI[2][1]);
-          
+
           type dzdxi   = ((*dxi2)     * JacI[0][2] + (*dxideta)   * JacI[1][2] + (*dzetadxi)  * JacI[2][2]);
           type dzdeta  = ((*dxideta)  * JacI[0][2] + (*deta2)     * JacI[1][2] + (*detadzeta) * JacI[2][2]);
           type dzdzeta = ((*dzetadxi) * JacI[0][2] + (*detadzeta) * JacI[1][2] + (*dzeta2)    * JacI[2][2]);
-          
+
           (*nablaphi)[6 * inode + 0] = dxdxi * JacI[0][0] + dxdeta  * JacI[1][0] + dxdzeta * JacI[2][0];   //_xx
           (*nablaphi)[6 * inode + 1] = dydxi * JacI[0][1] + dydeta  * JacI[1][1] + dydzeta * JacI[2][1];   //_yy
           (*nablaphi)[6 * inode + 2] = dzdxi * JacI[0][2] + dzdeta  * JacI[1][2] + dzdzeta * JacI[2][2];   //_zz
-          
+
           (*nablaphi)[6 * inode + 3] = dxdxi * JacI[0][1] + dxdeta  * JacI[1][1] + dxdzeta * JacI[2][1];   //_xy
           (*nablaphi)[6 * inode + 4] = dydxi * JacI[0][2] + dydeta  * JacI[1][2] + dydzeta * JacI[2][2];   //_yz
           (*nablaphi)[6 * inode + 5] = dzdxi * JacI[0][0] + dzdeta  * JacI[1][0] + dzdzeta * JacI[2][0];   //_zx
-                   
-          
+
+
 //           (*nablaphi)[6 * inode + 0] =
 //           ((*dxi2)     * JacI[0][0] + (*dxideta)   * JacI[1][0] + (*dzetadxi)  * JacI[2][0]) * JacI[0][0] +
 //           ((*dxideta)  * JacI[0][0] + (*deta2)     * JacI[1][0] + (*detadzeta) * JacI[2][0]) * JacI[1][0] +
@@ -421,6 +426,7 @@ namespace femus {
 
   template <class type>
   void elem_type_3D::GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector < double > & xi,
+                                            type &det,
                                             vector < vector < type > > & Jac, vector < vector < type > > & JacI) const {
 
     std::vector < double > dphidxi(_nc);
@@ -452,9 +458,9 @@ namespace femus {
       Jac[2][2] += (*dzeta) * vt[2][inode];
     }
 
-    type det = (Jac[0][0] * (Jac[1][1] * Jac[2][2] - Jac[1][2] * Jac[2][1]) +
-                Jac[0][1] * (Jac[1][2] * Jac[2][0] - Jac[1][0] * Jac[2][2]) +
-                Jac[0][2] * (Jac[1][0] * Jac[2][1] - Jac[1][1] * Jac[2][0]));
+    det = (Jac[0][0] * (Jac[1][1] * Jac[2][2] - Jac[1][2] * Jac[2][1]) +
+           Jac[0][1] * (Jac[1][2] * Jac[2][0] - Jac[1][0] * Jac[2][2]) +
+           Jac[0][2] * (Jac[1][0] * Jac[2][1] - Jac[1][1] * Jac[2][0]));
 
     JacI[0][0] = (-Jac[1][2] * Jac[2][1] + Jac[1][1] * Jac[2][2]) / det;
     JacI[0][1] = (+Jac[0][2] * Jac[2][1] - Jac[0][1] * Jac[2][2]) / det;

@@ -146,6 +146,9 @@ namespace femus {
       abort();
     }
     
+    lambda_lame = 2. * mu_lame * lambda_lame / (lambda_lame + 2. * mu_lame);
+    lambda	= lambda_lame / rhof;
+    
     std::cout << " solid_model = " << solid_model << std::endl;
     std::cout << " mu_lame = " << mu_lame << std::endl;
     std::cout << " lambda_lame = " << lambda_lame << std::endl;
@@ -155,7 +158,7 @@ namespace femus {
     const bool penalty = ml_prob.parameters.get<Solid>("Solid").get_if_penalty();
 
     // gravity
-    double _gravity[3] = {0., 0., 0.};
+    double _gravity[3] = {1., 0., 0.};
 
     double dt =  my_nnlin_impl_sys.GetIntervalTime();
     double time =  my_nnlin_impl_sys.GetTime();
@@ -735,15 +738,13 @@ namespace femus {
                                                   - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_hat);
   
                   
-                adept::adouble value =  theta * dt * (rhos * phi[i] * _gravity[idim]      // body force
-                                                    - CauchyDIR[idim]			  // stress
+                adept::adouble value =  theta * dt * ( - CauchyDIR[idim]			  // stress
                                                    ) * Weight;                         // at time t
 
-                adept::adouble value_old =  (1. - theta) * dt * (rhos * phi_old[i] * _gravity[idim]     // body force
-                                                        - CauchyDIR_old[idim]			 // stress
+                adept::adouble value_old =  (1. - theta) * dt * ( - CauchyDIR_old[idim]			 // stress
                                                        ) * Weight_old;                         // at time t-dt
 
-                aRhs[indexVAR[idim]][i] += timeDerivative + value + value_old;
+                aRhs[indexVAR[idim]][i] += timeDerivative + value + value_old + dt * rhos * phi_old[i] * _gravity[idim] * Weight_hat;
               }
 
               //END redidual Solid Momentum in moving domain
