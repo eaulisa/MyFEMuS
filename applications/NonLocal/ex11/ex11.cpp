@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
-  
+
 
   unsigned qM = 3;
   CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
@@ -87,13 +87,13 @@ int main(int argc, char** argv) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
   std::vector<double> weight1;
-  tet.GetWeightWithMap(0, {-0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1 );
+  tet.GetWeightWithMap(0, {-0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1);
   for(unsigned j = 0; j < 1; j++) {
     std::cout << weight1[j] << "\n ";
   }
-  
+
   //abort();
-  
+
 
   double dx = .05;
   double dt = 2.;
@@ -101,15 +101,15 @@ int main(int argc, char** argv) {
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
   CDWeightTET <TypeA> tetCD(qM, dx, dt);
 
-  std::cout<<std::endl;
-  
+  std::cout << std::endl;
+
   double theta1 = 45;
   double phi1 = 30;
   std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
   std::vector<double> a2 = {cos(theta1 * M_PI / 180)* sin(phi1 * M_PI / 180), sin(theta1 * M_PI / 180) * sin(phi1 * M_PI / 180), cos(phi1 * M_PI / 180)};
   double d1 = -0.1 * sqrt(2);
 
- 
+
 //   quad.GetWeightWithMap(0, a1, d1, weight1);
 //
 //   for(unsigned j = 0; j < weight1.size(); j++) {
@@ -146,9 +146,9 @@ int main(int argc, char** argv) {
     std::cout << weight[j] << " ";
   }
   std::cout << std::endl;
-// 
-// 
-// 
+//
+//
+//
 //   return 1;
 
   const std::string fe_quad_rule_1 = "seventh";
@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
         tetCD.GetWeight(b, db, weightCF);
 
         //std::cout<<"a"<<std::flush;
-        
+
         const double* weightG = tet.GetGaussWeightPointer();
 
         double sum = 0.;
@@ -376,81 +376,81 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
   std::vector<double> dist(nve, 0);
   std::vector<double> dist0(nve);
   unsigned cnt0 = 0;
-  
-  
+
+
   std::vector<double> A(2, 0.);
   std::vector<std::vector<double>> xe(2, std::vector<double>(4));
   double D = 0.;
   unsigned intMax = 2;
   unsigned nEdge = 0;
   unsigned cnt = 0;
-  
+
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;
     A[0] = xv[1][ip1] - xv[1][i];
     A[1] = - xv[0][ip1] + xv[0][i];
     D = - A[0] * xv[0][i] - A[1] * xv[1][i];
-   
-    
+
+
     std::vector<double> inters(intMax, 0.);
-    unsigned dir = (fabs(A[0]) > fabs(A[1]))? 1 : 0 ;
-    unsigned dirp1 = (dir + 1)%2;
-    
+    unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
+    unsigned dirp1 = (dir + 1) % 2;
+
     double iMax = std::max(xv[dir][ip1], xv[dir][i]);
     double iMin = std::min(xv[dir][ip1], xv[dir][i]);
-    
-    double delta = ((A[0] * A[0] + A[1] * A[1])* R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
+
+    double delta = ((A[0] * A[0] + A[1] * A[1]) * R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
     a.resize(dim);
-    if(delta > 0.){
-      inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
-      inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+    if(delta > 0.) {
+      inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);
+      inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);
       unsigned nInt = 0;
       unsigned jInt = 2;
-      for(unsigned j = 0; j < intMax; j++){
+      for(unsigned j = 0; j < intMax; j++) {
         if(inters[j] < iMax && inters[j] > iMin) {
-            nInt++;
-            jInt = j;
+          nInt++;
+          jInt = j;
         }
       }
-      if(nInt == 1){   
-          xe[dir][cnt] = inters[jInt];
-          xe[dirp1][cnt] = ( - D - A[dir] * xe[dir][cnt] ) / A[dirp1];
-          cnt++;
+      if(nInt == 1) {
+        xe[dir][cnt] = inters[jInt];
+        xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
+        cnt++;
       }
     }
   }
   if(cnt == 0) {
-    cut = ( R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0 ) ? 0 : 2;
+    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0) ? 0 : 2;
     return;
   }
-  else if (cnt == 4){
+  else if(cnt == 4) {
     cut = 0;
     return;
   }
-  else if(cnt == 2){
+  else if(cnt == 2) {
     cut = 1;
     std::vector<double> theta(2);
-    
+
     a[0] = xe[1][1] - xe[1][0] ;
     a[1] = - xe[0][1] + xe[0][0] ;
-    
+
     xm.resize(2);
     xm[0] = 0.5 * (xe[0][0] + xe[0][1]);
     xm[1] = 0.5 * (xe[1][0] + xe[1][1]);
-    
+
     double det = 0;
     for(unsigned k = 0; k < dim; k++) {
-      det += a[k] * ( xg[k] - xm[k] );
+      det += a[k] * (xg[k] - xm[k]);
     }
-    double sign = (det>=0) ? 1. : -1.;
-    
+    double sign = (det >= 0) ? 1. : -1.;
+
     double norm = sign * sqrt(a[0] * a[0] + a[1] * a[1]);
     a[0] /= norm;
     a[1] /= norm;
-    
+
     theta[0] = atan2(xe[1][0]  - xg[1], xe[0][0] - xg[0]);
     theta[1] = atan2(xe[1][1]  - xg[1], xe[0][1] - xg[0]);
-    
+
     if(theta[0] > theta[1]) {
       std::swap(theta[0], theta[1]);
     }
@@ -474,20 +474,20 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
-    
+
     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
-    
-    
-  
-  
-  
+
+
+
+
+
 //   for(unsigned i = 0; i < nve; i++) {
 //     for(unsigned k = 0;  k < dim; k++) {
 //       dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
 //     }
 //     dist[i] = sqrt(dist[i]) - R;
-// 
+//
 //     if(fabs(dist[i]) < eps) {
 //       dist0[i] = (dist[i] < 0) ? -eps : eps;
 //       dist[i] = 0.;
@@ -497,7 +497,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 //       dist0[i] = dist[i];
 //     }
 //   }
-// 
+//
 //   if(cnt0 > 0) {
 //     unsigned cntp = 0;
 //     for(unsigned i = 0; i < nve; i++) {
@@ -513,7 +513,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 //       return;
 //     }
 //   }
-// 
+//
 //   std::vector <double> theta(2);
 //   unsigned cnt = 0;
 //   for(unsigned e = 0; e < nve; e++) {
@@ -524,7 +524,7 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 //       cnt++;
 //     }
 //   }
-// 
+//
 //   if(cnt == 0) {
 //     if(dist[0] < 0) cut = 0; // cell inside the ball
 //     else cut = 2; // cell outside the ball
@@ -542,22 +542,22 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
 //       DT = theta[1] - theta[0];
 //     }
 //     xm.resize(dim);
-// 
+//
 //     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
 //     a.resize(dim);
 //     a[0] = -cos(theta[0] + 0.5 * DT);
 //     a[1] = -sin(theta[0] + 0.5 * DT);
-// 
+//
 //     for(unsigned k = 0; k < dim; k++) {
 //       xm[k] = -a[k] * d + xg[k];
 //     }
 //     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
-// 
+//
 //     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
 //     d = d2 * tan(0.5 * DT);
-// 
+//
 //     std::cout.precision(14);
-// 
+//
 //     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
 //     std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
 
@@ -725,90 +725,90 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
   const unsigned &dim =  xv.size();
   const unsigned &nve =  xv[0].size();
-  
+
   const double& x1 = xv[0][0];
   const double& x2 = xv[0][1];
   const double& x3 = xv[0][2];
   const double& y1 = xv[1][0];
   const double& y2 = xv[1][1];
   const double& y3 = xv[1][2];
-  
-  
-  
-  
+
+
+
+
   std::vector<double> A(2, 0.);
   std::vector<std::vector<double>> xe(2, std::vector<double>(4));
   double D = 0.;
   unsigned intMax = 2;
   unsigned nEdge = 0;
   unsigned cnt = 0;
-  
+
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;
     A[0] = xv[1][ip1] - xv[1][i];
     A[1] = - xv[0][ip1] + xv[0][i];
     D = - A[0] * xv[0][i] - A[1] * xv[1][i];
-   
-    
+
+
     std::vector<double> inters(intMax, 0.);
-    unsigned dir = (fabs(A[0]) > fabs(A[1]))? 1 : 0 ;
-    unsigned dirp1 = (dir + 1)%2;
-    
+    unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
+    unsigned dirp1 = (dir + 1) % 2;
+
     double iMax = std::max(xv[dir][ip1], xv[dir][i]);
     double iMin = std::min(xv[dir][ip1], xv[dir][i]);
-    
-    double delta = ((A[0] * A[0] + A[1] * A[1])* R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
+
+    double delta = ((A[0] * A[0] + A[1] * A[1]) * R * R) - (D + A[0] * xg[0] + A[1] * xg[1]) * (D + A[0] * xg[0] + A[1] * xg[1]);
     a.resize(dim);
-    if(delta > 0.){
-      inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
-      inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);  
+    if(delta > 0.) {
+      inters[0] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] - sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);
+      inters[1] = (- A[dir] * (D + A[dirp1] * xg[dirp1]) + A[dirp1] * (A[dirp1] * xg[dir] + sqrt(delta))) / (A[0] * A[0] + A[1] * A[1]);
       unsigned nInt = 0;
       unsigned jInt = 2;
-      for(unsigned j = 0; j < intMax; j++){
+      for(unsigned j = 0; j < intMax; j++) {
         if(inters[j] < iMax && inters[j] > iMin) {
-            nInt++;
-            jInt = j;
+          nInt++;
+          jInt = j;
         }
       }
-      if(nInt == 1){   
-          xe[dir][cnt] = inters[jInt];
-          xe[dirp1][cnt] = ( - D - A[dir] * xe[dir][cnt] ) / A[dirp1];
-          cnt++;
+      if(nInt == 1) {
+        xe[dir][cnt] = inters[jInt];
+        xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
+        cnt++;
       }
     }
   }
   if(cnt == 0) {
-    cut = ( R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0 ) ? 0 : 2;
+    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0) ? 0 : 2;
     return;
   }
-  else if (cnt == 4){
+  else if(cnt == 4) {
     cut = 0;
     return;
   }
-  else if(cnt == 2){
+  else if(cnt == 2) {
     cut = 1;
     std::vector<double> theta(2);
-    
+
     a[0] = xe[1][1] - xe[1][0] ;
     a[1] = - xe[0][1] + xe[0][0] ;
-    
+
     xm.resize(2);
     xm[0] = 0.5 * (xe[0][0] + xe[0][1]);
     xm[1] = 0.5 * (xe[1][0] + xe[1][1]);
-    
+
     double det = 0;
     for(unsigned k = 0; k < dim; k++) {
-      det += a[k] * ( xg[k] - xm[k] );
+      det += a[k] * (xg[k] - xm[k]);
     }
-    double sign = (det>=0) ? 1. : -1.;
-    
+    double sign = (det >= 0) ? 1. : -1.;
+
     double norm = sign * sqrt(a[0] * a[0] + a[1] * a[1]);
     a[0] /= norm;
     a[1] /= norm;
-    
+
     theta[0] = atan2(xe[1][0]  - xg[1], xe[0][0] - xg[0]);
     theta[1] = atan2(xe[1][1]  - xg[1], xe[0][1] - xg[0]);
-    
+
     if(theta[0] > theta[1]) {
       std::swap(theta[0], theta[1]);
     }
@@ -832,20 +832,20 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
-    
+
     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
     std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
-    
-    
-    
-    
-    
+
+
+
+
+
 //   double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1)) / 3.;
 //   double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1)) / 3.;
-// 
+//
 //   double h = sqrt(hx * hx + hy * hy);
 //   double eps = 1.0e-10 * h;
-// 
+//
 //   std::vector<double> dist(nve, 0);
 //   std::vector<double> dist0(nve);
 //   unsigned cnt0 = 0;
@@ -854,9 +854,9 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 //       dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
 //     }
 //     dist[i] = sqrt(dist[i]) - R;
-// 
+//
 //     //std::cout << dist[i] << std::endl;
-// 
+//
 //     if(fabs(dist[i]) < eps) {
 //       dist0[i] = (dist[i] < 0) ? -eps : eps;
 //       dist[i] = 0.;
@@ -866,7 +866,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 //       dist0[i] = dist[i];
 //     }
 //   }
-// 
+//
 //   if(cnt0 > 0) {
 //     unsigned cntp = 0;
 //     for(unsigned i = 0; i < nve; i++) {
@@ -882,7 +882,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 //       return;
 //     }
 //   }
-// 
+//
 //   std::vector <double> theta(2);
 //   unsigned cnt = 0;
 //   for(unsigned e = 0; e < nve; e++) {
@@ -893,7 +893,7 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 //       cnt++;
 //     }
 //   }
-// 
+//
 //   if(cnt == 0) {
 //     if(dist[0] < 0) cut = 0; // cell inside the ball
 //     else cut = 2; // cell outside the ball
@@ -911,23 +911,23 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 //       DT = theta[1] - theta[0];
 //     }
 //     xm.resize(dim);
-// 
+//
 //     d = R * sqrt(0.5 * DT / tan(0.5 * DT)) ;
 //     a.resize(dim);
 //     a[0] = -cos(theta[0] + 0.5 * DT);
 //     a[1] = -sin(theta[0] + 0.5 * DT);
-// 
+//
 //     for(unsigned k = 0; k < dim; k++) {
 //       xm[k] = -a[k] * d + xg[k];
 //     }
 //     d += - a[0] * xg[0] - a[1] * xg[1]; //TODO
-// 
+//
 //     //std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
 //     //std::cout << "a = " << a[0] << " b = " << a[1] << " d = " << d << std::endl;
-// 
+//
 //     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
 //     d = d2 * tan(0.5 * DT);
-// 
+//
 //     std::cout.precision(14);
 
 
@@ -998,10 +998,10 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
   double hz = (fabs(z2 - z1) + fabs(z3 - z2) + fabs(z3 - z1) + fabs(z4 - z1) + fabs(z4 - z2) + fabs(z4 - z3)) / 6.;
   double h = sqrt(hx * hx + hy * hy + hz * hz);
   double eps = 1.0e-10 * h;
-  
 
-  
-  
+
+
+
   std::vector<double> A(dim, 0.);
   std::vector < std::vector <double> > y(4, std::vector<double>(dim));
   std::vector < unsigned > i0(6);
@@ -1009,67 +1009,78 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
   unsigned intMax = 2;
   unsigned nEdge = 0;
   unsigned cnt = 0;
-  
+
   for(unsigned i = 0; i < nve - 1; i++) {
-    for(unsigned j = i + 1; j < nve; j++){
-      for(unsigned k = 0; k < dim; k++){
+    for(unsigned j = i + 1; j < nve; j++) {
+      for(unsigned k = 0; k < dim; k++) {
         A[k] = xv[k][j] - xv[k][i];
       }
-      
+
       std::vector<double> inters(intMax, 0.);
-      unsigned dir = (fabs(A[0]) > fabs(A[1]))? ( (fabs(A[0]) > fabs(A[2]))? 0:2 ) : ( (fabs(A[1]) > fabs(A[2]))? 1:2 ) ;
-      unsigned dirp1 = (dir + 1)%dim;
-      unsigned dirp2 = (dir + 2)%dim;
-      
+      unsigned dir = (fabs(A[0]) > fabs(A[1])) ? ((fabs(A[0]) > fabs(A[2])) ? 0 : 2) : ((fabs(A[1]) > fabs(A[2])) ? 1 : 2) ;
+      unsigned dirp1 = (dir + 1) % dim;
+      unsigned dirp2 = (dir + 2) % dim;
+
       double iMax = std::max(xv[dir][j], xv[dir][i]);
       double iMin = std::min(xv[dir][j], xv[dir][i]);
-      
-      double delta = (- (A[dir]*A[dir]) * 
-                     ( A[2] * A[2] * (xg[0] * xg[0] - R * R - 2 * xg[0] * xv[0][i] + xv[0][i] * xv[0][i] + (xg[1] - xv[1][i]) * (xg[1] - xv[1][i])) 
-                     + A[1] * A[1] * (xg[0] * xg[0] - R * R - 2 * xg[0] * xv[0][i] + xv[0][i] * xv[0][i] + (xg[2] - xv[2][i]) * (xg[2] - xv[2][i])) 
-                     + A[0] * A[0] * (xg[1] * xg[1] - R * R - 2 * xg[1] * xv[1][i] + xv[1][i] * xv[1][i] + (xg[2] - xv[2][i]) * (xg[2] - xv[2][i])) 
-                     - 2 * A[1] * (xg[1] - xv[1][i]) * (A[0] * (xg[0] - xv[0][i]) + A[2] * (xg[2] - xv[2][i])) 
-                     - 2 * A[0] * A[2] * (xg[0] - xv[0][i]) * (xg[2] - xv[2][i])));
-      
+
+      double Axdi[3] = {A[1]* (xg[2] - xv[2][i]) - A[2] * (xg[1] - xv[1][i]),
+                        A[2]* (xg[0] - xv[0][i]) - A[0] * (xg[2] - xv[2][i]),
+                        A[0]* (xg[1] - xv[1][i]) - A[1] * (xg[0] - xv[0][i])
+                       } ;
+
+      double Addi = A[0] * (xg[0] - xv[0][i]) +
+                    A[1] * (xg[1] - xv[1][i]) +
+                    A[2] * (xg[2] - xv[2][i]);
+
+
       double den = A[0] * A[0] + A[1] * A[1] + A[2] * A[2];
-      
-      double var = A[dir] * A[dir] * xg[dir] + (A[dirp1] * A[dirp1] + A[dirp2] * A[dirp2]) * xv[dir][i]
-                   + A[dir] * A[dirp1] * (xg[dirp1] - xv[dirp1][i])
-                   + A[dir] * A[dirp2] * (xg[dirp2] - xv[dirp2][i]);
+
+      double delta = (- (A[dir] * A[dir]) *
+                      (Axdi[0] * Axdi[0] + Axdi[1] * Axdi[1] + Axdi[2] * Axdi[2] - R * R * den));
+
+
+
+//       double var = A[dir] * A[dir] * xg[dir] + (A[dirp1] * A[dirp1] + A[dirp2] * A[dirp2]) * xv[dir][i]
+//                    + A[dir] * A[dirp1] * (xg[dirp1] - xv[dirp1][i])
+//                    + A[dir] * A[dirp2] * (xg[dirp2] - xv[dirp2][i]);
                    
+                   
+      double var = den * xv[dir][i] + A[dir] * Addi;
+
       a.resize(dim);
-      if(delta > 0.){
-        inters[0] = ( var - sqrt(delta) ) / den;
-        inters[1] = ( var + sqrt(delta) ) / den;
+      if(delta > 0.) {
+        inters[0] = (var - sqrt(delta)) / den;
+        inters[1] = (var + sqrt(delta)) / den;
         unsigned nInt = 0;
         unsigned jInt = 2;
-        for(unsigned ii = 0; ii < intMax; ii++){
+        for(unsigned ii = 0; ii < intMax; ii++) {
           if(inters[ii] < iMax && inters[ii] > iMin) {
-              nInt++;
-              jInt = ii;
+            nInt++;
+            jInt = ii;
           }
         }
-        if(nInt == 1){   
-            y[cnt][dir] = inters[jInt];
-            y[cnt][dirp1] = xv[dirp1][i] + A[dirp1] * (y[cnt][dir] - xv[dir][i]) / A[dir];
-            y[cnt][dirp2] = xv[dirp2][i] + A[dirp2] * (y[cnt][dir] - xv[dir][i]) / A[dir];
-            i0[cnt] = (i + j) - (i == 0);
-            cnt++;
+        if(nInt == 1) {
+          y[cnt][dir] = inters[jInt];
+          y[cnt][dirp1] = xv[dirp1][i] + A[dirp1] * (y[cnt][dir] - xv[dir][i]) / A[dir];
+          y[cnt][dirp2] = xv[dirp2][i] + A[dirp2] * (y[cnt][dir] - xv[dir][i]) / A[dir];
+          i0[cnt] = (i + j) - (i == 0);
+          cnt++;
         }
       }
     }
   }
   if(cnt == 0) {
-    cut = ( R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1])  - (xv[2][0] - xg[2]) * (xv[2][0] - xg[2]) > 0 ) ? 0 : 2;
+    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1])  - (xv[2][0] - xg[2]) * (xv[2][0] - xg[2]) > 0) ? 0 : 2;
     return;
   }
-  else if (cnt > 4){
+  else if(cnt > 4) {
     cut = 0;
     return;
   }
-  else if(cnt == 4 || cnt == 3){
+  else if(cnt == 4 || cnt == 3) {
     cut = 1;
-    
+
 
 
 //   std::vector<double> dist(nve, 0);
@@ -1080,7 +1091,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 //       dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
 //     }
 //     dist[i] = sqrt(dist[i]) - R;
-// 
+//
 //     if(fabs(dist[i]) < eps) {
 //       dist0[i] = (dist[i] < 0) ? -eps : eps;
 //       dist[i] = 0.;
@@ -1090,7 +1101,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 //       dist0[i] = dist[i];
 //     }
 //   }
-// 
+//
 //   if(cnt0 > 0) {
 //     unsigned cntp = 0;
 //     for(unsigned i = 0; i < nve; i++) {
@@ -1106,7 +1117,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 //       return;
 //     }
 //   }
-// 
+//
 //   std::vector < std::vector <double> > y(4, std::vector<double>(dim));
 //   std::vector < unsigned > i0(4);
 //   unsigned cnt = 0;
@@ -1122,7 +1133,7 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 //       }
 //     }
 //   }
-// 
+//
 //   if(cnt == 0) {
 //     if(dist[0] < 0) cut = 0; // cell inside the ball
 //     else cut = 2; // cell outside the ball
