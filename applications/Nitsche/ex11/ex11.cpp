@@ -23,6 +23,14 @@
 #include "PetscMatrix.hpp"
 #include "slepceps.h"
 
+
+
+const double alpha1 = .5;
+const double alpha2 = 3.;
+
+
+#include "GhostPenalty.hpp"
+
 using namespace femus;
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 
@@ -33,6 +41,8 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
 void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
                                 const std::vector<double> &aIn, const double &dIn, unsigned & efla,
                                 std::vector<double> &aOut, double &dOut);
+
+
 
 
 
@@ -64,7 +74,7 @@ int main(int argc, char** args) {
 
   SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-   
+
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -261,10 +271,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
       }
     }
-
-
-    double alpha1 = .5;
-    double alpha2 = 3.;
 
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
