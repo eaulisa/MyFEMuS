@@ -202,8 +202,8 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   vector <double> phi_x; // local test function first order partial derivatives
   double weight; // gauss point weight
 
-  vector< adept::adouble > aResu1; // local redidual vector
-  vector< adept::adouble > aResu2; // local redidual vector
+  vector< adept::adouble > aResu1; // local residual vector
+  vector< adept::adouble > aResu2; // local residual vector
 
   vector< unsigned > l2GMap; // local to global mapping
   vector< double > Res; // local redidual vector
@@ -343,8 +343,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       const elem_type *thisfem = fem.GetFiniteElement(ielGeom, soluType);
 
       //solve eigenvalu problems to get theta, gamma1, gamma2
-
-
       Av.assign(nDofu * nDofu, 0.);
       Bv[0].assign(nDofu * nDofu, 0.);
       Bv[1].assign(nDofu * nDofu, 0.);
@@ -489,7 +487,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         adept::adouble solu2g  = 0.;
         adept::adouble alphaGradSoluDotN = 0.;
 
-        //before gradsolu loop? ***************
+        
         for(unsigned i = 0; i < nDofu; i++) {
           solu1g += phi[i] * solu1[i];
           solu2g += phi[i] * solu2[i];
@@ -684,12 +682,6 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
   aOut[1] /= aOutNorm;
 }
 
-
-
-
-
-
-//himali
 void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
                                 const std::vector<double> &aIn, const double & dIn, unsigned & efla,
                                 std::vector<double> &aOut, double & dOut) {
@@ -736,7 +728,6 @@ void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
     dist[i] = dist[i] / sqrt(den);
 
     ////taking care of extream cases (updating dist and filling distf)
-
     if(fabs(dist[i]) < eps) {  //interface is very close to a vertex
       distf[i] = (dist[i] < 0.) ? -eps : eps;
       dist[i] = 0. ;
