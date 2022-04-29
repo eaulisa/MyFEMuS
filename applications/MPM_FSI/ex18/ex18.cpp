@@ -105,10 +105,10 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
                              BoundaryConditionTurek0, TimeStepTurek0);
 
 
-parameter channelFlip = parameter(false, .5, {1., 0., 0.},
-                                  45., 0.1, 0.1, 0.1,
+parameter channelFlip = parameter(false, .5, {0., 0., 0.},
+                                  10., 0.1, 0.1, 0.1,
                                   true, true, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
-                                  "../input/ChannelFlipBeam2.neu", 1., 3, 0,
+                                  "../input/ChannelFlipBeam2.neu", 1., 2, 0,
                                   "../input/ChannelFlipBackground2.neu", 1., -1,
                                   BoundaryConditionChannelFlip, TimeStepChannelFlip);
 
@@ -293,10 +293,10 @@ bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char na
   else if(!strcmp(name, "VX")) {
     if(1 == facename) {     //inlet
       if(t < 10.0) {
-        value = 0*.5 * 0.06067 * (1. - cos(M_PI * t / 10)) * 4. * x[1] * (1. - x[1]);
+        value = .5 * 0.06067 * (1. - cos(M_PI * t / 10)) * 4. * x[1] * (1. - x[1]);
       }
       else {
-        value = 0*0.06067 * 4. * x[1] * (1. - x[1]);
+        value = 0.06067 * 4. * x[1] * (1. - x[1]);
       }
     }
     else if(2 == facename || 3 == facename) {     //outlet

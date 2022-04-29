@@ -158,7 +158,7 @@ namespace femus {
     const bool penalty = ml_prob.parameters.get<Solid>("Solid").get_if_penalty();
 
     // gravity
-    double _gravity[3] = {1., 0., 0.};
+    double _gravity[3] = {0., 0., 0.};
 
     double dt =  my_nnlin_impl_sys.GetIntervalTime();
     double time =  my_nnlin_impl_sys.GetTime();
