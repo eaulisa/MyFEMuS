@@ -445,6 +445,7 @@ void Projection::FromMarkerToBackground() {
     }
   }
 
+
   //Flag the elements on the background grid and the get inverse mapping of the particles immersed in the background mesh
   unsigned levelB = _mlSolB->_mlMesh->GetNumberOfLevels() - 1;
   Solution *solB  = _mlSolB->GetSolutionLevel(levelB);
@@ -540,7 +541,7 @@ void Projection::FromMarkerToBackground() {
     }
   }
 
-  solB->_Sol[nflagIdx]->close();
+  solB->_Sol[eflagIdx]->close();
 
 
 }
@@ -719,16 +720,13 @@ void Projection::FromBackgroundToMarker() {
     for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
       std::cout << "kproc=" << kproc << " #" << nfc[kproc] << std::endl;
       unsigned cnt = 0;
-      for(unsigned i = 0; i < nfc[kproc]; i++) {
+      for(unsigned i = 0; i < nfc[kproc]; i++, cnt++) {
         unsigned iel;
         std::vector < double > xp(_dim);
         if(_iproc == kproc) {
           while(elemFound[cnt] >= 0) cnt++;
           iel = static_cast <unsigned>(-(elemFound[cnt] + 1));
           xp = xv[cnt];
-//           for(unsigned k = 0; k < _dim; k++) {
-//             xp[k] = xv[cnt][k];//(*mshB->_topology->_Sol[k])(offset + cnt);;
-//           }
         }
         MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
@@ -779,7 +777,6 @@ void Projection::FromBackgroundToMarker() {
     solB->_Sol[DIdxB[k]]->zero();
   }
 
-  //if(!systemSolve) {
   // scalable parallel search
   MyMarker mrk = MyMarker();
   _elemFoundb.resize(_nprocs);
@@ -814,7 +811,7 @@ void Projection::FromBackgroundToMarker() {
     for(unsigned jp = 0; jp < _nprocs; jp++) {
       unsigned im = 0;
       std::cout << "kproc=" << kproc << " jproc=" << jp << " #" << nfc[jp] << std::endl;
-      for(unsigned i = 0; i < nfc[jp]; i++) {
+      for(unsigned i = 0; i < nfc[jp]; i++, im++) {
         unsigned iel;
         std::vector < double > xp(_dim);
         if(_iproc == kproc) {
@@ -835,7 +832,7 @@ void Projection::FromBackgroundToMarker() {
       }
     }
   }
-// }
+
 
   std::cout << "gamma = " << _gamma << " beta = " << _beta << " dt = " << _DT << std::endl;
 

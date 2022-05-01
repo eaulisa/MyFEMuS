@@ -105,6 +105,8 @@ namespace femus {
           unsigned previousElem = elem;
           _mproc = GetMarkerProc(sol); //based on _elem we identify the process the search should start from
 
+          //std::cout <<previousElem<<" "<< _elem <<" "<< _mproc<<"\t";
+          
           unsigned preMproc = _mproc;
           if(_iproc == preMproc) {
             // careful this function can change _mproc, only in _iproc = preMproc, if _iproc believes that the marker does not belong to it
@@ -114,11 +116,14 @@ namespace femus {
           MPI_Bcast(& _elem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
           MPI_Bcast(& previousElem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
 
+          //std::cout << previousElem<<" "<< _elem <<" "<< _mproc<<"\t";
+          
           if(_elem != UINT_MAX) { // if the search in preMproc did not bring us outside the domain
             _mproc = GetMarkerProc(sol); //
             if(_mproc != preMproc) {  //if the search moved outside _preProc domain we call the global search
               // this is a parallel wrapper to serial search
               ParallelSerialElementSearch(previousElem, preMproc, sol, s1);
+              //std::cout << _elem <<" "<< _mproc<<"\n";
             }
           }
           else {// the particle is outside the domain

@@ -233,9 +233,9 @@ int main(int argc, char** args) {
   mov_vars.push_back("DY");
   if(dim == 3) mov_vars.push_back("DZ");
   mlSolM.GetWriter()->SetMovingMesh(mov_vars);
-  //mlSolB.GetWriter()->SetMovingMesh(mov_vars);
+  mlSolB.GetWriter()->SetMovingMesh(mov_vars);
   mlSolM.GetWriter()->SetDebugOutput(false);
-  mlSolB.GetWriter()->SetDebugOutput(true);
+  mlSolB.GetWriter()->SetDebugOutput(false);
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
 
