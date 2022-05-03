@@ -80,3 +80,42 @@ class parameter {
     TimeFunc _timeFunction;
 
 };
+
+unsigned vectorToUint(const std::vector<unsigned> &num) {
+  unsigned n = 0;
+  unsigned N = num.size();
+  for(unsigned i = 0; i < N; i++) {
+    n += num[i] * pow(10, N - i - 1);
+  }
+  return n;
+}
+
+unsigned mapToUint(const std::map<unsigned, bool> &num) {
+  std::map<unsigned, bool>::const_iterator it;
+  unsigned n = 0;
+  unsigned fac = 1;
+  for(it = num.begin(); it != num.end(); it++, fac *= 10) {
+    n += it->first * fac;
+  }
+  return n;
+}
+
+std::vector<unsigned> uintToVector(unsigned n) {
+  std::vector<unsigned> vec;
+  while(n != 0) {
+    vec.push_back(n % 10);
+    n /= 10;
+  }
+  reverse(vec.begin(), vec.end());
+  return vec;
+}
+
+std::map<unsigned, bool> uintToMap(unsigned n) {
+  std::map<unsigned, bool> num;
+  while(n != 0) {
+    num[n % 10] = true;
+    n /= 10;
+  }
+  return num;
+}
+

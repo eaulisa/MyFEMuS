@@ -181,22 +181,23 @@ void BuildInvariants(MultiLevelSolution& mlSol) {
     }
 
 
-    std::vector<unsigned> counter(nDofs, 0);
+    std::vector< std::map<unsigned, bool> > fNumber(nDofs);
     for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
-      if(msh->el->GetBoundaryIndex(iel, jface) > 1) {
+      int faceNumber = msh->el->GetBoundaryIndex(iel, jface);
+      if(faceNumber > 1) {
         unsigned nve = msh->GetElementFaceDofNumber(iel, jface, solType);
         unsigned felt = msh->GetElementFaceType(iel, jface);
         for(unsigned i = 0; i < nve; i++) {
           unsigned ilocal = msh->GetLocalFaceVertexIndex(iel, jface, i);
-          counter[ilocal]++;
+          fNumber[ilocal][faceNumber] = true;
           unsigned idof = msh->GetSolutionDof(ilocal, iel, solType);
-          sol->_Sol[mtypeIdx]->set(idof, 1);
+          sol->_Sol[mtypeIdx]->set(idof, faceNumber);
         }
       }
       for(unsigned i = 0; i < nDofs; i++) {
-        if(counter[i] > 1) {
+        if(fNumber[i].size() > 1) {       
           unsigned idof = msh->GetSolutionDof(i, iel, solType);
-          sol->_Sol[mtypeIdx]->set(idof, 2);
+          sol->_Sol[mtypeIdx]->set(idof, mapToUint(fNumber[i]));
         }
       }
     }
@@ -245,7 +246,6 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
 
   std::vector < unsigned> idof;
   std::vector < double > d2max;
-  std::vector < unsigned > mtype;
 
   // solution and coordinate variables
   const char Dname[3][3] = {"DX", "DY", "DZ"};
@@ -263,7 +263,6 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
   unsigned weightIdx = mlSol->GetIndex("weight");
   unsigned kernelIdx = mlSol->GetIndex("kernel");
   unsigned d2maxIdx = mlSol->GetIndex("d2max");
-  unsigned mtypeIdx = mlSol->GetIndex("mtype");
 
   //return;
 
@@ -287,11 +286,9 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
     }
     idof.resize(nDofs);
     d2max.resize(nDofs);
-    mtype.resize(nDofs);
 
     for(unsigned i = 0; i < nDofs; i++) {
       idof[i] = msh->GetSolutionDof(i, iel, solType);
-      mtype[i] = (*sol->_Sol[mtypeIdx])(idof[i]);
       d2max[i] = (*sol->_Sol[d2maxIdx])(idof[i]);
       for(unsigned  k = 0; k < dim; k++) {
         solD[k][i] = (*sol->_Sol[DIdx[k]])(idof[i]);
@@ -322,10 +319,10 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
         }
         if(d2max[i] < d2) std::cout << "e";
 
-        sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 2));
+        sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 0));
         for(unsigned  k = 0; k < dim; k++) {
           for(unsigned j = 0; j < dim; j++) {
-            sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 2));
+            sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 0));
           }
         }
       }
@@ -419,7 +416,7 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
           fdof[i] = idof[inode];
           fd2max[i] = d2max[inode];
           for(unsigned k = 0; k < dim; k++) {
-             // We extract the local coordinates on the face from local coordinates on the element.
+            // We extract the local coordinates on the face from local coordinates on the element.
             fvxHat[k][i] = vxHat[k][inode];
             fvx[k][i] =  vxHat[k][inode] + solD[k][inode];
           }
@@ -492,11 +489,11 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     if(msh->el->GetIfElementCanBeRefined(iel)) {
-            
+
       unsigned counter = 0;
       for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
         if(msh->el->GetBoundaryIndex(iel, jface) > 1) {
-          counter++;  
+          counter++;
         }
       }
       if(counter == 2)  {
@@ -504,7 +501,7 @@ void FlagElements(MultiLevelMesh & mlMesh, const unsigned & layers) {
       }
     }
   }
-  
+
   msh->_topology->_Sol[msh->GetAmrIndex()]->close();
 
   for(unsigned k = 1; k < layers; k++) {

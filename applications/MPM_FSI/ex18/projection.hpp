@@ -474,7 +474,28 @@ void Projection::FromMarkerToBackground() {
       }
 
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
-        if(_mtypeb[kp][im[kp]] >= 1) {
+//         if(_mtypeb[kp][im[kp]] > 1.5) {
+//           unsigned n = static_cast< unsigned >((*solB->_Sol[eflagIdx])(iel) + 0.25);
+//           std::map < unsigned, bool > num1, num2;
+//           if(n > 1.5) num1 = uintToMap(n); // get num1 from current element flag
+//           else {
+//             unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+//             for(unsigned i = 0; i < nDofu; i++) {
+//               unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+//               solB->_Sol[nflagIdx]->set(idof, 1);
+//             }
+//           }
+//           num2 = uintToMap(_mtypeb[kp][im[kp]]); // get num2 from marker type
+//           num1.insert(num2.begin(), num2.end()); // merge num1 and num2
+//           solB->_Sol[eflagIdx]->set(iel, mapToUint(num1) ); //set new current element flag
+//         }
+//         else {
+//           if((*solB->_Sol[eflagIdx])(iel) < 1.5) {
+//             solB->_Sol[eflagIdx]->set(iel, 1);
+//           }
+//         }
+        
+        if(_mtypeb[kp][im[kp]] > 1.5) {
           if((*solB->_Sol[eflagIdx])(iel) != 1) {
             solB->_Sol[eflagIdx]->set(iel, 1);
             unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
@@ -489,6 +510,9 @@ void Projection::FromMarkerToBackground() {
             solB->_Sol[eflagIdx]->set(iel, 2);
           }
         }
+
+
+
         if(!ielIsInitialized) {
           ielIsInitialized = true;
           unsigned nDofs = mshB->GetElementDofNumber(iel, solType);

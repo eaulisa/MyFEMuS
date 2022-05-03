@@ -108,7 +108,7 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
 parameter channelFlip = parameter(false, .5, {0., 0., 0.},
                                   10., 0.1, 0.1, 0.1,
                                   true, true, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
-                                  "../input/ChannelFlipBeam2.neu", 1., 2, 0,
+                                  "../input/ChannelFlipBeam2.neu", 1., 3, 0,
                                   "../input/ChannelFlipBackground2.neu", 1., -1,
                                   BoundaryConditionChannelFlip, TimeStepChannelFlip);
 
@@ -137,15 +137,15 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-      
+
   MultiLevelMesh mlMshM;
   mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
   mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
-  
-  
-  
-  
+
+
+
+
   for(unsigned i = 0; i < par->_mAdaptive; i++) {
     FlagElements(mlMshM, 6);
     mlMshM.AddAMRMeshLevel();
@@ -252,6 +252,12 @@ int main(int argc, char** args) {
     projection->FromMarkerToBackground();
     std::cout << "forward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     time = clock();
+
+//     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
+//     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
+// 
+//     exit(0);
+
     systemB.MGsolve();
     projection->SetNewmarkParameters(par->_beta, par->_gamma, systemB.GetIntervalTime());
     std::cout << "solve time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;

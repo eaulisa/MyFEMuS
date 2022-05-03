@@ -577,11 +577,16 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           im[kp]++;
         }
         if(eFlag == 1) {
+          std::map <unsigned, bool> counter;  
           unsigned im0 = im[kp];
           while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
             if(mtypep[kp][im[kp]] > 1.5) {
-              corner = true;
-              std::cout << " iel = " << iel << " is a corner cell\n";
+              counter[mtypep[kp][im[kp]]] = true;  
+              if(counter.size() > 1 || mtypep[kp][im[kp]] > 10){
+                corner = true;
+                std::cout << " iel = " << iel << " is a corner cell\n";
+                break;
+              }
             }
             im[kp]++;
           }
