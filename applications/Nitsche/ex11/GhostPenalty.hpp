@@ -25,16 +25,16 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   const unsigned dim = msh->GetDimension();
-  const unsigned dim2 = 3 * (dim - 1);
+  const unsigned dim2 = 3 * (dim - 1);//**??
 
   // data
   unsigned iproc  = msh->processor_id();
-  unsigned nprocs  = msh->n_processors();
+  unsigned nprocs  = msh->n_processors();//**??
 
   //quantities for iel will have index1
   //quantities for jel will have index2
   
-  //**** is this solution of omega1 and omega2? or is it solution of one element and neibouring element?
+  //**** is this solution of omega1 and omega2? or is it solution of one element and neighboring element?
   vector< adept::adouble > solu1; // local solution (velocity)//***is it just a vector?
   vector< adept::adouble > solu2; // local solution (velocity)
 
@@ -52,7 +52,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   std::vector < double > phi;
   std::vector < double> gradPhi;
 
-  //*** referes to solution of the element? is it also for neibouringelements?
+  //*** referes to solution of the element? is it also for neighboring elements?
   double weight1;
   std::vector < double > phi1;
   std::vector < double> gradPhi1;
@@ -63,7 +63,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   std::vector < double> gradPhi2;
   std::vector < double> nablaPhi2;
 
-  //****coordinates of two neibouring elements?
+  //****coordinates of two neighboring elements?
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
 
@@ -121,7 +121,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
       bool aP1IsInitialized = false;
       //**looping on faces of element iel
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-        int jel = el->GetFaceElementIndex(iel, iface) - 1;//**jel is the neibouring element
+        int jel = el->GetFaceElementIndex(iel, iface) - 1;//**jel is the neighboring element
         if(jel >= 0) { // iface is not a boundary of the domain.
         //**if we are on the boundary jel is negative number.we ignore that case
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
