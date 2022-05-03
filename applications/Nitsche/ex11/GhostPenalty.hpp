@@ -1,7 +1,5 @@
 void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
 
-  //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
-
   clock_t start_time;
 
   //pointers and references
@@ -35,24 +33,26 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
 
   //quantities for iel will have index1
   //quantities for jel will have index2
-
-  vector< adept::adouble > solu1; // local solution (velocity)
+  
+  //**** is this solution of omega1 and omega2? or is it solution of one element and neibouring element?
+  vector< adept::adouble > solu1; // local solution (velocity)//***is it just a vector?
   vector< adept::adouble > solu2; // local solution (velocity)
 
-  vector< adept::adouble > aRes1;     // local redidual vector
+  vector< adept::adouble > aRes1;     // local redidual vector//*****is it a vector of 1?
   vector< adept::adouble > aRes2;     // local redidual vector
 
   vector< double > rhs1; // local redidual vector
   vector< double > rhs2; // local redidual vector
-  vector < double > Jac;
+  vector < double > Jac; 
 
-  std::vector <unsigned> sysDofs1;
+  std::vector <unsigned> sysDofs1;//*****is it a vector of 1? No
   std::vector <unsigned> sysDofs2;
 
   double weight;
   std::vector < double > phi;
   std::vector < double> gradPhi;
 
+  //*** referes to solution of the element? is it also for neibouringelements?
   double weight1;
   std::vector < double > phi1;
   std::vector < double> gradPhi1;
@@ -63,25 +63,26 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   std::vector < double> gradPhi2;
   std::vector < double> nablaPhi2;
 
+  //****coordinates of two neibouring elements?
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
 
   //reading parameters for fluid FEM domain
-
   double alpha = (omega1) ? alpha1 : alpha2;
 
 
   std::cout.precision(10);
 
   //variable-name handling
-  const char varname[2][3] = {"u1", "u2"};
-
+  const char varname[2][3] = {"u1", "u2"};//vector of strings. two entries and atmost 3 characters
+  
+  //***if omega1 is true, it's going to give you u1. if it is false, it is u2.
   unsigned indexSol = mlSol->GetIndex(&varname[1 - omega1][0]);
   unsigned indexPde = mlPdeSys.GetSolPdeIndex(&varname[1 - omega1][0]);
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
-  unsigned eflagIndex = mlSol->GetIndex("eflag");
-
+  unsigned eflagIndex = mlSol->GetIndex("eflag");//**will tell you whether we have a cut or not. if eflag=1 we have a cut cell.
+  
   start_time = clock();
 
   std::vector < std::vector < std::vector <double > > > aP1(3);
@@ -89,11 +90,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
 
 
   //flagmark
+  //**here we are looping on the element on the mesh
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
+    //***if we have a cut element go in
     unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.25));
     if(eFlag1 == 1) {
-
+      //**if it is a cut element we need to know what type of cut element we have and number of nodes we have. 
       short unsigned ielt1 = msh->GetElementType(iel);
       unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
       // resize local arrays
@@ -117,14 +119,16 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
       }
 
       bool aP1IsInitialized = false;
-
+      //**looping on faces of element iel
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-        int jel = el->GetFaceElementIndex(iel, iface) - 1;
-        if(jel >= 0) { // iface is not a boundary of the domain
+        int jel = el->GetFaceElementIndex(iel, iface) - 1;//**jel is the neibouring element
+        if(jel >= 0) { // iface is not a boundary of the domain.
+        //**if we are on the boundary jel is negative number.we ignore that case
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-          if(jproc == iproc) {
+          if(jproc == iproc) {//**iel and jel belongs to the same processor
+            //**checking flag of jel
             unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
-
+            //**if you are a interior cell of same type or if it is a cut element with jel>iel (as we want to do integral one type)
             if(eFlag2 == 0 + !omega1 * 2 || (eFlag2 == 1 && jel > iel)) {
 
               short unsigned ielt2 = msh->GetElementType(jel);
@@ -147,13 +151,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                   vx2[k][i] = (*msh->_topology->_Sol[k])(idofX);
                 }
               }
-
+              //**now we are on iel and on a particular face and corresponding jel. we have all the information. 
               aRes1.assign(nDofs1, 0.);
               aRes2.assign(nDofs2, 0.);
 
               s.new_recording();
-
-
+              //**gathering information on the boundary 
               const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
               unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
               std::vector  < std::vector  <  double > > faceVx(dim);    // A matrix holding the face coordinates rowwise.
@@ -183,11 +186,11 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
               for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                 ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
               }
-
+              //**gauss loop on the face
               for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
 
-                std::vector < double> normal;
-                msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+                std::vector < double> normal;//**normal is going from iel to jel
+                msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);//**here gradient for the test function is completely fake. important phi on the edge. we use phi to get physical gauss coordinates
 
                 std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                 for(unsigned i = 0; i < faceDofs; i++) {
@@ -195,7 +198,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     xg[k] += phi[i] * faceVx[k][i];
                   }
                 }
-
+                //**now we can do the inverse mapping 
                 std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                 GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
@@ -211,15 +214,20 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                 if(!inverseMapping) {
                   std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
-
+                
+                //** having xi1 and xi2, now we can get gradient of laplace and the test function
                 msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
                 msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                
+                //**now you have surface are and normal. now we can assemble penalty term. 
 
-
-                adept::adouble gradSolu1DotN = 0.;
-                adept::adouble hessSolu1DotN = 0.;
+                adept::adouble gradSolu1DotN = 0.;//**gradient of the solution one in normal direction
+                adept::adouble hessSolu1DotN = 0.;//** Hessian of the solution in the normal direction
                 for(unsigned i = 0; i < nDofs1; i++) {
                   for(unsigned J = 0; J < dim; J++) {
+                      
+                      //**dot product between the gradient and the normal
+                      //**gradient of phi in the direction j multiply by normal j
                     gradSolu1DotN += solu1[i] * gradPhi1[i * dim + J] * normal[J];
                     for(unsigned K = 0; K < dim; K++) {
                       //2D xx, yy, xy
@@ -233,7 +241,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     }
                   }
                 }
-
+//** same thing should be done for element 2
                 adept::adouble gradSolu2DotN = 0.;
                 adept::adouble hessSolu2DotN = 0.;
                 for(unsigned i = 0; i < nDofs2; i++) {
@@ -255,7 +263,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
 
                 double C1 = 0.05 * alpha;  // [alpha];
 
-                for(unsigned i = 0; i < nDofs1; i++) {
+                for(unsigned i = 0; i < nDofs1; i++) { 
 
                   for(unsigned J = 0; J < dim; J++) {
                     aRes1[i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSolu1DotN - gradSolu2DotN) * weight;
