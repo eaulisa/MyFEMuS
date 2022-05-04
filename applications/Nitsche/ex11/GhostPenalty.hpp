@@ -29,15 +29,15 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   // this is independent. In 2D-> xx,yy,xy , In 3D-> xx,yy,zz,xy,xz,yz
   // data
   unsigned iproc  = msh->processor_id();
-  unsigned nprocs  = msh->n_processors();//Number of processors that are running 
+  unsigned nprocs  = msh->n_processors();//Number of processors that are running
 
   //quantities for iel will have index1
   //quantities for jel will have index2
   //Only the bool omega1 refers to subdomain 1 and 2 in the Nietsche coupling
 
   //solution of one element and neighboring element
-  vector< adept::adouble > solu1; 
-  vector< adept::adouble > solu2; 
+  vector< adept::adouble > solu1;
+  vector< adept::adouble > solu2;
 
   vector< adept::adouble > aRes1;     // local redidual vector
   vector< adept::adouble > aRes2;     // local redidual vector
@@ -52,7 +52,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   std::vector < double > phi;
   std::vector < double> gradPhi;
 
-  
+
   double weight1;
   std::vector < double > phi1;
   std::vector < double> gradPhi1;
@@ -124,14 +124,14 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;//jel is the neighboring element
         if(jel >= 0) { // iface is not a boundary of the domain.
           //if we are on the boundary jel is negative number.we ignore that case
-            
+
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-          //jel is piece wise discontinuous FEM it is 3. 0=Lagrange Linear, 1=Lagrange quadratic, 2=Lagrage biquadratic, 3= constat piecewise discontinuous linear. 
+          //jel is piece wise discontinuous FEM it is 3. 0=Lagrange Linear, 1=Lagrange quadratic, 2=Lagrage biquadratic, 3= constat piecewise discontinuous linear.
           if(jproc == iproc) {//iel and jel belongs to the same processor
             //since we are ine the same processor, we can exract flag jel
             unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.25));
-            
-             //if you are in omega1, do ghost cell in 0,1 , if you are in omega2 do 1,2 with jel>iel (as we want to do integral one type)
+
+            //if you are in omega1, do ghost cell in 0,1 , if you are in omega2 do 1,2 with jel>iel (as we want to do integral one type)
             if(eFlag2 == !omega1 * 2 || (eFlag2 == 1 && jel > iel)) {
 
               short unsigned ielt2 = msh->GetElementType(jel);
@@ -159,7 +159,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
               aRes2.assign(nDofs2, 0.);
 
               s.new_recording();
-               
+
               //gathering information on the boundary
               const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
               unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
@@ -342,7 +342,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   if(nprocs > 1) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) { // not scalable
       for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
-        //**who owns eFlag1? iproc. one of kproc is iproc. 
+        //**kproc owns iel and all the quantities associated to iel.
         unsigned eFlag1;
 
         if(iproc == kproc) {
@@ -350,7 +350,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
         }
         //**broadcasting to all other processors eFlag1. they are expecting to recieve from kproc.
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
-        
+
         //**now every processor knows eFlag1
         if(eFlag1 == 1) {
           //**only kproc knows the iformation about the faces.
@@ -359,10 +359,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
             nFaces = msh->GetElementFaceNumber(iel);
           }
           MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
-          
-          //**looping on the faces 
+
+          //**looping on the faces
+          bool aP1IsInitialized = false;
+
           for(unsigned iface = 0; iface < nFaces; iface++) {
-            
+
             int jel;
             if(iproc == kproc) {
               jel = el->GetFaceElementIndex(iel, iface) - 1;
@@ -370,12 +372,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
             MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
 
             if(jel >= 0) { // iface is not a boundary of the domain
-            //**then somebody should owns jel. then we check to which process jel belogs to 
+              //**then somebody should owns jel. then we check to which process jel belogs to
               unsigned jproc = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
-              
-              //**if jproc is different from kproc and then if iproc == kproc || iproc == jproc 
+
+              //**if jproc is different from kproc and then if iproc == kproc || iproc == jproc
               if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
-              //**after this only jproc and kproc is working. So hereafter if we have exchanges we have to exchange only with in jproc and kproc.
+                //**after this only jproc and kproc is working. So hereafter if we have exchanges we have to exchange only with in jproc and kproc.
                 unsigned eFlag2;
                 //**information about eFlag2 has jproc
                 if(iproc == jproc) {
@@ -387,8 +389,8 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                 }
 
                 if(eFlag2 == !omega1 * 2 || (eFlag2 == 1 && jel > iel)) {
-                //**both jproc and kproc going forward
-                  
+                  //**both jproc and kproc going forward
+
                   //std::cout << "I am " << iel << " on " << kproc << " talking with " << jel << " on " << jproc << std::endl;
 
                   short unsigned ielt1;
@@ -402,7 +404,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     ielt2 = msh->GetElementType(jel);
                     MPI_Send(&ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
                   }
-                  
+
 
                   unsigned nDofs1;
                   unsigned nDofs2 = el->GetNVE(ielt2, solType);
@@ -420,22 +422,23 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     solu1.resize(nDofs1);
 
                     for(unsigned  k = 0; k < dim; k++) {
-
                       vx1[k].resize(nDofs1);
                     }
 
-                    for(unsigned i = 0; i < nDofs1; i++) {
-                      unsigned idof = msh->GetSolutionDof(i, iel, solType);
-                      solu1[i] = (*mysolution->_Sol[indexSol])(idof);
-                      sysDofs[i] = myLinEqSolver->GetSystemDof(indexSol, indexPde, i, iel);
-                    }
 
+                    for(unsigned i = 0; i < nDofs1; i++) {
+                      unsigned idof = msh->GetSolutionDof(i, iel, solType); //local to global mapping for solution solType
+                      solu1[i] = (*mysolution->_Sol[indexSol])(idof);
+                      sysDofs[i] = myLinEqSolver->GetSystemDof(indexSol, indexPde, i, iel); //local to global mapping for the PDE
+                    }
+                    //coordinates of iel element
                     for(unsigned i = 0; i < nDofs1; i++) {
                       unsigned idofX = msh->GetSolutionDof(i, iel, 2);
                       for(unsigned  k = 0; k < dim; k++) {
                         vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
                       }
                     }
+
                     MPI_Irecv(solu2.data(), solu2.size(), MPI_DOUBLE, jproc, 0, PETSC_COMM_WORLD, &reqs[0]);
                     MPI_Irecv(&sysDofs[nDofs1], nDofs2, MPI_UNSIGNED, jproc, 1, PETSC_COMM_WORLD,  &reqs[1]);
                     for(unsigned k = 0; k < dim; k++) {
@@ -470,7 +473,32 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                   }
 
                   if(iproc == kproc) {
-                      
+
+                    std::cerr << "AA " << iel << " on " << kproc << " and " << jel << " on " << jproc << std::endl;
+                    std::cerr << "iface = " << iface << std::endl;
+
+                    for(unsigned i = 0; i < nDofs1 + nDofs2; i++) {
+                      std::cerr << sysDofs[i] << std::endl;
+                    }
+
+
+
+//                     for(unsigned i = 0; i < nDofs1; i++) {
+//                       for(unsigned  k = 0; k < dim; k++) {
+//                         std::cerr << vx1[k][i] << " ";
+//                       }
+//                       std::cerr << std::endl;
+//                     }
+//
+//
+//                     for(unsigned i = 0; i < nDofs2; i++) {
+//                       for(unsigned  k = 0; k < dim; k++) {
+//                         std::cerr << vx2[k][i] << " ";
+//                       }
+//                       std::cerr << std::endl;
+//                     }
+
+
                     //**now we are on iel and on a particular face and corresponding jel. we have all the information.
                     aRes1.assign(nDofs1, 0.);
                     aRes2.assign(nDofs2, 0.);
@@ -496,12 +524,12 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     double h3 = h * h * h;
 
 
-                    //if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
+                    if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
                       for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                         ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
                       }
-                      //aP1IsInitialized = true;
-                    //}
+                      aP1IsInitialized = true;
+                    }
 
                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                       ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
@@ -660,6 +688,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 }
+
 
 
 

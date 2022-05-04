@@ -135,6 +135,8 @@ int main(int argc, char** args) {
   // time loop parameter
   system.SetMaxNumberOfLinearIterations(1);
 
+  system.SetSparsityPatternMinimumSize(200u);
+  
   system.init();
 
   // ******* Print solution *******
@@ -146,7 +148,7 @@ int main(int argc, char** args) {
 
   system.MGsolve();
 
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   ml_prob.clear();
 
