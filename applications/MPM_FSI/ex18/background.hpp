@@ -551,17 +551,17 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         }
 
 
-        for(unsigned i = 0; i < nDofs; i++) {
-          if(nodeFlag[i] == 0) {
-            for(unsigned k = 0.; k < dim; k++) {
-              adept::adouble wlaplaceV  = 0.;
-              for(unsigned  j = 0; j < dim; j++) {
-                wlaplaceV +=  gradPhi[i * dim + j] * gradSolVg[k][j];
-              }
-              aResV[k][i] +=  1.0e-10 * wlaplaceV * weight;
-            }
-          }
-        }
+//         for(unsigned i = 0; i < nDofs; i++) {
+//           if(nodeFlag[i] == 0) {
+//             for(unsigned k = 0.; k < dim; k++) {
+//               adept::adouble wlaplaceV  = 0.;
+//               for(unsigned  j = 0; j < dim; j++) {
+//                 wlaplaceV +=  gradPhi[i * dim + j] * gradSolVg[k][j];
+//               }
+//               aResV[k][i] +=  1.0e-10 * wlaplaceV * weight;
+//             }
+//           }
+//         }
 
 
       }
@@ -577,12 +577,12 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           im[kp]++;
         }
         if(eFlag == 1) {
-          std::map <unsigned, bool> counter;  
+          std::map <unsigned, bool> counter;
           unsigned im0 = im[kp];
           while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
             if(mtypep[kp][im[kp]] > 1.5) {
-              counter[mtypep[kp][im[kp]]] = true;  
-              if(counter.size() > 1 || mtypep[kp][im[kp]] > 10){
+              counter[mtypep[kp][im[kp]]] = true;
+              if(counter.size() > 1 || mtypep[kp][im[kp]] > 10) {
                 corner = true;
                 std::cout << " iel = " << iel << " is a corner cell\n";
                 break;
@@ -670,7 +670,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           vector<vector < adept::adouble > > gradSolVp(dim);
           adept::adouble solPp = 0.;
 
-          if(corner) {
+          if(corner) { // -NS in the solid markers
             msh->_finiteElement[ielt][solType]->Jacobian(vxNew, xi, agaussWeight, phi, gradPhiNew);
 
             vector<vector < adept::adouble > > gradSolVpNew(dim);
@@ -727,139 +727,139 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           std::vector <adept::adouble> solApNew(dim);
 
 
-          if(U > 0.1) {
+          //if(U > 0.1) {
 
-            std::vector < adept::adouble > solAp(dim); //centered at am
+          std::vector < adept::adouble > solAp(dim); //centered at am
 
+          for(unsigned k = 0; k < dim; k++) {
+            solVSpOld[k] = VpOld[kp][k][im[kp]];
+            solApOld[k] = ApOld[kp][k][im[kp]];
+          }
+
+          for(int j = 0; j < dim; j++) {
+            solApNew[j] = (solDb[j] - 0.) / (par->_beta * dt * dt) - solVSpOld[j] / (par->_beta * dt) + solApOld[j] * (par->_beta - 0.5) / par->_beta ;   //NEWMARK ACCELERATION
+            solVSpNew[j] = solVSpOld[j] + dt * (par->_gamma * solApNew[j] + (1. - par->_gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
+            solAp[j] = (1. - par->_am) * solApNew[j] + par->_am * solApOld[j];
+          }
+
+          double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+          for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              solVSpOld[k] = VpOld[kp][k][im[kp]];
-              solApOld[k] = ApOld[kp][k][im[kp]];
+              FpOld[j][k] += gradDpOld[kp][j][k][im[kp]];
+              //FpOld[j][k] = FFpOld[kp][j][k][im[kp]];
             }
+          }
 
-            for(int j = 0; j < dim; j++) {
-              solApNew[j] = (solDb[j] - 0.) / (par->_beta * dt * dt) - solVSpOld[j] / (par->_beta * dt) + solApOld[j] * (par->_beta - 0.5) / par->_beta ;   //NEWMARK ACCELERATION
-              solVSpNew[j] = solVSpOld[j] + dt * (par->_gamma * solApNew[j] + (1. - par->_gamma) * solApOld[j]);   //velocity from the solid at xp, gamma configuration
-              solAp[j] = (1. - par->_am) * solApNew[j] + par->_am * solApOld[j];
-            }
-
-            double FpOld[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
+          adept::adouble Fp[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+          for(unsigned i = 0; i < dim; i++) {
             for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                FpOld[j][k] += gradDpOld[kp][j][k][im[kp]];
-                //FpOld[j][k] = FFpOld[kp][j][k][im[kp]];
+                Fp[i][j] += Fb[i][k] * FpOld[k][j];
               }
             }
+          }
 
-            adept::adouble Fp[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-            for(unsigned i = 0; i < dim; i++) {
-              for(unsigned j = 0; j < dim; j++) {
-                for(unsigned k = 0; k < dim; k++) {
-                  Fp[i][j] += Fb[i][k] * FpOld[k][j];
-                }
-              }
-            }
+          if(dim == 2) {
+            Fp[2][2] = 1.;
+          }
 
-            if(dim == 2) {
-              Fp[2][2] = 1.;
-            }
+          double JpOld;
+          adept::adouble Jp;
+          if(dim == 2) {
+            JpOld = FpOld[0][0] * FpOld[1][1] - FpOld[0][1] * FpOld[1][0];
+            Jp = Fp[0][0] * Fp[1][1] - Fp[0][1] * Fp[1][0];
+          }
+          else {
+            JpOld = FpOld[0][0] * FpOld[1][1] * FpOld[2][2] + FpOld[0][1] * FpOld[1][2] * FpOld[2][0] + FpOld[0][2] * FpOld[1][0] * FpOld[2][1] -
+                    FpOld[2][0] * FpOld[1][1] * FpOld[0][2] - FpOld[2][1] * FpOld[1][2] * FpOld[0][0] - FpOld[2][2] * FpOld[1][0] * FpOld[0][1];
+            Jp = Fp[0][0] * Fp[1][1] * Fp[2][2] + Fp[0][1] * Fp[1][2] * Fp[2][0] + Fp[0][2] * Fp[1][0] * Fp[2][1] -
+                 Fp[2][0] * Fp[1][1] * Fp[0][2] - Fp[2][1] * Fp[1][2] * Fp[0][0] - Fp[2][2] * Fp[1][0] * Fp[0][1];
+          }
 
-            double JpOld;
-            adept::adouble Jp;
-            if(dim == 2) {
-              JpOld = FpOld[0][0] * FpOld[1][1] - FpOld[0][1] * FpOld[1][0];
-              Jp = Fp[0][0] * Fp[1][1] - Fp[0][1] * Fp[1][0];
-            }
-            else {
-              JpOld = FpOld[0][0] * FpOld[1][1] * FpOld[2][2] + FpOld[0][1] * FpOld[1][2] * FpOld[2][0] + FpOld[0][2] * FpOld[1][0] * FpOld[2][1] -
-                      FpOld[2][0] * FpOld[1][1] * FpOld[0][2] - FpOld[2][1] * FpOld[1][2] * FpOld[0][0] - FpOld[2][2] * FpOld[1][0] * FpOld[0][1];
-              Jp = Fp[0][0] * Fp[1][1] * Fp[2][2] + Fp[0][1] * Fp[1][2] * Fp[2][0] + Fp[0][2] * Fp[1][0] * Fp[2][1] -
-                   Fp[2][0] * Fp[1][1] * Fp[0][2] - Fp[2][1] * Fp[1][2] * Fp[0][0] - Fp[2][2] * Fp[1][0] * Fp[0][1];
-            }
-
-            //BEGIN computation of the Cauchy Stress
-            adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
-            adept::adouble Cauchy[3][3];
-            if(par->_NeoHookean) {
-              adept::adouble B[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-              for(unsigned i = 0; i < 3; i++) {
-                for(unsigned j = 0; j < 3; j++) {
-                  for(unsigned k = 0; k < 3; k++) {
-                    //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
-                    B[i][j] += Fp[i][k] * Fp[j][k];
-                  }
-                }
-              }
-              for(unsigned j = 0; j < dim; j++) {
-                for(unsigned k = 0; k < dim; k++) {
-                  Cauchy[j][k] = lambdaMpm * log(Jp) / Jp * Id2th[j][k] + muMpm / Jp * (B[j][k] - Id2th[j][k]);     //alternative formulation
+          //BEGIN computation of the Cauchy Stress
+          adept::adouble Id2th[3][3] = {{ 1., 0., 0.}, { 0., 1., 0.}, { 0., 0., 1.}};
+          adept::adouble Cauchy[3][3];
+          if(par->_NeoHookean) {
+            adept::adouble B[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+            for(unsigned i = 0; i < 3; i++) {
+              for(unsigned j = 0; j < 3; j++) {
+                for(unsigned k = 0; k < 3; k++) {
+                  //left Cauchy-Green deformation tensor or Finger tensor (B = F*F^T)
+                  B[i][j] += Fp[i][k] * Fp[j][k];
                 }
               }
             }
-            else { //Saint Venant
-              adept::adouble E[3][3];
-              adept::adouble S[3][3];
-              for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
-                for(unsigned j = 0; j < 3; j++) {
-                  E[i][j] = 0.;
-                  for(unsigned k = 0; k < 3; k++) {
-                    E[i][j] += Fp[k][i] * Fp[k][j];
-                  }
-                  E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
-                }
-              }
-              adept::adouble traceE = E[0][0] + E[1][1] + E[2][2];
-              for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
-                for(unsigned j = 0; j < 3; j++) {
-                  S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
-                }
-              }
-              adept::adouble SFt[3][3];
-              for(unsigned i = 0; i < 3; i++) { // S F^t
-                for(unsigned j = 0; j < 3; j++) {
-                  SFt[i][j] = 0.;
-                  for(unsigned k = 0; k < 3; k++) {
-                    SFt[i][j] += S[i][k] * Fp[j][k];
-                  }
-                }
-              }
-              for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
-                for(unsigned j = 0; j < 3; j++) {
-                  Cauchy[i][j] = 0.;
-                  for(unsigned k = 0; k < 3; k++) {
-                    Cauchy[i][j] += Fp[i][k] * SFt[k][j] / Jp;
-                  }
-                }
-              }
-            }
-            //END computation of the Cauchy Stress
-
-            double dM = (areaOld / JpOld) * rhoMpm; // (areaOld / JpOld) = areaHat
-            adept::adouble dA = areaOld * Jb;
-            for(unsigned i = 0; i < nDofs; i++) {
-              adept::adouble CauchyDIR[3] = {0., 0., 0.};
-              for(unsigned j = 0.; j < dim; j++) {
-                for(unsigned k = 0.; k < dim; k++) {
-                  CauchyDIR[j] += gradPhi[i * dim + k] * Cauchy[j][k];
-                }
-              }
-              //par->_gravity[1] = (time < 2) ? 5 * sin(M_PI / 2.*time) : 0.;
-
+            for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                //aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
-                aResD[k][i] += phi[i] * solAp[k] * dM + CauchyDIR[k] * dA - phi[i] * par->_gravity[k] * dM;
-                //if(false && corner) {
-                  if(eFlag == 2) {
-                    aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
-                  }
+                Cauchy[j][k] = lambdaMpm * log(Jp) / Jp * Id2th[j][k] + muMpm / Jp * (B[j][k] - Id2th[j][k]);     //alternative formulation
+              }
+            }
+          }
+          else { //Saint Venant
+            adept::adouble E[3][3];
+            adept::adouble S[3][3];
+            for(unsigned i = 0; i < 3; i++) { //E = 0.5(F^T F - I)
+              for(unsigned j = 0; j < 3; j++) {
+                E[i][j] = 0.;
+                for(unsigned k = 0; k < 3; k++) {
+                  E[i][j] += Fp[k][i] * Fp[k][j];
+                }
+                E[i][j] = 0.5 * (E[i][j] - Id2th[i][j]);
+              }
+            }
+            adept::adouble traceE = E[0][0] + E[1][1] + E[2][2];
+            for(unsigned i = 0; i < 3; i++) { // S = lambda Tr(E) +  2 mu E
+              for(unsigned j = 0; j < 3; j++) {
+                S[i][j] = lambdaMpm * traceE * Id2th[i][j] + 2. * muMpm * E[i][j];     //alternative formulation
+              }
+            }
+            adept::adouble SFt[3][3];
+            for(unsigned i = 0; i < 3; i++) { // S F^t
+              for(unsigned j = 0; j < 3; j++) {
+                SFt[i][j] = 0.;
+                for(unsigned k = 0; k < 3; k++) {
+                  SFt[i][j] += S[i][k] * Fp[j][k];
+                }
+              }
+            }
+            for(unsigned i = 0; i < 3; i++) { // 1./J F S F^t
+              for(unsigned j = 0; j < 3; j++) {
+                Cauchy[i][j] = 0.;
+                for(unsigned k = 0; k < 3; k++) {
+                  Cauchy[i][j] += Fp[i][k] * SFt[k][j] / Jp;
+                }
+              }
+            }
+          }
+          //END computation of the Cauchy Stress
+
+          double dM = (areaOld / JpOld) * rhoMpm; // (areaOld / JpOld) = areaHat
+          adept::adouble dA = areaOld * Jb;
+          for(unsigned i = 0; i < nDofs; i++) {
+            adept::adouble CauchyDIR[3] = {0., 0., 0.};
+            for(unsigned j = 0.; j < dim; j++) {
+              for(unsigned k = 0.; k < dim; k++) {
+                CauchyDIR[j] += gradPhi[i * dim + k] * Cauchy[j][k];
+              }
+            }
+            //par->_gravity[1] = (time < 2) ? 5 * sin(M_PI / 2.*time) : 0.;
+
+            for(unsigned k = 0; k < dim; k++) {
+              //aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
+              aResD[k][i] += phi[i] * solAp[k] * dM + CauchyDIR[k] * dA - phi[i] * par->_gravity[k] * dM;
+              //if(false && corner) {
+              if(eFlag == 2) {
+                aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
+              }
 //                 }
 //                 else {
 //                   if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
 //                     aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
 //                   }
 //                 }
-              }
             }
           }
+          // }
 
           //BEGIN Nietsche coupling
           if(fabs(U - 0.5) < 0.1) {
