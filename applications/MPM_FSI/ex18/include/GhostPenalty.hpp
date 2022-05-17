@@ -124,7 +124,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     unsigned eFlag1 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(iel) + 0.2));
-    if(eFlag1 == 1) {
+    if(eFlag1 > 1.5) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
 
@@ -179,7 +179,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
           if(jproc == iproc) {
             unsigned eFlag2 = static_cast <unsigned>(floor((*mysolution->_Sol[eflagIndex])(jel) + 0.2));
 
-            if(eFlag2 == 0 + !fluid * 2 || (eFlag2 == 1 && jel > iel)) {
+            if(eFlag2 == !fluid || (eFlag2 > 1.5 && jel > iel/* && checkCommonEntry(eFlag1, eFlag2)*/ )) {
 
               short unsigned ielt2 = msh->GetElementType(jel);
 
@@ -567,7 +567,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
         }
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
-        if(eFlag1 == 1) {
+        if(eFlag1 > 1.5) {
           unsigned nFaces;
           if(iproc == kproc) {
             nFaces = msh->GetElementFaceNumber(iel);
@@ -595,7 +595,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &fluid) {
                   MPI_Recv(&eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
 
-                if(eFlag2 == 0 + !fluid * 2 || (eFlag2 == 1 && jel > iel)) {
+                if(eFlag2 == !fluid || (eFlag2 > 1.5 && jel > iel /*&& checkCommonEntry(eFlag1, eFlag2)*/ )) {
                   //std::cout << "I am " << iel << " on " << kproc << " talking with " << jel << " on " << jproc << std::endl;
 
                   short unsigned ielt1;

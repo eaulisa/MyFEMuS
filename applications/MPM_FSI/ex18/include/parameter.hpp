@@ -81,11 +81,11 @@ class parameter {
 
 };
 
-unsigned vectorToUint(const std::vector<unsigned> &num) {
+unsigned vectorToUint(const std::vector<unsigned> &v) {
   unsigned n = 0;
-  unsigned N = num.size();
+  unsigned N = v.size();
   for(unsigned i = 0; i < N; i++) {
-    n += num[i] * pow(10, N - i - 1);
+    n += v[i] * pow(10, N - i - 1);
   }
   return n;
 }
@@ -101,13 +101,13 @@ unsigned mapToUint(const std::map<unsigned, bool> &num) {
 }
 
 std::vector<unsigned> uintToVector(unsigned n) {
-  std::vector<unsigned> vec;
+  std::vector<unsigned> v;
   while(n != 0) {
-    vec.push_back(n % 10);
+    v.push_back(n % 10);
     n /= 10;
   }
-  reverse(vec.begin(), vec.end());
-  return vec;
+  std::sort(v.begin(), v.end());
+  return v;
 }
 
 std::map<unsigned, bool> uintToMap(unsigned n) {
@@ -118,4 +118,24 @@ std::map<unsigned, bool> uintToMap(unsigned n) {
   }
   return num;
 }
+
+
+bool checkCommonEntry(const unsigned &n, const unsigned &m) {
+  std::vector<unsigned> vn = uintToVector(n);
+  std::vector<unsigned> vm = uintToVector(m);
+  
+  auto ptn = vn.begin(); 
+  auto ptm = vm.begin(); 
+  
+  while(ptn != vn.end() && ptm != vm.end()) {
+    if(*ptn < *ptm) ptn++;
+    else if (*ptm < *ptn) ptm++;
+    else {
+      return true;
+     
+    }
+  }
+  return false;
+}
+
 

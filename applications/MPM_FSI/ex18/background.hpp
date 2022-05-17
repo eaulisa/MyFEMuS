@@ -398,10 +398,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
           }
         }
-      }
+        //  }
 
 
-      if(eFlag == 0) {   // only fluid cells
+        //if(eFlag == 0) {   // only fluid cells
 
         //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
         std::vector <std::vector <adept::adouble> > Jac;
@@ -536,7 +536,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
         }
       }
-      else if(eFlag == 2) {   // only solid cells: fake pressure //TODO
+      else if(eFlag == 1) {   // only solid cells: fake pressure //TODO
         if(solTypeP >= 3) {
           for(unsigned i = 0; i < nDofsP; i++) {
             aResP[i] += phiP[i] * solP[i] * weight;
@@ -571,27 +571,28 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
     if(eFlag > 0) {   //BEGIN BULK PARTICLE
 
-      bool corner = false;
+      bool corner = (eFlag > 15) ? true : false;
+      //bool corner = false;
       for(unsigned kp = 0; kp < nprocs; kp++) {
         while(im[kp] < ielp[kp].size() && ielp[kp][im[kp]] < iel) {
           im[kp]++;
         }
-        if(eFlag == 1) {
-          std::map <unsigned, bool> counter;  
-          unsigned im0 = im[kp];
-          while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
-            if(mtypep[kp][im[kp]] > 1.5) {
-              counter[mtypep[kp][im[kp]]] = true;  
-              if(counter.size() > 1 || mtypep[kp][im[kp]] > 10){
-                corner = true;
-                std::cout << " iel = " << iel << " is a corner cell\n";
-                break;
-              }
-            }
-            im[kp]++;
-          }
-          im[kp] = im0;
-        }
+//         if(eFlag == 1) {
+//           std::map <unsigned, bool> counter;
+//           unsigned im0 = im[kp];
+//           while(im[kp] < ielp[kp].size() && iel == ielp[kp][im[kp]]) {
+//             if(mtypep[kp][im[kp]] > 1.5) {
+//               counter[mtypep[kp][im[kp]]] = true;
+//               if(counter.size() > 1 || mtypep[kp][im[kp]] > 10){
+//                 corner = true;
+//                 std::cout << " iel = " << iel << " is a corner cell\n";
+//                 break;
+//               }
+//             }
+//             im[kp]++;
+//           }
+//           im[kp] = im0;
+//         }
       }
 
       unsigned icnt = 0;
@@ -848,9 +849,9 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
                 //aResD[k][i] += (phi[i] * solAp[k] + Jp * CauchyDIR[k] / rhoMpm - par->_gravity[k] * phi[i])  * dM;
                 aResD[k][i] += phi[i] * solAp[k] * dM + CauchyDIR[k] * dA - phi[i] * par->_gravity[k] * dM;
                 //if(false && corner) {
-                  if(eFlag == 2) {
-                    aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
-                  }
+                if(eFlag == 1) {
+                  aResV[k][i] += -1.0e10 * phi[i] * (solVFpNew[k] - solVSpNew[k]) * areaOld; //TODO
+                }
 //                 }
 //                 else {
 //                   if(nodeFlag[i] == 0) { //bulk solid nodes: kinematic: v - dD/dt = 0
@@ -944,7 +945,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           im[kp]++;
         }
       }
-      if(eFlag == 1) {
+      if(eFlag > 1.5) {
 
         const elem_type *femV = fem.GetFiniteElement(ielt, solType);
         const elem_type *femP = fem.GetFiniteElement(ielt, solTypeP);

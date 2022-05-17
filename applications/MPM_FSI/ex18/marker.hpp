@@ -319,10 +319,10 @@ void UpdateMeshQuantities(MultiLevelSolution * mlSol) {
         }
         if(d2max[i] < d2) std::cout << "e";
 
-        sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 0));
+        sol->_Sol[kernelIdx]->add(idof[i], jac * pow(d2max[i] - d2, 2));
         for(unsigned  k = 0; k < dim; k++) {
           for(unsigned j = 0; j < dim; j++) {
-            sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 0));
+            sol->_Sol[gradDIdx[k][j]]->add(idof[i], gradSolDg[k][j] * jac * pow(d2max[i] - d2, 2));
           }
         }
       }
