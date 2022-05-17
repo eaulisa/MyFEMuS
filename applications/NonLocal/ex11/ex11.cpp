@@ -15,10 +15,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "BestFitPlane.hpp"
+
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  3
+#define N_UNIFORM_LEVELS  5
 #define N_ERASED_LEVELS   0
 
 #define EX_1       -1.
@@ -266,7 +268,20 @@ int main(int argc, char** argv) {
       vol = 0.5 * ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1)));
     }
     else if(ielType == 1) {
+
       GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
+      if(cut == 1) {
+        std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+        std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
+
+      }
+      GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
+      if(cut == 1) {
+        std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+        std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
+        //return 1;
+      }
+
       //std::cout << cut <<" ";
     }
 
@@ -420,10 +435,10 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     }
   }
   if(cnt == 0) {
-    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0) ? 0 : 2;
+    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1]) > 0) ? 0 : 2; //0 inside, 2 outside
     return;
   }
-  else if(cnt == 4) {
+  else if(cnt == 4) { // small ball no good
     cut = 0;
     return;
   }
@@ -1044,8 +1059,8 @@ void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vect
 //       double var = A[dir] * A[dir] * xg[dir] + (A[dirp1] * A[dirp1] + A[dirp2] * A[dirp2]) * xv[dir][i]
 //                    + A[dir] * A[dirp1] * (xg[dirp1] - xv[dirp1][i])
 //                    + A[dir] * A[dirp2] * (xg[dirp2] - xv[dirp2][i]);
-                   
-                   
+
+
       double var = den * xv[dir][i] + A[dir] * Addi;
 
       a.resize(dim);
