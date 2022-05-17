@@ -117,6 +117,7 @@ utils/Files.cpp
 utils/input_parser/InputParser.cpp
 utils/input_parser/JsonInputParser.cpp
 uq/uq.cpp
+utils/eigen/MyEigenFunctions.cpp
 uq/sparseGrid.cpp
 )
 
