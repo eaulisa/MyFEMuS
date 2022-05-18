@@ -139,9 +139,10 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
   double rhoFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_density();
   double muFluid = ml_prob.parameters.get<Fluid> ("FluidFEM").get_viscosity();
 
-  if(par->_plainStress) { //plain stress, we need to modify lambda
-    lambdaMpm = 2. * lambdaMpm * muMpm / (lambdaMpm + 2. * muMpm);
-  }
+
+  double gamma = (par->_plainStress) ? 2. * muMpm / (lambdaMpm + 2. * muMpm) : 1.;
+  lambdaMpm *= gamma;
+
 
   std::cout << "mu_s = " << muMpm    << " lambda_s= " << lambdaMpm << " nu_s = " << nuMpm << std::endl;
   std::cout << "rho_s = " << rhoMpm   << " E_s = " << EMpm << std::endl;
@@ -793,7 +794,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
             }
             for(unsigned j = 0; j < dim; j++) {
               for(unsigned k = 0; k < dim; k++) {
-                Cauchy[j][k] = lambdaMpm * log(Jp) / Jp * Id2th[j][k] + muMpm / Jp * (B[j][k] - Id2th[j][k]);     //alternative formulation
+                Cauchy[j][k] = lambdaMpm * log(Jp) / pow(Jp, gamma) * Id2th[j][k] + muMpm / pow(Jp, gamma) * (B[j][k] - Id2th[j][k]);   //alternative formulation
               }
             }
           }
@@ -1130,6 +1131,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY RESIDUAL + MATRIX *******************
 
 }
+
 
 
 
