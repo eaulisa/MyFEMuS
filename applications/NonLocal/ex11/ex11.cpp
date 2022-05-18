@@ -269,18 +269,18 @@ int main(int argc, char** argv) {
     }
     else if(ielType == 1) {
 
-      GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
-      if(cut == 1) {
-        std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
-        std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
-
-      }
+//       GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
+//       if(cut == 1) {
+//         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+//         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
+// 
+//       }
       GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
-      if(cut == 1) {
-        std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
-        std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
-        //return 1;
-      }
+//       if(cut == 1) {
+//         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+//         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
+//         //return 1;
+//       }
 
       //std::cout << cut <<" ";
     }

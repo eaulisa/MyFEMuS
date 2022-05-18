@@ -236,7 +236,7 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
       yg[k] /= cnt;
     }
 
-    std::vector < double > N(dim);
+    std::vector < double > N(dim);// this is an approximate normal pointing toward the outside of the ball in the physical element
     for(unsigned k = 0; k < dim; k++) {
       N[k] =  yg[k] - xg[k];
     }
@@ -258,7 +258,7 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
       std::cout<<" "<<N[k];
     }
     std::cout << std::endl;
-    femus::FindBestFit(y, w, N, a, d);
+    femus::FindBestFit(y, w, N, a, d); // a is an BF normal pointing toward the outside of the ball in the physical element
 
     det = a[0] * N[0] + a[1] * N[1] + a[2] * N[2];
     xm.resize(dim);
@@ -267,12 +267,10 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
     xm[2] = -(d * N[2] + a[0] * (N[2] * xg[0] - N[0] * xg[2]) + a[1] * (N[2] * xg[1] - N[1] * xg[2])) / det;
 
     
-    
 
     std::vector<double> xi(dim);
-
     std::vector < std::vector < double > > J(3, std::vector<double>(3));
-    //std::vector < std::vector < double > > JI(3, std::vector<double>(3));
+    
     J[0][0] = (-x1 + x2);
     J[0][1] = (-x1 + x3);
     J[0][2] = (-x1 + x4);
@@ -311,7 +309,7 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
     a2.assign(dim, 0);
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned j = 0; j < dim; j++) {
-        a2[k] -= J[j][k] * a[j]; // this normal has to point toward the center of the ball, thus -=
+        a2[k] -= J[j][k] * a[j]; // this normal has to point toward the inside of the ball in the parent element (a needs to change sign)
       }
     }
     double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1] + a2[2] * a2[2]);
