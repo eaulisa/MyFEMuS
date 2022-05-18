@@ -467,6 +467,12 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   std::vector < unsigned > indexMu(dim);
   indexMu[0] = mlSol.GetIndex("mu1");
   indexMu[1] = mlSol.GetIndex("mu2");
+  
+  std::vector < unsigned > indexlMu(dim);
+  
+  indexlMu[0] = mlSol.GetIndex("lmu1");
+  indexlMu[1] = mlSol.GetIndex("lmu2");
+  
 
   *(sol->_SolOld[indexMu[0]]) = *(sol->_Sol[indexMu[0]]);
   *(sol->_SolOld[indexMu[1]]) = *(sol->_Sol[indexMu[1]]);
@@ -483,7 +489,8 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   NumericVector  *mu2 = NumericVector::build().release();
   mu2->init(*sol->_Sol[indexMu[1]]);
 
-
+  *(sol->_Sol[indexlMu[0]]) = *(sol->_Sol[indexMu[0]]);
+  *(sol->_Sol[indexlMu[1]]) = *(sol->_Sol[indexMu[1]]);
 
   for(unsigned ismooth = 0; ismooth < parameter.numberOfSmoothingSteps; ismooth++) {
 
@@ -496,6 +503,12 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     sol->_Sol[indexMu[1]] -> matrix_mult(*mu1, *PtP[1][0]);
     sol->_Sol[indexMu[1]] -> add_vector(*mu2, *PtP[1][1]);
   }
+  
+  *(sol->_Sol[indexlMu[0]]) -= *(sol->_Sol[indexMu[0]]);
+  *(sol->_Sol[indexlMu[1]]) -= *(sol->_Sol[indexMu[1]]);
+
+  
+  
 
   delete mu1;
   delete mu2;
@@ -575,7 +588,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   std::vector< double > dphidu;
 
   //start line search algorithm
-  if(counter > 0) {
+  if(false && counter > 0) {
 
 
     double num = 0.;
@@ -988,3 +1001,4 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   delete D;
 
 }
+

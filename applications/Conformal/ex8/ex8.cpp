@@ -17,7 +17,7 @@
 
 unsigned counter = 0;
 const double eps = 1.e-5;
-bool areaConstraint = true;
+bool areaConstraint = false;
 
 unsigned conformalType0 = 0;
 unsigned conformalType = 0;
@@ -53,7 +53,7 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solName[], double & value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 5000, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 3000, 1, 0.811569);
 //const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 5, 1, true, 500, 1, 0.805200);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 1, true, 1500, 1, 0.910958);
