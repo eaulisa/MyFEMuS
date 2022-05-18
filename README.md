@@ -256,4 +256,3 @@ License
 ========
 
 FEMuS is an open-source software distributed under the LGPL license, version 2.1
-

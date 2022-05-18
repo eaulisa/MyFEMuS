@@ -4,71 +4,71 @@ SparseMatrix* PtP[2][2];
 
 
 double EvaluateMu(MultiLevelSolution & mlSol) {
-  
+
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
-  
+
   Solution* sol = mlSol.GetSolutionLevel(level);
   Mesh* msh = mlSol._mlMesh->GetLevel(level);
   elem* el = msh->el;
-  
+
   //unsigned  dim = msh->GetDimension();
   unsigned dim = 2;
   unsigned DIM = (parameter.surface) ? 3 : 2;
-  
+
   std::vector < unsigned > indexDx(DIM);
   indexDx[0] = mlSol.GetIndex("Dx1");
   indexDx[1] = mlSol.GetIndex("Dx2");
   if(parameter.surface) indexDx[2] = mlSol.GetIndex("Dx3");
   unsigned solTypeDx = mlSol.GetSolutionType(indexDx[0]);
-  
+
   std::vector < unsigned > indexMu(dim);
   indexMu[0] = mlSol.GetIndex("mu1");
   indexMu[1] = mlSol.GetIndex("mu2");
-  
+
   unsigned indexW1 = mlSol.GetIndex("weight1");
   unsigned solType1 = mlSol.GetSolutionType(indexMu[0]);
-  
+
   std::vector< double > dof1;
-  
+
   std::vector < std::vector < double > > xhat(DIM);
   std::vector < std::vector < double > > solx(DIM);
-  
+
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexMu[k]]->zero();
   }
   sol->_Sol[indexW1]->zero();
-  
+
   double weight; // gauss point weight
-  
+
   unsigned iproc = msh->processor_id();
   unsigned nprocs = msh->n_processors();
-  
-  
+
+
   std::vector < std::vector < double > > cX(2);
-  
+
   unsigned vAngleIndex = mlSol.GetIndex("vAngle");
   unsigned vAngleType = mlSol.GetSolutionType(vAngleIndex);
   std::vector <double> vAngle;
-  
+
   std::vector<double> phi_uv0;
   std::vector<double> phi_uv1;
-  
+
   std::vector< double > phi;
   std::vector< double > dphidu;
-  
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-    
+
     short unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDofs1  = msh->GetElementDofNumber(iel, solType1);
     unsigned nDofsDx  = msh->GetElementDofNumber(iel, solTypeDx);
-    
+
     dof1.resize(nDofs1);
-    
+
     for(int K = 0; K < DIM; K++) {
       xhat[K].resize(nDofsDx);
       solx[K].resize(nDofsDx);
     }
-    
+
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofs1; i++) {
       dof1[i] = msh->GetSolutionDof(i, iel, solType1);
@@ -82,35 +82,35 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
         solx[K][i] = (*msh->_topology->_Sol[K])(xDof) + (*sol->_Sol[indexDx[K]])(idof);
       }
     }
-    
+
     unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
     vAngle.resize(nvAngle);
     for(unsigned i = 0; i < nvAngle; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
       vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
     }
-    
+
     GetConformalCoordinates(msh, conformalType, iel, solTypeDx, vAngle, cX);
-    
-    
-    
-    
-    double a = 0.; 
+
+
+
+
+    double a = 0.;
     boost::math::quaternion <double> b(0., 0., 0., 0.);
     boost::math::quaternion <double> f(0., 0., 0., 0.);
-    
-    
+
+
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solTypeDx]->GetGaussPointNumber(); ig++) {
-      
+
       double weight; // gauss point weight
       msh->_finiteElement[ielGeom][solTypeDx]->Jacobian(cX, ig, weight, phi, dphidu);
       const double *phi1 = msh->_finiteElement[ielGeom][solType1]->GetPhi(ig);  // local test function
-      
+
       // Initialize and compute fields at the Gauss points.
       double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
       double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      
+
       for(unsigned K = 0; K < DIM; K++) {
         for(int j = 0; j < dim; j++) {
           for(unsigned i = 0; i < nDofsDx; i++) {
@@ -119,7 +119,7 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
           }
         }
       }
-      
+
       // Compute the metric, metric determinant, and area element.
       double g[2][2] = {{0., 0.}, {0., 0.}};
       for(unsigned i = 0; i < dim; i++) {
@@ -130,65 +130,65 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
         }
       }
       double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
-      
+
       double normal[3] = {0., 0., 1.};
-      
+
       if(parameter.surface) {
         normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
         normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
         normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
       }
-      
-      
+
+
       boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
-      
+
       boost::math::quaternion <double> du(0, solx_uv[0][0], solx_uv[1][0], solx_uv[2][0]);
       boost::math::quaternion <double> dv(0, solx_uv[0][1], solx_uv[1][1], solx_uv[2][1]);
-      
+
       boost::math::quaternion <double> dup = du - N * dv;
       boost::math::quaternion <double> dum = du + N * dv;
-      
+
       boost::math::quaternion <double> MU = (dum * conj(dup)) / norm(dup);
-      
+
       a += norm(dup) * weight;
       b += norm(dup) * N * weight;
       f += dum * conj(dup) * weight;
-      
+
 //       double mu[2] = {0., 0.};
-//       
+//
 //       mu[0] += MU.R_component_1();
 //       mu[1] = (MU * conj(N)).R_component_1();
-//       
+//
 //       for(unsigned i = 0; i < nDofs1; i++) {
 //         sol->_Sol[indexW1]->add(dof1[i], phi1[i] * weight);
 //         for(unsigned k = 0; k < dim; k++) {
 //           sol->_Sol[indexMu[k]]->add(dof1[i], mu[k] * phi1[i] * weight);
 //         }
 //       } // end phi_i loop
-      
+
     } // end gauss point loop
-    
-  
+
+
     double mu1 = f.R_component_1()/a;
     sol->_Sol[indexMu[0]]->set(iel, mu1);
-    
+
     double mu2 = (f*conj(b)).R_component_1() / norm(b);
     sol->_Sol[indexMu[1]]->set(iel, mu2);
-  
+
   } //end element loop for each process*/
-  
-  
-  
- /* 
+
+
+
+ /*
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexMu[k]]->close();
   }
   sol->_Sol[indexW1]->close();
-  
+
   for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
-    
+
     double weight = (*sol->_Sol[indexW1])(i);
-    
+
     double mu[2];
     for(unsigned k = 0; k < dim; k++) {
       mu[k] = (*sol->_Sol[indexMu[k]])(i) / weight;
@@ -198,27 +198,27 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
   for(unsigned k = 0; k < dim; k++) {
     sol->_Sol[indexMu[k]]->close();
   }
-  
+
   double MuNormAverage;
-  
+
   double MuNormLocalSum = 0.;
   double muNormLocalMax = 0.;
   for(unsigned i = msh->_dofOffset[solType1][iproc]; i < msh->_dofOffset[solType1][iproc + 1]; i++) {
     double muNorm = sqrt(pow((*sol->_Sol[indexMu[0]])(i), 2) + pow((*sol->_Sol[indexMu[1]])(i), 2));
     MuNormLocalSum += muNorm;
-    
+
     muNormLocalMax = (muNorm > muNormLocalMax) ? muNorm : muNormLocalMax;
   }
   double muNormMax;
   MPI_Allreduce(&muNormLocalMax, &muNormMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   std::cout << "\nun-smoothed mu infinity norm = " << muNormMax << std::endl;
-  
+
   MPI_Allreduce(&MuNormLocalSum, &MuNormAverage, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MuNormAverage /= msh->_dofOffset[solType1][nprocs];
-  
+
   std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
   std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
-  
+
   return MuNormAverage;
 }
 
@@ -690,7 +690,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
       }
 
     }
-    
+
     double numAll, denAll;
 
     MPI_Allreduce(&num, &numAll, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -988,5 +988,3 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   delete D;
 
 }
-
-

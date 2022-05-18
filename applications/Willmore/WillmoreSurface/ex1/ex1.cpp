@@ -38,8 +38,8 @@ bool O2conformal = true;
 bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
-bool volumeConstraint = false;
-bool areaConstraint = false;
+bool volumeConstraint = true;
+bool areaConstraint = true;
 
 unsigned conformalTriangleType = 2;
 const double eps = 1e-5;
@@ -53,7 +53,7 @@ void AssemblePWillmore (MultiLevelProblem&);
 void AssemblePWillmore2 (MultiLevelProblem& ml_prob);
 
 
-double dt0 = 3.2e-6; //P=2
+double dt0 = 0.1; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -99,7 +99,7 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidRef3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
-  //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
@@ -111,14 +111,14 @@ int main (int argc, char** args) {
 
   const bool read_groups = false;                        //by default, if no argument is given, this is "true"
   const bool read_boundary_groups = false;              //by default, if no argument is given, this is "true"
-  mlMsh.ReadCoarseMesh ("../input/DTquad.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
+  // mlMsh.ReadCoarseMesh ("../input/DTquad.med", "seventh", scalingFactor, read_groups, read_boundary_groups);
 
   //mlMsh.ReadCoarseMesh ("../input/armadillo.med", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/moai.med", "seventh", scalingFactor);
 
 
   // Set number of mesh levels.
-  unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh (numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -301,7 +301,7 @@ int main (int argc, char** args) {
 
     dt0 *= 1.1;
       //UNCOMMENT FOR P=4
-      if (dt0 > 5e-1) dt0 = 5e-1;
+      // if (dt0 > 5e-1) dt0 = 5e-1;
 
 
         //IGNORE THIS
