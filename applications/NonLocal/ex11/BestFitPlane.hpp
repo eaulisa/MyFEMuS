@@ -4,7 +4,7 @@
 void GetNormalTriBF(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &b, double & db, unsigned & cut) {
 
   const unsigned &dim =  xv.size();
-  const unsigned &nve =  xv[0].size();
+  const unsigned nve =  3;
 
   const double& x1 = xv[0][0];
   const double& x2 = xv[0][1];
@@ -12,9 +12,6 @@ void GetNormalTriBF(const std::vector < std::vector<double> > &xv, const std::ve
   const double& y1 = xv[1][0];
   const double& y2 = xv[1][1];
   const double& y3 = xv[1][2];
-
-
-
 
   std::vector<double> A(2, 0.);
   std::vector<std::vector<double>> xe(4, std::vector<double>(2));
@@ -131,146 +128,125 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
 
   const unsigned dim =  3;
   const unsigned nve =  4;
+  const unsigned ndge =  6;
 
-  const double& x1 = xv[0][0];
-  const double& x2 = xv[0][1];
-  const double& x3 = xv[0][2];
-  const double& x4 = xv[0][3];
-  const double& y1 = xv[1][0];
-  const double& y2 = xv[1][1];
-  const double& y3 = xv[1][2];
-  const double& y4 = xv[1][3];
-  const double& z1 = xv[2][0];
-  const double& z2 = xv[2][1];
-  const double& z3 = xv[2][2];
-  const double& z4 = xv[2][3];
-
-  double hx = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x3 - x1) + fabs(x4 - x1) + fabs(x4 - x2) + fabs(x4 - x3)) / 6.;
-  double hy = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y3 - y1) + fabs(y4 - y1) + fabs(y4 - y2) + fabs(y4 - y3)) / 6.;
-  double hz = (fabs(z2 - z1) + fabs(z3 - z2) + fabs(z3 - z1) + fabs(z4 - z1) + fabs(z4 - z2) + fabs(z4 - z3)) / 6.;
-  double h = sqrt(hx * hx + hy * hy + hz * hz);
-  double eps = 1.0e-10 * h;
-
-  std::vector<double> A(dim, 0.);
-  std::vector < std::vector <double> > y(6, std::vector<double>(dim));
-  std::vector < unsigned > i0(6);
-  double D = 0.;
-  unsigned intMax = 2;
-  unsigned nEdge = 0;
+  std::vector < std::vector <double> > y(ndge, std::vector<double>(dim));
+  Eigen::Vector3d A;
   unsigned cnt = 0;
 
-  for(unsigned i = 0; i < nve - 1; i++) {
-    for(unsigned j = i + 1; j < nve; j++) {
-      for(unsigned k = 0; k < dim; k++) {
-        A[k] = xv[k][j] - xv[k][i];
-      }
+  std::vector < Eigen::Vector3d> x(nve);
+  std::vector < double > dist2(nve, R * R);
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0; k < dim; k++) {
+      x[i][k] = xv[k][i] - xg[k];
+      dist2[i] -= x[i][k] * x[i][k];
+    }
+  }
 
-      std::vector<double> inters(intMax, 0.);
-      unsigned dir = (fabs(A[0]) > fabs(A[1])) ? ((fabs(A[0]) > fabs(A[2])) ? 0 : 2) : ((fabs(A[1]) > fabs(A[2])) ? 1 : 2) ;
-      unsigned dirp1 = (dir + 1) % dim;
-      unsigned dirp2 = (dir + 2) % dim;
+  std::vector<std::vector <unsigned>> vt = {{1, 2, 3}, {2, 3}, {3}};
 
-      double iMax = std::max(xv[dir][j], xv[dir][i]);
-      double iMin = std::min(xv[dir][j], xv[dir][i]);
-
-      double Axdi[3] = {A[1]* (xg[2] - xv[2][i]) - A[2] * (xg[1] - xv[1][i]),
-                        A[2]* (xg[0] - xv[0][i]) - A[0] * (xg[2] - xv[2][i]),
-                        A[0]* (xg[1] - xv[1][i]) - A[1] * (xg[0] - xv[0][i])
-                       } ;
-
-      double Addi = A[0] * (xg[0] - xv[0][i]) +
-                    A[1] * (xg[1] - xv[1][i]) +
-                    A[2] * (xg[2] - xv[2][i]);
-
-
-      double den = A[0] * A[0] + A[1] * A[1] + A[2] * A[2];
-
-      double delta = (- (A[dir] * A[dir]) *
-                      (Axdi[0] * Axdi[0] + Axdi[1] * Axdi[1] + Axdi[2] * Axdi[2] - R * R * den));
-
-      double var = den * xv[dir][i] + A[dir] * Addi;
-
-      a.resize(dim);
-      if(delta > 0.) {
-        inters[0] = (var - sqrt(delta)) / den;
-        inters[1] = (var + sqrt(delta)) / den;
-        unsigned nInt = 0;
-        unsigned jInt = 2;
-        for(unsigned ii = 0; ii < intMax; ii++) {
-          if(inters[ii] < iMax && inters[ii] > iMin) {
-            nInt++;
-            jInt = ii;
-          }
+  for(unsigned i = 0; i < vt.size(); i++) {
+    for(unsigned jj = 0; jj < vt[i].size(); jj++) {
+      unsigned j = vt[i][jj];
+      if(dist2[i] * dist2[j] <= 0) {
+        for(unsigned k = 0; k < dim; k++) {
+          A[k] = x[j][k] - x[i][k];
         }
-        if(nInt == 1) {
-          y[cnt][dir] = inters[jInt];
-          y[cnt][dirp1] = xv[dirp1][i] + A[dirp1] * (y[cnt][dir] - xv[dir][i]) / A[dir];
-          y[cnt][dirp2] = xv[dirp2][i] + A[dirp2] * (y[cnt][dir] - xv[dir][i]) / A[dir];
-          i0[cnt] = (i + j) - (i == 0);
-          cnt++;
+        std::vector<double> inters(2, 0.);
+        unsigned dir = (fabs(A[0]) > fabs(A[1])) ? ((fabs(A[0]) > fabs(A[2])) ? 0 : 2) : ((fabs(A[1]) > fabs(A[2])) ? 1 : 2) ;
+        unsigned dirp1 = (dir + 1) % dim;
+        unsigned dirp2 = (dir + 2) % dim;
+
+        double yMax = std::max(x[j][dir], x[i][dir]);
+        double yMin = std::min(x[j][dir], x[i][dir]);
+
+        Eigen::Vector3d Axdi = -A.cross(x[i]);
+        double Addi = -A.dot(x[i]);
+        double den = A.dot(A);
+
+        double delta = - (A[dir] * A[dir]) * (Axdi.dot(Axdi) - R * R * den);
+        double var = den * x[i][dir] + A[dir] * Addi;
+
+        a.resize(dim);
+        if(delta > 0.) {
+          bool test = false;
+          for(unsigned ii = 0; ii < 2; ii++) {
+            double yi = (var + ((ii == 0) ? -1 : +1) * sqrt(delta)) / den;
+            if(yMin < yi && yi < yMax) { // this should exclude intersections in the vertices
+              if(test == false) {
+                y[cnt][dir] = yi;
+                y[cnt][dirp1] = x[i][dirp1] + A[dirp1] * (y[cnt][dir] - x[i][dir]) / A[dir];
+                y[cnt][dirp2] = x[i][dirp2] + A[dirp2] * (y[cnt][dir] - x[i][dir]) / A[dir];
+                cnt++;
+                test = true;
+              }
+              else { // this is to remove double intersection on the same edge
+                cnt--;
+              }
+            }
+          }
         }
       }
     }
   }
   if(cnt == 0) {
-    cut = (R * R - (xv[0][0] - xg[0]) * (xv[0][0] - xg[0]) - (xv[1][0] - xg[1]) * (xv[1][0] - xg[1])  - (xv[2][0] - xg[2]) * (xv[2][0] - xg[2]) > 0) ? 0 : 2;
+    cut = (dist2[0] > 0) ? 0 : 2;
     return;
   }
   else if(cnt > 4) { // bad: small ball
     cut = 0;
     return;
   }
-  else if(cnt == 4 || cnt == 3) {
+  else if(cnt == 4 || cnt == 3) {// these I am not sure are the right limits
     cut = 1;
 
     std::vector<double> w(cnt + 1, 1.);
-    w[cnt] = 2 * cnt;
+    w[cnt] = 2. * cnt;
+    y.resize(cnt + 1, {0., 0., 0.});
 
-    y.resize(cnt + 1);
-
-    std::vector <double> yg(dim, 0);
+    std::vector <double> N(dim, 0); // this is an approximate normal pointing toward the outside of the ball in the physical element
+    double det = 0.;
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned i = 0; i < cnt; i++) {
-        yg[k] += y[i][k];
+        N[k] += y[i][k];
       }
-      yg[k] /= cnt;
+      det += N[k] * N[k];
+    }
+    det = sqrt(det);
+    for(unsigned k = 0; k < dim; k++) {
+      N[k] /=  det;
     }
 
-    std::vector < double > N(dim);// this is an approximate normal pointing toward the outside of the ball in the physical element
-    for(unsigned k = 0; k < dim; k++) {
-      N[k] =  yg[k] - xg[k];
-    }
-    
-    double det = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
-    for(unsigned k = 0; k < dim; k++) {
-      N[k] /=det;
-    }
-        
     double theta = atan2(N[1], N[0]);
     double phi = acos(N[2]);
 
-    y[cnt][0] = xg[0] + R * sin(phi) * cos(theta);
-    y[cnt][1] = xg[1] + R * sin(phi) * sin(theta);
-    y[cnt][2] = xg[2] + R * cos(phi);
+    y[cnt][0] = R * sin(phi) * cos(theta);
+    y[cnt][1] = R * sin(phi) * sin(theta);
+    y[cnt][2] = R * cos(phi);
 
-    for(unsigned k = 0; k < dim; k++) {
-      N[k] = N[k];
-      std::cout<<" "<<N[k];
-    }
-    std::cout << std::endl;
-    femus::FindBestFit(y, w, N, a, d); // a is an BF normal pointing toward the outside of the ball in the physical element
+    femus::FindBestFit(y, w, N, a, d); // a is the unit BF normal pointing toward the outside of the ball in the physical element
 
-    det = a[0] * N[0] + a[1] * N[1] + a[2] * N[2];
     xm.resize(dim);
-    xm[0] = -(d * N[0] + a[1] * (N[0] * xg[1] - N[1] * xg[0]) + a[2] * (N[0] * xg[2] - N[2] * xg[0])) / det;
-    xm[1] = -(d * N[1] + a[2] * (N[1] * xg[2] - N[2] * xg[1]) + a[0] * (N[1] * xg[0] - N[0] * xg[1])) / det;
-    xm[2] = -(d * N[2] + a[0] * (N[2] * xg[0] - N[0] * xg[2]) + a[1] * (N[2] * xg[1] - N[1] * xg[2])) / det;
+    xm[0] = -(d * a[0]);
+    xm[1] = -(d * a[1]);
+    xm[2] = -(d * a[2]);
 
-    
+    const double& x1 = x[0][0];
+    const double& x2 = x[1][0];
+    const double& x3 = x[2][0];
+    const double& x4 = x[3][0];
+    const double& y1 = x[0][1];
+    const double& y2 = x[1][1];
+    const double& y3 = x[2][1];
+    const double& y4 = x[3][1];
+    const double& z1 = x[0][2];
+    const double& z2 = x[1][2];
+    const double& z3 = x[2][2];
+    const double& z4 = x[3][2];
 
     std::vector<double> xi(dim);
     std::vector < std::vector < double > > J(3, std::vector<double>(3));
-    
+
     J[0][0] = (-x1 + x2);
     J[0][1] = (-x1 + x3);
     J[0][2] = (-x1 + x4);
@@ -320,4 +296,177 @@ void GetNormalTetBF(const std::vector < std::vector<double> > &xv, const std::ve
 
   }
 }
+
+
+void GetNormalHexBF(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &a2, double & d2, double & volume,  unsigned & cut, const elem_type *fem) {
+
+  const unsigned dim =  3;
+  const unsigned nve =  8;
+  const unsigned ndge =  12;
+
+  std::vector < std::vector <double> > y(ndge, std::vector<double>(dim));
+  Eigen::Vector3d A;
+  unsigned cnt = 0;
+
+  std::vector < Eigen::Vector3d> x(nve);
+  std::vector < double > dist2(nve, R * R);
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0; k < dim; k++) {
+      x[i][k] = xv[k][i] - xg[k];
+      dist2[i] -= x[i][k] * x[i][k];
+    }
+  }
+
+  std::vector<std::vector <unsigned>> vt = {{1, 3, 4}, {2, 5}, {3, 6}, {7}, {5, 7}, {6}, {7}};
+
+  for(unsigned i = 0; i < vt.size(); i++) {
+    for(unsigned jj = 0; jj < vt[i].size(); jj++) {
+      unsigned j = vt[i][jj];
+      if(dist2[i] * dist2[j] <= 0) {
+        for(unsigned k = 0; k < dim; k++) {
+          A[k] = x[j][k] - x[i][k];
+        }
+        std::vector<double> inters(2, 0.);
+        unsigned dir = (fabs(A[0]) > fabs(A[1])) ? ((fabs(A[0]) > fabs(A[2])) ? 0 : 2) : ((fabs(A[1]) > fabs(A[2])) ? 1 : 2) ;
+        unsigned dirp1 = (dir + 1) % dim;
+        unsigned dirp2 = (dir + 2) % dim;
+
+        double yMax = std::max(x[j][dir], x[i][dir]);
+        double yMin = std::min(x[j][dir], x[i][dir]);
+
+        Eigen::Vector3d Axdi = -A.cross(x[i]);
+        double Addi = -A.dot(x[i]);
+        double den = A.dot(A);
+
+        double delta = - (A[dir] * A[dir]) * (Axdi.dot(Axdi) - R * R * den);
+        double var = den * x[i][dir] + A[dir] * Addi;
+
+        a.resize(dim);
+        if(delta > 0.) {
+          bool test = false;
+          for(unsigned ii = 0; ii < 2; ii++) {
+            double yi = (var + ((ii == 0) ? -1 : +1) * sqrt(delta)) / den;
+            if(yMin < yi && yi < yMax) { // this should exclude intersections in the vertices
+              if(test == false) {
+                y[cnt][dir] = yi;
+                y[cnt][dirp1] = x[i][dirp1] + A[dirp1] * (y[cnt][dir] - x[i][dir]) / A[dir];
+                y[cnt][dirp2] = x[i][dirp2] + A[dirp2] * (y[cnt][dir] - x[i][dir]) / A[dir];
+                cnt++;
+                test = true;
+              }
+              else { // this is to remove double intersection on the same edge
+                cnt--;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if(cnt == 0) {
+    cut = (dist2[0] > 0) ? 0 : 2;
+    return;
+  }
+  else if(cnt > 6) { // bad: small ball
+    cut = 0;
+    return;
+  }
+  else if(cnt >= 3 && cnt <= 6) { // these I am not sure are the right limits
+    cut = 1;
+
+    std::vector<double> w(cnt + 1, 1.);
+    w[cnt] = 2. * cnt;
+    y.resize(cnt + 1, {0., 0., 0.});
+
+    std::vector <double> N(dim, 0); // this is an approximate normal pointing toward the outside of the ball in the physical element
+    double det = 0.;
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned i = 0; i < cnt; i++) {
+        N[k] += y[i][k];
+      }
+      det += N[k] * N[k];
+    }
+    det = sqrt(det);
+    for(unsigned k = 0; k < dim; k++) {
+      N[k] /=  det;
+    }
+
+    double theta = atan2(N[1], N[0]);
+    double phi = acos(N[2]);
+
+    y[cnt][0] = R * sin(phi) * cos(theta);
+    y[cnt][1] = R * sin(phi) * sin(theta);
+    y[cnt][2] = R * cos(phi);
+
+    femus::FindBestFit(y, w, N, a, d); // a is the unit BF normal pointing toward the outside of the ball in the physical element
+
+    xm.resize(dim);
+    xm[0] = -(d * a[0]) + xg[0];
+    xm[1] = -(d * a[1]) + xg[1];
+    xm[2] = -(d * a[2]) + xg[2];
+
+    /* Differently from the triangle and the tetrahedron, a plane in the physical element does not map into a plane in the parent element.
+       This below is mapping of the BF physical plane to an approximate plane in the parent element */
+    
+    short unsigned hex = 0;
+    unsigned linear = 0;
+
+    std::vector < std::vector < std::vector <double > > > aP(1);
+    ProjectNodalToPolynomialCoefficients(aP[linear], xv, hex, linear) ;
+    std::vector <double> xi;
+    GetClosestPointInReferenceElement(xv, xm, hex, xi);
+    bool inverseMapping = GetInverseMapping(linear, hex, aP, xm, xi, 100);
+
+    std::vector < std::vector <double> > J, JI;
+    fem->GetJacobianMatrix(xv, xi, det, J, JI);
+
+    a2.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        a2[k] -= J[j][k] * a[j]; // this normal has to point toward the inside of the ball in the parent element (a needs to change sign)
+      }
+    }
+    double bNorm = sqrt(a2[0] * a2[0] + a2[1] * a2[1] + a2[2] * a2[2]);
+    a2[0] /= bNorm;
+    a2[1] /= bNorm;
+    a2[2] /= bNorm;
+    d2 = - a2[0] * xi[0] - a2[1] * xi[1] - a2[2] * xi[2];
+
+  }
+}
+
+
+
+
+//     std::vector<double> w(cnt, 1.);
+//     unsigned cntp = (cnt * (cnt - 1)) / 2;
+//     w.resize(cnt + cntp, (2. * cnt) / cntp);
+//     y.resize(cnt + cntp);
+//
+//
+//     std::cout << cntp<<" ";
+//     unsigned cnt0 = cnt;
+//     std::vector <double> N(dim, 0);
+//     for(unsigned i = 0; i < cnt0 - 1; i++) {
+//       for(unsigned j = i + 1; j < cnt0; j++) {
+//         std::cout<< cnt <<" ";
+//         std::vector <double> Nij(dim, 0); // this is an approximate normal pointing toward the outside of the ball in the physical element
+//         double det = 0.;
+//         for(unsigned k = 0; k < dim; k++) {
+//           Nij[k] += 0.5 * (y[i][k] + y[j][k]);
+//           det += Nij[k] * Nij[k];
+//         }
+//         det = sqrt(det);
+//         for(unsigned k = 0; k < dim; k++) {
+//           Nij[k] /=  det;
+//           N[k] += Nij[k];
+//         }
+//         double theta = atan2(Nij[1], Nij[0]);
+//         double phi = acos(Nij[2]);
+//         y[cnt][0] = R * sin(phi) * cos(theta);
+//         y[cnt][1] = R * sin(phi) * sin(theta);
+//         y[cnt][2] = R * cos(phi);
+//         cnt++;
+//       }
+//     }
 

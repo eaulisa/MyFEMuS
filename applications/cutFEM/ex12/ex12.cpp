@@ -19,35 +19,35 @@ int main() {
   std::vector <double> a;
   double d;
 
-  std::vector < std::vector<double> > xp = {{0, 0}, {1, 1}, {1, 1}, {2, 0},{ 2, 0}};
-  std::vector<double> w = {2, 1, 2, 3, 1};
-  femus::FindBestFit(xp, w, {0.1, 1}, a, d);
+  std::vector < std::vector<double> > xp = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},{ 0.5, 0.5, 0.1}};
+  std::vector<double> w = {1, 1, 1, 1, 8};
+  femus::FindBestFit(xp, w, {0., 0., 1}, a, d);
 
-  std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
+  std::cout << a[0] << " " << a[1] <<" " << a[2]<<" "<< d<<std::endl;
   
-  xp = {{0, 0}, {1, 1}, {2, 0}};
-  w = {2, 3, 4};
-  femus::FindBestFit(xp, w, {-0.1, -1}, a, d);
+//   xp = {{0, 0}, {1, 1}, {2, 0}};
+//   w = {2, 3, 4};
+//   femus::FindBestFit(xp, w, {-0.1, -1}, a, d);
+// 
+//   std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
+// 
+//   
+//   xp = {{0, 0}, {1, 1}, {1, 1}, {2, 0},{ 2, 0}};
+//   w = {1, 1, 1, 1, 1};
+//   femus::FindBestFit(xp, w, {0.1, 1}, a, d);
+// 
+//   std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
+//   
+//   femus::FindBestFit(xp, boost::none, {0.1, 1}, a, d);
+// 
+//   std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
 
-  std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
 
   
-  xp = {{0, 0}, {1, 1}, {1, 1}, {2, 0},{ 2, 0}};
-  w = {1, 1, 1, 1, 1};
-  femus::FindBestFit(xp, w, {0.1, 1}, a, d);
-
-  std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
-  
-  femus::FindBestFit(xp, boost::none, {0.1, 1}, a, d);
-
-  std::cout << a[0] << " " << a[1] <<" "<< d<<std::endl;
-
-
-  
-
+/*
   std::vector<double> yp = {0, 0, 1, 1, 1, 1, 2, 0, 2, 0};
   w = {2, 1, 2, 3, 1};
-  FindBestFit(yp, w, {0.1, 1}, a, d);
+  FindBestFit(yp, w, {0.1, 1}, a, d);*/
 
   
   return 1;

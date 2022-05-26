@@ -15,6 +15,7 @@
 #include <cmath>
 #include <iostream>
 
+#include "Fem.hpp"
 #include "BestFitPlane.hpp"
 
 using namespace std;
@@ -79,6 +80,8 @@ int main(int argc, char** argv) {
 //   return 1;
 
 
+  Fem fem = Fem(5, 3);
+  
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
 
@@ -102,6 +105,7 @@ int main(int argc, char** argv) {
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
   CDWeightTET <TypeA> tetCD(qM, dx, dt);
+  //CDWeightHEX <TypeA> hexCD(qM, dx, dt);
 
   std::cout << std::endl;
 
@@ -269,7 +273,7 @@ int main(int argc, char** argv) {
     }
     else if(ielType == 1) {
 
-//       GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
+//     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
 //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
