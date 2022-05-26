@@ -36,7 +36,7 @@ namespace femus {
       }
     }
     else {
-      //Calculate centroid  
+      //Calculate centroid
       for(unsigned i = 0; i < np; i++) {
         for(unsigned j = 0; j < dim; j++) {
           xg[j] += xp[i][j];
@@ -56,22 +56,43 @@ namespace femus {
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
     const Eigen::MatrixXd &v = svd.matrixV();
-   
+
     // use singular vector associated with min singular vector
+    double aDotN = 0.;
     for(unsigned i = 0; i < dim; i++) {
       a[i] = v(i, dim - 1);
+      aDotN += a[i] * N[i];
     }
 
-    double aDotN = std::inner_product(a.begin(), a.end(), N.begin(), 0);
-    
-    //Rotate normal by pi if Normal dot coefficients is less than zero
+    //Rotate normal by pi if Normal dot coefficents is less than zero
     if(aDotN < 0) {
       for(unsigned i = 0; i < dim; i++) {
-        a[i] = -a[i];
+        a[i] *= -1.;
       }
     }
-   
+  
     //Calculate constant d in ax+by+d=0 or ax+by+cz+d=0
-    d = -std::inner_product(a.begin(), a.end(), xg.begin(), 0);
+    d = 0.;
+    for(unsigned i = 0; i < dim; i++) {
+      d -= a[i] * xg[i];
+    }
+
+// // use singular vector associated with min singular vector
+//     for(unsigned i = 0; i < dim; i++) {
+//       a[i] = v(i, dim - 1);
+//     }
+// 
+// 
+//     double aDotN = std::inner_product(a.begin(), a.end(), N.begin(), 0);
+// 
+//     //Rotate normal by pi if Normal dot coefficients is less than zero
+//     if(aDotN < 0) {
+//       for(unsigned i = 0; i < dim; i++) {
+//         a[i] = -a[i];
+//       }
+//     }
+// 
+//     //Calculate constant d in ax+by+d=0 or ax+by+cz+d=0
+//     d = -std::inner_product(a.begin(), a.end(), xg.begin(), 0);
   }
 }
