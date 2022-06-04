@@ -28,8 +28,11 @@ using namespace femus;
 #define EX_2        1.
 #define EY_1       -1.
 #define EY_2        1.
+#define EZ_1       -1.
+#define EZ_2        1.
 #define N_X         4
 #define N_Y         4
+#define N_Z         4
 
 double InitialValueU(const std::vector < double >& x) {
   return 0. * x[0] * x[0];
@@ -87,6 +90,7 @@ int main(int argc, char** argv) {
 
 
   unsigned qM = 3;
+  CutFemWeight <TypeIO, TypeA> hex  = CutFemWeight<TypeIO, TypeA >(HEX, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
@@ -104,7 +108,7 @@ int main(int argc, char** argv) {
   double dt = 2.;
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
-  CDWeightTET <TypeA> tetCD(qM, dx, dt);
+  //CDWeightTET <TypeA> tetCD(qM, dx, dt);
   //CDWeightHEX <TypeA> hexCD(qM, dx, dt);
 
   std::cout << std::endl;
@@ -142,16 +146,16 @@ int main(int argc, char** argv) {
 //   }
 //   std::cout << std::endl;
 
-  tet.GetWeightWithMap(0, a2, d1, weight1);
-  for(unsigned j = 0; j < weight1.size(); j++) {
-    std::cout << weight1[j] << " ";
-  }
-  std::cout << std::endl;
-  tetCD.GetWeight(a2, d1, weight);
-  for(unsigned j = 0; j < weight.size(); j++) {
-    std::cout << weight[j] << " ";
-  }
-  std::cout << std::endl;
+//   tet.GetWeightWithMap(0, a2, d1, weight1);
+//   for(unsigned j = 0; j < weight1.size(); j++) {
+//     std::cout << weight1[j] << " ";
+//   }
+//   std::cout << std::endl;
+//   tetCD.GetWeight(a2, d1, weight);
+//   for(unsigned j = 0; j < weight.size(); j++) {
+//     std::cout << weight[j] << " ";
+//   }
+//   std::cout << std::endl;
 //
 //
 //
@@ -172,8 +176,9 @@ int main(int argc, char** argv) {
   unsigned numberOfSelectiveLevels = 0;
 //   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
 //   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
+  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, N_Z, EX_1, EX_2, EY_1, EY_2, EZ_1, EZ_2, HEX27, fe_quad_rule_1.c_str());
 
-  mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
+  //mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
 
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
@@ -288,6 +293,31 @@ int main(int argc, char** argv) {
 
       //std::cout << cut <<" ";
     }
+     else if(ielType == 0) {
+
+         
+         
+//     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
+//       if(cut == 1) {
+//         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+//         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
+// 
+//       }
+      GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0)); 
+      vol = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * 
+            ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1))) * 
+            ((EZ_2 - EZ_1) / (N_Z * pow(2, N_UNIFORM_LEVELS - 1))) ;
+    
+      //std::cout<< cut<<" ";
+      
+      //       if(cut == 1) {
+//         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+//         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
+//         //return 1;
+//       }
+
+      //std::cout << cut <<" ";
+    }
 
     if(cut == 1) {
       bool wMap = 1;
@@ -322,8 +352,8 @@ int main(int argc, char** argv) {
       else if(ielType == 1) {
         std::vector <TypeIO> weightCF;
         //tet.clear();
-        //tet.GetWeightWithMap(0, b, db, weightCF);
-        tetCD.GetWeight(b, db, weightCF);
+        tet.GetWeightWithMap(0, b, db, weightCF);
+        //tetCD.GetWeight(b, db, weightCF);
 
         //std::cout<<"a"<<std::flush;
 
@@ -335,6 +365,20 @@ int main(int argc, char** argv) {
         }
         volumeBall += 6. * sum * vol;
 
+      }
+      else if(ielType == 0) {
+        std::vector <TypeIO> weightCF;
+        hex.GetWeightWithMap(0, b, db, weightCF);
+
+        //hexCD.GetWeight(b, db, weightCF);
+
+        const double* weightG = quad.GetGaussWeightPointer();
+
+        double sum = 0.;
+        for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+          sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+        }
+        volumeBall += sum / 8. * vol;
       }
 
 
