@@ -196,6 +196,8 @@ OPTION(BUILD_RK "Build the Runge-Kutta apps" ON)
 
 OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
 
+OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" ON)
+
 OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
 
 #############################################################################################
