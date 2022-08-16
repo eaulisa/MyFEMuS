@@ -7,6 +7,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
 
+  adept::Stack& s = FemusInit::_adeptStack;
+
   //  Extract pointers to the several objects that we are going to use.
   NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system< NonLinearImplicitSystem> ("conformal");   // pointer to the linear implicit system named "Poisson"
 
@@ -55,7 +57,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   if(parameter.surface) solDxPdeIndex[2] = mlPdeSys->GetSolPdeIndex("Dx3");
 
   std::vector < std::vector < double > > xhat(DIM);
-  std::vector < std::vector < double > > solDx(DIM);
+  std::vector < std::vector < adept::adouble > > x(DIM);
+  std::vector < std::vector < adept::adouble > > solDx(DIM);
 
 
   // Get Lambda info
@@ -79,7 +82,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   solMuPdeIndex[1] = mlPdeSys->GetSolPdeIndex("mu2");
 
   unsigned solTypeMu = mlSol->GetSolutionType(solMuIndex[0]);
-  std::vector < std::vector < double > > solMu(dim);
+  std::vector < std::vector < adept::adouble > > solMu(dim);
 
 //   if(counter > 0) {
 //     //LinearImplicitSystem* mlPdeSysMu   = &ml_prob.get_system< LinearImplicitSystem> ("mu");
@@ -89,10 +92,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //     UpdateMu(*mlSol);
 //   }
 //   else {
-    sol->_Sol[solMuIndex[0]]->zero();
-    sol->_Sol[solMuIndex[1]]->zero();
-//     BuildPMatrix(*mlSol);
-//   }
+  if(counter == 0) {
+    *(sol->_Sol[solMuIndex[0]]) = 0.1;
+    *(sol->_Sol[solMuIndex[1]]) = 0.1;
+  }
 
   unsigned vAngleIndex = mlSol->GetIndex("vAngle");
   unsigned vAngleType = mlSol->GetSolutionType(vAngleIndex);
@@ -101,7 +104,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   // Local-to-global pdeSys dofs.
   std::vector < int > SYSDOF;
   // Local residual vectors.
-  vector< double > Res;
+  vector< adept::adouble > maRes;
   // Local Jacobian matrix (ordered by column).
   vector < double > Jac;
 
@@ -163,6 +166,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     // Resize local arrays.
     for(unsigned K = 0; K < DIM; K++) {
       xhat[K].resize(nxDofs);
+      x[K].resize(nxDofs);
       solDx[K].resize(nxDofs);
       solL.resize(nLDofs);
     }
@@ -175,7 +179,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     unsigned sizeAll = DIM * nxDofs + dim * nMuDofs + nLDofs + areaConstraint;
 
     SYSDOF.resize(sizeAll);
-    Res.assign(sizeAll, 0.);
+    maRes.assign(sizeAll, 0.);
     Jac.assign(sizeAll * sizeAll, 0.);
 
     // local storage of global mapping and solution
@@ -204,20 +208,6 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       }
     }
 
-    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
-    vAngle.resize(nvAngle);
-    for(unsigned i = 0; i < nvAngle; i++) {
-      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
-      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
-    }
-
-    if(counter == 0) {
-      GetConformalCoordinates(msh, conformalType0, iel, solType, vAngle, cX);
-    }
-    else {
-      GetConformalCoordinates(msh, conformalType, iel, solType, vAngle, cX);
-    }
-
     // Local storage of global mapping and solution.
     if(parameter.constraintIsOn) {
       for(unsigned i = 0; i < nLDofs; i++) {
@@ -235,17 +225,29 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     }
 
 
-    unsigned nDofsMu  = msh->GetElementDofNumber(iel, solTypeMu);
-    for(unsigned k = 0; k < dim; k++) {
-      solMu[k].resize(nDofsMu);
+    unsigned nvAngle = msh->GetElementDofNumber(iel, vAngleType);
+    vAngle.resize(nvAngle);
+    for(unsigned i = 0; i < nvAngle; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, vAngleType);
+      vAngle[i] = (*sol->_Sol[vAngleIndex])(idof);
     }
 
-    for(unsigned i = 0; i < nDofsMu; i++) {
-      unsigned iDof = msh->GetSolutionDof(i, iel, solTypeMu);
-      for(unsigned k = 0; k < dim; k++) {
-        solMu[k][i] = (*sol->_Sol[solMuIndex[k]])(iDof);
+    if(counter == 0) {
+      GetConformalCoordinates(msh, conformalType0, iel, solType, vAngle, cX);
+    }
+    else {
+      GetConformalCoordinates(msh, conformalType, iel, solType, vAngle, cX);
+    }
+
+    s.new_recording();
+
+    for(unsigned K = 0; K < DIM; K++) {
+      for(unsigned i = 0; i < nxDofs; i++) {
+        x[K][i] = xhat[K][i] + solDx[K][i];
       }
     }
+
+
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
@@ -255,340 +257,296 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 
       msh->_finiteElement[ielGeom][solType]->Jacobian(cX, ig, weight, phi, dphidu);
 
-      phix_uv[0].resize(nxDofs);
-      phix_uv[1].resize(nxDofs);
-      for(unsigned i = 0; i < nxDofs; i++) {
-        phix_uv[0][i] = dphidu[i * dim];
-        phix_uv[1][i] = dphidu[i * dim + 1];
-      }
-
-      double xhat_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-      for(unsigned K = 0; K < DIM; K++) {
-        for(int j = 0; j < dim; j++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            xhat_uv[K][j]    += phix_uv[j][i] * xhat[K][i];
-          }
-        }
-      }
-
-      // Compute the metric, metric determinant, and area element.
-      double g[dim][dim] = {{0., 0.}, {0., 0.}};
-      for(unsigned i = 0; i < dim; i++) {
-        for(unsigned j = 0; j < dim; j++) {
-          for(unsigned K = 0; K < DIM; K++) {
-            g[i][j] += xhat_uv[K][i] * xhat_uv[K][j];
-          }
-        }
-      }
-      double detg = g[0][0] * g[1][1] - g[0][1] * g[1][0];
-      double Area = weight * sqrt(detg);
-      double Area2 = weight; // Trick to give equal weight to each element.
-
-      // Compute the metric inverse.
-      double gi[dim][dim];
-      gi[0][0] =  g[1][1] / detg;
-      gi[0][1] = -g[0][1] / detg;
-      gi[1][0] = -g[1][0] / detg;
-      gi[1][1] =  g[0][0] / detg;
-
-      // Compute components of the unit normal N to the reference surface
-      double normal[3] = {0., 0., 1.};
-      if(parameter.surface) {
-        normal[0] = (xhat_uv[1][0] * xhat_uv[2][1] - xhat_uv[2][0] * xhat_uv[1][1]) / sqrt(detg);
-        normal[1] = (xhat_uv[2][0] * xhat_uv[0][1] - xhat_uv[0][0] * xhat_uv[2][1]) / sqrt(detg);
-        normal[2] = (xhat_uv[0][0] * xhat_uv[1][1] - xhat_uv[1][0] * xhat_uv[0][1]) / sqrt(detg);
-      }
-
-      double mu[2] = {0., 0.};
+      adept::adouble mu[2] = {0., 0.};
       const double *phiMu = msh->_finiteElement[ielGeom][solTypeMu]->GetPhi(ig);  // local test function
-      for(unsigned i = 0; i < nDofsMu; i++) {
+      for(unsigned i = 0; i < nMuDofs; i++) {
         for(unsigned k = 0; k < 2; k++) {
           mu[k] += phiMu[i] * solMu[k][i];
         }
       }
 
-      boost::math::quaternion <double> N(0, normal[0], normal[1], normal[2]);
-      boost::math::quaternion <double> e1(0., 1., 0., 0.);
-      boost::math::quaternion <double> e2(0., 0., 1., 0.);
-      boost::math::quaternion <double> e3(0., 0., 0., 1.);
-      boost::math::quaternion <double> MU(mu[0], mu[1] * normal[0], mu[1] * normal[1], mu[1] * normal[2]);
+      // Compute the metric, metric determinant, and area element.
+      adept::adouble g[dim][dim];
+      g[0][0] = (1. + 2.* mu[0] + mu[0] * mu[0]) + mu[1] * mu[1];
+      g[1][0] = 2. * mu[1];
+      g[0][1] = 2. * mu[1];
+      g[1][1] = (1. - 2. * mu[0] + mu[0] * mu[0]) + mu[1] * mu[1];
 
-      boost::math::quaternion <double> a[6];
-      a[0] = e1 - MU * e1;
-      a[2] = e2 - MU * e2;
-      a[4] = e3 - MU * e3;
+      adept::adouble detg = g[0][0] * g[1][1] - g[0][1] * g[1][0]; //(1-|mu|^2)^2
+      adept::adouble Area = weight * sqrt(detg); // (1-|mu|^2) dA
 
-      a[1] = N * e1 + MU * N * e1;
-      a[3] = N * e2 + MU * N * e2;
-      a[5] = N * e3 + MU * N * e3;
+      // Compute the metric inverse.
+      adept::adouble gi[dim][dim];
+      gi[0][0] =  g[1][1] / detg;
+      gi[0][1] = -g[0][1] / detg;
+      gi[1][0] = -g[1][0] / detg;
+      gi[1][1] =  g[0][0] / detg;
 
-      boost::math::quaternion <double> b[6];
-      b[0] = -N * e1 + MU * N * e1;
-      b[2] = -N * e2 + MU * N * e2;
-      b[4] = -N * e3 + MU * N * e3;
 
-      b[1] = e1 + MU * e1;
-      b[3] = e2 + MU * e2;
-      b[5] = e3 + MU * e3;
-
-      double D[6][6];
-      for(unsigned i = 0; i < 6; i++) {
-        for(unsigned j = 0; j < 6; j++) {
-          D[i][j] = gi[0][0] * (a[i] % a[j]) + gi[0][1] * (a[i] % b[j]) +
-                    gi[1][0] * (b[i] % a[j]) + gi[1][1] * (b[i] % b[j]);
-        }
-      }
-
-      // Quasi-Conformal Minimization Residual and Jacobian.
+      std::vector<std::vector <adept::adouble> > gradSolDx(DIM, std::vector<adept::adouble>(dim, 0.));
       for(unsigned I = 0; I < DIM; I++) {
         for(unsigned i = 0; i < nxDofs; i++) {
-          unsigned irow = I * nxDofs + i;
-          unsigned istart = irow * sizeAll;
-          for(unsigned J = 0; J < DIM; J++) {
-            for(unsigned j = 0; j < nxDofs; j++) {
-              double term = 0.;
-              for(unsigned k = 0; k < dim; k++) {
-                for(unsigned l = 0; l < dim; l++) {
-                  term += phix_uv[k][i] * D[I * dim + k][J * dim + l] * phix_uv[l][j];
-                }
-              }
-              Jac[istart + J * nxDofs + j] += term * Area;
-              Res[I * nxDofs + i] -= term * Area * (xhat[J][j] + solDx[J][j]);
-            }
+          for(unsigned j = 0; j < dim; j++) {
+            gradSolDx[I][j] += dphidu[i * dim + j] * solDx[I][i];
           }
         }
       }
 
+      for(unsigned I = 0; I < DIM; I++) {
+        for(unsigned i = 0; i < nxDofs; i++) {
+          adept::adouble term = 0.;
+          for(unsigned j = 0; j < dim; j++) {
+            for(unsigned k = 0; k < dim; k++) {
+              term +=  dphidu[i * dim + j] * gi[j][k] * gradSolDx[I][k];
+            }
+          }
+          maRes[I * nxDofs + i] -= term * Area;
+        }
+      }
 
-      for(unsigned I = 0; I < dim; I++) {
+      adept::adouble fz[DIM][dim];
+      adept::adouble fzb[DIM][dim];
+
+      for(unsigned I = 0; I < DIM; I++) {
+        fz[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] - mu[1]  * gradSolDx[I][1]);
+        fz[I][1] = 0.5 * (mu[1] * gradSolDx[I][0] - (1 + mu[1]) * gradSolDx[I][1]);
+        fzb[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] + mu[1] * gradSolDx[I][1]);
+        fzb[I][1] = 0.5 * (-mu[1] * gradSolDx[I][0] + (1 + mu[1]) * gradSolDx[I][1]);
+      }
+
+      double normal[3] = {0., 0., 1.};
+
+
+      adept::adouble fzfzbb[2];
+
+      fzfzbb[0] = fz[0][0] * fzb[0][0] + fz[1][0] * fzb[1][0] + fz[2][0] * fzb[2][0] +
+                  fz[0][1] * fzb[0][1] + fz[1][1] * fzb[1][1] + fz[2][1] * fzb[2][1];
+      fzfzbb[1] = fz[0][1] * fzb[0][0] + fz[1][1] * fzb[1][0] + fz[2][1] * fzb[2][0] -
+                  fz[0][0] * fzb[0][1] - fz[1][0] * fzb[1][1] - fz[2][0] * fzb[2][1];
+
+      for(unsigned I = 0; I < 2; I++) {
         for(unsigned i = 0; i < nMuDofs; i++) {
-          unsigned irow = DIM * nxDofs + I * nDofsMu  + i;
-          unsigned istart = irow * sizeAll;
-          for(unsigned j = 0; j < nMuDofs; j++) {
-             Jac[istart + DIM * nxDofs + I * nMuDofs + j] += phiMu[i] * phiMu[j] * Area;
-          }
-          Res[irow] -= mu[I] * phiMu[i] * Area;
+          maRes[DIM * nxDofs + I * nMuDofs  + i] -= phiMu[i] * fzfzbb[I] * weight / sqrt(detg);
+          maRes[DIM * nxDofs + I * nMuDofs  + i] -= 0.001 * mu[I] * phiMu[i] * Area;
         }
       }
 
 
+      /*
+            if(parameter.constraintIsOn) {
 
+              const double *phiL = msh->_finiteElement[ielGeom][solLType]->GetPhi(ig);
+              double solLg = 0.;
+              for(unsigned i = 0; i < nLDofs; i++) {
+                solLg += phiL[i] * solL[i];
+              }
 
-
-      if(parameter.constraintIsOn) {
-
-        const double *phiL = msh->_finiteElement[ielGeom][solLType]->GetPhi(ig);
-        double solLg = 0.;
-        for(unsigned i = 0; i < nLDofs; i++) {
-          solLg += phiL[i] * solL[i];
-        }
-
-        // Penalty Residual and Jacobian.
-        for(unsigned i = 0; i < nLDofs; i++) {
-          unsigned irow = DIM * nxDofs + i;
-          Res[irow] -= phiL[i] * (-eps * solLg * Area);
-          unsigned istart = irow * sizeAll;
-          for(unsigned j = 0; j < nLDofs; j++) {
-            Jac[istart + DIM * nxDofs + j] += -eps * phiL[i] * phiL[j] *  Area;
-          }
-        }
-
-        double solDxg[3] = {0., 0., 0.};
-        double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
-
-        for(unsigned K = 0; K < DIM; K++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            solDxg[K] += phi[i] * solDx[K][i];
-          }
-          for(int j = 0; j < dim; j++) {
-            for(unsigned i = 0; i < nxDofs; i++) {
-              solx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + 0.5 * solDx[K][i]);
-            }
-          }
-        }
-
-        double NArea[DIM];
-        NArea[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]);
-        NArea[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]);
-        NArea[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]);
-
-        // Compute new X minus old X dot N, for "reparametrization".
-        double varXdotNArea = 0.;
-        for(unsigned K = 0; K < DIM; K++) {
-          varXdotNArea += solDxg[K] * NArea[K];
-        }
-
-        double delNArea[2][3][3] = {{{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
-          , {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
-        };
-
-        delNArea[0][0][0] =  0.;
-        delNArea[0][0][1] =  0.5 * solx_uv[2][1];
-        delNArea[0][0][2] = -0.5 * solx_uv[1][1];
-        delNArea[0][1][0] = -0.5 * solx_uv[2][1];
-        delNArea[0][1][1] =  0.;
-        delNArea[0][1][2] =  0.5 * solx_uv[0][1];
-        delNArea[0][2][0] =  0.5 * solx_uv[1][1];
-        delNArea[0][2][1] = -0.5 * solx_uv[0][1];
-        delNArea[0][2][2] =  0.;
-
-        delNArea[1][0][0] =  0.;
-        delNArea[1][0][1] = -0.5 * solx_uv[2][0];
-        delNArea[1][0][2] =  0.5 * solx_uv[1][0];
-        delNArea[1][1][0] =  0.5 * solx_uv[2][0];
-        delNArea[1][1][1] =  0.;
-        delNArea[1][1][2] = -0.5 * solx_uv[0][0];
-        delNArea[1][2][0] = -0.5 * solx_uv[1][0];
-        delNArea[1][2][1] =  0.5 * solx_uv[0][0];
-        delNArea[1][2][2] =  0.;
-
-        double deldelNArea[2][3][3][2][3] = {
-          {
-            { {{0., 0., 0.}, { 0. , 0. , 0. }},
-              {{0., 0., 0.}, { 0. , 0. , 0.5}},
-              {{0. , 0., 0.}, { 0. , -0.5, 0. }}
-            },
-            { {{0., 0., 0.}, { 0. , 0. , -0.5 }},
-              {{0., 0., 0.}, { 0. , 0. , 0.}},
-              {{0. , 0., 0.}, { 0.5, 0. , 0. }}
-            },
-            { {{0., 0., 0.}, { 0. , 0.5 , 0. }},
-              {{0., 0., 0.}, { -0.5, 0. , 0.}},
-              {{0. , 0., 0.}, { 0. , 0. , 0. }}
-            }
-          },
-
-          { { {{ 0. , 0. , 0.}, {0., 0., 0.}},
-              {{ 0. , 0. , -0.5}, {0., 0., 0.}},
-              {{ 0. , 0.5, 0.}, {0., 0., 0.}}
-            },
-            { {{ 0. , 0. , 0.5}, {0., 0., 0.}},
-              {{ 0. , 0. , 0.}, {0., 0., 0.}},
-              {{ -0.5, 0. , 0.}, {0., 0., 0.}}
-            },
-            { {{ 0. , -0.5, 0.}, {0., 0., 0.}},
-              {{ 0.5, 0. , 0.}, {0., 0., 0.}},
-              {{ 0. , 0. , 0.}, {0., 0., 0.}}
-            }
-          }
-        };
-
-        // Residual term 1 and Linear Jacobian
-        for(unsigned i = 0; i < nLDofs; i++) {
-          unsigned irow = DIM * nxDofs + dim * nMuDofs + i;
-          Res[irow] -= phiL[i] * varXdotNArea * Area2;
-          unsigned istart = irow * sizeAll;
-          for(unsigned J = 0; J < DIM; J++) {
-            for(unsigned j = 0; j < nxDofs; j++) {
-              double term = 0.;
-              for(unsigned K = 0; K < DIM; K++) {
-                for(unsigned a = 0; a < dim; a++) {
-                  term += solDxg[K] * delNArea[a][K][J] * phix_uv[a][j];
+              // Penalty Residual and Jacobian.
+              for(unsigned i = 0; i < nLDofs; i++) {
+                unsigned irow = DIM * nxDofs + i;
+                Res[irow] -= phiL[i] * (-eps * solLg * Area);
+                unsigned istart = irow * sizeAll;
+                for(unsigned j = 0; j < nLDofs; j++) {
+                  Jac[istart + DIM * nxDofs + j] += -eps * phiL[i] * phiL[j] *  Area;
                 }
               }
-              Jac[istart + J * nxDofs + j] += phiL[i] * (phi[j] * NArea[J] + term) * Area2;
 
-              unsigned jrow = J * nxDofs + j;
-              unsigned jstart = jrow * sizeAll;
-              Jac[jstart + DIM * nxDofs + dim * nMuDofs + i] += phiL[i] * term * Area2;
+              double solDxg[3] = {0., 0., 0.};
+              double solx_uv[3][2] = {{0., 0.}, {0., 0.}, {0., 0.}};
 
-            }
-          }
-        }
-
-        // Residual term 2 and Linear Jacobian.
-        for(unsigned I = 0; I < DIM; I++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            unsigned irow = I * nxDofs + i;
-            Res[irow] -= solLg * phi[i] * NArea[I] * Area2;
-            unsigned istart = irow * sizeAll;
-            for(unsigned j = 0; j < nLDofs; j++) {
-              Jac[istart + DIM * nxDofs + dim * nMuDofs + j] += phiL[j] * phi[i] * NArea[I] * Area2;
-            }
-
-//             for(unsigned J = 0; J < DIM; J++) {
-//               for(unsigned j = 0; j < nxDofs; j++) {
-//                 double term = 0;
-//                 for(unsigned a = 0; a < dim; a++) {
-//                   term += delNArea[a][I][J] * phix_uv[a][j];
-//                 }
-//                 //Jac[istart + J * nxDofs + j] += solLg * phi[i] * term * Area2;
-//
-//                 unsigned jrow = J * nxDofs + j;
-//                 unsigned jstart = jrow * sizeAll;
-//                 //Jac[jstart + I * nxDofs + i] += solLg * phi[i] * term * Area2;
-//
-//               }
-//             }
-          }
-        }
-
-        // Residual term 3 and Linear Jacobian.
-        for(unsigned I = 0; I < DIM; I++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            unsigned irow = I * nxDofs + i;
-            double term = 0;
-            for(unsigned a = 0; a < dim; a++) {
               for(unsigned K = 0; K < DIM; K++) {
-                term += solDxg[K] * delNArea[a][K][I] * phix_uv[a][i];
+                for(unsigned i = 0; i < nxDofs; i++) {
+                  solDxg[K] += phi[i] * solDx[K][i];
+                }
+                for(int j = 0; j < dim; j++) {
+                  for(unsigned i = 0; i < nxDofs; i++) {
+                    solx_uv[K][j]   += phix_uv[j][i] * (xhat[K][i] + 0.5 * solDx[K][i]);
+                  }
+                }
+              }
+
+              double NArea[DIM];
+              NArea[0] = (solx_uv[1][0] * solx_uv[2][1] - solx_uv[2][0] * solx_uv[1][1]);
+              NArea[1] = (solx_uv[2][0] * solx_uv[0][1] - solx_uv[0][0] * solx_uv[2][1]);
+              NArea[2] = (solx_uv[0][0] * solx_uv[1][1] - solx_uv[1][0] * solx_uv[0][1]);
+
+              // Compute new X minus old X dot N, for "reparametrization".
+              double varXdotNArea = 0.;
+              for(unsigned K = 0; K < DIM; K++) {
+                varXdotNArea += solDxg[K] * NArea[K];
+              }
+
+              double delNArea[2][3][3] = {{{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+                , {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}}
+              };
+
+              delNArea[0][0][0] =  0.;
+              delNArea[0][0][1] =  0.5 * solx_uv[2][1];
+              delNArea[0][0][2] = -0.5 * solx_uv[1][1];
+              delNArea[0][1][0] = -0.5 * solx_uv[2][1];
+              delNArea[0][1][1] =  0.;
+              delNArea[0][1][2] =  0.5 * solx_uv[0][1];
+              delNArea[0][2][0] =  0.5 * solx_uv[1][1];
+              delNArea[0][2][1] = -0.5 * solx_uv[0][1];
+              delNArea[0][2][2] =  0.;
+
+              delNArea[1][0][0] =  0.;
+              delNArea[1][0][1] = -0.5 * solx_uv[2][0];
+              delNArea[1][0][2] =  0.5 * solx_uv[1][0];
+              delNArea[1][1][0] =  0.5 * solx_uv[2][0];
+              delNArea[1][1][1] =  0.;
+              delNArea[1][1][2] = -0.5 * solx_uv[0][0];
+              delNArea[1][2][0] = -0.5 * solx_uv[1][0];
+              delNArea[1][2][1] =  0.5 * solx_uv[0][0];
+              delNArea[1][2][2] =  0.;
+
+              double deldelNArea[2][3][3][2][3] = {
+                {
+                  { {{0., 0., 0.}, { 0., 0., 0. }},
+                    {{0., 0., 0.}, { 0., 0., 0.5}},
+                    {{0., 0., 0.}, { 0., -0.5, 0. }}
+                  },
+                  { {{0., 0., 0.}, { 0., 0., -0.5 }},
+                    {{0., 0., 0.}, { 0., 0., 0.}},
+                    {{0., 0., 0.}, { 0.5, 0., 0. }}
+                  },
+                  { {{0., 0., 0.}, { 0., 0.5, 0. }},
+                    {{0., 0., 0.}, { -0.5, 0., 0.}},
+                    {{0., 0., 0.}, { 0., 0., 0. }}
+                  }
+                },
+
+                { { {{ 0., 0., 0.}, {0., 0., 0.}},
+                    {{ 0., 0., -0.5}, {0., 0., 0.}},
+                    {{ 0., 0.5, 0.}, {0., 0., 0.}}
+                  },
+                  { {{ 0., 0., 0.5}, {0., 0., 0.}},
+                    {{ 0., 0., 0.}, {0., 0., 0.}},
+                    {{ -0.5, 0., 0.}, {0., 0., 0.}}
+                  },
+                  { {{ 0., -0.5, 0.}, {0., 0., 0.}},
+                    {{ 0.5, 0., 0.}, {0., 0., 0.}},
+                    {{ 0., 0., 0.}, {0., 0., 0.}}
+                  }
+                }
+              };
+
+              // Residual term 1 and Linear Jacobian
+              for(unsigned i = 0; i < nLDofs; i++) {
+                unsigned irow = DIM * nxDofs + dim * nMuDofs + i;
+                Res[irow] -= phiL[i] * varXdotNArea * Area2;
+                unsigned istart = irow * sizeAll;
+                for(unsigned J = 0; J < DIM; J++) {
+                  for(unsigned j = 0; j < nxDofs; j++) {
+                    double term = 0.;
+                    for(unsigned K = 0; K < DIM; K++) {
+                      for(unsigned a = 0; a < dim; a++) {
+                        term += solDxg[K] * delNArea[a][K][J] * phix_uv[a][j];
+                      }
+                    }
+                    Jac[istart + J * nxDofs + j] += phiL[i] * (phi[j] * NArea[J] + term) * Area2;
+
+                    unsigned jrow = J * nxDofs + j;
+                    unsigned jstart = jrow * sizeAll;
+                    Jac[jstart + DIM * nxDofs + dim * nMuDofs + i] += phiL[i] * term * Area2;
+
+                  }
+                }
+              }
+
+              // Residual term 2 and Linear Jacobian.
+              for(unsigned I = 0; I < DIM; I++) {
+                for(unsigned i = 0; i < nxDofs; i++) {
+                  unsigned irow = I * nxDofs + i;
+                  Res[irow] -= solLg * phi[i] * NArea[I] * Area2;
+                  unsigned istart = irow * sizeAll;
+                  for(unsigned j = 0; j < nLDofs; j++) {
+                    Jac[istart + DIM * nxDofs + dim * nMuDofs + j] += phiL[j] * phi[i] * NArea[I] * Area2;
+                  }
+
+      //             for(unsigned J = 0; J < DIM; J++) {
+      //               for(unsigned j = 0; j < nxDofs; j++) {
+      //                 double term = 0;
+      //                 for(unsigned a = 0; a < dim; a++) {
+      //                   term += delNArea[a][I][J] * phix_uv[a][j];
+      //                 }
+      //                 //Jac[istart + J * nxDofs + j] += solLg * phi[i] * term * Area2;
+      //
+      //                 unsigned jrow = J * nxDofs + j;
+      //                 unsigned jstart = jrow * sizeAll;
+      //                 //Jac[jstart + I * nxDofs + i] += solLg * phi[i] * term * Area2;
+      //
+      //               }
+      //             }
+                }
+              }
+
+              // Residual term 3 and Linear Jacobian.
+              for(unsigned I = 0; I < DIM; I++) {
+                for(unsigned i = 0; i < nxDofs; i++) {
+                  unsigned irow = I * nxDofs + i;
+                  double term = 0;
+                  for(unsigned a = 0; a < dim; a++) {
+                    for(unsigned K = 0; K < DIM; K++) {
+                      term += solDxg[K] * delNArea[a][K][I] * phix_uv[a][i];
+                    }
+                  }
+                  Res[irow] -= solLg * term * Area2;
+
+                  // unsigned istart = irow * sizeAll;
+                  // for(unsigned J = 0; J < DIM; J++) {
+                  //   for(unsigned j = 0; j < nxDofs; j++) {
+                  //     double term = 0;
+                  //     for(unsigned a = 0; a < dim; a++) {
+                  //       for(unsigned K = 0; K < DIM; K++) {
+                  //         for(unsigned b = 0; b < dim; b++) {
+                  //           term += phix_uv[a][i] * solDxg[K] * deldelNArea[a][K][I][b][J] * phix_uv[b][j];
+                  //         }
+                  //       }
+                  //     }
+                  //     Jac[istart + J * nxDofs + j] += solLg * term * Area2;
+                  //   }
+                  // }
+                }
               }
             }
-            Res[irow] -= solLg * term * Area2;
-
-            // unsigned istart = irow * sizeAll;
-            // for(unsigned J = 0; J < DIM; J++) {
-            //   for(unsigned j = 0; j < nxDofs; j++) {
-            //     double term = 0;
-            //     for(unsigned a = 0; a < dim; a++) {
-            //       for(unsigned K = 0; K < DIM; K++) {
-            //         for(unsigned b = 0; b < dim; b++) {
-            //           term += phix_uv[a][i] * solDxg[K] * deldelNArea[a][K][I][b][J] * phix_uv[b][j];
-            //         }
-            //       }
-            //     }
-            //     Jac[istart + J * nxDofs + j] += solLg * term * Area2;
-            //   }
-            // }
-          }
-        }
-      }
 
 
-      if(areaConstraint) {
-        unsigned irow = sizeAll - 1;
-        unsigned istart = irow * sizeAll;
-        for(unsigned J = 0; J < DIM; J++) {
-          for(unsigned j = 0; j < nxDofs; j++) {
-            double term = 0.;
-            for(unsigned ii = 0; ii < dim; ii++) {
-              for(unsigned jj = 0; jj < dim; jj++) {
-                term +=  gi[ii][jj] * xhat_uv[J][ii]  *  phix_uv[jj][j]  ;
+            if(areaConstraint) {
+              unsigned irow = sizeAll - 1;
+              unsigned istart = irow * sizeAll;
+              for(unsigned J = 0; J < DIM; J++) {
+                for(unsigned j = 0; j < nxDofs; j++) {
+                  double term = 0.;
+                  for(unsigned ii = 0; ii < dim; ii++) {
+                    for(unsigned jj = 0; jj < dim; jj++) {
+                      term +=  gi[ii][jj] * xhat_uv[J][ii]  *  phix_uv[jj][j]  ;
+                    }
+                  }
+                  Jac[istart + J * nxDofs + j] += term * Area;
+                  Res[irow] -= term * solDx[J][j] * Area;
+                }
               }
-            }
-            Jac[istart + J * nxDofs + j] += term * Area;
-            Res[irow] -= term * solDx[J][j] * Area;
-          }
-        }
 
 
-        for(unsigned I = 0; I < DIM; I++) {
-          for(unsigned i = 0; i < nxDofs; i++) {
-            unsigned irow = I * nxDofs + i;
-            unsigned istart = irow * sizeAll;
-            double term = 0.;
-            for(unsigned ii = 0; ii < dim; ii++) {
-              for(unsigned jj = 0; jj < dim; jj++) {
-                term +=  gi[ii][jj] * xhat_uv[I][ii]  *  phix_uv[jj][i]  ;
+              for(unsigned I = 0; I < DIM; I++) {
+                for(unsigned i = 0; i < nxDofs; i++) {
+                  unsigned irow = I * nxDofs + i;
+                  unsigned istart = irow * sizeAll;
+                  double term = 0.;
+                  for(unsigned ii = 0; ii < dim; ii++) {
+                    for(unsigned jj = 0; jj < dim; jj++) {
+                      term +=  gi[ii][jj] * xhat_uv[I][ii]  *  phix_uv[jj][i]  ;
+                    }
+                  }
+                  Jac[istart + DIM * nxDofs] += term * Area;
+                  Res[irow] -= term * solLambda1 * Area;
+                }
               }
-            }
-            Jac[istart + DIM * nxDofs] += term * Area;
-            Res[irow] -= term * solLambda1 * Area;
-          }
-        }
 
-        surfaceArea += Area;
+              surfaceArea += Area;
 
-      }
+            }*/
 
     } // end GAUSS POINT LOOP
 
@@ -596,8 +554,38 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
     // Add the local Matrix/Vector into the global Matrix/Vector
     //copy the value of the adept::adoube aRes in double Res and store
 
-    RES->add_vector_blocked(Res, SYSDOF);
+
+    std::vector < double > res (sizeAll);
+
+    for (int i = 0; i < sizeAll; i++) {
+      res[i] = -maRes[i].value();
+    }
+
+    RES->add_vector_blocked(res, SYSDOF);
+
+    Jac.resize( sizeAll * sizeAll);
+
+    // define the dependent variables
+    s.dependent(&maRes[0], sizeAll);
+
+    // define the independent variables
+    for(unsigned I = 0; I < DIM; I++) {
+      s.independent(&solDx[I][0], nxDofs);
+    }
+    for(unsigned I = 0; I < dim; I++) {
+      s.independent(&solMu[I][0], nMuDofs);
+    }
+
+    // get the jacobian matrix (ordered by column)
+    s.jacobian(&Jac[0], true);
+
     KK->add_matrix_blocked(Jac, SYSDOF, SYSDOF);
+
+    s.clear_independents();
+    s.clear_dependents();
+
+    //RES->add_vector_blocked(Res, SYSDOF);
+    //KK->add_matrix_blocked(Jac, SYSDOF, SYSDOF);
 
 
   } //end ELEMENT LOOP for each process.
@@ -605,14 +593,16 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
+  //KK->draw();
 
-  if(areaConstraint) {
-    double surfaceAreaAll;
-    MPI_Reduce(&surfaceArea, &surfaceAreaAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    if(counter == 0) surfaceArea0 = surfaceAreaAll;
-    std::cout << "SURFACE = " << surfaceAreaAll << " SURFACE0 = " << surfaceArea0
-              <<  " error = " << (surfaceArea0 - surfaceAreaAll) / surfaceArea0 << std::endl;
-  }
+
+//   if(areaConstraint) {
+//     double surfaceAreaAll;
+//     MPI_Reduce(&surfaceArea, &surfaceAreaAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//     if(counter == 0) surfaceArea0 = surfaceAreaAll;
+//     std::cout << "SURFACE = " << surfaceAreaAll << " SURFACE0 = " << surfaceArea0
+//               <<  " error = " << (surfaceArea0 - surfaceAreaAll) / surfaceArea0 << std::endl;
+//   }
 
 
   counter++;
