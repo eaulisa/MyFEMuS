@@ -2,7 +2,6 @@
 SparseMatrix* PtP[2][2];
 
 
-
 double EvaluateMu(MultiLevelSolution & mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1u;
@@ -219,6 +218,15 @@ double EvaluateMu(MultiLevelSolution & mlSol) {
   std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
   std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
 
+  std::fstream fout;
+  if(counter == 1)
+    fout.open("MuNorm.txt", std::fstream::out);
+  else
+    fout.open("MuNorm.txt", std::fstream::app);
+
+  fout << counter << " " << muNormMax << " " << MuNormAverage << std::endl;
+  fout.close();
+
   return MuNormAverage;
 }
 
@@ -419,6 +427,16 @@ double EvaluateMuOld(MultiLevelSolution & mlSol) {
   std::cout << "un-smoothed mu average norm = " << MuNormAverage << std::endl;
   std::cout << "relative difference = " << (muNormMax - MuNormAverage) / MuNormAverage << std::endl;
 
+  // std::fstream fout;
+  // if(counter == 1)
+  //   fout.open("MuNorm.txt", std::fstream::out);
+  // else
+  //   fout.open("MuNorm.txt", std::fstream::app);
+  //
+  // fout << counter << " " << muNormMax << " " << MuNormAverage << std::endl;
+  // fout.close();
+
+
   return MuNormAverage;
 }
 
@@ -467,12 +485,12 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   std::vector < unsigned > indexMu(dim);
   indexMu[0] = mlSol.GetIndex("mu1");
   indexMu[1] = mlSol.GetIndex("mu2");
-  
+
   std::vector < unsigned > indexlMu(dim);
-  
+
   indexlMu[0] = mlSol.GetIndex("lmu1");
   indexlMu[1] = mlSol.GetIndex("lmu2");
-  
+
 
   *(sol->_SolOld[indexMu[0]]) = *(sol->_Sol[indexMu[0]]);
   *(sol->_SolOld[indexMu[1]]) = *(sol->_Sol[indexMu[1]]);
@@ -503,12 +521,12 @@ void UpdateMu(MultiLevelSolution & mlSol) {
     sol->_Sol[indexMu[1]] -> matrix_mult(*mu1, *PtP[1][0]);
     sol->_Sol[indexMu[1]] -> add_vector(*mu2, *PtP[1][1]);
   }
-  
+
   *(sol->_Sol[indexlMu[0]]) -= *(sol->_Sol[indexMu[0]]);
   *(sol->_Sol[indexlMu[1]]) -= *(sol->_Sol[indexMu[1]]);
 
-  
-  
+
+
 
   delete mu1;
   delete mu2;
@@ -588,7 +606,7 @@ void UpdateMu(MultiLevelSolution & mlSol) {
   std::vector< double > dphidu;
 
   //start line search algorithm
-  if(false && counter > 0) {
+  if(true && counter > 0) {
 
 
     double num = 0.;
@@ -686,8 +704,6 @@ void UpdateMu(MultiLevelSolution & mlSol) {
         boost::math::quaternion <double> MUim1(mu1im1, mu2im1 * normal[0], mu2im1 * normal[1], mu2im1 * normal[2]);
 
         //std::cout << MUim1.R_component_2() << " " << dum.R_component_2() << " " << MUim1.R_component_3() << " " << dum.R_component_3() << std::endl;
-
-
 
         //std::cout << (dum - MUi * dup) % ((MUim1 - MUi) * dup) << " " << (- MUi * dup) % ((MUim1 - MUi) * dup)
         //         << ((MUim1 - MUi) * dup) % ((MUim1 - MUi) * dup) << "\n";
@@ -1001,4 +1017,3 @@ void BuildPMatrix(MultiLevelSolution & mlSol) {
   delete D;
 
 }
-

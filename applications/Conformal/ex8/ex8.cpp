@@ -17,7 +17,7 @@
 
 unsigned counter = 0;
 const double eps = 1.e-5;
-bool areaConstraint = false;
+bool areaConstraint = true;
 
 unsigned conformalType0 = 0;
 unsigned conformalType = 0;
@@ -38,7 +38,8 @@ double InitalValueCM(const std::vector < double >& x) {
 //   return cos(4.* M_PI * sqrt(x[0] * x[0] + x[1] * x[1])/0.5) ;
   // return cos(20 * M_PI * x[0]) + sin(20 * M_PI * x[1]);
   //return sin(28.* M_PI * x[0]) * sin(28.* M_PI * x[1]) + cos(28.* M_PI * x[0]) * cos(28.* M_PI * x[1]) ;
-  return cos(25*M_PI*x[0]);
+  // return cos(25*M_PI*x[0]);
+  return cos(25*M_PI*sqrt(x[0]*x[0]+x[1]*x[1]));
 }
 double GetTimeStep(const double t) {
   return 1;
@@ -53,28 +54,29 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solName[], double & value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 3000, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 1000, 1, 0.811569);
 //const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
-const Parameter squareTri = Parameter("square with triangles", 1, false, false, 5, 1, true, 500, 1, 0.805200);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 1, true, 1500, 1, 0.910958);
+const Parameter squareTri = Parameter("square with triangles", 1, false, false, 5, 1, true, 1000, 1, 0.805200);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 75, 1, 0.910958);
 // const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
-const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 1, true, 1500, 1, 0.793786); //normal constraint
-const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 10, 5, 0.486729);
+const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 5, 1, true, 150, 1, 0.793786); //normal constraint
+const Parameter intersection = Parameter("intersection", 4, true, false, 2, 1, true, 2500, 1, 0.486729);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 100, true, 50, 1, 0.674721);
 //const Parameter intersection = Parameter("intersection", 4, true, false, 2, 12, false, 30, 1, 0.979639);
 //const Parameter cat = Parameter("cat", 5, true, false, 1, 20, false, 5, 1, 0.987606); //need conformal type 0,0 // areaConstraint // no folding!?!?!
 //const Parameter cat = Parameter("cat", 5, true, true, 1, 50, false, 5, 1, 0.986969); //need conformal type 0,0 // no folding?!?!?!
-const Parameter cat = Parameter("cat", 5, true, true, 1, 1, true, 5, 1, 0.996086); //need conformal type 0,0
+const Parameter cat = Parameter("cat", 5, true, false, 1, 1, true, 50, 1, 0.996086); //need conformal type 0,0
 //const Parameter cat = Parameter("cat", 5, true, false, 1, 20, true, 5, 1, 0.996710); //need conformal type 0,0 // areaConstraint
 //const Parameter cat = Parameter("cat", 5, true, true, 1, 25, false, 3, 1, 0.986754); //need conformal type 0,0
 const Parameter hand = Parameter("hand", 6, true, false, 1, 1, true, 250, 1, 0.580335);
 //const Parameter moo = Parameter("moo", 7, true, true, 1, 1, true, 40, 1, 0.654910);
-const Parameter moo = Parameter("moo", 7, true, false, 2, 1, true, 1, 1, 0.602613);
-const Parameter moai = Parameter("moai", 8, true, true, 1, 1, true, 200, 1, 0.888489);
-const Parameter fert = Parameter("fert", 9, true, true, 1, 20, true, 3, 1, 0.995966);
-const Parameter torusConstrained = Parameter("torus constrained", 10, true, true, 2, 2, true, 20, 50, 0.793786); //normal constraint
-const Parameter doubleTorus = Parameter("double torus", 11, true, false, 3, 1, true, 500, 1, 0.464815); //normal constraint
+const Parameter moo = Parameter("moo", 7, true, true, 2, 1, true, 500, 1, 0.602613);
+const Parameter moai = Parameter("moai", 8, true, true, 1, 1, true, 250, 1, 0.888489);
+const Parameter fert = Parameter("fert", 9, true, false, 1, 1, true, 50, 1, 0.995966);
+const Parameter torusConstrained = Parameter("torus constrained", 10, true, false, 2, 1, true, 200, 1, 0.793786); //normal constraint
+const Parameter doubleTorus = Parameter("spot", 11, true, false, 2, 1, true, 500, 1, 0.464815); //normal constraint
+// const Parameter doubleTorus = Parameter("double torus", 11, true, false, 2, 1, true, 1500, 1, 0.464815); //normal constraint
 
 // Main program starts here.
 int main(int argc, char** args) {
@@ -149,7 +151,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
   if(parameter.simulation == 0) {
-    //mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
+    // mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
     mlMsh.ReadCoarseMesh("../input/square1.neu", "seventh", scalingFactor);
     //mlMsh.ReadCoarseMesh("../input/square1.neu", "seventh", scalingFactor);
   }
@@ -157,7 +159,7 @@ int main(int argc, char** args) {
     mlMsh.ReadCoarseMesh("../input/squareTri3D.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 2 || parameter.simulation == 3) {
-    mlMsh.ReadCoarseMesh("../input/cylinder.neu", "seventh", scalingFactor);
+    mlMsh.ReadCoarseMesh("../input/cylinder2.neu", "seventh", scalingFactor);
   }
   else if(parameter.simulation == 4) {
     mlMsh.ReadCoarseMesh("../input/intersection.neu", "seventh", scalingFactor);
@@ -182,6 +184,7 @@ int main(int argc, char** args) {
   }
   else if(parameter.simulation == 11) {
     mlMsh.ReadCoarseMesh("../input/double_torus.neu", "seventh", scalingFactor);
+    // mlMsh.ReadCoarseMesh("../input/spot.med", "seventh", scalingFactor, false , false);
   }
   else { //generic pick your mesh
     mlMsh.ReadCoarseMesh("../input/square.neu", "seventh", scalingFactor);
@@ -258,7 +261,7 @@ int main(int argc, char** args) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
   }
   else if(parameter.simulation < 11) {
-    mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionTorus);
+    mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionIntersection);
   }
   else if(parameter.simulation < 12) {
     mlSol.AttachSetBoundaryConditionFunction(SetBoundaryConditionZero);
@@ -445,7 +448,8 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
       value = time / parameter.numberOfIterations * 0.35 * x[1] / 0.5;
     }
     else if(!strcmp(solName, "Dx3")) {
-      value = time / parameter.numberOfIterations * 0.75 * x[2] / 0.5;
+      // value = time / parameter.numberOfIterations * 0.55 * x[2] / 0.5;
+      value = time / parameter.numberOfIterations * 0.25 * sin(x[2] / 0.5 * M_PI);
     }
   }
   else if(3 == faceName || 4 == faceName) {
@@ -461,7 +465,8 @@ bool SetBoundaryConditionIntersection(const std::vector < double >& x, const cha
       value = time / parameter.numberOfIterations * 0.125 * x[0] / 0.5;
     }
     else if(!strcmp(solName, "Dx2")) {
-      value = time / parameter.numberOfIterations * 0.65 * x[1] / 0.5;
+      // value = time / parameter.numberOfIterations * 0.65 * x[1] / 0.5;
+      value = time / parameter.numberOfIterations * 0.25 * x[1] / 0.5;
     }
   }
 
