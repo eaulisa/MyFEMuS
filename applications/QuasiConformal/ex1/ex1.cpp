@@ -53,7 +53,7 @@ bool SetBoundaryConditionCylinder(const std::vector < double >& x, const char so
 bool SetBoundaryConditionIntersection(const std::vector < double >& x, const char solName[], double& value, const int faceName, const double time);
 bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solName[], double & value, const int faceName, const double time);
 
-const Parameter squareQuad = Parameter("square with quads", 0, false, false, 2, 1, true, 3000, 1, 0.811569);
+const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 3000, 1, 0.811569);
 //const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 5, 1, true, 500, 1, 0.805200);
 const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 1, true, 1500, 1, 0.910958);
@@ -377,7 +377,7 @@ bool SetBoundaryConditionSquare(const std::vector < double >& x, const char solN
       dirichlet = false;
     }
     if(4 == faceName) {
-      value = time / parameter.numberOfIterations * 0.75 * sin(x[1] / 0.5 * M_PI);
+      value = time / parameter.numberOfIterations * 0.1 * sin(x[1] / 0.5 * M_PI);
     }
   }
   else if(!strcmp(solName, "Dx2")) {

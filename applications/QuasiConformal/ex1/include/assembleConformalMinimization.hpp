@@ -93,8 +93,10 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //   }
 //   else {
   if(counter == 0) {
-    *(sol->_Sol[solMuIndex[0]]) = 0.1;
-    *(sol->_Sol[solMuIndex[1]]) = 0.1;
+    // *(sol->_Sol[solMuIndex[0]]) = 0.1;
+    // *(sol->_Sol[solMuIndex[1]]) = 0.1;
+    sol->_Sol[solMuIndex[0]]->zero();
+    sol->_Sol[solMuIndex[1]]->zero();
   }
 
   unsigned vAngleIndex = mlSol->GetIndex("vAngle");
@@ -304,30 +306,76 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
 
-      adept::adouble fz[DIM][dim];
-      adept::adouble fzb[DIM][dim];
+      // adept::adouble fz[DIM][dim];
+      // adept::adouble fzb[DIM][dim];
 
-      for(unsigned I = 0; I < DIM; I++) {
-        fz[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] - mu[1]  * gradSolDx[I][1]);
-        fz[I][1] = 0.5 * (mu[1] * gradSolDx[I][0] - (1 + mu[1]) * gradSolDx[I][1]);
-        fzb[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] + mu[1] * gradSolDx[I][1]);
-        fzb[I][1] = 0.5 * (-mu[1] * gradSolDx[I][0] + (1 + mu[1]) * gradSolDx[I][1]);
-      }
+      // for(unsigned I = 0; I < DIM; I++) {
+      //   fz[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] - mu[1]  * gradSolDx[I][1]);
+      //   fz[I][1] = 0.5 * (mu[1] * gradSolDx[I][0] - (1 + mu[1]) * gradSolDx[I][1]);
+      //   // fzb[I][0] = 0.5 * ((1. - mu[0]) * gradSolDx[I][0] + mu[1] * gradSolDx[I][1]);
+      //   // fzb[I][1] = 0.5 * (-mu[1] * gradSolDx[I][0] + (1 + mu[1]) * gradSolDx[I][1]);
+      //   fzb[I][0] = 0.5 * ((1. + mu[0]) * gradSolDx[I][0] + mu[1] * gradSolDx[I][1]);
+      //   fzb[I][1] = 0.5 * (mu[1] * gradSolDx[I][0] + (1 - mu[1]) * gradSolDx[I][1]);
+      // }
 
       double normal[3] = {0., 0., 1.};
+      adept::adouble dXm[DIM];
+      adept::adouble dXp[DIM];
 
+      adept::adouble NCrossX2[DIM];
+      NCrossX2[0] = normal[1] * gradSolDx[2][1] - normal[2] * gradSolDx[1][1];
+      NCrossX2[1] = normal[2] * gradSolDx[0][1] - normal[0] * gradSolDx[2][1];
+      NCrossX2[2] = normal[0] * gradSolDx[1][1] - normal[1] * gradSolDx[0][1];
 
-      adept::adouble fzfzbb[2];
+      for(unsigned I = 0; I < DIM; I++) {
+        dXm[I] = 0.5 * (gradSolDx[I][0] - NCrossX2[I]);
+        dXp[I] = 0.5 * (gradSolDx[I][0] + NCrossX2[I]);
+      }
 
-      fzfzbb[0] = fz[0][0] * fzb[0][0] + fz[1][0] * fzb[1][0] + fz[2][0] * fzb[2][0] +
-                  fz[0][1] * fzb[0][1] + fz[1][1] * fzb[1][1] + fz[2][1] * fzb[2][1];
-      fzfzbb[1] = fz[0][1] * fzb[0][0] + fz[1][1] * fzb[1][0] + fz[2][1] * fzb[2][0] -
-                  fz[0][0] * fzb[0][1] - fz[1][0] * fzb[1][1] - fz[2][0] * fzb[2][1];
+      adept::adouble dXpCrossdXm[DIM];
+      dXpCrossdXm[0] = dXp[1] * dXm[2] - dXp[2] * dXm[1];
+      dXpCrossdXm[1] = dXp[2] * dXm[0] - dXp[0] * dXm[2];
+      dXpCrossdXm[2] = dXp[0] * dXm[1] - dXp[1] * dXm[0];
+
+      adept::adouble dXpDotdXm = 0.;
+      adept::adouble dXmNorm2 = 0.;
+      adept::adouble dXpNorm2 = 0.;
+      // adept::adouble dXpCrossdXmNorm2 = 0.
+      for(unsigned I = 0; I < DIM; I++) {
+        dXpDotdXm += dXp[I] * dXm[I];
+        dXmNorm2  += dXm[I] * dXm[I];
+        dXpNorm2  += dXp[I] * dXp[I];
+        // dXpCrossdXmNorm2  += dXpCrossdXm[I] * dXpCrossdXm[I];
+      }
+
+      adept::adouble muNorm2 = mu[0] * mu[0] + mu[1] * mu[1];
+
+      adept::adouble term[dim];    // (dXp * conj(dXm) + |mu|^2 dXm * conj(dXp)) (real part and N part)
+      term[0] = (1 + muNorm2) * dXpDotdXm;
+      for(unsigned I = 0; I < DIM; I++) {
+        term[1] -= (1-muNorm2) * dXpCrossdXm[I] * normal[I];
+      }
+
+      adept::adouble hopfD[dim];  // real part and N part of Hopf differential
+      hopfD[0] = term[0] - (mu[0] * dXmNorm2 + mu[0] * dXpNorm2);
+      hopfD[1] = term[1] - (mu[1] * dXmNorm2 - mu[1] * dXpNorm2);
+
+      // adept::adouble fzfzbb[2];
+
+      // // fzfzbb[0] = fz[0][0] * fzb[0][0] + fz[1][0] * fzb[1][0] + fz[2][0] * fzb[2][0] +
+      // //             fz[0][1] * fzb[0][1] + fz[1][1] * fzb[1][1] + fz[2][1] * fzb[2][1];
+      // // fzfzbb[1] = fz[0][1] * fzb[0][0] + fz[1][1] * fzb[1][0] + fz[2][1] * fzb[2][0] -
+      // //             fz[0][0] * fzb[0][1] - fz[1][0] * fzb[1][1] - fz[2][0] * fzb[2][1];
+
+      // fzfzbb[0] = fz[0][0] * fz[0][0] + fz[1][0] * fz[1][0] + fz[2][0] * fz[2][0] -
+      //             fz[0][1] * fz[0][1] - fz[1][1] * fz[1][1] - fz[2][1] * fz[2][1];
+      // fzfzbb[1] = 2 * (fz[0][0] * fz[0][1] + fz[1][0] * fz[1][1] + fz[2][0] * fz[2][1]);
 
       for(unsigned I = 0; I < 2; I++) {
         for(unsigned i = 0; i < nMuDofs; i++) {
-          maRes[DIM * nxDofs + I * nMuDofs  + i] -= phiMu[i] * fzfzbb[I] * weight / sqrt(detg);
-          maRes[DIM * nxDofs + I * nMuDofs  + i] -= 0.001 * mu[I] * phiMu[i] * Area;
+          // maRes[DIM * nxDofs + I * nMuDofs  + i] -= phiMu[i] * fzfzbb[I] * weight / sqrt(detg);
+          // maRes[DIM * nxDofs + I * nMuDofs  + i] -= 0.001 * mu[I] * phiMu[i] * Area;
+          maRes[DIM * nxDofs + I * nMuDofs  + i] -= phiMu[i] * hopfD[I] * Area;
         }
       }
 
@@ -593,7 +641,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  //KK->draw();
+  // KK->draw();
 
 
 //   if(areaConstraint) {
