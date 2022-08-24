@@ -225,6 +225,8 @@ OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
 
 OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
 
+OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
+
 #############################################################################################
 ### Build documentation (Doxygen)
 #############################################################################################

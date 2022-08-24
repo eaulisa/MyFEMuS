@@ -786,10 +786,16 @@ namespace femus {
     const int *cols;
     const double *vals;
 
+    int nmax = 0;
+    
+    
     for(int i = 0; i < rowEnd - rowStart; i++) {
 
       int row = rowStart + i;
 
+      int nDiag  = 0;
+      int nOff = 0;
+      
       MatGetRow(_mat, row, &n, &cols, &vals);
 
       nCols[i].resize(n);
@@ -797,23 +803,34 @@ namespace femus {
 
       int k = 0;
       for(int j = 0; j < n; j++) {
-        if(fabs(vals[j]) >= tolerance) {
-          if(colStart <= cols[j] && cols[j] < colEnd) {
+        if(colStart <= cols[j] && cols[j] < colEnd) {  
+          nDiag++; 
+          if(fabs(vals[j]) >= tolerance) {
             sizeDiag[i]++;
+            nCols[i][k] = cols[j];
+            nVals[i][k] = vals[j];
+            k++;
           }
-          else {
+        }
+        else{
+          nOff++;  
+          if(fabs(vals[j]) >= tolerance) {
             sizeOff[i]++;
+            nCols[i][k] = cols[j];
+            nVals[i][k] = vals[j];
+            k++;
           }
-          nCols[i][k] = cols[j];
-          nVals[i][k] = vals[j];
-          k++;
         }
       }
+      
+      nmax = std::max(nmax, std::max(nDiag,nOff));
 
       MatRestoreRow(_mat, i, &n, &cols, &vals);
       nCols[i].resize(sizeDiag[i] + sizeOff[i]);
       nVals[i].resize(sizeDiag[i] + sizeOff[i]);
     }
+    
+    std::cout << "original max number of zero entries = " << nmax << std::endl;
 
     MatDestroy(&_mat);
 
