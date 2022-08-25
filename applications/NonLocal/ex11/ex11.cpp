@@ -17,6 +17,7 @@
 
 #include "Fem.hpp"
 #include "BestFitPlane.hpp"
+#include "GenerateTriangles.hpp"
 
 using namespace std;
 using namespace femus;
@@ -64,7 +65,48 @@ double getHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &
 
 const elem_type *finiteElementQuad;
 
+
+
 int main(int argc, char** argv) {
+
+
+  std::vector < std::vector<double> > x;
+
+  std::cout << "x0,y0,x1,y1,x2,y2,a,b,d\n";
+  for(unsigned k = 0; k < 100000; k++) {
+    GenerateRandomTriangles(k + 1, x);
+
+    std::vector<double> a, xm, b;
+    double d, db;
+    unsigned cut;
+
+    
+    for(unsigned j = 0; j < 3; j++) {
+      GetNormalTriBF(x, {0., 0.}, 1., a, d, xm, b, db, cut);
+
+      for(unsigned i = 0; i < x[0].size(); i++) {
+        std::cout << x[0][i] << "," << x[1][i] << ",";
+      }
+//       std::cout << x[0][0] << " " << x[1][0] << std::endl;
+//       std::cout << a[0] << " " << a[1] << " " << d <<  std::endl;
+      std::cout << b[0] << "," << b[1] << "," << db <<  std::endl; // this is the normal in the parent that needs to train
+      
+      x[0].insert(x[0].begin(),x[0][2]);
+      x[1].insert(x[1].begin(),x[1][2]);
+      
+      x[0].resize(3);
+      x[1].resize(3);
+      
+    }
+  }
+
+
+  return 1;
+}
+
+
+
+int main1(int argc, char** argv) {
 
   std::vector<std::vector<double>> xt = {{0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
   std::vector< double > xg1 = {0.0, 0., 1.5};
@@ -84,7 +126,7 @@ int main(int argc, char** argv) {
 
 
   Fem fem = Fem(5, 3);
-  
+
   typedef double TypeIO;
   typedef cpp_bin_float_oct TypeA;
 
@@ -96,7 +138,7 @@ int main(int argc, char** argv) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
 
   std::vector<double> weight1;
-  tet.GetWeightWithMap(0, {-0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1);
+  tet.GetWeightWithMap(0, { -0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1);
   for(unsigned j = 0; j < 1; j++) {
     std::cout << weight1[j] << "\n ";
   }
@@ -282,7 +324,7 @@ int main(int argc, char** argv) {
 //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
-// 
+//
 //       }
       GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
 //       if(cut == 1) {
@@ -706,8 +748,8 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
       //   std::cout << "Romboid\n";
       std::vector<std::vector<unsigned> > idx = {{3, 1}, {0, 2}};
 
-      double A[2][2] = {{-dy14, dy23}, {dy12, dy34}};
-      double B[2][2] = {{dx14, -dx23}, {-dx12, -dx34}};
+      double A[2][2] = {{ -dy14, dy23}, {dy12, dy34}};
+      double B[2][2] = {{dx14, -dx23}, { -dx12, -dx34}};
 
       for(unsigned k = 0; k < 2; k++) {
         double d[2];
