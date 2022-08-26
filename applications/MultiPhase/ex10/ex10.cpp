@@ -29,6 +29,9 @@
 #include "./MyMarker/MyMarker.hpp"
 #include "./MyMarker/MyMarker.cpp"
 
+#include <fstream>
+#include <iostream>
+
 using namespace femus;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
@@ -73,7 +76,7 @@ int main(int argc, char** args) {
 
   unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
-  mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
+  mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
   // erase all the coarse mesh levels
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -109,57 +112,199 @@ int main(int argc, char** args) {
   mlSol.FixSolutionAtOnePoint("P");
 
   mlSol.GenerateBdc("All");
-  
-  
-  
-  Solution* sol= mlSol.GetSolutionLevel(0); 
+
+
+
+  Solution* sol = mlSol.GetSolutionLevel(0);
   MyMarker mrk = MyMarker();
-  std::vector<double> xp = {0.5,0.5};
+  std::vector<double> xp = {.35, .15};
   unsigned solTypeB = 2;
-  bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, sol, solTypeB, 5);
-  
-//    if(elemSearch) {//the node is inside the _iproc domain, we can straightforward interpolate the velocity
-//      unsigned iel = mrk.GetElement();
-//      std::vector<double> xi = mrk.GetIprocLocalCoordinates(); 
-//      std::cout<<mrk.GetElement()<<" " << xi[0] << " " << xi[1] <<std::endl;
-//    }
-  
-   unsigned iproc = sol->processor_id();
-  
-   elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, 0);
-   if(elemSearch && mrk.GetProc() == iproc) {
-     unsigned iel = mrk.GetElement();
-     std::vector<double> xi = mrk.GetIprocLocalCoordinates(); 
-     std::cerr<<iproc<< " "<<mrk.GetElement()<<" " << xi[0] << " " << xi[1] <<std::endl;
-   }
-//   
-  
-  
-  
+  unsigned iproc = sol->processor_id();
+  unsigned nprocs = sol->n_processors();
+  std::vector<double> xi;
+  unsigned iel;
+  bool elemSearch;
+
+  //This call is a parallel call without a given element from where to start the search
+  //It is a parallel search in a parallel environment, effective if there is no clue on where the point is located
+  elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2); // if the element has been found all processes return true
+  if(elemSearch) {
+    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
+    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
+      xi = mrk.GetIprocLocalCoordinates();
+      std::cerr << "the point " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+      std::cerr << std::endl << std::flush;
+    }
+  }
+  else if(iproc == 0) {
+    std::cout << " element search failed the point " << std::flush;
+    for(unsigned i = 0; i < xp.size(); i++) std::cout << xp[i] << " " << std::flush;
+    std::cout << "is probably outside the domain!" << std::endl << std::flush;
+  }
+
+
+  //This call is a parallel call with a given element from where to start the search.
+  //It is a serial search in a parallel environment, effective is the starting element is close to the marker
+  elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, 0); // if the element has been found all processes return true
+  if(elemSearch) {
+    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
+    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
+      xi = mrk.GetIprocLocalCoordinates();
+      std::cerr << "the point " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+      std::cerr << std::endl << std::flush;
+    }
+  }
+  else if(iproc == 0) {
+    std::cout << " element search failed the point " << std::flush;
+    for(unsigned i = 0; i < xp.size(); i++) std::cout << xp[i] << " " << std::flush;
+    std::cout << "is probably outside the domain!" << std::endl << std::flush;
+  }
+
+
+
+  //This is a serial search in a serial environment, always called with a strating element.
+  //only the process that owns the starting element will try to find the element where the point is located all the others will return false.
+  elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, sol, solTypeB, 14);
+  if(elemSearch) {
+    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
+    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
+      xi = mrk.GetIprocLocalCoordinates();
+      std::cerr << "the point " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+      std::cerr << std::endl << std::flush;
+    }
+  }
+
+  unsigned nMax = 1000;
+  std::vector<std::vector<double>> yp(nMax);
+  std::vector<std::vector<double>> N(nMax);
+  std::vector<double> k(nMax);
+  std::vector<std::vector<double>> yi(nMax);
+  std::vector<unsigned> elem(nMax);
+  unsigned cnt = 0;
+  double R = 0.3245;
+  double dt = 2 * M_PI / nMax;
+  std::vector<double> Xc = {0.0134, 0.045};
+  unsigned previousElem = UINT_MAX;
+  for(unsigned i = 0; i < nMax; i++) {
+    xp[0] = Xc[0] + R * cos(i * dt);
+    xp[1] = Xc[1] + R * sin(i * dt);
+    if(previousElem == UINT_MAX) elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2);
+    else elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, previousElem);
+
+    if(elemSearch) {
+      iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
+      if(mrk.GetProc() == iproc) {
+        yp[cnt]  = xp;
+        yi[cnt]  = mrk.GetIprocLocalCoordinates();
+        N[cnt] = {cos(i * dt), sin(i * dt)};
+        k[cnt] = 1. / R;
+        elem[cnt] = iel;
+        cnt++;
+      }
+      previousElem = iel;
+    }
+    else {
+      previousElem = UINT_MAX;
+    }
+  }
+  yp.resize(cnt);
+  yi.resize(cnt);
+  elem.resize(cnt);
+  N.resize(cnt);
+  k.resize(cnt);
+
+  std::vector<unsigned*> vec(elem.size());
+
+  for(unsigned i = 0; i < elem.size(); i++) {
+    vec[i] = &elem[i];
+  }
+
+  std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
+    return *a < *b;
+  });
+
+  std::vector<unsigned> map(elem.size());
+  for(unsigned i = 0; i < map.size(); i++) {
+    map[i] =  static_cast<unsigned>(vec[i] - &elem[0]);
+  }
+
+  std::ofstream fout;
+  for(unsigned kp = 0; kp < nprocs; kp++) {
+    if(kp == iproc) {
+      if(kp == 0) fout.open("markerno.dat", std::fstream::out);
+      else fout.open("markerno.dat", std::fstream::app);
+      for(unsigned i = 0; i < yp.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yp[i][k] << " ";
+        }
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yi[i][k] << " ";
+        }
+        for(unsigned k = 0; k < dim; k++) {
+          fout << N[i][k] << " ";
+        }
+        fout << k[i] << " " << iproc << " " << elem[i] << std::endl;
+      }
+      fout.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+
+  for(unsigned kp = 0; kp < nprocs; kp++) {
+    if(kp == iproc) {
+      if(kp == 0) fout.open("marker.dat", std::fstream::out);
+      else fout.open("marker.dat", std::fstream::app);
+      for(unsigned i = 0; i < yp.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yp[map[i]][k] << " ";
+        }
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yi[map[i]][k] << " ";
+        }
+        for(unsigned k = 0; k < dim; k++) {
+          fout << N[map[i]][k] << " ";
+        }
+        fout << k[map[i]] << " " << iproc << " " << elem[map[i]] << std::endl;
+      }
+      fout.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
 
 //   // define the multilevel problem attach the mlSol object to it
 //   MultiLevelProblem mlProb(&mlSol);
-// 
+//
 //   // add system Poisson in mlProb as a Linear Implicit System
 //   NonLinearImplicitSystem& system = mlProb.add_system < NonLinearImplicitSystem > ("NS");
-// 
+//
 //   // add solution "u" to system
 //   system.AddSolutionToSystemPDE("U");
 //   system.AddSolutionToSystemPDE("V");
-// 
+//
 //   if(dim == 3) system.AddSolutionToSystemPDE("W");
-// 
+//
 //   system.AddSolutionToSystemPDE("P");
-// 
+//
 //   // attach the assembling function to system
 //   system.SetAssembleFunction(AssembleBoussinesqAppoximation);
-// 
+//
 //   // initilaize and solve the system
 //   system.init();
 //   system.SetOuterSolver(PREONLY);
 //   system.MGsolve();
 
-  // print solutions
+// print solutions
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
@@ -171,7 +316,7 @@ int main(int argc, char** args) {
 }
 
 
-void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob) {
+void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
@@ -382,7 +527,7 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob) {
     s.independent(&solP[0], nDofsP);
 
     // get the and store jacobian matrix (row-major)
-    s.jacobian(&Jac[0] , true);
+    s.jacobian(&Jac[0], true);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
     s.clear_independents();
@@ -398,7 +543,7 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob) {
 
 
 //Attempting to create J by hand
-void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
+void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
