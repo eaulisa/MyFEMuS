@@ -1072,12 +1072,6 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 }
 
 
-
-
-
-
-
-
 void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, std::vector<double> &a, double & d,  std::vector<double> &xm, std::vector<double> &a2, double & d2, double & volume,  unsigned & cut) {
 
   const unsigned dim =  3;
