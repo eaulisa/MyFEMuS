@@ -186,7 +186,7 @@ int main(int argc, char** args) {
   unsigned nMax = 1000;
   std::vector<std::vector<double>> yp(nMax);
   std::vector<std::vector<double>> N(nMax);
-  std::vector<double> k(nMax);
+  std::vector<double> kappa(nMax);
   std::vector<std::vector<double>> yi(nMax);
   std::vector<unsigned> elem(nMax);
   unsigned cnt = 0;
@@ -206,7 +206,7 @@ int main(int argc, char** args) {
         yp[cnt]  = xp;
         yi[cnt]  = mrk.GetIprocLocalCoordinates();
         N[cnt] = {cos(i * dt), sin(i * dt)};
-        k[cnt] = 1. / R;
+        kappa[cnt] = 1. / R;
         elem[cnt] = iel;
         cnt++;
       }
@@ -220,7 +220,7 @@ int main(int argc, char** args) {
   yi.resize(cnt);
   elem.resize(cnt);
   N.resize(cnt);
-  k.resize(cnt);
+  kappa.resize(cnt);
 
   std::vector<unsigned*> vec(elem.size());
 
@@ -252,7 +252,7 @@ int main(int argc, char** args) {
         for(unsigned k = 0; k < dim; k++) {
           fout << N[i][k] << " ";
         }
-        fout << k[i] << " " << iproc << " " << elem[i] << std::endl;
+        fout << kappa[i] << " " << iproc << " " << elem[i] << std::endl;
       }
       fout.close();
     }
@@ -274,7 +274,36 @@ int main(int argc, char** args) {
         for(unsigned k = 0; k < dim; k++) {
           fout << N[map[i]][k] << " ";
         }
-        fout << k[map[i]] << " " << iproc << " " << elem[map[i]] << std::endl;
+        fout << kappa[map[i]] << " " << iproc << " " << elem[map[i]] << std::endl;
+      }
+      fout.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+
+  for(unsigned kp = 0; kp < nprocs; kp++) {
+    if(kp == iproc) {
+      if(kp == 0) fout.open("./output/marker.csv", std::fstream::out);
+      else fout.open("./output/marker.csv", std::fstream::app);
+
+      if(kp == 0){
+        fout<<"\"X\",\"Y\",\"Z\",\"xi\",\"eta\",\"zeta\",\"Nx\",\"Ny\",\"Nz\",\"kappa\",\"ipoc\",\"elem\""<<std::endl;
+      }
+      for(unsigned i = 0; i < yp.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yp[map[i]][k] << ",";
+        }
+        fout<<"0.,";
+        for(unsigned k = 0; k < dim; k++) {
+          fout << yi[map[i]][k] << ",";
+        }
+        fout<<"0.,";
+        for(unsigned k = 0; k < dim; k++) {
+          fout << N[map[i]][k] << ",";
+        }
+        fout<<"0.,";
+        fout << kappa[map[i]] << "," << iproc << "," << elem[map[i]] << std::endl;
       }
       fout.close();
     }
