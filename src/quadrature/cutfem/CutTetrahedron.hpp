@@ -1,0 +1,203 @@
+#ifndef __femus_cut_fem_TET_hpp__
+#define __femus_cut_fem_TET_hpp__
+
+#include "CutTriangle.hpp"
+
+template <class TypeIO, class TypeA>
+class TTImap : public TRImap <TypeA, TypeA> {
+  public:
+
+    TTImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : TRImap <TypeA, TypeA> (mMax + 1, sMax, mMax + 1) {
+
+      _baseType = 0;
+
+      _TTImap.resize(2u + sMax + ds);
+      unsigned max = 2u + mMax + sMax;
+
+      for(unsigned s = 0; s < _TTImap.size(); s++) {
+        _TTImap[s].resize(max);
+        for(unsigned i = 0; i < _TTImap[s].size(); i++) {
+          _TTImap[s][i].resize(max - i);
+          for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
+            _TTImap[s][i][j].resize(max - i - j);
+          }
+        }
+      }
+      _cnt = 0;
+    };
+
+    ~TTImap() {
+      clear();
+    };
+
+    void clear() {
+      TRImap<TypeA, TypeA>::clear();
+      for(unsigned s = 0; s < _TTImap.size(); s++) {
+        for(unsigned i = 0; i < _TTImap[s].size(); i++) {
+          for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
+            for(unsigned k = 0; k < _TTImap[s][i][j].size(); k++) {
+              _TTImap[s][i][j][k].clear();
+            }
+          }
+        }
+      }
+      _cnt = 0;
+    };
+
+    void printCounter() {
+      TRImap<TypeIO, TypeA>::printCounter();
+      std::cout << "TTI counter = " << _cnt << std::endl;
+    }
+
+    TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
+
+    void SetBaseType(const unsigned &value) {
+      _baseType = value;
+    };
+
+  protected:
+    TypeA ttia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
+      _key = std::make_pair(a, d);
+      _it = _TTImap[s + 1][m[0]][m[1]][m[2]].find(_key);
+      if(_it == _TTImap[s + 1][m[0]][m[1]][m[2]].end()) {
+        _cnt++;
+        _I1 = TetrahedronA(s, m, a, d);
+        _TTImap[s + 1][m[0]][m[1]][m[2]][_key] = _I1;
+        return _I1;
+      }
+      else {
+        return _it->second;
+      }
+    }
+
+  private:
+    TypeA TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TetrahedronB(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+    TypeA TetrahedronC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+
+    std::vector<std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > >_TTImap;
+    typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    std::pair<std::vector<TypeA>, TypeA> _key;
+
+    unsigned _baseType;
+
+    TypeA _I1;
+    unsigned _cnt;
+};
+
+template <class TypeIO, class TypeA>
+TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO & d) {
+
+  if(a[0] == a[1] && a[1] == a[2]) { // m1+m2 == 0
+    return this->lsi(s, m[0] + m[1] + m[2] + 2, std::make_pair<TypeA, TypeA>(static_cast<TypeA>(a[0]), static_cast<TypeA>(d))) / ((m[2] + 1) * (m[1] + m[2] + 2));
+  }
+
+
+  TypeIO m1 = std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]));
+  TypeIO m2 = fabs(a[0] - a[2]);
+  
+  if((_baseType == 0 && m1 >= m2) || _baseType == 1) {
+    //std::cout << "case x ";
+    return static_cast<TypeIO>(
+    this->ttia(s, {m[0], m[1], m[2]},
+    {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] - a[0]), static_cast<TypeA>(a[2] - a[1])},
+    static_cast<TypeA>(d)));
+  }
+
+  else {
+    //std::cout << "case y ";
+    return static_cast<TypeIO>(
+    this->ttia(s, {m[0], m[1], m[2]},
+    {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] - a[1]), static_cast<TypeA>(a[0] - a[2])},
+    static_cast<TypeA>(d)));
+  }
+}
+
+template <class TypeIO, class TypeA>
+TypeA TTImap<TypeIO, TypeA>::TetrahedronA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA & d) {
+
+  switch(s) {
+    case -1:
+      if(a[0] + a[1] + a[2] + d <= 0) return TetrahedronB(-1, m, a, d);
+      else return TetrahedronB(-1, m, {-a[0], -a[1], -a[2]}, -d);
+      break;
+    default:
+      if(a[0] + a[1] + a[2] + d <= std::max(fabs(a[1]), fabs(a[2]))) {
+        return TetrahedronB(s, m, a, d);
+      }
+      else {
+        return TetrahedronC(s, m, a, d);
+      }
+  }
+}
+
+template <class TypeIO, class TypeA>
+TypeA TTImap<TypeIO, TypeA>::TetrahedronB(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA & d) {
+
+  const TypeA &a = a_input[0];
+  const TypeA &b = a_input[1];
+  const TypeA &c = a_input[2];
+  const unsigned &m = m_input[0];
+  const unsigned &n = m_input[1];
+  const unsigned &o = m_input[2];
+
+  TypeA TET = 0;
+  if(fabs(c) > fabs(b)) {
+    for(unsigned i = 1; i <= o + 1; i++)  {
+      TET -= this->tria(s + i, {m, n + o + 1u - i}, {a, b + c}, d) / (factorial<TypeA> (o + 1u - i) * pow(-c, i));
+    }
+    TET += this->tria(s + o + 1, {m, n}, {a, b}, d) / pow(-c, o + 1);
+    TET *= factorial<TypeA>(o);
+  }
+  else {
+    for(unsigned i = 1; i <= n + 1; i++)  {
+      TET += (-this->tria(s + i, {m + n + 1u - i, o}, {a + b, c}, d) +
+              this->tria(s + i, {m, n + o + 1u - i}, {a, b + c}, d)) / (factorial<TypeA> (n + 1u - i) * pow(-b, i));
+    }
+    TET *= factorial<TypeA>(n);
+  }
+  return TET;
+}
+
+template <class TypeIO, class TypeA>
+TypeA TTImap<TypeIO, TypeA>::TetrahedronC(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA & d) {
+
+  const TypeA &a = a_input[0];
+  const TypeA &b = a_input[1];
+  const TypeA &c = a_input[2];
+  const unsigned &m = m_input[0];
+  const unsigned &n = m_input[1];
+  const unsigned &o = m_input[2];
+
+  TypeA TET = 0;
+  if(fabs(c) > fabs(b)) {
+    for(unsigned i = 0; i <= s; i++)  {
+      TET += this->tria(s - i, {m, n + o + i + 1u}, {a, b + c}, d) * pow(-c, i) / factorial<TypeA>(o + i + 1);
+    }
+    TET += this->ttia(-1, {m, n, o + s + 1u}, a_input, d) * pow(-c, s + 1u) / factorial<TypeA>(o + s + 1);
+
+    TET *= factorial <TypeA> (o);
+  }
+  else {
+    for(unsigned i = 0; i <= s; i++)  {
+      TET += (this->tria(s - i, {m + n + i + 1u, o}, {a + b, c}, d)
+              - this->tria(s - i, {m, n + o + i + 1u}, {a, b + c}, d)) * pow(-b, i) / factorial<TypeA>(n + i + 1);
+    }
+    TET += this->ttia(-1, {m, n + s + 1u, o}, a_input, d) * pow(-b, s + 1u) / factorial<TypeA>(n + s + 1);
+
+    TET *= factorial <TypeA> (n);
+  }
+
+  return TET;
+}
+
+
+
+
+
+
+
+
+
+
+#endif

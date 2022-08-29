@@ -36,7 +36,8 @@ namespace femus {
   unsigned elem_type::_refindex = 1;
 
 //   Constructor
-  elem_type::elem_type(const char* geom_elem, const char* fe_order, const char* order_gauss) : _gauss(geom_elem, order_gauss)
+  elem_type::elem_type(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* gauss_type) : 
+  _gauss(geom_elem, order_gauss, gauss_type)
   {
       
     if(!strcmp(fe_order, "linear"))           _SolType = 0;
@@ -63,19 +64,19 @@ namespace femus {
       
             ///@todo conditional delete in the destructor 
       if ( !strcmp(geom_elem, "quad") || !strcmp(geom_elem, "tri") ) { //QUAD or TRI
-           _gauss_bdry = new  Gauss("line", order_gauss);
+           _gauss_bdry = new  Gauss("line", order_gauss, gauss_type);
        }
       else if ( !strcmp(geom_elem, "hex") ) {
-           _gauss_bdry = new  Gauss("quad", order_gauss);
+           _gauss_bdry = new  Gauss("quad", order_gauss, gauss_type);
        }
       else if ( !strcmp(geom_elem, "tet") ) {
-           _gauss_bdry = new  Gauss("tri",order_gauss);
+           _gauss_bdry = new  Gauss("tri",order_gauss, gauss_type);
        }
       else if ( !strcmp(geom_elem, "line") ) {
-           _gauss_bdry = new  Gauss("point",order_gauss);
+           _gauss_bdry = new  Gauss("point",order_gauss, gauss_type);
        }
       else if ( !strcmp(geom_elem, "wedge") ) {
-           _gauss_bdry = new  Gauss("quad",order_gauss); ///@todo this is wrong, we have to do a VECTOR of quadratures
+           _gauss_bdry = new  Gauss("quad",order_gauss, gauss_type); ///@todo this is wrong, we have to do a VECTOR of quadratures
        }
       else {
         cout << " Boundary gauss points for " << geom_elem << " is not implemented yet" << endl;
@@ -99,6 +100,7 @@ namespace femus {
     delete [] _mem_prol_ind;
 
     delete _pt_basis;
+    delete _gauss_bdry;
     
   }
 
@@ -1064,8 +1066,8 @@ if( _SolType >= 3 && _SolType < 5 ) {
       
       
 
-  elem_type_1D::elem_type_1D(const char* geom_elem, const char* fe_order, const char* order_gauss) :
-    elem_type(geom_elem, fe_order, order_gauss)
+  elem_type_1D::elem_type_1D(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* gauss_type) :
+    elem_type(geom_elem, fe_order, order_gauss, gauss_type)
   {
 
     _dim = 1;
@@ -1268,8 +1270,8 @@ if( _SolType >= 3 && _SolType < 5 ) {
   }
   
   
-  elem_type_2D::elem_type_2D(const char* geom_elem, const char* fe_order, const char* order_gauss):
-    elem_type(geom_elem, fe_order, order_gauss)
+  elem_type_2D::elem_type_2D(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* gauss_type):
+    elem_type(geom_elem, fe_order, order_gauss, gauss_type)
   {
 
     _dim = 2;
@@ -1314,8 +1316,8 @@ if( _SolType >= 3 && _SolType < 5 ) {
   }
   
 
-  elem_type_3D::elem_type_3D(const char* geom_elem, const char* fe_order, const char* order_gauss) :
-    elem_type(geom_elem, fe_order, order_gauss)
+  elem_type_3D::elem_type_3D(const char* geom_elem, const char* fe_order, const char* order_gauss, const char* gauss_type) :
+    elem_type(geom_elem, fe_order, order_gauss, gauss_type)
   {
 
     _dim = 3;

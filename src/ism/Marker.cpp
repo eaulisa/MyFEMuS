@@ -176,7 +176,6 @@ namespace femus
 
   void Marker::GetElement(const bool &useInitialSearch, const unsigned &initialElem, Solution* sol, const double &s)
   {
-
     std::vector < unsigned > processorMarkerFlag(_nprocs, 3);
 
     unsigned iel = initialElem;
@@ -433,7 +432,7 @@ namespace femus
       searchHistory.resize(counter + 1);
       searchHistory[counter] = currentElem;
 
-      //previousElem = currentElem; commented after adding searchHistory
+      previousElem = currentElem; //commented after adding searchHistory
 
       // std::cout << previousElem << " " << currentElem << std::endl << std::flush;
 

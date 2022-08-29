@@ -19,148 +19,73 @@
 #include <vector>
 #include <string>
 
+#include "PointGaussPoints.hpp"
+
+#include "HexGaussLegendrePoints.hpp"
+#include "WedgeGaussLegendrePoints.hpp"
+#include "TetGaussLegendrePoints.hpp"
+#include "QuadGaussLegendrePoints.hpp"
+#include "TriGaussLegendrePoints.hpp"
+#include "LineGaussLegendrePoints.hpp"
+
+#include "HexGaussLobattoPoints.hpp"
+#include "WedgeGaussLobattoPoints.hpp"
+#include "TetGaussLobattoPoints.hpp"
+#include "QuadGaussLobattoPoints.hpp"
+#include "TriGaussLobattoPoints.hpp"
+#include "LineGaussLobattoPoints.hpp"
+
+#include "GeomElTypeEnum.hpp"
+
 namespace femus {
+    
+static std::vector<std::string> numberName = {
+  "zero", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
+  "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
+  "twentieth", "twenty first", "twenty second", "twenty third", "twenty fourth", "twenty fifth", "twenty sixth", "twenty seventh", "twenty eighth", "twenty ninth",
+  "thirtieth", "thirty first", "thirty second", "thirty third", "thirty fourth", "thirty fifth", "thirty sixth", "thirty seventh"
+};
 
-  class hex_gauss {
-  public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
-    static const double Gauss0[4][1];
-    static const double Gauss1[4][8];
-    static const double Gauss2[4][27];
-    static const double Gauss3[4][64];
-    static const double Gauss4[4][125];
-  };
-  
-  
-  class wedge_gauss {
-  public:
-    static const unsigned GaussPoints[7];
-    static const double *Gauss[7];  
-    static const double Gauss0[4][1];
-    static const double Gauss1[4][8];
-    static const double Gauss2[4][21];
-    static const double Gauss3[4][52];
-    static const double Gauss4[4][95];
-    static const double Gauss5[4][168];
-    static const double Gauss6[4][259];
-  };  
-  
-  
-  class tet_gauss {
-  public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
-    static const double Gauss0[4][1];
-    static const double Gauss1[4][5];
-    static const double Gauss2[4][15];
-    static const double Gauss3[4][31];
-    static const double Gauss4[4][45];
-  };
-
-  class quad_gauss {
-  public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
-    static const double Gauss0[3][1];
-    static const double Gauss1[3][4];
-    static const double Gauss2[3][9];
-    static const double Gauss3[3][16];
-    static const double Gauss4[3][25];
-  };
-  
-
-  class tri_gauss {
-  public:
-    static const unsigned GaussPoints[7];
-    static const double *Gauss[7];  
-    static const double Gauss0[3][1];
-    static const double Gauss1[3][4];
-    static const double Gauss2[3][7];
-    static const double Gauss3[3][13];
-    static const double Gauss4[3][19];
-    static const double Gauss5[3][28];
-    static const double Gauss6[3][37];
-  };
-  
-  
-  class line_gauss {
-  public:
-    static const unsigned GaussPoints[6];
-    static const double *Gauss[6];  
-    static const double Gauss0[2][1];
-    static const double Gauss1[2][2];
-    static const double Gauss2[2][3];
-    static const double Gauss3[2][4];
-    static const double Gauss4[2][5];
-    static const double Gauss5[2][6];
-    static const double Gauss6[2][7];
-    static const double Gauss7[2][8];
-    static const double Gauss8[2][9];
-    static const double Gauss9[2][10];
-    static const double Gauss10[2][11];
-    static const double Gauss11[2][12];
-    static const double Gauss12[2][13];
-    static const double Gauss13[2][14];
-    static const double Gauss14[2][15];
-    static const double Gauss15[2][16];
-    static const double Gauss16[2][17];
-    static const double Gauss17[2][18];
-    static const double Gauss18[2][19];
-    static const double Gauss19[2][20];
-        
-  };  
-  
-  class point_gauss {
-  public:
-    static const unsigned GaussPoints[5];
-    static const double *Gauss[5];  
-    static const double Gauss0[2][1];
-    static const double Gauss1[2][1];
-    static const double Gauss2[2][1];
-    static const double Gauss3[2][1];
-    static const double Gauss4[2][1];
-  };  
-  
-  
+unsigned GetGaussOrder(const char* order_gauss);
   
   class Gauss {
      
   public:
 
-    Gauss(const char *geom_elem, const char *order_gauss);
+    Gauss(const char *geom_elem, const char *order_gauss, const char *gauss_type = "legendre" );
+    Gauss(const GeomElType &GeomElemType, const unsigned &gauss_order, const char *gauss_type = "legendre" );
     
   inline const double *  GetGaussWeightsPointer() const {
-    return GaussWeight;
+    return _GaussWeight;
   };
   
   inline const double *  GetGaussCoordinatePointer (const unsigned &k) const {
-    return GaussWeight + (k+1) * GaussPoints;
+    return _GaussWeight + (k+1) * _GaussPoints;
   };
   
   
   inline const double  GetGaussWeight(const unsigned ig) const {
-    return GaussWeight[ig];
+    return _GaussWeight[ig];
   };
   
   inline const unsigned GetGaussPointsNumber() const {
-      return GaussPoints;
+      return _GaussPoints;
   };     
 
   inline const std::string  GetGaussOrderString() const {
     return _order;
   };
   
-  inline int  GetGaussOrderIdx() const {
-    return gauss_order;
+  inline unsigned GetGaussOrderIdx() const {
+    return _gauss_order;
   };
   
   protected:
     
-    int gauss_order;
+    unsigned _gauss_order;
     std::string _order;
-    unsigned GaussPoints;  
-    const double *GaussWeight;
+    unsigned _GaussPoints;  
+    const double *_GaussWeight;
    
   };
      

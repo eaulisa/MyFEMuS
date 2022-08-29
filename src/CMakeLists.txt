@@ -93,6 +93,19 @@ physics/Material.cpp
 physics/Parameter.cpp
 physics/Solid.cpp
 quadrature/GaussPoints.cpp
+quadrature/PointGaussPoints.cpp
+quadrature/HexGaussLegendrePoints.cpp
+quadrature/WedgeGaussLegendrePoints.cpp
+quadrature/TetGaussLegendrePoints.cpp
+quadrature/QuadGaussLegendrePoints.cpp
+quadrature/TriGaussLegendrePoints.cpp
+quadrature/LineGaussLegendrePoints.cpp
+quadrature/HexGaussLobattoPoints.cpp
+quadrature/WedgeGaussLobattoPoints.cpp
+quadrature/TetGaussLobattoPoints.cpp
+quadrature/QuadGaussLobattoPoints.cpp
+quadrature/TriGaussLobattoPoints.cpp
+quadrature/LineGaussLobattoPoints.cpp
 solution/MultiLevelSolution.cpp
 solution/Solution.cpp
 solution/output/Writer.cpp
@@ -104,6 +117,7 @@ utils/Files.cpp
 utils/input_parser/InputParser.cpp
 utils/input_parser/JsonInputParser.cpp
 uq/uq.cpp
+utils/eigen/MyEigenFunctions.cpp
 uq/sparseGrid.cpp
 )
 

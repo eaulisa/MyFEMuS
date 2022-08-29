@@ -613,6 +613,53 @@ namespace femus {
     mapping.resize(0);
     //END building for k = 2, but incomplete for k = 0, 1
 
+    if(false) { // here we are attempting to create a layer of ghost cells, we can generalize this and create multiple layers of ghost cells
+
+      _ghostDofs[3].resize(_nprocs); //piecewise discontinuous
+      _ghostDofs[4].resize(_nprocs); //piecewise linear discontinuous
+
+      for(int isdom = 0; isdom < _nprocs; isdom++) {
+        std::map < unsigned, bool > ghostMap;
+
+        for(unsigned iel = _elementOffset[isdom]; iel < _elementOffset[isdom + 1]; iel++) {
+          for(unsigned inode = 0; inode < el->GetElementDofNumber(iel, 2); inode++) {
+            unsigned ii = el->GetElementDofIndex(iel, inode);
+
+            if(ii < _dofOffset[2][isdom]) {
+
+              unsigned ksdom = IsdomBisectionSearch(ii, 2);
+
+              for(unsigned kel = _elementOffset[ksdom]; kel < _elementOffset[ksdom + 1]; kel++) {
+                for(unsigned knode = 0; knode < el->GetElementDofNumber(iel, 2); knode++) {
+                  unsigned kk = el->GetElementDofIndex(kel, knode);
+                  if(kk == ii) {
+                    ghostMap[kel] = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        _ghostDofs[3][isdom].resize(ghostMap.size());
+        _ghostDofs[4][isdom].resize(ghostMap.size() * (1 + _dimension));
+
+        unsigned counter3 = 0;
+        unsigned counter4 = 0;
+
+        for(std::map < unsigned, bool >::iterator it = ghostMap.begin(); it != ghostMap.end(); it++) {
+
+          _ghostDofs[3][isdom][counter3] = it->first;
+          counter3++;
+
+          for(unsigned k = 0; k < 1 + _dimension; k++) {
+            _ghostDofs[4][isdom][counter4] = GetSolutionDof(k, it->first, 4);
+            counter4++;
+          }
+        }
+      }
+    }
+
     //BEGIN ghost nodes search k = 0, 1, 2
     for(int k = 0; k < 3; k++) {
       _ghostDofs[k].resize(_nprocs);
@@ -629,6 +676,18 @@ namespace femus {
             }
           }
         }
+        if(false) { // here we are using the previous layer of ghost cells and looking for more ghost nodes
+          for(unsigned k = 0; k < _ghostDofs[3][isdom].size(); k++) { //loop on the ghost elements
+            unsigned iel = _ghostDofs[3][isdom][k];
+            for(unsigned inode = 0; inode < el->GetElementDofNumber(iel, k); inode++) {
+              unsigned ii = el->GetElementDofIndex(iel, inode);
+              if(ii < _dofOffset[2][isdom]) {
+                ghostMap[ii] = true;
+              }
+            }
+          }
+        }
+
 
         _ghostDofs[k][isdom].resize(ghostMap.size());
         unsigned counter = 0;

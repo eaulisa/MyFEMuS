@@ -197,7 +197,7 @@ int main(int argc, char** args)
   if (dim == 3) mlSol.Initialize("W", InitalValueW);
 
   std::cout << " --------------------------------------------------------------------------------------------- " << std::endl;
-// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType, true);
+// Marker a1Quad(x, VOLUME, mlMsh.GetLevel(0), solType);
   //Marker a( x, VOLUME, mlMsh.GetLevel(numberOfUniformLevels + numberOfSelectiveLevels -1) );
   //std::cout << " The coordinates of the marker are " << x[0] << " ," << x[1] << " ," << x[2] << std::endl;
   //std::cout << " The marker type is " <<  a1Quad.GetMarkerType() << std::endl;

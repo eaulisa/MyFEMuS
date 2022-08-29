@@ -102,6 +102,7 @@ namespace femus {
       void zero();///< set to zero
       void zero_rows (std::vector<int> & rows, double diag_value = 0.0); ///< set  rows to zero
       void close() const;///< close
+      void flush() const;///< close
 
 
       // Returns -------------------------------------------
@@ -242,6 +243,15 @@ namespace femus {
     ierr = MatAssemblyBegin (_mat, MAT_FINAL_ASSEMBLY);
     CHKERRABORT (MPI_COMM_WORLD, ierr);
     ierr = MatAssemblyEnd (_mat, MAT_FINAL_ASSEMBLY);
+    CHKERRABORT (MPI_COMM_WORLD, ierr);
+  }
+  
+  inline void PetscMatrix::flush() const {
+    parallel_only();
+    int ierr = 0;
+    ierr = MatAssemblyBegin (_mat, MAT_FLUSH_ASSEMBLY);
+    CHKERRABORT (MPI_COMM_WORLD, ierr);
+    ierr = MatAssemblyEnd (_mat, MAT_FLUSH_ASSEMBLY);
     CHKERRABORT (MPI_COMM_WORLD, ierr);
   }
 

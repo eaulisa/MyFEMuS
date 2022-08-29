@@ -5,7 +5,7 @@
  * read from the file ./input/square.neu the coarse-level mesh and associate it to mlMsh;
  * add in mlMsh uniform refined level-meshes;
  * define the multilevel-solution object mlSol associated to mlMsh;
- * add in mlSol different types of finite element solution variables;
+ * add in mlSol different types of finite element solution variables; +
  * initialize the solution variables;
  * define vtk and gmv writer objects associated to mlSol;
  * print vtk and gmv binary-format files in ./output directory.
@@ -43,7 +43,7 @@ int main(int argc, char** args) {
   mlMsh.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor); // Let mlMsh read the coarse mesh.
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
       probably in the furure it is not going to be an argument of this function   */
-  unsigned numberOfUniformLevels = 3; // We apply uniform refinement.
+  unsigned numberOfUniformLevels = 5; // We apply uniform refinement.
   unsigned numberOfSelectiveLevels = 0; // we may want to see solutions on different level of meshes. 
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL); // Add those refined meshed in mlMsh object. 
   mlMsh.PrintInfo();
@@ -54,28 +54,37 @@ int main(int argc, char** args) {
   mlSol.AddSolution("U", LAGRANGE, FIRST);
   mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
   mlSol.AddSolution("W", LAGRANGE, SECOND);
-  mlSol.AddSolution("P", DISCONTINUOUS_POLYNOMIAL, ZERO);
+  mlSol.AddSolution("P", DISCONTINUOUS_POLYNOMIAL, ZERO); 
   mlSol.AddSolution("T", DISCONTINUOUS_POLYNOMIAL, FIRST);
 
   mlSol.Initialize("All");    // initialize all varaibles to zero
 
   mlSol.Initialize("U", InitalValueU);
-  mlSol.Initialize("P", InitalValueP);
-  mlSol.Initialize("T", InitalValueT);    // note that this initialization is the same as piecewise constant element
+  mlSol.Initialize("V", InitalValueP);
+  mlSol.Initialize("W", InitalValueT);
+  
+  mlSol.Initialize("P", InitalValueP);  
+  mlSol.Initialize("T", InitalValueT);  // note that this initialization is the same as piecewise constant element
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
-  variablesToBePrinted.push_back("U");
-  variablesToBePrinted.push_back("P");
-  variablesToBePrinted.push_back("T");
+  variablesToBePrinted.push_back("All");
+//   variablesToBePrinted.push_back("U");
+//   variablesToBePrinted.push_back("P");
+//   variablesToBePrinted.push_back("T");
+//   variablesToBePrinted.push_back("V");
+//   variablesToBePrinted.push_back("W");
 
   VTKWriter vtkIO(&mlSol);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
 
-  GMVWriter gmvIO(&mlSol);
-  variablesToBePrinted.push_back("all");
-  gmvIO.SetDebugOutput(false);
-  gmvIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
+//   GMVWriter gmvIO(&mlSol);
+//   variablesToBePrinted.push_back("all");
+//   gmvIO.SetDebugOutput(false);
+//   gmvIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
+  
+  //   From what I understand, you define the type of mesh and how to refine it and what integration scheme to use,
+  //then you associate the mesh and integration scheme to a specific type of problem, with specifed order, then solve and print.
 
   return 0;
 }

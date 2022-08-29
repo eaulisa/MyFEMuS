@@ -74,12 +74,18 @@ IF(APPLE)
 ELSE()
   FIND_PACKAGE(MPI)
 ENDIF(APPLE)
-
 MESSAGE(STATUS "MPI_FOUND = ${MPI_FOUND}")
 SET(HAVE_MPI 0)
 IF(MPI_FOUND)
   SET(HAVE_MPI 1)
 ENDIF(MPI_FOUND)
+
+
+# Find MPI (optional)
+if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
+     set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
+endif()
+
 
 # Find FParser
 FIND_PACKAGE(FParser)
@@ -122,12 +128,12 @@ IF(SLEPC_FOUND)
 ENDIF(SLEPC_FOUND)
 
 # Find Libmesh (optional)
-FIND_PACKAGE(LIBMESH)
-MESSAGE(STATUS "LIBMESH_FOUND = ${LIBMESH_FOUND}")
-SET (HAVE_LIBMESH 0)
-IF(LIBMESH_FOUND)
-  SET(HAVE_LIBMESH 1)
-ENDIF(LIBMESH_FOUND)
+# FIND_PACKAGE(LIBMESH)
+# MESSAGE(STATUS "LIBMESH_FOUND = ${LIBMESH_FOUND}")
+# SET (HAVE_LIBMESH 0)
+# IF(LIBMESH_FOUND)
+#   SET(HAVE_LIBMESH 1)
+# ENDIF(LIBMESH_FOUND)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -170,6 +176,8 @@ OPTION(BUILD_TUTORIAL "Build the tutorial problems" ON)
 # --
 OPTION(BUILD_MGAMR "Build the MGAMR" ON)
 
+OPTION(BUILD_CUTFEM "Build the cut FEM" ON)
+
 # --
 OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" ON)
 
@@ -200,6 +208,8 @@ OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
 OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" ON)
 
 OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
+
+OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
 
 #############################################################################################
 ### Build documentation (Doxygen)
@@ -294,7 +304,10 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/mesh/refinement/)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/mesh/gencase/)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/input_parser/)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/eigen)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem/old)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/parallel)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/equations)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/equations/assemble/)
@@ -321,17 +334,17 @@ INCLUDE(${CMAKE_SOURCE_DIR}/cmake-modules/femusMacroBuildApplication.cmake)
 
 
 # Libmesh includes and flags
-IF(LIBMESH_FOUND)
-execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --cppflags
-                COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_CPP)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBMESH_CPP}")
-execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --include
-                COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_INC)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBMESH_INC}")
-execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --libs
-                COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_LIBS)
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LIBMESH_LIBS}")
-ENDIF(LIBMESH_FOUND)
+# IF(LIBMESH_FOUND)
+# execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --cppflags
+#                 COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_CPP)
+# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBMESH_CPP}")
+# execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --include
+#                 COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_INC)
+# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBMESH_INC}")
+# execute_process(COMMAND $ENV{FM_BASEPATH_TO_LM}/$ENV{FM_LM_FOLDER}/bin/libmesh-config --libs
+#                 COMMAND tr "\n" " " OUTPUT_VARIABLE LIBMESH_LIBS)
+# SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LIBMESH_LIBS}")
+# ENDIF(LIBMESH_FOUND)
 # old Make syntax:
 # libmesh_INCLUDE  := $(shell ${FM_LM_DIR}/bin/libmesh-config --include)
 # libmesh_CPPFLAGS := $(shell ${FM_LM_DIR}/bin/libmesh-config --cppflags)

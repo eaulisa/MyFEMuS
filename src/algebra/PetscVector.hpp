@@ -89,7 +89,8 @@ namespace femus {
 
       /// Call the assemble functions
       void close();
-      void closeWithMinValues();
+      void closeWithMinValue();
+      void closeWithMaxValue();
       /// This function returns the \p PetscVector to a pristine state.
       void clear();
 
@@ -576,13 +577,13 @@ namespace femus {
     this->_is_closed = true;
   }
 
-  inline void PetscVector::closeWithMinValues() {
+  inline void PetscVector::closeWithMinValue() {
 
     this->_restore_array();
 
     if(this->type() != GHOSTED) {
       if(this->type() == PARALLEL) {
-        std::cout << "Warning! The function PetscVector::closeWithMinValues() is only available for GHOSTED vector!\n";
+        std::cout << "Warning! The function PetscVector::closeWithMinValue() is only available for GHOSTED vector!\n";
         std::cout << "Calling regular close() function instead\n";
       }
       this->close();
@@ -590,11 +591,11 @@ namespace femus {
     else {
       int ierr = 0;
 
-//       ierr = VecGhostUpdateBegin (_vec, MIN_VALUES, SCATTER_REVERSE);
-      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_REVERSE);
+      ierr = VecGhostUpdateBegin (_vec, MIN_VALUES, SCATTER_REVERSE);
+//      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
-//       ierr = VecGhostUpdateEnd (_vec, MIN_VALUES, SCATTER_REVERSE);
-      ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
+      ierr = VecGhostUpdateEnd (_vec, MIN_VALUES, SCATTER_REVERSE);
+  //    ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
       ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_FORWARD);
@@ -602,6 +603,37 @@ namespace femus {
       ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_FORWARD);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
+      this->_is_closed = true;
+    }
+  }
+  
+  
+  inline void PetscVector::closeWithMaxValue() {
+    
+    this->_restore_array();
+    
+    if(this->type() != GHOSTED) {
+      if(this->type() == PARALLEL) {
+        std::cout << "Warning! The function PetscVector::closeWithMaxValue() is only available for GHOSTED vector!\n";
+        std::cout << "Calling regular close() function instead\n";
+      }
+      this->close();
+    }
+    else {
+      int ierr = 0;
+      
+      ierr = VecGhostUpdateBegin (_vec, MAX_VALUES, SCATTER_REVERSE);
+      //      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_REVERSE);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+      ierr = VecGhostUpdateEnd (_vec, MAX_VALUES, SCATTER_REVERSE);
+      //    ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+      
+      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_FORWARD);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+      ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_FORWARD);
+      CHKERRABORT(MPI_COMM_WORLD, ierr);
+      
       this->_is_closed = true;
     }
   }
