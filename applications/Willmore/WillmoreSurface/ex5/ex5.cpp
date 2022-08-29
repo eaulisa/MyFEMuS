@@ -51,15 +51,15 @@ unsigned conformalType0 = 2;
 unsigned conformalType = 2;
 
 
-#include "./include/parameter.hpp"
+#include "../include/parameter.hpp"
 Parameter parameter = Parameter("cow", 0, true, true, 1, 1, true, 5, 1, 0); //TODO
 
-#include "./include/supportFunctions.hpp"
-#include "./include/updateMu.hpp"
-#include "./include/assembleConformalMinimization.hpp"
+#include "../include/supportFunctions.hpp"
+#include "../include/updateMu.hpp"
+#include "../include/assembleConformalMinimization.hpp"
 
 
-#include "./include/assembleInit.hpp"
+#include "../include/assembleInit.hpp"
 
 // Declaration of systems.
 void AssemblePWillmore(MultiLevelProblem&);

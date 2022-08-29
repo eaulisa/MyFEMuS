@@ -44,9 +44,9 @@ double volume0 = 0.;
 unsigned conformalTriangleType = 2;
 const double eps = 1e-5;
 
-#include "../include/supportFunctions.hpp"
-#include "../include/assembleConformalMinimization.hpp"
-#include "../include/assembleInit.hpp"
+#include "../include/supportFunctionsOld.hpp"
+#include "../include/assembleConformalMinimizationOld.hpp"
+#include "../include/assembleInitOld.hpp"
 
 // Declaration of systems.
 void AssembleBloodCell (MultiLevelProblem&);

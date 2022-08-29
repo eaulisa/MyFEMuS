@@ -14,6 +14,13 @@ double operator % (const boost::math::quaternion <double> &a, const boost::math:
          a.R_component_4() * b.R_component_4();
 }
 
+adept::adouble operator % (const boost::math::quaternion <adept::adouble> &a, const boost::math::quaternion <adept::adouble> &b) { //dot Product overloading
+  return a.R_component_1() * b.R_component_1() +
+         a.R_component_2() * b.R_component_2() +
+         a.R_component_3() * b.R_component_3() +
+         a.R_component_4() * b.R_component_4();
+}
+
 void  q_set_component_1(boost::math::quaternion <double> &a, const double &w) {
   a = boost::math::quaternion <double> (w, a.R_component_2(), a.R_component_3(), a.R_component_4());
 }
