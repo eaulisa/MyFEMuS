@@ -28,6 +28,7 @@
 
 #include "./MyMarker/MyMarker.hpp"
 #include "./MyMarker/MyMarker.cpp"
+#include "./include/Cloud.hpp"
 
 #include <fstream>
 #include <iostream>
