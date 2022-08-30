@@ -15,6 +15,7 @@ class Cloud {
     Cloud() {
       _mrk = MyMarker();
     };  
+    ~Cloud(){};
     void SetNumberOfMarker( const unsigned &nMax );
     void InitCircle(std::vector<double> &xc, const double &R, const unsigned &nMax);
     void CreateMap();
@@ -175,7 +176,6 @@ void Cloud::PrintCSV(Solution* sol, const unsigned &dim, const unsigned &t){
       foo.str("./output/marker");
       foo << t;
       foo << ".csv"; 
-      std::cout<<foo.str()<<"\n";
       if(kp == 0) _fout.open(foo.str(), std::fstream::out);
       else _fout.open(foo.str(), std::fstream::app);
 

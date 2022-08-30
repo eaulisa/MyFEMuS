@@ -6,7 +6,7 @@ from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'CSV Reader'
-marker = CSVReader(registrationName='marker*', FileName=['/home/eaulisa/FEMuS/femusbin/applications/MultiPhase/ex10/output/marker0.csv', '/home/eaulisa/FEMuS/femusbin/applications/MultiPhase/ex10/output/marker1.csv'])
+marker = CSVReader(registrationName='marker*', FileName=['/output/marker0.csv', '/output/marker1.csv'])
 
 # get animation scene
 animationScene1 = GetAnimationScene()
