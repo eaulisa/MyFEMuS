@@ -28,6 +28,7 @@
 
 #include "./MyMarker/MyMarker.hpp"
 #include "./MyMarker/MyMarker.cpp"
+#include "./include/Cloud.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -309,6 +310,20 @@ int main(int argc, char** args) {
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
+  
+  // BEGIN Testing the class Cloud
+  Cloud cld;
+  for(unsigned it = 0; it < 4; it++){
+    cld.InitCircle(Xc, R, nMax);
+    cld.MapBuilding(sol);
+    cld.PrintWithOrder(sol, dim);
+    cld.PrintCSV(sol, dim, it); 
+    Xc[0] += 0.1;
+    Xc[1] += 0.05;
+    R += 0.05;
+  }
+  // END Testing the class Cloud
+
 
 
 //   // define the multilevel problem attach the mlSol object to it
