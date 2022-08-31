@@ -314,8 +314,8 @@ int main(int argc, char** args) {
   // BEGIN Testing the class Cloud
   Cloud cld;
   for(unsigned it = 0; it < 4; it++){
-    cld.InitCircle(Xc, R, nMax);
-    cld.MapBuilding(sol);
+//     cld.InitCircle(Xc, R, nMax, sol);
+    cld.InitEllipse(Xc, R, R+0.1, nMax, sol);
     cld.PrintWithOrder(sol, dim);
     cld.PrintCSV(sol, dim, it); 
     Xc[0] += 0.1;
