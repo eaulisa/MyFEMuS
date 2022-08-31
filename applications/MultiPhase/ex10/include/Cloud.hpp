@@ -17,19 +17,19 @@ class Cloud {
     };  
     ~Cloud(){};
     void SetNumberOfMarker( const unsigned &nMax );
-    void InitCircle(std::vector<double> &xc, const double &R, const unsigned &nMax);
+    void InitCircle(std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
+    void InitEllipse(std::vector<double> &xc, const double &a, const double &b, const unsigned &nMax, Solution* sol);
     void CreateMap();
-    bool ElementSearchWithGuess(Solution* sol, const unsigned &i, const unsigned previousElem);
-    void MapBuilding(Solution* sol);
+    bool ElementSearchWithGuess(Solution* sol, const std::vector<double> &xp, const unsigned previousElem);
     void PrintNoOrder(Solution* sol, const unsigned &dim);
     void PrintWithOrder(Solution* sol, const unsigned &dim);
     void PrintCSV(Solution* sol, const unsigned &dim, const unsigned &t);
   
   private:
     unsigned _nMrk;
-    double _R;
+    double _a;
+    double _b;
     std::ofstream _fout;
-    std::vector<std::vector<double>> _xp;
     std::vector<std::vector<double>> _yp;
     std::vector<std::vector<double>> _N;
     std::vector<double> _kappa;
@@ -44,43 +44,16 @@ void Cloud::SetNumberOfMarker( const unsigned &nMax ){
     _nMrk = nMax;
 }
 
-void Cloud::InitCircle(std::vector<double> &xc, const double &R, const unsigned &nMax)  {
-    SetNumberOfMarker( nMax );
-    _R = R;
-    double dt = 2. * M_PI / _nMrk;
-    _xp.resize(_nMrk);
-    for(unsigned i = 0; i < _nMrk; i++) {
-      _xp[i].resize(2);
-      _xp[i][0] = xc[0] + _R * cos(i * dt);
-      _xp[i][1] = xc[1] + _R * sin(i * dt);
-    }
-}
-
-void Cloud::CreateMap(){
-std::vector<unsigned*> vec(_elem.size());
-  for(unsigned i = 0; i < _elem.size(); i++) {
-    vec[i] = &_elem[i];
-  }
-  std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) { return *a < *b;});
-  _map.resize(_elem.size());
-  for(unsigned i = 0; i < _map.size(); i++) {
-    _map[i] =  static_cast<unsigned>(vec[i] - &_elem[0]);
-  }
-}
-
-bool Cloud::ElementSearchWithGuess(Solution* sol, const unsigned &i, const unsigned previousElem = UINT_MAX ){
-  bool elemSearch;
-  if(previousElem == UINT_MAX) elemSearch = _mrk.ParallelElementSearchWithInverseMapping(_xp[i], sol, 2);
-  else elemSearch = _mrk.ParallelElementSearchWithInverseMapping(_xp[i], sol, 2, previousElem);    
+void Cloud::InitEllipse(std::vector<double> &xc, const double &a, const double &b, const unsigned &nMax, Solution* sol){
+  SetNumberOfMarker( nMax );
+  _a = a;
+  _b = b;
+  double dt = 2. * M_PI / _nMrk;
+  std::vector<double> xp(2);
   
-  return elemSearch;
-}
-
-void Cloud::MapBuilding(Solution* sol){
   bool elemSearch;
   unsigned previousElem = UINT_MAX;
   unsigned iel;
-  double dt = 2. * M_PI / _nMrk;
   unsigned iproc = sol->processor_id();
   unsigned cnt = 0;
   
@@ -89,16 +62,20 @@ void Cloud::MapBuilding(Solution* sol){
   _elem.resize(_nMrk);
   _N.resize(_nMrk);
   _kappa.resize(_nMrk);
-  
-  for(unsigned i = 0; i < _nMrk; i++){
-    elemSearch = ElementSearchWithGuess(sol, i, previousElem);
+  for(unsigned i = 0; i < _nMrk; i++) {
+    double t = i * dt;
+    xp[0] = xc[0] + _a * cos(t);
+    xp[1] = xc[1] + _b * sin(t);
+    
+    elemSearch = ElementSearchWithGuess(sol, xp, previousElem);
     if(elemSearch) {
       iel = _mrk.GetElement(); 
       if(_mrk.GetProc() == iproc) {
-        _yp[cnt] = _xp[i];
+        double NNorm = sqrt(_a * _a * cos(t) * cos(t) + _b * _b * sin(t) * sin(t));
+        _yp[cnt] = xp;
         _yi[cnt]  = _mrk.GetIprocLocalCoordinates();
-        _N[cnt] = {cos(i * dt), sin(i * dt)};
-        _kappa[cnt] = 1. / _R;
+        _N[cnt] = {_a * cos(t) / NNorm, _b * sin(t) / NNorm};
+        _kappa[cnt] = _a * _b / (pow(sqrt(_a * _a * sin(t) * sin(t) + _b * _b * cos(t) * cos(t)), 3));
         _elem[cnt] = iel;
         cnt++;
       }
@@ -115,6 +92,30 @@ void Cloud::MapBuilding(Solution* sol){
   _kappa.resize(cnt);
 }
 
+void Cloud::InitCircle(std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
+  InitEllipse(xc, R, R, nMax, sol);
+}
+
+void Cloud::CreateMap(){
+std::vector<unsigned*> vec(_elem.size());
+  for(unsigned i = 0; i < _elem.size(); i++) {
+    vec[i] = &_elem[i];
+  }
+  std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) { return *a < *b;});
+  _map.resize(_elem.size());
+  for(unsigned i = 0; i < _map.size(); i++) {
+    _map[i] =  static_cast<unsigned>(vec[i] - &_elem[0]);
+  }
+}
+
+bool Cloud::ElementSearchWithGuess(Solution* sol, const std::vector<double> &xp, const unsigned previousElem = UINT_MAX ){
+  bool elemSearch;
+  if(previousElem == UINT_MAX) elemSearch = _mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2);
+  else elemSearch = _mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, previousElem);    
+  
+  return elemSearch;
+}
+
 void Cloud::PrintNoOrder(Solution* sol, const unsigned &dim){
   unsigned iproc = sol->processor_id();
   unsigned nprocs = sol->n_processors();
@@ -122,9 +123,9 @@ void Cloud::PrintNoOrder(Solution* sol, const unsigned &dim){
     if(kp == iproc) {
       if(kp == 0) _fout.open("markerno.dat", std::fstream::out);
       else _fout.open("markerno.dat", std::fstream::app);
-      for(unsigned i = 0; i < _xp.size(); i++) {
+      for(unsigned i = 0; i < _yp.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
-          _fout << _xp[i][k] << " ";
+          _fout << _yp[i][k] << " ";
         }
         for(unsigned k = 0; k < dim; k++) {
           _fout << _yi[i][k] << " ";
