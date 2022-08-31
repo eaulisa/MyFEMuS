@@ -26,8 +26,8 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
-#include "./MyMarker/MyMarker.hpp"
-#include "./MyMarker/MyMarker.cpp"
+#include "./include/MyMarker/MyMarker.hpp"
+#include "./include/MyMarker/MyMarker.cpp"
 #include "./include/Cloud.hpp"
 
 #include <fstream>
@@ -288,36 +288,35 @@ int main(int argc, char** args) {
       if(kp == 0) fout.open("./output/marker.csv", std::fstream::out);
       else fout.open("./output/marker.csv", std::fstream::app);
 
-      if(kp == 0){
-        fout<<"\"X\",\"Y\",\"Z\",\"xi\",\"eta\",\"zeta\",\"Nx\",\"Ny\",\"Nz\",\"kappa\",\"ipoc\",\"elem\""<<std::endl;
+      if(kp == 0) {
+        fout << "\"X\",\"Y\",\"Z\",\"xi\",\"eta\",\"zeta\",\"Nx\",\"Ny\",\"Nz\",\"kappa\",\"ipoc\",\"elem\"" << std::endl;
       }
       for(unsigned i = 0; i < yp.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
           fout << yp[map[i]][k] << ",";
         }
-        fout<<"0.,";
+        fout << "0.,";
         for(unsigned k = 0; k < dim; k++) {
           fout << yi[map[i]][k] << ",";
         }
-        fout<<"0.,";
+        fout << "0.,";
         for(unsigned k = 0; k < dim; k++) {
           fout << N[map[i]][k] << ",";
         }
-        fout<<"0.,";
+        fout << "0.,";
         fout << kappa[map[i]] << "," << iproc << "," << elem[map[i]] << std::endl;
       }
       fout.close();
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  
+
   // BEGIN Testing the class Cloud
   Cloud cld;
-  for(unsigned it = 0; it < 4; it++){
-//     cld.InitCircle(Xc, R, nMax, sol);
-    cld.InitEllipse(Xc, R, R+0.1, nMax, sol);
-    cld.PrintWithOrder(sol, dim);
-    cld.PrintCSV(sol, dim, it); 
+  for(unsigned it = 0; it < 4; it++) {
+    cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+    cld.PrintWithOrder(0);
+    cld.PrintCSV(it);
     Xc[0] += 0.1;
     Xc[1] += 0.05;
     R += 0.05;

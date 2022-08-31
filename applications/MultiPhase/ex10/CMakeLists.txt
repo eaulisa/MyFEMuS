@@ -13,4 +13,4 @@ SET(EXEC_FILE "${APP_FOLDER_NAME_PARENT}_${MAIN_FILE}") # the name of the execut
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
 
-FILE(COPY           ${PROJECT_SOURCE_DIR}/paraviewReadMarker.py DESTINATION ${PROJECT_BINARY_DIR}/output/)
+FILE(COPY ${PROJECT_SOURCE_DIR}/paraviewReadMarker.py DESTINATION ${PROJECT_BINARY_DIR}/)
