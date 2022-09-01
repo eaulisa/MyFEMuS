@@ -2,11 +2,12 @@
 
 #### import the simple module from the paraview
 from paraview.simple import *
+import glob
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'CSV Reader'
-marker = CSVReader(registrationName='marker*', FileName=['/output/marker0.csv', '/output/marker1.csv'])
+marker = CSVReader(registrationName='marker*', FileName=glob.glob('./output/marker*'))
 
 # get animation scene
 animationScene1 = GetAnimationScene()

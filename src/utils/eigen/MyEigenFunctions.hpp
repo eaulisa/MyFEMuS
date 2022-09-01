@@ -2,8 +2,8 @@
 #ifndef __femus_utils_myeigenfunctions_hpp__
 #define __femus_utils_myeigenfunctions_hpp__
 
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/SVD>
 #include <vector>
 #include <boost/optional.hpp>
 namespace femus {
