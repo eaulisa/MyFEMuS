@@ -29,6 +29,7 @@
 #include "./MyMarker/MyMarker.hpp"
 #include "./MyMarker/MyMarker.cpp"
 #include "./include/Cloud.hpp"
+#include "MyEigenFunctions.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -323,6 +324,29 @@ int main(int argc, char** args) {
     R += 0.05;
   }
   // END Testing the class Cloud
+  
+  // BEGIN test of the FindQuadraticBestFit Function
+  std::vector < std::vector < double > > Xpt;
+  std::vector<double> w(8);
+  std::vector < double > NN(dim, 0.);
+  std::vector < double > a;
+  Xpt.resize(8);
+  for(unsigned i = 0; i < 8; i++){
+    Xpt[i].resize(dim);
+    Xpt[i][0] = i * 0.1 + 0.1;
+    Xpt[i][1] = Xpt[i][0] * Xpt[i][0] + 1.1 * Xpt[i][0] + 1;
+    w[i] = 1;
+  }
+  femus::FindQuadraticBestFit(Xpt, w, NN, a);
+  for( unsigned j = 0; j < a.size(); j++) std::cout << a[j] << " ";
+  std::cout<<std::endl;
+      
+//   for(unsigned j = 0; j < a.size(); j++){
+//     std::cout << a[j] << " ";   
+//   }
+//   std::cout << "\n";
+  
+  // END test of the FindQuadraticBestFit Function
 
 
 
