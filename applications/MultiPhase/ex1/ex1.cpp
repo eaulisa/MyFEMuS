@@ -37,9 +37,9 @@
 #include "GenerateTriangles.hpp"
 
 #define RADIUS 0.2
-#define XG 0.5
-#define YG 0.5
-#define ZG 0.5
+#define XG 0.
+#define YG 0.
+#define ZG 0.
 
 using namespace femus;
 
@@ -52,7 +52,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
   else if(!strcmp(SolName, "V")) {
     value = 0.;
-    if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
+//     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
   }
   else if(!strcmp(SolName, "W")) {
     value = 0.;
@@ -91,7 +91,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 5;
+  unsigned numberOfUniformLevels = 7;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels , numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -553,7 +553,23 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
-
+    
+    std::vector <TypeIO> weightCF;
+    if(cut == 1) {
+        bool wMap = 1;
+        if(ielGeom == 3) {
+          //quad.GetWeightWithMap(0, b, db, weightCF);
+          quadCD.GetWeight(b, db, weightCF);        
+        }
+        else if(ielGeom == 4) {
+          triCD.GetWeight(b, db, weightCF);
+          const double* weightG = tri.GetGaussWeightPointer();
+        }
+        else if(ielGeom == 1) {
+          tet.GetWeightWithMap(0, b, db, weightCF);
+          const double* weightG = tet.GetGaussWeightPointer();
+        }
+      }
 
 
     // *** Gauss point loop ***
@@ -586,7 +602,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
       }
 
       double nu = 1. / 500.;
-
+      
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsV; i++) {
         for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
@@ -597,6 +613,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
           }
           NSV += - phiV_x[i * dim + I] * solP_gss; // pressure gradient
           Res[I * nDofsV + i] -=  NSV * weight;
+          if(cut == 1) Res[I * nDofsV + i] +=  phiV[i] * b[I] * weight * weightCF[ig];
         }
       } // end phiV_i loop
 
@@ -636,24 +653,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         }
       }
       
-      if(cut == 1) {
-        bool wMap = 1;
-        std::vector <TypeIO> weightCF;
-        if(ielGeom == 3) {
-          //quad.GetWeightWithMap(0, b, db, weightCF);
-          quadCD.GetWeight(b, db, weightCF);        
-        }
-        else if(ielGeom == 4) {
-          triCD.GetWeight(b, db, weightCF);
-          const double* weightG = tri.GetGaussWeightPointer();
-        }
-        else if(ielGeom == 1) {
-          tet.GetWeightWithMap(0, b, db, weightCF);
-          const double* weightG = tet.GetGaussWeightPointer();
-        }
-      }
-
-
 
     }
 
