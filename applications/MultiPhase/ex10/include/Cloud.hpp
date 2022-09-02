@@ -7,6 +7,7 @@
 
 #include "MultiLevelSolution.hpp"
 #include "./MyMarker/MyMarker.hpp"
+#include "MyEigenFunctions.hpp"
 
 namespace femus {
 
@@ -23,6 +24,8 @@ namespace femus {
       void PrintNoOrder(const unsigned &t);
       void PrintWithOrder(const unsigned &t);
       void PrintCSV(const unsigned &t);
+      
+      void ComputeQuadraticBestFit(Mesh* msh, std::map<unsigned, std::vector<double>> &A );
 
     private:
 
@@ -210,7 +213,37 @@ namespace femus {
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
-
+  
+  void Cloud::ComputeQuadraticBestFit(Mesh* msh, std::map<unsigned, std::vector<double>> &A ){
+    unsigned iproc = _sol->processor_id();
+    unsigned nel = msh->_elementOffset[iproc + 1] - msh->_elementOffset[iproc];
+    std::vector<std::vector<double>> coord;
+    std::vector<double> norm(_elem.size());
+    unsigned dim = _sol->GetMesh()->GetDimension();
+    
+    for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      unsigned cnt = 0;
+      bool MarkerInCell = false;
+      coord.resize(_elem.size());
+      for (unsigned i = 0; i < _elem.size(); i++){
+        if(_elem[i] == iel){
+          MarkerInCell = true;    
+          coord[cnt].resize(dim);  
+          norm.resize(dim);  
+          for( unsigned k = 0; k < dim; k++) {
+            coord[cnt][k] = _yp[i][k];
+            norm[k] = _N[i][k];
+          }
+          cnt++;
+        }  
+      }
+      if(MarkerInCell){
+        coord.resize(cnt);
+        std::vector<double> w(cnt, 1.); //TODO
+        femus::FindQuadraticBestFit(coord, w, norm, A[iel]);
+      }
+    }
+  }
 
 }
 

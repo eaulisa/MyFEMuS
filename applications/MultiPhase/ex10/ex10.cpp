@@ -60,12 +60,13 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
 void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob);
+void TestMarkersAndCloud(MultiLevelProblem & ml_prob);
 
 int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
+  
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
@@ -114,6 +115,27 @@ int main(int argc, char** args) {
   mlSol.FixSolutionAtOnePoint("P");
 
   mlSol.GenerateBdc("All");
+  
+// define the multilevel problem attach the mlSol object to it
+  MultiLevelProblem mlProb(&mlSol);
+
+  // add system Poisson in mlProb as a Linear Implicit System
+  NonLinearImplicitSystem& system = mlProb.add_system < NonLinearImplicitSystem > ("NS");
+
+  // add solution "u" to system
+  system.AddSolutionToSystemPDE("U");
+  system.AddSolutionToSystemPDE("V");
+
+  if(dim == 3) system.AddSolutionToSystemPDE("W");
+
+  system.AddSolutionToSystemPDE("P");
+
+  // attach the assembling function to system
+//   system.SetAssembleFunction(TestMarkersAndCloud);
+
+  const unsigned level = system.GetLevelToAssemble();
+  Mesh*          msh          = mlProb._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
+
 
 
 
@@ -134,11 +156,11 @@ int main(int argc, char** args) {
     iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
     if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
       xi = mrk.GetIprocLocalCoordinates();
-      std::cerr << "the point " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-      std::cerr << std::endl << std::flush;
+//       std::cerr << "the point " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+//       std::cerr << std::endl << std::flush;
     }
   }
   else if(iproc == 0) {
@@ -155,11 +177,11 @@ int main(int argc, char** args) {
     iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
     if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
       xi = mrk.GetIprocLocalCoordinates();
-      std::cerr << "the point " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-      std::cerr << std::endl << std::flush;
+//       std::cerr << "the point " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+//       std::cerr << std::endl << std::flush;
     }
   }
   else if(iproc == 0) {
@@ -177,11 +199,11 @@ int main(int argc, char** args) {
     iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
     if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
       xi = mrk.GetIprocLocalCoordinates();
-      std::cerr << "the point " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-      std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-      for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-      std::cerr << std::endl << std::flush;
+//       std::cerr << "the point " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
+//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
+//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
+//       std::cerr << std::endl << std::flush;
     }
   }
 
@@ -312,19 +334,21 @@ int main(int argc, char** args) {
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
-  // BEGIN Testing the class Cloud
+//   // BEGIN Testing the class Cloud
   Cloud cld;
-  for(unsigned it = 0; it < 4; it++) {
-    cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
-    cld.PrintWithOrder(0);
-    cld.PrintCSV(it);
-    Xc[0] += 0.1;
-    Xc[1] += 0.05;
-    R += 0.05;
-  }
-  // END Testing the class Cloud
-  
+//   std::cout << "Testing the class Cloud \n";
+//   for(unsigned it = 0; it < 4; it++) {
+//     cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+//     cld.PrintWithOrder(0);
+//     cld.PrintCSV(it);
+//     Xc[0] += 0.1;
+//     Xc[1] += 0.05;
+//     R += 0.05;
+//   }
+//   // END Testing the class Cloud
+//   
   // BEGIN test of the FindQuadraticBestFit Function
+  std::cout << "Testing the FindQuadraticBestFit Function \n";
   std::vector < std::vector < double > > Xpt;
   std::vector<double> w(8);
   std::vector < double > NN(dim, 0.);
@@ -346,27 +370,23 @@ int main(int argc, char** args) {
 //   std::cout << "\n";
   
   // END test of the FindQuadraticBestFit Function
-
-
-
-//   // define the multilevel problem attach the mlSol object to it
-//   MultiLevelProblem mlProb(&mlSol);
-//
-//   // add system Poisson in mlProb as a Linear Implicit System
-//   NonLinearImplicitSystem& system = mlProb.add_system < NonLinearImplicitSystem > ("NS");
-//
-//   // add solution "u" to system
-//   system.AddSolutionToSystemPDE("U");
-//   system.AddSolutionToSystemPDE("V");
-//
-//   if(dim == 3) system.AddSolutionToSystemPDE("W");
-//
-//   system.AddSolutionToSystemPDE("P");
-//
-//   // attach the assembling function to system
-//   system.SetAssembleFunction(AssembleBoussinesqAppoximation);
-//
-//   // initilaize and solve the system
+  
+  
+    // BEGIN test for the FindQuadraticBestFit function in class Cloud
+  std::cout << "\nTesting the FindQuadraticBestFit Function in class Cloud\n";
+  std::map<unsigned, std::vector<double>> A;
+  std::vector<double> ww();
+  cld.InitCircle(Xc, R, nMax, sol);
+  cld.ComputeQuadraticBestFit(msh, A);
+  for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
+    std::cout << "iel = " << iel << "   ";
+    for(unsigned i = 0; i < A[iel].size(); i++) std::cout << A[iel][i] << "  "; 
+    std::cout << "\n";
+  }
+  // END test for the FindQuadraticBestFit function in class Cloud
+  
+  
+  // initilaize and solve the system
 //   system.init();
 //   system.SetOuterSolver(PREONLY);
 //   system.MGsolve();
@@ -381,7 +401,6 @@ int main(int argc, char** args) {
 
   return 0;
 }
-
 
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
