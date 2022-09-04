@@ -357,46 +357,6 @@ int main(int argc, char** args) {
   }
   // END Testing the class Cloud
 
-
-
-//   for(unsigned j = 0; j < a.size(); j++){
-//     std::cout << a[j] << " ";
-//   }
-//   std::cout << "\n";
-
-  // END test of the FindQuadraticBestFit Function
-
-
-  // BEGIN test for the FindQuadraticBestFit function in class Cloud
-//   std::cout << "\nTesting the FindQuadraticBestFit Function in class Cloud\n";
-//
-//   std::vector<double> ww;
-//   cld.InitCircle(Xc, R, nMax, sol);
-//   cld.ComputeQuadraticBestFit();
-//
-//   std::cout << std::endl;
-//
-//   for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
-//     std::cout << "iel = " << iel << "   ";
-//     const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
-//     for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
-//     std::cout << "\n";
-//   }
-//
-//
-//   const std::map<unsigned, std::vector<double>> &A = cld.GetQuadraticBestFitCoefficients();
-//   for (std::map<unsigned, std::vector<double>>::const_iterator it = A.begin(); it != A.end(); ++it) {
-//     std::cout << it->first << "  => ";
-//     for(unsigned i = 0; i < it->second.size(); i++) std::cout << it->second[i] << "  ";
-//     std::cout << std::endl;
-//   }
-
-
-
-
-  // END test for the FindQuadraticBestFit function in class Cloud
-
-
   // initilaize and solve the system
 //   system.init();
 //   system.SetOuterSolver(PREONLY);
