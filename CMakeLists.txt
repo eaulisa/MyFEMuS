@@ -135,6 +135,8 @@ ENDIF(SLEPC_FOUND)
 #   SET(HAVE_LIBMESH 1)
 # ENDIF(LIBMESH_FOUND)
 
+SET(EIGEN_SAFE_TO_USE_STANDARD_ASSERT_MACRO FALSE)
+
 set(CMAKE_CXX_STANDARD 11)
 
 #############################################################################################

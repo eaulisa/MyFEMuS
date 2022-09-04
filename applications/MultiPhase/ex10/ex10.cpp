@@ -66,7 +66,7 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-  
+
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
@@ -115,7 +115,7 @@ int main(int argc, char** args) {
   mlSol.FixSolutionAtOnePoint("P");
 
   mlSol.GenerateBdc("All");
-  
+
 // define the multilevel problem attach the mlSol object to it
   MultiLevelProblem mlProb(&mlSol);
 
@@ -133,13 +133,10 @@ int main(int argc, char** args) {
   // attach the assembling function to system
 //   system.SetAssembleFunction(TestMarkersAndCloud);
 
-  const unsigned level = system.GetLevelToAssemble();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Mesh*          msh          = mlProb._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
 
-
-
-
-  Solution* sol = mlSol.GetSolutionLevel(0);
+  Solution* sol = mlSol.GetSolutionLevel(level);
   MyMarker mrk = MyMarker();
   std::vector<double> xp = {.35, .15};
   unsigned solTypeB = 2;
@@ -336,56 +333,70 @@ int main(int argc, char** args) {
 
 //   // BEGIN Testing the class Cloud
   Cloud cld;
-//   std::cout << "Testing the class Cloud \n";
-//   for(unsigned it = 0; it < 4; it++) {
-//     cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
-//     cld.PrintWithOrder(0);
-//     cld.PrintCSV(it);
-//     Xc[0] += 0.1;
-//     Xc[1] += 0.05;
-//     R += 0.05;
-//   }
-//   // END Testing the class Cloud
-//   
-  // BEGIN test of the FindQuadraticBestFit Function
-  std::cout << "Testing the FindQuadraticBestFit Function \n";
-  std::vector < std::vector < double > > Xpt;
-  std::vector<double> w(8);
-  std::vector < double > NN(dim, 0.);
-  std::vector < double > a;
-  Xpt.resize(8);
-  for(unsigned i = 0; i < 8; i++){
-    Xpt[i].resize(dim);
-    Xpt[i][0] = i * 0.1 + 0.1;
-    Xpt[i][1] = Xpt[i][0] * Xpt[i][0] + 1.1 * Xpt[i][0] + 1;
-    w[i] = 1;
+  std::cout << "Testing the class Cloud \n";
+  for(unsigned it = 0; it < 4; it++) {
+    cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+
+    cld.ComputeQuadraticBestFit();
+
+    for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
+      std::cout << "iel = " << iel << "   ";
+      const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+      for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
+      std::cout << "\n";
+    }
+
+    std::cout << std::endl;
+
+    cld.PrintWithOrder(0);
+    cld.PrintCSV(it);
+
+    Xc[0] += 0.1;
+    Xc[1] += 0.05;
+    R += 0.05;
   }
-  femus::FindQuadraticBestFit(Xpt, w, NN, a);
-  for( unsigned j = 0; j < a.size(); j++) std::cout << a[j] << " ";
-  std::cout<<std::endl;
-      
+  // END Testing the class Cloud
+
+
+
 //   for(unsigned j = 0; j < a.size(); j++){
-//     std::cout << a[j] << " ";   
+//     std::cout << a[j] << " ";
 //   }
 //   std::cout << "\n";
-  
+
   // END test of the FindQuadraticBestFit Function
-  
-  
-    // BEGIN test for the FindQuadraticBestFit function in class Cloud
-  std::cout << "\nTesting the FindQuadraticBestFit Function in class Cloud\n";
-  std::map<unsigned, std::vector<double>> A;
-  std::vector<double> ww();
-  cld.InitCircle(Xc, R, nMax, sol);
-  cld.ComputeQuadraticBestFit(msh, A);
-  for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
-    std::cout << "iel = " << iel << "   ";
-    for(unsigned i = 0; i < A[iel].size(); i++) std::cout << A[iel][i] << "  "; 
-    std::cout << "\n";
-  }
+
+
+  // BEGIN test for the FindQuadraticBestFit function in class Cloud
+//   std::cout << "\nTesting the FindQuadraticBestFit Function in class Cloud\n";
+//
+//   std::vector<double> ww;
+//   cld.InitCircle(Xc, R, nMax, sol);
+//   cld.ComputeQuadraticBestFit();
+//
+//   std::cout << std::endl;
+//
+//   for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
+//     std::cout << "iel = " << iel << "   ";
+//     const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+//     for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
+//     std::cout << "\n";
+//   }
+//
+//
+//   const std::map<unsigned, std::vector<double>> &A = cld.GetQuadraticBestFitCoefficients();
+//   for (std::map<unsigned, std::vector<double>>::const_iterator it = A.begin(); it != A.end(); ++it) {
+//     std::cout << it->first << "  => ";
+//     for(unsigned i = 0; i < it->second.size(); i++) std::cout << it->second[i] << "  ";
+//     std::cout << std::endl;
+//   }
+
+
+
+
   // END test for the FindQuadraticBestFit function in class Cloud
-  
-  
+
+
   // initilaize and solve the system
 //   system.init();
 //   system.SetOuterSolver(PREONLY);

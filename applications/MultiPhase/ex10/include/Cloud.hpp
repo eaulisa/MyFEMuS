@@ -24,8 +24,21 @@ namespace femus {
       void PrintNoOrder(const unsigned &t);
       void PrintWithOrder(const unsigned &t);
       void PrintCSV(const unsigned &t);
-      
-      void ComputeQuadraticBestFit(Mesh* msh, std::map<unsigned, std::vector<double>> &A );
+
+      void ComputeQuadraticBestFit();
+
+      const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
+        return _A;
+      }
+
+      const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
+        if(_A.find(iel) != _A.end()) {
+          return _A.at(iel);
+        }
+        else {
+          return {};
+        }
+      }
 
     private:
 
@@ -42,6 +55,7 @@ namespace femus {
       std::vector<unsigned> _elem;
       std::vector<unsigned> _map;
       MyMarker _mrk;
+      std::map<unsigned, std::vector<double>> _A;
 
   };
 
@@ -95,6 +109,8 @@ namespace femus {
     _elem.resize(cnt);
     _N.resize(cnt);
     _kappa.resize(cnt);
+
+    CreateMap();
   }
 
   void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
@@ -153,7 +169,7 @@ namespace femus {
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
     unsigned dim = _sol->GetMesh()->GetDimension();
-    CreateMap();
+
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(kp == iproc) {
         if(kp == 0) _fout.open("markerTest.dat", std::fstream::out);
@@ -180,7 +196,7 @@ namespace femus {
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
     unsigned dim = _sol->GetMesh()->GetDimension();
-    CreateMap();
+
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(kp == iproc) {
         std::ostringstream foo (std::ostringstream::ate);
@@ -213,35 +229,32 @@ namespace femus {
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
-  
-  void Cloud::ComputeQuadraticBestFit(Mesh* msh, std::map<unsigned, std::vector<double>> &A ){
-    unsigned iproc = _sol->processor_id();
-    unsigned nel = msh->_elementOffset[iproc + 1] - msh->_elementOffset[iproc];
-    std::vector<std::vector<double>> coord;
-    std::vector<double> norm(_elem.size());
+
+  void Cloud::ComputeQuadraticBestFit() {
+
+    _A.clear();
+
     unsigned dim = _sol->GetMesh()->GetDimension();
-    
-    for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+    std::vector<std::vector<double>> coord;
+    coord.reserve(_elem.size());
+    std::vector<double> norm;
+
+    coord.resize(0);
+    unsigned i = 0;
+    while(i < _elem.size()) {
+      unsigned iel = _elem[_map[i]];
       unsigned cnt = 0;
-      bool MarkerInCell = false;
-      coord.resize(_elem.size());
-      for (unsigned i = 0; i < _elem.size(); i++){
-        if(_elem[i] == iel){
-          MarkerInCell = true;    
-          coord[cnt].resize(dim);  
-          norm.resize(dim);  
-          for( unsigned k = 0; k < dim; k++) {
-            coord[cnt][k] = _yp[i][k];
-            norm[k] = _N[i][k];
-          }
-          cnt++;
-        }  
+      while (i < _elem.size() && _elem[_map[i]] == iel) {
+        coord.resize(cnt + 1, std::vector<double> (dim));
+        norm.assign(dim, 0);
+        for( unsigned k = 0; k < dim; k++) {
+          coord[cnt][k] = _yp[_map[i]][k];
+          norm[k] += _N[_map[i]][k];
+        }
+        cnt++;
+        i++;
       }
-      if(MarkerInCell){
-        coord.resize(cnt);
-        std::vector<double> w(cnt, 1.); //TODO
-        femus::FindQuadraticBestFit(coord, w, norm, A[iel]);
-      }
+      femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
     }
   }
 

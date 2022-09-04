@@ -206,6 +206,9 @@ namespace femus {
     a[3] -= 2 * a[0] * xg[0] + a[1] * xg[1];
     a[4] -= 2 * a[2] * xg[1] + a[1] * xg[0];
 
+    double norm = 0.;
+    for(unsigned i = 0; i < a.size(); i++) norm += a[i] * a[i];
+    norm = sqrt(norm);
     std::vector<double> N1 = {2 * a[0] * xg[0] + a[1] * xg[1] + a[3],  a[1] * xg[0] + 2 * a[2] * xg[1] + a[4]};
     double NdotN1 = 0;
     for(unsigned k = 0; k < dim; k++) {
@@ -213,9 +216,15 @@ namespace femus {
     }
     if(NdotN1 < 0) {
       for(unsigned i = 0 ; i < a.size(); i++) {
-        a[i] = -a[i];
+        a[i] = -a[i] / norm;
       }
     }
+    else {
+      for(unsigned i = 0 ; i < a.size(); i++) {
+        a[i] = a[i] / norm;
+      }
+    }
+
   }
 
 

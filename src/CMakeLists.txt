@@ -6,7 +6,7 @@ PROJECT(femus)
 ### Source files
 #############################################################################################
 
-SET(femus_src 
+SET(femus_src
 algebra/DenseMatrixBase.cpp
 algebra/DenseMatrix.cpp
 algebra/DenseSubmatrix.cpp
