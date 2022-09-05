@@ -93,8 +93,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
 //   }
 //   else {
   if(counter == 0) {
-    // *(sol->_Sol[solMuIndex[0]]) = 0.1;
-    // *(sol->_Sol[solMuIndex[1]]) = 0.1;
+    //*(sol->_Sol[solMuIndex[0]]) = 0.1;
+    //*(sol->_Sol[solMuIndex[1]]) = 0.2;
     sol->_Sol[solMuIndex[0]]->zero();
     sol->_Sol[solMuIndex[1]]->zero();
   }
@@ -267,6 +267,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
         }
       }
 
+      //std::cout<<mu[0] << " " <<mu[1]<<" ";
+
       // Compute the metric, metric determinant, and area element.
       adept::adouble g[dim][dim];
       g[0][0] = (1. + 2.* mu[0] + mu[0] * mu[0]) + mu[1] * mu[1];
@@ -277,6 +279,8 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       adept::adouble detg = g[0][0] * g[1][1] - g[0][1] * g[1][0]; //(1-|mu|^2)^2
       adept::adouble Area = weight * sqrt(detg); // (1-|mu|^2) dA
 
+
+
       // Compute the metric inverse.
       adept::adouble gi[dim][dim];
       gi[0][0] =  g[1][1] / detg;
@@ -284,12 +288,13 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       gi[1][0] = -g[1][0] / detg;
       gi[1][1] =  g[0][0] / detg;
 
+      //std::cout<<gi[0][0] <<" " << gi[1][0] <<" "<<gi[0][1] <<" " << gi[1][1];
 
-      std::vector<std::vector <adept::adouble> > gradSolDx(DIM, std::vector<adept::adouble>(dim, 0.));
+      std::vector<std::vector <adept::adouble> > gradSolX(DIM, std::vector<adept::adouble>(dim, 0.));
       for(unsigned I = 0; I < DIM; I++) {
         for(unsigned i = 0; i < nxDofs; i++) {
           for(unsigned j = 0; j < dim; j++) {
-            gradSolDx[I][j] += dphidu[i * dim + j] * solDx[I][i];
+            gradSolX[I][j] += dphidu[i * dim + j] * x[I][i];
           }
         }
       }
@@ -299,7 +304,7 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
           adept::adouble term = 0.;
           for(unsigned j = 0; j < dim; j++) {
             for(unsigned k = 0; k < dim; k++) {
-              term +=  dphidu[i * dim + j] * gi[j][k] * gradSolDx[I][k];
+              term +=  dphidu[i * dim + j] * gi[j][k] * gradSolX[I][k];
             }
           }
           maRes[I * nxDofs + i] -= term * Area;
@@ -318,18 +323,43 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       //   fzb[I][1] = 0.5 * (mu[1] * gradSolDx[I][0] + (1 - mu[1]) * gradSolDx[I][1]);
       // }
 
-      double normal[3] = {0., 0., 1.};
+      adept::adouble normal[3] = {0., 0., 1.};
+
+      normal[0] = gradSolX[1][0] * gradSolX[2][1] - gradSolX[2][0] * gradSolX[1][1];
+      normal[1] = gradSolX[2][0] * gradSolX[0][1] - gradSolX[0][0] * gradSolX[2][1];
+      normal[2] = gradSolX[0][0] * gradSolX[1][1] - gradSolX[1][0] * gradSolX[0][1];
+
+      adept::adouble normN = 0.;
+      for(unsigned k = 0; k < DIM; k++) {
+        normN += normal[k] * normal[k];
+      }
+      normN = sqrt(normN);
+      for(unsigned k = 0; k < DIM; k++) {
+        normal[k] /= normN;
+      }
+
+      boost::math::quaternion <double> N(0, normal[0].value(), normal[1].value(), normal[2].value());
+      boost::math::quaternion <double> MU(mu[0].value(), mu[1].value() * normal[0].value(), mu[1].value() * normal[1].value(), mu[1].value() * normal[2].value());
+      boost::math::quaternion <double> DX1(0, gradSolX[0][0].value(), gradSolX[1][0].value(),gradSolX[2][0].value());
+      boost::math::quaternion <double> DX2(0, gradSolX[0][1].value(), gradSolX[1][1].value(),gradSolX[2][1].value());
+
+      boost::math::quaternion <double> DXp = 0.5 * (DX1 + N * DX2);
+      boost::math::quaternion <double> DXm = 0.5 * (DX1 - N * DX2);
+      boost::math::quaternion <double> Q = DXp * conj(DXm) +
+                                           norm(MU)*DXm*conj(DXp) -
+                                           (MU*norm(DXm)+conj(MU)*norm(DXp));
+
       adept::adouble dXm[DIM];
       adept::adouble dXp[DIM];
 
       adept::adouble NCrossX2[DIM];
-      NCrossX2[0] = normal[1] * gradSolDx[2][1] - normal[2] * gradSolDx[1][1];
-      NCrossX2[1] = normal[2] * gradSolDx[0][1] - normal[0] * gradSolDx[2][1];
-      NCrossX2[2] = normal[0] * gradSolDx[1][1] - normal[1] * gradSolDx[0][1];
+      NCrossX2[0] = normal[1] * gradSolX[2][1] - normal[2] * gradSolX[1][1];
+      NCrossX2[1] = normal[2] * gradSolX[0][1] - normal[0] * gradSolX[2][1];
+      NCrossX2[2] = normal[0] * gradSolX[1][1] - normal[1] * gradSolX[0][1];
 
       for(unsigned I = 0; I < DIM; I++) {
-        dXm[I] = 0.5 * (gradSolDx[I][0] - NCrossX2[I]);
-        dXp[I] = 0.5 * (gradSolDx[I][0] + NCrossX2[I]);
+        dXm[I] = 0.5 * (gradSolX[I][0] - NCrossX2[I]);
+        dXp[I] = 0.5 * (gradSolX[I][0] + NCrossX2[I]);
       }
 
       adept::adouble dXpCrossdXm[DIM];
@@ -353,12 +383,16 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
       adept::adouble term[dim];    // (dXp * conj(dXm) + |mu|^2 dXm * conj(dXp)) (real part and N part)
       term[0] = (1 + muNorm2) * dXpDotdXm;
       for(unsigned I = 0; I < DIM; I++) {
-        term[1] -= (1-muNorm2) * dXpCrossdXm[I] * normal[I];
+        term[1] -= (1 - muNorm2) * dXpCrossdXm[I] * normal[I];
       }
 
       adept::adouble hopfD[dim];  // real part and N part of Hopf differential
-      hopfD[0] = term[0] - (mu[0] * dXmNorm2 + mu[0] * dXpNorm2);
-      hopfD[1] = term[1] - (mu[1] * dXmNorm2 - mu[1] * dXpNorm2);
+      hopfD[0] = term[0] - mu[0] * (dXmNorm2 + dXpNorm2);
+      hopfD[1] = term[1] - mu[1] * (dXmNorm2 - dXpNorm2);
+
+
+//       std::cout << hopfD[0].value() <<" "<< Q.real() << " aaa ";
+//      std::cout << hopfD[1].value() <<" "<< Q.R_component_2() * normal[0].value() + Q.R_component_3() * normal[1].value() + Q.R_component_4() * normal[2].value() << " aaa ";
 
       // adept::adouble fzfzbb[2];
 
@@ -641,9 +675,9 @@ void AssembleConformalMinimization(MultiLevelProblem& ml_prob) {
   RES->close();
   KK->close();
 
-  // KK->draw();
+//  KK->draw();
 
-
+  if(counter == 0) KK->print_matlab("matrixA", "ascii");
 //   if(areaConstraint) {
 //     double surfaceAreaAll;
 //     MPI_Reduce(&surfaceArea, &surfaceAreaAll, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);

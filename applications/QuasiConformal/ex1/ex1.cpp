@@ -56,7 +56,7 @@ bool SetBoundaryConditionTorus(const std::vector < double >& x, const char solNa
 const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 1, true, 3000, 1, 0.811569);
 //const Parameter squareQuad = Parameter("square with quads", 0, false, false, 5, 10, true, 300, 1, 0.811569);
 const Parameter squareTri = Parameter("square with triangles", 1, false, false, 5, 1, true, 500, 1, 0.805200);
-const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 4, 1, true, 1500, 1, 0.910958);
+const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 1, 1, true, 1500, 1, 0.910958);
 // const Parameter cylinderUnconstrained = Parameter("cylinder unconstrained", 2, true, false, 5, 1, true, 2, 20, 0.746343);
 //const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, false, 4, 3, true, 100, 1, 0.730090); //areaConstraint
 const Parameter cylinderConstrained = Parameter("cylinder constrained", 3, true, true, 4, 1, true, 1500, 1, 0.793786); //normal constraint
