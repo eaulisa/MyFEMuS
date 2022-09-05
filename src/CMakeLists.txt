@@ -116,15 +116,10 @@ utils/FemusInit.cpp
 utils/Files.cpp
 utils/input_parser/InputParser.cpp
 utils/input_parser/JsonInputParser.cpp
+utils/eigen/MyEigenFunctions.cpp
 uq/uq.cpp
 uq/sparseGrid.cpp
 )
-
-IF (NOT APPLE)
-  SET(femus_src 
-    utils/eigen/MyEigenFunctions.cpp
-  )
-ENDIF (NOT APPLE)
 
 IF (NOT LIBRARY_OUTPUT_PATH)
   SET (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib64 CACHE PATH
