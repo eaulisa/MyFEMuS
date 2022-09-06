@@ -36,7 +36,14 @@
 #include "Fem.hpp"
 #include "GenerateTriangles.hpp"
 
-#define RADIUS 0.2
+typedef double TypeIO;
+typedef cpp_bin_float_oct TypeA;
+
+// CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "legendre");
+Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+
+#define RADIUS 0.4
 #define XG 0.
 #define YG 0.
 #define ZG 0.
@@ -74,7 +81,8 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
 
 void GetNormalTet(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &a, double &d,  std::vector<double> &xm, std::vector<double> &b, double &db, double &vol, unsigned &cut);
 double getHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &aN, const std::vector <double> &a, const std::vector <double> &xg, const double &R);
-
+double CurvatureQuadric(const std::vector<double> &a, const std::vector<double> &xp);
+void NormalQuadric(const std::vector<double> &a, const std::vector<double> &xp, std::vector<double> &N);
 
 int main(int argc, char** args) {
 
@@ -107,7 +115,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("U", LAGRANGE, SECOND);
   mlSol.AddSolution("V", LAGRANGE, SECOND);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
-  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
+  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -466,14 +474,10 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
   xg[1] = YG;
   if(dim > 2) xg[2] = ZG;
   
-  typedef double TypeIO;
-  typedef cpp_bin_float_oct TypeA;
-  
   unsigned qM = 3;
   double dx = .05;
   double dt = 2.;
   
-  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
@@ -554,30 +558,75 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
       }
     }
     
+    const elem_type *femV = fem.GetFiniteElement(ielGeom, solVType);
+    
     std::vector <TypeIO> weightCF;
     if(cut == 1) {
         bool wMap = 1;
         if(ielGeom == 3) {
-          //quad.GetWeightWithMap(0, b, db, weightCF);
-          quadCD.GetWeight(b, db, weightCF);        
+          quad.GetWeightWithMap(-1, b, db, weightCF);
+//           quadCD.GetWeight(b, db, weightCF);        
         }
         else if(ielGeom == 4) {
           triCD.GetWeight(b, db, weightCF);
           const double* weightG = tri.GetGaussWeightPointer();
         }
         else if(ielGeom == 1) {
-          tet.GetWeightWithMap(0, b, db, weightCF);
+          tet.GetWeightWithMap(-1, b, db, weightCF);
           const double* weightG = tet.GetGaussWeightPointer();
         }
       }
-
+      
+      std::vector<double> xqp(dim);
+      std::vector<double> NN(dim, 0.);
+      double kk = 0.;
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       msh->_finiteElement[ielGeom][solVType]->Jacobian(coordX, ig, weight, phiV, phiV_x);
       phiP = msh->_finiteElement[ielGeom][solPType]->GetPhi(ig);
+      
+      double dsN = 0.;
+      std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
+      
+      if(cut == 1){
+      
+      std::vector<std::vector<double>> Jacob, JacI;
+      femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI); 
+      
+      for(unsigned k = 0; k < dim; k++) {
+         for(unsigned j = 0; j < dim; j++) {
+            Nf[k] += JacI[j][k] * (-a[j]); // remember, a is the unit normal in the parent element from the solid to the fluid
+         }
+         dsN += Nf[k] * Nf[k];
+       }
+       dsN = sqrt(dsN);
+       for(unsigned k = 0; k < dim; k++) {
+          Nf[k] /= dsN;
+       }
+      }
 
+
+      
+      for(unsigned k = 0; k < dim; k++){
+        xqp[k] = 0.;
+      }
+      
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned k = 0; k < dim; k++){
+          xqp[k] += coordX[k][i] * phiV[i];
+        }
+      }
+      if(cut == 1) {
+      double magN2 = 0.;
+      kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
+//       kk = 1. / RADIUS;
+      NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
+      for(unsigned k = 0; k < dim; k++) magN2 += NN[k] * NN[k];
+      for(unsigned k = 0; k < dim; k++) NN[k] /= sqrt(magN2);
+      }
+      
       std::vector < double > solV_gss(dim, 0);
       std::vector < std::vector < double > > gradSolV_gss(dim);
 
@@ -601,7 +650,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         solP_gss += phiP[i] * solP[i];
       }
 
-      double nu = 1. / 500.;
+      double nu = 1. ;
       
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsV; i++) {
@@ -613,7 +662,9 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
           }
           NSV += - phiV_x[i * dim + I] * solP_gss; // pressure gradient
           Res[I * nDofsV + i] -=  NSV * weight;
-          if(cut == 1) Res[I * nDofsV + i] +=  phiV[i] * b[I] * weight * weightCF[ig];
+          if(cut == 1) {
+              Res[I * nDofsV + i] +=  phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; //TODO
+          }
         }
       } // end phiV_i loop
 
@@ -665,7 +716,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
 
   RES->close();
   KK->close();
-
+  
 //  VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
 //MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
 
@@ -802,8 +853,8 @@ void GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vec
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
 
-    std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
-    std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
+//     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+//     std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
 
 
 
@@ -1160,8 +1211,8 @@ void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vect
     double d2 = sqrt(pow(xm[0] - xg[0], 2) + pow(xm[1] - xg[1], 2));
     d = d2 * tan(0.5 * DT);
 
-    std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
-    std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
+//     std::cout << "xm = " << xm[0] << " " << xm[1] << std::endl;
+//     std::cout << "a = " << a[0] << " b = " << a[1] << std::endl;
 
 
 
@@ -1708,6 +1759,25 @@ double getHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &
   }
 
   return R * pow(S / A, 1. / 3.);
+}
+
+double CurvatureQuadric(const std::vector<double> &a, const std::vector<double> &xp){
+    double k = (8 * a[0] * a[1] * a[1] * xp[1] * xp[1] + 2 * a[1] * ((a[3] + 2 * a[0] * xp[0]) * (a[3] + 2 * a[0] * xp[0]) + 4 * a[0] * (a[4] + a[2] * xp[0]) * xp[1] - a[2] * a[2] * xp[1] * xp[1]) - 2 * (a[4] + a[2] * xp[0]) * (-a[0] * a[4] + a[2] * (a[3] + a[0] * xp[0] + a[2] * xp[1])))/pow(((a[4] + a[2] * xp[0] + 2 * a[1] * xp[1])*(a[4] + a[2] * xp[0] + 2 * a[1] * xp[1]) + (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]) * (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1])), 3./2.);
+    return k;
+}
+
+void NormalQuadric(const std::vector<double> &a, const std::vector<double> &xp, std::vector<double> &N){
+  N.resize(xp.size());
+  
+  N[0] = ((a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]) * (8 * a[0] * a[1] * a[1] * xp[1] * xp[1] +
+     2 * a[1] * ((a[3] + 2 * a[0] * xp[0]) * (a[3] + 2 * a[0] * xp[0]) + 4 * a[0] * (a[4] + a[2] * xp[0]) * xp[1] - a[2] * a[2] * xp[1] * xp[1]) -
+     2 * (a[4] + a[2] * xp[0]) * (-a[0] * a[4] + a[2] * (a[3] + a[0] * xp[0] + a[2] * xp[1]))))/(pow((a[4] + a[2] * xp[0] +
+     2 * a[1] * xp[1]) * (a[4] + a[2] * xp[0] + 2 * a[1] * xp[1]) + (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]) * (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]), 2));
+     
+     N[1] = ((a[4] + a[2] * xp[0] + 2 * a[1] * xp[1]) * (8 * a[0] * a[1] * a[1] * xp[1] * xp[1] +
+     2 * a[1] * ((a[3] + 2 * a[0] * xp[0]) * (a[3] + 2 * a[0] * xp[0]) + 4 * a[0] * (a[4] + a[2] * xp[0]) * xp[1] - a[2] * a[2] * xp[1] * xp[1]) -
+     2 * (a[4] + a[2] * xp[0]) * (-a[0] * a[4] + a[2] * (a[3] + a[0] * xp[0] + a[2] * xp[1]))))/(pow((a[4] + a[2] * xp[0] +
+     2 * a[1] * xp[1]) * (a[4] + a[2] * xp[0] + 2 * a[1] * xp[1]) + (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]) * (a[3] + 2 * a[0] * xp[0] + a[2] * xp[1]),2));
 }
 
 /*

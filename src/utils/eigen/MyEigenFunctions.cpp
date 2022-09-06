@@ -99,7 +99,7 @@ namespace femus {
 
   void FindQuadraticBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
     const unsigned& dim = N.size();
-    const unsigned nParam = 4 * dim - 2;
+    unsigned nParam = 4 * dim - 2;
 
     a.resize(nParam);
     unsigned np = xp.size();
@@ -193,6 +193,17 @@ namespace femus {
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
     const Eigen::MatrixXd &v = svd.matrixV();
+
+    double norm2 = 0;
+    for(unsigned i = 0; i < a.size(); i++) {
+      norm2 += v(i, nParam - 1) * v(i, nParam - 1);
+    }
+    while (norm2 == 0) {
+      nParam--;
+      for(unsigned i = 0; i < a.size(); i++) {
+        norm2 += v(i, nParam - 1) * v(i, nParam - 1);
+      }
+    }
 
     // use singular vector associated with min singular vector
 

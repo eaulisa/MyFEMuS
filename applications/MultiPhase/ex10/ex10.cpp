@@ -26,9 +26,9 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
-#include "./include/MyMarker/MyMarker.hpp"
-#include "./include/MyMarker/MyMarker.cpp"
-#include "./include/Cloud.hpp"
+#include "../include/MyMarker/MyMarker.hpp"
+#include "../include/MyMarker/MyMarker.cpp"
+#include "../include/Cloud.hpp"
 #include "MyEigenFunctions.hpp"
 
 #include <fstream>
