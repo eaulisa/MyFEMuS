@@ -36,17 +36,23 @@
 #include "Fem.hpp"
 #include "GenerateTriangles.hpp"
 
+#include "../include/MyMarker/MyMarker.hpp"
+#include "../include/MyMarker/MyMarker.cpp"
+#include "../include/Cloud.hpp"
+
 typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+Cloud *cld;
 
 #define RADIUS 0.4
 #define XG 0.
 #define YG 0.
 #define ZG 0.
+#define nMax 1000
 
 using namespace femus;
 
@@ -88,6 +94,8 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+  
+  cld = new Cloud();
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -115,7 +123,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("U", LAGRANGE, SECOND);
   mlSol.AddSolution("V", LAGRANGE, SECOND);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
-  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -168,6 +176,8 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(true);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
 
+  delete cld;
+  
   return 0;
 }
 
@@ -485,8 +495,20 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
   
   /* END cutfem stuff for surface tension integration */
   
+  cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+
+  cld->ComputeQuadraticBestFit();
+  
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      
+//       for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
+//       std::cout << "iel = " << iel << "   ";
+//       const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+//       for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
+//       std::cout << "\n";
+//     }
+//     std::cout << std::endl;
 
 
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -618,6 +640,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
           xqp[k] += coordX[k][i] * phiV[i];
         }
       }
+      
       if(cut == 1) {
       double magN2 = 0.;
       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);

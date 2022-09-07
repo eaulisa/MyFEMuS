@@ -39,6 +39,28 @@ namespace femus {
           return {};
         }
       }
+      
+      unsigned GetNumberOfMarker(const unsigned &iel){
+        unsigned cnt = 0;
+        for(unsigned i = 0; i <_elem.size(); i++){
+            if(_elem[_map[i]] == iel) cnt++;
+        }
+        return cnt;
+      }
+      
+      double getCurvature(const unsigned &iel, const std::vector<double> &xp){
+        return (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))/pow(((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1])*(_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1])), 3./2.);
+      }
+      
+      std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp){
+        std::vector<double> N(xp.size());
+  
+        N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))))/(pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
+        
+        N[1] = ((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))))/(pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]),2));
+        
+        return N;
+      }
 
     private:
 
@@ -229,9 +251,8 @@ namespace femus {
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
-
+  
   void Cloud::ComputeQuadraticBestFit() {
-
     _A.clear();
 
     unsigned dim = _sol->GetMesh()->GetDimension();
@@ -254,10 +275,21 @@ namespace femus {
         cnt++;
         i++;
       }
-      femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+      if(coord.size() == 1){} //not yet implemented
+      else if (coord.size() > 1 && coord.size() < 5) { // linear interpolation for nmarker \in [2, 4]
+        _A[iel].resize(coord[cnt].size() + 1);
+        std::vector<double> a(coord[cnt].size());
+        double d =0.;
+        femus::FindBestFit(coord, boost::none, norm, a, d);    
+        for(unsigned k = 0; k < coord[cnt].size(); k++) _A[iel][k] = a[k];
+        _A[iel][coord[cnt].size()] = d; 
+      }
+      else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
     }
   }
 
 }
+
+
 
 #endif

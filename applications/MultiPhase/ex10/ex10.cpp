@@ -345,7 +345,6 @@ int main(int argc, char** args) {
       for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
       std::cout << "\n";
     }
-
     std::cout << std::endl;
 
     cld.PrintWithOrder(0);
