@@ -17,7 +17,7 @@ namespace femus {
         _mrk = MyMarker();
       };
       ~Cloud() {};
-      void SetNumberOfMarker( const unsigned &nMax );
+      void SetNumberOfMarker(const unsigned &nMax);
       void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
       void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol);
 
@@ -39,26 +39,26 @@ namespace femus {
           return {};
         }
       }
-      
-      unsigned GetNumberOfMarker(const unsigned &iel){
+
+      unsigned GetNumberOfMarker(const unsigned &iel) {
         unsigned cnt = 0;
-        for(unsigned i = 0; i <_elem.size(); i++){
-            if(_elem[_map[i]] == iel) cnt++;
+        for(unsigned i = 0; i < _elem.size(); i++) {
+          if(_elem[_map[i]] == iel) cnt++;
         }
         return cnt;
       }
-      
-      double getCurvature(const unsigned &iel, const std::vector<double> &xp){
-        return (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))/pow(((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1])*(_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1])), 3./2.);
+
+      double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
+        return (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))) / pow(((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1])), 3. / 2.);
       }
-      
-      std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp){
+
+      std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
         std::vector<double> N(xp.size());
-  
-        N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))))/(pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
-        
-        N[1] = ((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))))/(pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]),2));
-        
+
+        N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))) / (pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
+
+        N[1] = ((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))) / (pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
+
         return N;
       }
 
@@ -78,17 +78,20 @@ namespace femus {
       std::vector<unsigned> _map;
       MyMarker _mrk;
       std::map<unsigned, std::vector<double>> _A;
+      std::map<unsigned, unsigned [2] > _elMrkIdx;
+      std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
+
 
   };
 
-  void Cloud::SetNumberOfMarker( const unsigned &nMax ) {
+  void Cloud::SetNumberOfMarker(const unsigned &nMax) {
     _nMrk = nMax;
   }
 
   void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol) {
 
     _sol = sol;
-    SetNumberOfMarker( nMax );
+    SetNumberOfMarker(nMax);
     double dt = 2. * M_PI / _nMrk;
     std::vector<double> xp(2);
 
@@ -112,7 +115,7 @@ namespace femus {
       if(elemSearch) {
         iel = _mrk.GetElement();
         if(_mrk.GetProc() == iproc) {
-          double NNorm = sqrt( a[0] * a[0] * cos(t) * cos(t) + a[1] * a[1] * sin(t) * sin(t));
+          double NNorm = sqrt(a[0] * a[0] * cos(t) * cos(t) + a[1] * a[1] * sin(t) * sin(t));
           _yp[cnt] = xp;
           _yi[cnt]  = _mrk.GetIprocLocalCoordinates();
           _N[cnt] = {a[0] * cos(t) / NNorm, a[1] * sin(t) / NNorm};
@@ -133,6 +136,22 @@ namespace femus {
     _kappa.resize(cnt);
 
     CreateMap();
+
+
+    _elMrkIdx.clear();
+    unsigned i = 0;
+    while(i < _elem.size()) {
+      unsigned iel = _elem[_map[i]];
+      _elMrkIdx[iel][0] = i;
+      while(i < _elem.size() && _elem[_map[i]] == iel) {
+        i++;
+      }
+      _elMrkIdx[iel][1] = i;
+    }
+
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+      std::cout << _itElMrkIdx->first << " " << _itElMrkIdx->second[0] << " " << _itElMrkIdx->second[1] << std::endl;
+    }
   }
 
   void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
@@ -153,7 +172,7 @@ namespace femus {
     }
   }
 
-  bool Cloud::ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem = UINT_MAX ) {
+  bool Cloud::ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem = UINT_MAX) {
     bool elemSearch;
     if(previousElem == UINT_MAX) elemSearch = _mrk.ParallelElementSearchWithInverseMapping(xp, _sol, 2);
     else elemSearch = _mrk.ParallelElementSearchWithInverseMapping(xp, _sol, 2, previousElem);
@@ -221,7 +240,7 @@ namespace femus {
 
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(kp == iproc) {
-        std::ostringstream foo (std::ostringstream::ate);
+        std::ostringstream foo(std::ostringstream::ate);
         foo.str("./output/marker");
         foo << t;
         foo << ".csv";
@@ -251,41 +270,93 @@ namespace femus {
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
-  
+
   void Cloud::ComputeQuadraticBestFit() {
     _A.clear();
+
+
+    Mesh *msh = _sol->GetMesh();
 
     unsigned dim = _sol->GetMesh()->GetDimension();
     std::vector<std::vector<double>> coord;
     coord.reserve(_elem.size());
     std::vector<double> norm;
 
-    coord.resize(0);
-    unsigned i = 0;
-    while(i < _elem.size()) {
-      unsigned iel = _elem[_map[i]];
+
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+      unsigned iel = _itElMrkIdx->first;
+      unsigned i0 = _itElMrkIdx->second[0];
+      unsigned i1 = _itElMrkIdx->second[1];
+      coord.resize(i1 - i0, std::vector<double> (dim));
+      norm.assign(dim, 0);
       unsigned cnt = 0;
-      while (i < _elem.size() && _elem[_map[i]] == iel) {
-        coord.resize(cnt + 1, std::vector<double> (dim));
-        norm.assign(dim, 0);
-        for( unsigned k = 0; k < dim; k++) {
+      for(unsigned i = i0; i < i1; i++, cnt++) {
+        for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
           norm[k] += _N[_map[i]][k];
         }
-        cnt++;
-        i++;
       }
-      if(coord.size() == 1){} //not yet implemented
-      else if (coord.size() > 1 && coord.size() < 5) { // linear interpolation for nmarker \in [2, 4]
+
+      if(coord.size() < 6) {
+        for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+          int jel = msh->el->GetFaceElementIndex(iel, iface) - 1; // porcata ma fallo cosi' se negativo e' un boundary
+          if(jel >= 0 &&  _elMrkIdx.find(jel) != _elMrkIdx.end()) {  // iface is
+            unsigned j0 = _elMrkIdx[jel][0];
+            unsigned j1 = _elMrkIdx[jel][1];
+            coord.resize( coord.size() + (j1 - j0), std::vector<double> (dim));
+            for(unsigned j = j0; j < j1; j++, cnt++) {
+              for(unsigned k = 0; k < dim; k++) {
+                coord[cnt][k] = _yp[_map[j]][k];
+              }
+            }
+          }
+        }
+      }
+
+
+      if(coord.size() == 1) {} //not yet implemented
+      else if(coord.size() > 1 && coord.size() < 5) {  // linear interpolation for nmarker \in [2, 4]
         _A[iel].resize(coord[cnt].size() + 1);
         std::vector<double> a(coord[cnt].size());
-        double d =0.;
-        femus::FindBestFit(coord, boost::none, norm, a, d);    
+        double d = 0.;
+        femus::FindBestFit(coord, boost::none, norm, a, d);
         for(unsigned k = 0; k < coord[cnt].size(); k++) _A[iel][k] = a[k];
-        _A[iel][coord[cnt].size()] = d; 
+        _A[iel][coord[cnt].size()] = d;
       }
       else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+
     }
+
+
+
+
+
+//     coord.resize(0);
+//     unsigned i = 0;
+//     while(i < _elem.size()) {
+//       unsigned iel = _elem[_map[i]];
+//       unsigned cnt = 0;
+//       while (i < _elem.size() && _elem[_map[i]] == iel) {
+//         coord.resize(cnt + 1, std::vector<double> (dim));
+//         norm.assign(dim, 0);
+//         for( unsigned k = 0; k < dim; k++) {
+//           coord[cnt][k] = _yp[_map[i]][k];
+//           norm[k] += _N[_map[i]][k];
+//         }
+//         cnt++;
+//         i++;
+//       }
+//       if(coord.size() == 1){} //not yet implemented
+//       else if (coord.size() > 1 && coord.size() < 5) { // linear interpolation for nmarker \in [2, 4]
+//         _A[iel].resize(coord[cnt].size() + 1);
+//         std::vector<double> a(coord[cnt].size());
+//         double d =0.;
+//         femus::FindBestFit(coord, boost::none, norm, a, d);
+//         for(unsigned k = 0; k < coord[cnt].size(); k++) _A[iel][k] = a[k];
+//         _A[iel][coord[cnt].size()] = d;
+//       }
+//       else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+//     }
   }
 
 }
