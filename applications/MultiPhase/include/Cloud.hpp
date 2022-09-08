@@ -149,9 +149,9 @@ namespace femus {
       _elMrkIdx[iel][1] = i;
     }
 
-    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
-      std::cout << _itElMrkIdx->first << " " << _itElMrkIdx->second[0] << " " << _itElMrkIdx->second[1] << std::endl;
-    }
+//     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+//       std::cout << _itElMrkIdx->first << " " << _itElMrkIdx->second[0] << " " << _itElMrkIdx->second[1] << std::endl;
+//     }
   }
 
   void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
@@ -315,17 +315,6 @@ namespace femus {
         }
       }
 
-
-//       if(coord.size() == 1) {} //not yet implemented
-//       else if(coord.size() > 1 && coord.size() < 5) {  // linear interpolation for nmarker \in [2, 4]
-//         _A[iel].resize(coord[cnt].size() + 1);
-//         std::vector<double> a(coord[cnt].size());
-//         double d = 0.;
-//         femus::FindBestFit(coord, boost::none, norm, a, d);
-//         for(unsigned k = 0; k < coord[cnt].size(); k++) _A[iel][k] = a[k];
-//         _A[iel][coord[cnt].size()] = d;
-//       }
-
       if(coord.size() < 6) {
         pSerach[iel] = true;
       }
@@ -338,113 +327,117 @@ namespace femus {
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
 
-    for(unsigned kp = 0; kp < nprocs; kp++) {
+    //if(nprocs > 1) {
 
-      unsigned elementStart = msh->_elementOffset[kp];
-      unsigned elementEnd = msh->_elementOffset[kp + 1];
+      for(unsigned kp = 0; kp < nprocs; kp++) {
 
-      unsigned nel;
-      if(iproc == kp) {
-        nel = pSerach.size();
-      }
-      MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+        unsigned elementStart = msh->_elementOffset[kp];
+        unsigned elementEnd = msh->_elementOffset[kp + 1];
 
-      if(nel > 0) {
+        unsigned nel;
         if(iproc == kp) {
-          it =  pSerach.begin();
+          nel = pSerach.size();
         }
-        for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
-          unsigned iel;
+        MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+
+        
+        MPI_Barrier(MPI_COMM_WORLD);
+        
+        if(nel > 0) {
           if(iproc == kp) {
-            iel = it->first;
-
-            unsigned i0 = _itElMrkIdx->second[0];
-            unsigned i1 = _itElMrkIdx->second[1];
-            coord.resize(i1 - i0, std::vector<double> (dim));
-            norm.assign(dim, 0);
-            unsigned cnt = 0;
-            for(unsigned i = i0; i < i1; i++, cnt++) {
-              for(unsigned k = 0; k < dim; k++) {
-                coord[cnt][k] = _yp[_map[i]][k];
-                norm[k] += _N[_map[i]][k];
-              }
-            }
+            it =  pSerach.begin();
           }
-
-          unsigned nFaces;
-          if(iproc == kp) {
-            nFaces = msh->GetElementFaceNumber(iel);
-          }
-          MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
-
-          for(unsigned iface = 0; iface < nFaces; iface++) {
-
-            int jel;
+          for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
+            unsigned kel;
+            unsigned nFaces;
             if(iproc == kp) {
-              jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+              kel = it->first;
+              unsigned i0 = _elMrkIdx[kel][0];
+              unsigned i1 = _elMrkIdx[kel][1];
+              coord.resize(i1 - i0, std::vector<double> (dim));
+              norm.assign(dim, 0);
+              unsigned cnt = 0;
+              for(unsigned i = i0; i < i1; i++, cnt++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  coord[cnt][k] = _yp[_map[i]][k];
+                  norm[k] += _N[_map[i]][k];
+                }
+              }
+              nFaces = msh->GetElementFaceNumber(kel);
             }
-            MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
+            MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
+        
+            for(unsigned iface = 0; iface < nFaces; iface++) {
 
-            if(jel >= 0) { // iface is not a boundary of the domain
+              int jel;
+              if(iproc == kp) {
+                jel = msh->el->GetFaceElementIndex(kel, iface) - 1;
+              }
+              MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
 
-              unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
-
-              std::vector<std::vector<double>> coordJel;
-              unsigned cntJel = 0;
-              if(iproc == jp) {
-                if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // iface is
-                  unsigned j0 = _elMrkIdx[jel][0];
-                  unsigned j1 = _elMrkIdx[jel][1];
-                  coordJel.resize(dim, std::vector<double> (j1 - j0));
-                  for(unsigned j = j0; j < j1; j++, cntJel++) {
-                    for(unsigned k = 0; k < dim; k++) {
-                      coordJel[k][cntJel] = _yp[_map[j]][k];
+              if(jel >= 0) { // iface is not a boundary of the domain
+                unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
+                std::vector<std::vector<double>> coordJel;
+                unsigned cntJel = 0;
+                if(iproc == jp) {
+                  if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // if cut cell
+                    unsigned j0 = _elMrkIdx[jel][0];
+                    unsigned j1 = _elMrkIdx[jel][1];
+                    coordJel.resize(dim, std::vector<double> (j1 - j0));
+                    for(unsigned j = j0; j < j1; j++, cntJel++) {
+                      for(unsigned k = 0; k < dim; k++) {
+                        coordJel[k][cntJel] = _yp[_map[j]][k];
+                      }
+                    }
+                  }
+                  if(jp != kp) {
+                    MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
+                    if(cntJel != 0) {
+                      for(unsigned k = 0; k < dim; k++) {
+                        MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
+                      }
                     }
                   }
                 }
-                MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
-                if(cntJel != 0) {
-                  for(unsigned k = 0; k < dim; k++) {
-                    MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
+
+                if(iproc == kp) {
+                  if(kp != jp) {
+                    MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    if(cntJel != 0) {
+                      coordJel.resize(dim, std::vector<double> (cntJel));
+                      for(unsigned k = 0; k < dim; k++) {
+                        MPI_Recv(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                      }
+                    }
                   }
+                  if(cntJel != 0) {
+                    unsigned size0 = coord.size();
+                    coord.resize(coord.size() + cntJel, std::vector<double> (dim));
+                    for(unsigned j = 0; j < cntJel; j++) {
+                      for(unsigned k = 0; k < dim; k++) {
+                        coord[size0 + j][k] = coordJel[k][j];
+                      }
+                    }
+                  } 
                 }
               }
-
-              if(iproc == kp) {
-                MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                if(cntJel != 0) {
-                  unsigned size0= coord.size();
-                  coord.resize(size0 + cntJel, std::vector<double> (dim));   
-                  for(unsigned k = 0; k < dim; k++) {
-                    MPI_Recv(&coord[k][size0], cntJel, MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                  }
-                }
-              }
-
-
+            }//face loop
+           
+            if(iproc == kp) {   
+              femus::FindQuadraticBestFit(coord, boost::none, norm, _A[kel]);  
+              it++;
             }
 
-
-
-
-          }
-
-
-
-          if(iproc == kp) {
-            it++;
-          }
-
+          }//element loop
         }
       }
-    }
 
-
+    //}
 
 
   }
 
-
+}
 
 
 
@@ -476,7 +469,7 @@ namespace femus {
 //     }
 //}
 
-}
+//}
 
 
 

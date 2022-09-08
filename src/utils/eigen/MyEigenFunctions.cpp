@@ -129,7 +129,7 @@ namespace femus {
           xk = (xp[i][k] - xg[k]);
           d2 += xk * xk;
         }
-        if (d2 > maxD2) maxD2 = d2;
+        if(d2 > maxD2) maxD2 = d2;
       }
       maxD = sqrt(maxD2);
 
@@ -169,7 +169,7 @@ namespace femus {
           xk = (xp[i][k] - xg[k]);
           d2 += xk * xk;
         }
-        if (d2 > maxD2) maxD2 = d2;
+        if(d2 > maxD2) maxD2 = d2;
       }
       maxD = sqrt(maxD2);
 
@@ -195,32 +195,84 @@ namespace femus {
     const Eigen::MatrixXd &v = svd.matrixV();
 
     double norm2 = 0;
-    for(unsigned i = 0; i < a.size(); i++) {
+    for(unsigned i = 0; i < nParam; i++) {
       norm2 += v(i, nParam - 1) * v(i, nParam - 1);
     }
-    while (norm2 == 0) {
-      nParam--;
-      for(unsigned i = 0; i < a.size(); i++) {
-        norm2 += v(i, nParam - 1) * v(i, nParam - 1);
-      }
-    }
+//     while (norm2 == 0) {
+//       nParam--;
+//       for(unsigned i = 0; i < a.size(); i++) {
+//         norm2 += v(i, nParam - 1) * v(i, nParam - 1);
+//       }
+//     }
 
     // use singular vector associated with min singular vector
 
-    a[0] = v(0, nParam - 1) / maxD2;
-    a[1] = v(1, nParam - 1) / maxD2;
-    a[2] = v(2, nParam - 1) / maxD2;
-    a[3] = v(3, nParam - 1) / maxD;
-    a[4] = v(4, nParam - 1) / maxD;
-    a[5] = v(5, nParam - 1) + a[0] * xg[0] * xg[0] +  a[1] * xg[0] * xg[1] + a[2] * xg[1] * xg[1] - a[3] * xg[0] - a[4] * xg[1];
+    double norm;
+    std::vector<double> N1(dim);
 
-    a[3] -= 2 * a[0] * xg[0] + a[1] * xg[1];
-    a[4] -= 2 * a[2] * xg[1] + a[1] * xg[0];
 
-    double norm = 0.;
-    for(unsigned i = 0; i < a.size(); i++) norm += a[i] * a[i];
-    norm = sqrt(norm);
-    std::vector<double> N1 = {2 * a[0] * xg[0] + a[1] * xg[1] + a[3],  a[1] * xg[0] + 2 * a[2] * xg[1] + a[4]};
+    if(np == 4) {
+      std::cout << v.cols() <<" ";
+      std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+      std::cout << v << std::endl;
+    }
+
+    if(norm2 > 0.1) {
+      a[0] = v(0, v.cols() - 1) / maxD2;
+      a[1] = v(1, v.cols() - 1) / maxD2;
+      a[2] = v(2, v.cols() - 1) / maxD2;
+      a[3] = v(3, v.cols() - 1) / maxD;
+      a[4] = v(4, v.cols() - 1) / maxD;
+      a[5] = v(5, v.cols() - 1) + a[0] * xg[0] * xg[0] +  a[1] * xg[0] * xg[1] + a[2] * xg[1] * xg[1] - a[3] * xg[0] - a[4] * xg[1];
+
+      a[3] -= 2 * a[0] * xg[0] + a[1] * xg[1];
+      a[4] -= 2 * a[2] * xg[1] + a[1] * xg[0];
+
+      norm = 0.;
+      for(unsigned i = 0; i < a.size(); i++) norm += a[i] * a[i];
+      norm = sqrt(norm);
+      N1 = {2 * a[0] * xg[0] + a[1] * xg[1] + a[3],  a[1] * xg[0] + 2 * a[2] * xg[1] + a[4]};
+    }
+    else {
+
+      std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+
+      nParam = dim + 1;
+      a.resize(nParam);
+      Eigen::MatrixXd m1(np, nParam);
+      for(unsigned j = 0; j < nParam; j++) {
+        m1.col(j) = m.col((dim * (dim + 1)) / 2 + j);
+      }
+
+      Eigen::JacobiSVD<Eigen::MatrixXd> svd(m1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      const Eigen::MatrixXd &v = svd.matrixV();
+
+      norm2 = 0;
+      for(unsigned i = 0; i < nParam; i++) {
+        norm2 += v(i, nParam - 1) * v(i, nParam - 1);
+      }
+
+      if(norm2 > 0.1) {
+        a[nParam - 1] = 0.;
+        for(unsigned i = 0; i < dim; i++) {
+          a[i] = v(i, nParam - 1);
+          a[nParam - 1] -= a[i] * xg[i];
+        }
+      }
+      else {
+        a[nParam - 1] = 0.;
+        for(unsigned i = 0; i < dim; i++) {
+          a[i] = N[i];
+          a[nParam - 1] -= a[i] * xg[i];
+        }
+      }
+
+      norm = 0.;
+      for(unsigned i = 0; i < a.size(); i++) norm += a[i] * a[i];
+      norm = sqrt(norm);
+      N1.insert(N1.begin(), a.begin(), a.begin() + dim);
+
+    }
     double NdotN1 = 0;
     for(unsigned k = 0; k < dim; k++) {
       NdotN1 += N[k] * N1[k];

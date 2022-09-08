@@ -204,7 +204,7 @@ int main(int argc, char** args) {
     }
   }
 
-  unsigned nMax = 1000;
+  unsigned nMax = 50;
   std::vector<std::vector<double>> yp(nMax);
   std::vector<std::vector<double>> N(nMax);
   std::vector<double> kappa(nMax);
@@ -339,13 +339,19 @@ int main(int argc, char** args) {
 
     cld.ComputeQuadraticBestFit();
 
-    for(unsigned iel = msh->_elementOffset[msh->processor_id()]; iel < msh->_elementOffset[msh->processor_id() + 1]; iel++) {
-      std::cout << "iel = " << iel << "   ";
-      const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
-      for(unsigned i = 0; i < a.size(); i++) std::cout << a[i] << "  ";
-      std::cout << "\n";
+
+    for(unsigned kp = 0; kp < nprocs; kp++) {
+      if(msh->processor_id() == kp) {
+        for(unsigned iel = msh->_elementOffset[kp]; iel < msh->_elementOffset[kp + 1]; iel++) {
+          std::cerr << "iel = " << iel << "   ";
+          const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+          for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
+          std::cerr << "\n";
+        }
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-    std::cout << std::endl;
+    std::cerr << std::endl;
 
     cld.PrintWithOrder(0);
     cld.PrintCSV(it);
