@@ -211,11 +211,11 @@ namespace femus {
     std::vector<double> N1(dim);
 
 
-    if(np == 4) {
-      std::cout << v.cols() <<" ";
-      std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-      std::cout << v << std::endl;
-    }
+//     if(np == 4) {
+//       std::cout << v.cols() <<" ";
+//       std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+//       std::cout << v << std::endl;
+//     }
 
     if(norm2 > 0.1) {
       a[0] = v(0, v.cols() - 1) / maxD2;
@@ -235,7 +235,7 @@ namespace femus {
     }
     else {
 
-      std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+     // std::cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
 
       nParam = dim + 1;
       a.resize(nParam);

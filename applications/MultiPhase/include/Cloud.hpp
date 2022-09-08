@@ -300,9 +300,9 @@ namespace femus {
       }
 
       if(coord.size() < 6) {
-        for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-          int jel = msh->el->GetFaceElementIndex(iel, iface) - 1; // porcata ma fallo cosi' se negativo e' un boundary
-          if(jel >= 0 &&  _elMrkIdx.find(jel) != _elMrkIdx.end()) {  // iface is
+        for(unsigned i = 0; i < msh->el->GetElementNearElementSize(iel,1); i++) {
+          int jel = msh->el->GetElementNearElement(iel, i); 
+          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem  
             unsigned j0 = _elMrkIdx[jel][0];
             unsigned j1 = _elMrkIdx[jel][1];
             coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
@@ -327,7 +327,7 @@ namespace femus {
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
 
-    //if(nprocs > 1) {
+    if(nprocs > 1) {
 
       for(unsigned kp = 0; kp < nprocs; kp++) {
 
@@ -349,7 +349,7 @@ namespace femus {
           }
           for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
             unsigned kel;
-            unsigned nFaces;
+            unsigned nNgbElms;
             if(iproc == kp) {
               kel = it->first;
               unsigned i0 = _elMrkIdx[kel][0];
@@ -363,24 +363,23 @@ namespace femus {
                   norm[k] += _N[_map[i]][k];
                 }
               }
-              nFaces = msh->GetElementFaceNumber(kel);
+              nNgbElms = msh->el->GetElementNearElementSize(kel,1);
             }
-            MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
+            MPI_Bcast(&nNgbElms, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
         
-            for(unsigned iface = 0; iface < nFaces; iface++) {
+            for(unsigned i = 0; i < nNgbElms; i++) {
 
               int jel;
               if(iproc == kp) {
-                jel = msh->el->GetFaceElementIndex(kel, iface) - 1;
+                jel = msh->el->GetElementNearElement(kel, i); 
               }
               MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
 
-              if(jel >= 0) { // iface is not a boundary of the domain
                 unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
                 std::vector<std::vector<double>> coordJel;
                 unsigned cntJel = 0;
                 if(iproc == jp) {
-                  if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // if cut cell
+                  if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // if jel is cut cell
                     unsigned j0 = _elMrkIdx[jel][0];
                     unsigned j1 = _elMrkIdx[jel][1];
                     coordJel.resize(dim, std::vector<double> (j1 - j0));
@@ -419,7 +418,6 @@ namespace femus {
                       }
                     }
                   } 
-                }
               }
             }//face loop
            
@@ -432,7 +430,7 @@ namespace femus {
         }
       }
 
-    //}
+    }
 
 
   }
