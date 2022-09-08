@@ -333,111 +333,111 @@ namespace femus {
 
     }
 
-//     map<unsigned, bool>::iterator it;
-// 
-//     unsigned iproc = _sol->processor_id();
-//     unsigned nprocs = _sol->n_processors();
-// 
-//     for(unsigned kp = 0; kp < nprocs; kp++) {
-// 
-//       unsigned elementStart = msh->_elementOffset[kp];
-//       unsigned elementEnd = msh->_elementOffset[kp + 1];
-// 
-//       unsigned nel;
-//       if(iproc == kp) {
-//         nel = pSerach.size();
-//       }
-//       MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
-// 
-//       if(nel > 0) {
-//         if(iproc == kp) {
-//           it =  pSerach.begin();
-//         }
-//         for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
-//           unsigned iel;
-//           if(iproc == kp) {
-//             iel = it->first;
-// 
-//             unsigned i0 = _itElMrkIdx->second[0];
-//             unsigned i1 = _itElMrkIdx->second[1];
-//             coord.resize(i1 - i0, std::vector<double> (dim));
-//             norm.assign(dim, 0);
-//             unsigned cnt = 0;
-//             for(unsigned i = i0; i < i1; i++, cnt++) {
-//               for(unsigned k = 0; k < dim; k++) {
-//                 coord[cnt][k] = _yp[_map[i]][k];
-//                 norm[k] += _N[_map[i]][k];
-//               }
-//             }
-//           }
-// 
-//           unsigned nFaces;
-//           if(iproc == kp) {
-//             nFaces = msh->GetElementFaceNumber(iel);
-//           }
-//           MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
-// 
-//           for(unsigned iface = 0; iface < nFaces; iface++) {
-// 
-//             int jel;
-//             if(iproc == kp) {
-//               jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
-//             }
-//             MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
-// 
-//             if(jel >= 0) { // iface is not a boundary of the domain
-// 
-//               unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
-// 
-//               std::vector<std::vector<double>> coordJel;
-//               unsigned cntJel = 0;
-//               if(iproc == jp) {
-//                 if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // iface is
-//                   unsigned j0 = _elMrkIdx[jel][0];
-//                   unsigned j1 = _elMrkIdx[jel][1];
-//                   coordJel.resize(j1 - j0, std::vector<double> (dim));
-//                   for(unsigned j = j0; j < j1; j++, cntJel++) {
-//                     for(unsigned k = 0; k < dim; k++) {
-//                       coordJel[cntJel][k] = _yp[_map[j]][k];
-//                     }
-//                   }
-//                 }
-//                 MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
-//                 if(cntJel != 0) {
-//                   for(unsigned k = 0; k < dim; k++) {
-//                     MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
-//                   }
-//                 }
-//               }
-// 
-//               if(iproc == kp) {
-//                 MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                 if(cntJel != 0) {
-//                   unsigned size0= coord.size();
-//                   coord.resize(size0 + cntJel, std::vector<double> (dim));   
-//                   for(unsigned k = 0; k < dim; k++) {
-//                     MPI_Send(&coord[k][size0], cntJel, MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD);
-//                   }
-//                 }
-//               }
-// 
-// 
-//             }
-// 
-// 
-// 
-// 
-//           }
-// 
-// 
-// 
-//           if(iproc == kp) {
-//             it++;
-//           }
-// 
-//         }
-//       }
-//     }
+    map<unsigned, bool>::iterator it;
+
+    unsigned iproc = _sol->processor_id();
+    unsigned nprocs = _sol->n_processors();
+
+    for(unsigned kp = 0; kp < nprocs; kp++) {
+
+      unsigned elementStart = msh->_elementOffset[kp];
+      unsigned elementEnd = msh->_elementOffset[kp + 1];
+
+      unsigned nel;
+      if(iproc == kp) {
+        nel = pSerach.size();
+      }
+      MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+
+      if(nel > 0) {
+        if(iproc == kp) {
+          it =  pSerach.begin();
+        }
+        for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
+          unsigned iel;
+          if(iproc == kp) {
+            iel = it->first;
+
+            unsigned i0 = _itElMrkIdx->second[0];
+            unsigned i1 = _itElMrkIdx->second[1];
+            coord.resize(i1 - i0, std::vector<double> (dim));
+            norm.assign(dim, 0);
+            unsigned cnt = 0;
+            for(unsigned i = i0; i < i1; i++, cnt++) {
+              for(unsigned k = 0; k < dim; k++) {
+                coord[cnt][k] = _yp[_map[i]][k];
+                norm[k] += _N[_map[i]][k];
+              }
+            }
+          }
+
+          unsigned nFaces;
+          if(iproc == kp) {
+            nFaces = msh->GetElementFaceNumber(iel);
+          }
+          MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
+
+          for(unsigned iface = 0; iface < nFaces; iface++) {
+
+            int jel;
+            if(iproc == kp) {
+              jel = msh->el->GetFaceElementIndex(iel, iface) - 1;
+            }
+            MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
+
+            if(jel >= 0) { // iface is not a boundary of the domain
+
+              unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
+
+              std::vector<std::vector<double>> coordJel;
+              unsigned cntJel = 0;
+              if(iproc == jp) {
+                if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // iface is
+                  unsigned j0 = _elMrkIdx[jel][0];
+                  unsigned j1 = _elMrkIdx[jel][1];
+                  coordJel.resize(dim, std::vector<double> (j1 - j0));
+                  for(unsigned j = j0; j < j1; j++, cntJel++) {
+                    for(unsigned k = 0; k < dim; k++) {
+                      coordJel[k][cntJel] = _yp[_map[j]][k];
+                    }
+                  }
+                }
+                MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
+                if(cntJel != 0) {
+                  for(unsigned k = 0; k < dim; k++) {
+                    MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
+                  }
+                }
+              }
+
+              if(iproc == kp) {
+                MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                if(cntJel != 0) {
+                  unsigned size0= coord.size();
+                  coord.resize(size0 + cntJel, std::vector<double> (dim));   
+                  for(unsigned k = 0; k < dim; k++) {
+                    MPI_Recv(&coord[k][size0], cntJel, MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                  }
+                }
+              }
+
+
+            }
+
+
+
+
+          }
+
+
+
+          if(iproc == kp) {
+            it++;
+          }
+
+        }
+      }
+    }
 
 
 
