@@ -26,6 +26,8 @@ namespace femus {
       void PrintCSV(const unsigned &t);
 
       void ComputeQuadraticBestFit();
+      
+      void GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel);
 
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
         return _A;
@@ -49,15 +51,20 @@ namespace femus {
       }
 
       double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
-        return (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1]))) / pow(((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1])), 3. / 2.);
+        return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
       }
 
       std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
         std::vector<double> N(xp.size());
 
-        N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))) / (pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
+        N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1])))) / (pow((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]), 2));
 
-        N[1] = ((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][1] * _A[iel][1] * xp[1] * xp[1] + 2 * _A[iel][1] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][2] * xp[0]) * xp[1] - _A[iel][2] * _A[iel][2] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][2] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][2] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][2] * xp[1])))) / (pow((_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) * (_A[iel][4] + _A[iel][2] * xp[0] + 2 * _A[iel][1] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][2] * xp[1]), 2));
+        N[1] = ((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1])))) / (pow((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]), 2));
+        
+        
+        double norm2 = 0.;
+        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
 
         return N;
       }
@@ -340,9 +347,6 @@ namespace femus {
         }
         MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
 
-        
-        MPI_Barrier(MPI_COMM_WORLD);
-        
         if(nel > 0) {
           if(iproc == kp) {
             it =  pSerach.begin();
@@ -434,8 +438,61 @@ namespace femus {
 
 
   }
+  
+  void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel){
+    const unsigned dim = xv.size();
+    const unsigned nve = xv[0].size();    
+    unsigned intMax = 2;
+    
+    std::vector<double> Cf = _A[iel];//(_A[iel].size());
+    
+    std::vector<double> A(2, 0.);
+    double D = 0.;
+    unsigned cnt = 0;
+    std::vector<std::vector<double>> xe(dim, std::vector<double>(2*nve));
+    
+    for(unsigned i = 0; i < nve; i++){
+      unsigned ip1 = (i + 1) % nve;
+      A[0] = xv[1][ip1] - xv[1][i];
+      A[1] = - xv[0][ip1] + xv[0][i];
+      D = - A[0] * xv[0][i] - A[1] * xv[1][i];
+      std::vector<double> inters(intMax, 0.);
+      unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
+      unsigned dirp1 = (dir + 1) % 2;
+      double iMax = std::max(xv[dir][ip1], xv[dir][i]);
+      double iMin = std::min(xv[dir][ip1], xv[dir][i]);
+      
+      double a =  - A[0] * Cf[1] * A[1] + Cf[0] * A[1] * A[1] + A[0] * A[0] * Cf[2];
+      double b = - (A[dirp1] * A[dir] * Cf[4-dir] + A[dirp1] * Cf[1] * D - 2 * Cf[2 * dirp1] * A[dir] * D - A[dirp1] * A[dirp1] * Cf[4-dirp1]);
+      double c = - A[dirp1] * Cf[4-dir] * D + Cf[2 * dirp1] * D * D + A[dirp1] * A[dirp1] * Cf[5];
+      
+      double delta = b * b - 4 * a * c; 
+      
+      if(delta > 0. && a != 0) {
+        inters[0] = (- b + sqrt(delta)) / (2. * a);  
+        inters[1] = (- b - sqrt(delta)) / (2. * a);
+        
+        unsigned nInt = 0;
+        unsigned jInt = 2;
+        for(unsigned j = 0; j < intMax; j++) {
+          if(inters[j] < iMax && inters[j] > iMin) {
+            nInt++;
+            jInt = j;
+            xe[dir][cnt] = inters[jInt];
+            xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
+            cnt++;
+          }
+        }
+      }
+    }
+    for (unsigned k = 0; k < dim; k++){
+        xe[k].resize(cnt);
+    }
+  }
 
 }
+
+
 
 
 
