@@ -26,7 +26,7 @@ namespace femus {
       void PrintCSV(const unsigned &t);
 
       void ComputeQuadraticBestFit();
-      
+
       void GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel);
 
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
@@ -60,8 +60,8 @@ namespace femus {
         N[0] = ((_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1])))) / (pow((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]), 2));
 
         N[1] = ((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1])))) / (pow((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]), 2));
-        
-        
+
+
         double norm2 = 0.;
         for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
         for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
@@ -307,9 +307,9 @@ namespace femus {
       }
 
       if(coord.size() < 6) {
-        for(unsigned i = 0; i < msh->el->GetElementNearElementSize(iel,1); i++) {
-          int jel = msh->el->GetElementNearElement(iel, i); 
-          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem  
+        for(unsigned i = 0; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
+          int jel = msh->el->GetElementNearElement(iel, i);
+          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
             unsigned j0 = _elMrkIdx[jel][0];
             unsigned j1 = _elMrkIdx[jel][1];
             coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
@@ -367,66 +367,66 @@ namespace femus {
                   norm[k] += _N[_map[i]][k];
                 }
               }
-              nNgbElms = msh->el->GetElementNearElementSize(kel,1);
+              nNgbElms = msh->el->GetElementNearElementSize(kel, 1);
             }
             MPI_Bcast(&nNgbElms, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
-        
+
             for(unsigned i = 0; i < nNgbElms; i++) {
 
               int jel;
               if(iproc == kp) {
-                jel = msh->el->GetElementNearElement(kel, i); 
+                jel = msh->el->GetElementNearElement(kel, i);
               }
               MPI_Bcast(&jel, 1, MPI_INT, kp, PETSC_COMM_WORLD);
 
-                unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
-                std::vector<std::vector<double>> coordJel;
-                unsigned cntJel = 0;
-                if(iproc == jp) {
-                  if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // if jel is cut cell
-                    unsigned j0 = _elMrkIdx[jel][0];
-                    unsigned j1 = _elMrkIdx[jel][1];
-                    coordJel.resize(dim, std::vector<double> (j1 - j0));
-                    for(unsigned j = j0; j < j1; j++, cntJel++) {
-                      for(unsigned k = 0; k < dim; k++) {
-                        coordJel[k][cntJel] = _yp[_map[j]][k];
-                      }
-                    }
-                  }
-                  if(jp != kp) {
-                    MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
-                    if(cntJel != 0) {
-                      for(unsigned k = 0; k < dim; k++) {
-                        MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
-                      }
+              unsigned jp = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
+              std::vector<std::vector<double>> coordJel;
+              unsigned cntJel = 0;
+              if(iproc == jp) {
+                if(_elMrkIdx.find(jel) != _elMrkIdx.end()) {   // if jel is cut cell
+                  unsigned j0 = _elMrkIdx[jel][0];
+                  unsigned j1 = _elMrkIdx[jel][1];
+                  coordJel.resize(dim, std::vector<double> (j1 - j0));
+                  for(unsigned j = j0; j < j1; j++, cntJel++) {
+                    for(unsigned k = 0; k < dim; k++) {
+                      coordJel[k][cntJel] = _yp[_map[j]][k];
                     }
                   }
                 }
-
-                if(iproc == kp) {
-                  if(kp != jp) {
-                    MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    if(cntJel != 0) {
-                      coordJel.resize(dim, std::vector<double> (cntJel));
-                      for(unsigned k = 0; k < dim; k++) {
-                        MPI_Recv(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                      }
+                if(jp != kp) {
+                  MPI_Send(&cntJel, 1, MPI_UNSIGNED, kp, 0, MPI_COMM_WORLD);
+                  if(cntJel != 0) {
+                    for(unsigned k = 0; k < dim; k++) {
+                      MPI_Send(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, kp, 1 + k, MPI_COMM_WORLD);
                     }
                   }
+                }
+              }
+
+              if(iproc == kp) {
+                if(kp != jp) {
+                  MPI_Recv(&cntJel, 1, MPI_UNSIGNED, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                   if(cntJel != 0) {
-                    unsigned size0 = coord.size();
-                    coord.resize(coord.size() + cntJel, std::vector<double> (dim));
-                    for(unsigned j = 0; j < cntJel; j++) {
-                      for(unsigned k = 0; k < dim; k++) {
-                        coord[size0 + j][k] = coordJel[k][j];
-                      }
+                    coordJel.resize(dim, std::vector<double> (cntJel));
+                    for(unsigned k = 0; k < dim; k++) {
+                      MPI_Recv(coordJel[k].data(), coordJel[k].size(), MPI_DOUBLE, jp, 1 + k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     }
-                  } 
+                  }
+                }
+                if(cntJel != 0) {
+                  unsigned size0 = coord.size();
+                  coord.resize(coord.size() + cntJel, std::vector<double> (dim));
+                  for(unsigned j = 0; j < cntJel; j++) {
+                    for(unsigned k = 0; k < dim; k++) {
+                      coord[size0 + j][k] = coordJel[k][j];
+                    }
+                  }
+                }
               }
             }//face loop
-           
-            if(iproc == kp) {   
-              femus::FindQuadraticBestFit(coord, boost::none, norm, _A[kel]);  
+
+            if(iproc == kp) {
+              femus::FindQuadraticBestFit(coord, boost::none, norm, _A[kel]);
               it++;
             }
 
@@ -438,59 +438,133 @@ namespace femus {
 
 
   }
-  
-  void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel){
-    const unsigned dim = xv.size();
-    const unsigned nve = xv[0].size();    
-    unsigned intMax = 2;
-    
-    std::vector<double> Cf = _A[iel];//(_A[iel].size());
-    
-    std::vector<double> A(2, 0.);
-    double D = 0.;
-    unsigned cnt = 0;
-    std::vector<std::vector<double>> xe(dim, std::vector<double>(2*nve));
-    
-    for(unsigned i = 0; i < nve; i++){
-      unsigned ip1 = (i + 1) % nve;
-      A[0] = xv[1][ip1] - xv[1][i];
-      A[1] = - xv[0][ip1] + xv[0][i];
-      D = - A[0] * xv[0][i] - A[1] * xv[1][i];
-      std::vector<double> inters(intMax, 0.);
-      unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
-      unsigned dirp1 = (dir + 1) % 2;
-      double iMax = std::max(xv[dir][ip1], xv[dir][i]);
-      double iMin = std::min(xv[dir][ip1], xv[dir][i]);
-      
-      double a =  - A[0] * Cf[1] * A[1] + Cf[0] * A[1] * A[1] + A[0] * A[0] * Cf[2];
-      double b = - (A[dirp1] * A[dir] * Cf[4-dir] + A[dirp1] * Cf[1] * D - 2 * Cf[2 * dirp1] * A[dir] * D - A[dirp1] * A[dirp1] * Cf[4-dirp1]);
-      double c = - A[dirp1] * Cf[4-dir] * D + Cf[2 * dirp1] * D * D + A[dirp1] * A[dirp1] * Cf[5];
-      
-      double delta = b * b - 4 * a * c; 
-      
-      if(delta > 0. && a != 0) {
-        inters[0] = (- b + sqrt(delta)) / (2. * a);  
-        inters[1] = (- b - sqrt(delta)) / (2. * a);
-        
-        unsigned nInt = 0;
-        unsigned jInt = 2;
-        for(unsigned j = 0; j < intMax; j++) {
-          if(inters[j] < iMax && inters[j] > iMin) {
-            nInt++;
-            jInt = j;
-            xe[dir][cnt] = inters[jInt];
-            xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
+
+
+  void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel) {
+
+    if(_A.find(iel) != _A.end()) {
+
+      const unsigned dim = xv.size();
+      const unsigned nve = xv[0].size();
+
+      const std::vector<double> &Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
+
+      std::vector<double> v(dim, 0.);
+
+      unsigned cnt = 0;
+      std::vector<std::vector<double>> xe(dim, std::vector<double>(2 * nve));
+
+      for(unsigned i = 0; i < nve; i++) {
+        unsigned ip1 = (i + 1) % nve;
+        for(unsigned k = 0; k < dim; k++) v[k] = xv[k][ip1] - xv[k][i];
+
+        const double &x0 = xv[0][i];
+        const double &y0 = xv[1][i];
+
+        double a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
+        double b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
+        double c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
+
+        if(a != 0) {
+          double delta = b * b - 4 * a * c;
+          if(delta > 0.) {
+            for(unsigned j = 0; j < 2; j++) {
+              double t = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
+              if(t >= 0 && t <= 1) {
+                for(unsigned  k = 0; k < dim; k++) {
+                  xe[k][cnt] = xv[k][i]  + t * v[k];
+                }
+                cnt++;
+              }
+            }
+          }
+        }
+        else if(b != 0){
+          double t = -c / b;
+          if(t >= 0 && t <= 1) {
+            for(unsigned  k = 0; k < dim; k++) {
+              xe[k][cnt] = xv[k][i]  + t * v[k];
+            }
             cnt++;
           }
         }
       }
-    }
-    for (unsigned k = 0; k < dim; k++){
+      for(unsigned k = 0; k < dim; k++) {
         xe[k].resize(cnt);
+      }
+      for(unsigned i = 0; i < xe[0].size(); i++) {
+        for(unsigned  k = 0; k < dim; k++) {
+          std::cerr << xe[k][i] << " ";
+        }
+        std::cerr << std::endl;
+      }
     }
   }
-
 }
+
+
+
+
+
+//   void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel){
+//     const unsigned dim = xv.size();
+//     const unsigned nve = xv[0].size();
+//     unsigned intMax = 2;
+// 
+//     std::vector<double> Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
+// 
+//     std::vector<double> A(2, 0.);
+//     double D = 0.;
+//     unsigned cnt = 0;
+//     std::vector<std::vector<double>> xe(dim, std::vector<double>(2*nve));
+// 
+//     for(unsigned i = 0; i < nve; i++){
+//       unsigned ip1 = (i + 1) % nve;
+//       A[0] = xv[1][ip1] - xv[1][i];
+//       A[1] = - xv[0][ip1] + xv[0][i];
+//       D = - A[0] * xv[0][i] - A[1] * xv[1][i];
+//       std::vector<double> inters(intMax, 0.);
+//       unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
+//       unsigned dirp1 = (dir + 1) % 2;
+//       double iMax = std::max(xv[dir][ip1], xv[dir][i]);
+//       double iMin = std::min(xv[dir][ip1], xv[dir][i]);
+// 
+//       double a =  - A[0] * Cf[1] * A[1] + Cf[0] * A[1] * A[1] + A[0] * A[0] * Cf[2];
+//       double b = - (A[dirp1] * A[dir] * Cf[4-dir] + A[dirp1] * Cf[1] * D - 2 * Cf[2 * dirp1] * A[dir] * D - A[dirp1] * A[dirp1] * Cf[4-dirp1]);
+//       double c = - A[dirp1] * Cf[4-dir] * D + Cf[2 * dirp1] * D * D + A[dirp1] * A[dirp1] * Cf[5];
+// 
+//       double delta = b * b - 4 * a * c;
+// 
+//       if(delta > 0. && a != 0) {
+//         inters[0] = (- b + sqrt(delta)) / (2. * a);
+//         inters[1] = (- b - sqrt(delta)) / (2. * a);
+// 
+//         unsigned nInt = 0;
+//         unsigned jInt = 2;
+//         for(unsigned j = 0; j < intMax; j++) {
+//           if(inters[j] < iMax && inters[j] > iMin) {
+//             nInt++;
+//             jInt = j;
+//             xe[dir][cnt] = inters[jInt];
+//             xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
+//             cnt++;
+//           }
+//         }
+//       }
+//     }
+//     for (unsigned k = 0; k < dim; k++){
+//         xe[k].resize(cnt);
+//     }
+//     
+//      for(unsigned i = 0; i < xe[0].size(); i++) {
+//         for(unsigned  k = 0; k < dim; k++) {
+//           std::cout << xe[k][i] << " ";
+//         }
+//         std::cout << std::endl;
+//       }
+//     
+//   }
+//}
 
 
 
