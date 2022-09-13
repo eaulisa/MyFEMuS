@@ -338,7 +338,7 @@ int main(int argc, char** args) {
     cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
 
     cld.ComputeQuadraticBestFit();
-    
+
     std::vector < std::vector < double > > x1;
     unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
@@ -349,23 +349,35 @@ int main(int argc, char** args) {
           const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
           for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
           std::cerr << "\n";
-          
-          
+
+
           unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
-          
+
           x1.resize(dim);
           for(unsigned k = 0; k < dim; k++) {
             x1[k].resize(nDof);
           }
-          
+
           for(unsigned k = 0; k < dim; k++) {
             for(unsigned i = 0; i < nDof; i++) {
               unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
               x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
             }
           }
-          
-          if(a.size() == 6) cld.GetCellInt(x1, iel);
+
+          std::vector<std::vector<double>> xe;
+
+          if(a.size() == 6) {
+            cld.GetCellPointsFromQuadric(x1, iel, 10, xe);
+
+            for(unsigned i = 0; i < xe[0].size(); i++) {
+              for(unsigned  k = 0; k < dim; k++) {
+                std::cerr << xe[k][i] << " ";
+              }
+              std::cerr << std::endl;
+            }
+          }
+
 //           if(iel == 3 && a.size() == 6) {
 //               double K = cld.getCurvature(iel,  {-0.32 - 0.05*it,-0.001});
 //               std::vector<double> Normal = cld.getNormal(iel, {-0.32 - 0.05*it,-0.001});

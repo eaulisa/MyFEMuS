@@ -27,7 +27,7 @@ namespace femus {
 
       void ComputeQuadraticBestFit();
 
-      void GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel);
+      void GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe);
 
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
         return _A;
@@ -440,19 +440,20 @@ namespace femus {
   }
 
 
-  void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel) {
+  void Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe) {
+
+    unsigned cnt = 0;
+    const unsigned dim = xv.size();
+    xe.resize(dim, std::vector<double>(npt));
 
     if(_A.find(iel) != _A.end()) {
-
-      const unsigned dim = xv.size();
+     
       const unsigned nve = xv[0].size();
 
       const std::vector<double> &Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
 
       std::vector<double> v(dim, 0.);
 
-      unsigned cnt = 0;
-      std::vector<std::vector<double>> xe(dim, std::vector<double>(2 * nve));
 
       for(unsigned i = 0; i < nve; i++) {
         unsigned ip1 = (i + 1) % nve;
@@ -479,7 +480,7 @@ namespace femus {
             }
           }
         }
-        else if(b != 0){
+        else if(b != 0) {
           double t = -c / b;
           if(t >= 0 && t <= 1) {
             for(unsigned  k = 0; k < dim; k++) {
@@ -489,18 +490,101 @@ namespace femus {
           }
         }
       }
+
+
+      if(cnt == 2) {
+        double &x0 = xe[0][0];
+        double &y0 = xe[1][0];
+        double &x1 = xe[0][1];
+        double &y1 = xe[1][1];
+
+        std::vector<double> xc = {0.5 * (x0 + x1) + 10. * (y1 - y0), 0.5 * (y0 + y1) - 10. * (x1 - x0)};
+
+        double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
+        double theta1 = atan2(y1 - xc[1], x1 - xc[0]);
+
+        double dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
+        double dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
+
+
+        // std::cout << x0 << " " << y0 << " " << x1 << " " << y1 << " " << xc[0] << " " << xc[1] << std::endl;
+        // std::cout << theta0 << " " << theta1 << " " << dt0 << " " << dt1 << std::endl;
+
+
+        if(dt0 < dt1) {
+          for(unsigned k = 0; k < dim; k++) xe[k][npt - 1] = xe[k][1];
+        }
+        else {
+          for(unsigned k = 0; k < dim; k++) {
+            xe[k][npt - 1] = xe[k][0];
+            xe[k][0] = xe[k][1];
+          }
+          dt0 = dt1;
+          theta0 = theta1;
+        }
+        //std::cout << x0 << " " << y0 << " " << x1 << " " << y1 << " " << xc[0] << " " << xc[1] << std::endl;
+
+        cnt = 1;
+        double R = sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1]));
+
+        for(unsigned i = 0; i < npt - 2; i++) {
+
+          v[0] = R * cos(theta0 + (i + 1) * dt0 / (npt - 1));
+          v[1] = R * sin(theta0 + (i + 1) * dt0 / (npt - 1));
+
+          //std::cout << v[0] << " " << v[1] << " ss\n";
+
+
+          double a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
+          double b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
+          double c = Cf[0] * xc[0] * xc[0] + Cf[1] * xc[0] * xc[1] + Cf[2] * xc[1] * xc[1] + Cf[3] * xc[0] + Cf[4] * xc[1] + Cf[5];
+
+          if(a != 0) {
+            double delta = b * b - 4 * a * c;
+            if(delta > 0.) {
+              double t[2];
+              for(unsigned j = 0; j < 2; j++) {
+                t[j] = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
+              }
+
+              //std::cout << t[0] << " "<<t[1]<< "ppp\n";
+
+              double ti = (fabs(t[0] - 1) < fabs(t[1] - 1)) ? t[0] : t[1];
+              for(unsigned  k = 0; k < dim; k++) {
+                xe[k][cnt] = xc[k]  + ti * v[k];
+              }
+              cnt++;
+            }
+          }
+          else if(b != 0) {
+            double t = -c / b;
+            for(unsigned  k = 0; k < dim; k++) {
+              xe[k][cnt] = xv[k][i]  + t * v[k];
+            }
+            cnt++;
+          }
+        }
+
+        if(cnt < npt - 1) {
+          for(unsigned k = 0; k < dim; k++) {
+            xe[k][cnt] = xe[k][npt - 1];
+            xe[k].resize(cnt + 1);
+          }
+        }
+        cnt++;
+        npt = cnt;
+      }
+    }
+    
+    if(cnt < npt) {
       for(unsigned k = 0; k < dim; k++) {
         xe[k].resize(cnt);
       }
-      for(unsigned i = 0; i < xe[0].size(); i++) {
-        for(unsigned  k = 0; k < dim; k++) {
-          std::cerr << xe[k][i] << " ";
-        }
-        std::cerr << std::endl;
-      }
+      npt = cnt;
     }
   }
 }
+
 
 
 
@@ -510,14 +594,14 @@ namespace femus {
 //     const unsigned dim = xv.size();
 //     const unsigned nve = xv[0].size();
 //     unsigned intMax = 2;
-// 
+//
 //     std::vector<double> Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
-// 
+//
 //     std::vector<double> A(2, 0.);
 //     double D = 0.;
 //     unsigned cnt = 0;
 //     std::vector<std::vector<double>> xe(dim, std::vector<double>(2*nve));
-// 
+//
 //     for(unsigned i = 0; i < nve; i++){
 //       unsigned ip1 = (i + 1) % nve;
 //       A[0] = xv[1][ip1] - xv[1][i];
@@ -528,17 +612,17 @@ namespace femus {
 //       unsigned dirp1 = (dir + 1) % 2;
 //       double iMax = std::max(xv[dir][ip1], xv[dir][i]);
 //       double iMin = std::min(xv[dir][ip1], xv[dir][i]);
-// 
+//
 //       double a =  - A[0] * Cf[1] * A[1] + Cf[0] * A[1] * A[1] + A[0] * A[0] * Cf[2];
 //       double b = - (A[dirp1] * A[dir] * Cf[4-dir] + A[dirp1] * Cf[1] * D - 2 * Cf[2 * dirp1] * A[dir] * D - A[dirp1] * A[dirp1] * Cf[4-dirp1]);
 //       double c = - A[dirp1] * Cf[4-dir] * D + Cf[2 * dirp1] * D * D + A[dirp1] * A[dirp1] * Cf[5];
-// 
+//
 //       double delta = b * b - 4 * a * c;
-// 
+//
 //       if(delta > 0. && a != 0) {
 //         inters[0] = (- b + sqrt(delta)) / (2. * a);
 //         inters[1] = (- b - sqrt(delta)) / (2. * a);
-// 
+//
 //         unsigned nInt = 0;
 //         unsigned jInt = 2;
 //         for(unsigned j = 0; j < intMax; j++) {
@@ -555,14 +639,14 @@ namespace femus {
 //     for (unsigned k = 0; k < dim; k++){
 //         xe[k].resize(cnt);
 //     }
-//     
+//
 //      for(unsigned i = 0; i < xe[0].size(); i++) {
 //         for(unsigned  k = 0; k < dim; k++) {
 //           std::cout << xe[k][i] << " ";
 //         }
 //         std::cout << std::endl;
 //       }
-//     
+//
 //   }
 //}
 
@@ -603,3 +687,5 @@ namespace femus {
 
 
 #endif
+
+
