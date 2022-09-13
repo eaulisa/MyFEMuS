@@ -28,7 +28,7 @@ namespace femus {
       void ComputeQuadraticBestFit();
 
       void GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe);
-      void RebuildMarkers(const unsigned &nMin, const unsigned &npt);
+      void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
 
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
         return _A;
@@ -79,6 +79,8 @@ namespace femus {
       unsigned _nMrk;
       std::ofstream _fout;
       std::vector<std::vector<double>> _yp;
+      std::vector<std::vector<double>> _ypNew;
+
       std::vector<std::vector<double>> _N;
       std::vector<double> _kappa;
       std::vector<std::vector<double>> _yi;
@@ -228,7 +230,7 @@ namespace femus {
             _fout << _yp[_map[i]][k] << " ";
           }
           for(unsigned k = 0; k < dim; k++) {
-            _fout << _yi[_map[i]][k] << " ";
+            _fout << 0 << " "; //fout << _yi[_map[i]][k] << " ";
           }
           for(unsigned k = 0; k < dim; k++) {
             _fout << _N[_map[i]][k] << " ";
@@ -264,7 +266,7 @@ namespace femus {
           }
           _fout << "0.,";
           for(unsigned k = 0; k < dim; k++) {
-            _fout << _yi[_map[i]][k] << ",";
+            _fout << 0 << ","; //_yi[_map[i]][k] << ",";
           }
           _fout << "0.,";
           for(unsigned k = 0; k < dim; k++) {
@@ -448,7 +450,7 @@ namespace femus {
     xe.resize(dim, std::vector<double>(npt));
 
     if(_A.find(iel) != _A.end()) {
-     
+
       const unsigned nve = xv[0].size();
 
       const std::vector<double> &Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
@@ -576,7 +578,7 @@ namespace femus {
         npt = cnt;
       }
     }
-    
+
     if(cnt < npt) {
       for(unsigned k = 0; k < dim; k++) {
         xe[k].resize(cnt);
@@ -584,38 +586,90 @@ namespace femus {
       npt = cnt;
     }
   }
-  
-//   void Cloud::RebuildMarkers(const unsigned &nMin, const unsigned &npt){
-//      Mesh *msh = _sol->GetMesh();
-//      unsigned dim = _sol->GetMesh()->GetDimension();
-//      unsigned coordXType = 2;
-//      std::vector< std::vector < double > > xv;
-//      std::vector<std::vector<double>> xe;
-//      
-//       
-//      for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
-//        unsigned iel = _itElMrkIdx->first;
-//        unsigned i0 = _itElMrkIdx->second[0];
-//        unsigned i1 = _itElMrkIdx->second[1];
-//        
-//        unsigned nDof = msh->GetElementDofNumber(iel, 0);  
-//        xv.resize(dim);
-//        for(unsigned k = 0; k < dim; k++) {
-//          xv[k].resize(nDof);
-//        }
-//        for(unsigned k = 0; k < dim; k++) {
-//          for(unsigned i = 0; i < nDof; i++) {
-//            unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
-//            xv[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
-//          }
-//        }
-//        if((i1 - i0) < nMin){
-//          GetCellPointsFromQuadric(xv, iel, npt, xe);   
-//        }
-//      }
-//   }
-  
-  
+
+  void Cloud::RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt) {
+    Mesh *msh = _sol->GetMesh();
+    unsigned dim = _sol->GetMesh()->GetDimension();
+    unsigned coordXType = 2;
+    std::vector< std::vector < double > > xv;
+    std::vector<std::vector<double>> xe;
+
+    unsigned cnt = 0;
+
+    _ypNew.resize(2 * _A.size() * nMax, std::vector<double>(dim));
+    _elem.resize(2 * _A.size() * nMax);
+    _N.resize(2 * _A.size() * nMax);
+    _kappa.resize(2 * _A.size() * nMax);
+
+    xv.resize(dim);
+
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+      unsigned iel = _itElMrkIdx->first;
+      unsigned i0 = _itElMrkIdx->second[0];
+      unsigned i1 = _itElMrkIdx->second[1];
+
+      unsigned nDof = msh->GetElementDofNumber(iel, 0);
+
+      for(unsigned k = 0; k < dim; k++) {
+        xv[k].resize(nDof);
+      }
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned i = 0; i < nDof; i++) {
+          unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);
+          xv[k][i] = (*msh->_topology->_Sol[k])(xDof);
+        }
+      }
+      //_itElMrkIdx->second[0] = cnt;
+      if((i1 - i0) < nMin || (i1 - i0) > nMax) {
+        GetCellPointsFromQuadric(xv, iel, npt, xe);
+        std::cerr << iel << " " << xe[0].size() << std::endl;
+        for(unsigned i = 0; i < xe[0].size(); i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            _ypNew[cnt][k] = xe[k][i];
+          }
+          _elem[cnt] = iel;
+          _N[cnt] = getNormal(iel, _ypNew[cnt]);
+          _kappa[cnt] = getCurvature(iel, _ypNew[cnt]);
+          cnt++;
+        }
+      }
+      else {
+        for(unsigned i = i0; i < i1; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            _ypNew[cnt][k] = _yp[_map[i]][k];
+          }
+          _elem[cnt] = iel;
+          _N[cnt] = getNormal(iel, _ypNew[cnt]);
+          _kappa[cnt] = getCurvature(iel, _ypNew[cnt]);
+          cnt++;
+        }
+      }
+      //_itElMrkIdx->second[1]  = cnt;
+    }
+
+    _ypNew.resize(cnt);
+    _elem.resize(cnt);
+    _N.resize(cnt);
+    _kappa.resize(cnt);
+    _yp.swap(_ypNew);
+    _yi.assign(cnt, std::vector<double>(dim, 0));
+
+    CreateMap();
+
+    _elMrkIdx.clear();
+    unsigned i = 0;
+    while(i < _elem.size()) {
+      unsigned iel = _elem[_map[i]];
+      _elMrkIdx[iel][0] = i;
+      while(i < _elem.size() && _elem[_map[i]] == iel) {
+        i++;
+      }
+      _elMrkIdx[iel][1] = i;
+    }
+
+  }
+
+
 } // end namespace femus
 
 

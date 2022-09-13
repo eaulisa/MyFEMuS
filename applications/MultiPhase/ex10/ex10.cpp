@@ -335,7 +335,12 @@ int main(int argc, char** args) {
   Cloud cld;
   std::cout << "Testing the class Cloud \n";
   for(unsigned it = 0; it < 4; it++) {
-    cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+    if(it == 0) {
+      cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+    }
+    else{
+      cld.RebuildMarkers(14 - it * 2, 16 - it * 2, 15 - it * 2);
+    }
 
     cld.ComputeQuadraticBestFit();
 
@@ -351,32 +356,32 @@ int main(int argc, char** args) {
           std::cerr << "\n";
 
 
-          unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
-
-          x1.resize(dim);
-          for(unsigned k = 0; k < dim; k++) {
-            x1[k].resize(nDof);
-          }
-
-          for(unsigned k = 0; k < dim; k++) {
-            for(unsigned i = 0; i < nDof; i++) {
-              unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
-              x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
-            }
-          }
-
-          std::vector<std::vector<double>> xe;
-
-          if(a.size() == 6) {
-            cld.GetCellPointsFromQuadric(x1, iel, 10, xe);
-
-            for(unsigned i = 0; i < xe[0].size(); i++) {
-              for(unsigned  k = 0; k < dim; k++) {
-                std::cerr << xe[k][i] << " ";
-              }
-              std::cerr << std::endl;
-            }
-          }
+//           unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+//
+//           x1.resize(dim);
+//           for(unsigned k = 0; k < dim; k++) {
+//             x1[k].resize(nDof);
+//           }
+//
+//           for(unsigned k = 0; k < dim; k++) {
+//             for(unsigned i = 0; i < nDof; i++) {
+//               unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
+//               x1[k][i] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+//             }
+//           }
+//
+//           std::vector<std::vector<double>> xe;
+//
+//           if(a.size() == 6) {
+//             cld.GetCellPointsFromQuadric(x1, iel, 10, xe);
+//
+//             for(unsigned i = 0; i < xe[0].size(); i++) {
+//               for(unsigned  k = 0; k < dim; k++) {
+//                 std::cerr << xe[k][i] << " ";
+//               }
+//               std::cerr << std::endl;
+//             }
+//           }
 
 //           if(iel == 3 && a.size() == 6) {
 //               double K = cld.getCurvature(iel,  {-0.32 - 0.05*it,-0.001});
@@ -387,13 +392,14 @@ int main(int argc, char** args) {
       MPI_Barrier(MPI_COMM_WORLD);
     }
     std::cerr << std::endl;
-
+    
     cld.PrintWithOrder(0);
+   
     cld.PrintCSV(it);
 
-    Xc[0] += 0.1;
-    Xc[1] += 0.05;
-    R += 0.05;
+    //  Xc[0] += 0.1;
+    //  Xc[1] += 0.05;
+    //  R += 0.05;
   }
   // END Testing the class Cloud
 
