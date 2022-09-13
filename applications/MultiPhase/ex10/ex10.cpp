@@ -336,7 +336,8 @@ int main(int argc, char** args) {
   std::cout << "Testing the class Cloud \n";
   for(unsigned it = 0; it < 4; it++) {
     if(it == 0) {
-      cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+//       cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
+        cld.InitEllipse({0.125,0.125}, {0.15, 0.15}, nMax, sol);
     }
     else{
       cld.RebuildMarkers(14 - it * 2, 16 - it * 2, 15 - it * 2);
