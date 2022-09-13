@@ -28,6 +28,7 @@ namespace femus {
       void ComputeQuadraticBestFit();
 
       void GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe);
+      void RebuildMarkers(const unsigned &nMin, const unsigned &npt);
 
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
         return _A;
@@ -583,7 +584,40 @@ namespace femus {
       npt = cnt;
     }
   }
-}
+  
+//   void Cloud::RebuildMarkers(const unsigned &nMin, const unsigned &npt){
+//      Mesh *msh = _sol->GetMesh();
+//      unsigned dim = _sol->GetMesh()->GetDimension();
+//      unsigned coordXType = 2;
+//      std::vector< std::vector < double > > xv;
+//      std::vector<std::vector<double>> xe;
+//      
+//       
+//      for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+//        unsigned iel = _itElMrkIdx->first;
+//        unsigned i0 = _itElMrkIdx->second[0];
+//        unsigned i1 = _itElMrkIdx->second[1];
+//        
+//        unsigned nDof = msh->GetElementDofNumber(iel, 0);  
+//        xv.resize(dim);
+//        for(unsigned k = 0; k < dim; k++) {
+//          xv[k].resize(nDof);
+//        }
+//        for(unsigned k = 0; k < dim; k++) {
+//          for(unsigned i = 0; i < nDof; i++) {
+//            unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
+//            xv[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+//          }
+//        }
+//        if((i1 - i0) < nMin){
+//          GetCellPointsFromQuadric(xv, iel, npt, xe);   
+//        }
+//      }
+//   }
+  
+  
+} // end namespace femus
+
 
 
 
