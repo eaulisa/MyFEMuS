@@ -334,7 +334,7 @@ int main(int argc, char** args) {
 //   // BEGIN Testing the class Cloud
   Cloud cld;
   std::cout << "Testing the class Cloud \n";
-  for(unsigned it = 0; it < 4; it++) {
+  for(unsigned it = 0; it < 5; it++) {
     if(it == 0) {
 //       cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
         cld.InitEllipse({0.125,0.125}, {0.15, 0.15}, nMax, sol);

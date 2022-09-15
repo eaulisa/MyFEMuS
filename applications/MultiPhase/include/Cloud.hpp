@@ -149,21 +149,6 @@ namespace femus {
 
     CreateMap();
 
-
-    _elMrkIdx.clear();
-    unsigned i = 0;
-    while(i < _elem.size()) {
-      unsigned iel = _elem[_map[i]];
-      _elMrkIdx[iel][0] = i;
-      while(i < _elem.size() && _elem[_map[i]] == iel) {
-        i++;
-      }
-      _elMrkIdx[iel][1] = i;
-    }
-
-//     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
-//       std::cout << _itElMrkIdx->first << " " << _itElMrkIdx->second[0] << " " << _itElMrkIdx->second[1] << std::endl;
-//     }
   }
 
   void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
@@ -181,6 +166,17 @@ namespace femus {
     _map.resize(_elem.size());
     for(unsigned i = 0; i < _map.size(); i++) {
       _map[i] =  static_cast<unsigned>(vec[i] - &_elem[0]);
+    }
+
+    _elMrkIdx.clear();
+    unsigned i = 0;
+    while(i < _elem.size()) {
+      unsigned iel = _elem[_map[i]];
+      _elMrkIdx[iel][0] = i;
+      while(i < _elem.size() && _elem[_map[i]] == iel) {
+        i++;
+      }
+      _elMrkIdx[iel][1] = i;
     }
   }
 
@@ -285,7 +281,6 @@ namespace femus {
 
   void Cloud::ComputeQuadraticBestFit() {
     _A.clear();
-
 
     map<unsigned, bool> pSerach;
 
@@ -456,19 +451,13 @@ namespace femus {
 
     unsigned cnt = 0;
     const unsigned dim = xv.size();
-    std::vector < std::vector <double> > xe(npt, std::vector<double>(dim));
+    std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));
 
-    
-    std::cerr<<"BBBBBBBBBBB " <<level << std::endl;  
-    
     if(_A.find(iel) != _A.end()) {
 
       const unsigned nve = xv[0].size();
-
-      const std::vector<double> &Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
-
+      const std::vector<double> &Cf = _A[iel];
       std::vector<double> v(dim, 0.);
-
 
       for(unsigned i = 0; i < nve; i++) {
         unsigned ip1 = (i + 1) % nve;
@@ -482,7 +471,7 @@ namespace femus {
         double c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
 
         if(a != 0) {
-          double delta = b * b - 4 * a * c;
+          double delta = b * b - 4. * a * c;
           if(delta > 0.) {
             for(unsigned j = 0; j < 2; j++) {
               double t = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
@@ -506,8 +495,10 @@ namespace femus {
         }
       }
 
-
       if(cnt == 2) {
+
+        xe.resize(npt, std::vector<double>(dim));
+
         double &x0 = xe[0][0];
         double &y0 = xe[0][1];
         double &x1 = xe[1][0];
@@ -577,13 +568,10 @@ namespace femus {
       else {
         xe.resize(0);
         if(cnt > 2) {
+          xe.reserve(4 * npt);
           std::vector<std::vector<double> > xvj(dim, std::vector<double>(nve));
           for(unsigned j = 0; j < 4; j++) {
-
-            std::cerr<<"AAAAAAAAAAAA " <<level << " " << j <<std::endl;  
-              
             xvj.assign(dim, std::vector<double>(nve, 0.));
-
             for(unsigned k = 0; k < dim; k++) {
               for(unsigned I = 0; I < nve; I++) {
                 for(unsigned J = 0 ; J < nve; J++) {
@@ -591,16 +579,8 @@ namespace femus {
                 }
               }
             }
-
             std::vector <std::vector<double>> xej = GetCellPointsFromQuadric(xvj, iel, npt, level + 1);
-
-            unsigned i0 = xe.size();
-            xe.resize(i0 + xej.size(), std::vector<double> (dim));
-            for(unsigned i = 0; i < xej.size(); i++) {
-              for(unsigned k = 0 ; k < dim; k++) {
-                xe[i0 + i][k] = xej[i][k];
-              }
-            }
+            xe.insert( xe.end(), xej.begin(), xej.end() );
           }
         }
         return xe;
@@ -624,14 +604,15 @@ namespace femus {
 
     unsigned cnt = 0;
 
-    _ypNew.resize(2 * _A.size() * nMax, std::vector<double>(dim));
-    _elem.resize(2 * _A.size() * nMax);
-    _N.resize(2 * _A.size() * nMax);
+    const unsigned &nel = _A.size();
+    _ypNew.resize(2 * nel * nMax, std::vector<double>(dim));
+    _elem.resize(2 * nel * nMax);
+    _N.resize(2 * nel * nMax);
     _kappa.resize(2 * _A.size() * nMax);
 
     xv.resize(dim);
-
-    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+    unsigned elCnt = 0;
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++, elCnt++) {
       unsigned iel = _itElMrkIdx->first;
       unsigned i0 = _itElMrkIdx->second[0];
       unsigned i1 = _itElMrkIdx->second[1];
@@ -651,6 +632,15 @@ namespace femus {
       if((i1 - i0) < nMin || (i1 - i0) > nMax) {
         xe = GetCellPointsFromQuadric(xv, iel, npt);
         std::cerr << iel << " " << xe.size() << std::endl;
+
+        if( cnt + xe.size() > _ypNew.size()) {
+          unsigned newSize = cnt + xe.size() + 2 * (nel - elCnt) * nMax;
+          _ypNew.resize(newSize, std::vector<double>(dim));
+          _elem.resize(newSize);
+          _N.resize(newSize);
+          _kappa.resize(newSize);
+        }
+
         for(unsigned i = 0; i < xe.size(); i++) {
           for(unsigned k = 0; k < dim; k++) {
             _ypNew[cnt][k] = xe[i][k];
@@ -662,6 +652,15 @@ namespace femus {
         }
       }
       else {
+
+        if( cnt + (i1 - i0) > _ypNew.size()) {
+          unsigned newSize = cnt + (i1 - i0) + 2 * (nel - elCnt) * nMax;
+          _ypNew.resize(newSize, std::vector<double>(dim));
+          _elem.resize(newSize);
+          _N.resize(newSize);
+          _kappa.resize(newSize);
+        }
+
         for(unsigned i = i0; i < i1; i++) {
           for(unsigned k = 0; k < dim; k++) {
             _ypNew[cnt][k] = _yp[_map[i]][k];
@@ -680,125 +679,11 @@ namespace femus {
     _kappa.resize(cnt);
     _yp.swap(_ypNew);
     _yi.assign(cnt, std::vector<double>(dim, 0));
-
     CreateMap();
-
-    _elMrkIdx.clear();
-    unsigned i = 0;
-    while(i < _elem.size()) {
-      unsigned iel = _elem[_map[i]];
-      _elMrkIdx[iel][0] = i;
-      while(i < _elem.size() && _elem[_map[i]] == iel) {
-        i++;
-      }
-      _elMrkIdx[iel][1] = i;
-    }
-
   }
 
 
 } // end namespace femus
-
-
-
-
-
-
-
-//   void Cloud::GetCellInt(const std::vector<std::vector<double>> &xv, const unsigned &iel){
-//     const unsigned dim = xv.size();
-//     const unsigned nve = xv[0].size();
-//     unsigned intMax = 2;
-//
-//     std::vector<double> Cf = _A[iel];//(_A[iel].size()); //here you are already assuming that it is a cutFem?
-//
-//     std::vector<double> A(2, 0.);
-//     double D = 0.;
-//     unsigned cnt = 0;
-//     std::vector<std::vector<double>> xe(dim, std::vector<double>(2*nve));
-//
-//     for(unsigned i = 0; i < nve; i++){
-//       unsigned ip1 = (i + 1) % nve;
-//       A[0] = xv[1][ip1] - xv[1][i];
-//       A[1] = - xv[0][ip1] + xv[0][i];
-//       D = - A[0] * xv[0][i] - A[1] * xv[1][i];
-//       std::vector<double> inters(intMax, 0.);
-//       unsigned dir = (fabs(A[0]) > fabs(A[1])) ? 1 : 0 ;
-//       unsigned dirp1 = (dir + 1) % 2;
-//       double iMax = std::max(xv[dir][ip1], xv[dir][i]);
-//       double iMin = std::min(xv[dir][ip1], xv[dir][i]);
-//
-//       double a =  - A[0] * Cf[1] * A[1] + Cf[0] * A[1] * A[1] + A[0] * A[0] * Cf[2];
-//       double b = - (A[dirp1] * A[dir] * Cf[4-dir] + A[dirp1] * Cf[1] * D - 2 * Cf[2 * dirp1] * A[dir] * D - A[dirp1] * A[dirp1] * Cf[4-dirp1]);
-//       double c = - A[dirp1] * Cf[4-dir] * D + Cf[2 * dirp1] * D * D + A[dirp1] * A[dirp1] * Cf[5];
-//
-//       double delta = b * b - 4 * a * c;
-//
-//       if(delta > 0. && a != 0) {
-//         inters[0] = (- b + sqrt(delta)) / (2. * a);
-//         inters[1] = (- b - sqrt(delta)) / (2. * a);
-//
-//         unsigned nInt = 0;
-//         unsigned jInt = 2;
-//         for(unsigned j = 0; j < intMax; j++) {
-//           if(inters[j] < iMax && inters[j] > iMin) {
-//             nInt++;
-//             jInt = j;
-//             xe[dir][cnt] = inters[jInt];
-//             xe[dirp1][cnt] = (- D - A[dir] * xe[dir][cnt]) / A[dirp1];
-//             cnt++;
-//           }
-//         }
-//       }
-//     }
-//     for (unsigned k = 0; k < dim; k++){
-//         xe[k].resize(cnt);
-//     }
-//
-//      for(unsigned i = 0; i < xe[0].size(); i++) {
-//         for(unsigned  k = 0; k < dim; k++) {
-//           std::cout << xe[k][i] << " ";
-//         }
-//         std::cout << std::endl;
-//       }
-//
-//   }
-//}
-
-
-
-
-
-//     coord.resize(0);
-//     unsigned i = 0;
-//     while(i < _elem.size()) {
-//       unsigned iel = _elem[_map[i]];
-//       unsigned cnt = 0;
-//       while (i < _elem.size() && _elem[_map[i]] == iel) {
-//         coord.resize(cnt + 1, std::vector<double> (dim));
-//         norm.assign(dim, 0);
-//         for( unsigned k = 0; k < dim; k++) {
-//           coord[cnt][k] = _yp[_map[i]][k];
-//           norm[k] += _N[_map[i]][k];
-//         }
-//         cnt++;
-//         i++;
-//       }
-//       if(coord.size() == 1){} //not yet implemented
-//       else if (coord.size() > 1 && coord.size() < 5) { // linear interpolation for nmarker \in [2, 4]
-//         _A[iel].resize(coord[cnt].size() + 1);
-//         std::vector<double> a(coord[cnt].size());
-//         double d =0.;
-//         femus::FindBestFit(coord, boost::none, norm, a, d);
-//         for(unsigned k = 0; k < coord[cnt].size(); k++) _A[iel][k] = a[k];
-//         _A[iel][coord[cnt].size()] = d;
-//       }
-//       else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
-//     }
-//}
-
-//}
-
 
 
 #endif
