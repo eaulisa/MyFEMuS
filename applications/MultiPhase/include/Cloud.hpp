@@ -72,6 +72,8 @@ namespace femus {
         return N;
       }
 
+      void RK4Advection(const std::vector<std::string> &U, const double &dt);
+
     private:
 
       void CreateMap();
@@ -87,6 +89,7 @@ namespace femus {
       std::vector<double> _kappa;
       std::vector<std::vector<double>> _yi;
       std::vector<unsigned> _elem;
+      std::vector<unsigned> _elemNew;
       std::vector<unsigned> _map;
       MyMarker _mrk;
       std::map<unsigned, std::vector<double>> _A;
@@ -99,6 +102,8 @@ namespace femus {
   void Cloud::SetNumberOfMarker(const unsigned &nMax) {
     _nMrk = nMax;
   }
+
+
 
   void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol) {
 
@@ -228,7 +233,7 @@ namespace femus {
             _fout << _yp[_map[i]][k] << " ";
           }
           for(unsigned k = 0; k < dim; k++) {
-            _fout << 0 << " "; //fout << _yi[_map[i]][k] << " ";
+            _fout << _yi[_map[i]][k] << " ";
           }
           for(unsigned k = 0; k < dim; k++) {
             _fout << _N[_map[i]][k] << " ";
@@ -264,7 +269,7 @@ namespace femus {
           }
           _fout << "0.,";
           for(unsigned k = 0; k < dim; k++) {
-            _fout << 0 << ","; //_yi[_map[i]][k] << ",";
+            _fout << _yi[_map[i]][k] << ",";
           }
           _fout << "0.,";
           for(unsigned k = 0; k < dim; k++) {
@@ -580,7 +585,7 @@ namespace femus {
               }
             }
             std::vector <std::vector<double>> xej = GetCellPointsFromQuadric(xvj, iel, npt, level + 1);
-            xe.insert( xe.end(), xej.begin(), xej.end() );
+            xe.insert(xe.end(), xej.begin(), xej.end());
           }
         }
         return xe;
@@ -633,7 +638,7 @@ namespace femus {
         xe = GetCellPointsFromQuadric(xv, iel, npt);
         std::cerr << iel << " " << xe.size() << std::endl;
 
-        if( cnt + xe.size() > _ypNew.size()) {
+        if(cnt + xe.size() > _ypNew.size()) {
           unsigned newSize = cnt + xe.size() + 2 * (nel - elCnt) * nMax;
           _ypNew.resize(newSize, std::vector<double>(dim));
           _elem.resize(newSize);
@@ -653,7 +658,7 @@ namespace femus {
       }
       else {
 
-        if( cnt + (i1 - i0) > _ypNew.size()) {
+        if(cnt + (i1 - i0) > _ypNew.size()) {
           unsigned newSize = cnt + (i1 - i0) + 2 * (nel - elCnt) * nMax;
           _ypNew.resize(newSize, std::vector<double>(dim));
           _elem.resize(newSize);
@@ -678,9 +683,164 @@ namespace femus {
     _N.resize(cnt);
     _kappa.resize(cnt);
     _yp.swap(_ypNew);
-    _yi.assign(cnt, std::vector<double>(dim, 0));
     CreateMap();
+    _yi.resize(cnt);
+
+    unsigned solType = 2;
+    _mrk.ClearElement();
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+      for(unsigned i = _itElMrkIdx->second[0]; i < _itElMrkIdx->second[1]; i++) {
+        _yi[_map[i]]  = _mrk.GetIprocLocalCoordinates(_yp[_map[i]], _sol, solType,  _itElMrkIdx->first);
+      }
+    }
   }
+
+
+  void Cloud::RK4Advection(const std::vector<std::string> &U, const double &dt) {
+
+    Mesh *msh = _sol->GetMesh();
+    unsigned dim = msh->GetDimension();
+    elem* el = msh->el;
+
+    _ypNew.resize(_yp.size());
+    _elemNew.resize(_yp.size());
+    unsigned cnt = 0;
+
+    std::vector < unsigned > solUIndex(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      solUIndex[k] = _sol->GetIndex(U[k].c_str());
+    }
+
+
+    unsigned solType = _sol->GetSolutionType(solUIndex[0]);
+    std::vector<std::vector<double>> solU[4];
+    std::vector<std::vector<double>> solUOld[4];
+    std::vector <double> F[4];
+    std::vector <double> X[4];
+    unsigned iel[4];
+    unsigned ielType[4];
+    unsigned nDofs[4];
+
+    for(unsigned j  = 0; j < 4; j++) {
+      solU[j].resize(dim);
+      solUOld[j].resize(dim);
+      F[j].resize(dim);
+      X[j].resize(dim);
+    }
+
+    double a[3] = {0.5, 0.5, 1};
+    double b[4] = {1., 2., 2., 1.};
+
+    std::vector<double> phi;
+
+    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
+      unsigned j0 = _itElMrkIdx->second[0];
+      unsigned j1 = _itElMrkIdx->second[1];
+
+
+      iel[0] = _itElMrkIdx->first;
+      ielType[0] = msh->GetElementType(iel[0]);
+      nDofs[0] = msh->GetElementDofNumber(iel[0], solType);
+
+
+      for(unsigned k = 0; k < dim; k++) {
+        solU[0][k].resize(nDofs[0]);
+        solUOld[0][k].resize(nDofs[0]);
+      }
+
+      for(unsigned i = 0; i < nDofs[0]; i++) {
+        unsigned iDof = msh->GetSolutionDof(i, iel[0], solType);
+        for(unsigned k = 0; k < dim; k++) {
+          solU[0][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+          solUOld[0][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+        }
+      }
+      for(unsigned j = j0; j < j1; j++) {
+        msh->_finiteElement[ielType[0]][solType]->GetPhi(phi, _yi[_map[j]]);
+        X[0] = _yp[_map[j]];
+        F[0].assign(dim, 0);
+        for(unsigned i = 0; i < nDofs[0]; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            F[0][k] += solUOld[0][k][i] * dt * phi[i];
+          }
+        }
+
+        bool insideLocalDomain = true;
+
+        for(unsigned rk = 1; rk < 4; rk++) {
+          for(unsigned k = 0; k < dim; k++) {
+            X[rk][k] = X[0][k] + a[rk - 1] * F[rk - 1][k];
+          }
+          insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
+          if(!insideLocalDomain) {
+            break;
+          }
+          iel[rk] = _mrk.GetElement();
+          bool sameElement = false;
+          for(unsigned jk = 0; jk < rk; jk++) {
+            if(iel[rk] == iel[jk]) {
+              solU[rk] = solU[jk];
+              solUOld[rk] = solUOld[jk];
+              ielType[rk] = ielType[jk];
+              nDofs[rk] =  nDofs[jk];
+              sameElement = true;
+              break;
+            }
+          }
+          if(sameElement == false) {
+            ielType[rk] = msh->GetElementType(iel[rk]);
+            nDofs[rk] = msh->GetElementDofNumber(iel[rk], solType);
+            for(unsigned k = 0; k < dim; k++) {
+              solU[rk][k].resize(nDofs[rk]);
+              solUOld[rk][k].resize(nDofs[rk]);
+            }
+            for(unsigned i = 0; i < nDofs[rk]; i++) {
+              unsigned iDof = msh->GetSolutionDof(i, iel[rk], solType);
+              for(unsigned k = 0; k < dim; k++) {
+                solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+              }
+            }
+          }
+          msh->_finiteElement[ielType[rk]][solType]->GetPhi(phi, _mrk.GetIprocLocalCoordinates());
+          F[rk].assign(dim, 0);
+          for(unsigned i = 0; i < nDofs[rk]; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              F[rk][k] += ((1. - a[rk - 1]) * solUOld[rk][k][i] + a[rk - 1] * solU[rk][k][i])  * dt * phi[i];
+            }
+          }
+        }
+        if(insideLocalDomain) {
+          _ypNew[cnt] = _yp[_map[j]];
+          for(unsigned k = 0; k < dim; k++) {
+            _ypNew[cnt][k] += 1. / 6. * (F[0][k] + 2. * F[1][k] + 2. * F[2][k] + F[3][k]);
+          }
+          insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(_ypNew[cnt], _sol, solType, iel[0]);
+          if(insideLocalDomain) {
+            _elemNew[cnt] = _mrk.GetElement();
+            cnt++;
+          }
+        }
+
+      }
+
+
+
+
+
+
+
+    }
+    _ypNew.resize(cnt);
+    _elemNew.resize(cnt);
+    _yp.swap(_ypNew);
+    _elem.swap(_elemNew);
+    CreateMap();
+
+
+
+  }
+
 
 
 } // end namespace femus

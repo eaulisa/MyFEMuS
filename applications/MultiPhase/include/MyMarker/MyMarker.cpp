@@ -1487,7 +1487,7 @@ namespace femus {
 
 
     //BEGIN Inverse mapping loop
-    for(unsigned j = 0; j < solType; j++) {
+    for(unsigned j = 0; j < solType + 1; j++) {
 
       std::vector < double > phi;
       std::vector < std::vector < double > > gradPhi;
