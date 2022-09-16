@@ -81,11 +81,14 @@ namespace femus {
       unsigned _nMrk;
       std::ofstream _fout;
       std::vector<std::vector<double>> _yp;
-      std::vector<std::vector<double>> _ypNew;
-
       std::vector<std::vector<double>> _N;
       std::vector<double> _kappa;
       std::vector<std::vector<double>> _yi;
+
+      std::vector<std::vector<double>> _ypNew;
+      std::vector<std::vector<double>> _NNew;
+      std::vector<double> _kappaNew;
+
       std::vector<unsigned> _elem;
       std::vector<unsigned> _elemNew;
       std::vector<unsigned> _map;
@@ -294,6 +297,9 @@ namespace femus {
     coord.reserve(_elem.size());
     std::vector<double> norm;
 
+    
+    unsigned iproc = _sol->processor_id();
+    unsigned nprocs = _sol->n_processors();
 
     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
       unsigned iel = _itElMrkIdx->first;
@@ -310,7 +316,7 @@ namespace femus {
       }
 
       if(coord.size() < 6) {
-        for(unsigned i = 0; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
+        for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
           int jel = msh->el->GetElementNearElement(iel, i);
           if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
             unsigned j0 = _elMrkIdx[jel][0];
@@ -324,8 +330,22 @@ namespace femus {
           }
         }
       }
+      
+      if(iproc == 1 && iel == 7){
+        std::cerr << " I am proc " << iproc << " " << coord.size()<<" "<<cnt <<std::endl;
+        for(unsigned ii = 0; ii < coord.size();ii++){
+          for(unsigned k = 0; k < dim; k++){
+              std::cerr << coord[ii][k] << " ";
+          }
+          std::cerr<<std::endl;
+        }
+        
+      }
 
       if(coord.size() < 6) {
+          
+        //std::cerr << " I am proc " << iproc << " " << coord.size() <<std::endl;
+          
         pSerach[iel] = true;
       }
       else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
@@ -334,8 +354,7 @@ namespace femus {
 
     map<unsigned, bool>::iterator it;
 
-    unsigned iproc = _sol->processor_id();
-    unsigned nprocs = _sol->n_processors();
+   
 
     if(nprocs > 1) {
 
@@ -702,6 +721,12 @@ namespace femus {
 
     _ypNew.resize(_yp.size());
     _elemNew.resize(_yp.size());
+    _NNew.resize(_yp.size());
+    _kappaNew.resize(_yp.size());
+
+
+    map<unsigned, bool> pSerach;
+
     unsigned cnt = 0;
 
     std::vector < unsigned > solUIndex(dim);
@@ -776,6 +801,7 @@ namespace femus {
           }
           insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
           if(!insideLocalDomain) {
+            pSerach[j]  = true;
             break;
           }
           iel[rk] = _mrk.GetElement();
@@ -820,19 +846,168 @@ namespace femus {
               _ypNew[cnt][k] += b[stages - 1][rk] * F[rk][k] * dt;
             }
           }
-          insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(_ypNew[cnt], _sol, solType, iel[0]);
+          insideLocalDomain = _mrk.SerialElementSearch(_ypNew[cnt], _sol, solType, iel[0]);
           if(insideLocalDomain) {
             _elemNew[cnt] = _mrk.GetElement();
+            _NNew[cnt] = _N[_map[j]];
+            _kappaNew[cnt] = _kappa[_map[j]];
             cnt++;
+          }
+          else {
+            pSerach[j]  = true;
           }
         }
       }
     }
     _ypNew.resize(cnt);
     _elemNew.resize(cnt);
+    _NNew.resize(cnt);
+    _kappaNew.resize(cnt);
+
+
+    std::cerr<<"AAAAAAAAAAAAAAAAAAA\n"<<std::flush;
+    
+    map<unsigned, bool>::iterator it;
+
+    unsigned iproc = _sol->processor_id();
+    unsigned nprocs = _sol->n_processors();
+
+    if(nprocs > 1) {
+      for(unsigned kp = 0; kp < nprocs; kp++) {
+
+        unsigned np;
+        if(iproc == kp) {
+          np = pSerach.size();
+        }
+        MPI_Bcast(&np, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+
+        if(np > 0) {
+          if(iproc == kp) {
+            it =  pSerach.begin();
+          }
+
+          for(unsigned jcnt = 0; jcnt < np; jcnt++) {
+            unsigned j;
+            if(iproc == kp) {
+              j = it->first;
+
+              iel[0] = _elem[_map[j]];
+              ielType[0] = msh->GetElementType(iel[0]);
+              nDofs[0] = msh->GetElementDofNumber(iel[0], solType);
+
+              for(unsigned k = 0; k < dim; k++) {
+                solU[0][k].resize(nDofs[0]);
+                solUOld[0][k].resize(nDofs[0]);
+              }
+
+              for(unsigned i = 0; i < nDofs[0]; i++) {
+                unsigned iDof = msh->GetSolutionDof(i, iel[0], solType);
+                for(unsigned k = 0; k < dim; k++) {
+                  solU[0][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                  solUOld[0][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+                }
+              }
+              msh->_finiteElement[ielType[0]][solType]->GetPhi(phi, _yi[_map[j]]);
+              X[0] = _yp[_map[j]];
+              F[0].assign(dim, 0);
+              for(unsigned i = 0; i < nDofs[0]; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  F[0][k] += ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
+                }
+              }
+            }
+            MPI_Bcast(&iel[0], 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+            MPI_Bcast(X[0].data(), X[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
+            MPI_Bcast(F[0].data(), F[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
+
+            bool insideLocalDomain = true;
+            for(unsigned rk = 1; rk < stages; rk++) {
+              X[rk] = X[0];
+              for(unsigned jk = 0; jk < rk; jk++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
+                }
+              }
+              insideLocalDomain = _mrk.ParallelElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
+              if(!insideLocalDomain) {
+                break;
+              }
+
+              iel[rk] = _mrk.GetElement();
+              if(_mrk.GetProc() == iproc) {               
+                ielType[rk] = msh->GetElementType(iel[rk]);
+                nDofs[rk] = msh->GetElementDofNumber(iel[rk], solType);
+                for(unsigned k = 0; k < dim; k++) {
+                  solU[rk][k].resize(nDofs[rk]);
+                  solUOld[rk][k].resize(nDofs[rk]);
+                }
+                for(unsigned i = 0; i < nDofs[rk]; i++) {
+                  unsigned iDof = msh->GetSolutionDof(i, iel[rk], solType);
+                  for(unsigned k = 0; k < dim; k++) {
+                    solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                    solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+                  }
+                }
+
+                msh->_finiteElement[ielType[rk]][solType]->GetPhi(phi, _mrk.GetIprocLocalCoordinates());
+                F[rk].assign(dim, 0);
+                for(unsigned i = 0; i < nDofs[rk]; i++) {
+                  for(unsigned k = 0; k < dim; k++) {
+                    F[rk][k] += ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
+                  }
+                }
+              }
+              MPI_Bcast(F[rk].data(), F[rk].size(), MPI_DOUBLE, _mrk.GetProc(), MPI_COMM_WORLD);
+            }
+
+            if(insideLocalDomain) {
+              std::vector<double> ypNew = X[0];
+              for(unsigned k = 0; k < dim; k++) {
+                for(unsigned rk = 0; rk < stages; rk++) {
+                  ypNew[k] += b[stages - 1][rk] * F[rk][k] * dt;
+                }
+              }
+              insideLocalDomain = _mrk.ParallelElementSearch(ypNew, _sol, solType, iel[0]);
+              if(insideLocalDomain) {
+                if(kp == iproc) {
+                  MPI_Send(_N[_map[j]].data(), _N[_map[j]].size(), MPI_DOUBLE, _mrk.GetProc(), 1, MPI_COMM_WORLD);
+                  MPI_Send(&_kappa[_map[j]], 1, MPI_DOUBLE, _mrk.GetProc(), 2, MPI_COMM_WORLD);
+                }
+
+                if(_mrk.GetProc() == iproc) {
+                  _ypNew.resize(cnt + 1);
+                  _ypNew[cnt] = ypNew;
+                  _elemNew.resize(cnt + 1);
+                  _elemNew[cnt] = _mrk.GetElement();
+                  _NNew.resize(cnt + 1, std::vector<double> (dim));
+                  MPI_Recv(_NNew[cnt].data(), _NNew[cnt].size(), MPI_DOUBLE, kp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                  _kappaNew.resize(cnt + 1);
+                  MPI_Recv(&_kappaNew[cnt], 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                  cnt++;
+                }
+              }
+            }
+            if(iproc == kp) {
+              it++;
+            }
+          }
+        }
+      }
+    }
+
+
+   
+    
     _yp.swap(_ypNew);
     _elem.swap(_elemNew);
+    _kappa.swap(_kappaNew);
+    _N.swap(_NNew);
+
+    _yi.assign(cnt,std::vector<double>(dim,0));
+
     CreateMap();
+    
+    std::cerr<<"BBBBBBBBBBBBBBBBBBB\n"<<std::flush;
   }
 
 

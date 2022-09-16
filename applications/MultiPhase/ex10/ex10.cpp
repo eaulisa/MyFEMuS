@@ -40,10 +40,12 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   bool dirichlet = true; //dirichlet
 
   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-    value = 0.;
+    value = -x[1];
+    //value = -0.1;
   }
   else if(!strcmp(SolName, "V")) {
-    value = 0.;
+    value = x[0];
+    //value = 0.;
 //     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
   }
   else if(!strcmp(SolName, "W")) {
@@ -57,24 +59,26 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-double SetInitialCondition (const MultiLevelProblem * ml_prob, const std::vector < double >& x, const char name[]) {
-         
-           double value = 0.;
+double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector < double >& x, const char name[]) {
 
-             if(!strcmp(name,"U")) {
-                 value = 0.5;
-             }
-             else if(!strcmp(name,"V")) {
-                 value = 0.;
-             }
-             else if(!strcmp(name,"W")) {
-                 value = 0.;
-             }
-             else if(!strcmp(name,"P")) {
-                 value = 0.;
-             }
-           
-      return value;   
+  double value = 0.;
+
+  if(!strcmp(name, "U")) {
+    value = -x[1];
+    //value = -0.1;
+  }
+  else if(!strcmp(name, "V")) {
+    value = x[0];
+    //value = 0;
+  }
+  else if(!strcmp(name, "W")) {
+    value = 0.;
+  }
+  else if(!strcmp(name, "P")) {
+    value = 0.;
+  }
+
+  return value;
 }
 
 
@@ -110,16 +114,16 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
 
   // add variables to mlSol
-  mlSol.AddSolution("U", LAGRANGE, SECOND);
-  mlSol.AddSolution("V", LAGRANGE, SECOND);
-  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
+  mlSol.AddSolution("U", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
+  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
-  
+
   std::vector < unsigned > solVIndex(dim);
-  solVIndex[0] = mlSol.GetIndex("U");   
+  solVIndex[0] = mlSol.GetIndex("U");
   solVIndex[1] = mlSol.GetIndex("V");
   if(dim == 3) solVIndex[2] = mlSol.GetIndex("W");
-  
+
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
 //    mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
@@ -134,9 +138,10 @@ int main(int argc, char** args) {
 
 // define the multilevel problem attach the mlSol object to it
   MultiLevelProblem mlProb(&mlSol);
-  
+
   mlSol.Initialize("All");
   mlSol.Initialize("U", SetInitialCondition, &mlProb);
+  mlSol.Initialize("V", SetInitialCondition, &mlProb);
 
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
@@ -356,24 +361,35 @@ int main(int argc, char** args) {
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
+
+  std::vector < std::string > variablesToBePrinted;
+  variablesToBePrinted.push_back("All");
+
+  VTKWriter vtkIO(&mlSol);
+  vtkIO.SetDebugOutput(true);
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
+
 //   // BEGIN Testing the class Cloud
   Cloud cld;
   std::vector<std::string> Unkn = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
-  for(unsigned it = 0; it < 5; it++) {
+  for(unsigned it = 0; it < 51; it++) {
     for(unsigned k = 0; k < dim; k++) {
-      (sol->_SolOld[solVIndex[k]]) = (sol->_Sol[solVIndex[k]]);
+      *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
     }
     if(it == 0) {
 //       cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
-        cld.InitEllipse({0.125,0.125}, {0.15, 0.15}, nMax, sol);
+      cld.InitEllipse({0.125, 0.125}, {0.15, 0.15}, nMax, sol);
     }
-    else{
-      cld.RebuildMarkers(5, 20, 10);
+    else {
+      cld.RKAdvection(4, Unkn, 2*M_PI / 50);      
+      cld.ComputeQuadraticBestFit();
+      cld.RebuildMarkers(8, 12, 10);
     }
 
-    cld.ComputeQuadraticBestFit();
-    cld.RK4Advection(Unkn, 0.1);
+
+
+
 
     std::vector < std::vector < double > > x1;
     unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
@@ -423,9 +439,9 @@ int main(int argc, char** args) {
       MPI_Barrier(MPI_COMM_WORLD);
     }
     std::cerr << std::endl;
-    
+
     cld.PrintWithOrder(0);
-   
+
     cld.PrintCSV(it);
 
     //  Xc[0] += 0.1;
@@ -440,12 +456,7 @@ int main(int argc, char** args) {
 //   system.MGsolve();
 
 // print solutions
-  std::vector < std::string > variablesToBePrinted;
-  variablesToBePrinted.push_back("All");
 
-  VTKWriter vtkIO(&mlSol);
-  vtkIO.SetDebugOutput(true);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
 
   return 0;
 }
