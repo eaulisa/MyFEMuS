@@ -728,7 +728,7 @@ namespace femus {
       X[j].resize(dim);
     }
 
-    double a[3] = {0.5, 0.5, 1};
+    double a[4] = {0.,0.5, 0.5, 1.};
     double b[4] = {1., 2., 2., 1.};
 
     std::vector<double> phi;
@@ -737,11 +737,9 @@ namespace femus {
       unsigned j0 = _itElMrkIdx->second[0];
       unsigned j1 = _itElMrkIdx->second[1];
 
-
       iel[0] = _itElMrkIdx->first;
       ielType[0] = msh->GetElementType(iel[0]);
       nDofs[0] = msh->GetElementDofNumber(iel[0], solType);
-
 
       for(unsigned k = 0; k < dim; k++) {
         solU[0][k].resize(nDofs[0]);
@@ -766,7 +764,6 @@ namespace femus {
         }
 
         bool insideLocalDomain = true;
-
         for(unsigned rk = 1; rk < 4; rk++) {
           for(unsigned k = 0; k < dim; k++) {
             X[rk][k] = X[0][k] + a[rk - 1] * F[rk - 1][k];
@@ -779,11 +776,11 @@ namespace femus {
           bool sameElement = false;
           for(unsigned jk = 0; jk < rk; jk++) {
             if(iel[rk] == iel[jk]) {
-              solU[rk] = solU[jk];
-              solUOld[rk] = solUOld[jk];
+              sameElement = true;
               ielType[rk] = ielType[jk];
               nDofs[rk] =  nDofs[jk];
-              sameElement = true;
+              solU[rk] = solU[jk];
+              solUOld[rk] = solUOld[jk];
               break;
             }
           }
@@ -806,7 +803,7 @@ namespace femus {
           F[rk].assign(dim, 0);
           for(unsigned i = 0; i < nDofs[rk]; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              F[rk][k] += ((1. - a[rk - 1]) * solUOld[rk][k][i] + a[rk - 1] * solU[rk][k][i])  * dt * phi[i];
+              F[rk][k] += ((1. - a[rk]) * solUOld[rk][k][i] + a[rk] * solU[rk][k][i]) * dt * phi[i];
             }
           }
         }
@@ -821,24 +818,13 @@ namespace femus {
             cnt++;
           }
         }
-
       }
-
-
-
-
-
-
-
     }
     _ypNew.resize(cnt);
     _elemNew.resize(cnt);
     _yp.swap(_ypNew);
     _elem.swap(_elemNew);
     CreateMap();
-
-
-
   }
 
 
