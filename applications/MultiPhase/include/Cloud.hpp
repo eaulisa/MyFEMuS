@@ -72,7 +72,7 @@ namespace femus {
         return N;
       }
 
-      void RK4Advection(const std::vector<std::string> &U, const double &dt);
+      void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double &dt);
 
     private:
 
@@ -696,7 +696,7 @@ namespace femus {
   }
 
 
-  void Cloud::RK4Advection(const std::vector<std::string> &U, const double &dt) {
+  void Cloud::RKAdvection(const unsigned &stages, const std::vector<std::string> &U, const double &dt) {
 
     Mesh *msh = _sol->GetMesh();
     unsigned dim = msh->GetDimension();
@@ -713,23 +713,28 @@ namespace femus {
 
 
     unsigned solType = _sol->GetSolutionType(solUIndex[0]);
-    std::vector<std::vector<double>> solU[4];
-    std::vector<std::vector<double>> solUOld[4];
-    std::vector <double> F[4];
-    std::vector <double> X[4];
-    unsigned iel[4];
-    unsigned ielType[4];
-    unsigned nDofs[4];
+    std::vector<std::vector<std::vector<double>>> solU(stages);
+    std::vector<std::vector<std::vector<double>>> solUOld(stages);
+    std::vector<std::vector <double>> F(stages);
+    std::vector<std::vector <double>> X(stages);
+    std::vector<unsigned> iel(stages);
+    std::vector<unsigned> ielType(stages);
+    std::vector<unsigned> nDofs(stages);
 
-    for(unsigned j  = 0; j < 4; j++) {
+    for(unsigned j  = 0; j < stages; j++) {
       solU[j].resize(dim);
       solUOld[j].resize(dim);
       F[j].resize(dim);
       X[j].resize(dim);
     }
-
-    double a[4] = {0.,0.5, 0.5, 1.};
-    double b[4] = {1., 2., 2., 1.};
+    std::vector<std::vector<double>> c = {{}, {}, {}, {0., 0.5, 0.5, 1.}};
+    std::vector<std::vector<std::vector<double>>> a = {
+      {},
+      {},
+      {},
+      {{}, {0.5}, {0., 0.5}, {0., 0., 1.}}
+    };
+    std::vector<std::vector<double>> b = {{}, {}, {}, {1. / 6., 1. / 3., 1. / 3., 1. / 6.}};
 
     std::vector<double> phi;
 
@@ -759,14 +764,17 @@ namespace femus {
         F[0].assign(dim, 0);
         for(unsigned i = 0; i < nDofs[0]; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            F[0][k] += solUOld[0][k][i] * dt * phi[i];
+            F[0][k] += ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
           }
         }
 
         bool insideLocalDomain = true;
-        for(unsigned rk = 1; rk < 4; rk++) {
-          for(unsigned k = 0; k < dim; k++) {
-            X[rk][k] = X[0][k] + a[rk - 1] * F[rk - 1][k];
+        for(unsigned rk = 1; rk < stages; rk++) {
+          X[rk] = X[0];
+          for(unsigned jk = 0; jk < rk; jk++) {
+            for(unsigned k = 0; k < dim; k++) {
+              X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
+            }
           }
           insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
           if(!insideLocalDomain) {
@@ -803,14 +811,16 @@ namespace femus {
           F[rk].assign(dim, 0);
           for(unsigned i = 0; i < nDofs[rk]; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              F[rk][k] += ((1. - a[rk]) * solUOld[rk][k][i] + a[rk] * solU[rk][k][i]) * dt * phi[i];
+              F[rk][k] += ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
             }
           }
         }
         if(insideLocalDomain) {
           _ypNew[cnt] = _yp[_map[j]];
           for(unsigned k = 0; k < dim; k++) {
-            _ypNew[cnt][k] += 1. / 6. * (F[0][k] + 2. * F[1][k] + 2. * F[2][k] + F[3][k]);
+            for(unsigned rk = 0; rk < stages; rk++) {
+              _ypNew[cnt][k] += b[stages - 1][rk] * F[rk][k] * dt;
+            }
           }
           insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(_ypNew[cnt], _sol, solType, iel[0]);
           if(insideLocalDomain) {
