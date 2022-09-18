@@ -296,8 +296,8 @@ namespace femus {
     std::vector<std::vector<double>> coord;
     coord.reserve(_elem.size());
     std::vector<double> norm;
+    std::vector<double> xn;
 
-    
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
 
@@ -307,15 +307,22 @@ namespace femus {
       unsigned i1 = _itElMrkIdx->second[1];
       coord.resize(i1 - i0, std::vector<double> (dim));
       norm.assign(dim, 0);
+      xn.assign(dim, 0);
       unsigned cnt = 0;
       for(unsigned i = i0; i < i1; i++, cnt++) {
         for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
           norm[k] += _N[_map[i]][k];
+          xn[k] += coord[cnt][k];
         }
       }
+      for(unsigned k = 0; k < dim; k++) {
+        xn[k] /= coord.size();
+      }
 
+      bool testNormalAgain = false;
       if(coord.size() < 6) {
+        testNormalAgain = true;
         for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
           int jel = msh->el->GetElementNearElement(iel, i);
           if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
@@ -330,31 +337,31 @@ namespace femus {
           }
         }
       }
-      
-      if(iproc == 1 && iel == 7){
-        std::cerr << " I am proc " << iproc << " " << coord.size()<<" "<<cnt <<std::endl;
-        for(unsigned ii = 0; ii < coord.size();ii++){
-          for(unsigned k = 0; k < dim; k++){
-              std::cerr << coord[ii][k] << " ";
-          }
-          std::cerr<<std::endl;
-        }
-        
-      }
 
       if(coord.size() < 6) {
-          
-        //std::cerr << " I am proc " << iproc << " " << coord.size() <<std::endl;
-          
         pSerach[iel] = true;
       }
-      else femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+      else {
+        femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+        if(testNormalAgain) {
+          std::vector <double> n1 = getNormal(iel, xn);
+          double n1Dotn = 0;
+          for(unsigned k = 0; k < dim; k++) {
+            n1Dotn += norm[k] * n1[k];
+          }
+          if(n1Dotn < 0) {
+            for(unsigned  i = 0; i < _A[iel].size(); i++) {
+              _A[iel][i] *= -1.;
+            }
+          }
+        }
+      }
 
     }
 
     map<unsigned, bool>::iterator it;
 
-   
+
 
     if(nprocs > 1) {
 
@@ -382,18 +389,24 @@ namespace femus {
               unsigned i1 = _elMrkIdx[kel][1];
               coord.resize(i1 - i0, std::vector<double> (dim));
               norm.assign(dim, 0);
+              xn.assign(dim, 0);
               unsigned cnt = 0;
               for(unsigned i = i0; i < i1; i++, cnt++) {
                 for(unsigned k = 0; k < dim; k++) {
                   coord[cnt][k] = _yp[_map[i]][k];
                   norm[k] += _N[_map[i]][k];
+                  xn[k] += coord[cnt][k];
                 }
               }
+              for(unsigned k = 0; k < dim; k++) {
+                xn[k] /= coord.size();
+              }
+
               nNgbElms = msh->el->GetElementNearElementSize(kel, 1);
             }
             MPI_Bcast(&nNgbElms, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
 
-            for(unsigned i = 0; i < nNgbElms; i++) {
+            for(unsigned i = 1; i < nNgbElms; i++) {
 
               int jel;
               if(iproc == kp) {
@@ -449,6 +462,18 @@ namespace femus {
 
             if(iproc == kp) {
               femus::FindQuadraticBestFit(coord, boost::none, norm, _A[kel]);
+
+              std::vector <double> n1 = getNormal(kel, xn);
+              double n1Dotn = 0;
+              for(unsigned k = 0; k < dim; k++) {
+                n1Dotn += norm[k] * n1[k];
+              }
+              if(n1Dotn < 0) {
+                for(unsigned  i = 0; i < _A[kel].size(); i++) {
+                  _A[kel][i] *= -1.;
+                }
+              }
+
               it++;
             }
 
@@ -653,7 +678,7 @@ namespace femus {
 
       if((i1 - i0) < nMin || (i1 - i0) > nMax) {
         xe = GetCellPointsFromQuadric(xv, iel, npt);
-        std::cerr << iel << " " << xe.size() << std::endl;
+        //std::cerr << iel << " " << xe.size() << std::endl;
 
         if(cnt + xe.size() > _ypNew.size()) {
           unsigned newSize = cnt + xe.size() + 2 * (nel - elCnt) * nMax;
@@ -864,9 +889,6 @@ namespace femus {
     _NNew.resize(cnt);
     _kappaNew.resize(cnt);
 
-
-    std::cerr<<"AAAAAAAAAAAAAAAAAAA\n"<<std::flush;
-    
     map<unsigned, bool>::iterator it;
 
     unsigned iproc = _sol->processor_id();
@@ -934,7 +956,7 @@ namespace femus {
               }
 
               iel[rk] = _mrk.GetElement();
-              if(_mrk.GetProc() == iproc) {               
+              if(_mrk.GetProc() == iproc) {
                 ielType[rk] = msh->GetElementType(iel[rk]);
                 nDofs[rk] = msh->GetElementDofNumber(iel[rk], solType);
                 for(unsigned k = 0; k < dim; k++) {
@@ -996,18 +1018,17 @@ namespace femus {
     }
 
 
-   
-    
+
+
     _yp.swap(_ypNew);
     _elem.swap(_elemNew);
     _kappa.swap(_kappaNew);
     _N.swap(_NNew);
 
-    _yi.assign(cnt,std::vector<double>(dim,0));
+    _yi.assign(cnt, std::vector<double>(dim, 0));
 
     CreateMap();
-    
-    std::cerr<<"BBBBBBBBBBBBBBBBBBB\n"<<std::flush;
+
   }
 
 
@@ -1016,5 +1037,10 @@ namespace femus {
 
 
 #endif
+
+
+
+
+
 
 

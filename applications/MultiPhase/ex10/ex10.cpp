@@ -167,199 +167,12 @@ int main(int argc, char** args) {
   Mesh*          msh          = mlProb._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
 
   Solution* sol = mlSol.GetSolutionLevel(level);
-  MyMarker mrk = MyMarker();
-  std::vector<double> xp = {.35, .15};
-  unsigned solTypeB = 2;
+//   MyMarker mrk = MyMarker();
+//   std::vector<double> xp = {.35, .15};
+//   unsigned solTypeB = 2;
   unsigned iproc = sol->processor_id();
   unsigned nprocs = sol->n_processors();
-  std::vector<double> xi;
-  unsigned iel;
-  bool elemSearch;
-
-  //This call is a parallel call without a given element from where to start the search
-  //It is a parallel search in a parallel environment, effective if there is no clue on where the point is located
-  elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2); // if the element has been found all processes return true
-  if(elemSearch) {
-    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
-    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
-      xi = mrk.GetIprocLocalCoordinates();
-//       std::cerr << "the point " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-//       std::cerr << std::endl << std::flush;
-    }
-  }
-  else if(iproc == 0) {
-    std::cout << " element search failed the point " << std::flush;
-    for(unsigned i = 0; i < xp.size(); i++) std::cout << xp[i] << " " << std::flush;
-    std::cout << "is probably outside the domain!" << std::endl << std::flush;
-  }
-
-
-  //This call is a parallel call with a given element from where to start the search.
-  //It is a serial search in a parallel environment, effective is the starting element is close to the marker
-  elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, 0); // if the element has been found all processes return true
-  if(elemSearch) {
-    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
-    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
-      xi = mrk.GetIprocLocalCoordinates();
-//       std::cerr << "the point " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-//       std::cerr << std::endl << std::flush;
-    }
-  }
-  else if(iproc == 0) {
-    std::cout << " element search failed the point " << std::flush;
-    for(unsigned i = 0; i < xp.size(); i++) std::cout << xp[i] << " " << std::flush;
-    std::cout << "is probably outside the domain!" << std::endl << std::flush;
-  }
-
-
-
-  //This is a serial search in a serial environment, always called with a strating element.
-  //only the process that owns the starting element will try to find the element where the point is located all the others will return false.
-  elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, sol, solTypeB, 14);
-  if(elemSearch) {
-    iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
-    if(mrk.GetProc() == iproc) { // only the process that ownes the marker has its local coordinates
-      xi = mrk.GetIprocLocalCoordinates();
-//       std::cerr << "the point " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xp[i] << " " << std::flush;
-//       std::cerr << "belongs to the process " << iproc << " the element " << mrk.GetElement() << " and has local coordinates " << std::flush;
-//       for(unsigned i = 0; i < xp.size(); i++) std::cerr << xi[i] << " " << std::flush;
-//       std::cerr << std::endl << std::flush;
-    }
-  }
-
   unsigned nMax = 50;
-  std::vector<std::vector<double>> yp(nMax);
-  std::vector<std::vector<double>> N(nMax);
-  std::vector<double> kappa(nMax);
-  std::vector<std::vector<double>> yi(nMax);
-  std::vector<unsigned> elem(nMax);
-  unsigned cnt = 0;
-  double R = 0.3245;
-  double dt = 2 * M_PI / nMax;
-  std::vector<double> Xc = {0.0134, 0.045};
-  unsigned previousElem = UINT_MAX;
-  for(unsigned i = 0; i < nMax; i++) {
-    xp[0] = Xc[0] + R * cos(i * dt);
-    xp[1] = Xc[1] + R * sin(i * dt);
-    if(previousElem == UINT_MAX) elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2);
-    else elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, sol, 2, previousElem);
-
-    if(elemSearch) {
-      iel = mrk.GetElement(); // if the element has been found all processes know in which element is located
-      if(mrk.GetProc() == iproc) {
-        yp[cnt]  = xp;
-        yi[cnt]  = mrk.GetIprocLocalCoordinates();
-        N[cnt] = {cos(i * dt), sin(i * dt)};
-        kappa[cnt] = 1. / R;
-        elem[cnt] = iel;
-        cnt++;
-      }
-      previousElem = iel;
-    }
-    else {
-      previousElem = UINT_MAX;
-    }
-  }
-  yp.resize(cnt);
-  yi.resize(cnt);
-  elem.resize(cnt);
-  N.resize(cnt);
-  kappa.resize(cnt);
-
-  std::vector<unsigned*> vec(elem.size());
-
-  for(unsigned i = 0; i < elem.size(); i++) {
-    vec[i] = &elem[i];
-  }
-
-  std::sort(vec.begin(), vec.end(), [](const unsigned * a, const unsigned * b) {
-    return *a < *b;
-  });
-
-  std::vector<unsigned> map(elem.size());
-  for(unsigned i = 0; i < map.size(); i++) {
-    map[i] =  static_cast<unsigned>(vec[i] - &elem[0]);
-  }
-
-  std::ofstream fout;
-  for(unsigned kp = 0; kp < nprocs; kp++) {
-    if(kp == iproc) {
-      if(kp == 0) fout.open("markerno.dat", std::fstream::out);
-      else fout.open("markerno.dat", std::fstream::app);
-      for(unsigned i = 0; i < yp.size(); i++) {
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yp[i][k] << " ";
-        }
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yi[i][k] << " ";
-        }
-        for(unsigned k = 0; k < dim; k++) {
-          fout << N[i][k] << " ";
-        }
-        fout << kappa[i] << " " << iproc << " " << elem[i] << std::endl;
-      }
-      fout.close();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-
-
-  for(unsigned kp = 0; kp < nprocs; kp++) {
-    if(kp == iproc) {
-      if(kp == 0) fout.open("marker.dat", std::fstream::out);
-      else fout.open("marker.dat", std::fstream::app);
-      for(unsigned i = 0; i < yp.size(); i++) {
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yp[map[i]][k] << " ";
-        }
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yi[map[i]][k] << " ";
-        }
-        for(unsigned k = 0; k < dim; k++) {
-          fout << N[map[i]][k] << " ";
-        }
-        fout << kappa[map[i]] << " " << iproc << " " << elem[map[i]] << std::endl;
-      }
-      fout.close();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-
-
-  for(unsigned kp = 0; kp < nprocs; kp++) {
-    if(kp == iproc) {
-      if(kp == 0) fout.open("./output/marker.csv", std::fstream::out);
-      else fout.open("./output/marker.csv", std::fstream::app);
-
-      if(kp == 0) {
-        fout << "\"X\",\"Y\",\"Z\",\"xi\",\"eta\",\"zeta\",\"Nx\",\"Ny\",\"Nz\",\"kappa\",\"ipoc\",\"elem\"" << std::endl;
-      }
-      for(unsigned i = 0; i < yp.size(); i++) {
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yp[map[i]][k] << ",";
-        }
-        fout << "0.,";
-        for(unsigned k = 0; k < dim; k++) {
-          fout << yi[map[i]][k] << ",";
-        }
-        fout << "0.,";
-        for(unsigned k = 0; k < dim; k++) {
-          fout << N[map[i]][k] << ",";
-        }
-        fout << "0.,";
-        fout << kappa[map[i]] << "," << iproc << "," << elem[map[i]] << std::endl;
-      }
-      fout.close();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
 
 
   std::vector < std::string > variablesToBePrinted;
@@ -382,14 +195,10 @@ int main(int argc, char** args) {
       cld.InitEllipse({0.125, 0.125}, {0.15, 0.15}, nMax, sol);
     }
     else {
-      cld.RKAdvection(4, Unkn, 2*M_PI / 50);      
+      cld.RKAdvection(4, Unkn, 2*M_PI / 50);
       cld.ComputeQuadraticBestFit();
       cld.RebuildMarkers(8, 12, 10);
     }
-
-
-
-
 
     std::vector < std::vector < double > > x1;
     unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
@@ -400,47 +209,12 @@ int main(int argc, char** args) {
           std::cerr << "iel = " << iel << "   ";
           const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
           for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
-          std::cerr << "\n";
-
-
-//           unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
-//
-//           x1.resize(dim);
-//           for(unsigned k = 0; k < dim; k++) {
-//             x1[k].resize(nDof);
-//           }
-//
-//           for(unsigned k = 0; k < dim; k++) {
-//             for(unsigned i = 0; i < nDof; i++) {
-//               unsigned xDof  = msh->GetSolutionDof(i, iel, coordXType);    // global to global mapping between coordinates node and coordinate dof
-//               x1[k][i] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
-//             }
-//           }
-//
-//           std::vector<std::vector<double>> xe;
-//
-//           if(a.size() == 6) {
-//             cld.GetCellPointsFromQuadric(x1, iel, 10, xe);
-//
-//             for(unsigned i = 0; i < xe[0].size(); i++) {
-//               for(unsigned  k = 0; k < dim; k++) {
-//                 std::cerr << xe[k][i] << " ";
-//               }
-//               std::cerr << std::endl;
-//             }
-//           }
-
-//           if(iel == 3 && a.size() == 6) {
-//               double K = cld.getCurvature(iel,  {-0.32 - 0.05*it,-0.001});
-//               std::vector<double> Normal = cld.getNormal(iel, {-0.32 - 0.05*it,-0.001});
-//           }
+          std::cerr << "\n"<<std::flush;
         }
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
     std::cerr << std::endl;
-
-    cld.PrintWithOrder(0);
 
     cld.PrintCSV(it);
 
