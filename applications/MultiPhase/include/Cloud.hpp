@@ -567,7 +567,7 @@ namespace femus {
         double &x1 = xe[1][0];
         double &y1 = xe[1][1];
 
-        std::vector<double> xc = {0.5 * (x0 + x1) + 10. * (y1 - y0), 0.5 * (y0 + y1) - 10. * (x1 - x0)};
+        std::vector<double> xc = {0.5 * (x0 + x1) - 10. * (y1 - y0), 0.5 * (y0 + y1) + 10. * (x1 - x0)};
 
         double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
         double theta1 = atan2(y1 - xc[1], x1 - xc[0]);
