@@ -496,6 +496,18 @@ namespace femus {
 
   std::vector<std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned level) {
 
+    if(iel == 61 && level == 1) {
+      std::cerr << " AAAA\n";
+
+      for(unsigned i = 0; i < 6; i++) {
+        std::cerr << _A[iel][i] << " ";
+      }
+      std::cerr << std::endl;
+      for(unsigned i = 0; i < 4; i++) {
+        std::cerr << xv[0][i] << " " << xv[1][i] << std::endl;
+      }
+    }
+
     unsigned cnt = 0;
     const unsigned dim = xv.size();
     std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));
@@ -517,11 +529,15 @@ namespace femus {
         double b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
         double c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
 
+        if(level == 1) std::cerr << v[0] << " " << v[1] << " " << a << " " << b << " " << c << std::endl;
+
         if(a != 0) {
           double delta = b * b - 4. * a * c;
+          if(level == 1) std::cerr << " delta = " << delta << std::endl;
           if(delta > 0.) {
             for(unsigned j = 0; j < 2; j++) {
               double t = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
+              if(level == 1)std::cerr << t << std::endl;
               if(t >= 0 && t <= 1) {
                 for(unsigned  k = 0; k < dim; k++) {
                   xe[cnt][k] = xv[k][i]  + t * v[k];
@@ -613,6 +629,9 @@ namespace femus {
         npt = cnt;
       }
       else {
+
+        std::cerr << iel << " " << level << " " << cnt << std::endl;
+
         xe.resize(0);
         if(cnt > 2) {
           xe.reserve(4 * npt);

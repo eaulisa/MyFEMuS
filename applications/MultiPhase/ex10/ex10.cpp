@@ -36,17 +36,16 @@
 
 using namespace femus;
 
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time);
+
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
-  bool dirichlet = true; //dirichlet
+  bool dirichlet = false; //dirichlet
 
   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-    value = -x[1];
-    //value = -0.1;
+    value = 0;
   }
   else if(!strcmp(SolName, "V")) {
-    value = x[0];
-    //value = 0.;
-//     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
+    value = 0;
   }
   else if(!strcmp(SolName, "W")) {
     value = 0.;
@@ -55,7 +54,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
     dirichlet = false;
     value = 0.;
   }
-
   return dirichlet;
 }
 
@@ -101,7 +99,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -167,41 +165,41 @@ int main(int argc, char** args) {
   Mesh*          msh          = mlProb._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
 
   Solution* sol = mlSol.GetSolutionLevel(level);
-//   MyMarker mrk = MyMarker();
-//   std::vector<double> xp = {.35, .15};
-//   unsigned solTypeB = 2;
+
   unsigned iproc = sol->processor_id();
   unsigned nprocs = sol->n_processors();
-  unsigned nMax = 50;
-
 
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
 
-//   // BEGIN Testing the class Cloud
+  // BEGIN Testing the class Cloud
   Cloud cld;
-  std::vector<std::string> Unkn = {"U", "V"};
+  std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
-  for(unsigned it = 0; it < 51; it++) {
+
+  double time = 0.;
+  unsigned nMax = 50;
+  cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
+  SetVelocity(sol, velocity, time );
+  cld.PrintCSV(0);
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+  double period = 2 * M_PI;
+  unsigned nIterations = 128;
+  double dt = period / nIterations;
+
+  for(unsigned it = 1; it <= 2; it++) {
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
     }
-    if(it == 0) {
-//       cld.InitEllipse(Xc, {R, R + 0.1}, nMax, sol);
-      cld.InitEllipse({0.125, 0.125}, {0.15, 0.15}, nMax, sol);
-    }
-    else {
-      cld.RKAdvection(4, Unkn, 2*M_PI / 50);
-      cld.ComputeQuadraticBestFit();
-      cld.RebuildMarkers(8, 12, 10);
-    }
-
-    std::vector < std::vector < double > > x1;
-    unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+    time += dt;
+    SetVelocity(sol, velocity, time);
+    cld.RKAdvection(4, velocity, dt);
+    cld.ComputeQuadraticBestFit();
+    cld.RebuildMarkers(8, 12, 10);
 
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(msh->processor_id() == kp) {
@@ -209,7 +207,7 @@ int main(int argc, char** args) {
           std::cerr << "iel = " << iel << "   ";
           const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
           for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
-          std::cerr << "\n"<<std::flush;
+          std::cerr << "\n" << std::flush;
         }
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -217,23 +215,66 @@ int main(int argc, char** args) {
     std::cerr << std::endl;
 
     cld.PrintCSV(it);
+    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
-    //  Xc[0] += 0.1;
-    //  Xc[1] += 0.05;
-    //  R += 0.05;
   }
   // END Testing the class Cloud
 
   // initilaize and solve the system
-//   system.init();
-//   system.SetOuterSolver(PREONLY);
-//   system.MGsolve();
-
-// print solutions
+  //   system.init();
+  //   system.SetOuterSolver(PREONLY);
+  //   system.MGsolve();
 
 
   return 0;
 }
+
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time) {
+
+  Mesh* msh = sol->GetMesh();    // pointer to the mesh (level) object
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+
+  std::vector < unsigned > uIndex(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    uIndex[k] = sol->GetIndex(U[k].c_str());
+  }
+  unsigned uType = sol->GetSolutionType(uIndex[0]);
+
+  std::vector < double > xv(dim);    // local coordinates
+  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned nDofsU = msh->GetElementDofNumber(iel, uType);
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofsU; i++) {
+      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // local to global mapping between coordinates node and coordinate dof
+      for(unsigned k = 0; k < dim; k++) {
+        xv[k] = (*msh->_topology->_Sol[k])(xDof);
+      }
+      unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
+      //rotation;
+      sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+      sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+      //single vortex;
+      double T = 2.;
+      double x = xv[0]+0.5;
+      double y = xv[1]+0.5;
+      double u = -2. * sin(M_PI*x) * sin(M_PI*x) * sin(M_PI*y) * cos(M_PI*y) * cos(M_PI*time/T);
+      double v =  2. * sin(M_PI*x) * cos(M_PI*x) * sin(M_PI*y) * sin(M_PI*y) * cos(M_PI*time/T);
+      sol->_Sol[uIndex[0]]->set(uDof, u);
+      sol->_Sol[uIndex[1]]->set(uDof, v);
+    }
+  }
+  for(unsigned  k = 0; k < dim; k++) {
+    sol->_Sol[uIndex[k]]->close();
+  }
+
+}
+
+
+
 
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
