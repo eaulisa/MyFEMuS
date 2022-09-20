@@ -294,6 +294,7 @@ namespace femus {
 
     unsigned dim = _sol->GetMesh()->GetDimension();
     std::vector<std::vector<double>> coord;
+    std::vector<double> weight;
     coord.reserve(_elem.size());
     std::vector<double> norm;
     std::vector<double> xn;
@@ -319,30 +320,58 @@ namespace femus {
       for(unsigned k = 0; k < dim; k++) {
         xn[k] /= coord.size();
       }
+      double sigma2 = 0;
+      for(unsigned i = 0; i < cnt; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+        }
+      }
+      sigma2 /= cnt;
+      double sigma = sqrt(sigma2);
+      weight.resize(i1 - i0);
+      for(unsigned i = 0; i < cnt; i++) {
+        double a = 0;
+        for(unsigned k = 0; k < dim; k++) {
+          a += -0.5 / sigma2 * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+        }
+        weight[i] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
+      }
+
+
+
 
       bool testNormalAgain = false;
+      bool callWithWeight = false;
       if(coord.size() < 6) {
+
         testNormalAgain = true;
+        callWithWeight = true;
         for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
           int jel = msh->el->GetElementNearElement(iel, i);
           if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
             unsigned j0 = _elMrkIdx[jel][0];
             unsigned j1 = _elMrkIdx[jel][1];
             coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
+            weight.resize(weight.size() + (j1 - j0));
             for(unsigned j = j0; j < j1; j++, cnt++) {
+              double a = 0;
               for(unsigned k = 0; k < dim; k++) {
                 coord[cnt][k] = _yp[_map[j]][k];
+                a += -0.5 / sigma2 * (coord[cnt][k] - xn[k]) * (coord[cnt][k] - xn[k]);
               }
+              weight[cnt] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
             }
           }
         }
+
       }
 
       if(coord.size() < 6) {
         pSerach[iel] = true;
       }
       else {
-        femus::FindQuadraticBestFit(coord, boost::none, norm, _A[iel]);
+        if(!callWithWeight) femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
+        else femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
         if(testNormalAgain) {
           std::vector <double> n1 = getNormal(iel, xn);
           double n1Dotn = 0;

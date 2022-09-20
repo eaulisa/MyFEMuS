@@ -97,7 +97,7 @@ namespace femus {
 //     d = -std::inner_product(a.begin(), a.end(), xg.begin(), 0);
   }
 
-  void FindQuadraticBestFit1(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
+  void FindQuadraticBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
     const unsigned& dim = N.size();
     unsigned nParam = 4 * dim - 2;
 
@@ -290,7 +290,7 @@ namespace femus {
 
   }
 
-  void FindQuadraticBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
+  void FindQuadraticBestFit1(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
     const unsigned& dim = N.size();
     unsigned nParam = 4;
 

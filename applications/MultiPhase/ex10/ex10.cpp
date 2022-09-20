@@ -191,15 +191,19 @@ int main(int argc, char** args) {
   unsigned nIterations = 128;
   double dt = period / nIterations;
 
-  for(unsigned it = 1; it <= nIterations; it++) {
+  for(unsigned it = 1; it <= 4; it++) {
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
     }
     time += dt;
     SetVelocity(sol, velocity, time);
     cld.RKAdvection(4, velocity, dt);
+    cld.PrintCSV(10 + it);
     cld.ComputeQuadraticBestFit();
-    cld.RebuildMarkers(8, 12, 100);
+    cld.RebuildMarkers(8, 12, 10);
+    
+    cld.PrintCSV(it);
+    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(msh->processor_id() == kp) {
@@ -214,8 +218,7 @@ int main(int argc, char** args) {
     }
     std::cerr << std::endl;
 
-    cld.PrintCSV(it);
-    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
+   
 
   }
   // END Testing the class Cloud
