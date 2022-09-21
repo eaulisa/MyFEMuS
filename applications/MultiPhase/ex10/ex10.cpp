@@ -99,7 +99,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -181,7 +181,7 @@ int main(int argc, char** args) {
   std::cout << "Testing the class Cloud \n";
 
   double time = 0.;
-  unsigned nMax = 50;
+  unsigned nMax = 100;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
   SetVelocity(sol, velocity, time );
   cld.PrintCSV(0);
@@ -191,14 +191,15 @@ int main(int argc, char** args) {
   unsigned nIterations = 128;
   double dt = period / nIterations;
 
-  for(unsigned it = 1; it <= 4; it++) {
+//   for(unsigned it = 1; it <= 30; it++) {
+    std::cout << "ITERATION " << it <<"\n";   
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
     }
     time += dt;
     SetVelocity(sol, velocity, time);
     cld.RKAdvection(4, velocity, dt);
-    cld.PrintCSV(10 + it);
+//     cld.PrintCSV(10 + it);
     cld.ComputeQuadraticBestFit();
     cld.RebuildMarkers(8, 12, 10);
     
