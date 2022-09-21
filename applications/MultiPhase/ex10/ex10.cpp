@@ -191,7 +191,7 @@ int main(int argc, char** args) {
   unsigned nIterations = 128;
   double dt = period / nIterations;
 
-//   for(unsigned it = 1; it <= 30; it++) {
+  for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it <<"\n";   
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);

@@ -157,17 +157,17 @@ namespace femus {
     CreateMap();
 
   }
-  
-    void Cloud::InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol) {
-    if(xc.size() != a.size() || nMax.size() != a.size()){
-      std::cerr<< "Non-matching vectors in ellipses initialization \n";
+
+  void Cloud::InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol) {
+    if(xc.size() != a.size() || nMax.size() != a.size()) {
+      std::cerr << "Non-matching vectors in ellipses initialization \n";
       abort();
     }
-    else{
+    else {
       unsigned totMrk = 0;
       _sol = sol;
-      for(unsigned it = 0; it < nMax.size(); it++){
-         totMrk += nMax[it];  
+      for(unsigned it = 0; it < nMax.size(); it++) {
+        totMrk += nMax[it];
       }
       SetNumberOfMarker(totMrk);
       std::vector<double> xp(2);
@@ -177,19 +177,19 @@ namespace femus {
       unsigned iel;
       unsigned iproc = sol->processor_id();
       unsigned cnt = 0;
-      
+
       _yp.resize(_nMrk);
       _yi.resize(_nMrk);
       _elem.resize(_nMrk);
       _N.resize(_nMrk);
       _kappa.resize(_nMrk);
-      for(unsigned it = 0; it < nMax.size(); it++){
+      for(unsigned it = 0; it < nMax.size(); it++) {
         double dt = 2. * M_PI / nMax[it];
         for(unsigned i = 0; i < nMax[it]; i++) {
           double t = i * dt;
           xp[0] = xc[it][0] + a[it][0] * cos(t);
           xp[1] = xc[it][1] + a[it][1] * sin(t);
-          
+
           elemSearch = ParallelElementSearch(xp, previousElem);
           if(elemSearch) {
             iel = _mrk.GetElement();
@@ -207,17 +207,17 @@ namespace femus {
           else {
             previousElem = UINT_MAX;
           }
-        }    
+        }
       }
       _yp.resize(cnt);
       _yi.resize(cnt);
       _elem.resize(cnt);
       _N.resize(cnt);
       _kappa.resize(cnt);
-      
+
       CreateMap();
     }
-       
+
   }
 
   void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
@@ -382,41 +382,41 @@ namespace femus {
         }
       }
 
+      double sumD = 0.;
       std::vector<double> wAux(cnt, 0.);
       double dist2 = 0.;
       for(unsigned i = 0; i < cnt; i++) {
-        for(unsigned j = 0; j < cnt; j++ ){
-          if(i != j){
+        for(unsigned j = 0; j < cnt; j++) {
+          if(i != j) {
             for(unsigned k = 0; k < dim; k++) {
-              dist2 = ( coord[i][k] - coord[j][k] ) * ( coord[i][k] - coord[j][k] );
+              dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
             }
             wAux[i] += sqrt(dist2);
-          }  
-        }  
+          }
+        }
+        sumD += wAux[i];
       }
-      double sumD = 0.;
-      for(unsigned i = 0; i < wAux.size(); i++) sumD += wAux[i];
       for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
-      
+
       for(unsigned i = 0; i < cnt; i++) {
         for(unsigned k = 0; k < dim; k++) {
-            xn[k] += wAux[i] * coord[i][k];
+          xn[k] += wAux[i] * coord[i][k];
         }
       }
-      for(unsigned k = 0; k < dim; k++) {
-        xn[k] /= coord.size();
-      }
-      
+//       for(unsigned k = 0; k < dim; k++) {
+//         xn[k] /= coord.size();
+//       }
+
       double sigma2 = 0.;
       double sigma = 0.;
       weight.resize(i1 - i0);
-      if(i1 - i0 > 1){
+      if(i1 - i0 > 1) {
         for(unsigned i = 0; i < cnt; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            sigma2 += wAux[i] *  (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+            sigma2 += wAux[i] * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
           }
         }
-        sigma2 /= cnt;
+        //sigma2 /= cnt;
         sigma = sqrt(sigma2);
         for(unsigned i = 0; i < cnt; i++) {
           double a = 0;
@@ -426,8 +426,8 @@ namespace femus {
           weight[i] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
         }
       }
-      else{
-        oneMrk = true; 
+      else {
+        oneMrk = true;
         weight[0] = 0.;
       }
 
@@ -435,11 +435,9 @@ namespace femus {
 
 
       bool testNormalAgain = false;
-      bool callWithWeight = false;
       if(coord.size() < 6) {
 
         testNormalAgain = true;
-        callWithWeight = true;
         for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
           int jel = msh->el->GetElementNearElement(iel, i);
           if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
@@ -455,7 +453,7 @@ namespace femus {
               }
               if(!oneMrk) weight[cnt] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
               else {
-                weight[0]+= 1.;    
+                weight[0] += 1.;
                 weight[cnt] = 1.;
               }
             }
@@ -468,8 +466,31 @@ namespace femus {
         pSerach[iel] = true;
       }
       else {
-        if(!callWithWeight) femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
-        else femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
+        femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
+
+
+        double t;
+        if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
+        else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
+        else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
+
+        double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
+        double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
+
+        if(fabs(ap / cp) > 10 || fabs(cp / ap) > 10) {
+
+          std::cout << "AAAAAAAAAAAAAAA\n";  
+            
+          bool fx = true;
+          if(fabs(ap) > fabs(cp)) {
+            if(fabs(cos(t)) < fabs(sin(t))) fx = false;
+          }
+          else if(fabs(sin(t)) < fabs(cos(t))) fx = false;
+          femus::FindParabolaBestFit(coord, weight, norm, fx, _A[iel]);
+
+        }
+
+
         if(testNormalAgain) {
           std::vector <double> n1 = getNormal(iel, xn);
           double n1Dotn = 0;
@@ -625,7 +646,7 @@ namespace femus {
 
 //     if(iel == 61 && level == 1) {
 //       std::cerr << " AAAA\n";
-// 
+//
 //       for(unsigned i = 0; i < 6; i++) {
 //         std::cerr << _A[iel][i] << " ";
 //       }
@@ -684,7 +705,7 @@ namespace femus {
           }
         }
       }
-      
+
       nInt = cnt;
 
       if(cnt == 2) {
@@ -696,7 +717,7 @@ namespace femus {
         double &x1 = xe[1][0];
         double &y1 = xe[1][1];
 
-        std::vector<double> xc = {0.5 * (x0 + x1) - 10. * (y1 - y0), 0.5 * (y0 + y1) + 10. * (x1 - x0)};
+        std::vector<double> xc = {0.5 * (x0 + x1) - 2. * (y1 - y0), 0.5 * (y0 + y1) + 2. * (x1 - x0)};
 
         double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
         double theta1 = atan2(y1 - xc[1], x1 - xc[0]);
@@ -758,9 +779,9 @@ namespace femus {
         npt = cnt;
       }
 //       else {
-// 
+//
 // //         std::cerr << iel << " " << level << " " << cnt << std::endl;
-// 
+//
 //         xe.resize(0);
 //         if(cnt > 2) {
 //           xe.reserve(4 * npt);
@@ -814,18 +835,18 @@ namespace femus {
       unsigned i1 = _itElMrkIdx->second[1];
 
       unsigned nDof = msh->GetElementDofNumber(iel, 0);
-      
+
       double t;
-      if(fabs(_A[iel][1] ) < 1.e-4 ) t = 0.;
-      else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4 ) t = M_PI / 4.;
+      if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
+      else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
       else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
-      
+
       double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
       double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-      
+
       bool keepMrk = (fabs(ap / cp) > 100 || fabs(cp / ap) > 100) ? true : false;
-      
-      
+
+
 
       for(unsigned k = 0; k < dim; k++) {
         xv[k].resize(nDof);
@@ -842,7 +863,7 @@ namespace femus {
         xe = GetCellPointsFromQuadric(xv, iel, npt, nInt);
         //std::cerr << iel << " " << xe.size() << std::endl;
 
-        if(nInt == 2){
+        if(nInt == 2) {
           if(cnt + xe.size() > _ypNew.size()) {
             unsigned newSize = cnt + xe.size() + 2 * (nel - elCnt) * nMax;
             _ypNew.resize(newSize, std::vector<double>(dim));
@@ -850,7 +871,7 @@ namespace femus {
             _N.resize(newSize);
             _kappa.resize(newSize);
           }
-        
+
           for(unsigned i = 0; i < xe.size(); i++) {
             for(unsigned k = 0; k < dim; k++) {
               _ypNew[cnt][k] = xe[i][k];
@@ -861,11 +882,11 @@ namespace femus {
             cnt++;
           }
         }
-        else{
-          keepMrk = true;  
+        else {
+          keepMrk = true;
         }
       }
-      if( ( (i1 - i0) >= nMin && (i1 - i0) <= nMax) || keepMrk ) {
+      if(((i1 - i0) >= nMin && (i1 - i0) <= nMax) || keepMrk) {
 
         if(cnt + (i1 - i0) > _ypNew.size()) {
           unsigned newSize = cnt + (i1 - i0) + 2 * (nel - elCnt) * nMax;
@@ -1204,6 +1225,8 @@ namespace femus {
 
 
 #endif
+
+
 
 
 
