@@ -14,7 +14,7 @@ class parameter {
       _af = rhoInf / (rhoInf + 1.);
       _am = (2. * rhoInf - 1.) / (rhoInf + 1.);
 
-      _beta = 0.25 + (1. + _af - _am) * (1. + _af - _am);
+      _beta = 0.25 * (1. + _af - _am) * (1. + _af - _am);
       _gamma = 0.5 + _af - _am;
 
       _theta = 1. - _af;

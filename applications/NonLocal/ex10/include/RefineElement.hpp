@@ -164,6 +164,11 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
     _finiteElementCF = new const elem_type_3D(geom_elem, fe_order, numberName[2 * _quadOrder].c_str(), gauss_type);
     _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", "zero", gauss_type);
     _elType = (!strcmp(geom_elem, "hex")) ? 0 : (_elType = (!strcmp(geom_elem, "tet")) ? 1 : 2) ;
+    
+    if(!strcmp(geom_elem, "tet")) {
+      _cutFem  = new CutFemWeight<double, double >(TET, _quadOrder, "legendre");
+      _CDweight = new CDWeightTET <double>(_quadOrder, 0.05, 2.);
+    }
   }
 
   _dim = _finiteElement1->GetDim();
@@ -196,7 +201,7 @@ RefineElement::~RefineElement() {
   delete _finiteElement1;
   delete _finiteElement2;
   delete _finiteElementCF;
-  if(_elType == 3 || _elType == 4) {
+  if(_elType == 3 || _elType == 4 || _elType == 1) {
     delete _cutFem;
     delete _CDweight;
   }

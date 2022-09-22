@@ -9,6 +9,8 @@ class TTImap : public TRImap <TypeA, TypeA> {
 
     TTImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : TRImap <TypeA, TypeA> (mMax + 1, sMax, mMax + 1) {
 
+      _baseType = 0;
+
       _TTImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
@@ -49,6 +51,10 @@ class TTImap : public TRImap <TypeA, TypeA> {
 
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
 
+    void SetBaseType(const unsigned &value) {
+      _baseType = value;
+    };
+
   protected:
     TypeA ttia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
       _key = std::make_pair(a, d);
@@ -73,6 +79,8 @@ class TTImap : public TRImap <TypeA, TypeA> {
     typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
     std::pair<std::vector<TypeA>, TypeA> _key;
 
+    unsigned _baseType;
+
     TypeA _I1;
     unsigned _cnt;
 };
@@ -80,39 +88,29 @@ class TTImap : public TRImap <TypeA, TypeA> {
 template <class TypeIO, class TypeA>
 TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigned> &m, const std::vector <TypeIO> &a, const TypeIO & d) {
 
-
-  if(a[0] == a[1] && a[1] == a[2]) {
+  if(a[0] == a[1] && a[1] == a[2]) { // m1+m2 == 0
     return this->lsi(s, m[0] + m[1] + m[2] + 2, std::make_pair<TypeA, TypeA>(static_cast<TypeA>(a[0]), static_cast<TypeA>(d))) / ((m[2] + 1) * (m[1] + m[2] + 2));
   }
 
+
   TypeIO m1 = std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]));
   TypeIO m2 = fabs(a[0] - a[2]);
-  //TypeIO m2 = std::max(fabs(a[2] - a[1]), fabs(a[0] - a[2]));
-  //TypeIO m3 = std::max(fabs(a[0] - a[2]), fabs(a[1] - a[0]));
-
-  //if(m1 > m2 && m1 > m3) {
-  if(m1 >= m2) {
-    std::cout << "case x ";
+  
+  if((_baseType == 0 && m1 >= m2) || _baseType == 1) {
+    //std::cout << "case x ";
     return static_cast<TypeIO>(
     this->ttia(s, {m[0], m[1], m[2]},
     {static_cast<TypeA>(a[0]), static_cast<TypeA>(a[1] - a[0]), static_cast<TypeA>(a[2] - a[1])},
     static_cast<TypeA>(d)));
   }
-//   else if(m2 > m3) {
+
   else {
-    std::cout << "case y ";
+    //std::cout << "case y ";
     return static_cast<TypeIO>(
-    this->ttia(s, {m[1], m[2], m[0]},
+    this->ttia(s, {m[0], m[1], m[2]},
     {static_cast<TypeA>(a[1]), static_cast<TypeA>(a[2] - a[1]), static_cast<TypeA>(a[0] - a[2])},
     static_cast<TypeA>(d)));
   }
-//   else {
-//     std::cout << "case z ";
-//     return static_cast<TypeIO>(
-//     this->ttia(s, {m[2], m[0], m[1]},
-//     {static_cast<TypeA>(a[2]), static_cast<TypeA>(a[0] - a[2]), static_cast<TypeA>(a[1] - a[0])},
-//     static_cast<TypeA>(d)));
-//   }
 }
 
 template <class TypeIO, class TypeA>

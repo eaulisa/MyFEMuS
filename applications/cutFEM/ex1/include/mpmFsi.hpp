@@ -388,7 +388,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
         //start SUPG paramters, tauM, tauC, G to get tauM_SupgPhi
         std::vector <std::vector <adept::adouble> > JacI;
         std::vector <std::vector <adept::adouble> > Jac;
-        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, ig, weight,Jac, JacI);
+        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, ig, weight, Jac, JacI);
 
 
         if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases
@@ -809,7 +809,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           }
 
           std::vector < std::vector < adept::adouble> > Jac, JacI;
-          msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jac, JacI);
+          adept::adouble Jdet;
+          msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jdet, Jac, JacI);
 
           istart = Np.size();
           Np.resize(istart + dim);
@@ -817,7 +818,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; k++) {
             Np[istart + k] = 0.;
             for(unsigned l = 0; l < dim; l++) {
-              //std::cout << JacI[k][l].value() << " "; TODO 
+              //std::cout << JacI[k][l].value() << " "; TODO
               Np[istart + k] += JacI[k][l].value() * N[l];
             }
           }
@@ -917,7 +918,7 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
           std::cout << bestfit[k] << " best fit coefficients *****************************************" << std::endl;
         }
 
-       // eqP.SetCoefficients(dim, 2, 20, bestfit, ielt);
+        // eqP.SetCoefficients(dim, 2, 20, bestfit, ielt);
         //eqP.PrintCoefficients();
 
 

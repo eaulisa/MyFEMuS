@@ -88,6 +88,7 @@ namespace femus {
 
       /* mixed adept - double */
       void GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const vector < double >& xi,
+                             adept::adouble& det,
                              vector < vector < adept::adouble > > & Jac,
                              vector < vector < adept::adouble > > & JacI) const;
 
@@ -99,6 +100,7 @@ namespace femus {
 
       /* all double */
       void GetJacobianMatrix(const vector < vector < double > >& vt, const  vector < double >& xi,
+                             double& det,
                              vector < vector < double > > & Jac,
                              vector < vector < double > > & JacI) const;
 
@@ -338,6 +340,7 @@ namespace femus {
 
       template <class type>
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const  vector < double >& xi,
+                                  type &det,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
 
@@ -498,6 +501,7 @@ namespace femus {
 
       template <class type>
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
+                                  type &det,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
       template <class type>
@@ -674,6 +678,7 @@ namespace femus {
 
       template <class type>
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const vector  < double  >& xi,
+                                  type &det,
                                   vector < vector < type > > & Jac,
                                   vector < vector < type > > & JacI) const;
 

@@ -557,7 +557,8 @@ void AssembleMPMSys(MultiLevelProblem& ml_prob) {
 
         std::vector <std::vector <adept::adouble> > Jac;
         std::vector <std::vector <adept::adouble> > JacI;
-        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jac, JacI); //centered at theta
+        adept::adouble Jdet;
+        msh->_finiteElement[ielt][solType]->GetJacobianMatrix(vx, xi, Jdet, Jac, JacI); //centered at theta
 
         msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, xi, weight, phiP, gradPhiP);
 

@@ -59,6 +59,9 @@ SET (_HDF5_PATHS
     /usr/share/hdf5
     /usr/local/hdf5
     /usr/local/hdf5/share
+    /opt/homebrew/lib
+    /opt/homebrew/include
+    /opt/homebrew/Cellar
 )
 
 # FIND_PATH (HDF5_ROOT_DIR "hdf5-config.cmake"
@@ -72,17 +75,29 @@ SET (_HDF5_PATHS
 FIND_PATH (HDF5_INCLUDE_DIRS "H5public.h"
     HINTS ${_HDF5_HINTS}
     PATHS ${_HDF5_PATHS}
+    /opt/homebrew
     PATH_SUFFIXES
         include
         Include
 )
 
-FIND_LIBRARY (HDF5_LIBRARIES "libhdf5.so"
-    HINTS ${_HDF5_HINTS}
-    PATHS ${_HDF5_PATHS}
-    PATH_SUFFIXES
-           lib
-)
+IF(APPLE)
+  FIND_LIBRARY (HDF5_LIBRARIES "libhdf5.dylib"
+      HINTS ${_HDF5_HINTS}
+      PATHS ${_HDF5_PATHS}
+      /opt/homebrew
+      PATH_SUFFIXES
+             lib
+  )
+ELSE()
+  FIND_LIBRARY (HDF5_LIBRARIES "libhdf5.so"
+  HINTS ${_HDF5_HINTS}
+  PATHS ${_HDF5_PATHS}
+  /opt/homebrew
+  PATH_SUFFIXES
+         lib
+  )
+ENDIF(APPLE)
 
 # For backwards compatibility we set HDF5_INCLUDE_DIR to the value of
 # HDF5_INCLUDE_DIRS

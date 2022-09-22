@@ -148,7 +148,6 @@ class Region {
 
 
 
-
 using namespace femus;
 
 // double GetExactSolutionValue(const std::vector < double >& x) {
@@ -292,7 +291,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 4; // consistency form 3 -> 7
   //unsigned lmax1 = 2; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
@@ -300,7 +298,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //consistency
   double dMax = 0.1;
-  double eps =0* 0.125 * dMax *  pow(0.75, lmax1 - 3);
+  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
   //cubic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
@@ -318,7 +316,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
 
-  //consistency 3D
+//   //consistency 3D
 //   double dMax = 0.1;
 //   double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
@@ -340,9 +338,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   NonLocal *nonlocal;
 
   if(dim == 3) {
-    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
-    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "fifth", "fifth", "legendre");
+    refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "third", "third", "legendre");
+    refineElement[0][1] = new RefineElement(lmax1, "hex", "quadratic", "third", "third", "legendre");
+    refineElement[0][2] = new RefineElement(lmax1, "hex", "biquadratic", "third", "third", "legendre");
+    
+    refineElement[1][0] = new RefineElement(lmax1, "tet", "linear", "third", "third", "legendre");
+    refineElement[1][1] = new RefineElement(lmax1, "tet", "quadratic", "third", "third", "legendre");
+    refineElement[1][2] = new RefineElement(lmax1, "tet", "biquadratic", "third", "third", "legendre");
 
     refineElement[0][soluType]->SetConstants(eps); 
 
@@ -888,6 +890,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     delete refineElement[0][0];
     delete refineElement[0][1];
     delete refineElement[0][2];
+    delete refineElement[1][0];
+    delete refineElement[1][1];
+    delete refineElement[1][2];
   }
   else if(dim == 2) {
     delete refineElement[3][0];
