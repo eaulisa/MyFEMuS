@@ -2,6 +2,7 @@
 #include "MyEigenFunctions.hpp"
 #include <numeric>
 #include <iostream>
+#include <cmath>
 
 namespace femus {
 
@@ -330,12 +331,12 @@ namespace femus {
       for(unsigned i = 0; i < np; i++) {
         double x = (xp[i][0] - xg[0]) / maxD;
         double y = (xp[i][1] - xg[1]) / maxD;
-        
-        m(i,0) = sqrt((*w)[i]) * (pow(x, 2) + pow(y, 2));
-        m(i,1) = sqrt((*w)[i]) * x;
-        m(i,2) = sqrt((*w)[i]) * y;
-        m(i,3) = sqrt((*w)[i]);
-        
+
+        m(i, 0) = sqrt((*w)[i]) * (pow(x, 2) + pow(y, 2));
+        m(i, 1) = sqrt((*w)[i]) * x;
+        m(i, 2) = sqrt((*w)[i]) * y;
+        m(i, 3) = sqrt((*w)[i]);
+
       }
     }
     else {
@@ -365,10 +366,10 @@ namespace femus {
       for(unsigned i = 0; i < np; i++) {
         double x = (xp[i][0] - xg[0]) / maxD;
         double y = (xp[i][1] - xg[1]) / maxD;
-        m(i,0) = pow(x, 2) + pow(y, 2);
-        m(i,1) = x;
-        m(i,2) = y;
-        m(i,3) = 1.;
+        m(i, 0) = pow(x, 2) + pow(y, 2);
+        m(i, 1) = x;
+        m(i, 2) = y;
+        m(i, 3) = 1.;
       }
     }
 
@@ -457,86 +458,71 @@ namespace femus {
   }
 
 
-  void FindParabolaBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, const bool &fx, std::vector < double > &a) {
+  void FindParabolaBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
     const unsigned& dim = N.size();
-    unsigned nParam = 4;
 
-    a.resize(4 * dim - 2);
-    unsigned np = xp.size();
-    Eigen::MatrixXd m(np, nParam);
+    unsigned np = x.size();
+    Eigen::MatrixXd X(np, 2);
 
     std::vector < double > xg(dim, 0.);
-    double maxD, maxD2;
-
-    if(w) {
-      //Calculate centroid
-      double wSum = 0;
-      for(unsigned i = 0; i < np; i++) {
-        wSum += (*w)[i];
-        for(unsigned j = 0; j < dim; j++) {
-          xg[j] += (*w)[i] * xp[i][j];
-        }
+    double wSum = 0;
+    for(unsigned i = 0; i < np; i++) {
+      //std::cout << "{" << x[i][0] << "," << x[i][1] << "},";
+      for(unsigned k = 0; k < dim; k++) {
+        xg[k] += (*w)[i] * x[i][k];
       }
-      for(unsigned j = 0; j < dim; j++) {
-        xg[j] /= wSum;
-      }
+      wSum += (*w)[i];
+    }
+    for(unsigned k = 0; k < dim; k++) {
+      xg[k] /= wSum;
+    }
+   // std::cout << std::endl;
+   // std::cout << xg[0] << " " << xg[1] << std::endl;
 
-      maxD2 = 0.;
-      double d2, xk;
-      for(unsigned i = 0; i < np; i++) {
-        d2 = 0;
-        for(unsigned k = 0; k < dim; k++) {
-          xk = (xp[i][k] - xg[k]);
-          d2 += xk * xk;
-        }
-        if(d2 > maxD2) maxD2 = d2;
-      }
-      maxD = sqrt(maxD2);
-
-      //Fill matrix to be passed to JacobiSVD
-      for(unsigned i = 0; i < np; i++) {
-        double x = (xp[i][0] - xg[0]) / maxD;
-        double y = (xp[i][1] - xg[1]) / maxD;
-        
-        m(i,0) = sqrt((*w)[i]) * (fx * pow(x, 2) + !fx * pow(y, 2));
-        m(i,1) = sqrt((*w)[i]) * x;
-        m(i,2) = sqrt((*w)[i]) * y;
-        m(i,3) = sqrt((*w)[i]);
-        
+    for(unsigned i = 0; i < np; i++) {
+     // std::cout << "{" << x[i][0] - xg[0] << "," << x[i][1] - xg[1] << "},";
+      for(unsigned k = 0; k < dim; k++) {
+        X(i, k) = sqrt((*w)[i]) * (x[i][k] - xg[k]);
       }
     }
-    else {
-      //Calculate centroid
-      for(unsigned i = 0; i < np; i++) {
-        for(unsigned j = 0; j < dim; j++) {
-          xg[j] += xp[i][j];
-        }
-      }
-      for(unsigned j = 0; j < dim; j++) {
-        xg[j] /= np;
-      }
 
-      maxD2 = 0.;
-      double d2, xk;
-      for(unsigned i = 0; i < np; i++) {
-        d2 = 0;
-        for(unsigned k = 0; k < dim; k++) {
-          xk = (xp[i][k] - xg[k]);
-          d2 += xk * xk;
-        }
-        if(d2 > maxD2) maxD2 = d2;
-      }
-      maxD = sqrt(maxD2);
 
-      //Fill matrix to be passed to JacobiSVD for Ax2 + Bxy + Cy2+ Dx + Ey + F = 0
-      for(unsigned i = 0; i < np; i++) {
-        double x = (xp[i][0] - xg[0]) / maxD;
-        double y = (xp[i][1] - xg[1]) / maxD;
-        m(i,0) = fx * pow(x, 2) + !fx * pow(y, 2);
-        m(i,1) = x;
-        m(i,2) = y;
-        m(i,3) = 1.;
-      }
+    Eigen::MatrixXd A(2, 2);
+    A = X.transpose() * X;
+
+    Eigen::EigenSolver<Eigen::MatrixXd> es(A);
+    const Eigen::VectorXcd &u = es.eigenvectors().col(0);
+
+    double t = atan2(u(1).real(), u(0).real());
+
+    double cost = cos(t);
+    double sint = sin(t);
+
+    //std::cout << std::endl;
+    std::vector < std::vector < double > > xp(np, std::vector < double >(dim));
+    double maxD2 = 0.;
+    for(unsigned i = 0; i < np; i++) {
+      xp[i][0] = (x[i][0] - xg[0]) * cost + (x[i][1] - xg[1]) * sint;
+      xp[i][1] = -(x[i][0] - xg[0]) * sint + (x[i][1] - xg[1]) * cost;
+      double d2 = xp[i][0] * xp[i][0] + xp[i][1] * xp[i][1];
+      if(d2 > maxD2) maxD2 = d2;
+
+      //std::cout << "{" << xp[i][0] << "," << xp[i][1] << "},";
+    }
+    //std::cout << std::endl;
+
+    double maxD = sqrt(maxD2);
+
+    unsigned nParam = 4;
+    Eigen::MatrixXd m(np, nParam);
+
+    for(unsigned i = 0; i < np; i++) {
+      double x = xp[i][0] / maxD;
+      double y = xp[i][1] / maxD;
+      m(i, 0) = sqrt((*w)[i]) * x * x;
+      m(i, 1) = sqrt((*w)[i]) * x;
+      m(i, 2) = sqrt((*w)[i]) * y;
+      m(i, 3) = sqrt((*w)[i]);
     }
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -550,12 +536,14 @@ namespace femus {
     double norm;
     std::vector<double> N1(dim);
 
+    a.resize(6);
+
     if(norm2 > 0.1) {
-      a[0] = fx * v(0, v.cols() - 1) / maxD2;
-      a[1] = 0.;
-      a[2] = !fx * v(0, v.cols() - 1) / maxD2;
-      a[3] = v(1, v.cols() - 1) / maxD;
-      a[4] = v(2, v.cols() - 1) / maxD;
+      a[0] = v(0, v.cols() - 1) * cost * cost / maxD2;
+      a[1] = 2. * v(0, v.cols() - 1) * cost * sint / maxD2;
+      a[2] = v(0, v.cols() - 1) * sint * sint / maxD2 ;
+      a[3] = (v(1, v.cols() - 1) * cost - v(2, v.cols() - 1) * sint) / maxD;
+      a[4] = (v(1, v.cols() - 1) * sint + v(2, v.cols() - 1) * cost) / maxD;
       a[5] = v(3, v.cols() - 1) + a[0] * xg[0] * xg[0] +  a[1] * xg[0] * xg[1] + a[2] * xg[1] * xg[1] - a[3] * xg[0] - a[4] * xg[1];
 
       a[3] -= 2 * a[0] * xg[0] + a[1] * xg[1];
@@ -619,7 +607,12 @@ namespace femus {
       }
     }
 
+
+    //std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
+
   }
-  
+
+
+
 
 }

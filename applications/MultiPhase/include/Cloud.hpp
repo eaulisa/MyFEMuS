@@ -466,29 +466,29 @@ namespace femus {
         pSerach[iel] = true;
       }
       else {
-        femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
+        femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
 
 
-        double t;
-        if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
-        else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
-        else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
-
-        double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
-        double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-
-        if(fabs(ap / cp) > 10 || fabs(cp / ap) > 10) {
-
-          std::cout << "AAAAAAAAAAAAAAA\n";  
-            
-          bool fx = true;
-          if(fabs(ap) > fabs(cp)) {
-            if(fabs(cos(t)) < fabs(sin(t))) fx = false;
-          }
-          else if(fabs(sin(t)) < fabs(cos(t))) fx = false;
-          femus::FindParabolaBestFit(coord, weight, norm, fx, _A[iel]);
-
-        }
+//         double t;
+//         if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
+//         else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
+//         else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
+// 
+//         double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
+//         double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
+// 
+//         if(fabs(ap / cp) > 10 || fabs(cp / ap) > 10) {
+// 
+//           std::cout << "AAAAAAAAAAAAAAA\n";  
+//             
+//           bool fx = true;
+//           if(fabs(ap) > fabs(cp)) {
+//             if(fabs(cos(t)) < fabs(sin(t))) fx = false;
+//           }
+//           else if(fabs(sin(t)) < fabs(cos(t))) fx = false;
+//           femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
+// 
+//         }
 
 
         if(testNormalAgain) {
@@ -845,7 +845,7 @@ namespace femus {
       double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
 
       bool keepMrk = (fabs(ap / cp) > 100 || fabs(cp / ap) > 100) ? true : false;
-
+      keepMrk = false;
 
 
       for(unsigned k = 0; k < dim; k++) {
