@@ -482,7 +482,7 @@ namespace femus {
     for(unsigned i = 0; i < np; i++) {
      // std::cout << "{" << x[i][0] - xg[0] << "," << x[i][1] - xg[1] << "},";
       for(unsigned k = 0; k < dim; k++) {
-        X(i, k) = sqrt((*w)[i]) * (x[i][k] - xg[k]);
+        X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
       }
     }
 
@@ -491,8 +491,10 @@ namespace femus {
     A = X.transpose() * X;
 
     Eigen::EigenSolver<Eigen::MatrixXd> es(A);
-    const Eigen::VectorXcd &u = es.eigenvectors().col(0);
-
+    const Eigen::VectorXcd &l = es.eigenvalues().col(0);
+    unsigned lMax = (l(1).real() > l(0).real())? 1 : 0;
+    const Eigen::VectorXcd &u = es.eigenvectors().col(lMax);
+    
     double t = atan2(u(1).real(), u(0).real());
 
     double cost = cos(t);
@@ -608,7 +610,7 @@ namespace femus {
     }
 
 
-    //std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
+//     std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
 
   }
 

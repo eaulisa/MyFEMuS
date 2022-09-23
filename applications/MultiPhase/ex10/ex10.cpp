@@ -99,7 +99,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 5;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -187,11 +187,11 @@ int main(int argc, char** args) {
   cld.PrintCSV(0);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  double period = 2 * M_PI;
-  unsigned nIterations = 128;
+  double period = 2 /** M_PI*/;
+  unsigned nIterations = 80;
   double dt = period / nIterations;
 
-  for(unsigned it = 1; it <= 10; it++) {
+  for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it <<"\n";   
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
@@ -199,7 +199,7 @@ int main(int argc, char** args) {
     time += dt;
     SetVelocity(sol, velocity, time);
     cld.RKAdvection(4, velocity, dt);
-//     cld.PrintCSV(10 + it);
+//     cld.PrintCSV(20 + it);
     cld.ComputeQuadraticBestFit();
     cld.RebuildMarkers(8, 12, 10);
     

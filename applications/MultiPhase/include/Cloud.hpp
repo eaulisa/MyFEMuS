@@ -824,8 +824,8 @@ namespace femus {
     const unsigned &nel = _A.size();
     _ypNew.resize(2 * nel * nMax, std::vector<double>(dim));
     _elem.resize(2 * nel * nMax);
-    _N.resize(2 * nel * nMax);
-    _kappa.resize(2 * _A.size() * nMax);
+    _NNew.resize(2 * nel * nMax, std::vector<double> (dim));
+    _kappaNew.resize(2 * _A.size() * nMax);
 
     xv.resize(dim);
     unsigned elCnt = 0;
@@ -846,6 +846,7 @@ namespace femus {
 
       bool keepMrk = (fabs(ap / cp) > 100 || fabs(cp / ap) > 100) ? true : false;
       keepMrk = false;
+      if( i1 - i0 < 2) keepMrk = true;
 
 
       for(unsigned k = 0; k < dim; k++) {
@@ -868,8 +869,8 @@ namespace femus {
             unsigned newSize = cnt + xe.size() + 2 * (nel - elCnt) * nMax;
             _ypNew.resize(newSize, std::vector<double>(dim));
             _elem.resize(newSize);
-            _N.resize(newSize);
-            _kappa.resize(newSize);
+            _NNew.resize(newSize, std::vector<double>(dim));
+            _kappaNew.resize(newSize);
           }
 
           for(unsigned i = 0; i < xe.size(); i++) {
@@ -877,8 +878,8 @@ namespace femus {
               _ypNew[cnt][k] = xe[i][k];
             }
             _elem[cnt] = iel;
-            _N[cnt] = getNormal(iel, _ypNew[cnt]);
-            _kappa[cnt] = getCurvature(iel, _ypNew[cnt]);
+            _NNew[cnt] = getNormal(iel, _ypNew[cnt]);
+            _kappaNew[cnt] = getCurvature(iel, _ypNew[cnt]);
             cnt++;
           }
         }
@@ -892,17 +893,17 @@ namespace femus {
           unsigned newSize = cnt + (i1 - i0) + 2 * (nel - elCnt) * nMax;
           _ypNew.resize(newSize, std::vector<double>(dim));
           _elem.resize(newSize);
-          _N.resize(newSize);
-          _kappa.resize(newSize);
+          _NNew.resize(newSize, std::vector<double>(dim));
+          _kappaNew.resize(newSize);
         }
 
         for(unsigned i = i0; i < i1; i++) {
           for(unsigned k = 0; k < dim; k++) {
             _ypNew[cnt][k] = _yp[_map[i]][k];
+            _NNew[cnt][k] = _N[_map[i]][k];
           }
           _elem[cnt] = iel;
-          _N[cnt] = getNormal(iel, _ypNew[cnt]);
-          _kappa[cnt] = getCurvature(iel, _ypNew[cnt]);
+          _kappaNew[cnt] = _kappa[_map[i]];
           cnt++;
         }
       }
@@ -910,9 +911,11 @@ namespace femus {
 
     _ypNew.resize(cnt);
     _elem.resize(cnt);
-    _N.resize(cnt);
-    _kappa.resize(cnt);
+    _NNew.resize(cnt);
+    _kappaNew.resize(cnt);
     _yp.swap(_ypNew);
+    _kappa.swap(_kappaNew);
+    _N.swap(_NNew);
     CreateMap();
     _yi.resize(cnt);
 
