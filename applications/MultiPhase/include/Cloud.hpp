@@ -382,41 +382,65 @@ namespace femus {
         }
       }
 
-      double sumD = 0.;
-      std::vector<double> wAux(cnt, 0.);
-      double dist2 = 0.;
-      for(unsigned i = 0; i < cnt; i++) {
-        for(unsigned j = 0; j < cnt; j++) {
-          if(i != j) {
-            for(unsigned k = 0; k < dim; k++) {
-              dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+      std::vector<double> wAux(cnt);
+      if(cnt > 1) {
+        wAux.assign(cnt, 0);    
+        double sumD = 0.;
+        double dist2 = 0.;
+        for(unsigned i = 0; i < cnt; i++) {
+          for(unsigned j = 0; j < cnt; j++) {
+            if(i != j) {
+              for(unsigned k = 0; k < dim; k++) {
+                dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+              }
+              wAux[i] += sqrt(dist2);
             }
-            wAux[i] += sqrt(dist2);
+          }
+          sumD += wAux[i];
+        }
+        for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
+
+        for(unsigned i = 0; i < cnt; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            xn[k] += wAux[i] * coord[i][k];
           }
         }
-        sumD += wAux[i];
       }
-      for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
+      else{
+        wAux.assign(cnt, 1);  
+        xn = coord[0];
+      }
 
-      for(unsigned i = 0; i < cnt; i++) {
-        for(unsigned k = 0; k < dim; k++) {
-          xn[k] += wAux[i] * coord[i][k];
+
+      bool testNormalAgain = false;
+      if(true || coord.size() < 6) {
+
+        testNormalAgain = true;
+        for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
+          int jel = msh->el->GetElementNearElement(iel, i);
+          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
+            unsigned j0 = _elMrkIdx[jel][0];
+            unsigned j1 = _elMrkIdx[jel][1];
+            coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
+             for(unsigned j = j0; j < j1; j++, cnt++) {
+               for(unsigned k = 0; k < dim; k++) {
+                 coord[cnt][k] = _yp[_map[j]][k];
+               }
+             }
+          }
         }
       }
-//       for(unsigned k = 0; k < dim; k++) {
-//         xn[k] /= coord.size();
-//       }
 
       double sigma2 = 0.;
       double sigma = 0.;
-      weight.resize(i1 - i0);
-      if(i1 - i0 > 1) {
+      weight.assign(cnt, 0.);
+      if(cnt > 1) {
         for(unsigned i = 0; i < cnt; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            sigma2 += wAux[i] * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+            sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
           }
         }
-        //sigma2 /= cnt;
+        sigma2 /= cnt;
         sigma = sqrt(sigma2);
         for(unsigned i = 0; i < cnt; i++) {
           double a = 0;
@@ -427,67 +451,36 @@ namespace femus {
         }
       }
       else {
-        oneMrk = true;
-        weight[0] = 0.;
-      }
-
-
-
-
-      bool testNormalAgain = false;
-      if(coord.size() < 6) {
-
-        testNormalAgain = true;
-        for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
-          int jel = msh->el->GetElementNearElement(iel, i);
-          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
-            unsigned j0 = _elMrkIdx[jel][0];
-            unsigned j1 = _elMrkIdx[jel][1];
-            coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
-            weight.resize(weight.size() + (j1 - j0));
-            for(unsigned j = j0; j < j1; j++, cnt++) {
-              double a = 0;
-              for(unsigned k = 0; k < dim; k++) {
-                coord[cnt][k] = _yp[_map[j]][k];
-                a += -0.5 / sigma2 * (coord[cnt][k] - xn[k]) * (coord[cnt][k] - xn[k]);
-              }
-              if(!oneMrk) weight[cnt] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
-              else {
-                weight[0] += 1.;
-                weight[cnt] = 1.;
-              }
-            }
-          }
-        }
-
+        std::cerr << "Abbiamo solo un marker!!!!!!!!!!!!!!!!!!!!!!!!!\n" ;
+        abort();
       }
 
       if(coord.size() < 6) {
         pSerach[iel] = true;
       }
       else {
-        femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
+        femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
 
 
 //         double t;
 //         if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
 //         else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
 //         else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
-// 
+//
 //         double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
 //         double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-// 
+//
 //         if(fabs(ap / cp) > 10 || fabs(cp / ap) > 10) {
-// 
-//           std::cout << "AAAAAAAAAAAAAAA\n";  
-//             
+//
+//           std::cout << "AAAAAAAAAAAAAAA\n";
+//
 //           bool fx = true;
 //           if(fabs(ap) > fabs(cp)) {
 //             if(fabs(cos(t)) < fabs(sin(t))) fx = false;
 //           }
 //           else if(fabs(sin(t)) < fabs(cos(t))) fx = false;
 //           femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
-// 
+//
 //         }
 
 
@@ -846,7 +839,7 @@ namespace femus {
 
       bool keepMrk = (fabs(ap / cp) > 100 || fabs(cp / ap) > 100) ? true : false;
       keepMrk = false;
-      if( i1 - i0 < 2) keepMrk = true;
+      if(i1 - i0 < 2) keepMrk = true;
 
 
       for(unsigned k = 0; k < dim; k++) {

@@ -199,25 +199,25 @@ int main(int argc, char** args) {
     time += dt;
     SetVelocity(sol, velocity, time);
     cld.RKAdvection(4, velocity, dt);
-//     cld.PrintCSV(20 + it);
+    //cld.PrintCSV(20 + it);
     cld.ComputeQuadraticBestFit();
-    cld.RebuildMarkers(8, 12, 10);
+    cld.RebuildMarkers(6, 20, 8);
     
     cld.PrintCSV(it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
-    for(unsigned kp = 0; kp < nprocs; kp++) {
-      if(msh->processor_id() == kp) {
-        for(unsigned iel = msh->_elementOffset[kp]; iel < msh->_elementOffset[kp + 1]; iel++) {
-          std::cerr << "iel = " << iel << "   ";
-          const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
-          for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
-          std::cerr << "\n" << std::flush;
-        }
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-    std::cerr << std::endl;
+//     for(unsigned kp = 0; kp < nprocs; kp++) {
+//       if(msh->processor_id() == kp) {
+//         for(unsigned iel = msh->_elementOffset[kp]; iel < msh->_elementOffset[kp + 1]; iel++) {
+//           std::cerr << "iel = " << iel << "   ";
+//           const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+//           for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
+//           std::cerr << "\n" << std::flush;
+//         }
+//       }
+//       MPI_Barrier(MPI_COMM_WORLD);
+//     }
+//     std::cerr << std::endl;
 
    
 
