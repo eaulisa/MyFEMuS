@@ -500,18 +500,11 @@ namespace femus {
     }
 
     const Eigen::VectorXcd &u = es.eigenvectors().col(lMax);
-
-
-//     std::cout << acos((u(0).real() * N[0] + u(1).real() * N[1]) /
-//                       sqrt( (N[0] * N[0] + N[1] * N[1] ) * ( u(1).real() * u(1).real() + u(0).real() * u(0).real()) )) * 180 / M_PI << std::endl;
-
     double t = atan2(u(1).real(), u(0).real());
-//     double t = atan2(N[1] / ( N[0] * N[0] + N[1] * N[1] ), -N[0] / (N[0] * N[0] + N[1] * N[1] ));
 
     double cost = cos(t);
     double sint = sin(t);
 
-    //std::cout << std::endl;
     std::vector < std::vector < double > > xp(np, std::vector < double >(dim));
     double maxD2 = 0.;
     for(unsigned i = 0; i < np; i++) {
@@ -519,11 +512,8 @@ namespace femus {
       xp[i][1] = -(x[i][0] - xg[0]) * sint + (x[i][1] - xg[1]) * cost;
       double d2 = xp[i][0] * xp[i][0] + xp[i][1] * xp[i][1];
       if(d2 > maxD2) maxD2 = d2;
-
-      //std::cout << "{" << xp[i][0] << "," << xp[i][1] << "},";
     }
-    //std::cout << std::endl;
-
+    
     double maxD = sqrt(maxD2);
 
     unsigned nParam = 4;

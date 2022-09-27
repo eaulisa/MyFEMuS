@@ -456,10 +456,13 @@ namespace femus {
         abort();
       }
 
-      if(coord.size() < 6) {
+      if(nprocs != 1 && coord.size() < 6) {
         pSerach[iel] = true;
       }
       else {
+
+
+
         //femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
         femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
 
@@ -486,11 +489,20 @@ namespace femus {
 
 
         if(testNormalAgain) {
-          std::vector <double> n1 = getNormal(iel, xn);
+
           double n1Dotn = 0;
-          for(unsigned k = 0; k < dim; k++) {
-            n1Dotn += norm[k] * n1[k];
+
+          for(unsigned i = i0; i < i1; i++, cnt++) {
+            for(unsigned k = 0; k < dim; k++) {
+              std::vector <double> n1 = getNormal(iel,  _yp[_map[i]]);
+              n1Dotn += _N[_map[i]][k] * n1[k];
+            }
           }
+//           std::vector <double> n1 = getNormal(iel, xn);
+//           double n1Dotn = 0;
+//           for(unsigned k = 0; k < dim; k++) {
+//             n1Dotn += norm[k] * n1[k];
+//           }
           if(n1Dotn < 0) {
             for(unsigned  i = 0; i < _A[iel].size(); i++) {
               _A[iel][i] *= -1.;
@@ -842,6 +854,8 @@ namespace femus {
       keepMrk = false;
       if(i1 - i0 < 2) keepMrk = true;
 
+      keepMrk = false;
+
 
       for(unsigned k = 0; k < dim; k++) {
         xv[k].resize(nDof);
@@ -892,12 +906,16 @@ namespace femus {
         }
 
         for(unsigned i = i0; i < i1; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            _ypNew[cnt][k] = _yp[_map[i]][k];
-            _NNew[cnt][k] = _N[_map[i]][k];
+          _ypNew[cnt] = _yp[_map[i]];
+          if(keepMrk) {
+            _NNew[cnt] = _N[_map[i]];
+            _kappaNew[cnt] = _kappa[_map[i]];
+          }
+          else {
+            _NNew[cnt] = getNormal(iel, _ypNew[cnt]);
+            _kappaNew[cnt] = getCurvature(iel, _ypNew[cnt]);
           }
           _elem[cnt] = iel;
-          _kappaNew[cnt] = _kappa[_map[i]];
           cnt++;
         }
       }
@@ -1222,6 +1240,7 @@ namespace femus {
 
 
 #endif
+
 
 
 

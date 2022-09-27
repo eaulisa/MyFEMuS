@@ -182,7 +182,7 @@ int main(int argc, char** args) {
   std::cout << "Testing the class Cloud \n";
 
   double period = 4;
-  unsigned nIterations = 160;
+  unsigned nIterations = 320;
 
   double time = 0.;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
