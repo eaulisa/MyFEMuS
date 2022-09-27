@@ -12,111 +12,111 @@
 namespace femus {
 
   class Cloud {
-  public:
-    Cloud() {
-      _mrk = MyMarker();
-    };
-    ~Cloud() {};
-    void SetNumberOfMarker(const unsigned &nMax);
-    void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
-    void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol);
-    void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol);
+    public:
+      Cloud() {
+        _mrk = MyMarker();
+      };
+      ~Cloud() {};
+      void SetNumberOfMarker(const unsigned &nMax);
+      void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
+      void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol);
+      void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol);
 
-    void PrintNoOrder(const unsigned &t);
-    void PrintWithOrder(const unsigned &t);
-    void PrintCSV(const std::string &filename, const unsigned &t);
+      void PrintNoOrder(const unsigned &t);
+      void PrintWithOrder(const unsigned &t);
+      void PrintCSV(const std::string &filename, const unsigned &t);
 
-    void ComputeQuadraticBestFit();
+      void ComputeQuadraticBestFit();
 
-    std::vector<std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
+      std::vector<std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
 
-    //void GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe);
-    void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
+      //void GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, std::vector<std::vector<double>> & xe);
+      void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
 
-    const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
-      return _A;
-    }
-
-    const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
-      if(_A.find(iel) != _A.end()) {
-        return _A.at(iel);
+      const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
+        return _A;
       }
-      else {
-        return {};
-      }
-    }
 
-    unsigned GetNumberOfMarker(const unsigned &iel) {
-      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-        return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
-      }
-      else {
-        return 0;
-      }
-    }
-
-    double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
-      return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
-    }
-
-    std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
-      std::vector<double> N(xp.size());
-
-      N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
-      N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
-
-      double norm2 = 0.;
-      for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
-      for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
-
-      return N;
-    }
-
-    std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
-      unsigned dim = _sol->GetMesh()->GetDimension();
-      std::vector <double> yg(dim, 0.);
-      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-        for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
-          for(unsigned k = 0; k < dim; k++)  {
-            yg[k] += _yi[_map[i]][k];
-          }
+      const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
+        if(_A.find(iel) != _A.end()) {
+          return _A.at(iel);
         }
-        for(unsigned k = 0; k < dim; k++)  yg[k] /=  (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
+        else {
+          return {};
+        }
       }
-      else {
-        std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
-        abort();
+
+      unsigned GetNumberOfMarker(const unsigned &iel) {
+        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+          return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
+        }
+        else {
+          return 0;
+        }
       }
-      return yg;
-    }
 
-    void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double &dt);
-    void GetLinearFit(const unsigned &iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double &d);
+      double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
+        return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
+      }
 
-  private:
+      std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
+        std::vector<double> N(xp.size());
 
-    void CreateMap();
-    bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
+        N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
+        N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
 
-    Solution *_sol;
-    unsigned _nMrk;
-    std::ofstream _fout;
-    std::vector<std::vector<double>> _yp;
-    std::vector<std::vector<double>> _N;
-    std::vector<double> _kappa;
-    std::vector<std::vector<double>> _yi;
+        double norm2 = 0.;
+        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
 
-    std::vector<std::vector<double>> _ypNew;
-    std::vector<std::vector<double>> _NNew;
-    std::vector<double> _kappaNew;
+        return N;
+      }
 
-    std::vector<unsigned> _elem;
-    std::vector<unsigned> _elemNew;
-    std::vector<unsigned> _map;
-    MyMarker _mrk;
-    std::map<unsigned, std::vector<double>> _A;
-    std::map<unsigned, unsigned [2] > _elMrkIdx;
-    std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
+      std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
+        unsigned dim = _sol->GetMesh()->GetDimension();
+        std::vector <double> yg(dim, 0.);
+        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+          for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
+            for(unsigned k = 0; k < dim; k++)  {
+              yg[k] += _yi[_map[i]][k];
+            }
+          }
+          for(unsigned k = 0; k < dim; k++)  yg[k] /= (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
+        }
+        else {
+          std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
+          abort();
+        }
+        return yg;
+      }
+
+      void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double &dt);
+      void GetLinearFit(const unsigned &iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double &d);
+
+    private:
+
+      void CreateMap();
+      bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
+
+      Solution *_sol;
+      unsigned _nMrk;
+      std::ofstream _fout;
+      std::vector<std::vector<double>> _yp;
+      std::vector<std::vector<double>> _N;
+      std::vector<double> _kappa;
+      std::vector<std::vector<double>> _yi;
+
+      std::vector<std::vector<double>> _ypNew;
+      std::vector<std::vector<double>> _NNew;
+      std::vector<double> _kappaNew;
+
+      std::vector<unsigned> _elem;
+      std::vector<unsigned> _elemNew;
+      std::vector<unsigned> _map;
+      MyMarker _mrk;
+      std::map<unsigned, std::vector<double>> _A;
+      std::map<unsigned, unsigned [2] > _elMrkIdx;
+      std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
 
 
   };
@@ -391,9 +391,7 @@ namespace femus {
       unsigned i1 = _itElMrkIdx->second[1];
       coord.resize(i1 - i0, std::vector<double> (dim));
       norm.assign(dim, 0);
-      xn.assign(dim, 0);
       unsigned cnt = 0;
-      bool oneMrk = false;
       for(unsigned i = i0; i < i1; i++, cnt++) {
         for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
@@ -401,6 +399,8 @@ namespace femus {
         }
       }
 
+
+      xn.assign(dim, 0);
       std::vector<double> wAux(cnt);
       if(cnt > 1) {
         wAux.assign(cnt, 0);
@@ -431,118 +431,79 @@ namespace femus {
       }
 
 
-      bool testNormalAgain = false;
-      if(true || coord.size() < 6) {
+      bool parallelSearch = false;
+      for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
+        int jel = msh->el->GetElementNearElement(iel, i);
+        unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+        if(jproc != iproc) {
+          pSerach[iel] = true;
+          parallelSearch = true;
+          break;
+        }
 
-        testNormalAgain = true;
-        for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
-          int jel = msh->el->GetElementNearElement(iel, i);
-          if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
-            unsigned j0 = _elMrkIdx[jel][0];
-            unsigned j1 = _elMrkIdx[jel][1];
+        if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem inside iproc
+          unsigned j0 = _elMrkIdx[jel][0];
+          unsigned j1 = _elMrkIdx[jel][1];
 
-            coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
-            for(unsigned j = j0; j < j1; j++, cnt++) {
-              for(unsigned k = 0; k < dim; k++) {
-                coord[cnt][k] = _yp[_map[j]][k];
-              }
+          coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
+          for(unsigned j = j0; j < j1; j++, cnt++) {
+            for(unsigned k = 0; k < dim; k++) {
+              coord[cnt][k] = _yp[_map[j]][k];
             }
           }
         }
       }
+      if(parallelSearch == false) {
 
-      double sigma2 = 0.;
-      double sigma = 0.;
-      weight.assign(cnt, 0.);
-      if(cnt > 1) {
-        for(unsigned i = 0; i < cnt; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+        double sigma2 = 0.;
+        double sigma = 0.;
+        weight.assign(cnt, 0.);
+        if(cnt > 1) {
+          for(unsigned i = 0; i < cnt; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+            }
+          }
+          sigma2 /= cnt;
+          sigma2 /= 2;
+          sigma = sqrt(sigma2);
+          for(unsigned i = 0; i < cnt; i++) {
+            double a = 0;
+            for(unsigned k = 0; k < dim; k++) {
+              a += -0.5 / sigma2 * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+            }
+            weight[i] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
           }
         }
-        sigma2 /= cnt;
-        sigma2 /= 2;
-        sigma = sqrt(sigma2);
-        for(unsigned i = 0; i < cnt; i++) {
-          double a = 0;
-          for(unsigned k = 0; k < dim; k++) {
-            a += -0.5 / sigma2 * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
-          }
-          weight[i] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
+        else {
+          std::cerr << "Abbiamo solo un marker!!!!!!!!!!!!!!!!!!!!!!!!!\n" ;
+          abort();
         }
-      }
-      else {
-        std::cerr << "Abbiamo solo un marker!!!!!!!!!!!!!!!!!!!!!!!!!\n" ;
-        abort();
-      }
 
-      if(nprocs != 1 && coord.size() < 6) {
-        pSerach[iel] = true;
-      }
-      else {
-
-
-
-        //femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
         femus::GetQuadricBestFit(coord, weight, norm, _A[iel]);
 
-//         double t;
-//         if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
-//         else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
-//         else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
-//
-//         double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
-//         double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-//
-//         if(fabs(ap / cp) > 10 || fabs(cp / ap) > 10) {
-//
-//           std::cout << "AAAAAAAAAAAAAAA\n";
-//
-//           bool fx = true;
-//           if(fabs(ap) > fabs(cp)) {
-//             if(fabs(cos(t)) < fabs(sin(t))) fx = false;
-//           }
-//           else if(fabs(sin(t)) < fabs(cos(t))) fx = false;
-//           femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
-//
-//         }
+        double n1Dotn = 0;
 
-
-        if(testNormalAgain) {
-
-          double n1Dotn = 0;
-
-          for(unsigned i = i0; i < i1; i++, cnt++) {
-            for(unsigned k = 0; k < dim; k++) {
-              std::vector <double> n1 = getNormal(iel,  _yp[_map[i]]);
-              n1Dotn += _N[_map[i]][k] * n1[k];
-            }
+        for(unsigned i = i0; i < i1; i++) {
+          std::vector <double> n1 = getNormal(iel,  _yp[_map[i]]);
+          for(unsigned k = 0; k < dim; k++) {
+            n1Dotn += _N[_map[i]][k] * n1[k];
           }
-//           std::vector <double> n1 = getNormal(iel, xn);
-//           double n1Dotn = 0;
-//           for(unsigned k = 0; k < dim; k++) {
-//             n1Dotn += norm[k] * n1[k];
-//           }
-          if(n1Dotn < 0) {
-            for(unsigned  i = 0; i < _A[iel].size(); i++) {
-              _A[iel][i] *= -1.;
-            }
+        }
+        if(n1Dotn < 0) {
+          for(unsigned  i = 0; i < _A[iel].size(); i++) {
+            _A[iel][i] *= -1.;
           }
         }
       }
-
     }
 
     map<unsigned, bool>::iterator it;
 
 
-
     if(nprocs > 1) {
 
       for(unsigned kp = 0; kp < nprocs; kp++) {
-
-        unsigned elementStart = msh->_elementOffset[kp];
-        unsigned elementEnd = msh->_elementOffset[kp + 1];
 
         unsigned nel;
         if(iproc == kp) {
@@ -563,19 +524,43 @@ namespace femus {
               unsigned i1 = _elMrkIdx[kel][1];
               coord.resize(i1 - i0, std::vector<double> (dim));
               norm.assign(dim, 0);
-              xn.assign(dim, 0);
               unsigned cnt = 0;
               for(unsigned i = i0; i < i1; i++, cnt++) {
                 for(unsigned k = 0; k < dim; k++) {
                   coord[cnt][k] = _yp[_map[i]][k];
                   norm[k] += _N[_map[i]][k];
-                  xn[k] += coord[cnt][k];
                 }
               }
-              for(unsigned k = 0; k < dim; k++) {
-                xn[k] /= coord.size();
-              }
 
+              xn.assign(dim, 0);
+              std::vector<double> wAux(cnt);
+              if(cnt > 1) {
+                wAux.assign(cnt, 0);
+                double sumD = 0.;
+                double dist2 = 0.;
+                for(unsigned i = 0; i < cnt; i++) {
+                  for(unsigned j = 0; j < cnt; j++) {
+                    if(i != j) {
+                      for(unsigned k = 0; k < dim; k++) {
+                        dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+                      }
+                      wAux[i] += sqrt(dist2);
+                    }
+                  }
+                  sumD += wAux[i];
+                }
+                for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
+
+                for(unsigned i = 0; i < cnt; i++) {
+                  for(unsigned k = 0; k < dim; k++) {
+                    xn[k] += wAux[i] * coord[i][k];
+                  }
+                }
+              }
+              else {
+                wAux.assign(cnt, 1);
+                xn = coord[0];
+              }
               nNgbElms = msh->el->GetElementNearElementSize(kel, 1);
             }
             MPI_Bcast(&nNgbElms, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
@@ -635,12 +620,42 @@ namespace femus {
             }//face loop
 
             if(iproc == kp) {
-              femus::FindQuadraticBestFit(coord, boost::none, norm, _A[kel]);
 
-              std::vector <double> n1 = getNormal(kel, xn);
+              unsigned cnt = coord.size();
+              double sigma2 = 0.;
+              double sigma = 0.;
+              weight.assign(cnt, 0.);
+              if(cnt > 1) {
+                for(unsigned i = 0; i < cnt; i++) {
+                  for(unsigned k = 0; k < dim; k++) {
+                    sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+                  }
+                }
+                sigma2 /= cnt;
+                sigma2 /= 2;
+                sigma = sqrt(sigma2);
+                for(unsigned i = 0; i < cnt; i++) {
+                  double a = 0;
+                  for(unsigned k = 0; k < dim; k++) {
+                    a += -0.5 / sigma2 * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+                  }
+                  weight[i] = 1. / (sigma * sqrt(2. * M_PI)) * exp(a);
+                }
+              }
+              else {
+                std::cerr << "Abbiamo solo un marker!!!!!!!!!!!!!!!!!!!!!!!!!\n" ;
+                abort();
+              }
+
+              femus::GetQuadricBestFit(coord, weight, norm, _A[kel]);
+
               double n1Dotn = 0;
-              for(unsigned k = 0; k < dim; k++) {
-                n1Dotn += norm[k] * n1[k];
+
+              for(unsigned i = _elMrkIdx[kel][0]; i < _elMrkIdx[kel][1]; i++) {
+                std::vector <double> n1 = getNormal(kel,  _yp[_map[i]]);
+                for(unsigned k = 0; k < dim; k++) {
+                  n1Dotn += _N[_map[i]][k] * n1[k];
+                }
               }
               if(n1Dotn < 0) {
                 for(unsigned  i = 0; i < _A[kel].size(); i++) {
@@ -668,7 +683,7 @@ namespace femus {
     {{0.5, 0., 0., 0.5}, {0.25, 0.25, 0.25, 0.25}, {0., 0., 0.5, 0.5}, {0., 0., 0., 1.}}
   };
 
-  std::vector<std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level) {
+  std::vector<std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level) {
 
 //     if(iel == 61 && level == 1) {
 //       std::cerr << " AAAA\n";
@@ -838,7 +853,7 @@ namespace femus {
     return xe;
   }
 
-  void Cloud::RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt) {
+  void Cloud::RebuildMarkers(const unsigned & nMin, const unsigned & nMax, const unsigned & npt) {
     Mesh *msh = _sol->GetMesh();
     unsigned dim = _sol->GetMesh()->GetDimension();
     unsigned coordXType = 2;
@@ -961,7 +976,7 @@ namespace femus {
   }
 
 
-  void Cloud::RKAdvection(const unsigned &stages, const std::vector<std::string> &U, const double &dt) {
+  void Cloud::RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt) {
 
     Mesh *msh = _sol->GetMesh();
     unsigned dim = msh->GetDimension();
@@ -1254,9 +1269,9 @@ namespace femus {
 
   }
 
-  void Cloud::GetLinearFit(const unsigned &iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double &d) {
+  void Cloud::GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d) {
     unsigned dim = _sol->GetMesh()->GetDimension();
-    a.resize( dim );
+    a.resize(dim);
 
     if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
       unsigned i0 = _elMrkIdx[iel][0];
@@ -1276,7 +1291,7 @@ namespace femus {
       for(unsigned k = 0; k < dim; k++) det += N[k] * N[k];
       for(unsigned k = 0; k < dim; k++) N[k] /= det;
 
-      if(xl.size() > 1 ) {
+      if(xl.size() > 1) {
         FindBestFit(xl, boost::none, N, a, d);
       }
       else if(xl.size() == 1) {

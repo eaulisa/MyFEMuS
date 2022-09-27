@@ -207,7 +207,7 @@ int main(int argc, char** args) {
     cld.RKAdvection(4, velocity, dt);
     cld.PrintCSV("markerBefore",it);
     cld.ComputeQuadraticBestFit();
-    cld.RebuildMarkers(8, 12, 8);
+    //cld.RebuildMarkers(8, 12, 8);
     cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
