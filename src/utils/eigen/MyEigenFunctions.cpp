@@ -457,17 +457,13 @@ namespace femus {
 
   }
 
-
   void FindParabolaBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
-    const unsigned& dim = N.size();
-
+    const unsigned& dim = N.size();  
     unsigned np = x.size();
-    Eigen::MatrixXd X(np, 2);
-
+    
     std::vector < double > xg(dim, 0.);
     double wSum = 0;
     for(unsigned i = 0; i < np; i++) {
-      //std::cout << "{" << x[i][0] << "," << x[i][1] << "},";
       for(unsigned k = 0; k < dim; k++) {
         xg[k] += (*w)[i] * x[i][k];
       }
@@ -476,31 +472,8 @@ namespace femus {
     for(unsigned k = 0; k < dim; k++) {
       xg[k] /= wSum;
     }
-    // std::cout << std::endl;
-    // std::cout << xg[0] << " " << xg[1] << std::endl;
-
-    for(unsigned i = 0; i < np; i++) {
-      // std::cout << "{" << x[i][0] - xg[0] << "," << x[i][1] - xg[1] << "},";
-      for(unsigned k = 0; k < dim; k++) {
-        X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
-      }
-    }
-
-
-    Eigen::MatrixXd A(2, 2);
-    A = X.transpose() * X;
-
-    Eigen::EigenSolver<Eigen::MatrixXd> es(A);
-    const Eigen::VectorXcd &l = es.eigenvalues().col(0);
-    unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
-    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
-    if(fabs( l(lMin).real() / l(lMax).real()) > 0.05) {
-      FindQuadraticBestFit(x, w, N, a);
-      return;
-    }
-
-    const Eigen::VectorXcd &u = es.eigenvectors().col(lMax);
-    double t = atan2(u(1).real(), u(0).real());
+    
+    double t = atan2(- N[0], N[1]);
 
     double cost = cos(t);
     double sint = sin(t);
@@ -520,11 +493,11 @@ namespace femus {
     Eigen::MatrixXd m(np, nParam);
 
     for(unsigned i = 0; i < np; i++) {
-      double x = xp[i][0] / maxD;
-      double y = xp[i][1] / maxD;
-      m(i, 0) = sqrt((*w)[i]) * x * x;
-      m(i, 1) = sqrt((*w)[i]) * x;
-      m(i, 2) = sqrt((*w)[i]) * y;
+      double x1 = xp[i][0] / maxD;
+      double y1 = xp[i][1] / maxD;
+      m(i, 0) = sqrt((*w)[i]) * x1 * x1;
+      m(i, 1) = sqrt((*w)[i]) * x1;
+      m(i, 2) = sqrt((*w)[i]) * y1;
       m(i, 3) = sqrt((*w)[i]);
     }
 
@@ -611,6 +584,49 @@ namespace femus {
     }
 //      std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
 
+  }
+  
+  
+  void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a) {
+    const unsigned& dim = N.size();
+
+    unsigned np = x.size();
+    Eigen::MatrixXd X(np, 2);
+
+    std::vector < double > xg(dim, 0.);
+    double wSum = 0;
+    for(unsigned i = 0; i < np; i++) {
+      for(unsigned k = 0; k < dim; k++) {
+        xg[k] += (*w)[i] * x[i][k];
+      }
+      wSum += (*w)[i];
+    }
+    for(unsigned k = 0; k < dim; k++) {
+      xg[k] /= wSum;
+    }
+
+    for(unsigned i = 0; i < np; i++) {
+      for(unsigned k = 0; k < dim; k++) {
+        X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
+      }
+    }
+
+    Eigen::MatrixXd A(2, 2);
+    A = X.transpose() * X;
+
+    Eigen::EigenSolver<Eigen::MatrixXd> es(A);
+    const Eigen::VectorXcd &l = es.eigenvalues().col(0);
+    unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
+    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
+    if(fabs( l(lMin).real() / l(lMax).real()) > 0.05 && x.size() > 5) {
+      FindQuadraticBestFit(x, w, N, a);
+    }
+    else{
+      const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+      for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+      FindParabolaBestFit(x, w, N, a);
+    }
+        
   }
 
 

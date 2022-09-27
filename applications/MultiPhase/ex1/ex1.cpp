@@ -496,9 +496,13 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
   /* END cutfem stuff for surface tension integration */
   
   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
-
-  cld->ComputeQuadraticBestFit();
   
+//   cld.RKAdvection(4, {"U", "V"}, dt); // TODO dt sbagliato
+//   cld->PrintCSV("markerBefore",it);
+  cld->ComputeQuadraticBestFit();
+//   cld->RebuildMarkers(8, 12, 8);
+//   cld->PrintCSV("marker",it);
+
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
       
@@ -524,19 +528,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
       }
     }
-    
-    std::vector<double> a;
-    std::vector<double> b;
-    std::vector<double> xm;
-    double d;
-    double db;
-    unsigned cut;
-    double vol;
-    
-    if(ielGeom == 3) GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
-    else if(ielGeom == 4) GetNormalTri(x1, xg, R, a, d, xm, b, db, cut);
-    else if(ielGeom == 1) GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
-//     else if(ielGeom == 0) GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0)); 
 
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);    // number of solution element dofs
@@ -582,21 +573,47 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
     
     const elem_type *femV = fem.GetFiniteElement(ielGeom, solVType);
     
+    std::vector<double> a;
+    std::vector<double> xm;
+    double d;
+    unsigned cut = 0;
+    double vol;
+    
+    std::vector<std::vector<double>> Jacob, JacI;
+    
+    
+    
+    unsigned cnt = cld->GetNumberOfMarker(iel);
+    
+    if(cnt > 0) cut = 1;
+    
+    if(cut==1){
+        
+      msh->_finiteElement[ielGeom][solVType]->GetJacobianMatrix(coordX, cld->GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI); 
+      cld->GetLinearFit(iel, Jacob, a, d);
+    }
+    
+//     if(ielGeom == 3) GetNormalQuad(x1, xg, R, a, d, xm, b, db, cut);
+//     if(ielGeom == 3) cld->GetLinearFit(iel, Jacob, b, db);
+//     if(ielGeom == 4) GetNormalTri(x1, xg, R, a, d, xm, b, db, cut);
+//     else if(ielGeom == 1) GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
+//     else if(ielGeom == 0) GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0)); 
+    
     std::vector <TypeIO> weightCF;
     if(cut == 1) {
         bool wMap = 1;
         if(ielGeom == 3) {
-          quad.GetWeightWithMap(-1, b, db, weightCF);
-//           quadCD.GetWeight(b, db, weightCF);        
+          quad.GetWeightWithMap(-1, a, d, weightCF);
+//           quadCD.GetWeight(a, d, weightCF);        
         }
-        else if(ielGeom == 4) {
-          triCD.GetWeight(b, db, weightCF);
-          const double* weightG = tri.GetGaussWeightPointer();
-        }
-        else if(ielGeom == 1) {
-          tet.GetWeightWithMap(-1, b, db, weightCF);
-          const double* weightG = tet.GetGaussWeightPointer();
-        }
+//         else if(ielGeom == 4) {
+//           triCD.GetWeight(b, db, weightCF);
+//           const double* weightG = tri.GetGaussWeightPointer();
+//         }
+//         else if(ielGeom == 1) {
+//           tet.GetWeightWithMap(-1, b, db, weightCF);
+//           const double* weightG = tet.GetGaussWeightPointer();
+//         }
       }
       
       std::vector<double> xqp(dim);
@@ -614,12 +631,11 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
       
       if(cut == 1){
       
-      std::vector<std::vector<double>> Jacob, JacI;
       femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI); 
       
       for(unsigned k = 0; k < dim; k++) {
          for(unsigned j = 0; j < dim; j++) {
-            Nf[k] += JacI[j][k] * (-a[j]); // remember, a is the unit normal in the parent element from the solid to the fluid
+            Nf[k] += JacI[j][k] * (-a[j]); //TODO check the - && remember, a is the unit normal in the parent element from the solid to the fluid
          }
          dsN += Nf[k] * Nf[k];
        }
@@ -641,13 +657,15 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob) {
         }
       }
       
-      if(cut == 1) {
+      if(cld->GetNumberOfMarker(iel) > 0) {
       double magN2 = 0.;
-      kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
+      kk = cld->getCurvature(iel, xqp);
+      NN = cld->getNormal(iel, xqp);
+//       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
-      NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
-      for(unsigned k = 0; k < dim; k++) magN2 += NN[k] * NN[k];
-      for(unsigned k = 0; k < dim; k++) NN[k] /= sqrt(magN2);
+//       NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
+//       for(unsigned k = 0; k < dim; k++) magN2 += NN[k] * NN[k];
+//       for(unsigned k = 0; k < dim; k++) NN[k] /= sqrt(magN2);
       }
       
       std::vector < double > solV_gss(dim, 0);
