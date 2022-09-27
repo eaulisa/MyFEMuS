@@ -476,11 +476,11 @@ namespace femus {
     for(unsigned k = 0; k < dim; k++) {
       xg[k] /= wSum;
     }
-   // std::cout << std::endl;
-   // std::cout << xg[0] << " " << xg[1] << std::endl;
+    // std::cout << std::endl;
+    // std::cout << xg[0] << " " << xg[1] << std::endl;
 
     for(unsigned i = 0; i < np; i++) {
-     // std::cout << "{" << x[i][0] - xg[0] << "," << x[i][1] - xg[1] << "},";
+      // std::cout << "{" << x[i][0] - xg[0] << "," << x[i][1] - xg[1] << "},";
       for(unsigned k = 0; k < dim; k++) {
         X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
       }
@@ -492,10 +492,21 @@ namespace femus {
 
     Eigen::EigenSolver<Eigen::MatrixXd> es(A);
     const Eigen::VectorXcd &l = es.eigenvalues().col(0);
-    unsigned lMax = (l(1).real() > l(0).real())? 1 : 0;
+    unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
+    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
+    if(fabs( l(lMin).real() / l(lMax).real()) > 0.05) {
+      FindQuadraticBestFit(x, w, N, a);
+      return;
+    }
+
     const Eigen::VectorXcd &u = es.eigenvectors().col(lMax);
-    
+
+
+//     std::cout << acos((u(0).real() * N[0] + u(1).real() * N[1]) /
+//                       sqrt( (N[0] * N[0] + N[1] * N[1] ) * ( u(1).real() * u(1).real() + u(0).real() * u(0).real()) )) * 180 / M_PI << std::endl;
+
     double t = atan2(u(1).real(), u(0).real());
+//     double t = atan2(N[1] / ( N[0] * N[0] + N[1] * N[1] ), -N[0] / (N[0] * N[0] + N[1] * N[1] ));
 
     double cost = cos(t);
     double sint = sin(t);
@@ -608,9 +619,7 @@ namespace femus {
         a[i] = a[i] / norm;
       }
     }
-
-
-//     std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
+//      std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
 
   }
 

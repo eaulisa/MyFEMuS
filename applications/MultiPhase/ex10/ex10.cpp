@@ -36,7 +36,7 @@
 
 using namespace femus;
 
-void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time);
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T);
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
@@ -99,7 +99,8 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 5;
+  unsigned numberOfUniformLevels = 7;
+  unsigned nMax = 4 * pow(2,6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -180,30 +181,34 @@ int main(int argc, char** args) {
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
+  double period = 4;
+  unsigned nIterations = 160;
+
   double time = 0.;
-  unsigned nMax = 100;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
-  SetVelocity(sol, velocity, time );
-  cld.PrintCSV(0);
+  SetVelocity(sol, velocity, time, period );
+  cld.PrintCSV("markerBefore",0);
+  cld.PrintCSV("marker",0);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  double period = 2 /** M_PI*/;
-  unsigned nIterations = 80;
+
   double dt = period / nIterations;
 
   for(unsigned it = 1; it <= nIterations; it++) {
-    std::cout << "ITERATION " << it <<"\n";   
+    std::cout << "ITERATION " << it << "\n";
+
+
     for(unsigned k = 0; k < dim; k++) {
       *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
     }
+
     time += dt;
-    SetVelocity(sol, velocity, time);
+    SetVelocity(sol, velocity, time, period);
     cld.RKAdvection(4, velocity, dt);
-    //cld.PrintCSV(20 + it);
+    cld.PrintCSV("markerBefore",it);
     cld.ComputeQuadraticBestFit();
-    cld.RebuildMarkers(6, 20, 8);
-    
-    cld.PrintCSV(it);
+    cld.RebuildMarkers(8, 12, 8);
+    cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
 //     for(unsigned kp = 0; kp < nprocs; kp++) {
@@ -219,8 +224,6 @@ int main(int argc, char** args) {
 //     }
 //     std::cerr << std::endl;
 
-   
-
   }
   // END Testing the class Cloud
 
@@ -233,7 +236,7 @@ int main(int argc, char** args) {
   return 0;
 }
 
-void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time) {
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T) {
 
   Mesh* msh = sol->GetMesh();    // pointer to the mesh (level) object
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
@@ -262,11 +265,11 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
       //single vortex;
-      double T = 2.;
-      double x = xv[0]+0.5;
-      double y = xv[1]+0.5;
-      double u = -2. * sin(M_PI*x) * sin(M_PI*x) * sin(M_PI*y) * cos(M_PI*y) * cos(M_PI*time/T);
-      double v =  2. * sin(M_PI*x) * cos(M_PI*x) * sin(M_PI*y) * sin(M_PI*y) * cos(M_PI*time/T);
+
+      double x = xv[0] + 0.5;
+      double y = xv[1] + 0.5;
+      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
       sol->_Sol[uIndex[0]]->set(uDof, u);
       sol->_Sol[uIndex[1]]->set(uDof, v);
     }

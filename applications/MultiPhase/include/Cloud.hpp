@@ -24,7 +24,7 @@ namespace femus {
 
       void PrintNoOrder(const unsigned &t);
       void PrintWithOrder(const unsigned &t);
-      void PrintCSV(const unsigned &t);
+      void PrintCSV(const std::string &filename, const unsigned &t);
 
       void ComputeQuadraticBestFit();
 
@@ -310,7 +310,7 @@ namespace femus {
     }
   }
 
-  void Cloud::PrintCSV(const unsigned &t) {
+  void Cloud::PrintCSV(const std::string &filename, const unsigned &t) {
     unsigned iproc = _sol->processor_id();
     unsigned nprocs = _sol->n_processors();
     unsigned dim = _sol->GetMesh()->GetDimension();
@@ -318,8 +318,8 @@ namespace femus {
     for(unsigned kp = 0; kp < nprocs; kp++) {
       if(kp == iproc) {
         std::ostringstream foo(std::ostringstream::ate);
-        foo.str("./output/marker");
-        foo << t;
+        foo.str("./output/");
+        foo << filename << t;
         foo << ".csv";
         if(kp == 0) _fout.open(foo.str(), std::fstream::out);
         else _fout.open(foo.str(), std::fstream::app);
@@ -378,13 +378,12 @@ namespace femus {
         for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
           norm[k] += _N[_map[i]][k];
-//           xn[k] += coord[cnt][k];
         }
       }
 
       std::vector<double> wAux(cnt);
       if(cnt > 1) {
-        wAux.assign(cnt, 0);    
+        wAux.assign(cnt, 0);
         double sumD = 0.;
         double dist2 = 0.;
         for(unsigned i = 0; i < cnt; i++) {
@@ -406,8 +405,8 @@ namespace femus {
           }
         }
       }
-      else{
-        wAux.assign(cnt, 1);  
+      else {
+        wAux.assign(cnt, 1);
         xn = coord[0];
       }
 
@@ -421,12 +420,13 @@ namespace femus {
           if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem
             unsigned j0 = _elMrkIdx[jel][0];
             unsigned j1 = _elMrkIdx[jel][1];
+
             coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
-             for(unsigned j = j0; j < j1; j++, cnt++) {
-               for(unsigned k = 0; k < dim; k++) {
-                 coord[cnt][k] = _yp[_map[j]][k];
-               }
-             }
+            for(unsigned j = j0; j < j1; j++, cnt++) {
+              for(unsigned k = 0; k < dim; k++) {
+                coord[cnt][k] = _yp[_map[j]][k];
+              }
+            }
           }
         }
       }
@@ -441,6 +441,7 @@ namespace femus {
           }
         }
         sigma2 /= cnt;
+        sigma2 /= 2;
         sigma = sqrt(sigma2);
         for(unsigned i = 0; i < cnt; i++) {
           double a = 0;
@@ -459,8 +460,8 @@ namespace femus {
         pSerach[iel] = true;
       }
       else {
-        femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
-
+        //femus::FindQuadraticBestFit(coord, weight, norm, _A[iel]);
+        femus::FindParabolaBestFit(coord, weight, norm, _A[iel]);
 
 //         double t;
 //         if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
