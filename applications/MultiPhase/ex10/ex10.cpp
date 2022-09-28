@@ -198,16 +198,14 @@ int main(int argc, char** args) {
     std::cout << "ITERATION " << it << "\n";
 
 
-    for(unsigned k = 0; k < dim; k++) {
-      *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
-    }
+    sol->CopySolutionToOldSolution();
 
     time += dt;
     SetVelocity(sol, velocity, time, period);
     cld.RKAdvection(4, velocity, dt);
     cld.PrintCSV("markerBefore",it);
     cld.ComputeQuadraticBestFit();
-    //cld.RebuildMarkers(8, 12, 8);
+    cld.RebuildMarkers(8, 12, 8);
     cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
@@ -262,8 +260,8 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       }
       unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
       //rotation;
-      sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
-      sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+      //sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+      //sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
       //single vortex;
 
       double x = xv[0] + 0.5;
