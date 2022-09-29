@@ -260,10 +260,10 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       }
       unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
       //rotation;
-      //sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
-      //sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+      sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+      sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+      
       //single vortex;
-
       double x = xv[0] + 0.5;
       double y = xv[1] + 0.5;
       double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
