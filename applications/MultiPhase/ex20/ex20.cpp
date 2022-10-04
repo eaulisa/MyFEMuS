@@ -131,7 +131,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("U", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
-  //mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
   
   mlSol.AddSolution("Ce", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
@@ -140,7 +140,7 @@ int main(int argc, char** args) {
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
 //    mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
 //    if (dim == 3) mlSol.AddSolution("W", LAGRANGE, SERENDIPITY);
-    mlSol.AddSolution("P", LAGRANGE, FIRST);
+//    mlSol.AddSolution("P", LAGRANGE, FIRST);
 
 //    // Bad FEM pair - no LBB condition
 //    mlSol.AddSolution("U", LAGRANGE, FIRST);

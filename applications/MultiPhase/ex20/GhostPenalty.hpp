@@ -292,7 +292,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                   }
                 }
 
-                double C1 = 50 * mu;
+                double C1 = 0.05 * mu;
            
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {         
