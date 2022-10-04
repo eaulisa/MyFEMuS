@@ -50,6 +50,7 @@ typedef cpp_bin_float_oct TypeA;
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
+Cloud *cldint;
 
 #define RADIUS 0.4
 #define XG 0.
@@ -101,6 +102,7 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   cld = new Cloud();
+  cldint = new Cloud();
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -129,6 +131,9 @@ int main(int argc, char** args) {
   mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  
+  mlSol.AddSolution("Ce", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -185,6 +190,8 @@ int main(int argc, char** args) {
 
   unsigned nIterations = 1000;
 
+  
+  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
 
   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
   cld->ComputeQuadraticBestFit();
@@ -218,6 +225,7 @@ int main(int argc, char** args) {
   }
 
   delete cld;
+  delete cldint;
 
   return 0;
 }

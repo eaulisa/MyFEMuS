@@ -20,6 +20,9 @@ namespace femus {
       void SetNumberOfMarker(const unsigned &nMax);
       void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
       void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol);
+
+      void InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol);
+
       void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol);
 
       void PrintNoOrder(const unsigned &t);
@@ -125,6 +128,71 @@ namespace femus {
     _nMrk = nMax;
   }
 
+
+  void Cloud::InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol) {
+    _sol = sol;
+
+    Mesh *msh = _sol->GetMesh();
+
+    unsigned dim = msh->GetDimension();
+
+    unsigned iproc  = msh->processor_id();
+    unsigned nprocs  = msh->n_processors();
+
+    unsigned offset = msh->_elementOffset[iproc];
+    unsigned offsetp1 = msh->_elementOffset[iproc + 1];
+
+    unsigned nMax = offsetp1 - offset;
+
+    _yp.resize(nMax);
+    _yi.resize(nMax);
+    _N.resize(nMax);
+    _kappa.resize(nMax);
+    _elem.resize(nMax);
+
+    unsigned cnt = 0;
+
+    for(unsigned iel = offset; iel < offsetp1; iel++) {
+      short unsigned ielGeom = msh->GetElementType(iel);
+      unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+
+      std::vector<double> x(dim);
+      std::vector<double> xm(dim, 0.);
+
+
+      unsigned cntNode = 0;
+      for(unsigned i = 0; i < nDof; i++) {
+        unsigned xDof  = msh->GetSolutionDof(i, iel, 2);    // global to global mapping between coordinates node and coordinate dof
+        for(unsigned k = 0; k < dim; k++) {
+          x[k] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+          xm[k] += x[k];
+        }
+
+        if((x[0] - xc[0]) * (x[0] - xc[0]) / (a[0]*a[0]) + (x[1] - xc[1]) * (x[1] - xc[1]) / (a[1]*a[1]) < 1) cntNode++;
+
+      }
+
+      if(cntNode == nDof) {
+        for(unsigned  k = 0; k < dim; k++) {
+          _yp[cnt][k] = xm[k] / nDof;
+        }
+        _yi[cnt]  = {0., 0.}; //TODO
+        _elem[cnt] = iel;
+
+        _N[cnt] = {0., 0.}; //TODO
+        _kappa[cnt] = 0.; //TODO
+
+        cnt++;
+      }
+    }
+
+    _yp.resize(cnt);
+    _yi.resize(cnt);
+    _elem.resize(cnt);
+    _N.resize(cnt);
+    _kappa.resize(cnt);
+    CreateMap();
+  }
 
 
   void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol) {
