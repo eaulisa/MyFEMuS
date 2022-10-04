@@ -20,6 +20,13 @@ using namespace femus;
 parameter *par;
 
 
+#include "CutFemWeight.hpp"
+#include "Fem.hpp"
+
+CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
+Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+
+
 #include "./include/MyMarker/MyMarker.hpp"
 #include "./include/MyMarker/MyMarker.cpp"
 
@@ -44,6 +51,11 @@ bool BoundaryConditionTurek2(const std::vector < double >&x, const char name[], 
 
 double TimeStepTurek0(const double time);
 bool BoundaryConditionTurek0(const std::vector < double >&x, const char name[], double &value, const int facename, const double t);
+
+double TimeStepChannelFlip(const double time);
+bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char name[], double& value, const int facename, const double t);
+
+
 
 
 parameter beam = parameter(false, .3, {0., 0., 0.},
@@ -79,7 +91,7 @@ parameter turek2 = parameter(true, .3, {0., 0., 0.},
 parameter turek3 = parameter(true, .3, {0., 0., 0.},
                              45., 0.05, 0.05, 0.05,
                              false, 1000., 1000., 0.4, 4 * 1400000., 1.,
-                             "../input/turekBeam2DFine.neu", 1., 6, 0,
+                             "../input/turekBeam2DFine.neu", 1., 5, 0,
                              "../input/turek2DNew.neu", 1., -2,
                              BoundaryConditionTurek3, TimeStepTurek3);
 
@@ -93,6 +105,12 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
                              BoundaryConditionTurek0, TimeStepTurek0);
 
 
+parameter channelFlip = parameter(false, .5, {0., 0., 0.},
+                                  45., 0.1, 0.1, 0.1,
+                                  true, 1500., 956., 0.45, 2.3 * 1e6, 0.145,
+                                  "../input/ChannelFlipBeam.neu", 1., 2, 0,
+                                  "../input/ChannelFlipBackground2.neu", 1., -1,
+                                  BoundaryConditionChannelFlip, TimeStepChannelFlip);
 
 
 //     parameter(bool weakP, double theta, std::vector < double > gravity,
@@ -112,17 +130,22 @@ parameter turek0 = parameter(false, .3, {0., 0., 0.},
 int main(int argc, char** args) {
 
   //par = &turek1;
-    par = &turek2;
+  //par = &turek2;
   //par = &turek3;
   //par = &beam;
+  par = &channelFlip;
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
+      
   MultiLevelMesh mlMshM;
   mlMshM.ReadCoarseMesh(par->_mMesh.c_str(), "fifth", par->_mScale);
   mlMshM.RefineMesh(par->_mUniform, par->_mUniform, NULL); //uniform refinement, this goes with the background mesh refinement. For COMSOL we use 8 = 3 turekBeam2D
 
+  
+  
+  
+  
   for(unsigned i = 0; i < par->_mAdaptive; i++) {
     FlagElements(mlMshM, 0);
     mlMshM.AddAMRMeshLevel();
@@ -162,7 +185,7 @@ int main(int argc, char** args) {
   // Generate Solid Object
   Solid solid(physics, par->_E, par->_nu, par->_rhos, "Neo-Hookean");
   Fluid fluid(physics, par->_muf, par->_rhof, "Newtonian");
- 
+
 
   MultiLevelProblem ml_probM(&mlSolM);
   // ******* Add MPM system to the MultiLevel problem *******
@@ -191,11 +214,11 @@ int main(int argc, char** args) {
   systemM.SetPreconditionerFineGrids(ILU_PRECOND);
   systemM.SetTolerances(1.e-10, 1.e-15, 1.e+50, 40, 40);
 
-    
+
   MultiLevelProblem ml_probB(&mlSolB);
   ml_probB.parameters.set<Solid> ("SolidMPM") = solid;
   ml_probB.parameters.set<Fluid> ("FluidFEM") = fluid;
-  
+
   // ******* Add MPM system to the MultiLevel problem *******
   TransientNonlinearImplicitSystem& systemB = ml_probB.add_system < TransientNonlinearImplicitSystem > ("MPM_FSI");
   systemB.AddSolutionToSystemPDE("DX");
@@ -241,7 +264,7 @@ int main(int argc, char** args) {
   mlSolM.GetWriter()->SetMovingMesh(mov_vars);
   //mlSolB.GetWriter()->SetMovingMesh(mov_vars);
   mlSolM.GetWriter()->SetDebugOutput(true);
-  mlSolB.GetWriter()->SetDebugOutput(false);
+  mlSolB.GetWriter()->SetDebugOutput(true);
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
 
@@ -250,7 +273,7 @@ int main(int argc, char** args) {
 
   projection = new Projection(&mlSolM, &mlSolB);
 
-  for(unsigned t = 1; t <= 20000; t++) {
+  for(unsigned t = 1; t <= 500; t++) {
 
     systemB.CopySolutionToOldSolution();
 
@@ -266,7 +289,7 @@ int main(int argc, char** args) {
     mlSolB.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, t);
 
     time = clock();
-    projection->FromBackgroundToMarker( (t%50==0), systemM);
+    projection->FromBackgroundToMarker((t % 10 == 0), systemM);
     std::cout << "backward projection time " << t << " = " << static_cast<double>((clock() - time)) / CLOCKS_PER_SEC << std::endl;
     mlSolM.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, t);
 
@@ -277,6 +300,67 @@ int main(int argc, char** args) {
   return 0;
 
 } //end main
+
+
+// 1-inlet, 2-outlet, 3-slip, 4-wall
+bool BoundaryConditionChannelFlip(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {
+  bool test = 1; //dirichlet
+  value = 0.;
+
+
+  if(!strcmp(name, "DX")) {
+    if(3 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "DY")) {
+    if(1 == facename || 2 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "VX")) {
+    if(1 == facename) {     //inlet
+      if(t < 10.0) {
+        value = 0.5 * 0.06067 * (1. - cos(M_PI * t / 10)) * 4. * x[1] * (1. - x[1]);
+      }
+      else {
+        value = 0.06067 * 4. * x[1] * (1. - x[1]);
+      }
+    }
+    else if(2 == facename || 3 == facename) {     //outlet
+      test = 0;
+      value = 0.;
+    }
+  }
+  else if(!strcmp(name, "VY")) {
+    if(2 == facename) {
+      test = 0;
+      value = 0;
+    }
+  }
+  else if(!strcmp(name, "P")) {
+    test = 0;
+    value = 0;
+  }
+
+  return test;
+
+}
+
+
+double TimeStepChannelFlip(const double time) {
+  double dt = 0.05;
+
+  return dt;
+}
+
+
+
+
+
+
 
 
 bool BoundaryConditionBeam(const std::vector < double >& x, const char name[], double& value, const int facename, const double t) {

@@ -454,8 +454,14 @@ void Projection::FromMarkerToBackground() {
   unsigned nodeType = _mlSolB->GetSolutionType(nflagIdx);
   unsigned solType = _mlSolB->GetSolutionType("DX");
 
+  unsigned fldCntIndex = _mlSolB->GetIndex("fldCnt");
+  unsigned sldCntIndex = _mlSolB->GetIndex("sldCnt");
+
   solB->_Sol[eflagIdx]->zero();
   solB->_Sol[nflagIdx]->zero();
+
+  solB->_Sol[fldCntIndex]->zero();
+  solB->_Sol[sldCntIndex]->zero();
 
   std::vector < std::vector < std::vector <double > > > aP(3);
   std::vector<std::vector<double>> vx(_dim);
@@ -468,25 +474,36 @@ void Projection::FromMarkerToBackground() {
 
     for(unsigned kp = 0; kp < _nprocs; kp++) { //loop on all the markers in ielB element, projected from all the processes of the marker mesh
 
-      im[kp] = 0;
+//       im[kp] = 0;
       while(im[kp] < _ielb[kp].size() && _ielb[kp][im[kp]] < iel) {
         im[kp]++;
+        std::cout << "C";
       }
 
       while(im[kp] < _ielb[kp].size() && iel == _ielb[kp][im[kp]]) {
-        if(_mtypeb[kp][im[kp]] == 1 && (*solB->_Sol[eflagIdx])(iel) != 1) {
-          solB->_Sol[eflagIdx]->set(iel, 1);
-          unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
-          for(unsigned i = 0; i < nDofu; i++) {
-            unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
-            solB->_Sol[nflagIdx]->set(idof, 1);
+        if(_mtypeb[kp][im[kp]] == 1) {
+          solB->_Sol[fldCntIndex]->add(iel, 1);
+          solB->_Sol[sldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) != 1) {
+            solB->_Sol[eflagIdx]->set(iel, 1);
+            unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+            for(unsigned i = 0; i < nDofu; i++) {
+              unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+              solB->_Sol[nflagIdx]->set(idof, 1);
+            }
           }
         }
-        else if(_mtypeb[kp][im[kp]] == 2 && (*solB->_Sol[eflagIdx])(iel) != 1) {
-          solB->_Sol[eflagIdx]->set(iel, 2);
+        else if(_mtypeb[kp][im[kp]] == 2) {
+          solB->_Sol[sldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) != 1) {
+            solB->_Sol[eflagIdx]->set(iel, 2);
+          }
         }
-        else if(_mtypeb[kp][im[kp]] == 0 && (*solB->_Sol[eflagIdx])(iel) == 0) {
-          solB->_Sol[eflagIdx]->set(iel, 0.5);
+        else if(_mtypeb[kp][im[kp]] == 0) {
+          solB->_Sol[fldCntIndex]->add(iel, 1);
+          if((*solB->_Sol[eflagIdx])(iel) == 0) {
+            solB->_Sol[eflagIdx]->set(iel, 0.5);
+          }
         }
 
         if(!ielIsInitialized) {
@@ -521,8 +538,46 @@ void Projection::FromMarkerToBackground() {
       }
     }
   }
+
+
   solB->_Sol[eflagIdx]->close();
   solB->_Sol[nflagIdx]->close();
+  solB->_Sol[fldCntIndex]->close();
+  solB->_Sol[sldCntIndex]->close();
+
+  solB->_Sol[eflagIdx]->zero();
+  solB->_Sol[nflagIdx]->zero();
+  for(int iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
+
+    unsigned solidCnt = (*solB->_Sol[sldCntIndex])(iel);
+    unsigned fluidCnt = (*solB->_Sol[fldCntIndex])(iel);
+    if(solidCnt != 0 || fluidCnt != 0) {
+      if(fluidCnt == 0) {
+        solB->_Sol[eflagIdx]->set(iel, 2);
+      }
+      else if(solidCnt == 0) {
+        solB->_Sol[eflagIdx]->set(iel, 0.5);
+      }
+      else {
+        if(solidCnt <= 0) {
+          solB->_Sol[eflagIdx]->set(iel, 0.75);
+        }
+        else {
+          solB->_Sol[eflagIdx]->set(iel, 1.);
+          unsigned nDofu  = mshB->GetElementDofNumber(iel, nodeType);  // number of solution element dofs
+          for(unsigned i = 0; i < nDofu; i++) {
+            unsigned idof = mshB->GetSolutionDof(i, iel, nodeType);
+            solB->_Sol[nflagIdx]->set(idof, 1.);
+          }
+        }
+      }
+    }
+  }
+
+  solB->_Sol[eflagIdx]->close();
+  solB->_Sol[nflagIdx]->close();
+
+
 }
 
 void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplicitSystem& system) {
@@ -625,13 +680,14 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
     //BEGIN backgroud grid velocity projection
 
     for(unsigned k = 0; k < _dim; k++) {
-      solB->_SolOld[VIdxB[k]] = solB->_Sol[VIdxB[k]];
+      (*solB->_SolOld[VIdxB[k]]) = (*solB->_Sol[VIdxB[k]]);
     }
 
     unsigned offset = mshB->_dofOffset[solTypeB][_iproc];
     unsigned offsetp1 = mshB->_dofOffset[solTypeB][_iproc + 1];
     unsigned size = offsetp1 - offset;
     std::vector <int> elemFound(size);
+    std::vector < std::vector <double> > xv(size, std::vector<double>(_dim));
 
     for(unsigned iel = mshB->_elementOffset[_iproc]; iel < mshB->_elementOffset[_iproc + 1]; iel++) {
       unsigned nDofs = nDofs = mshB->GetElementDofNumber(iel, solTypeB);
@@ -639,6 +695,10 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         unsigned i = mshB->GetSolutionDof(inode, iel, solTypeB);
         if(i >= offset && i < offsetp1) { // if the node is owned by the process
           elemFound[i - offset] = iel; // set iel as best guess, which is always owned by the process
+          unsigned xdof = mshB->GetSolutionDof(inode, iel, 2);
+          for(unsigned k = 0; k < _dim; k++) {
+            xv[i - offset][k] = (*mshB->_topology->_Sol[k])(xdof);
+          }
         }
       }
     }
@@ -647,11 +707,11 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
     unsigned nfcLoc = 0;
     MyMarker mrk = MyMarker();
     for(unsigned i = offset; i < offsetp1; i++) {
-      std::vector<double> xp(_dim);
-      for(unsigned k = 0; k < _dim; k++) {
-        xp[k] = (*mshB->_topology->_Sol[k])(i);
-      }
-      bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xp, solB, solTypeB, elemFound[i - offset], 1.);
+      //std::vector<double> xp(_dim);
+      //for(unsigned k = 0; k < _dim; k++) {
+      //  xp[k] = (*mshB->_topology->_Sol[k])(i);
+      //}
+      bool elemSearch = mrk.SerialElementSearchWithInverseMapping(xv[i - offset], solB, solTypeB, elemFound[i - offset], 1.);
 
       if(elemSearch) {//the node is inside the _iproc domain, we can straightforward interpolate the velocity
         unsigned iel = mrk.GetElement();
@@ -700,9 +760,10 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         if(_iproc == kproc) {
           while(elemFound[cnt] >= 0) cnt++;
           iel = static_cast <unsigned>(-(elemFound[cnt] + 1));
-          for(unsigned k = 0; k < _dim; k++) {
-            xp[k] = (*mshB->_topology->_Sol[k])(offset + cnt);;
-          }
+          xp = xv[cnt];
+//           for(unsigned k = 0; k < _dim; k++) {
+//             xp[k] = xv[cnt][k];//(*mshB->_topology->_Sol[k])(offset + cnt);;
+//           }
         }
         MPI_Bcast(&iel, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
         MPI_Bcast(xp.data(), xp.size(), MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
@@ -712,7 +773,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
 
         bool elemSearch = mrk.ParallelElementSearchWithInverseMapping(xp, solB, solTypeB, iel, 1.);
 
-        if(elemSearch && mrk.GetProc() == _iproc) { 
+        if(elemSearch && mrk.GetProc() == _iproc) {
           unsigned iel = mrk.GetElement();
           short unsigned ielType = mshB->GetElementType(iel);
           unsigned nDofs = mshB->GetElementDofNumber(iel, solTypeB);
@@ -844,6 +905,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
 //     }
   }
 
+  std::cout << "gamma = " << _gamma << " beta = " << _beta << " dt = " << _DT << std::endl;
 
   unsigned solTypeM = 2;
 
@@ -927,7 +989,7 @@ void Projection::FromBackgroundToMarker(const bool &systemSolve, NonLinearImplic
         double Dnew = _Dm[jproc][k][j];
 
         double Xnew = Xold + Dnew;
-        double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) - Aold * (0.5 - _beta) / _beta;
+        double Anew = Dnew / (_beta * _DT * _DT) - Vold / (_beta * _DT) + Aold * (_beta - 0.5) / _beta;
         double Vnew = Vold + (Aold * (1. - _gamma) + Anew * _gamma) * _DT;
 
 //         std::cout.precision(12);

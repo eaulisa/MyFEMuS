@@ -1,11 +1,12 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
 PROJECT(femus)
 
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake-modules")
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}     -O3 -march=native -mtune=native")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -mtune=native")
-set(CMAKE_MACOSX_RPATH 1)
+
+If(APPLE)
+  set(CMAKE_MACOSX_RPATH 1)
+ENDIF(APPLE)
 
 #############################################################################################
 ### Femus library version
@@ -17,7 +18,7 @@ SET(FEMUS_BUILD_VERSION 0)
 SET(FEMUS_VERSION "${FEMTTU_MAJOR_VERSION}.${FEMTTU_MINOR_VERSION}.${FEMTTU_BUILD_VERSION}")
 
 
-   
+
 #############################################################################################
 ### Compilers
 #############################################################################################
@@ -67,13 +68,17 @@ IF(PETSC_FOUND)
   SET(HAVE_PETSC 1)
 ENDIF(PETSC_FOUND)
 
-IF(UNIX)
-SET (DYLIB so)
-ENDIF(UNIX)
-
+# Find MPI (optional)
 IF(APPLE)
-SET (DYLIB dylib)
+  SET(MPI_FOUND 1)
+ELSE()
+  FIND_PACKAGE(MPI)
 ENDIF(APPLE)
+MESSAGE(STATUS "MPI_FOUND = ${MPI_FOUND}")
+SET(HAVE_MPI 0)
+IF(MPI_FOUND)
+  SET(HAVE_MPI 1)
+ENDIF(MPI_FOUND)
 
 
 # Find MPI (optional)
@@ -81,34 +86,6 @@ if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
      set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
 endif()
 
-
-FIND_PACKAGE(MPI)
-MESSAGE(STATUS "MPI_FOUND = ${MPI_FOUND}")
-SET(HAVE_MPI 0)
-IF(MPI_FOUND)
-SET(HAVE_MPI 1)
-ENDIF(MPI_FOUND)
-
-# # Find HDF5 (optional)
-# FIND_PACKAGE (HDF5)
-# MESSAGE(STATUS "HDF5_FOUND = ${HDF5_FOUND}")
-#
-# SET(HAVE_HDF5 0)
-# IF(HDF5_FOUND)
-SET(HAVE_HDF5 1)
-# SET(HDF5_FOUND 1)
-# SET (HDF5_FOUND 1)
-# ENDIF(HDF5_FOUND)
-
-# # Find Metis (optional)
-# FIND_PACKAGE(METIS)
-# MESSAGE(STATUS "METIS_FOUND = ${METIS_FOUND}")
-#
-# SET (HAVE_METIS 0)
-# IF(METIS_FOUND)
-SET(HAVE_METIS 1)
-# SET(METIS_FOUND 1)
-# ENDIF(METIS_FOUND)
 
 # Find FParser
 FIND_PACKAGE(FParser)
@@ -118,30 +95,37 @@ IF(FPARSER_FOUND)
   SET(HAVE_FPARSER 1)
 ENDIF(FPARSER_FOUND)
 
+# Find HDF5 (optional)
+FIND_PACKAGE(HDF5)
+MESSAGE(STATUS "HDF5_FOUND = ${HDF5_FOUND}")
+SET(HAVE_HDF5 0)
+IF(HDF5_FOUND)
+  SET(HAVE_HDF5 1)
+ENDIF(HDF5_FOUND)
+
+# Find Metis (optional)
+IF(APPLE)
+  FIND_PACKAGE(METISApple)
+ELSE() 
+  FIND_PACKAGE(METIS)
+ENDIF(APPLE)
+MESSAGE(STATUS "METIS_FOUND = ${METIS_FOUND}")
+SET (HAVE_METIS 0)
+IF(METIS_FOUND)
+  SET(HAVE_METIS 1)
+ENDIF(METIS_FOUND)
+
 # Find Slepc Library (optional)
-
-IF(UNIX)
-  FIND_PACKAGE(SLEPc)
-ENDIF(UNIX)
-
 IF(APPLE)
   FIND_PACKAGE(SLEPcApple)
+ELSE()
+  FIND_PACKAGE(SLEPc)
 ENDIF(APPLE)
-
 MESSAGE(STATUS "SLEPC_FOUND = ${SLEPC_FOUND}")
 SET(HAVE_SLEPC 0)
 IF(SLEPC_FOUND)
   SET(HAVE_SLEPC 1)
 ENDIF(SLEPC_FOUND)
-
-# Find Eigen3
-FIND_PACKAGE(Eigen3)
-MESSAGE(STATUS "EIGEN3_FOUND = ${EIGEN3_FOUND}")
-SET (HAVE_EIGEN3 0)
-IF(EIGEN3_FOUND)
-  SET(HAVE_EIGEN3 1)
-  ADD_DEFINITIONS(-DHAVE_EIGEN3=1)
-ENDIF(EIGEN3_FOUND)
 
 # Find Libmesh (optional)
 # FIND_PACKAGE(LIBMESH)
@@ -151,12 +135,13 @@ ENDIF(EIGEN3_FOUND)
 #   SET(HAVE_LIBMESH 1)
 # ENDIF(LIBMESH_FOUND)
 
+SET(EIGEN_SAFE_TO_USE_STANDARD_ASSERT_MACRO FALSE)
+
 set(CMAKE_CXX_STANDARD 11)
 
 #############################################################################################
 ### Build options
 #############################################################################################
-
 
 #-- Add an Option to toggle the generation of the API documentation
 OPTION(BUILD_DOCUMENTATION "Use Doxygen to create the HTML based API documentation" OFF)
@@ -176,10 +161,9 @@ OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" ON)
 # Ask the user which executable have to be built
 OPTION(BUILD_FSIAPPS "Build the FSI applications" ON)
 
-# --
-OPTION(BUILD_OPTCONTROLAPPS "Build the optimal control applications" ON)
+# OPTION(BUILD_OPTCONTROLAPPS "Build the optimal control applications" ON)
 
-# --
+#--
 OPTION(BUILD_POISSON "Build the Poisson problem" ON)
 
 # --
@@ -223,7 +207,11 @@ OPTION(BUILD_RK "Build the Runge-Kutta apps" ON)
 
 OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
 
+OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" ON)
+
 OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
+
+OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
 
 #############################################################################################
 ### Build documentation (Doxygen)
@@ -248,6 +236,8 @@ IF(BUILD_DOCUMENTATION)
   # IF you do NOT want the documentation to be generated EVERY time you build the project
   # then leave out the 'ALL' keyword from the above command.
 ENDIF(BUILD_DOCUMENTATION)
+
+
 
 #############################################################################################
 ### Add external libraries
@@ -293,7 +283,7 @@ CONFIGURE_FILE(
   "${PROJECT_SOURCE_DIR}/UseFemus.CMake.in"
   "${PROJECT_BINARY_DIR}/UseFemus.CMake" @ONLY IMMEDIATE
   )
-
+  
 #############################################################################################
 ### Include files
 #############################################################################################
@@ -316,6 +306,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/mesh/refinement/)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/mesh/gencase/)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/input_parser/)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/eigen)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem/old)
@@ -392,11 +383,12 @@ IF(BUILD_TESTING)
 ENDIF(BUILD_TESTING)
 
 # message(petsc library = ${PETSC_LIBRARIES})
+# message(derp library = ${METIS_LIBRARIES})
 # message(b64 library = ${B64_LIBRARIES})
 # message(json library = ${JSONCPP_LIBRARIES})
 # message(adept library = ${ADEPT_LIBRARIES})
 # message(fparser library = ${FPARSER_LIBRARY})
 # message(mpi extra library = ${MPI_EXTRA_LIBRARY})
 # message(hdf5 extra library = ${HDF5_LIBRARIES})
-# message(slepc library = ${SLEPC_LIBARIES})
+# message(slepc library = ${SLEPC_LIB})
 # message(slepc library = SLEPC::slepc)

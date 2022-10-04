@@ -54,8 +54,9 @@ else(METIS_LIBRARIES AND METIS_INCLUDE_DIRS)
     set(metis_inc_names "metis.h")
     
     # we look into petsc externalpackage (for 3.5.2 version, to be improved)
-    find_path(METIS_INCLUDE_DIR ${metis_inc_names} "${PETSC_DIR}/${PETSC_ARCH}/externalpackages/git.metis/build/include/")
-        
+
+    find_path(METIS_INCLUDE_DIR ${metis_inc_names} "${PETSC_DIR}/${PETSC_ARCH}/externalpackages/git.metis/build/include/" "${PETSC_DIR}/${PETSC_ARCH}/include/")
+
     if (METIS_INCLUDE_DIR)
 
         if (EXISTS "${METIS_INCLUDE_DIR}")
@@ -118,7 +119,10 @@ else(METIS_LIBRARIES AND METIS_INCLUDE_DIRS)
     set(metis_lib_names "metis")
 
     # we look into petsc externalpackage (for 3.5.2 version, to be improved)
-    set(METIS_LIBRARY_DIR "${PETSC_DIR}/${PETSC_ARCH}/externalpackages/git.metis/build/libmetis/")
+
+    find_path(METIS_LIBRARY_DIR ${metis_lib_names} "${PETSC_DIR}/${PETSC_ARCH}/externalpackages/git.metis/build/libmetis/" "${PETSC_DIR}/${PETSC_ARCH}/lib/")
+
+    set(METIS_LIBRARY_DIR "${PETSC_DIR}/${PETSC_ARCH}/lib/")
     
     if (METIS_LIBRARY_DIR)
 

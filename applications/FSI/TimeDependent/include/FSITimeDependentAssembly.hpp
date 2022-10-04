@@ -33,7 +33,7 @@ namespace femus {
     const unsigned dim = mymsh->GetDimension();
     const unsigned max_size = static_cast< unsigned >(ceil(pow(3, dim)));
     
-    double theta = 0.5;
+    double theta = .5;
 
     // local objects
     vector<adept::adouble> SolVAR(2 * dim + 1);
@@ -145,6 +145,14 @@ namespace femus {
       std::cout << "Error! Solid Model " << solid_model << "not implemented\n";
       abort();
     }
+    
+    lambda_lame = 2. * mu_lame * lambda_lame / (lambda_lame + 2. * mu_lame);
+    lambda	= lambda_lame / rhof;
+    
+    std::cout << " solid_model = " << solid_model << std::endl;
+    std::cout << " mu_lame = " << mu_lame << std::endl;
+    std::cout << " lambda_lame = " << lambda_lame << std::endl;
+    std::cout << " nu = " << ml_prob.parameters.get<Solid>("Solid").get_poisson_coeff() << std::endl;
 
     bool incompressible = (0.5 == ml_prob.parameters.get<Solid>("Solid").get_poisson_coeff()) ? 1 : 0;
     const bool penalty = ml_prob.parameters.get<Solid>("Solid").get_if_penalty();
@@ -616,8 +624,11 @@ namespace femus {
               for (int I = 0; I < 3; ++I) {
                 for (int J = 0; J < 3; ++J) {
                   if (1 == solid_model) {   //Wood-Bonet J_hat  =1;
-                    Cauchy[I][J]     = mus * (B[I][J]     - Id2th[I][J]) - mus / 3.*I1_B     * SolVAR[2 * dim] * Id2th[I][J];
-                    Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J]) - mus / 3.*I1_B_old * SolVAR[2 * dim] * Id2th[I][J];
+                    //Cauchy[I][J]     = mus * (B[I][J]     - Id2th[I][J]) - mus / 3.*I1_B     * SolVAR[2 * dim] * Id2th[I][J];
+                    //Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J]) - mus / 3.*I1_B_old * SolVAR[2 * dim] * Id2th[I][J];
+                    //Wood-Bonet penalty
+                    Cauchy[I][J] = mus * (B[I][J] - Id2th[I][J])/J_hat + lambda / J_hat * log(J_hat)*Id2th[I][J];
+                    Cauchy_old[I][J] = mus * (B_old[I][J] - Id2th[I][J])/J_hat_old + lambda / J_hat_old * log(J_hat_old)*Id2th[I][J];                    
                   }
 
 // 		    else if ( 2 == solid_model ) Cauchy[I][J] = mus/J_hat*B[I][J]
@@ -720,18 +731,20 @@ namespace femus {
 
               for (int idim = 0; idim < dim; idim++) {
 
-                adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight
-                                                  - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_old);
+//                 adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight
+//                                                   - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_old);
 
-                adept::adouble value =  theta * dt * (rhos * phi[i] * _gravity[idim]      // body force
-                                                    - CauchyDIR[idim]			  // stress
+                adept::adouble timeDerivative = -(rhos * SolVAR[dim + idim] * phi[i] * Weight_hat
+                                                  - rhos * SolVAR_old[dim + idim] * phi_old[i] * Weight_hat);
+  
+                  
+                adept::adouble value =  theta * dt * ( - CauchyDIR[idim]			  // stress
                                                    ) * Weight;                         // at time t
 
-                adept::adouble value_old =  (1. - theta) * dt * (rhos * phi_old[i] * _gravity[idim]     // body force
-                                                        - CauchyDIR_old[idim]			 // stress
+                adept::adouble value_old =  (1. - theta) * dt * ( - CauchyDIR_old[idim]			 // stress
                                                        ) * Weight_old;                         // at time t-dt
 
-                aRhs[indexVAR[idim]][i] += timeDerivative + value + value_old;
+                aRhs[indexVAR[idim]][i] += timeDerivative + value + value_old + dt * rhos * phi_old[i] * _gravity[idim] * Weight_hat;
               }
 
               //END redidual Solid Momentum in moving domain
@@ -747,7 +760,8 @@ namespace femus {
                   aRhs[indexVAR[2 * dim]][i] += -(-phi1[i] * (I_e + (!incompressible) / lambda * SolVAR[2 * dim])) * Weight_hat;
                 }
                 else if (1 == solid_model || 5 == solid_model) {
-                  aRhs[indexVAR[2 * dim]][i] += phi1[i] * (J_hat - 1. + (!incompressible) / lambda * SolVAR[2 * dim]) * Weight_hat;
+                  //aRhs[indexVAR[2 * dim]][i] += phi1[i] * (J_hat - 1. + (!incompressible) / lambda * SolVAR[2 * dim]) * Weight_hat;
+                  aRhs[indexVAR[2*dim]][i] += -(-phi1[i]*( SolVAR[2*dim] ) )*Weight_hat;
                 }
 
 // 		  else if (2 == solid_model){

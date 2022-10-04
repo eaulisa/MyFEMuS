@@ -4,7 +4,7 @@ MyFEMuS
 Welcome to the MyFEMuS project! MyFEMuS is a fork of the FEMuS project administered mainly by Eugenio Aulisa.
 The manual intallation, will also work with the FEMuS project.
 
-For the FEMuS project automatic installation see below.
+For the FEMuS project automatic installation, as well as the Mac-specific installation, see below.
 
 
 <!-- ![alt tag](https://github.com/FeMTTU/femus/blob/master/doc/images/logo.jpg?raw=true) -->
@@ -144,6 +144,99 @@ where "my_dir" is the directory, either absolute or relative, in which you want 
 
     cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE="[Debug Release RelWithDebInfo MinSizeRel None]"  ../femus
 
+=====
+
+
+FEMuS Mac installation, contact Anthony Gruber for support.  Note that the optional FParser and Libmesh functionality is not yet usable.
+======
+
+Download homebrew
+
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+Install the following packages 
+
+    Brew install gcc
+    Brew install make
+    Brew install open-mpi
+    Brew install metis
+    Brew install parmetis
+    Brew install hdf5
+    Brew install scalapack
+    Brew install boost
+    Brew install --cask cmake (for cmake-gui)
+    Brew install pkg-config (maybe not necessary)
+
+Install PETSc
+
+From the directory $INSTALLATION_DIR clone petsc
+
+    git clone -b release https://gitlab.com/petsc/petsc.git petsc 
+    
+    cd petsc
+    
+Configure PETSc with the following options (tested 12/14/2021 on MBP 2021 -- replace directories according to your own homebrew installations)
+    
+    ./configure --with-debugging=0 --with-shared-libraries --with-mpi-dir=/opt/homebrew/Cellar/open-mpi/4.1.2 --with-hdf5-dir=/opt/homebrew/Cellar/hdf5/1.12.1 --with-boost-dir=/opt/homebrew/Cellar/boost/1.76.0 --with-metis-dir=/opt/homebrew/Cellar/metis/5.1.0 --with-parmetis-dir=/opt/homebrew/Cellar/parmetis/4.0.3_5 --with-scalapack-dir=/opt/homebrew/Cellar/scalapack/2.1.0_3 --download-mumps --download-blacs --download-suitesparse
+
+Follow the console prompts to compile and test the PETSc library.  All tests should pass.
+
+Install SLEPc
+
+From the directory $INSTALLATION_DIR clone slepc
+
+    git clone -b release https://gitlab.com/slepc/slepc
+
+Put the following lines in your .zshrc (or just run them in local scope from the shell)
+
+    export PETSC_DIR=$INSTALLATION_DIR/petsc 
+
+    export PETSC_ARCH=arch-darwin-c-opt
+
+    export SLEPC_DIR=$INSTALLATION_DIR/slepc
+
+Configure SLEPc
+
+    ./configure
+
+Follow the console prompts to compile and test the SLEPc library.  All tests should pass.
+
+Install MyFEMuS
+
+From the directory $INSTALLATION_DIR clone MyFEMuS and make a directory for the binaries
+
+    git clone https://github.com/agrubertx/MyFEMuS.git
+
+    mkdir femusbin
+
+Navigate to MyFEMuS and checkout branch "anthony"
+
+    cd MyFEMuS
+
+    git checkout anthony
+
+Configure MyFEMuS using cmake-gui. 
+
+    cmake-gui 
+
+    Where is the source code: $INSTALLATION_DIR/MyFEMuS
+    
+    Where to build the binaries: $INSTALLATION_DIR/feumsbin
+    
+    CMAKE_BUILD_TYPE choose between release (default) or debug
+    
+    Press Configure button
+    
+    Press Generate button
+
+Compile
+    
+    cd $INSTALLATION_DIR/femusbin
+    
+    make
+    
+Run. All applications are built in the folder $INSTALLATION_DIR/femusbin/applications/..
+
 
 
 Authors
@@ -155,10 +248,11 @@ Simone Bnà
 
 Giorgio Bornia
 
+Anthony Gruber
+
 
 
 License
 ========
 
 FEMuS is an open-source software distributed under the LGPL license, version 2.1
-
