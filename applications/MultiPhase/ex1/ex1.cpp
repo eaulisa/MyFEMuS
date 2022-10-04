@@ -198,6 +198,7 @@ int main(int argc, char** args) {
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
+  cldint->PrintCSV("markerInt", 0);
 
 
   std::vector < std::string > variablesToBePrinted;
@@ -215,6 +216,7 @@ int main(int argc, char** args) {
     double dt = system.GetIntervalTime();
 
     cld->RKAdvection(4, velocity, dt);
+    cldint->RKAdvection(4, velocity, dt);
     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
     cld->RebuildMarkers(8, 12, 8);

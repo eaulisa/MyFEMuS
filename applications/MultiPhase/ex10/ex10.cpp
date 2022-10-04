@@ -178,6 +178,7 @@ int main(int argc, char** args) {
 
   // BEGIN Testing the class Cloud
   Cloud cld;
+  Cloud cldint;
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
@@ -186,9 +187,13 @@ int main(int argc, char** args) {
 
   double time = 0.;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
+  cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
   SetVelocity(sol, velocity, time, period );
   cld.PrintCSV("markerBefore",0);
   cld.PrintCSV("marker",0);
+  cldint.PrintCSV("markerInternalBefore",0);
+  cldint.PrintCSV("markerInternal",0);
+  
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
@@ -202,10 +207,18 @@ int main(int argc, char** args) {
 
     time += dt;
     SetVelocity(sol, velocity, time, period);
+    
     cld.RKAdvection(4, velocity, dt);
+    cldint.RKAdvection(4, velocity, dt);
+    cldint.PrintCSV("markerInternalBefore",it);
+    
     cld.PrintCSV("markerBefore",it);
     cld.ComputeQuadraticBestFit();
+    
     cld.RebuildMarkers(8, 12, 8);
+    std::map<unsigned, bool> ElMap = cld.GetElementMap();
+    cldint.RebuildInteriorMarkers(ElMap);
+    cldint.PrintCSV("markerInternal",it);
     cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
@@ -223,6 +236,7 @@ int main(int argc, char** args) {
 //     std::cerr << std::endl;
 
   }
+  
   // END Testing the class Cloud
 
   // initilaize and solve the system
