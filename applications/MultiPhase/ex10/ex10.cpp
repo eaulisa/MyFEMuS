@@ -117,6 +117,9 @@ int main(int argc, char** args) {
   mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
+  
+  mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
 
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
@@ -188,6 +191,7 @@ int main(int argc, char** args) {
   double time = 0.;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
   cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
+  cldint.RebuildInteriorMarkers(cld, "C","Cn");
   SetVelocity(sol, velocity, time, period );
   cld.PrintCSV("markerBefore",0);
   cld.PrintCSV("marker",0);
@@ -202,7 +206,6 @@ int main(int argc, char** args) {
   for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it << "\n";
 
-
     sol->CopySolutionToOldSolution();
 
     time += dt;
@@ -216,8 +219,8 @@ int main(int argc, char** args) {
     cld.ComputeQuadraticBestFit();
     
     cld.RebuildMarkers(8, 12, 8);
-    std::map<unsigned, bool> ElMap = cld.GetElementMap();
-    cldint.RebuildInteriorMarkers(ElMap);
+    
+    cldint.RebuildInteriorMarkers(cld, "C", "Cn");
     cldint.PrintCSV("markerInternal",it);
     cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
