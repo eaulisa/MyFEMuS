@@ -324,6 +324,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
   CDWeightTRI <TypeA> triCD(qM, dx, dtetha);
+  
 
   /* END cutfem stuff for surface tension integration */
 

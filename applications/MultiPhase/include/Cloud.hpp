@@ -115,6 +115,7 @@ namespace femus {
 
     void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
     void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
+    void BuildColorFunction(const char C);
 
   private:
 
@@ -460,7 +461,7 @@ namespace femus {
   void Cloud::ComputeQuadraticBestFit() {
     _A.clear();
 
-    map<unsigned, bool> pSerach;
+    map<unsigned, bool> pSearch;
 
     Mesh *msh = _sol->GetMesh();
 
@@ -525,7 +526,7 @@ namespace femus {
         int jel = msh->el->GetElementNearElement(iel, i);
         unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
         if(jproc != iproc) {
-          pSerach[iel] = true;
+          pSearch[iel] = true;
           parallelSearch = true;
           break;
         }
@@ -596,13 +597,13 @@ namespace femus {
 
         unsigned nel;
         if(iproc == kp) {
-          nel = pSerach.size();
+          nel = pSearch.size();
         }
         MPI_Bcast(&nel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
 
         if(nel > 0) {
           if(iproc == kp) {
-            it =  pSerach.begin();
+            it =  pSearch.begin();
           }
           for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
             unsigned kel;
@@ -1067,85 +1068,91 @@ namespace femus {
   void Cloud::RebuildInteriorMarkers(std::map<unsigned, bool> &cutElement) {
     Mesh *msh = _sol->GetMesh();
 
+    map<unsigned, bool> pSearch;
+
     unsigned dim = msh->GetDimension();
 
     unsigned iproc  = msh->processor_id();
     unsigned nprocs  = msh->n_processors();
 
-    const unsigned &nel = _elem.size();
-    _ypNew.resize(2 * nel, std::vector<double>(dim));
-    _yiNew.resize(2 * nel, std::vector<double>(dim));
-    _NNew.resize(2 * nel, std::vector<double> (dim));
-    _kappaNew.resize(2 * nel);
-    _elem.resize(2 * nel);
+    unsigned offset = msh->_elementOffset[iproc];
+    unsigned offsetp1 = msh->_elementOffset[iproc + 1];
+
+    const unsigned &nel = offsetp1 - offset;
+    _ypNew.resize(nel, std::vector<double>(dim));
+    _yiNew.resize(nel, std::vector<double>(dim));
+    _NNew.resize(nel, std::vector<double> (dim));
+    _kappaNew.resize(nel);
+    _elem.resize(nel);
 
     unsigned cnt = 0;
 
     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
       unsigned iel = _itElMrkIdx->first;
-      
-      if(!cutElement[iel]){
 
-      unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+      if(!cutElement[iel]) {
 
-      std::vector<double> x(dim);
-      std::vector<double> xm(dim, 0.);
+        unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+
+        std::vector<double> x(dim);
+        std::vector<double> xm(dim, 0.);
 
 
-      for(unsigned i = 0; i < nDof; i++) {
-        unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
-        for(unsigned k = 0; k < dim; k++) {
-          x[k] = (*msh->_topology->_Sol[k])(xDof);
-          xm[k] += x[k];
+        for(unsigned i = 0; i < nDof; i++) {
+          unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+          for(unsigned k = 0; k < dim; k++) {
+            x[k] = (*msh->_topology->_Sol[k])(xDof);
+            xm[k] += x[k];
+          }
         }
-      }
 
-      for(unsigned  k = 0; k < dim; k++) {
-        _ypNew[cnt][k] = xm[k] / nDof;
-      }
-      _yiNew[cnt]  = {0., 0.}; //TODO
-      _elem[cnt] = iel;
+        for(unsigned  k = 0; k < dim; k++) {
+          _ypNew[cnt][k] = xm[k] / nDof;
+        }
+        _yiNew[cnt]  = {0., 0.}; //TODO
+        _elem[cnt] = iel;
 
-      _NNew[cnt] = {0., 0.}; //TODO
-      _kappaNew[cnt] = 0.; //TODO
+        _NNew[cnt] = {0., 0.}; //TODO
+        _kappaNew[cnt] = 0.; //TODO
 
-      cnt++;
+        cnt++;
 
-      for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+        bool parallelSearch = false;
+
+        for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
           int jel = msh->el->GetFaceElementIndex(iel, iface) - 1; // porcata ma fallo cosi' se negativo e' un boundary
-//       for(unsigned i = 1; i < msh->el->GetElementNearElementSize(iel, 1); i++) {
-//         int jel = msh->el->GetElementNearElement(iel, i);
 
-        unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-//         if(jproc != iproc) { // TODO
-//           pSerach[iel] = true;
-//           parallelSearch = true;
-//           break;
-//         }
+          unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+          if(jproc != iproc) {
+            pSearch[iel] = true;
+            parallelSearch = true;
+            break;
+          }
 
-        if(!cutElement[jel] && GetNumberOfMarker(jel) == 0) {
-          unsigned nDofj = msh->GetElementDofNumber(jel, 0);
-          std::vector<double> xj(dim);
-          std::vector<double> xmj(dim, 0.);
-          for(unsigned j = 0; j < nDofj; j++) {
-            unsigned xDofj  = msh->GetSolutionDof(j, jel, 2);
-            for(unsigned k = 0; k < dim; k++) {
-              xj[k] = (*msh->_topology->_Sol[k])(xDofj);
-              xmj[k] += xj[k];
+          if(!cutElement[jel] && GetNumberOfMarker(jel) == 0) {
+            unsigned nDofj = msh->GetElementDofNumber(jel, 0);
+            std::vector<double> xj(dim);
+            std::vector<double> xmj(dim, 0.);
+            for(unsigned j = 0; j < nDofj; j++) {
+              unsigned xDofj  = msh->GetSolutionDof(j, jel, 2);
+              for(unsigned k = 0; k < dim; k++) {
+                xj[k] = (*msh->_topology->_Sol[k])(xDofj);
+                xmj[k] += xj[k];
+              }
             }
+
+            for(unsigned  k = 0; k < dim; k++) {
+              _ypNew[cnt][k] = xmj[k] / nDofj;
+            }
+            _yiNew[cnt]  = {0., 0.}; //TODO
+            _elem[cnt] = jel;
+
+            _NNew[cnt] = {0., 0.}; //TODO
+            _kappaNew[cnt] = 0.;   //TODO
+
+            cnt++;
+            cutElement[jel] = true; //TODO I don't want to compute two times the same element
           }
-
-          for(unsigned  k = 0; k < dim; k++) {
-            _ypNew[cnt][k] = xmj[k] / nDofj;
-          }
-          _yiNew[cnt]  = {0., 0.}; //TODO
-          _elem[cnt] = jel;
-
-          _NNew[cnt] = {0., 0.}; //TODO
-          _kappaNew[cnt] = 0.; //TODO
-
-          cnt++;
-        }
 
 //         if(_elMrkIdx.find(jel) != _elMrkIdx.end()) { //jel is a cut fem inside iproc
 //           unsigned j0 = _elMrkIdx[jel][0];
@@ -1158,7 +1165,7 @@ namespace femus {
 //             }
 //           }
 //         }
-      }
+        }
       }
 
 
@@ -1191,7 +1198,7 @@ namespace femus {
     _kappaNew.resize(_yp.size());
 
 
-    map<unsigned, bool> pSerach;
+    map<unsigned, bool> pSearch;
 
     unsigned cnt = 0;
 
@@ -1267,7 +1274,7 @@ namespace femus {
           }
           insideLocalDomain = _mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
           if(!insideLocalDomain) {
-            pSerach[j]  = true;
+            pSearch[j]  = true;
             break;
           }
           iel[rk] = _mrk.GetElement();
@@ -1320,7 +1327,7 @@ namespace femus {
             cnt++;
           }
           else {
-            pSerach[j]  = true;
+            pSearch[j]  = true;
           }
         }
       }
@@ -1340,13 +1347,13 @@ namespace femus {
 
         unsigned np;
         if(iproc == kp) {
-          np = pSerach.size();
+          np = pSearch.size();
         }
         MPI_Bcast(&np, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
 
         if(np > 0) {
           if(iproc == kp) {
-            it =  pSerach.begin();
+            it =  pSearch.begin();
           }
 
           for(unsigned jcnt = 0; jcnt < np; jcnt++) {
@@ -1506,6 +1513,26 @@ namespace femus {
       std::cerr << "In function Cloud::GetGetLinearFit, this element has no marker!!!!!!\n";
       abort();
 
+    }
+  }
+
+  void Cloud::BuildColorFunction(const char C) {
+    Mesh *msh = _sol->GetMesh();
+    unsigned SolCIndex = _sol->GetIndex(&C);
+    unsigned solType = _sol->GetSolutionType(SolCIndex);
+
+    unsigned iproc  = msh->processor_id();
+    unsigned nprocs  = msh->n_processors();
+
+    unsigned offset = msh->_elementOffset[iproc];
+    unsigned offsetp1 = msh->_elementOffset[iproc + 1];
+
+    for(unsigned iel = offset; iel < offsetp1 - offset; iel++) {
+      unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+      for(unsigned i = 0; i < nDofs; i++) {
+        unsigned solDof = msh->GetSolutionDof(i, iel, solType);
+//         (*_sol->_Sol[SolCIndex])(solDof);
+      }
     }
   }
 
