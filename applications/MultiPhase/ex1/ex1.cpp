@@ -47,6 +47,7 @@ typedef cpp_bin_float_oct TypeA;
 
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 1, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 
@@ -322,7 +323,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   double dx = .05;
   double dtetha = 2.;
 
-  CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
   CDWeightTRI <TypeA> triCD(qM, dx, dtetha);
@@ -440,6 +440,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     if(cut == 1) {
       bool wMap = 1;
       if(ielGeom == 3) {
+        for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
+        d = -d;
         quad.GetWeightWithMap(-1, a, d, weightCF);
 //           quadCD.GetWeight(a, d, weightCF);
       }
@@ -496,7 +498,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
-        kk = cld->getCurvature(iel, xqp);
+//         kk = cld->getCurvature(iel, xqp);
+        kk = cld->getAverageCurvature(iel);
         NN = cld->getNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
