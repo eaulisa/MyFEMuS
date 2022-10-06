@@ -46,7 +46,7 @@ typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "legendre");
+CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 
@@ -111,7 +111,7 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
@@ -133,7 +133,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-  
+
   mlSol.AddSolution("Ce", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
 
@@ -192,7 +192,7 @@ int main(int argc, char** args) {
 
   unsigned nIterations = 1000;
 
-  
+
   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
 
   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
@@ -326,7 +326,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
   CDWeightTRI <TypeA> triCD(qM, dx, dtetha);
-  
+
 
   /* END cutfem stuff for surface tension integration */
 
@@ -408,8 +408,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       }
     }
 
-    const elem_type *femV = fem.GetFiniteElement(ielGeom, solVType);
-
     std::vector<double> a;
     std::vector<double> xm;
     double d;
@@ -418,15 +416,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     std::vector<std::vector<double>> Jacob, JacI;
 
-
+    const elem_type *femV = msh->_finiteElement[ielGeom][solVType];
+    const elem_type *femP = msh->_finiteElement[ielGeom][solPType];
 
     unsigned cnt = cld->GetNumberOfMarker(iel);
 
     if(cnt > 0) cut = 1;
 
     if(cut == 1) {
-
-      msh->_finiteElement[ielGeom][solVType]->GetJacobianMatrix(coordX, cld->GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
+      femV = fem.GetFiniteElement(ielGeom, solVType);
+      femP = fem.GetFiniteElement(ielGeom, solPType);
+      femV->GetJacobianMatrix(coordX, cld->GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
       cld->GetLinearFit(iel, Jacob, a, d);
     }
 
@@ -458,10 +458,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     double kk = 0.;
 
     // *** Gauss point loop ***
-    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
+    for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
-      msh->_finiteElement[ielGeom][solVType]->Jacobian(coordX, ig, weight, phiV, phiV_x);
-      phiP = msh->_finiteElement[ielGeom][solPType]->GetPhi(ig);
+      femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
+      phiP = femP->GetPhi(ig);
 
       double dsN = 0.;
       std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
@@ -566,9 +566,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           unsigned VIrow = I * nDofsV + i;
           for(unsigned j = 0; j < nDofsV; j++) {
             unsigned VIcolumn = I * nDofsV + j;
-            
-            Jac[ VIrow * nDofsVP + VIcolumn] += phiV[i] * phiV[j] * weight/dt; // inertia
-            
+
+            Jac[ VIrow * nDofsVP + VIcolumn] += phiV[i] * phiV[j] * weight / dt; // inertia
+
             for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
               unsigned VJcolumn = J * nDofsV + j;
               Jac[ VIrow * nDofsVP + VIcolumn] += nu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
@@ -584,8 +584,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
             Jac[VIrow * nDofsVP + Pcolumn] += - phiV_x[i * dim + I] * phiP[j] * weight; //pressure gradient
             Jac[Pcolumn * nDofsVP + VIrow] += - phiV_x[i * dim + I] * phiP[j] * weight; //continuity
           }
-          
-          
+
+
 
         }
       }

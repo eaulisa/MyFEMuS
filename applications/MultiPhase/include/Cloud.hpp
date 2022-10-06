@@ -1091,9 +1091,11 @@ namespace femus {
       }
 
 
+      const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+      
       std::vector<std::vector<double>> Jacob, JacI;
       double weight;
-      msh->_finiteElement[ielType][solTypeL]->GetJacobianMatrix(x, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
+      femL->GetJacobianMatrix(x, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
       std::vector<double> a;
       double d;
       intCloud.GetLinearFit(iel, Jacob, a, d);
@@ -1109,7 +1111,7 @@ namespace femus {
         abort();
       }
 
-      const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+      
 
       double area = 0.;
       double areaC = 0.;
