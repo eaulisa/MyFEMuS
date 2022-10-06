@@ -26,6 +26,19 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
+
+#include "CutFemWeight.hpp"
+#include "CDWeights.hpp"
+#include "Fem.hpp"
+
+typedef double TypeIO;
+typedef cpp_bin_float_oct TypeA;
+
+// CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 1, "legendre");
+Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+
+
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"
@@ -119,7 +132,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
   
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
-  mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
+  mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
@@ -277,8 +290,8 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       }
       unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
       //rotation;
-      sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
-      sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+//       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+//       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
       
       //single vortex;
       double x = xv[0] + 0.5;

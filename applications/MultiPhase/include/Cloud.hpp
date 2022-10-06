@@ -1049,6 +1049,8 @@ namespace femus {
 
   void Cloud::RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn) {
 
+    const std::vector<std::vector<double>> yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
+
     Mesh *msh = _sol->GetMesh();
     unsigned SolCIndex = _sol->GetIndex(C.c_str());
     unsigned SolCnIndex = _sol->GetIndex(Cn.c_str());
@@ -1061,25 +1063,76 @@ namespace femus {
     unsigned offset = msh->_elementOffset[iproc];
     unsigned offsetp1 = msh->_elementOffset[iproc + 1];
 
+    unsigned dim = msh->GetDimension();
+
     _sol->_Sol[SolCIndex]->zero();
     _sol->_Sol[SolCnIndex]->zero();
 
-    for(unsigned iel = offset; iel < offsetp1; iel++) {
-      if(intCloud.GetNumberOfMarker(iel) != 0) {
-        _sol->_Sol[SolCIndex]->set(iel, 0.5);
-        unsigned nDofs = msh->GetElementDofNumber(iel, solType);
-        for(unsigned i = 0; i < nDofs; i++) {
-          unsigned inode = msh->GetSolutionDof(i, iel, solType);
-          _sol->_Sol[SolCnIndex]->set(inode, 0.5);
+    std::vector<std::vector<double>> x(dim);
+
+    std::vector<double> phi, gradphi;
+
+    for(_itElMrkIdx = intCloud._elMrkIdx.begin(); _itElMrkIdx != intCloud._elMrkIdx.end(); _itElMrkIdx++) {
+      unsigned iel = _itElMrkIdx->first;
+      unsigned ielType = msh->GetElementType(iel);
+
+      unsigned solTypeL = 0;
+      unsigned nDofsL = msh->GetElementDofNumber(iel, solTypeL);  // number of coordinate linear element dofs
+
+      for(unsigned k = 0; k < dim; k++) {
+        x[k].resize(nDofsL);
+      }
+
+      for(unsigned i = 0; i < nDofsL; i++) {
+        unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+        for(unsigned k = 0; k < dim; k++) {
+          x[k][i] = (*msh->_topology->_Sol[k])(xDof);
         }
       }
+
+
+      std::vector<std::vector<double>> Jacob, JacI;
+      double weight;
+      msh->_finiteElement[ielType][solTypeL]->GetJacobianMatrix(x, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
+      std::vector<double> a;
+      double d;
+      intCloud.GetLinearFit(iel, Jacob, a, d);
+      
+      d = -d;
+      for(unsigned k = 0; k<dim;k++) a[k] = -a[k];
+
+      std::vector <TypeIO> weightCF;
+      if(ielType == 3) {
+        quad.GetWeightWithMap(0, a, d, weightCF);
+      }
+      else {
+        abort();
+      }
+
+      const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+
+      double area = 0.;
+      double areaC = 0.;
+      for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+        femL->Jacobian(x, ig, weight, phi, gradphi);
+        area += weight;
+        areaC += weight * weightCF[ig];
+      }
+
+      _sol->_Sol[SolCIndex]->set(iel, areaC / area);
+      unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+      for(unsigned i = 0; i < nDofs; i++) {
+        unsigned inode = msh->GetSolutionDof(i, iel, solType);
+        _sol->_Sol[SolCnIndex]->set(inode, 0.5);
+      }
+
+
+
     }
 
     _sol->_Sol[SolCnIndex]->close();
 
-    map<unsigned, bool> pSearch;
 
-    unsigned dim = msh->GetDimension();
 
     const unsigned &nel = offsetp1 - offset;
     _ypNew.resize(nel, std::vector<double>(dim));
@@ -1093,14 +1146,15 @@ namespace femus {
     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
       unsigned iel = _itElMrkIdx->first;
 
-      if((*_sol->_Sol[SolCIndex])(iel) != 0.5) {
+      if((*_sol->_Sol[SolCIndex])(iel) == 0 || (*_sol->_Sol[SolCIndex])(iel) == 1. ) {
 
-        unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+        unsigned ielType = msh->GetElementType(iel);
+        unsigned nDofsL = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
 
         std::vector<double> x(dim);
         std::vector<double> xm(dim, 0.);
 
-        for(unsigned i = 0; i < nDof; i++) {
+        for(unsigned i = 0; i < nDofsL; i++) {
           unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
           for(unsigned k = 0; k < dim; k++) {
             x[k] = (*msh->_topology->_Sol[k])(xDof);
@@ -1109,12 +1163,12 @@ namespace femus {
         }
 
         for(unsigned  k = 0; k < dim; k++) {
-          _ypNew[cnt][k] = xm[k] / nDof;
+          _ypNew[cnt][k] = xm[k] / nDofsL;
         }
-        _yiNew[cnt]  = {0., 0.}; //TODO
+        _yiNew[cnt]  = yig[ielType]; //TODO
         _elem[cnt] = iel;
 
-        _NNew[cnt] = {0., 0.}; //TODO
+        _NNew[cnt] = std::vector<double>(dim, 0.); //TODO
         _kappaNew[cnt] = 0.; //TODO
 
         cnt++;
@@ -1128,26 +1182,16 @@ namespace femus {
           }
         }
 
-
-
-
-        bool parallelSearch = false;
-
         for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
           int jel = msh->el->GetFaceElementIndex(iel, iface) - 1; // porcata ma fallo cosi' se negativo e' un boundary
           if(jel >= 0) {
             unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-            if(jproc != iproc) {
-              pSearch[iel] = true;
-              parallelSearch = true;
-              break;
-            }
-
-            if((*_sol->_Sol[SolCIndex])(jel) == 0. && GetNumberOfMarker(jel) == 0) {
-              unsigned nDofj = msh->GetElementDofNumber(jel, 0);
+            if(jproc == iproc && ((*_sol->_Sol[SolCIndex])(jel) == 0. && GetNumberOfMarker(jel) == 0)) {
+              unsigned jelType = msh->GetElementType(jel);
+              unsigned nDofsL = msh->GetElementDofNumber(jel, 0);
               std::vector<double> xj(dim);
               std::vector<double> xmj(dim, 0.);
-              for(unsigned j = 0; j < nDofj; j++) {
+              for(unsigned j = 0; j < nDofsL; j++) {
                 unsigned xDofj  = msh->GetSolutionDof(j, jel, 2);
                 for(unsigned k = 0; k < dim; k++) {
                   xj[k] = (*msh->_topology->_Sol[k])(xDofj);
@@ -1156,12 +1200,12 @@ namespace femus {
               }
 
               for(unsigned  k = 0; k < dim; k++) {
-                _ypNew[cnt][k] = xmj[k] / nDofj;
+                _ypNew[cnt][k] = xmj[k] / nDofsL;
               }
-              _yiNew[cnt]  = {0., 0.}; //TODO
+              _yiNew[cnt]  = yig[jelType]; //TODO
               _elem[cnt] = jel;
 
-              _NNew[cnt] = {0., 0.}; //TODO
+              _NNew[cnt] = std::vector<double>(dim, 0.); //TODO
               _kappaNew[cnt] = 0.;   //TODO
 
               cnt++;
@@ -1178,40 +1222,38 @@ namespace femus {
         }
       }
     }
-
     _sol->_Sol[SolCnIndex]->close();
-
 
     unsigned newElemNumber = 1;
     while(newElemNumber != 0) {
-      newElemNumber = 0;
+      unsigned newElemNumberLocal = 0;
       for(unsigned iel = offset; iel < offsetp1; iel++) {
         if((*_sol->_Sol[SolCIndex])(iel) == 0) {
 
-          unsigned nDofs = msh->GetElementDofNumber(iel, solType);
-          bool setToOne = false;
-          bool allSurrounded = true;
-          for(unsigned i = 0; i < nDofs; i++) {
-            unsigned inode = msh->GetSolutionDof(i, iel, solType);
-            if((*_sol->_Sol[SolCnIndex])(inode) >= 0.5) {
-              if((*_sol->_Sol[SolCnIndex])(inode) == 1.) {
-                setToOne = true;
-                break;
-              }
-            }
-            else {
-              allSurrounded = false;
-            }
-          }
-          if(setToOne || allSurrounded) {
+          bool atLeastOneOne = false; // C is zero, but at least one of its nodes is 1
+          double allSurrounded = 1.;  // C is zero, but all of its nodes are either 0 or 1
 
-            newElemNumber++;
-            unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
+          unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+          for(unsigned i = 0; i < nDofs - 1; i++) {
+            unsigned inode = msh->GetSolutionDof(i, iel, solType);
+            if((*_sol->_Sol[SolCnIndex])(inode) == 1.) {
+              atLeastOneOne = true;
+              break;
+            }
+            allSurrounded *= (*_sol->_Sol[SolCnIndex])(inode);
+          }
+
+          if(atLeastOneOne || allSurrounded > 1.e-10) {
+
+
+            unsigned ielType = msh->GetElementType(iel);
+            newElemNumberLocal++;
+            unsigned nDofsL = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
 
             std::vector<double> x(dim);
             std::vector<double> xm(dim, 0.);
 
-            for(unsigned i = 0; i < nDof; i++) {
+            for(unsigned i = 0; i < nDofsL; i++) {
               unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
               for(unsigned k = 0; k < dim; k++) {
                 x[k] = (*msh->_topology->_Sol[k])(xDof);
@@ -1220,15 +1262,15 @@ namespace femus {
             }
 
             for(unsigned  k = 0; k < dim; k++) {
-              _ypNew[cnt][k] = xm[k] / nDof;
+              _ypNew[cnt][k] = xm[k] / nDofsL;
             }
-            _yiNew[cnt]  = {0., 0.}; //TODO
+            _yiNew[cnt]  = yig[ielType]; //TODO
             _elem[cnt] = iel;
 
-            _NNew[cnt] = {0., 0.}; //TODO
+            _NNew[cnt] = std::vector<double>(dim, 0.); //TODO
             _kappaNew[cnt] = 0.; //TODO
             cnt++;
-            
+
             _sol->_Sol[SolCIndex]->set(iel, 1.);
             unsigned nDofs = msh->GetElementDofNumber(iel, solType);
             for(unsigned i = 0; i < nDofs; i++) {
@@ -1240,10 +1282,9 @@ namespace femus {
           }
         }
       }
+      MPI_Allreduce(&newElemNumberLocal, &newElemNumber, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       _sol->_Sol[SolCnIndex]->close();
     }
-
-
 
     _sol->_Sol[SolCIndex]->close();
 
@@ -1617,6 +1658,7 @@ namespace femus {
 
 
 #endif
+
 
 
 
