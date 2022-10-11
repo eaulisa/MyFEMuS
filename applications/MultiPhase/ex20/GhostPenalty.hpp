@@ -16,7 +16,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
   elem* el = msh->el;   // pointer to the elem object in msh (level)
-  
+
   SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
 
@@ -36,19 +36,19 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   vector< vector< double > > sol1Old(dim);
   vector< vector< double > > sol2Old(dim);
 
-  vector< vector< adept::adouble > > sol1(dim); 
-  vector< vector< adept::adouble > > sol2(dim); 
+  vector< vector< adept::adouble > > sol1(dim);
+  vector< vector< adept::adouble > > sol2(dim);
 
   vector< vector< adept::adouble > > aRes1(dim);     // local redidual vector
   vector< vector< adept::adouble > > aRes2(dim);     // local redidual vector
-  
+
   vector< double > rhs1; // local redidual vector
   vector< double > rhs2; // local redidual vector
   vector < double > Jac;
 
   std::vector <unsigned> sysDofs1;
   std::vector <unsigned> sysDofs2;
- 
+
   double weight;
   std::vector < double > phi;
   std::vector < double> gradPhi;
@@ -67,8 +67,15 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
 
-  double rho = 1.;
-  double mu = 1.;
+  double mu1 = 1.;
+  double rho1 = 1.;
+  
+  double mu2 = 1.;
+  double rho2 = 1.;
+  
+  double mu = 2. * mu1 * mu2 / (mu1 + mu2);
+  double rho = 2. * rho1 * rho2 / (rho1 + rho2);
+  
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
   std::cout.precision(10);
@@ -84,7 +91,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
- 
+
   start_time = clock();
 
   std::vector < std::vector < std::vector <double > > > aP1(3);
@@ -135,8 +142,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
         if(jel >= 0) { // iface is not a boundary of the domain
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
-           
-            unsigned eFlag2 = cld->GetNumberOfMarker(jel);  
+
+            unsigned eFlag2 = cld->GetNumberOfMarker(jel);
 
             if(eFlag2 == 0 || jel > iel) {
 
@@ -147,13 +154,13 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
               // resize local arrays
               sysDofs2.resize(nDofsAll2);
-              
+
               for(unsigned  k = 0; k < dim; k++) {
                 sol2[k].resize(nDofs2);
                 sol2Old[k].resize(nDofs2);
                 vx2[k].resize(nDofs2);
               }
-              
+
               for(unsigned i = 0; i < nDofs2; i++) {
                 unsigned idof = msh->GetSolutionDof(i, jel, solType);
                 for(unsigned  k = 0; k < dim; k++) {
@@ -214,8 +221,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                 double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
                 double h2 = h * h;
-                double h3 = h * h * h;
-                double h5 = h * h * h * h * h;
+                double h3 = h2 * h;
+                double h5 = h2 * h3;
 
                 std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
                 for(unsigned i = 0; i < faceDofs; i++) {
@@ -244,10 +251,16 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
 
 
-              
+
 
                 adept::adouble divSol1g = 0.;
                 adept::adouble divSol2g = 0.;
+
+                std::vector < adept::adouble > Sol1g(dim, 0.);
+                std::vector < adept::adouble > Sol2g(dim, 0.);
+
+                std::vector < std::vector < adept::adouble > > gradSol1g(dim, std::vector < adept::adouble >(dim, 0.));
+                std::vector < std::vector < adept::adouble > > gradSol2g(dim, std::vector < adept::adouble >(dim, 0.));
 
                 std::vector < adept::adouble > gradSol1DotN(dim, 0.);
                 std::vector < adept::adouble > gradSol2DotN(dim, 0.);
@@ -257,8 +270,10 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
+                    Sol1g[I] += sol1[I][i] * phi1[i];
                     divSol1g += sol1[I][i] * gradPhi1[i * dim + I];
                     for(unsigned J = 0; J < dim; J++) {
+                      gradSol1g[I][J] += sol1[I][i] * gradPhi1[i * dim + J];
                       gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];//H.. gradient projected in normal direction.
                       for(unsigned K = 0; K < dim; K++) {
                         //2D xx, yy, xy
@@ -276,8 +291,10 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs2; i++) {
+                    Sol2g[I] += sol2[I][i] * phi2[i];
                     divSol2g += sol2[I][i] * gradPhi2[i * dim + I];
                     for(unsigned J = 0; J < dim; J++) {
+                      gradSol2g[I][J] += sol2[I][i] * gradPhi2[i * dim + J];
                       gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
                       for(unsigned K = 0; K < dim; K++) {
                         //2D xx, yy, xy
@@ -295,17 +312,21 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                 double C1 = 0.05 * mu;
                 double D1 = 0.05 * rho;
-           
+
+                adept::adouble absSolDotN = 0.;
                 for(unsigned I = 0; I < dim; I++) {
-                  for(unsigned i = 0; i < nDofs1; i++) {         
+                  absSolDotN += 0.5 * (Sol1g[I] + Sol2g[I]) * normal[I];
+                }
+                absSolDotN = fabs(absSolDotN);
+
+
+                for(unsigned I = 0; I < dim; I++) {
+                  for(unsigned i = 0; i < nDofs1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
                       aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      /*
-                      bRes1[I][i] +=  D1 * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      
-                      cRes1[I][i] +=  D1 * h2 * fabs( sol1[I][i] * normal[J]) *gradPhi1[i * dim + J]* (gradPhi1[i * dim + I] - gradPhi2[i * dim + I]) * weight;
-                      
-                       */
+                      aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      aRes1[I][i] +=  D1 * h2 * absSolDotN * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+                    
                       for(unsigned K = 0; K < dim; K++) {
                         unsigned L;
                         if(J == K) L = J;
@@ -313,11 +334,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
                         aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                        /*
-                        bRes1[I][i] += D1 * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                         
-                         
-                         */
+                        aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
                       }
                     }
                   }
@@ -325,11 +342,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                   for(unsigned i = 0; i < nDofs2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
                       aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      /*
-                       bRes2[I][i] +=  -D1 * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                       
-                       */
-
+                      aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+                      
                       for(unsigned K = 0; K < dim; K++) {
 
                         unsigned L;
@@ -339,11 +354,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         else if(3 == J + K) L = dim + 1; // yz
 
                         aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                        /*
-                         bRes2[I][i] +=  -D1 * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                         
-                         
-                         */
+                        aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+                        
                       }
                     }
                   }
@@ -918,6 +930,3 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 }
-
-
-
