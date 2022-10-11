@@ -35,9 +35,7 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
-#include "BestFitPlane.hpp"
 #include "Fem.hpp"
-#include "GenerateTriangles.hpp"
 
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
@@ -51,6 +49,9 @@ CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "lege
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
 Cloud *cldint;
+
+#include "GhostPenalty.hpp"
+
 
 #define RADIUS 0.4
 #define XG 0.
@@ -172,7 +173,9 @@ int main(int argc, char** args) {
   if(dim == 3) system.AddSolutionToSystemPDE("W");
 
   system.AddSolutionToSystemPDE("P");
-
+  
+  system.SetSparsityPatternMinimumSize(250);
+  
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleMultiphase);
   system.AttachGetTimeIntervalFunction(TimeStepMultiphase);
@@ -260,6 +263,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
 
+  MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
+  MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    
+  KK->zero();
+  RES->zero();
+  
+  
+  AssembleGhostPenalty(ml_prob);
+  
+  
   double dt =  mlPdeSys->GetIntervalTime();
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
@@ -302,10 +315,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::vector< unsigned > sysDof; // local to global pdeSys dofs
   std::vector< double > Res; // local redidual std::vector
   std::vector < double > Jac;
-
-  RES->zero(); // Set to zero all the entries of the Global Residual std::vector
-  KK->zero(); // Set to zero all the entries of the Global Matrix
-
+ 
   /* BEGIN cutfem stuff for surface tension integration */
 
   double R = RADIUS;

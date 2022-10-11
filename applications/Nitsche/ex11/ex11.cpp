@@ -190,9 +190,9 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   JAC->zero();
   RES->zero();
 
-  AssembleGhostPenaltyP(ml_prob, true);
+  
   AssembleGhostPenaltyP(ml_prob, false);
-
+  AssembleGhostPenaltyP(ml_prob, true);
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 

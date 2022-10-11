@@ -36,7 +36,7 @@
 
 using namespace femus;
 
-void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time);
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T);
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
@@ -99,7 +99,8 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 7;
+  unsigned nMax = 4 * pow(2,6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -177,51 +178,65 @@ int main(int argc, char** args) {
 
   // BEGIN Testing the class Cloud
   Cloud cld;
+  Cloud cldint;
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
+  double period = 4;
+  unsigned nIterations = 320;
+
   double time = 0.;
-  unsigned nMax = 100;
   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
-  SetVelocity(sol, velocity, time );
-  cld.PrintCSV(0);
+  cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
+  SetVelocity(sol, velocity, time, period );
+  cld.PrintCSV("markerBefore",0);
+  cld.PrintCSV("marker",0);
+  cldint.PrintCSV("markerInternalBefore",0);
+  cldint.PrintCSV("markerInternal",0);
+  
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  double period = 2 * M_PI;
-  unsigned nIterations = 128;
+
   double dt = period / nIterations;
 
   for(unsigned it = 1; it <= nIterations; it++) {
-    std::cout << "ITERATION " << it <<"\n";   
-    for(unsigned k = 0; k < dim; k++) {
-      *(sol->_SolOld[solVIndex[k]]) = *(sol->_Sol[solVIndex[k]]);
-    }
+    std::cout << "ITERATION " << it << "\n";
+
+
+    sol->CopySolutionToOldSolution();
+
     time += dt;
-    SetVelocity(sol, velocity, time);
-    cld.RKAdvection(4, velocity, dt);
-//     cld.PrintCSV(10 + it);
-    cld.ComputeQuadraticBestFit();
-    cld.RebuildMarkers(8, 12, 10);
+    SetVelocity(sol, velocity, time, period);
     
-    cld.PrintCSV(it);
+    cld.RKAdvection(4, velocity, dt);
+    cldint.RKAdvection(4, velocity, dt);
+    cldint.PrintCSV("markerInternalBefore",it);
+    
+    cld.PrintCSV("markerBefore",it);
+    cld.ComputeQuadraticBestFit();
+    
+    cld.RebuildMarkers(8, 12, 8);
+    std::map<unsigned, bool> ElMap = cld.GetElementMap();
+    cldint.RebuildInteriorMarkers(ElMap);
+    cldint.PrintCSV("markerInternal",it);
+    cld.PrintCSV("marker",it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
-    for(unsigned kp = 0; kp < nprocs; kp++) {
-      if(msh->processor_id() == kp) {
-        for(unsigned iel = msh->_elementOffset[kp]; iel < msh->_elementOffset[kp + 1]; iel++) {
-          std::cerr << "iel = " << iel << "   ";
-          const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
-          for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
-          std::cerr << "\n" << std::flush;
-        }
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-    std::cerr << std::endl;
-
-   
+//     for(unsigned kp = 0; kp < nprocs; kp++) {
+//       if(msh->processor_id() == kp) {
+//         for(unsigned iel = msh->_elementOffset[kp]; iel < msh->_elementOffset[kp + 1]; iel++) {
+//           std::cerr << "iel = " << iel << "   ";
+//           const std::vector<double> &a = cld.GetQuadraticBestFitCoefficients(iel);
+//           for(unsigned i = 0; i < a.size(); i++) std::cerr << a[i] << "  ";
+//           std::cerr << "\n" << std::flush;
+//         }
+//       }
+//       MPI_Barrier(MPI_COMM_WORLD);
+//     }
+//     std::cerr << std::endl;
 
   }
+  
   // END Testing the class Cloud
 
   // initilaize and solve the system
@@ -233,7 +248,7 @@ int main(int argc, char** args) {
   return 0;
 }
 
-void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time) {
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T) {
 
   Mesh* msh = sol->GetMesh();    // pointer to the mesh (level) object
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
@@ -261,12 +276,12 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       //rotation;
       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+      
       //single vortex;
-      double T = 2.;
-      double x = xv[0]+0.5;
-      double y = xv[1]+0.5;
-      double u = -2. * sin(M_PI*x) * sin(M_PI*x) * sin(M_PI*y) * cos(M_PI*y) * cos(M_PI*time/T);
-      double v =  2. * sin(M_PI*x) * cos(M_PI*x) * sin(M_PI*y) * sin(M_PI*y) * cos(M_PI*time/T);
+      double x = xv[0] + 0.5;
+      double y = xv[1] + 0.5;
+      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
       sol->_Sol[uIndex[0]]->set(uDof, u);
       sol->_Sol[uIndex[1]]->set(uDof, v);
     }

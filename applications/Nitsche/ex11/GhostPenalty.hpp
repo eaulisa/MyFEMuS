@@ -79,7 +79,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
   //if omega1 is true, it's going to give you u1. if it is false, it is u2.
   unsigned indexSol = mlSol->GetIndex(&varname[!omega1][0]);
   unsigned indexPde = mlPdeSys.GetSolPdeIndex(&varname[!omega1][0]);
-  unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+  unsigned solType = mlSol->GetSolutionType(&varname[!omega1][0]);
 
   unsigned eflagIndex = mlSol->GetIndex("eflag");//whether you have a cut or not. if eflag=1 we have a cut cell.
 
@@ -245,7 +245,7 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     }
                   }
                 }
-//** same thing should be done for element 2
+                // same thing should be done for element 2
                 adept::adouble gradSolu2DotN = 0.;
                 adept::adouble hessSolu2DotN = 0.;
                 for(unsigned i = 0; i < nDofs2; i++) {
@@ -477,9 +477,9 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
                     std::cerr << "AA " << iel << " on " << kproc << " and " << jel << " on " << jproc << std::endl;
                     std::cerr << "iface = " << iface << std::endl;
 
-                    for(unsigned i = 0; i < nDofs1 + nDofs2; i++) {
-                      std::cerr << sysDofs[i] << std::endl;
-                    }
+//                     for(unsigned i = 0; i < nDofs1 + nDofs2; i++) {
+//                       std::cerr << sysDofs[i] << std::endl;
+//                     }
 
 
 
@@ -670,6 +670,19 @@ void AssembleGhostPenaltyP(MultiLevelProblem& ml_prob, const bool &omega1) {
 
                     Jac.resize((nDofs1 + nDofs2) * (nDofs1 + nDofs2));
                     s.jacobian(&Jac[0], true);
+
+                    double sumb = 0.;
+                    for(unsigned i = 0; i < sysDofs.size(); i++) {
+                      double sum = 0.;  
+                      for(unsigned j = 0; j < sysDofs.size(); j++) {
+                        std::cerr << Jac[i * sysDofs.size() + j] << " ";
+                        sum+= Jac[i * sysDofs.size() + j];
+                      }
+                      std::cerr <<"     "<<sum<< std::endl;
+                      sumb += sum;
+                    }
+                    std::cerr <<sumb<< std::endl;
+
                     myKK->add_matrix_blocked(Jac, sysDofs, sysDofs);
 
                     s.clear_independents();
