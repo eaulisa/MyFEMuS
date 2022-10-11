@@ -222,7 +222,7 @@ int main(int argc, char** args) {
 
   for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it << "\n";
-
+    
     sol->CopySolutionToOldSolution();
 
     time += dt;
