@@ -47,7 +47,7 @@ typedef cpp_bin_float_oct TypeA;
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 3, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
-Cloud *cld;
+Cloud *cld;//H...this class is a cloud of points.where the interface is located. why do we have two? 
 Cloud *cldint;
 
 #include "GhostPenalty.hpp"
