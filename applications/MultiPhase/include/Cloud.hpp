@@ -931,16 +931,26 @@ namespace femus {
           double a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
           double b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
           double c = Cf[0] * xc[0] * xc[0] + Cf[1] * xc[0] * xc[1] + Cf[2] * xc[1] * xc[1] + Cf[3] * xc[0] + Cf[4] * xc[1] + Cf[5];
-
-          //if( a != 0. )
+          
+          double norm = sqrt(a*a + b*b + c*c);
+          a /= norm;
+          b /= norm;
+          c /= norm;
+          
+//           if( a != 0. ){
           if(fabs(a) > 1.e-9) {
             double delta = b * b - 4 * a * c;
-            if(delta > 0.) {
+            if(delta >= 0.) {
               double t[2];
               
-//               double det1 = -b + sqrt(delta); 
-//               double det2 = -b - sqrt(delta); 
-//               
+              double det1 = -b + sqrt(delta); 
+              double det2 = -b - sqrt(delta); 
+              
+        
+       // if(fabs(det1 / (2 * a) - (2 * c) / det2) / fabs(det1 / (2 * a)) > 1.e-3) std::cout << iel << "  " << det1 / (2 * a) << "  " << (2 * c) / det2 << "  "<< delta << "\n";
+             
+        
+//             if(std::max(fabs(det1), fabs(det2)) > 1.e-6){
 //               if(fabs(det1) > fabs(det2)){
 //                   t[0] = det1 / (2 * a);
 //                   t[1] = (2 * c) / det1;
@@ -949,6 +959,15 @@ namespace femus {
 //                  t[0] = (2 * c) / det2;  
 //                  t[1] = det2 / (2 * a);
 //               }
+//             }
+            //else{
+//                for(unsigned j = 0; j < 2; j++) {
+//                 double tj = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
+//                 if( fabs(tj - t[j]) > 1.0e-10 ) std::cout <<i << " " <<j<<" "<< tj << " " << t[j] << " " << a <<"  "<< b << " "<< c <<" "<<det1 << " " <<det2 << " " << delta <<std::endl;
+//               } 
+              
+            //}
+              
               
               for(unsigned j = 0; j < 2; j++) {
                 t[j] = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
