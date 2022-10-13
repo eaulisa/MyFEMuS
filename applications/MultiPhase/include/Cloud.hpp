@@ -504,43 +504,61 @@ namespace femus {
       weight.assign(i1 - i0, 1.);
       norm.assign(dim, 0);
       unsigned cnt = 0;
+      double weightSum = 0;
       for(unsigned i = i0; i < i1; i++, cnt++) {
         for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
           norm[k] += _N[_map[i]][k];
         }
+        weight[cnt] = _ds[_map[i]];
+        weightSum += weight[cnt];
       }
 
 
       xn.assign(dim, 0);
-      std::vector<double> wAux(cnt);
-      if(cnt > 1) {
-        wAux.assign(cnt, 0);
-        double sumD = 0.;
-        double dist2 = 0.;
-        for(unsigned i = 0; i < cnt; i++) {
-          for(unsigned j = 0; j < cnt; j++) {
-            if(i != j) {
-              for(unsigned k = 0; k < dim; k++) {
-                dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
-              }
-              wAux[i] += sqrt(dist2);
-            }
-          }
-          sumD += wAux[i];
-        }
-        for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
 
-        for(unsigned i = 0; i < cnt; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            xn[k] += wAux[i] * coord[i][k];
-          }
+      for(unsigned i = 0; i < cnt; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xn[k] += weight[i] * coord[i][k];
         }
       }
-      else {
-        wAux.assign(cnt, 1);
-        xn = coord[0];
+      for(unsigned k = 0; k < dim; k++) {
+        xn[k] /= weightSum;
       }
+//       std::vector<double> wAux(cnt);
+//       if(cnt > 1) {
+//         wAux.assign(cnt, 0);
+//         double sumD = 0.;
+//         double dist2 = 0.;
+//         for(unsigned i = 0; i < cnt; i++) {
+//           for(unsigned j = 0; j < cnt; j++) {
+//             if(i != j) {
+//               for(unsigned k = 0; k < dim; k++) {
+//                 dist2 = (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+//               }
+//               wAux[i] += sqrt(dist2);
+//             }
+//           }
+//           sumD += wAux[i];
+//         }
+//         for(unsigned i = 0; i < wAux.size(); i++) wAux[i] /= sumD;
+//
+//         for(unsigned i = 0; i < cnt; i++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             xn[k] += wAux[i] * coord[i][k];
+//           }
+//         }
+//
+//         for(unsigned i = 0; i < cnt; i++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             xn[k] += weight[i] * coord[i][k];
+//           }
+//         }
+//       }
+//       else {
+//         wAux.assign(cnt, 1);
+//         xn = coord[0];
+//       }
 
       unsigned nFaces = msh->GetElementFaceNumber(iel);
       std::vector<unsigned> jelFace(nFaces);
@@ -594,6 +612,7 @@ namespace femus {
             for(unsigned k = 0; k < dim; k++) {
               coord[cnt][k] = _yp[_map[j]][k];
             }
+            weight[cnt] = _ds[_map[j]] * (0.250 * !isFaceElement + isFaceElement);
           }
         }
       }
@@ -825,7 +844,7 @@ namespace femus {
     {{0.25, 0.25, 0.25, 0.25}, {0., 0.5, 0.5}, {0., 0., 1.}, {0., 0., 0.5, 0.5}},
     {{0.5, 0., 0., 0.5}, {0.25, 0.25, 0.25, 0.25}, {0., 0., 0.5, 0.5}, {0., 0., 0., 1.}}
   };
-
+#include <boost/math/special_functions/math_fwd.hpp>
   std::pair<std::vector<std::vector<double>>, std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level) {
 
     unsigned cnt = 0;
@@ -915,21 +934,21 @@ namespace femus {
           v[0] = R * cos(theta0 + (i + 1) * dt0 / (npt - 1));
           v[1] = R * sin(theta0 + (i + 1) * dt0 / (npt - 1));
 
-          double a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
-          double b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
-          double c = Cf[0] * xc[0] * xc[0] + Cf[1] * xc[0] * xc[1] + Cf[2] * xc[1] * xc[1] + Cf[3] * xc[0] + Cf[4] * xc[1] + Cf[5];
+          oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
+          oct b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
+          oct c = Cf[0] * xc[0] * xc[0] + Cf[1] * xc[0] * xc[1] + Cf[2] * xc[1] * xc[1] + Cf[3] * xc[0] + Cf[4] * xc[1] + Cf[5];
 
-          double norm = sqrt(a * a + b * b + c * c);
+          oct norm = sqrt(a * a + b * b + c * c);
           a /= norm;
           b /= norm;
           c /= norm;
 
-          if(fabs(a) > 1.e-5) {
-            double delta = b * b - 4 * a * c;
+          if(fabs(a) > 1.e-7) {
+            oct delta = b * b - 4 * a * c;
             if(delta >= 0.) {
               double t[2];
               for(unsigned j = 0; j < 2; j++) {
-                t[j] = (- b + pow(-1, j) * sqrt(delta)) / (2. * a);
+                t[j] = static_cast<double>((- b + pow(-1, j) * sqrt(delta)) / (2 * a));
               }
               double ti = (fabs(t[0] - 1.) < fabs(t[1] - 1.)) ? t[0] : t[1];
               for(unsigned  k = 0; k < dim; k++) {
@@ -939,7 +958,8 @@ namespace femus {
             }
           }
           else if(b != 0) {
-            double t = -c / b;
+            std::cout << a<<" "<<b<<" "<<c<<" "<<kappa<<" "<<R<<" "<<v[0]<<" "<<v[1]<<" "<<Cf[0]<<" "<< Cf[1] <<" "<< Cf[2] << std::endl;  
+            double t = static_cast<double>(-c / b);
             for(unsigned  k = 0; k < dim; k++) {
               xe[cnt][k] = xc[k]  + t * v[k];
             }
@@ -996,7 +1016,7 @@ namespace femus {
     unsigned dim = _sol->GetMesh()->GetDimension();
     unsigned coordXType = 2;
     std::vector< std::vector < double > > xv;
-    std::pair<std::vector<std::vector<double>>, std::vector<double>> xe;
+    std::pair<std::vector<std::vector<double>>, std::vector<double>> sol;
 
     unsigned cnt = 0;
 
@@ -1043,12 +1063,10 @@ namespace femus {
 
       unsigned nInt = 0;
       if(((i1 - i0) < nMin || (i1 - i0) > nMax) && !keepMrk) {
-        xe = GetCellPointsFromQuadric(xv, iel, npt, nInt);
-        //std::cerr << iel << " " << xe.size() << std::endl;
-
+        sol = GetCellPointsFromQuadric(xv, iel, npt, nInt);
         if(nInt == 2) {
-          if(cnt + xe.first.size() > _ypNew.size()) {
-            unsigned newSize = cnt + xe.first.size() + 2 * (nel - elCnt) * nMax;
+          if(cnt + sol.first.size() > _ypNew.size()) {
+            unsigned newSize = cnt + sol.first.size() + 2 * (nel - elCnt) * nMax;
             _ypNew.resize(newSize, std::vector<double>(dim));
             _elem.resize(newSize);
             _NNew.resize(newSize, std::vector<double>(dim));
@@ -1056,14 +1074,14 @@ namespace femus {
             _dsNew.resize(newSize);
           }
 
-          for(unsigned i = 0; i < xe.first.size(); i++) {
+          for(unsigned i = 0; i < sol.first.size(); i++) {
             for(unsigned k = 0; k < dim; k++) {
-              _ypNew[cnt][k] = xe.first[i][k];
+              _ypNew[cnt][k] = sol.first[i][k];
             }
             _elem[cnt] = iel;
             _NNew[cnt] = getNormal(iel, _ypNew[cnt]);
             _kappaNew[cnt] = getCurvature(iel, _ypNew[cnt]);
-            _dsNew[cnt] = xe.second[i];
+            _dsNew[cnt] = sol.second[i];
             cnt++;
           }
         }
