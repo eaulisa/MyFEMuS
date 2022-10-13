@@ -20,6 +20,16 @@
 #include "LinearImplicitSystem.hpp"
 #include "CutFemWeight.hpp"
 #include "Fem.hpp"
+#include "PetscMatrix.hpp"
+#include "slepceps.h"
+
+
+
+const double alpha1 = .5;
+const double alpha2 = 3.;
+
+
+#include "GhostPenalty.hpp"
 
 using namespace femus;
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
@@ -28,7 +38,18 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut);
 
+void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
+                                const std::vector<double> &aIn, const double &dIn, unsigned & efla,
+                                std::vector<double> &aOut, double &dOut);
+
+
+
+
+
 unsigned DIM = 2;
+
+const std::vector<double> N = {-1., 0.33};
+const double D = 0.;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
@@ -51,8 +72,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
 int main(int argc, char** args) {
 
-  // init Petsc-MPI communicator
+  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -61,7 +83,7 @@ int main(int argc, char** args) {
   unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
-  unsigned nx = 111; // this should always be a odd number
+  unsigned nx = 211; // this should always be a odd number
 
   double lengthX = 3.;
   double length = 1.;
@@ -70,7 +92,7 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, 0, 0, -lengthX / 2, lengthX / 2, 0., 0., 0., 0., EDGE3, "seventh");
   }
   else if(DIM == 2) {
-    mlMsh.GenerateCoarseBoxMesh(nx, 4, 0, -lengthX / 2, lengthX / 2, 0, 1, 0., 0., QUAD9, "seventh");
+    mlMsh.GenerateCoarseBoxMesh(nx, 80, 0, -lengthX / 2, lengthX / 2, 0, 1, 0., 0., QUAD9, "seventh");
   }
   else if(DIM == 3) {
     mlMsh.ReadCoarseMesh("./input/cube.neu", "seventh", scalingFactor);
@@ -96,7 +118,7 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");  //??
 
-  BuildFlag(mlSol, {-1, 0}, 0);
+  BuildFlag(mlSol, N, D);
 
   MultiLevelProblem ml_prob(&mlSol);
 
@@ -113,6 +135,8 @@ int main(int argc, char** args) {
   // time loop parameter
   system.SetMaxNumberOfLinearIterations(1);
 
+  system.SetSparsityPatternMinimumSize(200u);
+  
   system.init();
 
   // ******* Print solution *******
@@ -124,7 +148,7 @@ int main(int argc, char** args) {
 
   system.MGsolve();
 
-  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, 0);
+  mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
 
   ml_prob.clear();
 
@@ -163,6 +187,13 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   SparseMatrix*            JAC = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*           RES = pdeSys->_RES; // pointer to the global residual vector object in pdeSys (level)
 
+  JAC->zero();
+  RES->zero();
+
+  
+  AssembleGhostPenaltyP(ml_prob, false);
+  AssembleGhostPenaltyP(ml_prob, true);
+
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
   //solution variable
@@ -190,17 +221,24 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   vector <double> phi_x; // local test function first order partial derivatives
   double weight; // gauss point weight
 
-  vector< adept::adouble > aResu1; // local redidual vector
-  vector< adept::adouble > aResu2; // local redidual vector
+  vector< adept::adouble > aResu1; // local residual vector
+  vector< adept::adouble > aResu2; // local residual vector
 
   vector< unsigned > l2GMap; // local to global mapping
   vector< double > Res; // local redidual vector
   vector < double > Jac;
 
-  JAC->zero(); // Set to zero all the entries of the Global Matrix
-  RES->zero(); // Set to zero all the entries of the Global Residual
+//   JAC->zero(); // Set to zero all the entries of the Global Matrix
+//   RES->zero(); // Set to zero all the entries of the Global Residual
 
   std::vector < std::vector < std::vector <double > > > aP(3);
+
+  std::vector < double > Av;
+  std::vector < std::vector < double > > Bv(2);
+
+  Mat A, B;
+  EPS eps;
+
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -242,10 +280,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);      // global extraction and local storage for the element coordinates
       }
     }
-
-
-    double alpha1 = .5;
-    double alpha2 = 3.;
 
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
@@ -300,22 +334,145 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
     else {
 
-      std::vector <double> N = {-1., 0.};
 
-      std::vector<double> a;//rezise?**********************
-      getNormalInReferenceSystem(x, N, a);
-      double d = 0; //plane passsing through center *************
+
+      std::vector<double> a;
+      double d = 0;
+      unsigned elemFlag;
+
+      GetPlaneInTheParentElement(x, N, D, elemFlag, a, d);
+
+      //getNormalInReferenceSystem(x, N, a);
+
+     // std::cout << iel << " " << a[0] << " " << a[1] << " " << d << std::endl;
+
+      //plane passsing through center *************
 
       std::vector<double> eqPoly1;
-      quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0********
+      quad.GetWeightWithMap(0, a, d, eqPoly1);//s=0 (volume integral)
 
       std::vector<double> eqPoly2;
       quad.GetWeightWithMap(0, {-a[0], -a[1]}, -d, eqPoly2);
 
       std::vector<double> eqPolyI;
-      quad.GetWeightWithMap(-1, a, d, eqPolyI);//s=-1************
+      quad.GetWeightWithMap(-1, a, d, eqPolyI);//s=-1 (boundary integral)
 
       const elem_type *thisfem = fem.GetFiniteElement(ielGeom, soluType);
+
+//       //solve eigenvalu problems to get theta, gamma1, gamma2
+//       Av.assign(nDofu * nDofu, 0.);
+//       Bv[0].assign(nDofu * nDofu, 0.);
+//       Bv[1].assign(nDofu * nDofu, 0.);
+// 
+//       for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
+//         // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
+// 
+//         std::vector<std::vector<double>> Jac, JacI;
+//         thisfem->GetJacobianMatrix(x, ig, weight, Jac, JacI);
+// 
+//         thisfem->Jacobian(x, ig, weight, phi, phi_x);
+// 
+//         double dsN = 0;
+//         for(unsigned i = 0; i < dim; i++) {
+//           double dsi = 0.;
+//           for(unsigned j = 0; j < dim; j++) {
+//             dsi += JacI[j][i] * a[j];
+//           }
+//           dsN += dsi * dsi;
+//         }
+//         dsN = sqrt(dsN);
+// 
+// 
+//         for(int i = 0; i < nDofu; i++) {
+//           for(int j = 0; j < nDofu; j++) {
+//             for(unsigned k = 0; k < dim; k++) {
+//               Bv[0][ i * nDofu + j] += phi_x[i * dim + k] * phi_x[j * dim + k] * weight * eqPoly1[ig];
+//               Bv[1][ i * nDofu + j] += phi_x[i * dim + k] * phi_x[j * dim + k] * weight * eqPoly2[ig];
+//             }
+//           }
+// 
+//           double gradPhiiDotN = 0.;
+//           for(unsigned k = 0; k < dim; k++) {
+//             gradPhiiDotN += phi_x[i * dim + k] * N[k];
+//           }
+//           for(int j = 0; j < nDofu; j++) {
+//             double gradPhijDotN = 0.;
+//             for(unsigned k = 0; k < dim; k++) {
+//               gradPhijDotN += phi_x[j * dim + k] * N[k];
+//             }
+//             Av[ i * nDofu + j] += gradPhiiDotN * gradPhijDotN  * weight * eqPolyI[ig] * dsN;
+//           }
+//         }
+//       }
+// 
+//       /* Careful B has one zero eigenvalue (it is singular) with nullspace x = [1,1,1,...]^T,
+//       * thus the generalized eigenvalue problem
+//       * $$A u = \lambda B u$$
+//       * (or $B^{-1} A x = \lambda x$) has one indetermined eigenvalue, that makes the SLEPC solve very unstable,
+//       * even using its built-in deflation method.
+//       * Fortunately, A has at least one zero eigenvalue, with the same x = [1,1,1,...]^T being an element
+//       * of its nullspace. Then, it is possible to deflate A and B simultaneously:
+//       * $Ad = A - x^T. a1$ and $Bd = B - x^T.b1$, where a1 and b1 are the first rows of A and B, respectively.
+//       * The generalized eigenvalue problem $Ab u = \lambda Bb u$, with matrices Ab and Bb,
+//       * obtained as block matrices from Ad and Bd, removing the first row and the first column,
+//       * has the same eigenvalues of the original one, except the indetermine one.
+//       * Note that Bb is now invertible, and SLEPC has no problem in solving the deflated
+//       * generalized eigenvalue problem.
+//       */
+// 
+// 
+//       double C[2];
+//       for(unsigned k = 0; k < 2; k++) {
+//         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &A);
+//         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &B);
+// 
+//         for(int i = 0; i < nDofu - 1; i++) {
+//           for(int j = 0; j < nDofu - 1; j++) {
+//             double value;
+//             value = Bv[k][(i + 1) * nDofu + (j + 1)] - Bv[k][j + 1];
+//             MatSetValues(B, 1, &i, 1, &j, &value, INSERT_VALUES);
+//             value = Av[(i + 1) * nDofu + (j + 1)] - Av[j + 1];
+//             MatSetValues(A, 1, &i, 1, &j, &value, INSERT_VALUES);
+//           }
+//         }
+// 
+//         MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+//         MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+// 
+//         MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
+//         MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
+// 
+//         EPSCreate(PETSC_COMM_SELF, &eps);
+//         EPSSetOperators(eps, A, B);
+//         EPSSetFromOptions(eps);
+//         EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+//         EPSSolve(eps);
+// 
+//         double imaginary;
+//         EPSGetEigenpair(eps, 0, &C[k], &imaginary, NULL, NULL);
+// 
+//         EPSDestroy(&eps);
+//         MatDestroy(&A);
+//         MatDestroy(&B);
+//       }
+// 
+// 
+//       double ia1C1 = 1. / (alpha1 * C[0]);
+//       double ia2C2 = 1. / (alpha2 * C[1]);
+// 
+//       double den = ia1C1 + ia2C2;
+// 
+//       double gamma1 = ia1C1 / den;
+//       double gamma2 = ia2C2 / den;
+// 
+//       double theta = 2. / den;
+
+
+      double h = sqrt(dim) * sqrt((x[0][0] - x[0][1]) * (x[0][0] - x[0][1]) +
+                                  (x[1][0] - x[1][1]) * (x[1][0] - x[1][1])) ;
+      double gamma1 = 0.5;
+      double gamma2 = 0.5;
+      double theta = 10. * 0.5 * (alpha1 + alpha2) / h;
 
       for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
         // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
@@ -335,11 +492,9 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         }
         dsN = sqrt(dsN);
 
-        // evaluate the solution, the solution derivatives and the coordinates in the gauss point
-        //why gradient of solution adouble?, because solution is adouble variable
         vector < adept::adouble > gradSolu1g(dim, 0.);
         vector < adept::adouble > gradSolu2g(dim, 0.);
-        //gradient of the solution at gauss point // 'k' is for dimension and 'i' is for nodes of the mesh
+
         for(unsigned i = 0; i < nDofu; i++) {
           for(unsigned k = 0; k < dim; k++) {
             gradSolu1g[k] += phi_x[i * dim + k] * solu1[i];
@@ -347,16 +502,11 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
           }
         }
 
-
-        double theta = 1.;
-        double gamma1 = 0.5;
-        double gamma2 = 0.5;
-
         adept::adouble solu1g  = 0.;
         adept::adouble solu2g  = 0.;
         adept::adouble alphaGradSoluDotN = 0.;
 
-        //before gradsolu loop? ***************
+
         for(unsigned i = 0; i < nDofu; i++) {
           solu1g += phi[i] * solu1[i];
           solu2g += phi[i] * solu2[i];
@@ -441,7 +591,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //***************** END ASSEMBLY *******************
 }
 
-void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const double &d) {
+void BuildFlag(MultiLevelSolution & mlSol, const std::vector<double> &a, const double & d) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1; //why -1? c/c++ notation
   //object we have is multilevel Solution. we need to extract highest level of the solution.
@@ -482,8 +632,10 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
       double dist = d;
       for(unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);
-        dist += a[k] * x[k][i];// global extraction and local storage for the element coordinates
+        dist += a[k] * x[k][i];
+
       }
+
       if(dist > 0) pcnt++;
       else if(dist < 0) mcnt++;
     }
@@ -505,7 +657,7 @@ void BuildFlag(MultiLevelSolution& mlSol, const std::vector<double> &a, const do
 
 
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut) {
-
+//aIn is a input
   unsigned dim = 2;
 
   const double& x1 = xv[0][0];
@@ -541,10 +693,231 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
   aOut.assign(dim, 0);
   for(unsigned k = 0; k < dim; k++) {
     for(unsigned j = 0; j < dim; j++) {
-      aOut[k] += J[j][k] * aIn[j]; ///aIn=physical normal , aOut=fem normal //aIn define???
+      aOut[k] += J[j][k] * aIn[j]; ///aIn=physical normal , aOut=fem normal/normal in the parent system, J[j][k] is jacobian transpose
     }
   }
   double aOutNorm = sqrt(aOut[0] * aOut[0] + aOut[1] * aOut[1]);
   aOut[0] /= aOutNorm;
   aOut[1] /= aOutNorm;
+}
+
+void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
+                                const std::vector<double> &aIn, const double & dIn, unsigned & efla,
+                                std::vector<double> &aOut, double & dOut) {
+
+  unsigned dim = 2;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& x4 = xv[0][3];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+  const double& y4 = xv[1][3];
+
+  std::vector<double> xm;
+
+  //setting characteristic epsilon
+  double h1 = (fabs(x2 - x1) + fabs(x3 - x2) + fabs(x4 - x3) + fabs(x4 - x1)) / 4.;
+  double h2 = (fabs(y2 - y1) + fabs(y3 - y2) + fabs(y4 - y3) + fabs(y4 - y1)) / 4.;
+
+  double h = sqrt(h1 * h1 + h2 * h2);
+  double eps = 1.0e-10 * h;
+
+  //extracting number of vertices (4)
+  unsigned l = 4;
+
+  //a vector to store distances
+  std::vector<double> dist(l, dIn);
+  std::vector<double> distf(l);
+
+  double den = 0.;
+  for(unsigned k = 0 ; k < dim ; k++) {
+    den += aIn[k] * aIn[k];
+  }
+  den = 1. / sqrt(den);
+
+  unsigned t = 0;
+  //calculating perpendicular distances
+  for(unsigned i = 0 ; i < l ; i++) {
+    for(unsigned k = 0 ; k < dim ; k++) {
+      dist[i] += aIn[k] * xv[k][i];
+    }
+    dist[i] = dist[i] / sqrt(den);
+
+    ////taking care of extream cases (updating dist and filling distf)
+    if(fabs(dist[i]) < eps) {  //interface is very close to a vertex
+      distf[i] = (dist[i] < 0.) ? -eps : eps;
+      dist[i] = 0. ;
+      t++;
+    }
+    else {
+      distf[i] = dist[i];
+    }
+  }
+
+  //if we have a interface very close to vertex
+  if(t > 0) {
+    unsigned pcnt = 0;
+    double mcnt = 0;
+    for(unsigned i = 0; i < l; i++) {
+      if(dist[i] > 0.) {
+        pcnt++;
+      }
+      else if(dist[i] < 0.) {
+        mcnt++;
+      }
+      dist[i] = distf[i];
+    }
+
+    if(pcnt == 0) {
+      efla = 2;
+      return;
+    }
+    else if(mcnt == 0) {
+      efla = 0;
+      return;
+    }
+  }
+
+  //calculating s
+  std::vector < std::vector <double> > xe(dim, std::vector<double>(2, 0));
+  unsigned j = 0;
+  for(unsigned i = 0; i < l; i++) {
+    unsigned i1 = (i + 1) % l;
+    if(dist[i] * dist[i1] < 0) {
+      double s = fabs(dist[i]) / (fabs(dist[i]) + fabs(dist[i1]));
+      for(unsigned k = 0; k < dim; k++) {
+        xe[k][j] = (1 - s) * xv[k][i] + s * xv[k][i1];
+      }
+      j++;
+    }
+  }
+
+  if(j == 0) {
+    efla = (dist[0] < 0) ? 2 : 0;
+    return;
+  }
+  else {
+    efla = 1;
+    xm.resize(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      xm[k] = (xe[k][0] + xe[k][1]) / 2.;
+    }
+
+    std::vector<double> xi(dim);
+    double &u = xi[0];
+    double &v = xi[1];
+
+    std::vector < std::vector < double > > J(2, std::vector<double>(2));
+
+    double dx12 = x1 - x2;
+    double dx34 = x3 - x4;
+    double dy12 = y1 - y2;
+    double dy34 = y3 - y4;
+    double hu = dx34 * dy12 - dx12 * dy34;
+
+    double dx14 = (x1 - x4);
+    double dy23 = (y2 - y3);
+    double dx23 = (x2 - x3);
+    double dy14 = (y1 - y4);
+    double hv = dx14 * dy23 - dx23 * dy14;
+
+    double eps2 = 1.0e-10 * h * h;
+
+    if(fabs(hu) > eps2) {//edges 1 and 3 are not parallel
+      double gu = -x4 * y1 + x3 * y2 - x2 * y3 + x1 * y4;
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double fpgu = f + gu;
+
+      double det = sqrt(hu * (- 2. * xm[0] * (dy14 + dy23)
+                              + (2. * xm[1] - y3 - y4) * (x1 + x2)
+                              - (2. * xm[1] - y1 - y2) * (x3 + x4))
+                        + fpgu * fpgu);
+      u = (fpgu + det) / hu;
+
+      if(fabs(hv) > eps2) { //edges 2 and 4 are not parallel
+        double gv = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+        v = (f + gv - det) / hv;
+
+        J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+        J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+        J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+        J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+
+      }
+      else { //edges 2 and 4 are parallel
+        J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+        J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+
+        v = (J[0][1] > eps) ?
+            (0.25 * ((-1. + u) * (x1 + x4) - (1. + u) * (x3 + x2)) + xm[0]) / J[0][1] :
+            (0.25 * ((-1. + u) * (y1 + y4) - (1. + u) * (y3 + y2)) + xm[1]) / J[1][1];
+
+        J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+        J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+
+      }
+    }
+    else if(fabs(hv) > eps2) {  //edges 1 and 3 are parallel, but edges 2 and 4 are not
+      // std::cout << "1 and 3 are parallel\n";
+      double f = xm[0] * (dy12 + dy34) - xm[1] * (dx12 + dx34);
+      double gv = -x4 * y3 + x3 * y4 - x2 * y1 + x1 * y2;
+      double fpgv = f + gv;
+
+      double det = sqrt(hv * (- 2. * xm[0] * (dy12 - dy34)
+                              + (2. * xm[1] - y2 - y3) * (x1 + x4)
+                              - (2. * xm[1] - y1 - y4) * (x2 + x3))
+                        +  fpgv * fpgv);
+
+      v = (fpgv - det) / hv;
+
+      J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+      J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+
+      u = (fabs(J[0][0]) > eps) ?
+          (0.25 * ((-1. + v) * (x1 + x2) - (1. + v) * (x3 + x4)) + xm[0]) / J[0][0] :
+          (0.25 * ((-1. + v) * (y1 + y2) - (1. + v) * (y3 + y4)) + xm[1]) / J[1][0];
+
+      J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+      J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+    }
+    else { //edges 1 and 3, and  edges 2 and 4 are parallel
+      //   std::cout << "Romboid\n";
+      std::vector<std::vector<unsigned> > idx = {{3, 1}, {0, 2}};
+
+      double A[2][2] = {{-dy14, dy23}, {dy12, dy34}};
+      double B[2][2] = {{dx14, -dx23}, {-dx12, -dx34}};
+
+      for(unsigned k = 0; k < 2; k++) {
+        double d[2];
+        for(unsigned j = 0 ; j < 2; j++) {
+          double Ckj = - A[k][j] * xv[0][idx[k][j]] - B[k][j] * xv[1][idx[k][j]];
+          d[j] = (A[k][j] * xm[0] + B[k][j] * xm[1] + Ckj) / sqrt(A[k][j] * A[k][j] + B[k][j] * B[k][j]);
+        }
+        xi[k] = -1. + 2. * d[0] / (d[0] + d[1]);
+      }
+
+      J[0][0] = 0.25 * ((-1. + v) * dx12 + (1. + v) * dx34);
+      J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
+      J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
+      J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
+    }
+
+    aOut.assign(dim, 0);
+    for(unsigned k = 0; k < dim; k++) {
+      for(unsigned j = 0; j < dim; j++) {
+        aOut[k] += J[j][k] * aIn[j];
+      }
+    }
+    double aOutNorm = sqrt(aOut[0] * aOut[0] + aOut[1] * aOut[1]);
+    aOut[0] /= aOutNorm;
+    aOut[1] /= aOutNorm;
+    dOut = - aOut[0] * u - aOut[1] * v;
+
+  }
+
+
+
 }
