@@ -136,8 +136,8 @@ int main(int argc, char** args) {
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, ZERO);
 
-  mlSol.AddSolution("Ce", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
-  mlSol.AddSolution("Cn", LAGRANGE, FIRST, false);
+  mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -195,10 +195,11 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
 
 
-  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
-
   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
   cld->ComputeQuadraticBestFit();
+  
+  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);  
+  cldint->RebuildInteriorMarkers(*cld, "C","Cn");
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
@@ -224,9 +225,9 @@ int main(int argc, char** args) {
     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
     cld->RebuildMarkers(8, 12, 8);
+    cldint->RebuildInteriorMarkers(*cld, "C","Cn");
     cld->PrintCSV("marker", it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
-
 
   }
 

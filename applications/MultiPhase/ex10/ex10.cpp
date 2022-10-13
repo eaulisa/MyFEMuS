@@ -207,8 +207,10 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
 
   double time = 0.;
-  cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
-  cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
+//   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
+  cld.InitMultipleEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {nMax, nMax}, sol);
+//   cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
+  cldint.InitMultipleInteriorEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, sol);
   cldint.RebuildInteriorMarkers(cld, "C","Cn");
   SetVelocity(sol, velocity, time, period );
   cld.PrintCSV("markerBefore",0);
@@ -299,10 +301,13 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
 //       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
       
       //single vortex;
-      double x = xv[0] + 0.5;
-      double y = xv[1] + 0.5;
-      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
-      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+      double x = xv[0] + 0.25;
+      double y = xv[1] /*+ 0.5*/;
+//       double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+//       double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+      
+      double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
+      double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
       sol->_Sol[uIndex[0]]->set(uDof, u);
       sol->_Sol[uIndex[1]]->set(uDof, v);
     }
