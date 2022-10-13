@@ -56,6 +56,8 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
 Cloud *cldint;
 
+#include "../include/GhostPenalty.hpp"
+
 #define RADIUS 0.4
 #define XG 0.
 #define YG 0.
@@ -176,6 +178,8 @@ int main(int argc, char** args) {
   if(dim == 3) system.AddSolutionToSystemPDE("W");
 
   system.AddSolutionToSystemPDE("P");
+  
+  system.SetSparsityPatternMinimumSize(250);
 
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleMultiphase);
@@ -264,6 +268,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
+  
+  MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
+  MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    
+  KK->zero();
+  RES->zero();
+  
+  
+  AssembleGhostPenalty(ml_prob);
 
   double dt =  mlPdeSys->GetIntervalTime();
 
@@ -307,9 +320,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::vector< unsigned > sysDof; // local to global pdeSys dofs
   std::vector< double > Res; // local redidual std::vector
   std::vector < double > Jac;
-
-  RES->zero(); // Set to zero all the entries of the Global Residual std::vector
-  KK->zero(); // Set to zero all the entries of the Global Matrix
 
   /* BEGIN cutfem stuff for surface tension integration */
 
