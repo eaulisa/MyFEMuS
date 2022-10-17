@@ -51,12 +51,18 @@ CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "lege
 CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 1, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
-
 #include "../include/Cloud.hpp"
 Cloud *cld;
 Cloud *cldint;
 
+const double mu1 = 1.;
+const double mu2 = 1.;
+const double rho1 = 1.;
+const double rho2 = 10.;
+const double sigma = 1.;
+
 #include "../include/GhostPenalty.hpp"
+#include "../include/GhostPenaltyDGP.hpp"
 
 #define RADIUS 0.2
 #define XG 0.
@@ -166,7 +172,7 @@ int main(int argc, char** args) {
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 //   mlSol.FixSolutionAtOnePoint("P1");
-//   mlSol.FixSolutionAtOnePoint("P2");
+  mlSol.FixSolutionAtOnePoint("P2");
 
   mlSol.GenerateBdc("All");
 
@@ -184,7 +190,7 @@ int main(int argc, char** args) {
 
   system.AddSolutionToSystemPDE("P1");
   system.AddSolutionToSystemPDE("P2");
-  
+
   system.SetSparsityPatternMinimumSize(250);
 
   // attach the assembling function to system
@@ -207,9 +213,9 @@ int main(int argc, char** args) {
 
   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
   cld->ComputeQuadraticBestFit();
-  
-  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);  
-  cldint->RebuildInteriorMarkers(*cld, "C","Cn");
+
+  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+  cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
@@ -235,7 +241,7 @@ int main(int argc, char** args) {
     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
     cld->RebuildMarkers(8, 12, 8);
-    cldint->RebuildInteriorMarkers(*cld, "C","Cn");
+    cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
     cld->PrintCSV("marker", it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
@@ -248,7 +254,7 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.1;
+  double dt =  0.05;
   return dt;
 }
 
@@ -274,15 +280,18 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
-  
+
   MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
   MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-    
+
   KK->zero();
   RES->zero();
-  
-  
+
+
   AssembleGhostPenalty(ml_prob);
+  AssembleGhostPenaltyDGP(ml_prob, true);
+  AssembleGhostPenaltyDGP(ml_prob, false);
+
 
   double dt =  mlPdeSys->GetIntervalTime();
 
@@ -301,7 +310,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
   unsigned solP2Index = mlSol->GetIndex("P2");    // get the position of "P2" in the ml_sol object
   unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
-  
+
   unsigned solCIndex = mlSol->GetIndex("C");
 
   std::vector < unsigned > solVPdeIndex(dim);
@@ -343,13 +352,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   unsigned qM = 3;
   double dx = .05;
   double dtetha = 2.;
-  
-  double eps = 0.0001;
-  
+
+  double eps = 0.00000001;
+
   std::vector<double> g(dim);
   g[0] = 0.;
-  g[1] = (dim == 2)? - gravity * 9.81 : 0;
-  if(dim == 3) g[2] = - gravity * 9.81; 
+  g[1] = (dim == 2) ? - gravity * 9.81 : 0;
+  if(dim == 3) g[2] = - gravity * 9.81;
 
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
@@ -376,7 +385,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 //       std::cout << "\n";
 //     }
 //     std::cout << std::endl;
-      
+
     double C = (*sol->_Sol[solCIndex])(iel);
 
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -470,7 +479,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     std::vector <TypeIO> weightCF(quad.GetGaussQuadraturePointNumber(), 0.);
     std::vector <TypeIO> weightCFInt(quad.GetGaussQuadraturePointNumber(), 0.);
     std::vector <TypeIO> weightCFExt(quad.GetGaussQuadraturePointNumber(), 0.);
-    
+
     if(cut == 1) {
       bool wMap = 1;
       if(ielGeom == 3) {
@@ -479,7 +488,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
         d = -d;
         quad.GetWeightWithMap(-1, a, d, weightCF);
         quad.GetWeightWithMap(0, a, d, weightCFInt);
-        
+
 //           quadCD.GetWeight(a, d, weightCF);
       }
 //         else if(ielGeom == 4) {
@@ -491,11 +500,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 //           const double* weightG = tet.GetGaussWeightPointer();
 //         }
     }
-    else{
-        for(unsigned i = 0; i < weightCFInt.size(); i++) {
-            weightCFInt[i] = C;
-            weightCFExt[i] = 1. - C;
-        }
+    else {
+      for(unsigned i = 0; i < weightCFInt.size(); i++) {
+        weightCFInt[i] = C;
+        weightCFExt[i] = 1. - C;
+      }
     }
 
     std::vector<double> xqp(dim);
@@ -541,8 +550,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
-//         kk = cld->getCurvature(iel, xqp);
-        kk = cld->getAverageCurvature(iel);
+        kk = cld->getCurvature(iel, xqp);
+//        kk = cld->getAverageCurvature(iel);
         NN = cld->getNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
@@ -576,13 +585,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDofsP; i++) {
         solP1_gss += phiP[i] * solP1[i];
         solP2_gss += phiP[i] * solP2[i];
-      }
+      }   
 
-      double mu1 = 1.;
-      double mu2 = 1.;
-      double rho1 = 1.;
-      double rho2 = 10.;
-      
       double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
       double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
 
@@ -594,12 +598,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
             NSV   +=  mu * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
             NSV   +=  rho * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
           }
-          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig] ); // pressure gradient
+          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
           NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
           NSV += - rho * phiV[i] * g[I]; // gravity term
           Res[I * nDofsV + i] -=  NSV * weight;
           if(cut == 1) {
-            Res[I * nDofsV + i] += - phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; //TODO
+            Res[I * nDofsV + i] += - sigma * phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; //TODO
           }
         }
       } // end phiV_i loop
@@ -607,11 +611,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       // *** phiP_i loop ***
       for(unsigned i = 0; i < nDofsP; i++) {
         for(int I = 0; I < dim; I++) {
-          Res[dim * nDofsV + i] -= - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
-          Res[dim * nDofsV + nDofsP + i] -= - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
+          Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
+          Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
         }
-        Res[dim * nDofsV + i] -= - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //continuity
-        Res[dim * nDofsV + nDofsP + i] -= - solP2_gss * phiP[i]  * weight * C * eps; //continuity
+        if(C == 0) 
+        Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+        if(C == 1) 
+        Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+
       } // end phiP_i loop
       // end gauss point loop
 
@@ -641,20 +648,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
             unsigned P1column = dim * nDofsV + j;
             unsigned P2column = dim * nDofsV + nDofsP + j;
             Jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
-            Jac[P1column * nDofsVP + VIrow] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
+            Jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
             Jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
-            Jac[P2column * nDofsVP + VIrow] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
+            Jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
           }
         }
       }
-      for(unsigned i = 0; i < nDofsP; i++){
+      for(unsigned i = 0; i < nDofsP; i++) {
         unsigned P1row = dim * nDofsV + i;
         unsigned P2row = dim * nDofsV + nDofsP + i;
-        for(unsigned j = 0; j < nDofsP; j++){
+        for(unsigned j = 0; j < nDofsP; j++) {
           unsigned P1column = dim * nDofsV + j;
           unsigned P2column = dim * nDofsV + nDofsP + j;
-          Jac[P1row * nDofsVP + P1column] += - phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
-          Jac[P2row * nDofsVP + P2column] += - phiP[i] * phiP[j] * weight * C * eps; //continuity
+          if(C == 0) 
+          Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          if(C == 1) 
+          Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
         }
       }
 

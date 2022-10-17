@@ -66,12 +66,6 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
-
-  double mu1 = 1.;
-  double rho1 = 1.;
-  
-  double mu2 = 1.;
-  double rho2 = 1.;
   
   double mu = 2. * mu1 * mu2 / (mu1 + mu2);
   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
