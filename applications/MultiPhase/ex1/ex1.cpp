@@ -209,12 +209,14 @@ int main(int argc, char** args) {
 
 
   unsigned nIterations = 1000;
-
-
-  cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+  
+  
+//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+  cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
   cld->ComputeQuadraticBestFit();
 
-  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);

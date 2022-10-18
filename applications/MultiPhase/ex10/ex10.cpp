@@ -109,9 +109,9 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
   
-//   mlMsh.GenerateCoarseBoxMesh(2, 2, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh"); 
+  mlMsh.GenerateCoarseBoxMesh(2, 2, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh"); 
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -207,10 +207,14 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
 
   double time = 0.;
-  cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
-  //cld.InitMultipleEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {nMax, nMax}, sol);
-  cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
-  //cldint.InitMultipleInteriorEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, sol);
+//   cld.AddQuadric({1.,0.,1.,0.,-0.5,0.04}, 8, sol);
+//   cld.AddQuadric({1.,0.,1.,0.,+0.5,0.04}, 8, sol);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04}, 8, sol);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04}, 8, sol);
+  
+  cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
+  cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
+
   cldint.RebuildInteriorMarkers(cld, "C","Cn");
   SetVelocity(sol, velocity, time, period );
   cld.PrintCSV("markerBefore",0);
