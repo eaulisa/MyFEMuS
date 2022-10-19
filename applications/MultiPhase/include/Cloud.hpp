@@ -28,14 +28,14 @@ namespace femus {
     ~Cloud() {};
     void SetNumberOfMarker(const unsigned &nMax);
     void AddQuadric(const std::vector<double> &A, const unsigned &npt, Solution* sol);
-    void AddInteriorQuadric(const std::vector<double> &A, const unsigned &npt, Solution* sol);
+    void AddInteriorQuadric(const std::vector<double> &A, Solution* sol);
 
-    void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol);
-    void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol);
+    void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &npt, Solution* sol);
+    void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt, Solution* sol);
+    void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt, Solution* sol);
 
+    void InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol);
     void InitMultipleInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, Solution* sol);
-
-    void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol);
 
     void PrintNoOrder(const unsigned &t);
     void PrintWithOrder(const unsigned &t);
@@ -218,9 +218,9 @@ namespace femus {
       }
 
       unsigned nInt = 0;
-      
+
       sol = GetCellPointsFromQuadric(xv, iel, npt, nInt);
-      
+
       if(nInt == 2) {
         if(ielIsDefined) {
           std::cerr << "Same cell initialized two times in AddQuadric!\n";
@@ -262,8 +262,8 @@ namespace femus {
 
     CreateMap();
     _yi.resize(cnt);
-    
-    
+
+
     unsigned solType = 2;
     _mrk.ClearElement();
     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
@@ -274,7 +274,7 @@ namespace femus {
   }
 
 
-  void Cloud::AddInteriorQuadric(const std::vector<double> &A, const unsigned &npt, Solution* sol) {
+  void Cloud::AddInteriorQuadric(const std::vector<double> &A, Solution* sol) {
     _sol = sol;
 
     Mesh *msh = _sol->GetMesh();
@@ -348,207 +348,54 @@ namespace femus {
     CreateMap();
   }
 
-  void Cloud::InitMultipleInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, Solution* sol) {
-    _sol = sol;
-
-    Mesh *msh = _sol->GetMesh();
-
-    unsigned dim = msh->GetDimension();
-    unsigned nEll = xc.size();
-
-    if(xc.size() != a.size()) {
-      std::cerr << "InitMultipleInteriorEllipses arguments not matching!\n";
-      abort();
-    }
-
-    unsigned iproc  = msh->processor_id();
-    unsigned nprocs  = msh->n_processors();
-
-    unsigned offset = msh->_elementOffset[iproc];
-    unsigned offsetp1 = msh->_elementOffset[iproc + 1];
-
-    unsigned nMax = nEll * (offsetp1 - offset);
-
-    _yp.resize(nMax, std::vector<double>(dim));
-    _yi.resize(nMax);
-    _N.resize(nMax);
-    _kappa.resize(nMax);
-    _ds.resize(nMax);
-    _elem.resize(nMax);
-
-    unsigned cnt = 0;
-
-    for(unsigned j = 0; j < nEll; j++) {
-
-      for(unsigned iel = offset; iel < offsetp1; iel++) {
-        short unsigned ielGeom = msh->GetElementType(iel);
-        unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
-
-        std::vector<double> x(dim);
-        std::vector<double> xm(dim, 0.);
-
-
-        unsigned cntNode = 0;
-        for(unsigned i = 0; i < nDof; i++) {
-          unsigned xDof  = msh->GetSolutionDof(i, iel, 2);    // global to global mapping between coordinates node and coordinate dof
-          for(unsigned k = 0; k < dim; k++) {
-            x[k] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
-            xm[k] += x[k];
-          }
-
-          if((x[0] - xc[j][0]) * (x[0] - xc[j][0]) / (a[j][0]*a[j][0]) + (x[1] - xc[j][1]) * (x[1] - xc[j][1]) / (a[j][1] * a[j][1]) < 1) cntNode++;
-
-        }
-
-        if(cntNode == nDof) {
-          for(unsigned  k = 0; k < dim; k++) {
-            _yp[cnt][k] = xm[k] / nDof;
-          }
-          _yi[cnt]  = {0., 0.}; //TODO
-          _elem[cnt] = iel;
-
-          _N[cnt] = {0., 0.}; //TODO
-          _kappa[cnt] = 0.; //TODO
-          _ds[cnt] = 0.;
-
-          cnt++;
-        }
-      }
-    }
-
-    _yp.resize(cnt);
-    _yi.resize(cnt);
-    _elem.resize(cnt);
-    _N.resize(cnt);
-    _kappa.resize(cnt);
-    _ds.resize(cnt);
-    CreateMap();
+  void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt, Solution* sol) {
+    std::vector<double> A(6, 0.);
+    A[0] = a[1] * a[1];
+    A[1] = 0.;
+    A[2] = a[0] * a[0];
+    A[3] = - 2 * xc[0] * a[1] * a[1];
+    A[4] = - 2 * xc[1] * a[0] * a[0];
+    A[5] = a[1] * a[1] * xc[0] * xc[0] + a[0] * a[0] * xc[1] * xc[1] - a[0] * a[0] * a[1] * a[1];
+    AddQuadric(A, npt, sol);
   }
 
-
-  void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &nMax, Solution* sol) {
-
-    _sol = sol;
-    SetNumberOfMarker(nMax);
-    double dt = 2. * M_PI / _nMrk;
-    std::vector<double> xp(2);
-
-    bool elemSearch;
-    unsigned previousElem = UINT_MAX;
-    unsigned iel;
-    unsigned iproc = sol->processor_id();
-    unsigned cnt = 0;
-
-    _yp.resize(_nMrk);
-    _yi.resize(_nMrk);
-    _elem.resize(_nMrk);
-    _N.resize(_nMrk);
-    _kappa.resize(_nMrk);
-    _ds.resize(_nMrk, M_PI * (a[0] + a[1]) / _nMrk);
-
-    double ds = M_PI * (a[0] + a[1]) / _nMrk;
-
-    for(unsigned i = 0; i < _nMrk; i++) {
-      double t = i * dt;
-      xp[0] = xc[0] + a[0] * cos(t);
-      xp[1] = xc[1] + a[1] * sin(t);
-
-      elemSearch = ParallelElementSearch(xp, previousElem);
-      if(elemSearch) {
-        iel = _mrk.GetElement();
-        if(_mrk.GetProc() == iproc) {
-          double NNorm = sqrt(a[0] * a[0] * cos(t) * cos(t) + a[1] * a[1] * sin(t) * sin(t));
-          _yp[cnt] = xp;
-          _yi[cnt]  = _mrk.GetIprocLocalCoordinates();
-          _N[cnt] = {a[0] * cos(t) / NNorm, a[1] * sin(t) / NNorm};
-          _kappa[cnt] = a[0] * a[1] / (pow(sqrt(a[0] * a[0] * sin(t) * sin(t) + a[1] * a[1] * cos(t) * cos(t)), 3));
-          _elem[cnt] = iel;
-          cnt++;
-        }
-        previousElem = iel;
-      }
-      else {
-        previousElem = UINT_MAX;
-      }
-    }
-    _yp.resize(cnt);
-    _yi.resize(cnt);
-    _elem.resize(cnt);
-    _N.resize(cnt);
-    _kappa.resize(cnt);
-    _ds.resize(cnt);
-
-    CreateMap();
-
-  }
-
-  void Cloud::InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &nMax, Solution* sol) {
-    if(xc.size() != a.size() || nMax.size() != a.size()) {
+  void Cloud::InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt, Solution* sol) {
+    if(xc.size() != a.size() || npt.size() != a.size()) {
       std::cerr << "Non-matching vectors in ellipses initialization \n";
       abort();
     }
     else {
-      unsigned totMrk = 0;
-      _sol = sol;
-      for(unsigned it = 0; it < nMax.size(); it++) {
-        totMrk += nMax[it];
+      for(unsigned it = 0; it < npt.size(); it++) {
+        InitEllipse(xc[it], a[it], npt[it], sol);
       }
-      SetNumberOfMarker(totMrk);
-      std::vector<double> xp(2);
-
-      bool elemSearch;
-      unsigned previousElem = UINT_MAX;
-      unsigned iel;
-      unsigned iproc = sol->processor_id();
-      unsigned cnt = 0;
-
-      _yp.resize(_nMrk);
-      _yi.resize(_nMrk);
-      _elem.resize(_nMrk);
-      _N.resize(_nMrk);
-      _kappa.resize(_nMrk);
-      _ds.resize(_nMrk);
-      for(unsigned it = 0; it < nMax.size(); it++) {
-        double dt = 2. * M_PI / nMax[it];
-        for(unsigned i = 0; i < nMax[it]; i++) {
-          double t = i * dt;
-          xp[0] = xc[it][0] + a[it][0] * cos(t);
-          xp[1] = xc[it][1] + a[it][1] * sin(t);
-
-          elemSearch = ParallelElementSearch(xp, previousElem);
-          if(elemSearch) {
-            iel = _mrk.GetElement();
-            if(_mrk.GetProc() == iproc) {
-              double NNorm = sqrt(a[it][0] * a[it][0] * cos(t) * cos(t) + a[it][1] * a[it][1] * sin(t) * sin(t));
-              _yp[cnt] = xp;
-              _yi[cnt]  = _mrk.GetIprocLocalCoordinates();
-              _N[cnt] = {a[it][0] * cos(t) / NNorm, a[it][1] * sin(t) / NNorm};
-              _kappa[cnt] = a[it][0] * a[it][1] / (pow(sqrt(a[it][0] * a[it][0] * sin(t) * sin(t) + a[it][1] * a[it][1] * cos(t) * cos(t)), 3));
-              _ds[cnt] = M_PI * (a[it][0] + a[it][1]) / nMax[it];
-              _elem[cnt] = iel;
-              cnt++;
-            }
-            previousElem = iel;
-          }
-          else {
-            previousElem = UINT_MAX;
-          }
-        }
-      }
-      _yp.resize(cnt);
-      _yi.resize(cnt);
-      _elem.resize(cnt);
-      _N.resize(cnt);
-      _kappa.resize(cnt);
-      _ds.resize(cnt);
-
-      CreateMap();
     }
-
   }
 
-  void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &nMax, Solution* sol)  {
-    InitEllipse(xc, {R, R}, nMax, sol);
+  void Cloud::InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol) {
+    std::vector<double> A(6, 0.);
+    A[0] = a[1] * a[1];
+    A[1] = 0.;
+    A[2] = a[0] * a[0];
+    A[3] = - 2 * xc[0] * a[1] * a[1];
+    A[4] = - 2 * xc[1] * a[0] * a[0];
+    A[5] = a[1] * a[1] * xc[0] * xc[0] + a[0] * a[0] * xc[1] * xc[1] - a[0] * a[0] * a[1] * a[1];
+    AddInteriorQuadric(A, sol);
+  }
+
+  void Cloud::InitMultipleInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, Solution* sol) {
+    if(xc.size() != a.size()) {
+      std::cerr << "InitMultipleInteriorEllipses arguments not matching!\n";
+      abort();
+    }
+    else {
+      for(unsigned j = 0; j < xc.size(); j++) {
+        InitInteriorEllipse(xc[j], a[j], sol);
+      }
+    }
+  }
+
+  void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &npt, Solution* sol)  {
+    InitEllipse(xc, {R, R}, npt, sol);
   }
 
   void Cloud::CreateMap() {
@@ -1046,7 +893,7 @@ namespace femus {
         oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
         oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
         oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
-        
+
         oct norm = sqrt(a * a + b * b + c * c);
         a /= norm;
         b /= norm;

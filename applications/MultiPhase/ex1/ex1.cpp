@@ -216,7 +216,7 @@ int main(int argc, char** args) {
   cld->ComputeQuadraticBestFit();
 
 //   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
-  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
+  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, sol);
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);

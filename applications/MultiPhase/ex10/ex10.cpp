@@ -209,11 +209,13 @@ int main(int argc, char** args) {
   double time = 0.;
 //   cld.AddQuadric({1.,0.,1.,0.,-0.5,0.04}, 8, sol);
 //   cld.AddQuadric({1.,0.,1.,0.,+0.5,0.04}, 8, sol);
-//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04}, 8, sol);
-//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04}, 8, sol);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04}, sol);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04}, sol);
   
-  cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
-  cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
+//   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
+  cld.InitMultipleEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {8, 8}, sol);
+//   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01}, sol);
+  cldint.InitMultipleInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, sol);
 
   cldint.RebuildInteriorMarkers(cld, "C","Cn");
   SetVelocity(sol, velocity, time, period );
