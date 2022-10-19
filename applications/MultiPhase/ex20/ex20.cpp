@@ -198,10 +198,18 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
 
   
-  cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
-
-  cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+  //   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+  cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
   cld->ComputeQuadraticBestFit();
+
+  //   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
+  cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
+
+//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+//
+//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+//   cld->ComputeQuadraticBestFit();
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
