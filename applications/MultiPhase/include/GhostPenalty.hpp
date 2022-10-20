@@ -647,9 +647,6 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
                       msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
 
-
-
-
                       adept::adouble divSol1g = 0.;
                       adept::adouble divSol2g = 0.;
 
