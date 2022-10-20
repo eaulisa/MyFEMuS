@@ -111,13 +111,13 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
   
-  mlMsh.GenerateCoarseBoxMesh(2, 2, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh"); 
+  mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh"); 
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 7;
+  unsigned numberOfUniformLevels = 6;
   unsigned nMax = 4 * pow(2,6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -198,8 +198,8 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(true);
 
   // BEGIN Testing the class Cloud
-  Cloud cld;
-  Cloud cldint;
+  Cloud cld(sol);
+  Cloud cldint(sol);
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
@@ -207,15 +207,15 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
 
   double time = 0.;
-//   cld.AddQuadric({1.,0.,1.,0.,-0.5,0.04}, 8, sol);
-//   cld.AddQuadric({1.,0.,1.,0.,+0.5,0.04}, 8, sol);
-//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04}, sol);
-//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04}, sol);
+//   cld.AddQuadric({1.,0.,1.,0.,-0.5,0.04}, 8);
+//   cld.AddQuadric({1.,0.,1.,0.,+0.5,0.04}, 8);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04});
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04});
   
-//   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8, sol);
-  cld.InitMultipleEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {8, 8}, sol);
-//   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01}, sol);
-  cldint.InitMultipleInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, sol);
+//   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8);
+  cld.AddEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {8, 8});
+//   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01});
+  cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
 
   cldint.RebuildInteriorMarkers(cld, "C","Cn");
   SetVelocity(sol, velocity, time, period );

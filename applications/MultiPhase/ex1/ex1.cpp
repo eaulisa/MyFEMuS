@@ -64,11 +64,10 @@ const double sigma = 1.;
 #include "../include/GhostPenalty.hpp"
 #include "../include/GhostPenaltyDGP.hpp"
 
-#define RADIUS 0.2
+#define RADIUS 0.4
 #define XG 0.
-#define YG -0.25
+#define YG 0.
 #define ZG 0.
-#define nMax 1000
 bool gravity = true;
 
 using namespace femus;
@@ -113,9 +112,6 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
-  cld = new Cloud();
-  cldint = new Cloud();
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -168,11 +164,14 @@ int main(int argc, char** args) {
 
 
   Solution* sol = mlSol.GetSolutionLevel(mlMsh.GetNumberOfLevels() - 1);
+  
+  cld = new Cloud(sol);
+  cldint = new Cloud(sol);
 
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-//   mlSol.FixSolutionAtOnePoint("P1");
-  mlSol.FixSolutionAtOnePoint("P2");
+  mlSol.FixSolutionAtOnePoint("P1");
+//   mlSol.FixSolutionAtOnePoint("P2");
 
   mlSol.GenerateBdc("All");
 
@@ -211,12 +210,14 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
   
   
-//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
-  cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
+//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
+//   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
+  cld->AddQuadric({-1./10,0.,0.,0.,+1.,0.}, 8);
   cld->ComputeQuadraticBestFit();
 
-//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
-  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, sol);
+//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+//   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
+  cldint->AddInteriorQuadric({-1./10,0.,0.,0.,+1.,0.});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
@@ -369,7 +370,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   /* END cutfem stuff for surface tension integration */
 
-// cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+// cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
 
 //   cld.RKAdvection(4, {"U", "V"}, dtetha); // TODO dtetha sbagliato
 //   cld->PrintCSV("markerBefore",it);
@@ -589,8 +590,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
         solP2_gss += phiP[i] * solP2[i];
       }   
 
-      double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
-      double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+//       double rho = rho1 * weightCFInt[ig] + rho1 * weightCFExt[ig];
+//       double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+
+      double rho = rho1 * C + rho2 * (1. - C);
+      double mu = mu1 * C + mu2 * (1. - C);
+      
+      double rhoC = rho1 * C + rho2 * (1. - C);
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsV; i++) {
@@ -602,10 +608,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           }
           NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
           NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
-          NSV += - rho * phiV[i] * g[I]; // gravity term
+          NSV += - rhoC * phiV[i] * g[I]; // gravity term
           Res[I * nDofsV + i] -=  NSV * weight;
           if(cut == 1) {
-            Res[I * nDofsV + i] += - sigma * phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; //TODO
+            Res[I * nDofsV + i] += - sigma * phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; 
           }
         }
       } // end phiV_i loop

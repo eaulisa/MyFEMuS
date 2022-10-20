@@ -21,140 +21,143 @@ namespace femus {
 
 
   class Cloud {
-  public:
-    Cloud() {
-      _mrk = MyMarker();
-    };
-    ~Cloud() {};
-    void SetNumberOfMarker(const unsigned &nMax);
-    void AddQuadric(const std::vector<double> &A, const unsigned &npt, Solution* sol);
-    void AddInteriorQuadric(const std::vector<double> &A, Solution* sol);
+    public:
+      Cloud(Solution* sol) {
+        _mrk = MyMarker();
+        _sol = sol;
+      };
+      ~Cloud() {};
+      void SetNumberOfMarker(const unsigned &nMax);
+      void AddQuadric(const std::vector<double> &A, const unsigned &npt);
+      void AddInteriorQuadric(const std::vector<double> &A);
 
-    void InitCircle(const std::vector<double> &xc, const double &R, const unsigned &npt, Solution* sol);
-    void InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt, Solution* sol);
-    void InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt, Solution* sol);
+      void AddCircle(const std::vector<double> &xc, const double &R, const unsigned &npt);
+      void AddEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt);
+      void AddEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt);
 
-    void InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol);
-    void InitMultipleInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, Solution* sol);
+      void AddInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a);
+      void AddInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a);
 
-    void PrintNoOrder(const unsigned &t);
-    void PrintWithOrder(const unsigned &t);
-    void PrintCSV(const std::string &filename, const unsigned &t);
+      void PrintNoOrder(const unsigned &t);
+      void PrintWithOrder(const unsigned &t);
+      void PrintCSV(const std::string &filename, const unsigned &t);
 
-    void ComputeQuadraticBestFit();
+      void ComputeQuadraticBestFit();
 
-    std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
+      std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
 
-    void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
+      void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
 
-    void RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn);
+      void RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn);
 
-    const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
-      return _A;
-    }
-
-    const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
-      if(_A.find(iel) != _A.end()) {
-        return _A.at(iel);
+      const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
+        return _A;
       }
-      else {
-        return {};
+
+      const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
+        if(_A.find(iel) != _A.end()) {
+          return _A.at(iel);
+        }
+        else {
+          return {};
+        }
       }
-    }
 
-    unsigned GetNumberOfMarker(const unsigned &iel) {
-      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-        return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
+      unsigned GetNumberOfMarker(const unsigned &iel) {
+        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+          return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
+        }
+        else {
+          return 0;
+        }
       }
-      else {
-        return 0;
+
+      double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
+        return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
       }
-    }
 
-    double getCurvature(const unsigned &iel, const std::vector<double> &xp) {
-      return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
-    }
+      std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
+        std::vector<double> N(xp.size());
 
-    std::vector<double> getNormal(const unsigned &iel, const std::vector<double> &xp) {
-      std::vector<double> N(xp.size());
+        N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
+        N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
 
-      N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
-      N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
+        double norm2 = 0.;
+        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
 
-      double norm2 = 0.;
-      for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
-      for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
+        return N;
+      }
 
-      return N;
-    }
-
-    std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
-      unsigned dim = _sol->GetMesh()->GetDimension();
-      std::vector <double> yg(dim, 0.);
-      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-        for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
-          for(unsigned k = 0; k < dim; k++)  {
-            yg[k] += _yi[_map[i]][k];
+      std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
+        unsigned dim = _sol->GetMesh()->GetDimension();
+        std::vector <double> yg(dim, 0.);
+        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+          for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
+            for(unsigned k = 0; k < dim; k++)  {
+              yg[k] += _yi[_map[i]][k];
+            }
           }
+          for(unsigned k = 0; k < dim; k++)  yg[k] /= (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
         }
-        for(unsigned k = 0; k < dim; k++)  yg[k] /= (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
-      }
-      else {
-        std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
-        abort();
-      }
-      return yg;
-    }
-
-    double getAverageCurvature(const unsigned &iel) {
-      unsigned i1 = _elMrkIdx[iel][1];
-      unsigned i0 = _elMrkIdx[iel][0];
-      double avgK = 0.;
-      if(i1 - i0 > 0) {
-        for(unsigned i = i0; i < i1; i++) {
-          avgK += _kappa[_map[i]];
+        else {
+          std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
+          abort();
         }
-        avgK /= (i1 - i0);
+        return yg;
       }
-      else {
-        std::cerr << "No marker found in function getAverageCurvature \n";
-        abort();
+
+      double getAverageCurvature(const unsigned &iel) {
+        unsigned i1 = _elMrkIdx[iel][1];
+        unsigned i0 = _elMrkIdx[iel][0];
+        double avgK = 0.;
+        if(i1 - i0 > 0) {
+          for(unsigned i = i0; i < i1; i++) {
+            avgK += _kappa[_map[i]];
+          }
+          avgK /= (i1 - i0);
+        }
+        else {
+          std::cerr << "No marker found in function getAverageCurvature \n";
+          abort();
+        }
+        return avgK;
       }
-      return avgK;
-    }
 
-    void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
-    void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
-    void BuildColorFunction(const char C);
+      void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
+      void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
+      void BuildColorFunction(const char C);
 
-  private:
+    private:
 
-    void CreateMap();
-    bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
+      void CreateMap();
+      bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
 
-    Solution *_sol;
-    unsigned _nMrk;
-    std::ofstream _fout;
-    std::vector<std::vector<double>> _yp;
-    std::vector<std::vector<double>> _N;
-    std::vector<double> _kappa;
-    std::vector<double> _ds;
-    std::vector<std::vector<double>> _yi;
+      Solution *_sol;
+      unsigned _nMrk;
+      std::ofstream _fout;
+      std::vector<std::vector<double>> _yp;
+      std::vector<std::vector<double>> _N;
+      std::vector<double> _kappa;
+      std::vector<double> _ds;
+      std::vector<std::vector<double>> _yi;
 
-    std::vector<std::vector<double>> _ypNew;
-    std::vector<std::vector<double>> _yiNew;
-    std::vector<std::vector<double>> _NNew;
-    std::vector<double> _kappaNew;
-    std::vector<double> _dsNew;
+      std::vector<std::vector<double>> _ypNew;
+      std::vector<std::vector<double>> _yiNew;
+      std::vector<std::vector<double>> _NNew;
+      std::vector<double> _kappaNew;
+      std::vector<double> _dsNew;
 
 
-    std::vector<unsigned> _elem;
-    std::vector<unsigned> _elemNew;
-    std::vector<unsigned> _map;
-    MyMarker _mrk;
-    std::map<unsigned, std::vector<double>> _A;
-    std::map<unsigned, unsigned [2] > _elMrkIdx;
-    std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
+      std::vector<unsigned> _elem;
+      std::vector<unsigned> _elemNew;
+      std::vector<unsigned> _map;
+      MyMarker _mrk;
+      std::map<unsigned, std::vector<double>> _A;
+      std::map<unsigned, unsigned [2] > _elMrkIdx;
+      std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
+
+      const std::vector<std::vector<double>> _yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
 
 
   };
@@ -163,9 +166,7 @@ namespace femus {
     _nMrk = nMax;
   }
 
-  void Cloud::AddQuadric(const std::vector<double> &A, const unsigned &npt, Solution* Sol) {
-    _sol = Sol;
-
+  void Cloud::AddQuadric(const std::vector<double> &A, const unsigned &npt) {
     Mesh *msh = _sol->GetMesh();
     unsigned dim = _sol->GetMesh()->GetDimension();
 
@@ -173,16 +174,22 @@ namespace femus {
     std::vector< std::vector < double > > xv;
     std::pair<std::vector<std::vector<double>>, std::vector<double>> sol;
 
+    
+    unsigned solType = 2;
+    _mrk.ClearElement();
+    
     unsigned cnt = _elem.size();
     unsigned cnt0 = _elem.size();
-    _ypNew = _yp;
-    _NNew = _N;
-    _kappaNew = _kappa;
-    _dsNew = _ds;
+    _ypNew.swap(_yp);
+    _yiNew.swap(_yi);
+    _NNew.swap(_N);
+    _kappaNew.swap(_kappa);
+    _dsNew.swap(_ds);
 
 
     const unsigned &nel = A.size();
     _ypNew.resize(cnt + 2 * nel * npt, std::vector<double>(dim));
+    _yiNew.resize(cnt + 2 * nel * npt, std::vector<double>(dim));
     _elem.resize(cnt + 2 * nel * npt);
     _NNew.resize(cnt + 2 * nel * npt, std::vector<double> (dim));
     _kappaNew.resize(cnt + 2 * nel * npt);
@@ -229,6 +236,7 @@ namespace femus {
         elCnt++;
         unsigned newSize = cnt0 + npt * elCnt ; //cnt + sol.first.size() + 2 * (nel - elCnt) * nMax;
         _ypNew.resize(newSize, std::vector<double>(dim));
+        _yiNew.resize(newSize, std::vector<double>(dim));
         _elem.resize(newSize);
         _NNew.resize(newSize, std::vector<double>(dim));
         _kappaNew.resize(newSize);
@@ -238,6 +246,7 @@ namespace femus {
           for(unsigned k = 0; k < dim; k++) {
             _ypNew[cnt][k] = sol.first[i][k];
           }
+           _yiNew[cnt]  = _mrk.GetIprocLocalCoordinates(_ypNew[cnt], _sol, solType,  iel);
           _elem[cnt] = iel;
           _NNew[cnt] = getNormal(iel, _ypNew[cnt]);
           _kappaNew[cnt] = getCurvature(iel, _ypNew[cnt]);
@@ -250,33 +259,23 @@ namespace femus {
     }
 
     _ypNew.resize(cnt);
+    _yiNew.resize(cnt);
     _elem.resize(cnt);
     _NNew.resize(cnt);
     _kappaNew.resize(cnt);
     _dsNew.resize(cnt);
 
     _yp.swap(_ypNew);
+    _yi.swap(_yiNew);
     _kappa.swap(_kappaNew);
     _ds.swap(_dsNew);
     _N.swap(_NNew);
 
     CreateMap();
-    _yi.resize(cnt);
-
-
-    unsigned solType = 2;
-    _mrk.ClearElement();
-    for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
-      for(unsigned i = _itElMrkIdx->second[0]; i < _itElMrkIdx->second[1]; i++) {
-        _yi[_map[i]]  = _mrk.GetIprocLocalCoordinates(_yp[_map[i]], _sol, solType,  _itElMrkIdx->first);
-      }
-    }
   }
 
 
-  void Cloud::AddInteriorQuadric(const std::vector<double> &A, Solution* sol) {
-    _sol = sol;
-
+  void Cloud::AddInteriorQuadric(const std::vector<double> &A) {
     Mesh *msh = _sol->GetMesh();
 
     unsigned dim = msh->GetDimension();
@@ -299,7 +298,7 @@ namespace femus {
     _elem.resize(nMax);
 
     for(unsigned iel = offset; iel < offsetp1; iel++) {
-      short unsigned ielGeom = msh->GetElementType(iel);
+      short unsigned ielType = msh->GetElementType(iel);
       unsigned nDof = msh->GetElementDofNumber(iel, 0);  // number of coordinate linear element dofs
 
       bool ielIsDefined = true;
@@ -328,10 +327,10 @@ namespace femus {
         for(unsigned  k = 0; k < dim; k++) {
           _yp[cnt][k] = xm[k] / nDof;
         }
-        _yi[cnt]  = {0., 0.}; //TODO
+        _yi[cnt]  = _yig[ielType];
         _elem[cnt] = iel;
 
-        _N[cnt] = {0., 0.}; //TODO
+        _N[cnt] = std::vector<double>(dim, 0.);
         _kappa[cnt] = 0.; //TODO
         _ds[cnt] = 0.;
 
@@ -348,7 +347,7 @@ namespace femus {
     CreateMap();
   }
 
-  void Cloud::InitEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt, Solution* sol) {
+  void Cloud::AddEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt) {
     std::vector<double> A(6, 0.);
     A[0] = a[1] * a[1];
     A[1] = 0.;
@@ -356,22 +355,22 @@ namespace femus {
     A[3] = - 2 * xc[0] * a[1] * a[1];
     A[4] = - 2 * xc[1] * a[0] * a[0];
     A[5] = a[1] * a[1] * xc[0] * xc[0] + a[0] * a[0] * xc[1] * xc[1] - a[0] * a[0] * a[1] * a[1];
-    AddQuadric(A, npt, sol);
+    AddQuadric(A, npt);
   }
 
-  void Cloud::InitMultipleEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt, Solution* sol) {
+  void Cloud::AddEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt) {
     if(xc.size() != a.size() || npt.size() != a.size()) {
       std::cerr << "Non-matching vectors in ellipses initialization \n";
       abort();
     }
     else {
       for(unsigned it = 0; it < npt.size(); it++) {
-        InitEllipse(xc[it], a[it], npt[it], sol);
+        AddEllipse(xc[it], a[it], npt[it]);
       }
     }
   }
 
-  void Cloud::InitInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a, Solution* sol) {
+  void Cloud::AddInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a) {
     std::vector<double> A(6, 0.);
     A[0] = a[1] * a[1];
     A[1] = 0.;
@@ -379,23 +378,23 @@ namespace femus {
     A[3] = - 2 * xc[0] * a[1] * a[1];
     A[4] = - 2 * xc[1] * a[0] * a[0];
     A[5] = a[1] * a[1] * xc[0] * xc[0] + a[0] * a[0] * xc[1] * xc[1] - a[0] * a[0] * a[1] * a[1];
-    AddInteriorQuadric(A, sol);
+    AddInteriorQuadric(A);
   }
 
-  void Cloud::InitMultipleInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, Solution* sol) {
+  void Cloud::AddInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a) {
     if(xc.size() != a.size()) {
       std::cerr << "InitMultipleInteriorEllipses arguments not matching!\n";
       abort();
     }
     else {
       for(unsigned j = 0; j < xc.size(); j++) {
-        InitInteriorEllipse(xc[j], a[j], sol);
+        AddInteriorEllipse(xc[j], a[j]);
       }
     }
   }
 
-  void Cloud::InitCircle(const std::vector<double> &xc, const double &R, const unsigned &npt, Solution* sol)  {
-    InitEllipse(xc, {R, R}, npt, sol);
+  void Cloud::AddCircle(const std::vector<double> &xc, const double &R, const unsigned &npt)  {
+    AddEllipse(xc, {R, R}, npt);
   }
 
   void Cloud::CreateMap() {
@@ -899,7 +898,7 @@ namespace femus {
         b /= norm;
         c /= norm;
 
-        if(a > 1.e-7) {
+        if(fabs(a) > 1.e-8) {
           oct delta = b * b - 4 * a * c;
           if(delta > 0) {
             for(unsigned j = 0; j < 2; j++) {
@@ -938,7 +937,7 @@ namespace femus {
         std::vector<double> xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
         std::vector<double> N = getNormal(iel, xm);
         double kappa = getCurvature(iel, xm);
-        if(kappa < 0.01) kappa = 0.01; //TODO
+        if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
         std::vector<double> xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
 
         double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
@@ -974,7 +973,7 @@ namespace femus {
           b /= norm;
           c /= norm;
 
-          if(fabs(a) > 1.e-7) {
+          if(fabs(a) > 1.e-8) {
             oct delta = b * b - 4 * a * c;
             if(delta >= 0.) {
               double t[2];
@@ -995,7 +994,6 @@ namespace femus {
             }
             cnt++;
           }
-//           std::cerr<< "AA " << xe[cnt-1][0]<< " " << xe[cnt-1][1] <<"\n";
         }
         double dsi = 2. * dt0 / (fabs(kappa) * cnt);
         ds.assign(cnt + 1, dsi);
@@ -1174,8 +1172,6 @@ namespace femus {
 
   void Cloud::RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn) {
 
-    const std::vector<std::vector<double>> yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
-
     std::vector<std::vector<double>> xn;
 
     std::vector<double> phi;
@@ -1297,7 +1293,7 @@ namespace femus {
         for(unsigned  k = 0; k < dim; k++) {
           _ypNew[cnt][k] = xm[k] / nDofsL;
         }
-        _yiNew[cnt]  = yig[ielType]; //TODO
+        _yiNew[cnt]  = _yig[ielType]; //TODO
         _elem[cnt] = iel;
 
         _NNew[cnt] = std::vector<double>(dim, 0.); //TODO
@@ -1335,7 +1331,7 @@ namespace femus {
               for(unsigned  k = 0; k < dim; k++) {
                 _ypNew[cnt][k] = xmj[k] / nDofsL;
               }
-              _yiNew[cnt]  = yig[jelType]; //TODO
+              _yiNew[cnt]  = _yig[jelType]; //TODO
               _elem[cnt] = jel;
 
               _NNew[cnt] = std::vector<double>(dim, 0.); //TODO
@@ -1399,7 +1395,7 @@ namespace femus {
             for(unsigned  k = 0; k < dim; k++) {
               _ypNew[cnt][k] = xm[k] / nDofsL;
             }
-            _yiNew[cnt]  = yig[ielType]; //TODO
+            _yiNew[cnt]  = _yig[ielType]; //TODO
             _elem[cnt] = iel;
 
             _NNew[cnt] = std::vector<double>(dim, 0.); //TODO

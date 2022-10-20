@@ -106,9 +106,6 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-  cld = new Cloud();
-  cldint = new Cloud();
-
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
@@ -157,6 +154,9 @@ int main(int argc, char** args) {
 
 
   Solution* sol = mlSol.GetSolutionLevel(mlMsh.GetNumberOfLevels() - 1);
+  
+  cld = new Cloud(sol);
+  cldint = new Cloud(sol);
 
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
@@ -198,17 +198,17 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
 
   
-  //   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
-  cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8, sol);
+  //   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
+  cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
   cld->ComputeQuadraticBestFit();
 
-  //   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
-  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, sol);
+  //   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+  cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
-//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS}, sol);
+//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
 //
-//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
 //   cld->ComputeQuadraticBestFit();
 
   cld->PrintCSV("markerBefore", 0);
@@ -349,7 +349,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   /* END cutfem stuff for surface tension integration */
 
-// cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax, sol);
+// cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
 
 //   cld.RKAdvection(4, {"U", "V"}, dtetha); // TODO dtetha sbagliato
 //   cld->PrintCSV("markerBefore",it);
