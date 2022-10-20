@@ -56,17 +56,17 @@ Cloud *cld;
 Cloud *cldint;
 
 const double mu1 = 1.;
-const double mu2 = 1.;
-const double rho1 = 1.;
-const double rho2 = 10.;
-const double sigma = 1.;
+const double mu2 = 10.;
+const double rho1 = 100.;
+const double rho2 = 1000.;
+const double sigma = 24.5;
 
 #include "../include/GhostPenalty.hpp"
 #include "../include/GhostPenaltyDGP.hpp"
 
-#define RADIUS 0.4
-#define XG 0.
-#define YG 0.
+#define RADIUS 0.25
+#define XG 0.5
+#define YG 0.5
 #define ZG 0.
 bool gravity = true;
 
@@ -118,12 +118,13 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
+  mlMsh.GenerateCoarseBoxMesh(4, 8, 0, 0, 1, 0, 2, 0., 0., QUAD9, "seventh"); 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 7;
+  unsigned numberOfUniformLevels = 6;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -170,8 +171,8 @@ int main(int argc, char** args) {
 
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-  mlSol.FixSolutionAtOnePoint("P1");
-//   mlSol.FixSolutionAtOnePoint("P2");
+//   mlSol.FixSolutionAtOnePoint("P1");
+  mlSol.FixSolutionAtOnePoint("P2");
 
   mlSol.GenerateBdc("All");
 
@@ -210,14 +211,14 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
   
   
-//   cld->InitEllipse({XG, YG}, {RADIUS, RADIUS}, nMax);
+  cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
 //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
-  cld->AddQuadric({-1./10,0.,0.,0.,+1.,0.}, 8);
+//   cld->AddQuadric({-1./10,0.,0.,0.,+1.,0.}, 8);
   cld->ComputeQuadraticBestFit();
 
-//   cldint->InitInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+  cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
 //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
-  cldint->AddInteriorQuadric({-1./10,0.,0.,0.,+1.,0.});
+//   cldint->AddInteriorQuadric({-1./10,0.,0.,0.,+1.,0.});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
@@ -243,7 +244,7 @@ int main(int argc, char** args) {
     cldint->RKAdvection(4, velocity, dt);
     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
-    cld->RebuildMarkers(8, 12, 8);
+    cld->RebuildMarkers(10, 10, 10);
     cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
     cld->PrintCSV("marker", it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
@@ -257,7 +258,7 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.05;
+  double dt =  0.01;
   return dt;
 }
 
@@ -360,8 +361,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   std::vector<double> g(dim);
   g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 9.81 : 0;
-  if(dim == 3) g[2] = - gravity * 9.81;
+  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
+  if(dim == 3) g[2] = - gravity * 0.98;
 
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
@@ -553,8 +554,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
-        kk = cld->getCurvature(iel, xqp);
-//        kk = cld->getAverageCurvature(iel);
+//         kk = cld->getCurvature(iel, xqp);
+       kk = cld->getAverageCurvature(iel);
         NN = cld->getNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
