@@ -71,7 +71,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
     double Ciel = (*mysolution->_Sol[indexSolC])(iel);
 
-    if(Ciel > 0 && Ciel < 1) {
+//     if(Ciel > 0 && Ciel < 1) {
+    if(true){
 
       short unsigned ielt1 = msh->GetElementType(iel);
       unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -102,7 +103,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
             double Cjel = (*mysolution->_Sol[indexSolC])(jel);
 
-            if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
+//             if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
+            if(jel > iel){
 
               solP2 = (*mysolution->_Sol[indexSol])(jel);
 
@@ -183,7 +185,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
         MPI_Bcast(&Ckel, 1, MPI_DOUBLE, kp, MPI_COMM_WORLD);
 
 
-        if(Ckel > 0 && Ckel < 1) {
+//         if(Ckel > 0 && Ckel < 1) {
+        if(true){
           double h11;
           double h12;
           unsigned nFaces;
@@ -224,7 +227,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 if(iproc == jp) {
                   Cjel = (*mysolution->_Sol[indexSolC])(jel);
                   MPI_Send(&Cjel, 1, MPI_DOUBLE, kp, 0, MPI_COMM_WORLD);
-                  if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+//                   if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  if(jel > kel){    
                     double solP2d = (*mysolution->_Sol[indexSol])(jel);
                     unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
                     unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);
@@ -237,7 +241,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 }
                 if(iproc == kp) {
                   MPI_Recv(&Cjel, 1, MPI_DOUBLE, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                  if( (Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+//                   if( (Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  if(jel > kel) {
                     double solP2d;
                     MPI_Recv(&solP2d, 1, MPI_DOUBLE, jp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(&h21, 1, MPI_DOUBLE, jp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

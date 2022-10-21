@@ -54,10 +54,10 @@ Cloud *cld;
 Cloud *cldint;
 
 const double mu1 = 1.;
-const double mu2 = 1.;
-const double rho1 = 1.;
-const double rho2 = 10.;
-const double sigma = 1.;
+const double mu2 = 10.;
+const double rho1 = 100.;
+const double rho2 = 1000.;
+const double sigma = 24.5;
 std::vector <double> g;
 
 #include "../include/GhostPenalty.hpp"
@@ -65,9 +65,9 @@ std::vector <double> g;
 #include "../include/Stabilization.hpp"
 
 
-#define RADIUS 0.1
-#define XG 0.
-#define YG -0.35
+#define RADIUS 0.25
+#define XG 0.5
+#define YG 0.5
 #define ZG 0.
 bool gravity = true;
 
@@ -76,20 +76,18 @@ using namespace femus;
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true; //dirichlet
+  value = 0.;
 
   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-    value = 0.;
   }
   else if(!strcmp(SolName, "V")) {
-    value = 0.;
+    if(facename == 2 || facename == 4) dirichlet = false;
 //     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
   }
   else if(!strcmp(SolName, "W")) {
-    value = 0.;
   }
   else if(!strcmp(SolName, "P")) {
     dirichlet = false;
-    value = 0.;
   }
 
   return dirichlet;
@@ -119,12 +117,13 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
+  mlMsh.GenerateCoarseBoxMesh(4, 8, 0, 0, 1, 0, 2, 0., 0., QUAD9, "fifth"); 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 7;
+  unsigned numberOfUniformLevels = 6;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -172,7 +171,7 @@ int main(int argc, char** args) {
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   //mlSol.FixSolutionAtOnePoint("P1");
-  mlSol.FixSolutionAtOnePoint("P2");
+//   mlSol.FixSolutionAtOnePoint("P2");
 
   mlSol.GenerateBdc("All");
 
@@ -258,7 +257,7 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.05;
+  double dt =  0.01;
   return dt;
 }
 
@@ -295,8 +294,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   
   g.resize(dim);
   g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 9.81 : 0;
-  if(dim == 3) g[2] = - gravity * 9.81;
+  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
+  if(dim == 3) g[2] = - gravity * 0.98;
   
 
   AssembleGhostPenalty(ml_prob);
@@ -556,8 +555,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
-        kk = cld->getCurvature(iel, xqp);
-//        kk = cld->getAverageCurvature(iel);
+//         kk = cld->getCurvature(iel, xqp);
+        kk = cld->getAverageCurvature(iel);
         NN = cld->getNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
