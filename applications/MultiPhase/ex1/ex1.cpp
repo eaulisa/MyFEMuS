@@ -138,7 +138,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 6;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -306,16 +306,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   KK->zero();
   RES->zero();
 
-
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  
+  g.resize(dim);
+  g[0] = 0.;
+  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
+  if(dim == 3) g[2] = - gravity * 0.98;
+    
   AssembleGhostPenalty(ml_prob);
   AssembleGhostPenaltyDGP(ml_prob, true);
   AssembleGhostPenaltyDGP(ml_prob, false);
-//   AssembleStabilizationTerms(ml_prob);
+  AssembleStabilizationTerms(ml_prob);
 
 
   double dt =  mlPdeSys->GetIntervalTime();
 
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+ 
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
@@ -374,11 +380,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   double dtetha = 2.;
 
   double eps = 0.00000001;
-
-  g.resize(dim);
-  g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
-  if(dim == 3) g[2] = - gravity * 0.98;
 
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
@@ -752,17 +753,18 @@ void AssembleMultiphaseAD(MultiLevelProblem& ml_prob) {
   KK->zero();
   RES->zero();
 
-
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  g.resize(dim);
+  g[0] = 0.;
+  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
+  if(dim == 3) g[2] = - gravity * 0.98;
+  
   AssembleGhostPenalty(ml_prob);
   AssembleGhostPenaltyDGP(ml_prob, true);
   AssembleGhostPenaltyDGP(ml_prob, false);
-//   AssembleStabilizationTerms(ml_prob);
-
+  AssembleStabilizationTerms(ml_prob);
 
   double dt =  mlPdeSys->GetIntervalTime();
-
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
   //solution variable
@@ -820,11 +822,6 @@ void AssembleMultiphaseAD(MultiLevelProblem& ml_prob) {
   double dtetha = 2.;
 
   double eps = 0.00000001;
-
-  g.resize(dim);
-  g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
-  if(dim == 3) g[2] = - gravity * 0.98;
 
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
   CDWeightQUAD <TypeA> quadCD(qM, dx, dtetha);
