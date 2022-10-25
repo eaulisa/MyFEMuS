@@ -718,6 +718,7 @@ namespace femus {
             unsigned nNgbElms;
 
             std::vector<unsigned> jelFace;
+            unsigned cnt0 = 0;
 
             if(iproc == kp) {
               kel = it->first;
@@ -725,6 +726,7 @@ namespace femus {
               unsigned i1 = _elMrkIdx[kel][1];
               coord.resize(i1 - i0, std::vector<double> (dim));
               weight.resize(i1 - i0);
+              cnt0 = i1 - i0;
               norm.assign(dim, 0);
               unsigned cnt = 0;
               double weightSum = 0;
@@ -870,7 +872,18 @@ namespace femus {
                 abort();
               }
 
-              femus::GetQuadricBestFit(coord, weight, norm, _A[kel]);
+//               femus::GetQuadricBestFit(coord, weight, norm, _A[kel]);
+              
+              FindQuadraticBestFit(coord, weight, norm, _A[kel]); //conica
+
+        double cost1 = GetCost(coord, weight, kel, cnt0);
+        std::vector<double> Atemp = _A[kel];
+
+
+        femus::GetQuadricBestFit(coord, weight, norm, _A[kel]); //parabola
+        double cost2 = GetCost(coord, weight, kel, cnt0);
+
+        if(cost1 < cost2) _A[kel] = Atemp;
 
               double n1Dotn = 0;
 
