@@ -44,6 +44,8 @@ namespace femus {
 
       void ComputeQuadraticBestFit();
 
+      double GetCost(const std::vector<std::vector<double>>x, const std::vector<double>w, const unsigned &iel, const unsigned &nPoints);
+
       std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
 
       void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
@@ -53,6 +55,11 @@ namespace femus {
       const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
         return _A;
       }
+
+      void SetQuadraticBestFitCoefficients(const unsigned &iel, const std::vector<double> &A) {
+        _A[iel] = A;
+      }
+
 
       const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
         if(_A.find(iel) != _A.end()) {
@@ -174,10 +181,10 @@ namespace femus {
     std::vector< std::vector < double > > xv;
     std::pair<std::vector<std::vector<double>>, std::vector<double>> sol;
 
-    
+
     unsigned solType = 2;
     _mrk.ClearElement();
-    
+
     unsigned cnt = _elem.size();
     unsigned cnt0 = _elem.size();
     _ypNew.swap(_yp);
@@ -246,7 +253,7 @@ namespace femus {
           for(unsigned k = 0; k < dim; k++) {
             _ypNew[cnt][k] = sol.first[i][k];
           }
-           _yiNew[cnt]  = _mrk.GetIprocLocalCoordinates(_ypNew[cnt], _sol, solType,  iel);
+          _yiNew[cnt]  = _mrk.GetIprocLocalCoordinates(_ypNew[cnt], _sol, solType,  iel);
           _elem[cnt] = iel;
           _NNew[cnt] = getNormal(iel, _ypNew[cnt]);
           _kappaNew[cnt] = getCurvature(iel, _ypNew[cnt]);
@@ -542,11 +549,14 @@ namespace femus {
       unsigned iel = _itElMrkIdx->first;
       unsigned i0 = _itElMrkIdx->second[0];
       unsigned i1 = _itElMrkIdx->second[1];
+
+      unsigned cnt0 = i1 - i0;
       coord.resize(i1 - i0, std::vector<double> (dim));
       weight.resize(i1 - i0);
       norm.assign(dim, 0);
       unsigned cnt = 0;
       double weightSum = 0;
+
       for(unsigned i = i0; i < i1; i++, cnt++) {
         for(unsigned k = 0; k < dim; k++) {
           coord[cnt][k] = _yp[_map[i]][k];
@@ -556,6 +566,14 @@ namespace femus {
         weightSum += weight[cnt];
       }
 
+      double det = 0;
+      for(unsigned k = 0; k < dim; k++) {
+        det += norm[k] * norm[k];
+      }
+      det = sqrt(det);
+      for(unsigned k = 0; k < dim; k++) {
+        norm[k] /= det;
+      }
 
       xn.assign(dim, 0);
 
@@ -606,12 +624,23 @@ namespace femus {
 
           coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
           weight.resize(coord.size() + (j1 - j0), 0.250 * !isFaceElement + isFaceElement);
-          for(unsigned j = j0; j < j1; j++, cnt++) {
+
+          for(unsigned j = j0; j < j1; j++) {
+            double dotProduct = 0.;
             for(unsigned k = 0; k < dim; k++) {
-              coord[cnt][k] = _yp[_map[j]][k];
+              dotProduct += norm[k] * _N[_map[j]][k];
             }
-            weight[cnt] = _ds[_map[j]] * (0.250 * !isFaceElement + isFaceElement);
+            if(acos(dotProduct) < M_PI) {
+              for(unsigned k = 0; k < dim; k++) {
+                coord[cnt][k] = _yp[_map[j]][k];
+              }
+              weight[cnt] = _ds[_map[j]] * (0.250 * !isFaceElement + isFaceElement);
+              cnt++;
+            }
           }
+
+          coord.resize(cnt);
+          weight.resize(cnt);
         }
       }
       if(parallelSearch == false) {
@@ -640,7 +669,16 @@ namespace femus {
           abort();
         }
 
-        femus::GetQuadricBestFit(coord, weight, norm, _A[iel]);
+        FindQuadraticBestFit(coord, weight, norm, _A[iel]); //conica
+
+        double cost1 = GetCost(coord, weight, iel, cnt0);
+        std::vector<double> Atemp = _A[iel];
+
+
+        femus::GetQuadricBestFit(coord, weight, norm, _A[iel]); //parabola
+        double cost2 = GetCost(coord, weight, iel, cnt0);
+
+        if(cost1 < cost2) _A[iel] = Atemp;
 
         double n1Dotn = 0;
 
@@ -1794,6 +1832,94 @@ namespace femus {
       }
     }
   }
+
+
+
+  double Cloud::GetCost(const std::vector<std::vector<double>>x, const std::vector<double>w, const unsigned &iel, const unsigned &nPoints) {
+    double cost = 0;
+    double h2 = 0.;
+    Mesh* msh = _sol->GetMesh();
+    unsigned dim = _sol->GetMesh()->GetDimension();
+
+    unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
+    unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
+    for(unsigned k = 0; k < dim; k++) {
+      double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
+      h2 += h * h;
+    }
+
+    const std::vector<double> &Cf = _A[iel];
+    std::vector<std::vector<double>> xe(2, std::vector<double>(dim));
+
+    for(unsigned i = 0; i < nPoints; i++) {
+
+      const double &x0 = x[i][0];
+      const double &y0 = x[i][1];
+
+      std::vector<double> v = getNormal(iel, x[i]);
+      bool test = false;
+    vct:
+
+      oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
+      oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
+      oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
+
+      oct norm = sqrt(a * a + b * b + c * c);
+      a /= norm;
+      b /= norm;
+      c /= norm;
+
+      unsigned cnt = 0;
+      if(fabs(a) > 1.e-8) {
+        oct delta = b * b - 4 * a * c;
+        if(delta > 0) {
+          for(unsigned j = 0; j < 2; j++) {
+            double t = static_cast<double>((- b + pow(-1, j) * sqrt(delta)) / (2 * a));
+            //if(t >= 0 && t <= 1) {
+            for(unsigned  k = 0; k < dim; k++) {
+              xe[cnt][k] = x[i][k]  + t * v[k];
+            }
+            cnt++;
+            //}
+          }
+        }
+      }
+      else if(b != 0) {
+        double t = static_cast<double>(-c / b);
+        //if(t >= 0 && t <= 1) {
+        for(unsigned  k = 0; k < dim; k++) {
+          xe[cnt][k] = x[i][k]  + t * v[k];
+        }
+        cnt++;
+        //}
+      }
+
+      if(cnt == 0) {
+        cost += h2;
+      }
+      else if(cnt == 1) {
+        for(unsigned k = 0; k < dim; k++) {
+          cost += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
+        }
+      }
+      else {
+        double cost1 = 0.;
+        double cost2 = 0.;
+
+        for(unsigned k = 0; k < dim; k++) {
+          cost1 += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
+          cost2 += (xe[1][k] - x[i][k]) * (xe[1][k] - x[i][k]);
+        }
+        cost += (cost1 < cost2) ? cost1 : cost2;
+
+      }
+
+    }
+
+
+    return cost;
+  }
+
 
 
 

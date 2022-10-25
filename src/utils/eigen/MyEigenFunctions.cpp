@@ -619,7 +619,12 @@ namespace femus {
     unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
     unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
     if(fabs( l(lMin).real() / l(lMax).real()) > 0.05 && x.size() > 5) {
-      FindQuadraticBestFit(x, w, N, a);
+      const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+      for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+      FindParabolaBestFit(x, w, N, a);  
+        
+        
+     // FindQuadraticBestFit(x, w, N, a);
     }
     else{
       const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
@@ -633,3 +638,5 @@ namespace femus {
 
 
 }
+
+
