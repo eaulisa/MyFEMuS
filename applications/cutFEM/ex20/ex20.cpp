@@ -68,28 +68,40 @@ void GetIntervalall(const std::vector <double> &a1, const std::vector <double> &
     }
   }
 
-//This part gives segmentation-fault-core-dumped if one of the region is empty ;
+//This part gives segmentation-fault-core-dumped if one of the region is empty. Solved : it had two problem
+// 1. every time it erases the size goes down but i increases.
+//2. for some reason in case of empty I1, it passes the first for loop. (i=0;i<-1;i++) . If we rewrite for loop as
+// for(unsigned i = 1; i < I1.size(); i++) {
+//     if(I1[i-1].second == I1[i].first) {
+//       I1[i-1].second = I1[i].second;
+//       I1.erase(I1.begin() + i );
+//       i--;
+//     }
+//   }
 
-//   for(unsigned i = 1; i < I1.size(); i++) {
-//     if(I1[i].second == I1[i + 1].first) {
-//       I1[i].second = I1[i + 1].second;
-//       I1.erase(I1.begin() + i + 1);
-//     }
-//   }
-//
-//   for(unsigned i = 1; i < I2.size(); i++) {
-//     if(I2[i].second == I2[i + 1].first) {
-//       I2[i].second = I2[i + 1].second;
-//       I2.erase(I2.begin() + i + 1);
-//     }
-//   }
-//
-//   for(unsigned i = 1; i < I3.size(); i++) {
-//     if(I3[i].second == I3[i + 1].first) {
-//       I3[i].second = I3[i + 1].second;
-//       I3.erase(I3.begin() + i + 1);
-//     }
-//   }
+  for(unsigned i = 1; i < I1.size(); i++) {
+    if(I1[i-1].second == I1[i].first) {
+      I1[i-1].second = I1[i].second;
+      I1.erase(I1.begin() + i );
+      i--;
+    }
+  }
+
+  for(unsigned i = 1; i < I2.size(); i++) {
+    if(I2[i-1].second == I2[i].first) {
+      I2[i-1].second = I2[i].second;
+      I2.erase(I2.begin() + i );
+      i--;
+    }
+  }
+
+  for(unsigned i = 1; i < I3.size(); i++) {
+    if(I3[i-1].second == I3[i].first) {
+      I3[i-1].second = I3[i].second;
+      I3.erase(I3.begin() + i );
+      i--;
+    }
+  }
 
 
 }
@@ -205,6 +217,7 @@ void GetInterval4(double p1, double p2, double q1, double q2, const double &k, s
 void GetInterval2(const double &r1, const double &r2, const bool &pIsComplex, const double &k, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
   if(k > 0) {
     // I1 = empty
+    I1.resize(0);
     I2.resize(1);
     I2[0].first = b(r1);
     I2[0].second = b(r2);
@@ -219,10 +232,15 @@ void GetInterval2(const double &r1, const double &r2, const bool &pIsComplex, co
 
   else { //(k<0)
     I1.resize(1);
+    I2.resize(0);
     I1[0].first = b(r1);
     I1[0].second = b(r2);
     // I2 = I3 = empty
     if(pIsComplex) I1.swap(I2); // swap I1 and I2 if p-roots are complex
+
+    //If swaped it shows both I1 and I2 values !!! Lets add I2.resize(0);
+
+
 
   }
 
@@ -325,7 +343,7 @@ void GetInterval4Old(double p1, double p2, double q1, double q2, const double &k
         I3.resize(2);
         I3[0].first = 0;
         I3[0].second = b(p1);
-        I3[1].first = b(p1);
+        I3[1].first = b(p2);
         I3[1].second = 1;
 
 
@@ -460,17 +478,38 @@ int main() {
 
       clock_t t = clock();
       std::srand(std::time(NULL));
-  for(unsigned i=0;i<10000000;i++){
+  for(unsigned i=0;i<10;i++){
       random_polynomial(a1,a2);
-//        std::cout <<"polynomial p(x) = "<< a1[0] << "x^2 + (" << a1[1] << "x) + (" << a1[2] << ") " <<std::endl;
-//        std::cout <<"polynomial q(x) = "<< a2[0] << "x^2 + (" << a2[1] << "x) + (" << a2[2] << ") " <<std::endl;
+       std::cout <<"polynomial p(x) = "<< a1[0] << "x^2 + (" << a1[1] << "x) + (" << a1[2] << ") " <<std::endl;
+       std::cout <<"polynomial q(x) = "<< a2[0] << "x^2 + (" << a2[1] << "x) + (" << a2[2] << ") " <<std::endl;
 
       double delta1,delta2;
       get_roots(a1,delta1,p1,p2);
       get_roots(a2,delta2,q1,q2);
 
-//       std::cout <<"roots p1 = " << p1 << " & p2 = " << p2 <<std::endl;
-//       std::cout <<"roots q1 = " << q1 << " & q2 = " << q2 <<std::endl;
+      std::cout <<"roots p1 = " << p1 << " & p2 = " << p2 << "d="<<delta1 <<std::endl;
+      std::cout <<"roots q1 = " << q1 << " & q2 = " << q2 << "d="<<delta2 <<std::endl;
+
+           GetIntervalall(a1,a2,I1,I2,I3);
+        std::cout << "I1= " ;
+        for (unsigned i=0 ; i<I1.size(); i++){
+          std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
+        }
+        std::cout << "\nI2= " ;
+        for (unsigned i=0 ; i<I2.size(); i++){
+          std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
+        }
+
+          std::cout << "\nI3= " ;
+        for (unsigned i=0 ; i<I3.size(); i++){
+          std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " <<std::endl;
+        }
+
+
+
+
+      t = clock() - t;
+      std::cout << "\nTime taken for generalized algorithm : " << (double)(t)/ CLOCKS_PER_SEC << std::endl;
 
       if (delta1 > 0){
         if(delta2 > 0){
@@ -492,41 +531,26 @@ int main() {
         }
       }
 
-//         std::cout << "I1= " ;
-//         for (unsigned i=0 ; i<I1.size(); i++){
-//           std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
-//         }
-//         std::cout << "\nI2= " ;
-//         for (unsigned i=0 ; i<I2.size(); i++){
-//           std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
-//         }
-//           std::cout << "\nI3= " ;
-//         for (unsigned i=0 ; i<I3.size(); i++){
-//           std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " ;
-//         }
+        std::cout << "I1= " ;
+        for (unsigned i=0 ; i<I1.size(); i++){
+          std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
+        }
+        std::cout << "\nI2= " ;
+        for (unsigned i=0 ; i<I2.size(); i++){
+          std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
+        }
+          std::cout << "\nI3= " ;
+        for (unsigned i=0 ; i<I3.size(); i++){
+          std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " ;
+        }
 
-  }
+
    t = clock() - t;
    std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
 
 
-//      GetIntervalall(a1,a2,I1,I2,I3);
-//         std::cout << "I1= " ;
-//         for (unsigned i=0 ; i<I1.size(); i++){
-//           std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
-//         }
-//         std::cout << "\nI2= " ;
-//         for (unsigned i=0 ; i<I2.size(); i++){
-//           std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
-//         }
-//  }
-//           std::cout << "\nI3= " ;
-//         for (unsigned i=0 ; i<I3.size(); i++){
-//           std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " <<std::endl;
-//         }
-//
-//       t = clock() - t;
-//       std::cout << "\nTime taken for generalized algorithm : " << (double)(t)/ CLOCKS_PER_SEC << std::endl;
+
+  }
 
   return 1;
 }
