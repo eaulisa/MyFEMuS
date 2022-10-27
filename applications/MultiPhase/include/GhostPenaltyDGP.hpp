@@ -139,7 +139,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
                 double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
-                double C1 = 0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
+                double C1 = 0.05 * h;// / mu; // h * h / (sigma * dt); dt /(rho * h);
                 aResP1 +=  C1 * (solP1 - solP2) * weight;
                 aResP2 -=  C1 * (solP1 - solP2) * weight;
 
@@ -278,7 +278,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                       msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
                       double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
-                      double C1 = 0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
+                      double C1 = 0.05 * h;//0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
                       aResP1 +=  C1 * (solP1 - solP2) * weight;
                       aResP2 -=  C1 * (solP1 - solP2) * weight;
                     }

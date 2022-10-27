@@ -55,11 +55,12 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
 Cloud *cldint;
 
-const double mu1 = 1.;
-const double mu2 = 10.;
-const double rho1 = 100.;
-const double rho2 = 1000.;
-const double sigma = 24.5;
+const double mu2 = 0.009535;
+const double mu1 = 0.006349;
+const double rho2 = 1.5;
+const double rho1 = 1.;
+const double sigma = 0.;
+const double gravity = -10.;
 // const double mu1 = 1.;
 // const double mu2 = 1.;
 // const double rho1 = 1.;
@@ -80,7 +81,7 @@ std::vector <double> g;
 // #define XG 0.
 // #define YG -0.2
 // #define ZG 0.
-bool gravity = true;
+
 
 using namespace femus;
 
@@ -133,12 +134,12 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(4, 8, 0, 0, 1, 0, 2, 0., 0., QUAD9, "fifth"); 
+  mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -226,14 +227,14 @@ int main(int argc, char** args) {
   unsigned nIterations = 1000;
   
   
-  cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+ // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
 //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
-//   cld->AddQuadric({-1./10,0.,0.,0.,+1.,0.}, 8);
+  cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
   cld->ComputeQuadraticBestFit();
 
-  cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+  //cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
 //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
-//   cldint->AddInteriorQuadric({-1./10,0.,0.,0.,+1.,0.});
+  cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
@@ -259,7 +260,7 @@ int main(int argc, char** args) {
     cldint->RKAdvection(4, velocity, dt);
     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
-    cld->RebuildMarkers(10, 10, 10);
+    cld->RebuildMarkers(11, 9, 10);
     cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
     cld->PrintCSV("marker", it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
@@ -273,7 +274,7 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.01;
+  double dt =  0.005;
   return dt;
 }
 
@@ -308,10 +309,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   
-  g.resize(dim);
-  g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
-  if(dim == 3) g[2] = - gravity * 0.98;
+  if(dim ==2) g = {0,gravity};
+  else g = {0,0,gravity};
     
   AssembleGhostPenalty(ml_prob);
   AssembleGhostPenaltyDGP(ml_prob, true);
@@ -754,10 +753,8 @@ void AssembleMultiphaseAD(MultiLevelProblem& ml_prob) {
   RES->zero();
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-  g.resize(dim);
-  g[0] = 0.;
-  g[1] = (dim == 2) ? - gravity * 0.98 : 0;
-  if(dim == 3) g[2] = - gravity * 0.98;
+  if(dim ==2) g = {0,gravity};
+  else g = {0,0,gravity};
   
   AssembleGhostPenalty(ml_prob);
   AssembleGhostPenaltyDGP(ml_prob, true);
