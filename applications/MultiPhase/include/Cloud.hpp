@@ -44,7 +44,7 @@ namespace femus {
 
       void ComputeQuadraticBestFit();
 
-      double GetCost(const std::vector<std::vector<double>>x, const std::vector<double>w, const unsigned &iel, const unsigned &nPoints);
+      double GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &dotProd, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints);
 
       std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
 
@@ -83,6 +83,10 @@ namespace femus {
         return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
       }
 
+      double GetValue(const std::vector<double> &A, const std::vector<double> &xp) {
+        return  A[0] * xp[0] * xp[0] + A[1] * xp[0] * xp[1] + A[2] * xp[1] * xp[1] + A[3] * xp[0] + A[4] * xp[1] + A[5];
+      }
+
 
       double GetCurvature(const unsigned &iel, const std::vector<double> &xp) {
         return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
@@ -100,6 +104,20 @@ namespace femus {
 
         return N;
       }
+
+      std::vector<double> GetNormal(const std::vector<double> &A, const std::vector<double> &xp) {
+        std::vector<double> N(xp.size());
+
+        N[0] = 2 * A[0] * xp[0] + A[1] * xp[1] + A[3];
+        N[1] = 2 * A[2] * xp[1] + A[1] * xp[0] + A[4];
+
+        double norm2 = 0.;
+        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
+
+        return N;
+      }
+
 
       std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
         unsigned dim = _sol->GetMesh()->GetDimension();
@@ -675,31 +693,176 @@ namespace femus {
         }
 
         FindQuadraticBestFit(coord, weight, norm, _A[iel]); //conica
-        double cost1 = GetCost(coord, weight, iel, cnt0);
+
+        std::vector<double> dotProduct(i1 - i0, 0.);
+        double n1Dotn = 0;
+        for(unsigned i = i0; i < i1; i++) {
+          std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
+          for(unsigned k = 0; k < dim; k++) {
+            dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
+          }
+          n1Dotn += dotProduct[i - i0] * weight[i - i0];
+        }
+        if(n1Dotn < 0) {
+          for(unsigned  i = 0; i < _A[iel].size(); i++) {
+            _A[iel][i] *= -1.;
+          }
+          for(unsigned i = 0; i < cnt0; i++) {
+            dotProduct[i] *= -1.;
+          }
+        }
+
+        if(iel == 7243) {
+          for(unsigned i = 0; i < cnt0; i++) {
+            std::cout << dotProduct[i] << " ";
+          }
+          std::cout << std::endl;
+
+        }
+
+
+        double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
         std::vector<double> Acon = _A[iel];
-
-
         femus::GetQuadricBestFit(coord, weight, norm, _A[iel]); //parabola
-        double cost2 = GetCost(coord, weight, iel, cnt0);
+
+        dotProduct.assign(i1 - i0, 0);
+        n1Dotn = 0;
+        for(unsigned i = i0; i < i1; i++) {
+          std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
+          for(unsigned k = 0; k < dim; k++) {
+            dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
+          }
+          n1Dotn += dotProduct[i - i0] * weight[i - i0];
+        }
+        if(iel == 7243) {
+          for(unsigned i = 0; i < cnt0; i++) {
+            std::cout << dotProduct[i] << " ";
+          }
+          std::cout << std::endl << n1Dotn << std::endl;
+        }
+
+        if(n1Dotn < 0) {
+          for(unsigned  i = 0; i < _A[iel].size(); i++) {
+            _A[iel][i] *= -1.;
+          }
+          for(unsigned i = 0; i < cnt0; i++) {
+            dotProduct[i] *= -1.;
+          }
+        }
+        if(iel == 7243) {
+          for(unsigned i = 0; i < cnt0; i++) {
+            std::cout << dotProduct[i] << " ";
+          }
+          std::cout << std::endl;
+
+        }
+
+        double cost2 = GetCost(coord, dotProduct,  weight, iel, cnt0);
         std::vector<double> Apar = _A[iel];
 
         double cost3 = 1.e10;
-        if(cnt0 > 2) {
-          std::vector<double> a(dim, 0.);
-          double d = 0.;
-//           coord.resize(cnt0);
-//           weight.resize(cnt0);
-          femus::FindBestFit(coord, weight, norm, a, d);
-          _A[iel] = {0., 0., 0., a[0], a[1], d};
-          cost3 = GetCost(coord, weight, iel, cnt0);
+//         if(cnt0 > 2) {
+//           std::vector<double> a(dim, 0.);
+//           double d = 0.;
+//           femus::FindBestFit(coord, weight, norm, a, d);
+//           _A[iel] = {0., 0., 0., a[0], a[1], d};
+// 
+//           dotProduct.assign(i1 - i0, 0);
+//           n1Dotn = 0;
+//           for(unsigned i = i0; i < i1; i++) {
+//             std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
+//             for(unsigned k = 0; k < dim; k++) {
+//               dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
+//             }
+//             n1Dotn += dotProduct[i - i0] * weight[i - i0];
+//           }
+//           if(n1Dotn < 0) {
+//             for(unsigned  i = 0; i < _A[iel].size(); i++) {
+//               _A[iel][i] *= -1.;
+//             }
+//             for(unsigned i = 0; i < cnt0; i++) {
+//               dotProduct[i] *= -1.;
+//             }
+//           }
+//           if(iel == 7243) {
+//             for(unsigned i = 0; i < cnt0; i++) {
+//               std::cout << dotProduct[i] << " ";
+//             }
+//             std::cout << std::endl;
+// 
+//           }
+//           cost3 = GetCost(coord, dotProduct, weight, iel, cnt0);
+//         }
+
+        if(cost1 / cost2 > 0.01 || cost2 / cost1 > 0.01) {
+          unsigned counter = 0;
+          std::vector <double> xp(dim);
+          unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
+          for(unsigned i = 0; i < nDofs; i++) {
+            unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+            for(unsigned k = 0; k < dim; k++) {
+              xp[k] = (*msh->_topology->_Sol[k])(xDof);
+            }
+            std::vector<double> n1 = GetNormal(Apar, xp);
+            std::vector<double> n2 = GetNormal(Acon, xp);
+            double dotProd = 0;
+            for(unsigned k = 0; k < dim; k++) {
+              dotProd += n1[k] * n2[k];
+            }
+
+            if(dotProd < 0) {
+              double distMin = 1.0E10;
+              unsigned jMin = 0;
+              for(unsigned j = 1; j < cnt0; j++) {
+                double distj = 0.;
+                for(unsigned k = 0; k < dim; k++) {
+                  distj += (coord[j][k] - xp[k]) * (coord[j][k] - xp[k]);
+                }
+                if(distj > distMin) {
+                  jMin = j;
+                  distMin = distj;
+                }
+              }
+
+              double dotProd1 = 0;
+              for(unsigned k = 0; k < dim; k++) {
+                dotProd1 += n1[k] * _N[_map[i0 + jMin]][k];
+              }
+
+              double dotProd2 = 0;
+              for(unsigned k = 0; k < dim; k++) {
+                dotProd2 += n2[k] * _N[_map[i0 + jMin]][k];
+              }
+
+              if(dotProd1 > dotProd2) {
+                counter++;
+              }
+              else {
+                counter--;
+              }
+            }
+          }
+          if(counter > 0) {
+            Acon = Apar;
+          }
+          else if(counter < 0) {
+            Apar = Acon;
+          }
         }
+
+
+
+
+
+
+
 
 //         unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
 //         unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
 //         double treshold = 0;
 //         for(unsigned k = 0; k < dim; k++) {
 //           double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
-//           treshold += 0.000001 * h * h;
+//           treshold += 0.0001 * h * h;
 //         }
 //         treshold *= cnt0;
 //         if(cost2 < treshold) {
@@ -715,25 +878,25 @@ namespace femus {
 
 
 
-        if(iel == 5402) {
+        if(iel == 7243) {
           std::cout << "BBBBBBB " ;//<< treshold <<  " ";
           std::cout << cost1 << " " << cost2 << " " << cost3 << std::endl;
           std::cout << _A[iel][0] << " " << _A[iel][1] << " " << _A[iel][2] << " " << _A[iel][3] << " " << _A[iel][4] << " " << _A[iel][5] << std::endl;
         }
+        /*
+                n1Dotn = 0;
 
-        double n1Dotn = 0;
-
-        for(unsigned i = i0; i < i1; i++) {
-          std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
-          for(unsigned k = 0; k < dim; k++) {
-            n1Dotn += _N[_map[i]][k] * n1[k];
-          }
-        }
-        if(n1Dotn < 0) {
-          for(unsigned  i = 0; i < _A[iel].size(); i++) {
-            _A[iel][i] *= -1.;
-          }
-        }
+                for(unsigned i = i0; i < i1; i++) {
+                  std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
+                  for(unsigned k = 0; k < dim; k++) {
+                    n1Dotn += _N[_map[i]][k] * n1[k];
+                  }
+                }
+                if(n1Dotn < 0) {
+                  for(unsigned  i = 0; i < _A[iel].size(); i++) {
+                    _A[iel][i] *= -1.;
+                  }
+                }*/
       }
     }
 
@@ -915,12 +1078,12 @@ namespace femus {
 //               femus::GetQuadricBestFit(coord, weight, norm, _A[kel]);
 
               FindQuadraticBestFit(coord, weight, norm, _A[kel]); //conic
-              double cost1 = GetCost(coord, weight, kel, cnt0);
+              double cost1 = GetCost(coord, weight, weight, kel, cnt0);
               std::vector<double> Acon = _A[kel];
 
 
               femus::GetQuadricBestFit(coord, weight, norm, _A[kel]); //parabola
-              double cost2 = GetCost(coord, weight, kel, cnt0);
+              double cost2 = GetCost(coord, weight, weight, kel, cnt0);
               std::vector<double> Apar = _A[kel];
 
               double cost3 = 1.e10;
@@ -931,7 +1094,7 @@ namespace femus {
 //           weight.resize(cnt0);
                 femus::FindBestFit(coord, weight, norm, a, d);
                 _A[kel] = {0., 0., 0., a[0], a[1], d};
-                cost3 = GetCost(coord, weight, kel, cnt0);
+                cost3 = GetCost(coord, weight, weight, kel, cnt0);
               }
 
 
@@ -1921,7 +2084,7 @@ namespace femus {
 
 
 
-  double Cloud::GetCost(const std::vector<std::vector<double>>x, const std::vector<double>w, const unsigned &iel, const unsigned &nPoints) {
+  double Cloud::GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &y, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints) {
     double cost = 0;
     double h2 = 0.;
     Mesh* msh = _sol->GetMesh();
@@ -1984,9 +2147,12 @@ namespace femus {
         cost += h2;
       }
       else if(cnt == 1) {
+        double cost1 = 0.;
         for(unsigned k = 0; k < dim; k++) {
-          cost += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
+          cost1 += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
         }
+        cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5) * w[i] **/ cost1;
+        if(y[i] < -0.25) cost += h2;
       }
       else {
         double cost1 = 0.;
@@ -1996,10 +2162,9 @@ namespace femus {
           cost1 += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
           cost2 += (xe[1][k] - x[i][k]) * (xe[1][k] - x[i][k]);
         }
-        cost += (cost1 < cost2) ? cost1 : cost2;
-
+        cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5) * w[i] **/ ((cost1 < cost2) ? cost1 : cost2);
+        if(y[i] < -0.25) cost += h2;
       }
-
     }
 
 
