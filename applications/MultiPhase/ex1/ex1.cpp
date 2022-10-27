@@ -34,10 +34,7 @@
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
-
-#include "BestFitPlane.hpp"
 #include "Fem.hpp"
-#include "GenerateTriangles.hpp"
 
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
@@ -571,8 +568,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
 //         kk = cld->getCurvature(iel, xqp);
-       kk = cld->getAverageCurvature(iel);
-        NN = cld->getNormal(iel, xqp);
+       kk = cld->GetAverageCurvature(iel);
+        NN = cld->GetNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
 //       NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
@@ -1012,9 +1009,9 @@ void AssembleMultiphaseAD(MultiLevelProblem& ml_prob) {
 
       if(cld->GetNumberOfMarker(iel) > 0) {
         double magN2 = 0.;
-//         kk = cld->getCurvature(iel, xqp);
-       kk = cld->getAverageCurvature(iel);
-        NN = cld->getNormal(iel, xqp);
+//         kk = cld->GetCurvature(iel, xqp);
+       kk = cld->GetAverageCurvature(iel);
+        NN = cld->GetNormal(iel, xqp);
 //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
 //       kk = 1. / RADIUS;
 //       NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
