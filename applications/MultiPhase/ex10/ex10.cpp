@@ -393,7 +393,7 @@ int main(int argc, char** args) {
     cld.PrintCSV("markerBefore", it);
     cld.ComputeQuadraticBestFit();
 
-    cld.RebuildMarkers(8, 12, 8);
+    cld.RebuildMarkers(20, 22, 20);
 
     cldint.RebuildInteriorMarkers(cld, "C", "Cn");
     cldint.PrintCSV("markerInternal", it);

@@ -766,7 +766,7 @@ namespace femus {
 //           double d = 0.;
 //           femus::FindBestFit(coord, weight, norm, a, d);
 //           _A[iel] = {0., 0., 0., a[0], a[1], d};
-// 
+//
 //           dotProduct.assign(i1 - i0, 0);
 //           n1Dotn = 0;
 //           for(unsigned i = i0; i < i1; i++) {
@@ -789,13 +789,13 @@ namespace femus {
 //               std::cout << dotProduct[i] << " ";
 //             }
 //             std::cout << std::endl;
-// 
+//
 //           }
 //           cost3 = GetCost(coord, dotProduct, weight, iel, cnt0);
 //         }
 
-        if(cost1 / cost2 > 0.01 || cost2 / cost1 > 0.01) {
-          unsigned counter = 0;
+        if(cost1 / cost2 > 0.001 && cost2 / cost1 > 0.001) {
+          double counter = 0.;
           std::vector <double> xp(dim);
           unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
           for(unsigned i = 0; i < nDofs; i++) {
@@ -810,7 +810,11 @@ namespace femus {
               dotProd += n1[k] * n2[k];
             }
 
-            if(dotProd < 0) {
+            if(iel == 7735) {
+              std::cout << i << " " <<  GetValue(Apar, xp) << " " << GetValue(Acon, xp) << " " << counter << std::endl;
+            }
+
+            if(dotProd < 0 && GetValue(Apar, xp) * GetValue(Acon, xp) < 0) {
               double distMin = 1.0E10;
               unsigned jMin = 0;
               for(unsigned j = 1; j < cnt0; j++) {
@@ -824,6 +828,8 @@ namespace femus {
                 }
               }
 
+
+
               double dotProd1 = 0;
               for(unsigned k = 0; k < dim; k++) {
                 dotProd1 += n1[k] * _N[_map[i0 + jMin]][k];
@@ -834,13 +840,27 @@ namespace femus {
                 dotProd2 += n2[k] * _N[_map[i0 + jMin]][k];
               }
 
-              if(dotProd1 > dotProd2) {
-                counter++;
+              counter += dotProd1 - dotProd2;
+
+              if(iel == 7735) {
+                std::cout << i << " " <<  dotProd1 << " " << dotProd2 << " " << counter << std::endl;
               }
-              else {
-                counter--;
-              }
+
+//               if( dotProd1 > dotProd2 ) {
+//                 counter += (dotProd1 - dotProd2);
+//               }
+//               else if {
+//                 counter -= (dotProd2 - dotProd1);
+//               }
             }
+          }
+          if(iel == 7735) {
+
+
+            std::cout << " counter = " << counter << std::endl;
+            std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
+            std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
+
           }
           if(counter > 0) {
             Acon = Apar;
@@ -878,10 +898,24 @@ namespace femus {
 
 
 
-        if(iel == 7243) {
+        if(iel == 7735) {
+          double xMin[2] = { 1.0e10, 1.0e10};
+          double xMax[2] = { -1.0e10, -1.0e10};
+
+          unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
+          for(unsigned i = 0; i < nDofs; i++) {
+            unsigned xDof  = msh->GetSolutionDof(i, iel, 2);
+            for(unsigned k = 0; k < dim; k++) {
+              double x = (*msh->_topology->_Sol[k])(xDof);
+              if(x < xMin[k]) xMin[k] = x;
+              if(x > xMax[k]) xMax[k] = x;
+            }
+          }
+
           std::cout << "BBBBBBB " ;//<< treshold <<  " ";
           std::cout << cost1 << " " << cost2 << " " << cost3 << std::endl;
-          std::cout << _A[iel][0] << " " << _A[iel][1] << " " << _A[iel][2] << " " << _A[iel][3] << " " << _A[iel][4] << " " << _A[iel][5] << std::endl;
+          std::cout << "a = " << _A[iel][0] << "; b=" << _A[iel][1] << "; c=" << _A[iel][2] << "; d=" << _A[iel][3] << "; e=" << _A[iel][4] << "; f= " << _A[iel][5] << ";\n";
+          std::cout << " {x," << xMin[0] << ", " << xMax[0] << "},{" << "{y," << xMin[1] << ", " << xMax[1] << "}" << std::endl;
         }
         /*
                 n1Dotn = 0;
