@@ -458,9 +458,9 @@ namespace femus {
   }
 
   void FindParabolaBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a) {
-    const unsigned& dim = N.size();  
+    const unsigned& dim = N.size();
     unsigned np = x.size();
-    
+
     std::vector < double > xg(dim, 0.);
     double wSum = 0;
     for(unsigned i = 0; i < np; i++) {
@@ -472,7 +472,7 @@ namespace femus {
     for(unsigned k = 0; k < dim; k++) {
       xg[k] /= wSum;
     }
-    
+
     double t = atan2(- N[0], N[1]);
 
     double cost = cos(t);
@@ -486,7 +486,7 @@ namespace femus {
       double d2 = xp[i][0] * xp[i][0] + xp[i][1] * xp[i][1];
       if(d2 > maxD2) maxD2 = d2;
     }
-    
+
     double maxD = sqrt(maxD2);
 
     unsigned nParam = 4;
@@ -585,53 +585,109 @@ namespace femus {
 //      std::cout << t / M_PI * 180 << " AAAAA " << "a=" << a[0] << ";\nb=" << a[1] << ";\nc=" << a[2] << ";\nd=" << a[3] << ";\ne=" << a[4] << ";\nf=" << a[5] << std::endl;
 
   }
-  
-  
-  void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a) {
+
+
+  void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a, unsigned cnt0) {
     const unsigned& dim = N.size();
 
-    unsigned np = x.size();
-    Eigen::MatrixXd X(np, 2);
+    if(cnt0 <= 2) {
+      cnt0 = x.size();  
+      //FindParabolaBestFit(x, w, N, a);
+    }
+    else {
+      unsigned np = cnt0;
+      Eigen::MatrixXd X(np, 2);
 
-    std::vector < double > xg(dim, 0.);
-    double wSum = 0;
-    for(unsigned i = 0; i < np; i++) {
-      for(unsigned k = 0; k < dim; k++) {
-        xg[k] += (*w)[i] * x[i][k];
+      std::vector < double > xg(dim, 0.);
+      double wSum = 0;
+      for(unsigned i = 0; i < np; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += (*w)[i] * x[i][k];
+        }
+        wSum += (*w)[i];
       }
-      wSum += (*w)[i];
-    }
-    for(unsigned k = 0; k < dim; k++) {
-      xg[k] /= wSum;
-    }
-
-    for(unsigned i = 0; i < np; i++) {
       for(unsigned k = 0; k < dim; k++) {
-        X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
+        xg[k] /= wSum;
       }
-    }
 
-    Eigen::MatrixXd A(2, 2);
-    A = X.transpose() * X;
+      for(unsigned i = 0; i < np; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
+        }
+      }
 
-    Eigen::EigenSolver<Eigen::MatrixXd> es(A);
-    const Eigen::VectorXcd &l = es.eigenvalues().col(0);
-    unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
-    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
-    if(fabs( l(lMin).real() / l(lMax).real()) > 0.05 && x.size() > 5) {
-      const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
-      for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
-      FindParabolaBestFit(x, w, N, a);  
-        
-        
-     // FindQuadraticBestFit(x, w, N, a);
-    }
-    else{
+      Eigen::MatrixXd A(2, 2);
+      A = X.transpose() * X;
+
+      Eigen::EigenSolver<Eigen::MatrixXd> es(A);
+      const Eigen::VectorXcd &l = es.eigenvalues().col(0);
+      unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
+      unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
+      
       const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
       for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
       FindParabolaBestFit(x, w, N, a);
+      
+      
+      
+//       if(fabs(l(lMin).real() / l(lMax).real()) > 0.05 && x.size() > 5) {
+//         const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+//         for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+//         FindParabolaBestFit(x, w, N, a);
+// 
+// 
+//         // FindQuadraticBestFit(x, w, N, a);
+//       }
+//       else {
+//         const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+//         for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+//         FindParabolaBestFit(x, w, N, a);
+//       }
+
     }
-        
+
+//     unsigned np = x.size();
+//     Eigen::MatrixXd X(np, 2);
+//
+//     std::vector < double > xg(dim, 0.);
+//     double wSum = 0;
+//     for(unsigned i = 0; i < np; i++) {
+//       for(unsigned k = 0; k < dim; k++) {
+//         xg[k] += (*w)[i] * x[i][k];
+//       }
+//       wSum += (*w)[i];
+//     }
+//     for(unsigned k = 0; k < dim; k++) {
+//       xg[k] /= wSum;
+//     }
+//
+//     for(unsigned i = 0; i < np; i++) {
+//       for(unsigned k = 0; k < dim; k++) {
+//         X(i, k) = /*sqrt((*w)[i]) **/ (x[i][k] - xg[k]);
+//       }
+//     }
+//
+//     Eigen::MatrixXd A(2, 2);
+//     A = X.transpose() * X;
+//
+//     Eigen::EigenSolver<Eigen::MatrixXd> es(A);
+//     const Eigen::VectorXcd &l = es.eigenvalues().col(0);
+//     unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
+//     unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
+//     if(fabs( l(lMin).real() / l(lMax).real()) > 0.05 && x.size() > 5) {
+//       const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+//       for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+//       FindParabolaBestFit(x, w, N, a);
+//
+//
+//      // FindQuadraticBestFit(x, w, N, a);
+//     }
+//     else{
+//       const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+//       for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
+//       FindParabolaBestFit(x, w, N, a);
+//     }
+
   }
 
 

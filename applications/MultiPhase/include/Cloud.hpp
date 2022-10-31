@@ -723,7 +723,7 @@ namespace femus {
 
         double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
         std::vector<double> Acon = _A[iel];
-        femus::GetQuadricBestFit(coord, weight, norm, _A[iel]); //parabola
+        femus::GetQuadricBestFit(coord, weight, norm, _A[iel], coord.size()); //parabola
 
         dotProduct.assign(i1 - i0, 0);
         n1Dotn = 0;
@@ -794,7 +794,7 @@ namespace femus {
 //           cost3 = GetCost(coord, dotProduct, weight, iel, cnt0);
 //         }
 
-        if(cost1 / cost2 > 0.001 && cost2 / cost1 > 0.001) {
+        if(cost1 / cost2 > 0.001 && cost2 / cost1 > 0.00001) {
           double counter = 0.;
           std::vector <double> xp(dim);
           unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -1116,7 +1116,7 @@ namespace femus {
               std::vector<double> Acon = _A[kel];
 
 
-              femus::GetQuadricBestFit(coord, weight, norm, _A[kel]); //parabola
+              femus::GetQuadricBestFit(coord, weight, norm, _A[kel], coord.size()); //parabola
               double cost2 = GetCost(coord, weight, weight, kel, cnt0);
               std::vector<double> Apar = _A[kel];
 
@@ -1237,42 +1237,53 @@ namespace femus {
 
       if(cnt == 2) {
 
-        xe.resize(npt, std::vector<double>(dim));
-
-        double &x0 = xe[0][0];
-        double &y0 = xe[0][1];
-        double &x1 = xe[1][0];
-        double &y1 = xe[1][1];
-
-        std::vector<double> xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
-        std::vector<double> N = GetNormal(iel, xm);
-        double kappa = GetCurvature(iel, xm);
-        if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
-        std::vector<double> xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
-
-        double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
-        double theta1 = atan2(y1 - xc[1], x1 - xc[0]);
-
-        double dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
-        double dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
-
-        if(dt0 < dt1) {
-          xe[npt - 1] = xe[1];
-        }
-        else {
-          xe[npt - 1] = xe[0];
-          xe[0] = xe[1];
-          dt0 = dt1;
-          theta0 = theta1;
-        }
-
         cnt = 1;
-        double R = sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1]));
+        xe.resize(npt, std::vector<double>(dim));
+        xe[npt - 1][0] = xe[1][0];
+        xe[npt - 1][1] = xe[1][1];
+
+
+        double kappa, dt0;
 
         for(unsigned i = 0; i < npt - 2; i++) {
 
-          v[0] = R * cos(theta0 + (i + 1) * dt0 / (npt - 1));
-          v[1] = R * sin(theta0 + (i + 1) * dt0 / (npt - 1));
+          double x0 = xe[cnt - 1][0];
+          double y0 = xe[cnt - 1][1];
+          double x1 = xe[npt - 1][0];
+          double y1 = xe[npt - 1][1];
+
+          std::vector<double> xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
+          std::vector<double> N = GetNormal(iel, xm);
+          kappa = GetCurvature(iel, xm);
+          if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
+          std::vector<double> xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
+
+          double theta0 = atan2(y0 - xc[1], x0 - xc[0]);
+          double theta1 = atan2(y1 - xc[1], x1 - xc[0]);
+
+          dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
+          double dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
+
+          //std::cout << i << " " << theta0 << " " << theta1 << " " << x0 << " " << x1 << " " << y0 << " " << y1 << std::endl;
+
+          if(dt0 > dt1) {
+            dt0 = dt1;
+            theta0 = theta1;
+            xe[npt - 1] = {x0, y0};
+            xe[cnt - 1] = {x1, y1};
+            x0 = xe[cnt - 1][0];
+            y0 = xe[cnt - 1][1];
+            x1 = xe[npt - 1][0];
+            y1 = xe[npt - 1][1];
+          }
+          double R = sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1]));
+
+
+//           v[0] = R * cos(theta0 + (i + 1) * dt0 / (npt - 1));
+//           v[1] = R * sin(theta0 + (i + 1) * dt0 / (npt - 1));
+
+          v[0] = R * cos(theta0 + dt0 / (npt - i - 1));
+          v[1] = R * sin(theta0 + dt0 / (npt - i - 1));
 
           oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
           oct b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
@@ -1282,6 +1293,8 @@ namespace femus {
           a /= norm;
           b /= norm;
           c /= norm;
+
+          //unsigned cnti = cnt;
 
           if(fabs(a) > 1.e-8) {
             oct delta = b * b - 4 * a * c;
@@ -1313,6 +1326,15 @@ namespace femus {
           xe[cnt] = xe[npt - 1];
           xe.resize(cnt + 1);
         }
+
+
+
+
+
+
+
+
+
         cnt++;
         npt = cnt;
       }
@@ -2212,6 +2234,7 @@ namespace femus {
 
 
 #endif
+
 
 
 

@@ -225,7 +225,7 @@ int main(int argc, char** args) {
   std::vector<double> N = {9.22306, -19.7871 };
 
   std::vector<double>A;
-  femus::GetQuadricBestFit(x, w, N, A);
+  femus::GetQuadricBestFit(x, w, N, A, x.size());
 
 
   std::cout << "a="<<A[0]  << ";\nb=" << A[1] << ";\nc=" << A[2] << ";\nd=" << A[3] << ";\ne=" << A[4] << ";\nf=" << A[5] << std::endl;
@@ -393,7 +393,7 @@ int main(int argc, char** args) {
     cld.PrintCSV("markerBefore", it);
     cld.ComputeQuadraticBestFit();
 
-    cld.RebuildMarkers(20, 22, 20);
+    cld.RebuildMarkers(8, 12, 8);
 
     cldint.RebuildInteriorMarkers(cld, "C", "Cn");
     cldint.PrintCSV("markerInternal", it);
