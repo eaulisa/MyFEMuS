@@ -21,173 +21,173 @@ namespace femus {
 
 
   class Cloud {
-    public:
-      Cloud(Solution* sol) {
-        _mrk = MyMarker();
-        _sol = sol;
-      };
-      ~Cloud() {};
-      void SetNumberOfMarker(const unsigned &nMax);
-      void AddQuadric(const std::vector<double> &A, const unsigned &npt);
-      void AddInteriorQuadric(const std::vector<double> &A);
+  public:
+    Cloud(Solution* sol) {
+      _mrk = MyMarker();
+      _sol = sol;
+    };
+    ~Cloud() {};
+    void SetNumberOfMarker(const unsigned &nMax);
+    void AddQuadric(const std::vector<double> &A, const unsigned &npt);
+    void AddInteriorQuadric(const std::vector<double> &A);
 
-      void AddCircle(const std::vector<double> &xc, const double &R, const unsigned &npt);
-      void AddEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt);
-      void AddEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt);
+    void AddCircle(const std::vector<double> &xc, const double &R, const unsigned &npt);
+    void AddEllipse(const std::vector<double> &xc, const std::vector<double> &a, const unsigned &npt);
+    void AddEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a, const std::vector<unsigned> &npt);
 
-      void AddInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a);
-      void AddInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a);
+    void AddInteriorEllipse(const std::vector<double> &xc, const std::vector<double> &a);
+    void AddInteriorEllipses(const std::vector<std::vector<double>> &xc, const std::vector<std::vector<double>> &a);
 
-      void PrintNoOrder(const unsigned &t);
-      void PrintWithOrder(const unsigned &t);
-      void PrintCSV(const std::string &filename, const unsigned &t);
+    void PrintNoOrder(const unsigned &t);
+    void PrintWithOrder(const unsigned &t);
+    void PrintCSV(const std::string &filename, const unsigned &t);
 
-      void ComputeQuadraticBestFit();
+    void ComputeQuadraticBestFit();
 
-      double GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &dotProd, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints);
+    double GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &dotProd, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints);
 
-      std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
+    std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
 
-      void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
+    void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
 
-      void RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn);
+    void RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn);
 
-      const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
-        return _A;
+    const std::map<unsigned, std::vector<double>> GetQuadraticBestFitCoefficients() {
+      return _A;
+    }
+
+    void SetQuadraticBestFitCoefficients(const unsigned &iel, const std::vector<double> &A) {
+      _A[iel] = A;
+    }
+
+
+    const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
+      if(_A.find(iel) != _A.end()) {
+        return _A.at(iel);
       }
-
-      void SetQuadraticBestFitCoefficients(const unsigned &iel, const std::vector<double> &A) {
-        _A[iel] = A;
+      else {
+        return {};
       }
+    }
 
-
-      const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
-        if(_A.find(iel) != _A.end()) {
-          return _A.at(iel);
-        }
-        else {
-          return {};
-        }
+    unsigned GetNumberOfMarker(const unsigned &iel) {
+      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+        return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
       }
-
-      unsigned GetNumberOfMarker(const unsigned &iel) {
-        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-          return _elMrkIdx[iel][1] - _elMrkIdx[iel][0];
-        }
-        else {
-          return 0;
-        }
+      else {
+        return 0;
       }
+    }
 
-      double GetValue(const unsigned &iel, const std::vector<double> &xp) {
-        return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
-      }
+    double GetValue(const unsigned &iel, const std::vector<double> &xp) {
+      return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
+    }
 
-      double GetValue(const std::vector<double> &A, const std::vector<double> &xp) {
-        return  A[0] * xp[0] * xp[0] + A[1] * xp[0] * xp[1] + A[2] * xp[1] * xp[1] + A[3] * xp[0] + A[4] * xp[1] + A[5];
-      }
-
-
-      double GetCurvature(const unsigned &iel, const std::vector<double> &xp) {
-        return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
-      }
-
-      std::vector<double> GetNormal(const unsigned &iel, const std::vector<double> &xp) {
-        std::vector<double> N(xp.size());
-
-        N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
-        N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
-
-        double norm2 = 0.;
-        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
-        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
-
-        return N;
-      }
-
-      std::vector<double> GetNormal(const std::vector<double> &A, const std::vector<double> &xp) {
-        std::vector<double> N(xp.size());
-
-        N[0] = 2 * A[0] * xp[0] + A[1] * xp[1] + A[3];
-        N[1] = 2 * A[2] * xp[1] + A[1] * xp[0] + A[4];
-
-        double norm2 = 0.;
-        for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
-        for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
-
-        return N;
-      }
+    double GetValue(const std::vector<double> &A, const std::vector<double> &xp) {
+      return  A[0] * xp[0] * xp[0] + A[1] * xp[0] * xp[1] + A[2] * xp[1] * xp[1] + A[3] * xp[0] + A[4] * xp[1] + A[5];
+    }
 
 
-      std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
-        unsigned dim = _sol->GetMesh()->GetDimension();
-        std::vector <double> yg(dim, 0.);
-        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
-          for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
-            for(unsigned k = 0; k < dim; k++)  {
-              yg[k] += _yi[_map[i]][k];
-            }
+    double GetCurvature(const unsigned &iel, const std::vector<double> &xp) {
+      return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
+    }
+
+    std::vector<double> GetNormal(const unsigned &iel, const std::vector<double> &xp) {
+      std::vector<double> N(xp.size());
+
+      N[0] = 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1] + _A[iel][3];
+      N[1] = 2 * _A[iel][2] * xp[1] + _A[iel][1] * xp[0] + _A[iel][4];
+
+      double norm2 = 0.;
+      for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+      for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
+
+      return N;
+    }
+
+    std::vector<double> GetNormal(const std::vector<double> &A, const std::vector<double> &xp) {
+      std::vector<double> N(xp.size());
+
+      N[0] = 2 * A[0] * xp[0] + A[1] * xp[1] + A[3];
+      N[1] = 2 * A[2] * xp[1] + A[1] * xp[0] + A[4];
+
+      double norm2 = 0.;
+      for(unsigned i = 0; i < N.size(); i++) norm2 += N[i] * N[i];
+      for(unsigned i = 0; i < N.size(); i++) N[i] /= sqrt(norm2);
+
+      return N;
+    }
+
+
+    std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
+      unsigned dim = _sol->GetMesh()->GetDimension();
+      std::vector <double> yg(dim, 0.);
+      if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+        for(unsigned i = _elMrkIdx[iel][0]; i < _elMrkIdx[iel][1]; i++) {
+          for(unsigned k = 0; k < dim; k++)  {
+            yg[k] += _yi[_map[i]][k];
           }
-          for(unsigned k = 0; k < dim; k++)  yg[k] /= (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
         }
-        else {
-          std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
-          abort();
-        }
-        return yg;
+        for(unsigned k = 0; k < dim; k++)  yg[k] /= (_elMrkIdx[iel][1] - _elMrkIdx[iel][0]);
       }
-
-      double GetAverageCurvature(const unsigned &iel) {
-        unsigned i1 = _elMrkIdx[iel][1];
-        unsigned i0 = _elMrkIdx[iel][0];
-        double avgK = 0.;
-        if(i1 - i0 > 0) {
-          for(unsigned i = i0; i < i1; i++) {
-            avgK += _kappa[_map[i]];
-          }
-          avgK /= (i1 - i0);
-        }
-        else {
-          std::cerr << "No marker found in function getAverageCurvature \n";
-          abort();
-        }
-        return avgK;
+      else {
+        std::cerr << "In function Cloud::GetCloudBaricenterInParentElement, this element has no marker!!!!!!\n";
+        abort();
       }
+      return yg;
+    }
 
-      void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
-      void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
-      void BuildColorFunction(const char C);
+    double GetAverageCurvature(const unsigned &iel) {
+      unsigned i1 = _elMrkIdx[iel][1];
+      unsigned i0 = _elMrkIdx[iel][0];
+      double avgK = 0.;
+      if(i1 - i0 > 0) {
+        for(unsigned i = i0; i < i1; i++) {
+          avgK += _kappa[_map[i]];
+        }
+        avgK /= (i1 - i0);
+      }
+      else {
+        std::cerr << "No marker found in function getAverageCurvature \n";
+        abort();
+      }
+      return avgK;
+    }
 
-    private:
+    void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
+    void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
+    void BuildColorFunction(const char C);
 
-      void CreateMap();
-      bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
+  private:
 
-      Solution *_sol;
-      unsigned _nMrk;
-      std::ofstream _fout;
-      std::vector<std::vector<double>> _yp;
-      std::vector<std::vector<double>> _N;
-      std::vector<double> _kappa;
-      std::vector<double> _ds;
-      std::vector<std::vector<double>> _yi;
+    void CreateMap();
+    bool ParallelElementSearch(const std::vector<double> &xp, const unsigned previousElem);
 
-      std::vector<std::vector<double>> _ypNew;
-      std::vector<std::vector<double>> _yiNew;
-      std::vector<std::vector<double>> _NNew;
-      std::vector<double> _kappaNew;
-      std::vector<double> _dsNew;
+    Solution *_sol;
+    unsigned _nMrk;
+    std::ofstream _fout;
+    std::vector<std::vector<double>> _yp;
+    std::vector<std::vector<double>> _N;
+    std::vector<double> _kappa;
+    std::vector<double> _ds;
+    std::vector<std::vector<double>> _yi;
+
+    std::vector<std::vector<double>> _ypNew;
+    std::vector<std::vector<double>> _yiNew;
+    std::vector<std::vector<double>> _NNew;
+    std::vector<double> _kappaNew;
+    std::vector<double> _dsNew;
 
 
-      std::vector<unsigned> _elem;
-      std::vector<unsigned> _elemNew;
-      std::vector<unsigned> _map;
-      MyMarker _mrk;
-      std::map<unsigned, std::vector<double>> _A;
-      std::map<unsigned, unsigned [2] > _elMrkIdx;
-      std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
+    std::vector<unsigned> _elem;
+    std::vector<unsigned> _elemNew;
+    std::vector<unsigned> _map;
+    MyMarker _mrk;
+    std::map<unsigned, std::vector<double>> _A;
+    std::map<unsigned, unsigned [2] > _elMrkIdx;
+    std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
 
-      const std::vector<std::vector<double>> _yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
+    const std::vector<std::vector<double>> _yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
 
 
   };
@@ -724,29 +724,65 @@ namespace femus {
         double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
         std::vector<double> Acon = _A[iel];
         if(cnt0 <= 2) {
+          unsigned nEP = 3;
+          nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
           if(coord.size() > 6) {
-            unsigned j1 = cnt0 + 1, j2 = cnt0 + 2, j3 = cnt0 + 3;
-            if(weight[j1] < weight[j2]) std::swap(j1, j2);
-            if(weight[j1] < weight[j3]) std::swap(j1, j3);
-            if(weight[j2] < weight[j3]) std::swap(j2, j3);
-            for(unsigned j = cnt0 + 4; j < coord.size(); j++) {
-              if(weight[j] > weight[j3]) {
-                std::swap(j, j3);
-                if(weight[j2] < weight[j3]) {
-                  std::swap(j2, j3);
-                  if(weight[j1] < weight[j2]) {
-                    std::swap(j1, j2);
+            std::vector<unsigned> j(nEP);
+
+            std::vector<double*> weightP(nEP);
+            for(unsigned i = 0; i < nEP; i++) {
+              weightP[i] = &weight[cnt0 + i];
+            }
+            std::sort(weightP.begin(), weightP.end(), [](const double * a, const double * b) {
+              return *a < *b;
+            });
+            for(unsigned i = 0; i < nEP; i++) {
+              j[i] =  cnt0 + static_cast<unsigned>(weightP[i] - &weight[cnt0]);
+            }
+
+            for(unsigned k = cnt0 + nEP; k < coord.size(); k++) {
+              bool keepWhile = true;
+              unsigned kn = nEP - 1;
+              while(keepWhile) {
+                keepWhile = false;
+                if(weight[k] > weight[j[kn]]) {
+                  std::swap(k, j[kn]);
+                  if(kn > 0) {
+                    keepWhile = true;
+                    kn--;
                   }
                 }
               }
             }
-            std::swap(weight[j1], weight[cnt0 + 1]);
-            std::swap(weight[j2], weight[cnt0 + 2]);
-            std::swap(weight[j3], weight[cnt0 + 3]);
+            for(unsigned k = 0; k < nEP; k++) {
+              std::swap(weight[j[k]], weight[cnt0 + k]);
+              coord[j[k]].swap(coord[cnt0 + k]);
+            }
 
-            coord[j1].swap(coord[cnt0 + 1]);
-            coord[j2].swap(coord[cnt0 + 2]);
-            coord[j3].swap(coord[cnt0 + 3]);
+
+//             unsigned j1 = cnt0 + 1, j2 = cnt0 + 2, j3 = cnt0 + 3;
+//             if(weight[j1] < weight[j2]) std::swap(j1, j2);
+//             if(weight[j1] < weight[j3]) std::swap(j1, j3);
+//             if(weight[j2] < weight[j3]) std::swap(j2, j3);
+//             for(unsigned j = cnt0 + 4; j < coord.size(); j++) {
+//               if(weight[j] > weight[j3]) {
+//                 std::swap(j, j3);
+//                 if(weight[j2] < weight[j3]) {
+//                   std::swap(j2, j3);
+//                   if(weight[j1] < weight[j2]) {
+//                     std::swap(j1, j2);
+//                   }
+//                 }
+//               }
+//             }
+//             std::vector<double> weight1 = weight;
+//             std::swap(weight1[j1], weight1[cnt0 + 1]);
+//             std::swap(weight1[j2], weight1[cnt0 + 2]);
+//             std::swap(weight1[j3], weight1[cnt0 + 3]);
+//
+//             coord[j1].swap(coord[cnt0 + 1]);
+//             coord[j2].swap(coord[cnt0 + 2]);
+//             coord[j3].swap(coord[cnt0 + 3]);
 
             femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0 + 3); //parabola
 
@@ -766,7 +802,7 @@ namespace femus {
           for(unsigned k = 0; k < dim; k++) {
             dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
           }
-          n1Dotn += dotProduct[i - i0] * weight[i - i0];
+          n1Dotn += dotProduct[i - i0] * weight[i - i0]; //TODO is this ok if we swap the weights above?
         }
         if(iel == 7736) {
           for(unsigned i = 0; i < cnt0; i++) {
@@ -791,7 +827,7 @@ namespace femus {
 
         }
 
-        double cost2 = GetCost(coord, dotProduct,  weight, iel, cnt0);
+        double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
         std::vector<double> Apar = _A[iel];
 
         double cost3 = 1.e10;
@@ -863,8 +899,6 @@ namespace femus {
                 }
               }
 
-
-
               double dotProd1 = 0;
               for(unsigned k = 0; k < dim; k++) {
                 dotProd1 += n1[k] * _N[_map[i0 + jMin]][k];
@@ -904,12 +938,6 @@ namespace femus {
             Apar = Acon;
           }
         }
-
-
-
-
-
-
 
 
 //         unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
@@ -989,14 +1017,16 @@ namespace femus {
           for(unsigned cntEl = 0; cntEl < nel; cntEl++) {
             unsigned kel;
             unsigned nNgbElms;
+            unsigned i0;
+            unsigned i1;
 
             std::vector<unsigned> jelFace;
             unsigned cnt0 = 0;
 
             if(iproc == kp) {
               kel = it->first;
-              unsigned i0 = _elMrkIdx[kel][0];
-              unsigned i1 = _elMrkIdx[kel][1];
+              i0 = _elMrkIdx[kel][0];
+              i1 = _elMrkIdx[kel][1];
               coord.resize(i1 - i0, std::vector<double> (dim));
               weight.resize(i1 - i0);
               cnt0 = i1 - i0;
@@ -1039,6 +1069,8 @@ namespace femus {
             MPI_Bcast(&nNgbElms, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
             jelFace.resize(nNgbElms);
             MPI_Bcast(jelFace.data(), jelFace.size(), MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
+//             MPI_Bcast(&i1, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
+//             MPI_Bcast(&i0, 1, MPI_UNSIGNED, kp, PETSC_COMM_WORLD);
 
             for(unsigned i = 1; i < nNgbElms; i++) {
 
@@ -1144,54 +1176,153 @@ namespace femus {
                 abort();
               }
 
-//               femus::GetQuadricBestFit(coord, weight, norm, _A[kel]);
+              FindQuadraticBestFit(coord, weight, norm, _A[kel]); //conica
 
-              FindQuadraticBestFit(coord, weight, norm, _A[kel]); //conic
-              double cost1 = GetCost(coord, weight, weight, kel, cnt0);
-              std::vector<double> Acon = _A[kel];
-
-
-              femus::GetQuadricBestFit(coord, weight, norm, _A[kel], coord.size()); //parabola
-              double cost2 = GetCost(coord, weight, weight, kel, cnt0);
-              std::vector<double> Apar = _A[kel];
-
-              double cost3 = 1.e10;
-              if(cnt0 > 2) {
-                std::vector<double> a(dim, 0.);
-                double d = 0.;
-//           coord.resize(cnt0);
-//           weight.resize(cnt0);
-                femus::FindBestFit(coord, weight, norm, a, d);
-                _A[kel] = {0., 0., 0., a[0], a[1], d};
-                cost3 = GetCost(coord, weight, weight, kel, cnt0);
-              }
-
-
-              _A[kel] = (cost1 < cost2) ? ((cost1 < cost3) ? Acon : _A[kel]) : ((cost2 < cost3) ? Apar : _A[kel]);
-
-//               FindQuadraticBestFit(coord, weight, norm, _A[kel]); //conica
-//               double cost1 = GetCost(coord, weight, kel, cnt0);
-//               std::vector<double> Atemp = _A[kel];
-//
-//
-//               femus::GetQuadricBestFit(coord, weight, norm, _A[kel]); //parabola
-//               double cost2 = GetCost(coord, weight, kel, cnt0);
-//
-//               if(cost1 < cost2) _A[kel] = Atemp;
-
+              std::vector<double> dotProduct(i1 - i0, 0.);
               double n1Dotn = 0;
-
-              for(unsigned i = _elMrkIdx[kel][0]; i < _elMrkIdx[kel][1]; i++) {
+              for(unsigned i = i0; i < i1; i++) {
                 std::vector <double> n1 = GetNormal(kel,  _yp[_map[i]]);
                 for(unsigned k = 0; k < dim; k++) {
-                  n1Dotn += _N[_map[i]][k] * n1[k];
+                  dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
                 }
+                n1Dotn += dotProduct[i - i0] * weight[i - i0];
               }
               if(n1Dotn < 0) {
                 for(unsigned  i = 0; i < _A[kel].size(); i++) {
                   _A[kel][i] *= -1.;
                 }
+                for(unsigned i = 0; i < cnt0; i++) {
+                  dotProduct[i] *= -1.;
+                }
               }
+
+              double cost1 = GetCost(coord, dotProduct, weight, kel, cnt0);
+              std::vector<double> Acon = _A[kel];
+              if(cnt0 <= 2) {
+                unsigned nEP = 3;
+                nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
+                if(coord.size() > 6) {
+                  std::vector<unsigned> j(nEP);
+
+                  std::vector<double*> weightP(nEP);
+                  for(unsigned i = 0; i < nEP; i++) {
+                    weightP[i] = &weight[cnt0 + i];
+                  }
+                  std::sort(weightP.begin(), weightP.end(), [](const double * a, const double * b) {
+                    return *a < *b;
+                  });
+                  for(unsigned i = 0; i < nEP; i++) {
+                    j[i] =  cnt0 + static_cast<unsigned>(weightP[i] - &weight[cnt0]);
+                  }
+
+                  for(unsigned k = cnt0 + nEP; k < coord.size(); k++) {
+                    bool keepWhile = true;
+                    unsigned kn = nEP - 1;
+                    while(keepWhile) {
+                      keepWhile = false;
+                      if(weight[k] > weight[j[kn]]) {
+                        std::swap(k, j[kn]);
+                        if(kn > 0) {
+                          keepWhile = true;
+                          kn--;
+                        }
+                      }
+                    }
+                  }
+                  for(unsigned k = 0; k < nEP; k++) {
+                    std::swap(weight[j[k]], weight[cnt0 + k]);
+                    coord[j[k]].swap(coord[cnt0 + k]);
+                  }
+
+                  femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0 + 3); //parabola
+
+                }
+                else {
+                  femus::GetQuadricBestFit(coord, weight, norm, _A[kel], coord.size()); //parabola
+                }
+              }
+              else {
+                femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0); //parabola
+              }
+
+              dotProduct.assign(i1 - i0, 0);
+              n1Dotn = 0;
+              for(unsigned i = i0; i < i1; i++) {
+                std::vector <double> n1 = GetNormal(kel,  _yp[_map[i]]);
+                for(unsigned k = 0; k < dim; k++) {
+                  dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
+                }
+                n1Dotn += dotProduct[i - i0] * weight[i - i0]; //TODO is this ok if we swap the weights above?
+              }
+
+              if(n1Dotn < 0) {
+                for(unsigned  i = 0; i < _A[kel].size(); i++) {
+                  _A[kel][i] *= -1.;
+                }
+                for(unsigned i = 0; i < cnt0; i++) {
+                  dotProduct[i] *= -1.;
+                }
+              }
+
+              double cost2 = GetCost(coord, dotProduct, weight, kel, cnt0);
+              std::vector<double> Apar = _A[kel];
+
+              double cost3 = 1.e10;
+
+              if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
+
+                double counter = 0.;
+                std::vector <double> xp(dim);
+                unsigned nDofs =  msh->GetElementDofNumber(kel, 2);
+                for(unsigned i = 0; i < nDofs; i++) {
+                  unsigned xDof  = msh->GetSolutionDof(i, kel, 2);
+                  for(unsigned k = 0; k < dim; k++) {
+                    xp[k] = (*msh->_topology->_Sol[k])(xDof);
+                  }
+                  std::vector<double> n1 = GetNormal(Apar, xp);
+                  std::vector<double> n2 = GetNormal(Acon, xp);
+                  double dotProd = 0;
+                  for(unsigned k = 0; k < dim; k++) {
+                    dotProd += n1[k] * n2[k];
+                  }
+
+                  if(dotProd < 0 && GetValue(Apar, xp) * GetValue(Acon, xp) < 0) {
+                    double distMin = 1.0E10;
+                    unsigned jMin = 0;
+                    for(unsigned j = 1; j < cnt0; j++) {
+                      double distj = 0.;
+                      for(unsigned k = 0; k < dim; k++) {
+                        distj += (coord[j][k] - xp[k]) * (coord[j][k] - xp[k]);
+                      }
+                      if(distj > distMin) {
+                        jMin = j;
+                        distMin = distj;
+                      }
+                    }
+
+                    double dotProd1 = 0;
+                    for(unsigned k = 0; k < dim; k++) {
+                      dotProd1 += n1[k] * _N[_map[i0 + jMin]][k];
+                    }
+
+                    double dotProd2 = 0;
+                    for(unsigned k = 0; k < dim; k++) {
+                      dotProd2 += n2[k] * _N[_map[i0 + jMin]][k];
+                    }
+
+                    counter += dotProd1 - dotProd2;
+
+                  }
+                }
+                if(counter > 0) {
+                  Acon = Apar;
+                }
+                else if(counter < 0) {
+                  Apar = Acon;
+                }
+              }
+
+              _A[kel] = (cost1 < cost2) ? ((cost1 < cost3) ? Acon : _A[kel]) : ((cost2 < cost3) ? Apar : _A[kel]);
 
               it++;
             }
