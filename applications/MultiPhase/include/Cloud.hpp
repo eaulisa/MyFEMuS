@@ -712,7 +712,7 @@ namespace femus {
           }
         }
 
-        if(iel == 7243) {
+        if(iel == 5588) {
           for(unsigned i = 0; i < cnt0; i++) {
             std::cout << dotProduct[i] << " ";
           }
@@ -723,7 +723,41 @@ namespace femus {
 
         double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
         std::vector<double> Acon = _A[iel];
-        femus::GetQuadricBestFit(coord, weight, norm, _A[iel], coord.size()); //parabola
+        if(cnt0 <= 2) {
+          if(coord.size() > 6) {
+            unsigned j1 = cnt0 + 1, j2 = cnt0 + 2, j3 = cnt0 + 3;
+            if(weight[j1] < weight[j2]) std::swap(j1, j2);
+            if(weight[j1] < weight[j3]) std::swap(j1, j3);
+            if(weight[j2] < weight[j3]) std::swap(j2, j3);
+            for(unsigned j = cnt0 + 4; j < coord.size(); j++) {
+              if(weight[j] > weight[j3]) {
+                std::swap(j, j3);
+                if(weight[j2] < weight[j3]) {
+                  std::swap(j2, j3);
+                  if(weight[j1] < weight[j2]) {
+                    std::swap(j1, j2);
+                  }
+                }
+              }
+            }
+            std::swap(weight[j1], weight[cnt0 + 1]);
+            std::swap(weight[j2], weight[cnt0 + 2]);
+            std::swap(weight[j3], weight[cnt0 + 3]);
+
+            coord[j1].swap(coord[cnt0 + 1]);
+            coord[j2].swap(coord[cnt0 + 2]);
+            coord[j3].swap(coord[cnt0 + 3]);
+
+            femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0 + 3); //parabola
+
+          }
+          else {
+            femus::GetQuadricBestFit(coord, weight, norm, _A[iel], coord.size()); //parabola
+          }
+        }
+        else {
+          femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0); //parabola
+        }
 
         dotProduct.assign(i1 - i0, 0);
         n1Dotn = 0;
@@ -734,7 +768,7 @@ namespace femus {
           }
           n1Dotn += dotProduct[i - i0] * weight[i - i0];
         }
-        if(iel == 7243) {
+        if(iel == 7736) {
           for(unsigned i = 0; i < cnt0; i++) {
             std::cout << dotProduct[i] << " ";
           }
@@ -749,7 +783,7 @@ namespace femus {
             dotProduct[i] *= -1.;
           }
         }
-        if(iel == 7243) {
+        if(iel == 7736) {
           for(unsigned i = 0; i < cnt0; i++) {
             std::cout << dotProduct[i] << " ";
           }
@@ -794,7 +828,8 @@ namespace femus {
 //           cost3 = GetCost(coord, dotProduct, weight, iel, cnt0);
 //         }
 
-        if(cost1 / cost2 > 0.001 && cost2 / cost1 > 0.00001) {
+        if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
+
           double counter = 0.;
           std::vector <double> xp(dim);
           unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -810,7 +845,7 @@ namespace femus {
               dotProd += n1[k] * n2[k];
             }
 
-            if(iel == 7735) {
+            if(iel == 7736) {
               std::cout << i << " " <<  GetValue(Apar, xp) << " " << GetValue(Acon, xp) << " " << counter << std::endl;
             }
 
@@ -842,7 +877,7 @@ namespace femus {
 
               counter += dotProd1 - dotProd2;
 
-              if(iel == 7735) {
+              if(iel == 7736) {
                 std::cout << i << " " <<  dotProd1 << " " << dotProd2 << " " << counter << std::endl;
               }
 
@@ -854,7 +889,7 @@ namespace femus {
 //               }
             }
           }
-          if(iel == 7735) {
+          if(iel == 7736) {
 
 
             std::cout << " counter = " << counter << std::endl;
@@ -898,7 +933,7 @@ namespace femus {
 
 
 
-        if(iel == 7735) {
+        if(iel == 7736) {
           double xMin[2] = { 1.0e10, 1.0e10};
           double xMax[2] = { -1.0e10, -1.0e10};
 
@@ -1502,7 +1537,7 @@ namespace femus {
 
   }
 
-  void Cloud::RebuildInteriorMarkers(Cloud &intCloud, const std::string &C, const std::string &Cn) {
+  void Cloud::RebuildInteriorMarkers(Cloud & intCloud, const std::string & C, const std::string & Cn) {
 
     std::vector<std::vector<double>> xn;
 
@@ -2140,7 +2175,7 @@ namespace femus {
 
 
 
-  double Cloud::GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &y, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints) {
+  double Cloud::GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &y, const std::vector<double>&w, const unsigned & iel, const unsigned & nPoints) {
     double cost = 0;
     double h2 = 0.;
     Mesh* msh = _sol->GetMesh();
@@ -2218,10 +2253,11 @@ namespace femus {
           cost1 += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
           cost2 += (xe[1][k] - x[i][k]) * (xe[1][k] - x[i][k]);
         }
-        cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5) * w[i] **/ ((cost1 < cost2) ? cost1 : cost2);
+        cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5)*/ /** w[i] * */ ((cost1 < cost2) ? cost1 : cost2);
         if(y[i] < -0.25) cost += h2;
       }
     }
+    cost /= (nPoints * h2);
 
 
     return cost;
