@@ -104,148 +104,6 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-
-  std::vector<std::vector<double>> x = {
-    {0.367949, -0.208602 },
-    {0.372449, -0.207743 },
-    {0.374109, -0.208251 },
-    {0.372128, -0.20781  },
-    {0.373959, -0.207984 },
-    {0.373669, -0.208044 },
-    {0.371969, -0.207844 },
-    {0.373198, -0.208185 },
-    {0.374557, -0.208234 },
-    {0.373091, -0.207616 },
-    {0.37293, -0.207647 },
-    {0.371809, -0.207879 },
-    {0.364058, -0.20968  },
-    {0.365987, -0.209069 },
-    {0.372609, -0.20771  },
-    {0.372288, -0.207776 },
-    {0.373252, -0.207585 },
-    {0.371923, -0.207908 },
-    {0.369927, -0.208226 },
-    {0.360535, -0.21163  },
-    {0.362213, -0.210509 },
-    {0.37277, -0.207678 },
-    {0.353197, -0.22384  },
-    {0.353864, -0.222177 },
-    {0.354625, -0.220559 },
-    {0.355107, -0.218969 },
-    {0.355481, -0.218992 },
-    {0.351738, -0.229025 },
-    {0.351419, -0.230798 },
-    {0.352623, -0.22554  },
-    {0.351178, -0.232586 },
-    {0.352137, -0.227271 },
-    {0.356576, -0.216445 },
-    {0.359095, -0.213055 },
-    {0.358867, -0.213617 },
-    {0.35789, -0.214697 },
-    {0.357431, -0.215264 },
-    {0.356994, -0.215847 },
-    {0.356179, -0.217058 },
-    {0.355803, -0.217683 },
-    {0.355445, -0.21832  },
-    {0.358368, -0.214148 },
-    {0.390166, -0.205975 },
-    {0.390339, -0.205926 },
-    {0.390511, -0.205875 },
-    {0.381296, -0.207096 },
-    {0.382974, -0.206778 },
-    {0.376246, -0.20797  },
-    {0.379616, -0.2074   },
-    {0.384648, -0.206448 },
-    {0.377932, -0.207691 },
-    {0.38965, -0.205377 },
-    {0.387986, -0.205747 },
-    {0.386319, -0.206104 }
-  };
-
-
-
-  std::vector<double>w = {
-    0.156276
-    , 0.0121458
-    , 0.0299238
-    , 0.0123393
-    , 0.0199365
-    , 0.0101549
-    , 0.0124323
-    , 0.063428
-    , 0.0536889
-    , 0.0117303
-    , 0.0118376
-    , 0.00626129
-    , 0.147009
-    , 0.15462
-    , 0.0120454
-    , 0.0122438
-    , 0.00581049
-    , 0.0708072
-    , 0.151786
-    , 0.118677
-    , 0.134454
-    , 0.0119426
-    , 0.00429937
-    , 0.00592997
-    , 0.00797949
-    , 0.00208213
-    , 0.00523413
-    , 0.00142062
-    , 0.000937564
-    , 0.00304296
-    , 0.000604642
-    , 0.00210347
-    , 0.0244896
-    , 0.101506
-    , 0.0180721
-    , 0.0313291
-    , 0.0289805
-    , 0.0266957
-    , 0.0223744
-    , 0.0203596
-    , 0.0184523
-    , 0.0337238
-    , 0.000551031
-    , 0.00105856
-    , 0.00101643
-    , 0.0529719
-    , 0.0413142
-    , 0.0939666
-    , 0.0659964
-    , 0.0313114
-    , 0.0798918
-    , 0.00574123
-    , 0.0165062
-    , 0.0230609
-  } ;
-
-
-  std::vector<double> N = {9.22306, -19.7871 };
-
-  std::vector<double>A;
-  femus::GetQuadricBestFit(x, w, N, A, x.size());
-
-
-  std::cout << "a="<<A[0]  << ";\nb=" << A[1] << ";\nc=" << A[2] << ";\nd=" << A[3] << ";\ne=" << A[4] << ";\nf=" << A[5] << std::endl;
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
@@ -329,12 +187,12 @@ int main(int argc, char** args) {
   Mesh*          msh          = mlProb._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
 
   Solution* sol = mlSol.GetSolutionLevel(level);
-  
-  
+
+
 //   Cloud cld1(sol);
 //   cld1.SetQuadraticBestFitCoefficients(0,A);
 //   std::cout << "cost1  = "  << cld1.GetCost(x,w,0,21) << std::endl;
-// 
+//
 //   return 1;
 
   unsigned iproc = sol->processor_id();
@@ -343,8 +201,42 @@ int main(int argc, char** args) {
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
+  std::vector<std::vector<double>> x(1000, std::vector<double>(2));
+  std::vector<std::vector<double>> N(1000, std::vector<double>(2));
+
+  for(unsigned i = 0; i < x.size(); i++) {
+    x[i][0] = -0.94537 + 0.002 * i;
+    x[i][1] = -0.74537 + 0.002 * i;
+    N[i][0] = -sqrt(2.) / 2.;
+    N[i][1] =  sqrt(2.) / 2.;
+  }
+
+
+  Cloud cld1(sol);
+  cld1.AddCloudFromPoints(x, N);
+  cld1.PrintCSV("marker", 0);
+
+  for(unsigned i = 0; i < x.size(); i++) {
+    x[i][0] = -0.94537 + 0.002 * i;
+    x[i][1] = -0.84537 + 0.002 * i;
+    N[i][0] = -sqrt(2.) / 2.;
+    N[i][1] =  sqrt(2.) / 2.;
+  }
+
+  Cloud cldInt1(sol);
+  cldInt1.AddInteriorCloudFromPoints(x);
+
+  cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
+
+  cldInt1.PrintCSV("markerInternal", 0);
+
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
+
+
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+ // return 0;
 
   // BEGIN Testing the class Cloud
   Cloud cld(sol);
@@ -372,8 +264,6 @@ int main(int argc, char** args) {
   cld.PrintCSV("marker", 0);
   cldint.PrintCSV("markerInternalBefore", 0);
   cldint.PrintCSV("markerInternal", 0);
-
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
   double dt = period / nIterations;
