@@ -6,6 +6,7 @@ void Cloud::ComputeQuadraticBestFit() {
   Mesh *msh = _sol->GetMesh();
 
   unsigned dim = _sol->GetMesh()->GetDimension();
+  std::vector<std::vector<double>> normOld;
   std::vector<std::vector<double>> coord;
   std::vector<double> weight;
   coord.reserve(_elem.size());
@@ -23,6 +24,7 @@ void Cloud::ComputeQuadraticBestFit() {
     unsigned cnt0 = i1 - i0;
     coord.resize(i1 - i0, std::vector<double> (dim));
     weight.resize(i1 - i0);
+    normOld.resize(i1 - i0, std::vector<double> (dim));
     norm.assign(dim, 0);
     unsigned cnt = 0;
     double weightSum = 0;
@@ -31,6 +33,7 @@ void Cloud::ComputeQuadraticBestFit() {
       for(unsigned k = 0; k < dim; k++) {
         coord[cnt][k] = _yp[_map[i]][k];
         norm[k] += _N[_map[i]][k];
+        normOld[cnt][k] = _N[_map[i]][k];
       }
       weight[cnt] = _ds[_map[i]];
       weightSum += weight[cnt];
@@ -93,10 +96,12 @@ void Cloud::ComputeQuadraticBestFit() {
         unsigned j1 = _elMrkIdx[jel][1];
         coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
         weight.resize(coord.size() + (j1 - j0), 0.250 * !isFaceElement + isFaceElement);
+        normOld.resize(normOld.size() + (j1 - j0), std::vector<double> (dim));
         for(unsigned j = j0; j < j1; j++) {
           double dotProduct = 0.;
           for(unsigned k = 0; k < dim; k++) {
             coord[cnt][k] = _yp[_map[j]][k];
+            normOld[cnt][k] =  _N[_map[j]][k];
           }
           weight[cnt] = _ds[_map[j]] * (0.250 * !isFaceElement + isFaceElement);
           cnt++;
@@ -192,14 +197,20 @@ void Cloud::ComputeQuadraticBestFit() {
 
 
       std::vector<double> Acon = _A[iel];
+      unsigned nEP = 0;
       if(cnt0 <= 2) {
-        unsigned nEP = 3;
-        nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
+          nEP = 3;
+          nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
+      }
+      else nEP = 0;
+      
+      if(cnt0 <= 2) {
         if(coord.size() > 6) {
           for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
             unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
             swap(weight[j], weight[k]);
             coord[j].swap(coord[k]);
+            normOld[j].swap(normOld[k]);
           }
           if(iel == 298 || iel == 208) {
             std::cout << xn[0] << " " << xn[1] << std::endl;
@@ -219,25 +230,25 @@ void Cloud::ComputeQuadraticBestFit() {
         femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0); //parabola
       }
 
-      dotProduct.assign(i1 - i0, 0);
+      dotProduct.assign(i1 - i0 + nEP, 0);
       n1Dotn = 0;
-      for(unsigned i = i0; i < i1; i++) {
-        std::vector <double> n1 = GetNormal(iel, coord[i - i0]);
+      for(unsigned i = 0; i < i1 - i0 + nEP; i++) {
+        std::vector <double> n1 = GetNormal(iel, coord[i]);
         for(unsigned k = 0; k < dim; k++) {
-          dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
+          dotProduct[i] += /*_N[_map[i]][k] **/ normOld[i][k] * n1[k];
         }
-        n1Dotn += dotProduct[i - i0] * weight[i - i0]; //TODO is this ok if we swap the weights above?
+        n1Dotn += dotProduct[i] * weight[i]; //TODO is this ok if we swap the weights above?
       }
 
       if(n1Dotn < 0) {
         for(unsigned  i = 0; i < _A[iel].size(); i++) {
           _A[iel][i] *= -1.;
         }
-        for(unsigned i = 0; i < cnt0; i++) {
+        for(unsigned i = 0; i < dotProduct.size(); i++) {
           dotProduct[i] *= -1.;
         }
       }
-      double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
+      double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0 + nEP);
       std::vector<double> Apar = _A[iel];
 
       if(false && iel == 4784) {
