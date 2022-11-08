@@ -117,7 +117,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 5;
+  unsigned numberOfUniformLevels = 3;
   unsigned nMax = 4 * pow(2, 6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -201,34 +201,34 @@ int main(int argc, char** args) {
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
-  std::vector<std::vector<double>> x(1000, std::vector<double>(2));
-  std::vector<std::vector<double>> N(1000, std::vector<double>(2));
-
-  for(unsigned i = 0; i < x.size(); i++) {
-    x[i][0] = -0.94537 + 0.002 * i;
-    x[i][1] = -0.74537 + 0.002 * i;
-    N[i][0] = -sqrt(2.) / 2.;
-    N[i][1] =  sqrt(2.) / 2.;
-  }
-
-
-  Cloud cld1(sol);
-  cld1.AddCloudFromPoints(x, N);
-  cld1.PrintCSV("marker", 0);
-
-  for(unsigned i = 0; i < x.size(); i++) {
-    x[i][0] = -0.94537 + 0.002 * i;
-    x[i][1] = -0.84537 + 0.002 * i;
-    N[i][0] = -sqrt(2.) / 2.;
-    N[i][1] =  sqrt(2.) / 2.;
-  }
-
-  Cloud cldInt1(sol);
-  cldInt1.AddInteriorCloudFromPoints(x);
-
-  cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
-
-  cldInt1.PrintCSV("markerInternal", 0);
+//   std::vector<std::vector<double>> x(1000, std::vector<double>(2));
+//   std::vector<std::vector<double>> N(1000, std::vector<double>(2));
+// 
+//   for(unsigned i = 0; i < x.size(); i++) {
+//     x[i][0] = -0.94537 + 0.002 * i;
+//     x[i][1] = -0.74537 + 0.002 * i;
+//     N[i][0] = -sqrt(2.) / 2.;
+//     N[i][1] =  sqrt(2.) / 2.;
+//   }
+// 
+// 
+//   Cloud cld1(sol);
+//   cld1.AddCloudFromPoints(x, N);
+//   cld1.PrintCSV("marker", 0);
+// 
+//   for(unsigned i = 0; i < x.size(); i++) {
+//     x[i][0] = -0.94537 + 0.002 * i;
+//     x[i][1] = -0.84537 + 0.002 * i;
+//     N[i][0] = -sqrt(2.) / 2.;
+//     N[i][1] =  sqrt(2.) / 2.;
+//   }
+// 
+//   Cloud cldInt1(sol);
+//   cldInt1.AddInteriorCloudFromPoints(x);
+// 
+//   cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
+// 
+//   cldInt1.PrintCSV("markerInternal", 0);
 
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
@@ -236,7 +236,7 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
- // return 0;
+  //return 0;
 
   // BEGIN Testing the class Cloud
   Cloud cld(sol);

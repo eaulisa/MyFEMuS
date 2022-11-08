@@ -616,7 +616,7 @@ namespace femus {
 
     Eigen::EigenSolver<Eigen::MatrixXd> es(A);
     const Eigen::VectorXcd &l = es.eigenvalues().col(0);
-    unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
+    //unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
     unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
 
     const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
@@ -626,5 +626,7 @@ namespace femus {
   }
 
 }
+
+
 
 
