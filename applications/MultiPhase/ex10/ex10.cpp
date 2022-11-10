@@ -139,6 +139,8 @@ int main(int argc, char** args) {
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
+  mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
   solVIndex[1] = mlSol.GetIndex("V");
@@ -254,7 +256,7 @@ int main(int argc, char** args) {
 //   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04});
 
 //   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8);
-  cld.AddEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {8, 8});
+  cld.AddEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {9, 9});
 //   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01});
   cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
 
@@ -283,7 +285,7 @@ int main(int argc, char** args) {
     cld.PrintCSV("markerBefore", it);
     cld.ComputeQuadraticBestFit();
 
-    cld.RebuildMarkers(8, 12, 8);
+    cld.RebuildMarkers(9, 12, 9);
 
     cldint.RebuildInteriorMarkers(cld, "C", "Cn");
     cldint.PrintCSV("markerInternal", it);

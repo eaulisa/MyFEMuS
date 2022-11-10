@@ -83,6 +83,7 @@ namespace femus {
         }
       }
 
+
       double GetValue(const unsigned &iel, const std::vector<double> &xp) {
         return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
       }
@@ -689,13 +690,21 @@ namespace femus {
     }
   }
 
-  
 
-  const double PJ[4][4][4] = {
-    {{1.}, {0.5, 0.5}, {0.25, 0.25, 0.25, 0.25}, {0.5, 0., 0., 0.5}},
-    {{0.5, 0.5}, {0., 1.}, {0., 0.5, 0.5}, {0.25, 0.25, 0.25, 0.25}},
-    {{0.25, 0.25, 0.25, 0.25}, {0., 0.5, 0.5}, {0., 0., 1.}, {0., 0., 0.5, 0.5}},
-    {{0.5, 0., 0., 0.5}, {0.25, 0.25, 0.25, 0.25}, {0., 0., 0.5, 0.5}, {0., 0., 0., 1.}}
+
+  const double PJ[6][4][4][4] = {{}, {}, {},
+    {
+      {{1.}, {0.5, 0.5}, {0.25, 0.25, 0.25, 0.25}, {0.5, 0., 0., 0.5}},
+      {{0.5, 0.5}, {0., 1.}, {0., 0.5, 0.5}, {0.25, 0.25, 0.25, 0.25}},
+      {{0.25, 0.25, 0.25, 0.25}, {0., 0.5, 0.5}, {0., 0., 1.}, {0., 0., 0.5, 0.5}},
+      {{0.5, 0., 0., 0.5}, {0.25, 0.25, 0.25, 0.25}, {0., 0., 0.5, 0.5}, {0., 0., 0., 1.}}
+    },
+    {
+      {{1.}, {0.5, 0.5}, {0.5, 0., 0.5}},
+      {{0.5, 0.5}, {0., 1.}, {0., 0.5, 0.5}},
+      {{0.5, 0., 0.5}, {0., 0.5, 0.5}, {0., 0., 1.}},
+      {{0., 0.5, 0.5}, {0.5, 0., 0.5}, {0.5, 0.5}}
+    }
   };
 #include <boost/math/special_functions/math_fwd.hpp>
   std::pair<std::vector<std::vector<double>>, std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level) {
@@ -753,14 +762,14 @@ namespace femus {
       }
 
       nInt = cnt;
+      if(cnt >= 2) nInt = 2; 
 
       if(cnt == 2) {
 
         cnt = 1;
-        xe.resize(npt, std::vector<double>(dim));
-        xe[npt - 1][0] = xe[1][0];
-        xe[npt - 1][1] = xe[1][1];
-
+        xe.resize(2);
+        ds.reserve(npt - 1);
+        ds.resize(1, 0.);
 
         double kappa, dt0;
 
@@ -768,8 +777,8 @@ namespace femus {
 
           double x0 = xe[cnt - 1][0];
           double y0 = xe[cnt - 1][1];
-          double x1 = xe[npt - 1][0];
-          double y1 = xe[npt - 1][1];
+          double x1 = xe[cnt][0];
+          double y1 = xe[cnt][1];
 
           std::vector<double> xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
           std::vector<double> N = GetNormal(iel, xm);
@@ -783,26 +792,20 @@ namespace femus {
           dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
           double dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
 
-          //std::cout << i << " " << theta0 << " " << theta1 << " " << x0 << " " << x1 << " " << y0 << " " << y1 << std::endl;
-
           if(dt0 > dt1) {
             dt0 = dt1;
             theta0 = theta1;
-            xe[npt - 1] = {x0, y0};
+            xe[cnt] = {x0, y0};
             xe[cnt - 1] = {x1, y1};
             x0 = xe[cnt - 1][0];
             y0 = xe[cnt - 1][1];
-            x1 = xe[npt - 1][0];
-            y1 = xe[npt - 1][1];
+            x1 = xe[cnt][0];
+            y1 = xe[cnt][1];
           }
           double R = sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1]));
 
-
-//           v[0] = R * cos(theta0 + (i + 1) * dt0 / (npt - 1));
-//           v[1] = R * sin(theta0 + (i + 1) * dt0 / (npt - 1));
-
-          v[0] = R * cos(theta0 + dt0 / (npt - i - 1));
-          v[1] = R * sin(theta0 + dt0 / (npt - i - 1));
+          v[0] = R * cos(theta0 + dt0 / 2);
+          v[1] = R * sin(theta0 + dt0 / 2);
 
           oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
           oct b = 2 * Cf[0] * v[0] * xc[0] + Cf[1] * v[1] * xc[0] + Cf[1] * v[0] * xc[1] + 2 * Cf[2] * v[1] * xc[1] + Cf[3] * v[0] + Cf[4] * v[1];
@@ -813,8 +816,9 @@ namespace femus {
           b /= norm;
           c /= norm;
 
-          //unsigned cnti = cnt;
 
+          double ti;
+          bool pointIsFound = false;
           if(fabs(a) > 1.e-8) {
             oct delta = b * b - 4 * a * c;
             if(delta >= 0.) {
@@ -822,65 +826,106 @@ namespace femus {
               for(unsigned j = 0; j < 2; j++) {
                 t[j] = static_cast<double>((- b + pow(-1, j) * sqrt(delta)) / (2 * a));
               }
-              double ti = (fabs(t[0] - 1.) < fabs(t[1] - 1.)) ? t[0] : t[1];
-              for(unsigned  k = 0; k < dim; k++) {
-                xe[cnt][k] = xc[k]  + ti * v[k];
-              }
-              cnt++;
+              ti = (fabs(t[0] - 1.) < fabs(t[1] - 1.)) ? t[0] : t[1];
+
+              xe.insert(xe.begin() + cnt, {xc[0]  + ti * v[0], xc[1]  + ti * v[1]});
+              pointIsFound = true;
+
+
             }
           }
           else if(b != 0) {
-            double t = static_cast<double>(-c / b);
-            for(unsigned  k = 0; k < dim; k++) {
-              xe[cnt][k] = xc[k]  + t * v[k];
+            ti = static_cast<double>(-c / b);
+            xe.insert(xe.begin() + cnt, {xc[0]  + ti * v[0], xc[1]  + ti * v[1]});
+            pointIsFound = true;
+          }
+
+          if(pointIsFound) {
+            x0 = xe[cnt - 1][0];
+            y0 = xe[cnt - 1][1];
+            x1 = xe[cnt][0];
+            y1 = xe[cnt][1];
+
+            xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
+            N = GetNormal(iel, xm);
+            kappa = GetCurvature(iel, xm);
+            if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
+            xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
+
+
+            theta0 = atan2(y0 - xc[1], x0 - xc[0]);
+            theta1 = atan2(y1 - xc[1], x1 - xc[0]);
+
+            dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
+            dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
+
+            if(dt0 > dt1) {
+              dt0 = dt1;
             }
-            cnt++;
+            R = sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1]));
+            ds[cnt - 1] = R * dt0;
+
+            x0 = xe[cnt][0];
+            y0 = xe[cnt][1];
+            x1 = xe[cnt + 1][0];
+            y1 = xe[cnt + 1][1];
+
+            xm = {0.5 * (x0 + x1), 0.5 * (y0 + y1)};
+            N = GetNormal(iel, xm);
+            kappa = GetCurvature(iel, xm);
+            if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
+            xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
+
+            theta0 = atan2(y0 - xc[1], x0 - xc[0]);
+            theta1 = atan2(y1 - xc[1], x1 - xc[0]);
+
+            dt0 = (theta1 > theta0) ? theta1 - theta0 : 2 * M_PI + theta1 - theta0;
+            dt1 = (theta0 > theta1) ? theta0 - theta1 : 2 * M_PI + theta0 - theta1;
+
+            if(dt0 > dt1) {
+              dt0 = dt1;
+            }
+            R =  0.5 * (sqrt((x0 - xc[0]) * (x0 - xc[0]) + (y0 - xc[1]) * (y0 - xc[1])) + sqrt((x1 - xc[0]) * (x1 - xc[0]) + (y1 - xc[1]) * (y1 - xc[1])));
+
+            ds.insert(ds.begin() + cnt, R * dt0);
+            cnt =  max_element(ds.begin(), ds.end()) - ds.begin() + 1;
           }
         }
-        double dsi = 2. * dt0 / (fabs(kappa) * cnt);
-        ds.assign(cnt + 1, dsi);
-        ds[0] = ds[cnt] = 0.5 * dsi;
 
-        if(cnt < npt - 1) {
-          xe[cnt] = xe[npt - 1];
-          xe.resize(cnt + 1);
+        ds.resize(ds.size() + 1, 0.);
+        for(int j = ds.size() - 1; j > 0; j--) {
+          ds[j] += 0.5 * ds[j - 1];
+          ds[j - 1] = 0.5 * ds[j - 1];
         }
-
-
-
-
-
-
-
-
-
-        cnt++;
-        npt = cnt;
+        npt = cnt = ds.size();
       }
-//       else {
-//
-// //         std::cerr << iel << " " << level << " " << cnt << std::endl;
-//
-//         xe.resize(0);
-//         if(cnt > 2) {
-//           xe.reserve(4 * npt);
-//           std::vector<std::vector<double> > xvj(dim, std::vector<double>(nve));
-//           for(unsigned j = 0; j < 4; j++) {
-//             xvj.assign(dim, std::vector<double>(nve, 0.));
-//             for(unsigned k = 0; k < dim; k++) {
-//               for(unsigned I = 0; I < nve; I++) {
-//                 for(unsigned J = 0 ; J < nve; J++) {
-//                   xvj[k][I] += PJ[j][I][J] * xv[k][J];
-//                 }
-//               }
-//             }
-//             unsigned nInt = 0;
-//             std::vector <std::vector<double>> xej = GetCellPointsFromQuadric(xvj, iel, npt, nInt, level + 1);
-//             xe.insert(xe.end(), xej.begin(), xej.end());
-//           }
-//         }
-//         return xe;
-//       }
+      else {
+        xe.resize(0);
+        ds.resize(0);
+        if(cnt > 2) {
+          xe.reserve(4 * npt);
+          ds.reserve(4 * npt);
+          std::vector<std::vector<double> > xvj(dim, std::vector<double>(nve));
+          
+          unsigned ielType = _sol->GetMesh()->GetElementType(iel);
+          
+          for(unsigned j = 0; j < 4; j++) {
+            xvj.assign(dim, std::vector<double>(nve, 0.));
+            for(unsigned k = 0; k < dim; k++) {
+              for(unsigned I = 0; I < nve; I++) {
+                for(unsigned J = 0 ; J < nve; J++) {
+                  xvj[k][I] += PJ[ielType][j][I][J] * xv[k][J];
+                }
+              }
+            }
+            unsigned nInt = 0;
+            std::pair<std::vector<std::vector<double>>, std::vector<double>> a = GetCellPointsFromQuadric(xvj, iel, npt, nInt, level + 1);
+            xe.insert(xe.end(), a.first.begin(), a.first.end());
+            ds.insert(ds.end(), a.second.begin(), a.second.end());
+          }
+        }
+        return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
+      }
     }
 
     if(cnt < npt) {
@@ -1108,11 +1153,6 @@ namespace femus {
           xp[k] = xn[k][i];
         }
         double value = intCloud.GetValue(iel, xp);
-
-        if(false && iel == 4964) {
-          std::cout << "AAAAA ";
-          std::cout << xp[0] << " " << xp[1] << " " << value << std::endl;
-        }
 
         unsigned inode = msh->GetSolutionDof(i, iel, solType);
         _sol->_Sol[SolCnIndex]->set(inode, (value < 0) ? 0.75 : 0.25);
@@ -1754,6 +1794,8 @@ namespace femus {
 
 
 #endif
+
+
 
 
 

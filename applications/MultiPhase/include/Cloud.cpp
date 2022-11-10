@@ -1,9 +1,14 @@
 void Cloud::ComputeQuadraticBestFit() {
   _A.clear();
 
+
+
   map<unsigned, bool> pSearch;
 
   Mesh *msh = _sol->GetMesh();
+
+  unsigned SolQIndex = _sol->GetIndex("Q");
+  _sol->_Sol[SolQIndex]->zero();
 
   unsigned dim = _sol->GetMesh()->GetDimension();
   std::vector<std::vector<double>> normOld;
@@ -120,7 +125,7 @@ void Cloud::ComputeQuadraticBestFit() {
           }
         }
         sigma2 /= cnt;
-        sigma2 /= 2;
+        sigma2 /= 15.;// + 45 * (cnt0 <= 4); //TO DO
         sigma = sqrt(sigma2);
         for(unsigned i = 0; i < cnt; i++) {
           double a = 0;
@@ -135,107 +140,40 @@ void Cloud::ComputeQuadraticBestFit() {
         abort();
       }
 
+
+      if(cnt0 <= 4) {
+        //if(coord.size() > 6) {
+        unsigned nEP = 5;
+        nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
+        for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
+          unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
+          swap(weight[j], weight[k]);
+          coord[j].swap(coord[k]);
+          normOld[j].swap(normOld[k]);
+        }
+        if(iel == 298 || iel == 208) {
+          std::cout << xn[0] << " " << xn[1] << std::endl;
+          for(unsigned j = 0; j < coord.size(); j++) {
+            std::cout << cnt0 << " " << iel << " " << j << " " << weight[j]  << " " << coord[j][0]  << " " << coord[j][1] << std::endl;
+          }
+        }
+        cnt0 += nEP;
+      }
+
+
+
+
+
       //This return an Ellipse or an Hperbola
       FindQuadraticBestFit(coord, weight, norm, _A[iel]);
-      std::vector<double> dotProduct(i1 - i0, 0.);
+
+      std::vector<double> dotProduct(cnt0, 0.);
+
       double n1Dotn = 0;
-      for(unsigned i = i0; i < i1; i++) {
-        std::vector <double> n1 = GetNormal(iel,  _yp[_map[i]]);
-        for(unsigned k = 0; k < dim; k++) {
-          dotProduct[i - i0] += _N[_map[i]][k] * n1[k];
-        }
-        n1Dotn += dotProduct[i - i0] * weight[i - i0];
-      }
-      if(n1Dotn < 0) {
-        for(unsigned  i = 0; i < _A[iel].size(); i++) {
-          _A[iel][i] *= -1.;
-        }
-        for(unsigned i = 0; i < cnt0; i++) {
-          dotProduct[i] *= -1.;
-        }
-      }
-      double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
-
-//       unsigned cnt1 = coord.size() - cnt0;
-//       std::vector<unsigned> j(cnt1);
-//       std::vector<double*> weightP(cnt1);
-//       for(unsigned i = 0; i < cnt1; i++) {
-//         weightP[i] = &weight[cnt0 + i];
-//       }
-//       std::sort(weightP.begin(), weightP.end(), [](const double * a, const double * b) {
-//         return *a < *b;
-//       });
-//       for(unsigned i = 0; i < cnt1; i++) {
-//         j[i] =  cnt0 + static_cast<unsigned>(weightP[i] - &weight[cnt0]);
-//       }
-//       for(unsigned k = cnt0 + cnt1; k < coord.size(); k++) {
-//         bool keepWhile = true;
-//         unsigned kn = cnt1 - 1;
-//         while(keepWhile) {
-//           keepWhile = false;
-//           if(weight[k] > weight[j[kn]]) {
-//             std::swap(k, j[kn]);
-//             if(kn > 0) {
-//               keepWhile = true;
-//               kn--;
-//             }
-//           }
-//         }
-//       }
-
-//       std::vector<std::vector<double>> coordNew = coord;
-//       std::vector<double> weightNew = weight;
-//       for(unsigned k = 0; k < cnt1; k++) {
-//         std::swap(weight[j[k]], weightNew[cnt0 + k]);
-//         coord[j[k]].swap(coordNew[cnt0 + k]);
-//       }
-
-      //This return a parabola
-
-
-
-
-
-      std::vector<double> Acon = _A[iel];
-      unsigned nEP = 0;
-      if(cnt0 <= 2) {
-          nEP = 3;
-          nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
-      }
-      else nEP = 0;
-      
-      if(cnt0 <= 2) {
-        if(coord.size() > 6) {
-          for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
-            unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
-            swap(weight[j], weight[k]);
-            coord[j].swap(coord[k]);
-            normOld[j].swap(normOld[k]);
-          }
-          if(iel == 298 || iel == 208) {
-            std::cout << xn[0] << " " << xn[1] << std::endl;
-            for(unsigned j = 0; j < coord.size(); j++) {
-              std::cout << cnt0 << " " << iel << " " << j << " " << weight[j]  << " " << coord[j][0]  << " " << coord[j][1] << std::endl;
-            }
-          }
-          //cnt0+=nEP;
-          femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0 + nEP); //parabola
-        }
-        else {
-          femus::GetQuadricBestFit(coord, weight, norm, _A[iel], coord.size()); //parabola
-
-        }
-      }
-      else {
-        femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0); //parabola
-      }
-
-      dotProduct.assign(i1 - i0 + nEP, 0);
-      n1Dotn = 0;
-      for(unsigned i = 0; i < i1 - i0 + nEP; i++) {
+      for(unsigned i = 0; i < cnt0; i++) {
         std::vector <double> n1 = GetNormal(iel, coord[i]);
         for(unsigned k = 0; k < dim; k++) {
-          dotProduct[i] += /*_N[_map[i]][k] **/ normOld[i][k] * n1[k];
+          dotProduct[i] += normOld[i][k] * n1[k];
         }
         n1Dotn += dotProduct[i] * weight[i]; //TODO is this ok if we swap the weights above?
       }
@@ -248,7 +186,32 @@ void Cloud::ComputeQuadraticBestFit() {
           dotProduct[i] *= -1.;
         }
       }
-      double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0 + nEP);
+      double cost1 = GetCost(coord, dotProduct, weight, iel, cnt0);
+      std::vector<double> Acon = _A[iel];
+
+
+
+      //This return a parabola
+      femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0); //parabola
+      dotProduct.assign(cnt0, 0);
+      n1Dotn = 0;
+      for(unsigned i = 0; i < cnt0; i++) {
+        std::vector <double> n1 = GetNormal(iel, coord[i]);
+        for(unsigned k = 0; k < dim; k++) {
+          dotProduct[i] += normOld[i][k] * n1[k];
+        }
+        n1Dotn += dotProduct[i] * weight[i]; //TODO is this ok if we swap the weights above?
+      }
+
+      if(n1Dotn < 0) {
+        for(unsigned  i = 0; i < _A[iel].size(); i++) {
+          _A[iel][i] *= -1.;
+        }
+        for(unsigned i = 0; i < dotProduct.size(); i++) {
+          dotProduct[i] *= -1.;
+        }
+      }
+      double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
       std::vector<double> Apar = _A[iel];
 
       if(false && iel == 4784) {
@@ -256,10 +219,8 @@ void Cloud::ComputeQuadraticBestFit() {
         std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
       }
 
-      if(cnt0 <= 2)  cnt0 += 3;
-
+      _A[iel] = (cost1 < cost2) ? Acon : Apar;
       if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
-
         double counter = 0.;
         std::vector <double> xp(dim);
         unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -287,28 +248,23 @@ void Cloud::ComputeQuadraticBestFit() {
                 distMin = distj;
               }
             }
-
-            double dotProd1 = 0;
             for(unsigned k = 0; k < dim; k++) {
-              dotProd1 += n1[k] * _N[_map[i0 + jMin]][k];
+              counter += (n1[k] - n2[k]) * normOld[jMin][k];
             }
-
-            double dotProd2 = 0;
-            for(unsigned k = 0; k < dim; k++) {
-              dotProd2 += n2[k] * _N[_map[i0 + jMin]][k];
-            }
-            counter += dotProd1 - dotProd2;
           }
         }
         if(counter < 0) {
-          Acon = Apar;
+          _A[iel] = Apar;
         }
         else if(counter > 0) {
-          Apar = Acon;
+          _A[iel] = Acon;
         }
       }
 
-      _A[iel] = (cost1 < cost2) ? Acon : Apar;
+      double delta = _A[iel][1] * _A[iel][1] - 4. * _A[iel][0] * _A[iel][2];
+      if(fabs(delta) < 1.0e-5) _sol->_Sol[SolQIndex]->set(iel, 1); // parabola;
+      else if(delta < 0) _sol->_Sol[SolQIndex]->set(iel, 2); // ellipse;
+      else _sol->_Sol[SolQIndex]->set(iel, 3); // hyperpola;
 
 
       if(false && iel == 4784) {
@@ -690,7 +646,7 @@ void Cloud::ComputeQuadraticBestFit() {
 
 
   }
-
+  _sol->_Sol[SolQIndex]->close();
 
 }
 
