@@ -100,7 +100,7 @@ void Cloud::ComputeQuadraticBestFit() {
         unsigned j0 = _elMrkIdx[jel][0];
         unsigned j1 = _elMrkIdx[jel][1];
         coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
-        weight.resize(coord.size() + (j1 - j0), 0.250 * !isFaceElement + isFaceElement);
+        weight.resize(coord.size() + (j1 - j0), /*0.250 **/ !isFaceElement + isFaceElement);
         normOld.resize(normOld.size() + (j1 - j0), std::vector<double> (dim));
         for(unsigned j = j0; j < j1; j++) {
           double dotProduct = 0.;
@@ -108,7 +108,7 @@ void Cloud::ComputeQuadraticBestFit() {
             coord[cnt][k] = _yp[_map[j]][k];
             normOld[cnt][k] =  _N[_map[j]][k];
           }
-          weight[cnt] = _ds[_map[j]] * (0.250 * !isFaceElement + isFaceElement);
+          weight[cnt] = _ds[_map[j]] * (/*0.250 **/ !isFaceElement + isFaceElement);
           cnt++;
         }
         coord.resize(cnt);
@@ -141,24 +141,76 @@ void Cloud::ComputeQuadraticBestFit() {
       }
 
 
-      if(cnt0 <= 4) {
-        //if(coord.size() > 6) {
-        unsigned nEP = 5;
-        nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
-        for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
-          unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
-          swap(weight[j], weight[k]);
-          coord[j].swap(coord[k]);
-          normOld[j].swap(normOld[k]);
-        }
-        if(iel == 298 || iel == 208) {
-          std::cout << xn[0] << " " << xn[1] << std::endl;
-          for(unsigned j = 0; j < coord.size(); j++) {
-            std::cout << cnt0 << " " << iel << " " << j << " " << weight[j]  << " " << coord[j][0]  << " " << coord[j][1] << std::endl;
-          }
-        }
-        cnt0 += nEP;
+
+      std::vector<double*> weightP(weight.size());
+      for(unsigned i = 0; i < weightP.size(); i++) {
+        weightP[i] = &weight[i];
       }
+      std::sort(weightP.begin() + cnt0, weightP.end(), [](const double * a, const double * b) {
+        return *a > *b;
+      });
+      std::vector<unsigned> mapj(weight.size());
+      for(unsigned i = 0; i < weight.size(); i++) {
+        mapj[i] =  static_cast<unsigned>(weightP[i] - &weight[0]);
+      }
+
+      std::vector<std::vector<double>> coord1(coord.size(), std::vector<double>(dim));
+      std::vector<std::vector<double>> norm1(coord.size(), std::vector<double>(dim));
+      std::vector<double> weight1(weight.size());
+
+      for(unsigned i = 0; i < coord.size(); i++) {
+
+        coord1[i] = coord[mapj[i]];
+        norm1[i] = normOld[mapj[i]];
+        weight1[i] = weight[mapj[i]];
+      }
+      coord1.swap(coord);
+      norm1.swap(normOld);
+      weight1.swap(weight);
+
+      if(cnt0 <= 4) {
+        cnt0 = (coord.size() >= 9) ? cnt0 + 5 : coord.size();
+      }
+
+      unsigned newSize = (weight.size() - cnt0 > 30) ? (cnt0 + 30) : weight.size();
+      weight.resize(newSize);
+      coord.resize(newSize);
+      normOld.resize(newSize);
+
+//       double sumWeight = weight[cnt0];
+//       for(unsigned i = cnt0 + 1; i < weight.size(); i++) {
+//         if(weight[i] > 0.001 * sumWeight) {
+//           sumWeight += weight[i];
+//         }
+//         else {
+//           weight.resize(i - 1);
+//           coord.resize(i - 1);
+//           normOld.resize(i - 1);
+//           break;
+//         }
+//       }
+
+
+
+
+//       if(cnt0 <= 4) {
+//         //if(coord.size() > 6) {
+//         unsigned nEP = 5;
+//         nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
+//         for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
+//           unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
+//           swap(weight[j], weight[k]);
+//           coord[j].swap(coord[k]);
+//           normOld[j].swap(normOld[k]);
+//         }
+//         if(iel == 165) {
+//           std::cout << xn[0] << " " << xn[1] << std::endl;
+//           for(unsigned j = 0; j < coord.size(); j++) {
+//             std::cout << cnt0 << " " << iel << " " << j << " " << weight[j]  << " " << coord[j][0]  << " " << coord[j][1] << std::endl;
+//           }
+//         }
+//         cnt0 += nEP;
+//       }
 
 
 
@@ -214,7 +266,7 @@ void Cloud::ComputeQuadraticBestFit() {
       double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
       std::vector<double> Apar = _A[iel];
 
-      if(false && iel == 4784) {
+      if(true && iel == 165) {
         std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
         std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
       }
@@ -267,7 +319,7 @@ void Cloud::ComputeQuadraticBestFit() {
       else _sol->_Sol[SolQIndex]->set(iel, 3); // hyperpola;
 
 
-      if(false && iel == 4784) {
+      if(true && iel == 165) {
         double xMin[2] = { 1.0e10, 1.0e10};
         double xMax[2] = { -1.0e10, -1.0e10};
 
