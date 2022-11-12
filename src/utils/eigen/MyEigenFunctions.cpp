@@ -587,10 +587,9 @@ namespace femus {
   }
 
 
-  void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a, unsigned cnt0) {
+  void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a, const unsigned &np, const double &minDP) {
     const unsigned& dim = N.size();
 
-    unsigned np = cnt0;
     Eigen::MatrixXd X(np, 2);
 
     std::vector < double > xg(dim, 0.);
@@ -616,10 +615,11 @@ namespace femus {
 
     Eigen::EigenSolver<Eigen::MatrixXd> es(A);
     const Eigen::VectorXcd &l = es.eigenvalues().col(0);
-    //unsigned lMax = (fabs(l(1).real()) > fabs(l(0).real())) ? 1 : 0;
-    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
 
-    const Eigen::VectorXcd &u = es.eigenvectors().col(lMin);
+    unsigned lMin = (fabs(l(1).real()) > fabs(l(0).real())) ? 0 : 1;
+    unsigned j = (minDP > 0) ? lMin : 1 - lMin;
+
+    const Eigen::VectorXcd &u = es.eigenvectors().col(j);
     for(unsigned k = 0; k < dim; k++) N[k] = u(k).real();
     FindParabolaBestFit(x, w, N, a);
 

@@ -100,7 +100,7 @@ void Cloud::ComputeQuadraticBestFit() {
         unsigned j0 = _elMrkIdx[jel][0];
         unsigned j1 = _elMrkIdx[jel][1];
         coord.resize(coord.size() + (j1 - j0), std::vector<double> (dim));
-        weight.resize(coord.size() + (j1 - j0), /*0.250 **/ !isFaceElement + isFaceElement);
+        weight.resize(coord.size() + (j1 - j0));
         normOld.resize(normOld.size() + (j1 - j0), std::vector<double> (dim));
         for(unsigned j = j0; j < j1; j++) {
           double dotProduct = 0.;
@@ -108,7 +108,7 @@ void Cloud::ComputeQuadraticBestFit() {
             coord[cnt][k] = _yp[_map[j]][k];
             normOld[cnt][k] =  _N[_map[j]][k];
           }
-          weight[cnt] = _ds[_map[j]] * (/*0.250 **/ !isFaceElement + isFaceElement);
+          weight[cnt] = _ds[_map[j]];
           cnt++;
         }
         coord.resize(cnt);
@@ -117,22 +117,17 @@ void Cloud::ComputeQuadraticBestFit() {
     }
     if(parallelSearch == false) {
       double sigma2 = 0.;
-      double sigma = 0.;
+      std::vector<double> d2 (cnt, 0.);
       if(cnt > 1) {
         for(unsigned i = 0; i < cnt; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            sigma2 += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+            d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
           }
+          sigma2 += d2[i];
         }
-        sigma2 /= cnt;
-        sigma2 /= 15.;// + 45 * (cnt0 <= 4); //TO DO
-        sigma = sqrt(sigma2);
+        sigma2 /= cnt * 15.;
         for(unsigned i = 0; i < cnt; i++) {
-          double a = 0;
-          for(unsigned k = 0; k < dim; k++) {
-            a += -0.5 / sigma2 * (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
-          }
-          weight[i] *= exp(a) / (sigma * sqrt(2. * M_PI));
+          weight[i] *= exp(-0.5 / sigma2 * d2[i]);
         }
       }
       else {
@@ -142,30 +137,41 @@ void Cloud::ComputeQuadraticBestFit() {
 
 
 
-      std::vector<double*> weightP(weight.size());
-      for(unsigned i = 0; i < weightP.size(); i++) {
-        weightP[i] = &weight[i];
+//       std::vector<double*> weightP(weight.size());
+//       for(unsigned i = 0; i < weightP.size(); i++) {
+//         weightP[i] = &weight[i];
+//       }
+//       std::sort(weightP.begin() + cnt0, weightP.end(), [](const double * a, const double * b) {
+//         return *a > *b;
+//       });
+//       std::vector<unsigned> mapj(weight.size());
+//       for(unsigned i = 0; i < weight.size(); i++) {
+//         mapj[i] =  static_cast<unsigned>(weightP[i] - &weight[0]);
+//       }
+
+      std::vector<double*> d2P(d2.size());
+      for(unsigned i = 0; i < d2P.size(); i++) {
+        d2P[i] = &d2[i];
       }
-      std::sort(weightP.begin() + cnt0, weightP.end(), [](const double * a, const double * b) {
-        return *a > *b;
+      std::sort(d2P.begin() + cnt0, d2P.end(), [](const double * a, const double * b) {
+        return *a < *b;
       });
-      std::vector<unsigned> mapj(weight.size());
-      for(unsigned i = 0; i < weight.size(); i++) {
-        mapj[i] =  static_cast<unsigned>(weightP[i] - &weight[0]);
+      std::vector<unsigned> mapj(d2.size());
+      for(unsigned i = 0; i < d2.size(); i++) {
+        mapj[i] =  static_cast<unsigned>(d2P[i] - &d2[0]);
       }
 
       std::vector<std::vector<double>> coord1(coord.size(), std::vector<double>(dim));
-      std::vector<std::vector<double>> norm1(coord.size(), std::vector<double>(dim));
+      std::vector<std::vector<double>> normOld1(normOld.size(), std::vector<double>(dim));
       std::vector<double> weight1(weight.size());
 
       for(unsigned i = 0; i < coord.size(); i++) {
-
         coord1[i] = coord[mapj[i]];
-        norm1[i] = normOld[mapj[i]];
+        normOld1[i] = normOld[mapj[i]];
         weight1[i] = weight[mapj[i]];
       }
       coord1.swap(coord);
-      norm1.swap(normOld);
+      normOld1.swap(normOld);
       weight1.swap(weight);
 
       if(cnt0 <= 4) {
@@ -189,29 +195,6 @@ void Cloud::ComputeQuadraticBestFit() {
 //           break;
 //         }
 //       }
-
-
-
-
-//       if(cnt0 <= 4) {
-//         //if(coord.size() > 6) {
-//         unsigned nEP = 5;
-//         nEP = (nEP > coord.size() - cnt0) ? (coord.size() - cnt0) : nEP;
-//         for(unsigned j = cnt0; j < cnt0 + nEP; j++) {
-//           unsigned k = max_element(weight.begin() + j, weight.end()) - weight.begin();
-//           swap(weight[j], weight[k]);
-//           coord[j].swap(coord[k]);
-//           normOld[j].swap(normOld[k]);
-//         }
-//         if(iel == 165) {
-//           std::cout << xn[0] << " " << xn[1] << std::endl;
-//           for(unsigned j = 0; j < coord.size(); j++) {
-//             std::cout << cnt0 << " " << iel << " " << j << " " << weight[j]  << " " << coord[j][0]  << " " << coord[j][1] << std::endl;
-//           }
-//         }
-//         cnt0 += nEP;
-//       }
-
 
 
 
@@ -244,7 +227,19 @@ void Cloud::ComputeQuadraticBestFit() {
 
 
       //This return a parabola
-      femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0); //parabola
+
+      double minDP = 1;
+      for(unsigned i = 0; i < cnt0 - 1; i++) {
+        for(unsigned j = i + 1; j < cnt0; j++) {
+          double dp = 0.;
+          for(unsigned k = 0; k < dim; k++) {
+            dp += normOld[j][k] * normOld[i][k];
+          }
+          if(dp < minDP) minDP = dp;
+        }
+      }
+
+      femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0, minDP); //parabola
       dotProduct.assign(cnt0, 0);
       n1Dotn = 0;
       for(unsigned i = 0; i < cnt0; i++) {
@@ -581,15 +576,15 @@ void Cloud::ComputeQuadraticBestFit() {
                   coord[j[k]].swap(coord[cnt0 + k]);
                 }
 
-                femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0 + nEP); //parabola
+                femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0 + nEP,1); //parabola
 
               }
               else {
-                femus::GetQuadricBestFit(coord, weight, norm, _A[kel], coord.size()); //parabola
+                femus::GetQuadricBestFit(coord, weight, norm, _A[kel], coord.size(),1); //parabola
               }
             }
             else {
-              femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0); //parabola
+              femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0,1); //parabola
             }
 
             dotProduct.assign(i1 - i0, 0);
