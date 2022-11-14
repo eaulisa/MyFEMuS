@@ -111,7 +111,7 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
 
-  mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
+  mlMsh.GenerateCoarseBoxMesh(4,4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -140,6 +140,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
   mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("DIC", DISCONTINUOUS_POLYNOMIAL, ZERO, false); //double intersection conuter
   
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
@@ -352,6 +353,15 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       double y = xv[1] + 0.5;
       double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
       double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+
+
+//       double x = xv[0];
+//       double y = xv[1];
+//       double u = 0.;
+//       double v =  (y<0.)?0.1:-0.1;
+//       if(y==0) v= 0;
+
+
 
       //double x = xv[0] + 0.25;
       //double y = xv[1] /*+ 0.5*/;

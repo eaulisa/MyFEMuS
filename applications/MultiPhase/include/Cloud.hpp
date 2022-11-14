@@ -950,6 +950,9 @@ namespace femus {
 
     unsigned cnt = 0;
 
+    unsigned SolDICIndex = _sol->GetIndex("DIC");
+    unsigned SolQIndex = _sol->GetIndex("Q");
+
     const unsigned &nel = _A.size();
     _ypNew.resize(2 * nel * nMax, std::vector<double>(dim));
     _elem.resize(2 * nel * nMax);
@@ -966,21 +969,6 @@ namespace femus {
 
       unsigned nDof = msh->GetElementDofNumber(iel, 0);
 
-      double t;
-      if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
-      else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
-      else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
-
-      double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
-      double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-
-      bool keepMrk = (fabs(ap / cp) > 100 || fabs(cp / ap) > 100) ? true : false;
-      keepMrk = false;
-      if(i1 - i0 < 2) keepMrk = true;
-
-      keepMrk = false;
-
-
       for(unsigned k = 0; k < dim; k++) {
         xv[k].resize(nDof);
       }
@@ -992,7 +980,17 @@ namespace femus {
       }
 
       unsigned nInt = 0;
-      if(((i1 - i0) < nMin || (i1 - i0) > nMax) && !keepMrk) {
+
+
+      double h2 = 0.;
+      unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
+      unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
+      for(unsigned k = 0; k < dim; k++) {
+        double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
+        h2 += h * h;
+      }
+      bool multipleIntersection = false;
+      if(((i1 - i0) < nMin || (i1 - i0) > nMax)) {
         sol = GetCellPointsFromQuadric(xv, iel, npt, nInt);
         if(nInt == 2) {
           if(cnt + sol.first.size() > _ypNew.size()) {
@@ -1003,14 +1001,6 @@ namespace femus {
             _kappaNew.resize(newSize);
             _dsNew.resize(newSize);
           }
-
-          double h2 = 0.;
-          unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
-          unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
-          for(unsigned k = 0; k < dim; k++) {
-            double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
-            h2 += h * h;
-          }
           for(unsigned i = 0; i < sol.first.size(); i++) {
             double distMin = 1.e10;
             for(unsigned j = i0; j < i1; j++) {
@@ -1018,9 +1008,7 @@ namespace femus {
               for(unsigned k = 0; k < dim; k++) distj += (_yp[_map[j]][k] - sol.first[i][k]) * (_yp[_map[j]][k] - sol.first[i][k]);
               if(distj < distMin) distMin = distj;
             }
-            if(iel == 61) std::cout << "AAAAA " << distMin << " " << 0.04 * h2 << "\n";
             if(distMin < 0.04 * h2) {
-
               for(unsigned k = 0; k < dim; k++) {
                 _ypNew[cnt][k] = sol.first[i][k];
               }
@@ -1031,13 +1019,15 @@ namespace femus {
               cnt++;
             }
           }
+          _sol->_Sol[SolDICIndex]->set(iel, 0.);
         }
         else {
-          keepMrk = true;
+          multipleIntersection = true;
+          goto useOldMarkers;
         }
       }
-      if(((i1 - i0) >= nMin && (i1 - i0) <= nMax) || keepMrk) {
-
+      else {
+      useOldMarkers:
         if(cnt + (i1 - i0) > _ypNew.size()) {
           unsigned newSize = cnt + (i1 - i0) + 2 * (nel - elCnt) * nMax;
           _ypNew.resize(newSize, std::vector<double>(dim));
@@ -1046,23 +1036,40 @@ namespace femus {
           _kappaNew.resize(newSize);
           _dsNew.resize(newSize);
         }
-
-        for(unsigned i = i0; i < i1; i++) {
-          _ypNew[cnt] = _yp[_map[i]];
-          if(keepMrk) {
-            _NNew[cnt] = _N[_map[i]];
-            _kappaNew[cnt] = _kappa[_map[i]];
+        bool skip = false;
+        if(false && multipleIntersection && (*_sol->_Sol[SolDICIndex])(iel) > 10. && (*_sol->_Sol[SolQIndex])(iel) != 1) {
+          double t;
+          if(fabs(_A[iel][1]) < 1.e-4) t = 0.;
+          else if(fabs(_A[iel][0] - _A[iel][2]) < 1.e-4) t = M_PI / 4.;
+          else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
+          double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
+          double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
+          if (fabs(ap / cp) > 1.e4 || fabs(cp / ap) > 1.e4) skip = true;
+          if(skip) std::cout << "AAAAAAAAAa " << ap / cp << " " << cp / ap << std::endl;
+        }
+        _sol->_Sol[SolDICIndex]->add(iel, 1.);
+        if(!skip) {
+          for(unsigned i = i0; i < i1; i++) {
+            _ypNew[cnt] = _yp[_map[i]];
+            if(multipleIntersection) {
+              _NNew[cnt] = _N[_map[i]];
+              _kappaNew[cnt] = _kappa[_map[i]];
+            }
+            else {
+              _NNew[cnt] = GetNormal(iel, _ypNew[cnt]);
+              _kappaNew[cnt] = GetCurvature(iel, _ypNew[cnt]);
+            }
+            _dsNew[cnt] = _ds[_map[i]];
+            _elem[cnt] = iel;
+            cnt++;
           }
-          else {
-            _NNew[cnt] = GetNormal(iel, _ypNew[cnt]);
-            _kappaNew[cnt] = GetCurvature(iel, _ypNew[cnt]);
-          }
-          _dsNew[cnt] = _ds[_map[i]];
-          _elem[cnt] = iel;
-          cnt++;
+        }
+        else {
+          _sol->_Sol[SolDICIndex]->set(iel, 0.);
         }
       }
     }
+
 
     _ypNew.resize(cnt);
     _elem.resize(cnt);
@@ -1708,8 +1715,6 @@ namespace femus {
 
 #include "./Cloud.cpp"
 
-
-
   void Cloud::AddInteriorMarkerAndUpdateColorFunctions(const unsigned &iel, unsigned &cnt, const unsigned &SolCnIndex, const unsigned &SolCIndex, const unsigned &solType, const double &nodeValue) {
 
     unsigned ielType = _msh->GetElementType(iel);
@@ -1783,6 +1788,48 @@ namespace femus {
 
 
 
+// unsigned ii = _map[i];
+//
+// double d2Min = 1.0e10 * h2;
+// double d2;
+// unsigned jMin;
+//
+// for(unsigned j = i + 1; j < i1; j++) {
+//   d2 = 0.;
+//   for(unsigned k = 0; k < _dim; k++) {
+//     d2 += (_yp[ii][k] - _yp[_map[j]][k]) * (_yp[ii][k] - _yp[_map[j]][k]);
+//   }
+//   if(d2 < d2Min) {
+//     d2Min = d2;
+//     jMin = j;
+//   }
+//   //std::cout << iel << " " << i << " " << j << " " << jMin << std::endl;
+// }
+//
+// bool skip = false;
+// if(d2Min < 0.0000 * h2) {
+//   skip = true;
+//   unsigned jj = _map[jMin];
+//
+//   double di = _ds[ii];
+//   double dj = _ds[jj];
+//   double dsSum =  di + dj;
+//   double norm = 0.;
+//
+//   //std::cout << "AA"<< iel << " " << i << " " << jMin <<" "<< di << " "<< dj<<" "<<dsSum<<" "<< std::endl;
+//
+//   _kappa[jj] = (_kappa[jj] * dj + _kappa[ii] * di ) / dsSum;
+//   for(unsigned k = 0; k < _dim; k++) {
+//     _yp[jj][k] = (_yp[jj][k] * dj  + _yp[ii][k] * di ) / dsSum;
+//
+//     _N[jj][k] = (_N[jj][k] * dj + _N[ii][k] * di );
+//     norm += _N[jj][k] * _N[jj][k];
+//   }
+//   for(unsigned k = 0; k < _dim; k++) {
+//     _N[jj][k] /= sqrt(norm);
+//   }
+//   _ds[jj] = sqrt(norm);
+// }
 
 
 
