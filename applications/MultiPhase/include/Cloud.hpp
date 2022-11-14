@@ -52,7 +52,7 @@ namespace femus {
 
       double GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &dotProd, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints);
 
-      std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level = 0);
+      std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned &iel, unsigned npt, unsigned &nInt, unsigned level, double &C);
 
       void RebuildMarkers(const unsigned &nMin, const unsigned &nMax, const unsigned &npt);
 
@@ -165,6 +165,7 @@ namespace femus {
       void RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt);
       void GetLinearFit(const unsigned & iel, const std::vector<std::vector<double>> &Jac, std::vector < double > &a, double & d);
       void BuildColorFunction(const char C);
+      double GetC(const std::vector<std::vector<double>>&xv, const std::vector<std::vector<double>>&xp, const unsigned &iel);
 
     private:
 
@@ -348,6 +349,7 @@ namespace femus {
     std::vector< std::vector < double > > xv;
     std::pair<std::vector<std::vector<double>>, std::vector<double>> sol;
 
+    unsigned solCIndex = _sol->GetIndex("C");
 
     unsigned solType = 2;
     _mrk.ClearElement();
@@ -376,6 +378,8 @@ namespace femus {
 
     unsigned offset = msh->_elementOffset[iproc];
     unsigned offsetp1 = msh->_elementOffset[iproc + 1];
+    
+    _sol->_Sol[solCIndex]->zero();
 
     for(unsigned iel = offset; iel < offsetp1; iel++) {
 //     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++, elCnt++) {
@@ -400,7 +404,10 @@ namespace femus {
 
       unsigned nInt = 0;
 
-      sol = GetCellPointsFromQuadric(xv, iel, npt, nInt);
+      double C = 0;
+      sol = GetCellPointsFromQuadric(xv, iel, npt, nInt, 0, C);
+//       std::cout << C <<" "<<;
+      _sol->_Sol[solCIndex]->set(iel, C);
 
       if(nInt == 2) {
         if(ielIsDefined) {
@@ -431,6 +438,7 @@ namespace femus {
       else if(!ielIsDefined) _A.erase(iel);
 
     }
+     _sol->_Sol[solCIndex]->close();
 
     _ypNew.resize(cnt);
     _yiNew.resize(cnt);
@@ -712,7 +720,7 @@ namespace femus {
     }
   };
 #include <boost/math/special_functions/math_fwd.hpp>
-  std::pair<std::vector<std::vector<double>>, std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level) {
+  std::pair<std::vector<std::vector<double>>, std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level, double &C) {
 
     unsigned cnt = 0;
     const unsigned dim = xv.size();
@@ -903,6 +911,9 @@ namespace femus {
           ds[j - 1] = 0.5 * ds[j - 1];
         }
         npt = cnt = ds.size();
+
+        C += GetC(xv, xe, iel);
+
       }
       else {
         xe.resize(0);
@@ -924,7 +935,9 @@ namespace femus {
               }
             }
             unsigned nInt = 0;
-            std::pair<std::vector<std::vector<double>>, std::vector<double>> a = GetCellPointsFromQuadric(xvj, iel, npt, nInt, level + 1);
+            double Cj = 0;
+            std::pair<std::vector<std::vector<double>>, std::vector<double>> a = GetCellPointsFromQuadric(xvj, iel, npt, nInt, level + 1, Cj);
+            C += 0.25 * Cj;
             xe.insert(xe.end(), a.first.begin(), a.first.end());
             ds.insert(ds.end(), a.second.begin(), a.second.end());
           }
@@ -991,7 +1004,8 @@ namespace femus {
       }
       bool multipleIntersection = false;
       if(((i1 - i0) < nMin || (i1 - i0) > nMax)) {
-        sol = GetCellPointsFromQuadric(xv, iel, npt, nInt);
+        double C = 0.;
+        sol = GetCellPointsFromQuadric(xv, iel, npt, nInt, 0, C);
         if(nInt == 2) {
           if(cnt + sol.first.size() > _ypNew.size()) {
             unsigned newSize = cnt + sol.first.size() + 2 * (nel - elCnt) * nMax;
@@ -1044,7 +1058,7 @@ namespace femus {
           else t = 0.5 * atan(_A[iel][1] / (_A[iel][0] - _A[iel][2]));
           double ap = _A[iel][0] * cos(t) * cos(t) + _A[iel][1] * cos(t) * sin(t) + _A[iel][2] * sin(t) * sin(t);
           double cp = _A[iel][2] * cos(t) * cos(t) - _A[iel][1] * cos(t) * sin(t) + _A[iel][0] * sin(t) * sin(t);
-          if (fabs(ap / cp) > 1.e4 || fabs(cp / ap) > 1.e4) skip = true;
+          if(fabs(ap / cp) > 1.e4 || fabs(cp / ap) > 1.e4) skip = true;
           if(skip) std::cout << "AAAAAAAAAa " << ap / cp << " " << cp / ap << std::endl;
         }
         _sol->_Sol[SolDICIndex]->add(iel, 1.);
@@ -1229,7 +1243,7 @@ namespace femus {
             if(i < nDofsL && allSurrounded) {
               double value = (*_sol->_Sol[SolCnIndex])(inode);
               if(value < 0.125) allSurrounded = false;
-              else if (value < 0.5) count1++;
+              else if(value < 0.5) count1++;
               else count2++;
             }
           }
@@ -1237,7 +1251,7 @@ namespace femus {
             newElemNumberLocal++;
             AddInteriorMarkerAndUpdateColorFunctions(iel, cnt, SolCnIndex, SolCIndex, solType, 1.);
           }
-          else if (allSurrounded && count2 > count1) {
+          else if(allSurrounded && count2 > count1) {
             newElemNumberLocal++;
             AddInteriorMarkerAndUpdateColorFunctions(iel, cnt, SolCnIndex, SolCIndex, solType, .75);
           }
@@ -1602,6 +1616,77 @@ namespace femus {
 
     }
   }
+
+
+  double Cloud::GetC(const std::vector<std::vector<double>>&xv, const std::vector<std::vector<double>>&xp, const unsigned &iel) {
+
+    unsigned solTypeL = 0;
+    unsigned ielType = _msh->GetElementType(iel);
+    std::vector<double> xm(_dim, 0.);
+    for(unsigned k = 0; k < _dim; k++) {
+      for(unsigned i = 0; i < xv[k].size(); i++) {
+        xm[k] += xv[k][i] / xv[k].size();
+      }
+    }
+    const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+    std::vector<std::vector<double>> Jac, JacI;
+    double weight;
+    femL->GetJacobianMatrix(xv, xm, weight, Jac, JacI);
+
+    std::vector<double> N(_dim, 0.);
+    for(unsigned i = 0; i < xp.size(); i++) {
+      std::vector<double> Ni = GetNormal(iel, xp[i]);
+
+      for(unsigned k = 0; k < _dim; k++) {
+        for(unsigned j = 0; j < _dim; j++) {
+          N[k] += Jac[j][k] * Ni[j];
+        }
+      }
+
+    }
+    double det = 0.;
+    for(unsigned k = 0; k < _dim; k++) det += N[k] * N[k];
+    for(unsigned k = 0; k < _dim; k++) N[k] /= det;
+
+    std::vector<double> a;
+    double d;
+
+    if(xp.size() > 1) {
+      FindBestFit(xp, boost::none, N, a, d);
+    }
+    else if(xp.size() == 1) {
+      a = N;
+      d = - a[0] * xp[0][0] - a[1] * xp[0][1];
+    }
+
+    d = -d;
+    for(unsigned k = 0; k < _dim; k++) a[k] = -a[k];
+
+    std::vector <TypeIO> weightCF;
+    if(ielType == 3) {
+      quad.GetWeightWithMap(0, a, d, weightCF);
+    }
+    else if(ielType == 4) {
+      tri.GetWeightWithMap(0, a, d, weightCF);
+    }
+    else {
+      abort();
+    }
+
+    double area = 0.;
+    double areaC = 0.;
+    std::vector<double> phi, dphidx;
+    for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+      femL->Jacobian(xv, ig, weight, phi, dphidx);
+      area += weight;
+      areaC += weight * weightCF[ig];
+    }
+    return areaC / area;
+  }
+
+
+
+
 
   void Cloud::BuildColorFunction(const char C) {
     Mesh *msh = _sol->GetMesh();

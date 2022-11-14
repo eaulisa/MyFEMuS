@@ -237,7 +237,7 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(true);
 
 
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+ 
 
   //return 0;
 
@@ -261,13 +261,16 @@ int main(int argc, char** args) {
 //   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01});
   cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
 
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  
   cldint.RebuildInteriorMarkers(cld, "C", "Cn");
   SetVelocity(sol, velocity, time, period);
   cld.PrintCSV("markerBefore", 0);
   cld.PrintCSV("marker", 0);
   cldint.PrintCSV("markerInternalBefore", 0);
   cldint.PrintCSV("markerInternal", 0);
-
+ 
+  
 
   double dt = period / nIterations;
 
