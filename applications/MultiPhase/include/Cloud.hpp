@@ -87,6 +87,30 @@ namespace femus {
       }
 
 
+      void GetElementQuantities(const unsigned &iel, std::vector<std::vector<double>> &xp, std::vector<std::vector<double>> &xi, std::vector<std::vector<double>> &N) {
+        if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
+          unsigned i0 = _elMrkIdx[iel][0];
+          unsigned i1 = _elMrkIdx[iel][1];
+          xp.assign(i1 - i0, std::vector<double>(_dim));
+          xi.assign(i1 - i0, std::vector<double>(_dim));
+          N.assign(i1 - i0, std::vector<double>(_dim));
+          unsigned cnt;
+          for(unsigned i = i0, cnt = 0; i < i1; i++, cnt++) {
+            xi[cnt] = _yi[_map[i]];
+            N[cnt] = _N[_map[i]];
+            xp[cnt] = _yp[_map[i]];
+          }
+        }
+        else {
+          xp.resize(0);
+          xi.resize(0);
+          N.resize(0);
+        }
+      }
+
+
+
+
       double GetValue(const unsigned &iel, const std::vector<double> &xp) {
         return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
       }
@@ -378,7 +402,7 @@ namespace femus {
 
     unsigned offset = msh->_elementOffset[iproc];
     unsigned offsetp1 = msh->_elementOffset[iproc + 1];
-    
+
     _sol->_Sol[solCIndex]->zero();
 
     for(unsigned iel = offset; iel < offsetp1; iel++) {
@@ -438,7 +462,7 @@ namespace femus {
       else if(!ielIsDefined) _A.erase(iel);
 
     }
-     _sol->_Sol[solCIndex]->close();
+    _sol->_Sol[solCIndex]->close();
 
     _ypNew.resize(cnt);
     _yiNew.resize(cnt);
