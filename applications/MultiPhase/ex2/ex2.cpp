@@ -326,7 +326,7 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
       cld->GetElementQuantities(iel, Jac, xp, xi, Np, Ni);
 
 
-      asplit->Split(xv, xp, xi, Ni, ielType, 0, 0);
+      asplit->Split(xv, Ni, ielType, 0, 0);
 
       //abort();
 
