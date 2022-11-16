@@ -54,8 +54,9 @@ Cloud *cldint;
 
 using namespace femus;
 
+#include "AdaptiveSplit.hpp"
 
-void AdaptiveSplit(const std::vector<std::vector<double>> &xv, const std::vector<std::vector<double>> &xp, const std::vector<std::vector<double>> &xi, const std::vector<std::vector<double>> &Np, const unsigned ielType, const unsigned &level, const unsigned &child);
+AdaptiveSplit *asplit;
 
 void FakeAssembly(MultiLevelSolution* mlSol);
 
@@ -231,9 +232,11 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
+  asplit = new AdaptiveSplit();
 
   FakeAssembly(&mlSol);
 
+  delete asplit;
   delete cld;
   delete cldint;
 
@@ -310,19 +313,20 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
     std::vector<double> a;
     double d;
     std::vector<std::vector<double>> Jac, JacI;
-    std::vector<std::vector<double>> xp;
-    std::vector<std::vector<double>> Np;
-    std::vector<std::vector<double>> xi;
+    std::vector<std::vector<double>> &xp = asplit->GetXpFather();
+    std::vector<std::vector<double>> &Np = asplit->GetNpFather();
+    std::vector<std::vector<double>> &xi = asplit->GetXiFather();
+    std::vector<std::vector<double>> &Ni = asplit->GetNiFather();
     if(cut == 1) {
 
       femV = fem.GetFiniteElement(ielType, solVType);
       femP = fem.GetFiniteElement(ielType, solPType);
       femV->GetJacobianMatrix(xv, xvt[nDofsX - 1], weight, Jac, JacI);
 
-      cld->GetElementQuantities(iel, xp, xi, Np);
+      cld->GetElementQuantities(iel, Jac, xp, xi, Np, Ni);
 
 
-      AdaptiveSplit(xv, xp, xi, Np, ielType, 0, 0);
+      asplit->Split(xv, xp, xi, Ni, ielType, 0, 0);
 
       //abort();
 
@@ -488,142 +492,6 @@ void SetVelocity(Solution * sol, const std::vector<std::string> &U, const double
 }
 
 
-void AdaptiveSplit(const std::vector<std::vector<double>> &xv, const std::vector<std::vector<double>> &xp, const std::vector<std::vector<double>> &xi, const std::vector<std::vector<double>> &Np, const unsigned ielType, const unsigned &level, const unsigned &child) {
-
-
-  if(xp.size() > 1) {
-
-    unsigned dim = xp[0].size();
-
-    //std::cout << level << " " << child << std::endl;
-
-    unsigned nChilds = (dim == 2) ? 4 : 8;
-    std::vector<double> j(nChilds, 0);
-    std::vector<std::vector<std::vector<double>>> xpj(nChilds, std::vector<std::vector<double>>(xp.size()));
-    std::vector<std::vector<std::vector<double>>> Npj(nChilds, std::vector<std::vector<double>>(xp.size()));
-    std::vector<std::vector<std::vector<double>>> xij(nChilds, std::vector<std::vector<double>>(xp.size(), std::vector<double>(dim)));
-    for(unsigned i = 0; i < xp.size(); i++) {
-      if(ielType == 3) {
-        if(xi[i][0] < 0) {
-          if(xi[i][1] < 0) {
-            xpj[0][j[0]] = xp[i];
-            Npj[0][j[0]] = Np[i];
-
-            xij[0][j[0]][0] = -1 + 2 * (xi[i][0] + 1);
-            xij[0][j[0]][1] = -1 + 2 * (xi[i][1] + 1);
-
-
-            j[0]++;
-          }
-          else {
-            xpj[3][j[3]] = xp[i];
-            Npj[3][j[3]] = Np[i];
-
-            xij[3][j[3]][0] = -1 + 2 * (xi[i][0] + 1);
-            xij[3][j[3]][1] = -1 + 2 * xi[i][1];
-
-            j[3]++;
-          }
-        }
-        else {
-          if(xi[i][1] < 0) {
-            xpj[1][j[1]] = xp[i];
-            Npj[1][j[1]] = Np[i];
-
-            xij[1][j[1]][0] = -1 + 2 * xi[i][0];
-            xij[1][j[1]][1] = -1 + 2 * (xi[i][1] + 1);
-
-            j[1]++;
-          }
-          else {
-            xpj[2][j[2]] = xp[i];
-            Npj[2][j[2]] = Np[i];
-
-            xij[2][j[2]][0] = -1 + 2 * xi[i][0];
-            xij[2][j[2]][1] = -1 + 2 * xi[i][1];
-
-            j[2]++;
-          }
-
-        }
-      }
-
-      else if(ielType == 4) {
-        if(xi[i][0] > 0.5) {
-          xpj[1][j[1]] = xp[i];
-          Npj[1][j[1]] = Np[i];
-          xij[1][j[1]][0] = 2 * (xi[i][0] - 0.5);
-          xij[1][j[1]][1] = 2 * xi[i][1];
-          j[1]++;
-        }
-        else if(xi[i][1] > 0.5) {
-          xpj[2][j[2]] = xp[i];
-          Npj[2][j[2]] = Np[i];
-          xij[2][j[2]][0] = 2 * xi[i][0];
-          xij[2][j[2]][1] = 2 * (xi[i][1] - 0.5);
-          j[2]++;
-        }
-        else if(xi[i][0] + xi[i][1] < 0.5) {
-          xpj[0][j[0]] = xp[i];
-          Npj[0][j[0]] = Np[i];
-          xij[0][j[0]][0] = 2 * xi[i][0];
-          xij[0][j[0]][1] = 2 * xi[i][1];
-          j[0]++;
-        }
-        else {
-          xpj[3][j[3]] = xp[i];
-          Npj[3][j[3]] = Np[i];
-          xij[3][j[3]][0] = 1 - 2 * xi[i][0];
-          xij[3][j[3]][1] = 1 - 2 * xi[i][1];
-          j[3]++;
-        }
-
-      }
-    }
-
-    for(unsigned l = 0; l < nChilds; l++) {
-
-      xpj[l].resize(j[l]);
-      Npj[l].resize(j[l]);
-      xij[l].resize(j[l]);
-      unsigned nve = (ielType == 3) ? 4 : 3;
-      std::vector<std::vector<double> > xvj(dim, std::vector<double>(nve));
-
-              
-        xvj.assign(dim, std::vector<double>(nve, 0.));
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned I = 0; I < nve; I++) {
-            for(unsigned J = 0 ; J < nve; J++) {
-              xvj[k][I] += PJ[ielType][l][I][J] * xv[k][J];
-            }
-          }
-        }
-
-
-        AdaptiveSplit(xvj, xpj[l], xij[l], Npj[l], ielType, level + 1, l);
-      }
-    }
-    else if(xp.size() == 1) {
-      unsigned nve = (ielType == 3) ? 4 : 3;  
-      
-      for(unsigned i = 0; i< nve; i++){
-          std::cout << xv[0][i] << " " << xv[1][i] << std::endl;  
-      }
-      std::cout << xv[0][0] << " " << xv[1][0] << std::endl;  
-      std::cout<<std::endl;
-      //std::cout << level << " " << child << " " << xp[0][0] << " " << xp[0][1] << " " << xi[0][0] << " " << xi[0][1] << std::endl;
-    }
-    else {
-      unsigned nve = (ielType == 3) ? 4 : 3;  
-     
-      for(unsigned i = 0; i< nve; i++){
-          std::cout << xv[0][i] << " " << xv[1][i] << std::endl;  
-      }
-      std::cout << xv[0][0] << " " << xv[1][0] << std::endl;  
-      std::cout<<std::endl;
-      //std::cout << level << " " << child << " empty or full\n";
-    }
-  }
 
 
 
