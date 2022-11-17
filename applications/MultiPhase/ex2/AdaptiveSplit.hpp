@@ -1,13 +1,16 @@
-
-
 #ifndef __femus_AdaptiveSplit_hpp__
 #define __femus_AdaptiveSplit_hpp__
+
+#include "CutFemWeight.hpp"
+#include "CDWeights.hpp"
+#include "Fem.hpp"
 
 namespace femus {
 
   class AdaptiveSplit {
     public:
       void Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level, const unsigned &father, const unsigned &granFather = 0);
+      void GetWeight();
 
       std::vector<std::vector<double>> &GetXpFather() {
         return _xp0;
@@ -40,6 +43,10 @@ namespace femus {
       std::vector<std::vector<std::vector<std::vector<double>>>> _Ni;
 
       std::vector<std::vector<std::vector<unsigned>>> _map;
+      
+      CutFemWeight <double, double> *_quad;
+      CutFemWeight <double, double> *_tri;
+      Fem *_fem;
   };
 
   void AdaptiveSplit::Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level, const unsigned &father, const unsigned &granFather) {
@@ -278,6 +285,14 @@ namespace femus {
 
 
     }
+  }
+  
+  void AdaptiveSplit::GetWeight(){
+//     _quad = CutFemWeight<double, cpp_bin_float_oct>(QUAD, 5, "legendre");
+//     _tri = CutFemWeight<double, cpp_bin_float_oct>(TRI, 5, "legendre");
+//     _fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+    
+    
   }
 
 }
