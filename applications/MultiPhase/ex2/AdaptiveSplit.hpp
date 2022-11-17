@@ -9,8 +9,31 @@ namespace femus {
 
   class AdaptiveSplit {
     public:
-      void Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level, const unsigned &father, const unsigned &granFather = 0);
-      void GetWeight();
+
+      AdaptiveSplit(const unsigned &qOrder) {
+        _quad = new CutFemWeight<double, cpp_bin_float_oct>(QUAD, qOrder, "legendre");
+        _tri = new CutFemWeight<double, cpp_bin_float_oct>(TRI, qOrder, "legendre");
+        _femFine = new Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+        _femCoarse = new Fem(qOrder, quad.GetDimension());
+      }
+
+      ~AdaptiveSplit() {
+        delete _quad;
+        delete _tri;
+        delete _femCoarse;
+        delete _femFine;
+      }
+
+      void Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const std::vector<std::vector<double>> &JacI, const unsigned &level, const unsigned &father, const unsigned &granFather = 0);
+      const std::vector<double>& GetWeight1() {
+        return _weight1;
+      };
+      const std::vector<double>& GetWeight2() {
+        return _weight2;
+      };
+      const std::vector<double>& GetWeightI() {
+        return _weightI;
+      };
 
       std::vector<std::vector<double>> &GetXpFather() {
         return _xp0;
@@ -43,25 +66,40 @@ namespace femus {
       std::vector<std::vector<std::vector<std::vector<double>>>> _Ni;
 
       std::vector<std::vector<std::vector<unsigned>>> _map;
-      
-      CutFemWeight <double, double> *_quad;
-      CutFemWeight <double, double> *_tri;
-      Fem *_fem;
+
+      CutFemWeight <double, cpp_bin_float_oct> *_quad;
+      CutFemWeight <double, cpp_bin_float_oct> *_tri;
+      Fem *_femFine;
+      Fem *_femCoarse;
+
+      std::vector <double> _weight1;
+      std::vector <double> _weight2;
+      std::vector <double> _weightI;
+
+      std::vector <double> _weightCut1;
+      std::vector <double> _weightCut2;
+      std::vector <double> _weightCutI;
+
+      std::vector <double> _phi;
+      std::vector <double> _dphidx;
   };
 
-  void AdaptiveSplit::Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level, const unsigned &father, const unsigned &granFather) {
+  void AdaptiveSplit::Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const std::vector<std::vector<double>> &JacI, const unsigned &level, const unsigned &father, const unsigned &granFather) {
 
     const unsigned &dim = xv.size();
     if(level == 0) {
+
+      _weight1.resize(0);
+      _weight2.resize(0);
+      _weightI.resize(0);
+
       if(_map.size() < 1) _map.resize(1);
       _map[0].assign(1, std::vector<unsigned> (_xp0.size()));
       for(unsigned j = 0; j < _xp0.size(); j++) _map[0][0][j] = j;
     }
 
     const unsigned &np = _map[level][father].size();
-    if(np > 1) {
-
-
+    if(np > 2) {
 
       //std::cout << level << " " << child << std::endl;
 
@@ -190,42 +228,96 @@ namespace femus {
           }
         }
 
-        this->Split(xvj, ielType, level + 1, l, father);
+        this->Split(xvj, ielType, JacI, level + 1, l, father);
       }
     }
-    else if(np == 1) {
-      unsigned nve = (ielType == 3) ? 4 : 3;
+    else if(np > 0) {
+//       unsigned nve = (ielType == 3) ? 4 : 3;
+//
+//       double xmin = 100;
+//       double xmax = -100;
+//       double ymin = 100;
+//       double ymax = -100;
+//
+//
+//       for(unsigned i = 0; i < nve; i++) {
+//         // std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
+//         if(xmin > xv[0][i]) xmin = xv[0][i];
+//         if(xmax < xv[0][i]) xmax = xv[0][i];
+//         if(ymin > xv[1][i]) ymin = xv[1][i];
+//         if(ymax < xv[1][i]) ymax = xv[1][i];
+//       }
+//       //  std::cout << xv[0][0] << " " << xv[1][0] << std::endl;
+//       //  std::cout << std::endl;
+//
+//
+//       unsigned i0 = _map[level][father][0];
+//       double x1 = _xp0[i0][0];
+//       double y1 = _xp0[i0][1];
+//
+//       double N1 = _Np0[i0][0];
+//       double N2 = _Np0[i0][1];
+//
+//       if(x1 < xmin || x1 > xmax) std::cout << "AAAAAAAAAAAAAA " << i0 << " " << father << " " << xmin <<  " " << x1 << " " << xmax << std::endl;
+//       if(y1 < ymin || y1 > ymax) std::cout << "BBBBBBBBBBBBBB " << i0 << " " << father << " " << ymin <<  " " << y1 << " " << ymax << std::endl;
 
-      double xmin = 100;
-      double xmax = -100;
-      double ymin = 100;
-      double ymax = -100;
 
-
-      for(unsigned i = 0; i < nve; i++) {
-        // std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
-        if(xmin > xv[0][i]) xmin = xv[0][i];
-        if(xmax < xv[0][i]) xmax = xv[0][i];
-        if(ymin > xv[1][i]) ymin = xv[1][i];
-        if(ymax < xv[1][i]) ymax = xv[1][i];
+      std::vector <double> a(dim);
+      std::vector <double> xi(dim);
+      double deta = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        if(np == 1) {
+          a[k] = _Ni[level][father][0][k];
+          xi[k] = _xi[level][father][0][k];
+        }
+        else {
+          a[k] = 0.5 * (_Ni[level][father][0][k] + _Ni[level][father][1][k]);
+          xi[k] = 0.5 * (_xi[level][father][0][k] + _xi[level][father][1][k]);
+          deta += a[k] * a[k];
+        }
       }
-      //  std::cout << xv[0][0] << " " << xv[1][0] << std::endl;
-      //  std::cout << std::endl;
+      deta /= sqrt(deta);
+      if(np == 2) for(unsigned k = 0; k < dim; k++) a[k] /= deta;
+
+      double d = 0;
+      for(unsigned k = 0; k < dim; k++) d -= a[k] * xi[k];
+
+      double dsN = 0.;
+      std::vector <double> Np(dim);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < dim; j++) {
+          Np[k] += JacI[j][k] * a[j];
+        }
+        dsN += Np[k] * Np[k];
+      }
+      dsN = sqrt(dsN);
 
 
-      unsigned i0 = _map[level][father][0];
-      double x1 = _xp0[i0][0];
-      double y1 = _xp0[i0][1];
 
-      double N1 = _Np0[i0][0];
-      double N2 = _Np0[i0][1];
+      CutFemWeight <double, cpp_bin_float_oct> *cutElemeFem = (ielType == 3) ? _quad : _tri;
+      cutElemeFem->GetWeightWithMap(0, a, d, _weightCut2);
+      for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
+      d = -d;
+      cutElemeFem->GetWeightWithMap(0, a, d, _weightCut1);
+      cutElemeFem->GetWeightWithMap(-1, a, d, _weightCutI);
 
-      if(x1 < xmin || x1 > xmax) std::cout << "AAAAAAAAAAAAAA " << i0 << " " << father << " " << xmin <<  " " << x1 << " " << xmax << std::endl;
-      if(y1 < ymin || y1 > ymax) std::cout << "BBBBBBBBBBBBBB " << i0 << " " << father << " " << ymin <<  " " << y1 << " " << ymax << std::endl;
+      const elem_type *elemFem = _femFine->GetFiniteElement(ielType, 0);
+      unsigned ng = elemFem->GetGaussPointNumber();
+      unsigned size0 = _weight1.size();
+      _weight1.resize(size0 + ng, 0.);
+      _weight2.resize(size0 + ng, 0.);
+      _weightI.resize(size0 + ng, 0.);
 
-//       std::cout << x1 << " " << y1 << std::endl;
-//       std::cout << x1 + N1/10  << " " << y1 + N2 / 10 << std::endl;
-//       std::cout << std::endl;
+
+      for(unsigned ig = 0; ig < ng; ig++) {
+        double weight;
+        elemFem->Jacobian(xv, ig, weight, _phi, _dphidx);
+
+        _weight1[size0 + ig] = weight * _weightCut1[ig];
+        _weight2[size0 + ig] = weight * _weightCut2[ig];
+        _weightI[size0 + ig] = weight * _weightCutI[ig] * dsN;
+
+      }
     }
     else {
       unsigned nve = (ielType == 3) ? 4 : 3;
@@ -235,6 +327,7 @@ namespace femus {
 
       double d2min = 1.e10;
       unsigned jmin = 0;
+      unsigned jjmin = 0;
       for(unsigned i = 0; i < nve; i++) {
         for(unsigned jj = 0; jj < _map[level - 1][granFather].size(); jj++) {
           unsigned j = _map[level - 1][granFather][jj];
@@ -243,12 +336,13 @@ namespace femus {
             d2 += (xv[k][i] - _xp0[j][k]) * (xv[k][i] - _xp0[j][k]);
           }
           if(d2 < d2min) {
+            jjmin = jj;
             jmin = j;
             d2min = d2;
           }
         }
       }
-      std::vector<double> &a = _Np0[jmin];
+      std::vector<double> a = _Np0[jmin];
       double d = 0;
       for(unsigned k = 0; k < dim; k++) d -= a[k] * _xp0[jmin][k];
 
@@ -270,30 +364,80 @@ namespace femus {
           if(dist[i0] * dist[i] < 0) sameSign = false;
         }
       }
-      if(sameSign && dist[i0] < 0) {
-        for(unsigned i = 0; i < nve; i++) {
-          std::cout << xv[0][i] << " " << xv[1][i] << std::endl;
+
+
+      if(sameSign) {
+
+        const elem_type *elemFem = _femCoarse->GetFiniteElement(ielType, 0);
+        unsigned ng = elemFem->GetGaussPointNumber();
+        unsigned size0 = _weight1.size();
+        _weight1.resize(size0 + ng, 0.);
+        _weight2.resize(size0 + ng, 0.);
+        _weightI.resize(size0 + ng, 0.);
+
+
+
+        if(dist[i0] < 0) {
+          for(unsigned ig = 0; ig < ng; ig++) {
+            elemFem->Jacobian(xv, ig, _weight1[size0 + ig], _phi, _dphidx);
+          }
         }
-        std::cout << xv[0][0] << " " << xv[1][0] << std::endl;
-        std::cout << std::endl;
+        else {
+          for(unsigned ig = 0; ig < ng; ig++) {
+            elemFem->Jacobian(xv, ig, _weight2[size0 + ig], _phi, _dphidx);
+          }
+        }
       }
-      else{ //is a cut cell
-          
+      else { //is a cut cell
+
+        a = _Ni[level - 1][granFather][jjmin];
+        double d = 0;
+        for(unsigned k = 0; k < dim; k++) d -= a[k] * _xi[level - 1][granFather][jjmin][k];
+
+
+
+
+        double dsN = 0.;
+        std::vector <double> Np(dim);
+        for(unsigned k = 0; k < dim; k++) {
+          for(unsigned j = 0; j < dim; j++) {
+            Np[k] += JacI[j][k] * a[j];
+          }
+          dsN += Np[k] * Np[k];
+        }
+        dsN = sqrt(dsN);
+
+
+
+        CutFemWeight <double, cpp_bin_float_oct> *cutElemeFem = (ielType == 3) ? _quad : _tri;
+        cutElemeFem->GetWeightWithMap(0, a, d, _weightCut2);
+        for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
+        d = -d;
+        cutElemeFem->GetWeightWithMap(0, a, d, _weightCut1);
+        cutElemeFem->GetWeightWithMap(-1, a, d, _weightCutI);
+
+        const elem_type *elemFem = _femFine->GetFiniteElement(ielType, 0);
+        unsigned ng = elemFem->GetGaussPointNumber();
+        unsigned size0 = _weight1.size();
+        _weight1.resize(size0 + ng, 0.);
+        _weight2.resize(size0 + ng, 0.);
+        _weightI.resize(size0 + ng, 0.);
+
+
+        for(unsigned ig = 0; ig < ng; ig++) {
+          double weight;
+          elemFem->Jacobian(xv, ig, weight, _phi, _dphidx);
+
+          _weight1[size0 + ig] = weight * _weightCut1[ig];
+          _weight2[size0 + ig] = weight * _weightCut2[ig];
+          _weightI[size0 + ig] = weight * _weightCutI[ig] * dsN;
+
+        }
       }
-
-
-
-
     }
   }
-  
-  void AdaptiveSplit::GetWeight(){
-//     _quad = CutFemWeight<double, cpp_bin_float_oct>(QUAD, 5, "legendre");
-//     _tri = CutFemWeight<double, cpp_bin_float_oct>(TRI, 5, "legendre");
-//     _fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
-    
-    
-  }
+
+
 
 }
 #endif
