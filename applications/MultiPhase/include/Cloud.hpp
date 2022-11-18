@@ -94,7 +94,7 @@ namespace femus {
           xp.assign(i1 - i0, std::vector<double>(_dim));
           xi.assign(i1 - i0, std::vector<double>(_dim));
           Np.assign(i1 - i0, std::vector<double>(_dim));
-          Ni.assign(i1 - i0, std::vector<double>(_dim,0));
+          Ni.assign(i1 - i0, std::vector<double>(_dim, 0));
           unsigned cnt;
           for(unsigned i = i0, cnt = 0; i < i1; i++, cnt++) {
             xi[cnt] = _yi[_map[i]];
@@ -103,12 +103,21 @@ namespace femus {
           }
 
           for(unsigned i = 0; i < Np.size(); i++) {
+
+            double detN = 0;
             for(unsigned k = 0; k < _dim; k++) {
               for(unsigned j = 0; j < _dim; j++) {
                 Ni[i][k] += Jac[j][k] * Np[i][j];
               }
+              detN += Ni[i][k] * Ni[i][k];
             }
+            detN = sqrt(detN);
+            
+            for(unsigned k = 0; k < _dim; k++) Ni[i][k] /= detN;
+            
+            //std::cout<<Ni[i][0]*Ni[i][0]+Ni[i][1]*Ni[i][1]<<" ";
           }
+          //std::cout<<std::endl;
 
         }
         else {
