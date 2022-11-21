@@ -1,3 +1,5 @@
+
+
 /** \file Ex6.cpp
  *  \brief This example shows how to set and solve the weak form
  *   of the Navier-Stokes Equation
@@ -45,6 +47,10 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 #include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"
 #include "MyEigenFunctions.hpp"
+
+const double R = 0.24;
+const double XC = 0.;
+const double YC = 0.;
 
 Cloud *cld;
 Cloud *cldint;
@@ -126,7 +132,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 3;
   unsigned nMax = 4 * pow(2, 6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -213,8 +219,8 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
 
   double time = 0.;
-  cld->AddEllipses({{0., 0}}, {{0.26, 0.26}}, {9});
-  cldint->AddInteriorEllipses({{0., 0.}}, {{0.26, 0.26}});
+  cld->AddEllipses({{XC, YC}}, {{R, R}}, {9});
+  cldint->AddInteriorEllipses({{0., 0.}}, {{R, R}});
 
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
   SetVelocity(sol, velocity, time, period);
@@ -225,6 +231,10 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
+  asplit = new AdaptiveSplit(5);
+
+  FakeAssembly(&mlSol);
+
   cld->PrintCSV("markerBefore", 1);
   cld->PrintCSV("marker", 1);
   cldint->PrintCSV("markerInternalBefore", 1);
@@ -232,9 +242,6 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
-  asplit = new AdaptiveSplit(5);
-
-  FakeAssembly(&mlSol);
 
   delete asplit;
   delete cld;
@@ -277,10 +284,18 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
   std::vector <double> weight1(quad.GetGaussQuadraturePointNumber(), 0.);
   std::vector <double> weight2(quad.GetGaussQuadraturePointNumber(), 0.);
 
-
+  double int1 = 0.;
+  double intS1 = 0.;
   double volume1 = 0.;
   double volume2 = 0.;
   double surface = 0.;
+
+  double int1b = 0.;
+  double intS1b = 0.;
+  double volume1b = 0.;
+  double volume2b = 0.;
+  double surfaceb = 0.;
+
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -318,38 +333,47 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
     std::vector<std::vector<double>> &xi = asplit->GetXiFather();
     std::vector<std::vector<double>> &Ni = asplit->GetNiFather();
     
-    std::vector <double> weight1;
-    std::vector <double> weight2;
-    std::vector <double> weightI;
+    std::vector <double> weight1b;
+    std::vector <double> weight2b;
+    std::vector <double> weightIb;
     
     
     if(cut == 1) {
+
+      std::cout<<iel<<std::endl;
 
       femV = fem.GetFiniteElement(ielType, solVType);
       femP = fem.GetFiniteElement(ielType, solPType);
       femV->GetJacobianMatrix(xv, {1./3,1./3}, weight, Jac, JacI);//TODO in all ex
 
       cld->GetElementQuantities(iel, Jac, xp, xi, Np, Ni);
-// 
-//       std::cout<<iel<<" AAA "<<std::endl;
-//       asplit->Split(xv, ielType, 0, 0);
-// 
-// 
-//       const std::vector <double> &weight1 = asplit->GetWeight1();
-//       const std::vector <double> &weight2 = asplit->GetWeight2();
-//       const std::vector <double> &weightI = asplit->GetWeightI();
-// 
-//       for(unsigned i = 0; i < weight1.size(); i++) {
-//         volume1 += weight1[i];
-//         volume2 += weight2[i];
-//         surface += weightI[i];
-//       }
-// 
-//       double sum = 0;
-//       for(unsigned i = 0; i < weight1.size(); i++) {
-//          sum +=  weightI[i];
-//       }
-//       std::cout<<sum<<"  bbb" << std::endl;
+
+      asplit->Split(xv, ielType, 0, 0);
+
+
+      const std::vector <double> &weight1 = asplit->GetWeight1();
+      const std::vector <double> &weight2 = asplit->GetWeight2();
+      const std::vector <double> &weightI = asplit->GetWeightI();
+      const std::vector<std::vector <double>> &xg = asplit->GetXv();
+
+      for(unsigned i = 0; i < weight1.size(); i++) {
+        int1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weight1[i];
+        volume1 += weight1[i];
+        volume2 += weight2[i];
+
+        intS1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weightI[i];
+        surface += weightI[i];
+      }
+
+      double sum1 = 0;
+      double sum2 = 0;
+      for(unsigned i = 0; i < weight1.size(); i++) {
+         sum1 +=  weight1[i];
+         sum2 +=  weight2[i];
+      }
+      sol->_Sol[solCIndex]->set(iel, sum1/(sum1+sum2));
+
+    //  std::cout<<iel<< std::endl;
       
 
 
@@ -377,23 +401,23 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
 
       std::vector <TypeIO> weightCF;
       if(ielType == 3) { //quad
-        quad.GetWeightWithMap(0, a, d, weight2);
+        quad.GetWeightWithMap(0, a, d, weight2b);
         for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
         d = -d;
-        quad.GetWeightWithMap(-1, a, d, weightI);
-        quad.GetWeightWithMap(0, a, d, weight1);
+        quad.GetWeightWithMap(-1, a, d, weightIb);
+        quad.GetWeightWithMap(0, a, d, weight1b);
       }
       else if(ielType == 4) { //tri
-        tri.GetWeightWithMap(0, a, d, weight2);
+        tri.GetWeightWithMap(0, a, d, weight2b);
         for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
         d = -d;
-        tri.GetWeightWithMap(-1, a, d, weightI);
-        tri.GetWeightWithMap(0, a, d, weight1);
+        tri.GetWeightWithMap(-1, a, d, weightIb);
+        tri.GetWeightWithMap(0, a, d, weight1b);
       }
       else {
         for(unsigned i = 0; i < weight1.size(); i++) {
-          weight1[i] = C;
-          weight2[i] = 1. - C;
+          weight1b[i] = C;
+          weight2b[i] = 1. - C;
         }
       }
     }
@@ -406,13 +430,29 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
         femV->Jacobian(xv, ig, weight, phiV, phiV_x);
         phiP = femP->GetPhi(ig);
 
+        std::vector<double> xg(dim,0);
+        for(unsigned k = 0; k < dim; k++) {
+          for(unsigned i = 0; i < xv[k].size(); i++) {
+            xg[k] += phiV[i] * xv[k][i];
+          }
+        }
+
+
         double dsN = 0.;
         std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
 
 
         if(cut == 0) {
-          if(C == 1) volume1 += weight;
-          else volume2 += weight;
+          if(C == 1) {
+            int1 += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
+            int1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
+            volume1 +=weight;
+            volume1b += weight;
+          }
+          else {
+            volume2 += weight;
+            volume2b += weight;
+          }
         }
         else {
 
@@ -429,24 +469,33 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
             Nf[k] /= dsN;
           }
 
-          volume1 += weight * weight1[ig];
-          surface += weight * weightI[ig] * dsN;
-          volume2 += weight * weight2[ig];
+          //std::cout<<a[0]<<" "<<a[1]<<" "<<dsN<<"\n";
+          int1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight * weight1b[ig];
+          volume1b += weight * weight1b[ig];
+
+          intS1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight * weightIb[ig] * dsN;
+          surfaceb += weight * weightIb[ig] * dsN;
+          volume2b += weight * weight2b[ig];
           
-          sum += weight * weightI[ig] * dsN;
+          sum += weight * weightIb[ig] * dsN;
 /*
         volume1 += weight * C;
         volume2 += weight * (1. - C);*/
 
       }
     }
-    std::cout<<iel<< " " <<sum<<std::endl;
+    //if(cut==1) std::cout<<iel<< " " <<sum<<std::endl;
   } //end element loop for each process
 
   std::cout << volume1 << " " << volume2 << " " << surface << " " << volume1 + volume2 << std::endl;
+  std::cout << volume1b << " " << volume2b << " " << surfaceb << " " << volume1b + volume2b << std::endl;
   std::cout << M_PI * 0.26 * 0.26 << " " << 1 - M_PI * 0.26 * 0.26 << " " << 2 * M_PI * 0.26 << " " << 1. << std::endl;
 
 
+  std::cout << int1 << " " << int1b << " " <<M_PI/2*pow(R,4)<< std::endl;
+  std::cout << intS1 << " " << intS1b << " " <<2 * M_PI * pow(R,3)<< std::endl;
+
+  sol->_Sol[solCIndex]->close();
 }
 
 

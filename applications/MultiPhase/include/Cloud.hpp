@@ -453,7 +453,7 @@ namespace femus {
 //       std::cout << C <<" "<<;
       _sol->_Sol[solCIndex]->set(iel, C);
 
-      if(nInt == 2) {
+      if(nInt <= 4) {
         if(ielIsDefined) {
           std::cerr << "Same cell initialized two times in AddQuadric!\n";
           abort();
