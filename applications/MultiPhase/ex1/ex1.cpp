@@ -45,24 +45,28 @@ typedef cpp_bin_float_oct oct;
 
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 1, "legendre");
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 #include "../include/Cloud.hpp"
 Cloud *cld;
 Cloud *cldint;
 
-const double mu2 = 0.009535;
-const double mu1 = 0.006349;
-const double rho2 = 1.5;
-const double rho1 = 1.;
-const double sigma = 0.;
-const double gravity = -10.;
-// const double mu1 = 1.;
-// const double mu2 = 1.;
+// // RT
+// const double mu2 = 0.009535;
+// const double mu1 = 0.006349;
+// const double rho2 = 1.5;
 // const double rho1 = 1.;
-// const double rho2 = 10.;
-// const double sigma = 1.;
+// const double sigma = 0.;
+// const double gravity = -10.;
+
+// // Turek 1
+const double mu1 = 0.1;
+const double mu2 = 10.;
+const double rho1 = 1.;
+const double rho2 = 1000;
+const double sigma = 1.96;
+const double gravity = -0.98;
 
 std::vector <double> g;
 
@@ -131,12 +135,13 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); 
+  mlMsh.GenerateCoarseBoxMesh(161, 321, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); //turek 
+//   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //Raileigh Taylor
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -159,7 +164,9 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
-
+  mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("DIC", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
 //    mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
@@ -222,21 +229,23 @@ int main(int argc, char** args) {
 
 
   unsigned nIterations = 1000;
+  unsigned nMrk = 1000;
   
   
  // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+  cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMrk);
 //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
-  cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
+//   cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
   cld->ComputeQuadraticBestFit();
 
-  //cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+  cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
 //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
-  cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
+//   cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
-  cldint->PrintCSV("markerInt", 0);
+//   cldint->PrintCSV("markerInt", 0);
 
 
   std::vector < std::string > variablesToBePrinted;
@@ -271,7 +280,8 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.005;
+//   double dt =  0.005; //RT
+  double dt =  0.01; //Turek
   return dt;
 }
 

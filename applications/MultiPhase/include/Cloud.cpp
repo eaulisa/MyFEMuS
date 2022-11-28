@@ -125,7 +125,7 @@ void Cloud::ComputeQuadraticBestFit() {
           }
           sigma2 += d2[i];
         }
-        sigma2 /= cnt * 15.;
+        sigma2 /= cnt * 2.;
         for(unsigned i = 0; i < cnt; i++) {
           weight[i] *= exp(-0.5 / sigma2 * d2[i]);
         }
@@ -467,7 +467,7 @@ void Cloud::ComputeQuadraticBestFit() {
                 }
                 sigma2 += d2[i];
               }
-              sigma2 /= cnt * 15.;
+              sigma2 /= cnt * 2.;
               for(unsigned i = 0; i < cnt; i++) {
                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
               }
