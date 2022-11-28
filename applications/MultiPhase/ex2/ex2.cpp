@@ -38,15 +38,16 @@ typedef cpp_bin_float_oct TypeA;
 typedef cpp_bin_float_oct oct;
 
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
-Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+//CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
+//CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
+//Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"
 #include "MyEigenFunctions.hpp"
+#include "../include/AdaptiveSplit.hpp"
 
 const double R = 0.24;
 const double XC = 0.;
@@ -59,8 +60,6 @@ Cloud *cldint;
 #include <iostream>
 
 using namespace femus;
-
-#include "AdaptiveSplit.hpp"
 
 AdaptiveSplit *asplit;
 
@@ -231,7 +230,9 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  asplit = new AdaptiveSplit(5);
+  unsigned qorder = 5;
+  unsigned lmax = 3;
+  asplit = new AdaptiveSplit(qorder, lmax);
 
   FakeAssembly(&mlSol);
 
@@ -266,8 +267,6 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
   unsigned solCIndex = mlSol->GetIndex("C");
 
   std::vector < std::vector < double > > xv(dim);    // local coordinates
-  std::vector < std::vector < double > > xvt;    // local coordinates
-
 
   std::vector <double> phiV;  // local test function for velocity
   std::vector <double> phiV_x; // local test function first order partial derivatives
@@ -278,11 +277,6 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
   unsigned solVType = 2;
   unsigned solPType = 0;
   unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
-
-
-  std::vector <double> weightI(quad.GetGaussQuadraturePointNumber(), 0.);
-  std::vector <double> weight1(quad.GetGaussQuadraturePointNumber(), 0.);
-  std::vector <double> weight2(quad.GetGaussQuadraturePointNumber(), 0.);
 
   double int1 = 0.;
   double intS1 = 0.;
@@ -298,144 +292,111 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
 
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
     unsigned ielType = msh->GetElementType(iel);
-
     double C = (*sol->_Sol[solCIndex])(iel);
-
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);    // number of solution element dofs
     unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);    // number of solution element dofs
 
-
-    xvt.assign(nDofsX, std::vector<double>(dim));
     xv.assign(dim, std::vector<double>(nDofsX));
-
     // local storage of coordinates
     for(unsigned i = 0; i < nDofsX; i++) {
       unsigned xvDof  = msh->GetSolutionDof(i, iel, solXType);    // local to global mapping between coordinates node and coordinate dof
       for(unsigned k = 0; k < dim; k++) {
         xv[k][i] = (*msh->_topology->_Sol[k])(xvDof);      // global extraction and local storage for the element coordinates
-        xvt[i][k] = xv[k][i];
       }
     }
 
-    const elem_type *femV = msh->_finiteElement[ielType][solVType];
-    const elem_type *femP = msh->_finiteElement[ielType][solPType];
-
-
     unsigned cut = (cld->GetNumberOfMarker(iel) > 0) ? 1 : 0;
-    std::vector<double> a;
-    double d;
-    std::vector<std::vector<double>> Jac, JacI;
-   
-
-    std::vector <double> weight1b;
-    std::vector <double> weight2b;
-    std::vector <double> weightIb;
-
 
     if(cut == 1) {
 
-      std::cout << iel << std::endl;
-      
-      femV = fem.GetFiniteElement(ielType, solVType);
-      femP = fem.GetFiniteElement(ielType, solPType);
-      femV->GetJacobianMatrix(xv, {1. / 3, 1. / 3}, weight, Jac, JacI); //TODO in all ex
+      std::vector<double> a;
+      double d;
+      std::vector<std::vector<double>> Jac, JacI;
 
+      std::cout << iel << std::endl;
+
+      const elem_type *femV = asplit->GetFiniteElementFine(ielType, solVType);
+      const elem_type *femP = asplit->GetFiniteElementFine(ielType, solPType);
+            
+      femV->GetJacobianMatrix(xv, {1. / 3, 1. / 3}, weight, Jac, JacI); //TODO in all ex
       cld->GetElementQuantities(iel, Jac, asplit->GetXiFather(), asplit->GetDsFather(),  asplit->GetNiFather());
 
-      asplit->Split(xv, ielType);
-
-      const std::vector <double> &weight1 = asplit->GetWeight1();
-      const std::vector <double> &weight2 = asplit->GetWeight2();
-      const std::vector <double> &weightI = asplit->GetWeightI();
-      const std::vector<std::vector <double>> &xg = asplit->GetXg();
-      for(unsigned i = 0; i < weight1.size(); i++) {
-        int1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weight1[i];     
-        intS1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weightI[i];
-      }
       
-      volume1 += asplit->GetVolume1();
-      volume2 += asplit->GetVolume2();
-      surface += asplit->GetSurfaceArea();
+       {
+        asplit->Split(xv, ielType, false);
 
-      double sum1 = 0;
-      double sum2 = 0;
-      for(unsigned i = 0; i < weight1.size(); i++) {
-        sum1 +=  weight1[i];
-        sum2 +=  weight2[i];
-      }
-      sol->_Sol[solCIndex]->set(iel, asplit->GetC());
-          
-      
-      //abort();
-      
-      std::vector<std::vector<double>> &xi = asplit->GetXiFather();
-      std::vector<std::vector<double>> &Ni = asplit->GetNiFather();
-      
-      std::vector<double> N(dim, 0);
-      for(unsigned i = 0; i < Ni.size(); i++) {
-        for(unsigned k = 0; k < dim; k++) {
-          N[k] += Ni[i][k];
-        }
-      }
-      double det = 0.;
-      for(unsigned k = 0; k < dim; k++) det += N[k] * N[k];
-      for(unsigned k = 0; k < dim; k++) N[k] /= det;
+        const std::vector <double> &weight1 = asplit->GetWeight1();
+        const std::vector <double> &weight2 = asplit->GetWeight2();
+        const std::vector <double> &weightI = asplit->GetWeightI();
+        const std::vector<std::vector <double>> &xg = asplit->GetXg();
+        const std::vector<std::vector <double>> &xig = asplit->GetXig();
 
-      if(xi.size() > 1) {
-        FindBestFit(xi, boost::none, N, a, d);
-      }
-      else {
-        a = N;
-        d = - a[0] * xi[0][0] - a[1] * xi[0][1];
-      }
-
-      std::vector <TypeIO> weightCF;
-      if(ielType == 3) { //quad
-        quad.GetWeightWithMap(0, a, d, weight2b);
-        for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
-        d = -d;
-        quad.GetWeightWithMap(-1, a, d, weightIb);
-        quad.GetWeightWithMap(0, a, d, weight1b);
-      }
-      else if(ielType == 4) { //tri
-        tri.GetWeightWithMap(0, a, d, weight2b);
-        for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
-        d = -d;
-        tri.GetWeightWithMap(-1, a, d, weightIb);
-        tri.GetWeightWithMap(0, a, d, weight1b);
-      }
-      else {
         for(unsigned i = 0; i < weight1.size(); i++) {
-          weight1b[i] = C;
-          weight2b[i] = 1. - C;
+
+          femV->Jacobian(xv, i, weight, phiV, phiV_x);// cheap
+
+          int1b += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weight1[i];
+          intS1b += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weightI[i];
         }
+
+        volume1b += asplit->GetVolume1();
+        volume2b += asplit->GetVolume2();
+        surfaceb += asplit->GetSurfaceArea();
       }
+           
+
+      {
+        asplit->Split(xv, ielType, true);
+
+        const std::vector <double> &weight1 = asplit->GetWeight1();
+        const std::vector <double> &weight2 = asplit->GetWeight2();
+        const std::vector <double> &weightI = asplit->GetWeightI();
+        const std::vector<std::vector <double>> &xg = asplit->GetXg();
+        const std::vector<std::vector <double>> &xig = asplit->GetXig();
+
+        for(unsigned i = 0; i < weight1.size(); i++) {
+
+          femV->Jacobian(xv, xig[i], weight, phiV, phiV_x);// expensive for real adaptivity
+
+          int1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weight1[i];
+          intS1 += (xg[i][0] * xg[i][0] + xg[i][1] * xg[i][1]) * weightI[i];
+        }
+
+        volume1 += asplit->GetVolume1();
+        volume2 += asplit->GetVolume2();
+        surface += asplit->GetSurfaceArea();
+
+        double sum1 = 0;
+        double sum2 = 0;
+        for(unsigned i = 0; i < weight1.size(); i++) {
+          sum1 +=  weight1[i];
+          sum2 +=  weight2[i];
+        }
+        sol->_Sol[solCIndex]->set(iel, asplit->GetC());
+
+      }
+
+     
     }
-    //else {
+    else {
+      const elem_type *femV = asplit->GetFiniteElementCoarse(ielType, solVType);
+      const elem_type *femP = asplit->GetFiniteElementCoarse(ielType, solPType);  
+        
+      for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+        // *** get gauss point weight, test function and test function partial derivatives ***
+        femV->Jacobian(xv, ig, weight, phiV, phiV_x);
+        phiP = femP->GetPhi(ig);
 
-    double sum = 0;
-    // *** Gauss point loop ***
-    for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
-      // *** get gauss point weight, test function and test function partial derivatives ***
-      femV->Jacobian(xv, ig, weight, phiV, phiV_x);
-      phiP = femP->GetPhi(ig);
-
-      std::vector<double> xg(dim, 0);
-      for(unsigned k = 0; k < dim; k++) {
-        for(unsigned i = 0; i < xv[k].size(); i++) {
-          xg[k] += phiV[i] * xv[k][i];
+        std::vector<double> xg(dim, 0);
+        for(unsigned k = 0; k < dim; k++) {
+          for(unsigned i = 0; i < xv[k].size(); i++) {
+            xg[k] += phiV[i] * xv[k][i];
+          }
         }
-      }
 
 
-      double dsN = 0.;
-      std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
-
-
-      if(cut == 0) {
         if(C == 1) {
           int1 += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
           int1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
@@ -447,38 +408,8 @@ void FakeAssembly(MultiLevelSolution* mlSol) {
           volume2b += weight;
         }
       }
-      else {
-
-        femV->GetJacobianMatrix(xv, ig, weight, Jac, JacI);
-
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned j = 0; j < dim; j++) {
-            Nf[k] += JacI[j][k] * a[j];
-          }
-          dsN += Nf[k] * Nf[k];
-        }
-        dsN = sqrt(dsN);
-        for(unsigned k = 0; k < dim; k++) {
-          Nf[k] /= dsN;
-        }
-
-        //std::cout<<a[0]<<" "<<a[1]<<" "<<dsN<<"\n";
-        int1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight * weight1b[ig];
-        volume1b += weight * weight1b[ig];
-
-        intS1b += (xg[0] * xg[0] + xg[1] * xg[1]) * weight * weightIb[ig] * dsN;
-        surfaceb += weight * weightIb[ig] * dsN;
-        volume2b += weight * weight2b[ig];
-
-        sum += weight * weightIb[ig] * dsN;
-        /*
-                volume1 += weight * C;
-                volume2 += weight * (1. - C);*/
-
-      }
-    }
-    //if(cut==1) std::cout<<iel<< " " <<sum<<std::endl;
-  } //end element loop for each process
+    } //end element loop for each process
+  }
 
   std::cout << volume1 << " " << volume2 << " " << surface << " " << volume1 + volume2 << std::endl;
   std::cout << volume1b << " " << volume2b << " " << surfaceb << " " << volume1b + volume2b << std::endl;

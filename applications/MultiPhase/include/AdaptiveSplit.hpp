@@ -4,6 +4,7 @@
 #include "CutFemWeight.hpp"
 #include "CDWeights.hpp"
 #include "Fem.hpp"
+#include "PolynomialBases.hpp"
 
 namespace femus {
 
@@ -15,11 +16,13 @@ namespace femus {
   class AdaptiveSplit {
     public:
 
-      AdaptiveSplit(const unsigned &qOrder) {
+      AdaptiveSplit(const unsigned &qOrder, const unsigned &lmax) {
         _quad = new CutFemWeight<double, cpp_bin_float_oct>(QUAD, qOrder, "legendre");
         _tri = new CutFemWeight<double, cpp_bin_float_oct>(TRI, qOrder, "legendre");
-        _femFine = new Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
-        _femCoarse = new Fem(qOrder, quad.GetDimension());
+        _femFine = new Fem(_quad->GetGaussQuadratureOrder(), _quad->GetDimension());
+        _femCoarse = new Fem(qOrder, _quad->GetDimension());
+        _lmax = lmax;
+        _aP.resize(1);
       }
 
       ~AdaptiveSplit() {
@@ -28,8 +31,19 @@ namespace femus {
         delete _femCoarse;
         delete _femFine;
       }
+      
+      
+      
+      const elem_type * GetFiniteElementFine(const unsigned &ielType, const unsigned &solType){
+        _femFine->GetFiniteElement(ielType, solType);
+      }
+      
+      const elem_type * GetFiniteElementCoarse(const unsigned &ielType, const unsigned &solType){
+        _femCoarse->GetFiniteElement(ielType, solType);
+      }
+      
 
-      void Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level = 0, const unsigned &father = 0);
+      void Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const bool &split = true, const unsigned &level = 0, const unsigned &father = 0);
       const std::vector<double>& GetWeight1() {
         return _weight1;
       };
@@ -41,6 +55,10 @@ namespace femus {
       };
       const std::vector<std::vector<double>>& GetXg() {
         return _xg;
+      };
+      
+      const std::vector<std::vector<double>>& GetXig() {
+        return _xig;
       };
 
       std::vector<std::vector<double>> &GetNiFather() {
@@ -135,8 +153,6 @@ namespace femus {
 
     private:
 
-      const std::vector<std::vector<double>> _xig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
-
       std::vector<std::vector<std::vector<std::vector<double>>>> _xi;
       std::vector<std::vector<std::vector<std::vector<double>>>> _Ni;
       std::vector<std::vector<std::vector<double>>> _ds;
@@ -154,6 +170,7 @@ namespace femus {
       const elem_type *_fem;
 
       double _volume1, _volume2, _surface;
+      unsigned _lmax;
 
       std::vector <double> _weight1;
       std::vector <double> _weight2;
@@ -164,12 +181,16 @@ namespace femus {
       std::vector <double> _weightCutI;
 
       std::vector<std::vector <double>> _xg;
+      std::vector<std::vector <double>> _xig;
 
       std::vector<std::vector<double>> _Jac;
       std::vector<std::vector<double>> _JacI;
+
+      std::vector<std::vector < std::vector <double > > > _aP;
+
   };
 
-  void AdaptiveSplit::Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const unsigned &level, const unsigned &father) {
+  void AdaptiveSplit::Split(const std::vector<std::vector<double>> &xv, const unsigned ielType, const bool &split, const unsigned &level, const unsigned &father) {
 
     if(level == 0) {
       if(ielType == 3) {
@@ -189,9 +210,12 @@ namespace femus {
       _weight2.resize(0);
       _weightI.resize(0);
       _xg.resize(0);
+      _xig.resize(0);
 
       _n0.assign(1, std::vector<unsigned>(1, _xi[0][0].size()));
       _n1.assign(1, std::vector<unsigned>(1, _xi[0][0].size()));
+
+      ProjectNodalToPolynomialCoefficients(_aP[0], xv, ielType, 0);
     }
 
 
@@ -199,7 +223,7 @@ namespace femus {
     const unsigned &n1 = _n1[level][father];
     const unsigned &dim = xv.size();
 
-    if(level == 0 || (level < 2 && n1 >= 4)) {
+    if(split && (level < _lmax && n1 >= 4)) {
 
       unsigned nChilds = (dim == 2) ? 4 : 8;
       std::vector<int> k(nChilds, n1 - 1);
@@ -272,7 +296,7 @@ namespace femus {
             }
           }
         }
-        this->Split(xvj, ielType, level + 1, l);
+        this->Split(xvj, ielType, true, level + 1, l);
       }
     }
     else {
@@ -355,6 +379,7 @@ namespace femus {
         _weight2.resize(size0 + ng);
         _weightI.resize(size0 + ng);
         _xg.resize(size0 + ng, std::vector<double>(dim, 0));
+        _xig.resize(size0 + ng, std::vector<double>(dim, 0));
 
         for(unsigned ig = 0; ig < ng; ig++) {
           double weight;
@@ -362,10 +387,14 @@ namespace femus {
           const double *phi = _fem->GetPhi(ig);
 
           for(unsigned k = 0; k < dim; k++) {
-            for(unsigned i = 0; i < xv[k].size(); i++) {
+            for(unsigned i = 0; i < nve; i++) {
               _xg[size0 + ig][k] += phi[i] * xv[k][i];
             }
           }
+
+          short unsigned ielTypeShort = ielType;
+          bool inverseMapping = GetInverseMapping(0, ielTypeShort, _aP, _xg[size0 + ig], _xig[size0 + ig], 100);
+
 
           double dsN = 0.;
           std::vector <double> Np(dim, 0.);
@@ -396,21 +425,32 @@ namespace femus {
         _weight2.resize(size0 + ng, 1. - C);
         _weightI.resize(size0 + ng, 0.);
         _xg.resize(size0 + ng, std::vector<double>(dim, 0));
+        _xig.resize(size0 + ng, std::vector<double>(dim, 0));
 
-        std::vector <double> &weightRef = (C > 0.5) ? _weight1 : _weight2;
-        double &volumeRef = (C > 0.5) ? _volume1 : _volume2;
         for(unsigned ig = 0; ig < ng; ig++) {
           double weight;
           _fem->GetJacobianMatrix(xv, ig, weight, _Jac, _JacI);
           const double *phi = _fem->GetPhi(ig);
 
           for(unsigned k = 0; k < dim; k++) {
-            for(unsigned i = 0; i < xv[k].size(); i++) {
+            for(unsigned i = 0; i < nve; i++) {
               _xg[size0 + ig][k] += phi[i] * xv[k][i];
             }
           }
-          weightRef[size0 + ig] = weight;
-          volumeRef += weight;
+          if(split){
+            short unsigned ielTypeShort = ielType;
+            bool inverseMapping = GetInverseMapping(0, ielTypeShort, _aP, _xg[size0 + ig], _xig[size0 + ig], 100);
+          }
+
+
+          if(C > 0.5) {
+            _weight1[size0 + ig] = weight;
+            _volume1 += weight;
+          }
+          else {
+            _weight2[size0 + ig] = weight;
+            _volume2 += weight;
+          }
         }
       }
 
@@ -569,7 +609,7 @@ namespace femus {
         }
         fout << xP[0] << " " << xP[1] << "\n\n";
       }
-      for(unsigned i = 0; i < xv[0].size(); i++) {
+      for(unsigned i = 0; i < 3; i++) {
         fout << xv[0][i] << " " << xv[1][i] << "\n";
       }
       fout << xv[0][0] << " " << xv[1][0] << "\n\n";
@@ -598,7 +638,7 @@ namespace femus {
       }
       fout << xP[0] << " " << xP[1] << "\n\n";
 
-      for(unsigned i = 0; i < xv[0].size(); i++) {
+      for(unsigned i = 0; i < 3; i++) {
         fout << xv[0][i] << " " << xv[1][i] << "\n";
       }
       fout << xv[0][0] << " " << xv[1][0] << "\n\n";
@@ -675,7 +715,8 @@ namespace femus {
         }
       }
       fout << xP[0] << " " << xP[1] << "\n\n";
-      for(unsigned i = 0; i < xv[0].size(); i++) {
+
+      for(unsigned i = 0; i < 4; i++) {
         fout << xv[0][i] << " " << xv[1][i] << "\n";
       }
       fout << xv[0][0] << " " << xv[1][0] << "\n\n";
@@ -715,7 +756,8 @@ namespace femus {
         }
       }
       fout << xP[0] << " " << xP[1] << "\n\n";
-      for(unsigned i = 0; i < xv[0].size(); i++) {
+
+      for(unsigned i = 0; i < 4; i++) {
         fout << xv[0][i] << " " << xv[1][i] << "\n";
       }
       fout << xv[0][0] << " " << xv[1][0] << "\n\n";
@@ -743,7 +785,7 @@ namespace femus {
       }
       fout << xP[0] << " " << xP[1] << "\n\n";
 
-      for(unsigned i = 0; i < xv[0].size(); i++) {
+      for(unsigned i = 0; i < 4; i++) {
         fout << xv[0][i] << " " << xv[1][i] << "\n";
       }
       fout << xv[0][0] << " " << xv[1][0] << "\n\n";

@@ -1199,39 +1199,39 @@ namespace femus {
       }
 
 
-      const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+//       const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+// 
+//       std::vector<std::vector<double>> Jacob, JacI;
+//       double weight;
+//       femL->GetJacobianMatrix(xn, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
+//       std::vector<double> a;
+//       double d;
+//       intCloud.GetLinearFit(iel, Jacob, a, d);
+// 
+//       d = -d;
+//       for(unsigned k = 0; k < dim; k++) a[k] = -a[k];
+// 
+//       std::vector <TypeIO> weightCF;
+//       if(ielType == 3) {
+//         quad.GetWeightWithMap(0, a, d, weightCF);
+//       }
+//       else if(ielType == 4) {
+//         tri.GetWeightWithMap(0, a, d, weightCF);
+//       }
+//       else {
+//         abort();
+//       }
+// 
+// 
+//       double area = 0.;
+//       double areaC = 0.;
+//       for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+//         femL->Jacobian(xn, ig, weight, phi, phi_x);
+//         area += weight;
+//         areaC += weight * weightCF[ig];
+//       }
 
-      std::vector<std::vector<double>> Jacob, JacI;
-      double weight;
-      femL->GetJacobianMatrix(xn, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
-      std::vector<double> a;
-      double d;
-      intCloud.GetLinearFit(iel, Jacob, a, d);
-
-      d = -d;
-      for(unsigned k = 0; k < dim; k++) a[k] = -a[k];
-
-      std::vector <TypeIO> weightCF;
-      if(ielType == 3) {
-        quad.GetWeightWithMap(0, a, d, weightCF);
-      }
-      else if(ielType == 4) {
-        tri.GetWeightWithMap(0, a, d, weightCF);
-      }
-      else {
-        abort();
-      }
-
-
-      double area = 0.;
-      double areaC = 0.;
-      for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
-        femL->Jacobian(xn, ig, weight, phi, phi_x);
-        area += weight;
-        areaC += weight * weightCF[ig];
-      }
-
-      _sol->_Sol[SolCIndex]->set(iel, areaC / area);
+      _sol->_Sol[SolCIndex]->set(iel, 0.5);
 
       for(unsigned i = 0; i < nDofs; i++) {
 
@@ -1664,68 +1664,68 @@ namespace femus {
 
   double Cloud::GetC(const std::vector<std::vector<double>>&xv, const std::vector<std::vector<double>>&xp, const unsigned &iel) {
 
-    unsigned solTypeL = 0;
-    unsigned ielType = _msh->GetElementType(iel);
-    std::vector<double> xm(_dim, 0.);
-    for(unsigned k = 0; k < _dim; k++) {
-      for(unsigned i = 0; i < xv[k].size(); i++) {
-        xm[k] += xv[k][i] / xv[k].size();
-      }
-    }
-    const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
-    std::vector<std::vector<double>> Jac, JacI;
-    double weight;
-    femL->GetJacobianMatrix(xv, xm, weight, Jac, JacI);
-
-    std::vector<double> N(_dim, 0.);
-    for(unsigned i = 0; i < xp.size(); i++) {
-      std::vector<double> Ni = GetNormal(iel, xp[i]);
-
-      for(unsigned k = 0; k < _dim; k++) {
-        for(unsigned j = 0; j < _dim; j++) {
-          N[k] += Jac[j][k] * Ni[j];
-        }
-      }
-
-    }
-    double det = 0.;
-    for(unsigned k = 0; k < _dim; k++) det += N[k] * N[k];
-    for(unsigned k = 0; k < _dim; k++) N[k] /= det;
-
-    std::vector<double> a;
-    double d;
-
-    if(xp.size() > 1) {
-      FindBestFit(xp, boost::none, N, a, d);
-    }
-    else if(xp.size() == 1) {
-      a = N;
-      d = - a[0] * xp[0][0] - a[1] * xp[0][1];
-    }
-
-    d = -d;
-    for(unsigned k = 0; k < _dim; k++) a[k] = -a[k];
-
-    std::vector <TypeIO> weightCF;
-    if(ielType == 3) {
-      quad.GetWeightWithMap(0, a, d, weightCF);
-    }
-    else if(ielType == 4) {
-      tri.GetWeightWithMap(0, a, d, weightCF);
-    }
-    else {
-      abort();
-    }
-
-    double area = 0.;
-    double areaC = 0.;
-    std::vector<double> phi, dphidx;
-    for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
-      femL->Jacobian(xv, ig, weight, phi, dphidx);
-      area += weight;
-      areaC += weight * weightCF[ig];
-    }
-    return areaC / area;
+//     unsigned solTypeL = 0;
+//     unsigned ielType = _msh->GetElementType(iel);
+//     std::vector<double> xm(_dim, 0.);
+//     for(unsigned k = 0; k < _dim; k++) {
+//       for(unsigned i = 0; i < xv[k].size(); i++) {
+//         xm[k] += xv[k][i] / xv[k].size();
+//       }
+//     }
+//     const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
+//     std::vector<std::vector<double>> Jac, JacI;
+//     double weight;
+//     femL->GetJacobianMatrix(xv, xm, weight, Jac, JacI);
+// 
+//     std::vector<double> N(_dim, 0.);
+//     for(unsigned i = 0; i < xp.size(); i++) {
+//       std::vector<double> Ni = GetNormal(iel, xp[i]);
+// 
+//       for(unsigned k = 0; k < _dim; k++) {
+//         for(unsigned j = 0; j < _dim; j++) {
+//           N[k] += Jac[j][k] * Ni[j];
+//         }
+//       }
+// 
+//     }
+//     double det = 0.;
+//     for(unsigned k = 0; k < _dim; k++) det += N[k] * N[k];
+//     for(unsigned k = 0; k < _dim; k++) N[k] /= det;
+// 
+//     std::vector<double> a;
+//     double d;
+// 
+//     if(xp.size() > 1) {
+//       FindBestFit(xp, boost::none, N, a, d);
+//     }
+//     else if(xp.size() == 1) {
+//       a = N;
+//       d = - a[0] * xp[0][0] - a[1] * xp[0][1];
+//     }
+// 
+//     d = -d;
+//     for(unsigned k = 0; k < _dim; k++) a[k] = -a[k];
+// 
+//     std::vector <TypeIO> weightCF;
+//     if(ielType == 3) {
+//       quad.GetWeightWithMap(0, a, d, weightCF);
+//     }
+//     else if(ielType == 4) {
+//       tri.GetWeightWithMap(0, a, d, weightCF);
+//     }
+//     else {
+//       abort();
+//     }
+// 
+//     double area = 0.;
+//     double areaC = 0.;
+//     std::vector<double> phi, dphidx;
+//     for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+//       femL->Jacobian(xv, ig, weight, phi, dphidx);
+//       area += weight;
+//       areaC += weight * weightCF[ig];
+//     }
+    return 0.5;
   }
 
 
