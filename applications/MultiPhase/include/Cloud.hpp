@@ -87,27 +87,27 @@ namespace femus {
       }
 
 
-      void GetElementQuantities(const unsigned &iel, const std::vector<std::vector<double>> &Jac, std::vector<std::vector<double>> &xp, std::vector<std::vector<double>> &xi, std::vector<std::vector<double>> &Np, std::vector<std::vector<double>> &Ni) {
+      void GetElementQuantities(const unsigned &iel, const std::vector<std::vector<double>> &Jac, std::vector<std::vector<double>> &xi, std::vector<double> &ds, std::vector<std::vector<double>> &Ni) {
         if(_elMrkIdx.find(iel) != _elMrkIdx.end()) {
           unsigned i0 = _elMrkIdx[iel][0];
           unsigned i1 = _elMrkIdx[iel][1];
-          xp.assign(i1 - i0, std::vector<double>(_dim));
+          //xp.assign(i1 - i0, std::vector<double>(_dim));
           xi.assign(i1 - i0, std::vector<double>(_dim));
-          Np.assign(i1 - i0, std::vector<double>(_dim));
+          ds.resize(i1 - i0);
           Ni.assign(i1 - i0, std::vector<double>(_dim, 0));
           unsigned cnt;
           for(unsigned i = i0, cnt = 0; i < i1; i++, cnt++) {
             xi[cnt] = _yi[_map[i]];
-            Np[cnt] = _N[_map[i]];
-            xp[cnt] = _yp[_map[i]];
+            ds[cnt] = _ds[_map[i]];
+            //xp[cnt] = _yp[_map[i]];
           }
 
-          for(unsigned i = 0; i < Np.size(); i++) {
+          for(unsigned i = 0; i < Ni.size(); i++) {
 
             double detN = 0;
             for(unsigned k = 0; k < _dim; k++) {
               for(unsigned j = 0; j < _dim; j++) {
-                Ni[i][k] += Jac[j][k] * Np[i][j];
+                Ni[i][k] += Jac[j][k] * _N[_map[i0 + i]][j];
               }
               detN += Ni[i][k] * Ni[i][k];
             }
@@ -121,9 +121,9 @@ namespace femus {
 
         }
         else {
-          xp.resize(0);
+        //  xp.resize(0);
           xi.resize(0);
-          Np.resize(0);
+          ds.resize(0);
           Ni.resize(0);
         }
       }
