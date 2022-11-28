@@ -37,12 +37,6 @@ typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 typedef cpp_bin_float_oct oct;
 
-// CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
-//CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
-//CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
-//Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
-
-
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"

@@ -35,11 +35,11 @@ namespace femus {
       
       
       const elem_type * GetFiniteElementFine(const unsigned &ielType, const unsigned &solType){
-        _femFine->GetFiniteElement(ielType, solType);
+        return _femFine->GetFiniteElement(ielType, solType);
       }
       
       const elem_type * GetFiniteElementCoarse(const unsigned &ielType, const unsigned &solType){
-        _femCoarse->GetFiniteElement(ielType, solType);
+        return _femCoarse->GetFiniteElement(ielType, solType);
       }
       
 
