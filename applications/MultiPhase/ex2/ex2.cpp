@@ -23,25 +23,20 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
-
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
 
-#include "CutFemWeight.hpp"
-#include "CDWeights.hpp"
-#include "Fem.hpp"
-
-typedef double TypeIO;
-typedef cpp_bin_float_oct TypeA;
-typedef cpp_bin_float_oct oct;
-
-#include "../include/MyMarker/MyMarker.hpp"
-#include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"
-#include "MyEigenFunctions.hpp"
 #include "../include/AdaptiveSplit.hpp"
+
+
+
+#include <fstream>
+#include <iostream>
+
+using namespace femus;
 
 const double R = 0.24;
 const double XC = 0.;
@@ -49,19 +44,12 @@ const double YC = 0.;
 
 Cloud *cld;
 Cloud *cldint;
-
-#include <fstream>
-#include <iostream>
-
-using namespace femus;
-
 AdaptiveSplit *asplit;
 
 void FakeAssembly(MultiLevelSolution* mlSol);
-
 void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T);
-
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
+
   bool dirichlet = false; //dirichlet
 
   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.

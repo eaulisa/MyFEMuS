@@ -247,11 +247,11 @@ namespace femus {
       static const double _a[4][4][4];
       static const double _b[4][4];
       static const double _c[4][4];
-
   };
+  
 } //end namespace femus
 
-
+#include "./MyMarker.cpp"
 
 #endif
 

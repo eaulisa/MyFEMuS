@@ -42,7 +42,6 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 
 #include "../include/MyMarker/MyMarker.hpp"
-#include "../include/MyMarker/MyMarker.cpp"
 #include "../include/Cloud.hpp"
 #include "MyEigenFunctions.hpp"
 

@@ -5,6 +5,8 @@
 #include "CDWeights.hpp"
 #include "Fem.hpp"
 #include "PolynomialBases.hpp"
+#include "MyEigenFunctions.hpp"
+
 
 namespace femus {
 

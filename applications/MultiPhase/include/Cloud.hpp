@@ -6,9 +6,12 @@
 #include <sstream>      // std::ostringstream
 
 #include "MultiLevelSolution.hpp"
-#include "./MyMarker/MyMarker.hpp"
 #include "MyEigenFunctions.hpp"
+#include "CutFemWeight.hpp"
 
+#include "./MyMarker/MyMarker.hpp"
+
+typedef cpp_bin_float_oct oct;
 
 namespace femus {
 
