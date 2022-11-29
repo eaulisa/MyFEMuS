@@ -262,12 +262,12 @@ int main(int argc, char** args) {
 
     cld->RKAdvection(4, velocity, dt);
     cldint->RKAdvection(4, velocity, dt);
-    cld->PrintCSV("markerBefore", it);
+//     cld->PrintCSV("markerBefore", it);
     cld->ComputeQuadraticBestFit();
     cld->RebuildMarkers(11, 9, 10);
     cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
     cld->PrintCSV("marker", it);
-    //vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
+//     //vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
   }
 
@@ -712,7 +712,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   } //end element loop for each process
 
-
+  sol->_Sol[solCIndex]->close();
   RES->close();
   KK->close();
 
