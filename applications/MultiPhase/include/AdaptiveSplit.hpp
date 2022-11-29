@@ -351,7 +351,7 @@ namespace femus {
         for(unsigned i = n1; i < n0; i++) {
           weight[i] = ds[i] * exp(-d2[i] / sigma2);
         }
-        FindBestFit(xi, weight, N, a, d);
+        FindBestFit(xi, boost::none, N, a, d);
       }
       else {//probably, it is not a cut cell
         unsigned imin = (*findClosestPoint)(xi); //FindClosestPointToParentElement;
@@ -367,6 +367,7 @@ namespace femus {
       while(ii < _weightCut2.size() && fabs(_weightCut2[ii] - _weightCut2[0]) < 1.0e-10) {
         ii++;
       }
+     
       if(ii != _weightCut2.size()) { //it is a cut cell
         for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
         d = -d;
