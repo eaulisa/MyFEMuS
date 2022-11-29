@@ -128,7 +128,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(41, 81, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); //turek
+  mlMsh.GenerateCoarseBoxMesh(161, 321, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); //turek
 //   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //Raileigh Taylor
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
