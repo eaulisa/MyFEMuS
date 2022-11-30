@@ -6,56 +6,117 @@
 #include <ctime>
 #include <cstdlib>
 #include <climits>
+
+#include <boost/math/special_functions/factorials.hpp>
+//#include <boost/math/special_functions/pow.hpp>
 using namespace std;
 
-unsigned int factorial(int n){
-    long factorial = 1.0;
+using boost::math::factorial;
 
-    if (n < 0)
-        cout << "Error! Factorial of a negative number doesn't exist.";
-    else {
-        for(int i = 1; i <= n; ++i) {
-            factorial *= i;
-        }
+double integral_A2(const unsigned &m, const unsigned &n, const int &s, const double &a, const double &c, const std::vector <double> &pol1, const std::vector< std::pair<double, double> > &I2) {
+
+
+
+  std::vector <double> k(3);
+  k[0] = pol1[0] / (a * a);
+  k[1] = pol1[1] / a;
+  k[2] = k[0] * c * c - k[1] * c + pol1[2] / a;
+  k[1] -= 2 * c * k[0];
+
+  std::vector <double> A(s + n + 2, 0);
+  std::vector <double> B(s + n + 2, 0);
+
+  double kterms = (k[0] * k[2]) / (k[1] * k[1]);
+  unsigned qMax = s + n + 1;
+
+  for(int q = 0; q <= qMax; q++) {
+    double term = 1;
+    A[q] = term;
+    unsigned q_p1_m2r = q + 1;
+    unsigned qMax_mq_pr = qMax - q;
+    for(int r = 1; r <= q / 2; r++) {
+      q_p1_m2r -= 2;
+      qMax_mq_pr += 1;
+      //term *= k[0] * k[2] * (q - 2 * r + 1) * (q - 2 * r + 2) / (r * (s + n + 1 + r - q) * k[1] * k[1]);
+      term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
+      A[q] += term ;
     }
-    return factorial ;
-
-}
-void integral_A2(const double a, const double c, const std::vector <double> &pol1, std::vector< std::pair<double, double> > &I2){
-
-int m,s,n;
-double A2;
-
-std::vector <double> A;
-std::vector <double> k(3);
-k[0] = pol1[0]/(a*a);
-k[1] = pol1[1]/a - 2*pol1[0]*pol1[2]/(a*a);
-k[2]=(pol1[0]*c*c - a*pol1[1]*c + a*pol1[2])/(a*a);
-
-
-
-for(int q=0; q<= (s+n+1); q++){
- double first_term =(pow(k[1],q)* pow(k[2], s+n+1-q))/(factorial(q) * factorial(s+n+1-q));
-
-  for(int r=1; r <= q/2; r++){
-    double next_term = first_term* k[0]*k[2]*(q-2*r+1)*(q-2*r+2)/(r*(s+n+r-q)*k[1]*k[1]);
-    A[q] = first_term + next_term ;
-    first_term = next_term ;
+    B[q] = A[q] * (pow(k[1], q) * pow(k[0], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
+    A[q] *= (pow(k[1], q) * pow(k[2], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
 
   }
+
+
+  double A2 = 0;
+  if(m >= qMax) {
+    for(unsigned i = 0; i < I2.size(); i++)  {
+      double u1 = a * I2[i].first + c;
+      double u2 = a * I2[i].second + c;
+
+      for(unsigned r = 0; r <= qMax; r++) {
+        double sum = 0.;
+        for(unsigned q = 0; q <= r; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += (r != n) ? sum  * (pow(u2, r - n) - pow(u1, r - n)) / (r - n) : sum  * (log(u2) - log(u1));
+      }
+
+      for(unsigned r = qMax + 1; r <= m; r++) {
+        double sum = 0.;
+        for(unsigned q = 0; q <= qMax; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += sum  * (pow(u2, r - n) - pow(u1, r - n)) / (r - n);
+      }
+
+      for(unsigned r = m + 1; r <= qMax + m; r++) {
+        double sum = 0.;
+        for(unsigned q = r - m; q <= qMax; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += sum  * (pow(u2, r - n) - pow(u1, r - n)) / (r - n);
+      }
+
+
+      for(unsigned r = 0; r < qMax; r++) {
+        double sum = 0.;
+        for(unsigned q = 0; q <= r; q++) {
+          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+      }
+
+      for(unsigned r = qMax; r <= m; r++) {
+        double sum = 0.;
+        for(unsigned q = 0; q < qMax; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+      }
+
+      for(unsigned r = m + 1; r < qMax + m; r++) {
+        double sum = 0.;
+        for(unsigned q = r - m; q < qMax; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        }
+        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+      }
+
+      A2 *= pow(-1, n) * factorial<double>(n) * factorial<double>(m) / pow(a , m);
+
+    }
+
+
+
+  }
+  else {
+  }
+
+
+
+
+
 }
-if(m >= s+n+1){
-
-
-}
-else {
-}
-
-
-
-
-
-}
 
 
 
@@ -66,7 +127,7 @@ else {
 
 
 
-int main (){}
+int main() {}
 
 
 
