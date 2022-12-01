@@ -125,6 +125,8 @@ void Cloud::ComputeQuadraticBestFit() {
           }
           sigma2 += d2[i];
         }
+//         double factor = (cnt0 < 3)? 3 : cnt0; 
+//         factor = (cnt0 > 12)? 12 : cnt0;  
         sigma2 /= cnt * 7.;
         for(unsigned i = 0; i < cnt; i++) {
           weight[i] *= exp(-d2[i] / sigma2);
@@ -236,7 +238,7 @@ void Cloud::ComputeQuadraticBestFit() {
       _A[iel] = (cost1 < cost2) ? Acon : Apar;
       double useOldPoints = 1.;
 
-      if(iel == 419) std::cout << cost1 << " " << cost2 << std::endl;
+      if(iel == 462) std::cout << "CCC " <<cost1 << " " << cost2 << std::endl;
 
 
       if(cost2 < 1.e-10) {
@@ -245,7 +247,7 @@ void Cloud::ComputeQuadraticBestFit() {
       else if(cost1 > 1.0e-6 && cost2 > 1.0e-6) {
         useOldPoints = -1.;
       }
-      else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-4 && cost2 < 1.0e-4))   {
+      else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-6 && cost2 < 1.0e-6))   {
         double counter = 0.;
         std::vector <double> xp(dim);
         unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -292,7 +294,7 @@ void Cloud::ComputeQuadraticBestFit() {
       else _sol->_Sol[SolQIndex]->set(iel, useOldPoints * 3); // hyperpola;
 
 
-      if(true && iel == 165) {
+      if(false && iel == 462) {
         double xMin[2] = { 1.0e10, 1.0e10};
         double xMax[2] = { -1.0e10, -1.0e10};
 
@@ -309,7 +311,7 @@ void Cloud::ComputeQuadraticBestFit() {
         std::cout << "BBBBBBB\n" ;//<< treshold <<  " ";
         std::cout << cost1 << " " << cost2 << std::endl;
         std::cout << "a = " << _A[iel][0] << "; b=" << _A[iel][1] << "; c=" << _A[iel][2] << "; d=" << _A[iel][3] << "; e=" << _A[iel][4] << "; f= " << _A[iel][5] << ";\n";
-        std::cout << " {x," << xMin[0] << ", " << xMax[0] << "},{" << "{y," << xMin[1] << ", " << xMax[1] << "}" << std::endl;
+        std::cout << " {x," << xMin[0] << "-h, " << xMax[0] << "+h}," << "{," << xMin[1] << "-h, " << xMax[1] << "+h}" << std::endl;
       }
     }
   }
