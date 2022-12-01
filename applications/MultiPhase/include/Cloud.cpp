@@ -125,9 +125,9 @@ void Cloud::ComputeQuadraticBestFit() {
           }
           sigma2 += d2[i];
         }
-        sigma2 /= cnt * 2.;
+        sigma2 /= cnt * 7.;
         for(unsigned i = 0; i < cnt; i++) {
-          weight[i] *= exp(-0.5 / sigma2 * d2[i]);
+          weight[i] *= exp(-d2[i] / sigma2);
         }
       }
       else {
@@ -228,13 +228,24 @@ void Cloud::ComputeQuadraticBestFit() {
       double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
       std::vector<double> Apar = _A[iel];
 
-      if(true && iel == 165) {
-        std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
-        std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
-      }
+//       if(true && iel == 165) {
+//         std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
+//         std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
+//       }
 
       _A[iel] = (cost1 < cost2) ? Acon : Apar;
-      if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
+      double useOldPoints = 1.;
+
+      if(iel == 419) std::cout << cost1 << " " << cost2 << std::endl;
+
+
+      if(cost2 < 1.e-10) {
+        _A[iel] = Apar;
+      }
+      else if(cost1 > 1.0e-6 && cost2 > 1.0e-6) {
+        useOldPoints = -1.;
+      }
+      else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-4 && cost2 < 1.0e-4))   {
         double counter = 0.;
         std::vector <double> xp(dim);
         unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -276,9 +287,9 @@ void Cloud::ComputeQuadraticBestFit() {
       }
 
       double delta = _A[iel][1] * _A[iel][1] - 4. * _A[iel][0] * _A[iel][2];
-      if(fabs(delta) < 1.0e-5) _sol->_Sol[SolQIndex]->set(iel, 1); // parabola;
-      else if(delta < 0) _sol->_Sol[SolQIndex]->set(iel, 2); // ellipse;
-      else _sol->_Sol[SolQIndex]->set(iel, 3); // hyperpola;
+      if(fabs(delta) < 1.0e-5) _sol->_Sol[SolQIndex]->set(iel, useOldPoints * 1); // parabola;
+      else if(delta < 0) _sol->_Sol[SolQIndex]->set(iel, useOldPoints * 2); // ellipse;
+      else _sol->_Sol[SolQIndex]->set(iel, useOldPoints * 3); // hyperpola;
 
 
       if(true && iel == 165) {

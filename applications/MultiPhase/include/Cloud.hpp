@@ -115,16 +115,16 @@ namespace femus {
               detN += Ni[i][k] * Ni[i][k];
             }
             detN = sqrt(detN);
-            
+
             for(unsigned k = 0; k < _dim; k++) Ni[i][k] /= detN;
-            
+
             //std::cout<<Ni[i][0]*Ni[i][0]+Ni[i][1]*Ni[i][1]<<" ";
           }
           //std::cout<<std::endl;
 
         }
         else {
-        //  xp.resize(0);
+          //  xp.resize(0);
           xi.resize(0);
           ds.resize(0);
           Ni.resize(0);
@@ -456,10 +456,10 @@ namespace femus {
 //       std::cout << C <<" "<<;
       _sol->_Sol[solCIndex]->set(iel, C);
 
-      if(nInt <= 4) {
+      if(0 < nInt && nInt <= 4) {
         if(ielIsDefined) {
-          std::cerr << "Same cell initialized two times in AddQuadric!\n";
-          abort();
+          std::cerr << iel << " Same cell initialized two times in AddQuadric!\n";
+          //abort();
         }
         elCnt++;
         unsigned newSize = cnt0 + npt * elCnt ; //cnt + sol.first.size() + 2 * (nel - elCnt) * nMax;
@@ -501,6 +501,9 @@ namespace femus {
     _N.swap(_NNew);
 
     CreateMap();
+
+
+
   }
 
 
@@ -1050,7 +1053,7 @@ namespace femus {
         h2 += h * h;
       }
       bool multipleIntersection = false;
-      if(((i1 - i0) < nMin || (i1 - i0) > nMax)) {
+      if((*_sol->_Sol[SolQIndex])(iel) > 0  && ((i1 - i0) < nMin || (i1 - i0) > nMax)) {
         double C = 0.;
         sol = GetCellPointsFromQuadric(xv, iel, npt, nInt, 0, C);
         if(nInt == 2) {
@@ -1203,17 +1206,17 @@ namespace femus {
 
 
 //       const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
-// 
+//
 //       std::vector<std::vector<double>> Jacob, JacI;
 //       double weight;
 //       femL->GetJacobianMatrix(xn, intCloud.GetCloudBaricenterInParentElement(iel), weight, Jacob, JacI);
 //       std::vector<double> a;
 //       double d;
 //       intCloud.GetLinearFit(iel, Jacob, a, d);
-// 
+//
 //       d = -d;
 //       for(unsigned k = 0; k < dim; k++) a[k] = -a[k];
-// 
+//
 //       std::vector <TypeIO> weightCF;
 //       if(ielType == 3) {
 //         quad.GetWeightWithMap(0, a, d, weightCF);
@@ -1224,8 +1227,8 @@ namespace femus {
 //       else {
 //         abort();
 //       }
-// 
-// 
+//
+//
 //       double area = 0.;
 //       double areaC = 0.;
 //       for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
@@ -1679,25 +1682,25 @@ namespace femus {
 //     std::vector<std::vector<double>> Jac, JacI;
 //     double weight;
 //     femL->GetJacobianMatrix(xv, xm, weight, Jac, JacI);
-// 
+//
 //     std::vector<double> N(_dim, 0.);
 //     for(unsigned i = 0; i < xp.size(); i++) {
 //       std::vector<double> Ni = GetNormal(iel, xp[i]);
-// 
+//
 //       for(unsigned k = 0; k < _dim; k++) {
 //         for(unsigned j = 0; j < _dim; j++) {
 //           N[k] += Jac[j][k] * Ni[j];
 //         }
 //       }
-// 
+//
 //     }
 //     double det = 0.;
 //     for(unsigned k = 0; k < _dim; k++) det += N[k] * N[k];
 //     for(unsigned k = 0; k < _dim; k++) N[k] /= det;
-// 
+//
 //     std::vector<double> a;
 //     double d;
-// 
+//
 //     if(xp.size() > 1) {
 //       FindBestFit(xp, boost::none, N, a, d);
 //     }
@@ -1705,10 +1708,10 @@ namespace femus {
 //       a = N;
 //       d = - a[0] * xp[0][0] - a[1] * xp[0][1];
 //     }
-// 
+//
 //     d = -d;
 //     for(unsigned k = 0; k < _dim; k++) a[k] = -a[k];
-// 
+//
 //     std::vector <TypeIO> weightCF;
 //     if(ielType == 3) {
 //       quad.GetWeightWithMap(0, a, d, weightCF);
@@ -1719,7 +1722,7 @@ namespace femus {
 //     else {
 //       abort();
 //     }
-// 
+//
 //     double area = 0.;
 //     double areaC = 0.;
 //     std::vector<double> phi, dphidx;
@@ -1779,9 +1782,7 @@ namespace femus {
       const double &y0 = x[i][1];
 
       std::vector<double> v = GetNormal(iel, x[i]);
-      bool test = false;
-    vct:
-
+      
       oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
       oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
       oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
