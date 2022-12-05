@@ -1,8 +1,6 @@
 void Cloud::ComputeQuadraticBestFit() {
   _A.clear();
 
-
-
   map<unsigned, bool> pSearch;
 
   Mesh *msh = _sol->GetMesh();
@@ -125,8 +123,8 @@ void Cloud::ComputeQuadraticBestFit() {
           }
           sigma2 += d2[i];
         }
-//         double factor = (cnt0 < 3)? 3 : cnt0; 
-//         factor = (cnt0 > 12)? 12 : cnt0;  
+//         double factor = (cnt0 < 3)? 3 : cnt0;
+//         factor = (cnt0 > 12)? 12 : cnt0;
         sigma2 /= cnt * 7.;
         for(unsigned i = 0; i < cnt; i++) {
           weight[i] *= exp(-d2[i] / sigma2);
@@ -230,24 +228,49 @@ void Cloud::ComputeQuadraticBestFit() {
       double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
       std::vector<double> Apar = _A[iel];
 
-//       if(true && iel == 165) {
-//         std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
-//         std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
+//       if(fabs(minDP) < 0.75 && cost2 > 1.0e-7) {
+//         femus::GetQuadricBestFit(coord, weight, norm, _A[iel], cnt0, -minDP); //parabola
+//         dotProduct.assign(cnt0, 0);
+//         n1Dotn = 0;
+//         for(unsigned i = 0; i < cnt0; i++) {
+//           std::vector <double> n1 = GetNormal(iel, coord[i]);
+//           for(unsigned k = 0; k < dim; k++) {
+//             dotProduct[i] += normOld[i][k] * n1[k];
+//           }
+//           n1Dotn += dotProduct[i] * weight[i]; //TODO is this ok if we swap the weights above?
+//         }
+//
+//         if(n1Dotn < 0) {
+//           for(unsigned  i = 0; i < _A[iel].size(); i++) {
+//             _A[iel][i] *= -1.;
+//           }
+//           for(unsigned i = 0; i < dotProduct.size(); i++) {
+//             dotProduct[i] *= -1.;
+//           }
+//         }
+//
+//         double cost2b = GetCost(coord, dotProduct, weight, iel, cnt0);
+//         if(iel == 338) std::cout << "TTT " << cost2<<" "<<cost2b <<"\n";
+//         if(cost2b < cost2 ) {
+//           Apar = _A[iel];
+//           cost2 = cost2b;
+//         }
+//         else {
+//           _A[iel] = Apar;
+//         }
 //       }
 
       _A[iel] = (cost1 < cost2) ? Acon : Apar;
+      if(iel == 338) std::cout << "CCC " << cost1 << " " << cost2 << std::endl;
+
       double useOldPoints = 1.;
-
-      if(iel == 462) std::cout << "CCC " <<cost1 << " " << cost2 << std::endl;
-
-
-      if(cost2 < 1.e-10) {
+      if(cost2 < 1.e-15) {
         _A[iel] = Apar;
       }
-      else if(cost1 > 1.0e-6 && cost2 > 1.0e-6) {
-        useOldPoints = -1.;
-      }
-      else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-6 && cost2 < 1.0e-6))   {
+//       else if(cost1 > 1.0e-6 && cost2 > 1.0e-6) {
+//         useOldPoints = -1.;
+//       }
+      else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-4 && cost2 < 1.0e-4))   {
         double counter = 0.;
         std::vector <double> xp(dim);
         unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -277,6 +300,10 @@ void Cloud::ComputeQuadraticBestFit() {
             }
             for(unsigned k = 0; k < dim; k++) {
               counter += (n1[k] - n2[k]) * normOld[jMin][k];
+            }
+            if(iel == 338) {
+              std::cout << i<<" "<< n1[0]<< " " << n1[1]<<" "<< n2[0] << " " <<n2[1]<< " "<<  normOld[jMin][0] << " " << normOld[jMin][1]<< " "<< counter<<"\n";
+              std::cout << GetValue(Acon, xp) <<" "<< GetValue(Apar, xp)<<std::endl;
             }
           }
         }
@@ -480,7 +507,7 @@ void Cloud::ComputeQuadraticBestFit() {
                 }
                 sigma2 += d2[i];
               }
-              sigma2 /= cnt * 2.;
+              sigma2 /= cnt * 7.;
               for(unsigned i = 0; i < cnt; i++) {
                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
               }
@@ -583,13 +610,46 @@ void Cloud::ComputeQuadraticBestFit() {
             double cost2 = GetCost(coord, dotProduct, weight, kel, cnt0);
             std::vector<double> Apar = _A[kel];
 
-            if(true && kel == 165) {
-              std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
-              std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
-            }
+//             if(cost2 > 1.0e-7) {
+//               femus::GetQuadricBestFit(coord, weight, norm, _A[kel], cnt0, -minDP); //parabola
+//               dotProduct.assign(cnt0, 0);
+//               n1Dotn = 0;
+//               for(unsigned i = 0; i < cnt0; i++) {
+//                 std::vector <double> n1 = GetNormal(kel, coord[i]);
+//                 for(unsigned k = 0; k < dim; k++) {
+//                   dotProduct[i] += normOld[i][k] * n1[k];
+//                 }
+//                 n1Dotn += dotProduct[i] * weight[i]; //TODO is this ok if we swap the weights above?
+//               }
+//
+//               if(n1Dotn < 0) {
+//                 for(unsigned  i = 0; i < _A[kel].size(); i++) {
+//                   _A[kel][i] *= -1.;
+//                 }
+//                 for(unsigned i = 0; i < dotProduct.size(); i++) {
+//                   dotProduct[i] *= -1.;
+//                 }
+//               }
+//               double cost2b = GetCost(coord, dotProduct, weight, kel, cnt0);
+//               if(cost2b < cost2 ) {
+//                 Apar = _A[kel];
+//                 cost2 = cost2b;
+//               }
+//               else {
+//                 _A[kel] = Apar;
+//               }
+//             }
 
             _A[kel] = (cost1 < cost2) ? Acon : Apar;
-            if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
+
+            double useOldPoints = 1.;
+            if(cost2 < 1.e-15) {
+              _A[kel] = Apar;
+            }
+//       else if(cost1 > 1.0e-6 && cost2 > 1.0e-6) {
+//         useOldPoints = -1.;
+//       }
+            else if(cost1 / cost2 > 1.0e-5 && cost2 / cost1 > 1.0e-5 && (cost1 < 1.0e-4 && cost2 < 1.0e-4))   {
               double counter = 0.;
               std::vector <double> xp(dim);
               unsigned nDofs =  msh->GetElementDofNumber(kel, 2);
@@ -631,9 +691,9 @@ void Cloud::ComputeQuadraticBestFit() {
             }
 
             double delta = _A[kel][1] * _A[kel][1] - 4. * _A[kel][0] * _A[kel][2];
-            if(fabs(delta) < 1.0e-5) _sol->_Sol[SolQIndex]->set(kel, 1); // parabola;
-            else if(delta < 0) _sol->_Sol[SolQIndex]->set(kel, 2); // ellipse;
-            else _sol->_Sol[SolQIndex]->set(kel, 3); // hyperpola;
+            if(fabs(delta) < 1.0e-5) _sol->_Sol[SolQIndex]->set(kel, useOldPoints * 1); // parabola;
+            else if(delta < 0) _sol->_Sol[SolQIndex]->set(kel, useOldPoints * 2); // ellipse;
+            else _sol->_Sol[SolQIndex]->set(kel, useOldPoints * 3); // hyperpola;
 
 
             if(true && kel == 165) {

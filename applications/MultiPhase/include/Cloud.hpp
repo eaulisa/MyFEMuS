@@ -772,6 +772,8 @@ namespace femus {
 #include <boost/math/special_functions/math_fwd.hpp>
   std::pair<std::vector<std::vector<double>>, std::vector<double>> Cloud::GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const unsigned & iel, unsigned npt, unsigned & nInt, unsigned level, double &C) {
 
+    double dsMin = sqrt((xv[0][0] - xv[0][2]) * (xv[0][0] - xv[0][2]) + (xv[1][0] - xv[1][2]) * (xv[1][0] - xv[1][2])) / (2 * npt);
+
     unsigned cnt = 0;
     const unsigned dim = xv.size();
     std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));
@@ -952,6 +954,8 @@ namespace femus {
 
             ds.insert(ds.begin() + cnt, R * dt0);
             cnt =  max_element(ds.begin(), ds.end()) - ds.begin() + 1;
+
+            if(ds[cnt - 1] < dsMin) break;
           }
         }
 
@@ -961,6 +965,10 @@ namespace femus {
           ds[j - 1] = 0.5 * ds[j - 1];
         }
         npt = cnt = ds.size();
+
+        //xe.resize(xe.size()-1);
+        //ds.resize(ds.size()-1);
+        //ds[0]*=2;
 
         C += GetC(xv, xe, iel);
 
@@ -998,6 +1006,7 @@ namespace femus {
 
     if(cnt < npt) {
       xe.resize(cnt);
+      ds.resize(cnt);
       npt = cnt;
     }
 
@@ -1053,7 +1062,7 @@ namespace femus {
         h2 += h * h;
       }
       bool multipleIntersection = false;
-      if((*_sol->_Sol[SolQIndex])(iel) > 0  && ((i1 - i0) < nMin || (i1 - i0) > nMax)) {
+      if(/*(*_sol->_Sol[SolQIndex])(iel) > 0  &&*/ ((i1 - i0) < nMin || (i1 - i0) > nMax)) {
         double C = 0.;
         sol = GetCellPointsFromQuadric(xv, iel, npt, nInt, 0, C);
         if(nInt == 2) {
@@ -1066,13 +1075,21 @@ namespace femus {
             _dsNew.resize(newSize);
           }
           for(unsigned i = 0; i < sol.first.size(); i++) {
+            double distNMin = 1.e10;
             double distMin = 1.e10;
             for(unsigned j = i0; j < i1; j++) {
               double distj = 0.;
-              for(unsigned k = 0; k < dim; k++) distj += (_yp[_map[j]][k] - sol.first[i][k]) * (_yp[_map[j]][k] - sol.first[i][k]);
-              if(distj < distMin) distMin = distj;
+              double distNj = 0.;
+              for(unsigned k = 0; k < dim; k++) {
+                distj += (_yp[_map[j]][k] - sol.first[i][k]) * (_yp[_map[j]][k] - sol.first[i][k]);
+                distNj += (_yp[_map[j]][k] - sol.first[i][k]) * _N[_map[j]][k];
+              }
+              if(distj < distMin) {
+                distNMin = fabs(distNj);
+                distMin = distj;
+              }
             }
-            if(distMin < 0.04 * h2) {
+            if(distNMin * distNMin < 0.004 * h2 && distMin < 0.04 * h2) {
               for(unsigned k = 0; k < dim; k++) {
                 _ypNew[cnt][k] = sol.first[i][k];
               }
@@ -1782,7 +1799,7 @@ namespace femus {
       const double &y0 = x[i][1];
 
       std::vector<double> v = GetNormal(iel, x[i]);
-      
+
       oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
       oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
       oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
@@ -1825,8 +1842,10 @@ namespace femus {
         for(unsigned k = 0; k < dim; k++) {
           cost1 += (xe[0][k] - x[i][k]) * (xe[0][k] - x[i][k]);
         }
-        cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5) * w[i] **/ cost1;
+
         if(y[i] < -0.25) cost += h2;
+        else cost += /*(45.5 * y[i] * y[i] - 49.5 * y[i] + 5) **/ /**w[i] **/ cost1;
+
       }
       else {
         double cost1 = 0.;
