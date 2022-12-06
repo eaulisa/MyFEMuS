@@ -5,6 +5,7 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/Eigenvalues> 
+#include <eigen3/Eigen/Householder>
 #include <vector>
 #include <boost/optional.hpp>
 namespace femus {
@@ -12,5 +13,8 @@ namespace femus {
   void FindQuadraticBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a);
   void FindParabolaBestFit(const std::vector < std::vector < double > > &xp, boost::optional < const std::vector < double > & > w, const std::vector < double > &N, std::vector < double > &a);
   void GetQuadricBestFit(const std::vector < std::vector < double > > &x, boost::optional < const std::vector < double > & > w, std::vector < double > &N, std::vector < double > &a, const unsigned &np, const double &minDP);
+  void GetConicMinimalSolution(const std::vector < std::vector < double > > &x, const std::vector < double > &b, boost::optional < const std::vector < double > & > w, std::vector < double > &a);
+
+
 }
 #endif

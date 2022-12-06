@@ -103,6 +103,30 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
+
+  double A = 1;
+  double B = 0;
+  double C = 1;
+  double D = 0;
+  double E = 0;
+  double F = -1;
+  std::vector < std::vector<double> > x(20, std::vector<double>(2));
+  std::vector<double> b(20);
+
+  for(unsigned i = 0; i < 20; i++) {
+    double R = 0.1034 * i;
+    double t = 2 * M_PI / 14 * i;
+    x[i][0] = R * cos(t);
+    x[i][1] = R * sin(t);
+    b[i] = A * x[i][0] * x[i][0] + B * x[i][0] * x[i][1] + C * x[i][1] * x[i][1] + D * x[i][0] + E * x[i][1] + F;
+  }
+  std::vector<double> a;
+  femus::GetConicMinimalSolution(x, b, boost::none, a);
+  std::cout << a[0] << " " << a[1] << " "<<a[2] << " " << a[3] << " " << a[4] << " " << a[5] << std::endl;
+
+
+
+  return 1;
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
@@ -110,7 +134,7 @@ int main(int argc, char** args) {
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
 
-  mlMsh.GenerateCoarseBoxMesh(4,4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
+  mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -140,7 +164,7 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("DIC", DISCONTINUOUS_POLYNOMIAL, ZERO, false); //double intersection conuter
-  
+
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
   solVIndex[1] = mlSol.GetIndex("V");
@@ -205,38 +229,38 @@ int main(int argc, char** args) {
 
 //   std::vector<std::vector<double>> x(1000, std::vector<double>(2));
 //   std::vector<std::vector<double>> N(1000, std::vector<double>(2));
-// 
+//
 //   for(unsigned i = 0; i < x.size(); i++) {
 //     x[i][0] = -0.94537 + 0.002 * i;
 //     x[i][1] = -0.74537 + 0.002 * i;
 //     N[i][0] = -sqrt(2.) / 2.;
 //     N[i][1] =  sqrt(2.) / 2.;
 //   }
-// 
-// 
+//
+//
 //   Cloud cld1(sol);
 //   cld1.AddCloudFromPoints(x, N);
 //   cld1.PrintCSV("marker", 0);
-// 
+//
 //   for(unsigned i = 0; i < x.size(); i++) {
 //     x[i][0] = -0.94537 + 0.002 * i;
 //     x[i][1] = -0.84537 + 0.002 * i;
 //     N[i][0] = -sqrt(2.) / 2.;
 //     N[i][1] =  sqrt(2.) / 2.;
 //   }
-// 
+//
 //   Cloud cldInt1(sol);
 //   cldInt1.AddInteriorCloudFromPoints(x);
-// 
+//
 //   cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
-// 
+//
 //   cldInt1.PrintCSV("markerInternal", 0);
 
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
 
 
- 
+
 
   //return 0;
 
@@ -261,15 +285,15 @@ int main(int argc, char** args) {
   cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
-  
+
   cldint.RebuildInteriorMarkers(cld, "C", "Cn");
   SetVelocity(sol, velocity, time, period);
   cld.PrintCSV("markerBefore", 0);
   cld.PrintCSV("marker", 0);
   cldint.PrintCSV("markerInternalBefore", 0);
   cldint.PrintCSV("markerInternal", 0);
- 
-  
+
+
 
   double dt = period / nIterations;
 

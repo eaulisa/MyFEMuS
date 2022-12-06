@@ -625,6 +625,55 @@ namespace femus {
 
   }
 
+
+
+  void GetConicMinimalSolution(const std::vector < std::vector < double > > &xp, const std::vector < double > &b, boost::optional < const std::vector < double > & > w, std::vector < double > &a) {
+
+    const unsigned dim = 2;
+    unsigned nCols = 4 * dim - 2;
+
+    unsigned nRows = xp.size();
+    Eigen::MatrixXd m(nRows, nCols);
+    Eigen::VectorXd f(nRows);
+
+    if(w) {
+      //Fill matrix to be passed to JacobiSVD
+      for(unsigned i = 0; i < nRows; i++) {
+        double x = xp[i][0];
+        double y = xp[i][1];
+        unsigned cnt = 0;
+        f(i) = (*w)[i] * b[i];
+        for(int o = dim; o >= 0; o--) {
+          for(int p = o; p >= 0; p--) {
+            m(i, cnt) = sqrt((*w)[i]) * pow(x, p) * pow(y, o - p);
+            cnt++;
+          }
+        }
+      }
+    }
+    else {
+      //Fill matrix to be passed to JacobiSVD for Ax2 + Bxy + Cy2+ Dx + Ey + F = 0
+      for(unsigned i = 0; i < nRows; i++) {
+        double x = xp[i][0];
+        double y = xp[i][1];
+        unsigned cnt = 0;
+        f(i) = b[i];
+        for(int o = 2; o >= 0; o--) {
+          for(int p = o; p >= 0; p--) {
+            m(i, cnt) = pow(x, p) * pow(y, o - p);
+            cnt ++;
+          }
+        }
+      }
+    }
+    const Eigen::VectorXd &y = m.colPivHouseholderQr().solve(f);
+    a.resize(nCols);
+    for(unsigned i = 0; i < nCols; i++) {
+      a[i] = y(i);
+    }
+  }
+
+
 }
 
 
