@@ -955,7 +955,7 @@ namespace femus {
             ds.insert(ds.begin() + cnt, R * dt0);
             cnt =  max_element(ds.begin(), ds.end()) - ds.begin() + 1;
 
-            if(ds[cnt - 1] < dsMin) break;
+           // if(ds[cnt - 1] < dsMin) break;
           }
         }
 

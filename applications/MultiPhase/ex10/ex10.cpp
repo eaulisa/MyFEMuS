@@ -104,31 +104,31 @@ int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
 
-  double A = 1;
-  double B = 0;
-  double C = 1;
-  double D = 0;
-  double E = 0;
-  double F = -1;
-  std::vector < std::vector<double> > x(20, std::vector<double>(2));
-  std::vector<double> b(20);
-  std::vector<double> w(20);
-
-  for(unsigned i = 0; i < 20; i++) {
-    double R = 0.1034 * i;
-    double t = 2. * M_PI / 14 * i;
-    x[i][0] = R * cos(t);
-    x[i][1] = R * sin(t);
-    b[i] = A * x[i][0] * x[i][0] + B * x[i][0] * x[i][1] + C * x[i][1] * x[i][1] + D * x[i][0] + E * x[i][1] + F;
-    w[i] = fabs(cos(2. * M_PI / 17. * i));
-  }
-  std::vector<double> a;
-  femus::GetConicMinimalSolution(x, b, w, a);
-  std::cout << a[0] << " " << a[1] << " "<<a[2] << " " << a[3] << " " << a[4] << " " << a[5] << std::endl;
-
-
-
-  return 1;
+//   double A = 1;
+//   double B = 0.2;
+//   double C = -1;
+//   double D = 0.5;
+//   double E = 0.3;
+//   double F = -1;
+//   std::vector < std::vector<double> > x(20, std::vector<double>(2));
+//   std::vector<double> b(20);
+//   std::vector<double> w(20);
+// 
+//   for(unsigned i = 0; i < 20; i++) {
+//     double R = 0.1034 * i;
+//     double t = 2. * M_PI / 14 * i;
+//     x[i][0] = R * cos(t);
+//     x[i][1] = R * sin(t);
+//     b[i] = A * x[i][0] * x[i][0] + B * x[i][0] * x[i][1] + C * x[i][1] * x[i][1] + D * x[i][0] + E * x[i][1] + F;
+//     w[i] = fabs(cos(2. * M_PI / 17. * i));
+//   }
+//   std::vector<double> a;
+//   femus::GetConicMinimalSolution(x, b, w, a);
+//   std::cout << a[0] << " " << a[1] << " "<<a[2] << " " << a[3] << " " << a[4] << " " << a[5] << std::endl;
+// 
+// 
+// 
+//   return 1;
   // define multilevel mesh
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
