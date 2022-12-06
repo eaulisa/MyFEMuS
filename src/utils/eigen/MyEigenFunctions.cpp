@@ -645,7 +645,8 @@ namespace femus {
         f(i) = (*w)[i] * b[i];
         for(int o = dim; o >= 0; o--) {
           for(int p = o; p >= 0; p--) {
-            m(i, cnt) = sqrt((*w)[i]) * pow(x, p) * pow(y, o - p);
+            m(i, cnt) = (*w)[i] * pow(x, p) * pow(y, o - p);
+            //m(i, cnt) = sqrt((*w)[i]) * pow(x, p) * pow(y, o - p);
             cnt++;
           }
         }

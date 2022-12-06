@@ -112,16 +112,18 @@ int main(int argc, char** args) {
   double F = -1;
   std::vector < std::vector<double> > x(20, std::vector<double>(2));
   std::vector<double> b(20);
+  std::vector<double> w(20);
 
   for(unsigned i = 0; i < 20; i++) {
     double R = 0.1034 * i;
-    double t = 2 * M_PI / 14 * i;
+    double t = 2. * M_PI / 14 * i;
     x[i][0] = R * cos(t);
     x[i][1] = R * sin(t);
     b[i] = A * x[i][0] * x[i][0] + B * x[i][0] * x[i][1] + C * x[i][1] * x[i][1] + D * x[i][0] + E * x[i][1] + F;
+    w[i] = fabs(cos(2. * M_PI / 17. * i));
   }
   std::vector<double> a;
-  femus::GetConicMinimalSolution(x, b, boost::none, a);
+  femus::GetConicMinimalSolution(x, b, w, a);
   std::cout << a[0] << " " << a[1] << " "<<a[2] << " " << a[3] << " " << a[4] << " " << a[5] << std::endl;
 
 
