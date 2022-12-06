@@ -13,6 +13,27 @@ using namespace std;
 
 using boost::math::factorial;
 
+double powr(const double &x, const int &y){
+  double x_p_y = 1.;
+  if (y > 0){
+    for(unsigned i=0; i < y; i++){
+      x_p_y *= x ;
+    }
+  }
+
+  else if(y<0) {
+    for(unsigned i=0; i < -y; i++){
+      x_p_y *= x ;
+    }
+    x_p_y = 1./x_p_y ;
+  }
+
+  else {
+  x_p_y = 1. ;
+  }
+  return x_p_y ;
+}
+
 double integral_A2(const unsigned &m, const unsigned &n, const int &s, const double &a, const double &c, const std::vector <double> &pol1, const std::vector< std::pair<double, double> > &I2) {
   std::vector <double> k(3);
   k[0] = pol1[0] / (a * a);
@@ -41,8 +62,8 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
       A[q] += term ;
     }
-    B[q] = A[q] * (pow(k[1], q) * pow(k[0], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
-    A[q] *= (pow(k[1], q) * pow(k[2], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
+    B[q] = A[q] * (powr(k[1], q) * powr(k[0], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
+    A[q] *= (powr(k[1], q) * powr(k[2], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
 
   }
   double A2 = 0;
@@ -60,14 +81,14 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 //           std::cout<< " q= "<< q << std::endl;
 //           std::cout<< " factorial<double>(m - r + q)= "<< factorial<double>(m - r + q) << std::endl;
 //           std::cout<< " factorial<double>(r - q)= "<< factorial<double>(r - q) << std::endl;
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
 //           std::cout<< " sum= "<< sum << std::endl;
         }
         int r_m_n = r-n;
 //         std::cout<< " r_m_n = "<< r_m_n << std::endl;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
-//         std::cout<< " pow(u2, r - n)= "<< pow(u2, r_m_n) << std::endl;
-//         std::cout<< " pow(u1, r - n)= "<< pow(u1, r_m_n) << std::endl;
+        A2 += (r != n) ? sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+//         std::cout<< " powr(u2, r - n)= "<< powr(u2, r_m_n) << std::endl;
+//         std::cout<< " powr(u1, r - n)= "<< powr(u1, r_m_n) << std::endl;
 //         std::cout<< " log(u2)= "<< log(u2) << std::endl;
 //         std::cout<< " log(u1)= "<< log(u1) << std::endl;
 //         std::cout<< " (log(u2/u1)= "<< (log(u2/u1)) << std::endl;
@@ -80,10 +101,10 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = qMax + 1; r <= m; r++) {
         double sum = 0.;
         for(unsigned q = 0; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
         int r_m_n = r-n;
-        A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
+        A2 += sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n;
       }
 //         std::cout<< "2. A2= "<< A2 << std::endl;
 
@@ -91,10 +112,10 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = m + 1; r <= qMax + m; r++) {
         double sum = 0.;
         for(unsigned q = r - m; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
         int r_m_n = r-n;
-        A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
+        A2 += sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n;
       }
 //         std::cout<< "3. A2= "<< A2 << std::endl;
 
@@ -103,9 +124,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = 0; r < qMax; r++) {
         double sum = 0.;
         for(unsigned q = 0; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "4. A2= "<< A2 << std::endl;
 
@@ -113,9 +134,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = qMax; r <= m; r++) {
         double sum = 0.;
         for(unsigned q = 0; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "5. A2= "<< A2 << std::endl;
 
@@ -123,14 +144,14 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = m + 1; r < qMax + m; r++) {
         double sum = 0.;
         for(unsigned q = r - m; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<double>(n) * factorial<double>(m) / pow(a , m);
+      A2 *= powr(-1, n) * factorial<double>(n) * factorial<double>(m) / powr(a , m);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -154,14 +175,14 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 //           std::cout<< " q= "<< q << std::endl;
 //           std::cout<< " factorial<double>(m - r + q)= "<< factorial<double>(m - r + q) << std::endl;
 //           std::cout<< " factorial<double>(r - q)= "<< factorial<double>(r - q) << std::endl;
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
 //           std::cout<< " sum= "<< sum << std::endl;
         }
         int r_m_n = r-n;
 //         std::cout<< " r_m_n = "<< r_m_n << std::endl;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
-//         std::cout<< " pow(u2, r - n)= "<< pow(u2, r_m_n) << std::endl;
-//         std::cout<< " pow(u1, r - n)= "<< pow(u1, r_m_n) << std::endl;
+        A2 += (r != n) ? sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+//         std::cout<< " powr(u2, r - n)= "<< powr(u2, r_m_n) << std::endl;
+//         std::cout<< " powr(u1, r - n)= "<< powr(u1, r_m_n) << std::endl;
 //         std::cout<< " log(u2)= "<< log(u2) << std::endl;
 //         std::cout<< " log(u1)= "<< log(u1) << std::endl;
 //         std::cout<< " (log(u2/u1)= "<< (log(u2/u1)) << std::endl;
@@ -174,10 +195,10 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = m + 1; r <= qMax; r++) {
         double sum = 0.;
         for(unsigned q = r-m; q <= r; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
         int r_m_n = r-n;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+        A2 += (r != n) ? sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
       }
 //         std::cout<< "2. A2= "<< A2 << std::endl;
 
@@ -185,10 +206,10 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = qMax + 1; r <= qMax + m; r++) {
         double sum = 0.;
         for(unsigned q = r - m; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * powr(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
         int r_m_n = r-n;
-        A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
+        A2 += sum  * (powr(u2, r_m_n) - powr(u1, r_m_n)) / r_m_n;
       }
 //         std::cout<< "3. A2= "<< A2 << std::endl;
 
@@ -197,9 +218,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = 0; r <= m; r++) {
         double sum = 0.;
         for(unsigned q = 0; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "4. A2= "<< A2 << std::endl;
 
@@ -207,9 +228,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = m+1; r < qMax; r++) {
         double sum = 0.;
         for(unsigned q = r-m; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "5. A2= "<< A2 << std::endl;
 
@@ -217,14 +238,14 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       for(unsigned r = qMax; r < qMax + m; r++) {
         double sum = 0.;
         for(unsigned q = r - m; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * powr(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
         }
-        A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
+        A2 += sum  * (powr(u2, qMax + s + m - r + 1) - powr(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<double>(n) * factorial<double>(m) / pow(a , m);
+      A2 *= powr(-1, n) * factorial<double>(n) * factorial<double>(m) / powr(a , m);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -263,7 +284,6 @@ for(unsigned i=0;i<100000;i++){
    std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
    return 1;
 }
-
 
 
 
