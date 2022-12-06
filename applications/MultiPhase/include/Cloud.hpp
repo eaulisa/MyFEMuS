@@ -52,6 +52,7 @@ namespace femus {
       void PrintCSV(const std::string &filename, const unsigned &t);
 
       void ComputeQuadraticBestFit();
+      void ComputeQuadraticBestFit1();
 
       double GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &dotProd, const std::vector<double>&w, const unsigned &iel, const unsigned &nPoints);
 
@@ -955,7 +956,7 @@ namespace femus {
             ds.insert(ds.begin() + cnt, R * dt0);
             cnt =  max_element(ds.begin(), ds.end()) - ds.begin() + 1;
 
-           // if(ds[cnt - 1] < dsMin) break;
+            //if(ds[cnt - 1] < dsMin) break;
           }
         }
 
@@ -1132,7 +1133,7 @@ namespace femus {
         if(!skip) {
           for(unsigned i = i0; i < i1; i++) {
             _ypNew[cnt] = _yp[_map[i]];
-            if(multipleIntersection) {
+            if(false && multipleIntersection) {
               _NNew[cnt] = _N[_map[i]];
               _kappaNew[cnt] = _kappa[_map[i]];
             }
