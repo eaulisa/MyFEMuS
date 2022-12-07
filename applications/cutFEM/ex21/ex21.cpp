@@ -10,7 +10,6 @@
 #include <boost/math/special_functions/factorials.hpp>
 //#include <boost/math/special_functions/pow.hpp>
 using namespace std;
-
 using boost::math::factorial;
 
 // double powr(const double &x, const int &y){
@@ -258,7 +257,6 @@ return A2;;
 
 int main() {
 unsigned int m=4;
-
 unsigned int n = 5;
 int s = 3;
 double a = 1;
