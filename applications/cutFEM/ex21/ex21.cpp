@@ -12,6 +12,24 @@
 using namespace std;
 using boost::math::factorial;
 
+
+#include <boost/multiprecision/cpp_bin_float.hpp>
+
+namespace boost {
+  namespace multiprecision {
+    typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
+    typedef number < backends::cpp_bin_float < 53, backends::digit_base_2, void, boost::int16_t, -1022, 1023 >, et_off >       cpp_bin_float_double;
+    typedef number < backends::cpp_bin_float < 64, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >     cpp_bin_float_double_extended;
+    typedef number < backends::cpp_bin_float < 113, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >    cpp_bin_float_quad;
+    typedef number < backends::cpp_bin_float < 237, backends::digit_base_2, void, boost::int32_t, -262142, 262143 >, et_off >  cpp_bin_float_oct;
+  }
+} // namespaces
+
+using boost::multiprecision::cpp_bin_float_oct;
+using boost::multiprecision::cpp_bin_float_quad;
+
+
+
 // double powr(const double &x, const int &y){
 //   double x_p_y = 1.;
 //   if (y > 0){
@@ -33,24 +51,41 @@ using boost::math::factorial;
 //   return x_p_y ;
 // }
 
-double integral_A2(const unsigned &m, const unsigned &n, const int &s, const double &a, const double &c, const std::vector <double> &pol1, const std::vector< std::pair<double, double> > &I2) {
-  std::vector <double> k(3);
+
+template <class Type>
+void GetIntervalall(const std::vector <Type> &a1, const std::vector <Type> &a2, std::vector< std::pair<Type, Type> > &I1, std::vector< std::pair<Type, Type> > &I2, std::vector<std::pair<Type, Type>> &I3);
+
+
+void random_polynomial(std::vector <double> &a1, std::vector <double> &a2) {
+  a1.resize(3);
+  a2.resize(3);
+  a1[0] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
+  a1[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
+  a1[2] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
+  a2[0] = a1[0] ;
+  a2[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
+  a2[2] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
+}
+
+template <class Type>
+Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
+  std::vector <Type> k(3);
   k[0] = pol1[0] / (a * a);
   k[1] = pol1[1] / a;
   k[2] = k[0] * c * c - k[1] * c + pol1[2] / a;
   k[1] -= 2 * c * k[0];
 
-  std::vector <double> A(s + n + 2, 0);
-  std::vector <double> B(s + n + 2, 0);
+  std::vector <Type> A(s + n + 2, 0);
+  std::vector <Type> B(s + n + 2, 0);
 
 
-  double kterms = (k[0] * k[2]) / (k[1] * k[1]);
+  Type kterms = (k[0] * k[2]) / (k[1] * k[1]);
   unsigned qMax = s + n + 1;
 
 //   std::cout<< " ankor1 " << "k0 =" << k[0]<< "k1 =" << k[1]<< "k2 =" << k[2] << "kterms =" << kterms << "qMax =" << qMax << std::endl ;
 
   for(int q = 0; q <= qMax; q++) {
-    double term = 1;
+    Type term = 1;
     A[q] = term;
     unsigned q_p1_m2r = q + 1;
     unsigned qMax_mq_pr = qMax - q;
@@ -61,31 +96,31 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
       term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
       A[q] += term ;
     }
-    B[q] = A[q] * (pow(k[1], q) * pow(k[0], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
-    A[q] *= (pow(k[1], q) * pow(k[2], s + n + 1 - q)) / (factorial<double>(q) * factorial<double>(s + n + 1 - q));
-
+    B[q] = A[q] * (pow(k[1], q) * pow(k[0], s + n + 1 - q)) / (factorial<Type>(q) * factorial<Type>(s + n + 1 - q));
+    A[q] *= (pow(k[1], q) * pow(k[2], s + n + 1 - q)) / (factorial<Type>(q) * factorial<Type>(s + n + 1 - q));
+   // std::cout<<q<<" " << A[q] <<" "<< B[q] << std::endl;
   }
-  double A2 = 0;
+  Type A2 = 0;
   if(m >= qMax) {
     for(unsigned i = 0; i < I2.size(); i++)  {
-      double u1 = a * I2[i].first + c;
-      double u2 = a * I2[i].second + c;
+      Type u1 = a * I2[i].first + c;
+      Type u2 = a * I2[i].second + c;
 //       std::cout<< " u1= "<< u1 << std::endl;
 //       std::cout<< " u2= "<< u2 << std::endl;
 // 1
       for(unsigned r = 0; r <= qMax; r++) {
 //         std::cout<< " r= "<< r << std::endl;
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = 0; q <= r; q++) {
 //           std::cout<< " q= "<< q << std::endl;
-//           std::cout<< " factorial<double>(m - r + q)= "<< factorial<double>(m - r + q) << std::endl;
-//           std::cout<< " factorial<double>(r - q)= "<< factorial<double>(r - q) << std::endl;
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+//           std::cout<< " factorial<Type>(m - r + q)= "<< factorial<Type>(m - r + q) << std::endl;
+//           std::cout<< " factorial<Type>(r - q)= "<< factorial<Type>(r - q) << std::endl;
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
 //           std::cout<< " sum= "<< sum << std::endl;
         }
-        int r_m_n = r-n;
+        int r_m_n = r - n;
 //         std::cout<< " r_m_n = "<< r_m_n << std::endl;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2 / u1));
 //         std::cout<< " pow(u2, r - n)= "<< pow(u2, r_m_n) << std::endl;
 //         std::cout<< " pow(u1, r - n)= "<< pow(u1, r_m_n) << std::endl;
 //         std::cout<< " log(u2)= "<< log(u2) << std::endl;
@@ -94,26 +129,26 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 //
 //         std::cout<< " r-n = "<< r-(n) << std::endl;
       }
-//         std::cout<< "1. A2= "<< A2 << std::endl;
+//     std::cout<< "1. A2= "<< A2 << std::endl;
 
 // 2
       for(unsigned r = qMax + 1; r <= m; r++) {
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = 0; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
-        int r_m_n = r-n;
+        int r_m_n = static_cast<int>(r) - static_cast<int>(n);
         A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
       }
 //         std::cout<< "2. A2= "<< A2 << std::endl;
 
 // 3
       for(unsigned r = m + 1; r <= qMax + m; r++) {
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = r - m; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
-        int r_m_n = r-n;
+        int r_m_n = r - n;
         A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
       }
 //         std::cout<< "3. A2= "<< A2 << std::endl;
@@ -121,9 +156,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 // 4
 
       for(unsigned r = 0; r < qMax; r++) {
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = 0; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
@@ -131,9 +166,9 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 
 // 5
       for(unsigned r = qMax; r <= m; r++) {
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = 0; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
@@ -141,16 +176,16 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 
 // 6
       for(unsigned r = m + 1; r < qMax + m; r++) {
-        double sum = 0.;
+        Type sum = 0;
         for(unsigned q = r - m; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
 //         std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<double>(n) * factorial<double>(m) / pow(a , m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -162,24 +197,24 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
   else {
 
     for(unsigned i = 0; i < I2.size(); i++)  {
-      double u1 = a * I2[i].first + c;
-      double u2 = a * I2[i].second + c;
+      Type u1 = a * I2[i].first + c;
+      Type u2 = a * I2[i].second + c;
 //       std::cout<< " u1= "<< u1 << std::endl;
 //       std::cout<< " u2= "<< u2 << std::endl;
 // 1
       for(unsigned r = 0; r <= m; r++) {
 //         std::cout<< " r= "<< r << std::endl;
-        double sum = 0.;
+        Type sum = 0.;
         for(unsigned q = 0; q <= r; q++) {
 //           std::cout<< " q= "<< q << std::endl;
-//           std::cout<< " factorial<double>(m - r + q)= "<< factorial<double>(m - r + q) << std::endl;
-//           std::cout<< " factorial<double>(r - q)= "<< factorial<double>(r - q) << std::endl;
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+//           std::cout<< " factorial<Type>(m - r + q)= "<< factorial<Type>(m - r + q) << std::endl;
+//           std::cout<< " factorial<Type>(r - q)= "<< factorial<Type>(r - q) << std::endl;
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
 //           std::cout<< " sum= "<< sum << std::endl;
         }
-        int r_m_n = r-n;
+        int r_m_n = r - n;
 //         std::cout<< " r_m_n = "<< r_m_n << std::endl;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2 / u1));
 //         std::cout<< " pow(u2, r - n)= "<< pow(u2, r_m_n) << std::endl;
 //         std::cout<< " pow(u1, r - n)= "<< pow(u1, r_m_n) << std::endl;
 //         std::cout<< " log(u2)= "<< log(u2) << std::endl;
@@ -188,67 +223,67 @@ double integral_A2(const unsigned &m, const unsigned &n, const int &s, const dou
 //
 //         std::cout<< " r-n = "<< r-(n) << std::endl;
       }
-//         std::cout<< "1. A2= "<< A2 << std::endl;
+      std::cout<< "1. A2= "<< A2 << std::endl;
 
 // 2
       for(unsigned r = m + 1; r <= qMax; r++) {
-        double sum = 0.;
-        for(unsigned q = r-m; q <= r; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+        Type sum = 0.;
+        for(unsigned q = r - m; q <= r; q++) {
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
-        int r_m_n = r-n;
-        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2/u1));
+        int r_m_n = r - n;
+        A2 += (r != n) ? sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n : sum  * (log(u2 / u1));
       }
-//         std::cout<< "2. A2= "<< A2 << std::endl;
+      std::cout<< "2. A2= "<< A2 << std::endl;
 
 // 3
       for(unsigned r = qMax + 1; r <= qMax + m; r++) {
-        double sum = 0.;
+        Type sum = 0.;
         for(unsigned q = r - m; q <= qMax; q++) {
-          sum += A[q] * pow(-c, m - r + q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += A[q] * pow(-c, m - r + q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
-        int r_m_n = r-n;
+        int r_m_n = r - n;
         A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
       }
-//         std::cout<< "3. A2= "<< A2 << std::endl;
+      std::cout<< "3. A2= "<< A2 << std::endl;
 
 // 41
 
       for(unsigned r = 0; r <= m; r++) {
-        double sum = 0.;
+        Type sum = 0.;
         for(unsigned q = 0; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "4. A2= "<< A2 << std::endl;
+      std::cout<< "4. A2= "<< A2 << std::endl;
 
 // 5
-      for(unsigned r = m+1; r < qMax; r++) {
-        double sum = 0.;
-        for(unsigned q = r-m; q <= r; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+      for(unsigned r = m + 1; r < qMax; r++) {
+        Type sum = 0.;
+        for(unsigned q = r - m; q <= r; q++) {
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "5. A2= "<< A2 << std::endl;
+      std::cout<< "5. A2= "<< A2 << std::endl;
 
 // 6
       for(unsigned r = qMax; r < qMax + m; r++) {
-        double sum = 0.;
+        Type sum = 0.;
         for(unsigned q = r - m; q < qMax; q++) {
-          sum += B[q] * pow(-c, r - q) / (factorial<double>(m - r + q) * factorial<double>(r - q));
+          sum += B[q] * pow(-c, r - q) / (factorial<Type>(m - r + q) * factorial<Type>(r - q));
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "6. A2= "<< A2 << std::endl;
+      std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<double>(n) * factorial<double>(m) / pow(a , m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
-return A2;;
+    return A2;;
   }
 
 }
@@ -256,44 +291,170 @@ return A2;;
 
 
 int main() {
-unsigned int m=4;
-unsigned int n = 5;
-int s = 3;
-double a = 1;
-double c = -2;
+  unsigned int m = 4;
+  unsigned int n = 5;
+  int s = 3;
 
-std::vector <double> pol1{-1,1,1};
+  std::cout.precision(20);
 
-std::vector< std::pair<double, double> > I2(1) ;
-I2[0].first = 0;
-I2[0].second = 1;
+  typedef double Type;
 
-clock_t t = clock();
-std::srand(std::time(NULL));
-for(unsigned i=0;i<1;i++){
+  std::vector <Type> pol1;
+  std::vector <Type> pol2;
 
-  double A2 = integral_A2(m, n, s, a, c, pol1, I2);
+  std::srand(std::time(NULL));
+  random_polynomial(pol1, pol2);
 
+  Type a = pol2[1] - pol1[1];
+  Type c = pol2[2] - pol1[2];
+
+
+  pol1[0] = -1.53164;
+  pol1[1] = -1.2347;
+  pol1[2] = 1.0401;
+  a = -0.527101;
+  c = -2.00759;
+
+  std::vector< std::pair <Type, Type> > I1;
+  std::vector< std::pair <Type, Type> > I2;
+  std::vector< std::pair <Type, Type> > I3;
+  GetIntervalall(pol1, pol2, I1, I2, I3);
+  
+  I2.resize(1);
+  I2[0].first = 0;
+  I2[0].second = 0.514288;
+
+  std::cout << pol1[0] << " " << pol1[1] << " " << pol1[2] << " " << a << " " << c << std::endl;
+  for(unsigned i = 0; i < I2.size(); i++) {
+    std::cout << I2[i].first << " " << I2[i].second << std::endl;
+  }
+
+  {
+    clock_t t = clock();
+    std::srand(std::time(NULL));
+    for(unsigned i = 0; i < 1; i++) {
+      Type A2 = integral_A2(m, n, s, a, c, pol1, I2);
+    }
+    Type A2 = integral_A2(m, n, s, a, c, pol1, I2);
+
+    std::cout << "double A2= " << A2 << std::endl;
+    t = clock() - t;
+    std::cout << "\nTime taken for predetermined cases: " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
+  }
+
+
+  //typedef cpp_bin_float_oct oct;
+  
+  typedef cpp_bin_float_quad oct;
+
+  oct ao = static_cast <oct>(a);
+  oct co = static_cast <oct>(c);
+
+
+  std::vector <oct> pol1o(3);
+  pol1o[0] = static_cast <oct>(pol1[0]);
+  pol1o[1] = static_cast <oct>(pol1[1]);
+  pol1o[2] = static_cast <oct>(pol1[2]);
+
+  std::vector <oct> pol2o(3);
+  pol2o[0] = static_cast <oct>(pol2[0]);
+  pol2o[1] = static_cast <oct>(pol2[1]);
+  pol2o[2] = static_cast <oct>(pol2[2]);
+
+
+  std::vector< std::pair<oct, oct> > I1o ;
+  std::vector< std::pair<oct, oct> > I2o ;
+  std::vector< std::pair<oct, oct> > I3o ;
+  GetIntervalall(pol1o, pol2o, I1o, I2o, I3o);
+  
+  I2o.resize(1);
+  I2o[0].first = 0;
+  I2o[0].second = 0.514288;
+
+  std::cout << "k = " << pol1o[0] << "; b = " << pol1o[1] << "; d = " << pol1o[2] << "; a = " << ao << "; c = " << co << ";" << std::endl;
+  for(unsigned i = 0; i < I2o.size(); i++) {
+    std::cout << "x1 = " << I2o[i].first << "; x2 = " << I2o[i].second << ";" << std::endl;
+  }
+
+
+  {
+    clock_t t = clock();
+    std::srand(std::time(NULL));
+    for(unsigned i = 0; i < 1; i++) {
+      oct A2 = integral_A2(m, n, s, ao, co, pol1o, I2o);
+    }
+    oct A2 = integral_A2(m, n, s, ao, co, pol1o, I2o);
+
+    std::cout << "oct A2= " << A2 << std::endl;
+    t = clock() - t;
+    std::cout << "\nTime taken for predetermined cases: " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
+  }
+
+
+
+//   double eps = 2. / 3.e-14;
+//   std::cout.precision(14);
+//   std::cout << pow(eps, 10) << " " << pow(eps, 12) / pow(eps, 2) << " " <<  (1. / pow(eps, 2)) * pow(eps,12) << std::endl;
+
+  return 1;
 }
-   double A2 = integral_A2(m, n, s, a, c, pol1, I2);
 
-for(int i=-10;i<10000;i++){
-//   double x_py = pow(-1.0009765,i);
-  double x_py = pow(-1.0009765,i);
-//  std::cout<< i <<". x_py = "<< x_py << std::endl;
 
-}
-   std::cout<< " A2= "<< A2 << std::endl;
-   t = clock() - t;
-   std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
-   return 1;
+template <class Type>
+int Sign(const Type &a) {
+  return (a > 0) ? 1 : -1;
 }
 
+template <class Type>
+void GetIntervalall(const std::vector <Type> &a1, const std::vector <Type> &a2, std::vector< std::pair<Type, Type> > &I1, std::vector< std::pair<Type, Type> > &I2, std::vector<std::pair<Type, Type>> &I3) {
 
+  std::vector <Type> x(6);
+  x[0] = 0 ;
+  unsigned cnt = 1;
+  Type delta;
 
+  for(unsigned k = 0; k < 2; k++) {
+    const std::vector<Type> &a = (k == 0) ? a1 : a2;
+    delta = a[1] * a[1] - 4 * a[0] * a[2] ;
+    if(delta > 0) {
+      Type sign = Sign(a[0]);
+      for(unsigned i = 0; i < 2; i++) {
+        Type y = (-a[1] - sign * sqrt(delta)) / (2 * a[0]) ;
 
+        if(y >= 1) break;
+        else if(y > 0) {
+          x[cnt] = y ;
+          cnt++;
+        }
+        sign *= -1;
+      }
+    }
+  }
+  x[cnt] = 1 ;
+  cnt++;
 
-
+  x.resize(cnt);
+  std::sort(x.begin(), x.end());
+  I1.resize(0);
+  I2.resize(0);
+  I3.resize(0);
+  for(unsigned i = 0 ; i < cnt - 1 ; i++) {
+    Type xm = (x[i] + x[i + 1]) / 2;
+    Type f1 = a1[0] * xm * xm + a1[1] * xm + a1[2] ;
+    Type f2 = a2[0] * xm * xm + a2[1] * xm + a2[2] ;
+    if(f1 > 0) {
+      if(f2 > 0) {
+        I3.resize(I3.size() + 1, std::pair<Type, Type>(x[i], x[i + 1]));
+      }
+      else {
+        I1.resize(I1.size() + 1, std::pair<Type, Type>(x[i], x[i + 1]));
+      }
+    }
+    else if(f2 > 0) {
+      I2.resize(I2.size() + 1, std::pair<Type, Type>(x[i], x[i + 1]));
+    }
+  }
+}
 
 
 
