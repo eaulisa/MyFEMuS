@@ -343,9 +343,9 @@ int main() {
   }
 
 
-  //typedef cpp_bin_float_oct oct;
+  typedef cpp_bin_float_oct oct;
   
-  typedef cpp_bin_float_quad oct;
+  //typedef cpp_bin_float_quad oct;
 
   oct ao = static_cast <oct>(a);
   oct co = static_cast <oct>(c);
