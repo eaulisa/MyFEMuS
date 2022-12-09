@@ -98,15 +98,18 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
     }
     B[q] = A[q] * (pow(k[1], q) * pow(k[0], s + n + 1 - q)) / (factorial<Type>(q) * factorial<Type>(s + n + 1 - q));
     A[q] *= (pow(k[1], q) * pow(k[2], s + n + 1 - q)) / (factorial<Type>(q) * factorial<Type>(s + n + 1 - q));
-   // std::cout<<q<<" " << A[q] <<" "<< B[q] << std::endl;
+//   std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
   }
   Type A2 = 0;
+                                      //integration starts from here.....
   if(m >= qMax) {
     for(unsigned i = 0; i < I2.size(); i++)  {
       Type u1 = a * I2[i].first + c;
       Type u2 = a * I2[i].second + c;
-//       std::cout<< " u1= "<< u1 << std::endl;
-//       std::cout<< " u2= "<< u2 << std::endl;
+
+//        std::cout<< " I2= "<< I2[i].first << ", "<< I2[i].second << std::endl;
+//        std::cout<< " u1= "<< u1 << std::endl;
+//        std::cout<< " u2= "<< u2 << std::endl;
 // 1
       for(unsigned r = 0; r <= qMax; r++) {
 //         std::cout<< " r= "<< r << std::endl;
@@ -129,7 +132,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
 //
 //         std::cout<< " r-n = "<< r-(n) << std::endl;
       }
-//     std::cout<< "1. A2= "<< A2 << std::endl;
+     std::cout<< "1. A2= "<< A2 << std::endl;
 
 // 2
       for(unsigned r = qMax + 1; r <= m; r++) {
@@ -140,7 +143,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
         int r_m_n = static_cast<int>(r) - static_cast<int>(n);
         A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
       }
-//         std::cout<< "2. A2= "<< A2 << std::endl;
+         std::cout<< "2. A2= "<< A2 << std::endl;
 
 // 3
       for(unsigned r = m + 1; r <= qMax + m; r++) {
@@ -151,7 +154,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
         int r_m_n = r - n;
         A2 += sum  * (pow(u2, r_m_n) - pow(u1, r_m_n)) / r_m_n;
       }
-//         std::cout<< "3. A2= "<< A2 << std::endl;
+         std::cout<< "3. A2= "<< A2 << std::endl;
 
 // 4
 
@@ -162,7 +165,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "4. A2= "<< A2 << std::endl;
+        std::cout<< "4. A2= "<< A2 << std::endl;
 
 // 5
       for(unsigned r = qMax; r <= m; r++) {
@@ -172,7 +175,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "5. A2= "<< A2 << std::endl;
+         std::cout<< "5. A2= "<< A2 << std::endl;
 
 // 6
       for(unsigned r = m + 1; r < qMax + m; r++) {
@@ -182,7 +185,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
         }
         A2 += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
       }
-//         std::cout<< "6. A2= "<< A2 << std::endl;
+         std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
       A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
@@ -291,7 +294,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
 
 
 int main() {
-  unsigned int m = 4;
+  unsigned int m = 9;
   unsigned int n = 5;
   int s = 3;
 
@@ -333,7 +336,7 @@ int main() {
     clock_t t = clock();
     std::srand(std::time(NULL));
     for(unsigned i = 0; i < 1; i++) {
-      Type A2 = integral_A2(m, n, s, a, c, pol1, I2);
+//      Type A2 = integral_A2(m, n, s, a, c, pol1, I2);
     }
     Type A2 = integral_A2(m, n, s, a, c, pol1, I2);
 
@@ -381,7 +384,7 @@ int main() {
     clock_t t = clock();
     std::srand(std::time(NULL));
     for(unsigned i = 0; i < 1; i++) {
-      oct A2 = integral_A2(m, n, s, ao, co, pol1o, I2o);
+//      oct A2 = integral_A2(m, n, s, ao, co, pol1o, I2o);
     }
     oct A2 = integral_A2(m, n, s, ao, co, pol1o, I2o);
 
