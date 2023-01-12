@@ -1619,17 +1619,38 @@ namespace femus {
 
 
   double Cloud::GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &y, const std::vector<double>&w, const unsigned & iel, const unsigned & nPoints) {
-    double cost = 0;
-    double h2 = 0.;
+      
+
     Mesh* msh = _sol->GetMesh();
     unsigned dim = _sol->GetMesh()->GetDimension();
 
-    unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
-    unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
-    for(unsigned k = 0; k < dim; k++) {
-      double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
-      h2 += h * h;
+    double h = 0.;
+    unsigned nDofs = msh->GetElementDofNumber(iel, 0);
+    for(unsigned i = 0; i < nDofs; i++) {
+      unsigned xDofi  = msh->GetSolutionDof(i, iel, 2);
+      unsigned xDofip1  = msh->GetSolutionDof((i + 1) % nDofs, iel, 2);
+      double hi2 = 0.;
+      for(unsigned k = 0; k < dim; k++) {
+        double hk = ((*msh->_topology->_Sol[k])(xDofip1) - (*msh->_topology->_Sol[k])(xDofi));
+        hi2 += hk * hk;
+      }
+      h += sqrt(hi2);
     }
+    h /= nDofs;
+    double h2 = h * h;
+      
+      
+    double cost = 0;
+//     double h2 = 0.;
+//     Mesh* msh = _sol->GetMesh();
+//     unsigned dim = _sol->GetMesh()->GetDimension();
+// 
+//     unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
+//     unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
+//     for(unsigned k = 0; k < dim; k++) {
+//       double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
+//       h2 += h * h;
+//     }
 
     const std::vector<double> &Cf = _A[iel];
     std::vector<std::vector<double>> xe(2, std::vector<double>(dim));
@@ -1775,6 +1796,7 @@ namespace femus {
 
 
 #endif
+
 
 
 
