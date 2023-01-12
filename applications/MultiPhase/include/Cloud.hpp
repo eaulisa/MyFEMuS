@@ -1003,14 +1003,29 @@ namespace femus {
             _kappaNew.resize(newSize);
             _dsNew.resize(newSize);
           }
-
-          double h2 = 0.;
-          unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
-          unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
-          for(unsigned k = 0; k < dim; k++) {
-            double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
-            h2 += h * h;
+          
+          double h = 0.;
+          unsigned nDofs = msh->GetElementDofNumber(iel, 0);
+          for(unsigned i = 0; i < nDofs; i++) {
+            unsigned xDofi  = msh->GetSolutionDof(i, iel, 2);
+            unsigned xDofip1  = msh->GetSolutionDof((i + 1) % nDofs, iel, 2);
+            double hi2 = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              double hk = ((*msh->_topology->_Sol[k])(xDofip1) - (*msh->_topology->_Sol[k])(xDofi));
+              hi2 += hk * hk;
+            }
+            h += sqrt(hi2);
           }
+          h /= nDofs;
+          double h2 = h * h;
+
+//           double h2 = 0.;
+//           unsigned xDof0  = msh->GetSolutionDof(0, iel, 2);
+//           unsigned xDof2  = msh->GetSolutionDof(2, iel, 2);
+//           for(unsigned k = 0; k < dim; k++) {
+//             double h = (*msh->_topology->_Sol[k])(xDof2) - (*msh->_topology->_Sol[k])(xDof0);
+//             h2 += h * h;
+//           }
           for(unsigned i = 0; i < sol.first.size(); i++) {
             double distMin = 1.e10;
             for(unsigned j = i0; j < i1; j++) {
