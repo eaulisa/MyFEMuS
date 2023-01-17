@@ -119,13 +119,27 @@ void Cloud::ComputeQuadraticBestFit() {
       double sigma2 = 0.;
       std::vector<double> d2(cnt, 0.);
       if(cnt > 1) {
-        for(unsigned i = 0; i < cnt; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+//         for(unsigned i = 0; i < cnt; i++) {
+//           for(unsigned k = 0; k < dim; k++) {
+//             d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+//           }
+//           sigma2 += d2[i];
+//         }
+
+        for(unsigned i = cnt0; i < cnt; i++) {
+          d2[i] = 1.0e10;
+          for(unsigned j = 0; j < cnt0; j++) {
+            double d2j = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+            }
+            if(d2j < d2[i]) d2[i] = d2j;
           }
           sigma2 += d2[i];
         }
-        sigma2 /= cnt * 15.;
+
+
+        sigma2 /= cnt * 60.;
         for(unsigned i = 0; i < cnt; i++) {
           weight[i] *= exp(-0.5 / sigma2 * d2[i]);
         }
@@ -261,11 +275,6 @@ void Cloud::ComputeQuadraticBestFit() {
       double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
       std::vector<double> Apar = _A[iel];
 
-      if(true && iel == 165) {
-        std::cout << "a = " << Acon[0] << "; b=" << Acon[1] << "; c=" << Acon[2] << "; d=" << Acon[3] << "; e=" << Acon[4] << "; f= " << Acon[5] << ";\n";
-        std::cout << "a = " << Apar[0] << "; b=" << Apar[1] << "; c=" << Apar[2] << "; d=" << Apar[3] << "; e=" << Apar[4] << "; f= " << Apar[5] << ";\n";
-      }
-
       _A[iel] = (cost1 < cost2) ? Acon : Apar;
       if((cost2 < 0.0001 && cost1 / cost2 > 0.00001) && cost2 / cost1 > 0.00001) {
         double counter = 0.;
@@ -285,12 +294,12 @@ void Cloud::ComputeQuadraticBestFit() {
           if(dotProd < 0 && GetValue(Apar, xp) * GetValue(Acon, xp) < 0) {
             double distMin = 1.0E10;
             unsigned jMin = 0;
-            for(unsigned j = 1; j < cnt0; j++) {
+            for(unsigned j = 0; j < cnt0; j++) {
               double distj = 0.;
               for(unsigned k = 0; k < dim; k++) {
                 distj += (coord[j][k] - xp[k]) * (coord[j][k] - xp[k]);
               }
-              if(distj > distMin) {
+              if(distj < distMin) {
                 jMin = j;
                 distMin = distj;
               }
@@ -314,8 +323,8 @@ void Cloud::ComputeQuadraticBestFit() {
       else _sol->_Sol[SolQIndex]->set(iel, 3); // hyperpola;
 
 
-      if(true && ((iel == 372 && nprocs == 1) || (iel == 324 && nprocs != 1)) ) {
-      double xMin[2] = { 1.0e10, 1.0e10};
+      if(true && ((iel == 372 && nprocs == 1) || (iel == 324 && nprocs != 1))) {
+        double xMin[2] = { 1.0e10, 1.0e10};
         double xMax[2] = { -1.0e10, -1.0e10};
 
         unsigned nDofs =  msh->GetElementDofNumber(iel, 2);
@@ -329,7 +338,7 @@ void Cloud::ComputeQuadraticBestFit() {
         }
 
         if(nprocs == 1 || iproc == 2) {
-          std::cerr << iel<<" BBBBBBB\n" ;//<< treshold <<  " ";
+          std::cerr << iel << " BBBBBBB\n" ; //<< treshold <<  " ";
           std::cerr << cost1 << " " << cost2 << std::endl;
           std::cerr << "a = " << _A[iel][0] << "; b=" << _A[iel][1] << "; c=" << _A[iel][2] << "; d=" << _A[iel][3] << "; e=" << _A[iel][4] << "; f= " << _A[iel][5] << ";\n";
           std::cerr << " {x," << xMin[0] << ", " << xMax[0] << "},{" << "{y," << xMin[1] << ", " << xMax[1] << "}" << std::endl;
@@ -368,7 +377,7 @@ void Cloud::ComputeQuadraticBestFit() {
             kel = it->first;
             i0 = _elMrkIdx[kel][0];
             i1 = _elMrkIdx[kel][1];
-            
+
             cnt0 = i1 - i0;
             coord.resize(i1 - i0, std::vector<double> (dim));
             weight.resize(i1 - i0);
@@ -376,7 +385,7 @@ void Cloud::ComputeQuadraticBestFit() {
             norm.assign(dim, 0);
             unsigned cnt = 0;
             double weightSum = 0;
-            
+
             for(unsigned i = i0; i < i1; i++, cnt++) {
               for(unsigned k = 0; k < dim; k++) {
                 coord[cnt][k] = _yp[_map[i]][k];
@@ -516,16 +525,37 @@ void Cloud::ComputeQuadraticBestFit() {
             double sigma2 = 0.;
             std::vector<double> d2(cnt, 0.);
             if(cnt > 1) {
-              for(unsigned i = 0; i < cnt; i++) {
-                for(unsigned k = 0; k < dim; k++) {
-                  d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+//               for(unsigned i = 0; i < cnt; i++) {
+//                 for(unsigned k = 0; k < dim; k++) {
+//                   d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+//                 }
+//                 sigma2 += d2[i];
+//               }
+//               sigma2 /= cnt * 15.;
+//               for(unsigned i = 0; i < cnt; i++) {
+//                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
+//               }
+
+
+              for(unsigned i = cnt0; i < cnt; i++) {
+                d2[i] = 1.0e10;
+                for(unsigned j = 0; j < cnt0; j++) {
+                  double d2j = 0.;
+                  for(unsigned k = 0; k < dim; k++) {
+                    d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+                  }
+                  if(d2j < d2[i]) d2[i] = d2j;
                 }
                 sigma2 += d2[i];
               }
-              sigma2 /= cnt * 15.;
+
+
+              sigma2 /= cnt * 60.;
               for(unsigned i = 0; i < cnt; i++) {
                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
               }
+
+
             }
             else {
               std::cerr << "Abbiamo solo un marker!!!!!!!!!!!!!!!!!!!!!!!!!\n" ;
@@ -682,12 +712,12 @@ void Cloud::ComputeQuadraticBestFit() {
                 if(dotProd < 0 && GetValue(Apar, xp) * GetValue(Acon, xp) < 0) {
                   double distMin = 1.0E10;
                   unsigned jMin = 0;
-                  for(unsigned j = 1; j < cnt0; j++) {
+                  for(unsigned j = 0; j < cnt0; j++) {
                     double distj = 0.;
                     for(unsigned k = 0; k < dim; k++) {
                       distj += (coord[j][k] - xp[k]) * (coord[j][k] - xp[k]);
                     }
-                    if(distj > distMin) {
+                    if(distj < distMin) {
                       jMin = j;
                       distMin = distj;
                     }
