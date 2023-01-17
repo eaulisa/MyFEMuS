@@ -217,7 +217,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
       std::cout << "6. A2= " << A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m+1);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -313,7 +313,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
       std::cout << "6. A2= " << A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m+1);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -393,7 +393,7 @@ Type integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type 
     A3_part.resize(i + 1, 0);
 
     if(m >= qMax) {
-      for(unsigned w = 0; w < I3.size(); w++)  {
+      for(unsigned w = 0; w < I3.size(); w++){
         Type u1 = a * I3[w].first + c;
         Type u2 = a * I3[w].second + c;
         std::cout << " u1= " << u1 << std::endl;
@@ -583,7 +583,7 @@ Type integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type 
 
   }
 
-  A3 *= factorial<Type>(m) / pow(a, m);
+  A3 *= factorial<Type>(m) / pow(a, m+1);
   return A3;
 
 }
@@ -609,11 +609,11 @@ int main() {
 //   Type a = pol2[1] - pol1[1];
 //   Type c = pol2[2] - pol1[2];
 
-  Type k = 0;
-  Type b = 0;
+  Type k = 0.1;
+  Type b = 0.2;
   Type d = -1;
   Type a = 2;
-  Type c = 0;
+  Type c = 0.1;
   pol1[0] = k;
   pol1[1] = b;
   pol1[2] = d;

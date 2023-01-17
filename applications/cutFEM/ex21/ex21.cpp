@@ -188,7 +188,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
          std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m+1);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -284,7 +284,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
       std::cout<< "6. A2= "<< A2 << std::endl;
 
 //total
-      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m);
+      A2 *= pow(-1, n) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m+1);
 //       std::cout<< "final. A2= "<< A2 << std::endl;
 
     }
@@ -527,7 +527,7 @@ Type integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type 
 
   }
 
-  A3 *= factorial<Type>(m) / pow(a , m);
+  A3 *= factorial<Type>(m) / pow(a , m+1);
   return A3;
 
 }
@@ -536,38 +536,41 @@ Type integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type 
 
 
 int main() {
-  unsigned int m = 9;
-  unsigned int n = 5;
-  int s = 3;
+  unsigned int m = 0;
+  unsigned int n = 0;
+  int s = 0;
 
   std::cout.precision(20);
 
   typedef double Type;
 
-  std::vector <Type> pol1;
-  std::vector <Type> pol2;
+  std::vector <Type> pol1(3);
+  std::vector <Type> pol2(3);
 
   std::srand(std::time(NULL));
-  random_polynomial(pol1, pol2);
+//   random_polynomial(pol1, pol2);
+//
+//   Type a = pol2[1] - pol1[1];
+//   Type c = pol2[2] - pol1[2];
 
-  Type a = pol2[1] - pol1[1];
-  Type c = pol2[2] - pol1[2];
 
-
-  pol1[0] = -1.53164;
-  pol1[1] = -1.2347;
-  pol1[2] = 1.0401;
-  a = -0.527101;
-  c = -2.00759;
+  pol1[0] = 0.1;
+  pol1[1] = 0.2;
+  pol1[2] = -1;
+  Type a = 2;
+  Type c = 0.1;
+  pol2[0] = pol1[0];
+  pol2[1] = pol1[1]+a;
+  pol2[2] = pol1[2]+c;
 
   std::vector< std::pair <Type, Type> > I1;
   std::vector< std::pair <Type, Type> > I2;
   std::vector< std::pair <Type, Type> > I3;
   GetIntervalall(pol1, pol2, I1, I2, I3);
   
-  I2.resize(1);
-  I2[0].first = 0;
-  I2[0].second = 0.514288;
+//   I2.resize(1);
+//   I2[0].first = 0;
+//   I2[0].second = 0.514288;
 
   std::cout << pol1[0] << " " << pol1[1] << " " << pol1[2] << " " << a << " " << c << std::endl;
   for(unsigned i = 0; i < I2.size(); i++) {
