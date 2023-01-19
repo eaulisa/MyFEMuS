@@ -1,7 +1,7 @@
 void Cloud::ComputeQuadraticBestFit() {
   _A.clear();
 
-
+  double sigmaFactor = 2.;
 
   map<unsigned, bool> pSearch;
 
@@ -119,27 +119,27 @@ void Cloud::ComputeQuadraticBestFit() {
       double sigma2 = 0.;
       std::vector<double> d2(cnt, 0.);
       if(cnt > 1) {
-//         for(unsigned i = 0; i < cnt; i++) {
-//           for(unsigned k = 0; k < dim; k++) {
-//             d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
-//           }
-//           sigma2 += d2[i];
-//         }
-
-        for(unsigned i = cnt0; i < cnt; i++) {
-          d2[i] = 1.0e10;
-          for(unsigned j = 0; j < cnt0; j++) {
-            double d2j = 0.;
-            for(unsigned k = 0; k < dim; k++) {
-              d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
-            }
-            if(d2j < d2[i]) d2[i] = d2j;
+        for(unsigned i = 0; i < cnt; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
           }
           sigma2 += d2[i];
         }
 
+//         for(unsigned i = cnt0; i < cnt; i++) {
+//           d2[i] = 1.0e10;
+//           for(unsigned j = 0; j < cnt0; j++) {
+//             double d2j = 0.;
+//             for(unsigned k = 0; k < dim; k++) {
+//               d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+//             }
+//             if(d2j < d2[i]) d2[i] = d2j;
+//           }
+//           sigma2 += d2[i];
+//         }
 
-        sigma2 /= cnt * 60.;
+
+        sigma2 /= cnt * sigmaFactor;
         for(unsigned i = 0; i < cnt; i++) {
           weight[i] *= exp(-0.5 / sigma2 * d2[i]);
         }
@@ -525,32 +525,32 @@ void Cloud::ComputeQuadraticBestFit() {
             double sigma2 = 0.;
             std::vector<double> d2(cnt, 0.);
             if(cnt > 1) {
-//               for(unsigned i = 0; i < cnt; i++) {
-//                 for(unsigned k = 0; k < dim; k++) {
-//                   d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
-//                 }
-//                 sigma2 += d2[i];
-//               }
+              for(unsigned i = 0; i < cnt; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  d2[i] += (coord[i][k] - xn[k]) * (coord[i][k] - xn[k]);
+                }
+                sigma2 += d2[i];
+              }
 //               sigma2 /= cnt * 15.;
 //               for(unsigned i = 0; i < cnt; i++) {
 //                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
 //               }
 
 
-              for(unsigned i = cnt0; i < cnt; i++) {
-                d2[i] = 1.0e10;
-                for(unsigned j = 0; j < cnt0; j++) {
-                  double d2j = 0.;
-                  for(unsigned k = 0; k < dim; k++) {
-                    d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
-                  }
-                  if(d2j < d2[i]) d2[i] = d2j;
-                }
-                sigma2 += d2[i];
-              }
+//               for(unsigned i = cnt0; i < cnt; i++) {
+//                 d2[i] = 1.0e10;
+//                 for(unsigned j = 0; j < cnt0; j++) {
+//                   double d2j = 0.;
+//                   for(unsigned k = 0; k < dim; k++) {
+//                     d2j += (coord[i][k] - coord[j][k]) * (coord[i][k] - coord[j][k]);
+//                   }
+//                   if(d2j < d2[i]) d2[i] = d2j;
+//                 }
+//                 sigma2 += d2[i];
+//               }
 
 
-              sigma2 /= cnt * 60.;
+              sigma2 /= cnt * sigmaFactor;
               for(unsigned i = 0; i < cnt; i++) {
                 weight[i] *= exp(-0.5 / sigma2 * d2[i]);
               }

@@ -52,17 +52,21 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
 Cloud *cldint;
 
-const double mu2 = 0.009535;
-const double mu1 = 0.006349;
-const double rho2 = 1.5;
-const double rho1 = 1.;
-const double sigma = 0.;
-const double gravity = -10.;
-// const double mu1 = 1.;
-// const double mu2 = 1.;
+// // RT
+// const double mu2 = 0.009535;
+// const double mu1 = 0.006349;
+// const double rho2 = 1.5;
 // const double rho1 = 1.;
-// const double rho2 = 10.;
-// const double sigma = 1.;
+// const double sigma = 0.;
+// const double gravity = -10.;
+
+// // Turek 1
+const double mu1 = 0.1;
+const double mu2 = 10.;
+const double rho1 = 1.;
+const double rho2 = 1000;
+const double sigma = 1.96;
+const double gravity = -0.98;
 
 std::vector <double> g;
 
@@ -78,7 +82,6 @@ std::vector <double> g;
 // #define XG 0.
 // #define YG -0.2
 // #define ZG 0.
-
 
 using namespace femus;
 
@@ -129,14 +132,15 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
-  //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); 
+  mlMsh.GenerateCoarseBoxMesh(40*2+1, 80*2+1, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); //turek
+//   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -159,6 +163,8 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
+  mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("DIC", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -222,21 +228,38 @@ int main(int argc, char** args) {
 
 
   unsigned nIterations = 1000;
+  unsigned nMrk = 1000;
   
   
- // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+  // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+  cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMrk);
 //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
-  cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
+//   cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
   cld->ComputeQuadraticBestFit();
 
-  //cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+  cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
 //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
-  cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
+//   cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
-  cldint->PrintCSV("markerInt", 0);
+//   cldint->PrintCSV("markerInt", 0);
+  
+  
+//  // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+// //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
+//   cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
+//   cld->ComputeQuadraticBestFit();
+// 
+//   //cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+// //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
+//   cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
+//   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
+// 
+//   cld->PrintCSV("markerBefore", 0);
+//   cld->PrintCSV("marker", 0);
+//   cldint->PrintCSV("markerInt", 0);
 
 
   std::vector < std::string > variablesToBePrinted;
@@ -271,7 +294,8 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-  double dt =  0.005;
+//   double dt =  0.005; //RT
+  double dt =  0.01; //Turek
   return dt;
 }
 
@@ -625,7 +649,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           NSV += - rhoC * phiV[i] * g[I]; // gravity term
           Res[I * nDofsV + i] -=  NSV * weight;
           if(cut == 1) {
-            Res[I * nDofsV + i] += - sigma * phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN; 
+            Res[I * nDofsV + i] += - sigma * phiV[i] /** b[I]*/ * NN[I] * weight * weightCF[ig] * kk * dsN;
           }
         }
       } // end phiV_i loop
@@ -636,10 +660,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
           Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
         }
-        if(C == 0) 
-        Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
-        if(C == 1) 
-        Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+        if(C == 0)
+          Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+        if(C == 1)
+          Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
 
       } // end phiP_i loop
       // end gauss point loop
@@ -682,10 +706,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
         for(unsigned j = 0; j < nDofsP; j++) {
           unsigned P1column = dim * nDofsV + j;
           unsigned P2column = dim * nDofsV + nDofsP + j;
-          if(C == 0) 
-          Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
-          if(C == 1) 
-          Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
+          if(C == 0)
+            Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          if(C == 1)
+            Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
         }
       }
 
