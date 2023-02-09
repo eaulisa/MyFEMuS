@@ -52,21 +52,23 @@ Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 Cloud *cld;
 Cloud *cldint;
 
-// // RT
-// const double mu2 = 0.009535;
-// const double mu1 = 0.006349;
-// const double rho2 = 1.5;
-// const double rho1 = 1.;
-// const double sigma = 0.;
-// const double gravity = -10.;
+// RT
+// const double mu2 = 0.301176;
+// const double mu1 = 0.200784;
+const double mu2 = 0.009535;
+const double mu1 = 0.006349;
+const double rho2 = 1.5;
+const double rho1 = 1.;
+const double sigma = 0.12;
+const double gravity = -10.;
 
 // // Turek 1
-const double mu1 = 0.1;
-const double mu2 = 10.;
-const double rho1 = 1.;
-const double rho2 = 1000;
-const double sigma = 1.96;
-const double gravity = -0.98;
+// const double mu1 = 0.1;
+// const double mu2 = 10.;
+// const double rho1 = 1.;
+// const double rho2 = 1000;
+// const double sigma = 1.96;
+// const double gravity = -0.98;
 
 std::vector <double> g;
 
@@ -134,8 +136,8 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 //   mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(40*2+1, 80*2+1, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); //turek
-//   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); 
+//   mlMsh.GenerateCoarseBoxMesh(40*2+1, 80*2+1, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
+  mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //RT
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
@@ -227,20 +229,47 @@ int main(int argc, char** args) {
   std::cout << "Testing the class Cloud \n";
 
 
-  unsigned nIterations = 1000;
+  unsigned nIterations = 450;
   unsigned nMrk = 1000;
   
+// // // Turek 1&2
+// // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
+//   cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMrk);
+// //   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
+// //   cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
+//   cld->ComputeQuadraticBestFit();
+// 
+//   cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
+// //   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
+// //   cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
+//   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
   
-  // cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, 8);
-  cld->AddEllipse({XG, YG}, {RADIUS, RADIUS}, nMrk);
-//   cld->AddQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS}, 8);
-//   cld->AddQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005}, 8);
-  cld->ComputeQuadraticBestFit();
+  
+// // RT
+  std::vector < std::vector<double>> x(nMrk, std::vector<double>(dim));
+  std::vector < std::vector<double>> N(nMrk, std::vector<double>(dim));
 
-  cldint->AddInteriorEllipse({XG, YG}, {RADIUS, RADIUS});
-//   cldint->AddInteriorQuadric({1.,0.,1.,-2.*XG ,-2*YG ,XG*XG+YG*YG-RADIUS*RADIUS});
-//   cldint->AddInteriorQuadric({1./50 ,0.,0.,0.,1., 1./256 - 0.005});
+  for(unsigned i = 0; i < nMrk - 1; i++){
+    x[i][0] = - 0.5 + (i * 1. / (nMrk - 1.)) + 1e-10;
+    x[i][1] = 0.005 * cos(2. * M_PI * x[i][0]) - (1. / 128);
+    N[i][0] = 0.;
+    N[i][1] = 1.;
+  }
+  x[nMrk-1][0] = 0.5 - 1e-10;  
+  x[nMrk-1][1] = 0.005 * cos(2. * M_PI * x[nMrk-1][0]) - (1. / 128);
+  N[nMrk-1][0] = 0.;
+  N[nMrk-1][1] = 1.;
+  
+  cld->AddCloudFromPoints(x, N);
+  cld->ComputeQuadraticBestFit();
+  
+  x[0][0] = 0.;
+  x[0][1] = -0.5;
+  cldint->AddInteriorCloudFromPoints(x);
   cldint->RebuildInteriorMarkers(*cld, "C", "Cn");
+  
+  
+  
 
   cld->PrintCSV("markerBefore", 0);
   cld->PrintCSV("marker", 0);
@@ -294,8 +323,8 @@ int main(int argc, char** args) {
 }
 
 double TimeStepMultiphase(const double time) {
-//   double dt =  0.005; //RT
-  double dt =  0.01; //Turek
+  double dt =  0.005; //RT
+//   double dt =  0.01; //Turek
   return dt;
 }
 
