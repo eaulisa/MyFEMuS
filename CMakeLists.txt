@@ -213,6 +213,8 @@ OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
 
 OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
 
+OPTION(BUILD_TIME_OPTIMAL_CONTROL "Build Time Dependent Optimal Control apps" ON)
+
 #############################################################################################
 ### Build documentation (Doxygen)
 #############################################################################################
