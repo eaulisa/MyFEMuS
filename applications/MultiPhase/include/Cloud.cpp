@@ -22,11 +22,15 @@ void Cloud::ComputeQuadraticBestFit() {
     for(_itElMrkIdx = _elMrkIdx.begin(); _itElMrkIdx != _elMrkIdx.end(); _itElMrkIdx++) {
         double sigmaFactor = 2.;
         unsigned sigmaCnt = 0;
-        
-        sigmaChangeSerial:
-        if(sigmaCnt > 0) sigmaFactor = 15.;
+
+sigmaChangeSerial:
+        if(sigmaCnt > 0) {
+            if(sigmaCnt%2==1) sigmaFactor = 15.;
+            else sigmaFactor = 2.;
+        }
+
         sigmaCnt++;
-        
+
         unsigned iel = _itElMrkIdx->first;
         unsigned i0 = _itElMrkIdx->second[0];
         unsigned i1 = _itElMrkIdx->second[1];
@@ -282,7 +286,7 @@ void Cloud::ComputeQuadraticBestFit() {
             double cost2 = GetCost(coord, dotProduct, weight, iel, cnt0);
             std::vector<double> Apar = _A[iel];
 
-            if(cost1 > 0.00001 && cost2 > 0.00001 && sigmaCnt < 2) {
+            if(cost1 > 0.00001 && cost2 > 0.00001 && sigmaCnt < 3) {
                 goto sigmaChangeSerial;
             }
 
@@ -389,7 +393,10 @@ void Cloud::ComputeQuadraticBestFit() {
 
 sigmaChangeParallel:
                     unsigned sigmaTestPassed = 1;
-                    if(sigmaCnt > 0) sigmaFactor = 15.;
+                    if(sigmaCnt > 0) {
+                        if(sigmaCnt%2==1) sigmaFactor = 15.;
+                        else sigmaFactor = 2.;
+                    }
                     sigmaCnt++;
 
 
@@ -717,7 +724,7 @@ sigmaChangeParallel:
                         }
 
 
-                        if(cost1 > 0.00001 && cost2 > 0.00001 && sigmaCnt < 2) {
+                        if(cost1 > 0.00001 && cost2 > 0.00001 && sigmaCnt < 3) {
                             sigmaTestPassed = 0;
                         }
                         else {
