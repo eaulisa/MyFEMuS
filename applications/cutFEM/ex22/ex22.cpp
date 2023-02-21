@@ -67,7 +67,7 @@ void random_polynomial(std::vector <Type> &a1, std::vector <Type> &a2) {
 }
 
 template <class Type>
-Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
+Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
 
   Type A2 = 0;
   if(a == 0) {
@@ -416,7 +416,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
 }
 
 template <class Type>
-Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
+Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
 
   Type A2 = 0;
   if(a == 0) {
@@ -503,74 +503,74 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
     }
 
     //integration starts from here.....
-      for(unsigned i = 0; i < I2.size(); i++)  {
-        Type u1 = a * I2[i].first + c;
-        Type u2 = a * I2[i].second + c;
-        //       std::cout<< " u1= "<< u1 << std::endl;
-        //       std::cout<< " u2= "<< u2 << std::endl;
-        if(u1 == 0 || u2 == 0) {
-          Type c_0 = (a * pol1[1] - pol1[0] * c) / (a * a);
-          int pMax = s + n + 1 ;
-          // #1
-          for(int r = 0; r <= s; r++) {
-            Type sum = 0;
-            Type r_pm_p1 = r + m + 1;
-            for(int p = 0; p <= r; p++) {
-              sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
-              //           std::cout << "1sum= " << sum << std::endl;
-            }
-            A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-            //         std::cout << "11. A2= " << A2 << std::endl;
+    for(unsigned i = 0; i < I2.size(); i++)  {
+      Type u1 = a * I2[i].first + c;
+      Type u2 = a * I2[i].second + c;
+      //       std::cout<< " u1= "<< u1 << std::endl;
+      //       std::cout<< " u2= "<< u2 << std::endl;
+      if(u1 == 0 || u2 == 0) {
+        Type c_0 = (a * pol1[1] - pol1[0] * c) / (a * a);
+        int pMax = s + n + 1 ;
+        // #1
+        for(int r = 0; r <= s; r++) {
+          Type sum = 0;
+          Type r_pm_p1 = r + m + 1;
+          for(int p = 0; p <= r; p++) {
+            sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
+            //           std::cout << "1sum= " << sum << std::endl;
+          }
+          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "11. A2= " << A2 << std::endl;
 
-          }
-          // #2
-          for(int r = s + 1; r <= pMax; r++) {
-            Type sum = 0;
-            Type r_pm_p1 = r + m + 1;
-            for(int p = r - s; p <= r; p++) {
-              sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
-            }
-            A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-            //         std::cout << "22. A2= " << A2 << std::endl;
-          }
-          // #3
-          for(int r = pMax + 1; r <= pMax + s; r++) {
-            Type sum = 0;
-            Type r_pm_p1 = r + m + 1;
-            for(int p = r - s; p <= pMax; p++) {
-              sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
-            }
-            A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-            //         std::cout << "33. A2= " << A2 << std::endl;
-          }
-          A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s);
         }
-        else {
-          Type C1;
-          for(unsigned p = 0; p <= m; p++) {
-            Type sum1(0);
-            for(unsigned q = 0; q <= qMax; q++) {
-              int i = p + q - n;
-              sum1 += A[q] * ((i == 0) ? log(u2 / u1) : (pow(u2, i) - pow(u1, i)) / (i));
-            }
-            Type sum2(0);
-            for(unsigned q = 0; q < qMax; q++) {
-              int i = 2 * s + n + 2 - q;
-              sum2 += B[q] * (pow(u2, i) - pow(u1, i)) / (i);
-            }
-
-            C1 = (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+        // #2
+        for(int r = s + 1; r <= pMax; r++) {
+          Type sum = 0;
+          Type r_pm_p1 = r + m + 1;
+          for(int p = r - s; p <= r; p++) {
+            sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
           }
+          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "22. A2= " << A2 << std::endl;
+        }
+        // #3
+        for(int r = pMax + 1; r <= pMax + s; r++) {
+          Type sum = 0;
+          Type r_pm_p1 = r + m + 1;
+          for(int p = r - s; p <= pMax; p++) {
+            sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
+          }
+          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "33. A2= " << A2 << std::endl;
+        }
+        A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s);
+      }
+      else {
+        Type C1 = 0;
+        for(unsigned p = 0; p <= m; p++) {
+          Type sum1(0);
+          for(unsigned q = 0; q <= qMax; q++) {
+            int i = p + q - n;
+            sum1 += A[q] * ((i == 0) ? log(u2 / u1) : (pow(u2, i) - pow(u1, i)) / (i));
+          }
+          Type sum2(0);
+          for(unsigned q = 0; q < qMax; q++) {
+            int i = 2 * s + n + 2 + p - q;
+            sum2 += B[q] * (pow(u2, i) - pow(u1, i)) / (i);
+          }
+
+          C1 += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+        }
 
 //           std::cout << "C1 = " << C1 << std::endl;
-          A2 = C1;
+        A2 = C1;
 
-          //total
-          A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
+        //total
+        A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
 // //           std::cout << "final. A2= " << A2 << std::endl;
-        }
       }
-      return A2;
+    }
+    return A2;
   }
 }
 
@@ -858,29 +858,30 @@ Type integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type 
 }
 
 int main() {
-  unsigned int m = 0;
-  unsigned int n = 0;
+  unsigned int m = 2;
+  unsigned int n = 2;
   int s = 0;
 
   std::cout.precision(20);
 
- // typedef cpp_bin_float_quad Type;
-   typedef double Type;
+// typedef cpp_bin_float_quad Type;
+  typedef double Type;
   Type k, b, d, a, c, area1, area2;
   std::vector <Type> pol1(3, 0);
   std::vector <Type> pol2(3, 0);
   clock_t t = clock();
-  std::srand((unsigned)std::time(NULL));
+  //std::srand((unsigned)std::time(NULL));
+  std::srand(10);
   int count = 0;
-  for(unsigned int j = 0; j < 100000; j++) {
+  for(unsigned int j = 0; j < 1000; j++) {
     Type A1 = 0, A2 = 0, A3 = 0;
     Type B1 = 0, B2 = 0, B3 = 0;
 //     m = (rand() % 6) ;
 //     n= (rand() % 6) ;
 //     s= (rand() % 3) ;
     random_polynomial(pol1, pol2);
-     a = pol1[1] - pol2[1];
-     c = pol1[2] - pol2[2];
+    a = pol1[1] - pol2[1];
+    c = pol1[2] - pol2[2];
 
 //      k = 0.85764624125214572459; b = 0.54315816543212092071; d = 1.4313877017383407342; a = -0.0012779049581279622316; c = -1.5795148879194236269;
 
@@ -903,51 +904,79 @@ int main() {
 //      k = -1.4409885720540716036; b = 0.97870700386292641682; d = 1.6552636733535974756; a = -1.5952086400218350448; c = 0.040815498698882457518;
 //     pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
-        std::vector< std::pair <Type, Type> > I1, I2, I3;
-        GetIntervalall(pol1, pol2, I1, I2, I3);
+    std::vector< std::pair <Type, Type> > I1, I2, I3;
+    GetIntervalall(pol1, pol2, I1, I2, I3);
 
-  //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
-  //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
-  //           for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
-  //           for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
-  //           for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
+    //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
+    //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
+    //           for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
+    //           for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
+    //           for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
 
-          if(I1.size() > 0) {
-            A1 = integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-          }
-          if(I2.size() > 0) {
-            A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-          }
-          if(I3.size() > 0) {
-            A3 = integral_A3(m, n, s, a, c, pol2, I3);
-          }
+    if(I1.size() > 0) {
+      A1 = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1);
+    }
+    if(I2.size() > 0) {
+      A2 = integral_A2(m, n, s, a, c, pol2, I2);
+    }
+    if(I3.size() > 0) {
+      A3 = integral_A3(m, n, s, a, c, pol2, I3);
+    }
 
-          area1 = A1+A2+A3;
-          pol1[0] *=-1; pol1[1] *=-1; pol1[2] *=-1; pol2[0] *=-1; pol2[1] *=-1; pol2[2] *=-1; a *=-1; c *=-1;
-          GetIntervalall(pol1, pol2, I1, I2, I3);
-          if(I1.size() > 0) {B1 = integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);}
-          if(I2.size() > 0) {B2 = easy_integral_A2(m, n, s, a, c, pol2, I2);}
-          if(I3.size() > 0) {B3 = integral_A3(m, n, s, a, c, pol2, I3);}
-          area2 = B1+B2+B3;
+    area1 = A1 + A2 + A3;
+    pol1[0] *= -1;
+    pol1[1] *= -1;
+    pol1[2] *= -1;
+    pol2[0] *= -1;
+    pol2[1] *= -1;
+    pol2[2] *= -1;
+    a *= -1;
+    c *= -1;
+    GetIntervalall(pol1, pol2, I1, I2, I3);
+    if(I1.size() > 0) {
+      B1 = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1);
+    }
+    if(I2.size() > 0) {
+      B2 = integral_A2(m, n, s, a, c, pol2, I2);
+    }
+    if(I3.size() > 0) {
+      B3 = integral_A3(m, n, s, a, c, pol2, I3);
+    }
+    area2 = B1 + B2 + B3;
 
     typedef cpp_bin_float_oct oct;
     //typedef cpp_bin_float_quad oct;
     oct C1 = 0, C2 = 0, C3 = 0;
     oct D1 = 0, D2 = 0, D3 = 0;
-    oct area3,area4;
+    oct area3, area4;
 
-    oct ao = static_cast <oct>(a);
-    oct co = static_cast <oct>(c);
+//     oct ao = static_cast <oct>(a);
+//     oct co = static_cast <oct>(c);
+//
+//     std::vector <oct> pol1o(3);
+//     pol1o[0] = static_cast <oct>(pol1[0]);
+//     pol1o[1] = static_cast <oct>(pol1[1]);
+//     pol1o[2] = static_cast <oct>(pol1[2]);
+//
+//     std::vector <oct> pol2o(3);
+//     pol2o[0] = static_cast <oct>(pol2[0]);
+//     pol2o[1] = static_cast <oct>(pol2[1]);
+//     pol2o[2] = static_cast <oct>(pol2[2]);
+
+
+    oct ao = static_cast <Type>(a);
+    oct co = static_cast <Type>(c);
 
     std::vector <oct> pol1o(3);
-    pol1o[0] = static_cast <oct>(pol1[0]);
-    pol1o[1] = static_cast <oct>(pol1[1]);
-    pol1o[2] = static_cast <oct>(pol1[2]);
+    pol1o[0] = static_cast <Type>(pol1[0]);
+    pol1o[1] = static_cast <Type>(pol1[1]);
+    pol1o[2] = static_cast <Type>(pol1[2]);
 
     std::vector <oct> pol2o(3);
-    pol2o[0] = static_cast <oct>(pol2[0]);
-    pol2o[1] = static_cast <oct>(pol2[1]);
-    pol2o[2] = static_cast <oct>(pol2[2]);
+    pol2o[0] = static_cast <Type>(pol2[0]);
+    pol2o[1] = static_cast <Type>(pol2[1]);
+    pol2o[2] = static_cast <Type>(pol2[2]);
+
 
     std::vector< std::pair<oct, oct> > I1o, I2o, I3o;
     GetIntervalall(pol1o, pol2o, I1o, I2o, I3o);
@@ -958,9 +987,15 @@ int main() {
 //       for(unsigned i = 0; i < I3o.size(); i++) {std::cout << "z1 = " << I3o[i].first << "; z2 = " << I3o[i].second << ";" << std::endl;}
 //    clock_t t = clock();
 
-      if(I1o.size() > 0){ C1 = integral_A3(m, n, s, ao, co, pol2o, I1o) - easy_integral_A2(m, n, s, ao, co, pol2o, I1o); }
-      if(I2o.size() > 0){ C2 = easy_integral_A2(m, n, s, ao, co, pol2o, I2o); }
-      if(I3o.size() > 0){ C3 = integral_A3(m, n, s, ao, co, pol2o, I3o); }
+    if(I1o.size() > 0) {
+      C1 = integral_A3(m, n, s, ao, co, pol2o, I1o) - integral_A2(m, n, s, ao, co, pol2o, I1o);
+    }
+    if(I2o.size() > 0) {
+      C2 = integral_A2(m, n, s, ao, co, pol2o, I2o);
+    }
+    if(I3o.size() > 0) {
+      C3 = integral_A3(m, n, s, ao, co, pol2o, I3o);
+    }
 //       std::cout << "oct A1= " << B1 << std::endl;
 //       std::cout << "oct A2= " << B2 << std::endl;
 //       std::cout << "oct A3= " << B3 << std::endl;
@@ -968,44 +1003,69 @@ int main() {
 //         t = clock() - t;
 //        std::cout << "Time taken for predetermined cases: " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
 //        this is for the for loop pass/fail
-//        if((abs(B1 - sample[j][5]) > 0.0000000001) || (abs(B2 - sample[j][6]) > 0.0000000001) || (abs(B3 - sample[j][7]) > 0.0000000001)){
+//        if((fabs(B1 - sample[j][5]) > 0.0000000001) || (fabs(B2 - sample[j][6]) > 0.0000000001) || (fabs(B3 - sample[j][7]) > 0.0000000001)){
 //       std::cout << " Failed " << std::endl;
 //             std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
-//       std::cout << "\n diff" << abs(B1 - sample[j][5]) << " " << abs(B2 - sample[j][6]) << " " << abs(B3 - sample[j][6]) << " ---failed " << count + 1 << std::endl;
+//       std::cout << "\n diff" << fabs(B1 - sample[j][5]) << " " << fabs(B2 - sample[j][6]) << " " << fabs(B3 - sample[j][6]) << " ---failed " << count + 1 << std::endl;
 //       count ++ ;
 //        }
 
-      area3 = C1+C2+C3;
-      pol1o[0] *=-1; pol1o[1] *=-1; pol1o[2] *=-1; pol2o[0] *=-1; pol2o[1] *=-1; pol2o[2] *=-1; ao *=-1; co *=-1;
-      GetIntervalall(pol1o, pol2o, I1o, I2o, I3o);
-      if(I1o.size() > 0){ D1 = integral_A3(m, n, s, ao, co, pol2o, I1o) - easy_integral_A2(m, n, s, ao, co, pol2o, I1o); }
-      if(I2o.size() > 0){ D2 = easy_integral_A2(m, n, s, ao, co, pol2o, I2o); }
-      if(I3o.size() > 0){ D3 = integral_A3(m, n, s, ao, co, pol2o, I3o); }
-      area4 = D1+D2+D3;
+    area3 = C1 + C2 + C3;
+    pol1o[0] *= -1;
+    pol1o[1] *= -1;
+    pol1o[2] *= -1;
+    pol2o[0] *= -1;
+    pol2o[1] *= -1;
+    pol2o[2] *= -1;
+    ao *= -1;
+    co *= -1;
+    GetIntervalall(pol1o, pol2o, I1o, I2o, I3o);
+    if(I1o.size() > 0) {
+      D1 = integral_A3(m, n, s, ao, co, pol2o, I1o) - integral_A2(m, n, s, ao, co, pol2o, I1o);
+    }
+    if(I2o.size() > 0) {
+      D2 = integral_A2(m, n, s, ao, co, pol2o, I2o);
+    }
+    if(I3o.size() > 0) {
+      D3 = integral_A3(m, n, s, ao, co, pol2o, I3o);
+    }
+    area4 = D1 + D2 + D3;
 
-      Type err = 0.0001;
-        if((abs(area1+area2-1) > 0.0000000001) || (abs(area3+area4-1) > 0.00000000000001) || (abs(D1 - A1) > err) || (abs(D2 - A2) > err) || (abs(D3 - A3) > err) ){
-            std::cout << "................................ Failed...................................... " << std::endl;
-            std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << pol2o[0] << "; b = " << pol2o[1] << "; d = " << pol2o[2] << "; a = " << ao << "; c = " << co << ";" << std::endl;
-            for(unsigned i = 0; i < I1o.size(); i++) {std::cout << "I1_1 = " << I1o[i].first << "; I1_2 = " << I1o[i].second << ";" << std::endl;}
-            for(unsigned i = 0; i < I2o.size(); i++) {std::cout << "I2_1 = " << I2o[i].first << "; I2_2 = " << I2o[i].second << ";" << std::endl;}
-            for(unsigned i = 0; i < I3o.size(); i++) {std::cout << "I3_1 = " << I3o[i].first << "; I3_2 = " << I3o[i].second << ";" << std::endl;}
-            std::cout << "double A1= " << A1 << "; oct A1= " << D1 << std::endl;
-            std::cout << "double A2= " << A2 << "; oct A2= " << D2 << std::endl;
-            std::cout << "double A3= " << A3 << "; oct A3= " << D3 << std::endl;
-            std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
-            for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
-            for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
-            for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
-            std::cout << "double -A1= " << B1 << "; oct -A1= " << C1 << std::endl;
-            std::cout << "double -A2= " << B2 << "; oct -A2= " << C2 << std::endl;
-            std::cout << "double -A3= " << B3 << "; oct -A3= " << C3 << std::endl;
-
-            std::cout << "\n double area1= " << area1 << " double area2= " << area2 << " double total = " << area1+ area2 << " sum differance "<< abs(area1+area2-1)  << std:: endl;
-            std::cout << "oct area1= " << area4 << " oct area2= " << area3 << "; oct total = " << area4 + area3 << " sum differance "<< abs(area3+area4-1) << std:: endl;
-            std::cout << "\n differance double vs oct " << abs(D1 - A1) << " " << abs(D2 - A2) << " " << abs(D3 - A3) << " ---failed--- " << count + 1 << std::endl;
-            count++;
+    Type err = 0.0001;
+    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) > 0.0000000001) || (fabs(area3 + area4 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(D1 - A1) > err) || (fabs(D2 - A2) > err) || (fabs(D3 - A3) > err)) {
+      std::cout << "................................ Failed...................................... " << std::endl;
+      std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << pol2o[0] << "; b = " << pol2o[1] << "; d = " << pol2o[2] << "; a = " << ao << "; c = " << co << ";" << std::endl;
+      for(unsigned i = 0; i < I1o.size(); i++) {
+        std::cout << "I1_1 = " << I1o[i].first << "; I1_2 = " << I1o[i].second << ";" << std::endl;
       }
+      for(unsigned i = 0; i < I2o.size(); i++) {
+        std::cout << "I2_1 = " << I2o[i].first << "; I2_2 = " << I2o[i].second << ";" << std::endl;
+      }
+      for(unsigned i = 0; i < I3o.size(); i++) {
+        std::cout << "I3_1 = " << I3o[i].first << "; I3_2 = " << I3o[i].second << ";" << std::endl;
+      }
+      std::cout << "double A1= " << A1 << "; oct A1= " << D1 << std::endl;
+      std::cout << "double A2= " << A2 << "; oct A2= " << D2 << std::endl;
+      std::cout << "double A3= " << A3 << "; oct A3= " << D3 << std::endl;
+      std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
+      for(unsigned i = 0; i < I1.size(); i++) {
+        std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;
+      }
+      for(unsigned i = 0; i < I2.size(); i++) {
+        std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;
+      }
+      for(unsigned i = 0; i < I3.size(); i++) {
+        std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;
+      }
+      std::cout << "double -A1= " << B1 << "; oct -A1= " << C1 << std::endl;
+      std::cout << "double -A2= " << B2 << "; oct -A2= " << C2 << std::endl;
+      std::cout << "double -A3= " << B3 << "; oct -A3= " << C3 << std::endl;
+
+      std::cout << "\n double area1= " << area1 << " double area2= " << area2 << " double total = " << area1 + area2 << " sum differance " << fabs(area1 + area2 - 1. / ((m + 1) * (n + 1)))  << std:: endl;
+      std::cout << "oct area1= " << area4 << " oct area2= " << area3 << "; oct total = " << area4 + area3 << " sum differance " << fabs(area3 + area4 - static_cast<oct>(1) / ((m + 1) * (n + 1))) << std:: endl;
+      std::cout << "\n differance double vs oct " << fabs(D1 - A1) << " " << fabs(D2 - A2) << " " << fabs(D3 - A3) << " ---failed--- " << count + 1 << std::endl;
+      count++;
+    }
   }
   t = clock() - t;
   std::cout << "Time taken " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
