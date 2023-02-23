@@ -27,7 +27,7 @@ using namespace femus;
 const unsigned alpha = 1.0e-5;
 const double beta = 1.0e-5;
 const double Pe = 5.;
-const double t0 = 2.;
+const double t0 = 3.;
 const std::vector <double> v = {1., 0.2};
 
 bool steady = false;
@@ -210,7 +210,8 @@ int main(int argc, char** args) {
   {
     //store Old solution: inizialization
     char zName[10];
-    sprintf(zName, "z%d", numberOfIterations - 1);
+    //sprintf(zName, "z%d", numberOfIterations - 1);
+    sprintf(zName, "z%d", 0);
     const unsigned level = system[numberOfIterations - 1]->GetLevelToAssemble();
     Solution*  sol = mlProb._ml_sol->GetSolutionLevel(level);
     *(sol->_Sol[mlProb._ml_sol->GetIndex("zm1")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
@@ -228,11 +229,12 @@ int main(int argc, char** args) {
     GetError(mlProb);
   }
 
-  for(unsigned t = 0; t < 1000; t++) {
+  for(unsigned t = 0; t < 200; t++) {
     {
       //store Old solution
       char zName[10];
-      sprintf(zName, "z%d", numberOfIterations - 1);
+      //sprintf(zName, "z%d", numberOfIterations - 1);
+      sprintf(zName, "z%d", 0);
       const unsigned level = system[numberOfIterations - 1]->GetLevelToAssemble();
       Solution*  sol = mlProb._ml_sol->GetSolutionLevel(level);
       *(sol->_Sol[mlProb._ml_sol->GetIndex("zm3")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zm2")]);
@@ -419,6 +421,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
       solzi[i] = (*sol->_Sol[ziIndex])(solDof);
       solziOld[i] = (*sol->_SolOld[ziIndex])(solDof);
+      //solziOld[i] = (*sol->_Sol[zm1Index])(solDof);
 
       solziM1[i] = (*sol->_Sol[ziM1Index])(solDof);
       solziM1Old[i] = (*sol->_SolOld[ziM1Index])(solDof);
@@ -529,8 +532,9 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
         if(!steady) {
           if(iext > 0) lieq += phi[i] * (ziM1g - ziM1Oldg) / dt;
-          //else lieq += phi[i] * (2. * zm1 - 3. * zm2 + zm3) / dt;
-          else lieq += 0.5 * phi[i] * (zm1 - zm2) / dt;
+          //else lieq += 0.5 * phi[i] * (2. * zm1 - 3. * zm2 + zm3) / dt;
+          //else lieq += .9 * flc4hs(time - t0, t0) * phi[i] * (zm1 - zm2) / dt;
+          else lieq += .9 * phi[i] * (zm1 - zm2) / dt;
           zieq += phi[i] * (zig - ziOldg) / dt;
         }
 
