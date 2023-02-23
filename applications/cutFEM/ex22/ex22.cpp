@@ -67,7 +67,7 @@ void random_polynomial(std::vector <Type> &a1, std::vector <Type> &a2) {
 }
 
 template <class Type>
-Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
+Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
 
   Type A2 = 0;
   if(a == 0) {
@@ -417,7 +417,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
 }
 
 template <class Type>
-Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
+Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I2) {
 
   Type A2 = 0;
   if(a == 0) {
@@ -462,13 +462,13 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
     unsigned qMax = s + n + 1;
 
     //   std::cout << " ankor1 " << "k0 = " << k[0] << " k1 = " << k[1] << " k2 = " << k[2] << " qMax = " << qMax << std::endl ;
-// pre-evalate A[q] and B[q].
+    //BEGIN pre-evalate A[q] and B[q].
     if(k[1] != 0) {
       for(int q = 0; q <= qMax; q++) {
         Type term(0);
         A[q] = term;
         for(int r = 0; r <= q / 2; r++) {
-          term = (pow(k[0], r) * pow(k[1], q-2*r)* pow(k[2], qMax+r-q)) / (factorial<Type>(r) * factorial<Type>(q-2*r) * factorial<Type>(qMax+r-q));
+          term = (pow(k[0], r) * pow(k[1], q - 2 * r) * pow(k[2], qMax + r - q)) / (factorial<Type>(r) * factorial<Type>(q - 2 * r) * factorial<Type>(qMax + r - q));
           A[q] += term ;
         }
         //   std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
@@ -477,7 +477,7 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
         Type term(0);
         B[q] = term;
         for(int r = 0; r <= q / 2; r++) {
-          term = (pow(k[2], r) * pow(k[1], q-2*r)* pow(k[0], qMax+r-q)) / (factorial<Type>(r) * factorial<Type>(q-2*r) * factorial<Type>(qMax+r-q));
+          term = (pow(k[2], r) * pow(k[1], q - 2 * r) * pow(k[0], qMax + r - q)) / (factorial<Type>(r) * factorial<Type>(q - 2 * r) * factorial<Type>(qMax + r - q));
           B[q] += term ;
         }
         //   std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
@@ -521,6 +521,7 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
 //         std::cout << "A[" << q << "] = " << A[q] << "  B[] =" << B[q] << std::endl;
       }
     }
+    //END pre-evalate A[q] and B[q].
 
     //integration starts from here.....
     for(unsigned i = 0; i < I2.size(); i++)  {
@@ -529,6 +530,8 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
       //       std::cout<< " u1= "<< u1 << std::endl;
       //       std::cout<< " u2= "<< u2 << std::endl;
       if(u1 == 0 || u2 == 0) {   // TODO need to fix this. if we have double parts of any region. This is wrong .
+        
+        Type A2i(0);  
         Type c_0 = (a * pol1[1] - pol1[0] * c) / (a * a);
         int pMax = s + n + 1 ;
         // #1
@@ -539,8 +542,8 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
             sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
             //           std::cout << "1sum= " << sum << std::endl;
           }
-          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-          //         std::cout << "11. A2= " << A2 << std::endl;
+          A2i += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "11. A2i= " << A2i << std::endl;
 
         }
         // #2
@@ -550,8 +553,8 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
           for(int p = r - s; p <= r; p++) {
             sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
           }
-          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-          //         std::cout << "22. A2= " << A2 << std::endl;
+          A2i += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "22. A2i= " << A2i << std::endl;
         }
         // #3
         for(int r = pMax + 1; r <= pMax + s; r++) {
@@ -560,12 +563,13 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
           for(int p = r - s; p <= pMax; p++) {
             sum += (pow(a, r - 2 * p) * pow(pol1[0], p) * pow(c, s + p - r) * pow(c_0, pMax - p)) / (factorial<Type>(p) * factorial<Type>(r - p) * factorial<Type>(s - r + p) * factorial<Type>(pMax - p));
           }
-          A2 += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
-          //         std::cout << "33. A2= " << A2 << std::endl;
+          A2i += sum  * (pow(I2[i].second, r_pm_p1) - pow(I2[i].first, r_pm_p1)) / r_pm_p1;
+          //         std::cout << "33. A2i= " << A2i << std::endl;
         }
-        A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s);
+        A2 += pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s) * A2i;
       }
       else {
+        Type A2i(0);  
         for(unsigned p = 0; p <= m; p++) {
           Type sum1(0);
           for(unsigned q = 0; q <= qMax; q++) {
@@ -577,15 +581,15 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
             int i = 2 * s + n + 2 + p - q;
             sum2 += B[q] * (pow(u2, i) - pow(u1, i)) / (i);
           }
-
-          A2 += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+          A2i += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
         }
+        A2 += pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1) * A2i;
       }
     }
 //           std::cout << "C1 = " << C1 << std::endl;
 
-        //total
-        A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
+    //total
+  //  A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
 // //           std::cout << "final. A2= " << A2 << std::endl;
     return A2;
   }
