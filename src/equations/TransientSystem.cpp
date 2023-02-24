@@ -86,8 +86,6 @@ void TransientSystem<Base>::SetUpForSolve(){
   std::cout<<"assemble counter = "<<_assembleCounter<<std::endl;
   _assembleCounter++;
 
-  std::cout <<"BBBBBBBBBBB_" << _time <<std::endl;
-
   //update time
   _time += _dt;
 
@@ -103,8 +101,6 @@ void TransientSystem<Base>::SetUpForSolve(){
 // ------------------------------------------------------------
 template <class Base>
 void TransientSystem<Base>::MGsolve( const MgSmootherType& mgSmootherType ) {
-
-  std::cout <<"CCCCCCCCCCCC " << _time <<std::endl;
 
   SetUpForSolve();  
 
