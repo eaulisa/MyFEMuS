@@ -60,21 +60,21 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   double Tc = Td1 + (x[0] - 0.25) * (0.75 - x[0]) * 3. * sin(2.* time) * flc4hs(time - t0, t0);
 
   if(facename == 4 ||  facename == 2) {
-    if(subName == "T" || subName == "z" || subName == "Tc") {
+    if(subName == "T" || subName == "z") {
       value =  Td1;
     }
   }
   else if(facename == 3) {
-    if(subName == "T" || subName == "z" || subName == "Tc") {
+    if(subName == "T" || subName == "z") {
       value = Td2;
     }
   }
   else if(facename == 1) {
-    if(subName == "T" || subName == "z") {
-      dirichlet = false;
-    }
-    else if(subName == "Tc") {
+    if(name == "Tc") {
       value = Tc;
+    }
+    else if(subName == "T" || subName == "z") {
+      dirichlet = false;
     }
   }
   return dirichlet;
@@ -116,22 +116,17 @@ int main(int argc, char** args) {
 
   MultiLevelSolution mlSol(&mlMsh);
 
-  mlSol.AddSolution("Tc", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("Tc", LAGRANGE, SECOND, 2); // manifactured solution
   // add variables to mlSol
   for(unsigned i = 0; i < numberOfIterations; i++) {
-    char TName[10];
-    char lName[10];
     char zName[10];
-    sprintf(TName, "T%d", i);
-    sprintf(lName, "l%d", i);
-    sprintf(zName, "z%d", i);
-    mlSol.AddSolution(TName, LAGRANGE, SECOND);
-    mlSol.AddSolution(lName, LAGRANGE, SECOND);
-    mlSol.AddSolution(zName, LAGRANGE, SECOND, 2);
+    sprintf(zName, "z%d", i); //cascade solution
+    mlSol.AddSolution(zName, LAGRANGE, SECOND, 2); //
   }
-  mlSol.AddSolution("zm1", LAGRANGE, SECOND, false);
-  mlSol.AddSolution("zm2", LAGRANGE, SECOND, false);
-  mlSol.AddSolution("zm3", LAGRANGE, SECOND, false);
+  //support variables
+  mlSol.AddSolution("Ti", LAGRANGE, SECOND, false);
+  mlSol.AddSolution("li", LAGRANGE, SECOND, false);
+  mlSol.AddSolution("z0Older", LAGRANGE, SECOND, false);
 
   mlSol.Initialize("All");
 
@@ -140,16 +135,12 @@ int main(int argc, char** args) {
 
   mlSol.GenerateBdc("Tc", "Time_dependent");
   for(unsigned i = 0; i < numberOfIterations; i++) {
-    char TName[10];
-    char lName[10];
     char zName[10];
-    sprintf(TName, "T%d", i);
-    sprintf(lName, "l%d", i);
     sprintf(zName, "z%d", i);
-    mlSol.GenerateBdc(TName, "Time_dependent");
-    mlSol.GenerateBdc(lName, "Steady");
     mlSol.GenerateBdc(zName, "Time_dependent");
   }
+  mlSol.GenerateBdc("Ti", "Time_dependent");
+  mlSol.GenerateBdc("li", "Steady");
 
   // define the multilevel problem attach the mlSol object to it
   MultiLevelProblem mlProb(&mlSol);
@@ -164,14 +155,13 @@ int main(int argc, char** args) {
 
   std::vector<TransientLinearImplicitSystem*> system(numberOfIterations);
   for(unsigned i = 0; i < numberOfIterations; i++) {
-
     char sName[10];
     char TName[10];
     char lName[10];
     char zName[10];
     sprintf(sName, "top%d", i);
-    sprintf(TName, "T%d", i);
-    sprintf(lName, "l%d", i);
+    sprintf(TName, "Ti");
+    sprintf(lName, "li");
     sprintf(zName, "z%d", i);
 
     system[i] = &(mlProb.add_system < TransientLinearImplicitSystem > (sName));
@@ -182,7 +172,6 @@ int main(int argc, char** args) {
 
     // attach the assembling function to system
     system[i]->AttachGetTimeIntervalFunction(SetVariableTimeStep);
-
     system[i]->SetAssembleFunction(AssembleTimeOptimalControl);
 
     // initilaize and solve the system
@@ -208,15 +197,11 @@ int main(int argc, char** args) {
   }
 
   {
-    //store Old solution: inizialization
-    char zName[10];
-    //sprintf(zName, "z%d", numberOfIterations - 1);
-    sprintf(zName, "z%d", 0);
-    const unsigned level = system[numberOfIterations - 1]->GetLevelToAssemble();
-    Solution*  sol = mlProb._ml_sol->GetSolutionLevel(level);
-    *(sol->_Sol[mlProb._ml_sol->GetIndex("zm1")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
-    *(sol->_Sol[mlProb._ml_sol->GetIndex("zm2")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zm1")]);
-    *(sol->_Sol[mlProb._ml_sol->GetIndex("zm3")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zm2")]);
+    //Old and Older solution: inizialization
+    const unsigned level = system[0]->GetLevelToAssemble();
+    Solution* sol = mlProb._ml_sol->GetSolutionLevel(level);
+    *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("z0")]);
+    *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
   }
 
   steady = false;
@@ -231,17 +216,11 @@ int main(int argc, char** args) {
 
   for(unsigned t = 0; t < 200; t++) {
     {
-      //store Old solution
-      char zName[10];
-      //sprintf(zName, "z%d", numberOfIterations - 1);
-      sprintf(zName, "z%d", 0);
-      const unsigned level = system[numberOfIterations - 1]->GetLevelToAssemble();
+      //store Older solution
+      const unsigned level = system[0]->GetLevelToAssemble();
       Solution*  sol = mlProb._ml_sol->GetSolutionLevel(level);
-      *(sol->_Sol[mlProb._ml_sol->GetIndex("zm3")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zm2")]);
-      *(sol->_Sol[mlProb._ml_sol->GetIndex("zm2")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zm1")]);
-      *(sol->_Sol[mlProb._ml_sol->GetIndex("zm1")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
+      *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
     }
-
 
     mlSol.CopySolutionToOldSolution();
     systemTc->MGsolve();
@@ -249,7 +228,6 @@ int main(int argc, char** args) {
       system[iext]->MGsolve(); //solve for A, using DOld, VOld, and AOld
       GetError(mlProb);
     }
-
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
   }
   return 0;
@@ -290,8 +268,9 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   char zName[10];
   char zNameM1[10];
   sprintf(sName, "top%d", iext);
-  sprintf(TName, "T%d", iext);
-  sprintf(lName, "l%d", iext);
+  sprintf(TName, "Ti");
+  sprintf(lName, "li");
+
   sprintf(zName, "z%d", iext);
   if(iext > 0) sprintf(zNameM1, "z%d", iext - 1);
   else sprintf(zNameM1, "z%d", 0);
@@ -328,9 +307,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
   unsigned TcIndex = mlSol->GetIndex("Tc");
 
-  unsigned zm1Index = mlSol->GetIndex("zm1");
-  unsigned zm2Index = mlSol->GetIndex("zm2");
-  unsigned zm3Index = mlSol->GetIndex("zm3");
+  unsigned ziOlderIndex = mlSol->GetIndex("z0Older");
 
   unsigned TiIndex = mlSol->GetIndex(TName);
   unsigned liIndex = mlSol->GetIndex(lName);
@@ -349,9 +326,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   std::vector < double > solziOld;
 
   std::vector < double > solTc;
-  std::vector < double > solzm1;
-  std::vector < double > solzm2;
-  std::vector < double > solzm3;
+  std::vector < double > solziOlder;
 
   std::vector < double > solziM1;
   std::vector < double > solziM1Old;
@@ -390,14 +365,13 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     }
     solTc.resize(nDofs);
 
-    solzm1.resize(nDofs);
-    solzm2.resize(nDofs);
-    solzm3.resize(nDofs);
+
 
     solTi.resize(nDofs);
     solli.resize(nDofs);
     solzi.resize(nDofs);
     solziOld.resize(nDofs);
+    solziOlder.resize(nDofs);
 
     solziM1.resize(nDofs);
     solziM1Old.resize(nDofs);
@@ -412,16 +386,12 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
       solTc[i] = (*sol->_Sol[TcIndex])(solDof);
 
-      solzm1[i] = (*sol->_Sol[zm1Index])(solDof);
-      solzm2[i] = (*sol->_Sol[zm2Index])(solDof);
-      solzm3[i] = (*sol->_Sol[zm3Index])(solDof);
-
       solTi[i] = (*sol->_Sol[TiIndex])(solDof);
       solli[i] = (*sol->_Sol[liIndex])(solDof);
 
       solzi[i] = (*sol->_Sol[ziIndex])(solDof);
       solziOld[i] = (*sol->_SolOld[ziIndex])(solDof);
-      //solziOld[i] = (*sol->_Sol[zm1Index])(solDof);
+      solziOlder[i] = (*sol->_Sol[ziOlderIndex])(solDof);
 
       solziM1[i] = (*sol->_Sol[ziM1Index])(solDof);
       solziM1Old[i] = (*sol->_SolOld[ziM1Index])(solDof);
@@ -465,20 +435,15 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
       adept::adouble lig = 0;
       adept::adouble zig = 0;
       double ziOldg = 0;
+      double ziOlderg = 0;
       double ziM1g = 0;
       double ziM1Oldg = 0;
+      double Tc = 0;
 
       std::vector < adept::adouble > gradTig(dim, 0);
       std::vector < adept::adouble > gradlig(dim, 0);
       std::vector < adept::adouble > gradzig(dim, 0);
       std::vector < double > gradziOldg(dim, 0);
-
-
-      double Tc = 0;
-
-      double zm1 = 0;
-      double zm2 = 0;
-      double zm3 = 0;
 
       for(unsigned i = 0; i < nDofs; i++) {
 
@@ -486,13 +451,10 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         lig += solli[i] * phi[i];
         zig += solzi[i] * phi[i];
         ziOldg += solziOld[i] * phi[i];
+        ziOlderg += solziOlder[i] * phi[i];
         ziM1g += solziM1[i] * phi[i];
         ziM1Oldg += solziM1Old[i] * phi[i];
-
         Tc += solTc[i] * phi[i];
-        zm1 += solzm1[i] * phi[i];
-        zm2 += solzm2[i] * phi[i];
-        zm3 += solzm3[i] * phi[i];
 
         for(unsigned  j = 0; j < dim; j++) {
           gradTig[j] += solTi[i] * gradPhi[i * dim + j];
@@ -529,12 +491,9 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         Tieq += alpha * phi[i] * Tig;
         if(group == 5) Tieq += phi[i] * (Tig - Tc);
 
-
         if(!steady) {
           if(iext > 0) lieq += phi[i] * (ziM1g - ziM1Oldg) / dt;
-          //else lieq += 0.5 * phi[i] * (2. * zm1 - 3. * zm2 + zm3) / dt;
-          //else lieq += .9 * flc4hs(time - t0, t0) * phi[i] * (zm1 - zm2) / dt;
-          else lieq += .9 * phi[i] * (zm1 - zm2) / dt;
+          else lieq += 0.9 * phi[i] * (ziOldg - ziOlderg) / dt;
           zieq += phi[i] * (zig - ziOldg) / dt;
         }
 
