@@ -124,8 +124,9 @@ int main(int argc, char** args) {
     mlSol.AddSolution(zName, LAGRANGE, SECOND, 2); //
   }
   //support variables
-  mlSol.AddSolution("Ti", LAGRANGE, SECOND, false);
-  mlSol.AddSolution("li", LAGRANGE, SECOND, false);
+  mlSol.AddSolution("Ti", LAGRANGE, SECOND);
+  mlSol.AddSolution("li", LAGRANGE, SECOND);
+  mlSol.AddSolution("zi", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("z0Older", LAGRANGE, SECOND, false);
 
   mlSol.Initialize("All");
@@ -139,6 +140,7 @@ int main(int argc, char** args) {
     sprintf(zName, "z%d", i);
     mlSol.GenerateBdc(zName, "Time_dependent");
   }
+  mlSol.GenerateBdc("zi", "Time_dependent");
   mlSol.GenerateBdc("Ti", "Time_dependent");
   mlSol.GenerateBdc("li", "Steady");
 
@@ -153,31 +155,40 @@ int main(int argc, char** args) {
   systemTc->init();
   systemTc->SetOuterSolver(PREONLY);
 
-  std::vector<TransientLinearImplicitSystem*> system(numberOfIterations);
-  for(unsigned i = 0; i < numberOfIterations; i++) {
-    char sName[10];
-    char TName[10];
-    char lName[10];
-    char zName[10];
-    sprintf(sName, "top%d", i);
-    sprintf(TName, "Ti");
-    sprintf(lName, "li");
-    sprintf(zName, "z%d", i);
 
-    system[i] = &(mlProb.add_system < TransientLinearImplicitSystem > (sName));
-    //add solution "D" to system
-    system[i]->AddSolutionToSystemPDE(TName);
-    system[i]->AddSolutionToSystemPDE(lName);
-    system[i]->AddSolutionToSystemPDE(zName);
+  TransientLinearImplicitSystem *system = &(mlProb.add_system<TransientLinearImplicitSystem> ("TmOptCtr"));
 
-    // attach the assembling function to system
-    system[i]->AttachGetTimeIntervalFunction(SetVariableTimeStep);
-    system[i]->SetAssembleFunction(AssembleTimeOptimalControl);
+  system->AddSolutionToSystemPDE("Ti");
+  system->AddSolutionToSystemPDE("li");
+  system->AddSolutionToSystemPDE("zi");
 
-    // initilaize and solve the system
-    system[i]->init();
-    system[i]->SetOuterSolver(PREONLY);
-  }
+  // attach the assembling function to system
+  system->AttachGetTimeIntervalFunction(SetVariableTimeStep);
+  system->SetAssembleFunction(AssembleTimeOptimalControl);
+
+  // initilaize and solve the system
+  system->init();
+  system->SetOuterSolver(PREONLY);
+
+
+//   std::vector<TransientLinearImplicitSystem*> system(numberOfIterations);
+//   for(unsigned i = 0; i < numberOfIterations; i++) {
+//     char sName[10];
+//     sprintf(sName, "top%d", i);
+//     system[i] = &(mlProb.add_system < TransientLinearImplicitSystem > (sName));
+//     //add solution "D" to system
+//     system[i]->AddSolutionToSystemPDE("Ti");
+//     system[i]->AddSolutionToSystemPDE("li");
+//     system[i]->AddSolutionToSystemPDE("zi");
+//
+//     // attach the assembling function to system
+//     system[i]->AttachGetTimeIntervalFunction(SetVariableTimeStep);
+//     system[i]->SetAssembleFunction(AssembleTimeOptimalControl);
+//
+//     // initilaize and solve the system
+//     system[i]->init();
+//     system[i]->SetOuterSolver(PREONLY);
+//   }
   // print solutions
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
@@ -191,14 +202,33 @@ int main(int argc, char** args) {
     systemTc->MGsolve(); //solve for A, using DOld, VOld, and AOld
   }
   for(iext = 0; iext < numberOfIterations; iext++) {
-    double dt =  system[iext]->GetIntervalTime();
-    system[iext]->SetTime(-dt);
-    system[iext]->MGsolve(); //solve for A, using DOld, VOld, and AOld
+
+    char zName[10];
+    sprintf(zName, "z%d", iext);
+    const unsigned level = systemTc->GetLevelToAssemble();
+    Solution* sol = mlProb._ml_sol->GetSolutionLevel(level);
+
+    //double dt =  system[iext]->GetIntervalTime();
+    //system[iext]->SetTime(-dt);
+
+    double time = system->GetTime();
+
+    std::cout<<"AAAAAAAAAA "<<time;
+
+    double dt =  system->GetIntervalTime();
+    system->SetTime(-dt);
+
+    *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
+    //system[iext]->MGsolve(); //solve for A, using DOld, VOld, and AOld
+    system->MGsolve(); //solve for A, using DOld, VOld, and AOld
+    *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]);
+
   }
 
   {
     //Old and Older solution: inizialization
-    const unsigned level = system[0]->GetLevelToAssemble();
+    //const unsigned level = system[0]->GetLevelToAssemble();
+    const unsigned level = system->GetLevelToAssemble();
     Solution* sol = mlProb._ml_sol->GetSolutionLevel(level);
     *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("z0")]);
     *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
@@ -217,15 +247,38 @@ int main(int argc, char** args) {
   for(unsigned t = 0; t < 200; t++) {
     {
       //store Older solution
-      const unsigned level = system[0]->GetLevelToAssemble();
+      //const unsigned level = system[0]->GetLevelToAssemble();
+      const unsigned level = system->GetLevelToAssemble();
       Solution*  sol = mlProb._ml_sol->GetSolutionLevel(level);
       *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
     }
 
     mlSol.CopySolutionToOldSolution();
     systemTc->MGsolve();
+
+    //double time =  system[0]->GetTime();
+    double time =  system->GetTime();
+
     for(iext = 0; iext < numberOfIterations; iext++) {
-      system[iext]->MGsolve(); //solve for A, using DOld, VOld, and AOld
+
+      char zName[10];
+      sprintf(zName, "z%d", iext);
+      //const unsigned level = system[iext]->GetLevelToAssemble();
+      const unsigned level = system->GetLevelToAssemble();
+      Solution* sol = mlProb._ml_sol->GetSolutionLevel(level);
+
+      *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
+      *(sol->_SolOld[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex(zName)]);
+
+      //system[iext]->SetTime(time);
+      //system[iext]->MGsolve(); //solve for A, using DOld, VOld, and AOld
+
+      system->SetTime(time);
+      system->MGsolve(); //solve for A, using DOld, VOld, and AOld
+
+      *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]);
+      *(sol->_SolOld[mlProb._ml_sol->GetIndex(zName)]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("zi")]);
+
       GetError(mlProb);
     }
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
@@ -262,16 +315,11 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
 
-  char sName[10];
-  char TName[10];
-  char lName[10];
-  char zName[10];
+  //char sName[10];
   char zNameM1[10];
-  sprintf(sName, "top%d", iext);
-  sprintf(TName, "Ti");
-  sprintf(lName, "li");
+  //sprintf(sName, "top%d", iext);
 
-  sprintf(zName, "z%d", iext);
+  //sprintf(zName, "z%d", iext);
   if(iext > 0) sprintf(zNameM1, "z%d", iext - 1);
   else sprintf(zNameM1, "z%d", 0);
 
@@ -279,7 +327,10 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   //  extract pointers to the several objects that we are going to use
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
+  //TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
+
+  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit
+
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -294,31 +345,29 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
-
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
   //solution variable
-
-
-
 
   double dt =  mlPdeSys->GetIntervalTime();
   double time =  mlPdeSys->GetTime();
 
   unsigned TcIndex = mlSol->GetIndex("Tc");
 
+  unsigned TiIndex = mlSol->GetIndex("Ti");
+  unsigned liIndex = mlSol->GetIndex("li");
+  unsigned ziIndex = mlSol->GetIndex("zi");
   unsigned ziOlderIndex = mlSol->GetIndex("z0Older");
 
-  unsigned TiIndex = mlSol->GetIndex(TName);
-  unsigned liIndex = mlSol->GetIndex(lName);
-  unsigned ziIndex = mlSol->GetIndex(zName);
   unsigned ziM1Index = mlSol->GetIndex(zNameM1);
 
   unsigned solType = mlSol->GetSolutionType(TiIndex);
 
-  unsigned TiPdeIndex = mlPdeSys->GetSolPdeIndex(TName);
-  unsigned liPdeIndex = mlPdeSys->GetSolPdeIndex(lName);
-  unsigned ziPdeIndex = mlPdeSys->GetSolPdeIndex(zName);
+  unsigned TiPdeIndex = mlPdeSys->GetSolPdeIndex("Ti");
+  unsigned liPdeIndex = mlPdeSys->GetSolPdeIndex("li");
+
+  //unsigned ziiIndex = mlSol->GetIndex("zi");
+  unsigned ziPdeIndex = mlPdeSys->GetSolPdeIndex("zi");
 
   std::vector < adept::adouble > solTi;
   std::vector < adept::adouble > solli;
@@ -729,11 +778,12 @@ void GetError(MultiLevelProblem& ml_prob) {
   char zName[10];
   sprintf(zName, "z%d", iext);
 
-  char sName[10];
-  sprintf(sName, "top%d", iext);
+  //char sName[10];
+  //sprintf(sName, "top%d", iext);
 
   //  extract pointers to the several objects that we are going to use
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
+  //TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
+  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -842,6 +892,7 @@ void GetError(MultiLevelProblem& ml_prob) {
 // ***************** END ASSEMBLY *******************
 
 }
+
 
 
 
