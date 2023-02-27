@@ -19,7 +19,8 @@ class BallApproximation {
           GetNormalQuad(xv, xg, R, b, db, cut);
           break;
         case 4:
-          GetNormalQuad(xv, xg, R, b, db, cut);
+          //GetNormalQuad(xv, xg, R, b, db, cut); //TODO It was like this, dang!
+          GetNormalTri(xv, xg, R, b, db, cut);
           break;
         default:
           std::cout << "Element type " << elType << " in GetNormal class not yet implemented\n";
