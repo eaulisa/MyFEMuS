@@ -317,7 +317,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
           }
           A2 += A2i * pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s);
         }
-        else{
+        else {
           Type A2i(0);
           // 1
           for(unsigned r = 0; r <= m; r++) {
@@ -384,7 +384,7 @@ Type integral_A2(const unsigned &m, const unsigned &n, const int &s, const Type 
             A2i += sum  * (pow(u2, qMax + s + m - r + 1) - pow(u1, qMax + s + m - r + 1)) / (qMax + s + m - r + 1);
           }
 //           std::cout << "6. A2= " << A2 << std::endl;
-        A2 += A2i * pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
+          A2 += A2i * pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
         }
       }
 
@@ -528,7 +528,7 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
         A2 += pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(s) * A2i;
       }
       else {
-        Type A2i(0);  
+        Type A2i(0);
         for(unsigned p = 0; p <= m; p++) {
           Type sum1(0);
           for(unsigned q = 0; q <= qMax; q++) {
@@ -546,7 +546,7 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
       }
     }
     //total
-  //  A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
+    //  A2 *= pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1); // TODO this sign should be checked
 // //           std::cout << "final. A2= " << A2 << std::endl;
     return A2;
   }
@@ -845,11 +845,11 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
         for(int r = 0; r <= pMax; r++) {
           Type sum = 0;
 
-          for(int p = 0; p <= pMax-r; p++) {
-            Type r_pm_p1 = 2*r + p + m + 1;
-            sum += pow(pol1[1], p) * pow(pol1[2], s-i-r-p) * (pow(I3[w].second, r_pm_p1) - pow(I3[w].first, r_pm_p1)) / (factorial<Type>(p) * factorial<Type>(s-i-r-p) * r_pm_p1) ;
+          for(int p = 0; p <= pMax - r; p++) {
+            Type r_pm_p1 = 2 * r + p + m + 1;
+            sum += pow(pol1[1], p) * pow(pol1[2], s - i - r - p) * (pow(I3[w].second, r_pm_p1) - pow(I3[w].first, r_pm_p1)) / (factorial<Type>(p) * factorial<Type>(s - i - r - p) * r_pm_p1) ;
           }
-          A3 += sum * pow(pol1[0],r)/(factorial<Type>(r)*(n+i+1)*factorial<Type>(i)) ;
+          A3 += sum * pow(pol1[0], r) / (factorial<Type>(r) * (n + i + 1) * factorial<Type>(i)) ;
         }
       }
     }
@@ -872,7 +872,7 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
       if(k[1] != 0) {
         Type kterms = (k[0] * k[2]) / (k[1] * k[1]);
         for(int q = 0; q <= qMax; q++) {
-          Type term = 1;
+          Type term(1);
           A[q] = term;
           unsigned q_p1_m2r = q + 1;
           unsigned qMax_mq_pr = qMax - q;
@@ -884,13 +884,23 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
             term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
             A[q] += term ;
           }
-          B[q] = A[q] * (pow(k[1], q) * pow(k[0], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
-          A[q] *= (pow(k[1], q) * pow(k[2], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+//           B[q] = A[q] * (pow(k[1], q) * pow(k[0], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+//           A[q] *= (pow(k[1], q) * pow(k[2], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+
+          A[q] *= pow(k[1], q) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+          B[q] = A[q] * pow(k[0], qMax - q);
+          A[q] *= pow(k[2], qMax - q);
+
+
+
+
+
+
           //         std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
           //         std::cout << "A[" << q << "] = " << A[q] << "  B[] =" << B[q] << std::endl;
         }
       }
-      else {
+      else { // samll k1;
         Type kterms = (k[0] * k[2]);
 
         for(int q = 0; q <= qMax; q++) {
@@ -906,7 +916,7 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
             A[q] += term ;
           }
 
-          B[q] = A[q] * pow(k[0], qMax - q) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+          B[q] = A[q] * pow(k[0], qMax - q) / (factorial<Type>(q) * factorial<Type>(qMax - q)); //TODO
           A[q] *= pow(k[2], qMax - q) / (factorial<Type>(q) * factorial<Type>(qMax - q));
 
         }
@@ -915,34 +925,40 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
       for(unsigned w = 0; w < I3.size(); w++) {
-          Type u1 = a * I3[w].first + c;
-          Type u2 = a * I3[w].second + c;
-          // BEGIN pre evalution of power of U
-          std::vector <Type> diff_u_pow(m+2*s+2,0) ;
-          for(unsigned pwr=1; pwr <= m+2*s+1 ; pwr++){
-            diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
+        Type u1 = a * I3[w].first + c;
+        Type u2 = a * I3[w].second + c;
+        // BEGIN pre evalution of power of U
+        std::vector <Type> diff_u_pow(m + 2 * s + 2, 0) ;
+        Type u1pi = u1;
+        Type u2pi = u2;
+        for(unsigned pwr = 1; pwr <= m + 2 * s + 1 ; pwr++, u1pi *= u1, u2pi *= u2) {
+          //diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
+          diff_u_pow[pwr] = (u2pi - u1pi) / (pwr) ; // TODO TOCHECK
+        }
+        //END
 
+        //Type A3i(0);
+        for(unsigned p = 0; p <= m; p++) {
+          Type sum1(0);
+          int pwr = p + i + 1;
+          for(unsigned q = 0; q <= qMax; q++, pwr++) {
+//             int pwr = p + q + i + 1;
+            sum1 += A[q] * diff_u_pow[pwr];
           }
-          //END
-
-            Type A3i(0);
-            for(unsigned p = 0; p <= m; p++) {
-              Type sum1(0);
-              for(unsigned q = 0; q <= qMax; q++) {
-                int pwr = p + q + i+ 1;
-                sum1 += A[q] * diff_u_pow[pwr];
-              }
-              Type sum2(0);
-              for(unsigned q = 0; q < qMax; q++) {
-                int pwr = 2 * s -i + p - q +1;
-                sum2 += B[q] * diff_u_pow[pwr];
-              }
-              A3i += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
-            }
+          Type sum2(0);
+          pwr = 2 * s - i + p + 1;
+          for(unsigned q = 0; q < qMax; q++, pwr--) {
+            //int pwr = 2 * s - i + p - q + 1;
+            sum2 += B[q] * diff_u_pow[pwr];
+          }
+          A3 += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+          //A3i += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+        }
 //             A3i = A3i/((n+i+1)* factorial<Type>(i)) ;
 //             A3 += factorial<Type>(m) / pow(a, m + 1) * A3i;
-            A3 += A3i/((n+i+1)* factorial<Type>(i)) ;
+//         A3 += A3i / ((n + i + 1) * factorial<Type>(i)) ; //TODO
       }
+      A3 /= ((n + i + 1) * factorial<Type>(i)) ; //TODO
     }
     A3 *= factorial<Type>(m) / pow(a, m + 1);
 //     std::cout<< "final. A3= "<< A3 << std::endl;
@@ -1041,7 +1057,7 @@ int main() {
     easy_area2 = Easy_B1 + Easy_B2 + Easy_B3;
 
     Type err = 0.00000001;
-    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) > 0.0000000001) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(Easy_A1 - A1) > err) || (fabs(Easy_A2 - A2) > err) || (fabs(Easy_A3 - A3) > err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/ ) {
+    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) > 0.0000000001) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(Easy_A1 - A1) > err) || (fabs(Easy_A2 - A2) > err) || (fabs(Easy_A3 - A3) > err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/) {
       std::cout << "................................ Failed...................................... " << std::endl;
       std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << -pol2[0] << "; b = " << -pol2[1] << "; d = " << -pol2[2] << "; a = " << -a << "; c = " << -c << ";" << std::endl;
       for(unsigned i = 0; i < I1.size(); i++) {
