@@ -32,7 +32,7 @@ const double alpha = 0.00001;
 const double t0 = 1.;
 double Re = 100.;
 
-const unsigned numberOfIterations = 3;
+const unsigned numberOfIterations = 5;
 unsigned iext;
 
 using namespace femus;
@@ -207,7 +207,7 @@ int main(int argc, char** args) {
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("U0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("U0")]);
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("V0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("V0")]);
 
-  for(unsigned t = 0; t < 100; t++) {
+  for(unsigned t = 0; t < 500; t++) {
 
     *(sol->_Sol[mlProb._ml_sol->GetIndex("U0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("U0")]);
     *(sol->_Sol[mlProb._ml_sol->GetIndex("V0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("V0")]);
