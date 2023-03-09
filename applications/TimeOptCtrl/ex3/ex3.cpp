@@ -49,7 +49,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   bool dirichlet = true; //dirichlet
   value = 0;
 
-  double c = 1;
+  double c = flc4hs(time - t0, t0);
   if(facename == 1 || facename == 3) {
     if(!strcmp(SolName, "U1c") || !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")) {
       dirichlet = false;
@@ -62,9 +62,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
   else if(facename == 2) {
     if(!strcmp(SolName, "U1c")) {
-      value = -0.25 * c * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time)) * flc4hs(time - t0, t0);
+      value = -0.5 * c * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
     }
-    else if (!strcmp(SolName, "V1c")) {
+    else if(!strcmp(SolName, "V1c")) {
       dirichlet = false;
     }
   }
@@ -236,6 +236,22 @@ int main(int argc, char** args) {
   systemi.init();
   systemi.SetOuterSolver(PREONLY);
 
+
+
+
+
+  std::vector<unsigned> solUIndex(dim);
+  solUIndex[0] = mlSol.GetIndex("U1c");
+  solUIndex[1] = mlSol.GetIndex("U2c");
+
+  for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
+    double x = (*msh->_topology->_Sol[0])(i);
+    double y = (*msh->_topology->_Sol[1])(i);
+    double u = 0.5 * x * sin(M_PI / 4. * y);
+    msh->_topology->_Sol[0]->set(i, x + u);
+  }
+  msh->_topology->_Sol[0]->close();
+
   // print solutions
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
@@ -243,12 +259,10 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(false);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
+
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("V10")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("V10")]);
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("V20")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("V20")]);
 
-  std::vector<unsigned> solUIndex(dim);
-  solUIndex[0] = mlSol.GetIndex("U1c");
-  solUIndex[1] = mlSol.GetIndex("U2c");
   for(unsigned t = 0; t < 500; t++) {
     double dt =  system.GetIntervalTime();
     for(unsigned k = 0; k < dim; k++)  {
@@ -991,7 +1005,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < adept::adouble > >  solV(dim);
   std::vector < std::vector < double > >  solVOld(dim);
-  
+
   std::vector < adept::adouble >  solP;
 
   std::vector< std::vector < adept::adouble > > mResU(dim);
@@ -1130,7 +1144,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
             ALE[k] +=  phix[i * dim + j] * (solUxg[k][j] + 0 * solUxg[j][k]);
             NSV[k] +=  iRe * phix[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
-            NSV[k] +=  phi[i] * (solVOldg[j]-solUOldg[j]) * solVxg[k][j];
+            NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
           }
           NSV[k] += (solVg[k] - solVOldg[k]) / dt * phi[i] - solPg * phix[i * dim + k];
         }
@@ -1140,7 +1154,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
             mResV[k][i] += - NSV[k] * weight;
           }
           else {
-            mResV[k][i] += solV[k][i] - solU[k][i]; 
+            mResV[k][i] += solV[k][i] - solU[k][i];
           }
         }
       } // end phiV_i loop
