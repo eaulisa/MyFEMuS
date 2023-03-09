@@ -23,7 +23,6 @@
 #include "TransientSystem.hpp"
 #include "adept.h"
 
-
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
@@ -32,6 +31,8 @@ const double beta = 0.00001;
 const double alpha = 0.00001;
 const double t0 = 1.;
 double Re = 500.;
+
+bool cleanFile = true;
 
 const unsigned numberOfIterations = 5;
 unsigned iext;
@@ -147,7 +148,7 @@ int main(int argc, char** args) {
   MultiLevelProblem mlProb(&mlSol);
 
   // add system Poisson in mlProb as a Linear Implicit System
-  TransientNonlinearImplicitSystem& systemC = mlProb.add_system < TransientNonlinearImplicitSystem > ("ManSol");
+  TransientLinearImplicitSystem& systemC = mlProb.add_system < TransientLinearImplicitSystem > ("ManSol");
 
   systemC.AddSolutionToSystemPDE("Uc");
   systemC.AddSolutionToSystemPDE("Vc");
@@ -208,10 +209,7 @@ int main(int argc, char** args) {
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("U0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("U0")]);
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("V0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("V0")]);
 
-  for(iext = 0; iext < numberOfIterations; iext++) {
-    GetError(mlProb);
-  }
-  
+
   for(unsigned t = 0; t < 500; t++) {
 
     *(sol->_Sol[mlProb._ml_sol->GetIndex("U0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("U0")]);
@@ -232,7 +230,7 @@ int main(int argc, char** args) {
       *(sol->_Sol[mlProb._ml_sol->GetIndex("Vi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(vName)]);
       *(sol->_SolOld[mlProb._ml_sol->GetIndex("Vi")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex(vName)]);
       *(sol->_Sol[mlProb._ml_sol->GetIndex("Pi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(pName)]);
-
+      
       system.SetTime(time);
       systemi.SetTime(time);
 
@@ -244,7 +242,7 @@ int main(int argc, char** args) {
       *(sol->_Sol[mlProb._ml_sol->GetIndex(vName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("Vi")]);
       *(sol->_SolOld[mlProb._ml_sol->GetIndex(vName)]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("Vi")]);
       *(sol->_Sol[mlProb._ml_sol->GetIndex(pName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("Pi")]);
-
+      
 
       GetError(mlProb);
 
@@ -314,11 +312,17 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
   //solution variable
   std::vector < unsigned > solbVIndex(dim);
   std::vector < unsigned > sollVIndex(dim);
+  std::vector < unsigned > solViIndex(dim);
+  
+  
   solbVIndex[0] = mlSol->GetIndex("bU");
   solbVIndex[1] = mlSol->GetIndex("bV");
   sollVIndex[0] = mlSol->GetIndex("lU");
   sollVIndex[1] = mlSol->GetIndex("lV");
-
+  
+  solViIndex[0] = mlSol->GetIndex("Ui");
+  solViIndex[1] = mlSol->GetIndex("Vi");
+  
   unsigned solVType = mlSol->GetSolutionType(solbVIndex[0]);
 
   unsigned solbPIndex;
@@ -347,6 +351,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > >  solVm1Old(dim);
 
   std::vector < std::vector < adept::adouble > >  solbV(dim);
+  std::vector < std::vector < double > >  solViOld(dim);
   std::vector < std::vector < adept::adouble > >  sollV(dim);
   std::vector < adept::adouble >  solbP;
   std::vector < adept::adouble >  sollP;
@@ -388,6 +393,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       solVm1[k].resize(nDofsV);
       solVm1Old[k].resize(nDofsV);
       solbV[k].resize(nDofsV);
+      solViOld[k].resize(nDofsV);
       sollV[k].resize(nDofsV);
       x[k].resize(nDofsV);
     }
@@ -419,6 +425,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         }
 
         solbV[k][i] = (*sol->_Sol[solbVIndex[k]])(solVDof);
+        solViOld[k][i] = (*sol->_SolOld[solViIndex[k]])(solVDof);
         sollV[k][i] = (*sol->_Sol[sollVIndex[k]])(solVDof);
 
         sysDof[k * nDofsV + i] = pdeSys->GetSystemDof(solbVIndex[k], solbVPdeIndex[k], i, iel);
@@ -456,10 +463,11 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       std::vector < double > solVm1Oldg(dim, 0);
 
       std::vector < adept::adouble > solbVg(dim, 0);
+      std::vector < double > solViOldg(dim, 0);
       std::vector < adept::adouble > sollVg(dim, 0);
       std::vector < double > xg(dim, 0);
 
-      std::vector < std::vector < adept::adouble > > solbVxg(dim, std::vector < adept::adouble >(dim, 0.));
+      std::vector < std::vector < adept::adouble > > solbVxg(dim, std::vector < adept::adouble >(dim, 0.));      
       std::vector < std::vector < adept::adouble > > sollVxg(dim, std::vector < adept::adouble >(dim, 0.));
 
       for(unsigned i = 0; i < nDofsV; i++) {
@@ -470,6 +478,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           solVm1Oldg[k] += solVm1Old[k][i] * phiV[i];
 
           solbVg[k] += solbV[k][i] * phiV[i];
+          solViOldg[k] += solViOld[k][i] * phiV[i];
           sollVg[k] += sollV[k][i] * phiV[i];
           xg[k] += x[k][i] * phiV[i];
         }
@@ -505,8 +514,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
             NSVb[k]   +=  iRe * phiVx[i * dim + j] * (solbVxg[k][j] + solbVxg[j][k]);
             NSVl[k]   +=  iRe * phiVx[i * dim + j] * (sollVxg[k][j] + sollVxg[j][k]) + beta * phiVx[i * dim + j] * (solbVxg[k][j] + solbVxg[j][k]);
-            NSVb[k]   +=  phiV[i] * solVcg[j] * solbVxg[k][j];
-            NSVl[k]   +=  sollVg[k] * solVcg[j] * phiVx[i * dim + j];
+            NSVb[k]   +=  phiV[i] * solViOldg[j] * solbVxg[k][j];
+            NSVl[k]   +=  sollVg[k] * solViOldg[j] * phiVx[i * dim + j];
           }
           NSVb[k] += (1 - 0.1 * (iext == 0)) * (solVm1g[k] - solVm1Oldg[k]) / dt * phiV[i] - solbPg * phiVx[i * dim + k];
           NSVl[k] += -sollPg * phiVx[i * dim + k]  + alpha * solbVg[k] * phiV[i] + (solbVg[k] - solVcg[k]) * phiV[i];
@@ -760,16 +769,16 @@ void AssembleSystemZi(MultiLevelProblem& ml_prob) {
       phiP = msh->_finiteElement[ielType][solPType]->GetPhi(ig);
 
       std::vector < adept::adouble > solVg(dim, 0);
-      std::vector < adept::adouble > solVcg(dim, 0);
+      //std::vector < adept::adouble > solVcg(dim, 0);
       std::vector < double > solVOldg(dim, 0);
 
 
       std::vector < std::vector < adept::adouble > > solVxg(dim, std::vector < adept::adouble >(dim, 0.));
-
+      
       for(unsigned i = 0; i < nDofsV; i++) {
         for(unsigned  k = 0; k < dim; k++) {
           solVg[k] += solV[k][i] * phiV[i];
-          solVcg[k] += solVc[k][i] * phiV[i];
+          //solVcg[k] += solVc[k][i] * phiV[i];
           solVOldg[k] += solVOld[k][i] * phiV[i];
         }
         for(unsigned j = 0; j < dim; j++) {
@@ -791,8 +800,8 @@ void AssembleSystemZi(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-            NSV[k]   +=  iRe * phiVx[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
-            NSV[k]   +=  phiV[i] * solVcg[j] * solVxg[k][j];
+            NSV[k] +=  iRe * phiVx[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
+            NSV[k] +=  phiV[i] * solVOldg[j] * solVxg[k][j];
           }
           NSV[k] += (solVg[k] - solVOldg[k]) / dt * phiV[i] - solPg * phiVx[i * dim + k];
         }
@@ -879,7 +888,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   //  extract pointers to the several objects that we are going to use
-  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("ManSol");   // pointer to the linear implicit system named "Poisson"
+  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("ManSol");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -1005,7 +1014,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
       std::vector < double > solVOldg(dim, 0);
 
       std::vector < std::vector < adept::adouble > > solVxg(dim, std::vector < adept::adouble >(dim, 0.));
-
+      
       for(unsigned i = 0; i < nDofsV; i++) {
         for(unsigned  k = 0; k < dim; k++) {
           solVg[k] += solV[k][i] * phiV[i];
@@ -1030,8 +1039,8 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-            NSV[k]   +=  iRe * phiVx[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
-            NSV[k]   +=  phiV[i] * solVg[j] * solVxg[k][j];
+            NSV[k] +=  iRe * phiVx[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
+            NSV[k] +=  phiV[i] * solVOldg[j] * solVxg[k][j];
           }
           NSV[k] += (solVg[k] - solVOldg[k]) / dt * phiV[i] - solPg * phiVx[i * dim + k];
         }
@@ -1232,8 +1241,9 @@ void GetError(MultiLevelProblem& ml_prob) {
 
     std::string filename = "SolutionIntegral" + std::to_string(iext) + ".txt";
     std::ofstream fout;
-    if(fabs(time) < 1.0e-10) {
+    if(cleanFile) {
       fout.open(filename.c_str(), std::ios::out);
+      if (iext == numberOfIterations -1) cleanFile = false;
     }
     else {
       fout.open(filename.c_str(), std::ios::app);
