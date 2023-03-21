@@ -40,6 +40,7 @@ unsigned iext;
 using namespace femus;
 
 double flc4hs(double const &x, double const &eps);
+double dflc4hs(double const &x, double const &eps);
 
 double SetVariableTimeStep(const double time) {
   return 0.05;
@@ -50,6 +51,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0;
 
   double c = flc4hs(time - t0, t0);
+  double dc = dflc4hs(time - t0, t0);
   if(facename == 1 || facename == 3) {
     if(!strcmp(SolName, "U1c") || !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")) {
       dirichlet = false;
@@ -62,9 +64,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
   else if(facename == 2) {
     if(!strcmp(SolName, "U1c")) {
-      value = -0.5 * c * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
+      value = 0.5 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
     }
-    else if(!strcmp(SolName, "V1c")) {
+    else if(!strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")) {
       dirichlet = false;
     }
   }
@@ -1142,7 +1144,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-            ALE[k] +=  phix[i * dim + j] * (solUxg[k][j] + 0 * solUxg[j][k]);
+            ALE[k] +=  (j == 0) * phix[i * dim + j] * (solUxg[k][j] + 0 * solUxg[j][k]);
             NSV[k] +=  iRe * phix[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
           }
@@ -1150,7 +1152,7 @@ void AssembleManifactureSolution(MultiLevelProblem& ml_prob) {
         }
         for(unsigned  k = 0; k < dim; k++) {
           mResU[k][i] += - ALE[k] * weight;
-          if(k != 0 || !nodeIsControlBoundary[i]) {
+          if(!nodeIsControlBoundary[i]) {
             mResV[k][i] += - NSV[k] * weight;
           }
           else {
@@ -1412,5 +1414,25 @@ double flc4hs(double const &x, double const &eps) {
     return 1.;
   }
 }
+
+double dflc4hs(double const &x, double const &eps) {
+
+  double r = x / eps;
+  if(r < -1) {
+    return 0.;
+  }
+  else if(r < 1.) {
+    double r2 = r * r;
+    double r4 = r2 * r2;
+    double r6 = r4 * r2;
+    double r8 = r6 * r2;
+    return (315. - 3. * 420. * r2 + 5 * 378. * r4 - 7. * 180. * r6 + 9.  * 35. * r8) / (256. * eps);
+  }
+  else {
+    return 0.;
+  }
+}
+
+
 
 
