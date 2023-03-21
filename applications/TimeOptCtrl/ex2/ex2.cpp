@@ -55,7 +55,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   if(!strcmp(SolName, "Vc")) {
     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = flc4hs(time - t0, t0) - 2 * flc4hs(time - 6 * t0, t0) + 2 * flc4hs(time - 11 * t0, t0) - 2 * flc4hs(time - 16 * t0, t0) + 2 * flc4hs(time - 21 * t0, t0);
   }
-  else if(!strcmp(SolName, "bP") || !strcmp(SolName, "lP") || !strcmp(SolName, "Pc")) {
+  else if(!strcmp(SolName, "bP") || !strcmp(SolName, "lP") || !strcmp(SolName, "Pc")  || !strcmp(SolName, "Pi") ) {
     dirichlet = false;
     value = 0.;
   }
