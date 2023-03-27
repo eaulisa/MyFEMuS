@@ -302,14 +302,7 @@ int main(int argc, char** args) {
 
   for(unsigned t = 0; t < 500; t++) {
     double dt =  system.GetIntervalTime();
-    for(unsigned k = 0; k < dim; k++)  {
-      for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
-        double x = (*msh->_topology->_Sol[k])(i);
-        double u = (*sol->_Sol[solUIndex[k]])(i);
-        msh->_topology->_Sol[k]->set(i, x + u * dt);
-      }
-      msh->_topology->_Sol[k]->close();
-    }
+    double time =  systemC.GetTime();
 
     *(sol->_Sol[mlProb._ml_sol->GetIndex("U10Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("U10")]);
     *(sol->_Sol[mlProb._ml_sol->GetIndex("U20Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("U20")]);
@@ -318,8 +311,6 @@ int main(int argc, char** args) {
 
     mlSol.CopySolutionToOldSolution();
     systemC.MGsolve();
-
-    double time =  system.GetTime();
 
     for(iext = 0; iext < numberOfIterations; iext++) {
       sprintf(u1Name, "U1%d", iext);
@@ -342,8 +333,11 @@ int main(int argc, char** args) {
       //system.SetTime(time);
       systemi.SetTime(time);
 
+      //systemC.SetTime(time);
+      //systemC.MGsolve();
+
       //system.MGsolve();
-      //systemi.MGsolve();
+      systemi.MGsolve();
 
       *(sol->_Sol[mlProb._ml_sol->GetIndex(u1Name)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("U1i")]);
       *(sol->_SolOld[mlProb._ml_sol->GetIndex(u1Name)]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("U1i")]);
@@ -359,6 +353,16 @@ int main(int argc, char** args) {
       //GetError(mlProb);
 
     }
+
+    for(unsigned k = 0; k < dim; k++)  {
+      for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
+        double x = (*msh->_topology->_Sol[k])(i);
+        double u = (*sol->_Sol[solUIndex[k]])(i);
+        msh->_topology->_Sol[k]->set(i, x + u * dt);
+      }
+      msh->_topology->_Sol[k]->close();
+    }
+
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
   }
 
@@ -1037,7 +1041,7 @@ void AssembleSystemZi(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
             //ALE[k] += (j == 0) * phix[i * dim + j] * (solUxg[k][j] + 0 * solUxg[j][k]);
               
-            ALE[k] += phixHat[i * dim + j] * (x_xHatg[k][j] + x_xHatg[j][k]  - 2 * (j == k) );  
+            ALE[k] += phixHat[i * dim + j] * (x_xHatg[k][j] + x_xHatg[j][k]  - 2 * (j == k) );
             NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
           }
@@ -1046,6 +1050,7 @@ void AssembleSystemZi(MultiLevelProblem& ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {
           mResU[k][i] += - ALE[k] * weightHat;
           if(!nodeIsControlBoundary[i]) {
+            mResU[k][i] += - ALE[k] * weightHat;
             mResV[k][i] += - NSV[k] * weight;
           }
           else {
