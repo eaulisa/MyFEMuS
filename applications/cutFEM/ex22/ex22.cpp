@@ -1082,20 +1082,25 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 
-
-
-
-
-
-
-
-
-
+#include "MyEigenFunctions.hpp"
 
 int main() {
   unsigned int m = 2;
   unsigned int n = 4;
   int s = 0;
+
+//   std::vector<double>ap;
+//   std::vector<std::vector<double>> xp = {{-1, 0, 1},{0, 1., 0.}};
+//   std::vector<double>wp ={1.,1.,1.};
+//   femus::FindParabolaBestFit(xp,wp,{1,0},ap);
+//   std::cout<<ap[0]<<" "<<ap[1] << " " <<ap[2] <<" " <<ap[3]<<" "<<ap[4]<<" "<<ap[5]<<std::endl;
+//   return 1;
+
+
+
+
+
+
 
   std::cout.precision(20);
 

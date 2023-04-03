@@ -6,522 +6,158 @@
 #include <ctime>
 #include <cstdlib>
 #include <climits>
+
+#include <boost/math/special_functions/factorials.hpp>
+//#include <boost/math/special_functions/pow.hpp>
 using namespace std;
 
-double b(const double &p) {
-  return std::max(std::min(p, 1.), 0.);
-}
+using boost::math::factorial;
 
-void GetIntervalall(const std::vector <double> &a1, const std::vector <double> &a2, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
+struct Point {
+    double x;
+    double y;
+};
 
-  std::vector <double> x(6);
-  x[0] = 0 ;
-  unsigned cnt = 1;
-  for(unsigned k = 0; k < 2; k++) {
-    const std::vector<double> &a = (k == 0) ? a1 : a2;
-    double delta = a[1] * a[1] - 4 * a[0] * a[2] ;
-    if(delta > 0) {
-      for(unsigned i = 0; i < 2; i++) {
-        double y = (-a[1] - pow(-1, i) * sqrt(delta)) / (2 * a[0]) ;
-        if(y > 0 && y < 1) {
-          x[cnt] = y ;
-          cnt++ ;
-        }
-      }
-    }
-  }
-  x[cnt] = 1 ;
-  cnt++;
+struct Parabola {
+    double k;
+    double b;
+    double d;
+};
 
-  x.resize(cnt);
-  std::sort(x.begin(), x.end());
-  I1.resize(0);
-  I2.resize(0);
-  I3.resize(0);
-  for(unsigned i = 0 ; i < cnt - 1 ; i++) {
-    double xm = (x[i] + x[i + 1]) * 0.5 ;
-    double f1 = a1[0] * xm * xm + a1[1] * xm + a1[2] ;
-    double f2 = a2[0] * xm * xm + a2[1] * xm + a2[2] ;
-    if(f1 > 0) {
-      if(f2 > 0) {
-        I3.resize(I3.size() + 1, std::pair<double, double>(x[i], x[i + 1]));
-      }
-      else {
-        I1.resize(I1.size() + 1, std::pair<double, double>(x[i], x[i + 1]));
-      }
-    }
-    else if(f2 > 0) {
-      I2.resize(I2.size() + 1, std::pair<double, double>(x[i], x[i + 1]));
-    }
-  }
-
-//This part gives segmentation-fault-core-dumped if one of the region is empty. Solved : it had two problem
-// 1. every time it erases the size goes down but i increases.
-//2. for some reason in case of empty I1, it passes the first for loop. (i=0;i<-1;i++) . If we rewrite for loop as
-// for(unsigned i = 1; i < I1.size(); i++) {
-//     if(I1[i-1].second == I1[i].first) {
-//       I1[i-1].second = I1[i].second;
-//       I1.erase(I1.begin() + i );
-//       i--;
-//     }
-//   }
-
-  for(unsigned i = 1; i < I1.size(); i++) {
-    if(I1[i-1].second == I1[i].first) {
-      I1[i-1].second = I1[i].second;
-      I1.erase(I1.begin() + i );
-      i--;
-    }
-  }
-  for(unsigned i = 1; i < I2.size(); i++) {
-    if(I2[i-1].second == I2[i].first) {
-      I2[i-1].second = I2[i].second;
-      I2.erase(I2.begin() + i );
-      i--;
-    }
-  }
-  for(unsigned i = 1; i < I3.size(); i++) {
-    if(I3[i-1].second == I3[i].first) {
-      I3[i-1].second = I3[i].second;
-      I3.erase(I3.begin() + i );
-      i--;
-    }
-  }
-}
-
-void GetInterval4(double p1, double p2, double q1, double q2, const double &k, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
-
-  bool swap = false;
-  if(p1 > q1) {
-    std::swap(p1, q1);
-    std::swap(p2, q2);
-    swap = true ;
-  }
-
-  if(k > 0) {
-    if(p2 <= q1) { //case 1;
-      I1.resize(1);
-      I1[0].first = b(q1);
-      I1[0].second = b(q2);
-
-      I2.resize(1);
-      I2[0].first = b(p1);
-      I2[0].second = b(p2);
-
-      I3.resize(3);
-      I3[0].first = 0;
-      I3[0].second = b(p1);
-      I3[1].first = b(p2);
-      I3[1].second = b(q1);
-      I3[2].first = b(q2);
-      I3[2].second = 1;
-    }
-    else if(p2 <= q2) {// case 2
-      I1.resize(1);
-      I1[0].first = b(p2);
-      I1[0].second = b(q2);
-
-      I2.resize(1);
-      I2[0].first = b(p1);
-      I2[0].second = b(q1);
-
-      I3.resize(2);
-      I3[0].first = 0;
-      I3[0].second = b(p1);
-      I3[1].first = b(q2);
-      I3[1].second = 1;
-    }
-    else {// case 3
-
-      I2.resize(2);
-      I2[0].first = b(p1);
-      I2[0].second = b(q1);
-      I2[1].first = b(q2);
-      I2[1].second = b(p2);
-
-
-      I3.resize(2);
-      I3[0].first = 0;
-      I3[0].second = b(p1);
-      I3[1].first = b(p1);
-      I3[1].second = 1;
-
-
-    }
-  }
-  else { // (k<0)
-    if(p2 <= q1) { //case 1
-      I1.resize(1);
-      I1[0].first = b(p1);
-      I1[0].second = b(p2);
-
-      I2.resize(1);
-      I2[0].first = b(q1);
-      I2[0].second = b(q2);
-
-      // I3 =empty
-    }
-    else if(p2 <= q2) {// case 2
-      I1.resize(1);
-      I1[0].first = b(p1);
-      I1[0].second = b(q1);
-      I2.resize(1);
-      I2[0].first = b(p2);
-      I2[0].second = b(q2);
-      I3.resize(1);
-      I3[0].first = b(q1);
-      I3[0].second = b(p2);
-
-    }
-    else { // case 3
-      I1.resize(2);
-      I1[0].first = b(p1);
-      I1[0].second = b(q1);
-      I1[1].first = b(q2);
-      I1[1].second = b(p2);
-      // I2= empty
-      I3.resize(1);
-      I3[0].first = b(q1);
-      I3[0].second = b(q2);
-    }
-  }
-  if(swap) {
-    I1.swap(I2);
-  }
-}
-void GetInterval2(const double &r1, const double &r2, const bool &pIsComplex, const double &k, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
-  if(k > 0) {
-    // I1 = empty
-    I1.resize(0);
-    I2.resize(1);
-    I2[0].first = b(r1);
-    I2[0].second = b(r2);
-    I3.resize(2);
-    I3[0].first = 0;
-    I3[0].second = b(r1);
-    I3[1].first = b(r2);
-    I3[1].second = b(1);
-    if(pIsComplex) I1.swap(I2); // swap I1 and I2 if p-roots are complex
-  }
-
-  else { //(k<0)
-    I1.resize(1);
-    I2.resize(0);
-    I1[0].first = b(r1);
-    I1[0].second = b(r2);
-    // I2 = I3 = empty
-    if(pIsComplex) I1.swap(I2); // swap I1 and I2 if p-roots are complex
-    //If swaped it shows both I1 and I2 values !!! Lets add I2.resize(0);
-  }
-}
-
-void GetInterval0(const double &k, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
-  if(k > 0) I3.assign(1, std::pair<double, double>(0., 1.));
-}
-
-
-void GetInterval4Old(double p1, double p2, double q1, double q2, const double &k, std::vector< std::pair<double, double> > &I1, std::vector< std::pair<double, double> > &I2, std::vector<std::pair<double, double>> &I3) {
-  if(k > 0) {
-    if(p2 <= q1) { //case 1;
-      I1.resize(1);
-      I1[0].first = b(q1);
-      I1[0].second = b(q2);
-
-      I2.resize(1);
-      I2[0].first = b(p1);
-      I2[0].second = b(p2);
-
-      I3.resize(3);
-      I3[0].first = 0;
-      I3[0].second = b(p1);
-      I3[1].first = b(p2);
-      I3[1].second = b(q1);
-      I3[2].first = b(q2);
-      I3[2].second = 1;
-    }
-    else if(q2 <= p1) { // case 4
-      I1.resize(1);
-      I1[0].first = b(q1);
-      I1[0].second = b(q2);
-
-      I2.resize(1);
-      I2[0].first = b(p1);
-      I2[0].second = b(p2);
-
-      I3.resize(3);
-      I3[0].first = 0;
-      I3[0].second = b(q1);
-      I3[1].first = b(q2);
-      I3[1].second = b(p1);
-      I3[2].first = b(p2);
-      I3[2].second = 1;
-    }
-    else if(p2 <= q2) {
-      if(p1 <= q1) {// case 2
-
-        I1.resize(1);
-        I1[0].first = b(p2);
-        I1[0].second = b(q2);
-
-        I2.resize(1);
-        I2[0].first = b(p1);
-        I2[0].second = b(q1);
-
-
-        I3.resize(2);
-        I3[0].first = 0;
-        I3[0].second = b(p1);
-        I3[1].first = b(q2);
-        I3[1].second = 1;
-      }
-      else { // case 6
-
-        I1.resize(2);
-        I1[0].first = b(q1);
-        I1[0].second = b(p1);
-        I1[1].first = b(p2);
-        I1[1].second = b(q2);
-
-        // I2= empty
-
-
-        I3.resize(2);
-        I3[0].first = 0;
-        I3[0].second = b(q1);
-        I3[1].first = b(q2);
-        I3[1].second = 1;
-      }
-    }
-    else {
-      if(p1 <= q1) { // case 3
-
-
-        I2.resize(2);
-        I2[0].first = b(p1);
-        I2[0].second = b(q1);
-        I2[1].first = b(q2);
-        I2[1].second = b(p2);
-
-
-        I3.resize(2);
-        I3[0].first = 0;
-        I3[0].second = b(p1);
-        I3[1].first = b(p2);
-        I3[1].second = 1;
-
-
-      }
-      else { //case 5;
-        I1.resize(1);
-        I1[0].first = b(q1);
-        I1[0].second = b(p1);
-
-        I2.resize(1);
-        I2[0].first = b(q2);
-        I2[0].second = b(p2);
-
-
-        I3.resize(2);
-        I3[0].first = 0;
-        I3[0].second = b(q1);
-        I3[1].first = b(p2);
-        I3[1].second = 1;
-
-
-      }
-    }
-  }
-  else { // (k<0)
-    if(p2 <= q1 || q2 <= p1) { //case 1 and 4
-      I1.resize(1);
-      I1[0].first = b(p1);
-      I1[0].second = b(p2);
-
-      I2.resize(1);
-      I2[0].first = b(q1);
-      I2[0].second = b(q2);
-
-      // I3 =empty
-    }
-    else if(p2 <= q2) {
-      if(p1 <= q1) {// case 2
-        I1.resize(1);
-        I1[0].first = b(p1);
-        I1[0].second = b(q1);
-        I2.resize(1);
-        I2[0].first = b(p2);
-        I2[0].second = b(q2);
-        I3.resize(1);
-        I3[0].first = b(q1);
-        I3[0].second = b(p2);
-      }
-      else { // case 6
-        // I1 is empty
-
-        I2.resize(2);
-        I2[0].first = b(q1);
-        I2[0].second = b(p1);
-        I2[1].first = b(p2);
-        I2[1].second = b(q2);
-        // I2= empty
-        I3.resize(1);
-        I3[0].first = b(p1);
-        I3[0].second = b(p2);
-
-      }
-    }
-    else {
-      if(p1 <= q1) { // case 3
-        I1.resize(2);
-        I1[0].first = b(p1);
-        I1[0].second = b(q1);
-        I1[1].first = b(q2);
-        I1[1].second = b(p2);
-        // I2= empty
-        I3.resize(1);
-        I3[0].first = b(q1);
-        I3[0].second = b(q2);
-      }
-      else { //case 5;
-        I1.resize(1);
-        I1[0].first = b(q2);
-        I1[0].second = b(p2);
-        I2.resize(1);
-        I2[0].first = b(q1);
-        I2[0].second = b(p1);
-        I3.resize(2);
-        I3[0].first = b(p1);
-        I3[0].second = b(q2);
-      }
-    }
-  }
-}
-
-void random_roots(double &p1, double &p2, double &q1, double &q2){
-    p1 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    p2 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    q1 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    q2 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-  }
-
-void random_polynomial(std::vector <double> &a1, std::vector <double> &a2){
-    a1[0] = ((double(std::rand()) / double(RAND_MAX)) * (4)) -2;
-    a1[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) -2;
-    a1[2] = ((double(std::rand()) / double(RAND_MAX)) * (4)) -2;
-    a2[0] = a1[0] ;
-    a2[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) -2;
-    a2[2] = ((double(std::rand()) / double(RAND_MAX)) * (4)) -2;
-//         a1[0] = 1;
-//     a1[1] = -0.75;
-//     a1[2] = .125;
-//     a2[0] = a1[0] ;
-//     a2[1] = 0.75 ;
-//     a2[2] = -0.05;
-  }
-
-void get_roots(std::vector <double> a, double &delta, double &p, double &q ){
-    delta = a[1] * a[1] - 4 * a[0] * a[2] ;
-//   std::cout <<"delta= "<< delta << std::endl;
-    if(delta > 0) {
-        p = (-a[1] + sqrt(delta)) / (2 * a[0]) ;
-        q = (-a[1] - sqrt(delta)) / (2 * a[0]) ;
-        if(p > q) {
-          std::swap(p,q);
-        }
-//         std::cout <<"roots are  "<< p << " and "<< q << std::endl;
-    }
+// Function to calculate the equation of a parabola
+Parabola get_parabola_equation(Point p1, Point p2, Point p3) {
+    double x1 = p1.x, x2 = p2.x, x3 = p3.x;
+    double y1 = p1.y, y2 = p2.y, y3 = p3.y;
+    double det = x1 * x1 * (x2 - x3) -x1* (x2*x2 - x3*x3)+ x2*x3*(x2 - x3) ;
+//     double denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
+    double k = (y1 * (x2 - x3) + y2 * (x3 - x1) + y3 * (x1 - x2)) / det;
+    double b = (y1 * (x3*x3 - x2*x2) + y2 * (x1*x1 - x3*x3)+ y3 * ((x2*x2 - x1*x1))) / det;
+    double d = (y1 * x2 * x3 * (x2 - x3) + y2 * x3 * x1 * (x3 - x1) + y3 * x1 * x2 * (x1 - x2)) / det;
+    return {k, b, d};
 }
 
 int main() {
-      double p1=0,p2=0,q1=0,q2=0;
-      std::vector <double> a2(3), a1(3);
-      std::vector< std::pair<double, double> > I1, I2, I3 ;
+  unsigned int count = 1;
+  cout << " (x1,y1) , (x2,y2) , (x3,y3) , k , b , d , c = 1" <<endl;
+  Point p1,p2,p3;
+  for (int table = 1; table <=8; table++){
+    for (double i1=0.;i1<=1.;i1+=0.1){
+      for (double i2=0.;i2<=1.;i2+=0.1){
+        for (double i3=0.;i3<=1.;i3+=0.1){
 
-      clock_t t = clock();
-      std::srand(std::time(NULL));
-  for(unsigned i=0;i<10;i++){
-      random_polynomial(a1,a2);
-        std::cout <<"polynomial p(x) = "<< a1[0] << "x^2 + (" << a1[1] << "x) + (" << a1[2] << ") " <<std::endl;
-        std::cout <<"polynomial q(x) = "<< a2[0] << "x^2 + (" << a2[1] << "x) + (" << a2[2] << ") " <<std::endl;
+      switch (table) {
+        case 1:
+            p1 = {0, i1};
+            p2 = {i2, 1};
+            break;
+        case 2:
+            p1 = {0, i1};
+            p2 = {1,i2};
+            break;
+        case 3:
+            p1 = {0, i1};
+            p2 = {i2, 0};
+            break;
+        case 4:
+            p1 = {i1,1};
+            p2 = {i2, 1};
+            if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
+            break;
+        case 5:
+            p1 = {i1,1};
+            p2 = {1, i2};
+            break;
+        case 6:
+            p1 = {i1,1};
+            p2 = {i2, 0};
+            break;
+        case 7:
+            p1 = {1, i1};
+            p2 = {i2, 0};
+            break;
+        case 8:
+            p1 = {i1, 0};
+            p2 = {i2, 0};
+            if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
+            break;
+    }
+//           Point p1 = {0, i1};
+//           Point p2 = {i2, 1};
+           p3 = {0.5 * (p1.x + p2.x) , i3 };
 
-      double delta1,delta2;
-      get_roots(a1,delta1,p1,p2);
-      get_roots(a2,delta2,q1,q2);
+          double det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;
+          if (det !=0){
+            Parabola parabola = get_parabola_equation(p1, p2, p3);
+            cout << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << ", " << parabola.b << ", " << parabola.d << endl;
+            count ++ ;
+          }
 
-        std::cout <<"roots p1 = " << p1 << " & p2 = " << p2 << "d="<<delta1 <<std::endl;
-        std::cout <<"roots q1 = " << q1 << " & q2 = " << q2 << "d="<<delta2 <<std::endl;
-
-      GetIntervalall(a1,a2,I1,I2,I3);
-
-      std::cout << "I1= " ;
-      for (unsigned i=0 ; i<I1.size(); i++){
-         std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
-      }
-      std::cout << "\nI2= " ;
-      for (unsigned i=0 ; i<I2.size(); i++){
-         std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
-      }
-
-      std::cout << "\nI3= " ;
-      for (unsigned i=0 ; i<I3.size(); i++){
-         std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " <<std::endl;
-      }
-      t = clock() - t;
-      std::cout << "\nTime taken for generalized algorithm : " << (double)(t)/ CLOCKS_PER_SEC << std::endl;
-
-      if (delta1 > 0){
-        if(delta2 > 0){
-          GetInterval4Old( p1, p2, q1, q2, a1[0], I1, I2, I3);
         }
-        else {
-          bool pIsComplex=0;
-          GetInterval2(p1, p2, pIsComplex, a1[0], I1, I2, I3);
-        }
       }
-      else{
-        if (delta2 > 0){
-          bool pIsComplex=1;
-          GetInterval2(q1, q2, pIsComplex, a1[0], I1, I2, I3);
-        }
-        else {
-           GetInterval0(a1[0], I1, I2, I3);
-        }
-      }
-      std::cout << "I1= " ;
-      for (unsigned i=0 ; i<I1.size(); i++){
-        std::cout << "(" << I1[i].first << "," << I1[i].second <<") U " ;
-      }
-      std::cout << "\nI2= " ;
-      for (unsigned i=0 ; i<I2.size(); i++){
-         std::cout << "(" << I2[i].first << "," << I2[i].second <<") U " ;
-      }
-      std::cout << "\nI3= " ;
-      for (unsigned i=0 ; i<I3.size(); i++){
-         std::cout << "(" << I3[i].first << "," << I3[i].second <<") U " ;
-      }
-   t = clock() - t;
-   std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
+    }
   }
-  return 1;
+    return 0;
+}
+
+    //           cout << "The equation of the parabola is: " << parabola.a << "x^2 + " << parabola.b << "x + " << parabola.c << endl;
+    //         cout << "The input points are: " << endl;
+    //     cout << " (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")" << endl;
+
+
+// void get_parabola_equation(float x1, float y1, float x2, float y2, float x3, float y3, float& a, float& b, float& c) {
+//     // Calculate the determinant of the 3x3 matrix
+//     float detA = x1 * (y2 - y3) - x2 * (y1 - y3) + x3 * (y1 - y2);
+//     if (detA == 0) {
+//         cout << "Error: Points are collinear!" << endl;
+//         return;
+//     }
+//
+//     // Calculate the coefficients a, b, and c of the parabola equation
+//     float A = y1 * (x2 - x3) - y2 * (x1 - x3) + y3 * (x1 - x2);
+//     float B = pow(x1, 2) * (y2 - y3) - pow(x2, 2) * (y1 - y3) + pow(x3, 2) * (y1 - y2);
+//     float C = pow(x1, 2) * (y3 - y2) + pow(x2, 2) * (y1 - y3) + pow(x3, 2) * (y2 - y1);
+//     a = A / detA;
+//     b = B / detA;
+//     c = C / detA;
+// }
+//
+// int main() {
+//     // Example usage of the function
+//     float x1 = -0.5, y1 = 3;
+//     float x2 = 0, y2 = 4;
+//     float x3 = -1, y3 = 3;
+//     float a, b, c;
+//     get_parabola_equation(x1, y1, x2, y2, x3, y3, a, b, c);
+//     cout << "The equation of the parabola passing through (" << x1 << ", " << y1 << "), (" << x2 << ", " << y2 << "), and (" << x3 << ", " << y3 << ") is:" << endl;
+//     cout << "y = " << a << "x^2 + " << b << "x + " << c << endl;
+//     return 0;
+// }
+//
+
+/*
+int main() {
+clock_t t = clock();
+std::srand(std::time(NULL));
+for(unsigned i=0;i<100000;i++){
+
+
+
 }
 
 
-//Random root approch.
-/* void random_roots(double &p1, double &p2, double &q1, double &q2){
-    p1 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    p2 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    q1 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-    q2 = ((double(std::rand()) / double(RAND_MAX)) * (3)) -1;
-  }
- random_roots(p1,p2,q1,q2);
-    std::cout << "p1 =" <<p1<< "\np2 =" << p2<< "\nq1 =" << q1 << "\nq2 =" << q2<< std::endl;
-    getpolynomial(p1, p2, a1);
-    std::cout << "p1 =" <<p1<< ", p2 =" << p2<< " and polynomial = "<< a1[0] << "x^2 + (" << a1[1] << "x) + (" << a1[2] << ")" <<std::endl;
 
-void getpolynomial( double r1, double r2, std::vector <double> &a) {
-    if ((rand() % 2) == 0){a[0]=-1;    }
-    else {a[0]=1;}
-    a[1]=r1+r2;
-    a[2]=r1*r2;
+
+   t = clock() - t;
+   std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
+   return 1;
 }*/
 
+
+
+/*
+    Point p1 = {0, 0.5};
+    Point p2 = {0.5, 0.75};
+    Point p3 = {1, 0.5};*/
+//     Point p1 = { -0.5, 3};
+//     Point p2 = {0, 4};
+//     Point p3 = {-1, 3};
