@@ -99,13 +99,6 @@ int main() {
     return 0;
 }
 
-
-
-
-
-
-
-
     //           cout << "The equation of the parabola is: " << parabola.a << "x^2 + " << parabola.b << "x + " << parabola.c << endl;
     //         cout << "The input points are: " << endl;
     //     cout << " (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")" << endl;
