@@ -37,50 +37,53 @@ Parabola get_parabola_equation(Point p1, Point p2, Point p3) {
 }
 
 int main() {
-  unsigned int count = 1;
-  cout << " (x1,y1) , (x2,y2) , (x3,y3) , k , b , d , c = 1" <<endl;
+  unsigned int count = 0;
+
+  std::vector< std::vector< double >> parabola_table(0) ;
   Point p1,p2,p3;
+  cout << " (x1,y1) , (x2,y2) , (x3,y3) , k , b , d , c = 1" <<endl;
+
   for (int table = 1; table <=8; table++){
+      cout << "Table " << table << endl;
     for (double i1=0.;i1<=1.;i1+=0.1){
       for (double i2=0.;i2<=1.;i2+=0.1){
         for (double i3=0.;i3<=1.;i3+=0.1){
-
-      switch (table) {
-        case 1:
-            p1 = {0, i1};
-            p2 = {i2, 1};
-            break;
-        case 2:
-            p1 = {0, i1};
-            p2 = {1,i2};
-            break;
-        case 3:
-            p1 = {0, i1};
-            p2 = {i2, 0};
-            break;
-        case 4:
-            p1 = {i1,1};
-            p2 = {i2, 1};
-            if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
-            break;
-        case 5:
-            p1 = {i1,1};
-            p2 = {1, i2};
-            break;
-        case 6:
-            p1 = {i1,1};
-            p2 = {i2, 0};
-            break;
-        case 7:
-            p1 = {1, i1};
-            p2 = {i2, 0};
-            break;
-        case 8:
-            p1 = {i1, 0};
-            p2 = {i2, 0};
-            if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
-            break;
-    }
+            switch (table) {
+                case 1:
+                    p1 = {0, i1};
+                    p2 = {i2, 1};
+                    break;
+                case 2:
+                    p1 = {0, i1};
+                    p2 = {1,i2};
+                    break;
+                case 3:
+                    p1 = {0, i1};
+                    p2 = {i2, 0};
+                    break;
+                case 4:
+                    p1 = {i1,1};
+                    p2 = {i2, 1};
+                    if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
+                    break;
+                case 5:
+                    p1 = {i1,1};
+                    p2 = {1, i2};
+                    break;
+                case 6:
+                    p1 = {i1,1};
+                    p2 = {i2, 0};
+                    break;
+                case 7:
+                    p1 = {1, i1};
+                    p2 = {i2, 0};
+                    break;
+                case 8:
+                    p1 = {i1, 0};
+                    p2 = {i2, 0};
+                    if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
+                    break;
+            }
 //           Point p1 = {0, i1};
 //           Point p2 = {i2, 1};
            p3 = {0.5 * (p1.x + p2.x) , i3 };
@@ -88,8 +91,36 @@ int main() {
           double det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;
           if (det !=0){
             Parabola parabola = get_parabola_equation(p1, p2, p3);
-            cout << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << ", " << parabola.b << ", " << parabola.d << endl;
+            cout << " \n" << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << ", " << parabola.b << ", " << parabola.d << endl;
+
+//             cout<< "par table size " << parabola_table.size() << endl;
+
+            parabola_table.resize(parabola_table.size() + 1);
+//             cout<< "par table size " << parabola_table.size() << endl;
+            parabola_table[count].resize(11);
+//             cout<< "par table size count" << parabola_table[count].size() << endl;
+
+            parabola_table[count][0] = count;
+            parabola_table[count][1] = p1.x;
+            parabola_table[count][2] = p1.y;
+            parabola_table[count][3] = p2.x;
+            parabola_table[count][4] = p2.y;
+            parabola_table[count][5] = p3.x;
+            parabola_table[count][6] = p3.y;
+
+//         cout<< "par table size count  ^^" << parabola_table[count].size() << endl;
+
+            parabola_table[count][7] = parabola.k;
+            parabola_table[count][8] = parabola.b;
+            parabola_table[count][9] = parabola.d;
+            parabola_table[count][10] = 1;
+
+            for (int nm=0; nm<=10; nm++){
+             cout << parabola_table[count][nm] << " " ;
+            }
+
             count ++ ;
+
           }
 
         }
@@ -98,6 +129,13 @@ int main() {
   }
     return 0;
 }
+
+
+
+
+
+
+
 
     //           cout << "The equation of the parabola is: " << parabola.a << "x^2 + " << parabola.b << "x + " << parabola.c << endl;
     //         cout << "The input points are: " << endl;

@@ -499,7 +499,7 @@ int main() {
   typedef cpp_bin_float_oct Type;
 //     typedef double Type;
 
-
+//  std::cout.precision(20);
 
   Type c, area ;
   Type a(0);
@@ -511,7 +511,7 @@ int main() {
   cout << " Number | (x1,y1) | (x2,y2) | (x3,y3) |  k  |  b  |  d  |  c  | Area |" <<endl;
   clock_t t = clock();
 
-  double partition = 10;
+  double partition = 2;
   double del_x = 1/partition;
   for (int table = 1; table <=8; table++){
       cout << "Table " << table << endl;
@@ -559,7 +559,8 @@ int main() {
            p3 = {0.5 * (p1.x + p2.x) , i3 };
            c=1 ;
 
-          Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;
+          Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;  // only sort out the points parallel to y axis
+          cout << det << endl;
           if (det !=0){
             for(int normal=0; normal <=1; normal++ ){
                 Type A1 (0), A2 (0), A3 (0);
@@ -610,7 +611,7 @@ int main() {
                 parabola_table[count][11] = area;
 
 
-//                 for (int nm=0; nm<=10; nm++){
+//                 for (int nm=0; nm<=11; nm++){
 //                 cout << parabola_table[count][nm] << " " ;
 //                 }
                 count ++ ;

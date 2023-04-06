@@ -1085,8 +1085,8 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 #include "MyEigenFunctions.hpp"
 
 int main() {
-  unsigned int m = 2;
-  unsigned int n = 4;
+  unsigned int m = 0;
+  unsigned int n = 0;
   int s = 0;
 
 //   std::vector<double>ap;
@@ -1133,17 +1133,13 @@ int main() {
 //       pol2[2] = sample[j][2];
 //       a = sample[j][3];
 //       c = sample[j][4];
-// k = -1; b = 1; d = 0.1; a = -1; c = 0.5;
-//     pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
+k = 0; b = 0; d = 0; a = 0; c = 1;
+    pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
     GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
 
-    //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
-    //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
-    //           for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
-    //           for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
-    //           for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
+
 
     if(I1.size() > 0) {
       A1 = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1);
@@ -1185,7 +1181,7 @@ int main() {
     easy_area2 = Easy_B1 + Easy_B2 + Easy_B3;
 
     Type err = 0.00000001;
-    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) > 0.0000000001) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(Easy_A1 - A1) > err) || (fabs(Easy_A2 - A2) > err) || (fabs(Easy_A3 - A3) > err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/) {
+    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) < 0.0000000001) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(Easy_A1 - A1) > err) || (fabs(Easy_A2 - A2) > err) || (fabs(Easy_A3 - A3) > err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/) {
       std::cout << "................................ Failed...................................... " << std::endl;
       std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << -pol2[0] << "; b = " << -pol2[1] << "; d = " << -pol2[2] << "; a = " << -a << "; c = " << -c << ";" << std::endl;
       for(unsigned i = 0; i < I1.size(); i++) {
