@@ -1082,25 +1082,20 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 
-#include "MyEigenFunctions.hpp"
+
+
+
+
+
+
+
+
+
 
 int main() {
   unsigned int m = 0;
   unsigned int n = 0;
   int s = 0;
-
-//   std::vector<double>ap;
-//   std::vector<std::vector<double>> xp = {{-1, 0, 1},{0, 1., 0.}};
-//   std::vector<double>wp ={1.,1.,1.};
-//   femus::FindParabolaBestFit(xp,wp,{1,0},ap);
-//   std::cout<<ap[0]<<" "<<ap[1] << " " <<ap[2] <<" " <<ap[3]<<" "<<ap[4]<<" "<<ap[5]<<std::endl;
-//   return 1;
-
-
-
-
-
-
 
   std::cout.precision(20);
 
@@ -1133,13 +1128,19 @@ int main() {
 //       pol2[2] = sample[j][2];
 //       a = sample[j][3];
 //       c = sample[j][4];
-k = 0; b = 0; d = 0; a = 0; c = 1;
+//     -0.252655 0.102298 0.36016
+k= 0.248345; b= 0.733007; d= 0.864936; c = -1;
+ a=0;
     pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
     GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
 
-
+    //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
+    //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
+    //           for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
+    //           for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
+    //           for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
 
     if(I1.size() > 0) {
       A1 = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1);

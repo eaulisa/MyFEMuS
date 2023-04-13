@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <climits>
+#include <typeinfo>
 
 #include <boost/math/special_functions/factorials.hpp>
 //#include <boost/math/special_functions/pow.hpp>
@@ -43,10 +44,10 @@ struct Parabola {
 
 // Function to calculate the equation of a parabola
 template <class Type>
-Parabola <Type>  get_parabola_equation( Point <Type> p1, Point <Type> p2, Point <Type> p3/*, Type &k, Type &b, Type &d*/) {
+Parabola <Type>  get_parabola_equation( Point <Type> p1, Point <Type> p2, Point <Type> p3 , Type det) {
     Type x1 = p1.x, x2 = p2.x, x3 = p3.x;
     Type y1 = p1.y, y2 = p2.y, y3 = p3.y;
-    Type det = x1 * x1 * (x2 - x3) -x1* (x2*x2 - x3*x3)+ x2*x3*(x2 - x3) ;
+//     Type det = x1 * x1 * (x2 - x3) -x1* (x2*x2 - x3*x3)+ x2*x3*(x2 - x3) ;
 //     Type denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
     Type k = (y1 * (x2 - x3) + y2 * (x3 - x1) + y3 * (x1 - x2)) / det;
     Type b = (y1 * (x3*x3 - x2*x2) + y2 * (x1*x1 - x3*x3)+ y3 * ((x2*x2 - x1*x1))) / det;
@@ -54,7 +55,13 @@ Parabola <Type>  get_parabola_equation( Point <Type> p1, Point <Type> p2, Point 
     return {k, b, d};
 }
 
-
+template <class Type>
+void random_polynomial(std::vector <Type> &a1) {
+  a1[0] = ((double(std::rand()) / double(RAND_MAX)) * (20)) - 10;
+  a1[1] = ((double(std::rand()) / double(RAND_MAX)) * (20)) - 10;
+  a1[2] = ((double(std::rand()) / double(RAND_MAX)) * (20)) - 10;
+  a1[3] = ((double(std::rand()) / double(RAND_MAX)) * (20)) - 10;
+}
 template <class TypeIO, class TypeA>
 void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
   I1.resize(0);
@@ -144,154 +151,6 @@ void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &
     }
   }
 
-}
-
-template <class Type>
-Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I3) {
-  Type A3(0);
-  if(a == 0) {
-    for(int i = 0; i <= s; i++) {
-      for(unsigned w = 0; w < I3.size(); w++) {
-        int pMax = s - i;
-        for(int r = 0; r <= pMax; r++) {
-          Type sum1 = pow(pol1[2], pMax - r)/factorial<Type>(pMax - r) ;
-          Type sum = sum1 * (pow(I3[w].second,2 * r + m + 1) - pow(I3[w].first, 2 * r + m + 1))/ (2 * r + m + 1);
-          for(int p = 1; p <= pMax - r; p++) {
-            sum1 *= pol1[1] * (pMax - r - p + 1) / (pol1[2] * p)   ;
-            sum += sum1 * (pow(I3[w].second,2 * r + m+p + 1) - pow(I3[w].first, 2 * r +p+ m + 1))/ (2 * r + m+p + 1) ;
-          }
-          A3 += sum * pow(pol1[0], r) / (factorial<Type>(r) * (n + i + 1) * factorial<Type>(i)) ;
-        }
-      }
-    }
-  }
-
-  else {
-    std::vector <Type> k(3);
-    k[0] = pol1[0] / (a * a);
-    k[1] = pol1[1] / a;
-    k[2] = k[0] * c * c - k[1] * c + pol1[2];
-    k[1] -= 2 * c * k[0];
-
-    for(int i = 0; i <= s; i++) {
-      unsigned qMax = s - i;
-      if(k[1] == 0) {   // if k[1] is small
-        for(unsigned w = 0; w < I3.size(); w++) {
-          Type u1 = a * I3[w].first + c;
-          Type u2 = a * I3[w].second + c;
-
-          // BEGIN pre evalution of power of all
-          std::vector <Type> diff_u_pow(m + 2 * s + 2, 0) ;
-          Type u1pi = u1;
-          Type u2pi = u2;
-          for(unsigned pwr = 1; pwr <= m + 2 * s + 1 ; pwr++, u1pi *= u1, u2pi *= u2) {
-            //               diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
-            diff_u_pow[pwr] = (u2pi - u1pi) / (pwr) ; // TODO TOCHECK
-          }
-          std::vector <Type> pow_c(m + 1, 0) ;
-          pow_c[0] = 1;
-          for(unsigned pwr = 1; pwr <= m ; pwr++) {
-            pow_c[pwr] = (-c) * pow_c[pwr - 1] ;
-          }
-          std::vector <Type> pow_k0(s + 1, 0) ;
-          std::vector <Type> pow_k2(s + 1, 0);
-          pow_k0[0] = 1;
-          pow_k2[0] = 1;
-          for(unsigned pwr = 1; pwr <= s ; pwr++) {
-            pow_k0[pwr] = k[0] * pow_k0[pwr - 1] ;
-            pow_k2[pwr] = k[0] * pow_k2[pwr - 1] ;
-          }
-          // END pre evalution of power of all
-
-          //         k[2] = pol1[2] - pol1[1]*c /(2*a);
-          for(int p = 0; p <= m; p++) {
-            Type sum(0);
-            for(int q = 0; q <= qMax; q++) {
-              int pwr = 2 * q + i + p + 1 ;
-              sum += pow_k2[qMax - q] * pow_k0[q] * diff_u_pow[pwr] / (factorial<Type>(q) * factorial<Type>(qMax - q))  ;
-            }
-            A3 += sum * pow_c[m - p] / (factorial<Type>(p) * factorial<Type>(m - p)) ;
-          }
-        }
-      }
-
-      else { // main integral
-        // BEGIN pre evaluation A[q] and B[q]
-        std::vector <Type> A(s - i + 1, 0);  // size of all this vector changes.
-        std::vector <Type> B(s - i + 1, 0);
-        if(k[1] != 0) {
-          Type kterms = (k[0] * k[2]) / (k[1] * k[1]);
-          for(int q = 0; q <= qMax; q++) {
-            Type term(1);
-            A[q] = term;
-            unsigned q_p1_m2r = q + 1;
-            unsigned qMax_mq_pr = qMax - q;
-
-            for(int r = 1; r <= q / 2; r++) {
-              q_p1_m2r -= 2;
-              qMax_mq_pr += 1;
-              //term *= k[0] * k[2] * (q - 2 * r + 1) * (q - 2 * r + 2) / (r * (s + n + 1 + r - q) * k[1] * k[1]);
-              term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
-              A[q] += term ;
-            }
-            //           B[q] = A[q] * (pow(k[1], q) * pow(k[0], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
-            //           A[q] *= (pow(k[1], q) * pow(k[2], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
-
-            A[q] *= pow(k[1], q) / (factorial<Type>(q) * factorial<Type>(qMax - q));
-            B[q] = A[q] * pow(k[0], qMax - q);
-            A[q] *= pow(k[2], qMax - q);
-
-            //         std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
-            //         std::cout << "A[" << q << "] = " << A[q] << "  B[] =" << B[q] << std::endl;
-          }
-        }
-        // END  pre evaluation
-
-        for(unsigned w = 0; w < I3.size(); w++) {
-          Type u1 = a * I3[w].first + c;
-          Type u2 = a * I3[w].second + c;
-
-          // BEGIN pre evalution of power of U
-          std::vector <Type> diff_u_pow(m + 2 * s + 2, 0) ;
-          Type u1pi = u1;
-          Type u2pi = u2;
-          for(unsigned pwr = 1; pwr <= m + 2 * s + 1 ; pwr++, u1pi *= u1, u2pi *= u2) {
-            //               diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
-            diff_u_pow[pwr] = (u2pi - u1pi) / (pwr) ;
-          }
-          // END
-          // BEGIN pre evalution of power of -c
-          std::vector <Type> pow_c(m + 1, 0) ;
-          pow_c[0] = 1;
-          for(unsigned pwr = 1; pwr <= m ; pwr++) {
-            pow_c[pwr] = (-c) * pow_c[pwr - 1] ;
-          }
-          // END pre evalution of power of -c
-
-          //Type A3i(0);
-          for(unsigned p = 0; p <= m; p++) {
-            Type sum1(0);
-            int pwr = p + i + 1;
-            for(unsigned q = 0; q <= qMax; q++, pwr++) {
-              //             int pwr = p + q + i + 1;
-              sum1 += A[q] * diff_u_pow[pwr];
-            }
-            Type sum2(0);
-            pwr = 2 * s - i + p + 1;
-            for(unsigned q = 0; q < qMax; q++, pwr--) {
-              //int pwr = 2 * s - i + p - q + 1;
-              sum2 += B[q] * diff_u_pow[pwr];
-            }
-            A3 += (sum1 + sum2) * pow_c[m - p] / (factorial<Type>(p) * factorial<Type>(m - p));
-          }
-        }
-      }
-      A3 /= ((n + i + 1) * factorial<Type>(i)) ;
-    }
-    A3 *= factorial<Type>(m) / pow(a, m + 1);
-    //     std::cout<< "final. A3= "<< A3 << std::endl;
-  }
-  return A3;
 }
 
 template <class Type>
@@ -435,6 +294,23 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
       }
       else {
 
+//        {
+// //         Type A2i(0);
+// //         for(unsigned p = 0; p <= m; p++) {
+// //           Type sum1(0);
+// //           for(unsigned q = 0; q <= qMax; q++) {
+// //             int pwr = p + q - n;
+// //             sum1 += A[q] * ((pwr== 0) ? log(u2 / u1) : (pow(u2, pwr) - pow(u1, pwr)) / (pwr));
+// //           }
+// //           Type sum2(0);
+// //           for(unsigned q = 0; q < qMax; q++) {
+// //             int pwr= 2 * s + n + 2 + p - q;
+// //             sum2 += B[q] * (pow(u2,pwr) - pow(u1,pwr)) / (pwr);
+// //           }
+// //           A2i += (sum1 + sum2) * pow(-c, m - p) / (factorial<Type>(p) * factorial<Type>(m - p));
+// //         }
+// //         A2 += A2i * pow(-1, n + 1) * factorial<Type>(n) * factorial<Type>(m) / pow(a, m + 1) ;
+//        }
 
         // BEGIN pre evalution of power of U
         std::vector <Type> diff_u_pow(2 * s + 2 * n + m + 3, 0) ;
@@ -489,88 +365,289 @@ Type easy_integral_A2(const unsigned &m, const unsigned &n, const int &s, const 
   }
 }
 
-int main() {
 
-  unsigned int m = 0;
-  unsigned int n = 0;
-  int s = 0;
-  unsigned int count = 0;
+template <class Type>
+Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const Type &a, const Type &c, const std::vector <Type> &pol1, const std::vector< std::pair<Type, Type> > &I3) {
+  Type A3(0);
+  if(a == 0) {
+    for(int i = 0; i <= s; i++) {
+      for(unsigned w = 0; w < I3.size(); w++) {
+        int pMax = s - i;
+        for(int r = 0; r <= pMax; r++) {
+          Type sum1 = pow(pol1[2], pMax - r)/factorial<Type>(pMax - r) ;
+          Type sum = sum1 * (pow(I3[w].second,2 * r + m + 1) - pow(I3[w].first, 2 * r + m + 1))/ (2 * r + m + 1);
+          for(int p = 1; p <= pMax - r; p++) {
+            sum1 *= pol1[1] * (pMax - r - p + 1) / (pol1[2] * p)   ;
+            sum += sum1 * (pow(I3[w].second,2 * r + m+p + 1) - pow(I3[w].first, 2 * r +p+ m + 1))/ (2 * r + m+p + 1) ;
+          }
+          A3 += sum * pow(pol1[0], r) / (factorial<Type>(r) * (n + i + 1) * factorial<Type>(i)) ;
+        }
+      }
+    }
+  }
 
-  typedef cpp_bin_float_oct Type;
-//     typedef double Type;
+//     if(a == 0) { //preevaluate this but it is expensive!!!!
+//     for(int i = 0; i <= s; i++) {
+//       for(unsigned w = 0; w < I3.size(); w++) {
+//         //BEGIN preevaluating
+// //         std::vector <Type> diff_x_pow(2 * s + 2, 0) ;
+// //         Type x1pi = pow(I3[w].first,m+1);
+// //         Type x2pi = pow(I3[w].second,m+1);
+// //         for(unsigned pwr = m+1; pwr <= 2 * s + m + 1 ; pwr++, x1pi *= I3[w].first, x2pi *= I3[w].second) {
+// //             //               diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
+// //             diff_x_pow[pwr-m] = (x2pi - x1pi) / (pwr) ;
+// //         }
+//         //END
+//         int pMax = s - i;
+//         // #1
+//         for(int r = 0; r <= pMax; r++) {
+//
+//           Type sum1 = pow(pol1[2], pMax - r)/factorial<Type>(pMax - r) ;
+// //           Type sum = sum1 * diff_x_pow[2 * r + 1];
+// //           int r_pm_p1 = 2 * r + m + 1;
+// //           Type sum = sum1 * (pow(I3[w].second,r_pm_p1) - pow(I3[w].first, r_pm_p1))/ (r_pm_p1);
+//           Type sum = sum1 * (pow(I3[w].second,2 * r + m + 1) - pow(I3[w].first, 2 * r + m + 1))/ (2 * r + m + 1);
+//
+//           for(int p = 1; p <= pMax - r; p++) {
+// //             r_pm_p1++;
+//             sum1 *= pol1[1] * (pMax - r - p + 1) / (pol1[2] * p)   ;
+// //             sum += sum1 * diff_x_pow[2 * r + p + 1] ;
+//             sum += sum1 * (pow(I3[w].second,2 * r + m+p + 1) - pow(I3[w].first, 2 * r +p+ m + 1))/ (2 * r + m+p + 1) ;
+// //          sum += sum1 * (pow(I3[w].second,r_pm_p1) - pow(I3[w].first, r_pm_p1))/(r_pm_p1) ;
+// //             sum += pow(pol1[1], p) * pow(pol1[2], pMax - r - p) * diff_x_pow[r_pm_p1] / (factorial<Type>(p) * factorial<Type>(pMax - r - p) ) ;
+//           }
+//           A3 += sum * pow(pol1[0], r) / (factorial<Type>(r) * (n + i + 1) * factorial<Type>(i)) ;
+//         }
+//       }
+//     }
+//   }
+//     if(a == 0) { // TODO optimize
+//     for(int i = 0; i <= s; i++) {
+//       for(unsigned w = 0; w < I3.size(); w++) {
+//         int pMax = s - i;
+//         // #1
+//         for(int r = 0; r <= pMax; r++) {
+//           Type sum = 0;
+//
+//           for(int p = 0; p <= pMax - r; p++) {
+//             Type r_pm_p1 = 2 * r + p + m + 1;
+//             sum += pow(pol1[1], p) * pow(pol1[2], s - i - r - p) * (pow(I3[w].second, r_pm_p1) - pow(I3[w].first, r_pm_p1)) / (factorial<Type>(p) * factorial<Type>(s - i - r - p) * r_pm_p1) ;
+//           }
+//           A3 += sum * pow(pol1[0], r) / (factorial<Type>(r) * (n + i + 1) * factorial<Type>(i)) ;
+//         }
+//       }
+//     }
+//   }
 
-//  std::cout.precision(20);
+  else {
+    std::vector <Type> k(3);
+    k[0] = pol1[0] / (a * a);
+    k[1] = pol1[1] / a;
+    k[2] = k[0] * c * c - k[1] * c + pol1[2];
+    k[1] -= 2 * c * k[0];
 
-  Type c, area ;
+    for(int i = 0; i <= s; i++) {
+      unsigned qMax = s - i;
+      if(k[1] == 0) {   // if k[1] is small
+        for(unsigned w = 0; w < I3.size(); w++) {
+          Type u1 = a * I3[w].first + c;
+          Type u2 = a * I3[w].second + c;
+
+          // BEGIN pre evalution of power of all
+          std::vector <Type> diff_u_pow(m + 2 * s + 2, 0) ;
+          Type u1pi = u1;
+          Type u2pi = u2;
+          for(unsigned pwr = 1; pwr <= m + 2 * s + 1 ; pwr++, u1pi *= u1, u2pi *= u2) {
+            //               diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
+            diff_u_pow[pwr] = (u2pi - u1pi) / (pwr) ; // TODO TOCHECK
+          }
+          std::vector <Type> pow_c(m + 1, 0) ;
+          pow_c[0] = 1;
+          for(unsigned pwr = 1; pwr <= m ; pwr++) {
+            pow_c[pwr] = (-c) * pow_c[pwr - 1] ;
+          }
+          std::vector <Type> pow_k0(s + 1, 0) ;
+          std::vector <Type> pow_k2(s + 1, 0);
+          pow_k0[0] = 1;
+          pow_k2[0] = 1;
+          for(unsigned pwr = 1; pwr <= s ; pwr++) {
+            pow_k0[pwr] = k[0] * pow_k0[pwr - 1] ;
+            pow_k2[pwr] = k[0] * pow_k2[pwr - 1] ;
+          }
+          // END pre evalution of power of all
+
+          //         k[2] = pol1[2] - pol1[1]*c /(2*a);
+          for(int p = 0; p <= m; p++) {
+            Type sum(0);
+            for(int q = 0; q <= qMax; q++) {
+              int pwr = 2 * q + i + p + 1 ;
+              sum += pow_k2[qMax - q] * pow_k0[q] * diff_u_pow[pwr] / (factorial<Type>(q) * factorial<Type>(qMax - q))  ;
+            }
+            A3 += sum * pow_c[m - p] / (factorial<Type>(p) * factorial<Type>(m - p)) ;
+          }
+        }
+      }
+
+      else { // main integral
+        // BEGIN pre evaluation A[q] and B[q]
+        std::vector <Type> A(s - i + 1, 0);  // size of all this vector changes.
+        std::vector <Type> B(s - i + 1, 0);
+        if(k[1] != 0) {
+          Type kterms = (k[0] * k[2]) / (k[1] * k[1]);
+          for(int q = 0; q <= qMax; q++) {
+            Type term(1);
+            A[q] = term;
+            unsigned q_p1_m2r = q + 1;
+            unsigned qMax_mq_pr = qMax - q;
+
+            for(int r = 1; r <= q / 2; r++) {
+              q_p1_m2r -= 2;
+              qMax_mq_pr += 1;
+              //term *= k[0] * k[2] * (q - 2 * r + 1) * (q - 2 * r + 2) / (r * (s + n + 1 + r - q) * k[1] * k[1]);
+              term *= kterms * q_p1_m2r * (q_p1_m2r + 1) / (r * qMax_mq_pr);
+              A[q] += term ;
+            }
+            //           B[q] = A[q] * (pow(k[1], q) * pow(k[0], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+            //           A[q] *= (pow(k[1], q) * pow(k[2], qMax - q)) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+
+            A[q] *= pow(k[1], q) / (factorial<Type>(q) * factorial<Type>(qMax - q));
+            B[q] = A[q] * pow(k[0], qMax - q);
+            A[q] *= pow(k[2], qMax - q);
+
+            //         std::cout<<"A["<<q<<"] = " << A[q] <<"  B[] ="<< B[q] << std::endl;
+            //         std::cout << "A[" << q << "] = " << A[q] << "  B[] =" << B[q] << std::endl;
+          }
+        }
+        // END  pre evaluation
+
+        for(unsigned w = 0; w < I3.size(); w++) {
+          Type u1 = a * I3[w].first + c;
+          Type u2 = a * I3[w].second + c;
+
+          // BEGIN pre evalution of power of U
+          std::vector <Type> diff_u_pow(m + 2 * s + 2, 0) ;
+          Type u1pi = u1;
+          Type u2pi = u2;
+          for(unsigned pwr = 1; pwr <= m + 2 * s + 1 ; pwr++, u1pi *= u1, u2pi *= u2) {
+            //               diff_u_pow[pwr] = (pow(u2, pwr) - pow(u1, pwr)) / (pwr) ;
+            diff_u_pow[pwr] = (u2pi - u1pi) / (pwr) ;
+          }
+          // END
+          // BEGIN pre evalution of power of -c
+          std::vector <Type> pow_c(m + 1, 0) ;
+          pow_c[0] = 1;
+          for(unsigned pwr = 1; pwr <= m ; pwr++) {
+            pow_c[pwr] = (-c) * pow_c[pwr - 1] ;
+          }
+          // END pre evalution of power of -c
+
+          //Type A3i(0);
+          for(unsigned p = 0; p <= m; p++) {
+            Type sum1(0);
+            int pwr = p + i + 1;
+            for(unsigned q = 0; q <= qMax; q++, pwr++) {
+              //             int pwr = p + q + i + 1;
+              sum1 += A[q] * diff_u_pow[pwr];
+            }
+            Type sum2(0);
+            pwr = 2 * s - i + p + 1;
+            for(unsigned q = 0; q < qMax; q++, pwr--) {
+              //int pwr = 2 * s - i + p - q + 1;
+              sum2 += B[q] * diff_u_pow[pwr];
+            }
+            A3 += (sum1 + sum2) * pow_c[m - p] / (factorial<Type>(p) * factorial<Type>(m - p));
+          }
+        }
+      }
+      A3 /= ((n + i + 1) * factorial<Type>(i)) ;
+    }
+    A3 *= factorial<Type>(m) / pow(a, m + 1);
+    //     std::cout<< "final. A3= "<< A3 << std::endl;
+  }
+  return A3;
+}
+
+
+
+template <class Type>
+void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table , const int &partition, const unsigned &m, const unsigned &n, const int &s){
+
+  Type area ;
   Type a(0);
-
   std::vector <Type> pol1(3, 0);
   std::vector <Type> pol2(3, 0);
-  std::vector< std::vector< Type >> parabola_table(0) ;
+  unsigned int count;
   Point <Type> p1, p2, p3 ;
-  cout << " Number | (x1,y1) | (x2,y2) | (x3,y3) |  k  |  b  |  d  |  c  | Area |" <<endl;
-  clock_t t = clock();
+//   cout << " Number | (x1,y1) | (x2,y2) | (x3,y3) |  k  |  b  |  d  |  c  | Area |" <<endl;
+  double del_x = 1./partition;
+//   cout << "del_x " << del_x << endl;
+  for (int table = 0; table <=7; table++){  // BEGIN preevaluation of the table
+//     cout << "Table " << table << endl;
+    parabola_table.resize(parabola_table.size() + 1);
+    parabola_table[table].resize(0);
+    count = 0;
 
-  double partition = 2;
-  double del_x = 1/partition;
-  for (int table = 1; table <=8; table++){
-      cout << "Table " << table << endl;
     for (double i1=0.;i1<=1.;i1+= del_x){
       for (double i2=0.;i2<=1.;i2+=del_x){
         for (double i3=0.;i3<=1.;i3+=del_x){
-            switch (table) {
-                case 1:
+//           cout << " i3 = " << i3 << endl;
+           switch (table) {
+                case 0:
                     p1 = {0, i1};
                     p2 = {i2, 1};
                     break;
-                case 2:
+                case 1:
                     p1 = {0, i1};
                     p2 = {1,i2};
                     break;
-                case 3:
+                case 2:
                     p1 = {0, i1};
                     p2 = {i2, 0};
                     break;
-                case 4:
+                case 3:
                     p1 = {i1,1};
                     p2 = {i2, 1};
                     if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
                     break;
-                case 5:
+                case 4:
                     p1 = {i1,1};
                     p2 = {1, i2};
                     break;
-                case 6:
+                case 5:
                     p1 = {i1,1};
                     p2 = {i2, 0};
                     break;
-                case 7:
+                case 6:
                     p1 = {1, i1};
                     p2 = {i2, 0};
                     break;
-                case 8:
+                case 7:
                     p1 = {i1, 0};
                     p2 = {i2, 0};
                     if(i2 >= i1){p1 = {0, 0};p2 = {0, 0};}
                     break;
-            }
-//           Point p1 = {0, i1};
-//           Point p2 = {i2, 1};
+           }
            p3 = {0.5 * (p1.x + p2.x) , i3 };
-           c=1 ;
 
-          Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;  // only sort out the points parallel to y axis
-          cout << det << endl;
-          if (det !=0){
+           p1 = {static_cast<Type>(p1.x), static_cast<Type>(p1.y)};
+           p2 = {static_cast<Type>(p2.x), static_cast<Type>(p2.y)};
+           p3 = {static_cast<Type>(p3.x), static_cast<Type>(p3.y)};
+           Type c(-1) ;
+           Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;// only sort out the points parallel to y axis
+           if (det !=0){
+            parabola_table[table].resize(parabola_table[table].size() + 1);
+            parabola_table[table][count].resize(2);
+
             for(int normal=0; normal <=1; normal++ ){
                 Type A1 (0), A2 (0), A3 (0);
-                Parabola <Type> parabola = get_parabola_equation(p1, p2, p3);
+                Parabola <Type> parabola = get_parabola_equation(p1, p2, p3, det);
                 if (normal == 1){ // To calculate other side
                     parabola.k *= -1;
                     parabola.b *= -1;
                     parabola.d *= -1;
                     c *= -1;
                 }
+
                 pol1[0] = parabola.k;
                 pol1[1] = parabola.b;
                 pol1[2] = parabola.d + c;
@@ -591,40 +668,325 @@ int main() {
                     A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
                 }
                 area = A1 + A2 + A3;
-                cout << " \n" << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << ", " << parabola.b << ", " << parabola.d << ", " << c << ", " << area<<  endl;
+//                 cout << " \n" << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << ", " << parabola.b << ", " << parabola.d << ", " << c << ", " << area<<  endl;
 
-                parabola_table.resize(parabola_table.size() + 1);
-                parabola_table[count].resize(12);
+//                 parabola_table[table].resize(parabola_table[table].size() + 1);
+//                 parabola_table[table][count].resize(2);
+                parabola_table[table][count][normal].resize(15);
 
-                parabola_table[count][0] = count;
-                parabola_table[count][1] = p1.x;
-                parabola_table[count][2] = p1.y;
-                parabola_table[count][3] = p2.x;
-                parabola_table[count][4] = p2.y;
-                parabola_table[count][5] = p3.x;
-                parabola_table[count][6] = p3.y;
+                parabola_table[table][count][normal][0] = count;
+                parabola_table[table][count][normal][1] = static_cast<Type>(i1);
+                parabola_table[table][count][normal][2] = static_cast<Type>(i2);
+                parabola_table[table][count][normal][3] = static_cast<Type>(i3);
 
-                parabola_table[count][7] = parabola.k;
-                parabola_table[count][8] = parabola.b;
-                parabola_table[count][9] = parabola.d;
-                parabola_table[count][10] = c;
-                parabola_table[count][11] = area;
+                parabola_table[table][count][normal][4] = p1.x;
+                parabola_table[table][count][normal][5] = p1.y;
+                parabola_table[table][count][normal][6] = p2.x;
+                parabola_table[table][count][normal][7] = p2.y;
+                parabola_table[table][count][normal][8] = p3.x;
+                parabola_table[table][count][normal][9] = p3.y;
 
+                parabola_table[table][count][normal][10] = parabola.k;
+                parabola_table[table][count][normal][11] = parabola.b;
+                parabola_table[table][count][normal][12] = parabola.d;
+                parabola_table[table][count][normal][13] = c;
+                parabola_table[table][count][normal][14] = area;
 
 //                 for (int nm=0; nm<=11; nm++){
-//                 cout << parabola_table[count][nm] << " " ;
+//                 cout << parabola_table[normal][count][nm] << " " ;
 //                 }
-                count ++ ;
             }
-
-
+            count ++ ;
           }
-
         }
       }
     }
   }
 
+}
+
+template <class Type>
+void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table ,const std::vector <Type> &given_parabola, vector <Type> &intersection, int &normal, std::vector< Type > &interp_point, std::vector< std::vector< Type >> & interp_table, unsigned int &table_number, const int &partition){
+
+    interp_point.resize(0);
+    intersection.resize(0);
+
+    Type k = given_parabola[0];
+    Type b = given_parabola[1];
+    Type d = given_parabola[2];
+    Type c = given_parabola[3];
+    bool left=0 , top = 0 , right = 0 , bottom = 0;
+     if (normal == 0){ k = k/c; b=b/c; d=d/c; c=-1;}
+    else if (normal == 1){ k = -k/c; b=-b/c; d=-d/c; c=1;}
+
+
+
+      if (d>=0 && d<=1){ //LEFT
+        intersection.resize(intersection.size()+2);
+        intersection[intersection.size()-2] = 0;
+        intersection[intersection.size()-1] = d;
+        left = 1 ;
+        interp_point.resize(interp_point.size()+1);
+        interp_point[interp_point.size()-1] = d;
+      }
+      // LEFT-TOP solve kx^2+bx+d-1 =0  ; Table 0
+      if (k == 0){
+      Type x =  (1-d)/b ;
+        if(x < 1 && x> 0) {
+          intersection.resize(intersection.size()+2);
+          intersection[intersection.size()-2] = x;
+          intersection[intersection.size()-1] = 1;
+          interp_point.resize(interp_point.size()+1);
+          interp_point[interp_point.size()-1] = x;
+          top =1;
+          if (left ==1) table_number = 0 ;
+        }
+      }
+      else {
+        Type delta = b*b - 4*k*(d+c);
+        if(delta >0) {
+          Type sqrtdelta = sqrt(delta);
+          int sign = (k > 0) ? 1 : -1;
+
+          for(unsigned i = 0; i < 2; i++) {
+            Type x = (- b - sign * sqrtdelta) / (2 * k);
+            cout<< "Top x = "<< x<< endl;
+            if(x > 1) break;
+            else if(x > 0) {
+              intersection.resize(intersection.size()+2);
+              intersection[intersection.size()-2] = x;
+              intersection[intersection.size()-1] = 1;
+              interp_point.resize(interp_point.size()+1);
+              interp_point[interp_point.size()-1] = x;
+              if (top ==1){table_number = 3 ;}
+              top = 1;
+              if (left ==1){table_number = 0 ;break;}
+
+            }
+            sign *= -1;
+          }
+        }
+      }
+      Type y_1=k+b+d; //LEFT-RIGHT x=1 ; Table 1
+      if (interp_point.size() < 2 && y_1 >= 0 && y_1 <= 1){ //TODO check sign when normal change
+          intersection.resize(intersection.size()+2);
+          intersection[intersection.size()-2] = 1;
+          intersection[intersection.size()-1] = y_1;
+          interp_point.resize(interp_point.size()+1);
+          interp_point[interp_point.size()-1] = y_1;
+          if (left ==1){table_number = 1 ;}
+          if  (top ==1){table_number = 4 ;}
+          right = 1 ;
+      }
+
+      if (interp_point.size() < 2){ //LEFT-BOTTOM  solve kx^2+bx+d =0 ; Table 2
+        if (k == 0){
+          Type x =  -d/b ;
+          if(x < 1 && x> 0) {
+            intersection.resize(intersection.size()+2);
+            intersection[intersection.size()-2] = x;
+            intersection[intersection.size()-1] = 0;
+            interp_point.resize(interp_point.size()+1);
+            interp_point[interp_point.size()-1] = x;
+            if (left ==1){table_number = 2 ;}
+            if (right ==1){table_number = 6 ;}
+            if (top ==1){table_number = 5 ;}
+          }
+        }
+
+        else {
+          Type delta = b*b - 4*k*d;
+          if(delta >0) {
+            Type sqrtdelta = sqrt(delta);
+            int sign = (k > 0) ? 1 : -1;
+
+            for(unsigned i = 0; i < 2; i++) {
+              Type x = (- b - sign * sqrtdelta) / (2 * k);
+              if(x > 1) break;
+              else if(x > 0) {
+                intersection.resize(intersection.size()+2);
+                intersection[intersection.size()-2] = x;
+                intersection[intersection.size()-1] = 0;
+                interp_point.resize(interp_point.size()+1);
+                interp_point[interp_point.size()-1] = x;
+                if (bottom ==1){table_number = 7 ;}
+                if (left ==1){table_number = 2 ;}
+                if (right ==1){table_number = 6 ;}
+                if (top ==1){table_number = 5 ;}    // TODO check the table
+                bottom = 1;
+              }
+              sign *= -1;
+            }
+          }
+        }
+      }
+
+      if (interp_point.size() == 2){  // finding p3
+            Type mid_point = 0.5*(intersection[0]+intersection[2]);
+            intersection.resize(intersection.size()+2);
+            intersection[intersection.size()-2] = mid_point;
+            intersection[intersection.size()-1] = k*mid_point*mid_point + b*mid_point + d;
+
+
+            interp_point.resize(3);
+            interp_point[2] = k*mid_point*mid_point + b*mid_point + d;
+            if (interp_point[2]<0 && interp_point[2]>1) cout << " parabola at midpoint is outside : check your intersections" << endl;
+
+
+//       cout<< " given parabola 55= " << k << " " << b << " "<< d << " "<< c <<endl;
+      }
+//       else cout<<"some thing is wrong in intersection points : dealing with more or less then two intersection points " << interp_point.size()<< "table " << table_number <<endl;
+
+      cout<< " given parabola : k= " << k << "; b= " << b << "; d= "<< d << "; c = "<< c <<";"<< endl;
+      cout<< " inter section line = " << " LEFT " << left << " Top "<< top << " Right "<< right << " bottom " << bottom <<endl;
+
+      //finding closed points
+      if (interp_point.size() == 3){
+        Type x0,x1,y0,y1,z0,z1;
+        x0 = floor(interp_point[0]* partition) / partition;
+        x1 = ceil(interp_point[0]* partition) / partition;
+        y0 = floor(interp_point[1]* partition) / partition;
+        y1 = ceil(interp_point[1]* partition) / partition;
+        z0 = floor(interp_point[2]* partition) / partition;
+        z1 = ceil(interp_point[2]* partition) / partition;
+//         cout<< " intersection points = " << interp_point[0] << " " << interp_point[1] << " "<< interp_point[2] <<endl;
+//         cout<< x0 << " " << x1 << " "<< y0 << " " << y1 << " "<< z0 << " " << z1 << " "<< endl;
+
+        interp_table[0] = {x0,y0,z0,-1 };
+        interp_table[1] = {x0,y0,z1,-2 };
+        interp_table[2] = {x0,y1,z0,-3 };
+        interp_table[3] = {x0,y1,z1,-4 };
+        interp_table[4] = {x1,y0,z0,-5 };
+        interp_table[5] = {x1,y0,z1,-6 };
+        interp_table[6] = {x1,y1,z0,-7 };
+        interp_table[7] = {x1,y1,z1,-8 };
+
+//               cout<< " parabola_table[table_number].size() = " << parabola_table[table_number].size() << " " <<endl;
+  //       interp_table = {x0,y0,z0,-1,
+  //                       x0,y0,z1,-2,
+  //                       x0,y1,z0,-3,
+  //                       x0,y1,z1,-4,
+  //                       x1,y0,z0,-5,
+  //                       x1,y0,z1,-6,
+  //                       x1,y1,z0,-7,
+  //                       x1,y1,z1,-8 };
+        for(unsigned int i = 0; i <=7 ; i++){
+          for (unsigned int count_x = 0; count_x <= parabola_table[table_number].size(); count_x++ ){
+            if(fabs(parabola_table[table_number][count_x][normal][1] - interp_table[i][0]) < 0.00000000001){
+//                   cout<< "count x =" << count_x << " " << parabola_table[table_number][count_x][normal][1] << " " << interp_table[i][0]  <<endl;
+              for (unsigned int count_y = count_x; count_y <= parabola_table[table_number].size(); count_y++ ){
+                if(fabs(parabola_table[table_number][count_y][normal][2] - interp_table[i][1]) < 0.000000000001){
+//                   cout<< "count y =" << count_y <<endl;
+                  for (unsigned int count_z = count_y; count_z <= parabola_table[table_number].size(); count_z++ ){
+                    if(fabs(parabola_table[table_number][count_z][normal][3] - interp_table[i][2]) < 0.000000000001 ){
+//                       cout<< "count z =" << count_z <<endl;
+                      interp_table[i][3] = parabola_table[table_number][count_z][normal][14] ;
+//                       cout << " area = "<< parabola_table[table_number][count_z][normal][14];
+                      count_y = parabola_table[table_number].size()+1;
+                      count_x = parabola_table[table_number].size()+1;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+  //                 parabola_table[table][count][normal][0]
+
+
+//         cout<< " given parabola = " << k << " " << b << " "<< d << " "<< c <<endl;
+        cout<< " intersection points = " << interp_point[0] << " " << interp_point[1] << " "<< interp_point[2] <<endl;
+        cout << " interpolation table = " << endl;
+        for(unsigned int i = 0; i <=7 ; i++){
+          cout << interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
+        }
+      }
+
+
+  // END inverse function //TODO I have to be carefull with special cases.
+
+  }
+
+
+
+template <class Type>
+Type trilinier_interpolation(std::vector< std::vector< Type >> & interp_table , const std::vector< Type > &interp_point, const int &partition ){
+
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+  Type z = interp_point[2];
+
+  Type x0 = floor(interp_point[0] * partition) / partition;
+  Type x1 = ceil(interp_point[0]  * partition) / partition;
+  Type y0 = floor(interp_point[1] * partition) / partition;
+  Type y1 = ceil(interp_point[1]  * partition) / partition;
+  Type z0 = floor(interp_point[2] * partition) / partition;
+  Type z1 = ceil(interp_point[2]  * partition) / partition;
+
+  Type x_d = (x-x0)/(x1-x0);
+  Type y_d = (y-y0)/(y1-y0);
+  Type z_d = (z-z0)/(z1-z0);
+
+  Type c_00 = interp_table[0][3] * (1-x_d) + interp_table[4][3] * x_d ;
+  Type c_01 = interp_table[1][3] * (1-x_d) + interp_table[5][3] * x_d ;
+  Type c_10 = interp_table[2][3] * (1-x_d) + interp_table[6][3] * x_d ;
+  Type c_11 = interp_table[3][3] * (1-x_d) + interp_table[7][3] * x_d ;
+
+  Type c_0 = c_00 * (1-y_d) + c_10 * y_d ;
+  Type c_1 = c_01 * (1-y_d) + c_11 * y_d ;
+
+  Type c = c_0 * (1-z_d) + c_1 * z_d ;
+
+  return c;
+}
+
+
+
+
+int main() {
+
+  typedef cpp_bin_float_oct Type;      //     typedef double Type;  //  std::cout.precision(20);
+  unsigned int m = 0;
+  unsigned int n = 0;
+  int s = 0;
+  unsigned int partition = 15;
+
+  std::vector< std::vector< std::vector< std::vector< Type >>>> parabola_table(0) ;
+
+  std::srand(10);
+
+  creat_parabola_table<Type>(parabola_table, partition, m,n,s);
+
+  clock_t t = clock();
+
+    std::vector <Type> given_parabola(4);
+    std:: vector <Type> intersection(0);
+    std:: vector <Type> interp_point(0);
+    std:: vector <std:: vector <Type>> interp_table(8, std:: vector <Type> (4));
+    int normal = 0;
+    unsigned int table_number;
+    Type interp_area;
+    for (unsigned i=0;i<20;i++){
+      cout<< " "<<i<<endl;
+      random_polynomial(given_parabola);
+      inverse_parabola<Type>(parabola_table , given_parabola, intersection, normal, interp_point, interp_table, table_number, partition);
+        if ( interp_point.size() == 3) {
+           interp_area = trilinier_interpolation<Type>( interp_table , interp_point, partition) ;
+           cout << " interpolated area = " << interp_area << "\n"<<endl;
+        }
+        else if (interp_point.size() == 0){
+          interp_area = (given_parabola[2] >0)? 0 : 1 ;
+          cout << " NO INTERSECTION : area = " << interp_area << "\n"<<endl;
+        }
+        else cout<<"something is not right about intersection points. Total intersection : " << interp_point.size() <<endl;
+    }
+
+
+  for (int table = 0; table <=7; table++){
+//     cout << "Table " << table << endl;
+    cout<< parabola_table[table].size() << " + " ;
+  }
   t = clock() - t;
   std::cout << "Time taken " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
 
@@ -634,69 +996,3 @@ int main() {
 
 
 
-
-
-
-
-    //           cout << "The equation of the parabola is: " << parabola.a << "x^2 + " << parabola.b << "x + " << parabola.c << endl;
-    //         cout << "The input points are: " << endl;
-    //     cout << " (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")" << endl;
-
-
-// void get_parabola_equation(float x1, float y1, float x2, float y2, float x3, float y3, float& a, float& b, float& c) {
-//     // Calculate the determinant of the 3x3 matrix
-//     float detA = x1 * (y2 - y3) - x2 * (y1 - y3) + x3 * (y1 - y2);
-//     if (detA == 0) {
-//         cout << "Error: Points are collinear!" << endl;
-//         return;
-//     }
-//
-//     // Calculate the coefficients a, b, and c of the parabola equation
-//     float A = y1 * (x2 - x3) - y2 * (x1 - x3) + y3 * (x1 - x2);
-//     float B = pow(x1, 2) * (y2 - y3) - pow(x2, 2) * (y1 - y3) + pow(x3, 2) * (y1 - y2);
-//     float C = pow(x1, 2) * (y3 - y2) + pow(x2, 2) * (y1 - y3) + pow(x3, 2) * (y2 - y1);
-//     a = A / detA;
-//     b = B / detA;
-//     c = C / detA;
-// }
-//
-// int main() {
-//     // Example usage of the function
-//     float x1 = -0.5, y1 = 3;
-//     float x2 = 0, y2 = 4;
-//     float x3 = -1, y3 = 3;
-//     float a, b, c;
-//     get_parabola_equation(x1, y1, x2, y2, x3, y3, a, b, c);
-//     cout << "The equation of the parabola passing through (" << x1 << ", " << y1 << "), (" << x2 << ", " << y2 << "), and (" << x3 << ", " << y3 << ") is:" << endl;
-//     cout << "y = " << a << "x^2 + " << b << "x + " << c << endl;
-//     return 0;
-// }
-//
-
-/*
-int main() {
-clock_t t = clock();
-std::srand(std::time(NULL));
-for(unsigned i=0;i<100000;i++){
-
-
-
-}
-
-
-
-
-   t = clock() - t;
-   std::cout << "\nTime taken for predetermined cases: " <<(double)(t)/ CLOCKS_PER_SEC << std::endl;
-   return 1;
-}*/
-
-
-
-/*
-    Point p1 = {0, 0.5};
-    Point p2 = {0.5, 0.75};
-    Point p3 = {1, 0.5};*/
-//     Point p1 = { -0.5, 3};
-//     Point p2 = {0, 4};
-//     Point p3 = {-1, 3};

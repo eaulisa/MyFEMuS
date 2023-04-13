@@ -1,5 +1,4 @@
-student@mam309554:~/FEMuS/femusbin/applications/cutFEM/test_func$ ./cutFEM_test_func 
- (x1,y1) , (x2,y2) , (x3,y3) , k , b , d , c = 1
+#. (x1,y1) , (x2,y2) , (x3,y3) , k , b , d ,  and (c = 1)
 1. (0, 0) ,(0.1, 1) ,(0.05, 0)  : 200, -10, 0
 2. (0, 0) ,(0.1, 1) ,(0.05, 0.1)  : 160, -6, 0
 3. (0, 0) ,(0.1, 1) ,(0.05, 0.2)  : 120, -2, 0
