@@ -33,15 +33,15 @@
 
 const double betaU = .00001;
 const double alphaU = 0.00001;
-const double gammaU = 0.0001;
+const double gammaU = .01;
 const double betaV = 0.00001;
 const double alphaV = 0.00001;
 const double t0 = 1.;
-const double H0 = 0.5;
+const double H0 = 0.25;
 const double Re = 50.;
 const double E0 = 0.;
 
-const bool oneDimDisp = false;
+const bool oneDimDisp = !false;
 
 bool cleanFile = true;
 
@@ -64,10 +64,10 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   double c = flc4hs(time - t0, t0);
   double dc = dflc4hs(time - t0, t0);
   if(facename == 1 || facename == 3) { //outflow
-    if(/*!strcmp(SolName, "U1c")  || */ /*!strcmp(SolName, "V1c") || */!strcmp(SolName, "V2c")  ||
-        /* !strcmp(SolName, "bU1") || */ /*!strcmp(SolName, "bV1") || */!strcmp(SolName, "bV2") ||
-        /* !strcmp(SolName, "lU1") || */ /*!strcmp(SolName, "lV1") || */!strcmp(SolName, "lV2") || //TO CHECK
-        /* !strcmp(SolName, "U1i") || */ /*!strcmp(SolName, "V1i") || */!strcmp(SolName, "V2i")
+    if(!strcmp(SolName, "U1c")  || !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")  ||
+        !strcmp(SolName, "bU1") || !strcmp(SolName, "bV1") || !strcmp(SolName, "bV2") ||
+        !strcmp(SolName, "lU1") || !strcmp(SolName, "lV1") || !strcmp(SolName, "lV2") || //TO CHECK
+        !strcmp(SolName, "U1i") || !strcmp(SolName, "V1i") || !strcmp(SolName, "V2i")
       ) {
       dirichlet = false;
     }
@@ -81,10 +81,10 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
       dirichlet = false;
     }
   }
-  else if(facename == 2) {
+  else if(facename == 2 || facename == 5) {
     if(!strcmp(SolName, "U1c")) {
-      //value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
-      value = H0 * cos(time) * flc4hs(x[1] - 3, 1) * flc4hs(5 - x[1], 1);
+      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
+      //value = H0 * cos(time) * flc4hs(x[1] - 3, 1) * flc4hs(5 - x[1], 1);
 
     }
     else if(!strcmp(SolName, "V1c") || !strcmp(SolName, "V2c") || // V1c = U1c && V2c = U2c
@@ -299,24 +299,13 @@ int main(int argc, char** args) {
   solDXcIndex[1] = mlSol.GetIndex("DYc");
 
 
-//   for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
-//     double x = (*msh->_topology->_Sol[0])(i);
-//     double y = (*msh->_topology->_Sol[1])(i);
-//     double u = 0 * H0 * x * sin(M_PI / 4. * y);
-//     msh->_topology->_Sol[0]->set(i, x + u);
-//
-//     sol->_Sol[solxHatIndex[0]]->set(i, x + u);
-//     sol->_Sol[solxHatIndex[1]]->set(i, y);
-//
-//     sol->_Sol[solxcIndex[0]]->set(i, x + u);
-//     sol->_Sol[solxcIndex[1]]->set(i, y);
-//
-//   }
-//   msh->_topology->_Sol[0]->close();
-//   sol->_Sol[solxHatIndex[0]]->close();
-//   sol->_Sol[solxHatIndex[1]]->close();
-//   sol->_Sol[solxcIndex[0]]->close();
-//   sol->_Sol[solxcIndex[1]]->close();
+  for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
+    double x = (*msh->_topology->_Sol[0])(i);
+    double y = (*msh->_topology->_Sol[1])(i);
+    double u = H0 * x * sin(M_PI / 4. * y);
+    msh->_topology->_Sol[0]->set(i, x + u);
+  }
+  msh->_topology->_Sol[0]->close();
 
   // print solutions
   std::vector < std::string > variablesToBePrinted = {"U1i", "U2i", "V1i", "V2i", "Pi"};
@@ -717,7 +706,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
 
-      if(facename == 2) {
+      if(facename == 2 || facename == 5) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
 
@@ -764,7 +753,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
           double weightFake;
           msh->_finiteElement[ielType][solType]->Jacobian(xHat, xi, weightFake, phiHat, phixHat);
-          
+
           std::vector < adept::adouble > solbU_xDotTauHatg(dim, 0.);
           std::vector < double > phixDotTauHat(nDofs, 0.);
           for(unsigned i = 0; i < nDofs; i++) {
@@ -774,13 +763,13 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
               }
             }
             for(unsigned j = 0; j < dim; j++) {
-              phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];              
-            }          
+              phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
+            }
           }
 
-          for(unsigned i = 0; i < nDofs; i++) { 
+          for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
-               mReslV[k][i] += -gammaU * phixDotTauHat[i] * solbU_xDotTauHatg[k] * weightHat;
+              mReslV[k][i] += -gammaU * phixDotTauHat[i] * solbU_xDotTauHatg[k] * weightHat;
             }
           }
         }
@@ -1228,8 +1217,8 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
     std::vector<bool> nodeIs1Or3(nDofs, false);
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
-
-      if(facename == 2) {
+      
+      if(facename == 2 || facename == 5) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -1564,7 +1553,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
 
-      if(facename == 2) {
+      if(facename == 2 || facename == 5) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
