@@ -30,10 +30,11 @@
 #define BLACK   "\033[30m"      /* Black */
 #define RED     "\033[31m"      /* Red */
 #define BLUE    "\033[34m"      /* Blue */
+#define RESET   "\033[0m"       /* Reset */
 
 const double betaU = .00001;
 const double alphaU = 0.00001;
-const double gammaU = .01;
+const double gammaU = .001;
 const double betaV = 0.00001;
 const double alphaV = 0.00001;
 const double t0 = 1.;
@@ -403,11 +404,11 @@ int main(int argc, char** args) {
       sol->_Sol[solDXiIndex[k]]->close();
       sol->_Sol[solDXcIndex[k]]->close();
     }
-    std::cout << BLUE << " /***********************************************************/\n" << BLACK;
-    std::cout << BLUE << " /***********************************************************/\n" << BLACK;
-    std::cout << BLUE << " /*********************** REAL OUTPUT ***********************/\n" << BLACK;
-    std::cout << BLUE << " /***********************************************************/\n" << BLACK;
-    std::cout << BLUE << " /***********************************************************/\n" << BLACK;
+    std::cout << BLUE << " /***********************************************************/\n" << RESET;
+    std::cout << BLUE << " /***********************************************************/\n" << RESET;
+    std::cout << BLUE << " /*********************** REAL OUTPUT ***********************/\n" << RESET;
+    std::cout << BLUE << " /***********************************************************/\n" << RESET;
+    std::cout << BLUE << " /***********************************************************/\n" << RESET;
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
     vtkIOc.Write("outputc", "biquadratic", variablesToBePrintedc, t + 1);
     vtkIO1.Write("output1", "biquadratic", variablesToBePrinted1, t + 1);
@@ -585,6 +586,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > > xHat(dim);
   std::vector <double> phixHat;
   std::vector <double> phiHat;
+  std::vector <double> phixOld;
+  std::vector <double> phiOld;
   double weightHat;
 
   std::vector< unsigned > sysDof;
@@ -716,60 +719,81 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
         const unsigned faceType = msh->GetElementFaceType(iel, iface);
         unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
-        std::vector  < std::vector  <  double > > faceXHat(dim);    // A matrix holding the face coordinates rowwise.
+//         std::vector  < std::vector  <  double > > faceXHat(dim);    
+        std::vector  < std::vector  <  double > > faceXOld(dim);
         for(int k = 0; k < dim; k++) {
-          faceXHat[k].resize(faceDofs);
+//           faceXHat[k].resize(faceDofs);
+          faceXOld[k].resize(faceDofs);
         }
         for(unsigned i = 0; i < faceDofs; i++) {
           unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);    // face-to-element local node mapping.
           for(unsigned k = 0; k < dim; k++) {
-            faceXHat[k][i] =  xHat[k][inode];
+            faceXOld[k][i] =  xOld[k][inode];
           }
         }
 
 
         for(unsigned itype = 0; itype < solType + 1; itype++) {
-          ProjectNodalToPolynomialCoefficients(aP[itype], xHat, ielType, itype);
+          ProjectNodalToPolynomialCoefficients(aP[itype], xOld, ielType, itype);
         }
 
         for(unsigned ig = 0; ig  <  msh->_finiteElement[faceType][solType]->GetGaussPointNumber(); ig++) {
 
-          std::vector < double> normalHat;
-          std::vector < double> tauHat(dim);
-          msh->_finiteElement[faceType][solType]->JacobianSur(faceXHat, ig, weightHat, phiHat, phixHat, normalHat);
-          tauHat[0] = -normalHat[1];
-          tauHat[1] = normalHat[0];
+//           std::vector < double> normalHat;
+//           std::vector < double> tauHat(dim);
+//           msh->_finiteElement[faceType][solType]->JacobianSur(faceXHat, ig, weightHat, phiHat, phixHat, normalHat);
+          std::vector < double> normalOld;
+          std::vector < double> tauOld(dim);  
+          msh->_finiteElement[faceType][solType]->JacobianSur(faceXOld, ig, weightOld, phiOld, phixOld, normalOld);
+//           tauHat[0] = -normalHat[1];
+//           tauHat[1] = normalHat[0];
+          tauOld[0] = -normalOld[1];
+          tauOld[1] =  normalOld[0];
 
-          std::vector< double > xgHat(dim, 0.); // physical coordinates of the face Gauss point
+//           std::vector< double > xgHat(dim, 0.); // physical coordinates of the face Gauss point
+//           for(unsigned i = 0; i < faceDofs; i++) {
+//             for(unsigned k = 0; k < dim; k++) {
+//               xgHat[k] += phiHat[i] * faceXHat[k][i];
+//             }
+//           }
+          std::vector< double > xgOld(dim, 0.); // physical coordinates of the face Gauss point
           for(unsigned i = 0; i < faceDofs; i++) {
             for(unsigned k = 0; k < dim; k++) {
-              xgHat[k] += phiHat[i] * faceXHat[k][i];
+              xgOld[k] += phiOld[i] * faceXOld[k][i];
             }
           }
 
           std::vector <double> xi;//local coordinates of the face gauss point with respect to iel
-          GetClosestPointInReferenceElement(faceXHat, xgHat, ielType, xi);
-          bool inverseMapping = GetInverseMapping(solType, ielType, aP, xgHat, xi, 100);
+//           GetClosestPointInReferenceElement(faceXHat, xgHat, ielType, xi);
+//           bool inverseMapping = GetInverseMapping(solType, ielType, aP, xgHat, xi, 100);
+          GetClosestPointInReferenceElement(faceXOld, xgOld, ielType, xi);
+          bool inverseMapping = GetInverseMapping(solType, ielType, aP, xgOld, xi, 100);
 
           double weightFake;
-          msh->_finiteElement[ielType][solType]->Jacobian(xHat, xi, weightFake, phiHat, phixHat);
+//           msh->_finiteElement[ielType][solType]->Jacobian(xHat, xi, weightFake, phiHat, phixHat);
+          msh->_finiteElement[ielType][solType]->Jacobian(xOld, xi, weightFake, phiOld, phixOld);
 
-          std::vector < adept::adouble > solbU_xDotTauHatg(dim, 0.);
-          std::vector < double > phixDotTauHat(nDofs, 0.);
+//           std::vector < adept::adouble > solbU_xDotTauHatg(dim, 0.);
+//           std::vector < double > phixDotTauHat(nDofs, 0.);
+          std::vector < adept::adouble > solbU_xDotTauOldg(dim, 0.);
+          std::vector < double > phixDotTauOld(nDofs, 0.);
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned  k = 0; k < dim; k++) {
               for(unsigned j = 0; j < dim; j++) {
-                solbU_xDotTauHatg[k] += solbU[k][i] * phixHat[i * dim + j] * tauHat[j];
+//                 solbU_xDotTauHatg[k] += solbU[k][i] * phixHat[i * dim + j] * tauHat[j];
+                solbU_xDotTauOldg[k] += solbU[k][i] * phixOld[i * dim + j] * tauOld[j];
               }
             }
             for(unsigned j = 0; j < dim; j++) {
-              phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
+//               phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
+                phixDotTauOld[i] += phixOld[i * dim + j] * tauOld[j];
             }
           }
 
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
-              mReslV[k][i] += -gammaU * phixDotTauHat[i] * solbU_xDotTauHatg[k] * weightHat;
+//               mReslV[k][i] += -gammaU * phixDotTauHat[i] * solbU_xDotTauHatg[k] * weightHat;
+                mReslV[k][i] += -gammaU * phixDotTauOld[i] * solbU_xDotTauOldg[k] * weightOld;
             }
           }
         }
