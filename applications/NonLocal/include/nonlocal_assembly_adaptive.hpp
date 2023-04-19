@@ -293,7 +293,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   //BEGIN setup for adaptive integration
 
   //unsigned lmax1 = 3; // consistency form 3 -> 7
-  unsigned lmax1 = 3; // cubic or quartic
+  unsigned lmax1 = 1; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
 
@@ -302,10 +302,10 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 //   double dMax = 0.1;
 //   double eps = 0.125 * dMax *  pow(0.75, lmax1-3);
 
-  //cubic
-  //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
-  //double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
-  //double eps = 0.125 * dMax;
+// //   cubic
+  double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
+//   double dMax = 0.1 * pow(2./3., level + 1); //marta4Fine
+  double eps = 0.125 * dMax;
 
   //quartic
   //double dMax = 0.1 * pow(2./3., level - 1); //marta4, tri unstructured
@@ -318,9 +318,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
 
 
-  //consistency 3D
-  double dMax = 0.1;
-  double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
+//   //consistency 3D
+//   double dMax = 0.1;
+//   double eps = 0.125 * dMax *  pow(0.75, lmax1 - 3);
 
 
   //convergence 3D
@@ -525,8 +525,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDof1; i++) {
 
         for(unsigned k = 0; k < dim; k++) {
-          res1[i] -= -2 * phi1[i] * weight1; // consistency
-//           res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
+//           res1[i] -= -2 * phi1[i] * weight1; // consistency
+          res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
 //           res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
         }
       }
@@ -1526,8 +1526,8 @@ void AssembleLocalSys(MultiLevelProblem& ml_prob) {
         double srcTerm = 0.;
 
         for(unsigned k = 0; k < dim; k++) {
-          srcTerm +=  -2. ; // so f = - 2 //consistency
-//           srcTerm +=  -6. * x_gss[k] ; // cubic
+//           srcTerm +=  -2. ; // so f = - 2 //consistency
+          srcTerm +=  -6. * x_gss[k] ; // cubic
 //           srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
         }
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
