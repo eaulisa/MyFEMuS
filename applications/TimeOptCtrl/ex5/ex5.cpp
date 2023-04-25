@@ -892,6 +892,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       }
 
       double iRe = 1. / Re;
+      double E = (ielGroup == 6) ? 0.1 : 1;
 
       double yg = xg[1] / 4.;
 
@@ -903,7 +904,6 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       }
 
       std::vector < adept::adouble > lvNSVb(dim, 0.); // this is the Navier Stokes Equation mulitplied by the lagrange multiplier lv used for the variation of the jacobian
-
 
       for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
         for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
@@ -918,9 +918,6 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         divVlp += solbVxg[k][k];
       }
       divVlp *= solbPg;
-
-      
-      double E = (ielGroup == 5)? 1 : 0.1;
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
@@ -943,7 +940,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           }
           NSVb[k] += (1 - 0.1 * (iext == 0)) * (solVim1g[k] - solVim1Oldg[k]) / dt * phi[i] - solbPg * phix[i * dim + k];
           ALEl[k] += alphaU * solbUg[k] * phi[i];
-          NSVl[k] += -sollPg * phix[i * dim + k]  + alphaV * solbVg[k] * phi[i] + (ielGroup == 6) *  (solbVg[k] - solVcg[k]) * phi[i];
+          NSVl[k] += -sollPg * phix[i * dim + k]  + alphaV * solbVg[k] * phi[i] + (ielGroup == 7) * (solbVg[k] - solVcg[k]) * phi[i];
         }
 
         for(unsigned  k = 0; k < dim; k++) {
@@ -1198,7 +1195,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    short unsigned ielGroup = msh->GetElementGroup(iel);  
+    short unsigned ielGroup = msh->GetElementGroup(iel);
     short unsigned ielType = msh->GetElementType(iel);
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
@@ -1328,7 +1325,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
         solPg += phiP[i] * solP[i];
       }
       double iRe = 1. / Re;
-      double E = (ielGroup == 5)? 1 : 0.1;
+      double E = (ielGroup == 6) ? 0.1 : 1;
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
@@ -1539,7 +1536,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    short unsigned ielGroup = msh->GetElementGroup(iel);  
+    short unsigned ielGroup = msh->GetElementGroup(iel);
     short unsigned ielType = msh->GetElementType(iel);
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
@@ -1664,10 +1661,9 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
       for(unsigned i = 0; i < nDofsP; i++) {
         solPg += phiP[i] * solP[i];
       }
-      
-      double E = (ielGroup == 5)? 1 : 0.1;
-      double iRe = 1. / Re;
 
+      double iRe = 1. / Re;
+      double E = (ielGroup == 6) ? 0.1 : 1;
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
         std::vector < adept::adouble > ALE(dim, 0.);
