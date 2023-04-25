@@ -42,6 +42,8 @@ const double H0 = 0.25;
 const double Re = 50.;
 const double E0 = 0.;
 
+const bool tr = true;
+
 const bool oneDimDisp = false;
 
 bool cleanFile = true;
@@ -931,17 +933,17 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALEb[k] += E * ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k] - 1 * (j == k));
-            ALEl[k] += ((j == 0) || !oneDimDisp) * (E * phixHat[i * dim + j] * dt * (sollUxg[k][j] + 0 * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + 0 * solbUxg[j][k]));
+            ALEb[k] += E * ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + tr * x_xHatg[j][k] - (1 + tr) * (j == k));
+            ALEl[k] += ((j == 0) || !oneDimDisp) * (E * phixHat[i * dim + j] * dt * (sollUxg[k][j] + tr * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + tr * solbUxg[j][k]));
 
-            NSVb[k]   +=  iRe * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
-            NSVl[k]   +=  iRe * phix[i * dim + j] * (sollVxg[k][j] + 0 * sollVxg[j][k]) + betaV * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
+            NSVb[k]   +=  iRe * phix[i * dim + j] * (solbVxg[k][j] + tr * solbVxg[j][k]);
+            NSVl[k]   +=  iRe * phix[i * dim + j] * (sollVxg[k][j] + tr * sollVxg[j][k]) + betaV * phix[i * dim + j] * (solbVxg[k][j] + tr * solbVxg[j][k]);
             NSVb[k]   +=  phi[i] * (solViOldg[j] - solUiOldg[j]) * solbVxg[k][j];
             NSVl[k]   +=  sollVg[k] * (solViOldg[j] - solUiOldg[j]) * phix[i * dim + j];
           }
           NSVb[k] += (1 - 0.1 * (iext == 0)) * (solVim1g[k] - solVim1Oldg[k]) / dt * phi[i] - solbPg * phix[i * dim + k];
           ALEl[k] += alphaU * solbUg[k] * phi[i];
-          NSVl[k] += -sollPg * phix[i * dim + k]  + alphaV * solbVg[k] * phi[i] + /*(ielGroup == 6)* */ (solbVg[k] - solVcg[k]) * phi[i];
+          NSVl[k] += -sollPg * phix[i * dim + k]  + alphaV * solbVg[k] * phi[i] + (ielGroup == 6) *  (solbVg[k] - solVcg[k]) * phi[i];
         }
 
         for(unsigned  k = 0; k < dim; k++) {
@@ -963,8 +965,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
             }
             mReslV[k][i] += - NSVl[k] * weight;
 
-            //if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
-            //else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
+//             if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
+//             else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
           }
           else {
             if(k == 0 || !oneDimDisp) {
@@ -1336,9 +1338,9 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
+            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + tr * x_xHatg[j][k]  - (1 + tr) * (j == k));
 
-            NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + 0 * solVxg[j][k]);
+            NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + tr * solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
           }
           NSV[k] += (solVg[k] - solVOldg[k]) / dt * phi[i] - solPg * phix[i * dim + k];
@@ -1674,9 +1676,9 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
+            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + tr * x_xHatg[j][k]  - (1 + tr) * (j == k));
 
-            NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + 0 * solVxg[j][k]);
+            NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + tr * solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
           }
           NSV[k] += (solVg[k] - solVOldg[k]) / dt * phi[i] - solPg * phix[i * dim + k];
