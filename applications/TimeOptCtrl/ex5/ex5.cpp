@@ -42,7 +42,7 @@ const double H0 = 0.25;
 const double Re = 50.;
 const double E0 = 0.;
 
-const bool oneDimDisp = !false;
+const bool oneDimDisp = false;
 
 bool cleanFile = true;
 
@@ -64,47 +64,47 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
   double c = flc4hs(time - t0, t0);
   double dc = dflc4hs(time - t0, t0);
-  if(facename == 1 || facename == 3) { //outflow
-    if(/*!strcmp(SolName, "U1c")  ||*/ !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")  ||
-                                       /* !strcmp(SolName, "bU1") ||*/ !strcmp(SolName, "bV1") || !strcmp(SolName, "bV2") ||
-                                       /* !strcmp(SolName, "lU1") ||*/ !strcmp(SolName, "lV1") || !strcmp(SolName, "lV2") || //TO CHECK
-                                       /* !strcmp(SolName, "U1i") ||*/ !strcmp(SolName, "V1i") || !strcmp(SolName, "V2i")
-      ) {
-      dirichlet = false;
-    }
-    else if(!strcmp(SolName, "U1c")  ||
-            !strcmp(SolName, "bU1")  ||
-            !strcmp(SolName, "U1i")
-           ) {
-      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time)) * x[0];
-    }
-  }
-  else if(facename == 5) {
-    if(!strcmp(SolName, "U1c")  ||
-        !strcmp(SolName, "bU1")  ||
-        !strcmp(SolName, "U1i") ||
-        !strcmp(SolName, "V1c")  ||
-        !strcmp(SolName, "bV1")  ||
-        !strcmp(SolName, "V1i")
-      ) {
-      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
-    }
-  }
 
+  double vm = 0.1;
 
-  else if(facename == 4) { //slip condition on the axis
-    if(!strcmp(SolName, "U2c")  || !strcmp(SolName, "V2c")  ||
-        !strcmp(SolName, "bU2")  || !strcmp(SolName, "bV2") ||
-        !strcmp(SolName, "lU2")  || !strcmp(SolName, "lV2") || //TO CHECK
-        !strcmp(SolName, "U2i")  || !strcmp(SolName, "V2i")
-      ) {
+  if(facename == 1) {
+    if(!strcmp(SolName, "V1c")  ||  !strcmp(SolName, "bV1")  || !strcmp(SolName, "V1i")) {
+      value = vm * 4. * (0.5 - x[1]) * (x[1] + 0.5) * c;
+    }
+    else if(!strcmp(SolName, "U2c")  ||  !strcmp(SolName, "bU2") || !strcmp(SolName, "lU2") || !strcmp(SolName, "U2i")) {
       dirichlet = false;
     }
   }
-  else if(facename == 2 /*|| facename == 5*/) {
+  else if(facename == 2) {
+    if(!strcmp(SolName, "U1c")  ||  !strcmp(SolName, "bU1") || !strcmp(SolName, "lU1") || !strcmp(SolName, "U1i")) {
+      dirichlet = false;
+    }
+  }
+  else if(facename == 3) {
+    if(!strcmp(SolName, "V1c")  ||  !strcmp(SolName, "bV1")  || !strcmp(SolName, "lV1") || !strcmp(SolName, "V1i") ||
+        !strcmp(SolName, "U2c")  ||  !strcmp(SolName, "bU2") || !strcmp(SolName, "lU2") || !strcmp(SolName, "U2i")) {
+      dirichlet = false;
+    }
+  }
+  else if(facename == 4) {
+
     if(!strcmp(SolName, "U1c")) {
-      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
-      //value = H0 * cos(time) * flc4hs(x[1] - 3, 1) * flc4hs(5 - x[1], 1);
+
+      //double xc = 0 + 0.1 * sin(time) * c;
+      //double a = 0.25 + 0.1 * sin(2 * time) * c;
+      double dxc = 0.5 * dc + 0.1 * (cos(time) * c + sin(time) * dc);
+      double da = 0.1 * (2 * cos(2 * time) * c + sin(2 * time) * dc);
+      double theta = atan2(x[1], x[0]);
+      value = dxc + da * cos(theta);
+
+    }
+    else if(!strcmp(SolName, "U2c")) {
+
+      //double yc = 0;
+      //double b = 0.25 - 0.1 * sin(2 * time) * c;
+      double db = -0.1 * (2 * cos(2 * time) * c + sin(2 * time) * dc);
+      double theta = atan2(x[1], x[0]);
+      value = db * sin(theta);
 
     }
     else if(!strcmp(SolName, "V1c") || !strcmp(SolName, "V2c") || // V1c = U1c && V2c = U2c
@@ -117,23 +117,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
     }
   }
 
-
   if(!strcmp(SolName, "Pc")  || !strcmp(SolName, "bP") || !strcmp(SolName, "lP") || !strcmp(SolName, "Pi")) {
     dirichlet = false;
   }
-
-
-
-//   if(!strcmp(SolName, "bV2") || !strcmp(SolName, "V2i")) {
-//     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) dirichlet = false;
-//   }
-//   if(!strcmp(SolName, "V2c")) {
-//     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = flc4hs(time - t0, t0) - 2 * flc4hs(time - 6 * t0, t0) + 2 * flc4hs(time - 11 * t0, t0) - 2 * flc4hs(time - 16 * t0, t0) + 2 * flc4hs(time - 21 * t0, t0);
-//   }
-//   else if(!strcmp(SolName, "bP") || !strcmp(SolName, "lP") || !strcmp(SolName, "Pc")) {
-//     dirichlet = false;
-//     value = 0.;
-//   }
 
   return dirichlet;
 }
@@ -158,7 +144,7 @@ int main(int argc, char** args) {
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -323,13 +309,13 @@ int main(int argc, char** args) {
   solDXcIndex[1] = mlSol.GetIndex("DYc");
 
 
-  for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
-    double x = (*msh->_topology->_Sol[0])(i);
-    double y = (*msh->_topology->_Sol[1])(i);
-    double u = H0 * x * sin(M_PI / 4. * y);
-    msh->_topology->_Sol[0]->set(i, x + u);
-  }
-  msh->_topology->_Sol[0]->close();
+//   for(unsigned i = msh->_dofOffset[2][iproc]; i < msh->_dofOffset[2][iproc + 1]; i++) {
+//     double x = (*msh->_topology->_Sol[0])(i);
+//     double y = (*msh->_topology->_Sol[1])(i);
+//     double u = H0 * x * sin(M_PI / 4. * y);
+//     msh->_topology->_Sol[0]->set(i, x + u);
+//   }
+//   msh->_topology->_Sol[0]->close();
 
   // print solutions
   std::vector < std::string > variablesToBePrinted = {"U1i", "U2i", "V1i", "V2i", "Pi"};
@@ -732,7 +718,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
 
-      if(facename == 2 || facename == 5) {
+      if(facename == 4) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
 
@@ -821,7 +807,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           }
         }
       }
-      if(facename == 1 || facename == 3) {
+      if(false) {
         elementIs1or3 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -931,6 +917,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       }
       divVlp *= solbPg;
 
+      
+      double E = (ielGroup == 5)? 1 : 0.1;
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
@@ -943,8 +931,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALEb[k] += ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k] - 1 * (j == k));
-            ALEl[k] += ((j == 0) || !oneDimDisp) * (phixHat[i * dim + j] * dt * (sollUxg[k][j] + 0 * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + 0 * solbUxg[j][k]));
+            ALEb[k] += E * ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k] - 1 * (j == k));
+            ALEl[k] += ((j == 0) || !oneDimDisp) * (E * phixHat[i * dim + j] * dt * (sollUxg[k][j] + 0 * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + 0 * solbUxg[j][k]));
 
             NSVb[k]   +=  iRe * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
             NSVl[k]   +=  iRe * phix[i * dim + j] * (sollVxg[k][j] + 0 * sollVxg[j][k]) + betaV * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
@@ -1208,6 +1196,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+    short unsigned ielGroup = msh->GetElementGroup(iel);  
     short unsigned ielType = msh->GetElementType(iel);
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
@@ -1265,7 +1254,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
 
-      if(facename == 2 || facename == 5) {
+      if(facename == 4) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -1273,7 +1262,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
           nodeIsControlBoundary[ msh->GetLocalFaceVertexIndex(iel, iface, i)] = true;
         }
       }
-      if(facename == 1 || facename == 3) {
+      if(false) {
         elementIs1or3 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -1337,6 +1326,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
         solPg += phiP[i] * solP[i];
       }
       double iRe = 1. / Re;
+      double E = (ielGroup == 5)? 1 : 0.1;
 
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
@@ -1346,7 +1336,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALE[k] += ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
+            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
 
             NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + 0 * solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
@@ -1547,6 +1537,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+    short unsigned ielGroup = msh->GetElementGroup(iel);  
     short unsigned ielType = msh->GetElementType(iel);
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
@@ -1600,7 +1591,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
 
-      if(facename == 2 || facename == 5) {
+      if(facename == 4) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -1608,7 +1599,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
           nodeIsControlBoundary[ msh->GetLocalFaceVertexIndex(iel, iface, i)] = true;
         }
       }
-      if(facename == 1 || facename == 3) {
+      if(false) {
         elementIs1or3 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, iface);
@@ -1671,6 +1662,8 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
       for(unsigned i = 0; i < nDofsP; i++) {
         solPg += phiP[i] * solP[i];
       }
+      
+      double E = (ielGroup == 5)? 1 : 0.1;
       double iRe = 1. / Re;
 
       // *** phiV_i loop ***
@@ -1681,7 +1674,7 @@ void AssembleManifactureSolution(MultiLevelProblem & ml_prob) {
         for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
-            ALE[k] += ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
+            ALE[k] += ((j == 0) || !oneDimDisp) * E * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k]  - 1 * (j == k));
 
             NSV[k] += iRe * phix[i * dim + j] * (solVxg[k][j] + 0 * solVxg[j][k]);
             NSV[k] +=  phi[i] * (solVOldg[j] - solUOldg[j]) * solVxg[k][j];
