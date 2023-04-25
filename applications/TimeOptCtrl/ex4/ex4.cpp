@@ -65,14 +65,33 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   double c = flc4hs(time - t0, t0);
   double dc = dflc4hs(time - t0, t0);
   if(facename == 1 || facename == 3) { //outflow
-    if(!strcmp(SolName, "U1c")  || !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")  ||
-        !strcmp(SolName, "bU1") || !strcmp(SolName, "bV1") || !strcmp(SolName, "bV2") ||
-        !strcmp(SolName, "lU1") || !strcmp(SolName, "lV1") || !strcmp(SolName, "lV2") || //TO CHECK
-        !strcmp(SolName, "U1i") || !strcmp(SolName, "V1i") || !strcmp(SolName, "V2i")
+    if(/*!strcmp(SolName, "U1c")  ||*/ !strcmp(SolName, "V1c") || !strcmp(SolName, "V2c")  ||
+                                       /* !strcmp(SolName, "bU1") ||*/ !strcmp(SolName, "bV1") || !strcmp(SolName, "bV2") ||
+                                       /* !strcmp(SolName, "lU1") ||*/ !strcmp(SolName, "lV1") || !strcmp(SolName, "lV2") || //TO CHECK
+                                       /* !strcmp(SolName, "U1i") ||*/ !strcmp(SolName, "V1i") || !strcmp(SolName, "V2i")
       ) {
       dirichlet = false;
     }
+    else if(!strcmp(SolName, "U1c")  ||
+            !strcmp(SolName, "bU1")  ||
+            !strcmp(SolName, "U1i")
+           ) {
+      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time)) * x[0];
+    }
   }
+  else if(facename == 5) {
+    if(!strcmp(SolName, "U1c")  ||
+        !strcmp(SolName, "bU1")  ||
+        !strcmp(SolName, "U1i") ||
+        !strcmp(SolName, "V1c")  ||
+        !strcmp(SolName, "bV1")  ||
+        !strcmp(SolName, "V1i")
+      ) {
+      value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
+    }
+  }
+
+
   else if(facename == 4) { //slip condition on the axis
     if(!strcmp(SolName, "U2c")  || !strcmp(SolName, "V2c")  ||
         !strcmp(SolName, "bU2")  || !strcmp(SolName, "bV2") ||
@@ -82,7 +101,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
       dirichlet = false;
     }
   }
-  else if(facename == 2 || facename == 5) {
+  else if(facename == 2 /*|| facename == 5*/) {
     if(!strcmp(SolName, "U1c")) {
       value = H0 * (-dc * time - c) * M_PI / 4. * cos(M_PI / 4. * (x[1] - c * time));
       //value = H0 * cos(time) * flc4hs(x[1] - 3, 1) * flc4hs(5 - x[1], 1);
@@ -219,7 +238,11 @@ int main(int argc, char** args) {
 
   mlSol.GenerateBdc("All");
   mlSol.GenerateBdc("U1c", "Time_dependent");
-  //mlSol.GenerateBdc("V2c", "Time_dependent");
+  mlSol.GenerateBdc("bU1", "Time_dependent");
+  mlSol.GenerateBdc("U1i", "Time_dependent");
+  mlSol.GenerateBdc("V1c", "Time_dependent");
+  mlSol.GenerateBdc("bV1", "Time_dependent");
+  mlSol.GenerateBdc("V1i", "Time_dependent");
 
   // define the multilevel problem attach the mlSol object to it
   MultiLevelProblem mlProb(&mlSol);
@@ -719,7 +742,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
         const unsigned faceType = msh->GetElementFaceType(iel, iface);
         unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
-//         std::vector  < std::vector  <  double > > faceXHat(dim);    
+//         std::vector  < std::vector  <  double > > faceXHat(dim);
         std::vector  < std::vector  <  double > > faceXOld(dim);
         for(int k = 0; k < dim; k++) {
 //           faceXHat[k].resize(faceDofs);
@@ -743,7 +766,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 //           std::vector < double> tauHat(dim);
 //           msh->_finiteElement[faceType][solType]->JacobianSur(faceXHat, ig, weightHat, phiHat, phixHat, normalHat);
           std::vector < double> normalOld;
-          std::vector < double> tauOld(dim);  
+          std::vector < double> tauOld(dim);
           msh->_finiteElement[faceType][solType]->JacobianSur(faceXOld, ig, weightOld, phiOld, phixOld, normalOld);
 //           tauHat[0] = -normalHat[1];
 //           tauHat[1] = normalHat[0];
@@ -786,14 +809,14 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
             }
             for(unsigned j = 0; j < dim; j++) {
 //               phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
-                phixDotTauOld[i] += phixOld[i * dim + j] * tauOld[j];
+              phixDotTauOld[i] += phixOld[i * dim + j] * tauOld[j];
             }
           }
 
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
 //               mReslV[k][i] += -gammaU * phixDotTauHat[i] * solbU_xDotTauHatg[k] * weightHat;
-                mReslV[k][i] += -gammaU * phixDotTauOld[i] * solbU_xDotTauOldg[k] * weightOld;
+              mReslV[k][i] += -gammaU * phixDotTauOld[i] * solbU_xDotTauOldg[k] * weightOld;
             }
           }
         }
@@ -1097,15 +1120,15 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
   solbVIndex[0] = mlSol->GetIndex("bV1");
   solbVIndex[1] = mlSol->GetIndex("bV2");
 
+  /*
+    //solution variable
+    std::vector < unsigned > solbUIndex(dim);
+    solbUIndex[0] = mlSol->GetIndex("U1c");
+    solbUIndex[1] = mlSol->GetIndex("U2c");
 
-//   //solution variable
-//   std::vector < unsigned > solbUIndex(dim);
-//   solbUIndex[0] = mlSol->GetIndex("U1c");
-//   solbUIndex[1] = mlSol->GetIndex("U2c");
-//
-//   std::vector < unsigned > solbVIndex(dim);
-//   solbVIndex[0] = mlSol->GetIndex("V1c");
-//   solbVIndex[1] = mlSol->GetIndex("V2c");
+    std::vector < unsigned > solbVIndex(dim);
+    solbVIndex[0] = mlSol->GetIndex("V1c");
+    solbVIndex[1] = mlSol->GetIndex("V2c");*/
 
 
 
@@ -1241,7 +1264,7 @@ void AssembleSystemZi(MultiLevelProblem & ml_prob) {
     std::vector<bool> nodeIs1Or3(nDofs, false);
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
-      
+
       if(facename == 2 || facename == 5) {
         elementIs2 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
@@ -1950,6 +1973,7 @@ double dflc4hs(double const & x, double const & eps) {
     return 0.;
   }
 }
+
 
 
 
