@@ -944,7 +944,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
             ALEb[k] += ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + 0 * x_xHatg[j][k] - 1 * (j == k));
-            ALEl[k] += ((j == 0) || !oneDimDisp) * (phixHat[i * dim + j] * dt * (sollUxg[k][j] + 0 * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + 0 * solbUxg[j][k]));
+            ALEl[k] += ((j == 0) || !oneDimDisp) * (phixHat[i * dim + j] * dt * (sollU_xHatg[k][j] + 0 * sollU_xHatg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + 0 * solbUxg[j][k]));
 
             NSVb[k]   +=  iRe * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
             NSVl[k]   +=  iRe * phix[i * dim + j] * (sollVxg[k][j] + 0 * sollVxg[j][k]) + betaV * phix[i * dim + j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);

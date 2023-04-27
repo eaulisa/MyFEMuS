@@ -32,15 +32,14 @@
 #define BLUE    "\033[34m"      /* Blue */
 #define RESET   "\033[0m"       /* Reset */
 
-const double betaU = .00001;
-const double alphaU = 0.00001;
+const double betaU = .00000;
+const double alphaU = 0.00000;
 const double gammaU = .001;
-const double betaV = 0.00001;
-const double alphaV = 0.00001;
+const double betaV = 0.00000;
+const double alphaV = 0.00000;
 const double t0 = 1.;
 const double H0 = 0.25;
 const double Re = 50.;
-const double E0 = 0.;
 
 const bool tr = true;
 
@@ -48,7 +47,7 @@ const bool oneDimDisp = false;
 
 bool cleanFile = true;
 
-const unsigned numberOfIterations = 4;
+const unsigned numberOfIterations = 6;
 unsigned iext;
 
 using namespace femus;
@@ -141,7 +140,7 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/channel.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("./input/channel2.neu", "seventh", scalingFactor);
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
@@ -396,7 +395,7 @@ int main(int argc, char** args) {
       *(sol->_Sol[mlProb._ml_sol->GetIndex(pName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("Pi")]);
 
 
-      //GetError(mlProb);
+      GetError(mlProb);
 
     }
 
@@ -739,13 +738,13 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         for(unsigned i = 0; i < faceDofs; i++) {
           unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);    // face-to-element local node mapping.
           for(unsigned k = 0; k < dim; k++) {
-            faceXOld[k][i] =  xOld[k][inode];
+            faceXOld[k][i] =  /*xOld*/xHat[k][inode];
           }
         }
 
 
         for(unsigned itype = 0; itype < solType + 1; itype++) {
-          ProjectNodalToPolynomialCoefficients(aP[itype], xOld, ielType, itype);
+          ProjectNodalToPolynomialCoefficients(aP[itype], /*xOld*/xHat, ielType, itype);
         }
 
         for(unsigned ig = 0; ig  <  msh->_finiteElement[faceType][solType]->GetGaussPointNumber(); ig++) {
@@ -775,14 +774,14 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           }
 
           std::vector <double> xi;//local coordinates of the face gauss point with respect to iel
-//           GetClosestPointInReferenceElement(faceXHat, xgHat, ielType, xi);
+//           GetClosestPointInReferenceElement(xHat, xgHat, ielType, xi);
 //           bool inverseMapping = GetInverseMapping(solType, ielType, aP, xgHat, xi, 100);
-          GetClosestPointInReferenceElement(faceXOld, xgOld, ielType, xi);
+          GetClosestPointInReferenceElement(/*xOld*/xHat, xgOld, ielType, xi);
           bool inverseMapping = GetInverseMapping(solType, ielType, aP, xgOld, xi, 100);
 
           double weightFake;
 //           msh->_finiteElement[ielType][solType]->Jacobian(xHat, xi, weightFake, phiHat, phixHat);
-          msh->_finiteElement[ielType][solType]->Jacobian(xOld, xi, weightFake, phiOld, phixOld);
+          msh->_finiteElement[ielType][solType]->Jacobian(/*xOld*/xHat, xi, weightFake, phiOld, phixOld);
 
 //           std::vector < adept::adouble > solbU_xDotTauHatg(dim, 0.);
 //           std::vector < double > phixDotTauHat(nDofs, 0.);
@@ -931,7 +930,9 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
 
             ALEb[k] += E * ((j == 0) || !oneDimDisp) * phixHat[i * dim + j] * (x_xHatg[k][j] + tr * x_xHatg[j][k] - (1 + tr) * (j == k));
-            ALEl[k] += ((j == 0) || !oneDimDisp) * (E * phixHat[i * dim + j] * dt * (sollUxg[k][j] + tr * sollUxg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + tr * solbUxg[j][k]));
+            ALEl[k] += ((j == 0) || !oneDimDisp) * (E * phixHat[i * dim + j] * dt * (sollU_xHatg[k][j] + tr * sollU_xHatg[j][k]) + betaU * phixHat[i * dim + j] * (solbUxg[k][j] + tr * solbUxg[j][k]));
+            
+            
 
             NSVb[k]   +=  iRe * phix[i * dim + j] * (solbVxg[k][j] + tr * solbVxg[j][k]);
             NSVl[k]   +=  iRe * phix[i * dim + j] * (sollVxg[k][j] + tr * sollVxg[j][k]) + betaV * phix[i * dim + j] * (solbVxg[k][j] + tr * solbVxg[j][k]);
@@ -1777,12 +1778,18 @@ void GetError(MultiLevelProblem & ml_prob) {
   sprintf(uName, "V1%d", iext);
   sprintf(vName, "V2%d", iext);
 
+  char um1Name[10];
+  char vm1Name[10];
+  sprintf(um1Name, "V1%d", (iext > 0)? iext - 1:iext);
+  sprintf(vm1Name, "V2%d", (iext > 0)? iext - 1:iext);;
+  
+  
   //char sName[10];
   //sprintf(sName, "top%d", iext);
 
   //  extract pointers to the several objects that we are going to use
   //TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("systemZi");   // pointer to the linear implicit system named "Poisson"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("systemZi");    // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -1807,11 +1814,17 @@ void GetError(MultiLevelProblem & ml_prob) {
   std::vector<unsigned> VIndex(dim);
   VIndex[0] = mlSol->GetIndex(uName);
   VIndex[1] = mlSol->GetIndex(vName);
+  
+  std::vector<unsigned> Vm1Index(dim);
+  Vm1Index[0] = mlSol->GetIndex(um1Name);
+  Vm1Index[1] = mlSol->GetIndex(vm1Name);
+  
 
   unsigned solType = mlSol->GetSolutionType(VcIndex[0]);
 
   std::vector<std::vector < double >> solVc(dim);
   std::vector<std::vector < double >> solV(dim);
+  std::vector<std::vector < double >> solVm1(dim);
 
   std::vector < std::vector < double > > x(dim);    // local coordinates
   unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
@@ -1819,7 +1832,7 @@ void GetError(MultiLevelProblem & ml_prob) {
   std::vector <double> phi, gradPhi;  // local test function for velocity
   double weight;
 
-  double  localIntegral[5] = {0, 0, 0, 0, 0};
+  double  localIntegral[6] = {0, 0, 0, 0, 0, 0};
 
 
 
@@ -1829,7 +1842,7 @@ void GetError(MultiLevelProblem & ml_prob) {
 
 
     unsigned group = msh->GetElementGroup(iel);
-    if(group == group) {
+    if(group == 7) {
 
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
@@ -1838,6 +1851,7 @@ void GetError(MultiLevelProblem & ml_prob) {
       }
       for(unsigned k = 0; k < dim; k++) {
         solV[k].resize(nDofs);
+        solVm1[k].resize(nDofs);
         solVc[k].resize(nDofs);
       }
 
@@ -1847,6 +1861,7 @@ void GetError(MultiLevelProblem & ml_prob) {
         for(unsigned k = 0; k < dim; k++) {
           solVc[k][i] = (*sol->_Sol[VcIndex[k]])(solDof);
           solV[k][i] = (*sol->_Sol[VIndex[k]])(solDof);
+          solVm1[k][i] = (*sol->_Sol[Vm1Index[k]])(solDof);
         }
       }
 
@@ -1865,11 +1880,13 @@ void GetError(MultiLevelProblem & ml_prob) {
         msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
 
         std::vector<double> Vg(dim, 0.);
+        std::vector<double> dVg(dim, 0.);
         std::vector<double> Vcg(dim, 0.);
 
         for(unsigned i = 0; i < nDofs; i++) {
           for(unsigned k = 0; k < dim; k++) {
             Vg[k] += solV[k][i] * phi[i];
+            dVg[k] += (solV[k][i]-solVm1[k][i]) * phi[i];
             Vcg[k] += solVc[k][i] * phi[i];
           }
         }
@@ -1879,15 +1896,16 @@ void GetError(MultiLevelProblem & ml_prob) {
         localIntegral[2] += Vg[0] * weight;
         localIntegral[3] += Vg[1] * weight;
         localIntegral[4] += ((Vg[0] - Vcg[0]) * (Vg[0] - Vcg[0]) + (Vg[1] - Vcg[1]) * (Vg[1] - Vcg[1])) * weight;
+        localIntegral[5] += (dVg[0] * dVg[0] + dVg[1] * dVg[1]) * weight;
 
       } // end gauss point loop
 
     }
   } //end element loop for each process
 
-  double globalIntegral[5] = {0., 0., 0., 0., 0.};
+  double globalIntegral[6] = {0., 0., 0., 0., 0., 0.};
 
-  MPI_Reduce(localIntegral, globalIntegral, 5, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(localIntegral, globalIntegral, 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 
   if(iproc == 0) {
@@ -1901,7 +1919,7 @@ void GetError(MultiLevelProblem & ml_prob) {
     else {
       fout.open(filename.c_str(), std::ios::app);
     }
-    fout << time << " " << globalIntegral[0] << " " << globalIntegral[1] << " " << globalIntegral[2] << " " << globalIntegral[3] << " " << globalIntegral[4] << std::endl;
+    fout << time << " " << globalIntegral[0] << " " << globalIntegral[1] << " " << globalIntegral[2] << " " << globalIntegral[3] << " " << globalIntegral[4] <<" " << globalIntegral[5] << std::endl;
     fout.close();
   }
 
@@ -1964,6 +1982,8 @@ double dflc4hs(double const & x, double const & eps) {
     return 0.;
   }
 }
+
+
 
 
 
