@@ -32,11 +32,11 @@
 #define BLUE    "\033[34m"      /* Blue */
 #define RESET   "\033[0m"       /* Reset */
 
-const double betaU = .00000;
-const double alphaU = 0.00000;
+const double betaU = .00001;
+const double alphaU = 0.00001;
 const double gammaU = .001;
-const double betaV = 0.00000;
-const double alphaV = 0.00000;
+const double betaV = 0.00001;
+const double alphaV = 0.00001;
 const double t0 = 1.;
 const double H0 = 0.25;
 const double Re = 50.;
