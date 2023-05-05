@@ -34,11 +34,11 @@
 
 const double betaU = .00001;
 const double alphaU = 0.00001;
-const double gammaU = .001;
+const double gammaU = .1;
 const double betaV = 0.00001;
 const double alphaV = 0.00001;
 const double t0 = 1.;
-const double H0 = 0.25;
+const double H0 = 0.5;
 const double Re = 50.;
 const double E0 = 0.;
 
@@ -831,12 +831,11 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           if(nodeIsControlBoundary[inode]) {
             double c = flc4hs(time - t0, t0);
             if(facename == 1) {
-                
-              std::cout << "I am down\n";  
+              //std::cout << "I am down\n";  
               mReslV[0][inode] += gammaU * H0 * M_PI / 4. * sin(M_PI / 4. * (- c * time));
             }
             else {
-              std::cout << "I am up\n";    
+              //std::cout << "I am up\n";    
               mReslV[0][inode] += -gammaU * H0 * M_PI / 4. * sin(M_PI / 4. * (- c * time));
             }
           }
@@ -932,13 +931,13 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
         for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-          lvNSVb[k]   +=  iRe * sollVxg[k][j] * (solbVxg[k][j] + solbVxg[j][k]);
+          lvNSVb[k]   +=  iRe * sollVxg[k][j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
           lvNSVb[k]   +=  sollVg[k] * (solViOldg[j] - solUiOldg[j]) * solbVxg[k][j];
         }
         lvNSVb[k] += (1 - 0.1 * (iext == 0)) * (solVim1g[k] - solVim1Oldg[k]) / dt * sollVg[k] - solbPg * sollVxg[k][k];
       }
 
-      adept::adouble divVlp = 0;
+      adept::adouble divVlp = 0.;
       for(unsigned k = 0; k < dim; k++) {
         divVlp += solbVxg[k][k];
       }
@@ -988,8 +987,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
             }
             mReslV[k][i] += - NSVl[k] * weight;
 
-            //if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
-            //else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
+            //if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (-1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
+            //else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (-1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
           }
           else {
             if(k == 0 || !oneDimDisp) {
