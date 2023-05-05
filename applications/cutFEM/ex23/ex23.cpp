@@ -745,7 +745,7 @@ cout<< " " << " left " << left << " top "<< top << " right "<< right << " bottom
 
 
 template <class Type>
-void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table , const int &partition, const unsigned &m, const unsigned &n, const int &s){
+void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> &parabola_table, const int &partition, const unsigned &m, const unsigned &n, const int &s){
 
   Type area ;
   Type a(0);
@@ -754,72 +754,104 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< Ty
   unsigned int count;
   Point <Type> p1, p2, p3 ;
 //   cout << " Number | (x1,y1) | (x2,y2) | (x3,y3) |  k  |  b  |  d  |  c  | Area |" <<endl;
-  double del_x = 1./partition;
+  Type del_x = 1./partition;
+  Type epsilon = 0.001;
 //   cout << "del_x " << del_x << endl;
   for (int table = 0; table <=7; table++){  // BEGIN preevaluation of the table
 //     cout << "Table " << table << endl;
     parabola_table.resize(parabola_table.size() + 1);
-    parabola_table[table].resize(0);
+//     parabola_table[table].resize(0);
     count = 0;
 
-    for (double i1=0.;i1<=1.;i1+= del_x){
-      for (double i2=0.;i2<=1.;i2+=del_x){
-        for (double i3=0.;i3<=1.;i3+=del_x){
+    for (unsigned int i1 = 0 ; i1<= partition ; i1++){
+
+      parabola_table[table].resize(parabola_table[table].size() + 1);
+
+      for (unsigned int i2=0 ;i2 <= partition ;i2++){
+
+        parabola_table[table][i1].resize(parabola_table[table][i1].size() + 1);
+
+        for (unsigned int i3=0 ;i3 <= partition ;i3++){
+
+          parabola_table[table][i1][i2].resize(parabola_table[table][i1][i2].size() + 1);
 //           cout << " i3 = " << i3 << endl;
+
+          Type i1_pm_eps , i2_pm_eps;
+
            switch (table) {
                 case 0:
-                    p1 = {0., i1};
-                    p2 = {i2, 1.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
+                    p1 = {0., i1*del_x + epsilon};
+                    p2 = {i2*del_x + epsilon, 1.};
                     break;
                 case 1:
-                    p1 = {0., i1};
-                    p2 = {1.,i2};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {0., i1*del_x + epsilon};
+                    p2 = {1., i2*del_x - epsilon};
                     break;
                 case 2:
-                    p1 = {0., i1};
-                    p2 = {i2, 0.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {0., i1*del_x + epsilon};
+                    p2 = {i2*del_x - epsilon, 0.};
                     break;
                 case 3:
-                    p1 = {i1, 1.};
-                    p2 = {i2, 1.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {i1*del_x + epsilon, 1.};
+                    p2 = {i2*del_x - epsilon, 1.};
                     break;
                 case 4:
-                    p1 = {i1,1.};
-                    p2 = {1., i2};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {i1*del_x + epsilon, 1.};
+                    p2 = {1., i2*del_x - epsilon};
                     break;
                 case 5:
-                    p1 = {i1,1.};
-                    p2 = {i2, 0.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {i1*del_x + epsilon,1.};
+                    p2 = {i2*del_x - epsilon, 0.};
                     break;
                 case 6:
-                    p1 = {1., i1};
-                    p2 = {i2, 0.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {1., i1*del_x - epsilon};
+                    p2 = {i2*del_x - epsilon, 0.};
                     break;
                 case 7:
-                    p1 = {i1, 0.};
-                    p2 = {i2, 0.};
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    p1 = {i1*del_x + epsilon, 0.};
+                    p2 = {i2*del_x - epsilon, 0.};
                     break;
            }
-           p3 = {0.5 * (p1.x + p2.x) , i3 };
+
+           p3 = {0.5 * (p1.x + p2.x) , i3*del_x };
+
+
 
            p1 = {static_cast<Type>(p1.x), static_cast<Type>(p1.y)};
            p2 = {static_cast<Type>(p2.x), static_cast<Type>(p2.y)};
            p3 = {static_cast<Type>(p3.x), static_cast<Type>(p3.y)};
+
+
            Type c(1) ;
            Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;// only sort out the points parallel to y axis
 
-            Parabola <Type> parabola ;
+            Parabola <Type> parabola;
             int intersect_number;
             std::vector <Type> intersection;
-            std::vector <Type> interp_point ; //never used in this function. it was used in interpolation;
-            unsigned int table_number = table ;
+            std::vector <Type> interp_point;    //never used in this function. it was used in interpolation;
+            unsigned int table_number = table;
 
             parabola = get_parabola_equation(p1, p2, p3, det);
 
-            CheckIntersection <Type> (intersect_number, table_number , intersection, interp_point , parabola);
+            CheckIntersection <Type> (intersect_number, table_number, intersection, interp_point, parabola);
 
-            parabola_table[table].resize(parabola_table[table].size() + 1);
-            parabola_table[table][count].resize(2);
+
 //             cout << "intersect_number = " << intersect_number << endl;
 //             cout << "point intersected = " << intersection.size() ;
 //             for (int j =0;j < intersection.size() ; j++){
@@ -892,27 +924,27 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< Ty
 
                 cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  pol2[0] << ", " << pol2[1] << ", " << pol2[2] << ", " << c << ", " << area<<  endl;
 
-//                 parabola_table[table].resize(parabola_table[table].size() + 1);
-//                 parabola_table[table][count].resize(2);
-                parabola_table[table][count][normal].resize(15);
 
-                parabola_table[table][count][normal][0] = count;
-                parabola_table[table][count][normal][1] = static_cast<Type>(i1);
-                parabola_table[table][count][normal][2] = static_cast<Type>(i2);
-                parabola_table[table][count][normal][3] = static_cast<Type>(i3);
+                parabola_table[table][i1][i2][i3].resize(2) ;
+                parabola_table[table][i1][i2][i3][normal].resize(15);
 
-                parabola_table[table][count][normal][4] = p1.x;
-                parabola_table[table][count][normal][5] = p1.y;
-                parabola_table[table][count][normal][6] = p2.x;
-                parabola_table[table][count][normal][7] = p2.y;
-                parabola_table[table][count][normal][8] = p3.x;
-                parabola_table[table][count][normal][9] = p3.y;
+                parabola_table[table][i1][i2][i3][normal][0] = count;
+                parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
+                parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
+                parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
 
-                parabola_table[table][count][normal][10] = pol2[0];
-                parabola_table[table][count][normal][11] = pol2[1];
-                parabola_table[table][count][normal][12] = pol2[2];
-                parabola_table[table][count][normal][13] = c;
-                parabola_table[table][count][normal][14] = area;
+                parabola_table[table][i1][i2][i3][normal][4] = p1.x;
+                parabola_table[table][i1][i2][i3][normal][5] = p1.y;
+                parabola_table[table][i1][i2][i3][normal][6] = p2.x;
+                parabola_table[table][i1][i2][i3][normal][7] = p2.y;
+                parabola_table[table][i1][i2][i3][normal][8] = p3.x;
+                parabola_table[table][i1][i2][i3][normal][9] = p3.y;
+
+                parabola_table[table][i1][i2][i3][normal][10] = pol2[0];
+                parabola_table[table][i1][i2][i3][normal][11] = pol2[1];
+                parabola_table[table][i1][i2][i3][normal][12] = pol2[2];
+                parabola_table[table][i1][i2][i3][normal][13] = c;
+                parabola_table[table][i1][i2][i3][normal][14] = area;
 
 //                 for (int nm=0; nm<=11; nm++){
 //                 cout << parabola_table[normal][count][nm] << " " ;
@@ -949,7 +981,7 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
 
     for (double i1=0.;i1<= 1.00001;i1+= del_x){
       for (double i2=0.;i2<=1.00001;i2+=del_x){
-        for (double i3 = i2 + del_x ; i3<= 1.00001;i3+=del_x){
+        for (double i3 = i2 + del_x ; i3<= 1.000001;i3+=del_x){
 //           cout << " i3 = " << i3 << endl;
            switch (table) {
                 case 0:  // Left-Top-Top
@@ -1071,7 +1103,7 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
                 }
 
 
-                cout << " \n" <<"table : " << table << " " << count << " " <<parabola_table_4intersection[table][count][normal][1]  << " " << parabola_table_4intersection[table][count][normal][2] << " " << parabola_table_4intersection[table][count][normal][3] << " ==> " << parabola_table_4intersection[table][count][normal][10]  << " " << parabola_table_4intersection[table][count][normal][11] << " " << parabola_table_4intersection[table][count][normal][12]<<" " << parabola_table_4intersection[table][count][normal][13]  << " " << parabola_table_4intersection[table][count][normal][14] << endl;
+//                 cout << " \n" <<"table : " << table << " " << count << " " <<parabola_table_4intersection[table][count][normal][1]  << " " << parabola_table_4intersection[table][count][normal][2] << " " << parabola_table_4intersection[table][count][normal][3] << " ==> " << parabola_table_4intersection[table][count][normal][10]  << " " << parabola_table_4intersection[table][count][normal][11] << " " << parabola_table_4intersection[table][count][normal][12]<<" " << parabola_table_4intersection[table][count][normal][13]  << " " << parabola_table_4intersection[table][count][normal][14] << endl;
 //                 cout << parabola_table_4intersection[normal][count][nm] << " " ;
             }
             count ++ ;
@@ -1086,7 +1118,7 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
 
 
 template <class Type>
-void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table, std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table_4intersection  ,const std::vector <Type> &given_parabola, vector <Type> &intersection, int &normal, std::vector< Type > &interp_point, std::vector< std::vector< Type >> & interp_table, unsigned int &table_number, const int &partition){
+void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> &parabola_table, std::vector< std::vector< std::vector< std::vector< Type >>>> &parabola_table_4intersection  ,const std::vector <Type> &given_parabola, vector <Type> &intersection, int &normal, std::vector< Type > &interp_point, std::vector< std::vector< Type >> & interp_table, unsigned int &table_number, const int &partition){
 
     int intersect_number(0);
     interp_point.resize(0);
@@ -1216,8 +1248,6 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >
       Parabola <Type> parabola{k,b,d};
       CheckIntersection <Type> (intersect_number, table_number , intersection, interp_point , parabola);
 
-// CheckIntersection(int &intersect_number, int &table_number , std::vector <Type> &intersection, std::vector <Type> &interp_point,  Parabola <Type> &parabola)
-
 
       if (interp_point.size() == 2){  // finding p3
             Type mid_point = 0.5*(intersection[0]+intersection[2]);
@@ -1242,6 +1272,7 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >
 
       //finding closed points
       if (interp_point.size() >= 3){
+        unsigned i1_0,i1_1,i2_0,i2_1,i3_0,i3_1 ;
         Type x0,x1,y0,y1,z0,z1;
         x0 = floor(interp_point[0]* partition) / partition;
         x1 = ceil(interp_point[0]* partition) / partition;
@@ -1262,42 +1293,59 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >
         interp_table[7] = {x1,y1,z1,-8 };
 
 //               cout<< " parabola_table[table_number].size() = " << parabola_table[table_number].size() << " " <<endl;
-  //       interp_table = {x0,y0,z0,-1,
-  //                       x0,y0,z1,-2,
-  //                       x0,y1,z0,-3,
-  //                       x0,y1,z1,-4,
-  //                       x1,y0,z0,-5,
-  //                       x1,y0,z1,-6,
-  //                       x1,y1,z0,-7,
-  //                       x1,y1,z1,-8 };
+
 
 
       if(intersect_number == 2){
         cout << " Table used - 2 intersection " << endl;
 
-        for(unsigned int i = 0; i <=7 ; i++){
-          for (unsigned int count_x = 0; count_x < parabola_table[table_number].size(); count_x++ ){
-            if(fabs(parabola_table[table_number][count_x][normal][1] - interp_table[i][0]) < 0.00000000001){
-//                   cout<< "count x =" << count_x << " " << parabola_table[table_number][count_x][normal][1] << " " << interp_table[i][0]  <<endl;
-              for (unsigned int count_y = count_x; count_y < parabola_table[table_number].size(); count_y++ ){
-                if(fabs(parabola_table[table_number][count_y][normal][2] - interp_table[i][1]) < 0.000000000001){
-//                   cout<< "count y =" << count_y <<endl;
-                  for (unsigned int count_z = count_y; count_z < parabola_table[table_number].size(); count_z++ ){
-                    if(fabs(parabola_table[table_number][count_z][normal][3] - interp_table[i][2]) < 0.000000000001 ){
-//                       cout<< "count z =" << count_z <<endl;
-                      interp_table[i][3] = parabola_table[table_number][count_z][normal][14] ;
-//                       cout << " area = "<< parabola_table[table_number][count_z][normal][14];
-                      count_y = parabola_table[table_number].size()+1;
-                      count_x = parabola_table[table_number].size()+1;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
+
+//         interp_point[0] = static_cast<double>(interp_point[0]);
+
+        i1_0 = floor(static_cast<double>(interp_point[0] * partition)) ;
+        i1_1 = ceil(static_cast<double>(interp_point[0]* partition)) ;
+        i2_0 = floor(static_cast<double>(interp_point[1] * partition)) ;
+        i2_1 = ceil(static_cast<double>(interp_point[1]* partition)) ;
+        i3_0 = floor(static_cast<double>(interp_point[2] * partition)) ;
+        i3_1 = ceil(static_cast<double>(interp_point[2]* partition)) ;
+
+
+
+        interp_table[0][3] = parabola_table[table_number][i1_0][i2_0][i3_0][normal][14] ;
+        interp_table[1][3] = parabola_table[table_number][i1_0][i2_0][i3_1][normal][14] ;
+        interp_table[2][3] = parabola_table[table_number][i1_0][i2_1][i3_0][normal][14] ;
+        interp_table[3][3] = parabola_table[table_number][i1_0][i2_1][i3_1][normal][14] ;
+        interp_table[4][3] = parabola_table[table_number][i1_1][i2_0][i3_0][normal][14] ;
+        interp_table[5][3] = parabola_table[table_number][i1_1][i2_0][i3_1][normal][14] ;
+        interp_table[6][3] = parabola_table[table_number][i1_1][i2_1][i3_0][normal][14] ;
+        interp_table[7][3] = parabola_table[table_number][i1_1][i2_1][i3_1][normal][14] ;
+
+
         }
-      }
+
+//         for(unsigned int i = 0; i <=7 ; i++){
+//           for (unsigned int count_x = 0; count_x < parabola_table[table_number].size(); count_x++ ){
+//             if(fabs(parabola_table[table_number][count_x][normal][1] - interp_table[i][0]) < 0.00000000001){
+// //                   cout<< "count x =" << count_x << " " << parabola_table[table_number][count_x][normal][1] << " " << interp_table[i][0]  <<endl;
+//               for (unsigned int count_y = count_x; count_y < parabola_table[table_number].size(); count_y++ ){
+//                 if(fabs(parabola_table[table_number][count_y][normal][2] - interp_table[i][1]) < 0.000000000001){
+// //                   cout<< "count y =" << count_y <<endl;
+//                   for (unsigned int count_z = count_y; count_z < parabola_table[table_number].size(); count_z++ ){
+//                     if(fabs(parabola_table[table_number][count_z][normal][3] - interp_table[i][2]) < 0.000000000001 ){
+// //                       cout<< "count z =" << count_z <<endl;
+//                       interp_table[i][3] = parabola_table[table_number][count_z][normal][14] ;
+// //                       cout << " area = "<< parabola_table[table_number][count_z][normal][14];
+//                       count_y = parabola_table[table_number].size()+1;
+//                       count_x = parabola_table[table_number].size()+1;
+//                       break;
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+
 
       else if (intersect_number>2){
         cout << " Table used - 4 intersection " << endl;
@@ -1335,6 +1383,20 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< Type >
         for(unsigned int i = 0; i <=7 ; i++){
           cout << interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
         }
+
+        interp_table[0] = {parabola_table[table_number][i1_0][i2_0][i3_0][normal][1],parabola_table[table_number][i1_0][i2_0][i3_0][normal][2],parabola_table[table_number][i1_0][i2_0][i3_0][normal][3],parabola_table[table_number][i1_0][i2_0][i3_0][normal][14] };
+        interp_table[1] = {parabola_table[table_number][i1_0][i2_0][i3_1][normal][1],parabola_table[table_number][i1_0][i2_0][i3_1][normal][2],parabola_table[table_number][i1_0][i2_0][i3_1][normal][3],parabola_table[table_number][i1_0][i2_0][i3_1][normal][14]};
+        interp_table[2] = {parabola_table[table_number][i1_0][i2_1][i3_0][normal][1],parabola_table[table_number][i1_0][i2_1][i3_0][normal][2],parabola_table[table_number][i1_0][i2_1][i3_0][normal][3],parabola_table[table_number][i1_0][i2_1][i3_0][normal][14] };
+        interp_table[3] = {parabola_table[table_number][i1_0][i2_1][i3_1][normal][1],parabola_table[table_number][i1_0][i2_1][i3_1][normal][2],parabola_table[table_number][i1_0][i2_1][i3_1][normal][3],parabola_table[table_number][i1_0][i2_1][i3_1][normal][14] };
+        interp_table[4] = {parabola_table[table_number][i1_1][i2_0][i3_0][normal][1],parabola_table[table_number][i1_1][i2_0][i3_0][normal][2],parabola_table[table_number][i1_1][i2_0][i3_0][normal][3],parabola_table[table_number][i1_1][i2_0][i3_0][normal][14] };
+        interp_table[5] = {parabola_table[table_number][i1_1][i2_0][i3_1][normal][1],parabola_table[table_number][i1_1][i2_0][i3_1][normal][2],parabola_table[table_number][i1_1][i2_0][i3_1][normal][3],parabola_table[table_number][i1_1][i2_0][i3_1][normal][14] };
+        interp_table[6] = {parabola_table[table_number][i1_1][i2_1][i3_0][normal][1],parabola_table[table_number][i1_1][i2_1][i3_0][normal][2],parabola_table[table_number][i1_1][i2_1][i3_0][normal][3],parabola_table[table_number][i1_1][i2_1][i3_0][normal][14] };
+        interp_table[7] = {parabola_table[table_number][i1_1][i2_1][i3_1][normal][1],parabola_table[table_number][i1_1][i2_1][i3_1][normal][2],parabola_table[table_number][i1_1][i2_1][i3_1][normal][3],parabola_table[table_number][i1_1][i2_1][i3_1][normal][14] };
+        for(unsigned int i = 0; i <=7 ; i++){
+          cout <<" direct table  : " <<  interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
+        }
+
+
       }
 
 
@@ -1386,7 +1448,7 @@ int main() {
   int s = 0;
   unsigned int partition = 10;
 
-  std::vector< std::vector< std::vector< std::vector< Type >>>> parabola_table(0) ;
+  std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table(0) ;
   std::vector< std::vector< std::vector< std::vector< Type >>>> parabola_table_4intersection(0);
 
   std::srand(10);
