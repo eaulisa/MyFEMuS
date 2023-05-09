@@ -62,6 +62,9 @@ Parabola <Type>  get_parabola_equation( Point <Type> p1, Point <Type> p2, Point 
        d = p1.x ;
     }
 
+    if (fabs(k) < 1.e-12) k = 0 ;
+    if (fabs(b) < 1.e-12) b = 0 ;
+    if (fabs(d) < 1.e-12) d = 0 ;
 
     return {k, b, d};
 }
@@ -754,8 +757,8 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
   unsigned int count;
   Point <Type> p1, p2, p3 ;
 //   cout << " Number | (x1,y1) | (x2,y2) | (x3,y3) |  k  |  b  |  d  |  c  | Area |" <<endl;
-  Type del_x = 1./partition;
-  Type epsilon = 0.001;
+  Type del_x = 1/static_cast<Type>(partition);
+  Type epsilon (0.001);
 //   cout << "del_x " << del_x << endl;
   for (int table = 0; table <=7; table++){  // BEGIN preevaluation of the table
 //     cout << "Table " << table << endl;
@@ -782,50 +785,50 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
                 case 0:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
-                    p1 = {0., i1*del_x + epsilon};
-                    p2 = {i2*del_x + epsilon, 1.};
+                    p1 = {static_cast<Type>(0), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(1)};
                     break;
                 case 1:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {0., i1*del_x + epsilon};
-                    p2 = {1., i2*del_x - epsilon};
+                    p1 = {static_cast<Type>(0), i1_pm_eps};
+                    p2 = {static_cast<Type>(1), i2_pm_eps};
                     break;
                 case 2:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {0., i1*del_x + epsilon};
-                    p2 = {i2*del_x - epsilon, 0.};
+                    p1 = {static_cast<Type>(0), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
                     break;
                 case 3:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {i1*del_x + epsilon, 1.};
-                    p2 = {i2*del_x - epsilon, 1.};
+                    p1 = {i1_pm_eps,static_cast<Type>(1)};
+                    p2 = {i2_pm_eps, static_cast<Type>(1)};
                     break;
                 case 4:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {i1*del_x + epsilon, 1.};
-                    p2 = {1., i2*del_x - epsilon};
+                    p1 = {i1_pm_eps, static_cast<Type>(1)};
+                    p2 = {static_cast<Type>(1), i2_pm_eps};
                     break;
                 case 5:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {i1*del_x + epsilon,1.};
-                    p2 = {i2*del_x - epsilon, 0.};
+                    p1 = {i1_pm_eps,static_cast<Type>(1)};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
                     break;
                 case 6:
                     i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {1., i1*del_x - epsilon};
-                    p2 = {i2*del_x - epsilon, 0.};
+                    p1 = {static_cast<Type>(1), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
                     break;
                 case 7:
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
-                    p1 = {i1*del_x + epsilon, 0.};
-                    p2 = {i2*del_x - epsilon, 0.};
+                    p1 = {i1_pm_eps, static_cast<Type>(0)};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
                     break;
            }
 
@@ -1442,11 +1445,23 @@ Type trilinier_interpolation(std::vector< std::vector< Type >> & interp_table , 
 
 int main() {
 
-  typedef cpp_bin_float_oct Type;      //     typedef double Type;  //  std::cout.precision(20);
+  typedef cpp_bin_float_oct Type;      //     typedef double Type;
+//    std::cout.precision(30);
   unsigned int m = 0;
   unsigned int n = 0;
   int s = 0;
   unsigned int partition = 10;
+
+
+//   int b = 5;
+//   Type aa;
+//   aa =  static_cast<Type>(partition)/2 ;
+//   cout << aa << endl;
+//   aa =   partition/2.;
+//   cout << aa << endl;
+//   aa = partition/static_cast<Type>(2);
+//   cout << aa << endl;
+//   return 1;
 
   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table(0) ;
   std::vector< std::vector< std::vector< std::vector< Type >>>> parabola_table_4intersection(0);

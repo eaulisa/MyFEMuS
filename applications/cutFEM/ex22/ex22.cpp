@@ -1097,17 +1097,37 @@ int main() {
   unsigned int n = 0;
   int s = 0;
 
-  std::cout.precision(20);
+  std::cout.precision(30);
 
   typedef cpp_bin_float_oct Type;
   Type k, b, d, a, c, area1, area2, easy_area1, easy_area2;
+
+  Type aa(7.6e-16) ;
+  cout << aa << endl;
+
+  aa = 2. * 7.6e-16  ;
+  cout << aa << endl;
+  aa =  7.6e-16 / 2. ;
+  cout << aa << endl;
+
+  double bb;
+  bb = 3. ;
+
+  bb = 3. * bb ;
+
+  cout << bb << " " << bb / 2. << endl;
+  return 1;
+
+
+
+
   std::vector <Type> pol1(3, 0);
   std::vector <Type> pol2(3, 0);
   clock_t t = clock();
   //std::srand((unsigned)std::time(NULL));
   std::srand(10);
   int count = 0;
-  for(unsigned int j = 0; j < 100; j++) {
+  for(unsigned int j = 0; j < 1; j++) {
     Type A1 = 0, A2 = 0, A3 = 0, Easy_A1 = 0,  Easy_A2 = 0, Easy_A3 = 0;
     Type B1 = 0, B2 = 0, B3 = 0, Easy_B1 = 0, Easy_B2 = 0, Easy_B3 = 0;
 
@@ -1129,9 +1149,8 @@ int main() {
 //       a = sample[j][3];
 //       c = sample[j][4];
 // 7.00881e-16, 2.51256, -1.75628, 1
-k= 0.0000000000000001; b= 2.51256; d= -1.75628; c = 1;
-
-cout << 7.00881e-16 - k << endl;
+// k = static_cast<Type>(7.00881e-16);
+k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
 
 
  a=0;
