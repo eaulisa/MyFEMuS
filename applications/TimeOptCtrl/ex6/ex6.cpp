@@ -264,7 +264,7 @@ int main(int argc, char** args) {
   systemC.init();
   systemC.SetOuterSolver(PREONLY);
 
-  TransientLinearImplicitSystem& system = mlProb.add_system < TransientLinearImplicitSystem > ("systembZ");
+  TransientNonlinearImplicitSystem& system = mlProb.add_system < TransientNonlinearImplicitSystem > ("systembZ");
 
   // add solution "u" to system
 
@@ -460,7 +460,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   //  extract pointers to the several objects that we are going to use
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("systembZ");   // pointer to the linear implicit system named "Poisson"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("systembZ");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh    = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -599,7 +599,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < adept::adouble > > x(dim);
   std::vector < std::vector < double > > xOld(dim);
-  std::vector < std::vector < double > > xm1(dim);
+  //std::vector < std::vector < double > > xm1(dim);
 
   std::vector < std::vector < adept::adouble > > DX(dim);
 
@@ -607,10 +607,10 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
   unsigned xType = 2;
 
   std::vector <double> phi;
-  std::vector <double> phix;
+  std::vector <adept::adouble> phix;
 
   double* phiP;
-  double weight;
+  adept::adouble weight;
   double weightOld;
 
   std::vector < unsigned > solDXIndex(dim);
@@ -662,7 +662,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
 
       xOld[k].resize(nDofs);
       x[k].resize(nDofs);
-      xm1[k].resize(nDofs);
+      //xm1[k].resize(nDofs);
       xHat[k].resize(nDofs);
 
       DX[k].resize(nDofs);
@@ -730,7 +730,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       for(unsigned k = 0; k < dim; k++) {
         xHat[k][i] = (*msh->_topology->_Sol[k])(xDof);
         xOld[k][i] = xHat[k][i] + (*sol->_Sol[solDXIndex[k]])(xDof);
-        xm1[k][i] = xOld[k][i] + solUim1[k][i] * dt;    // current deformed mesh at the previous iteration
+        //xm1[k][i] = xOld[k][i] + solUim1[k][i] * dt;    // current deformed mesh at the previous iteration
         DX[k][i] = (*sol->_Sol[solDXIndex[k]])(xDof) + solbU[k][i] * dt;     // current deformed bmesh
         x[k][i] = xHat[k][i] + DX[k][i];     // current deformed bmesh
       }
@@ -817,8 +817,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       }
     }
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
-      
-      int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);  
+
+      int facename = -(msh->el->GetFaceElementIndex(iel, iface) + 1);
       if(facename == 1 || facename == 3) {
         elementIs1or3 = true;
         unsigned nve = msh->GetElementFaceDofNumber(iel, iface, solType);
@@ -831,11 +831,11 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           if(nodeIsControlBoundary[inode]) {
             double c = flc4hs(time - t0, t0);
             if(facename == 1) {
-              //std::cout << "I am down\n";  
+              //std::cout << "I am down\n";
               mReslV[0][inode] += gammaU * H0 * M_PI / 4. * sin(M_PI / 4. * (- c * time));
             }
             else {
-              //std::cout << "I am up\n";    
+              //std::cout << "I am up\n";
               mReslV[0][inode] += -gammaU * H0 * M_PI / 4. * sin(M_PI / 4. * (- c * time));
             }
           }
@@ -847,14 +847,12 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
     //if(elementIsCorner) std::cout << BLUE << iel << " is corner cell\n" << BLACK;
 
 
-
-
-
+    adept::adouble functional = 0.;
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielType][solType]->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
-      msh->_finiteElement[ielType][solType]->Jacobian(xm1, ig, weight, phi, phix);
+      msh->_finiteElement[ielType][solType]->Jacobian(x, ig, weight, phi, phix);
       msh->_finiteElement[ielType][solType]->Jacobian(xOld, ig, weightOld, phiHat, phixHat);
       msh->_finiteElement[ielType][solType]->Jacobian(xHat, ig, weightHat, phiHat, phixHat);
       phiP = msh->_finiteElement[ielType][solPType]->GetPhi(ig);
@@ -926,22 +924,24 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
         sollPg += phiP[i] * sollP[i];
       }
 
-      std::vector < adept::adouble > lvNSVb(dim, 0.); // this is the Navier Stokes Equation mulitplied by the lagrange multiplier lv used for the variation of the jacobian
-
-
       for(unsigned  k = 0; k < dim; k++) {  //momentum equation in k
+        adept::adouble lvNSVb = 0;
+        adept::adouble target = 0;
+        adept::adouble penalty1 = 0;
+        adept::adouble penalty2 = 0;
         for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-          lvNSVb[k]   +=  iRe * sollVxg[k][j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
-          lvNSVb[k]   +=  sollVg[k] * (solViOldg[j] - solUiOldg[j]) * solbVxg[k][j];
+          lvNSVb +=  iRe * sollVxg[k][j] * (solbVxg[k][j] + 0 * solbVxg[j][k]);
+          lvNSVb +=  sollVg[k] * (solViOldg[j] - solUiOldg[j]) * solbVxg[k][j];
+          penalty1 += 0.5 *  betaV * solbUxg[k][j] * solbUxg[k][j];
         }
-        lvNSVb[k] += (1 - 0.1 * (iext == 0)) * (solVim1g[k] - solVim1Oldg[k]) / dt * sollVg[k] - solbPg * sollVxg[k][k];
+        lvNSVb += (1 - 0.1 * (iext == 0)) * (solVim1g[k] - solVim1Oldg[k]) / dt * sollVg[k] - sollPg * solbVxg[k][k] - solbPg * sollVxg[k][k];
+
+        target += 0.5 * (solbVg[k] - solVcg[k]) * (solbVg[k] - solVcg[k]) /* *(ielGroup == 6) */;
+        penalty2 += 0.5 *  alphaV * solbVg[k] * solbVg[k];
+
+        functional += (target + penalty1 + penalty2 + lvNSVb) * weight;
       }
 
-      adept::adouble divVlp = 0.;
-      for(unsigned k = 0; k < dim; k++) {
-        divVlp += solbVxg[k][k];
-      }
-      divVlp *= sollPg;
 
 
       // *** phiV_i loop ***
@@ -987,13 +987,13 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
             }
             mReslV[k][i] += - NSVl[k] * weight;
 
-            if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (-1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
-            else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (-1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
+            //if(k == 0) mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 0] * dt * (-1. + solbUxg[1][1] * dt) - phix[i * dim + 1] * dt * solbUxg[1][0] * dt) * weightOld;
+            //else mReslU[k][i] += - (lvNSVb[k] - divVlp) * (phix[i * dim + 1] * dt * (-1. + solbUxg[0][0] * dt) - phix[i * dim + 0] * dt * solbUxg[0][1] * dt) * weightOld;
           }
           else {
             if(k == 0 || !oneDimDisp) {
               mReslU[k][i] += solbV[k][i] - solbU[k][i];
-              mReslV[k][i] += - (NSVl[k] + ALEl[k]) * weight;
+              mReslV[k][i] += - (NSVl[k] * weight + ALEl[k] * weightHat) ;
             }
             else {
               mReslU[k][i] += solbU[k][i];
@@ -1016,6 +1016,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
     // Add the local Matrix/Vector into the global Matrix/Vector
 
     //copy the value of the adept::adoube mRes in double Res and store them in RES
+
     Res.resize(2 * nDofsAll);    //resize
 
     for(int i = 0; i < nDofs; i++) {
@@ -1031,6 +1032,29 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
       Res[ 2 * dim * nDofs + i ] = -mReslP[i].value();
       Res[nDofsAll + 2 * dim * nDofs + i ] = -mResbP[i].value();
     }
+   
+    s.dependent(&functional, 1);
+    for(unsigned  k = 0; k < dim; k++) {
+      s.independent(&solbU[k][0], nDofs);
+    }
+    Jac.resize(dim * nDofs);
+    s.jacobian(&Jac[0], false);
+    for(int i = 0; i < nDofs; i++) {
+      for(unsigned  k = 0; k < dim; k++) {
+        if(!nodeIsControlBoundary[i]) {
+          if(k == 0 || !oneDimDisp) {
+            Res[ k * nDofs + i ] += Jac[k * nDofs + i];
+          }
+        }
+        else {
+          if(k == 0 || !oneDimDisp) {
+            Res[(k + dim) * nDofs + i ] += Jac[k * nDofs + i];
+          }
+        }
+      }
+    }
+    s.clear_independents();
+    s.clear_dependents();
 
     RES->add_vector_blocked(Res, sysDof);
 
@@ -1802,8 +1826,8 @@ void GetError(MultiLevelProblem & ml_prob) {
   //sprintf(sName, "top%d", iext);
 
   //  extract pointers to the several objects that we are going to use
-  //TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("systemZi");   // pointer to the linear implicit system named "Poisson"
+  //TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("systemZi");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
