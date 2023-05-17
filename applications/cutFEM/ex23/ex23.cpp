@@ -622,29 +622,30 @@ void CheckIntersection(int &intersect_number, unsigned int &table_number , std::
       }
       else {
         Type delta = b*b - 4*k*(d+1);
-        if(delta > 0) {
-          Type sqrtdelta = sqrt(delta);
-          int sign = (k > 0) ? 1 : -1;
+        cout << " k = "<< k << " b = "<< b << " d ="<< d << " delta = " << delta <<endl;
+        if (delta >= 0){
+              Type sqrtdelta = sqrt(delta);
+              int sign = (k > 0) ? 1 : -1;
 
-          for(unsigned i = 0; i < 2; i++) {
-            Type x = (- b - sign * sqrtdelta) / (2 * k);
-//             cout<< "Top x = "<< x<< endl;
-            if(x > 1) break;
-            else if(x >= 0) {
-              intersection.resize(intersection.size()+2);
-              intersection[intersection.size()-2] = x;
-              intersection[intersection.size()-1] = 1;
-              interp_point.resize(interp_point.size()+1);
-              interp_point[interp_point.size()-1] = x;
-              intersect_number += 1;
-              if (top ==1){table_number = 3 ;}
-              top += 1;
-              if (left ==1){table_number = 0 ;}
-//               cout << " top = " << top ;
+              for(unsigned i = 0; i < 2; i++) {
+                Type x = (- b - sign * sqrtdelta) / (2 * k);
+    //             cout<< "Top x = "<< x<< endl;
+                if(x > 1) break;
+                else if(x >= 0) {
+                  intersection.resize(intersection.size()+2);
+                  intersection[intersection.size()-2] = x;
+                  intersection[intersection.size()-1] = 1;
+                  interp_point.resize(interp_point.size()+1);
+                  interp_point[interp_point.size()-1] = x;
+                  intersect_number += 1;
+                  if (top ==1){table_number = 3 ;}
+                  top += 1;
+                  if (left ==1){table_number = 0 ;}
+    //               cout << " top = " << top ;
+                }
+                sign *= -1;
+              }
             }
-            sign *= -1;
-          }
-        }
       }
       Type y_1=-(k+b+d); //LEFT-RIGHT x=1 ; Table 1
       if (y_1 >= 0 && y_1 <= 1){ //TODO check sign when normal change
@@ -680,7 +681,7 @@ void CheckIntersection(int &intersect_number, unsigned int &table_number , std::
 
       else {
           Type delta = b*b - 4*k*d;
-          if(delta >0) {
+          if(delta >=0) {
             Type sqrtdelta = sqrt(delta);
             int sign = (k > 0) ? 1 : -1;
 
@@ -862,7 +863,7 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
 //             }
 
 
-            if (intersect_number == 2){
+            if (intersect_number == 2 || table == 1 || table ==3 || table == 7){ // we are not changing 4 intersection when do table-1 left-right
                 if (det !=0){
                     pol1[0] = parabola.k;
                     pol1[1] = parabola.b;
@@ -871,7 +872,7 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
                     pol2[1] = parabola.b;
                     pol2[2] = parabola.d;
                 }
-                else {  //TODO decode what I did here. Couldn't figure it out what I did here. We are not using this probably.
+                else {  //TODO decode what I did here. Couldn't figure it out what I did here. We are not using this probably after introducing epsilon
 
                     pol1[0] = static_cast<Type>(0);
                     pol1[1] = static_cast<Type>(-1);
@@ -885,7 +886,7 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
             }
             else if (intersect_number > 2){
                 Type slope = (p3.y-p1.y)/(p3.x-p1.x);
-                c=1;
+                c=static_cast<Type>(1);
                 pol2[0] = static_cast<Type>(0);    //k=0
                 pol2[1] = -slope;
                 pol2[2] = slope*p1.x - p1.y ;
@@ -1161,7 +1162,7 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::v
     cout << "normal before = " << normal ;
     if (c<0) normal = (normal+1) % 2 ;
     cout << " normal after = " << normal <<endl;
-    k = k/c; b=b/c; d=d/c; c=1;  //TODO 1 4/24 sign of c is different.
+    k = k/c; b=b/c; d=d/c; c=static_cast<Type>(1);  //TODO 1 4/24 sign of c is different.
 
 
 
@@ -1361,9 +1362,101 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::v
         interp_table[5] = {parabola_table[table_number][i1_1][i2_0][i3_1][normal][1],parabola_table[table_number][i1_1][i2_0][i3_1][normal][2],parabola_table[table_number][i1_1][i2_0][i3_1][normal][3],parabola_table[table_number][i1_1][i2_0][i3_1][normal][14] };
         interp_table[6] = {parabola_table[table_number][i1_1][i2_1][i3_0][normal][1],parabola_table[table_number][i1_1][i2_1][i3_0][normal][2],parabola_table[table_number][i1_1][i2_1][i3_0][normal][3],parabola_table[table_number][i1_1][i2_1][i3_0][normal][14] };
         interp_table[7] = {parabola_table[table_number][i1_1][i2_1][i3_1][normal][1],parabola_table[table_number][i1_1][i2_1][i3_1][normal][2],parabola_table[table_number][i1_1][i2_1][i3_1][normal][3],parabola_table[table_number][i1_1][i2_1][i3_1][normal][14] };
+
+
+
+       if(table_number == 5){ // checking normal
+
+        int modified_normal;
+        modified_normal = normal;
+
+        cout << " modified_normal = "<< modified_normal << endl;
+        if (normal == 1){k*=-1;b*=-1;d*=-1;c*=-1;}
+
+        std::vector< Type > grad_given_par{2*k*intersection[4]+b , c}; // will it work like this?
+
+        cout << " gradient of given parabola = " << grad_given_par[0] << " " << grad_given_par[1] << endl;
+
+        std::vector< Type > grad_interp_par(2);
+
+        grad_interp_par = {2*parabola_table[table_number][i1_0][i2_0][i3_0][normal][10]*  intersection[4]   +  parabola_table[table_number][i1_0][i2_0][i3_0][normal][11] , parabola_table[table_number][i1_0][i2_0][i3_0][normal][13]};
+//         if(grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0) modified_normal = (normal+1)%2;
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        //TODO check what happens if it is 0.
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] << " modified normal = " << modified_normal << endl;
+
+          interp_table[0] = {parabola_table[table_number][i1_0][i2_0][i3_0][modified_normal][1],parabola_table[table_number][i1_0][i2_0][i3_0][modified_normal][2],parabola_table[table_number][i1_0][i2_0][i3_0][modified_normal][3],parabola_table[table_number][i1_0][i2_0][i3_0][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_0][i2_0][i3_1][normal][10]*  intersection[4]   +  parabola_table[table_number][i1_0][i2_0][i3_1][normal][11] , parabola_table[table_number][i1_0][i2_0][i3_1][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[1] = {parabola_table[table_number][i1_0][i2_0][i3_1][modified_normal][1],parabola_table[table_number][i1_0][i2_0][i3_1][modified_normal][2],parabola_table[table_number][i1_0][i2_0][i3_1][modified_normal][3],parabola_table[table_number][i1_0][i2_0][i3_1][modified_normal][14]};
+
+        grad_interp_par = {2*parabola_table[table_number][i1_0][i2_1][i3_0][normal][10]*  intersection[4]   +  parabola_table[table_number][i1_0][i2_1][i3_0][normal][11] , parabola_table[table_number][i1_0][i2_1][i3_0][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[2] = {parabola_table[table_number][i1_0][i2_1][i3_0][modified_normal][1],parabola_table[table_number][i1_0][i2_1][i3_0][modified_normal][2],parabola_table[table_number][i1_0][i2_1][i3_0][modified_normal][3],parabola_table[table_number][i1_0][i2_1][i3_0][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_0][i2_1][i3_1][normal][10]* intersection[4]   +  parabola_table[table_number][i1_0][i2_1][i3_1][normal][11] , parabola_table[table_number][i1_0][i2_1][i3_1][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[3] = {parabola_table[table_number][i1_0][i2_1][i3_1][modified_normal][1],parabola_table[table_number][i1_0][i2_1][i3_1][modified_normal][2],parabola_table[table_number][i1_0][i2_1][i3_1][modified_normal][3],parabola_table[table_number][i1_0][i2_1][i3_1][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_1][i2_0][i3_0][normal][10]* intersection[4]   +  parabola_table[table_number][i1_1][i2_0][i3_0][normal][11] , parabola_table[table_number][i1_1][i2_0][i3_0][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[4] = {parabola_table[table_number][i1_1][i2_0][i3_0][modified_normal][1],parabola_table[table_number][i1_1][i2_0][i3_0][modified_normal][2],parabola_table[table_number][i1_1][i2_0][i3_0][modified_normal][3],parabola_table[table_number][i1_1][i2_0][i3_0][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_1][i2_0][i3_1][normal][10]* intersection[4]  +  parabola_table[table_number][i1_1][i2_0][i3_1][normal][11] , parabola_table[table_number][i1_1][i2_0][i3_1][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[5] = {parabola_table[table_number][i1_1][i2_0][i3_1][modified_normal][1],parabola_table[table_number][i1_1][i2_0][i3_1][modified_normal][2],parabola_table[table_number][i1_1][i2_0][i3_1][modified_normal][3],parabola_table[table_number][i1_1][i2_0][i3_1][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_1][i2_1][i3_0][normal][10]*  intersection[4]   +  parabola_table[table_number][i1_1][i2_1][i3_0][normal][11] , parabola_table[table_number][i1_1][i2_1][i3_0][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+          interp_table[6] = {parabola_table[table_number][i1_1][i2_1][i3_0][modified_normal][1],parabola_table[table_number][i1_1][i2_1][i3_0][modified_normal][2],parabola_table[table_number][i1_1][i2_1][i3_0][modified_normal][3],parabola_table[table_number][i1_1][i2_1][i3_0][modified_normal][14] };
+
+        grad_interp_par = {2*parabola_table[table_number][i1_1][i2_1][i3_1][normal][10]* intersection[4]   +  parabola_table[table_number][i1_1][i2_1][i3_1][normal][11] , parabola_table[table_number][i1_1][i2_1][i3_1][normal][13]};
+        modified_normal = (grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1] < 0)? (normal+1)%2 : normal ;
+        cout << " gradient of interp parabola = " << grad_interp_par[0] << " " << grad_interp_par[1] << ". dot product " << grad_given_par[0]*grad_interp_par[0] + grad_given_par[1]*grad_interp_par[1]<< " modified normal = " << modified_normal << endl;
+
+
+          interp_table[7] = {parabola_table[table_number][i1_1][i2_1][i3_1][modified_normal][1],parabola_table[table_number][i1_1][i2_1][i3_1][modified_normal][2],parabola_table[table_number][i1_1][i2_1][i3_1][modified_normal][3],parabola_table[table_number][i1_1][i2_1][i3_1][modified_normal][14] };
+
+       }
+
         for(unsigned int i = 0; i <=7 ; i++){
           cout <<" direct table  : " <<  interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
         }
+
+        {  // all the parabola equation of the inpolation points
+          cout<< "\n "<< parabola_table[table_number][i1_0][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_0][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_0][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_0][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_1][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_1][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_1][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+
+          cout<< parabola_table[table_number][i1_1][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+
+        }
+
+
+
 
 
         }
@@ -1514,7 +1607,7 @@ int main() {
   unsigned int m = 0;
   unsigned int n = 0;
   int s = 0;
-  unsigned int partition = 10;
+  unsigned int partition = 15;
 
 
 //   int b = 5;
@@ -1544,7 +1637,8 @@ int main() {
     int normal;
     unsigned int table_number;
     Type interp_area;
-    for (unsigned i=0;i<100;i++){
+    std:: vector <Type> bad_cases(0);
+    for (unsigned i=0;i<200;i++){
       interp_area = 0;
       normal =0;
       cout<< " "<<i<<endl;
@@ -1592,10 +1686,19 @@ int main() {
                 cout << " Actual area       = " << area <<endl;
 
                 cout << " difference        = " << interp_area - area << /*" addition =  " << interp_area + area <<*/  "\n"<< endl;
+                if (fabs(interp_area - area)  > 0.001) {
+                  bad_cases.resize(bad_cases.size()+1);
+                  bad_cases[bad_cases.size()-1] = i;
+                  cout << " ################################################################## Bad Cases "<<endl;
+                }
 
         }
 
 
+    }
+    cout<< " Bad case numbers:  "<<endl;
+    for(unsigned i =0; i < bad_cases.size(); i++){
+      cout<< " " << bad_cases[i] << " " ;
     }
 
 
