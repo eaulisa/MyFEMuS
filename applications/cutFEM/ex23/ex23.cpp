@@ -709,34 +709,75 @@ void CheckIntersection(int &intersect_number, unsigned int &table_number , std::
       }
 
       if (intersect_number == 4){
-        if(left == 1 && top == 2) table_number = 0;
-        else if(left == 1 && bottom == 2){
+        if(left == 1 && top == 2 && right == 1){
+          table_number = 0;
+          Type swap;
+          swap = interp_point[2];
+          interp_point[2] = interp_point[3];
+          interp_point[3] = swap;
+        }
+        else if (left == 1 && top == 2 && bottom == 1){
           table_number = 1;
           Type swap;
           swap = interp_point[1];
           interp_point[1] = interp_point[2];
-          interp_point[2] = interp_point [3];
+          interp_point[2] = interp_point[3];
           interp_point[3] = swap;
         }
-        else if( top >= 1 && bottom>= 1){
+
+        else if(left == 1 && bottom == 2 && right ==1){
+          table_number = 2;
+          Type swap;
+          swap = interp_point[2];
+          interp_point[2] = interp_point[1];
+          interp_point[1] = swap;
+        }
+
+        else if (left == 1 && bottom == 2 && top == 1){
+          table_number = 3;
+          Type swap;
+          swap = interp_point[1];
+          interp_point[1] = interp_point[2];
+          interp_point[2] = interp_point[3];
+          interp_point[3] = swap;
+        }
+
+        else if (right == 1 && top == 2 && bottom == 1){
+          table_number = 4;
+          Type swap;
+          swap = interp_point[1];
+          interp_point[1] = interp_point[0];
+          interp_point[0] = interp_point[2];
+          interp_point[2] = interp_point[3];
+          interp_point[3] = swap;
+        }
+
+        else if (right == 1 &&  bottom == 2 && top == 1){
+          table_number = 5;
+          Type swap;
+          swap = interp_point[2];
+          interp_point[2] = interp_point[0];
+          interp_point[0] = interp_point[1];
+          interp_point[1] = interp_point[3];
+          interp_point[3] = swap;
+        }
+
+        else if( top == 2 && bottom == 2){
 //           if(bottom == 1) table_number = 2;
 //           else if(top == 1 ) table_number =3;
-          if (interp_point[0] >= interp_point[2]){
-            table_number = 2 ;
+          if (interp_point[0] > interp_point[3]){
+            table_number = 6 ;
             Type swap;
             swap = interp_point[0];
             interp_point[0] = interp_point [3];
-            interp_point[3] = interp_point [2];
-            interp_point[2] = interp_point [1];
-            interp_point[1] = swap;
+            interp_point[3] = swap;
           }
           else{
-            table_number = 3;
+            table_number = 7;
             Type swap;
             swap = interp_point[1];
             interp_point[1] = interp_point [2];
-            interp_point[2] = interp_point [3];
-            interp_point[3] = swap;
+            interp_point[2] = swap;
 
           }
         }
@@ -978,7 +1019,7 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
   Type del_x = static_cast<Type>(1)/partition;
   Type epsilon (0.001);
 //   cout << "del_x " << del_x << endl;
-  for (int table = 0; table <=3; table++){  // BEGIN preevaluation of the table
+  for (int table = 0; table <=7; table++){  // BEGIN preevaluation of the table
 //     cout << "Table " << table << endl;
     parabola_table_4intersection.resize(parabola_table_4intersection.size() + 1);
 //     parabola_table_4intersection[table].resize(0);
@@ -995,37 +1036,85 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
            Type i1_pm_eps , i2_pm_eps, i3_pm_eps;
 
            switch (table) {
-                case 0:  // Left-Top-Top
+                case 0:  // Left-Top-Top - right
                     i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);  // this creates all parabola with same normal
+                    i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
+                    i3_pm_eps = static_cast<Type>(i3*del_x - epsilon);
+                      if (i2 == partition ) i2_pm_eps = static_cast<Type>(i2*del_x - epsilon); //it keeps my i2 in (0,1)
+
+                    p1 = {static_cast<Type>(0), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(1)};
+                    p3 = {static_cast<Type>(1),i3_pm_eps};
+                    break;
+
+                case 1:   // Left-Top-Top - bottom
+                    i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);  //why do I need to use epslon here?
                     i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
                     i3_pm_eps = static_cast<Type>(i3*del_x + 2*epsilon);
                     p1 = {static_cast<Type>(0), i1_pm_eps};
                     p2 = {i2_pm_eps, static_cast<Type>(1)};
-                    p3 = {i3_pm_eps, static_cast<Type>(1)};
+                    p3 = {i3_pm_eps, static_cast<Type>(0)};
                     break;
-                case 1:   // Left - Bottom - Bottom
+
+
+                case 2:   // Left - Bottom - Bottom - right
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
+                    i3_pm_eps = static_cast<Type>(i3*del_x + epsilon);
+                    if (i2 == partition ) i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+
+                    p1 = {static_cast<Type>(0), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
+                    p3 = {static_cast<Type>(1), i3_pm_eps};
+                    break;
+
+
+                case 3:   // Left - Bottom - Bottom - top
                     i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
                     i3_pm_eps = static_cast<Type>(i3*del_x + 2*epsilon);
                     p1 = {static_cast<Type>(0), i1_pm_eps};
                     p2 = {i2_pm_eps, static_cast<Type>(0)};
+                    p3 = {i3_pm_eps, static_cast<Type>(1)};
+                    break;
+
+                case 4:   // Right- Top - Bottom
+                    i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    i3_pm_eps = static_cast<Type>(i3*del_x - 2*epsilon);
+                    p1 = {static_cast<Type>(1), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(1)};
                     p3 = {i3_pm_eps, static_cast<Type>(0)};
                     break;
-                case 2:   // Bottom - Top -Top
+
+
+                case 5:  // Right - Bottom - Top
+                    i1_pm_eps = static_cast<Type>(i1*del_x + epsilon);
+                    i2_pm_eps = static_cast<Type>(i2*del_x - epsilon);
+                    i3_pm_eps = static_cast<Type>(i3*del_x - 2*epsilon);
+                    p1 = {static_cast<Type>(1), i1_pm_eps};
+                    p2 = {i2_pm_eps, static_cast<Type>(0)};
+                    p3 = {i3_pm_eps, static_cast<Type>(1)};
+                    break;
+
+
+                case 6:   //  Bottom - Top - Top - Bottom
                     i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
                     i3_pm_eps = static_cast<Type>(i3*del_x + 2*epsilon);
                     p1 = {i1_pm_eps, static_cast<Type>(0)};
                     p2 = {i2_pm_eps, static_cast<Type>(1)};
-                    p3 = {i3_pm_eps, static_cast<Type>(1) };
+                    p3 = {i3_pm_eps, static_cast<Type>(0) };
                     break;
-                case 3:  // Top -Bottom -Bottom
+
+
+                case 7:  // Top -Bottom -Bottom -Top
                     i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);
                     i2_pm_eps = static_cast<Type>(i2*del_x + epsilon);
                     i3_pm_eps = static_cast<Type>(i3*del_x + 2*epsilon);
                     p1 = {i1_pm_eps, static_cast<Type>(1)};
                     p2 = {i2_pm_eps, static_cast<Type>(0)};
-                    p3 = {i3_pm_eps, static_cast<Type>(0)};
+                    p3 = {i3_pm_eps, static_cast<Type>(1)};
                     break;
            }
 /*
@@ -1123,7 +1212,7 @@ void creat_parabola_table_4intersection(std::vector< std::vector< std::vector< s
                 parabola_table_4intersection[table][i1][i2][i3][normal][14] = area;
 
 
-                if(det == 0 && count != 0){
+                if(det == 0 && count != 0){      // TODO check if I still using this.
                  cout<< " using previous value : " <<  parabola_table_4intersection[table][i1][i2][i3-1][normal][14] << "instead of using the formula area : " << area << endl;
                  parabola_table_4intersection[table][i1][i2][i3][normal][14] = parabola_table_4intersection[table][i1][i2][i3-1][normal][14] ;
                 }
@@ -1287,13 +1376,6 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::v
             if (interp_point[2]<0 && interp_point[2]>1) cout << " parabola at midpoint is outside : check your intersections" << endl;
       }
 
-
-
-
-
-//       else cout<<"some thing is wrong in intersection points : dealing with more or less then two intersection points " << interp_point.size()<< "table " << table_number <<endl;
-
-//       cout<< " given parabola : k= " << k << "; b= " << b << "; d= "<< d << "; c = "<< c <<";"<< endl;
       cout<< " inter section line = " << " left " << left << " top "<< top << " right "<< right << " bottom " << bottom  << " table number :"<< table_number << " number of intersection " << intersect_number <<endl;
 
       //finding closed points
@@ -1436,24 +1518,24 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::v
           cout <<" direct table  : " <<  interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
         }
 
-        {  // all the parabola equation of the inpolation points
-          cout<< "\n "<< parabola_table[table_number][i1_0][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+          {  // all the parabola equation of the inpolation points
+            cout<< "\n "<< parabola_table[table_number][i1_0][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_0][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_0][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_0][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_0][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_0][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_0][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_0][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_0][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_1][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_1][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_1][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_1][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_0][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_1][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_1][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_0][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
 
-          cout<< parabola_table[table_number][i1_1][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+            cout<< parabola_table[table_number][i1_1][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][11]<<"x + "<<parabola_table[table_number][i1_1][i2_1][i3_1][normal][12]<< " + " << parabola_table[table_number][i1_1][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
 
-        }
+          }
 
 
 
@@ -1548,6 +1630,26 @@ void inverse_parabola(std::vector< std::vector< std::vector< std::vector< std::v
         for(unsigned int i = 0; i <=7 ; i++){
           cout <<" direct table  : " <<  interp_table[i][0] << " " <<interp_table[i][1] << " " <<interp_table[i][2] << " " <<interp_table[i][3]<< endl;
         }
+
+                  {  // all the parabola equation of the inpolation points
+            cout<< "\n "<< parabola_table_4intersection[table_number][i1_0][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_0][i2_0][i3_0][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_0][i2_0][i3_0][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_0][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_0][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_0][i2_0][i3_1][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_0][i2_0][i3_1][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_0][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_0][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_0][i2_1][i3_0][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_0][i2_1][i3_0][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_0][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_0][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_0][i2_1][i3_1][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_0][i2_1][i3_1][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_0][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_1][i2_0][i3_0][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_1][i2_0][i3_0][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_1][i2_0][i3_0][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_1][i2_0][i3_0][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_1][i2_0][i3_1][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_1][i2_0][i3_1][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_1][i2_0][i3_1][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_1][i2_0][i3_1][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_1][i2_1][i3_0][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_1][i2_1][i3_0][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_1][i2_1][i3_0][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_1][i2_1][i3_0][normal][13] <<"y = 0"<<endl;
+
+            cout<< parabola_table_4intersection[table_number][i1_1][i2_1][i3_1][normal][10]<<"x^2 + "<<parabola_table_4intersection[table_number][i1_1][i2_1][i3_1][normal][11]<<"x + "<<parabola_table_4intersection[table_number][i1_1][i2_1][i3_1][normal][12]<< " + " << parabola_table_4intersection[table_number][i1_1][i2_1][i3_1][normal][13] <<"y = 0"<<endl;
+
+          }
+
 
       }
 
