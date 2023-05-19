@@ -153,7 +153,7 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/channel.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh("./input/channelGraded.neu", "seventh", scalingFactor);
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
@@ -797,6 +797,10 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           std::vector < double > phixDotTauHat(nDofs, 0.);
           std::vector < adept::adouble > solDX_xHatgDotTauHatg(dim, 0.);
 
+//           double y = xgHat[1];
+//           double f = 0.0625 * y * y - 0.5 * y + 2.;
+//           std::vector<double> gradf = {0 , 0.125 * y - 0.5};
+          
           for(unsigned i = 0; i < nDofs; i++) {
             for(unsigned  k = 0; k < dim; k++) {
               for(unsigned j = 0; j < dim; j++) {
@@ -804,7 +808,8 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
               }
             }
             for(unsigned j = 0; j < dim; j++) {
-              phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
+              //phixDotTauHat[i] += (phixHat[i * dim + j] * f + 0 * phiHat[i] * gradf[j] )* tauHat[j];
+                phixDotTauHat[i] += phixHat[i * dim + j] * tauHat[j];
             }
           }
 
@@ -993,7 +998,7 @@ void AssembleSteadyStateControl(MultiLevelProblem& ml_prob) {
           else {
             if(k == 0 || !oneDimDisp) {
               mReslU[k][i] += solbV[k][i] - solbU[k][i];
-              mReslV[k][i] += - (NSVl[k] + ALEl[k]) * weight;
+              mReslV[k][i] += - (NSVl[k] * weight + ALEl[k] * weightHat);
             }
             else {
               mReslU[k][i] += solbU[k][i];
