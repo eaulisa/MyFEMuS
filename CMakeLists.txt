@@ -106,7 +106,7 @@ ENDIF(HDF5_FOUND)
 # Find Metis (optional)
 IF(APPLE)
   FIND_PACKAGE(METISApple)
-ELSE() 
+ELSE()
   FIND_PACKAGE(METIS)
 ENDIF(APPLE)
 MESSAGE(STATUS "METIS_FOUND = ${METIS_FOUND}")
@@ -283,11 +283,56 @@ CONFIGURE_FILE(
   "${PROJECT_BINARY_DIR}/include/FemusConfig.hpp" @ONLY IMMEDIATE
   )
 
+set(USEFEMUS_INCLUDES )
+list(APPEND USEFEMUS_INCLUDES
+  ${CMAKE_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/src/algebra
+  ${CMAKE_SOURCE_DIR}/src/enums
+  ${CMAKE_SOURCE_DIR}/src/equations
+  ${CMAKE_SOURCE_DIR}/src/fe
+  ${CMAKE_SOURCE_DIR}/src/ism
+  ${CMAKE_SOURCE_DIR}/src/mesh
+  ${CMAKE_SOURCE_DIR}/src/meshGencase
+  ${CMAKE_SOURCE_DIR}/src/parallel
+  ${CMAKE_SOURCE_DIR}/src/physics
+  ${CMAKE_SOURCE_DIR}/src/quadrature
+  ${CMAKE_SOURCE_DIR}/src/quadrature/cutfem
+  ${CMAKE_SOURCE_DIR}/src/solution
+  ${CMAKE_SOURCE_DIR}/src/solution/output
+  ${CMAKE_SOURCE_DIR}/src/uq
+  ${CMAKE_SOURCE_DIR}/src/utils
+  ${CMAKE_SOURCE_DIR}/src/utils/eigen
+  ${CMAKE_SOURCE_DIR}/src/utils/input_parser
+  ${ADEPT_INCLUDE_DIRS}
+  ${B64_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PETSC_INCLUDES}
+)
+
+set(USEFEMUS_LIBRARIES ${LIBRARY_OUTPUT_PATH}/libfemus.so)
+list(APPEND USEFEMUS_LIBRARIES
+  ${ADEPT_LIBRARIES}
+  ${B64_LIBRARIES}
+  ${HDF5_LIBRARIES}
+  ${JSONCPP_LIBRARIES}
+  ${PETSC_LIBRARIES}
+)
+
+if (HAVE_FPARSER)
+  list(APPEND USEFEMUS_INCLUDES ${FPARSER_INCLUDE_DIR})
+  list(APPEND USEFEMUS_LIBRARIES ${FPARSER_LIBRARY})
+endif()
+
+message(STATUS "MPI_EXTRA_LIBRARY = ${MPI_EXTRA_LIBRARY}")
+if (${MPI_EXTRA_LIBRARY})
+  list(APPEND USEFEMUS_LIBRARIES ${MPI_EXTRA_LIBRARY})
+endif()
+
 CONFIGURE_FILE(
   "${PROJECT_SOURCE_DIR}/UseFemus.CMake.in"
   "${PROJECT_BINARY_DIR}/UseFemus.CMake" @ONLY IMMEDIATE
   )
-  
+
 #############################################################################################
 ### Include files
 #############################################################################################
