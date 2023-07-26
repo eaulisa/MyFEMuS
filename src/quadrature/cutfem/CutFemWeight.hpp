@@ -33,7 +33,7 @@ using boost::multiprecision::cpp_bin_float_quad;
 
 using namespace femus;
 
-std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
+static const std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
 
 template <class TypeIO, class TypeA>
 class CutFemWeight {
