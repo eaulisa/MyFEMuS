@@ -1,7 +1,3 @@
-
-
-
-
 #include <iostream>
 #include <iomanip>
 
