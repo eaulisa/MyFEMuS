@@ -1315,7 +1315,7 @@ k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
 
 
 template <class TypeIO, class TypeA>
-void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
+                                                                                                                                                             void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
   I1.resize(0);
   I2.resize(0);
   I3.resize(0);

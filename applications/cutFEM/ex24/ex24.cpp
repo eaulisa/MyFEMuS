@@ -1555,7 +1555,7 @@ std::vector<Point> findGridIntersectionPoints(Circle circle, Point lineStart, Po
       grid_intersections.resize(3);
       grid_intersections[2] = { (grid_intersections[0].x + grid_intersections[1].x)*0.5 , -1.0};
       diff_of_sqr = r*r - ((grid_intersections[2].x - h)*(grid_intersections[2].x - h));
-      if (diff_of_sqr >= 0 ){
+      if (diff_of_sqr >= 0 ){ //it is different for table 5
         sqrt_diff_of_sqrt = sqrt(diff_of_sqr);
         value_p = k + sqrt_diff_of_sqrt;
         value_m = k - sqrt_diff_of_sqrt;
@@ -1596,6 +1596,27 @@ std::vector<Point> findGridIntersectionPoints(Circle circle, Point lineStart, Po
 //       swapping x and y when we have Top - Bottom (table-5) into table-1
 
       cout<< " ("<<grid_intersections[0].x<<"," << grid_intersections[0].y<<") " << " ("<<grid_intersections[1].x<<"," << grid_intersections[1].y<<") " << " ("<<grid_intersections[2].x<<"," << grid_intersections[2].y<<") " <<endl;
+
+      if (table_number == 5){
+        grid_intersections[2] = { -1.0, (grid_intersections[0].y + grid_intersections[1].y)*0.5 };
+        diff_of_sqr = r*r - ((grid_intersections[2].y - h)*(grid_intersections[2].y - h));
+        if (diff_of_sqr >= 0 ){
+          sqrt_diff_of_sqrt = sqrt(diff_of_sqr);
+          value_p = h + sqrt_diff_of_sqrt;
+          value_m = h - sqrt_diff_of_sqrt;
+          if (value_p >=lineStart.x && value_p <= lineEnd.x){
+            grid_intersections[2].x = value_p;
+          }
+          else if (value_m >=lineStart.x && value_m <= lineEnd.x ){
+            grid_intersections[2].x = value_m;
+          }
+          else {
+          grid_intersections.resize(0);
+          ltrbNumber={0,0,0,0};
+          // meaning we have two intersection but mid_point is outside. it is either 4 intersection or never inters}
+          }
+        }
+      }
 
     }
 
@@ -1791,7 +1812,7 @@ void interpolationTable(std::vector< std::vector< std::vector< std::vector< std:
 
 template <class Type>
 Type findGridArea(const Circle &circle, const Point &gridStart, const Point &gridEnd, std::vector<Point> grid_intersections, std:: vector <std:: vector <Type>> interp_table, const std::vector< Type > &interp_point, const int &partition, const double &grid_size){
-  Type area;
+  Type area(0);
   if(grid_intersections.size() <= 1){
     // Circle equation: (x - h)^2 + (y - k)^2 = r^2 Find (i+epsilon-h)^2 +(j+epsilon-k)^2 < r^2
     area = ( (gridStart.x - circle.center.x )*(gridStart.x - circle.center.x) + (gridStart.y - circle.center.y)*(gridStart.y - circle.center.y) < (circle.radius*circle.radius)) ? static_cast<Type>(1) : static_cast<Type>(0) ;
@@ -1827,6 +1848,7 @@ int main() {
   int s = 0;
   unsigned int partition = 10;
   int normal;
+  Type formulaArea(0);
 
   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table(0) ;
   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table_4intersection(0);
@@ -1840,16 +1862,14 @@ int main() {
     std:: vector <Type> intersection(0);
     std:: vector <Type> interp_point(0);
     std:: vector <std:: vector <Type>> interp_table(8, std:: vector <Type> (4));
+    std:: vector <Parabola<Type>> badcases(0);
 
     unsigned int table_number;
     Type interp_area;
-    std:: vector <Type> bad_cases(0);
-
-
-
+    Type totalerrorID(0);
 
 //     =======================================================
-    int grid_n=50; // Number of grids
+    int grid_n=10; // Number of grids
     Type gridArea(0);
     Type area(0);
 
@@ -1858,6 +1878,7 @@ int main() {
     circle.center = {0.5, 0.5}; // Assuming the circle is centered at (0.5, 0.5)
     circle.radius = 0.39; // Assuming the radius of the circle is 0.4
     double grid_size = 1.0 / grid_n;
+    unsigned ccount = 0;
 
 
 //     std::cout << " Type of Point :  " << typeid(circle).name();
@@ -1883,7 +1904,7 @@ int main() {
 
             std::vector<Point> mapped_intersections = mapIntersectionPoints(grid_intersections, grid_leftdown, grid_righttop, table_number, interp_point,isswap);
             if(grid_intersections.size() == 3){
-              if(isswap){ // 2nd and 3rd quadrant change the normal
+              if(isswap){ // 1st and 2nd quadrant change the normal
                 normal= ((grid_leftdown.x+grid_righttop.x)*0.5 > circle.center.x )? 1 : 0 ;
                 cout << "we used isswap"<<endl;
               }
@@ -1895,6 +1916,76 @@ int main() {
 
 
             gridArea = findGridArea<Type>(circle, grid_leftdown, grid_righttop, grid_intersections,interp_table, interp_point, partition,grid_size);
+
+             // direct integral
+            {
+              if (mapped_intersections.size() >= 3){ // find the parabola equation from first three points.
+                ccount ++;
+
+                PointT <Type> p1 = { static_cast<Type>(mapped_intersections[0].x), static_cast<Type>(mapped_intersections[0].y) };
+                PointT <Type> p2 = { static_cast<Type>(mapped_intersections[1].x), static_cast<Type>(mapped_intersections[1].y) };
+                PointT <Type> p3 = { static_cast<Type>(mapped_intersections[2].x), static_cast<Type>(mapped_intersections[2].y) };
+
+                Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;
+
+                cout << " 3 points :  " << "(" << p1.x <<" , "<< p1.y<<")" << "(" << p2.x <<" , "<< p2.y<<")"<< "(" << p3.x <<" , "<< p3.y<<")" << endl;
+
+                Parabola <Type> parabola = get_parabola_equation(p1, p2, p3, det);
+
+                Type k, b, d, a(0), c, area1(0);
+
+                std::vector <Type> pol1(3, 0);
+                std::vector <Type> pol2(3, 0);
+                Type A1 = 0, A2 = 0, A3 = 0;
+                Type B1 = 0, B2 = 0, B3 = 0;
+
+                if(normal == 0){
+                  c=1;
+                  pol1[0] = parabola.k ; pol1[1] = a + parabola.b; pol1[2] = c + parabola.d;  pol2[0] = parabola.k; pol2[1] = parabola.b; pol2[2] = parabola.d;
+                }
+                else if(normal ==1){
+                  c=-1;
+                  pol1[0] = -parabola.k ; pol1[1] = -a - parabola.b; pol1[2] = c - parabola.d;  pol2[0] = -parabola.k; pol2[1] = -parabola.b; pol2[2] = -parabola.d;
+                }
+
+//                 cout << " prabola equation from 3 points = " <<pol2[0]<<"x^2 + " << pol2[1]<<" x + "<< pol2[2] << " + " << c << "y "<< endl;
+
+                cout << " prabola equation from 3 points = " <<parabola.k<<"x^2 + " << parabola.b<<" x + "<< parabola.d << " + " << c << "y "<< endl;
+
+                std::vector< std::pair <Type, Type> > I1, I2, I3 ;
+                GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+
+                if(I1.size() > 0) {
+                  A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
+                }
+                if(I2.size() > 0) {
+                  A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
+                }
+                if(I3.size() > 0) {
+                  A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
+                }
+
+                area1 = (A1 + A2 + A3);
+                cout<< " formula grid area before scaling = " << area1 <<endl;
+                area1 = (A1 + A2 + A3)*grid_size*grid_size ;
+                cout<< " formula grid area after scaling = " << area1 <<endl;
+
+                formulaArea += area1 ;
+                cout<< " formula area total = " << formulaArea <<endl;
+                cout << " difference between direct and interpolation : " << (gridArea - area1)*grid_n*grid_n <<endl;
+
+                totalerrorID += (gridArea - area1)*grid_n*grid_n;
+                if(fabs((gridArea - area1)* grid_n* grid_n) > 0.0001){
+                  badcases.resize(badcases.size()+1);
+                  badcases[badcases.size()-1] = {grid_size * i, grid_size * j , (gridArea - area1)* grid_n* grid_n };
+
+                }
+
+              }
+              else formulaArea += gridArea;
+            }
+
+
 
 
             // Output the intersection points of the circle with the current grid
@@ -1916,8 +2007,14 @@ int main() {
         }
     }
 
-    std::cout << "Total area = " << area  << " original area = " << circle.radius * circle.radius * M_PI << " error = " << fabs(area - circle.radius * circle.radius * M_PI ) <<endl;
+    std::cout << "Total area = " << area  << "formulaArea = " <<formulaArea << " original area = " << circle.radius * circle.radius * M_PI << " interpolation error = " << fabs(area - circle.radius * circle.radius * M_PI ) << "formula error = " <<fabs(formulaArea - circle.radius * circle.radius * M_PI ) << endl;
 
+    for(int xm =0 ; xm < badcases.size(); xm++){
+      cout << " ( " << badcases[xm].k <<" , " << badcases[xm].b << " ) , " << badcases[xm].d << "]";
+    }
+    cout<< "The circle went through " << ccount << " grid."  << endl;
+    cout <<endl<< " total error from direct formula in referance space: " << totalerrorID <<endl;
+        cout <<endl<< " total error from direct formula in physical space: " << totalerrorID*grid_size*grid_size <<endl;
 
 
 
