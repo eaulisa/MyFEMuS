@@ -22,8 +22,8 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS  5
-#define N_ERASED_LEVELS   0
+#define N_UNIFORM_LEVELS 6
+#define N_ERASED_LEVELS 0
 
 #define EX_1       -1.
 #define EX_2        1.
@@ -67,7 +67,7 @@ const elem_type *finiteElementQuad;
 
 
 
-int main(int argc, char** argv) {
+int main1(int argc, char** argv) {
 
 
   std::vector < std::vector<double> > x;
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     double d, db;
     unsigned cut;
 
-    
+
     for(unsigned j = 0; j < 3; j++) {
       GetNormalTriBF(x, {0., 0.}, 1., a, d, xm, b, db, cut);
 
@@ -90,13 +90,13 @@ int main(int argc, char** argv) {
 //       std::cout << x[0][0] << " " << x[1][0] << std::endl;
 //       std::cout << a[0] << " " << a[1] << " " << d <<  std::endl;
       std::cout << b[0] << "," << b[1] << "," << db <<  std::endl; // this is the normal in the parent that needs to train
-      
-      x[0].insert(x[0].begin(),x[0][2]);
-      x[1].insert(x[1].begin(),x[1][2]);
-      
+
+      x[0].insert(x[0].begin(), x[0][2]);
+      x[1].insert(x[1].begin(), x[1][2]);
+
       x[0].resize(3);
       x[1].resize(3);
-      
+
     }
   }
 
@@ -106,7 +106,10 @@ int main(int argc, char** argv) {
 
 
 
-int main1(int argc, char** argv) {
+int main(int argc, char** argv) {
+
+   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
+
 
   std::vector<std::vector<double>> xt = {{0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
   std::vector< double > xg1 = {0.0, 0., 1.5};
@@ -133,9 +136,29 @@ int main1(int argc, char** argv) {
 
   unsigned qM = 3;
   CutFemWeight <TypeIO, TypeA> hex  = CutFemWeight<TypeIO, TypeA >(HEX, qM, "legendre");
-  CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
+  CutFemWeight <TypeIO, TypeA> quad = CutFemWeight<TypeIO, TypeA >(QUAD, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, qM, "legendre");
   CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, qM, "legendre");
+
+//   for(unsigned k =0; k<100; k++){
+//     std::vector <TypeIO> weightCF;
+//     hex.GetWeightWithMap(0, {-1.+ 2 *(rand()/RAND_MAX), -1.+ 2 *(rand()/RAND_MAX), -1.+ 2 *(rand()/RAND_MAX)}, 0, weightCF);
+//
+//
+//     const double* weightG = hex.GetGaussWeightPointer();
+//
+//     double sum = 0.;
+//     double sum1 = 0.;
+//     for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+//       sum1 += weightG[ig];
+//       sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
+//     }
+//     std::cout << sum1 << "\t";
+//     std::cout << sum << "\n";
+//   }
+//
+//   return 1;
+
 
   std::vector<double> weight1;
   tet.GetWeightWithMap(0, { -0.034878236872063, 0.0012179748700879, 0.9993908270191}, 0.096573056501712, weight1);
@@ -207,7 +230,7 @@ int main1(int argc, char** argv) {
   const std::string fe_quad_rule_2 = "eighth";
 
 // ======= Init ========================
-  FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
+//   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
 //   finiteElementQuad = new const elem_type_2D("quad", "linear", "fifth", "legendre");
 
@@ -279,11 +302,11 @@ int main1(int argc, char** argv) {
 
 
   std::vector<double> xg(dim);
-  xg[0] = -0.0482;
-  xg[1] = -0.0110;
-  if(dim == 3) xg[2] = 0.0320;
+  xg[0] = 0.0482;
+  xg[1] = 0.0110;
+  if(dim == 3) xg[2] = -0.0320;
   double R = 0.265;
-  double volumeBall = 0.;
+  double volumeBallIproc = 0.;
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -297,7 +320,7 @@ int main1(int argc, char** argv) {
     for(unsigned k = 0; k < dim; k++) {
       for(unsigned i = 0; i < nDof; i++) {
         unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
-        x1[k][(i + 2) % nDof] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
+        x1[k][i] = (*msh->_topology->_Sol[k])(xDof); // global extraction and local storage for the element coordinates
       }
     }
 
@@ -335,23 +358,23 @@ int main1(int argc, char** argv) {
 
       //std::cout << cut <<" ";
     }
-     else if(ielType == 0) {
+    else if(ielType == 0) {
 
-         
-         
+
+
 //     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
 //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
-// 
+//
 //       }
-      GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0)); 
-      vol = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) * 
-            ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1))) * 
+      GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0));
+      vol = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) *
+            ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1))) *
             ((EZ_2 - EZ_1) / (N_Z * pow(2, N_UNIFORM_LEVELS - 1))) ;
-    
+
       //std::cout<< cut<<" ";
-      
+
       //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
@@ -375,7 +398,7 @@ int main1(int argc, char** argv) {
         for(unsigned ig = 0; ig < weightCF.size(); ig++) {
           sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
         }
-        volumeBall += sum / 4. * vol;
+        volumeBallIproc += sum / 4. * vol;
       }
       else if(ielType == 4) {
         std::vector <TypeIO> weightCF;
@@ -389,7 +412,7 @@ int main1(int argc, char** argv) {
           sum += weightG[ig] * weightCF[ig] ;
         }
         //std::cout << sum << " ";
-        volumeBall += 2. * sum * vol;
+        volumeBallIproc += 2. * sum * vol;
       }
       else if(ielType == 1) {
         std::vector <TypeIO> weightCF;
@@ -405,7 +428,7 @@ int main1(int argc, char** argv) {
         for(unsigned ig = 0; ig < weightCF.size(); ig++) {
           sum += weightG[ig] * weightCF[ig] ;
         }
-        volumeBall += 6. * sum * vol;
+        volumeBallIproc += 6. * sum * vol;
 
       }
       else if(ielType == 0) {
@@ -414,19 +437,19 @@ int main1(int argc, char** argv) {
 
         //hexCD.GetWeight(b, db, weightCF);
 
-        const double* weightG = quad.GetGaussWeightPointer();
+        const double* weightG = hex.GetGaussWeightPointer();
 
         double sum = 0.;
         for(unsigned ig = 0; ig < weightCF.size(); ig++) {
           sum += weightG[ig] * weightCF[ig] ; //TODO use the correct quad rule!!!!!
         }
-        volumeBall += sum / 8. * vol;
+        volumeBallIproc += sum / 8. * vol;
       }
 
 
     }
     else if(cut == 0) {
-      volumeBall += vol;
+      volumeBallIproc += vol;
     }
 
     /* trivial print for xmgrace */
@@ -446,6 +469,9 @@ int main1(int argc, char** argv) {
   std::cout << "numnber of calls in TET  " << tet.GetCounter() << std::endl;
 
 
+  double volumeBall;
+  MPI_Allreduce(&volumeBallIproc, &volumeBall, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
   std::cout.precision(14);
   std::cout << "volume of the Ball  in " << dim << "D = " << volumeBall << "  analytic value = " << ((dim == 2) ? M_PI * R * R : 4. / 3. * M_PI * pow(R, 3)) << "\n";
 
@@ -455,7 +481,7 @@ int main1(int argc, char** argv) {
   mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "quadratic", print_vars, 0);
 
   delete finiteElementQuad;
-  return 1;
+  return 0;
 }
 
 
