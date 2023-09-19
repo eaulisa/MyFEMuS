@@ -795,7 +795,7 @@ class CDWeightHEX :
 
       if(k >= 4) f -= 90;
 
-      std::cout<<" AAA  " <<k<<" "<<xi<<" "<<t<<" "<<f<<" "<<std::endl;
+//      std::cout<<" AAA  " <<k<<" "<<xi<<" "<<t<<" "<<f<<" "<<std::endl;
 
 //       unsigned i1 = floor((xi - xi0) / _dx);
 //       double s1 = (xi - (xi0 + i1 * _dx)) / _dx;
@@ -874,10 +874,10 @@ class CDWeightHEX :
         s3 = 2;
       }
 
-      std::cout << k << std::endl;
-      std::cout <<_nx <<" "<<_dx<<" "<< i1 << " " << s1 << std::endl;
-      std::cout <<_nt <<" "<<_dt<<" "<< i2 << " " << s2 << std::endl;
-      std::cout <<_nf <<" "<<_df<<" "<< i3 << " " << s3 << std::endl << std::endl << std::flush;
+//       std::cout << k << std::endl;
+//       std::cout <<_nx <<" "<<_dx<<" "<< i1 << " " << s1 << std::endl;
+//       std::cout <<_nt <<" "<<_dt<<" "<< i2 << " " << s2 << std::endl;
+//       std::cout <<_nf <<" "<<_df<<" "<< i3 << " " << s3 << std::endl << std::endl << std::flush;
 
       _phi1.resize(4);
       _phi2.resize(4);

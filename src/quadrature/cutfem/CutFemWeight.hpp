@@ -58,8 +58,6 @@ class CutFemWeight {
       _cntCall = 0;
 
       if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
-
-        std::cout<<"AAAAAAAAAAAAAAAA "<< _dim << " " <<_geomElemType<<std::endl;
         _obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == TET) {
