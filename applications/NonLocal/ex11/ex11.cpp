@@ -22,7 +22,7 @@
 using namespace std;
 using namespace femus;
 
-#define N_UNIFORM_LEVELS 6
+#define N_UNIFORM_LEVELS 8
 #define N_ERASED_LEVELS 0
 
 #define EX_1       -1.
@@ -173,17 +173,18 @@ int main(int argc, char** argv) {
   double dt = 2.;
   CDWeightQUAD <TypeA> quadCD(qM, dx, dt);
   CDWeightTRI <TypeA> triCD(qM, dx, dt);
-  //CDWeightTET <TypeA> tetCD(qM, dx, dt);
-  //CDWeightHEX <TypeA> hexCD(qM, dx, dt);
+  CDWeightTET <TypeA> tetCD(qM, dx, dt);
+  CDWeightHEX <TypeA> hexCD(qM, dx, dt);
 
   std::cout << std::endl;
 
-  double theta1 = 45;
-  double phi1 = 30;
+  double theta1 = 45+4;
+  double phi1 = 30+90;
   std::vector<double> a1 = {cos(theta1 * M_PI / 180), -sin(theta1 * M_PI / 180)};
   std::vector<double> a2 = {cos(theta1 * M_PI / 180)* sin(phi1 * M_PI / 180), sin(theta1 * M_PI / 180) * sin(phi1 * M_PI / 180), cos(phi1 * M_PI / 180)};
   double d1 = -0.1 * sqrt(2);
 
+  std::cout<<" BBB "<< a2[0] <<" "<< a2[1] <<" "<<a2[2]<<" "<<d1<<" "<< -d1 /(a2[0]+a2[1]+a2[2])<<std::endl;
 
 //   quad.GetWeightWithMap(0, a1, d1, weight1);
 //
@@ -211,20 +212,32 @@ int main(int argc, char** argv) {
 //   }
 //   std::cout << std::endl;
 
-//   tet.GetWeightWithMap(0, a2, d1, weight1);
-//   for(unsigned j = 0; j < weight1.size(); j++) {
-//     std::cout << weight1[j] << " ";
-//   }
-//   std::cout << std::endl;
-//   tetCD.GetWeight(a2, d1, weight);
-//   for(unsigned j = 0; j < weight.size(); j++) {
-//     std::cout << weight[j] << " ";
-//   }
-//   std::cout << std::endl;
-//
-//
-//
-//   return 1;
+  tet.GetWeightWithMap(0, a2, d1, weight1);
+  for(unsigned j = 0; j < weight1.size(); j++) {
+    //std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  tetCD.GetWeight(a2, d1, weight);
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] - weight1[j]<< " ";
+  }
+  std::cout << std::endl;
+
+
+
+
+  hex.GetWeightWithMap(0, a2, d1, weight1);
+  for(unsigned j = 0; j < weight1.size(); j++) {
+   // std::cout << weight1[j] << " ";
+  }
+  std::cout << std::endl;
+  hexCD.GetWeight(a2, d1, weight);
+  for(unsigned j = 0; j < weight.size(); j++) {
+    std::cout << weight[j] - weight1[j]  << " ";
+  }
+  std::cout << std::endl;
+
+  return 0;
 
   const std::string fe_quad_rule_1 = "seventh";
   const std::string fe_quad_rule_2 = "eighth";
@@ -241,9 +254,9 @@ int main(int argc, char** argv) {
   unsigned numberOfSelectiveLevels = 0;
 //   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., QUAD9, fe_quad_rule_1.c_str());
 //   mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, 0, EX_1, EX_2, EY_1, EY_2, 0., 0., TRI6, fe_quad_rule_1.c_str());
-  mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, N_Z, EX_1, EX_2, EY_1, EY_2, EZ_1, EZ_2, HEX27, fe_quad_rule_1.c_str());
+ // mlMsh.GenerateCoarseBoxMesh(N_X, N_Y, N_Z, EX_1, EX_2, EY_1, EY_2, EZ_1, EZ_2, HEX27, fe_quad_rule_1.c_str());
 
-  //mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
+  mlMsh.ReadCoarseMesh("./input/cube_tet.neu", fe_quad_rule_1.c_str(), 1.);
 
   mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
@@ -343,13 +356,13 @@ int main(int argc, char** argv) {
     }
     else if(ielType == 1) {
 
-//     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
+     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
 //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
 //
 //       }
-      GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
+//      GetNormalTetBF(x1, xg, R, a, d, xm, b, db, vol, cut);
 //       if(cut == 1) {
 //         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
 //         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl << std::endl; ;
@@ -360,14 +373,6 @@ int main(int argc, char** argv) {
     }
     else if(ielType == 0) {
 
-
-
-//     GetNormalTet(x1, xg, R, a, d, xm, b, db, vol, cut);
-//       if(cut == 1) {
-//         std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
-//         std::cout << xm[0] << " " << xm[1] << " " << xm[2] << std::endl;
-//
-//       }
       GetNormalHexBF(x1, xg, R, a, d, xm, b, db, vol, cut, fem.GetFiniteElement(0, 0));
       vol = ((EX_2 - EX_1) / (N_X * pow(2, N_UNIFORM_LEVELS - 1))) *
             ((EY_2 - EY_1) / (N_Y * pow(2, N_UNIFORM_LEVELS - 1))) *
