@@ -165,7 +165,11 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
     _finiteElementLinear = new const elem_type_3D(geom_elem, "linear", "zero", gauss_type);
     _elType = (!strcmp(geom_elem, "hex")) ? 0 : (_elType = (!strcmp(geom_elem, "tet")) ? 1 : 2) ;
     
-    if(!strcmp(geom_elem, "tet")) {
+     if(!strcmp(geom_elem, "hex")) {
+      _cutFem  = new CutFemWeight<double, double >(HEX, _quadOrder, "legendre");
+      _CDweight = new CDWeightHEX <double>(_quadOrder, 0.05, 2.);
+    }
+    else if(!strcmp(geom_elem, "tet")) {
       _cutFem  = new CutFemWeight<double, double >(TET, _quadOrder, "legendre");
       _CDweight = new CDWeightTET <double>(_quadOrder, 0.05, 2.);
     }

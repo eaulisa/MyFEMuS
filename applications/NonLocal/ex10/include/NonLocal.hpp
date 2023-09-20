@@ -7,8 +7,12 @@ std::ofstream fout;
 
 class NonLocal {
   public:
-    NonLocal() {};
-    ~NonLocal() {};
+    NonLocal() {
+      _ballAprx = new BallApproximation();
+    };
+    ~NonLocal() {
+      delete _ballAprx;
+    };
     double GetDistance(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
       double distance  = 0.;
       for(unsigned k = 0; k < x1.size(); k++) {
@@ -74,7 +78,7 @@ class NonLocal {
     std::vector <unsigned> _jelIndexI;
     std::vector < std::vector <unsigned> >_jelIndexR;
 
-    BallApproximation _ballAprx;
+    BallApproximation *_ballAprx;
     std::vector<double> _a;
 
     std::vector< std::vector < double> > _xg1;
@@ -427,7 +431,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         }
 
         if(coarseIntersectionTest) {
-          _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+          _ballAprx->GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
 
           if(_cut == 0) { //interior element
             double W2 = 2. * weight2[jg] * _kernel;
