@@ -442,12 +442,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
     MPI_Bcast(&kprocMinMax[kproc * dim * 2], dim * 2, MPI_DOUBLE, kproc, PETSC_COMM_WORLD);
   }
-//   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
-//     for(unsigned k = 0; k < dim; k++) {
-//       unsigned kk = kproc * (dim * 2) + k * dim;
-//       //std::cout << kproc << " " << k << " " << kprocMinMax[kk] << " " << kprocMinMax[kk + 1] << "\n";
-//     }
-//   }
 
   std::vector < std::vector < unsigned > > orElements(nprocs);
   std::vector < unsigned > orCntSend(nprocs, 0);
@@ -543,8 +537,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
     }
-
-
 
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       orElements[kproc].resize(orCntSend[kproc]);
@@ -1044,8 +1036,6 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
                               refineElement[ielGeom][soluType]->GetOctTreeElement1(), refineElement[ielGeom][soluType]->GetOctTreeElement1CF(),
                               *refineElement[ielGeom][soluType], region2, jelIndex, solu1, kappa1, delta1, printMesh);
 
-
-
     for(unsigned jel = 0; jel < region2.size(); jel++) {
 
       std::vector<double> & J21 = nonlocal->GetJac21(jel);
@@ -1247,7 +1237,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   double tolerance = 1.0e-12 * KK->linfty_norm();
   KK->RemoveZeroEntries(tolerance);
-//
+
 //   KK->draw();
 
   delete nonlocal;
@@ -1267,13 +1257,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     delete refineElement[4][1];
     delete refineElement[4][2];
   }
-
-
-
-
-  //std::cout << I2;
-
-// ***************** END ASSEMBLY *******************
+  // ***************** END ASSEMBLY *******************
 }
 
 

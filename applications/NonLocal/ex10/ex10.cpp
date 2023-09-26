@@ -15,7 +15,7 @@
 #include "slepceps.h"
 
 unsigned lmax1 = 3; // consistency form 3 -> 7
-const bool correctConstant = false;
+const bool correctConstant = !false;
 
 #include "./include/nonlocal_assembly_adaptive.hpp"
 #include "CDWeights.hpp"
