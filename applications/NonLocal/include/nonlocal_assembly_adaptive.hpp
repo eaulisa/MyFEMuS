@@ -292,7 +292,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   //BEGIN setup for adaptive integration
 
-  unsigned lmax1 = 2; // consistency form 3 -> 7
+  unsigned lmax1 = 5; // consistency form 3 -> 7
   //unsigned lmax1 = 1; // cubic or quartic
   unsigned lmin1 = 1;
   if(lmin1 > lmax1 - 1) lmin1 = lmax1 - 1;
@@ -348,6 +348,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     refineElement[1][2] = new RefineElement(lmax1, "tet", "biquadratic", "third", "third", "legendre");
 
     refineElement[0][soluType]->SetConstants(eps);
+    refineElement[1][soluType]->SetConstants(eps);
+
 
 
     nonlocal = new NonLocalBall3D();
@@ -369,7 +371,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     //nonlocal = new NonLocalBox();
   }
 
-  nonlocal->SetKernel(kappa1, delta1, eps);
+  nonlocal->SetKernel(kappa1, delta1, 0);
 
 //   fout.open("mesh.txt");
 //   fout.close();
