@@ -761,7 +761,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     std::cout << "I2 Assembly Time = " << static_cast<double>(pAssemblyTime) / CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
 
-    double I2real = 4. / 5. * M_PI * pow(delta1, 5);
+    double I2real = (dim == 2) ? 0.5 * M_PI * pow(delta1, 4) : 4. / 5. * M_PI * pow(delta1, 5);
 
     for(unsigned jel = offset; jel < offsetp1; jel++) {
       unsigned jelGroup = msh->GetElementGroup(jel);
