@@ -850,33 +850,6 @@ void GetNormalTetBF1(const std::vector < std::vector<double> > &xv, const std::v
     }
     d /= weightAll;
 
-
-//     std::vector<double> w(cnt + 1, 1.);
-//     w[cnt] = 2. * cnt;
-//     y.resize(cnt + 1, {0., 0., 0.});
-//
-//     std::vector <double> N(dim, 0); // this is an approximate normal pointing toward the outside of the ball in the physical element
-//     double det = 0.;
-//     for(unsigned k = 0; k < dim; k++) {
-//       for(unsigned i = 0; i < cnt; i++) {
-//         N[k] += y[i][k];
-//       }
-//       det += N[k] * N[k];
-//     }
-//     det = sqrt(det);
-//     for(unsigned k = 0; k < dim; k++) {
-//       N[k] /=  det;
-//     }
-//
-//     double theta = atan2(N[1], N[0]);
-//     double phi = acos(N[2]);
-//
-//     y[cnt][0] = R * sin(phi) * cos(theta);
-//     y[cnt][1] = R * sin(phi) * sin(theta);
-//     y[cnt][2] = R * cos(phi);
-//
-//     femus::FindBestFit(y, w, N, a, d); // a is the unit BF normal pointing toward the outside of the ball in the physical element
-
     xm.resize(dim);
     xm[0] = -(d * a[0]);
     xm[1] = -(d * a[1]);
