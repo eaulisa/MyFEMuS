@@ -520,33 +520,6 @@ void BallApproximation::GetNormalTet(const std::vector < std::vector<double> > &
     }
     d /= weightAll;
 
-
-//     std::vector<double> w(cnt + 1, 1.);
-//     w[cnt] = 2. * cnt;
-//     y.resize(cnt + 1, {0., 0., 0.});
-//
-//     std::vector <double> N(dim, 0); // this is an approximate normal pointing toward the outside of the ball in the physical element
-//     double det = 0.;
-//     for(unsigned k = 0; k < dim; k++) {
-//       for(unsigned i = 0; i < cnt; i++) {
-//         N[k] += y[i][k];
-//       }
-//       det += N[k] * N[k];
-//     }
-//     det = sqrt(det);
-//     for(unsigned k = 0; k < dim; k++) {
-//       N[k] /=  det;
-//     }
-//
-//     double theta = atan2(N[1], N[0]);
-//     double phi = acos(N[2]);
-//
-//     y[cnt][0] = R * sin(phi) * cos(theta);
-//     y[cnt][1] = R * sin(phi) * sin(theta);
-//     y[cnt][2] = R * cos(phi);
-//
-//     femus::FindBestFit(y, w, N, a, d); // a is the unit BF normal pointing toward the outside of the ball in the physical element
-
     std::vector<double>xm(dim);
     xm[0] = -(d * a[0]);
     xm[1] = -(d * a[1]);
@@ -583,8 +556,6 @@ void BallApproximation::GetNormalTet(const std::vector < std::vector<double> > &
     double den =   J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1])
                    - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0])
                    + J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
-
-    double volume = den / 6.;
 
     xi[0] = -(x3 * y4 * z1 - x3 * xm[1] * z1 - x1 * y4 * z3 + x1 * xm[1] * z3 - x3 * y1 * z4 + x1 * y3 * z4 - x1 * xm[1] * z4 + x3 * xm[1] * z4 +
               xm[0] * (y3 * z1 - y4 * z1 - y1 * z3 + y4 * z3 + y1 * z4 - y3 * z4) +
