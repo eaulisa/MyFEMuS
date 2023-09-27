@@ -387,7 +387,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
       const double *phi;
       fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
       for(unsigned i = 0; i < nDof1; i++) {
-        for(unsigned k = 0; k < 3; k++) {
+        for(unsigned k = 0; k < dim; k++) {
           _xg1[ig][k] += phi[i] * xv1[k][i];
         }
       }
@@ -399,7 +399,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
       const double *phi;
       fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
       for(unsigned i = 0; i < nDof1; i++) {
-        for(unsigned k = 0; k < 3; k++) {
+        for(unsigned k = 0; k < dim; k++) {
           _xg1CF[ig][k] += phi[i] * xv1[k][i];
         }
       }
@@ -532,7 +532,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
         const double *phi;
         fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
         for(unsigned i = 0; i < nDof1; i++) {
-          for(unsigned k = 0; k < 3; k++) {
+          for(unsigned k = 0; k < dim; k++) {
             _xg1[ig][k] += phi[i] * xv1[k][i];
           }
         }
@@ -638,7 +638,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       W1 += _weight1[ig];
       for(unsigned i = 0; i < nDof1; i++) {
         _phi1W1[i] += phi1[ig][i] * _weight1[ig];
-        for(unsigned k = 0; k < 3; k++) {
+        for(unsigned k = 0; k < dim; k++) {
           _xg1[ig][k] += phi[i] * xv1[k][i];
         }
       }
@@ -654,7 +654,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       const double *phi;
       fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
       for(unsigned i = 0; i < nDof1; i++) {
-        for(unsigned k = 0; k < 3; k++) {
+        for(unsigned k = 0; k < dim; k++) {
           _xg1CF[ig][k] += phi[i] * xv1[k][i];
         }
       }
@@ -797,7 +797,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         W1 += _weight1[ig];
         for(unsigned i = 0; i < nDof1; i++) {
           _phi1W1[i] += phi1[ig][i] * _weight1[ig];
-          for(unsigned k = 0; k < 3; k++) {
+          for(unsigned k = 0; k < dim; k++) {
             _xg1[ig][k] += phi[i] * xv1[k][i];
           }
         }
