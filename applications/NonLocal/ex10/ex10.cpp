@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 
 
 //   char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
-  //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
+//   char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
 //   char fileName[100] = "../input/martaTest4Tri.neu";
 //  char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
