@@ -1815,7 +1815,6 @@ void interpolationTable(std::vector< std::vector< std::vector< std::vector< std:
 
 
 
-
 template <class Type>
 Type findGridArea(const Circle &circle, const Point &gridStart, const Point &gridEnd, std::vector<Point> grid_intersections, std:: vector <std:: vector <Type>> interp_table, const std::vector< Type > &interp_point, const int &partition, const double &grid_size){
   Type area(0);
@@ -1845,7 +1844,6 @@ Type findGridArea(const Circle &circle, const Point &gridStart, const Point &gri
 
 
 
-
 template <class Type>
 void creat_parabola_table_kbd(std::vector< std::vector< std::vector<std::vector<std::vector<std::vector<Type>>>>>> &parabola_table_kbd, const int &partition, const unsigned &m, const unsigned &n, const int &s){
 
@@ -1860,8 +1858,11 @@ void creat_parabola_table_kbd(std::vector< std::vector< std::vector<std::vector<
           parabola_table_kbd[tbl][i].resize(parabola_table_kbd[tbl][i].size() + 1);
 
           // Generate the values of k and b.
-          Type k = -((1./partition) *(pow(2, i) - 1));
-          Type b = -((1./partition) *(pow(2, j) - 1));
+//           Type k = -((1./partition) *(pow(2, i) - 1));
+//           Type b = -((1./partition) *(pow(2, j) - 1));
+          Type k = -(pow(1.1, i) - 1);
+          Type b = -(pow(1.1, j) - 1);
+
           Type omkpbdn = (1-(k+b))/partition ;
           for (int l = 0; l <= partition; l++) {
             parabola_table_kbd[tbl][i][j].resize(parabola_table_kbd[tbl][i][j].size() + 1);
@@ -1932,18 +1933,27 @@ void creat_parabola_table_kbd(std::vector< std::vector< std::vector<std::vector<
 
 }
 
+
 template <class Type>
 void inverse_parabola(std::vector< std::vector< std::vector<std::vector<std::vector<std::vector<Type>>>>>> &parabola_table_kbd, std::vector<std::vector<Type>> &interp_table_kbd, Parabola<Type> &parabola,  const int &partition, int nrml, const unsigned &m, const unsigned &n, const int &s){
 
   if(parabola.k <= 0 && parabola.b <= 0 && parabola.d >= 0){
         int k0,k1,b0,b1,d0,d1;
         Type k0_value,k1_value,b0_value,b1_value,d0_value,d1_value;
-        k0 = floor(log2(static_cast<double>(-parabola.k * partition)));
-        k1 = ceil(log2(static_cast<double>(-parabola.k * partition)));
-        b0 = floor(log2(static_cast<double>(-parabola.b * partition)));
-        b1 = ceil(log2(static_cast<double>(-parabola.b * partition)));
+//         k0 = floor(log2(static_cast<double>(-parabola.k * partition)));
+//         k1 = ceil(log2(static_cast<double>(-parabola.k * partition)));
+//         b0 = floor(log2(static_cast<double>(-parabola.b * partition)));
+//         b1 = ceil(log2(static_cast<double>(-parabola.b * partition)));
+//         d0 = floor(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
+//         d1 = ceil(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
+
+        k0 = floor(log2(1-static_cast<double>(parabola.k)) / log2(1.1));
+        k1 = ceil(log2(1-static_cast<double>(parabola.k)) / log2(1.1));
+        b0 = floor(log2(1-static_cast<double>(parabola.b)) / log2(1.1));
+        b1 = ceil(log2(1-static_cast<double>(parabola.b)) / log2(1.1));
         d0 = floor(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
         d1 = ceil(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
+
 
         k0_value = parabola_table_kbd[1][k0][b0][d0][nrml][0];
         k1_value = parabola_table_kbd[1][k1][b1][d1][nrml][0];
@@ -1951,6 +1961,13 @@ void inverse_parabola(std::vector< std::vector< std::vector<std::vector<std::vec
         b1_value = parabola_table_kbd[1][k1][b1][d1][nrml][1];
         d0_value = parabola_table_kbd[1][k0][b0][d0][nrml][2];
         d1_value = parabola_table_kbd[1][k1][b1][d1][nrml][2];
+
+//         k0_value = k0;
+//         k1_value = k1;
+//         b0_value = b0;
+//         b1_value = b1;
+//         d0_value = parabola_table_kbd[1][k0][b0][d0][nrml][2];
+//         d1_value = parabola_table_kbd[1][k1][b1][d1][nrml][2];
 
 
 
@@ -1978,12 +1995,91 @@ void inverse_parabola(std::vector< std::vector< std::vector<std::vector<std::vec
   }
 }
 
+
+
+template <class Type>
+void inverse_parabola_hard(std::vector< std::vector< std::vector<std::vector<std::vector<std::vector<Type>>>>>> &parabola_table_kbd, std::vector<std::vector<Type>> &interp_table_kbd, Parabola<Type> &parabola,  const int &partition, int nrml, const unsigned &m, const unsigned &n, const int &s){
+
+  if(parabola.k <= 0 && parabola.b <= 0 && parabola.d >= 0){
+        int k0,k1,b0,b1,d0,d1;
+        Type k0_value,k1_value,b0_value,b1_value,d0_value,d1_value;
+        std::vector <Type > d0_values(4), d1_values(4);
+        std::vector <int>d0s(4),d1s(4);
+        k0 = floor(log2(static_cast<double>(-parabola.k * partition)));
+        k1 = ceil(log2(static_cast<double>(-parabola.k * partition)));
+        b0 = floor(log2(static_cast<double>(-parabola.b * partition)));
+        b1 = ceil(log2(static_cast<double>(-parabola.b * partition)));
+
+
+        d0 = floor(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
+        d1 = ceil(static_cast<double>(parabola.d * partition/(1-(parabola.k + parabola.b))));
+
+
+        k0_value = parabola_table_kbd[1][k0][b0][d0][nrml][0];
+        k1_value = parabola_table_kbd[1][k1][b1][d1][nrml][0];
+        b0_value = parabola_table_kbd[1][k0][b0][d0][nrml][1];
+        b1_value = parabola_table_kbd[1][k1][b1][d1][nrml][1];
+
+        d0s[0] = floor(static_cast<double>(parabola.d * partition/(1-(k0_value + b0_value))));
+        d1s[0] = ceil (static_cast<double>(parabola.d * partition/(1-(k0_value + b0_value))));
+        d0s[1] = floor(static_cast<double>(parabola.d * partition/(1-(k0_value + b1_value))));
+        d1s[1] = ceil (static_cast<double>(parabola.d * partition/(1-(k0_value + b1_value))));
+        d0s[2] = floor(static_cast<double>(parabola.d * partition/(1-(k1_value + b0_value))));
+        d1s[2] = ceil (static_cast<double>(parabola.d * partition/(1-(k1_value + b0_value))));
+        d0s[3] = floor(static_cast<double>(parabola.d * partition/(1-(k1_value + b1_value))));
+        d1s[3] = ceil (static_cast<double>(parabola.d * partition/(1-(k1_value + b1_value))));
+
+
+        d0_values[0] = parabola_table_kbd[1][k0][b0][d0s[0]][nrml][2];
+        d1_values[0] = parabola_table_kbd[1][k0][b0][d1s[0]][nrml][2];
+        d0_values[1] = parabola_table_kbd[1][k0][b1][d0s[1]][nrml][2];
+        d1_values[1] = parabola_table_kbd[1][k0][b1][d1s[1]][nrml][2];
+        d0_values[2] = parabola_table_kbd[1][k1][b0][d0s[2]][nrml][2];
+        d1_values[2] = parabola_table_kbd[1][k1][b0][d1s[2]][nrml][2];
+        d0_values[3] = parabola_table_kbd[1][k1][b1][d0s[3]][nrml][2];
+        d1_values[3] = parabola_table_kbd[1][k1][b1][d1s[3]][nrml][2];
+
+//         cout << " given parabola = " << log2(static_cast<double>(-parabola.k*partition))<< " "<<parabola.b<<" " <<parabola.d << endl;
+//         cout << " given parabola = " << -parabola.k< " "<<parabola.b<<" " <<parabola.d << endl;
+
+        cout << "interpolating in k ="<< k0 << " " << k1 << " b = "<< b0 <<" "<<b1<<" d= " << d0 << " " <<d1<<endl;
+
+        interp_table_kbd[0] = {k0_value, b0_value, d0_values[0], parabola_table_kbd[1][k0][b0][d0s[0]][nrml][3]};
+        interp_table_kbd[1] = {k0_value, b0_value, d1_values[0], parabola_table_kbd[1][k0][b0][d1s[0]][nrml][3]};
+        interp_table_kbd[2] = {k0_value, b1_value, d0_values[1], parabola_table_kbd[1][k0][b1][d0s[1]][nrml][3]};
+        interp_table_kbd[3] = {k0_value, b1_value, d1_values[1], parabola_table_kbd[1][k0][b1][d1s[1]][nrml][3]};
+        interp_table_kbd[4] = {k1_value, b0_value, d0_values[2], parabola_table_kbd[1][k1][b0][d0s[2]][nrml][3]};
+        interp_table_kbd[5] = {k1_value, b0_value, d1_values[2], parabola_table_kbd[1][k1][b0][d1s[2]][nrml][3]};
+        interp_table_kbd[6] = {k1_value, b1_value, d0_values[3], parabola_table_kbd[1][k1][b1][d0s[3]][nrml][3]};
+        interp_table_kbd[7] = {k1_value, b1_value, d1_values[3], parabola_table_kbd[1][k1][b1][d1s[3]][nrml][3]};
+
+        cout <<" interpolation table " << endl;
+        for(int z1=0;z1<=7;z1++){
+          for(int z2=0;z2<=3;z2++){
+            cout<< interp_table_kbd[z1][z2]<<" " ;
+          }
+          cout<< endl;
+        }
+                cout <<" parabolas we are interpolating " << endl;
+        for(int z1=0;z1<=7;z1++){
+            cout<< interp_table_kbd[z1][0]<<"x^2 + " << interp_table_kbd[z1][1] << "x +" << interp_table_kbd[z1][2] ;
+            cout<< endl;
+        }
+
+  }
+}
+
 template <class Type>
 Type trilinier_interpolation_kbd(std::vector< std::vector< Type >> & interp_table_kbd , const Parabola <Type> parabola){
 
   Type x = parabola.k;
   Type y = parabola.b;
   Type z = parabola.d;
+
+//   x = log2(1-static_cast<double>(parabola.k)) / log2(1.1);
+//   y = log2(1-static_cast<double>(parabola.b)) / log2(1.1);
+
+  cout << "given points " << x << " "<< y << " " << z <<endl;
 
   Type x0 = interp_table_kbd[0][0];
   Type x1 = interp_table_kbd[7][0];
@@ -1993,21 +2089,28 @@ Type trilinier_interpolation_kbd(std::vector< std::vector< Type >> & interp_tabl
   Type z1 = interp_table_kbd[7][2];
   //this gives an error error if x0 and x1 giving the same result .
 
-//     cout << " x0 x1 " << x0 << " " << x1 <<" " << y0 << " " << y1 << " " << z0 << " " << z1 <<endl;
+    cout << " (x0 , x1) " << x0 << " " << x1 <<" || " << y0 << " " << y1 << " ||" << z0 << " " << z1 <<endl;
 
   Type x_d = (x-x0)/(x1-x0);
   Type y_d = (y-y0)/(y1-y0);
   Type z_d = (z-z0)/(z1-z0);
+
+  cout <<" x_d = "<< x_d << " y_d = " << y_d << " z_d = "<< z_d << endl;
 
   Type c_00 = interp_table_kbd[0][3] * (1-x_d) + interp_table_kbd[4][3] * x_d ;
   Type c_01 = interp_table_kbd[1][3] * (1-x_d) + interp_table_kbd[5][3] * x_d ;
   Type c_10 = interp_table_kbd[2][3] * (1-x_d) + interp_table_kbd[6][3] * x_d ;
   Type c_11 = interp_table_kbd[3][3] * (1-x_d) + interp_table_kbd[7][3] * x_d ;
 
+  cout << "c_00 = " << c_00 << " c_01 = " << c_01 << "c_10 = " << c_10 << "c_11 = " << c_11 <<endl;
+
   Type c_0 = c_00 * (1-y_d) + c_10 * y_d ;
   Type c_1 = c_01 * (1-y_d) + c_11 * y_d ;
 
+  cout << "c_0 = " << c_0 << " c_1 = " << c_1 <<endl;
+
   Type cc = c_0 * (1-z_d) + c_1 * z_d ;
+  cout << "cc = "<< cc<< endl;
 
   return cc;
 }
@@ -2025,17 +2128,28 @@ int main() {
   int normal;
   Type formulaArea(-1);
   int nrml=0;
+    int partition = 30;
+    int n0 = partition/4 ;
+// for(int i=0;i<partition;i++){
+//             Type k = -( (pow(2, (i+ n0 -partition))) - pow(2,n0-partition));
+//  cout << k << " " << endl;
+// }
+/*
+    (y''/(1+y'^2))^(3/2)
 
+    kapp = (2a/(1+4a^2 x^2) )^(3/2)*/
 
-
+// return 0;
   std::vector< std::vector< std::vector<std::vector<std::vector<std::vector<Type>>>>>> parabola_table_kbd (0);
   std::vector<std::vector<Type>> interp_table_kbd(8);
 
   // Define the number of parabolas.
-  int partition = 64;
-  Parabola<Type> parabola={-10.54 , -3.23 , 8.145};
 
+  Parabola<Type> parabola={-3.1 , -8.23 , 11.145};
   creat_parabola_table_kbd( parabola_table_kbd, partition, m, n, s);
+
+  cout << " given parabola = " << parabola.k<< " "<<parabola.b<<" " <<parabola.d << endl;
+
   inverse_parabola(parabola_table_kbd, interp_table_kbd, parabola, partition, nrml, m, n, s);
   Type interp_area = trilinier_interpolation_kbd(interp_table_kbd, parabola);
 
