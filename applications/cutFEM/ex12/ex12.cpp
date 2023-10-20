@@ -1,5 +1,5 @@
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
+#include <Eigen/Core>
+#include <Eigen/SVD>
 #include <vector>
 #include <iostream>
 #include "MyEigenFunctions.hpp"
