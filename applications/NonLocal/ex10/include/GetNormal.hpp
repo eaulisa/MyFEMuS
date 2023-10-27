@@ -110,7 +110,7 @@ void BallApproximation::GetNormalQuad(const std::vector < std::vector<double> > 
     }
   }
 
-  _theta.resize(2);
+  _theta.resize(nve);
   unsigned cnt = 0;
   for(unsigned e = 0; e < nve; e++) {
     unsigned ep1 = (e + 1) % nve;
@@ -120,6 +120,7 @@ void BallApproximation::GetNormalQuad(const std::vector < std::vector<double> > 
       cnt++;
     }
   }
+  _theta.resize(2);
 
   if(cnt == 0) {
     if(_dist[0] < 0) cut = 0; // cell inside the ball
