@@ -89,7 +89,8 @@ int main(int argc, char** argv) {
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
 //   char fileName[100] = "../input/martaTest4Tri.neu";
 //   char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
-  char fileName[100] = "../input/salome/martaTest4QuadUnstr.med";
+  // char fileName[100] = "../input/salome/martaTest4QuadUnstr.med";
+  char fileName[100] = "../input/salome/martaTest4QuadUnstr2.med";
 //   char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
 //  char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
    // char fileName[100] = "../input/martaTest4-3D-tet.neu"; // works till 288 nprocs 0.2

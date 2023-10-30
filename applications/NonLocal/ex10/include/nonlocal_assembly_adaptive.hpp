@@ -519,8 +519,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDof1; i++) {
 
         for(unsigned k = 0; k < dim; k++) {
-          res1[i] -= -2 * phi1[i] * weight1; // consistency
-//          res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
+          // res1[i] -= -2 * phi1[i] * weight1; // consistency
+         res1[i] -= -6.* x1g[k] * phi1[i] * weight1; //cubic
 //         res1[i] -= ( -12.* x1g[k] * x1g[k] - delta1 * delta1 ) * phi1[i] * weight1; //quartic
         }
       }
@@ -776,7 +776,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
     }
-    std::cout<<I2;
+    // std::cout<<I2;
     //END parallel corrective moment Constant evaluation
   }
 
@@ -1598,8 +1598,8 @@ void AssembleLocalSys(MultiLevelProblem & ml_prob) {
         double srcTerm = 0.;
 
         for(unsigned k = 0; k < dim; k++) {
-          srcTerm +=  -2. ; // so f = - 2 //consistency
-//           srcTerm +=  -6. * x_gss[k] ; // cubic
+          // srcTerm +=  -2. ; // so f = - 2 //consistency
+          srcTerm +=  -6. * x_gss[k] ; // cubic
 //         srcTerm +=  -12.* x_gss[k] * x_gss[k]; //quartic
         }
         aRes[i] += (-srcTerm * phi[i] + laplace) * weight;
