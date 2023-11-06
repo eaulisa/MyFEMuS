@@ -139,7 +139,7 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 
 SET(EIGEN_SAFE_TO_USE_STANDARD_ASSERT_MACRO FALSE)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 #############################################################################################
 ### Build options
