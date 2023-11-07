@@ -103,7 +103,7 @@ void TestMarkersAndCloud(MultiLevelProblem & ml_prob);
 int main(int argc, char** args) {
     
 
-  main2(argc,args);
+  main1(argc,args);
   return 0;
 
   // init Petsc-MPI communicator
