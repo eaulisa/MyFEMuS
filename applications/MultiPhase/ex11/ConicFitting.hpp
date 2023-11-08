@@ -297,10 +297,10 @@ void FindConicBestFit (const std::vector < std::vector < double > > &yp, const s
   ceres::Solver::Options options;
   options.max_num_iterations = 25;
   options.linear_solver_type = ceres::DENSE_QR;
-  //options.minimizer_progress_to_stdout = true;
+  options.minimizer_progress_to_stdout = true;
   ceres::Solver::Summary summary;
   ceres::Solve (options, &problem, &summary);
-  //std::cout << summary.BriefReport() << "\n";
+  std::cout << summary.BriefReport() << "\n";
 
  //std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n" << std::flush;
   std::vector<double> q (6);
@@ -367,7 +367,7 @@ void FindConicBestFit (const std::vector < std::vector < double > > &yp, const s
 
 // clang-format on
 struct ConicResidual {
-    ConicResidual (double x, double y) : x_ (x), y_ (y) {}
+    ConicResidual (const double &x, const double &y, const double &w) : x_ (x), y_ (y), sqrtw_(sqrt(w)) {}
     template <typename T>
     bool operator() (const T* const a, const T* const b, const T* const c,
                      const T* const d, const T* const e, const T* const f, T*
@@ -379,13 +379,14 @@ struct ConicResidual {
       return true;
     }
   private:
-    const double x_;
-    const double y_;
+    const double &x_;
+    const double &y_;
+    const double sqrtw_;
 };
 
 struct N1Residual {
-    N1Residual (double x, double y, double n1, double n2)
-      : x_ (x), y_ (y), n1_ (n1), n2_ (n2) {}
+    N1Residual (const double &x, const double &y, const double &n1, const double &n2, const double &w)
+      : x_ (x), y_ (y), n1_ (n1), n2_ (n2), sqrtw_(sqrt(w)) {}
     template <typename T>
     bool operator() (const T *const a, const T *const b, const T *const c,
                      const T *const d, const T *const e, const T *const f,
@@ -402,11 +403,12 @@ struct N1Residual {
     const double y_;
     const double n1_;
     const double n2_;
+    const double sqrtw_;
 };
 
 struct N2Residual {
-    N2Residual (double x, double y, double n1, double n2)
-      : x_ (x), y_ (y), n1_ (n1), n2_ (n2) {}
+    N2Residual (const double &x, const double &y, const double &n1, const double &n2, const double &w)
+      : x_ (x), y_ (y), n1_ (n1), n2_ (n2), sqrtw_(sqrt(w)) {}
     template <typename T>
     bool operator() (const T *const a, const T *const b, const T *const c,
                      const T *const d, const T *const e, const T *const f,
@@ -423,6 +425,7 @@ struct N2Residual {
     const double y_;
     const double n1_;
     const double n2_;
+    const double sqrtw_;
 };
 
 
@@ -432,10 +435,10 @@ struct N2Residual {
 int main2 (int argc, char **argv) {
   google::InitGoogleLogging (argv[0]);
   const double initial_a = 1.0;
-  const double initial_b = 0.0;
+  const double initial_b = 1.0;
   const double initial_c = 1.0;
-  const double initial_d = 0.0;
-  const double initial_e = 0.0;
+  const double initial_d = 1.0;
+  const double initial_e = 1.0;
   const double initial_f = 1.0;
   double a = initial_a;
   double b = initial_b;
@@ -444,22 +447,55 @@ int main2 (int argc, char **argv) {
   double e = initial_e;
   double f = initial_f;
   ceres::Problem problem;
-  for (int i = 0; i < kNumObservations; ++i) {
+  
+  unsigned np = kNumObservations;
+  unsigned dim = 2;
+  std::vector<double> xg = {0., 0.};
+  for (unsigned i = 0; i < np; i++) {
+    for (unsigned k = 0; k < dim; k++) {
+      xg[k] += W[i] * XP[i][k];
+    }
+  }
+  for (unsigned k = 0; k < dim; k++) {
+    xg[k] /= np;
+  }
+  
+  double maxD2 = 0;
+  double maxD;
+  double d2, xk;
+  for (unsigned i = 0; i < np; i++) {
+    d2 = 0;
+    for (unsigned k = 0; k < dim; k++) {
+      xk = XP[i][k] - xg[k];
+      d2 += xk * xk;
+    }
+    if (d2 > maxD2) maxD2 = d2;
+  }
+  
+  maxD = sqrt (maxD2);
+  
+  std::vector < std::vector<double> >  xp (np, std::vector<double> (dim));
+  for (unsigned i = 0; i < np; i++) {
+    for (unsigned k = 0; k < dim; k++) {
+      xp[i][k] = (XP[i][k] - xg[k]) / maxD;
+    }
+  }
+  
+  
+  for (int i = 0; i < np; ++i) {
     problem.AddResidualBlock (
       new ceres::AutoDiffCostFunction<ConicResidual, 1, 1, 1, 1, 1, 1, 1> (
-        new ConicResidual (data[4 * i], data[4 * i + 1])),
+        new ConicResidual (xp[i][0], xp[i][1], W[i])),
       nullptr, &a, &b, &c, &d, &e, &f);
 
     problem.AddResidualBlock (
       new ceres::AutoDiffCostFunction<N1Residual, 1, 1, 1, 1, 1, 1, 1> (
-        new N1Residual (data[4 * i], data[4 * i + 1], data[4 * i + 2],
-                        data[4 * i + 3])),
+        new N1Residual (xp[i][0], xp[i][1], NN[i][0], NN[i][1], W[i])),
       nullptr, &a, &b, &c, &d, &e, &f);
 
     problem.AddResidualBlock (
       new ceres::AutoDiffCostFunction<N2Residual, 1, 1, 1, 1, 1, 1, 1> (
-        new N2Residual (data[4 * i], data[4 * i + 1], data[4 * i + 2],
-                        data[4 * i + 3])),
+        new N2Residual (xp[i][0], xp[i][1], NN[i][0], NN[i][1], W[i])),
       nullptr, &a, &b, &c, &d, &e, &f);
   }
   ceres::Solver::Options options;
@@ -469,7 +505,14 @@ int main2 (int argc, char **argv) {
   ceres::Solver::Summary summary;
   ceres::Solve (options, &problem, &summary);
   std::cout << summary.BriefReport() << "\n";
-
+    
+  a /= maxD2;
+  b /= maxD2;
+  c /= maxD2;
+  d /= maxD;
+  e /= maxD;
+  f  = f + a * xg[0] * xg[0] +  b * xg[0] * xg[1] + c * xg[1] * xg[1] - d * xg[0] - e * xg[1];
+  
   double det = sqrt (a * a + b * b + c * c + d * d + e * e + f * f);
   a /= det;
   b /= det;
@@ -485,6 +528,14 @@ int main2 (int argc, char **argv) {
   std::cout << "Initial e: " << initial_e << " Final e: " << e << "\n";
   std::cout << "Initial f: " << initial_f << " Final f: " << f << "\n";
 
+  
+  double delta = b * b - 4. * a * c;
+  std::cout << delta << " ";
+  if (fabs (delta) < 1.0e-5) std::cout << "parabola\n";
+  else if (delta < 0) std::cout << "ellipse\n";
+  else std::cout << "hyperpola\n";
+  
+  
   return 0;
 }
 
