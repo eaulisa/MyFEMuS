@@ -143,7 +143,7 @@ find_package(Ceres NO_MODULE REQUIRED)
 
 find_package(glog NO_MODULE REQUIRED)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 
 #############################################################################################
 ### Build options
@@ -162,60 +162,60 @@ OPTION(BUILD_JSONCPP "Build JsonCPP library for json input parsing" ON)
 OPTION(BUILD_ADEPT "Build b64 library for 64-encoding" ON)
 
 # Ask the user which executable have to be built
-OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" ON)
+OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" OFF)
 
 # Ask the user which executable have to be built
-OPTION(BUILD_FSIAPPS "Build the FSI applications" ON)
+OPTION(BUILD_FSIAPPS "Build the FSI applications" OFF)
 
 # OPTION(BUILD_OPTCONTROLAPPS "Build the optimal control applications" ON)
 
 #--
-OPTION(BUILD_POISSON "Build the Poisson problem" ON)
+OPTION(BUILD_POISSON "Build the Poisson problem" OFF)
 
 # --
-OPTION(BUILD_POISSON_AMR "Build the Poisson_AMR problem" ON)
+OPTION(BUILD_POISSON_AMR "Build the Poisson_AMR problem" OFF)
 
 # --
-OPTION(BUILD_WILLMORE "Build the Willmore problem" ON)
+OPTION(BUILD_WILLMORE "Build the Willmore problem" OFF)
 
 # --
-OPTION(BUILD_TUTORIAL "Build the tutorial problems" ON)
+OPTION(BUILD_TUTORIAL "Build the tutorial problems" OFF)
 
 # --
-OPTION(BUILD_MGAMR "Build the MGAMR" ON)
+OPTION(BUILD_MGAMR "Build the MGAMR" OFF)
 
-OPTION(BUILD_CUTFEM "Build the cut FEM" ON)
+OPTION(BUILD_CUTFEM "Build the cut FEM" OFF)
 
 # --
-OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" ON)
+OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" OFF)
 
-OPTION(BUILD_AMR "Build the AMR apps" ON)
+OPTION(BUILD_AMR "Build the AMR apps" OFF)
 
-OPTION(BUILD_ISM "Build the Intersection Marker apps" ON)
+OPTION(BUILD_ISM "Build the Intersection Marker apps" OFF)
 
-OPTION(BUILD_MPM_FEM "Build the MPM FEM apps" ON)
+OPTION(BUILD_MPM_FEM "Build the MPM FEM apps" OFF)
 
-OPTION(BUILD_MPM_FSI "Build the MPM FSI apps" ON)
+OPTION(BUILD_MPM_FSI "Build the MPM FSI apps" OFF)
 
-OPTION(BUILD_REFINEMENT "Build the Refiniment apps" ON)
+OPTION(BUILD_REFINEMENT "Build the Refiniment apps" OFF)
 
-OPTION(BUILD_PETSC_DEBUG "Build the PETSC debug apps" ON)
+OPTION(BUILD_PETSC_DEBUG "Build the PETSC debug apps" OFF)
 
-OPTION(BUILD_UQ "Build the UQ apps" ON)
+OPTION(BUILD_UQ "Build the UQ apps" OFF)
 
 OPTION(BUILD_NONLOCAL "Build the NONLOCAL apps" ON)
 
-OPTION(BUILD_SW "Build the Shallow Water apps" ON)
+OPTION(BUILD_SW "Build the Shallow Water apps" OFF)
 
-OPTION(BUILD_TUMOR "Build the Tumor apps" ON)
+OPTION(BUILD_TUMOR "Build the Tumor apps" OFF)
 
-OPTION(BUILD_RK "Build the Runge-Kutta apps" ON)
+OPTION(BUILD_RK "Build the Runge-Kutta apps" OFF)
 
-OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
+OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" OFF)
 
-OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" ON)
+OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" OFF)
 
-OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
+OPTION(BUILD_NITSCHE "Build the Nitsche apps" OFF)
 
 OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
 
