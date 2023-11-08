@@ -44,7 +44,7 @@
 const int kNumObservations = 7;
 // clang-format off
 const double data[] = {
-  -3., 10., 2 * (-3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1.),
+  -3., 10.,  2 * (-3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1.),
     -2., 5.,  2 * (-2.) / sqrt (4. * 4. + 1.), -1. / sqrt (4. * 4. + 1.),
     -1., 2.,  2 * (-1.) / sqrt (4. * 1. + 1.), -1. / sqrt (4. * 1. + 1.),
     0., 1.,  2 * (-0.) / sqrt (4. * 0. + 1.), -1. / sqrt (4. * 0. + 1),
@@ -52,6 +52,46 @@ const double data[] = {
     2., 5.,  2 * (2.) / sqrt (4. * 4. + 1.), -1. / sqrt (4. * 4. + 1),
     3., 10., 2 * (3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1)
   };
+
+
+const std::vector < std::vector<double> > XP = {
+  { -3.00, 10.00},
+  { -2.000, 5.00 },
+  { -1.00, 2.00 },
+  {  0., 1. },
+  {  1.00, 2.00 },
+  {  2.00, 5.00 },
+  {  3.00, 10.00},
+  {  5.00, 7.00},
+  { -5.00, 6.00},
+};
+
+// const std::vector<std::vector<double>> NN = {
+//   { 2 * (-3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1.)    },
+//   { 2 * (-2.) / sqrt (4. * 4. + 1.), -1. / sqrt (4. * 4. + 1.)  },
+//   { 2 * (-1.) / sqrt (4. * 1. + 1.), -1. / sqrt (4. * 1. + 1.)  },
+//   { 2 * (-0.) / sqrt (4. * 0. + 1.), -1. / sqrt (4. * 0. + 1)    },
+//   { 2 * (1.) / sqrt (4. * 1. + 1.), -1. / sqrt (4. * 1. + 1)     },
+//   { 2 * (2.) / sqrt (4. * 4. + 1.), -1. / sqrt (4. * 4. + 1)     },
+//   { 2 * (3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1)     },
+//   { 2 * (2.) / sqrt (4. * 4. + 1.), -1. / sqrt (4. * 4. + 1)     },
+//   { 2 * (-3.) / sqrt (4. * 9. + 1.), -1. / sqrt (4. * 9. + 1)     }
+// };
+
+const std::vector<std::vector<double>> NN = {
+  { -2 * (-3.) / sqrt (4. * 9. + 1.), 1. / sqrt (4. * 9. + 1.)    },
+  { -2 * (-2.) / sqrt (4. * 4. + 1.), 1. / sqrt (4. * 4. + 1.)  },
+  { -2 * (-1.) / sqrt (4. * 1. + 1.), 1. / sqrt (4. * 1. + 1.)  },
+  { -2 * (-0.) / sqrt (4. * 0. + 1.), 1. / sqrt (4. * 0. + 1)    },
+  { -2 * (1.) / sqrt (4. * 1. + 1.), 1. / sqrt (4. * 1. + 1)     },
+  { -2 * (2.) / sqrt (4. * 4. + 1.), 1. / sqrt (4. * 4. + 1)     },
+  { -2 * (3.) / sqrt (4. * 9. + 1.), 1. / sqrt (4. * 9. + 1)     },
+  { -2 * (2.) / sqrt (4. * 4. + 1.), 1. / sqrt (4. * 4. + 1)     },
+  { -2 * (-3.) / sqrt (4. * 9. + 1.), 1. / sqrt (4. * 9. + 1)     }
+};
+
+
+const std::vector<double> W = {1., 1., 1., 1., 1., 1., 1., 1., 1.};
 
 
 // const double data[] = {
@@ -108,7 +148,7 @@ class N1CostFunction : public ceres::SizedCostFunction<1, 6> {
       double N2 = p[0][1] * _x + 2. * p[0][2] * _y + p[0][4];
       double DET2 = N1 * N1 + N2 * N2;
       double DET = sqrt (DET2);
-      residuals[0] = _sqrtw * (N1 / DET - _n1);
+      residuals[0] = _sqrtw * (N1 / DET - _n1 /*/ sqrt (_n1 * _n1 + _n2 * _n2)*/);
 
       if (jacobians != nullptr && jacobians[0] != nullptr) {
         double DET3 = DET2 * DET;
@@ -144,7 +184,7 @@ class N2CostFunction : public ceres::SizedCostFunction<1, 6> {
       double N2 = p[0][1] * _x + 2. * p[0][2] * _y + p[0][4];
       double DET2 = N1 * N1 + N2 * N2;
       double DET = sqrt (DET2);
-      residuals[0] = _sqrtw * (N2 / DET - _n2);
+      residuals[0] = _sqrtw * (N2 / DET - _n2 /*/ sqrt (_n1 * _n1 + _n2 * _n2)*/);
 
       if (jacobians != nullptr && jacobians[0] != nullptr) {
         double DET3 = DET2 * DET;
@@ -168,19 +208,20 @@ class N2CostFunction : public ceres::SizedCostFunction<1, 6> {
 };
 
 
+void FindConicBestFit (const std::vector < std::vector < double > > &yp, const std::vector < double > &w, const std::vector<std::vector < double > > &N, std::vector < double > &p) {
 
-
-int main1 (int argc, char** argv) {
-  google::InitGoogleLogging (argv[0]);
+//int main1 (int argc, char** argv) {
+  // char argv[1][1];
+  // google::InitGoogleLogging (argv[0]);
   // The variable to solve for with its initial value. It will be
   // mutated in place by the solver.
   const double initial_a = 1.0;
-  const double initial_b = 0.0;
+  const double initial_b = 1.0;
   const double initial_c = 1.0;
-  const double initial_d = 0.0;
-  const double initial_e = 0.0;
+  const double initial_d = 1.0;
+  const double initial_e = 1.0;
   const double initial_f = 1.0;
-  std::vector<double> p = {initial_a, initial_b, initial_c, initial_d, initial_e, initial_f};
+  p = {initial_a, initial_b, initial_c, initial_d, initial_e, initial_f};
   double &a = p[0];
   double &b = p[1];
   double &c = p[2];
@@ -192,51 +233,77 @@ int main1 (int argc, char** argv) {
   ceres::Problem problem;
   // Set up the only cost function (also known as residual).
 
+  unsigned np = kNumObservations;
   unsigned dim = 2;
   std::vector<double> xg = {0., 0.};
-  for (unsigned i = 0; i < kNumObservations; i++) {
-    xg[0] += data[4 * i];
-    xg[1] += data[4 * i + 1];
+  for (unsigned i = 0; i < np; i++) {
+    for (unsigned k = 0; k < dim; k++) {
+      xg[k] += w[i] * yp[i][k];
+    }
   }
   for (unsigned k = 0; k < dim; k++) {
-    xg[k] /= kNumObservations;
-  }
-  std::vector < std::vector<double> >  xp (kNumObservations, std::vector<double> (dim));
-  for (unsigned i = 0; i < kNumObservations; i++) {
-    xp[i][0] = data[4 * i] - xg[0];
-    xp[i][1] = data[4 * i + 1] - xg[1];
+    xg[k] /= np;
   }
 
+  double maxD2 = 0;
+  double maxD;
+  double d2, xk;
+  for (unsigned i = 0; i < np; i++) {
+    d2 = 0;
+    for (unsigned k = 0; k < dim; k++) {
+      xk = yp[i][k] - xg[k];
+      d2 += xk * xk;
+    }
+    if (d2 > maxD2) maxD2 = d2;
+  }
 
-  for (int i = 0; i < kNumObservations; ++i) {
-    // ceres::CostFunction* ccf = new ConicCostFunction (data[4 * i], data[4 * i + 1], 0.8);
-    // problem.AddResidualBlock (ccf, nullptr, p);
-    // ceres::CostFunction* n1cf = new N1CostFunction (data[4 * i], data[4 * i + 1], data[4 * i + 2], data[4 * i + 3], .5);
-    // problem.AddResidualBlock (n1cf, nullptr, p);
-    // ceres::CostFunction* n2cf = new N2CostFunction (data[4 * i], data[4 * i + 1], data[4 * i + 2], data[4 * i + 3], .6);
-    // problem.AddResidualBlock (n2cf, nullptr, p);
+  // xg[0]+=2;
+  // xg[1]+=2;
 
-    ceres::CostFunction* ccf = new ConicCostFunction (xp[i][0], xp[i][1], 0.8);
-    problem.AddResidualBlock (ccf, nullptr, &p[0]);
-    ceres::CostFunction* n1cf = new N1CostFunction (xp[i][0], xp[i][1], data[4 * i + 2], data[4 * i + 3], .5);
-    problem.AddResidualBlock (n1cf, nullptr, &p[0]);
-    ceres::CostFunction* n2cf = new N2CostFunction (xp[i][0], xp[i][1], data[4 * i + 2], data[4 * i + 3], .6);
-    problem.AddResidualBlock (n2cf, nullptr, &p[0]);
+  std::cout << maxD2 <<std::endl;
+
+  //maxD2 = 1.;
+
+
+  maxD = sqrt (maxD2);
+
+
+
+  std::vector < std::vector<double> >  xp (np, std::vector<double> (dim));
+  for (unsigned i = 0; i < np; i++) {
+    for (unsigned k = 0; k < dim; k++) {
+      xp[i][k] = (yp[i][k] - xg[k]) / maxD;
+    }
+  }
+
+  for (int i = 0; i < np; ++i) {
+    // ceres::CostFunction* ccf = new ConicCostFunction (xp[i][0], xp[i][1], w[i]);
+    // problem.AddResidualBlock (ccf, nullptr, p.data());
+    // ceres::CostFunction* n1cf = new N1CostFunction (xp[i][0], xp[i][1], N[i][0], N[i][1], w[i]);
+    // problem.AddResidualBlock (n1cf, nullptr, p.data());
+    // ceres::CostFunction* n2cf = new N2CostFunction (xp[i][0], xp[i][1], N[i][0], N[i][1], w[i]);
+    // problem.AddResidualBlock (n2cf, nullptr, p.data());
+
+
+    ceres::CostFunction* ccf = new ConicCostFunction (xp[i][0], xp[i][1], w[i]);
+    problem.AddResidualBlock (ccf, new ceres::CauchyLoss(0.5), p.data());
+    ceres::CostFunction* n1cf = new N1CostFunction (xp[i][0], xp[i][1], N[i][0], N[i][1], w[i]);
+    problem.AddResidualBlock (n1cf, new ceres::CauchyLoss(0.5), p.data());
+    ceres::CostFunction* n2cf = new N2CostFunction (xp[i][0], xp[i][1], N[i][0], N[i][1], w[i]);
+    problem.AddResidualBlock (n2cf, new ceres::CauchyLoss(0.5), p.data());
 
   }
   // Run the solver!
   ceres::Solver::Options options;
   options.max_num_iterations = 25;
   options.linear_solver_type = ceres::DENSE_QR;
-  options.minimizer_progress_to_stdout = true;
+  //options.minimizer_progress_to_stdout = true;
   ceres::Solver::Summary summary;
   ceres::Solve (options, &problem, &summary);
-  std::cout << summary.BriefReport() << "\n";
+  //std::cout << summary.BriefReport() << "\n";
 
-
-  std::vector<double> q(6);
-  double maxD2 = 1;
-  double maxD = 1;
+ //std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n" << std::flush;
+  std::vector<double> q (6);
 
   q[0] = p[0] / maxD2;
   q[1] = p[1] / maxD2;
@@ -259,14 +326,13 @@ int main1 (int argc, char** argv) {
   e /= det;
   f /= det;
 
-  std::cout << "Initial a: " << initial_a << " Final a: " << a << "\n";
-  std::cout << "Initial b: " << initial_b << " Final b: " << b << "\n";
-  std::cout << "Initial c: " << initial_c << " Final c: " << c << "\n";
-  std::cout << "Initial d: " << initial_d << " Final d: " << d << "\n";
-  std::cout << "Initial e: " << initial_e << " Final e: " << e << "\n";
-  std::cout << "Initial f: " << initial_f << " Final f: " << f << "\n";
+  // std::cout << "Initial a: " << initial_a << " Final a: " << a << "\n";
+  // std::cout << "Initial b: " << initial_b << " Final b: " << b << "\n";
+  // std::cout << "Initial c: " << initial_c << " Final c: " << c << "\n";
+  // std::cout << "Initial d: " << initial_d << " Final d: " << d << "\n";
+  // std::cout << "Initial e: " << initial_e << " Final e: " << e << "\n";
+  // std::cout << "Initial f: " << initial_f << " Final f: " << f << "\n";
 
-  return 0;
 }
 
 
@@ -421,3 +487,7 @@ int main2 (int argc, char **argv) {
 
   return 0;
 }
+
+
+
+
