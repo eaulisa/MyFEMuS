@@ -113,9 +113,23 @@ int main (int argc, char** args) {
   std::cout << "e = " << a[4] << ";\n";
   std::cout << "f = " << a[5] << ";\n";
 
-  //main1 (argc, args);
-
   double delta = a[1] * a[1] - 4. * a[0] * a[2];
+  std::cout << delta << " ";
+  if (fabs (delta) < 1.0e-5) std::cout << "parabola\n";
+  else if (delta < 0) std::cout << "ellipse\n";
+  else std::cout << "hyperpola\n";
+
+
+  FindConicBestFitAD (XP, W, NN, a);
+
+  std::cout << "a = " << a[0] << ";\n";
+  std::cout << "b = " << a[1] << ";\n";
+  std::cout << "c = " << a[2] << ";\n";
+  std::cout << "d = " << a[3] << ";\n";
+  std::cout << "e = " << a[4] << ";\n";
+  std::cout << "f = " << a[5] << ";\n";
+
+  delta = a[1] * a[1] - 4. * a[0] * a[2];
   std::cout << delta << " ";
   if (fabs (delta) < 1.0e-5) std::cout << "parabola\n";
   else if (delta < 0) std::cout << "ellipse\n";

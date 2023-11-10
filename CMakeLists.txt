@@ -143,7 +143,7 @@ find_package(Ceres NO_MODULE REQUIRED)
 
 find_package(glog NO_MODULE REQUIRED)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 #############################################################################################
 ### Build options
