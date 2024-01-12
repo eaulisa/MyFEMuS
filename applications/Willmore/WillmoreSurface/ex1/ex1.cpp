@@ -29,7 +29,7 @@ const double c0 = 0.;
 const double kc = 1.;
 const double gamma1 = 0.;
 
-unsigned P[3] = {0, 1, 2};
+unsigned P[3] = {0, 1, 4};
 
 const double ap[3] = {kc * c0 * c0 + gamma1, -2. * kc * c0 , kc };
 const double normalSign = -1.;
@@ -39,10 +39,10 @@ bool firstTime = true;
 double surface0 = 0.;
 double volume0 = 0.;
 bool volumeConstraint = true;
-bool areaConstraint = true;
+bool areaConstraint = false;
 
 unsigned conformalTriangleType = 2;
-const double eps = 1e-5;
+const double eps = 1e-4;
 
 #include "../include/supportFunctionsOld.hpp"
 #include "../include/assembleConformalMinimizationOld.hpp"
@@ -53,7 +53,7 @@ void AssemblePWillmore (MultiLevelProblem&);
 void AssemblePWillmore2 (MultiLevelProblem& ml_prob);
 
 
-double dt0 = 0.1; //P=2
+double dt0 = 1.E-7; //P=2
 //double dt0 = 3.2e-6; //P=4
 
 
@@ -99,12 +99,12 @@ int main (int argc, char** args) {
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidRef3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidV1.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/genusOne.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
+  //mlMsh.ReadCoarseMesh ("../input/knot.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/c.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/horseShoe3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/tiltedTorus.neu", "seventh", scalingFactor);
   scalingFactor = 1.;
-  //mlMsh.ReadCoarseMesh ("../input/dog.neu", "seventh", scalingFactor);
+  mlMsh.ReadCoarseMesh ("../input/dog.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/virus3.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh ("../input/ellipsoidSphere.neu", "seventh", scalingFactor);
   //mlMsh.ReadCoarseMesh("../input/CliffordTorus.neu", "seventh", scalingFactor);
@@ -299,9 +299,9 @@ int main (int argc, char** args) {
 
 
 
-    dt0 *= 1.1;
+    dt0 *= 1.05;
       //UNCOMMENT FOR P=4
-      // if (dt0 > 5e-1) dt0 = 5e-1;
+    if (dt0 > 2.e-4) dt0 = 2.e-4;
 
 
         //IGNORE THIS
@@ -327,10 +327,10 @@ int main (int argc, char** args) {
       CopyDisplacement (mlSol, false);
       system.CopySolutionToOldSolution();
         //UNCOMMENT FOR P=4
-        //if (time_step % 7 == 6){
-         systemY.MGsolve();
-         systemW.MGsolve();
-        //}
+        if (time_step % 7 == 6){
+          systemY.MGsolve();
+          systemW.MGsolve();
+        }
     }
 
     if ( (time_step + 1) % printInterval == 0)
