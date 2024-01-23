@@ -1097,29 +1097,10 @@ int main() {
   unsigned int n = 0;
   int s = 0;
 
-  std::cout.precision(30);
+  std::cout.precision(16);
 
   typedef cpp_bin_float_oct Type;
   Type k, b, d, a, c, area1, area2, easy_area1, easy_area2;
-
-  Type aa(7.6e-16) ;
-  cout << aa << endl;
-
-  aa = 2. * 7.6e-16  ;
-  cout << aa << endl;
-  aa =  7.6e-16 / 2. ;
-  cout << aa << endl;
-
-  double bb;
-  bb = 3. ;
-
-  bb = 3. * bb ;
-
-  cout << bb << " " << bb / 2. << endl;
-  return 1;
-
-
-
 
   std::vector <Type> pol1(3, 0);
   std::vector <Type> pol2(3, 0);
@@ -1150,14 +1131,17 @@ int main() {
 //       c = sample[j][4];
 // 7.00881e-16, 2.51256, -1.75628, 1
 // k = static_cast<Type>(7.00881e-16);
-k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
+//     -0.16644x^2 + 0.332592 x + -1.13415
+//     -357.0432423423495x^2 + 716.3906311474898 x + -359.9080438381724 + y
+
+ k = 0; b = -.2; d =-.1; c = static_cast<Type>(1);
 
 
  a=0;
     pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
-    GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+    GetIntervalall<Type, Type>(pol1, pol2, I1, I2, I3);
 
     //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
     //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
@@ -1205,7 +1189,7 @@ k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
     easy_area2 = Easy_B1 + Easy_B2 + Easy_B3;
 
     Type err = 0.00000001;
-    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) < 0.0000000001) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) > 0.00000000000001) || (fabs(Easy_A1 - A1) > err) || (fabs(Easy_A2 - A2) > err) || (fabs(Easy_A3 - A3) > err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/) {
+    if((fabs(area1 + area2 - 1. / ((m + 1.) * (n + 1.))) < err) || (fabs(easy_area1 + easy_area2 - 1. / ((m + 1.) * (n + 1.))) < err) || (fabs(Easy_A1 - A1) < err) || (fabs(Easy_A2 - A2) < err) || (fabs(Easy_A3 - A3) < err) /*|| (fabs(D1 - Easy_D1) > err ) || (fabs(D2 - Easy_D2) > err ) || (fabs(D3 - Easy_D3) > err)*/) {
       std::cout << "................................ Failed...................................... " << std::endl;
       std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << -pol2[0] << "; b = " << -pol2[1] << "; d = " << -pol2[2] << "; a = " << -a << "; c = " << -c << ";" << std::endl;
       for(unsigned i = 0; i < I1.size(); i++) {
@@ -1245,10 +1229,12 @@ k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
   t = clock() - t;
   std::cout << "Time taken " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
 
+  return 1;
+
   {
     clock_t t = clock();
     std::srand(10);
-    for(unsigned int j = 0; j < 10000; j++) {
+    for(unsigned int j = 0; j < 1; j++) {
       Type  Easy_A1 = 0,  Easy_A2 = 0, Easy_A3 = 0;
       random_polynomial(pol1, pol2);
       a = pol1[1] - pol2[1];
@@ -1281,7 +1267,7 @@ k = -1.06711e-14 ; b= 9.80392; d= -4.89216; c = -1;
   {
     clock_t t = clock();
     std::srand(10);
-    for(unsigned int j = 0; j < 10000; j++) {
+    for(unsigned int j = 0; j < 1; j++) {
       Type A1 = 0, A2 = 0, A3 = 0 ;
       random_polynomial(pol1, pol2);
       a = pol1[1] - pol2[1];
