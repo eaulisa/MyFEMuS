@@ -129,6 +129,16 @@ ENDIF (NOT LIBRARY_OUTPUT_PATH)
 
 ADD_LIBRARY(${PROJECT_NAME} SHARED ${femus_src})
 
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    ${HDF5_INCLUDE_DIRS}
+)
+target_link_libraries(${PROJECT_NAME}
+  PUBLIC
+    Eigen3::Eigen
+    ${HDF5_LIBRARIES}
+)
+
 # This is a cheap hack to fix linker errors during compilation
 IF(APPLE)
   target_link_libraries(${PROJECT_NAME} ${HDF5_LIBRARIES})

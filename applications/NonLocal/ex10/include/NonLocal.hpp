@@ -7,8 +7,12 @@ std::ofstream fout;
 
 class NonLocal {
   public:
-    NonLocal() {};
-    ~NonLocal() {};
+    NonLocal() {
+      _ballAprx = new BallApproximation();
+    };
+    ~NonLocal() {
+      delete _ballAprx;
+    };
     double GetDistance(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
       double distance  = 0.;
       for(unsigned k = 0; k < x1.size(); k++) {
@@ -41,8 +45,14 @@ class NonLocal {
 
     void AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
                          const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
-                         RefineElement &element1, const Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
+                         RefineElement &element1, Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                          const double &kappa, const double &delta, const bool &printMesh);
+
+    void AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
+                          const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
+                          RefineElement &element1, Region &region2, const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
+                          const double &kappa, const double &delta, const bool &printMesh);
+
 
     void AssemblyCutFem2(const std::vector <double> &phi1W1,
                          const double &solu1W1W2,
@@ -74,12 +84,13 @@ class NonLocal {
     std::vector <unsigned> _jelIndexI;
     std::vector < std::vector <unsigned> >_jelIndexR;
 
-    BallApproximation _ballAprx;
+    BallApproximation *_ballAprx;
     std::vector<double> _a;
 
     std::vector< std::vector < double> > _xg1;
     std::vector< std::vector < double> > _xg1CF;
 
+    std::vector < double> _weight1;
     std::vector < double> _weight1CF;
     std::vector<double> _eqPolyWeight;
 
@@ -343,9 +354,249 @@ double NonLocal::Assembly2(const RefineElement & element1, const Region & region
 
 
 
+void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
+                               const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
+                               RefineElement &element1, Region &region2,
+                               const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
+                               const double &kappa, const double &delta, const bool &printMesh) {
+
+
+  if(level < levelMin1) {
+    element1.BuildElement1Prolongation(level, iFather);
+    for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
+      AssemblyCutFemI2(level + 1, levelMin1, levelMax1, i,
+                      *octTreeElement1.GetElement(std::vector<unsigned> {i}),
+                      *octTreeElement1CF.GetElement(std::vector<unsigned> {i}),
+                      element1, region2, jelIndexF,
+                      solu1, kappa, delta, printMesh);
+    }
+  }
+  else if(level == levelMax1 - 1) {
+    const unsigned &dim = element1.GetDimension();
+    const std::vector < std::vector <double> >  &xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+
+    const unsigned &nDof1 = element1.GetNumberOfNodes();
+    const elem_type *fem1 = element1.GetFem1();
+    const elem_type *fem1CF = element1.GetFem1CF();
+
+    const unsigned &ng1 = fem1->GetGaussPointNumber();
+    const unsigned &ng1CF = fem1CF->GetGaussPointNumber();
+    _xg1.assign(ng1, std::vector<double>(dim, 0));
+    _weight1.resize(ng1);
+    for(unsigned ig = 0; ig < ng1; ig++) {
+      const double *phi;
+      fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
+      for(unsigned i = 0; i < nDof1; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          _xg1[ig][k] += phi[i] * xv1[k][i];
+        }
+      }
+    }
+
+    _weight1CF.resize(ng1CF);
+    _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
+    for(unsigned ig = 0; ig < ng1CF; ig++) {
+      const double *phi;
+      fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
+      for(unsigned i = 0; i < nDof1; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          _xg1CF[ig][k] += phi[i] * xv1[k][i];
+        }
+      }
+    }
+
+    //BEGIN NEW STUFF
+
+    std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
+    }
+
+    for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
+      unsigned jel = jelIndexF[jj];
+      const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+
+      const elem_type *fem2 = region2.GetFem(jel);
+      const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+
+      for(unsigned jg = 0; jg < fem2->GetGaussPointNumber(); jg++) {
+
+        bool coarseIntersectionTest = true;
+        for(unsigned k = 0; k < dim; k++) {
+          if((xg2[jg][k]  - * (x1MinMax[k].second)) > delta || (*(x1MinMax[k].first) - xg2[jg][k]) > delta) {  // this can be improved with the l2 norm
+            coarseIntersectionTest = false;
+            break;
+          }
+        }
+
+        if(coarseIntersectionTest) {
+          _ballAprx->GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+
+          if(_cut == 0) { //interior element
+            double d2W1 = 0.;
+            for(unsigned ig = 0; ig < ng1; ig++) {
+              double d2 = 0.;
+              for(unsigned k = 0; k < dim; k++) {
+                d2 += (xg2[jg][k] - _xg1[ig][k]) * (xg2[jg][k] - _xg1[ig][k]);
+              }
+              d2W1 += d2 * _weight1[ig];
+              //d2W1 += _weight1[ig];
+            }
+            region2.AddI2(jel, jg, d2W1);
+          }
+          else if(_cut == 1) { //cut element
+            element1.GetCutFem()->clear();
+//             element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
+//             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
+            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+
+            double d2W1CF = 0.;
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              double d2 = 0.;
+              for(unsigned k = 0; k < dim; k++) {
+                d2 += (xg2[jg][k] - _xg1CF[ig][k]) * (xg2[jg][k] - _xg1CF[ig][k]);
+              }
+              d2W1CF += d2 * _weight1CF[ig] * _eqPolyWeight[ig];
+              //d2W1CF += _weight1CF[ig] * _eqPolyWeight[ig];
+            }
+            region2.AddI2(jel, jg, d2W1CF);
+          }
+        }
+      }
+    }
+  }
+  else {
+    const unsigned &dim = element1.GetDimension();
+    const std::vector < std::vector <double> >  &xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+
+    _jelIndexR[level].resize(0);
+    _jelIndexI.resize(0);
+
+    std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
+    for(unsigned k = 0; k < dim; k++) {
+      x1MinMax[k] = std::minmax_element(xv1[k].begin(), xv1[k].end());
+    }
+
+    std::vector < double > dmM2(dim);
+    std::vector < double > dMm2(dim);
+    std::vector < double > dist(pow(2, dim));
+
+    for(unsigned j = 0; j < jelIndexF.size(); j++) {
+      unsigned jel = jelIndexF[j];
+      const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+
+      for(unsigned k = 0; k < dim; k++) {
+        dmM2[k] = (*(x1MinMax[k].first) - x2MinMax[k][1]) * (*(x1MinMax[k].first) - x2MinMax[k][1]);
+        dMm2[k] = (*(x1MinMax[k].second) - x2MinMax[k][0]) * (*(x1MinMax[k].second) - x2MinMax[k][0]);
+      }
+
+      if(dim == 2) {
+        dist[0] = sqrt(dmM2[0] + dmM2[1]);
+        dist[1] = sqrt(dMm2[0] + dmM2[1]);
+        dist[2] = sqrt(dmM2[0] + dMm2[1]);
+        dist[3] = sqrt(dMm2[0] + dMm2[1]);
+      }
+      else if(dim == 3) {
+        dist[0] = sqrt(dmM2[0] + dmM2[1] + dmM2[2]);
+        dist[1] = sqrt(dMm2[0] + dmM2[1] + dmM2[2]);
+        dist[2] = sqrt(dmM2[0] + dMm2[1] + dmM2[2]);
+        dist[3] = sqrt(dMm2[0] + dMm2[1] + dmM2[2]);
+
+        dist[4] = sqrt(dmM2[0] + dmM2[1] + dMm2[2]);
+        dist[5] = sqrt(dMm2[0] + dmM2[1] + dMm2[2]);
+        dist[6] = sqrt(dmM2[0] + dMm2[1] + dMm2[2]);
+        dist[7] = sqrt(dMm2[0] + dMm2[1] + dMm2[2]);
+      }
+
+      if(*std::max_element(dist.begin(), dist.end()) < delta) {
+        _jelIndexI.resize(_jelIndexI.size() + 1, jel);
+      }
+      else {
+        _jelIndexR[level].resize(_jelIndexR[level].size() + 1, jel);
+      }
+    }
+    if(_jelIndexI.size() > 0) {
+
+      const unsigned &dim = element1.GetDimension();
+      const std::vector < std::vector <double> >  &xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+
+      const unsigned &nDof1 = element1.GetNumberOfNodes();
+      const elem_type *fem1 = element1.GetFem1();
+
+      //these are the shape functions of iel evaluated in the gauss points of the refined elements
+      const unsigned &ng1 = fem1->GetGaussPointNumber();
+
+      _xg1.assign(ng1, std::vector<double>(dim, 0));
+      _weight1.resize(ng1);
+      for(unsigned ig = 0; ig < ng1; ig++) {
+        const double *phi;
+        fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
+        for(unsigned i = 0; i < nDof1; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            _xg1[ig][k] += phi[i] * xv1[k][i];
+          }
+        }
+      }
+
+      for(unsigned jj = 0; jj < _jelIndexI.size(); jj++) {
+        unsigned jel = _jelIndexI[jj];
+        const elem_type *fem2 = region2.GetFem(jel);
+
+        const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+
+        for(unsigned jg = 0; jg < fem2->GetGaussPointNumber(); jg++) {
+          double d2W1 = 0.;
+          for(unsigned ig = 0; ig < ng1; ig++) {
+            double d2 = 0.;
+            for(unsigned k = 0; k < dim; k++) {
+              d2 += (xg2[jg][k] - _xg1[ig][k]) * (xg2[jg][k] - _xg1[ig][k]);
+            }
+            d2W1 += d2 * _weight1[ig];
+            //d2W1 += _weight1[ig];
+          }
+          region2.AddI2(jel, jg, d2W1);
+        }
+      }
+    }
+    if(_jelIndexR[level].size() > 0) {
+      element1.BuildElement1Prolongation(level, iFather);
+      for(unsigned i = 0; i < element1.GetNumberOfChildren(); i++) {
+        AssemblyCutFemI2(level + 1, levelMin1, levelMax1, i,
+                        *octTreeElement1.GetElement(std::vector<unsigned> {i}),
+                        *octTreeElement1CF.GetElement(std::vector<unsigned> {i}),
+                        element1, region2, _jelIndexR[level],
+                        solu1, kappa, delta, printMesh);
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1, const unsigned &levelMax1, const unsigned &iFather,
                                const OctTreeElement &octTreeElement1, const OctTreeElement &octTreeElement1CF,
-                               RefineElement &element1, const Region &region2,
+                               RefineElement &element1, Region &region2,
                                const std::vector <unsigned> &jelIndexF, const vector < double >  &solu1,
                                const double &kappa, const double &delta, const bool &printMesh) {
 
@@ -379,13 +630,17 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
     double W1 = 0.;
     _phi1W1.assign(nDof1, 0.);
+    _xg1.assign(ng1, std::vector<double>(dim, 0));
+    _weight1.resize(ng1);
     for(unsigned ig = 0; ig < ng1; ig++) {
       const double *phi;
-      double weight;
-      fem1->GetGaussQuantities(xv1, ig, weight, phi);
-      W1 += weight;
+      fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
+      W1 += _weight1[ig];
       for(unsigned i = 0; i < nDof1; i++) {
-        _phi1W1[i] += phi1[ig][i] * weight;
+        _phi1W1[i] += phi1[ig][i] * _weight1[ig];
+        for(unsigned k = 0; k < dim; k++) {
+          _xg1[ig][k] += phi[i] * xv1[k][i];
+        }
       }
     }
     double solu1W1 = 0.;
@@ -394,9 +649,15 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
     }
 
     _weight1CF.resize(ng1CF);
+    _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
     for(unsigned ig = 0; ig < ng1CF; ig++) {
       const double *phi;
       fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
+      for(unsigned i = 0; i < nDof1; i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          _xg1CF[ig][k] += phi[i] * xv1[k][i];
+        }
+      }
     }
 
     //BEGIN NEW STUFF
@@ -415,6 +676,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
       const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
       const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
       const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+      const std::vector<double>& I2 = region2.GetI2(jel);
 
       for(unsigned jg = 0; jg < fem2->GetGaussPointNumber(); jg++) {
 
@@ -427,18 +689,18 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         }
 
         if(coarseIntersectionTest) {
-          _ballAprx.GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+          _ballAprx->GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
 
           if(_cut == 0) { //interior element
-            double W2 = 2. * weight2[jg] * _kernel;
+            double W2 = 2. * weight2[jg] * _kernel * I2[jg];
             double W1W2 = W1 * W2;
             AssemblyCutFem2(_phi1W1, solu1W1 * W2,  W1W2, jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] * W1W2, W2);
           }
           else if(_cut == 1) { //cut element
             element1.GetCutFem()->clear();
-     //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
+            //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
-           element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
 
             double W1CF = 0.;
             _phi1W1CF.assign(nDof1, 0.);
@@ -454,10 +716,9 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
               solu1W1CF += solu1[i] * _phi1W1CF[i];
             }
 
-            double W2 = 2. * weight2[jg] * _kernel;
+            double W2 = 2. * weight2[jg] * _kernel * I2[jg];
             double W1CFW2 = W1CF * W2;
             AssemblyCutFem2(_phi1W1CF, solu1W1CF * W2,  W1CFW2, jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] * W1CFW2, W2);
-
           }
         }
       }
@@ -528,15 +789,20 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
       double W1 = 0.;
       _phi1W1.assign(nDof1, 0.);
+      _xg1.assign(ng1, std::vector<double>(dim, 0));
+      _weight1.resize(ng1);
       for(unsigned ig = 0; ig < ng1; ig++) {
         const double *phi;
-        double weight;
-        fem1->GetGaussQuantities(xv1, ig, weight, phi);
-        W1 += weight;
+        fem1->GetGaussQuantities(xv1, ig, _weight1[ig], phi);
+        W1 += _weight1[ig];
         for(unsigned i = 0; i < nDof1; i++) {
-          _phi1W1[i] += phi1[ig][i] * weight;
+          _phi1W1[i] += phi1[ig][i] * _weight1[ig];
+          for(unsigned k = 0; k < dim; k++) {
+            _xg1[ig][k] += phi[i] * xv1[k][i];
+          }
         }
       }
+
       double solu1W1 = 0.;
       for(unsigned i = 0; i < nDof1; i++) {
         solu1W1 += solu1[i] * _phi1W1[i];
@@ -549,9 +815,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
         const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
         const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+        const std::vector<double>& I2 = region2.GetI2(jel);
 
         for(unsigned jg = 0; jg < fem2->GetGaussPointNumber(); jg++) {
-          double W2 = 2. * weight2[jg] * _kernel;
+          double W2 = 2. * weight2[jg] * _kernel * I2[jg];
           double W1W2 = W1 * W2;
           AssemblyCutFem2(_phi1W1, solu1W1 * W2,  W1W2, jel, region2.GetDofNumber(jel), fem2->GetPhi(jg), solu2g[jg] * W1W2, W2);
         }
@@ -571,6 +838,16 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 }
 
 
+
+
+
+
+
+
+
+
+
+
 void NonLocal::AssemblyCutFem2(const std::vector <double> &phi1W1,
                                const double &solu1W1W2,
                                const double &W1W2,
@@ -583,7 +860,7 @@ void NonLocal::AssemblyCutFem2(const std::vector <double> &phi1W1,
   _phi1W1W2.resize(phi1W1.size());
   _phi1W1W2Begin = _phi1W1W2.begin();
   _phi1W1W2End = _phi1W1W2.end();
-  
+
   for(_phi1W1W2It = _phi1W1W2Begin, _phi1W1It = phi1W1.begin(); _phi1W1W2It !=  _phi1W1W2End; ++_phi1W1W2It, ++_phi1W1It) {
     *_phi1W1W2It = *_phi1W1It * W2;
   }
@@ -594,8 +871,8 @@ void NonLocal::AssemblyCutFem2(const std::vector <double> &phi1W1,
 
   for( _phi2pt = phi2, _phi2W1W2It = _phi2W1W2Begin; _phi2W1W2It != _phi2W1W2End; ++_phi2pt, ++_phi2W1W2It) {
     *_phi2W1W2It = *_phi2pt * W1W2;
-  } 
-  
+  }
+
   _jac21End = _jac21[jel].end();
   for(_jac21It = _jac21[jel].begin(), _jac22It = _jac22[jel].begin(), _res2It = _res2[jel].begin(), _phi2pt = phi2; _jac21It != _jac21End; ++_phi2pt, ++_res2It) {
     for(_phi1W1W2It = _phi1W1W2Begin; _phi1W1W2It != _phi1W1W2End; ++_phi1W1W2It, ++_jac21It) {

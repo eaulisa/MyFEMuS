@@ -106,7 +106,7 @@ ENDIF(HDF5_FOUND)
 # Find Metis (optional)
 IF(APPLE)
   FIND_PACKAGE(METISApple)
-ELSE() 
+ELSE()
   FIND_PACKAGE(METIS)
 ENDIF(APPLE)
 MESSAGE(STATUS "METIS_FOUND = ${METIS_FOUND}")
@@ -135,9 +135,15 @@ ENDIF(SLEPC_FOUND)
 #   SET(HAVE_LIBMESH 1)
 # ENDIF(LIBMESH_FOUND)
 
+find_package(Eigen3 REQUIRED NO_MODULE)
+
 SET(EIGEN_SAFE_TO_USE_STANDARD_ASSERT_MACRO FALSE)
 
-set(CMAKE_CXX_STANDARD 11)
+#find_package(Ceres NO_MODULE REQUIRED)
+
+#find_package(glog NO_MODULE REQUIRED)
+
+set(CMAKE_CXX_STANDARD 14)
 
 #############################################################################################
 ### Build options
@@ -156,62 +162,64 @@ OPTION(BUILD_JSONCPP "Build JsonCPP library for json input parsing" ON)
 OPTION(BUILD_ADEPT "Build b64 library for 64-encoding" ON)
 
 # Ask the user which executable have to be built
-OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" ON)
+OPTION(BUILD_NAVIERSTOKESAPPS "Build the NavierStokes-line applications" OFF)
 
 # Ask the user which executable have to be built
-OPTION(BUILD_FSIAPPS "Build the FSI applications" ON)
+OPTION(BUILD_FSIAPPS "Build the FSI applications" OFF)
 
 # OPTION(BUILD_OPTCONTROLAPPS "Build the optimal control applications" ON)
 
 #--
-OPTION(BUILD_POISSON "Build the Poisson problem" ON)
+OPTION(BUILD_POISSON "Build the Poisson problem" OFF)
 
 # --
-OPTION(BUILD_POISSON_AMR "Build the Poisson_AMR problem" ON)
+OPTION(BUILD_POISSON_AMR "Build the Poisson_AMR problem" OFF)
 
 # --
-OPTION(BUILD_WILLMORE "Build the Willmore problem" ON)
+OPTION(BUILD_WILLMORE "Build the Willmore problem" OFF)
 
 # --
-OPTION(BUILD_TUTORIAL "Build the tutorial problems" ON)
+OPTION(BUILD_TUTORIAL "Build the tutorial problems" OFF)
 
 # --
-OPTION(BUILD_MGAMR "Build the MGAMR" ON)
+OPTION(BUILD_MGAMR "Build the MGAMR" OFF)
 
-OPTION(BUILD_CUTFEM "Build the cut FEM" ON)
+OPTION(BUILD_CUTFEM "Build the cut FEM" OFF)
 
 # --
-OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" ON)
+OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" OFF)
 
-OPTION(BUILD_AMR "Build the AMR apps" ON)
+OPTION(BUILD_AMR "Build the AMR apps" OFF)
 
-OPTION(BUILD_ISM "Build the Intersection Marker apps" ON)
+OPTION(BUILD_ISM "Build the Intersection Marker apps" OFF)
 
-OPTION(BUILD_MPM_FEM "Build the MPM FEM apps" ON)
+OPTION(BUILD_MPM_FEM "Build the MPM FEM apps" OFF)
 
-OPTION(BUILD_MPM_FSI "Build the MPM FSI apps" ON)
+OPTION(BUILD_MPM_FSI "Build the MPM FSI apps" OFF)
 
-OPTION(BUILD_REFINEMENT "Build the Refiniment apps" ON)
+OPTION(BUILD_REFINEMENT "Build the Refiniment apps" OFF)
 
-OPTION(BUILD_PETSC_DEBUG "Build the PETSC debug apps" ON)
+OPTION(BUILD_PETSC_DEBUG "Build the PETSC debug apps" OFF)
 
-OPTION(BUILD_UQ "Build the UQ apps" ON)
+OPTION(BUILD_UQ "Build the UQ apps" OFF)
 
 OPTION(BUILD_NONLOCAL "Build the NONLOCAL apps" ON)
 
-OPTION(BUILD_SW "Build the Shallow Water apps" ON)
+OPTION(BUILD_SW "Build the Shallow Water apps" OFF)
 
-OPTION(BUILD_TUMOR "Build the Tumor apps" ON)
+OPTION(BUILD_TUMOR "Build the Tumor apps" OFF)
 
-OPTION(BUILD_RK "Build the Runge-Kutta apps" ON)
+OPTION(BUILD_RK "Build the Runge-Kutta apps" OFF)
 
-OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" ON)
+OPTION(BUILD_CONFORMAL "Build the Conformal mesh apps" OFF)
 
-OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" ON)
+OPTION(BUILD_QUASICONFORMAL "Build the QuasiConformal mesh apps" OFF)
 
-OPTION(BUILD_NITSCHE "Build the Nitsche apps" ON)
+OPTION(BUILD_NITSCHE "Build the Nitsche apps" OFF)
 
 OPTION(BUILD_MULTI_PHASE "Build the Multi Phase apps" ON)
+
+OPTION(BUILD_TIME_OPTIMAL_CONTROL "Build Time Dependent Optimal Control apps" ON)
 
 #############################################################################################
 ### Build documentation (Doxygen)
@@ -279,11 +287,60 @@ CONFIGURE_FILE(
   "${PROJECT_BINARY_DIR}/include/FemusConfig.hpp" @ONLY IMMEDIATE
   )
 
+set(USEFEMUS_INCLUDES )
+list(APPEND USEFEMUS_INCLUDES
+  ${CMAKE_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/src/algebra
+  ${CMAKE_SOURCE_DIR}/src/enums
+  ${CMAKE_SOURCE_DIR}/src/equations
+  ${CMAKE_SOURCE_DIR}/src/fe
+  ${CMAKE_SOURCE_DIR}/src/ism
+  ${CMAKE_SOURCE_DIR}/src/mesh
+  ${CMAKE_SOURCE_DIR}/src/meshGencase
+  ${CMAKE_SOURCE_DIR}/src/parallel
+  ${CMAKE_SOURCE_DIR}/src/physics
+  ${CMAKE_SOURCE_DIR}/src/quadrature
+  ${CMAKE_SOURCE_DIR}/src/quadrature/cutfem
+  ${CMAKE_SOURCE_DIR}/src/solution
+  ${CMAKE_SOURCE_DIR}/src/solution/output
+  ${CMAKE_SOURCE_DIR}/src/uq
+  ${CMAKE_SOURCE_DIR}/src/utils
+  ${CMAKE_SOURCE_DIR}/src/utils/eigen
+  ${CMAKE_SOURCE_DIR}/src/utils/input_parser
+  ${ADEPT_INCLUDE_DIRS}
+  ${B64_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PETSC_INCLUDES}
+  ${SLEPC_INCLUDE_DIRS}
+)
+
+set(USEFEMUS_LIBRARIES ${LIBRARY_OUTPUT_PATH}/libfemus.so)
+list(APPEND USEFEMUS_LIBRARIES
+  ${ADEPT_LIBRARIES}
+  ${B64_LIBRARIES}
+  ${HDF5_LIBRARIES}
+  ${JSONCPP_LIBRARIES}
+  ${PETSC_LIBRARIES}
+  # this does not work properly with the current FindSLEPc
+  # ${SLEPC_LIBRARIES}
+  ${LIB_slepc}
+)
+
+if (HAVE_FPARSER)
+  list(APPEND USEFEMUS_INCLUDES ${FPARSER_INCLUDE_DIR})
+  list(APPEND USEFEMUS_LIBRARIES ${FPARSER_LIBRARY})
+endif()
+
+message(STATUS "MPI_EXTRA_LIBRARY = ${MPI_EXTRA_LIBRARY}")
+if (${MPI_EXTRA_LIBRARY})
+  list(APPEND USEFEMUS_LIBRARIES ${MPI_EXTRA_LIBRARY})
+endif()
+
 CONFIGURE_FILE(
   "${PROJECT_SOURCE_DIR}/UseFemus.CMake.in"
   "${PROJECT_BINARY_DIR}/UseFemus.CMake" @ONLY IMMEDIATE
   )
-  
+
 #############################################################################################
 ### Include files
 #############################################################################################

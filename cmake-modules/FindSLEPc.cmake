@@ -4,8 +4,8 @@
 #  SLEPC_FOUND            - system has SLEPc
 #  SLEPC_INCLUDE_DIRS     - include directories for SLEPc
 #  SLEPC_LIBRARY_DIRS     - library directories for SLEPc
-#  SLEPC_LIBARIES         - libraries for SLEPc
-#  SLEPC_STATIC_LIBARIES  - ibraries for SLEPc (static linking, undefined if not required)
+#  SLEPC_LIBRARIES        - libraries for SLEPc
+#  SLEPC_STATIC_LIBRARIES  - libraries for SLEPc (static linking, undefined if not required)
 #  SLEPC_VERSION          - version of SLEPc
 #  SLEPC_VERSION_MAJOR    - First number in SLEPC_VERSION
 #  SLEPC_VERSION_MINOR    - Second number in SLEPC_VERSION

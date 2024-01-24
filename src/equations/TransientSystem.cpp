@@ -86,7 +86,6 @@ void TransientSystem<Base>::SetUpForSolve(){
   std::cout<<"assemble counter = "<<_assembleCounter<<std::endl;
   _assembleCounter++;
 
-
   //update time
   _time += _dt;
 

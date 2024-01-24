@@ -97,7 +97,8 @@ public:
 
 
     /** Get the interval time */
-    double GetIntervalTime() const {
+    double GetIntervalTime() {
+        _dt = _get_time_interval_function(_time);
         return _dt;
     };
 

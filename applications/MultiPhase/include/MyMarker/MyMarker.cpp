@@ -37,7 +37,7 @@ const double faceNormal[6][6][3] = {
 
 const unsigned faceNumber[6] = {6, 4, 5, 4, 3, 2};
 
-unsigned counter = 0;
+//unsigned counter = 0;
 
 const unsigned facePointNumber[6][3] = {{}, {}, {}, {5, 9, 9}, {4, 7, 7}, {}}; //facePointNumber[elemType][solType]
 

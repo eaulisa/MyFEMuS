@@ -2,11 +2,11 @@
 #ifndef __femus_eigen_hpp__
 #define __femus_eigen_hpp__
 
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Eigenvalues>
-#include <eigen3/unsupported/Eigen/KroneckerProduct>
-#include </usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h>
-#include </usr/include/eigen3/unsupported/Eigen/CXX11/Tensor>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
+#include <unsupported/Eigen/KroneckerProduct>
+#include <Eigen/src/Core/util/DisableStupidWarnings.h>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 using namespace femus;
 

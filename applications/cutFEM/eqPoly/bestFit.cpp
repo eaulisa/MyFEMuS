@@ -8,8 +8,8 @@
 #include "./LiSK/lisk.hpp"
 #include <cmath>       /* exp */
 #include "bestFit.hpp"
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
+#include <Eigen/Core>
+#include <Eigen/SVD>
 
 //using namespace femus;
 using namespace std;

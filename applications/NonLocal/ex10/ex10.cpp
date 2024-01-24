@@ -14,7 +14,8 @@
 
 #include "slepceps.h"
 
-unsigned lmax1 = 4; // consistency form 3 -> 7
+unsigned lmax1 = 3; // consistency form 3 -> 7
+const bool correctConstant = !false;
 
 #include "./include/nonlocal_assembly_adaptive.hpp"
 #include "CDWeights.hpp"
@@ -29,7 +30,7 @@ double InitalValueU(const std::vector < double >& x) {
   for(unsigned k = 0; k < x.size(); k++) {
     value +=  x[k] * x[k]; //consistency
 //     value +=  x[k] * x[k] * x[k]; //cubic
-//    value +=  x[k] * x[k] * x[k] * x[k];//quartic
+//   value +=  x[k] * x[k] * x[k] * x[k];//quartic
   }
 
 
@@ -48,31 +49,46 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   for(unsigned k = 0; k < x.size(); k++) {
     value +=  x[k] * x[k]; //consistency
 //     value +=  x[k] * x[k] * x[k]; //cubic
-//    value +=  x[k] * x[k] * x[k] * x[k];//quartic
+//   value +=  x[k] * x[k] * x[k] * x[k];//quartic
   }
 
   return dirichlet;
 }
 
-// unsigned numberOfUniformLevels = 2; //consistency
-unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
+unsigned numberOfUniformLevels = 1; //consistency
+//unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
 //unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 unsigned numberOfUniformLevelsFine = 1;
 
 int main(int argc, char** argv) {
-    
-  if(argc == 3){
+
+  if(argc == 3) {
     numberOfUniformLevels = atoi(argv[1]);
-       
+
     lmax1 = atoi(argv[2]);
   }
-  else if(argc == 2){
+  else if(argc == 2) {
     numberOfUniformLevels = atoi(argv[1]);
   }
-  
-  std::cout<< "USING VARIABLES "<< numberOfUniformLevels << "  " << lmax1 << std::endl;
-    
+/*
+  unsigned n = 10, m = 15;
+  std::vector<double*> mat(n); //mat is initialized as an array of n double pointers
+  std::vector<double> matMemory(n * m, 0.); //matMemory is initialized as an array of n*m double
+  for(unsigned i = 0; i < n; i++) {
+    mat[i] = matMemory.data() + i * m; // mat[i] points to the memory address of matMemory[0] + i * m
+  }
+
+  for(unsigned i = 0; i < n * m; i++) matMemory[i] = i; // mat is accessed as a vector type
+
+  for (unsigned i = 0; i < n; i++) {
+    for (unsigned j = 0; j < m; j++) std::cout << mat[i][j] << " ";  // mat is accessed as a matrix type
+    std::cout << std::endl;
+  }
+  return 0;*/
+
+  std::cout << "USING VARIABLES " << numberOfUniformLevels << "  " << lmax1 << std::endl;
+
   clock_t total_time = clock();
 
   // init Petsc-MPI communicator
@@ -86,12 +102,17 @@ int main(int argc, char** argv) {
 
 
 
-  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
-  //char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
+
+
+
+
+//   char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+//   char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
-  //char fileName[100] = "../input/martaTest4Tri.neu";
-  //char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
+//   char fileName[100] = "../input/martaTest4Tri.neu";
+//  char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
   char fileName[100] = "../input/martaTest4-3D-tet.neu"; // works till 288 nprocs 0.2
+  //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
 
   mlMsh.ReadCoarseMesh(fileName, "fifth", scalingFactor);
@@ -389,7 +410,7 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
       for(unsigned k = 0; k < dim; k++) {
         soluExact_gss += xg[k] * xg[k];//consistency
 //         soluExact_gss += xg[k] * xg[k] * xg[k]; // cubic
-        //soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
+//        soluExact_gss += xg[k] * xg[k] * xg[k] * xg[k];// quartic
       }
 
       error_solExact_norm2 += (soluNonLoc_gss - soluExact_gss) * (soluNonLoc_gss - soluExact_gss) * weight;
