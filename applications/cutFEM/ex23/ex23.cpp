@@ -909,17 +909,48 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
 
             CheckIntersection <Type> (intersect_number, table_number, intersection, interp_point, parabola);
 
-/*
+            bool concaveUp = 0;
+            bool do_line = 0;
+            if(parabola.k < 0) concaveUp = 1; //kx^2+bx+d+cy = 0 ; c is initialy 1 => y = -kx^2 - bx - d .
+
+
             if (intersect_number > 2){
-              bool convrt2line = 0;
-              if (table_number == 5) convrt2line = 1;
-              else if(pol2[0] < 0 ){
-                if(table_number == 2 || table_number == 6) convrt2line = 1;
-              }
-              else if ( pol2[0] > 0 ){
-                if(table_number == 0 || table_number == 4) convrt2line = 1;
-              }
-              if (convrt2line == 1){
+                if(!concaveUp){
+                    if (table == 0 || table == 1 || table == 4 || table == 5){
+                        do_line = 1 ;
+                    }
+                }
+                else {
+                    if (table == 5 || table == 6 ){
+                        do_line = 1 ;
+                    }
+
+                }
+            }
+
+
+            if (intersect_number == 2 || do_line == 0){ // we are not changing 4 intersection when do table-1 left-right
+                if (det !=0){
+                    pol1[0] = parabola.k;
+                    pol1[1] = parabola.b;
+                    pol1[2] = parabola.d + c;
+                    pol2[0] = parabola.k;
+                    pol2[1] = parabola.b;
+                    pol2[2] = parabola.d;
+                }
+                else {  //TODO decode what I did here. Couldn't figure it out what I did here. We are not using this probably after introducing epsilon
+
+                    pol1[0] = static_cast<Type>(0);
+                    pol1[1] = static_cast<Type>(-1);
+                    pol1[2] = p1.x;
+                    pol2[0] = pol1[0];
+                    pol2[1] = pol1[1];
+                    pol2[2] = p1.x;
+                    c=static_cast<Type>(0);
+
+                }
+            }
+            else if (intersect_number > 2){
                 Type slope = (p3.y-p1.y)/(p3.x-p1.x);
                 c=static_cast<Type>(1);
                 pol2[0] = static_cast<Type>(0);    //k=0
@@ -928,545 +959,72 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
                 pol1[0] = pol2[0];    //k=0
                 pol1[1] = pol2[1];
                 pol1[2] = pol2[2] + c ;
-//                 cout << pol2[0] << " " <<pol2[1] << " " << pol2[3] << " " << " " << c << endl;
-              }
-            }*/
-
-          bool special_parabola = 0;
-          int concaveUp = 0;
-          if(parabola.k < 0) concaveUp = 1; //kx^2+bx+d+cy = 0 ; c is initialy 1 => y = -kx^2 - bx - d .
-          else if (parabola.k > 0)concaveUp= -1;
-
-
-            //TODO creat a new model special integral.
-
-            if (intersect_number > 2 ){
-              if (table == 4 && concaveUp == -1){ //TODO if it's concave up we are not going to do anything .. meaning if c and k has different sign.
-                special_parabola = 1 ;
-                const Type One(1) , Zero (0);
-
-                Type mxArea = static_cast<Type>(1) / ((m + static_cast<Type>(1)) * (n + static_cast<Type>(1)));
-                Type smallArea =  (1 - p1.x)*(1 - p2.y) ;
-                Type restOfArea = mxArea * (1 - smallArea) ;
-
-                // Mapping
-
-                PointT <Type> q1 = {Zero, One};
-                PointT <Type> q2 = {One, Zero};
-                PointT <Type> q3 = {(p3.x - p1.x)/(One - p1.x) , (p3.y - p2.y)/(One - p2.y)};
-                Parabola<Type> q_parabola = get_parabola_equation(q1, q2, q3);
-
-                pol1[0] = q_parabola.k;
-                pol1[1] = q_parabola.b;
-                pol1[2] = q_parabola.d + c;
-                pol2[0] = q_parabola.k;
-                pol2[1] = q_parabola.b;
-                pol2[2] = q_parabola.d;
-
-                cout<<endl;
-
-                cout<< "Q = (" << q1.x << ", " << q1.y << ") ," << "(" << q2.x << ", " << q2.y << ") ," << "(" << q3.x << ", " << q3.y << ")  : Q parabola = " << q_parabola.k <<"x^2 + "<< q_parabola.b <<"x + "<<q_parabola.d << endl;
-
-
-                for(int normal=0; normal <=1; normal++ ){
-                  Type A1 (0), A2 (0), A3 (0);
-
-                  if (normal == 1){ // To calculate other side
-                      pol1[0] *= -1;
-                      pol1[1] *= -1;
-                      pol1[2] *= -1;
-                      pol2[0] *= -1;
-                      pol2[1] *= -1;
-                      pol2[2] *= -1;
-                      c *= -1;
-                  }
-
-
-                  std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-                  GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-
-                  if(I1.size() > 0) {
-                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-                  }
-                  if(I2.size() > 0) {
-                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-                  }
-                  if(I3.size() > 0) {
-                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-                  }
-                  area = A1 + A2 + A3;
-                  cout<< "special method : " << pol2[0] << "x^2+ " << pol2[1] << "x+ " << pol2[2] << "+ " << c << "y = 0    area ="<< area<<" ";
-                  //Now scaling
-                  area = area * smallArea ;
-                  cout<< "scaling area: " << area<<" ";
-                  if (normal == 1 ) area = area + restOfArea ;
-                  cout<< "final area: " << area<<" ";
-
-
-                  cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+ " << 1 << "y = 0     .area=" << area<<  endl;
-                  //Just to keep all the values to positive:
-                  if (p1.x < 0 ) p1.x = 0;
-                  if (p1.y < 0 ) p1.y = 0;
-                  if (p2.x < 0 ) p2.x = 0;
-                  if (p2.y < 0 ) p2.y = 0;
-                  if (p3.x < 0 ) p3.x = 0;
-                  if (p3.y < 0 ) p3.y = 0;
-
-                  parabola_table[table][i1][i2][i3].resize(2) ;
-                  parabola_table[table][i1][i2][i3][normal].resize(15);
-
-                  parabola_table[table][i1][i2][i3][normal][0] = count;
-                  parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
-
-                  parabola_table[table][i1][i2][i3][normal][4] = p1.x;
-                  parabola_table[table][i1][i2][i3][normal][5] = p1.y;
-                  parabola_table[table][i1][i2][i3][normal][6] = p2.x;
-                  parabola_table[table][i1][i2][i3][normal][7] = p2.y;
-                  parabola_table[table][i1][i2][i3][normal][8] = p3.x;
-                  parabola_table[table][i1][i2][i3][normal][9] = p3.y;
-
-                  if(normal == 0){
-                    parabola_table[table][i1][i2][i3][normal][10] = parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = parabola.d;
-                  }
-                  else{
-                    parabola_table[table][i1][i2][i3][normal][10] = -parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = -parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = -parabola.d;
-                  }
-
-                  parabola_table[table][i1][i2][i3][normal][13] = c;
-                  parabola_table[table][i1][i2][i3][normal][14] = area;
-                }
-              }
-              else if (table == 0 && concaveUp == -1){ //TODO if it's concave up we are not going to do anything .. meaning if c and k has different sign.
-                special_parabola = 1 ;
-                const Type One(1) , Zero (0);
-
-                Type mxArea = static_cast<Type>(1) / ((m + static_cast<Type>(1)) * (n + static_cast<Type>(1)));
-                Type smallArea =  (p2.x - p1.x) * (p2.y - p1.y) ;
-                Type restOfArea = mxArea * (1 - smallArea) ;
-
-                // Mapping
-
-                PointT <Type> q1 = {Zero, Zero};
-                PointT <Type> q2 = {One, One};
-                PointT <Type> q3 = {(p3.x - p1.x)/(p2.x - p1.x) , (p3.y - p1.y)/(p2.y - p1.y)};
-                Parabola<Type> q_parabola = get_parabola_equation(q1, q2, q3);
-
-                pol1[0] = q_parabola.k;
-                pol1[1] = q_parabola.b;
-                pol1[2] = q_parabola.d + c;
-                pol2[0] = q_parabola.k;
-                pol2[1] = q_parabola.b;
-                pol2[2] = q_parabola.d;
-
-                cout<<endl;
-
-                cout<< "Q = (" << q1.x << ", " << q1.y << ") ," << "(" << q2.x << ", " << q2.y << ") ," << "(" << q3.x << ", " << q3.y << ")  : Q parabola = " << q_parabola.k <<"x^2 + "<< q_parabola.b <<"x + "<<q_parabola.d << endl;
-
-
-                for(int normal=0; normal <=1; normal++ ){
-                  Type A1 (0), A2 (0), A3 (0);
-
-                  if (normal == 1){ // To calculate other side
-                      pol1[0] *= -1;
-                      pol1[1] *= -1;
-                      pol1[2] *= -1;
-                      pol2[0] *= -1;
-                      pol2[1] *= -1;
-                      pol2[2] *= -1;
-                      c *= -1;
-                  }
-
-
-                  std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-                  GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-
-                  if(I1.size() > 0) {
-                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-                  }
-                  if(I2.size() > 0) {
-                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-                  }
-                  if(I3.size() > 0) {
-                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-                  }
-                  area = A1 + A2 + A3;
-                  cout<< "special method : " << pol2[0] << "x^2+ " << pol2[1] << "x+ " << pol2[2] << "+ " << c << "y = 0    area ="<< area<<" ";
-                  //Now scaling
-                  area = area * smallArea ;
-                  cout<< "scaling area: " << area<<" ";
-                  if (normal == 1 ) area = area + restOfArea ;
-                  cout<< "final area: " << area<<" ";
-
-
-                  cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+ " << 1 << "y = 0     .area=" << area<<  endl;
-
-                                    //Just to keep all the values to positive:
-                  if (p1.x < 0 ) p1.x = 0;
-                  if (p1.y < 0 ) p1.y = 0;
-                  if (p2.x < 0 ) p2.x = 0;
-                  if (p2.y < 0 ) p2.y = 0;
-                  if (p3.x < 0 ) p3.x = 0;
-                  if (p3.y < 0 ) p3.y = 0;
-
-                  parabola_table[table][i1][i2][i3].resize(2) ;
-                  parabola_table[table][i1][i2][i3][normal].resize(15);
-
-                  parabola_table[table][i1][i2][i3][normal][0] = count;
-                  parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
-
-                  parabola_table[table][i1][i2][i3][normal][4] = p1.x;
-                  parabola_table[table][i1][i2][i3][normal][5] = p1.y;
-                  parabola_table[table][i1][i2][i3][normal][6] = p2.x;
-                  parabola_table[table][i1][i2][i3][normal][7] = p2.y;
-                  parabola_table[table][i1][i2][i3][normal][8] = p3.x;
-                  parabola_table[table][i1][i2][i3][normal][9] = p3.y;
-
-                  if(normal == 0){
-                    parabola_table[table][i1][i2][i3][normal][10] = parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = parabola.d;
-                  }
-                  else{
-                    parabola_table[table][i1][i2][i3][normal][10] = -parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = -parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = -parabola.d;
-                  }
-
-                  parabola_table[table][i1][i2][i3][normal][13] = c;
-                  parabola_table[table][i1][i2][i3][normal][14] = area;
-                }
-              }
-              else if (table == 2 && concaveUp == 1){ //TODO if it's concave up we are not going to do anything .. meaning if c and k has different sign.
-                special_parabola = 1 ;
-                const Type One(1) , Zero (0);
-
-                Type mxArea = static_cast<Type>(1) / ((m + static_cast<Type>(1)) * (n + static_cast<Type>(1)));
-                Type smallArea =  (p2.x - p1.x) * (p1.y - p2.y) ;
-                Type restOfArea = mxArea * (1 - smallArea) ;
-
-                // Mapping
-
-                PointT <Type> q1 = {Zero, One};
-                PointT <Type> q2 = {One, Zero};
-                PointT <Type> q3 = {(p3.x - p1.x)/(p2.x - p1.x) , (p3.y - p2.y)/(p1.y - p2.y)};
-                Parabola<Type> q_parabola = get_parabola_equation(q1, q2, q3);
-
-                pol1[0] = q_parabola.k;
-                pol1[1] = q_parabola.b;
-                pol1[2] = q_parabola.d + c;
-                pol2[0] = q_parabola.k;
-                pol2[1] = q_parabola.b;
-                pol2[2] = q_parabola.d;
-
-                cout<<endl;
-
-                cout<< "Q = (" << q1.x << ", " << q1.y << ") ," << "(" << q2.x << ", " << q2.y << ") ," << "(" << q3.x << ", " << q3.y << ")  : Q parabola = " << q_parabola.k <<"x^2 + "<< q_parabola.b <<"x + "<<q_parabola.d << endl;
-
-
-                for(int normal=0; normal <=1; normal++ ){
-                  Type A1 (0), A2 (0), A3 (0);
-
-                  if (normal == 1){ // To calculate other side
-                      pol1[0] *= -1;
-                      pol1[1] *= -1;
-                      pol1[2] *= -1;
-                      pol2[0] *= -1;
-                      pol2[1] *= -1;
-                      pol2[2] *= -1;
-                      c *= -1;
-                  }
-
-
-                  std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-                  GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-
-                  if(I1.size() > 0) {
-                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-                  }
-                  if(I2.size() > 0) {
-                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-                  }
-                  if(I3.size() > 0) {
-                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-                  }
-                  area = A1 + A2 + A3;
-                  cout<< "special method : " << pol2[0] << "x^2+ " << pol2[1] << "x+ " << pol2[2] << "+ " << c << "y = 0    area =" << area << " ";
-                  //Now scaling
-                  area = area * smallArea ;
-                  cout<< "scaling area: " << area<<" ";
-                  if (normal == 0 ) area = area + restOfArea ;
-                  cout<< "final area: " << area<<" ";
-
-
-                  cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+ " << 1 << "y = 0     .area=" << area<<  endl;
-
-                  //Just to keep all the values to positive:
-                  if (p1.x < 0 ) p1.x = 0;
-                  if (p1.y < 0 ) p1.y = 0;
-                  if (p2.x < 0 ) p2.x = 0;
-                  if (p2.y < 0 ) p2.y = 0;
-                  if (p3.x < 0 ) p3.x = 0;
-                  if (p3.y < 0 ) p3.y = 0;
-
-
-                  parabola_table[table][i1][i2][i3].resize(2) ;
-                  parabola_table[table][i1][i2][i3][normal].resize(15);
-
-                  parabola_table[table][i1][i2][i3][normal][0] = count;
-                  parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
-
-                  parabola_table[table][i1][i2][i3][normal][4] = p1.x;
-                  parabola_table[table][i1][i2][i3][normal][5] = p1.y;
-                  parabola_table[table][i1][i2][i3][normal][6] = p2.x;
-                  parabola_table[table][i1][i2][i3][normal][7] = p2.y;
-                  parabola_table[table][i1][i2][i3][normal][8] = p3.x;
-                  parabola_table[table][i1][i2][i3][normal][9] = p3.y;
-
-                  if(normal == 0){
-                    parabola_table[table][i1][i2][i3][normal][10] = parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = parabola.d;
-                  }
-                  else{
-                    parabola_table[table][i1][i2][i3][normal][10] = -parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = -parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = -parabola.d;
-                  }
-
-                  parabola_table[table][i1][i2][i3][normal][13] = c;
-                  parabola_table[table][i1][i2][i3][normal][14] = area;
-                }
-              }
-
-              else if (table == 6 && concaveUp == 1){ //TODO if it's concave up we are not going to do anything .. meaning if c and k has different sign.
-                special_parabola = 1 ;
-                const Type One(1) , Zero (0);
-
-                Type mxArea = static_cast<Type>(1) / ((m + static_cast<Type>(1)) * (n + static_cast<Type>(1)));
-                Type smallArea =  (p1.x - p2.x) * (p1.y - p2.y) ;
-                Type restOfArea = mxArea * (1 - smallArea) ;
-
-                // Mapping
-
-                PointT <Type> q1 = {One, One};
-                PointT <Type> q2 = {Zero, Zero};
-                PointT <Type> q3 = {(p3.x - p2.x)/(p1.x - p2.x) , (p3.y - p2.y)/(p1.y - p2.y)};
-                Parabola<Type> q_parabola = get_parabola_equation(q1, q2, q3);
-
-                pol1[0] = q_parabola.k;
-                pol1[1] = q_parabola.b;
-                pol1[2] = q_parabola.d + c;
-                pol2[0] = q_parabola.k;
-                pol2[1] = q_parabola.b;
-                pol2[2] = q_parabola.d;
-
-                cout<<endl;
-
-                cout<< "Q = (" << q1.x << ", " << q1.y << ") ," << "(" << q2.x << ", " << q2.y << ") ," << "(" << q3.x << ", " << q3.y << ")  : Q parabola = " << q_parabola.k <<"x^2 + "<< q_parabola.b <<"x + "<<q_parabola.d << endl;
-
-
-                for(int normal=0; normal <=1; normal++ ){
-                  Type A1 (0), A2 (0), A3 (0);
-
-                  if (normal == 1){ // To calculate other side
-                      pol1[0] *= -1;
-                      pol1[1] *= -1;
-                      pol1[2] *= -1;
-                      pol2[0] *= -1;
-                      pol2[1] *= -1;
-                      pol2[2] *= -1;
-                      c *= -1;
-                  }
-
-
-                  std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-                  GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-
-                  if(I1.size() > 0) {
-                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-                  }
-                  if(I2.size() > 0) {
-                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-                  }
-                  if(I3.size() > 0) {
-                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-                  }
-                  area = A1 + A2 + A3;
-                  cout<< "special method : " << pol2[0] << "x^2+ " << pol2[1] << "x+ " << pol2[2] << "+ " << c << "y = 0    area =" << area << " ";
-                  //Now scaling
-                  area = area * smallArea ;
-                  cout<< "scaling area: " << area<<" ";
-
-                  if (normal == 0 ) area = area + restOfArea ;
-                  cout<< "final area: " << area<<" ";
-
-
-                  cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+ " << 1 << "y = 0     .area=" << area<<  endl;
-
-                  //Just to keep all the values to positive:
-                  if (p1.x < 0 ) p1.x = 0;
-                  if (p1.y < 0 ) p1.y = 0;
-                  if (p2.x < 0 ) p2.x = 0;
-                  if (p2.y < 0 ) p2.y = 0;
-                  if (p3.x < 0 ) p3.x = 0;
-                  if (p3.y < 0 ) p3.y = 0;
-
-
-                  parabola_table[table][i1][i2][i3].resize(2) ;
-                  parabola_table[table][i1][i2][i3][normal].resize(15);
-
-                  parabola_table[table][i1][i2][i3][normal][0] = count;
-                  parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
-
-                  parabola_table[table][i1][i2][i3][normal][4] = p1.x;
-                  parabola_table[table][i1][i2][i3][normal][5] = p1.y;
-                  parabola_table[table][i1][i2][i3][normal][6] = p2.x;
-                  parabola_table[table][i1][i2][i3][normal][7] = p2.y;
-                  parabola_table[table][i1][i2][i3][normal][8] = p3.x;
-                  parabola_table[table][i1][i2][i3][normal][9] = p3.y;
-
-                  if(normal == 0){
-                    parabola_table[table][i1][i2][i3][normal][10] = parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = parabola.d;
-                  }
-                  else{
-                    parabola_table[table][i1][i2][i3][normal][10] = -parabola.k;
-                    parabola_table[table][i1][i2][i3][normal][11] = -parabola.b;
-                    parabola_table[table][i1][i2][i3][normal][12] = -parabola.d;
-                  }
-
-                  parabola_table[table][i1][i2][i3][normal][13] = c;
-                  parabola_table[table][i1][i2][i3][normal][14] = area;
-                }
-              }
-
             }
+//             else cout << " It intersect the unit box in numbers other than 2 or 4 " ;
 
-            //Using line instead of 4 intersection
-            //TODO It is still linearizing concave down table 4 ; fix it
+            for(int normal=0; normal <=1; normal++ ){
+                Type A1 (0), A2 (0), A3 (0);
 
-            if(!special_parabola){
-
-              if (intersect_number == 2 || table == 1 || table == 3 || table == 7){ // we are not changing 4 intersection when do table-1 left-right
-                  if (det !=0){
-                      pol1[0] = parabola.k;
-                      pol1[1] = parabola.b;
-                      pol1[2] = parabola.d + c;
-                      pol2[0] = parabola.k;
-                      pol2[1] = parabola.b;
-                      pol2[2] = parabola.d;
-                  }
-                  else {  //TODO decode what I did here. Couldn't figure it out what I did here. We are not using this probably after introducing epsilon
-                      cout << " STOP : FIGURE OUT WHAT YOU DID : " << endl;
-                      pol1[0] = static_cast<Type>(0);
-                      pol1[1] = static_cast<Type>(-1);
-                      pol1[2] = p1.x;
-                      pol2[0] = pol1[0];
-                      pol2[1] = pol1[1];
-                      pol2[2] = p1.x;
-                      c=static_cast<Type>(0);
-  //                     cout << "went in straight line : " <<pol2[0] << " " <<pol2[1] << " " << pol2[3] << " " << " " << c << endl;
-                  }
-              }
-
-//               else if (intersect_number > 2){
-//                   Type slope = (p3.y-p1.y)/(p3.x-p1.x);
-//                   c=static_cast<Type>(1);
-//                   pol2[0] = static_cast<Type>(0);    //k=0
-//                   pol2[1] = -slope;
-//                   pol2[2] = slope*p1.x - p1.y ;
-//                   pol1[0] = pol2[0];    //k=0
-//                   pol1[1] = pol2[1];
-//                   pol1[2] = pol2[2] + c ;
-//   //                 cout << pol2[0] << " " <<pol2[1] << " " << pol2[3] << " " << " " << c << endl;
-//                   cout<< " intersection << . used a straight line " << endl;
-//               }
-              for(int normal=0; normal <=1; normal++ ){
-                  Type A1 (0), A2 (0), A3 (0);
-
-                  if (normal == 1){ // To calculate other side
-                      pol1[0] *= -1;
-                      pol1[1] *= -1;
-                      pol1[2] *= -1;
-                      pol2[0] *= -1;
-                      pol2[1] *= -1;
-                      pol2[2] *= -1;
-                      c *= -1;
-                  }
+                if (normal == 1){ // To calculate other side
+                    pol1[0] *= -1;
+                    pol1[1] *= -1;
+                    pol1[2] *= -1;
+                    pol2[0] *= -1;
+                    pol2[1] *= -1;
+                    pol2[2] *= -1;
+                    c *= -1;
+                }
 
 
-                  std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-                  GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+                std::vector< std::pair <Type, Type> > I1, I2, I3 ;
+                GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
 
-                  if(I1.size() > 0) {
-                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-                  }
-                  if(I2.size() > 0) {
-                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-                  }
-                  if(I3.size() > 0) {
-                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-                  }
-                  area = A1 + A2 + A3;
-
-                  cout << " \n" <<"table : " << table << " " << count << ". (" << p1.x << ", " << p1.y << ") ," << "(" << p2.x << ", " << p2.y << ") ," << "(" << p3.x << ", " << p3.y << ")  : "  <<  pol2[0] << "x^2+ " << pol2[1] << "x+ " << pol2[2] << "+ " << c << "y = 0     .area=" << area<<  endl;
+                if(I1.size() > 0) {
+                    A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
+                }
+                if(I2.size() > 0) {
+                    A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
+                }
+                if(I3.size() > 0) {
+                    A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
+                }
+                area = A1 + A2 + A3;
 
 
-                                    //Just to keep all the values to positive:
-                  if (p1.x < 0 ) p1.x = 0;
-                  if (p1.y < 0 ) p1.y = 0;
-                  if (p2.x < 0 ) p2.x = 0;
-                  if (p2.y < 0 ) p2.y = 0;
-                  if (p3.x < 0 ) p3.x = 0;
-                  if (p3.y < 0 ) p3.y = 0;
+                parabola_table[table][i1][i2][i3].resize(2) ;
+                parabola_table[table][i1][i2][i3][normal].resize(15);
 
+                parabola_table[table][i1][i2][i3][normal][0] = count;
+                parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
+                parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
+                parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
 
-                  parabola_table[table][i1][i2][i3].resize(2) ;
-                  parabola_table[table][i1][i2][i3][normal].resize(15);
+                parabola_table[table][i1][i2][i3][normal][4] = p1.x;
+                parabola_table[table][i1][i2][i3][normal][5] = p1.y;
+                parabola_table[table][i1][i2][i3][normal][6] = p2.x;
+                parabola_table[table][i1][i2][i3][normal][7] = p2.y;
+                parabola_table[table][i1][i2][i3][normal][8] = p3.x;
+                parabola_table[table][i1][i2][i3][normal][9] = p3.y;
 
-                  parabola_table[table][i1][i2][i3][normal][0] = count;
-                  parabola_table[table][i1][i2][i3][normal][1] = i1_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][2] = i2_pm_eps;
-                  parabola_table[table][i1][i2][i3][normal][3] = static_cast<Type>(i3*del_x);
+                parabola_table[table][i1][i2][i3][normal][10] = pol2[0];
+                parabola_table[table][i1][i2][i3][normal][11] = pol2[1];
+                parabola_table[table][i1][i2][i3][normal][12] = pol2[2];
+                parabola_table[table][i1][i2][i3][normal][13] = c;
+                parabola_table[table][i1][i2][i3][normal][14] = area;
 
-                  parabola_table[table][i1][i2][i3][normal][4] = p1.x;
-                  parabola_table[table][i1][i2][i3][normal][5] = p1.y;
-                  parabola_table[table][i1][i2][i3][normal][6] = p2.x;
-                  parabola_table[table][i1][i2][i3][normal][7] = p2.y;
-                  parabola_table[table][i1][i2][i3][normal][8] = p3.x;
-                  parabola_table[table][i1][i2][i3][normal][9] = p3.y;
-
-                  parabola_table[table][i1][i2][i3][normal][10] = pol2[0];
-                  parabola_table[table][i1][i2][i3][normal][11] = pol2[1];
-                  parabola_table[table][i1][i2][i3][normal][12] = pol2[2];
-                  parabola_table[table][i1][i2][i3][normal][13] = c;
-                  parabola_table[table][i1][i2][i3][normal][14] = area;
-
-  //                 for (int nm=0; nm<=11; nm++){
-  //                 cout << parabola_table[normal][count][nm] << " " ;
-  //                 }
-              }
+//                 for (int nm=0; nm<=11; nm++){
+//                 cout << parabola_table[normal][count][nm] << " " ;
+//                 }
             }
             count ++ ;
+//           }         //det ==0 ends
         }
       }
     }
   }
-
+cout << "parabola table created " << parabola_table[4][6][5][7][0][14] << endl;
 }
+
 
 
 template <class Type>
@@ -2173,7 +1731,7 @@ int main() {
   unsigned int m = 0;
   unsigned int n = 0;
   int s = 0;
-  unsigned int partition = 20;
+  unsigned int partition = 10;
 
   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table(0) ;
   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table_4intersection(0);
@@ -2277,7 +1835,7 @@ int main() {
         for (unsigned int i2 = 0 ; i2 <= partition ; i2++){
           for (unsigned int i3 = 0 ; i3 <= partition ;i3++){
             normal=0;
-            if (parabola_table[table][i1][i2][i3][normal][10]>=0)
+//             if (parabola_table[table][i1][i2][i3][normal][10]>=0)
             cout <<parabola_table[table][i1][i2][i3][normal][0]<<","<<parabola_table[table][i1][i2][i3][normal][4] <<","<<parabola_table[table][i1][i2][i3][normal][5]<<"," <<parabola_table[table][i1][i2][i3][normal][6]<<","<<parabola_table[table][i1][i2][i3][normal][7]<<","<<parabola_table[table][i1][i2][i3][normal][8]<<","<<parabola_table[table][i1][i2][i3][normal][9]<<","<<parabola_table[table][i1][i2][i3][normal][14] << endl;
           }
         }

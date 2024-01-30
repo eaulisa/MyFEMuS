@@ -2241,8 +2241,6 @@ void justIntersectionNumber(int &intersect_number, Parabola <Type> &parabola){
 
 
 
-
-
 int main() {
 
   typedef cpp_bin_float_oct Type;      //     typedef double Type;
@@ -2433,137 +2431,230 @@ int main() {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// {
+// int main() {
 //
-//   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table(0) ;
-//   std::vector< std::vector< std::vector< std::vector< std::vector< std::vector< Type >>>>>> parabola_table_4intersection(0);
-//
-//   std::srand(10);
-//
-//   creat_parabola_table<Type>(parabola_table, partition, m,n,s);
-// //   creat_parabola_table_4intersection(parabola_table_4intersection , partition, m, n, s);
-//
-//   clock_t t = clock();
-//
-//     std::vector <Type> given_parabola(4,0);
-//     std:: vector <Type> intersection(0);
-//     std:: vector <Type> interp_point(0);
-//     std:: vector <std:: vector <Type>> interp_table(8, std:: vector <Type> (4));
-//     int normal;
-//     unsigned int table_number;
-//     Type interp_area;
-//     std:: vector <Type> bad_cases(0);
-//     for (unsigned i=0;i<1;i++){
-//       interp_area = 0;
-//       normal =0;
-//       cout<< " "<<i<<endl;
-//       random_polynomial(given_parabola);
+//   typedef cpp_bin_float_oct Type;      //     typedef double Type;
+//   std::cout.precision(16);
+//   unsigned int m = 0;
+//   unsigned int n = 0;
+//   int s = 0;
+//   unsigned int partition = 10;
+//   Parabola <Type> parabola;
 //
 //
-//       given_parabola = {1.44, -2.18365, -0.3275, 1};
-//       inverse_parabola <Type> (parabola_table, parabola_table_4intersection , given_parabola, intersection, normal, interp_point, interp_table, table_number, partition);
+//     // Specify the path to your CSV file
+//     std::string csvFilePath = "data.csv";
 //
-//       cout << " intersection points : " ;
-//       for (int ii = 0; ii < intersection.size(); ii++){
-//         cout<< intersection[ii] << "  " ;
-//       }
-//       cout<< endl;
-//         if (interp_point.size() != 0){
-//            interp_area = trilinier_interpolation<Type>( interp_table , interp_point, partition) ;
-//            cout << "\n interpolated area = " << interp_area <<endl;
+//     // Open the CSV file
+//     std::ifstream file(csvFilePath);
+//
+//     // Check if the file is open
+//     if (!file.is_open()) {
+//         // If the file cannot be opened, print an error message and exit
+//         std::cerr << "Error opening file: " << csvFilePath << std::endl;
+//         return 1;
+//     }
+//     cout<< "file read successfully"<< endl;
+//     // Define vectors to store data from CSV
+//     std::vector<std::vector<std::string>> data;
+//
+//     // Read the header line separately
+//     std::string header;
+//     std::getline(file, header);
+//
+//     // Add the new column name to the header
+//     header += ",exact value,difference";
+//
+//     // Store the header in the data vector
+//     std::vector<std::string> headerRow;
+//     std::istringstream headerIss(header);
+//     std::string headerToken;
+//     while (std::getline(headerIss, headerToken, ',')) {
+//         // Tokenize the header by comma and store values in the headerRow vector
+//         headerRow.push_back(headerToken);
+//     }
+//     // Add the headerRow vector to the data vector
+//     data.push_back(headerRow);
+//
+//     // Assuming header is a vector containing column names
+//
+// //     for (size_t i = 0; i < header.size(); ++i) {
+// // //     std::cout << "Header[" << i << "] = " << header[i] << std::endl;
+// //     }
+//
+//
+//     // Read the rest of the file
+//     std::string line;
+//     while(std::getline(file, line)){
+//     //for (int lineNumber = 0; std::getline(file, line); ++lineNumber) {
+//         std::istringstream iss(line);
+//         std::vector<std::string> row;
+//
+//         // Tokenize the line by comma and store values in the row vector
+//         std::string token;
+//         while (std::getline(iss, token, ',')) {
+//             row.push_back(token);
 //         }
 //
-//         else {
-//           interp_area = (given_parabola[2] >0)? 1 : 0 ;
-//           cout << "\n no intersection: area = " << interp_area <<endl;
-//         }
+// //             for (size_t i = 0; i < row.size(); ++i) {
+// //               std::cout << "row [" << i << "] = " << row[i] << std::endl;
+// //             }
 //
-//         {
-//                 std::vector< std::pair <Type, Type> > I1, I2, I3 ;
-//                 std::vector <Type> pol1(3, 0);
-//                 std::vector <Type> pol2(3, 0);
-//                 Type A1,A2,A3, a=0 , c= given_parabola[3];
-//                 pol1[0] = given_parabola[0];
-//                 pol1[1] = given_parabola[1];
-//                 pol1[2] = given_parabola[2] + c;
-//                 pol2[0] = given_parabola[0];
-//                 pol2[1] = given_parabola[1];
-//                 pol2[2] = given_parabola[2];
+//         // Extract numbers from the row and add them
+//         PointT<Type> p1,p2,p3 ;
+//         double F_values;
+//
+// //         cout<< "inside line "<< " row size = "<< row.size() << " row = " << row[0] << " " << row[1] << " " << row[2]<<" " <<row[3] << " " <<row[4] << endl;
+//
+//
+//             Parabola <Type> parabola;
+//             int intersect_number;
+//             std::vector <Type> intersection;
+//             std::vector <Type> interp_point;    //never used in this function. it was used in interpolation;
+//             unsigned int table;
+//             std::vector< std::pair <Type, Type> > I1, I2, I3 ;
+//             std::vector <Type> pol1(3, 0);
+//             std::vector <Type> pol2(3, 0);
+//             Type A1,A2,A3, a=0 , c= 1;
+//             Type formula_area ;
+//             double area;
+//             for (int i = 1; i < row.size(); ++i) {
+//                 // Convert each element of the row to a double and add to the sum
+//                 double value = std::stod(row[i]);
+//     //             std::cout << "Debug: i = " << i << ", row.size() = " << row.size() << "value " << row[i] << std::endl;
+//                 if      (i==1) p1.x = static_cast<Type>(value);
+//                 else if (i==2) p1.y = static_cast<Type>(value);
+//                 else if (i==3) p2.x = static_cast<Type>(value);
+//                 else if (i==4) p2.y = static_cast<Type>(value);
+//                 else if (i==5) p3.x = static_cast<Type>(value);
+//                 else if (i==6) p3.y = static_cast<Type>(value);
+//                 else if (i==7) {
+//                   cout << " it is 7 " << endl;
+//                   F_values = value ;
+//                 }
+//
+//     //             cout <<" " << p1.x << " "<<p1.y << " "<<p2.x << " "<<p2.y << " "<<p3.x << " "<<p3.y << " "<<F_values <<endl;
+//             }
+//             Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;// only sort out the points parallel to y axis
+//             parabola = get_parabola_equation(p1, p2, p3);
+//             CheckIntersection <Type> (intersect_number, table, intersection, interp_point, parabola);
+//
+//             bool concaveUp = 0;
+//             bool do_line = 0;
+//             if(parabola.k < 0) concaveUp = 1; //kx^2+bx+d+cy = 0 ; c is initialy 1 => y = -kx^2 - bx - d .
+//             if (intersect_number > 2){
+//                 if(!concaveUp){
+//                     if (table == 0 || table == 1 || table == 4 || table == 5){
+//                         do_line = 1 ;
+//                     }
+//                 }
+//                 else {
+//                     if (table == 5 || table == 6 ){
+//                         do_line = 1 ;
+//                     }
+//
+//                 }
+//             }
+//
+//             if (intersect_number == 2 || do_line == 0){ // we are not changing 4 intersection when do table-1 left-right
+//                 if (det !=0){
+//                     pol1[0] = parabola.k;
+//                     pol1[1] = parabola.b;
+//                     pol1[2] = parabola.d + c;
+//                     pol2[0] = parabola.k;
+//                     pol2[1] = parabola.b;
+//                     pol2[2] = parabola.d;
+//                 }
+//                 else {  //TODO decode what I did here. Couldn't figure it out what I did here. We are not using this probably after introducing epsilon
+//
+//                     pol1[0] = static_cast<Type>(0);
+//                     pol1[1] = static_cast<Type>(-1);
+//                     pol1[2] = p1.x;
+//                     pol2[0] = pol1[0];
+//                     pol2[1] = pol1[1];
+//                     pol2[2] = p1.x;
+//                     c=static_cast<Type>(0);
+//
+//                 }
+//             }
+//             else if (intersect_number > 2){
+//                 Type slope = (p3.y-p1.y)/(p3.x-p1.x);
+//                 c=static_cast<Type>(1);
+//                 pol2[0] = static_cast<Type>(0);    //k=0
+//                 pol2[1] = -slope;
+//                 pol2[2] = slope*p1.x - p1.y ;
+//                 pol1[0] = pol2[0];    //k=0
+//                 pol1[1] = pol2[1];
+//                 pol1[2] = pol2[2] + c ;
+//             }
+//
 // //                 cout<< " given parabola : =" << pol2[0] << "x^2 + " << pol2[1] << "x +"<< pol2[2] << " + "<< c <<"y=0"<< endl;
-//                 GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-//                 if(I1.size() > 0) {
-//                      A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-//                 }
-//                 if(I2.size() > 0) {
-//                      A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-//                 }
-//                 if(I3.size() > 0) {
-//                      A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-//                 }
-//                 Type area = A1 + A2 + A3;
-//                 cout << " Actual area       = " << area <<endl;
-//
-//                 cout << " difference        = " << interp_area - area << /*" addition =  " << interp_area + area <<*/  "\n"<< endl;
-//                 if (fabs(interp_area - area)  > 0.009) {
-//                   bad_cases.resize(bad_cases.size()+1);
-//                   bad_cases[bad_cases.size()-1] = i;
-//                   cout << " ################################################################## Bad Cases "<<endl;
-//                 }
-//
-//         }
+//             GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+//             if(I1.size() > 0) {
+//                A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
+//             }
+//             if(I2.size() > 0) {
+//                A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
+//             }
+//             if(I3.size() > 0) {
+//                A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
+//             }
+//             formula_area = A1 + A2 + A3;
+//             area = static_cast<double>(formula_area);
 //
 //
+//         double difference = area - F_values;
 //
-//     }
-//     cout<< " Bad case numbers:  "<<endl;
-//     for(unsigned i =0; i < bad_cases.size(); i++){
-//       cout<< " " << bad_cases[i] << " " ;
+//         // Convert the sum to a string and add it to the row vector as the "exact value"
+//         row.push_back(std::to_string(area));
+//         row.push_back(std::to_string(difference));
+//
+//         // Add the row vector to the data vector
+//         data.push_back(row);
+//             cout<<" calculation on going, area = " << area << " difference = "<< difference  <<endl;
 //     }
 //
 //
-// //   for (int table = 0; table <=7; table++){
-// // //     cout << "Table " << table << endl;
-// //     cout<< parabola_table[table].size() << " + " ;
-// //   }
-//   t = clock() - t;
-//   std::cout << "Time taken " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
+//     cout<<" file reading done " <<endl;
+//     // Close the file
+//     file.close();
+//
+//     // Specify the path for the new CSV file
+//     std::string newCsvFilePath = "new_data.csv";
 //
 //
+//     // Open the new file for writing
+//     std::ofstream outFile(newCsvFilePath);
 //
+//     // Check if the new file is open
+//     if (!outFile.is_open()) {
+//         // If the new file cannot be opened for writing, print an error message and exit
+//         std::cerr << "Error opening new file for writing: " << newCsvFilePath << std::endl;
+//         return 1;
+//     }
 //
-//     cout<<"Serial,"<<"X1_values," << "Y1_values,"<<"X2_values," << "Y2_values,"<<"X3_values," << "Y3_values,"<< "F_values" << endl;
-//     for (int table = 0; table <=7 ; table++){
-//       for (unsigned int i1 = 0 ; i1 <= partition ; i1++){
-//         for (unsigned int i2 = 0 ; i2 <= partition ; i2++){
-//           for (unsigned int i3 = 0 ; i3 <= partition ;i3++){
-//             normal=0;
-//             if (parabola_table[table][i1][i2][i3][normal][10]>=0)
-//             cout <<parabola_table[table][i1][i2][i3][normal][0]<<","<<parabola_table[table][i1][i2][i3][normal][4] <<","<<parabola_table[table][i1][i2][i3][normal][5]<<"," <<parabola_table[table][i1][i2][i3][normal][6]<<","<<parabola_table[table][i1][i2][i3][normal][7]<<","<<parabola_table[table][i1][i2][i3][normal][8]<<","<<parabola_table[table][i1][i2][i3][normal][9]<<","<<parabola_table[table][i1][i2][i3][normal][14] << endl;
-//           }
+//     outFile << std::fixed << std::setprecision(15);
+//
+//     // Write the modified data to the new CSV file
+//     for (const auto& row : data) {
+//         for (size_t i = 0; i < row.size(); ++i) {
+//             // Write each element of the row to the new file
+//             outFile << row[i];
+//
+//             // Add a comma if it's not the last element in the row
+//             if (i < row.size() - 1) {
+//                 outFile << ",";
+//             }
 //         }
-//       }
-//   }
+//         // Add a newline character after each row
+//         outFile << "\n";
+//     }
+//
+//     // Close the new output file
+//     outFile.close();
+//
+//     // Print a success message
+//     std::cout << "New file successfully created and saved." << std::endl;
 //
 //     return 0;
 // }
-

@@ -2239,10 +2239,6 @@ void justIntersectionNumber(int &intersect_number, Parabola <Type> &parabola){
 }
 
 
-
-
-
-
 int main() {
 
   typedef cpp_bin_float_oct Type;      //     typedef double Type;
@@ -2257,22 +2253,22 @@ int main() {
   PointT<Type> p1,p2,p3 ;
 
   p1.x = static_cast<Type>(0);
-  p1.y = static_cast<Type>(0.767343233381745);
-  p2.x = static_cast<Type>(0.117515880882271);
+  p1.y = static_cast<Type>(0.799);
+  p2.x = static_cast<Type>(0.101);
   p2.y = static_cast<Type>(1);
-  p3.x = static_cast<Type>(0.0587579404411352);
-  p3.y = static_cast<Type>(0.050283977542015);
+  p3.x = static_cast<Type>(0.0505);
+  p3.y = static_cast<Type>(0.001);
         parabola = get_parabola_equation(p1, p2, p3);
         int intersect_number=0;
         justIntersectionNumber(intersect_number, parabola);
 
-        cout<< " parabola = " << parabola.k << "x^2+" <<parabola.b <<"x+" << parabola.d << "+ 1 = 0" << "\n intersection = "<<intersect_number<<endl;
+        cout<< " parabola = " << parabola.k << "x^2+" <<parabola.b <<"x+" << parabola.d << "+ 1y = 0" << "\n intersection = "<<intersect_number<<endl;
 
         Type formula_area ;
         double area;
 
 
-          if (intersect_number == 2){
+
                 std::vector< std::pair <Type, Type> > I1, I2, I3 ;
                 std::vector <Type> pol1(3, 0);
                 std::vector <Type> pol2(3, 0);
@@ -2283,6 +2279,10 @@ int main() {
                 pol2[0] = parabola.k;
                 pol2[1] = parabola.b;
                 pol2[2] = parabola.d;
+
+
+
+
 //                 cout<< " given parabola : =" << pol2[0] << "x^2 + " << pol2[1] << "x +"<< pol2[2] << " + "<< c <<"y=0"<< endl;
                 GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
                 if(I1.size() > 0) {
@@ -2296,7 +2296,7 @@ int main() {
                 }
                 formula_area = A1 + A2 + A3;
                 area = static_cast<double>(formula_area);
-          }
+
         cout << "area = " << area<<endl;
 
   return 0;
