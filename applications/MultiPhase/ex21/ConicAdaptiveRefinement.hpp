@@ -326,38 +326,46 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   std::vector<std::vector <double>> M(3, std::vector<double>(3, 0)) ;
   std::vector <double> F(3, 0);
 
-  double z2max = 0;
-  for(unsigned i = 0; i < _xr.size(); i++) {
-    double z = EvaluateConic(_xr[i], A);
-    if(z2max < z * z) z2max = z * z;
+  double s2 = 0;
+
+  unsigned n = 20;
+  double h = 2. / n;
+  for(unsigned i = 0; i <= n ; i++) {
+    for(unsigned j = 0; j <= n ; j++) {
+      double z = EvaluateConic({-1. + i * h, -1 + j * h}, A);
+      s2 += z * z;
+    }
   }
+  s2 /= n^2;
 
-  std::cout << z2max << std::endl;
+  std::cout << s2 << std::endl;
 
-  for(unsigned i = 0; i < _xr.size(); i++) {
-    const double& x = _xr[i][0];
-    const double& y = _xr[i][1];
+  for(unsigned i = 0; i <= n ; i++) {
+    for(unsigned j = 0; j <= n ; j++) {
+      const double& x = -1. + h * i;
+      const double& y = -1. + h * j;
 
-    double z = EvaluateConic(_xr[i], A);
+      double z = EvaluateConic({x, y}, A);
 
-    //double w = exp(-(z2max - z * z)/z2max);
-    double w = exp(- z * z / z2max);
-    std::cout << w << std::endl;
+      double w = 1.;//exp(- z * z /s2);
+      //double w = exp(- sqrt(z * z) / sqrt(z2max));
+      //double w = 1;
+      std::cout << z << " " << w << std::endl;
 
 
-    M[0][0] += w * x * x;
-    M[0][1] += w * x * y;
-    M[0][2] += w * x;
+      M[0][0] += w * x * x;
+      M[0][1] += w * x * y;
+      M[0][2] += w * x;
 
-    M[1][1] += w * y * y;
-    M[1][2] += w * y;
+      M[1][1] += w * y * y;
+      M[1][2] += w * y;
 
-    M[2][2] += w;
+      M[2][2] += w;
 
-    F[0] += w * z * x;
-    F[1] += w * z * y;
-    F[2] += w * z;
-
+      F[0] += w * z * x;
+      F[1] += w * z * y;
+      F[2] += w * z;
+    }
   }
 
   M[1][0] = M[0][1];

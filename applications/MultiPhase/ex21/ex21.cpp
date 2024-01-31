@@ -19,7 +19,7 @@ int main(int argc, char** args) {
   ConicAdaptiveRefinement cad;
 
   std::vector <double> B(3);
-  cad.BestFitLinearInterpolation({1, 0, 1, 6, 6, -4}, B);
+  cad.BestFitLinearInterpolation({1, 0, 1, 2, 3, -1}, B);
 
 
   std::cout << "a = "<< B[0] << "; b = " << B[1] << "; c = " << B[2] <<";"<< std::endl;
