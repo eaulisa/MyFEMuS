@@ -48,6 +48,9 @@ class ConicAdaptiveRefinement {
     int TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a);
     int TestIfIntesectionWithReferenceQuad(const std::vector<double>&A);
 
+    void BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B);
+
+
     double GetVolumeFraction(const std::vector<double>&a);
 
     double AdaptiveRefinement(const unsigned &level,  const unsigned &j, const unsigned &levelMax,
@@ -300,12 +303,12 @@ double ConicAdaptiveRefinement::AdaptiveRefinement(
     for(unsigned ig = 0; ig < _quad2->GetGaussPointNumber(); ig++) {
       _quad2->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
       _xg.assign(x[0].size(), 0.);
-      for(unsigned i = 0; i < x.size(); i++){
-        for(unsigned k = 0; k < x[i].size(); k++){
+      for(unsigned i = 0; i < x.size(); i++) {
+        for(unsigned k = 0; k < x[i].size(); k++) {
           _xg[k] += _phi[i] * _xr[i][k];
         }
       }
-      if(EvaluateConic(_xg, Ar) < 0){
+      if(EvaluateConic(_xg, Ar) < 0) {
         area += _weight;
       }
     }
@@ -314,6 +317,80 @@ double ConicAdaptiveRefinement::AdaptiveRefinement(
 
   return area;
 }
+
+
+void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B) {
+
+
+
+  std::vector<std::vector <double>> M(3, std::vector<double>(3, 0)) ;
+  std::vector <double> F(3, 0);
+
+  double z2max = 0;
+  for(unsigned i = 0; i < _xr.size(); i++) {
+    double z = EvaluateConic(_xr[i], A);
+    if(z2max < z * z) z2max = z * z;
+  }
+
+  std::cout << z2max << std::endl;
+
+  for(unsigned i = 0; i < _xr.size(); i++) {
+    const double& x = _xr[i][0];
+    const double& y = _xr[i][1];
+
+    double z = EvaluateConic(_xr[i], A);
+
+    //double w = exp(-(z2max - z * z)/z2max);
+    double w = exp(- z * z / z2max);
+    std::cout << w << std::endl;
+
+
+    M[0][0] += w * x * x;
+    M[0][1] += w * x * y;
+    M[0][2] += w * x;
+
+    M[1][1] += w * y * y;
+    M[1][2] += w * y;
+
+    M[2][2] += w;
+
+    F[0] += w * z * x;
+    F[1] += w * z * y;
+    F[2] += w * z;
+
+  }
+
+  M[1][0] = M[0][1];
+  M[2][0] = M[0][2];
+  M[2][1] = M[1][2];
+
+  double det = M[0][0] * (M[1][2] * M[1][2] - M[1][1] * M[2][2]) +
+               M[0][1] * (M[1][0] * M[2][2] - M[2][1] * M[0][2]) +
+               M[0][2] * (M[1][1] * M[0][2] - M[0][1] * M[1][2]) ;
+
+
+
+  std::vector<std::vector <double>> Mi = {
+    {(M[1][2] * M[1][2] - M[1][1] * M[2][2]) / det},
+    {(M[0][1] * M[2][2] - M[0][2] * M[1][2]) / det, (M[0][2] * M[0][2] - M[0][0] * M[2][2]) / det},
+    {(M[0][2] * M[1][1] - M[0][1] * M[1][2]) / det, (M[0][0] * M[1][2] - M[0][1] * M[0][2]) / det, (M[0][1] * M[0][1] - M[0][0] * M[1][1]) / det}
+  };
+  Mi[0][1] = Mi[1][0];
+  Mi[0][2] = Mi[2][0];
+  Mi[1][2] = Mi[2][1];
+
+  B.assign(3, 0);
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      B[i] += Mi[i][j] * F[j];
+    }
+  }
+
+
+}
+
+
+
 
 
 #endif

@@ -18,6 +18,15 @@ int main(int argc, char** args) {
 
   ConicAdaptiveRefinement cad;
 
+  std::vector <double> B(3);
+  cad.BestFitLinearInterpolation({1, 0, 1, 6, 6, -4}, B);
+
+
+  std::cout << "a = "<< B[0] << "; b = " << B[1] << "; c = " << B[2] <<";"<< std::endl;
+
+
+  return 0;
+
   cad.CalculateConicsInTargetElement(y, A, Ap);
   double area = cad.AdaptiveRefinement(1,  1, 10, y, Ap);
 
