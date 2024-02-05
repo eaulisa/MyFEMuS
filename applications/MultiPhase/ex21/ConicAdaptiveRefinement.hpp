@@ -6,6 +6,14 @@
 #include <cmath>
 #include <vector>
 
+#include "CutFemWeight.hpp"
+#include "CDWeights.hpp"
+
+
+typedef double TypeIO;
+typedef cpp_bin_float_oct TypeA;
+typedef cpp_bin_float_oct oct;
+
 #include "Fem.hpp"
 
 using namespace std;
@@ -27,14 +35,17 @@ class ConicAdaptiveRefinement {
       };
       // coordinates in the reference element of the nodes of the target elements
 
+      _quadCF = new CutFemWeight <double, TypeA > (QUAD, 5, "legendre");
+
       _fem1 = new Fem(3, 2);
-      _fem2 = new Fem(6, 2);
+      _fem2 = new Fem(_quadCF->GetGaussQuadratureOrder(), _quadCF->GetDimension());
       _quad1 = _fem1->GetFiniteElement(3, 0); //quad linear fem for coarse integration
       _quad2 = _fem2->GetFiniteElement(3, 0); //quad linear fem for fine integration
 
     }
 
     ~ConicAdaptiveRefinement() {
+      delete _quadCF;
       delete _fem1;
       delete _fem2;
     };
@@ -45,8 +56,22 @@ class ConicAdaptiveRefinement {
     double EvaluateConic(const std::vector<double>&x, const std::vector<double>&a) {
       return a[0] * x[0] * x[0] + a[1] * x[0] * x[1] + a[2] * x[1] * x[1] + a[3] * x[0] + a[4] * x[1] + a[5];
     }
+
+    void EvaluateConicNormal(const std::vector<double>&x, const std::vector<double>&a, std::vector<double>&n) {
+      n.resize(2);
+      n[0] = 2. * a[0] * x[0] + a[1] * x[1] + a[3];
+      n[1] = 2. * a[2] * x[1] + a[1] * x[0] + a[4];
+      double det = sqrt(n[0] * n[0] + n[1] * n[1]);
+      n[0] /= det;
+      n[1] /= det;
+    }
+
+
     int TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a);
     int TestIfIntesectionWithReferenceQuad(const std::vector<double>&A);
+
+    void BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B);
+
 
     double GetVolumeFraction(const std::vector<double>&a);
 
@@ -94,6 +119,8 @@ class ConicAdaptiveRefinement {
     std::vector <double> _phi;
     std::vector <double> _phix;
     std::vector<double> _xg;
+
+    CutFemWeight <double, TypeA> *_quadCF;
 
 };
 
@@ -283,37 +310,163 @@ double ConicAdaptiveRefinement::AdaptiveRefinement(
     else {
       //PrintElement(level, j, x);
 
-      if(test == -1) { // it means it is a full element
-        for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) {
-          _quad1->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
-          area += _weight;
-        }
-      }
+      // if(test == -1) { // it means it is a full element
+      //   for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) {
+      //     _quad1->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
+      //     area += _weight;
+      //   }
+      // }
     }
   }
   else {
-    //PrintElement(level, j, x);
-    //double VF = GetVolumeFraction(Ar);
 
-    //std::cout<< _quad2->GetGaussPointNumber() <<" ";
+    std::vector<double> B;
+    this->BestFitLinearInterpolation(Ar, B);
+    std::vector<double> weightCF;
+    _quadCF->GetWeightWithMap(-1, {B[0], B[1]}, B[2], weightCF);
 
+    unsigned dim = 2;
     for(unsigned ig = 0; ig < _quad2->GetGaussPointNumber(); ig++) {
+
+      std::vector<std::vector<double>> J, Ji;
+
+      _quad2->GetJacobianMatrix({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, J, Ji);
       _quad2->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
-      _xg.assign(x[0].size(), 0.);
-      for(unsigned i = 0; i < x.size(); i++){
-        for(unsigned k = 0; k < x[i].size(); k++){
-          _xg[k] += _phi[i] * _xr[i][k];
+
+      std::vector <double> xi(2, 0);
+      for(unsigned i = 0; i < _phi.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xi[k] += _phi[i] * _xr[i][k];
         }
       }
-      if(EvaluateConic(_xg, Ar) < 0){
-        area += _weight;
+
+      std::vector<double> Nr;
+      this->EvaluateConicNormal(xi, Ar, Nr);
+
+      //std::cout << ig<<" "<<Nr[0] << " " << B[0] << " " << Nr[1] <<" "<<B[1]<<std::endl;
+
+
+      double dsN = 0.;
+      std::vector<double> Nf(dim, 0.);
+      for(unsigned k = 0; k < dim; k++) {
+        for(unsigned j = 0; j < dim; j++) {
+          Nf[k] += Ji[j][k] * B[j];
+          //Nf[k] += Ji[j][k] * Nr[j];
+        }
+        dsN += Nf[k] * Nf[k];
       }
+      dsN = sqrt(dsN);
+      for(unsigned k = 0; k < dim; k++) {
+        Nf[k] /= dsN;
+      }
+
+
+
+      area += dsN * _weight * weightCF[ig];
+
+
+      // _xg.assign(x[0].size(), 0.);
+      // for(unsigned i = 0; i < x.size(); i++) {
+      //   for(unsigned k = 0; k < x[i].size(); k++) {
+      //     _xg[k] += _phi[i] * _xr[i][k];
+      //   }
+      // }
+      // if(EvaluateConic(_xg, Ar) < 0) {
+      //   area += _weight;
+      // }
     }
 
   }
 
   return area;
 }
+
+
+void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B) {
+
+  std::vector<std::vector <double>> M(3, std::vector<double>(3, 0)) ;
+  std::vector <double> F(3, 0);
+
+  unsigned n = 5;
+  double h = 2. / n;
+
+  double s2 = 0;
+
+  double x = -1.;
+  for(unsigned i = 0; i <= n ; i++, x += h) {
+    double y = -1.;
+    double z = EvaluateConic({x, y}, A);
+    for(unsigned j = 0; j <= n ; j++, y += h) {
+      s2 += z * z;
+      z += h * (A[1] * x + A[2] * (2. * y + h) + A[4]); // += increase on the levelSet quadratic function for the next iteration
+    }
+  }
+  s2 /= n;
+
+  x = -1.;
+  for(unsigned i = 0; i <= n ; i++, x += h) {
+    double y = -1.;
+    double z = EvaluateConic({x, y}, A);
+    for(unsigned j = 0; j <= n ; j++, y += h) {
+
+      double w = exp(-100. * z * z / s2);
+      double wx = w * x;
+      double wy = w * y;
+
+      M[0][0] += wx * x;
+      M[0][1] += wx * y;
+      M[0][2] += wx;
+
+      M[1][1] += wy * y;
+      M[1][2] += wy;
+
+      M[2][2] += w;
+
+      F[0] += wx * z;
+      F[1] += wy * z;
+      F[2] += w * z;
+
+      z += h * (A[1] * x + A[2] * (2. * y + h) + A[4]); // += increase on the levelSet quadratic function for the next iteration
+
+    }
+  }
+
+  M[1][0] = M[0][1];
+  M[2][0] = M[0][2];
+  M[2][1] = M[1][2];
+
+  double det = M[0][0] * (M[1][2] * M[1][2] - M[1][1] * M[2][2]) +
+               M[0][1] * (M[1][0] * M[2][2] - M[2][1] * M[0][2]) +
+               M[0][2] * (M[1][1] * M[0][2] - M[0][1] * M[1][2]) ;
+
+
+
+  std::vector<std::vector <double>> Mi = {
+    {(M[1][2] * M[1][2] - M[1][1] * M[2][2]) / det, 0., 0.},
+    {(M[0][1] * M[2][2] - M[0][2] * M[1][2]) / det, (M[0][2] * M[0][2] - M[0][0] * M[2][2]) / det, 0.},
+    {(M[0][2] * M[1][1] - M[0][1] * M[1][2]) / det, (M[0][0] * M[1][2] - M[0][1] * M[0][2]) / det, (M[0][1] * M[0][1] - M[0][0] * M[1][1]) / det}
+  };
+  Mi[0][1] = Mi[1][0];
+  Mi[0][2] = Mi[2][0];
+  Mi[1][2] = Mi[2][1];
+
+  B.assign(3, 0);
+
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      B[i] += Mi[i][j] * F[j];
+    }
+  }
+
+  det = sqrt(B[0] * B[0] + B[1] * B[1]);
+  B[0] /= det;
+  B[1] /= det;
+  B[2] /= det;
+
+}
+
+
+
 
 
 #endif
