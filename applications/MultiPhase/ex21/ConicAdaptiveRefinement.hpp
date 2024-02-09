@@ -42,10 +42,21 @@ class ConicAdaptiveRefinement {
       _quad1 = _fem1->GetFiniteElement(3, 0); //quad linear fem for coarse integration
       _quad2 = _fem2->GetFiniteElement(3, 0); //quad linear fem for fine integration
 
+      double dx = .025;
+      double dtetha = 1.;
+
+      _quadCD = new CDWeightQUAD <TypeA> (5, dx, dtetha);
+
+      dx = 0.00625;
+      dtetha = .25;
+      _quadCDI = new CDWeightQUAD <TypeA> (5, dx, dtetha, true);
+
     }
 
     ~ConicAdaptiveRefinement() {
       delete _quadCF;
+      delete _quadCD;
+      delete _quadCDI;
       delete _fem1;
       delete _fem2;
     };
@@ -75,8 +86,10 @@ class ConicAdaptiveRefinement {
 
     double GetVolumeFraction(const std::vector<double>&a);
 
-    double AdaptiveRefinement(const unsigned &level,  const unsigned &j, const unsigned &levelMax,
-                              const std::vector<std::vector<double>>&x, const std::vector<double>&Ar);
+    std::tuple<double, double, double> AdaptiveRefinement(const unsigned &level,  const unsigned &j,
+                                                          const unsigned &levelMax, const std::vector<std::vector<double>>&x,
+                                                          const std::vector<std::vector<double>>&xi,
+                                                          const std::vector<double>&Ar);
 
     void PrintElement(const unsigned &level, const unsigned &jp, const std::vector<std::vector<double>>&x) {
       const unsigned &n = x.size();
@@ -113,14 +126,25 @@ class ConicAdaptiveRefinement {
     std::vector<std::vector<double>> _xr;
     std::vector<std::vector<std::vector<double>>> _yr;
     std::vector<std::vector<std::vector<std::vector<double>>>> _y;
+    std::vector<std::vector<std::vector<std::vector<double>>>> _yi;
     Fem* _fem1, *_fem2;
     const elem_type *_quad1, *_quad2;
     double _weight;
     std::vector <double> _phi;
     std::vector <double> _phix;
+
+    double _weightP;
+    std::vector <double> _phiP;
+    std::vector <double> _phiPx;
+
+
     std::vector<double> _xg;
 
     CutFemWeight <double, TypeA> *_quadCF;
+
+    CDWeightQUAD <TypeA> *_quadCD;
+    CDWeightQUAD <TypeA> *_quadCDI;
+
 
 };
 
@@ -271,14 +295,17 @@ double ConicAdaptiveRefinement::GetVolumeFraction(const std::vector<double>&a) {
 }
 
 
-double ConicAdaptiveRefinement::AdaptiveRefinement(
+std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
   const unsigned &level, // mylevel, with initial level = 1
   const unsigned &j, // son number with respect to the father, for level = 1, is only 1
   const unsigned &levelMax,
   const std::vector<std::vector<double>>&x, // myphysical coordinates
+  const std::vector<std::vector<double>>&xi,// parent 0 coordinates
   const std::vector<double>&Ar) { // myconic
 
-  double area = 0.;
+  double area1 = 0.;
+  double area2 = 0.;
+  double arcLenght = 0.;
 
   const double &x1 = x[0][0];
   const double &x2 = x[1][0];
@@ -290,58 +317,136 @@ double ConicAdaptiveRefinement::AdaptiveRefinement(
   const double &y3 = x[2][1];
   const double &y4 = x[3][1];
 
-  if(level == 1) _y.resize(levelMax);
-  _y[level - 1] = {
-    {{x1, y1}, {0.5 * (x1 + x2), 0.5 * (y1 + y2)}, {0.25 * (x1 + x2 + x3 + x4), 0.25 * (y1 + y2 + y3 + y4)}, {0.5 * (x1 + x4), 0.5 * (y1 + y4)}},
-    {{0.5 * (x1 + x2), 0.5 * (y1 + y2)}, {x2, y2}, {0.5 * (x2 + x3), 0.5 * (y2 + y3)}, {0.25 * (x1 + x2 + x3 + x4), 0.25 * (y1 + y2 + y3 + y4)}},
-    {{0.25 * (x1 + x2 + x3 + x4), 0.25 * (y1 + y2 + y3 + y4) }, {0.5 * (x2 + x3), 0.5 * (y2 + y3)}, {x3, y3}, {0.5 * (x3 + x4), 0.5 * (y3 + y4)}},
-    {{0.5 * (x1 + x4), 0.5 * (y1 + y4)}, {0.25 * (x1 + x2 + x3 + x4), 0.25 * (y1 + y2 + y3 + y4)}, {0.5 * (x3 + x4), 0.5 * (y3 + y4)}, {x4, y4}}
-  }; // physical coordinates of my children
+  const double &xi1 = xi[0][0];
+  const double &xi2 = xi[1][0];
+  const double &xi3 = xi[2][0];
+  const double &xi4 = xi[3][0];
+
+  const double &yi1 = xi[0][1];
+  const double &yi2 = xi[1][1];
+  const double &yi3 = xi[2][1];
+  const double &yi4 = xi[3][1];
+
+  if(level == 1) {
+    _y.resize(levelMax);
+    _yi.resize(levelMax);
+  }
 
   if(level < levelMax) {
     int test = TestIfIntesectionWithReferenceQuad(Ar);
     if(test == 0) { // it means there is an intersection
+
+      std::vector<double> x5 = {0.5 * (x1 + x2), 0.5 * (y1 + y2)};
+      std::vector<double> x6 = {0.5 * (x2 + x3), 0.5 * (y2 + y3)};
+      std::vector<double> x7 = {0.5 * (x3 + x4), 0.5 * (y3 + y4)};
+      std::vector<double> x8 = {0.5 * (x1 + x4), 0.5 * (y1 + y4)};
+      std::vector<double> x9 = {0.5 * (x5[0] + x7[0]), 0.5 * (x5[1] + x7[1])};
+      _y[level - 1] = {
+        {{x1, y1}, x5, x9, x8},
+        {x5, {x2, y2}, x6, x9},
+        {x9, x6, {x3, y3}, x7},
+        {x8, x9, x7, {x4, y4}}
+      }; // physical coordinates of my children
+      x5 = {0.5 * (xi1 + xi2), 0.5 * (yi1 + yi2)};
+      x6 = {0.5 * (xi2 + xi3), 0.5 * (yi2 + yi3)};
+      x7 = {0.5 * (xi3 + xi4), 0.5 * (yi3 + yi4)};
+      x8 = {0.5 * (xi1 + xi4), 0.5 * (yi1 + yi4)};
+      x9 = {0.5 * (x5[0] + x7[0]), 0.5 * (x5[1] + x7[1])};
+      _yi[level - 1] = {
+        {{xi1, yi1}, x5, x9, x8},
+        {x5, {xi2, yi2}, x6, x9},
+        {x9, x6, {xi3, yi3}, x7},
+        {x8, x9, x7, {xi4, yi4}}
+      };
+
+
+
       for(unsigned i = 0; i < 4; i++) {
         std::vector<double> At;                             // conic cofficient in the target element
         CalculateConicsInTargetElement(_yr[i], Ar, At);
-        area += AdaptiveRefinement(level + 1, i + 1, levelMax, _y[level - 1][i], At);
+        std::tuple <double, double, double> a = AdaptiveRefinement(level + 1, i + 1, levelMax, _y[level - 1][i], _yi[level - 1][i], At);
+        area1 += std::get<0>(a);
+        area2 += std::get<1>(a);
+        arcLenght += std::get<2>(a);
+
       }
     }
     else {
       //PrintElement(level, j, x);
 
-      // if(test == -1) { // it means it is a full element
-      //   for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) {
-      //     _quad1->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
-      //     area += _weight;
-      //   }
-      // }
+      if(test == -1 || test == 1) { // it means it is a full element
+
+        std::vector<std::vector<double>> XP = {{x1, x2, x3, x4}, {y1, y2, y3, y4}};
+        for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) {
+          _quad1->Jacobian(XP, ig, _weight, _phi, _phix);
+          if(test == -1) {
+            unsigned dim = 2;
+            std::vector <double> yi(2, 0);
+            for(unsigned i = 0; i < _phi.size(); i++) {
+              for(unsigned k = 0; k < dim; k++) {
+                yi[k] += _phi[i] * xi[i][k];
+              }
+            }
+            _quad2->Jacobian(XP, yi, _weightP, _phiP, _phiPx);
+
+            std::vector <double> xg(2, 0);
+            for(unsigned i = 0; i < _phiP.size(); i++) {
+              for(unsigned k = 0; k < dim; k++) {
+                xg[k] += _phiP[i] * x[i][k];
+              }
+            }
+            area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
+          }
+          else {
+            area2 += _weight;
+          }
+        }
+      }
     }
   }
   else {
 
+    std::vector<std::vector<double>> XP = {{x1, x2, x3, x4}, {y1, y2, y3, y4}};
+
     std::vector<double> B;
     this->BestFitLinearInterpolation(Ar, B);
-    std::vector<double> weightCF;
-    _quadCF->GetWeightWithMap(-1, {B[0], B[1]}, B[2], weightCF);
+    std::vector<double> weight1;
+    std::vector<double> weight2;
+    std::vector<double> weightI;
+    //quadCF->GetWeightWithMap(0, {-B[0], -B[1]}, -B[2], weight1);
+    //_quadCF->GetWeightWithMap(0, {B[0], B[1]}, B[2], weight2);
+
+    _quadCD->GetWeight({-B[0], -B[1]}, -B[2], weight1);
+    _quadCD->GetWeight({ B[0],  B[1]},  B[2], weight2);
+
+    _quadCF->GetWeightWithMap(-1, {B[0], B[1]}, B[2], weightI);
+    //_quadCDI->GetWeight({ B[0],  B[1]},  B[2], weightI);
 
     unsigned dim = 2;
     for(unsigned ig = 0; ig < _quad2->GetGaussPointNumber(); ig++) {
 
       std::vector<std::vector<double>> J, Ji;
 
-      _quad2->GetJacobianMatrix({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, J, Ji);
-      _quad2->Jacobian({{x1, x2, x3, x4}, {y1, y2, y3, y4}}, ig, _weight, _phi, _phix);
+      _quad2->GetJacobianMatrix(XP, ig, _weight, J, Ji);
+      _quad2->Jacobian(XP, ig, _weight, _phi, _phix);
 
-      std::vector <double> xi(2, 0);
+      std::vector <double> yi(2, 0);
       for(unsigned i = 0; i < _phi.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
-          xi[k] += _phi[i] * _xr[i][k];
+          yi[k] += _phi[i] * xi[i][k];
+        }
+      }
+      _quad2->Jacobian(XP, yi, _weightP, _phiP, _phiPx);
+
+      std::vector <double> xg(2, 0);
+      for(unsigned i = 0; i < _phiP.size(); i++) {
+        for(unsigned k = 0; k < dim; k++) {
+          xg[k] += _phiP[i] * x[i][k];
         }
       }
 
-      std::vector<double> Nr;
-      this->EvaluateConicNormal(xi, Ar, Nr);
+      // std::vector<double> Nr;
+      // this->EvaluateConicNormal(xi, Ar, Nr);
 
       //std::cout << ig<<" "<<Nr[0] << " " << B[0] << " " << Nr[1] <<" "<<B[1]<<std::endl;
 
@@ -360,25 +465,15 @@ double ConicAdaptiveRefinement::AdaptiveRefinement(
         Nf[k] /= dsN;
       }
 
+      arcLenght += dsN * _weight * weightI[ig];
+      area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight * weight1[ig];
+      area2 += _weight * weight2[ig];
 
-
-      area += dsN * _weight * weightCF[ig];
-
-
-      // _xg.assign(x[0].size(), 0.);
-      // for(unsigned i = 0; i < x.size(); i++) {
-      //   for(unsigned k = 0; k < x[i].size(); k++) {
-      //     _xg[k] += _phi[i] * _xr[i][k];
-      //   }
-      // }
-      // if(EvaluateConic(_xg, Ar) < 0) {
-      //   area += _weight;
-      // }
     }
 
   }
 
-  return area;
+  return tuple<double, double, double>(area1, area2, arcLenght);
 }
 
 
@@ -387,7 +482,7 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   std::vector<std::vector <double>> M(3, std::vector<double>(3, 0)) ;
   std::vector <double> F(3, 0);
 
-  unsigned n = 5;
+  unsigned n = 10;
   double h = 2. / n;
 
   double s2 = 0;

@@ -18,7 +18,7 @@ class CDWeightQUAD :
   public CDWeight <TypeA> {
   public:
 
-    CDWeightQUAD(const unsigned & qM, const double & dx, const double & dt) {
+    CDWeightQUAD(const unsigned & qM, const double & dx, const double & dt, const bool &interface = false) {
 
       CutFemWeight <double, TypeA> quad  = CutFemWeight<double, TypeA >(QUAD, qM, "legendre");
 
@@ -37,8 +37,9 @@ class CDWeightQUAD :
 
       _weight.resize(4 * _nx * _nt * _ng);
       
+      std::string fileNameBgn = (!interface) ? "./save/gaussQUAD_" : "./save/gaussQUAD_I_";
       std::ostringstream fileName;
-      fileName << "./save/gaussQUAD_" << _nx << "_" << _nt << "_" << _ng << ".dat";
+      fileName << fileNameBgn << _nx << "_" << _nt << "_" << _ng << ".dat";
       FILE *fp;
 
       fp = fopen(fileName.str().c_str(), "r");
@@ -58,7 +59,7 @@ class CDWeightQUAD :
             std::vector<double> a = {cos((k * 90 + t0 + t * _dt) * M_PI / 180), sin((k * 90 + t0 + t * _dt) * M_PI / 180)};
             double d = -a[0] * xi[0] - a[1] * xi[1];
             quad.clear();
-            quad(0, a, d, weight);
+            (!interface) ? quad(0, a, d, weight) : quad(-1, a, d, weight);
             for(unsigned ig = 0; ig < _ng; ig++, cnt++) {
               _weight[cnt] = weight[ig];
             }
