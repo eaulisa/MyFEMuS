@@ -785,7 +785,7 @@ namespace femus {
         std::vector<double> P1 = xe[0];
         std::vector<double> P2 = xe[1];
 
-        BuildMarkersOnConicArc(M_PI/18, 7, Cf, Xg, P1, P2, xe);
+        BuildMarkersOnConicArc(M_PI/18, npt, Cf, Xg, P1, P2, xe);
 
         npt = xe.size();
 
@@ -796,7 +796,7 @@ namespace femus {
 
 
 
-        ds.resize(npt - 1, 0);
+        ds.assign(npt, 0);
         for(unsigned i = 0; i < xe.size() - 1; i++) {
           double DS = 0.5 * sqrt((xe[i][0] - xe[i + 1][0]) * (xe[i][0] - xe[i + 1][0]) + (xe[i][1] - xe[i + 1][1]) * (xe[i][1] - xe[i + 1][1]));
           ds[i] += DS;
