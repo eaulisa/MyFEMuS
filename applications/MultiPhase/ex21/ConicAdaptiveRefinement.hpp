@@ -133,10 +133,12 @@ class ConicAdaptiveRefinement {
     std::vector <double> _phi;
     std::vector <double> _phix;
 
-    double _weightP;
-    std::vector <double> _phiP;
-    std::vector <double> _phiPx;
+    double _weightl0;
+    std::vector <double> _phil0;
+    std::vector <double> _phil0x;
 
+
+    std::vector<std::vector<double>> _xl0;
 
     std::vector<double> _xg;
 
@@ -299,8 +301,8 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
   const unsigned &level, // mylevel, with initial level = 1
   const unsigned &j, // son number with respect to the father, for level = 1, is only 1
   const unsigned &levelMax,
-  const std::vector<std::vector<double>>&x, // myphysical coordinates
-  const std::vector<std::vector<double>>&xi,// parent 0 coordinates
+  const std::vector<std::vector<double>>&x, // physical coordinates at the nodes of the l-mesh
+  const std::vector<std::vector<double>>&xil0,// l0 parent coordinates at the nodes of the l-mesh
   const std::vector<double>&Ar) { // myconic
 
   double area1 = 0.;
@@ -317,17 +319,18 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
   const double &y3 = x[2][1];
   const double &y4 = x[3][1];
 
-  const double &xi1 = xi[0][0];
-  const double &xi2 = xi[1][0];
-  const double &xi3 = xi[2][0];
-  const double &xi4 = xi[3][0];
+  const double &xi1 = xil0[0][0];
+  const double &xi2 = xil0[1][0];
+  const double &xi3 = xil0[2][0];
+  const double &xi4 = xil0[3][0];
 
-  const double &yi1 = xi[0][1];
-  const double &yi2 = xi[1][1];
-  const double &yi3 = xi[2][1];
-  const double &yi4 = xi[3][1];
+  const double &yi1 = xil0[0][1];
+  const double &yi2 = xil0[1][1];
+  const double &yi3 = xil0[2][1];
+  const double &yi4 = xil0[3][1];
 
   if(level == 1) {
+    _xl0 = {{x1, x2, x3, x4}, {y1, y2, y3, y4}}; //init the phisical coordinates at the nodes of the l0-mesh
     _y.resize(levelMax);
     _yi.resize(levelMax);
   }
@@ -376,23 +379,25 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
 
       if(test == -1 || test == 1) { // it means it is a full element
 
-        std::vector<std::vector<double>> XP = {{x1, x2, x3, x4}, {y1, y2, y3, y4}};
-        for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) {
-          _quad1->Jacobian(XP, ig, _weight, _phi, _phix);
-          if(test == -1) {
+        std::vector<std::vector<double>> xl = {{x1, x2, x3, x4}, {y1, y2, y3, y4}}; // phisical coordinates at the nodes of l-mesh
+        for(unsigned ig = 0; ig < _quad1->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
+          _quad1->Jacobian(xl, ig, _weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
+          if(test == -1) { // inside
             unsigned dim = 2;
-            std::vector <double> yi(2, 0);
+            std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
             for(unsigned i = 0; i < _phi.size(); i++) {
               for(unsigned k = 0; k < dim; k++) {
-                yi[k] += _phi[i] * xi[i][k];
+                xil0g[k] += _phi[i] * xil0[i][k];
               }
             }
-            _quad2->Jacobian(XP, yi, _weightP, _phiP, _phiPx);
+            _quad2->Jacobian(_xl0, xil0g, _weightl0 /*_weightl0 has no meaning*/, _phil0, _phil0x);  //_xl0 are the phisical coordinates at nodes of l0-mesh
+            // _phil0, and _phil0x are the l0 test function and gradient at the gauss point of the l-mesh
 
-            std::vector <double> xg(2, 0);
-            for(unsigned i = 0; i < _phiP.size(); i++) {
+
+            std::vector <double> xg(2, 0); // get the phisical coordinate at the gauss point of the l-mesh, using only the information at the l0-mesh
+            for(unsigned i = 0; i < _phil0.size(); i++) {
               for(unsigned k = 0; k < dim; k++) {
-                xg[k] += _phiP[i] * x[i][k];
+                xg[k] += _phil0[i] * _xl0[k][i];
               }
             }
             area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
@@ -406,7 +411,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
   }
   else {
 
-    std::vector<std::vector<double>> XP = {{x1, x2, x3, x4}, {y1, y2, y3, y4}};
+    std::vector<std::vector<double>> xl = {{x1, x2, x3, x4}, {y1, y2, y3, y4}};
 
     std::vector<double> B;
     this->BestFitLinearInterpolation(Ar, B);
@@ -427,21 +432,21 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
 
       std::vector<std::vector<double>> J, Ji;
 
-      _quad2->GetJacobianMatrix(XP, ig, _weight, J, Ji);
-      _quad2->Jacobian(XP, ig, _weight, _phi, _phix);
+      _quad2->GetJacobianMatrix(xl, ig, _weight, J, Ji);
+      _quad2->Jacobian(xl, ig, _weight, _phi, _phix);
 
-      std::vector <double> yi(2, 0);
+      std::vector <double> xil0g(2, 0);
       for(unsigned i = 0; i < _phi.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
-          yi[k] += _phi[i] * xi[i][k];
+          xil0g[k] += _phi[i] * xil0[i][k];
         }
       }
-      _quad2->Jacobian(XP, yi, _weightP, _phiP, _phiPx);
+      _quad2->Jacobian(_xl0, xil0g, _weightl0, _phil0, _phil0x);
 
       std::vector <double> xg(2, 0);
-      for(unsigned i = 0; i < _phiP.size(); i++) {
+      for(unsigned i = 0; i < _phil0.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
-          xg[k] += _phiP[i] * x[i][k];
+          xg[k] += _phil0[i] * _xl0[k][i];
         }
       }
 

@@ -33,7 +33,7 @@ int main(int argc, char** args) {
 
   double exact;
 
-  exact = M_PI * 0.5;
+  exact = 0.39269908169872414;
 
   std::cout.precision(14);
   std::cout << " Analytic Area1 = " << exact << std::endl;
