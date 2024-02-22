@@ -10,8 +10,9 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
   //example inputs
-  std::vector<std::vector<double>> y = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
-  std::vector<std::vector<double>> yi = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+  // std::vector<std::vector<double>> y = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+  // std::vector<std::vector<double>> y = {{1, -1}, {1, 1}, {-1, 1},{-1, -1}};
+  // std::vector<std::vector<double>> yi = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
 
   unsigned VType = 2, PType = 3;
   std::vector<adept::adouble> U(9,1.);
@@ -24,8 +25,10 @@ int main(int argc, char** args) {
   std::vector<adept::adouble> resP1(1,0);
   std::vector<adept::adouble> resP2(1,0);
 
-  unsigned elType;
-  std::vector<std::vector<double>> xv = {{-1., 1., 1., -1., 0., 1., 0., -1., 0.}, {-1., -1., 1., 1., -1., 0., 1., 0., 0.}};
+  unsigned elType = 3;
+  //std::vector<std::vector<double>> xv = {{-1., 1., 1., -1., 0., 1., 0., -1., 0.}, {-1., -1., 1., 1., -1., 0., 1., 0., 0.}};
+  //TODO
+  std::vector<std::vector<double>> xv = {{1., 1., -1., -1.,  1., 0., -1., 0., 0.}, { -1., 1., 1.,-1., 0., 1., 0.,-1., 0.}};
   double rho1 = 1., rho2 =2., mu1=.2, mu2=0.4, sigma = 1., dt = 0.01;
 
 
@@ -50,8 +53,12 @@ int main(int argc, char** args) {
 
   cad.SetDataPointer(data);
 
-  cad.CalculateConicsInTargetElement(y, A, Ap);
-  tuple <double, double, double> a = cad.AdaptiveRefinement(1,  1, 6, y, yi, Ap);
+  std::vector<std::vector<double>> y;
+  cad.GetXInParentElement(xv, y);
+  const std::vector<std::vector<double>> yi = cad.GetXiInParentElement();
+
+  cad.GetConicsInTargetElement(y, A, Ap);
+  tuple <double, double, double> a = cad.AdaptiveRefinement(6, y, yi, Ap);
 
   delete data;
 
