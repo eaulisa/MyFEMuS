@@ -4,6 +4,7 @@
 
 using namespace femus;
 
+
 int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
@@ -11,6 +12,22 @@ int main(int argc, char** args) {
   //example inputs
   std::vector<std::vector<double>> y = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
   std::vector<std::vector<double>> yi = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+
+  unsigned VType = 2, PType = 3;
+  std::vector<adept::adouble> U(9,1.);
+  std::vector<adept::adouble> V(9,2.);
+  std::vector<adept::adouble> P1(1,1.);
+  std::vector<adept::adouble> P2(1,2.);
+
+  std::vector<adept::adouble> resU(9,0.);
+  std::vector<adept::adouble> resV(9,0.);
+  std::vector<adept::adouble> resP1(1,0);
+  std::vector<adept::adouble> resP2(1,0);
+
+  unsigned elType;
+  std::vector<std::vector<double>> xv = {{-1., 1., 1., -1., 0., 1., 0., -1., 0.}, {-1., -1., 1., 1., -1., 0., 1., 0., 0.}};
+  double rho1 = 1., rho2 =2., mu1=.2, mu2=0.4, sigma = 1., dt = 0.01;
+
 
   //Matrix to store calculated coefficients
   //Coeficients of conics in physical system
@@ -28,27 +45,36 @@ int main(int argc, char** args) {
   //
   // return 0;
 
+
+  Data *data = new Data (VType, PType, U, V, P1, P2, resU, resV, resP1, resP2, xv, elType, rho1, rho2, mu1, mu2, sigma, dt);
+
+  cad.SetDataPointer(data);
+
   cad.CalculateConicsInTargetElement(y, A, Ap);
-  tuple <double,double,double> a = cad.AdaptiveRefinement(1,  1, 6, y, yi, Ap);
+  tuple <double, double, double> a = cad.AdaptiveRefinement(1,  1, 6, y, yi, Ap);
+
+  delete data;
 
   double exact;
+
+
 
   exact = 0.39269908169872414;
 
   std::cout.precision(14);
   std::cout << " Analytic Area1 = " << exact << std::endl;
   std::cout << " Computed Area1 = " << std::get<0>(a) << std::endl;
-  std::cout << " Relative Error = " << fabs((exact - std::get<0>(a))/exact) << std::endl;
+  std::cout << " Relative Error = " << fabs((exact - std::get<0>(a)) / exact) << std::endl;
 
   exact = 4. - M_PI * 0.5;
   std::cout << " Analytic Area2 = " << exact << std::endl;
   std::cout << " Computed Area2 = " << std::get<1>(a) << std::endl;
-  std::cout << " Relative Error = " << fabs((exact - std::get<1>(a))/exact) << std::endl;
+  std::cout << " Relative Error = " << fabs((exact - std::get<1>(a)) / exact) << std::endl;
 
-  exact = 2 * M_PI * sqrt(2.)/2.;
+  exact = 2 * M_PI * sqrt(2.) / 2.;
   std::cout << " Analytic perimeter = " << exact << std::endl;
   std::cout << " Computed perimeter = " << std::get<2>(a) << std::endl;
-  std::cout << " Relative Error = " << fabs((exact - std::get<2>(a))/exact) << std::endl;
+  std::cout << " Relative Error = " << fabs((exact - std::get<2>(a)) / exact) << std::endl;
 
 
   return 0;

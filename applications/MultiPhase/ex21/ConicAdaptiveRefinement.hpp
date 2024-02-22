@@ -19,6 +19,35 @@ typedef cpp_bin_float_oct oct;
 using namespace std;
 using namespace femus;
 
+
+class Data {
+  public:
+    Data(const unsigned &VType, const unsigned &PType,
+         const std::vector<adept::adouble> &U, const std::vector<adept::adouble> &V, const std::vector<adept::adouble> &P1, const std::vector<adept::adouble> &P2,
+         std::vector<adept::adouble> &resU, std::vector<adept::adouble> &resV, std::vector<adept::adouble> &resP1, std::vector<adept::adouble> &resP2,
+         const std::vector<std::vector<double>> &xv, const unsigned &elType,
+         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt) :
+      _VType(VType), _PType(PType), _U(U),  _V(V), _P1(P1), _P2(P2), _resU(resU), _resV(resV), _resP1(resP1), _resP2(resP2), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt) {}
+
+    // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
+    const unsigned &_VType, &_PType;
+    const std::vector<adept::adouble> &_U;
+    const std::vector<adept::adouble> &_V;
+    const std::vector<adept::adouble> &_P1;
+    const std::vector<adept::adouble> &_P2;
+
+    std::vector<adept::adouble> &_resU;
+    std::vector<adept::adouble> &_resV;
+    std::vector<adept::adouble> &_resP1;
+    std::vector<adept::adouble> &_resP2;
+
+    const unsigned &_elType;
+    const std::vector<std::vector <double> > &_xv;
+
+    const double &_rho1, &_rho2, &_mu1, &_mu2, &_sigma, &_dt;
+};
+
+
 class ConicAdaptiveRefinement {
   public:
     ConicAdaptiveRefinement() {
@@ -121,6 +150,8 @@ class ConicAdaptiveRefinement {
       return false;
     }
 
+  void SetDataPointer(Data *data){_data = data;}
+
   private:
     std::vector<double> _wr;
     std::vector<std::vector<double>> _xr;
@@ -146,6 +177,13 @@ class ConicAdaptiveRefinement {
 
     CDWeightQUAD <TypeA> *_quadCD;
     CDWeightQUAD <TypeA> *_quadCDI;
+
+
+    Data *_data;
+
+
+
+
 
 
 };
