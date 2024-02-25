@@ -168,6 +168,18 @@ class ConicAdaptiveRefinement {
         return false;
       }
 
+
+//       bool CheckIfRootsAreInBetweenM1andP1(const double & A, const double & B, const double & C) {
+//         double det = sqrt(B * B - 4. * A * C);
+//         if(det >= 0.) {
+//           double t = (-B - det) / (2. * A);
+//           if(t >= 0. && t <= 1.) return true;
+//           t = (-B + det) / (2. * A);
+//           if(t >= 0. && t <= 1.) return true;
+//         }
+//         return false;
+//       }
+
       void SetDataPointer(Data * data) {
         _data = data;
       }
@@ -371,6 +383,42 @@ class ConicAdaptiveRefinement {
     }
 
 
+//     int ConicAdaptiveRefinement::TestIfIntesectionWithReferenceQuad(const std::vector<double>&Ar) {
+//
+//       const double& a = Ar[0];
+//       const double& b = Ar[1];
+//       const double& c = Ar[2];
+//       const double& d = Ar[3];
+//       const double& e = Ar[4];
+//       const double& f = Ar[5];
+//
+//
+//       double det;
+//       double A, B, C;
+//
+//       //bottom edge
+//       A = a;
+//       B = d;
+//       C = f;
+//       if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+//
+//       //left edge
+//       A = c;
+//       B = e;
+//       C = f;
+//       if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+//
+//       //other edge (x,y=-x+1)
+//       A = a - b + c;
+//       B = b-2.*c+d-e;
+//       C = c+e+f;
+//       if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+//
+//
+//       return (f > 0) ? 1 : -1;
+//     }
+
+
     std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       const unsigned &levelMax,
       const std::vector<std::vector<double>>&x, // physical coordinates at the nodes of the l-mesh
@@ -562,6 +610,196 @@ class ConicAdaptiveRefinement {
 
       return tuple<double, double, double>(area1, area2, arcLenght);
     }
+
+//     std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
+//       const unsigned &levelMax,
+//       const std::vector<std::vector<double>>&x, // physical coordinates at the nodes of the l-mesh
+//       const std::vector<std::vector<double>>&xil0,// l0 parent coordinates at the nodes of the l-mesh
+//       const std::vector<double>&Ar,
+//       const unsigned &level) { // myconic
+//
+//       double area1 = 0.;
+//       double area2 = 0.;
+//       double arcLenght = 0.;
+//       //TODO
+//       const double &x1 = x[0][0];
+//       const double &x2 = x[1][0];
+//       const double &x3 = x[2][0];
+//
+//       const double &y1 = x[0][1];
+//       const double &y2 = x[1][1];
+//       const double &y3 = x[2][1];
+//
+//       //TODO
+//       const double &xi1 = xil0[0][0];
+//       const double &xi2 = xil0[1][0];
+//       const double &xi3 = xil0[2][0];
+//
+//       const double &yi1 = xil0[0][1];
+//       const double &yi2 = xil0[1][1];
+//       const double &yi3 = xil0[2][1];
+//
+//       if(level == 1) {
+//         _y.resize(levelMax);
+//         _yi.resize(levelMax);
+//       }
+//
+//       if(level < levelMax) {
+//         int test = TestIfIntesectionWithReferenceQuad(Ar);
+//         if(test == 0) { // it means there is an intersection
+//
+//           //TODO
+//           std::vector<double> x4 = {0.5 * (x1 + x2), 0.5 * (y1 + y2)};
+//           std::vector<double> x5 = {0.5 * (x2 + x3), 0.5 * (y2 + y3)};
+//           std::vector<double> x6 = {0.5 * (x1 + x3), 0.5 * (y1 + y3)};
+//
+//           _y[level - 1] = {
+//             {{x1, y1}, x4, x6},
+//             {x4, {x2, y2}, x5},
+//             {x6, x5, {x3, y3}},
+//             {x5, x6, x4}
+//           }; // physical coordinates of my children
+//           //TODO
+//           x4 = {0.5 * (xi1 + xi2), 0.5 * (yi1 + yi2)};
+//           x5 = {0.5 * (xi2 + xi3), 0.5 * (yi2 + yi3)};
+//           x6 = {0.5 * (xi1 + xi3), 0.5 * (yi1 + yi3)};
+//           _yi[level - 1] = {
+//             {{xi1, yi1}, x4, x6},
+//             {x4, {xi2, yi2}, x5},
+//             {x6, x5, {xi3, yi3}},
+//             {x5, x6, x4}
+//           };
+//             //TODO changed i from 4 to 3
+//           for(unsigned i = 0; i < 3; i++) {
+//             std::vector<double> At;                             // conic cofficient in the target element
+//             GetConicsInTargetElement(_yr[i], Ar, At);
+//             std::tuple <double, double, double> a = AdaptiveRefinement(levelMax, _y[level - 1][i], _yi[level - 1][i], At, level + 1);
+//             area1 += std::get<0>(a);
+//             area2 += std::get<1>(a);
+//             arcLenght += std::get<2>(a);
+//
+//           }
+//         }
+//         else {
+//           //PrintElement(level, j, x);
+//
+//           if(test == -1 || test == 1) { // it means it is a full element
+//
+//
+//             const elem_type *femL = _fem1->GetFiniteElement(_data->_elType, 0);
+//             const elem_type *femV = _fem1->GetFiniteElement(_data->_elType, _data->_VType);
+//             const elem_type *femP = _fem1->GetFiniteElement(_data->_elType, _data->_PType);
+//             //TODO
+//             std::vector<std::vector<double>> xl = {{x1, x2, x3}, {y1, y2, y3}}; // phisical coordinates at the nodes of l-mesh
+//             for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
+//               femL->Jacobian(xl, ig, _weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
+//               if(test == -1) { // inside
+//                 unsigned dim = 2;
+//                 std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
+//                 for(unsigned i = 0; i < _phi.size(); i++) {
+//                   for(unsigned k = 0; k < dim; k++) {
+//                     xil0g[k] += _phi[i] * xil0[i][k];
+//                   }
+//                 }
+//                 double gaussPointWeight;
+//                 femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);  //_xv are the phisical coordinates at nodes of l0-mesh
+//                 // _phiV, and _phiVx are the l0 test function and gradient at the gauss point of the l-mesh
+//
+//
+//                 std::vector <double> xg(2, 0); // get the phisical coordinate at the gauss point of the l-mesh, using only the information at the l0-mesh
+//                 for(unsigned i = 0; i < _phiV.size(); i++) {
+//                   for(unsigned k = 0; k < dim; k++) {
+//                     xg[k] += _phiV[i] * _data->_xv[k][i];
+//                   }
+//                 }
+//                 area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
+//               }
+//               else {
+//                 area2 += _weight;
+//               }
+//             }
+//           }
+//         }
+//       }
+//       else {
+//         //TODO
+//         std::vector<std::vector<double>> xl = {{x1, x2, x3}, {y1, y2, y3}};
+//
+//         std::vector<double> B;
+//         this->BestFitLinearInterpolation(Ar, B);
+//         std::vector<double> weight1;
+//         std::vector<double> weight2;
+//         std::vector<double> weightI;
+//         //quadCF->GetWeightWithMap(0, {-B[0], -B[1]}, -B[2], weight1);
+//         //_quadCF->GetWeightWithMap(0, {B[0], B[1]}, B[2], weight2);
+//
+//         _quadCD->GetWeight({-B[0], -B[1]}, -B[2], weight1);
+//         _quadCD->GetWeight({ B[0],  B[1]},  B[2], weight2);
+//
+//         _quadCF->GetWeightWithMap(-1, {B[0], B[1]}, B[2], weightI);
+//         //_quadCDI->GetWeight({ B[0],  B[1]},  B[2], weightI);
+//
+//         const elem_type *femL = _fem2->GetFiniteElement(_data->_elType, 0);
+//         const elem_type *femV = _fem2->GetFiniteElement(_data->_elType, _data->_VType);
+//         const elem_type *femP = _fem2->GetFiniteElement(_data->_elType, _data->_PType);
+//
+//         unsigned dim = 2;
+//         for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+//
+//           std::vector<std::vector<double>> J, Ji;
+//
+//           femL->GetJacobianMatrix(xl, ig, _weight, J, Ji);
+//
+//           double dsN = 0.;
+//           std::vector<double> Nf(dim, 0.);
+//           for(unsigned k = 0; k < dim; k++) {
+//             for(unsigned j = 0; j < dim; j++) {
+//               Nf[k] += Ji[j][k] * B[j];
+//               //Nf[k] += Ji[j][k] * Nr[j];
+//             }
+//             dsN += Nf[k] * Nf[k];
+//           }
+//           dsN = sqrt(dsN);
+//           for(unsigned k = 0; k < dim; k++) {
+//             Nf[k] /= dsN;
+//           }
+//
+//           femL->Jacobian(xl, ig, _weight, _phi, _phix);
+//
+//           //_phip = femL->GetPhi(ig);
+//
+//           std::vector <double> xil0g(2, 0);
+//           for(unsigned i = 0; i < _phi.size(); i++) {
+//             for(unsigned k = 0; k < dim; k++) {
+//               xil0g[k] += _phi[i] * xil0[i][k];
+//             }
+//           }
+//
+//           double gaussPointWeight;
+//           femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);
+//
+//           std::vector <double> xg(2, 0);
+//           for(unsigned i = 0; i < _phiV.size(); i++) {
+//             for(unsigned k = 0; k < dim; k++) {
+//               xg[k] += _phiV[i] * _data->_xv[k][i];
+//             }
+//           }
+//
+//           arcLenght += dsN * _weight * weightI[ig];
+//           area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight * weight1[ig];
+//           area2 += _weight * weight2[ig];
+//
+//         }
+//
+//       }
+//
+//       return tuple<double, double, double>(area1, area2, arcLenght);
+//     }
+
+
+
+
+
 
 
     void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B) {
