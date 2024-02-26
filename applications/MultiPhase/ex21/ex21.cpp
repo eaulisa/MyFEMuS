@@ -55,7 +55,7 @@ int main(int argc, char** args) {
 
   std::vector<std::vector<double>> y;
   cad.GetXInParentElement(xv, y);
-  const std::vector<std::vector<double>> yi = cad.GetXiInParentElement();
+  std::vector<std::vector<double>> yi = cad.GetXiInParentElement();
 
   cad.GetConicsInTargetElement(y, A, Ap);
   tuple <double, double, double> a = cad.AdaptiveRefinement(6, y, yi, Ap);
