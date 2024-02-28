@@ -511,7 +511,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
               }
             }
 
-           // std::cout<<xg[0]<<" "<<xg[1]<<std::endl;
+            std::cout<<xg[0]<<" "<<xg[1]<<std::endl;
 
             area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
             //area1 += _weight;
@@ -581,7 +581,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
           xil0g[k] += _phi[i] * xil0[i][k];
         }
       }
-      std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
+      //std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
 
       double gaussPointWeight;
       femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);
