@@ -23,29 +23,30 @@ using namespace femus;
 class Data {
   public:
     Data(const unsigned &VType, const unsigned &PType,
-         const std::vector<adept::adouble> &U, const std::vector<adept::adouble> &V, const std::vector<adept::adouble> &P1, const std::vector<adept::adouble> &P2,
-         std::vector<adept::adouble> &resU, std::vector<adept::adouble> &resV, std::vector<adept::adouble> &resP1, std::vector<adept::adouble> &resP2,
+         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2,
+         std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
          const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt) :
-      _VType(VType), _PType(PType), _U(U),  _V(V), _P1(P1), _P2(P2), _resU(resU), _resV(resV), _resP1(resP1), _resP2(resP2), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt) {}
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
-    const std::vector<adept::adouble> &_U;
-    const std::vector<adept::adouble> &_V;
-    const std::vector<adept::adouble> &_P1;
-    const std::vector<adept::adouble> &_P2;
+    const std::vector<std::vector<double>> &_V;
+    const std::vector<double> &_P1;
+    const std::vector<double> &_P2;
 
-    std::vector<adept::adouble> &_resU;
-    std::vector<adept::adouble> &_resV;
-    std::vector<adept::adouble> &_resP1;
-    std::vector<adept::adouble> &_resP2;
+    std::vector<double> &_res;
+    std::vector<double> &_jac;
 
     const unsigned &_elType;
     const std::vector<std::vector <double> > &_xv;
 
     const double &_rho1, &_rho2, &_mu1, &_mu2, &_sigma, &_dt;
 };
+
+void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, std::vector <double> &phiP,
+                          const double &weight, const double &weight1, const double &weight2, const double &weightI,
+                          const std::vector <double> &N, const double &kappa, const double &dsN, const double &eps);
 
 
 class ConicAdaptiveRefinement {
@@ -515,9 +516,21 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
 
             area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
             //area1 += _weight;
+
+            AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
+                          _weight, 1., 0., 0.,
+                          {0.,0.,}, 0., 0., 0.0000000001);
+
           }
           else {
             area2 += _weight;
+
+
+            AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
+                          _weight, 0., 1., 0.,
+                          {0.,0.,}, 0., 0., 0.0000000001);
+
+
           }
         }
       }
@@ -599,6 +612,11 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight * weight1[ig];
       //area1 += _weight * weight1[ig];
       area2 += _weight * weight2[ig];
+
+       AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
+                          _weight, weight1[ig], weight2[ig], weightI[ig],
+                          Nf, 0 /*curvature*/, dsN, 0);
+
 
     }
 
