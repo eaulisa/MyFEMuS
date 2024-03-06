@@ -26,14 +26,15 @@ class Data {
          const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
-         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt) {}
+         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &A) :
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _A(A) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
     const std::vector<std::vector<double>> &_V;
     const std::vector<double> &_P1;
     const std::vector<double> &_P2;
+    const std::vector<double> &_A;
 
     std::vector<double> &_res;
     std::vector<double> &_jac;
@@ -44,8 +45,8 @@ class Data {
     const double &_rho1, &_rho2, &_mu1, &_mu2, &_sigma, &_dt;
 };
 
-void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, std::vector <double> &phiP,
-                          const double &weight, const double &weight1, const double &weight2, const double &weightI,
+void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+                          const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
                           const std::vector <double> &N, const double &kappa, const double &dsN, const double &eps);
 
 
@@ -110,7 +111,7 @@ class ConicAdaptiveRefinement {
       return a[0] * x[0] * x[0] + a[1] * x[0] * x[1] + a[2] * x[1] * x[1] + a[3] * x[0] + a[4] * x[1] + a[5];
     }
 
-    void EvaluateConicNormal(const std::vector<double>&x, const std::vector<double>&a, std::vector<double>&n) {
+    void GetConicNormal(const std::vector<double>&x, const std::vector<double>&a, std::vector<double>&n) {
       n.resize(2);
       n[0] = 2. * a[0] * x[0] + a[1] * x[1] + a[3];
       n[1] = 2. * a[2] * x[1] + a[1] * x[0] + a[4];
@@ -118,6 +119,14 @@ class ConicAdaptiveRefinement {
       n[0] /= det;
       n[1] /= det;
     }
+
+    double GetConicCurvature(const std::vector<double>&x, const std::vector<double>&a) {
+      double n1 = 2. * a[0] * x[0] + a[1] * x[1] + a[3];
+      double n2 = 2. * a[2] * x[1] + a[1] * x[0] + a[4];
+      double den = (n1 * n1 + n2 * n2) * sqrt(n1 * n1 + n2 * n2);
+      return (2. * a[0] * n2 * n2 - a[1] * n1 * n2 + 2. * a[2] * n1 * n1) / den;
+    }
+
 
 
     int TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a);
@@ -188,12 +197,14 @@ class ConicAdaptiveRefinement {
     std::vector<std::vector<std::vector<std::vector<double>>>> _yi;
     Fem* _fem1, *_fem2;
 
-    double _weight;
+    std::vector <double> _weight;
+    std::vector<std::vector<std::vector <double>>> _Ji;
     std::vector <double> _phi;
     std::vector <double> _phix;
 
     std::vector <double> _phiV;
     std::vector <double> _phiVx;
+    std::vector <double> _phiP;
 
 
     //std::vector<std::vector<double>> _xl0;
@@ -489,7 +500,8 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
           xl = {{x[0][0], x[1][0], x[2][0]}, {x[0][1], x[1][1], x[2][1]}};
         }
         for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
-          femL->Jacobian(xl, ig, _weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
+          double weight;
+          femL->Jacobian(xl, ig, weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
           if(test == -1) { // inside
             unsigned dim = 2;
             std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
@@ -501,7 +513,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
             double gaussPointWeight;
             femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);  //_xv are the phisical coordinates at nodes of l0-mesh
             // _phiV, and _phiVx are the l0 test function and gradient at the gauss point of the l-mesh
-
+            femP->GetPhi(_phiP, xil0g);
 
             // std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
 
@@ -512,23 +524,23 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
               }
             }
 
-            std::cout<<xg[0]<<" "<<xg[1]<<std::endl;
+            std::cout << xg[0] << " " << xg[1] << std::endl;
 
-            area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight;
-            //area1 += _weight;
+            area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
+            //area1 += weight;
 
-            AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
-                          _weight, 1., 0., 0.,
-                          {0.,0.,}, 0., 0., 0.0000000001);
+            AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                                 0., weight, 1., 0., 0.,
+            {0., 0.}, 0., 0., 0.00000001);
 
           }
           else {
-            area2 += _weight;
+            area2 += weight;
 
 
-            AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
-                          _weight, 0., 1., 0.,
-                          {0.,0.,}, 0., 0., 0.0000000001);
+            AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                                 0., weight, 0., 1., 0.,
+            {0., 0.}, 0., 0., 0.00000001);
 
 
           }
@@ -564,18 +576,30 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
     const elem_type *femP = _fem2->GetFiniteElement(_data->_elType, _data->_PType);
 
     unsigned dim = 2;
+
+    double C = 0.;
+    double Area = 0.;
+    _weight.resize(femL->GetGaussPointNumber());
+    _Ji.resize(femL->GetGaussPointNumber());
     for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
 
-      std::vector<std::vector<double>> J, Ji;
+      std::vector<std::vector<double>> J;
+      femL->GetJacobianMatrix(xl, ig, _weight[ig], J, _Ji[ig]);
+      C += _weight[ig] * weight1[ig];
+      Area += _weight[ig];
+    }
+    C /= Area;
 
-      femL->GetJacobianMatrix(xl, ig, _weight, J, Ji);
 
+
+    for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+
+      std::vector<std::vector<double>> J;
       double dsN = 0.;
       std::vector<double> Nf(dim, 0.);
       for(unsigned k = 0; k < dim; k++) {
         for(unsigned j = 0; j < dim; j++) {
-          Nf[k] += Ji[j][k] * B[j];
-          //Nf[k] += Ji[j][k] * Nr[j];
+          Nf[k] += _Ji[ig][j][k] * B[j];
         }
         dsN += Nf[k] * Nf[k];
       }
@@ -583,21 +607,19 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       for(unsigned k = 0; k < dim; k++) {
         Nf[k] /= dsN;
       }
-
-      femL->Jacobian(xl, ig, _weight, _phi, _phix);
-
-      //_phip = femL->GetPhi(ig);
+      double *phi = femL->GetPhi(ig);
 
       std::vector <double> xil0g(2, 0);
-      for(unsigned i = 0; i < _phi.size(); i++) {
+      for(unsigned i = 0; i < _nve0[_data->_elType]; i++) {
         for(unsigned k = 0; k < dim; k++) {
-          xil0g[k] += _phi[i] * xil0[i][k];
+          xil0g[k] += phi[i] * xil0[i][k];
         }
       }
       //std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
 
       double gaussPointWeight;
       femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);
+      femP->GetPhi(_phiP, xil0g);
 
       std::vector <double> xg(2, 0);
       for(unsigned i = 0; i < _phiV.size(); i++) {
@@ -608,14 +630,16 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
 
       //std::cout<<xg[0]<<" "<<xg[1]<<std::endl;
 
-      arcLenght += dsN * _weight * weightI[ig];
-      area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight * weight1[ig];
+      arcLenght += dsN * _weight[ig] * weightI[ig];
+      area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight[ig] * weight1[ig];
       //area1 += _weight * weight1[ig];
-      area2 += _weight * weight2[ig];
+      area2 += _weight[ig] * weight2[ig];
 
-       AssembleNavierStokes(_data, _phiV, _phiVx, _phiV, /*  //TODO std::vector <double> &phiP,*/
-                          _weight, weight1[ig], weight2[ig], weightI[ig],
-                          Nf, 0 /*curvature*/, dsN, 0);
+      double kappa = GetConicCurvature(xg, _data->_A);
+
+      AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                           C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
+                           Nf, kappa, dsN, 0);
 
 
     }
@@ -633,19 +657,19 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   unsigned n = 10;
   double h, x0, y0;
   unsigned jj;
-  if (_data->_elType == 3){
+  if(_data->_elType == 3) {
     h = 2. / n;
     x0 = -1;
     y0 = -1;
     jj = 0;
   }
-  else if (_data->_elType == 4){
+  else if(_data->_elType == 4) {
     h = 1. / n;
     x0 = 0;
     y0 = 0;
     jj = 1;
   }
-  else{
+  else {
     std::cout << "Error this element type has not been implemented yet\n;";
     abort();
   }
@@ -657,7 +681,7 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
     double y = y0;
     double z = EvaluateConic({x, y}, A);
     int nj = n;
-    for(int j = 0; j <= nj ; j++, y += h, nj -= jj ) {
+    for(int j = 0; j <= nj ; j++, y += h, nj -= jj) {
       s2 += z * z;
       z += h * (A[1] * x + A[2] * (2. * y + h) + A[4]); // += increase on the levelSet quadratic function for the next iteration
     }

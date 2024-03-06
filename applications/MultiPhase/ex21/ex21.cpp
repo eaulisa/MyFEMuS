@@ -16,13 +16,17 @@ int main(int argc, char** args) {
   // std::vector<std::vector<double>> yi = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
 
   unsigned VType = 2, PType = 3;
+  unsigned dofsV = 7;
+  unsigned dofsP = 1;
+  unsigned dofsAll = 2 * dofsV + 2 * dofsP;
 
-  std::vector<std::vector<double>> V(2,std::vector<double>(9, 2.));
-  std::vector<double> P1(1, 1.);
-  std::vector<double> P2(1, 2.);
 
-  std::vector<double> res(9, 0.);
-  std::vector<double> jac(9, 0.);
+  std::vector<std::vector<double>> V(2,std::vector<double>(dofsV, 2.));
+  std::vector<double> P1(dofsP, 1.);
+  std::vector<double> P2(dofsP, 2.);
+
+  std::vector<double> res(dofsAll, 0.);
+  std::vector<double> jac(dofsAll * dofsAll, 0.);
 
   // unsigned elType = 3;
   //std::vector<std::vector<double>> xv = {{-1., 1., 1., -1., 0., 1., 0., -1., 0.}, {-1., -1., 1., 1., -1., 0., 1., 0., 0.}};
@@ -40,7 +44,7 @@ int main(int argc, char** args) {
 
   ConicAdaptiveRefinement cad;
 
-  Data *data = new Data(VType, PType, V, P1, P2, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt);
+  Data *data = new Data(VType, PType, V, P1, P2, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt, A);
 
   cad.SetDataPointer(data);
 
@@ -80,15 +84,15 @@ int main(int argc, char** args) {
 }
 
 
-void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, std::vector <double> &phiP,
-                          const double &weight, const double &weight1, const double &weight2, const double &weightI,
+void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+                          const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
                           const std::vector <double> &N, const double &kappa, const double &dsN, const double &eps) {
 
 
   const unsigned &dim = data->_V.size();
   const unsigned &nDofsV = phiV.size();
   const unsigned &nDofsP = phiP.size();
-  unsigned nDofsVP = dim * nDofsV + nDofsP;
+  unsigned nDofsVP = dim * nDofsV + 2 * nDofsP;
 
   std::vector < double > solVg(dim, 0);
   std::vector < std::vector < double > > SolVg_x(dim, std::vector<double> (dim, 0));
@@ -141,9 +145,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       data->_res[dim * nDofsV + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight1; //continuity
       data->_res[dim * nDofsV + nDofsP + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight2; //continuity
     }
-    if(weight1 == 0)
+    if(C == 0.)
       data->_res[dim * nDofsV + i] += - solP1g * phiP[i]  * weight * eps; //penalty
-    if(weight2 == 0)
+    if(C == 1.)
       data->_res[dim * nDofsV + nDofsP + i] += - solP2g * phiP[i]  * weight * eps; //penalty
   } // end phiP_i loop
 
@@ -181,9 +185,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
     for(unsigned j = 0; j < nDofsP; j++) {
       unsigned P1column = dim * nDofsV + j;
       unsigned P2column = dim * nDofsV + nDofsP + j;
-      if(weight1 == 0)
+      if(C == 0.)
         data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * eps; // continuity
-      if(weight2 == 0)
+      if(C == 1.)
         data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * eps; //continuity
     }
   }
