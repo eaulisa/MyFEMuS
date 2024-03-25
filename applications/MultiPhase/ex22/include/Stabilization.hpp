@@ -33,7 +33,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   //quantities for iel will have index1
   //quantities for jel will have index2
 
-  vector< vector< double > > solVOld(dim);
+  //vector< vector< double > > solVOld(dim);
   vector< vector< adept::adouble > > solV(dim);
   vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
 
@@ -100,7 +100,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {
         solV[k].resize(nDofsV);
-        solVOld[k].resize(nDofsV);
+        //solVOld[k].resize(nDofsV);
         vx[k].resize(nDofsV);
         aResV[k].assign(nDofsV, 0.);
       }
@@ -112,7 +112,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {
           solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-          solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
+          //solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
           sysDofsAll[k * nDofsV + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel);
         }
       }
@@ -153,11 +153,11 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2,0.));
         
         
-        vector < double > solVgOld(dim, 0.);
+        //vector < double > solVgOld(dim, 0.);
         for(unsigned i = 0; i < nDofsV; i++) {
           for(unsigned j = 0; j < dim; j++) {
             solVg[j] += phi[i] * solV[j][i]; // new velocity of background grid
-            solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the undeformed reference configuration
+            //solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the undeformed reference configuration
             for(unsigned  k = 0; k < dim; k++) {
               gradSolVg[k][j] += gradPhi[i * dim + j] * solV[k][i]; // gradient of the new velocity with respect to the theta domain
             }
@@ -239,7 +239,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
             adept::adouble advection = 0.;
 
             for(unsigned j = 0; j < dim; j++) {
-              advection +=  rho * solVg[j] * gradSolVg[k][j]; 
+              //advection +=  rho * solVg[j] * gradSolVg[k][j];
               
               unsigned kdim;
               if(k == j) kdim = j;
@@ -253,7 +253,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
             double f = - rho * phi[i] * g[k];
             adept::adouble pressureGradient = 0.;
-            adept::adouble rM = rho * (solVg[k] - solVgOld[k]) / dt + advection + diffusion + pressureGradient - f;   
+            adept::adouble rM = rho * (solVg[k] /*- solVgOld[k]*/) / dt + advection + diffusion + pressureGradient - f;
             
             adept::adouble supgDiv = tauC * divVg * gradPhi[i * dim + k];
             

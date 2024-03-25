@@ -75,16 +75,16 @@
 // const double gravity = -0.98;
 
 // Turek 2
-const double mu1 = 0.1;
-const double mu2 = 10.;
+const double mu1 = 1.;
+const double mu2 = 1.;
 const double rho1 = 1.;
-const double rho2 = 1000;
+const double rho2 = 1.;
 const double sigma = 1.96;
 const double gravity = -0.;
 const double dt = 0.1;
 
 
-std::vector <double> g;
+std::vector <double> g={0,-1,0};
 
 #include "./include/GhostPenalty.hpp"
 #include "./include/GhostPenaltyDGP.hpp"
@@ -109,14 +109,14 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
     value = 0.;
   }
   else if(!strcmp(SolName, "V")) {
-    if(facename == 2 || facename == 4) dirichlet = false;
+    //if(facename == 2 || facename == 4) dirichlet = false;
     value = 0.;
 //     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
   }
   else if(!strcmp(SolName, "W")) {
     value = 0.;
   }
-  else if(!strcmp(SolName, "P")) {
+  else if(!strcmp(SolName, "P1") || !strcmp(SolName, "P2")) {
     dirichlet = false;
     value = 0.;
   }
@@ -169,15 +169,15 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
 
   // add variables to mlSol
-  mlSol.AddSolution("U", LAGRANGE, FIRST, 2);
-  mlSol.AddSolution("V", LAGRANGE, FIRST, 2);
-  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
-  mlSol.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-  mlSol.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-//   mlSol.AddSolution("P1", LAGRANGE, FIRST);
-//   mlSol.AddSolution("P2", LAGRANGE, FIRST);
+  mlSol.AddSolution("U", LAGRANGE, SECOND);
+  mlSol.AddSolution("V", LAGRANGE, SECOND);
+  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
+  //mlSol.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  //mlSol.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  mlSol.AddSolution("P1", LAGRANGE, FIRST);
+  mlSol.AddSolution("P2", LAGRANGE, FIRST);
 
-  mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -235,13 +235,15 @@ int main(int argc, char** args) {
   // BEGIN Testing the class Cloud
 
 
-  system.MGsolve();
-
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
+
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  system.MGsolve();
+  system.MGsolve();
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
 
 
@@ -304,7 +306,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   unsigned solP2PdeIndex = mlPdeSys->GetSolPdeIndex("P2");    // get the position of "P" in the pdeSys object
 
   std::vector < std::vector < double > >  solV(dim);    // local solution
-  std::vector < std::vector < double > >  solVOld(dim);    // local solution
   std::vector < double >  solP1; // local solution
   std::vector < double >  solP2; // local solution
 
@@ -318,6 +319,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   clock_t start_time = clock();
 
   ConicAdaptiveRefinement cad;
+
+  sol->_Sol[solCIndex]->zero();
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -334,7 +337,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
-      solVOld[k].resize(nDofsV);
       coordX[k].resize(nDofsV);
     }
     solP1.resize(nDofsP);
@@ -347,7 +349,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);
-        solVOld[k][i] = (*sol->_SolOld[solVIndex[k]])(solVDof);
         sysDof[k * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[k], solVPdeIndex[k], i, iel);    // global to global mapping between solution node and pdeSys dof
       }
     }
@@ -368,10 +369,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       }
     }
 
-    std::vector <double> A = {1, 0, 1., 0, 0, -1.};
+    double h = 4./100;
+
+    //std::vector <double> A = {0, 0, 0, 0, 1, -h/2.};
+
+    std::vector <double> A = {-1, 0, -1., 0, 0, 10.};
     std::vector <double> Ap;
 
-    Data *data = new Data(solVType, solPType, solV, solP1, solP2, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, A);
+    Data *data = new Data(solVType, solPType, solV, solP1, solP2, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A);
 
     cad.SetDataPointer(data);
 
@@ -380,7 +385,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     std::vector<std::vector<double>> yi = cad.GetXiInParentElement();
 
     cad.GetConicsInTargetElement(y, A, Ap);
-    tuple <double, double, double> a = cad.AdaptiveRefinement(5, y, yi, Ap);
+    //std::cout<<Ap[0]<<" "<<Ap[1]<<" "<<Ap[2]<<" "<<Ap[3]<<" "<<Ap[4]<<" "<<Ap[5]<<std::endl;
+    tuple <double, double, double> a = cad.AdaptiveRefinement(2, y, yi, Ap);
 
     double C = std::get<0>(a) / (std::get<0>(a) + std::get<1>(a));
 
@@ -394,16 +400,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
   sol->_Sol[solCIndex]->close();
 
-  RES->close();
-  KK->close();
 
   std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 
-  AssembleStabilizationTerms(ml_prob);
-  AssembleGhostPenalty(ml_prob);
-  AssembleGhostPenaltyDGP(ml_prob, true);
-  AssembleGhostPenaltyDGP(ml_prob, false);
+  //AssembleStabilizationTerms(ml_prob);
+  //AssembleGhostPenalty(ml_prob);
+  //AssembleGhostPenaltyDGP(ml_prob, true);
+  //AssembleGhostPenaltyDGP(ml_prob, false);
+
+  //AssembleCIPPressure(ml_prob, true);
+  //AssembleCIPPressure(ml_prob, false);
+
+
+  RES->close();
+  KK->close();
+
 
 
 }

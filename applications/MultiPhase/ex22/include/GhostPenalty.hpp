@@ -33,8 +33,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   //quantities for iel will have index1
   //quantities for jel will have index2
 
-  vector< vector< double > > sol1Old(dim);
-  vector< vector< double > > sol2Old(dim);
+  //vector< vector< double > > sol1Old(dim);
+  //vector< vector< double > > sol2Old(dim);
 
   vector< vector< adept::adouble > > sol1(dim);
   vector< vector< adept::adouble > > sol2(dim);
@@ -109,7 +109,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {
         sol1[k].resize(nDofs1);
-        sol1Old[k].resize(nDofs1);
+        //sol1Old[k].resize(nDofs1);
         vx1[k].resize(nDofs1);
       }
 
@@ -118,7 +118,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {
           sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-          sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+         // sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
           sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
         }
       }
@@ -151,7 +151,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
               for(unsigned  k = 0; k < dim; k++) {
                 sol2[k].resize(nDofs2);
-                sol2Old[k].resize(nDofs2);
+                //sol2Old[k].resize(nDofs2);
                 vx2[k].resize(nDofs2);
               }
 
@@ -159,7 +159,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 unsigned idof = msh->GetSolutionDof(i, jel, solType);
                 for(unsigned  k = 0; k < dim; k++) {
                   sol2[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                  sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                 // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                   sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                 }
               }
@@ -500,7 +500,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                   sysDofs2.resize(nDofsAll2);
                   for(unsigned  k = 0; k < dim; k++) {
                     sol2d[k].resize(nDofs2);
-                    sol2Old[k].resize(nDofs2);
+                    //sol2Old[k].resize(nDofs2);
                     vx2[k].resize(nDofs2);
                   }
                   std::vector < MPI_Request > reqs(3 * dim + 1);
@@ -513,7 +513,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                     for(unsigned  k = 0; k < dim; k++) {
                       sol1[k].resize(nDofs1);
-                      sol1Old[k].resize(nDofs1);
+                     // sol1Old[k].resize(nDofs1);
                       vx1[k].resize(nDofs1);
                     }
                     for(unsigned i = 0; i < nDofs1; i++) {
@@ -521,7 +521,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        //sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                         sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
                       }
                     }
@@ -534,7 +534,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                     }
                     for(unsigned k = 0; k < dim; k++) {
                       MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                     // MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
                     MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 3 * dim, PETSC_COMM_WORLD,  &reqs[3 * dim]);
@@ -545,7 +545,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol2d[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                       // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                         sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                       }
                     }
@@ -559,7 +559,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                     for(unsigned k = 0; k < dim; k++) {
                       MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                     // MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
                     MPI_Isend(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);

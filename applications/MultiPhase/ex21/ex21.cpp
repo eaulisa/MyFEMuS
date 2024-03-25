@@ -44,7 +44,7 @@ int main(int argc, char** args) {
 
   ConicAdaptiveRefinement cad;
 
-  Data *data = new Data(VType, PType, V, P1, P2, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt, A);
+  Data *data = new Data(VType, PType, V, P1, P2, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt, {0,0}, A);
 
   cad.SetDataPointer(data);
 

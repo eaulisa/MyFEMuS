@@ -26,8 +26,8 @@ class Data {
          const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
-         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &A) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _A(A) {}
+         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A) :
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
@@ -38,6 +38,8 @@ class Data {
 
     std::vector<double> &_res;
     std::vector<double> &_jac;
+
+    const std::vector<double> &_g;
 
     const unsigned &_elType;
     const std::vector<std::vector <double> > &_xv;
@@ -164,14 +166,21 @@ class ConicAdaptiveRefinement {
 
 
     bool CheckIfRootsAreInBetweenM1andP1(const double & A, const double & B, const double & C) {
-      double det = sqrt(B * B - 4. * A * C);
-      if(det >= 0.) {
-        double t = (-B - det) / (2. * A);
-        if(t >= -1. && t <= 1.) return true;
-        t = (-B + det) / (2. * A);
+      if(fabs(A * A / (A * A + B * B + C * C) > 1.0e-14)) {
+        double det = sqrt(B * B - 4. * A * C);
+        if(det >= 0.) {
+          double t = (-B - det) / (2. * A);
+          if(t >= -1. && t <= 1.) return true;
+          t = (-B + det) / (2. * A);
+          if(t >= -1. && t <= 1.) return true;
+        }
+      }
+      else {
+        double t = -C / B;
         if(t >= -1. && t <= 1.) return true;
       }
       return false;
+
     }
 
     bool CheckIfRootsAreInBetween0andP1(const double & A, const double & B, const double & C) {
@@ -533,8 +542,12 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
                                  1., weight, 1., 0., 0.,
             {0., 0.}, 0., 0., 0.00000001);
 
+            std::cout<<"A";
           }
           else {
+
+            //std::cout<<"B";
+
             area2 += weight;
 
 
@@ -640,6 +653,8 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
                            C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
                            Nf, kappa, dsN, 0);
+
+      std::cout<<"C";
 
 
     }
@@ -785,9 +800,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
   double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
   double rhoC = rho;
 
-  //double rho = rho1 * C + rho2 * (1. - C);
-  //double mu = mu1 * C + mu2 * (1. - C);
-  //double rhoC = rho1 * C + rho2 * (1. - C);
+  // double rho = data->_rho1 * C + data->_rho2 * (1. - C);
+  // double mu = data->_mu1 * C + data->_mu2 * (1. - C);
+  // double rhoC = rho;
 
   // *** phiV_i loop ***
   for(unsigned i = 0; i < nDofsV; i++) {
@@ -799,10 +814,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       }
       NSV += - phiV_x[i * dim + I] * (solP1g * weight1 + solP2g * weight2);  // pressure gradient
       NSV += rho * phiV[i] * solVg[I] / data->_dt ;
-      //NSV += - rhoC * phiV[i] * g[I]; // gravity term
+      NSV += - rhoC * phiV[i] * data->_g[I]; // gravity term
       data->_res[I * nDofsV + i] -=  NSV * weight;
       if(weightI != 0.) {
-        data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa * dsN;
+        // data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa * dsN;
       }
     }
   } // end phiV_i loop
