@@ -79,12 +79,12 @@ const double mu1 = 1.;
 const double mu2 = 1.;
 const double rho1 = 1.;
 const double rho2 = 1.;
-const double sigma = 1.96;
+const double sigma = 1;
 const double gravity = -0.;
 const double dt = 0.1;
 
 
-std::vector <double> g={0,-1,0};
+std::vector <double> g={0,0,0};
 
 #include "./include/GhostPenalty.hpp"
 #include "./include/GhostPenaltyDGP.hpp"
@@ -169,11 +169,11 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
 
   // add variables to mlSol
-  mlSol.AddSolution("U", LAGRANGE, SECOND);
-  mlSol.AddSolution("V", LAGRANGE, SECOND);
+  mlSol.AddSolution("U", LAGRANGE, FIRST);
+  mlSol.AddSolution("V", LAGRANGE, FIRST);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND);
-  //mlSol.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-  //mlSol.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  // mlSol.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  // mlSol.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
   mlSol.AddSolution("P1", LAGRANGE, FIRST);
   mlSol.AddSolution("P2", LAGRANGE, FIRST);
 
@@ -373,7 +373,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     //std::vector <double> A = {0, 0, 0, 0, 1, -h/2.};
 
-    std::vector <double> A = {-1, 0, -1., 0, 0, 10.};
+    //std::vector <double> A = {-1, 0, -1., 0, 0, 1.};
+    std::vector <double> A = {1, 0, 1., 0, 0, -1.};
     std::vector <double> Ap;
 
     Data *data = new Data(solVType, solPType, solV, solP1, solP2, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A);
@@ -386,7 +387,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     cad.GetConicsInTargetElement(y, A, Ap);
     //std::cout<<Ap[0]<<" "<<Ap[1]<<" "<<Ap[2]<<" "<<Ap[3]<<" "<<Ap[4]<<" "<<Ap[5]<<std::endl;
-    tuple <double, double, double> a = cad.AdaptiveRefinement(2, y, yi, Ap);
+    tuple <double, double, double> a = cad.AdaptiveRefinement(5, y, yi, Ap);
 
     double C = std::get<0>(a) / (std::get<0>(a) + std::get<1>(a));
 
@@ -404,13 +405,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 
-  //AssembleStabilizationTerms(ml_prob);
-  //AssembleGhostPenalty(ml_prob);
+  AssembleStabilizationTerms(ml_prob);
+  AssembleGhostPenalty(ml_prob);
   //AssembleGhostPenaltyDGP(ml_prob, true);
   //AssembleGhostPenaltyDGP(ml_prob, false);
 
-  //AssembleCIPPressure(ml_prob, true);
-  //AssembleCIPPressure(ml_prob, false);
+  AssembleCIPPressure(ml_prob, true);
+  AssembleCIPPressure(ml_prob, false);
 
 
   RES->close();

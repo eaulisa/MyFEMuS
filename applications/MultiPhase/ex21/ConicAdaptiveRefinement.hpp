@@ -511,49 +511,29 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
         for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
           double weight;
           femL->Jacobian(xl, ig, weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
+
+          unsigned dim = 2;
+          std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
+          for(unsigned i = 0; i < _phi.size(); i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              xil0g[k] += _phi[i] * xil0[i][k];
+            }
+          }
+          double gaussPointWeight;
+          femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);  //_xv are the phisical coordinates at nodes of l0-mesh
+          // _phiV, and _phiVx are the l0 test function and gradient at the gauss point of the l-mesh
+          femP->GetPhi(_phiP, xil0g);
           if(test == -1) { // inside
-            unsigned dim = 2;
-            std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
-            for(unsigned i = 0; i < _phi.size(); i++) {
-              for(unsigned k = 0; k < dim; k++) {
-                xil0g[k] += _phi[i] * xil0[i][k];
-              }
-            }
-            double gaussPointWeight;
-            femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);  //_xv are the phisical coordinates at nodes of l0-mesh
-            // _phiV, and _phiVx are the l0 test function and gradient at the gauss point of the l-mesh
-            femP->GetPhi(_phiP, xil0g);
-
-            // std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
-
-            std::vector <double> xg(2, 0); // get the phisical coordinate at the gauss point of the l-mesh, using only the information at the l0-mesh
-            for(unsigned i = 0; i < _phiV.size(); i++) {
-              for(unsigned k = 0; k < dim; k++) {
-                xg[k] += _phiV[i] * _data->_xv[k][i];
-              }
-            }
-
-            //std::cout << xg[0] << " " << xg[1] << std::endl;
-
-            //area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * weight;
             area1 += weight;
-
             AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
                                  1., weight, 1., 0., 0.,
-            {0., 0.}, 0., 0., 0.00000001);
-
-            std::cout<<"A";
+            {0., 0.}, 0., 0., 0.e-10);
           }
           else {
-
-            //std::cout<<"B";
-
             area2 += weight;
-
-
             AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
                                  0., weight, 0., 1., 0.,
-            {0., 0.}, 0., 0., 0.00000001);
+            {0., 0.}, 0., 0., 0.e-10);
 
 
           }
@@ -641,10 +621,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
         }
       }
 
-      //std::cout<<xg[0]<<" "<<xg[1]<<std::endl;
-
       arcLenght += dsN * _weight[ig] * weightI[ig];
-      //area1 += (xg[0] * xg[0] + xg[1] * xg[1]) * _weight[ig] * weight1[ig];
       area1 += _weight[ig] * weight1[ig];
       area2 += _weight[ig] * weight2[ig];
 
@@ -654,8 +631,9 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
                            C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
                            Nf, kappa, dsN, 0);
 
-      std::cout<<"C";
-
+       // AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+       //                     C, _weight[ig], C, 1-C, weightI[ig],
+       //                     Nf, kappa, dsN, 0);
 
     }
 
@@ -817,7 +795,7 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       NSV += - rhoC * phiV[i] * data->_g[I]; // gravity term
       data->_res[I * nDofsV + i] -=  NSV * weight;
       if(weightI != 0.) {
-        // data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa * dsN;
+        data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa * dsN;
       }
     }
   } // end phiV_i loop
