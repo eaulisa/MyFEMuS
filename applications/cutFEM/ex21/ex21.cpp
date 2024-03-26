@@ -550,11 +550,11 @@ int main() {
 //   Type a = pol2[1] - pol1[1];
 //   Type c = pol2[2] - pol1[2];
 
-  Type k = 0.1;
-  Type b = 0.2;
-  Type d = -1;
-  Type a = 2;
-  Type c = 0.1;
+  Type k = 1.99754;
+  Type b = -1.58002;
+  Type d = -0.768055;
+  Type a = 0;
+  Type c = 1;
   pol1[0] = k;
   pol1[1] = a+b;
   pol1[2] = c+d;

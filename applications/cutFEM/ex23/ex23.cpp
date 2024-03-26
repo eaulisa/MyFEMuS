@@ -913,7 +913,6 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
             bool do_line = 0;
             if(parabola.k < 0) concaveUp = 1; //kx^2+bx+d+cy = 0 ; c is initialy 1 => y = -kx^2 - bx - d .
 
-
             if (intersect_number > 2){
                 if(!concaveUp){
                     if (table == 0 || table == 1 || table == 4 || table == 5){
@@ -927,7 +926,6 @@ void creat_parabola_table(std::vector< std::vector< std::vector< std::vector< st
 
                 }
             }
-
 
             if (intersect_number == 2 || do_line == 0){ // we are not changing 4 intersection when do table-1 left-right
                 if (det !=0){
@@ -1758,7 +1756,7 @@ int main() {
       random_polynomial(given_parabola);
 
 
-      given_parabola = {1.44, -2.18365, -0.3275, 1};
+      given_parabola = {-0.000000128, 2, -0.25, 1};
       inverse_parabola <Type> (parabola_table, parabola_table_4intersection , given_parabola, intersection, normal, interp_point, interp_table, table_number, partition);
 
       cout << " intersection points : " ;
@@ -1807,7 +1805,6 @@ int main() {
                   bad_cases[bad_cases.size()-1] = i;
                   cout << " ################################################################## Bad Cases "<<endl;
                 }
-
         }
 
 
@@ -1829,18 +1826,18 @@ int main() {
 
 
 
-    cout<<"Serial,"<<"X1_values," << "Y1_values,"<<"X2_values," << "Y2_values,"<<"X3_values," << "Y3_values,"<< "F_values" << endl;
-    for (int table = 0; table <=7 ; table++){
-      for (unsigned int i1 = 0 ; i1 <= partition ; i1++){
-        for (unsigned int i2 = 0 ; i2 <= partition ; i2++){
-          for (unsigned int i3 = 0 ; i3 <= partition ;i3++){
-            normal=0;
-//             if (parabola_table[table][i1][i2][i3][normal][10]>=0)
-            cout <<parabola_table[table][i1][i2][i3][normal][0]<<","<<parabola_table[table][i1][i2][i3][normal][4] <<","<<parabola_table[table][i1][i2][i3][normal][5]<<"," <<parabola_table[table][i1][i2][i3][normal][6]<<","<<parabola_table[table][i1][i2][i3][normal][7]<<","<<parabola_table[table][i1][i2][i3][normal][8]<<","<<parabola_table[table][i1][i2][i3][normal][9]<<","<<parabola_table[table][i1][i2][i3][normal][14] << endl;
-          }
-        }
-      }
-  }
+//     cout<<"Serial,"<<"X1_values," << "Y1_values,"<<"X2_values," << "Y2_values,"<<"X3_values," << "Y3_values,"<< "F_values" << endl;
+//     for (int table = 0; table <=7 ; table++){
+//       for (unsigned int i1 = 0 ; i1 <= partition ; i1++){
+//         for (unsigned int i2 = 0 ; i2 <= partition ; i2++){
+//           for (unsigned int i3 = 0 ; i3 <= partition ;i3++){
+//             normal=0;
+// //             if (parabola_table[table][i1][i2][i3][normal][10]>=0)
+//             cout <<parabola_table[table][i1][i2][i3][normal][0]<<","<<parabola_table[table][i1][i2][i3][normal][4] <<","<<parabola_table[table][i1][i2][i3][normal][5]<<"," <<parabola_table[table][i1][i2][i3][normal][6]<<","<<parabola_table[table][i1][i2][i3][normal][7]<<","<<parabola_table[table][i1][i2][i3][normal][8]<<","<<parabola_table[table][i1][i2][i3][normal][9]<<","<<parabola_table[table][i1][i2][i3][normal][14] << endl;
+//           }
+//         }
+//       }
+//   }
 
     return 0;
 }

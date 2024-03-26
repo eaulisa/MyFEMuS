@@ -1093,8 +1093,8 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 int main() {
-  unsigned int m = 0;
-  unsigned int n = 0;
+  unsigned int m = 1;
+  unsigned int n = 1;
   int s = 0;
 
   std::cout.precision(16);
@@ -1133,11 +1133,22 @@ int main() {
 // k = static_cast<Type>(7.00881e-16);
 //     -0.16644x^2 + 0.332592 x + -1.13415
 //     -357.0432423423495x^2 + 716.3906311474898 x + -359.9080438381724 + y
+//3epsilon -52231.6x^2+ 388.287x+ -0.901638+y =0
+// 2ep    -117521x^2+ 582.43x+ -0.901638+y =0
+// 1.75ep    -153497x^2+ 665.634x+ -0.901638+y =0
+//    1.5ep -208927x^2+ 776.573x+ -0.901638+y =0
+//   1.25ep  -300854x^2+ 931.888x+ -0.901638+y =0
+// 1ep    -470085x^2+ 1164.86x+ -0.901638+y =0
+// 1/2 ep    -1.88034e+06x^2+ 2329.72x+ -0.901638+y =0
 
- k = 1; b = -1.8; d =-0.3; c = static_cast<Type>(1);
+
+  Type k = 1.4409885720540716036;
+  Type b = -0.97870700386292641682;
+  Type d = -1.6552636733535974756; a = 1.5952086400218350448;
+ c = -0.040815498698882457518;
 
 
- a=0;
+//  a=0;
     pol1[0] = k; pol1[1] = a + b; pol1[2] = c + d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
