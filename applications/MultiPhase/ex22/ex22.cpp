@@ -84,7 +84,7 @@ const double gravity = -0.;
 const double dt = 0.1;
 
 
-std::vector <double> g={0,0,0};
+std::vector <double> g = {0, 0, 0};
 
 #include "./include/GhostPenalty.hpp"
 #include "./include/GhostPenaltyDGP.hpp"
@@ -178,6 +178,8 @@ int main(int argc, char** args) {
   mlSol.AddSolution("P2", LAGRANGE, FIRST);
 
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
+  mlSol.AddSolution("C1", LAGRANGE, FIRST, 1, false);
+  mlSol.AddSolution("cnt", LAGRANGE, FIRST, 1, false);
 
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
@@ -196,7 +198,7 @@ int main(int argc, char** args) {
 
 
   Solution* sol = mlSol.GetSolutionLevel(mlMsh.GetNumberOfLevels() - 1);
-  
+
   //cld = new Cloud(sol);
   //cldint = new Cloud(sol);
 
@@ -296,6 +298,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
 
   unsigned solCIndex = mlSol->GetIndex("C");
+  unsigned solC1Index = mlSol->GetIndex("C1");
+  unsigned solC1Type = mlSol->GetSolutionType(solC1Index);
+  unsigned solCntIndex = mlSol->GetIndex("cnt");
 
   std::vector < unsigned > solVPdeIndex(dim);
   solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
@@ -321,9 +326,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   ConicAdaptiveRefinement cad;
 
   sol->_Sol[solCIndex]->zero();
+  sol->_Sol[solC1Index]->zero();
+  sol->_Sol[solCntIndex]->zero();
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
     short unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);    // number of solution element dofs
@@ -369,7 +375,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       }
     }
 
-    double h = 4./100;
+    double h = 4. / 100;
 
     //std::vector <double> A = {0, 0, 0, 0, 1, -h/2.};
 
@@ -391,24 +397,37 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     double C = std::get<0>(a) / (std::get<0>(a) + std::get<1>(a));
 
-    sol->_Sol[solCIndex]->set(iel,C);
+    sol->_Sol[solCIndex]->set(iel, C);
+
+    unsigned nDofs1 = msh->GetElementDofNumber(iel, solC1Type);
+    for(unsigned i = 0; i < nDofs1; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solC1Type);
+      sol->_Sol[solC1Index]->add(idof, C);
+      sol->_Sol[solCntIndex]->add(idof, 1);
+    }
 
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
-
-
   } //end element loop for each process
 
   sol->_Sol[solCIndex]->close();
+  sol->_Sol[solC1Index]->close();
+  sol->_Sol[solCntIndex]->close();
 
+  for(unsigned i = msh->_dofOffset[solC1Type][iproc]; i < msh->_dofOffset[solC1Type][iproc+1];i++ ){
+    double value = (*sol->_Sol[solC1Index])(i);
+    double cnt =  (*sol->_Sol[solCntIndex])(i);
+    sol->_Sol[solC1Index]->set(i, value/cnt);
+  }
+  sol->_Sol[solC1Index]->close();
 
   std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 
   AssembleStabilizationTerms(ml_prob);
   AssembleGhostPenalty(ml_prob);
-  //AssembleGhostPenaltyDGP(ml_prob, true);
-  //AssembleGhostPenaltyDGP(ml_prob, false);
+//AssembleGhostPenaltyDGP(ml_prob, true);
+//AssembleGhostPenaltyDGP(ml_prob, false);
 
   AssembleCIPPressure(ml_prob, true);
   AssembleCIPPressure(ml_prob, false);
