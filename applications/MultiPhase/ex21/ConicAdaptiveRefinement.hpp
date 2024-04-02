@@ -23,17 +23,18 @@ using namespace femus;
 class Data {
   public:
     Data(const unsigned &VType, const unsigned &PType,
-         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2,
+         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
-         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A) {}
+         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A, const bool& distributedCurvature) :
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
     const std::vector<std::vector<double>> &_V;
     const std::vector<double> &_P1;
     const std::vector<double> &_P2;
+    const std::vector<double> &_K1;
     const std::vector<double> &_A;
 
     std::vector<double> &_res;
@@ -45,18 +46,16 @@ class Data {
     const std::vector<std::vector <double> > &_xv;
 
     const double &_rho1, &_rho2, &_mu1, &_mu2, &_sigma, &_dt;
+    const bool &_distributedCurvature;
 };
 
 void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
                           const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                          const std::vector <double> &N, const double &kappa, const double &dsN, const double &eps);
-
+                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps);
 
 class ConicAdaptiveRefinement {
   public:
     ConicAdaptiveRefinement() {
-
-
 
       // coordinates in the reference element of the nodes of the target elements
 
@@ -109,11 +108,11 @@ class ConicAdaptiveRefinement {
     void GetConicsInTargetElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, std::vector<double> &A1);
     void ComputeJacobian(const std::vector<std::vector<double>> &x, std::vector<std::vector<double>> &J);
     void ComputeInverseJacobian(std::vector<std::vector<double>> &J, std::vector<std::vector<double>> &IJ);
-    double EvaluateConic(const std::vector<double>&x, const std::vector<double>&a) {
+    static double EvaluateConic(const std::vector<double>&x, const std::vector<double>&a) {
       return a[0] * x[0] * x[0] + a[1] * x[0] * x[1] + a[2] * x[1] * x[1] + a[3] * x[0] + a[4] * x[1] + a[5];
     }
 
-    void GetConicNormal(const std::vector<double>&x, const std::vector<double>&a, std::vector<double>&n) {
+    static void GetConicNormal(const std::vector<double>&x, const std::vector<double>&a, std::vector<double>&n) {
       n.resize(2);
       n[0] = 2. * a[0] * x[0] + a[1] * x[1] + a[3];
       n[1] = 2. * a[2] * x[1] + a[1] * x[0] + a[4];
@@ -122,14 +121,55 @@ class ConicAdaptiveRefinement {
       n[1] /= det;
     }
 
-    double GetConicCurvature(const std::vector<double>&x, const std::vector<double>&a) {
+    static void GetConicCurvature(const std::vector<double>&x, const std::vector<double>&a, std::vector<double> &kappa, const bool &getPartialDerivatives) {
+
       double n1 = 2. * a[0] * x[0] + a[1] * x[1] + a[3];
       double n2 = 2. * a[2] * x[1] + a[1] * x[0] + a[4];
-      double den = (n1 * n1 + n2 * n2) * sqrt(n1 * n1 + n2 * n2);
-      return (2. * a[0] * n2 * n2 - a[1] * n1 * n2 + 2. * a[2] * n1 * n1) / den;
+
+      double n1n1 = n1 * n1;
+      double n1n2 = n1 * n2;
+      double n2n2 = n2 * n2;
+
+      double num = (2. * a[0] * n2n2  - a[1] * n1n2  + 2. * a[2] * n1n1);
+
+      double det = (n1n1 + n2n2);
+
+      double sqrtdet = sqrt(det);
+
+      double den = det * sqrtdet;
+      kappa.resize(3);
+      kappa[0] = num / den;
+
+      if(getPartialDerivatives) {
+        double n1x = 2. * a[0];
+        double n1y = a[1];
+        double n2x = a[1];
+        double n2y = 2. * a[2];
+
+        double n1n1x = 2. * n1 * n1x;
+        double n1n2x = n1x * n2 + n1 * n2x;
+        double n2n2x = 2. * n2 * n2x;
+
+        double n1n1y = 2. * n1 * n1y;
+        double n1n2y = n1y * n2 + n1 * n2y;
+        double n2n2y = 2. * n2 * n2y;
+
+        double numx = (2. * a[0] * n2n2x - a[1] * n1n2x + 2. * a[2] * n1n1x);
+        double numy = (2. * a[0] * n2n2y - a[1] * n1n2y + 2. * a[2] * n1n1y);
+
+        double detx = (n1n1x + n2n2x);
+        double dety = (n1n1y + n2n2y);
+
+        double denx = 1.5 * sqrtdet * detx;
+        double deny = 1.5 * sqrtdet * dety;
+
+        kappa[1] = (numx * den - num * denx) / (den * den);
+        kappa[2] = (numy * den - num * deny) / (den * den);
+      }
+      else {
+        kappa.resize(1);
+      }
     }
-
-
 
     int TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a);
     int TestIfIntesectionWithReferenceQuad(const std::vector<double>&A);
@@ -214,6 +254,7 @@ class ConicAdaptiveRefinement {
     std::vector <double> _phiV;
     std::vector <double> _phiVx;
     std::vector <double> _phiP;
+    std::vector <double> _phiPx;
 
 
     //std::vector<std::vector<double>> _xl0;
@@ -496,7 +537,6 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
 
       if(test == -1 || test == 1) { // it means it is a full element
 
-
         const elem_type *femL = _fem1->GetFiniteElement(_data->_elType, 0);
         const elem_type *femV = _fem1->GetFiniteElement(_data->_elType, _data->_VType);
         const elem_type *femP = _fem1->GetFiniteElement(_data->_elType, _data->_PType);
@@ -522,18 +562,49 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
           double gaussPointWeight;
           femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);  //_xv are the phisical coordinates at nodes of l0-mesh
           // _phiV, and _phiVx are the l0 test function and gradient at the gauss point of the l-mesh
-          femP->GetPhi(_phiP, xil0g);
+          femP->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiP, _phiPx);
+
+          //femP->GetPhi(_phiP, xil0g);
           if(test == -1) { // inside
+
             area1 += weight;
-            AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
-                                 1., weight, 1., 0., 0.,
-            {0., 0.}, 0., 0., 0.e-10);
+
+            if(_data->_distributedCurvature) {
+              std::vector <double> xg(dim, 0);
+              for(unsigned i = 0; i < _phiV.size(); i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  xg[k] += _phiV[i] * _data->_xv[k][i];
+                }
+              }
+
+              std::vector<double> kappa = {1., 0., 0.};
+              if(level > 1) GetConicCurvature(xg, _data->_A, kappa, true);
+              else {
+                kappa = {0., 0., 0.};
+                {
+                  for(unsigned i = 0; i < _phiP.size(); i++) {
+                    kappa[0] += _phiP[i] * _data->_K1[i];
+                    for(unsigned k = 0; k < dim; k++) {
+                      kappa[1 + k] += _phiPx[i * dim + k] * _data->_K1[i];
+                    }
+                  }
+                }
+              }
+              AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                                   1., weight, 1., 0., 0.,
+              {0., 0.}, kappa, 0., 0.e-10);
+            }
+            else {
+              AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                                   1., weight, 1., 0., 0.,
+              {0., 0.}, {0.}, 0., 0.e-10);
+            }
           }
           else {
             area2 += weight;
             AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
                                  0., weight, 0., 1., 0.,
-            {0., 0.}, 0., 0., 0.e-10);
+            {0., 0.}, {0.}, 0., 0.e-10);
 
 
           }
@@ -602,7 +673,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       }
       double *phi = femL->GetPhi(ig);
 
-      std::vector <double> xil0g(2, 0);
+      std::vector <double> xil0g(dim, 0);
       for(unsigned i = 0; i < _nve0[_data->_elType]; i++) {
         for(unsigned k = 0; k < dim; k++) {
           xil0g[k] += phi[i] * xil0[i][k];
@@ -614,27 +685,34 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
       femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);
       femP->GetPhi(_phiP, xil0g);
 
-      std::vector <double> xg(2, 0);
+      arcLenght += dsN * _weight[ig] * weightI[ig];
+      area1 += _weight[ig] * weight1[ig];
+      area2 += _weight[ig] * weight2[ig];
+
+      std::vector <double> xg(dim, 0);
       for(unsigned i = 0; i < _phiV.size(); i++) {
         for(unsigned k = 0; k < dim; k++) {
           xg[k] += _phiV[i] * _data->_xv[k][i];
         }
       }
 
-      arcLenght += dsN * _weight[ig] * weightI[ig];
-      area1 += _weight[ig] * weight1[ig];
-      area2 += _weight[ig] * weight2[ig];
+      std::vector<double> kappa = {1., 0., 0.};
+      GetConicCurvature(xg, _data->_A, kappa, _data->_distributedCurvature);
 
-      double kappa = GetConicCurvature(xg, _data->_A);
+      if(_data->_distributedCurvature) {
+        AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                             C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
+                             Nf, kappa, dsN, 0);
+      }
+      else {
+        GetConicNormal(xg, _data->_A, Nf);
+        Nf[0] *= kappa[0];
+        Nf[1] *= kappa[0];
 
-      AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
-                           C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
-                           Nf, kappa, dsN, 0);
-
-       // AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
-       //                     C, _weight[ig], C, 1-C, weightI[ig],
-       //                     Nf, kappa, dsN, 0);
-
+        AssembleNavierStokes(_data, _phiV, _phiVx, _phiP,
+                             C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
+                             Nf, {1.}, dsN, 0);
+      }
     }
 
   }
@@ -747,7 +825,7 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
 
 void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
                           const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                          const std::vector <double> &N, const double &kappa, const double &dsN, const double &eps) {
+                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps) {
 
 
   const unsigned &dim = data->_V.size();
@@ -794,8 +872,13 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       NSV += rho * phiV[i] * solVg[I] / data->_dt ;
       NSV += - rhoC * phiV[i] * data->_g[I]; // gravity term
       data->_res[I * nDofsV + i] -=  NSV * weight;
-      if(weightI != 0.) {
-        data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa * dsN;
+      if(kappa.size() == 1) {
+        if(weightI != 0.) {
+          data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa[0] * dsN;
+        }
+      }
+      else {
+        data->_res[I * nDofsV + i] += -data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight1;
       }
     }
   } // end phiV_i loop
@@ -856,6 +939,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
 
 #endif
+
+
+
+
 
 
 

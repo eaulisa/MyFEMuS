@@ -181,6 +181,10 @@ int main(int argc, char** args) {
   mlSol.AddSolution("C1", LAGRANGE, FIRST, 1, false);
   mlSol.AddSolution("cnt", LAGRANGE, FIRST, 1, false);
 
+  mlSol.AddSolution("K0", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
+  mlSol.AddSolution("K1", LAGRANGE, FIRST, 1, false);
+
+
 //    //Taylor-hood
 //    mlSol.AddSolution("U", LAGRANGE, SERENDIPITY);
 //    mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
@@ -252,9 +256,142 @@ int main(int argc, char** args) {
   return 0;
 }
 
+void InitCurvature(Solution* sol, const std::vector<double> &A) {
+  Mesh* msh = sol->GetMesh();
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  unsigned iproc = msh->processor_id();
+
+  unsigned solC0Index = sol->GetIndex("C");
+  unsigned solC1Index = sol->GetIndex("C1");
+
+  unsigned solK0Index = sol->GetIndex("K0");
+  unsigned solK1Index = sol->GetIndex("K1");
+  unsigned solK1Type = sol->GetSolutionType(solK1Index);
+
+  unsigned solCntIndex = sol->GetIndex("cnt");
+
+  unsigned xvType = 2;
+
+  sol->_Sol[solK0Index]->zero();
+  sol->_Sol[solK1Index]->zero();
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+    short unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
+
+    std::vector<double> xv(dim);
+    bool atLeastOneIsZero = false;
+    bool atLeastOneIsOne = false;
+    double kappaIel = 0.;
+    for(unsigned i = 0; i < nDofsK1; i++) {
+      unsigned xdof  = msh->GetSolutionDof(i, iel, xvType);    // local to global mapping between coordinates node and coordinate dof
+      for(unsigned k = 0; k < dim; k++) {
+        xv[k] = (*msh->_topology->_Sol[k])(xdof);      // global extraction and local storage for the element coordinates
+      }
+
+      unsigned idof  = msh->GetSolutionDof(i, iel, xvType);    // local to global mapping between coordinates node and coordinate dof
+      if(ConicAdaptiveRefinement::EvaluateConic(xv, A) < 0) {
+        sol->_Sol[solC1Index]->set(idof, 1.);
+        atLeastOneIsOne = true;
+      }
+      else {
+        atLeastOneIsZero = true;
+      }
+      std::vector <double> kappa;
+      ConicAdaptiveRefinement::GetConicCurvature(xv, A, kappa, false);
+      if(std::isnan(kappa[0])) kappa[0] = 0.;
+      else sol->_Sol[solK1Index]->set(idof, kappa[0]);
+      kappaIel += kappa[0];
+    }
+    if(!atLeastOneIsOne) sol->_Sol[solC0Index]->set(iel, 0.);
+    else if(!atLeastOneIsZero) sol->_Sol[solC0Index]->set(iel, 1.);
+    else sol->_Sol[solC0Index]->set(iel, 0.5);
+
+    sol->_Sol[solK0Index]->set(iel, kappaIel / nDofsK1);
+  }
+  sol->_Sol[solC0Index]->close();
+  sol->_Sol[solC1Index]->close();
+
+  sol->_Sol[solK0Index]->close();
+  sol->_Sol[solK1Index]->close();
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    if((*sol->_Sol[solC0Index])(iel) == 0.5) {
+      unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
+      for(unsigned i = 0; i < nDofsK1; i++) {
+        unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+        double C1 = (*sol->_Sol[solC1Index])(idof);
+        if(C1 < 0.2) {
+          sol->_Sol[solC1Index]->set(idof, 0.25);
+        }
+        else if(C1 > 0.8) {
+          sol->_Sol[solC1Index]->set(idof, 0.75);
+        }
+      }
+    }
+  }
+
+  sol->_Sol[solC1Index]->close();
+
+  unsigned numberOfSmoothings = 10;
+  for(unsigned k = 0; k < numberOfSmoothings; k++) {
+
+    //From the element to the nodes
+    for(unsigned i = msh->_dofOffset[solK1Type][iproc]; i < msh->_dofOffset[solK1Type][iproc + 1]; i++) {
+      double C1 = (*sol->_Sol[solC1Index])(i);
+      if(C1 < 0.2 || C1 > 0.8) sol->_Sol[solK1Index]->set(i, 0.);
+    }
+    sol->_Sol[solK1Index]->close();
+    sol->_Sol[solCntIndex]->zero();
+    for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      if((*sol->_Sol[solC0Index])(iel) > 0.9) {
+        double K0 = (*sol->_Sol[solK0Index])(iel);
+        unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
+        for(unsigned i = 0; i < nDofsK1; i++) {
+          unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+          double C1 = (*sol->_Sol[solC1Index])(idof);
+          if(C1 > 0.8) {
+            sol->_Sol[solK1Index]->add(idof, K0);
+            sol->_Sol[solCntIndex]->add(idof, 1.);
+          }
+        }
+      }
+    }
+    sol->_Sol[solK1Index]->close();
+    sol->_Sol[solCntIndex]->close();
+
+    for(unsigned i = msh->_dofOffset[solK1Type][iproc]; i < msh->_dofOffset[solK1Type][iproc + 1]; i++) {
+      double cnt = (*sol->_Sol[solCntIndex])(i);
+      if(cnt > 0.1) {
+        double K1 = (*sol->_Sol[solK1Index])(i);
+        sol->_Sol[solK1Index]->set(i, K1 / cnt);
+      }
+    }
+    sol->_Sol[solK1Index]->close();
+
+    if(k < numberOfSmoothings - 1) {
+
+      //from the nodes to the element
+      for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+        if((*sol->_Sol[solC0Index])(iel) > 0.9) {
+          double K0 = 0.;
+          unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
+          for(unsigned i = 0; i < nDofsK1; i++) {
+            unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+            double K1 = (*sol->_Sol[solK1Index])(idof);
+            K0 += K1;
+          }
+          sol->_Sol[solK0Index]->set(iel, K0 / nDofsK1);
+        }
+        sol->_Sol[solK0Index]->close();
+      }
+    }
+  }
+}
 
 //Attempting to create J by hand
-void AssembleMultiphase(MultiLevelProblem& ml_prob) {
+void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
@@ -282,6 +419,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   KK->zero();
   RES->zero();
 
+  std::vector <double> A = {1., 0, 1., 0, 0, -1.};
+  InitCurvature(sol, A);
+
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
 
@@ -296,6 +436,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
   unsigned solP2Index = mlSol->GetIndex("P2");    // get the position of "P2" in the ml_sol object
   unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
+
+  unsigned solK1Index = mlSol->GetIndex("K1");
+  unsigned solK1Type = mlSol->GetSolutionType(solK1Index);    // get the finite element type for "u"
 
   unsigned solCIndex = mlSol->GetIndex("C");
   unsigned solC1Index = mlSol->GetIndex("C1");
@@ -313,6 +456,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < double > >  solV(dim);    // local solution
   std::vector < double >  solP1; // local solution
   std::vector < double >  solP2; // local solution
+
+  std::vector < double >  solK1; // local solution
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
   unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
@@ -336,6 +481,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     unsigned nDofsVP = dim * nDofsV + 2 * nDofsP;
 
+    unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
+
+
     // resize local arrays
     sysDof.resize(nDofsVP);
     Res.assign(nDofsVP, 0.);
@@ -348,6 +496,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
 
+    solK1.resize(nDofsK1);
 
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofsV; i++) {
@@ -367,6 +516,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
       sysDof[dim * nDofsV + nDofsP + i ] = pdeSys->GetSystemDof(solP2Index, solP2PdeIndex, i, iel);    // global to global mapping between solution node and pdeSys dof
     }
 
+    for(unsigned i = 0; i < nDofsK1; i++) {
+      unsigned iDof = msh->GetSolutionDof(i, iel, solK1Type);    // local to global mapping between solution node and solution dof
+      solK1[i] = (*sol->_Sol[solK1Index])(iDof);
+    }
+
     // local storage of coordinates
     for(unsigned i = 0; i < nDofsV; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
@@ -380,10 +534,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     //std::vector <double> A = {0, 0, 0, 0, 1, -h/2.};
 
     //std::vector <double> A = {-1, 0, -1., 0, 0, 1.};
-    std::vector <double> A = {1, 0, 1., 0, 0, -1.};
-    std::vector <double> Ap;
 
-    Data *data = new Data(solVType, solPType, solV, solP1, solP2, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A);
+    std::vector <double> Ap;
+    bool distributeCurvature = true;
+
+    Data *data = new Data(solVType, solPType, solV, solP1, solP2, solK1, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature);
 
     cad.SetDataPointer(data);
 
@@ -414,17 +569,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   sol->_Sol[solC1Index]->close();
   sol->_Sol[solCntIndex]->close();
 
-  for(unsigned i = msh->_dofOffset[solC1Type][iproc]; i < msh->_dofOffset[solC1Type][iproc+1];i++ ){
+  for(unsigned i = msh->_dofOffset[solC1Type][iproc]; i < msh->_dofOffset[solC1Type][iproc + 1]; i++) {
     double value = (*sol->_Sol[solC1Index])(i);
-    double cnt =  (*sol->_Sol[solCntIndex])(i);
-    sol->_Sol[solC1Index]->set(i, value/cnt);
+    double cnt = (*sol->_Sol[solCntIndex])(i);
+    sol->_Sol[solC1Index]->set(i, value / cnt);
   }
   sol->_Sol[solC1Index]->close();
 
   std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 
-  AssembleStabilizationTerms(ml_prob);
+//AssembleStabilizationTerms(ml_prob);
   AssembleGhostPenalty(ml_prob);
 //AssembleGhostPenaltyDGP(ml_prob, true);
 //AssembleGhostPenaltyDGP(ml_prob, false);

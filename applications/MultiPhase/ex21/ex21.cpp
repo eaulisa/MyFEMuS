@@ -22,6 +22,7 @@ int main(int argc, char** args) {
 
 
   std::vector<std::vector<double>> V(2,std::vector<double>(dofsV, 2.));
+  std::vector<double> K1(dofsP, 1.);
   std::vector<double> P1(dofsP, 1.);
   std::vector<double> P2(dofsP, 2.);
 
@@ -44,7 +45,7 @@ int main(int argc, char** args) {
 
   ConicAdaptiveRefinement cad;
 
-  Data *data = new Data(VType, PType, V, P1, P2, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt, {0,0}, A);
+  Data *data = new Data(VType, PType, V, P1, P2, K1, res, jac, xv, elType, rho1, rho2, mu1, mu2, sigma, dt, {0,0}, A, false);
 
   cad.SetDataPointer(data);
 
