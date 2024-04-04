@@ -1084,17 +1084,9 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 
-
-
-
-
-
-
-
-
 int main() {
-  unsigned int m = 1;
-  unsigned int n = 1;
+  unsigned int m = 0;
+  unsigned int n = 2;
   int s = 0;
 
   std::cout.precision(16);
@@ -1112,9 +1104,9 @@ int main() {
     Type A1 = 0, A2 = 0, A3 = 0, Easy_A1 = 0,  Easy_A2 = 0, Easy_A3 = 0;
     Type B1 = 0, B2 = 0, B3 = 0, Easy_B1 = 0, Easy_B2 = 0, Easy_B3 = 0;
 
-    random_polynomial(pol1, pol2);
-    a = pol1[1] - pol2[1];
-    c = pol1[2] - pol2[2];
+//     random_polynomial(pol1, pol2);
+//     a = pol1[1] - pol2[1];
+//     c = pol1[2] - pol2[2];
 
 //      k = 0.85764624125214572459; b = 0.54315816543212092071; d = 1.4313877017383407342; a = -0.0012779049581279622316; c = -1.5795148879194236269;
 //     std::vector<std::vector<Type>> sample{{1, -1, 0.25, 0.5, -0.1, 0,0,1}, {0, 0,0,0.5,0,1,0,0}, {1, 0,0,0.5,0,0,0,1},{0.1, 0.2,-1,2,0.1,0.251724386116496,0,0}, {1, -1, 0.25, 0, -0.25, 0,0.3333333333333333,0},{1, -1, 0.25, 0, -0.1, 0,0.2108185106778920348,0.36754446796632406214},{20,-8.4,0.6,-6.5,1.3,0.045806466059993167228,0.136242991647203604,0.5095766326720312378}, {-0.69657011083167508225, -0.69655399150054631008, 1.4832208284564414313, 1, -1.4513087502919645999,0,0.34978109786848710083,0.52319330960346455139}};
@@ -1141,11 +1133,12 @@ int main() {
 // 1ep    -470085x^2+ 1164.86x+ -0.901638+y =0
 // 1/2 ep    -1.88034e+06x^2+ 2329.72x+ -0.901638+y =0
 
+// -12.4444x^2+ 2.33333x+ -0.125+y =0
 
-  Type k = 1.4409885720540716036;
-  Type b = -0.97870700386292641682;
-  Type d = -1.6552636733535974756; a = 1.5952086400218350448;
- c = -0.040815498698882457518;
+   k = -12.4444;
+   b = 2.33333;
+   d = -0.125; a = 0;
+  c = 1;
 
 
 //  a=0;
@@ -1154,11 +1147,13 @@ int main() {
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
     GetIntervalall<Type, Type>(pol1, pol2, I1, I2, I3);
 
-    //       std::cout<< "\nSample " << j+1 << " : " <<std::endl;
-    //       std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
-    //           for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
-    //           for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
-    //           for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
+          std::cout<< "\nSample " << j+1 << " : " <<std::endl;
+          std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
+              for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
+              for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
+              for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
+
+                  cout << "I_size = " << I1.size() <<" "<<I2.size()<<" "<< I3.size() <<endl;
 
     if(I1.size() > 0) {
       A1 = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1);
@@ -1172,9 +1167,36 @@ int main() {
       A3 = integral_A3(m, n, s, a, c, pol2, I3);
       Easy_A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
     }
-
+cout << "I_size = " << I1.size() <<" "<<I2.size()<<" "<< I3.size() <<endl;
     area1 = A1 + A2 + A3;
     easy_area1 = Easy_A1 + Easy_A2 + Easy_A3;
+    cout << "area = " << area1 << " "<< easy_area1 <<endl;
+
+
+//         I1.resize(1);
+//         I3[0].second = 1 ;
+//         Type area = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1) + easy_integral_A3(m, n, s, a, c, pol2, I3);
+//         cout << " two intersection area = " << area <<endl ;
+
+/*
+        I1[0].first = I1[1].first ;
+        I1[0].second = I1[1].second ;
+        cout<< " I1 = " << I1[0].first << " "<< I1[0].second << endl;
+        I1.resize(1);
+        Type area = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
+        cout << " two intersection area = " << area <<endl ;*/
+
+//         I1[0].first = I1[1].first ;
+//         I1[0].second = I1[1].second ;
+//         cout<< " I1 = " << I1[0].first << " "<< I1[0].second << endl;
+//         I1.resize(1);
+//         I1.resize(1);
+//         I3[0].first = 0 ;
+//         Type area = integral_A3(m, n, s, a, c, pol2, I1) -  integral_A2(m, n, s, a, c, pol2, I1) + easy_integral_A3(m, n, s, a, c, pol2, I3);
+//         cout << " two intersection area = " << area <<endl ;
+
+
+
     pol1[0] *= -1;
     pol1[1] *= -1;
     pol1[2] *= -1;
@@ -1312,7 +1334,7 @@ int main() {
 
 
 template <class TypeIO, class TypeA>
-                                                                                                                                                             void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
+void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
   I1.resize(0);
   I2.resize(0);
   I3.resize(0);
