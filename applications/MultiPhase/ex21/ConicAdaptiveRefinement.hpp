@@ -553,7 +553,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
           femL->Jacobian(xl, ig, weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
 
           unsigned dim = 2;
-          std::vector <double> xil0g(2, 0);  // get the l0 parent coordinates at the gauss point l-mesh
+          std::vector <double> xil0g(dim, 0);  // get the l0 parent coordinates at the gauss point l-mesh
           for(unsigned i = 0; i < _phi.size(); i++) {
             for(unsigned k = 0; k < dim; k++) {
               xil0g[k] += _phi[i] * xil0[i][k];
@@ -679,7 +679,6 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::AdaptiveRefinement(
           xil0g[k] += phi[i] * xil0[i][k];
         }
       }
-      //std::cout<<xil0g[0]<<" "<<xil0g[1]<<std::endl;
 
       double gaussPointWeight;
       femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);

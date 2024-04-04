@@ -71,7 +71,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   unsigned indexSolP2 = mlSol->GetIndex("P2");
   unsigned indexPdeP2 = my_nnlin_impl_sys.GetSolPdeIndex("P2");
 
-  unsigned indexSolC = mlSol->GetIndex("C");
+  unsigned indexSolC = mlSol->GetIndex("C0");
 
   unsigned solTypeP = mlSol->GetSolutionType("P1");
 

@@ -177,7 +177,7 @@ int main(int argc, char** args) {
   mlSol.AddSolution("P1", LAGRANGE, FIRST);
   mlSol.AddSolution("P2", LAGRANGE, FIRST);
 
-  mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
+  mlSol.AddSolution("C0", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
   mlSol.AddSolution("C1", LAGRANGE, FIRST, 1, false);
   mlSol.AddSolution("cnt", LAGRANGE, FIRST, 1, false);
 
@@ -261,7 +261,7 @@ void InitCurvature(Solution* sol, const std::vector<double> &A) {
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned iproc = msh->processor_id();
 
-  unsigned solC0Index = sol->GetIndex("C");
+  unsigned solC0Index = sol->GetIndex("C0");
   unsigned solC1Index = sol->GetIndex("C1");
 
   unsigned solK0Index = sol->GetIndex("K0");
@@ -440,7 +440,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   unsigned solK1Index = mlSol->GetIndex("K1");
   unsigned solK1Type = mlSol->GetSolutionType(solK1Index);    // get the finite element type for "u"
 
-  unsigned solCIndex = mlSol->GetIndex("C");
+  unsigned solC0Index = mlSol->GetIndex("C0");
   unsigned solC1Index = mlSol->GetIndex("C1");
   unsigned solC1Type = mlSol->GetSolutionType(solC1Index);
   unsigned solCntIndex = mlSol->GetIndex("cnt");
@@ -470,7 +470,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
   ConicAdaptiveRefinement cad;
 
-  sol->_Sol[solCIndex]->zero();
+  sol->_Sol[solC0Index]->zero();
   sol->_Sol[solC1Index]->zero();
   sol->_Sol[solCntIndex]->zero();
 
@@ -552,7 +552,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
     double C = std::get<0>(a) / (std::get<0>(a) + std::get<1>(a));
 
-    sol->_Sol[solCIndex]->set(iel, C);
+    sol->_Sol[solC0Index]->set(iel, C);
 
     unsigned nDofs1 = msh->GetElementDofNumber(iel, solC1Type);
     for(unsigned i = 0; i < nDofs1; i++) {
@@ -565,7 +565,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
   } //end element loop for each process
 
-  sol->_Sol[solCIndex]->close();
+  sol->_Sol[solC0Index]->close();
   sol->_Sol[solC1Index]->close();
   sol->_Sol[solCntIndex]->close();
 

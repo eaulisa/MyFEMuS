@@ -61,7 +61,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
   unsigned indexSol = (P1) ? mlSol->GetIndex("P1") : mlSol->GetIndex("P2");
   unsigned indexPde = (P1) ? my_nnlin_impl_sys.GetSolPdeIndex("P1") : my_nnlin_impl_sys.GetSolPdeIndex("P2");
   //unsigned solType = mlSol->GetSolutionType("P1");
-  unsigned indexSolC = mlSol->GetIndex("C");
+  unsigned indexSolC = mlSol->GetIndex("C0");
 
   unsigned solTypeX = 2;
   start_time = clock();
@@ -399,7 +399,7 @@ void AssembleCIPPressure(MultiLevelProblem& ml_prob, const bool &P1) {
     abort();
   }
 
-  unsigned indexSolC = mlSol->GetIndex("C");
+  unsigned indexSolC = mlSol->GetIndex("C0");
 
   unsigned solTypeX = 2;
   start_time = clock();

@@ -84,7 +84,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
 
-  unsigned indexSolC = mlSol->GetIndex("C");
+  unsigned indexSolC = mlSol->GetIndex("C0");
 
 
   start_time = clock();
