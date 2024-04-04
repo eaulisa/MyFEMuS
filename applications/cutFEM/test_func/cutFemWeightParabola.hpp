@@ -1,23 +1,34 @@
-#ifndef __femus_cut_fem_int_hpp__
-#define __femus_cut_fem_int_hpp__
+
+#ifndef __femus_cut_fem_int_parabola_hpp__
+#define __femus_cut_fem_int_parabola_hpp__
 
 #include "GeomElTypeEnum.hpp"
-
-#include "CutLine.hpp"
-#include "CutHyperCube.hpp"
-#include "CutTriangle.hpp"
-#include "CutTetrahedron.hpp"
-#include "CutPrism.hpp"
-
-#include "CutFem.hpp"
-
+//#include "CutLine.hpp"
+//#include "CutHyperCube.hpp"
+//#include "CutTriangle.hpp"
+//#include "CutTetrahedron.hpp"
+//#include "CutPrism.hpp"
+//#include "CutFem.hpp"
 #include "GramSchmidt.hpp"
-
 #include "GaussPoints.hpp"
 
 #include <iostream>
+#include <algorithm>
+#include <vector>
+#include <cmath>
+#include <algorithm>    // std::sort
+#include <ctime>
+#include <cstdlib>
+#include <climits>
+#include <typeinfo>
+#include <boost/math/special_functions/factorials.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp>
+#include <map>
 
+//#include <boost/math/special_functions/pow.hpp>
+using namespace std;
+using namespace femus;
+using boost::math::factorial;
 namespace boost {
   namespace multiprecision {
     typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
@@ -31,7 +42,15 @@ namespace boost {
 using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
 
-using namespace femus;
+
+
+
+
+
+
+
+
+
 
 std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};  //for parabola my geometry type is quad (dimension 2)
 
@@ -58,13 +77,13 @@ class CutFemWeightParabola {
       _cntCall = 0;
 
       if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
-        _obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
+        //_obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == TET) {
-        _obj = new TTImap <TypeA, TypeA> (_dim, _qM, 0);
+        //_obj = new TTImap <TypeA, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == TRI) {
-        _obj = new TRImap <TypeA, TypeA> (_dim, _qM, 0);
+        //_obj = new TRImap <TypeA, TypeA> (_dim, _qM, 0);
       }
       else if(_geomElemType == WEDGE) {
       }
@@ -96,14 +115,14 @@ class CutFemWeightParabola {
       _f.resize(_L);
     }
 
-    ~CutFemWeight() {
+    ~CutFemWeightParabola() {
       clear();
       delete _gauss;
-      if(_geomElemType != WEDGE) delete _obj;
+      //if(_geomElemType != WEDGE) delete _obj;
     };
 
     void clear() {
-      if(_geomElemType != WEDGE) _obj->clear();
+      //if(_geomElemType != WEDGE) _obj->clear();
     };
 
     void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
@@ -124,7 +143,7 @@ class CutFemWeightParabola {
     unsigned GetGaussQuadratureOrder() {
       return _gaussOrder;
     }
-    
+
     unsigned GetDimension() {
       return _dim;
     }
@@ -175,7 +194,7 @@ class CutFemWeightParabola {
 
     unsigned _cntCall;
 
-    CutFEMmap <TypeA> *_obj;
+    //CutFEMmap <TypeA> *_obj;
 
 
     unsigned _tetBaseType;
@@ -230,7 +249,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const std::ve
 
   //time1 += clock() - time;
   //time = clock();
-  _obj->SetBaseType(_tetBaseType);
+  //_obj->SetBaseType(_tetBaseType);
 
   unsigned count = 0;
 
@@ -242,7 +261,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const std::ve
           unsigned j = static_cast<unsigned>(jj);
           unsigned k = q - i - j;
           //TODO what happens in dimension three?
-          _f[count] = (_geomElemType == WEDGE) ? Prism<TypeA, TypeA>(s, {i, j, k}, aA, dA) : (*_obj)(s, {i, j, k}, aA, dA);
+          //_f[count] = (_geomElemType == WEDGE) ? Prism<TypeA, TypeA>(s, {i, j, k}, aA, dA) : (*_obj)(s, {i, j, k}, aA, dA);
           count++;
         }
       }
@@ -253,14 +272,18 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const std::ve
     for(unsigned q = 0; q <= _qM; q++) {
       for(unsigned j = 0; j <= q; j++) {
         unsigned i = q - j;
-        _f[count] = (*_obj)(s, {i, j}, aA, dA);
+        //TODO change it with area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
+  //      _f[count] = (*_obj)(s, {i, j}, aA, dA);
+//         _f[count] = find_area_2intersection_formula(i,j,s,a,c,table, p1,p2, p3);
+
+
         count++;
       }
     }
   }
   else if(_dim == 1) {
     for(unsigned i = 0; i <= _qM; i++) {
-      _f[i] = (*_obj)(s, {i}, aA, dA);
+     // _f[i] = (*_obj)(s, {i}, aA, dA);
     }
   }
   else {
@@ -277,7 +300,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const std::ve
 
   std::vector<double> bo(_L);
   std::vector<double> x(_dim);
-  
+
   unsigned TETtype = _tetBaseType;
   if(_geomElemType == TET && _tetBaseType == 0) {
     TETtype = (std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 1 : 2;
@@ -396,13 +419,14 @@ void CutFemWeightParabola<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x
   }
 }
 
+
+
+
+
+
+
+
 #endif
-
-
-
-
-
-
 
 
 

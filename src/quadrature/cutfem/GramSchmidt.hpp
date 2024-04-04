@@ -2,12 +2,12 @@
 #ifndef __femus_GramSchmidt_hpp__
 #define __femus_GramSchmidt_hpp__
 
-#include "CutFemWeight.hpp"
+//#include "CutFemWeight.hpp"
 
 #include <iostream>
 #include <iomanip>
 
-using namespace boost;
+//using namespace boost;
 
 //This file Gives the lower triangular matrix A, which gives the polynomial orthonormal basis in terms of the standard basis, or specified basis. All neccassry functions were built in order to complete the task.
 
