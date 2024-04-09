@@ -1,36 +1,11 @@
- 
+#include "cutFemWeightParabola.hpp"
+#include <typeinfo>
+#include <boost/math/special_functions/factorials.hpp>
+#include <boost/multiprecision/cpp_bin_float.hpp>
 
+using namespace std;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+using boost::math::factorial;
 
 template <class Type>
 struct PointT {

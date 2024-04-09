@@ -1,10 +1,24 @@
-
 #include "cutFemWeightParabola.hpp"
+// #include "parabolaIntegration.hpp"
+using namespace std;
 
 int main() {
+       typedef cpp_bin_float_oct Type;
+       int s = 0;
+       int table = 0;
+       Type a(0);
+       Type c (1);
+       PointT <Type> p1,p2,p3;
+       p1 = { static_cast<Type>(0), static_cast<Type>(0.125) };
+       p2 = { static_cast<Type>( 0.375), static_cast<Type>(1) };
+       p3 = { static_cast<Type>((p1.x+p2.x)/2.0), static_cast<Type>(0.125) };
+      std::vector<double>weightCF;
 
+      CutFemWeightParabola <double,Type> Pweights(QUAD, 3, "legendre");
+      Pweights(s, a, c, table, p1, p2, p3, weightCF);
 
-      CutFemWeightParabola <double,cpp_bin_float_oct> a(QUAD, 3, "legendre");
+/*
+void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const int &a, const int &c,  const int &table, PointT <TypeIO> &p1,  PointT <TypeI0> &p2, const PointT <TypeIO> &p3,  std::vector <TypeIO> &weightCF)*/
 
 
 //     typedef cpp_bin_float_oct Type;      //     typedef double Type;
