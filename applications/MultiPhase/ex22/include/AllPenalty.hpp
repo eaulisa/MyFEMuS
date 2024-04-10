@@ -33,11 +33,8 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   //quantities for iel will have index1
   //quantities for jel will have index2
 
-  std::vector<adept::adouble> solP1i;
-  std::vector<adept::adouble> solP1j;
-
-  std::vector<adept::adouble> solP2i;
-  std::vector<adept::adouble> solP2j;
+  std::vector<adept::adouble> solPi;
+  std::vector<adept::adouble> solPj;
 
   std::vector<adept::adouble> aResPi;
   std::vector<adept::adouble> aResPj;
@@ -89,14 +86,13 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
     short unsigned ielType = msh->GetElementType(iel);
 
     unsigned nDofsPi = msh->GetElementDofNumber(iel, solTypeP);
-    solP1i.resize(nDofsPi);
-    solP2i.resize(nDofsPi);
+    solPi.resize(2 * nDofsPi);
     sysDofsPi.resize(2 * nDofsPi);
 
     for(unsigned i = 0; i < nDofsPi; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
-      solP1i[i] = (*mysolution->_Sol[indexSolP1])(idof);
-      solP2i[i] = (*mysolution->_Sol[indexSolP2])(idof);
+      solPi[i] = (*mysolution->_Sol[indexSolP1])(idof);
+      solPi[i + nDofsPi] = (*mysolution->_Sol[indexSolP2])(idof);
       sysDofsPi[i] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, i, iel);
       sysDofsPi[i + nDofsPi] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, i, iel);
     }
@@ -127,14 +123,13 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             short unsigned jelType = msh->GetElementType(jel);
 
             unsigned nDofsPj = msh->GetElementDofNumber(jel, solTypeP);
-            solP1j.resize(nDofsPj);
-            solP2j.resize(nDofsPj);
+            solPj.resize(2 * nDofsPj);
             sysDofsPj.resize(2 * nDofsPj);
 
             for(unsigned j = 0; j < nDofsPj; j++) {
               unsigned jdof = msh->GetSolutionDof(j, jel, solTypeP);
-              solP1j[j] = (*mysolution->_Sol[indexSolP1])(jdof);
-              solP2j[j] = (*mysolution->_Sol[indexSolP2])(jdof);
+              solPj[j] = (*mysolution->_Sol[indexSolP1])(jdof);
+              solPj[j + nDofsPj] = (*mysolution->_Sol[indexSolP2])(jdof);
               sysDofsPj[j] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, j, jel);
               sysDofsPj[j + nDofsPj] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, j, jel);
             }
@@ -224,12 +219,12 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
               for(unsigned k = 0; k < dim; k++) {
                 for(unsigned i = 0; i < nDofsPi; i++) {
-                  gradSolP1i[k] += solP1i[i] * gradPhiPi[i * dim + k];
-                  gradSolP2i[k] += solP2i[i] * gradPhiPi[i * dim + k];
+                  gradSolP1i[k] += solPi[i] * gradPhiPi[i * dim + k];
+                  gradSolP2i[k] += solPi[i + nDofsPi] * gradPhiPi[i * dim + k];
                 }
                 for(unsigned i = 0; i < nDofsPj; i++) {
-                  gradSolP1j[k] += solP1j[i] * gradPhiPj[i * dim + k];
-                  gradSolP2j[k] += solP2j[i] * gradPhiPj[i * dim + k];
+                  gradSolP1j[k] += solPj[i] * gradPhiPj[i * dim + k];
+                  gradSolP2j[k] += solPj[i + nDofsPj] * gradPhiPj[i * dim + k];
                 }
               }
 
@@ -258,17 +253,18 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             }
             myRES->add_vector_blocked(rhsPj, sysDofsPj);
 
+
+
+
             s.dependent(&aResPi[0], aResPi.size());
-            s.independent(&solP1i[0], nDofsPi);
-            s.independent(&solP2i[0], nDofsPi);
+            s.independent(&solPi[0], solPi.size());
 
             Jac.resize(sysDofsPi.size() * sysDofsPi.size()); //J11
             s.jacobian(&Jac[0], true);
             myKK->add_matrix_blocked(Jac, sysDofsPi, sysDofsPi);
 
             s.clear_independents();
-            s.independent(&solP1j[0], nDofsPj);
-            s.independent(&solP2j[0], nDofsPj);
+            s.independent(&solPj[0], solPj.size());
 
             Jac.resize( sysDofsPi.size() * sysDofsPj.size());//J12
             s.jacobian(&Jac[0], true);
@@ -276,17 +272,15 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
             s.clear_dependents();
             s.clear_independents();
-            s.dependent(&aResPj[0], sysDofsPj.size());
-            s.independent(&solP1i[0], nDofsPi);
-            s.independent(&solP2i[0], nDofsPi);
+            s.dependent(&aResPj[0], aResPj.size());
+            s.independent(&solPi[0], solPi.size());
 
             Jac.resize(sysDofsPj.size() * sysDofsPi.size()); //J21
             s.jacobian(&Jac[0], true);
             myKK->add_matrix_blocked(Jac, sysDofsPj, sysDofsPi);
 
             s.clear_independents();
-            s.independent(&solP1j[0], nDofsPj);
-            s.independent(&solP2j[0], nDofsPj);
+            s.independent(&solPj[0], solPj.size());
 
             Jac.resize(sysDofsPj.size() * sysDofsPj.size()); //J22
             s.jacobian(&Jac[0], true);
