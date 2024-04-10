@@ -89,6 +89,8 @@ std::vector <double> g = {0, 0, 0};
 #include "./include/GhostPenalty.hpp"
 #include "./include/GhostPenaltyDGP.hpp"
 #include "./include/Stabilization.hpp"
+#include "./include/AllPenalty.hpp"
+
 
 #define RADIUS 0.25
 #define XG 0.5
@@ -584,8 +586,10 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 //AssembleGhostPenaltyDGP(ml_prob, true);
 //AssembleGhostPenaltyDGP(ml_prob, false);
 
-  AssembleCIPPressure(ml_prob, true);
-  AssembleCIPPressure(ml_prob, false);
+ /* AssembleCIPPressure(ml_prob, true);
+  AssembleCIPPressure(ml_prob, false)*/;
+
+   AssembleAllPenalty(ml_prob);
 
 
   RES->close();
