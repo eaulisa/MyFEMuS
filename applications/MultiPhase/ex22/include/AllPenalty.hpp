@@ -33,19 +33,23 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   //quantities for iel will have index1
   //quantities for jel will have index2
 
+
+  std::vector<adept::adouble> solVi;
+  std::vector<adept::adouble> solVj;
+
   std::vector<adept::adouble> solPi;
   std::vector<adept::adouble> solPj;
 
-  std::vector<adept::adouble> aResPi;
-  std::vector<adept::adouble> aResPj;
+  std::vector<adept::adouble> aResi;
+  std::vector<adept::adouble> aResj;
 
-  std::vector<double> rhsPi;
-  std::vector<double> rhsPj;
+  std::vector<double> rhsi;
+  std::vector<double> rhsj;
 
-   vector < double > Jac;
+  vector < double > Jac;
 
-  std::vector <unsigned> sysDofsPi;
-  std::vector <unsigned> sysDofsPj;
+  std::vector <unsigned> sysDofsi;
+  std::vector <unsigned> sysDofsj;
 
   double weight;
   std::vector < double > phi;
@@ -58,20 +62,36 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   std::vector<double> phiPj, gradPhiPj;
 
 
+  double weightVi;
+  std::vector<double> phiVi, gradPhiVi;
+
+  double weightVj;
+  std::vector<double> phiVj, gradPhiVj;
+
+
   vector <vector < double> > xi(dim);
   vector <vector < double> > xj(dim);
 
   std::cout.precision(10);
 
   //variable-name handling
+
+  std::vector<unsigned> indexSolV(dim);
+  std::vector<unsigned> indexPdeV(dim);
+  indexSolV[0] = mlSol->GetIndex("U");
+  indexSolV[1] = mlSol->GetIndex("V");
+  indexPdeV[0] = my_nnlin_impl_sys.GetSolPdeIndex("U");
+  indexPdeV[1] = my_nnlin_impl_sys.GetSolPdeIndex("V");
+  unsigned solTypeV = mlSol->GetSolutionType("U");
+
   unsigned indexSolP1 = mlSol->GetIndex("P1");
   unsigned indexSolP2 = mlSol->GetIndex("P2");
   unsigned indexPdeP1 = my_nnlin_impl_sys.GetSolPdeIndex("P1");
   unsigned indexPdeP2 = my_nnlin_impl_sys.GetSolPdeIndex("P2");
   unsigned solTypeP = mlSol->GetSolutionType("P1");
 
-  if(solTypeP > 2) {
-    std::cout << "error this function works only for Lagrangian Solutions\n";
+  if(solTypeP > 2 || solTypeV > 2) {
+    std::cout << "error the AssembleAllPenalty works only for Lagrangian Solutions\n";
     abort();
   }
 
@@ -85,16 +105,27 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
     short unsigned ielType = msh->GetElementType(iel);
 
+    unsigned nDofsVi = msh->GetElementDofNumber(iel, solTypeV);
     unsigned nDofsPi = msh->GetElementDofNumber(iel, solTypeP);
+
+    solVi.resize(dim * nDofsVi);
     solPi.resize(2 * nDofsPi);
-    sysDofsPi.resize(2 * nDofsPi);
+    sysDofsi.resize(dim * nDofsVi + 2 * nDofsPi);
+
+    for(unsigned i = 0; i < nDofsVi; i++) {
+      unsigned idof = msh->GetSolutionDof(i, iel, solTypeV);
+      for(unsigned k = 0; k < dim; k++) {
+        solVi[i + k * nDofsVi] = (*mysolution->_Sol[indexSolV[k]])(idof);
+        sysDofsi[i + k * nDofsVi] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel);
+      }
+    }
 
     for(unsigned i = 0; i < nDofsPi; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
       solPi[i] = (*mysolution->_Sol[indexSolP1])(idof);
       solPi[i + nDofsPi] = (*mysolution->_Sol[indexSolP2])(idof);
-      sysDofsPi[i] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, i, iel);
-      sysDofsPi[i + nDofsPi] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, i, iel);
+      sysDofsi[i + dim * nDofsVi] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, i, iel);
+      sysDofsi[i + dim * nDofsVi + nDofsPi] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, i, iel);
     }
 
     unsigned nDofsXi = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -111,6 +142,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
     double h12 = (xi[1][2] - xi[1][0]);
 
 
+    for(unsigned ktype = 0; ktype < solTypeP + 1; ktype++) {
+      ProjectNodalToPolynomialCoefficients(aPi[ktype], xi, ielType, ktype);
+    }
+
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int jel = el->GetFaceElementIndex(iel, iface) - 1;
 
@@ -122,16 +157,27 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
             short unsigned jelType = msh->GetElementType(jel);
 
+            unsigned nDofsVj = msh->GetElementDofNumber(jel, solTypeV);
             unsigned nDofsPj = msh->GetElementDofNumber(jel, solTypeP);
+
+            solVj.resize(dim * nDofsVj);
             solPj.resize(2 * nDofsPj);
-            sysDofsPj.resize(2 * nDofsPj);
+            sysDofsj.resize(dim * nDofsVj + 2 * nDofsPj);
+
+            for(unsigned j = 0; j < nDofsVj; j++) {
+              unsigned jdof = msh->GetSolutionDof(j, jel, solTypeV);
+              for(unsigned k = 0; k < dim; k++) {
+                solVj[j + k * nDofsVj] = (*mysolution->_Sol[indexSolV[k]])(jdof);
+                sysDofsj[j + k * nDofsVj] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], j, jel);
+              }
+            }
 
             for(unsigned j = 0; j < nDofsPj; j++) {
               unsigned jdof = msh->GetSolutionDof(j, jel, solTypeP);
               solPj[j] = (*mysolution->_Sol[indexSolP1])(jdof);
               solPj[j + nDofsPj] = (*mysolution->_Sol[indexSolP2])(jdof);
-              sysDofsPj[j] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, j, jel);
-              sysDofsPj[j + nDofsPj] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, j, jel);
+              sysDofsj[j + dim * nDofsVj] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, j, jel);
+              sysDofsj[j + dim * nDofsVj + nDofsPj] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, j, jel);
             }
 
             unsigned nDofsXj = msh->GetElementDofNumber(jel, solTypeX);    // number of solution element dofs
@@ -147,13 +193,13 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             double h21 = (xj[0][2] - xj[0][0]);
             double h22 = (xj[1][2] - xj[1][0]);
 
-            aResPi.assign(2 * nDofsPi, 0);
-            aResPj.assign(2 * nDofsPj, 0);
+            aResi.assign(dim * nDofsVi + 2 * nDofsPi, 0);
+            aResj.assign(dim * nDofsVj + 2 * nDofsPj, 0);
 
             s.new_recording();
 
             const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
-            unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solTypeP);
+            unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solTypeX);
             std::vector  < std::vector  <  double > > faceVx(dim);    // A matrix holding the face coordinates rowwise.
             for(int k = 0; k < dim; k++) {
               faceVx[k].resize(faceDofs);
@@ -166,7 +212,6 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             }
 
             for(unsigned ktype = 0; ktype < solTypeP + 1; ktype++) {
-              ProjectNodalToPolynomialCoefficients(aPi[ktype], xi, ielType, ktype);
               ProjectNodalToPolynomialCoefficients(aPj[ktype], xj, jelType, ktype);
             }
 
@@ -204,12 +249,45 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
               msh->_finiteElement[ielType][solTypeP]->Jacobian(xi, etai, weightPi, phiPi, gradPhiPi);
               msh->_finiteElement[jelType][solTypeP]->Jacobian(xj, etaj, weightPj, phiPj, gradPhiPj);
 
-              double C2 = 1;
-              double PHIT1 = mu1 + C2 * rho1 *h2 / dt;
-              double PHI1 = 0.05 * h2 /PHIT1;
+              msh->_finiteElement[ielType][solTypeV]->Jacobian(xi, etai, weightVi, phiVi, gradPhiVi);
+              msh->_finiteElement[jelType][solTypeV]->Jacobian(xj, etaj, weightVj, phiVj, gradPhiVj);
 
-              double PHIT2 = mu2 + C2 * rho2 *h2 / dt;
-              double PHI2 = 0.05 * h2 /PHIT2;
+              double C2 = 1;
+              double PHIT1 = mu1 + C2 * rho1 * h2 / dt;
+              double PHI1 = 0.05 * h2 / PHIT1;
+
+              double PHIT2 = mu2 + C2 * rho2 * h2 / dt;
+              double PHI2 = 0.05 * h2 / PHIT2;
+
+
+
+              std::vector < std::vector < adept::adouble > > gradSolVi(dim, std::vector < adept::adouble >(dim, 0.));
+              std::vector < std::vector < adept::adouble > > gradSolVj(dim, std::vector < adept::adouble >(dim, 0.));
+
+              for(unsigned j = 0; j < dim; j++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  for(unsigned i = 0; i < nDofsVi; i++) {
+                    gradSolVi[j][k] += solVi[i + j * nDofsVi] * gradPhiVi[i * dim + k];
+                  }
+                  for(unsigned i = 0; i < nDofsVj; i++) {
+                    gradSolVj[j][k] += solVj[i + j * nDofsVj] * gradPhiVj[i * dim + k];
+                  }
+                }
+              }
+              for(unsigned j = 0; j < dim; j++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  for(unsigned i = 0; i < nDofsVi; i++) {
+                    aResi[i + j * nDofsVi] +=  PHIT1 * h * (gradSolVi[k][k] -  gradSolVj[k][k])  * gradPhiVi[i * dim + j] * weightVi;
+
+                  }
+                  for(unsigned i = 0; i < nDofsVj; i++) {
+                    aResj[i + j * nDofsVj] -=  PHIT2 * h * (gradSolVi[k][k] -  gradSolVj[k][k])  * gradPhiVj[i * dim + j] * weightVj;
+
+                  }
+                }
+              }
+
+
 
               std::vector < adept::adouble > gradSolP1i(dim, 0.);
               std::vector < adept::adouble > gradSolP2i(dim, 0.);
@@ -230,61 +308,69 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
               for(unsigned k = 0; k < dim; k++) {
                 for(unsigned i = 0; i < nDofsPi; i++) {
-                  aResPi[i] +=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPi[i * dim + k] * weightPi;
-                  aResPi[i + nDofsPi] +=  PHI2 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPi[i * dim + k] * weightPi;
+                  aResi[i + dim * nDofsVi] +=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPi[i * dim + k] * weightPi;
+                  aResi[i + dim * nDofsVi + nDofsPi] +=  PHI1 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPi[i * dim + k] * weightPi;
                 }
                 for(unsigned i = 0; i < nDofsPj; i++) {
-                  aResPj[i] -=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPj[i * dim + k] * weightPj;
-                  aResPj[i + nDofsPj] -=  PHI2 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPj[i * dim + k] * weightPj;
+                  aResj[i + dim * nDofsVj] -=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPj[i * dim + k] * weightPj;
+                  aResj[i + dim * nDofsVj + nDofsPj] -=  PHI2 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPj[i * dim + k] * weightPj;
                 }
               }
+
+
+
+
+
+
+
             }
 
 
-            rhsPi.resize(sysDofsPi.size());   //resize
-            for(int i = 0; i < sysDofsPi.size(); i++) {
-              rhsPi[i] = -aResPi[i].value();
+            rhsi.resize(aResi.size());   //resize
+            for(int i = 0; i < aResi.size(); i++) {
+              rhsi[i] = -aResi[i].value();
             }
-            myRES->add_vector_blocked(rhsPi, sysDofsPi);
+            myRES->add_vector_blocked(rhsi, sysDofsi);
 
-            rhsPj.resize(sysDofsPj.size());   //resize
-            for(int i = 0; i < sysDofsPj.size(); i++) {
-              rhsPj[i] = -aResPj[i].value();
+            rhsj.resize(aResj.size());   //resize
+            for(int i = 0; i < aResj.size(); i++) {
+              rhsj[i] = -aResj[i].value();
             }
-            myRES->add_vector_blocked(rhsPj, sysDofsPj);
+            myRES->add_vector_blocked(rhsj, sysDofsj);
 
-
-
-
-            s.dependent(&aResPi[0], aResPi.size());
+            s.dependent(&aResi[0], aResi.size());
+            s.independent(&solVi[0], solVi.size());
             s.independent(&solPi[0], solPi.size());
 
-            Jac.resize(sysDofsPi.size() * sysDofsPi.size()); //J11
+            Jac.resize(sysDofsi.size() * sysDofsi.size()); //J11
             s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsPi, sysDofsPi);
+            myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsi);
 
             s.clear_independents();
+            s.independent(&solVj[0], solVj.size());
             s.independent(&solPj[0], solPj.size());
 
-            Jac.resize( sysDofsPi.size() * sysDofsPj.size());//J12
+            Jac.resize(sysDofsi.size() * sysDofsj.size()); //J12
             s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsPi, sysDofsPj);
+            myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsj);
 
             s.clear_dependents();
             s.clear_independents();
-            s.dependent(&aResPj[0], aResPj.size());
+            s.dependent(&aResj[0], aResj.size());
+            s.independent(&solVi[0], solVi.size());
             s.independent(&solPi[0], solPi.size());
 
-            Jac.resize(sysDofsPj.size() * sysDofsPi.size()); //J21
+            Jac.resize(sysDofsj.size() * sysDofsi.size()); //J21
             s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsPj, sysDofsPi);
+            myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsi);
 
             s.clear_independents();
+            s.independent(&solVj[0], solVj.size());
             s.independent(&solPj[0], solPj.size());
 
-            Jac.resize(sysDofsPj.size() * sysDofsPj.size()); //J22
+            Jac.resize(sysDofsj.size() * sysDofsj.size()); //J22
             s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsPj, sysDofsPj);
+            myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsj);
             s.clear_independents();
           }
         }
