@@ -84,10 +84,12 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   indexPdeV[1] = my_nnlin_impl_sys.GetSolPdeIndex("V");
   unsigned solTypeV = mlSol->GetSolutionType("U");
 
-  unsigned indexSolP1 = mlSol->GetIndex("P1");
-  unsigned indexSolP2 = mlSol->GetIndex("P2");
-  unsigned indexPdeP1 = my_nnlin_impl_sys.GetSolPdeIndex("P1");
-  unsigned indexPdeP2 = my_nnlin_impl_sys.GetSolPdeIndex("P2");
+  std::vector<unsigned> indexSolP(2);
+  indexSolP[0] = mlSol->GetIndex("P1");
+  indexSolP[1] = mlSol->GetIndex("P2");
+  std::vector<unsigned> indexPdeP(2);
+  indexPdeP[0] = my_nnlin_impl_sys.GetSolPdeIndex("P1");
+  indexPdeP[1] = my_nnlin_impl_sys.GetSolPdeIndex("P2");
   unsigned solTypeP = mlSol->GetSolutionType("P1");
 
   if(solTypeP > 2 || solTypeV > 2) {
@@ -122,10 +124,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
     for(unsigned i = 0; i < nDofsPi; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
-      solPi[i] = (*mysolution->_Sol[indexSolP1])(idof);
-      solPi[i + nDofsPi] = (*mysolution->_Sol[indexSolP2])(idof);
-      sysDofsi[i + dim * nDofsVi] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, i, iel);
-      sysDofsi[i + dim * nDofsVi + nDofsPi] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, i, iel);
+      for(unsigned k = 0; k < 2; k++) {
+        solPi[i + k * nDofsPi] = (*mysolution->_Sol[indexSolP[k]])(idof);
+        sysDofsi[i + dim * nDofsVi + k * nDofsPi] = myLinEqSolver->GetSystemDof(indexSolP[k], indexPdeP[k], i, iel);
+      }
     }
 
     unsigned nDofsXi = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -174,10 +176,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
             for(unsigned j = 0; j < nDofsPj; j++) {
               unsigned jdof = msh->GetSolutionDof(j, jel, solTypeP);
-              solPj[j] = (*mysolution->_Sol[indexSolP1])(jdof);
-              solPj[j + nDofsPj] = (*mysolution->_Sol[indexSolP2])(jdof);
-              sysDofsj[j + dim * nDofsVj] = myLinEqSolver->GetSystemDof(indexSolP1, indexPdeP1, j, jel);
-              sysDofsj[j + dim * nDofsVj + nDofsPj] = myLinEqSolver->GetSystemDof(indexSolP2, indexPdeP2, j, jel);
+              for(unsigned k = 0; k < 2; k++) {
+                solPj[j + k * nDofsPj] = (*mysolution->_Sol[indexSolP[k]])(jdof);
+                sysDofsj[j + dim * nDofsVj + k * nDofsPj] = myLinEqSolver->GetSystemDof(indexSolP[k], indexPdeP[k], j, jel);
+              }
             }
 
             unsigned nDofsXj = msh->GetElementDofNumber(jel, solTypeX);    // number of solution element dofs
@@ -278,51 +280,36 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                 for(unsigned k = 0; k < dim; k++) {
                   for(unsigned i = 0; i < nDofsVi; i++) {
                     aResi[i + j * nDofsVi] +=  PHIT1 * h * (gradSolVi[k][k] -  gradSolVj[k][k])  * gradPhiVi[i * dim + j] * weightVi;
-
                   }
                   for(unsigned i = 0; i < nDofsVj; i++) {
                     aResj[i + j * nDofsVj] -=  PHIT2 * h * (gradSolVi[k][k] -  gradSolVj[k][k])  * gradPhiVj[i * dim + j] * weightVj;
-
                   }
                 }
               }
 
+              std::vector < std::vector < adept::adouble > > gradSolPi(2, std::vector < adept::adouble >(dim, 0.));
+              std::vector < std::vector < adept::adouble > > gradSolPj(2, std::vector < adept::adouble >(dim, 0.));
 
-
-              std::vector < adept::adouble > gradSolP1i(dim, 0.);
-              std::vector < adept::adouble > gradSolP2i(dim, 0.);
-
-              std::vector < adept::adouble > gradSolP1j(dim, 0.);
-              std::vector < adept::adouble > gradSolP2j(dim, 0.);
-
-              for(unsigned k = 0; k < dim; k++) {
-                for(unsigned i = 0; i < nDofsPi; i++) {
-                  gradSolP1i[k] += solPi[i] * gradPhiPi[i * dim + k];
-                  gradSolP2i[k] += solPi[i + nDofsPi] * gradPhiPi[i * dim + k];
-                }
-                for(unsigned i = 0; i < nDofsPj; i++) {
-                  gradSolP1j[k] += solPj[i] * gradPhiPj[i * dim + k];
-                  gradSolP2j[k] += solPj[i + nDofsPj] * gradPhiPj[i * dim + k];
+              for(unsigned j = 0; j < 2; j++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  for(unsigned i = 0; i < nDofsPi; i++) {
+                    gradSolPi[j][k] += solPi[i + j * nDofsPj] * gradPhiPi[i * dim + k];
+                  }
+                  for(unsigned i = 0; i < nDofsPj; i++) {
+                    gradSolPj[j][k] += solPj[i + j * nDofsPj] * gradPhiPj[i * dim + k];
+                  }
                 }
               }
-
-              for(unsigned k = 0; k < dim; k++) {
-                for(unsigned i = 0; i < nDofsPi; i++) {
-                  aResi[i + dim * nDofsVi] +=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPi[i * dim + k] * weightPi;
-                  aResi[i + dim * nDofsVi + nDofsPi] +=  PHI1 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPi[i * dim + k] * weightPi;
-                }
-                for(unsigned i = 0; i < nDofsPj; i++) {
-                  aResj[i + dim * nDofsVj] -=  PHI1 * h * (gradSolP1i[k] -  gradSolP1j[k])  * gradPhiPj[i * dim + k] * weightPj;
-                  aResj[i + dim * nDofsVj + nDofsPj] -=  PHI2 * h * (gradSolP2i[k] -  gradSolP2j[k])  * gradPhiPj[i * dim + k] * weightPj;
+              for(unsigned j = 0; j < 2; j++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  for(unsigned i = 0; i < nDofsPi; i++) {
+                    aResi[i + dim * nDofsVi + j * nDofsPi] +=  PHI1 * h * (gradSolPi[j][k] -  gradSolPj[j][k])  * gradPhiPi[i * dim + k] * weightPi;
+                  }
+                  for(unsigned i = 0; i < nDofsPj; i++) {
+                    aResj[i + dim * nDofsVj + j * nDofsPj] -=  PHI2 * h * (gradSolPi[j][k] -  gradSolPj[j][k])  * gradPhiPj[i * dim + k] * weightPj;
+                  }
                 }
               }
-
-
-
-
-
-
-
             }
 
 
