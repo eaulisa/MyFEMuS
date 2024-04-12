@@ -11,7 +11,6 @@
 //#include "CutFem.hpp"
 #include "GramSchmidt.hpp"
 #include "GaussPoints.hpp"
-#include "parabolaIntegration.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -44,15 +43,7 @@ namespace boost {
 using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
 
-
-
-
-
-
-
-
-
-
+//template <class Type> struct PointT;
 
 std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};  //for parabola my geometry type is quad (dimension 2)
 

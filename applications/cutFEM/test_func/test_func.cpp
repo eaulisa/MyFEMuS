@@ -1,5 +1,8 @@
-#include "cutFemWeightParabola.hpp"
-// #include "parabolaIntegration.hpp"
+
+//#include "cutFemWeightParabola.hpp"
+#include "parabolaIntegration.hpp"
+
+
 using namespace std;
 
 int main() {

@@ -1,7 +1,7 @@
 #ifndef PARABOLAINTEGRATION_HPP_INCLUDED
 #define PARABOLAINTEGRATION_HPP_INCLUDED
 
-#include "cutFemWeightParabola.hpp"
+
 #include <typeinfo>
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp>
@@ -41,6 +41,8 @@ struct Circle {
     Point<Type> center;
     Type radius;
 };
+
+#include "cutFemWeightParabola.hpp"
 
 template <class TypeIO, class TypeA>
 void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &a2, std::vector< std::pair<TypeIO, TypeIO> > &I1, std::vector< std::pair<TypeIO, TypeIO> > &I2, std::vector<std::pair<TypeIO, TypeIO>> &I3) {
