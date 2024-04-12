@@ -1,3 +1,6 @@
+#ifndef PARABOLAINTEGRATION_HPP_INCLUDED
+#define PARABOLAINTEGRATION_HPP_INCLUDED
+
 #include "cutFemWeightParabola.hpp"
 #include <typeinfo>
 #include <boost/math/special_functions/factorials.hpp>
@@ -1568,9 +1571,10 @@ public:
     bool isLeaf;
     std::vector<OctreeNode*> children;
     std::vector<std::vector<double>> corners;
+    std::vector<std::vector<double>> cornerAreas;
+    std::vector<std::vector<double>> cornerWeights;
     int table;
-    unsigned int m = 0;
-    unsigned int n = 0;
+    unsigned qM;
     unsigned int mPn = 2;
     int s = 0;
     unsigned depth = 0;
@@ -1578,8 +1582,8 @@ public:
     double relative_error = -1;
     double relative_error_opposite = -1;
 
-OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth )
-        : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth) {}
+OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM )
+        : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM) {}
 
     // Function to get the eight corners of the node
     void getCorners() {
@@ -1597,24 +1601,37 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 //         }
             Type area(0) ;
             Type c(1) ;
-            std::vector<double> integral_m_n;
+            cornerAreas.resize(8);
+            cornerWeights.resize(8);
             PointT <Type> p1, p2, p3 ;
+            CutFemWeightParabola <double, Type> Pweight(QUAD, 2, "legendre");
 
         for (size_t i = 0; i < corners.size(); ++i) {
             const auto& corner = corners[i];
 //             std::cout << "Corner " << i << ": (" << corner[0] << ", " << corner[1] << ", " << corner[2] << ") - Print Something\n";searchPoint
             get_p1_p2_p3(table, corner, p1, p2, p3);
 
+              int count = 0;
+                for(unsigned qq = 0; qq <= qM; qq++) {
+                  for(unsigned jj = 0; jj <= qq; jj++) {
+                    unsigned ii = qq - jj;
+                    area = find_area_2intersection_formula(ii,jj,s,a,c,table, p1,p2, p3);
+                    cornerAreas[i].push_back(static_cast<double>(area));
+//                     cout<< " f values = " << i << " "<< j << " "<< _f[count] <<endl;
+                    count++;
+                  }
+                }
 
-//             area = find_area_2intersection_formula(m,n,s,a,c,table, p1,p2, p3);
-//             corners[i][3] = static_cast<double>(area);
+                Pweights(s, a, c, table, p1, p2, p3, cornerWeights[i]);
 
-            for (size_t ii = 0; ii <= mPn; ++ii){
-              for (size_t jj = 0; ii+jj <= mPn; ++jj){
-                area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
-                corners[i].push_back(static_cast<double>(area));
-              }
-            }
+
+//             for (size_t ii = 0; ii <= mPn; ++ii){
+//               for (size_t jj = 0; ii+jj <= mPn; ++jj){
+//                 area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
+//                 corners[i].push_back(static_cast<double>(area));
+//               }
+//             }
+
         }
       }
 
@@ -1696,7 +1713,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
                 f_area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
                 double formula_area = static_cast<double>(f_area);
                 double r_error = fabs(formula_area - interp_area) / formula_area;
-                double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(m+1)*(n+1) - formula_area);
+                double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(ii+1)*(jj+1) - formula_area);
 
                 relativeErrors.push_back(r_error);
                 relativeErrorsOpposite.push_back(r_error_opposite);
@@ -1811,3 +1828,5 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
 
 
 
+
+#endif // PARABOLAINTEGRATION_HPP_INCLUDED

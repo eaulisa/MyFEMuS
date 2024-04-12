@@ -14,7 +14,7 @@ int main() {
   p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.125) };
   std::vector<double>weightCF;
 
-  CutFemWeightParabola <double, Type> Pweights(QUAD, 4, "legendre");
+  CutFemWeightParabola <double, Type> Pweights(QUAD, 2, "legendre");
   Pweights(s, a, c, table, p1, p2, p3, weightCF);
 
 
@@ -35,7 +35,15 @@ int main() {
   const double* gaussWeight =  Pweights.GetGaussWeightPointer();
   const double* xg = Pweights.GetGaussCoordinatePointer(0);
   const double* yg = Pweights.GetGaussCoordinatePointer(1);
+
+    cout<< " weight CF = " << weightCF.size() << endl;
+    for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+    cout  << weightCF[ig] << " ";
+    }
+    cout<<endl;
+
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+
     Area0 += gaussWeight[ig];
     Area += weightCF[ig] * gaussWeight[ig];
     Ix += xg[ig] * weightCF[ig] * gaussWeight[ig];
