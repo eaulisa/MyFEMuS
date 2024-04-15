@@ -109,6 +109,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
+    //Himali
+    //double booli = (*mysolution->_Sol[indexSolC])(iel);
+    //if(booli > 0 && booli < 1) {
+
     short unsigned ielType = msh->GetElementType(iel);
     double Ci = (*mysolution->_Sol[indexSolC])(iel);
 
@@ -153,6 +157,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
     for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
       int jel = el->GetFaceElementIndex(iel, iface) - 1;
+
+      //Himali
+      double boolj = (*mysolution->_Sol[indexSolC])(jel);
+      if(boolj == 0 || boolj == 1  || jel > iel) {
 
       if(jel >= 0) { // iface is not a boundary of the domain
         unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
@@ -366,6 +374,8 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
   std::cout << "All Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 }
+}
+//}
 
 
 
