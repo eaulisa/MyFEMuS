@@ -1588,7 +1588,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
         : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM) {}
 
     // Function to get the eight corners of the node
-    void getCorners() {
+    void getCorners() {  //TODO initialize it once without using push_back
             corners.push_back({minBounds.x, minBounds.y, minBounds.z});
             corners.push_back({minBounds.x, minBounds.y, maxBounds.z});
             corners.push_back({minBounds.x, maxBounds.y, minBounds.z});
@@ -1624,7 +1624,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
                   }
                 }
 
-                Pweights(s, a, c, table, p1, p2, p3, cornerWeights[i]);
+                Pweight(s, a, c, table, p1, p2, p3, cornerWeights[i]);
 
 
 //             for (size_t ii = 0; ii <= mPn; ++ii){
@@ -1761,14 +1761,14 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
         if (depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
             isLeaf = false;
-            children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1));
-            children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1));
-            children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1));
-            children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1));
-            children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1));
-            children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1));
-            children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1));
-            children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1));
+            children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM));
+            children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1, qM));
 
             // Recursively check for subdivision in each child node
             for (OctreeNode* child : children) {
@@ -1807,17 +1807,67 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     std::cout << "(" << node->maxBounds.x << ", " << node->maxBounds.y << ", " << node->maxBounds.z << ")";
 
     if (node->isLeaf) {
-        std::cout << " relative error = " << node-> relative_error <<" " <<node->depth << " [Leaf] \n";
+        std::cout << " relative error = " << node-> relative_error <<" " <<node->depth << " [Leaf] : ";
 
 //         Print the corner vectors for the leaf node
+      std::cout << "  Corners:\n";
+
+      for (int j = 0; j < node->corners.size(); ++j) {
+        for (int i = 0; i < depth+1; ++i) {
+          std::cout << "  ";
+        }
+        const auto& corner = node->corners[j];
+        const auto& cornerArea = node->cornerAreas[j];
+        const auto& cornerWeight = node->cornerWeights[j];
+        for (size_t k = 0; k < corner.size(); ++k) {
+            const auto& entry = corner[k];
+            std::cout << " " << entry;
+        }
+        std::cout << " Areas = ";
+        for (size_t k = 0; k < cornerArea.size(); ++k) {
+            const auto& entry = cornerArea[k];
+            std::cout << " " << entry;
+        }
+
+        std::cout << " Weights = ";
+        for (size_t k = 0; k < cornerWeight.size(); ++k) {
+            const auto& entry = cornerWeight[k];
+            std::cout << " " << entry;
+        }
+          std::cout << std::endl;
+      }
+
+
+
+
+/*
         std::cout << "  Corners:\n";
       for (const auto& corner : node->corners) {
 
           for (const auto& entry : corner) {
               std::cout << " " << entry;
           }
+
           std::cout << std::endl;
       }
+      std::cout << " Areas:\n";
+      for (const auto& corner : node->cornerAreas) {
+
+          for (const auto& entry : corner) {
+              std::cout << " " << entry;
+          }
+      }
+
+      std::cout << " weights:\n";
+      for (const auto& corner : node->cornerWeights) {
+
+          for (const auto& entry : corner) {
+              std::cout << " " << entry;
+          }
+      }*/
+
+
+
     }
     else {
         std::cout<< " relative error = " << node-> relative_error <<" "<< node->depth << " [Non-Leaf]\n";
