@@ -433,40 +433,63 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             }
             myRES->add_vector_blocked(rhsj, sysDofsj);
 
-            s.dependent(&aResi[0], aResi.size());
-            for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
-            for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
-
-            Jac.resize(sysDofsi.size() * sysDofsi.size()); //J11
-            s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsi);
-
-            s.clear_independents();
-            for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
-            for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
-
-            Jac.resize(sysDofsi.size() * sysDofsj.size()); //J12
-            s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsj);
+            std::vector<unsigned> sysDofs;
+            sysDofs.reserve(sysDofsi.size() + sysDofsj.size());
+            sysDofs.insert(sysDofs.end(), sysDofsi.begin(), sysDofsi.end());
+            sysDofs.insert(sysDofs.end(), sysDofsj.begin(), sysDofsj.end());
 
             s.clear_dependents();
             s.clear_independents();
-            s.dependent(&aResj[0], aResj.size());
+
+            s.dependent(&aResi[0], aResi.size());
+            s.dependent(&aResj[0], aResi.size());
             for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
             for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
-
-            Jac.resize(sysDofsj.size() * sysDofsi.size()); //J21
-            s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsi);
-
-            s.clear_independents();
             for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
             for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
 
-            Jac.resize(sysDofsj.size() * sysDofsj.size()); //J22
+            Jac.resize(sysDofs.size() * sysDofs.size()); //J22
             s.jacobian(&Jac[0], true);
-            myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsj);
+            myKK->add_matrix_blocked(Jac, sysDofs, sysDofs);
+            s.clear_dependents();
             s.clear_independents();
+
+
+
+            // s.dependent(&aResi[0], aResi.size());
+            // for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
+            // for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
+            //
+            // Jac.resize(sysDofsi.size() * sysDofsi.size()); //J11
+            // s.jacobian(&Jac[0], true);
+            // myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsi);
+            //
+            // s.clear_independents();
+            // for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
+            // for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
+            //
+            // Jac.resize(sysDofsi.size() * sysDofsj.size()); //J12
+            // s.jacobian(&Jac[0], true);
+            // myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsj);
+            //
+            // s.clear_dependents();
+            // s.clear_independents();
+            // s.dependent(&aResj[0], aResj.size());
+            // for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
+            // for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
+            //
+            // Jac.resize(sysDofsj.size() * sysDofsi.size()); //J21
+            // s.jacobian(&Jac[0], true);
+            // myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsi);
+            //
+            // s.clear_independents();
+            // for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
+            // for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
+            //
+            // Jac.resize(sysDofsj.size() * sysDofsj.size()); //J22
+            // s.jacobian(&Jac[0], true);
+            // myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsj);
+            // s.clear_independents();
           }
         }
       }
