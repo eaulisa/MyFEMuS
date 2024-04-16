@@ -1694,19 +1694,20 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
             get_p1_p2_p3(table, interp_point, p1, p2, p3);
 
             std::vector<std::vector<double>>interpolation_vector(8);
-
-            for (size_t ii = 0; ii <= mPn; ++ii){
-              for (size_t jj = 0; ii+jj <= mPn; ++jj){
-
-                size_t index = 0;
-                for (size_t mm = 0; mm < ii; ++mm){
-                  index += mPn + 1 - mm ;
-                }
-
-                index += jj+3 ;
+            size_t ii = 0;
+            size_t jj = 0;
+//             for (size_t ii = 0; ii <= mPn; ++ii){
+//               for (size_t jj = 0; ii+jj <= mPn; ++jj){
+//
+//                 size_t index = 0;
+//                 for (size_t mm = 0; mm < ii; ++mm){
+//                   index += mPn + 1 - mm ;
+//                 }
+//
+//                 index += jj+3 ;
 
                 for (size_t ic = 0; ic < corners.size(); ++ic) {
-                  interpolation_vector[ic] = {corners[ic][0],corners[ic][1],corners[ic][2],corners[ic][index]};
+                  interpolation_vector[ic] = {corners[ic][0],corners[ic][1],corners[ic][2],cornerAreas[ic][0]};
                 }
 
 
@@ -1719,8 +1720,8 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
                 relativeErrors.push_back(r_error);
                 relativeErrorsOpposite.push_back(r_error_opposite);
-              }
-            }
+//               }
+//             }
 
 
 //                 f_area = find_area_2intersection_formula(m, n, s, a, c, table, p1, p2, p3);
@@ -1807,7 +1808,7 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     std::cout << "(" << node->maxBounds.x << ", " << node->maxBounds.y << ", " << node->maxBounds.z << ")";
 
     if (node->isLeaf) {
-        std::cout << " relative error = " << node-> relative_error <<" " <<node->depth << " [Leaf] : ";
+        std::cout << " relative error = " << node-> relative_error <<" depth =" <<node->depth << " [Leaf] : ";
 
 //         Print the corner vectors for the leaf node
       std::cout << "  Corners:\n";
