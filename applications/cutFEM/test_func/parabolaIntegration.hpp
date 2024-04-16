@@ -1583,9 +1583,10 @@ public:
     Type a = 0;
     double relative_error = -1;
     double relative_error_opposite = -1;
+    CutFemWeightParabola <double, Type> *_Pweights;
 
-OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM )
-        : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM) {}
+OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola <double, Type> *Pweights )
+        : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {}
 
     // Function to get the eight corners of the node
     void getCorners() {  //TODO initialize it once without using push_back
@@ -1606,7 +1607,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
             cornerAreas.resize(8);
             cornerWeights.resize(8);
             PointT <Type> p1, p2, p3 ;
-            CutFemWeightParabola <double, Type> Pweight(QUAD, 2, "legendre");
+            //CutFemWeightParabola <double, Type> Pweight(QUAD, 2, "legendre");
 
         for (size_t i = 0; i < corners.size(); ++i) {
             const auto& corner = corners[i];
@@ -1624,7 +1625,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
                   }
                 }
 
-                Pweight(s, a, c, table, p1, p2, p3, cornerWeights[i]);
+                (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
 
 
 //             for (size_t ii = 0; ii <= mPn; ++ii){
@@ -1762,14 +1763,14 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
         if (depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
             isLeaf = false;
-            children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM));
-            children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1, qM));
+            children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM, _Pweights));
+            children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1, qM, _Pweights));
 
             // Recursively check for subdivision in each child node
             for (OctreeNode* child : children) {

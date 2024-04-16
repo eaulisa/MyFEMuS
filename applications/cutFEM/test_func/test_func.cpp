@@ -96,7 +96,7 @@ int main() {
     std::vector<OctreeNode<Type>> roots;
 
     for (int ttable = 0; ttable < 1; ++ttable) {
-        OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},ttable, 0, 2);
+        OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},ttable, 0, 2, &Pweights);
         if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6){
           root.subdivideWithRelativeError(maxDepth, 0.01);
         }
