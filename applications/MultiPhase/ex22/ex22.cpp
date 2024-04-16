@@ -211,7 +211,7 @@ int main(int argc, char** args) {
   // attach the boundary condition function and generate boundary data
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 //   mlSol.FixSolutionAtOnePoint("P1");
-//   mlSol.FixSolutionAtOnePoint("P2");
+  mlSol.FixSolutionAtOnePoint("P2");
 
   mlSol.GenerateBdc("All");
 
@@ -239,9 +239,7 @@ int main(int argc, char** args) {
   system.init();
   system.SetOuterSolver(PREONLY);
 
-
   // BEGIN Testing the class Cloud
-
 
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
@@ -252,8 +250,6 @@ int main(int argc, char** args) {
   system.MGsolve();
   system.MGsolve();
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
-
-
 
   return 0;
 }
@@ -582,7 +578,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
 
 //AssembleStabilizationTerms(ml_prob);
-  AssembleGhostPenalty(ml_prob);
+  //AssembleGhostPenalty(ml_prob);
 //AssembleGhostPenaltyDGP(ml_prob, true);
 //AssembleGhostPenaltyDGP(ml_prob, false);
 

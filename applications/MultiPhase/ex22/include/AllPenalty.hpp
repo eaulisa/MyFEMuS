@@ -322,14 +322,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                 std::vector<adept::adouble> gradSolVdotNi(dim, 0.);
                 std::vector<adept::adouble> gradSolVdotNj(dim, 0.);
 
-
-
-
-
                 for(unsigned J = 0; J < dim; J++) {
                   for(unsigned K = 0; K < dim; K++) {
-                    gradSolVdotNi[J] = gradSolVi[J][K] * normal[K];
-                    gradSolVdotNj[J] = gradSolVj[J][K] * normal[K];
+                    gradSolVdotNi[J] += gradSolVi[J][K] * normal[K];
+                    gradSolVdotNj[J] += gradSolVj[J][K] * normal[K];
                   }
                 }
 
@@ -349,8 +345,8 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
                 for(unsigned J = 0; J < 2; J++) {
                   for(unsigned K = 0; K < dim; K++) {
-                    gradSolPdotNi[J] = gradSolPi[J][K] * normal[K];
-                    gradSolPdotNj[J] = gradSolPj[J][K] * normal[K];
+                    gradSolPdotNi[J] += gradSolPi[J][K] * normal[K];
+                    gradSolPdotNj[J] += gradSolPj[J][K] * normal[K];
                   }
                 }
 
