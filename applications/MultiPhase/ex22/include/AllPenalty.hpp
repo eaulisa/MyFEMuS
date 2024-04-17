@@ -167,6 +167,8 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
             bool ghostPenalty = ((Ci > 0 && Ci < 1) || (Cj > 0 && Cj < 1)) ? true : false;
 
+            ghostPenalty = false;
+
             unsigned nDofsVj = msh->GetElementDofNumber(jel, solTypeV);
             unsigned nDofsPj = msh->GetElementDofNumber(jel, solTypeP);
 
@@ -262,9 +264,9 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
               double PHIT1 = mu1 + C2 * rho1 * h2 / dt;
               double PHIT2 = mu2 + C2 * rho2 * h2 / dt;
 
-              double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
-              double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
-              double PHIT = 0.5 * (PHITi + PHITj);
+              //double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
+              //double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
+              double PHIT = 0.5 * (PHIT1 + PHIT2);
 
               double PHIP[2] = {0.05 * h2 / PHIT1, 0.05 * h2 / PHIT2};
 
@@ -433,7 +435,7 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             }
             myRES->add_vector_blocked(rhsj, sysDofsj);
 
-            std::vector<unsigned> sysDofs;
+            std::vector<unsigned> sysDofs(0);
             sysDofs.reserve(sysDofsi.size() + sysDofsj.size());
             sysDofs.insert(sysDofs.end(), sysDofsi.begin(), sysDofsi.end());
             sysDofs.insert(sysDofs.end(), sysDofsj.begin(), sysDofsj.end());
@@ -454,42 +456,6 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             s.clear_dependents();
             s.clear_independents();
 
-
-
-            // s.dependent(&aResi[0], aResi.size());
-            // for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
-            // for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
-            //
-            // Jac.resize(sysDofsi.size() * sysDofsi.size()); //J11
-            // s.jacobian(&Jac[0], true);
-            // myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsi);
-            //
-            // s.clear_independents();
-            // for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
-            // for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
-            //
-            // Jac.resize(sysDofsi.size() * sysDofsj.size()); //J12
-            // s.jacobian(&Jac[0], true);
-            // myKK->add_matrix_blocked(Jac, sysDofsi, sysDofsj);
-            //
-            // s.clear_dependents();
-            // s.clear_independents();
-            // s.dependent(&aResj[0], aResj.size());
-            // for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
-            // for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
-            //
-            // Jac.resize(sysDofsj.size() * sysDofsi.size()); //J21
-            // s.jacobian(&Jac[0], true);
-            // myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsi);
-            //
-            // s.clear_independents();
-            // for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
-            // for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
-            //
-            // Jac.resize(sysDofsj.size() * sysDofsj.size()); //J22
-            // s.jacobian(&Jac[0], true);
-            // myKK->add_matrix_blocked(Jac, sysDofsj, sysDofsj);
-            // s.clear_independents();
           }
         }
       }

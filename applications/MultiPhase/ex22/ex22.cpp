@@ -152,7 +152,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 //   mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(100, 100, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
+  mlMsh.GenerateCoarseBoxMesh(10, 10, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
 //   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //RT
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -248,8 +248,13 @@ int main(int argc, char** args) {
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   system.MGsolve();
-  system.MGsolve();
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
+  system.MGsolve();
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 2);
+  system.MGsolve();
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 3);
+  system.MGsolve();
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 4);
 
   return 0;
 }
@@ -578,14 +583,14 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
 
 //AssembleStabilizationTerms(ml_prob);
-  //AssembleGhostPenalty(ml_prob);
+ // AssembleGhostPenalty(ml_prob);
 //AssembleGhostPenaltyDGP(ml_prob, true);
 //AssembleGhostPenaltyDGP(ml_prob, false);
 
- /* AssembleCIPPressure(ml_prob, true);
-  AssembleCIPPressure(ml_prob, false)*/;
+  //AssembleCIPPressure(ml_prob, true);
+  //AssembleCIPPressure(ml_prob, false);
 
-   AssembleAllPenalty(ml_prob);
+  AssembleAllPenalty(ml_prob);
 
 
   RES->close();
