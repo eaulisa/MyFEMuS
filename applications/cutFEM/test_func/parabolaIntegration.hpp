@@ -1532,6 +1532,48 @@ Type trilinier_interpolation(std::vector< std::vector< Type >> & interp_table , 
 }
 
 template <class Type>
+void trilinier_interpolation_vector(const std::vector< std::vector< Type >> & interp_table, const std::vector< std::vector< Type >> & interp_table_values  , const std::vector< Type > &interp_point, std::vector< Type > &interp_point_values){
+
+  interp_point_values.resize(interp_table_values[0].size());
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+  Type z = interp_point[2];
+
+  Type x0 = interp_table[0][0];
+  Type x1 = interp_table[7][0];
+  Type y0 = interp_table[0][1];
+  Type y1 = interp_table[7][1];
+  Type z0 = interp_table[0][2];
+  Type z1 = interp_table[7][2];
+
+  Type x_d = (x-x0)/(x1-x0);
+  Type y_d = (y-y0)/(y1-y0);
+  Type z_d = (z-z0)/(z1-z0);
+
+  for (unsigned i = 0; i < interp_table_values[0].size(); i++ ){
+      Type c_000 = interp_table_values[0][i];
+      Type c_001 = interp_table_values[1][i];
+      Type c_010 = interp_table_values[2][i];
+      Type c_011 = interp_table_values[3][i];
+      Type c_100 = interp_table_values[4][i];
+      Type c_101 = interp_table_values[5][i];
+      Type c_110 = interp_table_values[6][i];
+      Type c_111 = interp_table_values[7][i];
+
+      Type c_00 = c_000 * (1-x_d) + c_100 * x_d ;
+      Type c_01 = c_001 * (1-x_d) + c_101 * x_d ;
+      Type c_10 = c_010 * (1-x_d) + c_110 * x_d ;
+      Type c_11 = c_011 * (1-x_d) + c_111 * x_d ;
+
+      Type c_0 = c_00 * (1-y_d) + c_10 * y_d ;
+      Type c_1 = c_01 * (1-y_d) + c_11 * y_d ;
+
+      interp_point_values[i] = c_0 * (1-z_d) + c_1 * z_d ;
+    }
+}
+
+
+template <class Type>
 double findGridArea(const Circle<Type> &circle, const Point<Type> &gridStart, const Point<Type> &gridEnd, std::vector<Point<Type>> grid_intersections, std:: vector <std:: vector <double>> interp_table, const std::vector< Type > &interp_point, const Type &grid_size){
   double area = 0;
   if(grid_intersections.size() <= 1){
