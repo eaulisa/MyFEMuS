@@ -167,8 +167,6 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
 
             bool ghostPenalty = ((Ci > 0 && Ci < 1) || (Cj > 0 && Cj < 1)) ? true : false;
 
-            ghostPenalty = false;
-
             unsigned nDofsVj = msh->GetElementDofNumber(jel, solTypeV);
             unsigned nDofsPj = msh->GetElementDofNumber(jel, solTypeP);
 
@@ -225,7 +223,7 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
             for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeP]->GetGaussPointNumber(); ig++) {
 
               std::vector < double> normal;
-              msh->_finiteElement[faceGeom][solTypeP]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+              msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
               double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
               double h2 = h * h;
@@ -264,9 +262,9 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
               double PHIT1 = mu1 + C2 * rho1 * h2 / dt;
               double PHIT2 = mu2 + C2 * rho2 * h2 / dt;
 
-              //double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
-              //double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
-              double PHIT = 0.5 * (PHIT1 + PHIT2);
+              double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
+              double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
+              double PHIT = 0.5 * (PHITi + PHITj);
 
               double PHIP[2] = {0.05 * h2 / PHIT1, 0.05 * h2 / PHIT2};
 
