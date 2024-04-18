@@ -1,9 +1,23 @@
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <cmath>
+#include <algorithm>    // std::sort
+#include <ctime>
+#include <cstdlib>
+#include <climits>
+#include <typeinfo>
+#include <boost/math/special_functions/factorials.hpp>
+#include <boost/multiprecision/cpp_bin_float.hpp>
+#include <map>
 
-//#include "cutFemWeightParabola.hpp"
+using namespace std;
+
+#include "Rebuild.hpp"
 #include "parabolaIntegration.hpp"
 
 
-using namespace std;
+
 
 int main() {
   typedef cpp_bin_float_oct Type;
