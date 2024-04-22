@@ -292,7 +292,7 @@ void InitCurvature(Solution* sol, const std::vector<double> &A) {
         xv[k] = (*msh->_topology->_Sol[k])(xdof);      // global extraction and local storage for the element coordinates
       }
 
-      unsigned idof  = msh->GetSolutionDof(i, iel, xvType);    // local to global mapping between coordinates node and coordinate dof
+      unsigned idof  = msh->GetSolutionDof(i, iel, solK1Type);    // local to global mapping between coordinates node and coordinate dof
       if(ConicAdaptiveRefinement::EvaluateConic(xv, A) < 0) {
         sol->_Sol[solC1Index]->set(idof, 1.);
         atLeastOneIsOne = true;
@@ -323,7 +323,7 @@ void InitCurvature(Solution* sol, const std::vector<double> &A) {
     if((*sol->_Sol[solC0Index])(iel) == 0.5) {
       unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
       for(unsigned i = 0; i < nDofsK1; i++) {
-        unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+        unsigned idof  = msh->GetSolutionDof(i, iel, solK1Type);
         double C1 = (*sol->_Sol[solC1Index])(idof);
         if(C1 < 0.2) {
           sol->_Sol[solC1Index]->set(idof, 0.25);
@@ -352,7 +352,7 @@ void InitCurvature(Solution* sol, const std::vector<double> &A) {
         double K0 = (*sol->_Sol[solK0Index])(iel);
         unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
         for(unsigned i = 0; i < nDofsK1; i++) {
-          unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+          unsigned idof  = msh->GetSolutionDof(i, iel, solK1Type);
           double C1 = (*sol->_Sol[solC1Index])(idof);
           if(C1 > 0.8) {
             sol->_Sol[solK1Index]->add(idof, K0);
@@ -374,21 +374,20 @@ void InitCurvature(Solution* sol, const std::vector<double> &A) {
     sol->_Sol[solK1Index]->close();
 
     if(k < numberOfSmoothings - 1) {
-
       //from the nodes to the element
       for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
         if((*sol->_Sol[solC0Index])(iel) > 0.9) {
           double K0 = 0.;
           unsigned nDofsK1 = msh->GetElementDofNumber(iel, solK1Type);
           for(unsigned i = 0; i < nDofsK1; i++) {
-            unsigned idof  = msh->GetSolutionDof(i, iel, xvType);
+            unsigned idof  = msh->GetSolutionDof(i, iel, solK1Type);
             double K1 = (*sol->_Sol[solK1Index])(idof);
             K0 += K1;
           }
           sol->_Sol[solK0Index]->set(iel, K0 / nDofsK1);
         }
-        sol->_Sol[solK0Index]->close();
       }
+      sol->_Sol[solK0Index]->close();
     }
   }
 }
@@ -424,6 +423,12 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
   std::vector <double> A = {1., 0, 1., 0, 0, -1.};
   InitCurvature(sol, A);
+
+
+
+
+
+
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)

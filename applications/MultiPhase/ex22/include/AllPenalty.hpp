@@ -459,6 +459,430 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
       }
     }
   }
+
+
+
+  if(nprocs > 1) {
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+      for(unsigned iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+        unsigned nFaces;
+        if(iproc == kproc) {
+          nFaces = msh->GetElementFaceNumber(iel);
+        }
+        MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        for(unsigned iface = 0; iface < nFaces; iface++) {
+
+          int jel;
+          if(iproc == kproc) {
+            jel = el->GetFaceElementIndex(iel, iface) - 1;
+          }
+          MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+
+          if(jel >= 0) { // iface is not a boundary of the domain
+            unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+            if(jproc != kproc  && (iproc == kproc || iproc == jproc)) {
+              if(jel > iel) {
+                std::vector < MPI_Request > reqs(2 * dim + 3);
+                if(iproc == jproc) {
+
+                  short unsigned jelType = msh->GetElementType(jel);
+                  double Cj = (*mysolution->_Sol[indexSolC])(jel);
+
+                  unsigned nDofsVj = msh->GetElementDofNumber(jel, solTypeV);
+                  unsigned nDofsPj = msh->GetElementDofNumber(jel, solTypeP);
+
+                  for(unsigned K = 0; K < dim; K++) solVj[K].resize(nDofsVj);
+                  for(unsigned K = 0; K < 2; K++) solPj[K].resize(nDofsPj);
+                  sysDofsj.resize(dim * nDofsVj + 2 * nDofsPj);
+
+                  for(unsigned j = 0; j < nDofsVj; j++) {
+                    unsigned jdof = msh->GetSolutionDof(j, jel, solTypeV);
+                    for(unsigned K = 0; K < dim; K++) {
+                      solVj[K][j] = (*mysolution->_Sol[indexSolV[K]])(jdof);
+                      sysDofsj[K * nDofsVj + j] = myLinEqSolver->GetSystemDof(indexSolV[K], indexPdeV[K], j, jel);
+                    }
+                  }
+
+                  for(unsigned j = 0; j < nDofsPj; j++) {
+                    unsigned jdof = msh->GetSolutionDof(j, jel, solTypeP);
+                    for(unsigned K = 0; K < 2; K++) {
+                      solPj[K][j] = (*mysolution->_Sol[indexSolP[K]])(jdof);
+                      sysDofsj[dim * nDofsVj + K * nDofsPj + j] = myLinEqSolver->GetSystemDof(indexSolP[K], indexPdeP[K], j, jel);
+                    }
+                  }
+
+                  unsigned nDofsXj = msh->GetElementDofNumber(jel, solTypeX);    // number of solution element dofs
+                  for(unsigned  K = 0; K < dim; K++) xj[K].resize(nDofsXj);
+
+                  for(unsigned j = 0; j < nDofsXj; j++) {
+                    unsigned jdofX = msh->GetSolutionDof(j, jel, solTypeX);
+                    for(unsigned  K = 0; K < dim; K++) xj[K][j] = (*msh->_topology->_Sol[K])(jdofX);
+                  }
+
+                  //blocking send
+                  MPI_Send(&jelType, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
+                  MPI_Send(&Cj, 1, MPI_DOUBLE, kproc, 1, PETSC_COMM_WORLD);
+                  MPI_Send(&nDofsVj, 1, MPI_UNSIGNED, kproc, 2, PETSC_COMM_WORLD);
+                  MPI_Send(&nDofsPj, 1, MPI_UNSIGNED, kproc, 3, PETSC_COMM_WORLD);
+                  MPI_Send(&nDofsXj, 1, MPI_UNSIGNED, kproc, 4, PETSC_COMM_WORLD);
+
+                  //non-blocking send
+                  // for(unsigned K = 0; K < dim; K++) MPI_Isend(solVj[K].data(), solVj[K].size(), MPI_DOUBLE, kproc, 5 + K, PETSC_COMM_WORLD, &reqs[K]);
+                  // for(unsigned K = 0; K < 2; K++) MPI_Isend(solPj[K].data(), solPj[K].size(), MPI_DOUBLE, kproc, 5 + dim + K, PETSC_COMM_WORLD, &reqs[dim + K]);
+                  // MPI_Isend(sysDofsj.data(), sysDofsj.size(), MPI_UNSIGNED, kproc, 7 + dim, PETSC_COMM_WORLD, &reqs[2 + dim]);
+                  // for(unsigned K = 0; K < dim; K++) MPI_Isend(xj[K].data(), xj[K].size(), MPI_DOUBLE, kproc, 8 + dim + K, PETSC_COMM_WORLD, &reqs[3 + dim + K]);
+
+                  for(unsigned K = 0; K < dim; K++) MPI_Send(solVj[K].data(), solVj[K].size(), MPI_DOUBLE, kproc, 5 + K, PETSC_COMM_WORLD);
+                  for(unsigned K = 0; K < 2; K++) MPI_Send(solPj[K].data(), solPj[K].size(), MPI_DOUBLE, kproc, 5 + dim + K, PETSC_COMM_WORLD);
+                  MPI_Send(sysDofsj.data(), sysDofsj.size(), MPI_UNSIGNED, kproc, 7 + dim, PETSC_COMM_WORLD);
+                  for(unsigned K = 0; K < dim; K++) MPI_Send(xj[K].data(), xj[K].size(), MPI_DOUBLE, kproc, 8 + dim + K, PETSC_COMM_WORLD);
+
+
+                }
+
+                if(iproc == kproc) {
+                  short unsigned ielType = msh->GetElementType(iel);
+                  double Ci = (*mysolution->_Sol[indexSolC])(iel);
+
+                  unsigned nDofsVi = msh->GetElementDofNumber(iel, solTypeV);
+                  unsigned nDofsPi = msh->GetElementDofNumber(iel, solTypeP);
+
+                  for(unsigned K = 0; K < dim; K++) solVi[K].resize(nDofsVi);
+                  for(unsigned K = 0; K < 2; K++) solPi[K].resize(nDofsPi);
+                  sysDofsi.resize(dim * nDofsVi + 2 * nDofsPi);
+
+                  for(unsigned i = 0; i < nDofsVi; i++) {
+                    unsigned idof = msh->GetSolutionDof(i, iel, solTypeV);
+                    for(unsigned K = 0; K < dim; K++) {
+                      solVi[K][i] = (*mysolution->_Sol[indexSolV[K]])(idof);
+                      sysDofsi[K * nDofsVi + i] = myLinEqSolver->GetSystemDof(indexSolV[K], indexPdeV[K], i, iel);
+                    }
+                  }
+
+                  for(unsigned i = 0; i < nDofsPi; i++) {
+                    unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
+                    for(unsigned K = 0; K < 2; K++) {
+                      solPi[K][i] = (*mysolution->_Sol[indexSolP[K]])(idof);
+                      sysDofsi[dim * nDofsVi + K * nDofsPi + i] = myLinEqSolver->GetSystemDof(indexSolP[K], indexPdeP[K], i, iel);
+                    }
+                  }
+
+                  unsigned nDofsXi = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
+                  for(unsigned  K = 0; K < dim; K++) xi[K].resize(nDofsXi);
+                  for(unsigned i = 0; i < nDofsXi; i++) {
+                    unsigned idofX = msh->GetSolutionDof(i, iel, solTypeX);
+                    for(unsigned  K = 0; K < dim; K++) xi[K][i] = (*msh->_topology->_Sol[K])(idofX);
+                  }
+
+                  short unsigned jelType;
+                  double Cj;
+                  unsigned nDofsVj, nDofsPj, nDofsXj;
+                  //blocking recv
+                  MPI_Recv(&jelType, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&Cj, 1, MPI_DOUBLE, jproc, 1, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&nDofsVj, 1, MPI_UNSIGNED, jproc, 2, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&nDofsPj, 1, MPI_UNSIGNED, jproc, 3, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(&nDofsXj, 1, MPI_UNSIGNED, jproc, 4, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                  for(unsigned K = 0; K < dim; K++) solVj[K].resize(nDofsVj);
+                  for(unsigned K = 0; K < 2; K++) solPj[K].resize(nDofsPj);
+                  sysDofsj.resize(dim * nDofsVj + 2 * nDofsPj);
+                  for(unsigned  K = 0; K < dim; K++) xj[K].resize(nDofsXj);
+
+                  //non-blocking recv
+                  // for(unsigned K = 0; K < dim; K++) MPI_Irecv(solVj[K].data(), solVj[K].size(), MPI_DOUBLE, jproc, 5 + K, PETSC_COMM_WORLD, &reqs[K]);
+                  // for(unsigned K = 0; K < 2; K++) MPI_Irecv(solPj[K].data(), solPj[K].size(), MPI_DOUBLE, jproc, 5 + dim + K, PETSC_COMM_WORLD, &reqs[dim + K]);
+                  // MPI_Irecv(sysDofsj.data(), sysDofsj.size(), MPI_UNSIGNED, jproc, 7 + dim, PETSC_COMM_WORLD, &reqs[2 + dim]);
+                  // for(unsigned K = 0; K < dim; K++) MPI_Irecv(xj[K].data(), xj[K].size(), MPI_DOUBLE, jproc, 8 + dim + K, PETSC_COMM_WORLD, &reqs[3 + dim + K]);
+                  //
+                  // MPI_Status status;
+                  // for(unsigned m = 0; m < reqs.size(); m++) {
+                  //   MPI_Wait(&reqs[m], &status);
+                  // }
+
+
+                  for(unsigned K = 0; K < dim; K++) MPI_Recv(solVj[K].data(), solVj[K].size(), MPI_DOUBLE, jproc, 5 + K, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  for(unsigned K = 0; K < 2; K++) MPI_Recv(solPj[K].data(), solPj[K].size(), MPI_DOUBLE, jproc, 5 + dim + K, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  MPI_Recv(sysDofsj.data(), sysDofsj.size(), MPI_UNSIGNED, jproc, 7 + dim, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                  for(unsigned K = 0; K < dim; K++) MPI_Recv(xj[K].data(), xj[K].size(), MPI_DOUBLE, jproc, 8 + dim + K, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+
+
+
+                  bool ghostPenalty = ((Ci > 0 && Ci < 1) || (Cj > 0 && Cj < 1)) ? true : false;
+
+                  double h11 = (xi[0][2] - xi[0][0]);
+                  double h12 = (xi[1][2] - xi[1][0]);
+
+                  double h21 = (xj[0][2] - xj[0][0]);
+                  double h22 = (xj[1][2] - xj[1][0]);
+
+                  for(unsigned ktype = 0; ktype < solTypeP + 1; ktype++) {
+                    ProjectNodalToPolynomialCoefficients(aPi[ktype], xi, ielType, ktype);
+                    ProjectNodalToPolynomialCoefficients(aPj[ktype], xj, jelType, ktype);
+                  }
+
+                  aResi.assign(dim * nDofsVi + 2 * nDofsPi, 0);
+                  aResj.assign(dim * nDofsVj + 2 * nDofsPj, 0);
+
+                  s.new_recording();
+
+                  const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
+                  unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solTypeX);
+                  for(unsigned  K = 0; K < dim; K++) faceVx[K].resize(faceDofs);
+                  for(unsigned i = 0; i < faceDofs; i++) {
+                    unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);    // face-to-element local node mapping.
+                    for(unsigned K = 0; K < dim; K++) {
+                      faceVx[K][i] =  xi[K][inode]; // We extract the local coordinates on the face from local coordinates on the element.
+                    }
+                  }
+
+                  for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeP]->GetGaussPointNumber(); ig++) {
+
+                    std::vector < double> normal;
+                    msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
+
+                    double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+                    double h2 = h * h;
+                    double h3 = h2 * h;
+
+                    std::vector< double > xg(dim, 0.); // physical coordinates of the face Gauss point
+                    for(unsigned i = 0; i < faceDofs; i++) {
+                      for(unsigned K = 0; K < dim; K++) {
+                        xg[K] += phi[i] * faceVx[K][i];
+                      }
+                    }
+
+                    std::vector <double> etai;//local coordinates of the face gauss point with respect to iel
+                    GetClosestPointInReferenceElement(xi, xg, ielType, etai);
+
+                    bool inverseMapping = GetInverseMapping(solTypeP, ielType, aPi, xg, etai, 100);
+                    if(!inverseMapping) {
+                      std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
+                    }
+
+                    std::vector <double> etaj;//local coordinates of the face gauss point with respect to jel
+                    GetClosestPointInReferenceElement(xj, xg, jelType, etaj);
+
+                    inverseMapping = GetInverseMapping(solTypeP, jelType, aPj, xg, etaj, 100);
+                    if(!inverseMapping) {
+                      std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
+                    }
+
+                    msh->_finiteElement[ielType][solTypeP]->Jacobian(xi, etai, weightPi, phiPi, gradPhiPi);
+                    msh->_finiteElement[jelType][solTypeP]->Jacobian(xj, etaj, weightPj, phiPj, gradPhiPj);
+
+                    msh->_finiteElement[ielType][solTypeV]->Jacobian(xi, etai, weightVi, phiVi, gradPhiVi, hessPhiVi);
+                    msh->_finiteElement[jelType][solTypeV]->Jacobian(xj, etaj, weightVj, phiVj, gradPhiVj, hessPhiVj);
+
+                    double C2 = 1;
+                    double PHIT1 = mu1 + C2 * rho1 * h2 / dt;
+                    double PHIT2 = mu2 + C2 * rho2 * h2 / dt;
+
+                    double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
+                    double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
+                    double PHIT = 0.5 * (PHITi + PHITj);
+
+                    double PHIP[2] = {0.05 * h2 / PHIT1, 0.05 * h2 / PHIT2};
+
+                    for(unsigned  K = 0; K < dim; K++) gradSolVi[K].assign(dim, 0.);
+                    for(unsigned  K = 0; K < dim; K++) gradSolVj[K].assign(dim, 0.);
+
+                    for(unsigned J = 0; J < dim; J++) {
+                      for(unsigned K = 0; K < dim; K++) {
+                        for(unsigned i = 0; i < nDofsVi; i++) {
+                          gradSolVi[J][K] += solVi[J][i] * gradPhiVi[i * dim + K];
+                        }
+                        for(unsigned i = 0; i < nDofsVj; i++) {
+                          gradSolVj[J][K] += solVj[J][i] * gradPhiVj[i * dim + K];
+                        }
+                      }
+                    }
+                    for(unsigned J = 0; J < dim; J++) {
+                      for(unsigned K = 0; K < dim; K++) {
+                        for(unsigned i = 0; i < nDofsVi; i++) {
+                          aResi[J * nDofsVi + i] +=  PHIT * h * (gradSolVi[K][K] -  gradSolVj[K][K])  * gradPhiVi[i * dim + J] * weight;
+                        }
+                        for(unsigned i = 0; i < nDofsVj; i++) {
+                          aResj[J * nDofsVj + i] -=  PHIT * h * (gradSolVi[K][K] -  gradSolVj[K][K])  * gradPhiVj[i * dim + J] * weight;
+                        }
+                      }
+                    }
+
+                    for(unsigned  K = 0; K < 2; K++) gradSolPi[K].assign(dim, 0.);
+                    for(unsigned  K = 0; K < 2; K++) gradSolPj[K].assign(dim, 0.);
+
+                    for(unsigned J = 0; J < 2; J++) {
+                      for(unsigned K = 0; K < dim; K++) {
+                        for(unsigned i = 0; i < nDofsPi; i++) {
+                          gradSolPi[J][K] += solPi[J][i] * gradPhiPi[i * dim + K];
+                        }
+                        for(unsigned i = 0; i < nDofsPj; i++) {
+                          gradSolPj[J][K] += solPj[J][i] * gradPhiPj[i * dim + K];
+                        }
+                      }
+                    }
+                    for(unsigned J = 0; J < 2; J++) {
+                      for(unsigned K = 0; K < dim; K++) {
+                        for(unsigned i = 0; i < nDofsPi; i++) {
+                          aResi[dim * nDofsVi + J * nDofsPi + i] +=  PHIP[J] * h * (gradSolPi[J][K] -  gradSolPj[J][K])  * gradPhiPi[i * dim + K] * weight;
+                        }
+                        for(unsigned i = 0; i < nDofsPj; i++) {
+                          aResj[dim * nDofsVj + J * nDofsPj + i] -=  PHIP[J] * h * (gradSolPi[J][K] -  gradSolPj[J][K])  * gradPhiPj[i * dim + K] * weight;
+                        }
+                      }
+                    }
+
+
+                    if(ghostPenalty) {
+
+                      std::vector<adept::adouble> gradSolVdotNi(dim, 0.);
+                      std::vector<adept::adouble> gradSolVdotNj(dim, 0.);
+
+                      for(unsigned J = 0; J < dim; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          gradSolVdotNi[J] += gradSolVi[J][K] * normal[K];
+                          gradSolVdotNj[J] += gradSolVj[J][K] * normal[K];
+                        }
+                      }
+
+                      for(unsigned J = 0; J < dim; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          for(unsigned i = 0; i < nDofsVi; i++) {
+                            aResi[J * nDofsVi + i] +=  PHIT * h * (gradSolVdotNi[J] - gradSolVdotNj[J])  * gradPhiVi[i * dim + K] * normal[K] * weight;
+                          }
+                          for(unsigned i = 0; i < nDofsVj; i++) {
+                            aResj[J * nDofsVj + i] -=  PHIT * h * (gradSolVdotNi[J] - gradSolVdotNj[J])  * gradPhiVj[i * dim + K] * normal[K] * weight;
+                          }
+                        }
+                      }
+
+                      std::vector<adept::adouble> gradSolPdotNi(2, 0.);
+                      std::vector<adept::adouble> gradSolPdotNj(2, 0.);
+
+                      for(unsigned J = 0; J < 2; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          gradSolPdotNi[J] += gradSolPi[J][K] * normal[K];
+                          gradSolPdotNj[J] += gradSolPj[J][K] * normal[K];
+                        }
+                      }
+
+                      for(unsigned J = 0; J < 2; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          for(unsigned i = 0; i < nDofsPi; i++) {
+                            aResi[dim * nDofsVi + J * nDofsPi + i] +=  PHIP[J] * h * (gradSolPdotNi[J] - gradSolPdotNj[J]) * gradPhiPi[i * dim + K] * normal[K] * weight;
+                          }
+                          for(unsigned i = 0; i < nDofsPj; i++) {
+                            aResj[dim * nDofsVj + J * nDofsPj + i] -=  PHIP[J] * h * (gradSolPdotNi[J] - gradSolPdotNj[J]) * gradPhiPj[i * dim + K] * normal[K] * weight;
+                          }
+                        }
+                      }
+
+
+                      std::vector<std::vector<std::vector<adept::adouble>>> HessSolVi(dim, std::vector<std::vector<adept::adouble>>(dim, std::vector<adept::adouble>(dim, 0.)));
+                      std::vector<std::vector<std::vector<adept::adouble>>> HessSolVj(dim, std::vector<std::vector<adept::adouble>>(dim, std::vector<adept::adouble>(dim, 0.)));
+
+                      for(unsigned I = 0; I < dim; I++) {
+                        unsigned J = I;
+                        //for(unsigned J = 0; J < dim; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          unsigned L;
+                          if(J == K) L = J;
+                          else if(1 == J + K) L = dim;     // xy
+                          else if(2 == J + K) L = dim + 2; // xz
+                          else if(3 == J + K) L = dim + 1; // yz
+
+                          for(unsigned i = 0; i < nDofsVi; i++) {
+                            HessSolVi[I][J][K] += solVi[I][i] * hessPhiVi[i * dim2 + L];
+                          }
+                          for(unsigned i = 0; i < nDofsVj; i++) {
+                            HessSolVj[I][J][K] += solVj[I][i] * hessPhiVj[i * dim2 + L];
+                          }
+                        }
+                        //}
+                      }
+
+                      std::vector<std::vector<adept::adouble>> HessSolVdotNi(dim, std::vector<adept::adouble>(dim, 0.));
+                      std::vector<std::vector<adept::adouble>> HessSolVdotNj(dim, std::vector<adept::adouble>(dim, 0.));
+
+                      for(unsigned I = 0; I < dim; I++) {
+                        unsigned J = I;
+                        //for(unsigned J = 0; J < dim; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          HessSolVdotNi[I][J] += HessSolVi[I][J][K] * normal[K];
+                          HessSolVdotNj[I][J] += HessSolVj[I][J][K] * normal[K];
+                        }
+                        //}
+                      }
+
+                      for(unsigned I = 0; I < dim; I++) {
+                        unsigned J = I;
+                        //for(unsigned J = 0; J < dim; J++) {
+                        for(unsigned K = 0; K < dim; K++) {
+
+                          unsigned L;
+                          if(J == K) L = J;
+                          else if(1 == J + K) L = dim;     // xy
+                          else if(2 == J + K) L = dim + 2; // xz
+                          else if(3 == J + K) L = dim + 1; // yz
+
+                          for(unsigned i = 0; i < nDofsVi; i++) {
+                            aResi[I * nDofsVi + i] +=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
+                          }
+
+                          for(unsigned i = 0; i < nDofsVj; i++) {
+                            aResi[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  rhsi.resize(aResi.size());   //resize
+                  for(int i = 0; i < aResi.size(); i++) {
+                    rhsi[i] = -aResi[i].value();
+                  }
+                  myRES->add_vector_blocked(rhsi, sysDofsi);
+
+                  rhsj.resize(aResj.size());   //resize
+                  for(int i = 0; i < aResj.size(); i++) {
+                    rhsj[i] = -aResj[i].value();
+                  }
+                  myRES->add_vector_blocked(rhsj, sysDofsj);
+
+                  std::vector<unsigned> sysDofs(0);
+                  sysDofs.reserve(sysDofsi.size() + sysDofsj.size());
+                  sysDofs.insert(sysDofs.end(), sysDofsi.begin(), sysDofsi.end());
+                  sysDofs.insert(sysDofs.end(), sysDofsj.begin(), sysDofsj.end());
+
+                  s.clear_dependents();
+                  s.clear_independents();
+
+                  s.dependent(&aResi[0], aResi.size());
+                  s.dependent(&aResj[0], aResi.size());
+                  for(unsigned K = 0; K < dim; K++) s.independent(solVi[K].data(), solVi[K].size());
+                  for(unsigned K = 0; K < 2; K++) s.independent(solPi[K].data(), solPi[K].size());
+                  for(unsigned K = 0; K < dim; K++) s.independent(solVj[K].data(), solVj[K].size());
+                  for(unsigned K = 0; K < 2; K++) s.independent(solPj[K].data(), solPj[K].size());
+
+                  Jac.resize(sysDofs.size() * sysDofs.size()); //J22
+                  s.jacobian(&Jac[0], true);
+                  myKK->add_matrix_blocked(Jac, sysDofs, sysDofs);
+                  s.clear_dependents();
+                  s.clear_independents();
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+
+
+
   std::cout << "All Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
 }

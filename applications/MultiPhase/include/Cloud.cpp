@@ -1,3 +1,5 @@
+
+
 void Cloud::ComputeQuadraticBestFit() {
     _A.clear();
 
