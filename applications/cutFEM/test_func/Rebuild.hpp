@@ -199,26 +199,27 @@ bool GetPoint(const std::vector<double> &A,
 
 using boost::multiprecision::cpp_bin_float_oct;
 
-std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt, unsigned level) {
+std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
 
   typedef cpp_bin_float_oct oct;
 
   unsigned cnt = 0;
-  const unsigned dim = xv.size();
-  std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));
-  std::vector <double> ds(npt);
+  const unsigned dim = xv.size();    //in this case it is 4. xv is defined by four vertices.
+  std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));       //xe is a matrix with size (min 8 by 2) TODO is this the other way around?
+  std::vector <double> ds(npt);     //ds has size number of marker.
 
   //if(_A.find(iel) != _A.end()) {
 
-  const unsigned nve = xv[0].size();
+  const unsigned nve = xv[0].size();     //nve = 2 (x,y)
+//       std::cout<< " xv size() =" << nve <<endl;
   //const std::vector<double> &Cf = _A[iel];
-  std::vector<double> v(dim, 0.);
+  std::vector<double> v(dim, 0.); // zero vector with size 4
 
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;
-    for(unsigned k = 0; k < dim; k++) v[k] = xv[k][ip1] - xv[k][i];
+    for(unsigned k = 0; k < dim; k++) v[k] = xv[k][ip1] - xv[k][i];   // (xi-yi)
 
-    const double &x0 = xv[0][i];
+    const double &x0 = xv[0][i];     //isn't it more like x0 and x1
     const double &y0 = xv[1][i];
 
     oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
@@ -258,6 +259,8 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
   nInt = cnt;
 //       if(cnt >= 2) nInt = 2;
 
+//       std::cout<< " cnt size() =" << cnt <<endl;
+
   if(cnt == 2) {
 
     std::vector<double> Xg(2, 0);
@@ -272,9 +275,10 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
     std::vector<double> P1 = xe[0];
     std::vector<double> P2 = xe[1];
 
-    BuildMarkersOnConicArc(M_PI / 18, npt, Cf, Xg, P1, P2, xe);
+    BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, xe);
 
     npt = xe.size();
+    std::cout<< " xe size() =" << npt <<endl;
 
     for(unsigned k = 0; k < npt; k++) {
       std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
@@ -294,7 +298,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 
 
 
-    return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
+//     return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
   }
 }
 

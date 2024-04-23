@@ -96,8 +96,18 @@ int main() {
 
   std::cout<<"Ix2y2 = "<<Ix2y2<<std::endl;
 
+  unsigned nInt;
+  std::pair<std::vector<std::vector<double>>, std::vector<double>> getCellpoints = GetCellPointsFromQuadric({{0,0},{1,0},{1,1},{0,1}}, {1,0,1,0,0,-1}, 5, nInt);
 
-// return 0;
+
+std::vector<double> A = {1,0,1,0,0,-1};
+std::vector<double> P1 = {1,0.5};
+std::vector<double> P2 = {-.5,-1};
+std::vector<std::vector<double>> P;
+BuildMarkersOnConicArc(M_PI, 5,A,{2,2},P1,P2,P);
+
+
+return 0;
 // //     std::cout.precision(16);
 //     srand(10); // Fixed seed for random number generation
 
@@ -160,8 +170,6 @@ int main() {
             const auto& entry = (interp_point_weights[k] -weightCF[k])/weightCF[k];
             std::cout << " " << entry;
         }
-
-
 
        Area0 = 0;
        Area = 0;
