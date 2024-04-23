@@ -298,7 +298,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 
 
 
-//     return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
+    return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
   }
 }
 

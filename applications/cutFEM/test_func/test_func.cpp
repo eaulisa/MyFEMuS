@@ -15,7 +15,7 @@ using namespace std;
 
 #include "Rebuild.hpp"
 #include "parabolaIntegration.hpp"
-
+#include "PolynomialBases.hpp"
 
 
 
@@ -60,11 +60,11 @@ int main() {
 //     }
 //     cout<<endl;
 
-    cout<< " weight CF = " << weightCF.size() << endl;
-    for(unsigned ig = 0; ig < weightCF.size(); ig++) {
+  cout << " weight CF = " << weightCF.size() << endl;
+  for(unsigned ig = 0; ig < weightCF.size(); ig++) {
     cout  << weightCF[ig] << " ";
-    }
-    cout<<endl;
+  }
+  cout << endl;
 
   for(unsigned ig = 0; ig < weightCF.size(); ig++) {
 
@@ -84,63 +84,84 @@ int main() {
 
   }
 
-  std::cout<<"Area0 = "<<Area0<<std::endl;
-  std::cout<<"Area = "<<Area<<std::endl;
-  std::cout<<"Ix = "<<Ix<<std::endl;
-  std::cout<<"Iy = "<<Iy<<std::endl;
+  std::cout << "Area0 = " << Area0 << std::endl;
+  std::cout << "Area = " << Area << std::endl;
+  std::cout << "Ix = " << Ix << std::endl;
+  std::cout << "Iy = " << Iy << std::endl;
 
-  std::cout<<"Ix3 = "<<Ix3<<std::endl;
-  std::cout<<"Ix2y = "<<Ix2y<<std::endl;
-  std::cout<<"Ixy2 = "<<Ixy2<<std::endl;
-  std::cout<<"Iy3 = "<<Iy3<<std::endl;
+  std::cout << "Ix3 = " << Ix3 << std::endl;
+  std::cout << "Ix2y = " << Ix2y << std::endl;
+  std::cout << "Ixy2 = " << Ixy2 << std::endl;
+  std::cout << "Iy3 = " << Iy3 << std::endl;
 
-  std::cout<<"Ix2y2 = "<<Ix2y2<<std::endl;
+  std::cout << "Ix2y2 = " << Ix2y2 << std::endl;
 
   unsigned nInt;
-  std::pair<std::vector<std::vector<double>>, std::vector<double>> getCellpoints = GetCellPointsFromQuadric({{0,0},{1,0},{1,1},{0,1}}, {1,0,1,0,0,-1}, 5, nInt);
+
+  //std::vector<std::vector<double>> xv = {{0., 1., 2., 1.}, {0., 0., 1., 1.}};
+  std::vector<std::vector<double>> xv = {{1., 1., 0., 0.}, { 0., 1., 1., 0.}};
+  std::vector<double> A = {1, 0, 1, 0, 0, -0.5};
+  unsigned nPoints = 3;
+  unsigned dim = 2;
+  short unsigned ielType = 3; //quad
+  unsigned femType = 0; //linear FEM
+
+  std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);
 
 
-std::vector<double> A = {1,0,1,0,0,-1};
-std::vector<double> P1 = {1,0.5};
-std::vector<double> P2 = {-.5,-1};
-std::vector<std::vector<double>> P;
-BuildMarkersOnConicArc(M_PI, 5,A,{2,2},P1,P2,P);
+
+  std::vector < std::vector < std::vector <double > > > aP(1);
+  ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
 
 
-return 0;
+  std::vector<std::vector<double>> xi(nPoints, std::vector<double>(2, 0.));
+  for(unsigned i = 0; i < nPoints; i++) {
+    bool inverseMapping = GetInverseMapping(femType, ielType, aP, xp.first[i], xi[i], 100);
+    xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};
+    std::cout << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
+  }
+
+  // std::vector<double> A = {1, 0, 1, 0, 0, -1};
+  // std::vector<double> P1 = {1, 0.5};
+  // std::vector<double> P2 = {-.5, -1};
+  // std::vector<std::vector<double>> P;
+  // BuildMarkersOnConicArc(M_PI, 5, A, {2, 2}, P1, P2, P);
+
+
+  return 0;
 // //     std::cout.precision(16);
 //     srand(10); // Fixed seed for random number generation
 
-    int maxDepth = 4;
-    std::vector<OctreeNode<Type>> roots;
+  int maxDepth = 4;
+  std::vector<OctreeNode<Type>> roots;
 
-    for (int ttable = 0; ttable < 1; ++ttable) {
-        OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},ttable, 0, 3, &Pweights);
-        if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6){
-          root.subdivideWithRelativeError(maxDepth, 0.001);
-        }
-        else {
-          root.subdivideWithRelativeError(3, 0.1);
-        }
-
-        std::cout << "Octree Structure:\n";
-        roots.push_back(root);
+  for(int ttable = 0; ttable < 1; ++ttable) {
+    OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, 3, &Pweights);
+    if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6) {
+      root.subdivideWithRelativeError(maxDepth, 0.001);
     }
+    else {
+      root.subdivideWithRelativeError(3, 0.1);
+    }
+
+    std::cout << "Octree Structure:\n";
+    roots.push_back(root);
+  }
 
 //     printOctreeStructure(&roots[0]);
 
 
-        table = 0;
-        Point3D searchPoint(0.2, 0.3, 0.5);
+  table = 0;
+  Point3D searchPoint(0.2, 0.3, 0.5);
 
-        OctreeNode<Type>* result = roots[table].search(searchPoint);
-        // Display the result
-        cout<< "table = "<<table << endl;
-        std::cout << "\nSearch Point: (" << searchPoint.x << ", " << searchPoint.y << ", " << searchPoint.z << ")\n";
-        std::cout << "Smallest Sub-cube Bounds: ";
-        std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
-        std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
-        std::cout << "depth : = " << result->depth << " \n";
+  OctreeNode<Type>* result = roots[table].search(searchPoint);
+  // Display the result
+  cout << "table = " << table << endl;
+  std::cout << "\nSearch Point: (" << searchPoint.x << ", " << searchPoint.y << ", " << searchPoint.z << ")\n";
+  std::cout << "Smallest Sub-cube Bounds: ";
+  std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
+  std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
+  std::cout << "depth : = " << result->depth << " \n";
 //         std::vector<std::vector<double>> interp_table;
 //         for (size_t i = 0; i < result->corners.size(); ++i) {
 //             interp_table.push_back(result->corners[i]);
@@ -151,66 +172,66 @@ return 0;
 //         }
 
 
-        std::vector< double > interp_point_weights;
-        std::vector<double>interp_point ={searchPoint.x,searchPoint.y,searchPoint.z};
-        std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
+  std::vector< double > interp_point_weights;
+  std::vector<double>interp_point = {searchPoint.x, searchPoint.y, searchPoint.z};
+  std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
 
 //         double interp_area = trilinier_interpolation(interp_table , interp_point);
 
-        trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
+  trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
 
-        std::cout << "Interp weights:\n";
-        for (size_t k = 0; k < interp_point_weights.size(); ++k) {
-            const auto& entry = interp_point_weights[k];
-            std::cout << " " << entry;
-        }
+  std::cout << "Interp weights:\n";
+  for(size_t k = 0; k < interp_point_weights.size(); ++k) {
+    const auto& entry = interp_point_weights[k];
+    std::cout << " " << entry;
+  }
 
-        std::cout << "Interp weights error:\n";
-        for (size_t k = 0; k < interp_point_weights.size(); ++k) {
-            const auto& entry = (interp_point_weights[k] -weightCF[k])/weightCF[k];
-            std::cout << " " << entry;
-        }
+  std::cout << "Interp weights error:\n";
+  for(size_t k = 0; k < interp_point_weights.size(); ++k) {
+    const auto& entry = (interp_point_weights[k] - weightCF[k]) / weightCF[k];
+    std::cout << " " << entry;
+  }
 
-       Area0 = 0;
-       Area = 0;
-       Ix = 0;
-       Iy = 0;
-       Ix3 = 0;
-       Ix2y = 0;
-       Ixy2 = 0;
-       Iy3 = 0;
-       Ix2y2 = 0;
+  Area0 = 0;
+  Area = 0;
+  Ix = 0;
+  Iy = 0;
+  Ix3 = 0;
+  Ix2y = 0;
+  Ixy2 = 0;
+  Iy3 = 0;
+  Ix2y2 = 0;
 
-      for(unsigned ig = 0; ig < interp_point_weights.size(); ig++) {
+  for(unsigned ig = 0; ig < interp_point_weights.size(); ig++) {
 
-        Area0 += gaussWeight[ig];
-        Area += interp_point_weights[ig] * gaussWeight[ig];
-        Ix += xg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-        Iy += yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-
-
-        Ix3 += xg[ig] * xg[ig] * xg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-        Ix2y += xg[ig] * xg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-        Ixy2 += xg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-        Iy3 += yg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-
-        Ix2y2 += xg[ig] * xg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
-      }
+    Area0 += gaussWeight[ig];
+    Area += interp_point_weights[ig] * gaussWeight[ig];
+    Ix += xg[ig] * interp_point_weights[ig] * gaussWeight[ig];
+    Iy += yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
 
 
-        std::cout<<"Area0 = "<<Area0<<std::endl;
-        std::cout<<"Area = "<<Area<<std::endl;
-        std::cout<<"Ix = "<<Ix<<std::endl;
-        std::cout<<"Iy = "<<Iy<<std::endl;
+    Ix3 += xg[ig] * xg[ig] * xg[ig] * interp_point_weights[ig] * gaussWeight[ig];
+    Ix2y += xg[ig] * xg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
+    Ixy2 += xg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
+    Iy3 += yg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
 
-        std::cout<<"Ix3 = "<<Ix3<<std::endl;
-        std::cout<<"Ix2y = "<<Ix2y<<std::endl;
-        std::cout<<"Ixy2 = "<<Ixy2<<std::endl;
-        std::cout<<"Iy3 = "<<Iy3<<std::endl;
+    Ix2y2 += xg[ig] * xg[ig] * yg[ig] * yg[ig] * interp_point_weights[ig] * gaussWeight[ig];
+  }
 
-        std::cout<<"Ix2y2 = "<<Ix2y2<<std::endl;
 
-    return 0;
+  std::cout << "Area0 = " << Area0 << std::endl;
+  std::cout << "Area = " << Area << std::endl;
+  std::cout << "Ix = " << Ix << std::endl;
+  std::cout << "Iy = " << Iy << std::endl;
+
+  std::cout << "Ix3 = " << Ix3 << std::endl;
+  std::cout << "Ix2y = " << Ix2y << std::endl;
+  std::cout << "Ixy2 = " << Ixy2 << std::endl;
+  std::cout << "Iy3 = " << Iy3 << std::endl;
+
+  std::cout << "Ix2y2 = " << Ix2y2 << std::endl;
+
+  return 0;
 
 
 }
