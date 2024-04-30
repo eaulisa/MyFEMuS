@@ -9,7 +9,13 @@
 #include <typeinfo>
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp>
+#include <boost/filesystem.hpp>
 #include <map>
+#include <fstream>
+#include <string>
+// #include <filesystem>
+
+namespace fs = boost::filesystem;
 
 using namespace std;
 
@@ -26,16 +32,13 @@ int main() {
   Type a(0);
   Type c(1);
   PointT <Type> p1, p2, p3;
-  p1 = { static_cast<Type>(0), static_cast<Type>(0.2) };
-  p2 = { static_cast<Type>(0.3), static_cast<Type>(1) };
-  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.5) };
+  p1 = { static_cast<Type>(0), static_cast<Type>(0.11) };
+  p2 = { static_cast<Type>(0.33), static_cast<Type>(1) };
+  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.55) };
   std::vector<double>weightCF;
 
   CutFemWeightParabola <double, Type> Pweights(QUAD, 3, "legendre");
   Pweights(s, a, c, table, p1, p2, p3, weightCF);
-
-
-
 
   double Area0 = 0;
   double Area = 0;
@@ -128,35 +131,91 @@ int main() {
   // BuildMarkersOnConicArc(M_PI, 5, A, {2, 2}, P1, P2, P);
 
 
-  return 0;
+//   return 0;
 // //     std::cout.precision(16);
 //     srand(10); // Fixed seed for random number generation
 
-  int maxDepth = 4;
+  int maxDepth = 3;
   std::vector<OctreeNode<Type>> roots;
 
   for(int ttable = 0; ttable < 1; ++ttable) {
-    OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, 3, &Pweights);
-    if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6) {
-      root.subdivideWithRelativeError(maxDepth, 0.001);
-    }
-    else {
-      root.subdivideWithRelativeError(3, 0.1);
-    }
+    std::string filename = "save/octree_data" + std::to_string(ttable) + ".csv";
 
-    std::cout << "Octree Structure:\n";
-    roots.push_back(root);
+//     if (fs::exists(filename)) {
+//       std::cout << "File " << filename << " already exists. Skipping octree generation." << std::endl;
+//     }
+//
+//     else{
+      OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, 3, &Pweights);
+      if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6) {
+        root.subdivideWithRelativeError(maxDepth, 0.001);
+      }
+      else {
+        root.subdivideWithRelativeError(3, 0.1);
+      }
+
+      root.saveOctreeToCSV(filename);
+      std::cout << "Octree Structure:\n";
+      roots.push_back(root);
+//     }
   }
 
-//     printOctreeStructure(&roots[0]);
+    // Load the octree structure and vectors from the CSV file
+    std::vector<OctreeNode<Type>>loadedRoots;
+
+    for(int ttable = 0; ttable < 1; ++ttable) {
+      OctreeNode<Type> loadedRoot({0., 0., 0.}, {1., 1., 1.}, 0, 0, 0, nullptr);
+      loadedRoot.loadOctreeFromCSV("octree_data.csv");
+      loadedRoots.push_back(loadedRoot);
+    }
 
 
-  table = 0;
-  Point3D searchPoint(0.2, 0.3, 0.5);
+    // Example: Search for a point in the loaded Octree
+    table = 0 ;
+    Point3D searchPoint(0.11, 0.33, 0.55);
+    OctreeNode<Type>* result = loadedRoots[table].search(searchPoint);
+    if (result) {
+        std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
+    } else {
+        std::cout << "Search point not found in the Octree." << std::endl;
+    }
 
-  OctreeNode<Type>* result = roots[table].search(searchPoint);
-  // Display the result
-  cout << "table = " << table << endl;
+    // Print the loaded Octree structure
+//     printOctreeStructure(&loadedRoot);
+
+
+
+
+
+
+
+//   return 0;
+
+
+//   std::vector<OctreeNode<Type>> roots;
+//
+//   for(int ttable = 0; ttable < 1; ++ttable) {
+//     OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, 3, &Pweights);
+//     if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6) {
+//       root.subdivideWithRelativeError(maxDepth, 0.001);
+//     }
+//     else {
+//       root.subdivideWithRelativeError(3, 0.1);
+//     }
+//
+//     std::cout << "Octree Structure:\n";
+//     roots.push_back(root);
+//   }
+//
+// //     printOctreeStructure(&roots[0]);
+//
+//
+//   table = 0;
+//   Point3D searchPoint(0.11, 0.33, 0.55);
+//
+//   OctreeNode<Type>* result = roots[table].search(searchPoint);
+//   // Display the result
+//   cout << "table = " << table << endl;
   std::cout << "\nSearch Point: (" << searchPoint.x << ", " << searchPoint.y << ", " << searchPoint.z << ")\n";
   std::cout << "Smallest Sub-cube Bounds: ";
   std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";

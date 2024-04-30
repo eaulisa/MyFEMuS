@@ -5,6 +5,7 @@
 #include <typeinfo>
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp>
+#include <fstream>
 
 using namespace std;
 
@@ -1614,14 +1615,13 @@ public:
     Point3D minBounds, maxBounds;
     bool isLeaf;
     std::vector<OctreeNode*> children;
-    std::vector<std::vector<double>> corners;
+    std::vector<std::vector<double>> corners;//(8, std::vector<double>(3));
     std::vector<std::vector<double>> cornerAreas;
     std::vector<std::vector<double>> cornerWeights;
     int table;
+    unsigned depth;
     unsigned qM;
-    unsigned int mPn = 2;
     int s = 0;
-    unsigned depth = 0;
     Type a = 0;
     double relative_error = -1;
     double relative_error_opposite = -1;
@@ -1632,14 +1632,15 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
     // Function to get the eight corners of the node
     void getCorners() {  //TODO initialize it once without using push_back
-            corners.push_back({minBounds.x, minBounds.y, minBounds.z});
-            corners.push_back({minBounds.x, minBounds.y, maxBounds.z});
-            corners.push_back({minBounds.x, maxBounds.y, minBounds.z});
-            corners.push_back({minBounds.x, maxBounds.y, maxBounds.z});
-            corners.push_back({maxBounds.x, minBounds.y, minBounds.z});
-            corners.push_back({maxBounds.x, minBounds.y, maxBounds.z});
-            corners.push_back({maxBounds.x, maxBounds.y, minBounds.z});
-            corners.push_back({maxBounds.x, maxBounds.y, maxBounds.z});
+            corners.resize(8, std::vector<double>(3));
+            corners[0] = {minBounds.x, minBounds.y, minBounds.z};
+            corners[1] = {minBounds.x, minBounds.y, maxBounds.z};
+            corners[2] = {minBounds.x, maxBounds.y, minBounds.z};
+            corners[3] = {minBounds.x, maxBounds.y, maxBounds.z};
+            corners[4] = {maxBounds.x, minBounds.y, minBounds.z};
+            corners[5] = {maxBounds.x, minBounds.y, maxBounds.z};
+            corners[6] = {maxBounds.x, maxBounds.y, minBounds.z};
+            corners[7] = {maxBounds.x, maxBounds.y, maxBounds.z};
 
 //         for (const auto& corner : corners) {
 //             std::cout << "Corner: (" << corner[0] << ", " << corner[1] << ", " << corner[2] << ") - Print Something\n";
@@ -1679,8 +1680,6 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
         }
       }
-
-
 
       void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
         if (currentDepth >= maxDepth || !isLeaf) {
@@ -1836,8 +1835,111 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
         return nullptr; // Should not reach here under normal circumstances
     }
-};
 
+   // Function to save the octree structure to a CSV file
+    void saveOctreeToCSV(const std::string& filename) const {
+        std::ofstream ofs(filename);
+        if (!ofs.is_open()) {
+            std::cerr << "Error: Unable to open file for writing: " << filename << std::endl;
+            return;
+        }
+        // Write the octree structure and vectors to the CSV file recursively
+        serialize(ofs);
+
+        ofs.close();
+    }
+
+    // Function to load the octree structure from a CSV file
+    void loadOctreeFromCSV(const std::string& filename) {
+        std::ifstream ifs(filename);
+        if (!ifs.is_open()) {
+            std::cerr << "Error: Unable to open file for reading: " << filename << std::endl;
+            return;
+        }
+
+        // Read the octree structure and vectors from the CSV file recursively
+        deserialize(ifs);
+
+        ifs.close();
+    }
+
+private:
+    // Serialize the OctreeNode
+    void serialize(std::ofstream& ofs) const {
+        // Serialize the current node
+        ofs.write(reinterpret_cast<const char*>(&minBounds), sizeof(minBounds));
+        ofs.write(reinterpret_cast<const char*>(&maxBounds), sizeof(maxBounds));
+        ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
+        ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
+
+//               ofs << minBounds.x << "," << minBounds.y << "," << minBounds.z << ","
+//             << maxBounds.x << "," << maxBounds.y << "," << maxBounds.z << ","
+//             << isLeaf << "," << depth << std::endl;
+
+        // Serialize the vectors
+        serializeVector(ofs, corners);
+        serializeVector(ofs, cornerAreas);
+        serializeVector(ofs, cornerWeights);
+
+        // Serialize children recursively
+        for (OctreeNode* child : children) {
+            child->serialize(ofs);
+        }
+    }
+
+    // Deserialize the OctreeNode
+    void deserialize(std::ifstream& ifs) {
+        // Deserialize the current node
+        ifs.read(reinterpret_cast<char*>(&minBounds), sizeof(minBounds));
+        ifs.read(reinterpret_cast<char*>(&maxBounds), sizeof(maxBounds));
+        ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
+        ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
+
+//               ifs >> minBounds.x >> minBounds.y >> minBounds.z
+//             >> maxBounds.x >> maxBounds.y >> maxBounds.z
+//             >> isLeaf >> depth;
+
+        // Deserialize the vectors
+        deserializeVector(ifs, corners);
+        deserializeVector(ifs, cornerAreas);
+        deserializeVector(ifs, cornerWeights);
+
+        // Deserialize children recursively
+        if (!isLeaf) {
+            for (int i = 0; i < 8; ++i) {
+                OctreeNode* child = new OctreeNode({0, 0, 0}, {1, 1, 1}, 0, 0, 0, nullptr);
+                child->deserialize(ifs);
+                children.push_back(child);
+            }
+        }
+    }
+
+    // Helper function to serialize a vector
+    void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
+        size_t size = vec.size();
+        ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+        for (const auto& innerVec : vec) {
+            size_t innerSize = innerVec.size();
+            ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
+            ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
+        }
+    }
+
+    // Helper function to deserialize a vector
+    void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
+        size_t size;
+        ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        vec.resize(size);
+        for (size_t i = 0; i < size; ++i) {
+            size_t innerSize;
+            ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
+            vec[i].resize(innerSize);
+            ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
+        }
+    }
+};
 
 
 template <class Type>
@@ -1880,7 +1982,7 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
         }
           std::cout << std::endl;
       }
-
+    }
 
 
 
@@ -1908,11 +2010,13 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
           for (const auto& entry : corner) {
               std::cout << " " << entry;
           }
-      }*/
+      }
+
+    }*/
 
 
 
-    }
+
     else {
         std::cout<< " relative error = " << node-> relative_error <<" "<< node->depth << " [Non-Leaf]\n";
         for (OctreeNode<Type>* child : node->children) {
@@ -1920,6 +2024,37 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
         }
     }
 }
+
+
+// template <class Type>
+// void saveOctreeToCSV(const OctreeNode<Type>& root, const std::string& filename) {
+//     std::ofstream ofs(filename, std::ios::binary);
+//     if (ofs.is_open()) {
+//         root.serialize(ofs);
+//         ofs.close();
+//         std::cout << "Octree structure saved to " << filename << std::endl;
+//     } else {
+//         std::cerr << "Failed to open file for writing: " << filename << std::endl;
+//     }
+// }
+//
+// // Function to load Octree structure from a CSV file
+// template <class Type>
+// OctreeNode<Type>* loadOctreeFromCSV(const std::string& filename) {
+//     OctreeNode<Type>* root = nullptr;
+//     std::ifstream ifs(filename, std::ios::binary);
+//     if (ifs.is_open()) {
+//         root = new OctreeNode<Type>();
+//         root->deserialize(ifs);
+//         ifs.close();
+//         std::cout << "Octree structure loaded from " << filename << std::endl;
+//     } else {
+//         std::cerr << "Failed to open file for reading: " << filename << std::endl;
+//     }
+//     return root;
+// }
+//
+// template <class Type>
 
 
 
