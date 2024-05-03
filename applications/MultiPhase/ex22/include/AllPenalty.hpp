@@ -78,7 +78,6 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   std::vector <std::vector < double> > xj(dim);
   std::vector <std::vector < double > > faceVx(dim);
 
-  std::cout.precision(10);
 
   //variable-name handling
 
@@ -767,26 +766,6 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                       }
                     }
 
-                    // std::cout<< "V0 "<< fabs(gradSolVi[0][0] - gradSolVj[0][0])<<" "<< fabs((gradSolVi[0][0] - gradSolVj[0][0]) / std::min(fabs(gradSolVi[0][0]), fabs(gradSolVj[0][0]))) << std::endl;
-                    // std::cout<< "V1 "<< fabs(gradSolVi[0][1] - gradSolVj[0][1])<<" "<< fabs((gradSolVi[0][1] - gradSolVj[0][1]) / std::min(fabs(gradSolVi[0][1]), fabs(gradSolVj[0][1]))) << std::endl;
-                    // std::cout<< "V2 "<< fabs(gradSolVi[1][0] - gradSolVj[1][0])<<" "<< fabs((gradSolVi[1][0] - gradSolVj[1][0]) / std::min(fabs(gradSolVi[1][0]), fabs(gradSolVj[1][0]))) << std::endl;
-                    // std::cout<< "V3 "<< fabs(gradSolVi[1][1] - gradSolVj[1][1])<<" "<< fabs((gradSolVi[1][1] - gradSolVj[1][1]) / std::min(fabs(gradSolVi[1][1]), fabs(gradSolVj[1][1]))) << std::endl;
-
-                    // std::cout << "P0 " << fabs(gradSolPi[0][0] - gradSolPj[0][0]) << " " << fabs((gradSolPi[0][0] - gradSolPj[0][0]) / std::min(fabs(gradSolPi[0][0]), fabs(gradSolPj[0][0]))) << std::endl;
-                    // std::cout << "P1 " << fabs(gradSolPi[0][1] - gradSolPj[0][1]) << " " << fabs((gradSolPi[0][1] - gradSolPj[0][1]) / std::min(fabs(gradSolPi[0][1]), fabs(gradSolPj[0][1]))) << std::endl;
-                    // std::cout << "P2 " << fabs(gradSolPi[1][0] - gradSolPj[1][0]) << " " << fabs((gradSolPi[1][0] - gradSolPj[1][0]) / std::min(fabs(gradSolPi[1][0]), fabs(gradSolPj[1][0]))) << std::endl;
-                    // std::cout << "P3 " << fabs(gradSolPi[1][1] - gradSolPj[1][1]) << " " << fabs((gradSolPi[1][1] - gradSolPj[1][1]) / std::min(fabs(gradSolPi[1][1]), fabs(gradSolPj[1][1]))) << std::endl;
-                    //
-                    //
-                    //
-                    //
-                    //
-                    //
-                    // std::cout << gradSolPi[0][0] << " " << gradSolPj[0][0] << std::endl;
-                    // std::cout << gradSolPi[0][1] << " " << gradSolPj[0][1] << std::endl;
-                    // std::cout << gradSolPi[1][0] << " " << gradSolPj[1][0] << std::endl;
-                    // std::cout << gradSolPi[1][1] << " " << gradSolPj[1][1] << std::endl;
-
                     for(unsigned J = 0; J < 2; J++) {
                       for(unsigned K = 0; K < dim; K++) {
                         for(unsigned i = 0; i < nDofsPi; i++) {
@@ -799,7 +778,7 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                     }
 
 
-                    if(false && ghostPenalty) {
+                    if(ghostPenalty) {
 
                       std::vector<adept::adouble> gradSolVdotNi(dim, 0.);
                       std::vector<adept::adouble> gradSolVdotNj(dim, 0.);
