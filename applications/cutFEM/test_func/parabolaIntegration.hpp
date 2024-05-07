@@ -1802,7 +1802,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
 //         cout << " interp_area = " << interp_area << " f_area =" << f_area << " r error = "<< relative_error << endl;
 
-        if (depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
+        if (depth <= 2 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
             isLeaf = false;
             children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM, _Pweights));
             children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights));
@@ -2026,35 +2026,39 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
 }
 
 
-// template <class Type>
-// void saveOctreeToCSV(const OctreeNode<Type>& root, const std::string& filename) {
-//     std::ofstream ofs(filename, std::ios::binary);
-//     if (ofs.is_open()) {
-//         root.serialize(ofs);
-//         ofs.close();
-//         std::cout << "Octree structure saved to " << filename << std::endl;
-//     } else {
-//         std::cerr << "Failed to open file for writing: " << filename << std::endl;
-//     }
-// }
-//
-// // Function to load Octree structure from a CSV file
-// template <class Type>
-// OctreeNode<Type>* loadOctreeFromCSV(const std::string& filename) {
-//     OctreeNode<Type>* root = nullptr;
-//     std::ifstream ifs(filename, std::ios::binary);
-//     if (ifs.is_open()) {
-//         root = new OctreeNode<Type>();
-//         root->deserialize(ifs);
-//         ifs.close();
-//         std::cout << "Octree structure loaded from " << filename << std::endl;
-//     } else {
-//         std::cerr << "Failed to open file for reading: " << filename << std::endl;
-//     }
-//     return root;
-// }
-//
-// template <class Type>
+template <class Type>
+void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, /*std::vector<OctreeNode<Type>>& roots,*/ std::vector<OctreeNode<Type>>& loadedRoots){
+
+  for(int ttable = 0; ttable < 8; ++ttable) {
+    std::string filename = "save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv";
+
+    FILE *fp;
+    fp = fopen(filename.c_str(), "r");
+    if(fp != NULL) {
+      std::cout << "File " << filename << " already exists. Skipping octree generation." << std::endl;
+      fclose(fp);
+    }
+    else{
+      cout << "creating the tables"<<endl;
+      OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
+      if(ttable != 5) {
+        root.subdivideWithRelativeError(maxDepth, percent);
+      }
+      else{
+        root.subdivideWithRelativeError(3, 0.1);
+      }
+      root.saveOctreeToCSV(filename);
+      std::cout << "Octree Structure:\n";
+  //     roots.push_back(root);
+    }
+  }
+  // Load the octree structure and vectors from the CSV file
+  for(int ttable = 0; ttable < 8; ++ttable) {
+    OctreeNode<Type> loadedRoot({0., 0., 0.}, {1., 1., 1.}, ttable, 0, degree, nullptr);
+    loadedRoot.loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
+    loadedRoots.push_back(loadedRoot);
+  }
+}
 
 
 

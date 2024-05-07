@@ -76,7 +76,6 @@ int main() {
     Ix += xg[ig] * weightCF[ig] * gaussWeight[ig];
     Iy += yg[ig] * weightCF[ig] * gaussWeight[ig];
 
-
     Ix3 += xg[ig] * xg[ig] * xg[ig] * weightCF[ig] * gaussWeight[ig];
     Ix2y += xg[ig] * xg[ig] * yg[ig] * weightCF[ig] * gaussWeight[ig];
     Ixy2 += xg[ig] * yg[ig] * yg[ig] * weightCF[ig] * gaussWeight[ig];
@@ -135,40 +134,15 @@ int main() {
 // //     std::cout.precision(16);
 //     srand(10); // Fixed seed for random number generation
 
-  int maxDepth = 3;
-  std::vector<OctreeNode<Type>> roots;
 
-  for(int ttable = 0; ttable < 1; ++ttable) {
-    std::string filename = "save/octree_data" + std::to_string(ttable) + ".csv";
 
-//     if (fs::exists(filename)) {
-//       std::cout << "File " << filename << " already exists. Skipping octree generation." << std::endl;
-//     }
-//
-//     else{
-      OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, 3, &Pweights);
-      if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6) {
-        root.subdivideWithRelativeError(maxDepth, 0.001);
-      }
-      else {
-        root.subdivideWithRelativeError(3, 0.1);
-      }
+  int maxDepth = 5;
+  int degree = 3;
+  double percent = 0.001;
+//   std::vector<OctreeNode<Type>> roots;
+  std::vector<OctreeNode<Type>>loadedRoots;
 
-      root.saveOctreeToCSV(filename);
-      std::cout << "Octree Structure:\n";
-      roots.push_back(root);
-//     }
-  }
-
-    // Load the octree structure and vectors from the CSV file
-    std::vector<OctreeNode<Type>>loadedRoots;
-
-    for(int ttable = 0; ttable < 1; ++ttable) {
-      OctreeNode<Type> loadedRoot({0., 0., 0.}, {1., 1., 1.}, 0, 0, 0, nullptr);
-      loadedRoot.loadOctreeFromCSV("octree_data.csv");
-      loadedRoots.push_back(loadedRoot);
-    }
-
+generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, /*roots,*/ loadedRoots);
 
     // Example: Search for a point in the loaded Octree
     table = 0 ;
