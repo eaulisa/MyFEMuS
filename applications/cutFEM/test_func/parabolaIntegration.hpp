@@ -1941,7 +1941,6 @@ private:
     }
 };
 
-
 template <class Type>
 void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     for (int i = 0; i < depth; ++i) {
@@ -2025,7 +2024,6 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     }
 }
 
-
 template <class Type>
 void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, /*std::vector<OctreeNode<Type>>& roots,*/ std::vector<OctreeNode<Type>>& loadedRoots){
 
@@ -2035,7 +2033,7 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     FILE *fp;
     fp = fopen(filename.c_str(), "r");
     if(fp != NULL) {
-      std::cout << "File " << filename << " already exists. Skipping octree generation." << std::endl;
+//       std::cout << "File " << filename << " already exists. Skipping octree generation." << std::endl;
       fclose(fp);
     }
     else{
@@ -2058,6 +2056,14 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     loadedRoot.loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
     loadedRoots.push_back(loadedRoot);
   }
+}
+
+double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
+  double Integral = 0;
+  for(unsigned ig = 0; ig < interp_point_weights.size(); ig++) {
+    Integral += pow(xg[ig],xExp) * pow(yg[ig],yExp) * interp_point_weights[ig] * gaussWeight[ig];
+  }
+  return Integral;
 }
 
 
