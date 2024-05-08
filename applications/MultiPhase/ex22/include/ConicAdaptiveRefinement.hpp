@@ -26,11 +26,12 @@ class Data {
          const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
-         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A, const bool& distributedCurvature) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature) {}
+         const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A, const bool& distributedCurvature, const double &eps) :
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature), _eps(eps) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
+    const double &_eps;
     const std::vector<std::vector<double>> &_V;
     const std::vector<double> &_P1;
     const std::vector<double> &_P2;
@@ -50,14 +51,15 @@ class Data {
 
 };
 
-void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP, const std::vector <double> &phiP_x,
                           const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps);
+                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN);
 
 class ConicAdaptiveRefinement {
   public:
     typedef void (*AssemblyFunc)(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x,
-                                 const std::vector <double> &phiP, const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI, const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps);
+                                 const std::vector <double> &phiP, const std::vector <double> &phiP_x,
+                                 const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI, const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN);
 
     ConicAdaptiveRefinement() {
 
@@ -184,11 +186,11 @@ class ConicAdaptiveRefinement {
     //double GetVolumeFraction(const std::vector<double>&a);
 
     std::tuple<double, double, double> Assemble(AssemblyFunc assemblyFunction,
-                                                          const unsigned & levelMax,
-                                                          std::vector<std::vector<double>>&x,
-                                                          std::vector<std::vector<double>>&xi,
-                                                          const std::vector<double>&Ar,
-                                                          const unsigned &level = 1);
+                                                const unsigned & levelMax,
+                                                std::vector<std::vector<double>>&x,
+                                                std::vector<std::vector<double>>&xi,
+                                                const std::vector<double>&Ar,
+                                                const unsigned &level = 1);
 
     void PrintElement(const unsigned & level, const unsigned & jp, const std::vector<std::vector<double>>&x) {
       const unsigned &n = x.size();
@@ -596,21 +598,21 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
                   }
                 }
               }
-              assemblyFunction(_data, _phiV, _phiVx, _phiP,
+              assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                                1., weight, 1., 0., 0.,
-              {0., 0.}, kappa, 0., 1.e-10);
+              {0., 0.}, kappa, 0.);
             }
             else {
-              assemblyFunction(_data, _phiV, _phiVx, _phiP,
+              assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                                1., weight, 1., 0., 0.,
-              {0., 0.}, {0.}, 0., 1.e-10);
+              {0., 0.}, {0.}, 0.);
             }
           }
           else {
             area2 += weight;
-            assemblyFunction(_data, _phiV, _phiVx, _phiP,
+            assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                              0., weight, 0., 1., 0.,
-            {0., 0.}, {0.}, 0., 1.e-10);
+            {0., 0.}, {0.}, 0.);
 
 
           }
@@ -686,9 +688,11 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
         }
       }
 
-      double gaussPointWeight;
-      femV->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiV, _phiVx);
-      femP->GetPhi(_phiP, xil0g);
+      double gaussPointWeightV;
+      double gaussPointWeightP;
+      femV->Jacobian(_data->_xv, xil0g, gaussPointWeightV, _phiV, _phiVx);
+      femP->Jacobian(_data->_xv, xil0g, gaussPointWeightP, _phiP, _phiPx);
+      //femP->GetPhi(_phiP, xil0g);
 
       arcLenght += dsN * _weight[ig] * weightI[ig];
       area1 += _weight[ig] * weight1[ig];
@@ -705,18 +709,18 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
       GetConicCurvature(xg, _data->_A, kappa, _data->_distributedCurvature);
 
       if(_data->_distributedCurvature) {
-        assemblyFunction(_data, _phiV, _phiVx, _phiP,
+        assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                          C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
-                         Nf, kappa, dsN, 1.0e-10);
+                         Nf, kappa, dsN);
       }
       else {
         GetConicNormal(xg, _data->_A, Nf);
         Nf[0] *= kappa[0];
         Nf[1] *= kappa[0];
 
-        assemblyFunction(_data, _phiV, _phiVx, _phiP,
+        assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                          C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
-                         Nf, {1.}, dsN, 1.0e-10);
+                         Nf, {1.}, dsN);
       }
     }
 
@@ -828,9 +832,9 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
 }
 
 
-void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP, const std::vector <double> &phiP_x,
                           const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps) {
+                          const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN) {
 
 
   const unsigned &dim = data->_V.size();
@@ -851,10 +855,18 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
   double solP1g = 0;
   double solP2g = 0;
+  std::vector < double > SolP1g_x(dim,  0);
+  std::vector < double > SolP2g_x(dim,  0);
 
   for(unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
+    for(unsigned J = 0; J < dim; J++) {
+      SolP1g_x[J] += data->_P1[i] * phiP_x[i * dim + J];
+      SolP2g_x[J] += data->_P2[i] * phiP_x[i * dim + J];
+    }
+
+
   }
 
   double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
@@ -894,10 +906,23 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       data->_res[dim * nDofsV + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight1; //continuity
       data->_res[dim * nDofsV + nDofsP + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight2; //continuity
     }
-    if(C == 0.)
-      data->_res[dim * nDofsV + i] += - solP1g * phiP[i]  * weight * eps; //penalty
-    if(C == 1.)
-      data->_res[dim * nDofsV + nDofsP + i] += - solP2g * phiP[i]  * weight * eps; //penalty
+    if(true || C == 0.) {
+      //data->_res[dim * nDofsV + i] += - solP1g * phiP[i]  * weight * data->_eps; //penalty
+      double laplaceP1 = 0.;
+      for(unsigned J = 0; J < dim; J++) {
+        laplaceP1 += - phiP_x[i * dim + J] * SolP1g_x[J];
+      }
+      data->_res[dim * nDofsV + i] += - laplaceP1 * weight * data->_eps;
+
+    }
+    if(true || C == 1.) {
+      //data->_res[dim * nDofsV + nDofsP + i] += - solP2g * phiP[i]  * weight * data->_eps; //penalty
+      double laplaceP2 = 0.;
+      for(unsigned J = 0; J < dim; J++) {
+        laplaceP2 += - phiP_x[i * dim + J] * SolP2g_x[J];
+      }
+      data->_res[dim * nDofsV + nDofsP + i] += - laplaceP2 * weight * data->_eps;
+    }
   } // end phiP_i loop
 
 
@@ -934,10 +959,18 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
     for(unsigned j = 0; j < nDofsP; j++) {
       unsigned P1column = dim * nDofsV + j;
       unsigned P2column = dim * nDofsV + nDofsP + j;
-      if(C == 0.)
-        data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * eps; // continuity
-      if(C == 1.)
-        data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * eps; //continuity
+      if(true || C == 0.){
+        //data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
+        for(unsigned J = 0; J < dim ; J++) {
+          data->_jac[P1row * nDofsVP + P1column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
+        }
+      }
+      if(true || C == 1.){
+        //data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
+        for(unsigned J = 0; J < dim ; J++) {
+          data->_jac[P2row * nDofsVP + P2column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
+        }
+      }
     }
   }
 }

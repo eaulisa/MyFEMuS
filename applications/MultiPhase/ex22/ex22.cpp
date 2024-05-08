@@ -71,9 +71,9 @@ std::vector <double> g = {0, 0, 0};
 
 #include "./include/AllPenalty.hpp"
 
-void AssembleError(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+void AssembleError(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP, const std::vector <double> &phiP_x,
                    const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                   const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps);
+                   const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN);
 
 
 #define RADIUS 0.25
@@ -126,7 +126,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 //   mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(32, 32, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
+  mlMsh.GenerateCoarseBoxMesh(64, 64, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
 //   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //RT
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -146,8 +146,8 @@ int main(int argc, char** args) {
 
 
 
-  FEOrder Vorder = SECOND;
-  FEOrder Porder = SECOND;
+  FEOrder Vorder = FIRST;
+  FEOrder Porder = FIRST;
 
   // add variables to mlSol
   mlSol.AddSolution("U", LAGRANGE, Vorder);
@@ -212,7 +212,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("P1");
   system.AddSolutionToSystemPDE("P2");
 
-  system.SetSparsityPatternMinimumSize(250);
+  system.SetSparsityPatternMinimumSize(500);
 
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleMultiphase);
@@ -517,8 +517,10 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
     std::vector <double> Ap;
     bool distributeCurvature = true;
+    double eps = .0e-10;
 
-    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature);
+
+    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, Res, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
 
     cad.SetDataPointer(data);
 
@@ -558,7 +560,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
   std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
-  //AssembleAllPenalty(ml_prob);
+  AssembleAllPenalty(ml_prob);
 
   RES->close();
   KK->close();
@@ -666,7 +668,9 @@ void GetError(MultiLevelProblem & ml_prob) {
     }
 
     bool distributeCurvature = true;
-    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, localErr, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature);
+    double eps = 0.;
+
+    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, localErr, Jac, coordX, ielGeom, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
 
     //std::cout<<localErr[0] << " "<<localErr[1] << " "<<localErr[2] << " "<<localErr[3] << std::endl;
 
@@ -697,9 +701,9 @@ void GetError(MultiLevelProblem & ml_prob) {
 }
 
 
-void AssembleError(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP,
+void AssembleError(Data *data, const std::vector <double> &phiV, const std::vector <double> &phiV_x, const std::vector <double> &phiP, const std::vector <double> &phiP_x,
                    const double &C, const double &weight, const double &weight1, const double &weight2, const double &weightI,
-                   const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN, const double &eps) {
+                   const std::vector <double> &N, const std::vector<double> &kappa, const double &dsN) {
 
 
   const unsigned &dim = data->_V.size();

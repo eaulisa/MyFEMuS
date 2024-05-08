@@ -62,10 +62,10 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
   std::vector < double> gradPhi;
 
   double weightPi;
-  std::vector<double> phiPi, gradPhiPi;
+  std::vector<double> phiPi, gradPhiPi, hessPhiPi;
 
   double weightPj;
-  std::vector<double> phiPj, gradPhiPj;
+  std::vector<double> phiPj, gradPhiPj, hessPhiPj;
 
   double weightVi;
   std::vector<double> phiVi, gradPhiVi, hessPhiVi;
@@ -253,8 +253,8 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                 std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
               }
 
-              msh->_finiteElement[ielType][solTypeP]->Jacobian(xi, etai, weightPi, phiPi, gradPhiPi);
-              msh->_finiteElement[jelType][solTypeP]->Jacobian(xj, etaj, weightPj, phiPj, gradPhiPj);
+              msh->_finiteElement[ielType][solTypeP]->Jacobian(xi, etai, weightPi, phiPi, gradPhiPi, hessPhiPi);
+              msh->_finiteElement[jelType][solTypeP]->Jacobian(xj, etaj, weightPj, phiPj, gradPhiPj, hessPhiPj);
 
               msh->_finiteElement[ielType][solTypeV]->Jacobian(xi, etai, weightVi, phiVi, gradPhiVi, hessPhiVi);
               msh->_finiteElement[jelType][solTypeV]->Jacobian(xj, etaj, weightVj, phiVj, gradPhiVj, hessPhiVj);
@@ -367,36 +367,36 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                 std::vector<std::vector<std::vector<adept::adouble>>> HessSolVj(dim, std::vector<std::vector<adept::adouble>>(dim, std::vector<adept::adouble>(dim, 0.)));
 
                 for(unsigned I = 0; I < dim; I++) {
-                  unsigned J = I;
-                  //for(unsigned J = 0; J < dim; J++) {
-                  for(unsigned K = 0; K < dim; K++) {
-                    unsigned L;
-                    if(J == K) L = J;
-                    else if(1 == J + K) L = dim;     // xy
-                    else if(2 == J + K) L = dim + 2; // xz
-                    else if(3 == J + K) L = dim + 1; // yz
+                  //unsigned J = I;
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+                      unsigned L;
+                      if(J == K) L = J;
+                      else if(1 == J + K) L = dim;     // xy
+                      else if(2 == J + K) L = dim + 2; // xz
+                      else if(3 == J + K) L = dim + 1; // yz
 
-                    for(unsigned i = 0; i < nDofsVi; i++) {
-                      HessSolVi[I][J][K] += solVi[I][i] * hessPhiVi[i * dim2 + L];
-                    }
-                    for(unsigned i = 0; i < nDofsVj; i++) {
-                      HessSolVj[I][J][K] += solVj[I][i] * hessPhiVj[i * dim2 + L];
+                      for(unsigned i = 0; i < nDofsVi; i++) {
+                        HessSolVi[I][J][K] += solVi[I][i] * hessPhiVi[i * dim2 + L];
+                      }
+                      for(unsigned i = 0; i < nDofsVj; i++) {
+                        HessSolVj[I][J][K] += solVj[I][i] * hessPhiVj[i * dim2 + L];
+                      }
                     }
                   }
-                  //}
                 }
 
                 std::vector<std::vector<adept::adouble>> HessSolVdotNi(dim, std::vector<adept::adouble>(dim, 0.));
                 std::vector<std::vector<adept::adouble>> HessSolVdotNj(dim, std::vector<adept::adouble>(dim, 0.));
 
                 for(unsigned I = 0; I < dim; I++) {
-                  unsigned J = I;
-                  //for(unsigned J = 0; J < dim; J++) {
-                  for(unsigned K = 0; K < dim; K++) {
-                    HessSolVdotNi[I][J] += HessSolVi[I][J][K] * normal[K];
-                    HessSolVdotNj[I][J] += HessSolVj[I][J][K] * normal[K];
+                  //unsigned J = I;
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+                      HessSolVdotNi[I][J] += HessSolVi[I][J][K] * normal[K];
+                      HessSolVdotNj[I][J] += HessSolVj[I][J][K] * normal[K];
+                    }
                   }
-                  //}
                 }
 
                 for(unsigned I = 0; I < dim; I++) {
@@ -415,10 +415,91 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                     }
 
                     for(unsigned i = 0; i < nDofsVj; i++) {
-                      aResi[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
+                      aResj[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
                     }
                   }
                 }
+
+                for(unsigned I = 0; I < dim; I++) {
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+
+                      unsigned L;
+                      if(J == K) L = J;
+                      else if(1 == J + K) L = dim;     // xy
+                      else if(2 == J + K) L = dim + 2; // xz
+                      else if(3 == J + K) L = dim + 1; // yz
+
+                      for(unsigned i = 0; i < nDofsVi; i++) {
+                        aResi[I * nDofsVi + i] +=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
+                      }
+
+                      for(unsigned i = 0; i < nDofsVj; i++) {
+                        aResj[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
+                      }
+                    }
+                  }
+                }
+
+
+                std::vector<std::vector<std::vector<adept::adouble>>> HessSolPi(2, std::vector<std::vector<adept::adouble>>(dim, std::vector<adept::adouble>(dim, 0.)));
+                std::vector<std::vector<std::vector<adept::adouble>>> HessSolPj(2, std::vector<std::vector<adept::adouble>>(dim, std::vector<adept::adouble>(dim, 0.)));
+
+                for(unsigned I = 0; I < 2; I++) {
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+                      unsigned L;
+                      if(J == K) L = J;
+                      else if(1 == J + K) L = dim;     // xy
+                      else if(2 == J + K) L = dim + 2; // xz
+                      else if(3 == J + K) L = dim + 1; // yz
+
+                      for(unsigned i = 0; i < nDofsVi; i++) {
+                        HessSolPi[I][J][K] += solPi[I][i] * hessPhiPi[i * dim2 + L];
+                      }
+                      for(unsigned i = 0; i < nDofsVj; i++) {
+                        HessSolPj[I][J][K] += solPj[I][i] * hessPhiPj[i * dim2 + L];
+                      }
+                    }
+                  }
+                }
+
+                std::vector<std::vector<adept::adouble>> HessSolPdotNi(2, std::vector<adept::adouble>(dim, 0.));
+                std::vector<std::vector<adept::adouble>> HessSolPdotNj(2, std::vector<adept::adouble>(dim, 0.));
+
+                for(unsigned I = 0; I < 2; I++) {
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+                      HessSolPdotNi[I][J] += HessSolPi[I][J][K] * normal[K];
+                      HessSolPdotNj[I][J] += HessSolPj[I][J][K] * normal[K];
+                    }
+                  }
+                }
+
+                for(unsigned I = 0; I < 2; I++) {
+                  for(unsigned J = 0; J < dim; J++) {
+                    for(unsigned K = 0; K < dim; K++) {
+
+                      unsigned L;
+                      if(J == K) L = J;
+                      else if(1 == J + K) L = dim;     // xy
+                      else if(2 == J + K) L = dim + 2; // xz
+                      else if(3 == J + K) L = dim + 1; // yz
+
+                      for(unsigned i = 0; i < nDofsVi; i++) {
+                        aResi[dim * nDofsVi + I * nDofsPi + i] +=  PHIP[I] * h3 * (HessSolPdotNi[I][J] - HessSolPdotNj[I][J]) * hessPhiPi[i * dim2 + L] * normal[K] * weight;
+                      }
+
+                      for(unsigned i = 0; i < nDofsVj; i++) {
+                        aResj[dim * nDofsVj + I * nDofsPj + i] -=  PHIP[I] * h3 * (HessSolPdotNi[I][J] - HessSolPdotNj[I][J])  * hessPhiPj[i * dim2 + L] * normal[K] * weight;
+                      }
+                    }
+                  }
+                }
+
+
+
+
               }
             }
 
@@ -875,7 +956,7 @@ void AssembleAllPenalty(MultiLevelProblem& ml_prob) {
                           }
 
                           for(unsigned i = 0; i < nDofsVj; i++) {
-                            aResi[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
+                            aResj[I * nDofsVj + i] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J])  * hessPhiVj[i * dim2 + L] * normal[K] * weight;
                           }
                         }
                       }
