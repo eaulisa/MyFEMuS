@@ -598,19 +598,19 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
               }
               assemblyFunction(_data, _phiV, _phiVx, _phiP,
                                1., weight, 1., 0., 0.,
-              {0., 0.}, kappa, 0., 0.e-10);
+              {0., 0.}, kappa, 0., 1.e-10);
             }
             else {
               assemblyFunction(_data, _phiV, _phiVx, _phiP,
                                1., weight, 1., 0., 0.,
-              {0., 0.}, {0.}, 0., 0.e-10);
+              {0., 0.}, {0.}, 0., 1.e-10);
             }
           }
           else {
             area2 += weight;
             assemblyFunction(_data, _phiV, _phiVx, _phiP,
                              0., weight, 0., 1., 0.,
-            {0., 0.}, {0.}, 0., 0.e-10);
+            {0., 0.}, {0.}, 0., 1.e-10);
 
 
           }
@@ -707,7 +707,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
       if(_data->_distributedCurvature) {
         assemblyFunction(_data, _phiV, _phiVx, _phiP,
                          C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
-                         Nf, kappa, dsN, 0.0e-10);
+                         Nf, kappa, dsN, 1.0e-10);
       }
       else {
         GetConicNormal(xg, _data->_A, Nf);
@@ -716,7 +716,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
 
         assemblyFunction(_data, _phiV, _phiVx, _phiP,
                          C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
-                         Nf, {1.}, dsN, 0.0e-10);
+                         Nf, {1.}, dsN, 1.0e-10);
       }
     }
 
