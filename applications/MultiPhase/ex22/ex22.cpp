@@ -126,7 +126,7 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 //   mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
 //   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "fifth", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(64, 64, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
+  mlMsh.GenerateCoarseBoxMesh(16, 16, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
 //   mlMsh.GenerateCoarseBoxMesh(64, 256, 0, -0.5, 0.5, -2, 2, 0., 0., QUAD9, "fifth"); //RT
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
@@ -144,8 +144,6 @@ int main(int argc, char** args) {
 
   MultiLevelSolution mlSol(&mlMsh);
 
-
-
   FEOrder Vorder = FIRST;
   FEOrder Porder = FIRST;
 
@@ -155,8 +153,6 @@ int main(int argc, char** args) {
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, Vorder);
   // mlSol.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
   // mlSol.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-
-
 
   mlSol.AddSolution("P1", LAGRANGE, Porder);
   mlSol.AddSolution("P2", LAGRANGE, Porder);
@@ -456,6 +452,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     short unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPKCType);    // number of solution element dofs
 
@@ -471,7 +468,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
 
     for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
-      coordX[k].resize(nDofsV);
+      coordX[k].resize(nDofsX);
     }
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
@@ -502,7 +499,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     }
 
     // local storage of coordinates
-    for(unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
@@ -623,6 +620,7 @@ void GetError(MultiLevelProblem & ml_prob) {
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     short unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPKCType);    // number of solution element dofs
 
@@ -633,7 +631,7 @@ void GetError(MultiLevelProblem & ml_prob) {
     // resize local arrays
     for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
-      coordX[k].resize(nDofsV);
+      coordX[k].resize(nDofsX);
     }
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
@@ -660,7 +658,7 @@ void GetError(MultiLevelProblem & ml_prob) {
     }
 
     // local storage of coordinates
-    for(unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
