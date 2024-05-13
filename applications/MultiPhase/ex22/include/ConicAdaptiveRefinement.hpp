@@ -23,11 +23,11 @@ using namespace femus;
 class Data {
   public:
     Data(const unsigned &VType, const unsigned &PType,
-         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1,
+         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1, const std::vector<double> &C1,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
          const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A, const bool& distributedCurvature, const double &eps) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature), _eps(eps) {}
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _C1(C1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature), _eps(eps) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
@@ -36,6 +36,7 @@ class Data {
     const std::vector<double> &_P1;
     const std::vector<double> &_P2;
     const std::vector<double> &_K1;
+    const std::vector<double> &_C1;
     const std::vector<double> &_A;
 
     std::vector<double> &_res;
@@ -74,8 +75,8 @@ class ConicAdaptiveRefinement {
       _fem2 = new Fem(_weightCF[3]->GetGaussQuadratureOrder(), _weightCF[3]->GetDimension());
 
 
-      double dx = .025;
-      double dtetha = 1.;
+      double dx = .0125;
+      double dtetha = .5;
 
       _weightCD[3] = new CDWeightQUAD <TypeA> (5, dx, dtetha);
       _weightCD[4] = new CDWeightTRI <TypeA> (5, dx, dtetha);
@@ -101,17 +102,21 @@ class ConicAdaptiveRefinement {
       return _xr[_data->_elType];
     };
 
-    void GetXInParentElement(const std::vector<std::vector<double>> &xv, std::vector<std::vector<double>> &y) {
-      if(_data->_elType == 3) {
+    static void TransposeXinParentElement(const std::vector<std::vector<double>> &xv, const unsigned &elType, std::vector<std::vector<double>> &y) {
+      if (elType == 3) {
         y = {{xv[0][0], xv[1][0]}, {xv[0][1], xv[1][1]}, {xv[0][2], xv[1][2]}, {xv[0][3], xv[1][3]} };
       }
-      else if(_data->_elType == 4) {
+      else if (elType == 4) {
         y = {{xv[0][0], xv[1][0]}, {xv[0][1], xv[1][1]}, {xv[0][2], xv[1][2]}};
       }
     };
 
+
+
+
+
     // void CalculateConicsInParentElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, std::vector<double> &A1);
-    void GetConicsInTargetElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, std::vector<double> &A1);
+    static void GetConicsInTargetElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, const unsigned &elType, std::vector<double> &A1);
     void ComputeJacobian(const std::vector<std::vector<double>> &x, std::vector<std::vector<double>> &J);
     void ComputeInverseJacobian(std::vector<std::vector<double>> &J, std::vector<std::vector<double>> &IJ);
     static double EvaluateConic(const std::vector<double>&x, const std::vector<double>&a) {
@@ -146,7 +151,7 @@ class ConicAdaptiveRefinement {
       kappa.resize(3);
       kappa[0] = num / den;
 
-      if(getPartialDerivatives) {
+      if (getPartialDerivatives) {
         double n1x = 2. * a[0];
         double n1y = a[1];
         double n2x = a[1];
@@ -178,7 +183,7 @@ class ConicAdaptiveRefinement {
     }
 
     int TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a);
-    int TestIfIntesectionWithReferenceQuad(const std::vector<double>&A);
+    static int TestIfIntesectionWithReferenceElement(const std::vector<double>&A, const unsigned &elType);
 
     void BestFitLinearInterpolation(const std::vector<double> &A, std::vector<double> &B);
 
@@ -195,16 +200,16 @@ class ConicAdaptiveRefinement {
     void PrintElement(const unsigned & level, const unsigned & jp, const std::vector<std::vector<double>>&x) {
       const unsigned &n = x.size();
       const unsigned &dim = x[0].size();
-      for(unsigned i = 0; i < n ; i++) {
+      for (unsigned i = 0; i < n ; i++) {
         std::cout << level << " " << jp << " ";
-        for(unsigned j = 0; j < dim; j++) {
+        for (unsigned j = 0; j < dim; j++) {
           std::cout << x[i][j] << " ";
         }
         std::cout << 0 << " ";
         std::cout << std::endl;
       }
       std::cout << level << " " << jp << " ";
-      for(unsigned j = 0; j < dim; j++) {
+      for (unsigned j = 0; j < dim; j++) {
         std::cout << x[n - 1][j] << " ";
       }
       std::cout << 0 << " ";
@@ -212,31 +217,38 @@ class ConicAdaptiveRefinement {
     }
 
 
-    bool CheckIfRootsAreInBetweenM1andP1(const double & A, const double & B, const double & C) {
-      if(fabs(A * A / (A * A + B * B + C * C) > 1.0e-14)) {
+    static bool CheckIfRootsAreInBetweenM1andP1(const double & A, const double & B, const double & C) {
+      double eps = 1.0e-14;
+      if (fabs(A * A / (A * A + B * B + C * C) > 1.0e-14)) {
         double det = sqrt(B * B - 4. * A * C);
-        if(det >= 0.) {
+        if (det >= 0.) {
           double t = (-B - det) / (2. * A);
-          if(t >= -1. && t <= 1.) return true;
+          if (t >= -1 + eps && t <= 1 - eps) return true;
           t = (-B + det) / (2. * A);
-          if(t >= -1. && t <= 1.) return true;
+          if (t >= -1 + eps && t <= 1 - eps) return true;
         }
       }
       else {
         double t = -C / B;
-        if(t >= -1. && t <= 1.) return true;
+        if (t >= -1 + eps && t <= 1 - eps) return true;
       }
       return false;
 
     }
 
-    bool CheckIfRootsAreInBetween0andP1(const double & A, const double & B, const double & C) {
-      double det = sqrt(B * B - 4. * A * C);
-      if(det >= 0.) {
-        double t = (-B - det) / (2. * A);
-        if(t >= 0. && t <= 1.) return true;
-        t = (-B + det) / (2. * A);
-        if(t >= 0. && t <= 1.) return true;
+    static bool CheckIfRootsAreInBetween0andP1(const double & A, const double & B, const double & C) {
+      if (fabs(A * A / (A * A + B * B + C * C) > 1.0e-14)) {
+        double det = sqrt(B * B - 4. * A * C);
+        if (det >= 0.) {
+          double t = (-B - det) / (2. * A);
+          if (t >= 0. && t <= 1.) return true;
+          t = (-B + det) / (2. * A);
+          if (t >= 0 && t <= 1) return true;
+        }
+      }
+      else {
+        double t = -C / B;
+        if (t >= -0 && t <= 1) return true;
       }
       return false;
     }
@@ -278,13 +290,15 @@ class ConicAdaptiveRefinement {
     const std::vector<unsigned>_nve2 = {0, 0, 0, 9, 7};
     const std::vector<std::vector<std::vector<unsigned>>> _idx = {
       {}, {}, {},
-      { // quad
+      {
+        // quad
         {0, 4, 8, 7},
         {4, 1, 5, 8},
         {8, 5, 2, 6},
         {7, 8, 6, 3}
       },
-      { // triangle
+      {
+        // triangle
         {0, 3, 5},
         {3, 1, 4},
         {5, 4, 2},
@@ -312,7 +326,7 @@ class ConicAdaptiveRefinement {
 };
 
 //coefficients of conic in the reference system
-void ConicAdaptiveRefinement::GetConicsInTargetElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, std::vector<double> &A1) {
+void ConicAdaptiveRefinement::GetConicsInTargetElement(const std::vector<std::vector<double>> &x, const std::vector<double> &A, const unsigned &elType, std::vector<double> &A1) {
   const double &a = A[0];
   const double &b = A[1];
   const double &c = A[2];
@@ -320,7 +334,7 @@ void ConicAdaptiveRefinement::GetConicsInTargetElement(const std::vector<std::ve
   const double &e = A[4];
   const double &f = A[5];
 
-  if(_data->_elType == 3) {
+  if (elType == 3) {
     const double &x1 = x[0][0];
     const double &x4 = x[3][0];
 
@@ -347,7 +361,7 @@ void ConicAdaptiveRefinement::GetConicsInTargetElement(const std::vector<std::ve
     A1[5] = 0.25 * (4 * f + 2 * d * Lx14 + a * Lx14 * Lx14 + Ly12 * (2 * e + b * Lx14 + c * Ly12));
   }
 
-  else if(_data->_elType == 4) {
+  else if (elType == 4) {
     const double &x1 = x[0][0];
     const double &y1 = x[0][1];
 
@@ -374,13 +388,13 @@ void ConicAdaptiveRefinement::GetConicsInTargetElement(const std::vector<std::ve
 int ConicAdaptiveRefinement::TestIfIntesection(const std::vector<std::vector<double>>&x, const std::vector<double>&a) {
 
   double value0 = EvaluateConic(x[0], a);
-  for(unsigned i = 1; i < x.size(); i++) {
-    if(EvaluateConic(x[i], a) * value0 <= 0) return 0;
+  for (unsigned i = 1; i < x.size(); i++) {
+    if (EvaluateConic(x[i], a) * value0 <= 0) return 0;
   }
   return (value0 > 0) ? 1 : -1;
 }
 
-int ConicAdaptiveRefinement::TestIfIntesectionWithReferenceQuad(const std::vector<double>&Ar) {
+int ConicAdaptiveRefinement::TestIfIntesectionWithReferenceElement(const std::vector<double>&Ar, const unsigned &elType) {
 
   const double& a = Ar[0];
   const double& b = Ar[1];
@@ -393,76 +407,76 @@ int ConicAdaptiveRefinement::TestIfIntesectionWithReferenceQuad(const std::vecto
   double det;
   double A, B, C;
 
-  if(_data->_elType == 3) {
+  if (elType == 3) {
 
     //main diagonal
     A = a + b + c;
     B = d + e;
     C = f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     //other diagonal
     A = a - b + c;
     B = -d + e;
     C = f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     //bottom edge
     A = a;
     B = -b + d;
     C = c - e + f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     //top edge
     A = a;
     B = b + d;
     C = c + e + f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     //left edge
     A = c;
     B = -b + e;
     C = a - d + f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     //right edge
     A = c;
     B =  b + e;
     C = a + d + f;
-    if(CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetweenM1andP1(A, B, C)) return 0;
 
     return (f > 0) ? 1 : -1;
   }
-  else if(_data->_elType == 4) {
+  else if (elType == 4) {
     //bottom edge
     A = a;
     B = d;
     C = f;
-    if(CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
 
     //left edge
     A = c;
     B = e;
     C = f;
-    if(CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
 
     //other edge (x,y=-x+1)
     A = a - b + c;
     B = b - 2. * c + d - e;
     C = c + e + f;
-    if(CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
 
     //Line 1 passes through barycenter (x,y=-0.5x+0.5)
     A = a - 0.5 * b + 0.25 * c;
     B = 0.5 * b - 0.5 * c + d - 0.5 * e;
     C = 0.25 * c + 0.5 * e + f;
-    if(CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
 
     //Line 2 passes through barycenter (x=-0.5y+0.5,y)
     A = 0.25 * a - 0.5 * b + c;
     B = -0.5 * a + 0.5 * b - 0.5 * d + e;
     C = 0.25 * a + 0.5 * d + f;
-    if(CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
+    if (CheckIfRootsAreInBetween0andP1(A, B, C)) return 0;
 
     return ((a + b + c) / 9. + (d + e) / 3. + f > 0) ? 1 : -1;
   }
@@ -481,19 +495,19 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
   double area2 = 0.;
   double arcLenght = 0.;
 
-  if(level == 1) {
+  if (level == 1) {
     _y.resize(levelMax);
     _yi.resize(levelMax);
   }
 
-  if(level < levelMax) {
-    int test = TestIfIntesectionWithReferenceQuad(Ar);
-    if(test == 0) { // it means there is an intersection
+  if (level < levelMax) {
+    int test = TestIfIntesectionWithReferenceElement(Ar, _data->_elType);
+    if (test == 0) { // it means there is an intersection
 
       x.resize(_nve2[_data->_elType]);
       xil0.resize(_nve2[_data->_elType]);
 
-      if(_data->_elType == 3) {
+      if (_data->_elType == 3) {
         x[4] = {0.5 * (x[0][0] + x[1][0]), 0.5 * (x[0][1] + x[1][1])};
         x[5] = {0.5 * (x[1][0] + x[2][0]), 0.5 * (x[1][1] + x[2][1])};
         x[6] = {0.5 * (x[2][0] + x[3][0]), 0.5 * (x[2][1] + x[3][1])};
@@ -506,7 +520,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
         xil0[7] = {0.5 * (xil0[3][0] + xil0[0][0]), 0.5 * (xil0[3][1] + xil0[0][1])};
         xil0[8] = {0.5 * (xil0[4][0] + xil0[6][0]), 0.5 * (xil0[5][1] + xil0[7][1])};
       }
-      else if(_data->_elType == 4) {
+      else if (_data->_elType == 4) {
         x[3] = {0.5 * (x[0][0] + x[1][0]), 0.5 * (x[0][1] + x[1][1])};
         x[4] = {0.5 * (x[1][0] + x[2][0]), 0.5 * (x[1][1] + x[2][1])};
         x[5] = {0.5 * (x[2][0] + x[0][0]), 0.5 * (x[2][1] + x[0][1])};
@@ -523,16 +537,16 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
 
       _yi[level - 1].reserve(_nve2[_data->_elType]);
       _yi[level - 1].resize(4, std::vector< std::vector<double> > (_nve0[_data->_elType], std::vector<double>(2)));
-      for(unsigned i = 0; i < 4; i++) { // number of childer stays the same (in 2D is 4)
-        for(unsigned j = 0; j < _nve0[_data->_elType]; j++) {
+      for (unsigned i = 0; i < 4; i++) { // number of childer stays the same (in 2D is 4)
+        for (unsigned j = 0; j < _nve0[_data->_elType]; j++) {
           _y[level - 1][i][j] = x[_idx[_data->_elType][i][j]];
           _yi[level - 1][i][j] = xil0[_idx[_data->_elType][i][j]];
         }
       }
 
-      for(unsigned i = 0; i < 4; i++) {
+      for (unsigned i = 0; i < 4; i++) {
         std::vector<double> At;                             // conic cofficient in the target element
-        GetConicsInTargetElement(_yr[_data->_elType][i], Ar, At);
+        GetConicsInTargetElement(_yr[_data->_elType][i], Ar, _data->_elType, At);
         std::tuple <double, double, double> a = Assemble(assemblyFunction, levelMax, _y[level - 1][i], _yi[level - 1][i], At, level + 1);
         area1 += std::get<0>(a);
         area2 += std::get<1>(a);
@@ -543,27 +557,27 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
     else {
       //PrintElement(level, j, x);
 
-      if(test == -1 || test == 1) { // it means it is a full element
+      if (test == -1 || test == 1) { // it means it is a full element
 
         const elem_type *femL = _fem1->GetFiniteElement(_data->_elType, 0);
         const elem_type *femV = _fem1->GetFiniteElement(_data->_elType, _data->_VType);
         const elem_type *femP = _fem1->GetFiniteElement(_data->_elType, _data->_PType);
 
         std::vector<std::vector<double>> xl; // phisical coordinates at the nodes of l-mesh
-        if(_data->_elType == 3) {
+        if (_data->_elType == 3) {
           xl = {{x[0][0], x[1][0], x[2][0], x[3][0]}, {x[0][1], x[1][1], x[2][1], x[3][1]}};
         }
-        else if(_data->_elType == 4) {
+        else if (_data->_elType == 4) {
           xl = {{x[0][0], x[1][0], x[2][0]}, {x[0][1], x[1][1], x[2][1]}};
         }
-        for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
+        for (unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) { //l-mesh gauss loop
           double weight;
           femL->Jacobian(xl, ig, weight, _phi, _phix); // _phi, and _phix are the l-mesh test function and gradient at the gauss point of the l-mesh
 
           unsigned dim = 2;
           std::vector <double> xil0g(dim, 0);  // get the l0 parent coordinates at the gauss point l-mesh
-          for(unsigned i = 0; i < _phi.size(); i++) {
-            for(unsigned k = 0; k < dim; k++) {
+          for (unsigned i = 0; i < _phi.size(); i++) {
+            for (unsigned k = 0; k < dim; k++) {
               xil0g[k] += _phi[i] * xil0[i][k];
             }
           }
@@ -573,26 +587,26 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
           femP->Jacobian(_data->_xv, xil0g, gaussPointWeight, _phiP, _phiPx);
 
           //femP->GetPhi(_phiP, xil0g);
-          if(test == -1) { // inside
+          if (test == -1) { // inside
 
             area1 += weight;
 
-            if(_data->_distributedCurvature) {
+            if (_data->_distributedCurvature) {
               std::vector <double> xg(dim, 0);
-              for(unsigned i = 0; i < _phiV.size(); i++) {
-                for(unsigned k = 0; k < dim; k++) {
+              for (unsigned i = 0; i < _phiV.size(); i++) {
+                for (unsigned k = 0; k < dim; k++) {
                   xg[k] += _phiV[i] * _data->_xv[k][i];
                 }
               }
 
               std::vector<double> kappa = {1., 0., 0.};
-              if(level > 1) GetConicCurvature(xg, _data->_A, kappa, true);
+              if (level > 1) GetConicCurvature(xg, _data->_A, kappa, true);
               else {
                 kappa = {0., 0., 0.};
                 {
-                  for(unsigned i = 0; i < _phiP.size(); i++) {
+                  for (unsigned i = 0; i < _phiP.size(); i++) {
                     kappa[0] += _phiP[i] * _data->_K1[i];
-                    for(unsigned k = 0; k < dim; k++) {
+                    for (unsigned k = 0; k < dim; k++) {
                       kappa[1 + k] += _phiPx[i * dim + k] * _data->_K1[i];
                     }
                   }
@@ -610,11 +624,38 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
           }
           else {
             area2 += weight;
-            assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
-                             0., weight, 0., 1., 0.,
-            {0., 0.}, {0.}, 0.);
 
+            if (_data->_distributedCurvature) {
+              std::vector <double> xg(dim, 0);
+              for (unsigned i = 0; i < _phiV.size(); i++) {
+                for (unsigned k = 0; k < dim; k++) {
+                  xg[k] += _phiV[i] * _data->_xv[k][i];
+                }
+              }
 
+              std::vector<double> kappa = {1., 0., 0.};
+              if (level > 1) GetConicCurvature(xg, _data->_A, kappa, true);
+              else {
+                kappa = {0., 0., 0.};
+                {
+                  for (unsigned i = 0; i < _phiP.size(); i++) {
+                    kappa[0] += _phiP[i] * _data->_K1[i];
+                    for (unsigned k = 0; k < dim; k++) {
+                      kappa[1 + k] += _phiPx[i * dim + k] * _data->_K1[i];
+                    }
+                  }
+                }
+              }
+              assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
+                               0., weight, 0., 1., 0.,
+              {0., 0.}, kappa, 0.);
+            }
+            else {
+              assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
+                               0., weight, 0., 1., 0.,
+              {0., 0.}, {0.}, 0.);
+
+            }
           }
         }
       }
@@ -622,10 +663,10 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
   }
   else {
     std::vector<std::vector<double>> xl; // phisical coordinates at the nodes of l-mesh
-    if(_data->_elType == 3) {
+    if (_data->_elType == 3) {
       xl = {{x[0][0], x[1][0], x[2][0], x[3][0]}, {x[0][1], x[1][1], x[2][1], x[3][1]}};
     }
-    else if(_data->_elType == 4) {
+    else if (_data->_elType == 4) {
       xl = {{x[0][0], x[1][0], x[2][0]}, {x[0][1], x[1][1], x[2][1]}};
     }
 
@@ -653,7 +694,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
     double Area = 0.;
     _weight.resize(femL->GetGaussPointNumber());
     _Ji.resize(femL->GetGaussPointNumber());
-    for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+    for (unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
 
       std::vector<std::vector<double>> J;
       femL->GetJacobianMatrix(xl, ig, _weight[ig], J, _Ji[ig]);
@@ -664,26 +705,26 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
 
 
 
-    for(unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
+    for (unsigned ig = 0; ig < femL->GetGaussPointNumber(); ig++) {
 
       std::vector<std::vector<double>> J;
       double dsN = 0.;
       std::vector<double> Nf(dim, 0.);
-      for(unsigned k = 0; k < dim; k++) {
-        for(unsigned j = 0; j < dim; j++) {
+      for (unsigned k = 0; k < dim; k++) {
+        for (unsigned j = 0; j < dim; j++) {
           Nf[k] += _Ji[ig][j][k] * B[j];
         }
         dsN += Nf[k] * Nf[k];
       }
       dsN = sqrt(dsN);
-      for(unsigned k = 0; k < dim; k++) {
+      for (unsigned k = 0; k < dim; k++) {
         Nf[k] /= dsN;
       }
       double *phi = femL->GetPhi(ig);
 
       std::vector <double> xil0g(dim, 0);
-      for(unsigned i = 0; i < _nve0[_data->_elType]; i++) {
-        for(unsigned k = 0; k < dim; k++) {
+      for (unsigned i = 0; i < _nve0[_data->_elType]; i++) {
+        for (unsigned k = 0; k < dim; k++) {
           xil0g[k] += phi[i] * xil0[i][k];
         }
       }
@@ -699,8 +740,8 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
       area2 += _weight[ig] * weight2[ig];
 
       std::vector <double> xg(dim, 0);
-      for(unsigned i = 0; i < _phiV.size(); i++) {
-        for(unsigned k = 0; k < dim; k++) {
+      for (unsigned i = 0; i < _phiV.size(); i++) {
+        for (unsigned k = 0; k < dim; k++) {
           xg[k] += _phiV[i] * _data->_xv[k][i];
         }
       }
@@ -708,7 +749,7 @@ std::tuple<double, double, double> ConicAdaptiveRefinement::Assemble(
       std::vector<double> kappa = {1., 0., 0.};
       GetConicCurvature(xg, _data->_A, kappa, _data->_distributedCurvature);
 
-      if(_data->_distributedCurvature) {
+      if (_data->_distributedCurvature) {
         assemblyFunction(_data, _phiV, _phiVx, _phiP, _phiPx,
                          C, _weight[ig], weight1[ig], weight2[ig], weightI[ig],
                          Nf, kappa, dsN);
@@ -737,13 +778,13 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   unsigned n = 10;
   double h, x0, y0;
   unsigned jj;
-  if(_data->_elType == 3) {
+  if (_data->_elType == 3) {
     h = 2. / n;
     x0 = -1;
     y0 = -1;
     jj = 0;
   }
-  else if(_data->_elType == 4) {
+  else if (_data->_elType == 4) {
     h = 1. / n;
     x0 = 0;
     y0 = 0;
@@ -757,11 +798,11 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   double s2 = 0;
 
   double x = x0;
-  for(unsigned i = 0; i <= n ; i++, x += h) {
+  for (unsigned i = 0; i <= n ; i++, x += h) {
     double y = y0;
     double z = EvaluateConic({x, y}, A);
     int nj = n;
-    for(int j = 0; j <= nj ; j++, y += h, nj -= jj) {
+    for (int j = 0; j <= nj ; j++, y += h, nj -= jj) {
       s2 += z * z;
       z += h * (A[1] * x + A[2] * (2. * y + h) + A[4]); // += increase on the levelSet quadratic function for the next iteration
     }
@@ -769,11 +810,11 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
   s2 /= n;
 
   x = x0;
-  for(unsigned i = 0; i <= n ; i++, x += h) {
+  for (unsigned i = 0; i <= n ; i++, x += h) {
     double y = y0;
     double z = EvaluateConic({x, y}, A);
     int nj = n;
-    for(int j = 0; j <= nj ; j++, y += h,  nj -= jj) {
+    for (int j = 0; j <= nj ; j++, y += h,  nj -= jj) {
 
       double w = exp(-100. * z * z / s2);
       double wx = w * x;
@@ -818,8 +859,8 @@ void ConicAdaptiveRefinement::BestFitLinearInterpolation(const std::vector<doubl
 
   B.assign(3, 0);
 
-  for(unsigned i = 0; i < 3; i++) {
-    for(unsigned j = 0; j < 3; j++) {
+  for (unsigned i = 0; i < 3; i++) {
+    for (unsigned j = 0; j < 3; j++) {
       B[i] += Mi[i][j] * F[j];
     }
   }
@@ -844,10 +885,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
   std::vector < double > solVg(dim, 0);
   std::vector < std::vector < double > > SolVg_x(dim, std::vector<double> (dim, 0));
-  for(unsigned i = 0; i < nDofsV; i++) {
-    for(unsigned  K = 0; K < dim; K++) {
+  for (unsigned i = 0; i < nDofsV; i++) {
+    for (unsigned  K = 0; K < dim; K++) {
       solVg[K] += data->_V[K][i] * phiV[i];
-      for(unsigned J = 0; J < dim; J++) {
+      for (unsigned J = 0; J < dim; J++) {
         SolVg_x[K][J] += data->_V[K][i] * phiV_x[i * dim + J];
       }
     }
@@ -858,10 +899,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
   std::vector < double > SolP1g_x(dim,  0);
   std::vector < double > SolP2g_x(dim,  0);
 
-  for(unsigned i = 0; i < nDofsP; i++) {
+  for (unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
-    for(unsigned J = 0; J < dim; J++) {
+    for (unsigned J = 0; J < dim; J++) {
       SolP1g_x[J] += data->_P1[i] * phiP_x[i * dim + J];
       SolP2g_x[J] += data->_P2[i] * phiP_x[i * dim + J];
     }
@@ -878,10 +919,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
   // double rhoC = rho;
 
   // *** phiV_i loop ***
-  for(unsigned i = 0; i < nDofsV; i++) {
-    for(unsigned  I = 0; I < dim; I++) {  //momentum equation in I
+  for (unsigned i = 0; i < nDofsV; i++) {
+    for (unsigned  I = 0; I < dim; I++) { //momentum equation in I
       double NSV = 0.;
-      for(unsigned J = 0; J < dim; J++) {  // second index J in each equation
+      for (unsigned J = 0; J < dim; J++) { // second index J in each equation
         NSV   +=  mu * phiV_x[i * dim + J] * (SolVg_x[I][J] + SolVg_x[J][I]); // diffusion
         //NSV   +=  rho * phiV[i] * solVg[J] * SolVg_x[I][J]; // nonlinear term
       }
@@ -889,51 +930,52 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       NSV += rho * phiV[i] * solVg[I] / data->_dt ;
       NSV += - rhoC * phiV[i] * data->_g[I]; // gravity term
       data->_res[I * nDofsV + i] -=  NSV * weight;
-      if(kappa.size() == 1) {
-        if(weightI != 0.) {
+      if (kappa.size() == 1) {
+        if (weightI != 0.) {
           data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa[0] * dsN;
         }
       }
       else {
-        data->_res[I * nDofsV + i] += -data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight1;
+        data->_res[I * nDofsV + i] += -0.5 * data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight1;
+        data->_res[I * nDofsV + i] += 0.5 * data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight2;
       }
     }
   } // end phiV_i loop
 
   // *** phiP_i loop ***
-  for(unsigned i = 0; i < nDofsP; i++) {
-    for(int I = 0; I < dim; I++) {
+  for (unsigned i = 0; i < nDofsP; i++) {
+    for (int I = 0; I < dim; I++) {
       data->_res[dim * nDofsV + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight1; //continuity
       data->_res[dim * nDofsV + nDofsP + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight2; //continuity
     }
-    if(true || C == 0.) {
-      //data->_res[dim * nDofsV + i] += - solP1g * phiP[i]  * weight * data->_eps; //penalty
-      double laplaceP1 = 0.;
-      for(unsigned J = 0; J < dim; J++) {
-        laplaceP1 += - phiP_x[i * dim + J] * SolP1g_x[J];
-      }
-      data->_res[dim * nDofsV + i] += - laplaceP1 * weight * data->_eps;
+    if (C == 0 && data->_C1[i] < 0.1) {
+      data->_res[dim * nDofsV + i] += -0.* data->_P1[i] * phiP[i]  * weight * data->_eps; //penalty
+      // double laplaceP1 = 0.;
+      // for(unsigned J = 0; J < dim; J++) {
+      //   laplaceP1 += - phiP_x[i * dim + J] * SolP1g_x[J];
+      // }
+      // data->_res[dim * nDofsV + i] += - laplaceP1 * weight * data->_eps;
 
     }
-    if(true || C == 1.) {
-      //data->_res[dim * nDofsV + nDofsP + i] += - solP2g * phiP[i]  * weight * data->_eps; //penalty
-      double laplaceP2 = 0.;
-      for(unsigned J = 0; J < dim; J++) {
-        laplaceP2 += - phiP_x[i * dim + J] * SolP2g_x[J];
-      }
-      data->_res[dim * nDofsV + nDofsP + i] += - laplaceP2 * weight * data->_eps;
+    if (C == 1 && data->_C1[i] >  0.9) {
+      data->_res[dim * nDofsV + nDofsP + i] += -0.* data->_P2[i] * phiP[i]  * weight * data->_eps; //penalty
+      // double laplaceP2 = 0.;
+      // for(unsigned J = 0; J < dim; J++) {
+      //   laplaceP2 += - phiP_x[i * dim + J] * SolP2g_x[J];
+      // }
+      // data->_res[dim * nDofsV + nDofsP + i] += - laplaceP2 * weight * data->_eps;
     }
   } // end phiP_i loop
 
 
-  for(unsigned i = 0; i < nDofsV; i++) {
-    for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+  for (unsigned i = 0; i < nDofsV; i++) {
+    for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
       unsigned VIrow = I * nDofsV + i;
-      for(unsigned j = 0; j < nDofsV; j++) {
+      for (unsigned j = 0; j < nDofsV; j++) {
         unsigned VIcolumn = I * nDofsV + j;
         data->_jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / data->_dt; // inertia
 
-        for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+        for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
           unsigned VJcolumn = J * nDofsV + j;
           data->_jac[ VIrow * nDofsVP + VIcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
           data->_jac[ VIrow * nDofsVP + VJcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
@@ -943,7 +985,7 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
         }
       }
 
-      for(unsigned j = 0; j < nDofsP; j++) {
+      for (unsigned j = 0; j < nDofsP; j++) {
         unsigned P1column = dim * nDofsV + j;
         unsigned P2column = dim * nDofsV + nDofsP + j;
         data->_jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weight1; //pressure gradient
@@ -953,23 +995,23 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       }
     }
   }
-  for(unsigned i = 0; i < nDofsP; i++) {
+  for (unsigned i = 0; i < nDofsP; i++) {
     unsigned P1row = dim * nDofsV + i;
     unsigned P2row = dim * nDofsV + nDofsP + i;
-    for(unsigned j = 0; j < nDofsP; j++) {
-      unsigned P1column = dim * nDofsV + j;
-      unsigned P2column = dim * nDofsV + nDofsP + j;
-      if(true || C == 0.){
-        //data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
-        for(unsigned J = 0; J < dim ; J++) {
-          data->_jac[P1row * nDofsVP + P1column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-        }
+    for (unsigned j = 0; j < nDofsP; j++) {
+      unsigned P1column = dim * nDofsV + i;
+      unsigned P2column = dim * nDofsV + nDofsP + i;
+      if (C == 0 && data->_C1[i] < 0.1) {
+        data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
+        // for(unsigned J = 0; J < dim ; J++) {
+        //   data->_jac[P1row * nDofsVP + P1column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
+        // }
       }
-      if(true || C == 1.){
-        //data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
-        for(unsigned J = 0; J < dim ; J++) {
-          data->_jac[P2row * nDofsVP + P2column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-        }
+      if (C == 1 && data->_C1[i] > 0.9) {
+        data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
+        // for(unsigned J = 0; J < dim ; J++) {
+        //   data->_jac[P2row * nDofsVP + P2column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
+        // }
       }
     }
   }
@@ -977,6 +1019,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
 
 #endif
+
+
+
+
 
 
 
