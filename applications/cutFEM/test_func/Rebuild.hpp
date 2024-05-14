@@ -80,7 +80,7 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
   P[nk] = (!reverse) ? P2 : P1;
 
 
-  std::cout << "aaaaaaaaaaa " << n << " " << dt << std::endl;
+//   std::cout << "aaaaaaaaaaa " << n << " " << dt << std::endl;
 
   std::vector<double> Nt = N;
   for(unsigned k = 1, nk = n0 + signKappa; k < n - 1; k++, nk += signKappa) {
@@ -89,10 +89,10 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
     Nt = N;
   }
 
-  for(unsigned k = 0; k < n; k++) {
-    std::cout << k << " " << P[k][0] << " " << P[k][1] << std::endl;
-  }
-  std::cout << std::endl;
+//   for(unsigned k = 0; k < n; k++) {
+//     std::cout << k << " " << P[k][0] << " " << P[k][1] << std::endl;
+//   }
+//   std::cout << std::endl;
 }
 
 bool GetPoint(const std::vector<double> &A,
@@ -257,9 +257,9 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
   }
 
   nInt = cnt;
-//       if(cnt >= 2) nInt = 2;
+      if(cnt >= 2) nInt = 2;
 
-//       std::cout<< " cnt size() =" << cnt <<endl;
+//   std::cout<< " cnt size() =" << cnt <<endl;
 
   if(cnt == 2) {
 
@@ -275,15 +275,24 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
     std::vector<double> P1 = xe[0];
     std::vector<double> P2 = xe[1];
 
+//     for (const auto& val : P1) {
+//         std::cout << val << " ";
+//     }
+//     std::cout << std::endl;
+//     for (const auto& val : P2) {
+//         std::cout << val << " ";
+//     }
+//     std::cout << std::endl;
+
     BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, xe);
 
     npt = xe.size();
-    std::cout<< " xe size() =" << npt <<endl;
-
-    for(unsigned k = 0; k < npt; k++) {
-      std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
-    }
-    std::cout << std::endl;
+//     std::cout<< " xe size() =" << npt <<endl;
+//
+//     for(unsigned k = 0; k < npt; k++) {
+//       std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
+//     }
+//     std::cout << std::endl;
 
 
 

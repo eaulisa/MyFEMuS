@@ -173,7 +173,7 @@ Parabola <Type>  get_parabola_equation( const PointT <Type> p1,const PointT <Typ
 template <class Type>
 void CheckIntersection(int &intersect_number, unsigned int &table_number , std::vector <Type> &intersection, std::vector <Type> &interp_point, const Parabola <Type> &parabola){
 
-  table_number = -1;
+  table_number = 9999;
   intersect_number=0;
   intersection.resize(0);
   interp_point.resize(0);
@@ -297,81 +297,6 @@ void CheckIntersection(int &intersect_number, unsigned int &table_number , std::
           }
       }
 
-      if (intersect_number == 4){
-        if(left == 1 && top == 2 && right == 1){
-          table_number = 0;
-          Type swap;
-          swap = interp_point[2];
-          interp_point[2] = interp_point[3];
-          interp_point[3] = swap;
-        }
-        else if (left == 1 && top == 2 && bottom == 1){
-          table_number = 1;
-          Type swap;
-          swap = interp_point[1];
-          interp_point[1] = interp_point[2];
-          interp_point[2] = interp_point[3];
-          interp_point[3] = swap;
-        }
-
-        else if(left == 1 && bottom == 2 && right ==1){
-          table_number = 2;
-          Type swap;
-          swap = interp_point[2];
-          interp_point[2] = interp_point[1];
-          interp_point[1] = swap;
-        }
-
-        else if (left == 1 && bottom == 2 && top == 1){
-          table_number = 3;
-          Type swap;
-          swap = interp_point[1];
-          interp_point[1] = interp_point[2];
-          interp_point[2] = interp_point[3];
-          interp_point[3] = swap;
-        }
-
-        else if (right == 1 && top == 2 && bottom == 1){
-          table_number = 4;
-          Type swap;
-          swap = interp_point[1];
-          interp_point[1] = interp_point[0];
-          interp_point[0] = interp_point[2];
-          interp_point[2] = interp_point[3];
-          interp_point[3] = swap;
-        }
-
-        else if (right == 1 &&  bottom == 2 && top == 1){
-          table_number = 5;
-          Type swap;
-          swap = interp_point[2];
-          interp_point[2] = interp_point[0];
-          interp_point[0] = interp_point[1];
-          interp_point[1] = interp_point[3];
-          interp_point[3] = swap;
-        }
-
-        else if( top == 2 && bottom == 2){
-//           if(bottom == 1) table_number = 2;
-//           else if(top == 1 ) table_number =3;
-          if (interp_point[0] > interp_point[3]){
-            table_number = 6 ;
-            Type swap;
-            swap = interp_point[0];
-            interp_point[0] = interp_point [3];
-            interp_point[3] = swap;
-          }
-          else{
-            table_number = 7;
-            Type swap;
-            swap = interp_point[1];
-            interp_point[1] = interp_point [2];
-            interp_point[2] = swap;
-
-          }
-        }
-
-      }
 /*
 cout<< " " << " left " << left << " top "<< top << " right "<< right << " bottom " << bottom  << " table number :"<< table_number << " number of intersection " << intersect_number <<endl;*/
 
@@ -2024,6 +1949,7 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     }
 }
 
+
 template <class Type>
 void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, /*std::vector<OctreeNode<Type>>& roots,*/ std::vector<OctreeNode<Type>>& loadedRoots){
 
@@ -2067,6 +1993,33 @@ double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const d
 }
 
 
+int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& vec2) {
+    // Check if the sizes of the vectors are different
+    if (vec1.size() != vec2.size()) {
+        return 0;
+    }
+    // Check if vectors are equal
+    bool equal = true;
+    bool multipliedByMinusOne = true;
+    for (size_t i = 0; i < vec1.size(); ++i) {
+        if (vec1[i] != vec2[i]) {
+            equal = false;
+        }
+        if (vec1[i] != -vec2[i]) {
+            multipliedByMinusOne = false;
+        }
+    }
+
+    if (equal) {
+        return 1;
+    }
+    else if (multipliedByMinusOne) {
+        return -1;
+    }
+    else {
+        return 0;
+    }
+}
 
 
 
