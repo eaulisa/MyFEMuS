@@ -71,7 +71,7 @@ class ConicAdaptiveRefinement {
 
       //_quadCF = new CutFemWeight <double, TypeA > (QUAD, 5, "legendre");
 
-      _fem1 = new Fem(3, 2);
+      _fem1 = new Fem(5, 2);
       _fem2 = new Fem(_weightCF[3]->GetGaussQuadratureOrder(), _weightCF[3]->GetDimension());
 
 
@@ -308,7 +308,7 @@ class ConicAdaptiveRefinement {
 
     const std::vector<std::vector<std::vector<double>>> _xr = {
       {}, {}, {},
-      {{1, -1}, {1, 1}, {-1, 1}, {-1, -1}},//quad
+      {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}},//quad
       {{0, 0}, {1, 0}, {0, 1}}//triange
     };
     const std::vector<std::vector<std::vector<std::vector<double>>>> _yr = {{}, {}, {},
@@ -899,6 +899,7 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
   std::vector < double > SolP1g_x(dim,  0);
   std::vector < double > SolP2g_x(dim,  0);
 
+  double C0 = 0;
   for (unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
@@ -906,9 +907,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       SolP1g_x[J] += data->_P1[i] * phiP_x[i * dim + J];
       SolP2g_x[J] += data->_P2[i] * phiP_x[i * dim + J];
     }
-
+    C0 += data->_C1[i];
 
   }
+  C0 /= nDofsP;
 
   double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
   double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
@@ -1019,6 +1021,7 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
 
 #endif
+
 
 
 
