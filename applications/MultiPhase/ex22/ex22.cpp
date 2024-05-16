@@ -39,8 +39,8 @@
 #include "Fem.hpp"
 
 #include "./include/ConicAdaptiveRefinement.hpp"
-void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A);
-void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A);
+void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::vector <double> &globalErr);
+void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::vector <double> &globalErr);
 void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A);
 void ProjectSolution(MultiLevelSolution & mlSol, MultiLevelSolution & mlSol1, SparseMatrix * Pj[3]);
 // // RT
@@ -99,23 +99,23 @@ using namespace femus;
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true; //dirichlet
 
-  if (!strcmp(SolName, "U")) { // strcmp compares two string in lexiographic sense.
+  if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
     value = 0.;
   }
-  else if (!strcmp(SolName, "V")) {
+  else if(!strcmp(SolName, "V")) {
     //if(facename == 2 || facename == 4) dirichlet = false;
     value = 0.;
 //     if(x[0] < 0. && x[1] < 0.5 && x[1] > -0.5 && x[2] < 0.5 && x[2] > -0.5) value = 1.;
   }
-  else if (!strcmp(SolName, "W")) {
+  else if(!strcmp(SolName, "W")) {
     value = 0.;
   }
-  else if (!strcmp(SolName, "P1")) {
+  else if(!strcmp(SolName, "P1")) {
     dirichlet = false;
     value = 0.;
   }
-  else if (!strcmp(SolName, "P2")) {
-    if (x[0] > -1.999999 || x[1] > -1.999999) dirichlet = false;
+  else if(!strcmp(SolName, "P2")) {
+    if(x[0] > -1.999999 || x[1] > -1.999999) dirichlet = false;
     value = 0;
 
     // if (x[0] > -1.999 && x[0] < 1.999 && x[1] > -1.999 && x[1] < 1.999) {
@@ -123,7 +123,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
     //   value = 0.;
     // }
   }
-  else if (!strcmp(SolName, "K1")) {
+  else if(!strcmp(SolName, "K1")) {
     value = 0.;
   }
 
@@ -138,8 +138,8 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-  FEOrder Vorder = FIRST;
-  FEOrder Porder = FIRST;
+  FEOrder Vorder = SECOND;
+  FEOrder Porder = SECOND;
   unsigned nx, ny;
   nx = ny = 64;
 
@@ -155,7 +155,7 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
   mlSol.AddSolution("U", LAGRANGE, Vorder);
   mlSol.AddSolution("V", LAGRANGE, Vorder);
-  if (dim == 3) mlSol.AddSolution("W", LAGRANGE, Vorder);
+  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, Vorder);
   mlSol.AddSolution("P1", LAGRANGE, Porder);
   mlSol.AddSolution("P2", LAGRANGE, Porder);
   mlSol.AddSolution("C0", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
@@ -172,7 +172,7 @@ int main(int argc, char** args) {
   LinearImplicitSystem& system = mlProb.add_system < LinearImplicitSystem > ("NS");
   system.AddSolutionToSystemPDE("U");
   system.AddSolutionToSystemPDE("V");
-  if (dim == 3) system.AddSolutionToSystemPDE("W");
+  if(dim == 3) system.AddSolutionToSystemPDE("W");
   system.AddSolutionToSystemPDE("P1");
   system.AddSolutionToSystemPDE("P2");
   system.SetSparsityPatternMinimumSize(500);
@@ -189,7 +189,8 @@ int main(int argc, char** args) {
   system.MGsolve();
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
-  GetError(mlProb, A);
+  std::vector<double> globaErr;
+  GetError(mlProb, A, globaErr);
 
   MultiLevelMesh mlMsh1;
   mlMsh1.GenerateCoarseBoxMesh(nx, ny, 0, -2., 2., -2., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
@@ -210,7 +211,7 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol1(&mlMsh1);
   mlSol1.AddSolution("U", LAGRANGE, Vorder);
   mlSol1.AddSolution("V", LAGRANGE, Vorder);
-  if (dim == 3) mlSol.AddSolution("W", LAGRANGE, Vorder);
+  if(dim == 3) mlSol.AddSolution("W", LAGRANGE, Vorder);
   mlSol1.AddSolution("P1", LAGRANGE, Porder);
   mlSol1.AddSolution("P2", LAGRANGE, Porder);
   mlSol1.AddSolution("C0", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
@@ -236,7 +237,7 @@ int main(int argc, char** args) {
   LinearImplicitSystem& system1 = mlProb1.add_system < LinearImplicitSystem > ("NS");
   system1.AddSolutionToSystemPDE("U");
   system1.AddSolutionToSystemPDE("V");
-  if (dim == 3) system1.AddSolutionToSystemPDE("W");
+  if(dim == 3) system1.AddSolutionToSystemPDE("W");
   system1.AddSolutionToSystemPDE("P1");
   system1.AddSolutionToSystemPDE("P2");
   system1.SetSparsityPatternMinimumSize(500);
@@ -252,9 +253,18 @@ int main(int argc, char** args) {
   system1.MGsolve();
   vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
   std::cout << "Errors using analytic solution\n";
-  GetError(mlProb1, A);
+  std::vector<double> globaErr1, globaErr2;
+  GetError(mlProb1, A, globaErr1);
   std::cout << "Errors using two successive solutions\n";
-  GetError2(mlProb1, A);
+  GetError2(mlProb1, A, globaErr2);
+
+  std::cout << "nx = " << nx << " ; " << globaErr[0] << " ; " << globaErr[1] << " ; " << globaErr[2] << " ; " << globaErr[3] << " ; "
+            << globaErr[4] << " ; " << globaErr[5] << " ; " << globaErr[6] << " ; " << globaErr[7] << " ; " << globaErr[8] << std::endl;
+  std::cout << "conv order ; " << log(globaErr[0] / globaErr1[0]) / log(2) << " ; " << log(globaErr[1] / globaErr1[1]) / log(2) << " ; " << log(globaErr[2] / globaErr1[2]) / log(2) << " ; " << log(globaErr[3] / globaErr1[3]) / log(2) << " ; "
+            << log(globaErr[4] / globaErr1[4]) / log(2) << " ; " << log(globaErr[5] / globaErr1[5]) / log(2) << " ; " << log(globaErr[6] / globaErr1[6]) / log(2) << " ; " << log(globaErr[7] / globaErr1[7]) / log(2) << " ; "
+            << log(globaErr[8] / globaErr1[8]) / log(2) << std::endl;;
+  std::cout << "nx = " << 2 * nx << " ; " << globaErr1[0] << " ; " << globaErr1[1] << " ; " << globaErr1[2] << " ; " << globaErr1[3] << " ; "
+            << globaErr1[4] << " ; " << globaErr1[5] << " ; " << globaErr1[6] << " ; " << globaErr1[7] << " ; " << globaErr1[8] << std::endl;
 
   return 0;
 }
@@ -321,15 +331,15 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   std::vector<std::vector<double>> xT;
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned elType = msh->GetElementType(iel);
     unsigned nDofsK1 = msh->GetElementDofNumber(iel, solPKCType);
 
     unsigned nDofsX = msh->GetElementDofNumber(iel, 0);
     xT.assign(nDofsX, std::vector<double>(dim, 0));
-    for (unsigned i = 0; i < nDofsX; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned xdof  = msh->GetSolutionDof(i, iel, xvType);
-      for (unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < dim; k++) {
         xT[i][k] = (*msh->_topology->_Sol[k])(xdof);      // global extraction and local storage for the element coordinates
       }
     }
@@ -337,10 +347,10 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     ConicAdaptiveRefinement::GetConicsInTargetElement(xT, A, elType, Ap);
 
     int testIntersection = ConicAdaptiveRefinement::TestIfIntesectionWithReferenceElement(Ap, elType);
-    if (testIntersection == 0) {
+    if(testIntersection == 0) {
       sol->_Sol[solC0Index]->set(iel, 0.5);
     }
-    else if (testIntersection < 0) {
+    else if(testIntersection < 0) {
       sol->_Sol[solC0Index]->set(iel, 1.);
     }
 
@@ -351,15 +361,15 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     bool atLeastOneIsZero = false;
     bool atLeastOneIsOne = false;
     double kappaIel = 0.;
-    for (unsigned i = 0; i < nDofsK1; i++) {
+    for(unsigned i = 0; i < nDofsK1; i++) {
       unsigned xdof  = msh->GetSolutionDof(i, iel, xvType);    // local to global mapping between coordinates node and coordinate dof
-      for (unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < dim; k++) {
         xv[k] = (*msh->_topology->_Sol[k])(xdof);      // global extraction and local storage for the element coordinates
       }
 
       unsigned idof  = msh->GetSolutionDof(i, iel, solPKCType);    // local to global mapping between coordinates node and coordinate dof
       double value = ConicAdaptiveRefinement::EvaluateConic(xv, A);
-      if (value < 0.) { //1.0e-10) {
+      if(value < 0.) {  //1.0e-10) {
         sol->_Sol[solC1Index]->set(idof, 1.);
         atLeastOneIsOne = true;
       }
@@ -368,7 +378,7 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
       }
       std::vector <double> kappa;
       ConicAdaptiveRefinement::GetConicCurvature(xv, A, kappa, false);
-      if (std::isnan(kappa[0])) kappa[0] = 0.;
+      if(std::isnan(kappa[0])) kappa[0] = 0.;
       else sol->_Sol[solK1Index]->set(idof, kappa[0]);
       kappaIel += kappa[0];
     }
@@ -384,17 +394,17 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   sol->_Sol[solK0Index]->close();
   sol->_Sol[solK1Index]->close();
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    if ((*sol->_Sol[solC0Index])(iel) == 0.5) {
+    if((*sol->_Sol[solC0Index])(iel) == 0.5) {
       unsigned nDofsK1 = msh->GetElementDofNumber(iel, solPKCType);
-      for (unsigned i = 0; i < nDofsK1; i++) {
+      for(unsigned i = 0; i < nDofsK1; i++) {
         unsigned idof  = msh->GetSolutionDof(i, iel, solPKCType);
         double C1 = (*sol->_Sol[solC1Index])(idof);
-        if (C1 < 0.2) {
+        if(C1 < 0.2) {
           sol->_Sol[solC1Index]->set(idof, 0.25);
         }
-        else if (C1 > 0.8) {
+        else if(C1 > 0.8) {
           sol->_Sol[solC1Index]->set(idof, 0.75);
         }
       }
@@ -404,23 +414,23 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   sol->_Sol[solC1Index]->close();
 
   unsigned numberOfSmoothings = 100;
-  for (unsigned k = 0; k < numberOfSmoothings; k++) {
+  for(unsigned k = 0; k < numberOfSmoothings; k++) {
 
     //From the element to the nodes
-    for (unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
+    for(unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
       double C1 = (*sol->_Sol[solC1Index])(i);
-      if (C1 < 0.2 || C1 > 0.8) sol->_Sol[solK1Index]->set(i, 0.);
+      if(C1 < 0.2 || C1 > 0.8) sol->_Sol[solK1Index]->set(i, 0.);
     }
     sol->_Sol[solK1Index]->close();
     sol->_Sol[solCntIndex]->zero();
-    for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-      if ((*sol->_Sol[solC0Index])(iel) > 0.9 || (*sol->_Sol[solC0Index])(iel) < 0.1) {
+    for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      if((*sol->_Sol[solC0Index])(iel) > 0.9 || (*sol->_Sol[solC0Index])(iel) < 0.1) {
         double K0 = (*sol->_Sol[solK0Index])(iel);
         unsigned nDofsK1 = msh->GetElementDofNumber(iel, solPKCType);
-        for (unsigned i = 0; i < nDofsK1; i++) {
+        for(unsigned i = 0; i < nDofsK1; i++) {
           unsigned idof  = msh->GetSolutionDof(i, iel, solPKCType);
           double C1 = (*sol->_Sol[solC1Index])(idof);
-          if ((*sol->_Bdc[solK1Index])(idof) > 0 && (C1 > 0.8 || C1 < 0.2)) {
+          if((*sol->_Bdc[solK1Index])(idof) > 0 && (C1 > 0.8 || C1 < 0.2)) {
             sol->_Sol[solK1Index]->add(idof, K0);
             sol->_Sol[solCntIndex]->add(idof, 1.);
           }
@@ -430,22 +440,22 @@ void InitCurvature(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     sol->_Sol[solK1Index]->close();
     sol->_Sol[solCntIndex]->close();
 
-    for (unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
+    for(unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
       double cnt = (*sol->_Sol[solCntIndex])(i);
-      if (cnt > 0.1) {
+      if(cnt > 0.1) {
         double K1 = (*sol->_Sol[solK1Index])(i);
         sol->_Sol[solK1Index]->set(i, K1 / cnt);
       }
     }
     sol->_Sol[solK1Index]->close();
 
-    if (k < numberOfSmoothings - 1) {
+    if(k < numberOfSmoothings - 1) {
       //from the nodes to the element
-      for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-        if ((*sol->_Sol[solC0Index])(iel) > 0.9 || (*sol->_Sol[solC0Index])(iel) < 0.1) {
+      for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+        if((*sol->_Sol[solC0Index])(iel) > 0.9 || (*sol->_Sol[solC0Index])(iel) < 0.1) {
           double K0 = 0.;
           unsigned nDofsK1 = msh->GetElementDofNumber(iel, solPKCType);
-          for (unsigned i = 0; i < nDofsK1; i++) {
+          for(unsigned i = 0; i < nDofsK1; i++) {
             unsigned idof  = msh->GetSolutionDof(i, iel, solPKCType);
             double K1 = (*sol->_Sol[solK1Index])(idof);
             K0 += K1;
@@ -494,7 +504,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
   solVIndex[1] = mlSol->GetIndex("V");    // get the position of "V" in the ml_sol object
-  if (dim == 3) solVIndex[2] = mlSol->GetIndex("W");      // get the position of "V" in the ml_sol object
+  if(dim == 3) solVIndex[2] = mlSol->GetIndex("W");       // get the position of "V" in the ml_sol object
 
   unsigned solVType = mlSol->GetSolutionType(solVIndex[0]);    // get the finite element type for "u"
 
@@ -511,7 +521,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   std::vector < unsigned > solVPdeIndex(dim);
   solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
   solVPdeIndex[1] = mlPdeSys->GetSolPdeIndex("V");    // get the position of "V" in the pdeSys object
-  if (dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
+  if(dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
 
   unsigned solP1PdeIndex = mlPdeSys->GetSolPdeIndex("P1");    // get the position of "P" in the pdeSys object
   unsigned solP2PdeIndex = mlPdeSys->GetSolPdeIndex("P2");    // get the position of "P" in the pdeSys object
@@ -537,7 +547,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   sol->_Sol[solC2Index]->zero();
   sol->_Sol[solCntIndex]->zero();
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned elType = msh->GetElementType(iel);
     unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
@@ -549,7 +559,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     Res.assign(nDofsVP, 0.);
     Jac.assign(nDofsVP * nDofsVP, 0.);
 
-    for (unsigned  k = 0; k < dim; k++) {
+    for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
       coordX[k].resize(nDofsX);
     }
@@ -559,16 +569,16 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     solK1.resize(nDofsP);
 
     // local storage of global mapping and solution
-    for (unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned i = 0; i < nDofsV; i++) {
       unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);    // local to global mapping between solution node and solution dof
 
-      for (unsigned  k = 0; k < dim; k++) {
+      for(unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);
         sysDof[k * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[k], solVPdeIndex[k], i, iel);    // global to global mapping between solution node and pdeSys dof
       }
     }
 
-    for (unsigned i = 0; i < nDofsP; i++) {
+    for(unsigned i = 0; i < nDofsP; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solPKCType);    // local to global mapping between solution node and solution dof
       solP1[i] = (*sol->_Sol[solP1Index])(iDof);      // global extraction and local storage for the solution
       solP2[i] = (*sol->_Sol[solP2Index])(iDof);      // global extraction and local storage for the solution
@@ -579,9 +589,9 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     }
 
     // local storage of coordinates
-    for (unsigned i = 0; i < nDofsX; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
-      for (unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
@@ -606,7 +616,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     sol->_Sol[solC0Index]->set(iel, C);
 
     unsigned nDofs1 = msh->GetElementDofNumber(iel, solPKCType);
-    for (unsigned i = 0; i < nDofs1; i++) {
+    for(unsigned i = 0; i < nDofs1; i++) {
       unsigned idof = msh->GetSolutionDof(i, iel, solPKCType);
       sol->_Sol[solC2Index]->add(idof, C);
       sol->_Sol[solCntIndex]->add(idof, 1);
@@ -620,7 +630,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   sol->_Sol[solC2Index]->close();
   sol->_Sol[solCntIndex]->close();
 
-  for (unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
+  for(unsigned i = msh->_dofOffset[solPKCType][iproc]; i < msh->_dofOffset[solPKCType][iproc + 1]; i++) {
     double value = (*sol->_Sol[solC2Index])(i);
     double cnt = (*sol->_Sol[solCntIndex])(i);
     sol->_Sol[solC2Index]->set(i, value / cnt);
@@ -637,7 +647,7 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
   //KK->draw();
 }
 
-void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
+void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::vector<double> &error) {
 
   const unsigned level = ml_prob._ml_msh->GetNumberOfLevels() - 1 ;
   Solution *sol = ml_prob._ml_sol->GetSolutionLevel(level);
@@ -651,7 +661,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = sol->GetIndex("U");
   solVIndex[1] = sol->GetIndex("V");
-  if (dim == 3) solVIndex[2] = sol->GetIndex("W");
+  if(dim == 3) solVIndex[2] = sol->GetIndex("W");
 
   unsigned solVType = sol->GetSolutionType(solVIndex[0]);
 
@@ -679,7 +689,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   ConicAdaptiveRefinement cad;
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned elType = msh->GetElementType(iel);
     unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
@@ -688,7 +698,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     unsigned nDofsVP = dim * nDofsV + 2 * nDofsP;
 
     // resize local arrays
-    for (unsigned  k = 0; k < dim; k++) {
+    for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
       coordX[k].resize(nDofsX);
     }
@@ -698,14 +708,14 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     solK1.resize(nDofsP);
 
     // local storage of global mapping and solution
-    for (unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned i = 0; i < nDofsV; i++) {
       unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);    // local to global mapping between solution node and solution dof
-      for (unsigned  k = 0; k < dim; k++) {
+      for(unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);
       }
     }
 
-    for (unsigned i = 0; i < nDofsP; i++) {
+    for(unsigned i = 0; i < nDofsP; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solPKCType);    // local to global mapping between solution node and solution dof
       solP1[i] = (*sol->_Sol[solP1Index])(iDof);      // global extraction and local storage for the solution
       solP2[i] = (*sol->_Sol[solP2Index])(iDof);      // global extraction and local storage for the solution
@@ -714,9 +724,9 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     }
 
     // local storage of coordinates
-    for (unsigned i = 0; i < nDofsX; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
-      for (unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
@@ -740,6 +750,12 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   MPI_Allreduce(localErr.data(), globalErr.data(), localErr.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+
+  error = {sqrt(globalErr[0]), sqrt(globalErr[1]), sqrt(globalErr[2]), sqrt(globalErr[3]),
+           sqrt(globalErr[0]) + sqrt(globalErr[2]), sqrt(globalErr[1]) + sqrt(globalErr[3]),
+           sqrt(globalErr[4]), sqrt(globalErr[5]), sqrt(globalErr[6])
+          };
+
   std::cout.precision(14);
   std::cout << "U-l2NormErr = "  << sqrt(globalErr[0]) << std::endl;
   std::cout << "V-l2NormErr = "  << sqrt(globalErr[1]) << std::endl;
@@ -755,7 +771,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::cout << "Error Function time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::endl;
 }
 
-void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
+void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::vector<double> &error) {
 
   const unsigned level = ml_prob._ml_msh->GetNumberOfLevels() - 1 ;
   Solution *sol = ml_prob._ml_sol->GetSolutionLevel(level);
@@ -769,12 +785,12 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = sol->GetIndex("U");
   solVIndex[1] = sol->GetIndex("V");
-  if (dim == 3) solVIndex[2] = sol->GetIndex("W");
+  if(dim == 3) solVIndex[2] = sol->GetIndex("W");
 
   std::vector < unsigned > solVcIndex(dim);
   solVcIndex[0] = sol->GetIndex("Uc");
   solVcIndex[1] = sol->GetIndex("Vc");
-  if (dim == 3) solVcIndex[2] = sol->GetIndex("Wc");
+  if(dim == 3) solVcIndex[2] = sol->GetIndex("Wc");
 
   unsigned solVType = sol->GetSolutionType(solVIndex[0]);
 
@@ -799,20 +815,21 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   std::vector< double > localErr(2 * dim + 3, 0.);
   std::vector< double > globalErr(2 * dim + 3, 0.);
+
   std::vector < double > Jac; // support variable not used
 
   clock_t start_time = clock();
 
   ConicAdaptiveRefinement cad;
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     unsigned elType = msh->GetElementType(iel);
     unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPKCType);    // number of solution element dofs
 
     // resize local arrays
-    for (unsigned  k = 0; k < dim; k++) {
+    for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(2 * nDofsV);
       coordX[k].resize(nDofsX);
     }
@@ -822,15 +839,15 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     solK1.resize(nDofsP);
 
     // local storage of global mapping and solution
-    for (unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned i = 0; i < nDofsV; i++) {
       unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);    // local to global mapping between solution node and solution dof
-      for (unsigned  k = 0; k < dim; k++) {
+      for(unsigned  k = 0; k < dim; k++) {
         solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);
         solV[k][nDofsV + i] = (*sol->_Sol[solVcIndex[k]])(solVDof);
       }
     }
 
-    for (unsigned i = 0; i < nDofsP; i++) {
+    for(unsigned i = 0; i < nDofsP; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solPKCType);    // local to global mapping between solution node and solution dof
       solP1[i] = (*sol->_Sol[solP1Index])(iDof);
       solP1[nDofsP + i] = (*sol->_Sol[solP1cIndex])(iDof);
@@ -841,9 +858,9 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     }
 
     // local storage of coordinates
-    for (unsigned i = 0; i < nDofsX; i++) {
+    for(unsigned i = 0; i < nDofsX; i++) {
       unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);    // local to global mapping between coordinates node and coordinate dof
-      for (unsigned k = 0; k < dim; k++) {
+      for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
@@ -867,6 +884,11 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   MPI_Allreduce(localErr.data(), globalErr.data(), localErr.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+
+  error = {sqrt(globalErr[0]), sqrt(globalErr[1]), sqrt(globalErr[2]), sqrt(globalErr[3]),
+           sqrt(globalErr[0]) + sqrt(globalErr[2]), sqrt(globalErr[1]) + sqrt(globalErr[3]),
+           sqrt(globalErr[4]), sqrt(globalErr[5]), sqrt(globalErr[6])
+          };
 
   std::cout.precision(14);
   std::cout << "U-l2NormErr = "  << sqrt(globalErr[0]) << std::endl;
@@ -898,10 +920,10 @@ void AssembleError(Data * data, const std::vector <double> &phiV, const std::vec
 
   std::vector < double > solVg(dim, 0);
   std::vector < std::vector < double > > solVg_x(dim, std::vector<double> (dim, 0));
-  for (unsigned i = 0; i < nDofsV; i++) {
-    for (unsigned  K = 0; K < dim; K++) {
+  for(unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned  K = 0; K < dim; K++) {
       solVg[K] += data->_V[K][i] * phiV[i];
-      for (unsigned J = 0; J < dim; J++) {
+      for(unsigned J = 0; J < dim; J++) {
         solVg_x[K][J] += data->_V[K][i] * phiV_x[i * dim + J];
       }
     }
@@ -916,16 +938,16 @@ void AssembleError(Data * data, const std::vector <double> &phiV, const std::vec
   double solP2g_exc = 0;
   double solPg_exc = 0;
 
-  for (unsigned i = 0; i < nDofsP; i++) {
+  for(unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
     solPg += phiP[i] * (data->_C1[i] * data->_P1[i] + (1 - data->_C1[i]) * data->_P2[i]);
     solPg_exc += phiP[i] * (data->_C1[i] * solP1g_exc + (1 - data->_C1[i]) * solP2g_exc);
   }
 
-  for (unsigned K = 0; K < dim; K++) {
+  for(unsigned K = 0; K < dim; K++) {
     data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
-    for (unsigned J = 0; J < dim; J++) {
+    for(unsigned J = 0; J < dim; J++) {
       data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
     }
   }
@@ -950,11 +972,11 @@ void AssembleError2(Data * data, const std::vector <double> &phiV, const std::ve
   std::vector < double > solVg_exc(dim, 0);
   std::vector < std::vector < double > > solVg_x_exc(dim, std::vector<double> (dim, 0));
 
-  for (unsigned i = 0; i < nDofsV; i++) {
-    for (unsigned  K = 0; K < dim; K++) {
+  for(unsigned i = 0; i < nDofsV; i++) {
+    for(unsigned  K = 0; K < dim; K++) {
       solVg[K] += data->_V[K][i] * phiV[i];
       solVg_exc[K] += data->_V[K][i + nDofsV] * phiV[i];
-      for (unsigned J = 0; J < dim; J++) {
+      for(unsigned J = 0; J < dim; J++) {
         solVg_x[K][J] += data->_V[K][i] * phiV_x[i * dim + J];
         solVg_x_exc[K][J] += data->_V[K][i + nDofsV] * phiV_x[i * dim + J];
       }
@@ -969,7 +991,7 @@ void AssembleError2(Data * data, const std::vector <double> &phiV, const std::ve
   double solP2g_exc = 0.;
   double solPg_exc = 0.;
 
-  for (unsigned i = 0; i < nDofsP; i++) {
+  for(unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
     solPg += phiP[i] * (data->_C1[i] * data->_P1[i] + (1 - data->_C1[i]) * data->_P2[i]);
@@ -979,9 +1001,9 @@ void AssembleError2(Data * data, const std::vector <double> &phiV, const std::ve
     solPg_exc += phiP[i] * (data->_C1[i] * data->_P1[i + nDofsP] + (1 - data->_C1[i]) * data->_P2[i + nDofsP]);
   }
 
-  for (unsigned K = 0; K < dim; K++) {
+  for(unsigned K = 0; K < dim; K++) {
     data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
-    for (unsigned J = 0; J < dim; J++) {
+    for(unsigned J = 0; J < dim; J++) {
       data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
     }
   }
