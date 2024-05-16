@@ -1965,7 +1965,12 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     else{
       cout << "creating the tables"<<endl;
       OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
-      root.subdivideWithRelativeError(maxDepth, percent);
+      if(ttable != 5) {
+        root.subdivideWithRelativeError(maxDepth, percent);
+      }
+      else{
+        root.subdivideWithRelativeError(3, 0.1);
+      }
       root.saveOctreeToCSV(filename);
       std::cout << "Octree Structure:\n";
   //     roots.push_back(root);
