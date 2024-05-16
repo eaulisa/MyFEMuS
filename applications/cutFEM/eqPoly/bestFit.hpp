@@ -10,8 +10,8 @@
 #include "./LiSK/lisk.hpp"
 #include <cmath>       /* exp */
 #include "eqPoly.hpp"
-#include </usr/include/eigen3/Eigen/Core>
-#include </usr/include/eigen3/Eigen/SVD>
+#include <Eigen/Core>
+#include <Eigen/SVD>
 
 
 //using namespace femus;

@@ -100,7 +100,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob);
 void TestMarkersAndCloud(MultiLevelProblem & ml_prob);
 
 int main(int argc, char** args) {
-
+    
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
@@ -109,16 +109,17 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-//   mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
-  
-  mlMsh.GenerateCoarseBoxMesh(2, 2, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh"); 
+  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
+
+  //mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
+  //mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 7;
-  unsigned nMax = 4 * pow(2,6);
+  unsigned numberOfUniformLevels = 5;
+  unsigned nMax = 4 * pow(2, 6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
 
@@ -135,10 +136,12 @@ int main(int argc, char** args) {
   mlSol.AddSolution("V", LAGRANGE, SECOND, 2);
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
-  
+
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
+  mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
   solVIndex[1] = mlSol.GetIndex("V");
@@ -188,18 +191,59 @@ int main(int argc, char** args) {
 
   Solution* sol = mlSol.GetSolutionLevel(level);
 
+
+//   Cloud cld1(sol);
+//   cld1.SetQuadraticBestFitCoefficients(0,A);
+//   std::cout << "cost1  = "  << cld1.GetCost(x,w,0,21) << std::endl;
+//
+//   return 1;
+
   unsigned iproc = sol->processor_id();
   unsigned nprocs = sol->n_processors();
 
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
+//   std::vector<std::vector<double>> x(1000, std::vector<double>(2));
+//   std::vector<std::vector<double>> N(1000, std::vector<double>(2));
+// 
+//   for(unsigned i = 0; i < x.size(); i++) {
+//     x[i][0] = -0.94537 + 0.002 * i;
+//     x[i][1] = -0.74537 + 0.002 * i;
+//     N[i][0] = -sqrt(2.) / 2.;
+//     N[i][1] =  sqrt(2.) / 2.;
+//   }
+// 
+// 
+//   Cloud cld1(sol);
+//   cld1.AddCloudFromPoints(x, N);
+//   cld1.PrintCSV("marker", 0);
+// 
+//   for(unsigned i = 0; i < x.size(); i++) {
+//     x[i][0] = -0.94537 + 0.002 * i;
+//     x[i][1] = -0.84537 + 0.002 * i;
+//     N[i][0] = -sqrt(2.) / 2.;
+//     N[i][1] =  sqrt(2.) / 2.;
+//   }
+// 
+//   Cloud cldInt1(sol);
+//   cldInt1.AddInteriorCloudFromPoints(x);
+// 
+//   cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
+// 
+//   cldInt1.PrintCSV("markerInternal", 0);
+
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
 
+
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+  //return 0;
+
   // BEGIN Testing the class Cloud
-  Cloud cld;
-  Cloud cldint;
+  Cloud cld(sol);
+  Cloud cldint(sol);
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
@@ -207,42 +251,46 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
 
   double time = 0.;
-//   cld.InitEllipse({0., 0.25}, {0.15, 0.15}, nMax, sol);
-  cld.InitMultipleEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {nMax, nMax}, sol);
-//   cldint.InitInteriorEllipse({0., 0.25}, {0.15, 0.15}, sol);
-  cldint.InitMultipleInteriorEllipses({{0., 0.25}, {0., -0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, sol);
-  cldint.RebuildInteriorMarkers(cld, "C","Cn");
-  SetVelocity(sol, velocity, time, period );
-  cld.PrintCSV("markerBefore",0);
-  cld.PrintCSV("marker",0);
-  cldint.PrintCSV("markerInternalBefore",0);
-  cldint.PrintCSV("markerInternal",0);
-  
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+//   cld.AddQuadric({1.,0.,1.,0.,-0.5,0.04}, 8);
+//   cld.AddQuadric({1.,0.,1.,0.,+0.5,0.04}, 8);
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,-0.5,0.04});
+//   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04});
+
+//   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8);
+  cld.AddEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {9, 9});
+//   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01});
+  cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
+
+  cldint.RebuildInteriorMarkers(cld, "C", "Cn");
+  SetVelocity(sol, velocity, time, period);
+  cld.PrintCSV("markerBefore", 0);
+  cld.PrintCSV("marker", 0);
+  cldint.PrintCSV("markerInternalBefore", 0);
+  cldint.PrintCSV("markerInternal", 0);
 
 
   double dt = period / nIterations;
 
   for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it << "\n";
-    
+
     sol->CopySolutionToOldSolution();
 
     time += dt;
     SetVelocity(sol, velocity, time, period);
-    
+
     cld.RKAdvection(4, velocity, dt);
     cldint.RKAdvection(4, velocity, dt);
-    cldint.PrintCSV("markerInternalBefore",it);
-    
-    cld.PrintCSV("markerBefore",it);
+    cldint.PrintCSV("markerInternalBefore", it);
+
+    cld.PrintCSV("markerBefore", it);
     cld.ComputeQuadraticBestFit();
-    
-    cld.RebuildMarkers(8, 12, 8);
-    
+
+    cld.RebuildMarkers(9, 12, 9);
+
     cldint.RebuildInteriorMarkers(cld, "C", "Cn");
-    cldint.PrintCSV("markerInternal",it);
-    cld.PrintCSV("marker",it);
+    cldint.PrintCSV("markerInternal", it);
+    cld.PrintCSV("marker", it);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
 
 //     for(unsigned kp = 0; kp < nprocs; kp++) {
@@ -259,7 +307,7 @@ int main(int argc, char** args) {
 //     std::cerr << std::endl;
 
   }
-  
+
   // END Testing the class Cloud
 
   // initilaize and solve the system
@@ -299,15 +347,18 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       //rotation;
 //       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
 //       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
-      
+
       //single vortex;
-      double x = xv[0] + 0.25;
-      double y = xv[1] /*+ 0.5*/;
-//       double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
-//       double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
-      
-      double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
-      double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
+      double x = xv[0] + 0.5;
+      double y = xv[1] + 0.5;
+      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+
+      //double x = xv[0] + 0.25;
+      //double y = xv[1] /*+ 0.5*/;
+
+//       double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
+//       double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
       sol->_Sol[uIndex[0]]->set(uDof, u);
       sol->_Sol[uIndex[1]]->set(uDof, v);
     }

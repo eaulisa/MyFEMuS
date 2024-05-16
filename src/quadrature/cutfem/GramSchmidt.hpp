@@ -182,7 +182,7 @@ void MatrixMatrixMultiply(const std::vector<std::vector<TypeA>> &M, const std::v
 
 
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 template <class TypeA>
 void MatrixVectorMultiply(const Eigen::Matrix <TypeA, Eigen::Dynamic, Eigen::Dynamic> &M,
                           const Eigen::Matrix <TypeA, Eigen::Dynamic, 1> &v,
