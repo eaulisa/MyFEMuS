@@ -896,21 +896,12 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
   double solP1g = 0;
   double solP2g = 0;
-  std::vector < double > SolP1g_x(dim,  0);
-  std::vector < double > SolP2g_x(dim,  0);
 
-  double C0 = 0;
   for (unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
-    for (unsigned J = 0; J < dim; J++) {
-      SolP1g_x[J] += data->_P1[i] * phiP_x[i * dim + J];
-      SolP2g_x[J] += data->_P2[i] * phiP_x[i * dim + J];
-    }
-    C0 += data->_C1[i];
-
   }
-  C0 /= nDofsP;
+
 
   double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
   double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
@@ -952,20 +943,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
     }
     if (C == 0 && data->_C1[i] < 0.1) {
       data->_res[dim * nDofsV + i] += -0.* data->_P1[i] * phiP[i]  * weight * data->_eps; //penalty
-      // double laplaceP1 = 0.;
-      // for(unsigned J = 0; J < dim; J++) {
-      //   laplaceP1 += - phiP_x[i * dim + J] * SolP1g_x[J];
-      // }
-      // data->_res[dim * nDofsV + i] += - laplaceP1 * weight * data->_eps;
-
     }
     if (C == 1 && data->_C1[i] >  0.9) {
       data->_res[dim * nDofsV + nDofsP + i] += -0.* data->_P2[i] * phiP[i]  * weight * data->_eps; //penalty
-      // double laplaceP2 = 0.;
-      // for(unsigned J = 0; J < dim; J++) {
-      //   laplaceP2 += - phiP_x[i * dim + J] * SolP2g_x[J];
-      // }
-      // data->_res[dim * nDofsV + nDofsP + i] += - laplaceP2 * weight * data->_eps;
     }
   } // end phiP_i loop
 
@@ -1005,15 +985,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       unsigned P2column = dim * nDofsV + nDofsP + i;
       if (C == 0 && data->_C1[i] < 0.1) {
         data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
-        // for(unsigned J = 0; J < dim ; J++) {
-        //   data->_jac[P1row * nDofsVP + P1column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-        // }
       }
       if (C == 1 && data->_C1[i] > 0.9) {
         data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
-        // for(unsigned J = 0; J < dim ; J++) {
-        //   data->_jac[P2row * nDofsVP + P2column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-        // }
       }
     }
   }

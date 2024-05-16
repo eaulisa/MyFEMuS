@@ -138,8 +138,8 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
-  FEOrder Vorder = SECOND;
-  FEOrder Porder = SECOND;
+  FEOrder Vorder = FIRST;
+  FEOrder Porder = FIRST;
   unsigned nx, ny;
   nx = ny = 64;
 
@@ -188,8 +188,6 @@ int main(int argc, char** args) {
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   system.MGsolve();
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
-  system.MGsolve();
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 2);
 
   GetError(mlProb, A);
 
@@ -250,13 +248,12 @@ int main(int argc, char** args) {
   VTKWriter vtkIO1(&mlSol1);
   vtkIO1.SetDebugOutput(true);
   InitCurvature(mlProb1, A);
-  vtkIO1.Write("./output1", "biquadratic", variablesToBePrinted, 0);
+  vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   system1.MGsolve();
-  vtkIO1.Write("./output1", "biquadratic", variablesToBePrinted, 1);
-  system1.MGsolve();
-  vtkIO1.Write("./output1", "biquadratic", variablesToBePrinted, 2);
-
-
+  vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
+  std::cout << "Errors using analytic solution\n";
+  GetError(mlProb1, A);
+  std::cout << "Errors using two successive solutions\n";
   GetError2(mlProb1, A);
 
   return 0;
@@ -602,7 +599,6 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     std::vector<std::vector<double>> yi = cad.GetXiInParentElement();
 
     cad.GetConicsInTargetElement(xT, A, elType, Ap);
-    //std::cout<<Ap[0]<<" "<<Ap[1]<<" "<<Ap[2]<<" "<<Ap[3]<<" "<<Ap[4]<<" "<<Ap[5]<<std::endl;
     tuple <double, double, double> a = cad.Assemble(AssembleNavierStokes, 5, xT, yi, Ap);
 
     double C = std::get<0>(a) / (std::get<0>(a) + std::get<1>(a));
@@ -614,172 +610,6 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
       unsigned idof = msh->GetSolutionDof(i, iel, solPKCType);
       sol->_Sol[solC2Index]->add(idof, C);
       sol->_Sol[solCntIndex]->add(idof, 1);
-    }
-
-    ////////////////
-    if (false) {
-      Res.assign(nDofsVP, 0.);
-      Jac.assign(nDofsVP * nDofsVP, 0.);
-
-      std::vector<double> phiV, phiV_x, phiP, phiP_x;
-      double weight, weightP;
-
-      for (unsigned ig = 0; ig  <  msh->_finiteElement[elType][coordXType]->GetGaussPointNumber(); ig++) {
-
-        msh->_finiteElement[elType][solVType]->Jacobian(coordX, ig, weight, phiV, phiV_x);
-        msh->_finiteElement[elType][solPKCType]->Jacobian(coordX, ig, weightP, phiP, phiP_x);
-
-        std::vector < double > solVg(dim, 0);
-        std::vector < double > xg(dim, 0);
-        std::vector < std::vector < double > > SolVg_x(dim, std::vector<double> (dim, 0));
-        for (unsigned i = 0; i < nDofsV; i++) {
-          for (unsigned  K = 0; K < dim; K++) {
-            solVg[K] += solV[K][i] * phiV[i];
-            xg[K] += coordX[K][i] * phiV[i];
-            for (unsigned J = 0; J < dim; J++) {
-              SolVg_x[K][J] += solV[K][i] * phiV_x[i * dim + J];
-            }
-          }
-        }
-
-        double solP1g = 0;
-        double solP2g = 0;
-        double C0 = 0;
-        std::vector < double > SolP1g_x(dim,  0);
-        std::vector < double > SolP2g_x(dim,  0);
-
-        for (unsigned i = 0; i < nDofsP; i++) {
-          solP1g += phiP[i] * solP1[i];
-          solP2g += phiP[i] * solP2[i];
-          for (unsigned J = 0; J < dim; J++) {
-            SolP1g_x[J] += solP1[i] * phiP_x[i * dim + J];
-            SolP2g_x[J] += solP2[i] * phiP_x[i * dim + J];
-          }
-          C0 += solC1[i];
-        }
-
-
-
-        double dist = (fabs(xg[0]) < 0.5 && fabs(xg[1] < 0.5)) ? 0.5 : 1.5;
-        double rho = (dist < 1) ? rho1 : rho2;
-        double mu = (dist < 1) ? mu1 : mu2;
-
-
-        // double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
-        // double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
-        //double rhoC = rho;
-
-        // double rho = data->_rho1 * C + data->_rho2 * (1. - C);
-        // double mu = data->_mu1 * C + data->_mu2 * (1. - C);
-        double rhoC = rho;
-
-        //double Laplace = - 2. * M_PI * M_PI * sin(M_PI * xg[0]) * sin(M_PI * xg[1]);
-
-        double weight11 = 1;
-        double weight21 = 0;
-
-        // *** phiV_i loop ***
-        for (unsigned i = 0; i < nDofsV; i++) {
-          for (unsigned  I = 0; I < dim; I++) { //momentum equation in I
-            double NSV = 0.;
-            for (unsigned J = 0; J < dim; J++) { // second index J in each equation
-              NSV   +=  mu * phiV_x[i * dim + J] * (SolVg_x[I][J] + 0 * SolVg_x[J][I]); // diffusion
-              //NSV   +=  rho * phiV[i] * solVg[J] * SolVg_x[I][J]; // nonlinear term
-            }
-            //NSV += - phiV_x[i * dim + I] * (solP1g * weight11 + solP2g * weight21);  // pressure gradient
-            //NSV += rho * phiV[i] * solVg[I] / data->_dt ;
-            NSV += - rhoC * phiV[i] * data->_g[I]; // gravity term
-            //NSV += - Laplace * phiV[i]; // gravity term
-            data->_res[I * nDofsV + i] -=  NSV * weight;
-            // if (kappa.size() == 1) {
-            //   if (weightI != 0.) {
-            //     data->_res[I * nDofsV + i] += -data->_sigma * phiV[i] * N[I] * weight * weightI * kappa[0] * dsN;
-            //   }
-            // }
-            // else {
-            //   data->_res[I * nDofsV + i] += -0.5 * data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight11;
-            //   data->_res[I * nDofsV + i] += 0.5 * data->_sigma * (phiV_x[i * dim + I] * kappa[0] + phiV[i] * kappa[1 + I]) * weight * weight21;
-            // }
-          }
-        } // end phiV_i loop
-
-        // *** phiP_i loop ***
-        for (unsigned i = 0; i < nDofsP; i++) {
-          for (int I = 0; I < dim; I++) {
-            //data->_res[dim * nDofsV + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight11; //continuity
-            //data->_res[dim * nDofsV + nDofsP + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight21; //continuity
-          }
-          if (true || C == 0 && data->_C1[i] < 0.1) {
-            data->_res[dim * nDofsV + i] += -0.* data->_P1[i] * phiP[i]  * weight * data->_eps; //penalty
-            // double laplaceP1 = 0.;
-            // for(unsigned J = 0; J < dim; J++) {
-            //   laplaceP1 += - phiP_x[i * dim + J] * SolP1g_x[J];
-            // }
-            // data->_res[dim * nDofsV + i] += - laplaceP1 * weight * data->_eps;
-
-          }
-          if (true || C == 1 && data->_C1[i] >  0.9) {
-            data->_res[dim * nDofsV + nDofsP + i] += -0.* data->_P2[i] * phiP[i]  * weight * data->_eps; //penalty
-            // double laplaceP2 = 0.;
-            // for(unsigned J = 0; J < dim; J++) {
-            //   laplaceP2 += - phiP_x[i * dim + J] * SolP2g_x[J];
-            // }
-            // data->_res[dim * nDofsV + nDofsP + i] += - laplaceP2 * weight * data->_eps;
-          }
-        } // end phiP_i loop
-
-        for (unsigned i = 0; i < nDofsV; i++) {
-          for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
-            unsigned VIrow = I * nDofsV + i;
-            for (unsigned j = 0; j < nDofsV; j++) {
-              unsigned VIcolumn = I * nDofsV + j;
-              //data->_jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / data->_dt; // inertia
-
-              for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
-                unsigned VJcolumn = J * nDofsV + j;
-                data->_jac[ VIrow * nDofsVP + VIcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
-                //data->_jac[ VIrow * nDofsVP + VJcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
-
-                //data->_jac[ VIrow * nDofsVP + VIcolumn ] += rho * phiV[i] * solVg[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
-                //data->_jac[ VIrow * nDofsVP + VJcolumn ] += rho * phiV[i] * phiV[j] * SolVg_x[I][J] * weight; //off-diagonal nonlinear
-              }
-            }
-
-            for (unsigned j = 0; j < nDofsP; j++) {
-              unsigned P1column = dim * nDofsV + j;
-              unsigned P2column = dim * nDofsV + nDofsP + j;
-              // data->_jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weight11; //pressure gradient
-              // data->_jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weight11; //continuity
-              // data->_jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weight21; //pressure gradient
-              // data->_jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weight21; //continuity
-            }
-          }
-        }
-        for (unsigned i = 0; i < nDofsP; i++) {
-          unsigned P1row = dim * nDofsV + i;
-          unsigned P2row = dim * nDofsV + nDofsP + i;
-          for (unsigned j = 0; j < nDofsP; j++) {
-            unsigned P1column = dim * nDofsV + i;
-            unsigned P2column = dim * nDofsV + nDofsP + i;
-            if (true || C == 0 && data->_C1[i] < 0.1) {
-              data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
-              // for(unsigned J = 0; J < dim ; J++) {
-              //   data->_jac[P1row * nDofsVP + P1column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-              // }
-            }
-            if (true || C == 1 && data->_C1[i] > 0.9) {
-              data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
-              // for(unsigned J = 0; J < dim ; J++) {
-              //   data->_jac[P2row * nDofsVP + P2column] += phiP_x[i * dim + J] * phiP_x[j * dim + J] * weight * data->_eps;
-              // }
-            }
-          }
-        }
-
-      }
-
-      //////////////////
-
     }
 
     RES->add_vector_blocked(Res, sysDof);
@@ -794,12 +624,10 @@ void AssembleMultiphase(MultiLevelProblem & ml_prob) {
     double value = (*sol->_Sol[solC2Index])(i);
     double cnt = (*sol->_Sol[solCntIndex])(i);
     sol->_Sol[solC2Index]->set(i, value / cnt);
-    sol->_Sol[solC1Index]->set(i, value / cnt);
   }
   sol->_Sol[solC2Index]->close();
-  sol->_Sol[solC1Index]->close();
 
-  std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "Navier-Stokes Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::endl;
 
   AssembleAllPenalty(ml_prob);
 
@@ -829,7 +657,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   unsigned solP1Index = sol->GetIndex("P1");
   unsigned solP2Index = sol->GetIndex("P2");
-  unsigned solC1Index = sol->GetIndex("C1");
+  unsigned solC2Index = sol->GetIndex("C2");
   unsigned solK1Index = sol->GetIndex("K1");
 
   unsigned solPKCType = sol->GetSolutionType(solP1Index);
@@ -837,7 +665,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::vector < std::vector < double > >  solV(dim);
   std::vector < double >  solP1;
   std::vector < double >  solP2;
-  std::vector < double >  solC1;
+  std::vector < double >  solC2;
   std::vector < double >  solK1;
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
@@ -866,7 +694,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     }
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
-    solC1.resize(nDofsP);
+    solC2.resize(nDofsP);
     solK1.resize(nDofsP);
 
     // local storage of global mapping and solution
@@ -881,7 +709,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solPKCType);    // local to global mapping between solution node and solution dof
       solP1[i] = (*sol->_Sol[solP1Index])(iDof);      // global extraction and local storage for the solution
       solP2[i] = (*sol->_Sol[solP2Index])(iDof);      // global extraction and local storage for the solution
-      solC1[i] = (*sol->_Sol[solC1Index])(iDof);
+      solC2[i] = (*sol->_Sol[solC2Index])(iDof);
       solK1[i] = (*sol->_Sol[solK1Index])(iDof);
     }
 
@@ -896,9 +724,7 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     bool distributeCurvature = true;
     double eps = 0.;
 
-    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, solC1, localErr, Jac, coordX, elType, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
-
-    // std::cout<<localErr[2] + localErr[3] - localErr[4] << std::endl;
+    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, solC2, localErr, Jac, coordX, elType, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
 
     cad.SetDataPointer(data);
 
@@ -914,7 +740,6 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   MPI_Allreduce(localErr.data(), globalErr.data(), localErr.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-
   std::cout.precision(14);
   std::cout << "U-l2NormErr = "  << sqrt(globalErr[0]) << std::endl;
   std::cout << "V-l2NormErr = "  << sqrt(globalErr[1]) << std::endl;
@@ -923,14 +748,11 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::cout << "U-tripleNormErr = "  << sqrt(globalErr[0]) + sqrt(globalErr[2]) << std::endl;
   std::cout << "V-tripleNormErr = "  << sqrt(globalErr[1]) + sqrt(globalErr[3]) << std::endl;
 
-
   std::cout << "P1-l2NormErr = " << sqrt(globalErr[4]) << std::endl;
   std::cout << "P2-l2NormErr = " << sqrt(globalErr[5]) << std::endl;
   std::cout << "P-l2NormErr = "  << sqrt(globalErr[6]) << std::endl;
 
-  std::cout << "Error Function time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
-
-
+  std::cout << "Error Function time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::endl;
 }
 
 void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
@@ -961,7 +783,7 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   unsigned solP2Index = sol->GetIndex("P2");
   unsigned solP2cIndex = sol->GetIndex("P2c");
 
-  unsigned solC1Index = sol->GetIndex("C1");
+  unsigned solC2Index = sol->GetIndex("C2");
   unsigned solK1Index = sol->GetIndex("K1");
 
   unsigned solPKCType = sol->GetSolutionType(solP1Index);
@@ -969,7 +791,7 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
   std::vector < std::vector < double > >  solV(dim);
   std::vector < double >  solP1;
   std::vector < double >  solP2;
-  std::vector < double >  solC1;
+  std::vector < double >  solC2;
   std::vector < double >  solK1;
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
@@ -996,7 +818,7 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     }
     solP1.resize(2 * nDofsP);
     solP2.resize(2 * nDofsP);
-    solC1.resize(nDofsP);
+    solC2.resize(nDofsP);
     solK1.resize(nDofsP);
 
     // local storage of global mapping and solution
@@ -1014,7 +836,7 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
       solP1[nDofsP + i] = (*sol->_Sol[solP1cIndex])(iDof);
       solP2[i] = (*sol->_Sol[solP2Index])(iDof);
       solP2[nDofsP + i] = (*sol->_Sol[solP2cIndex])(iDof); // global extraction and local storage for the solution
-      solC1[i] = (*sol->_Sol[solC1Index])(iDof);
+      solC2[i] = (*sol->_Sol[solC2Index])(iDof);
       solK1[i] = (*sol->_Sol[solK1Index])(iDof);
     }
 
@@ -1029,19 +851,7 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
     bool distributeCurvature = true;
     double eps = 0.;
 
-    // if (solC1[0] > 0) {
-    //   std::cout << solV[0][0] << " " << solV[0][nDofsV] << std::endl;
-    //   std::cout << solV[1][0] << " " << solV[1][nDofsV] << std::endl;
-    //   std::cout << solP1[0]  << " " << solP1[nDofsP] << std::endl;
-    //   std::cout << solP2[0]  << " " << solP2[nDofsP] << std::endl;
-    //   //abort();
-    // }
-
-
-
-    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, solC1, localErr, Jac, coordX, elType, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
-
-    // std::cout<<localErr[2] + localErr[3] - localErr[4] << std::endl;
+    Data *data = new Data(solVType, solPKCType, solV, solP1, solP2, solK1, solC2, localErr, Jac, coordX, elType, rho1, rho2, mu1, mu2, sigma, dt, g, A, distributeCurvature, eps);
 
     cad.SetDataPointer(data);
 
@@ -1073,7 +883,6 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A) {
 
   std::cout << "Error Function time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
-
 }
 
 
@@ -1100,46 +909,30 @@ void AssembleError(Data * data, const std::vector <double> &phiV, const std::vec
   std::vector < double > solVg_exc(dim, 0);
   std::vector<std::vector < double > > solVg_x_exc(dim, std::vector<double>(dim, 0));
 
-
   double solP1g = 0;
   double solP2g = 0;
   double solPg = 0;
   double solP1g_exc = 1;
   double solP2g_exc = 0;
   double solPg_exc = 0;
-  double C0 = 0;
+
   for (unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
     solPg += phiP[i] * (data->_C1[i] * data->_P1[i] + (1 - data->_C1[i]) * data->_P2[i]);
     solPg_exc += phiP[i] * (data->_C1[i] * solP1g_exc + (1 - data->_C1[i]) * solP2g_exc);
-    C0 += data->_C1[i];
   }
-  C0 /= nDofsP;
 
-// if(fabs(solP1g)>0.0000001 )
-  //  std::cout << solP1g <<" "<< solP2g << std::endl;
-
-
-
-
-  double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
-  double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
-  double rhoC = rho;
-
-  if (true || C0 == 0 || C0 == 1) {
-
-    for (unsigned K = 0; K < dim; K++) {
-      data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
-      for (unsigned J = 0; J < dim; J++) {
-        data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
-      }
-
+  for (unsigned K = 0; K < dim; K++) {
+    data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
+    for (unsigned J = 0; J < dim; J++) {
+      data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
     }
-    data->_res[2 * dim + 0] += (solP1g - solP1g_exc) * (solP1g - solP1g_exc) * weight * weight1;
-    data->_res[2 * dim + 1] += (solP2g - solP2g_exc) * (solP2g - solP2g_exc) * weight * weight2;
-    data->_res[2 * dim + 2] += (solPg - solPg_exc) * (solPg - solPg_exc) * weight;
   }
+  data->_res[2 * dim + 0] += (solP1g - solP1g_exc) * (solP1g - solP1g_exc) * weight * weight1;
+  data->_res[2 * dim + 1] += (solP2g - solP2g_exc) * (solP2g - solP2g_exc) * weight * weight2;
+  data->_res[2 * dim + 2] += (solPg - solPg_exc) * (solPg - solPg_exc) * weight;
+
 }
 
 
@@ -1175,7 +968,7 @@ void AssembleError2(Data * data, const std::vector <double> &phiV, const std::ve
   double solP1g_exc = 0.;
   double solP2g_exc = 0.;
   double solPg_exc = 0.;
-  double C0 = 0;
+
   for (unsigned i = 0; i < nDofsP; i++) {
     solP1g += phiP[i] * data->_P1[i];
     solP2g += phiP[i] * data->_P2[i];
@@ -1184,45 +977,18 @@ void AssembleError2(Data * data, const std::vector <double> &phiV, const std::ve
     solP1g_exc += phiP[i] * data->_P1[i + nDofsP];
     solP2g_exc += phiP[i] * data->_P2[i + nDofsP];
     solPg_exc += phiP[i] * (data->_C1[i] * data->_P1[i + nDofsP] + (1 - data->_C1[i]) * data->_P2[i + nDofsP]);
-
-    C0 += data->_C1[i];
   }
-  C0 /= nDofsP;
 
-  // if (data->_C1[0] > 0) {
-  //
-  //     std::cout<<nDofsV<<" "<<nDofsP<<std::endl;
-  //     std::cout << data->_V[0][0] << " " << data->_V[0][nDofsV] << std::endl;
-  //     std::cout << data->_V[1][0] << " " << data->_V[1][nDofsV] << std::endl;
-  //     std::cout << data->_P1[0]  << " " << data->_P1[nDofsP] << std::endl;
-  //     std::cout << data->_P2[0]  << " " << data->_P2[nDofsP] << std::endl;
-  //     abort();
-  //   }
-
-// if(fabs(solP1g)>0.0000001 )
-  //  std::cout << solP1g <<" "<< solP2g << std::endl;
-
-
-// std::cout << solP1g << " " << solP1g_exc<<"     ";
-
-
-  double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
-  double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
-  double rhoC = rho;
-
-  if (true || C0 == 0 || C0 == 1) {
-
-    for (unsigned K = 0; K < dim; K++) {
-      data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
-      for (unsigned J = 0; J < dim; J++) {
-        data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
-      }
-
+  for (unsigned K = 0; K < dim; K++) {
+    data->_res[K] += (solVg[K] - solVg_exc[K]) * (solVg[K] - solVg_exc[K]) * weight;
+    for (unsigned J = 0; J < dim; J++) {
+      data->_res[dim + K] += (data->_mu1 * (K == 0) + data->_mu2 * (K == 1)) * (solVg_x[K][J] - solVg_x_exc[K][J]) * (solVg_x[K][J] - solVg_x_exc[K][J]) * weight;
     }
-    data->_res[2 * dim + 0] += (solP1g - solP1g_exc) * (solP1g - solP1g_exc) * weight * weight1;
-    data->_res[2 * dim + 1] += (solP2g - solP2g_exc) * (solP2g - solP2g_exc) * weight * weight2;
-    data->_res[2 * dim + 2] += (solPg - solPg_exc) * (solPg - solPg_exc) * weight;
   }
+  data->_res[2 * dim + 0] += (solP1g - solP1g_exc) * (solP1g - solP1g_exc) * weight * weight1;
+  data->_res[2 * dim + 1] += (solP2g - solP2g_exc) * (solP2g - solP2g_exc) * weight * weight2;
+  data->_res[2 * dim + 2] += (solPg - solPg_exc) * (solPg - solPg_exc) * weight;
+
 }
 
 
