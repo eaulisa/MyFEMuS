@@ -63,7 +63,11 @@ void ProjectSolution(MultiLevelSolution & mlSol, MultiLevelSolution & mlSol1, Sp
 
 // Turek 2
 
-std::vector <double> A = {1., 0, 1., 0, 0, -1.};
+//circle
+//std::vector <double> A = {1., 0, 1., 0, 0, -1.};
+//ellsipse
+std::vector <double> A = {1.2, 0, .8, 0, 0, -1.};
+
 
 const double mu1 = 1.;
 const double mu2 = 1.;
@@ -142,12 +146,11 @@ int main(int argc, char** args) {
   FEOrder Porder = SECOND;
   unsigned nx0 = 16;
   unsigned nit = 3;
+  bool analyticSolutioIsAvailable = false;
 
   std::vector<std::vector<double>> globaErr(nit);
   std::vector<std::vector<double>> globaErr1(nit);
   std::vector<std::vector<double>> globaErr2(nit);
-
-  bool analyticSolutioIsAvailable = false;
 
   unsigned nx, ny;
   nx = ny = nx0;
@@ -195,9 +198,9 @@ int main(int argc, char** args) {
     VTKWriter vtkIO(&mlSol);
     vtkIO.SetDebugOutput(true);
     InitCurvature(mlProb, A);
-    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+    //vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
     system.MGsolve();
-    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
+    if(nx == nx0) vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
     if (analyticSolutioIsAvailable) {
       std::cout << "Errors using analytic solution\n";
@@ -261,9 +264,9 @@ int main(int argc, char** args) {
     VTKWriter vtkIO1(&mlSol1);
     vtkIO1.SetDebugOutput(true);
     InitCurvature(mlProb1, A);
-    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+    //vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
     system1.MGsolve();
-    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
+    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k+1);
 
     if (analyticSolutioIsAvailable) {
       std::cout << "Errors using analytic solution\n";

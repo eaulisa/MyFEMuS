@@ -15,9 +15,11 @@ void BuildAllPenalty(const double &mu1, const double &mu2, const double &rho1, c
 
   double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
   double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
-  double PHIT = 0.01 * 0.5 * (PHITi + PHITj);
 
-  double gammaP = 1;
+  double gammaV = 0.1;
+  double PHIT = gammaV * 0.5 * (PHITi + PHITj);
+
+  double gammaP = 10;
   double PHIP[2] = {gammaP * h2 / PHIT1,gammaP * h2 / PHIT2};
 
   if (Ci < 1.0e-10   || Cj < 1.0e-10) PHIP[0] = 0.;
