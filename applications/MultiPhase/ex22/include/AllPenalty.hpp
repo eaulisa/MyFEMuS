@@ -15,9 +15,10 @@ void BuildAllPenalty(const double &mu1, const double &mu2, const double &rho1, c
 
   double PHITi = Ci * PHIT1 + (1. - Ci) * PHIT2;
   double PHITj = Cj * PHIT1 + (1. - Cj) * PHIT2;
-  double PHIT = 0.5 * (PHITi + PHITj);
+  double PHIT = 0.01 * 0.5 * (PHITi + PHITj);
 
-  double PHIP[2] = {0.05 * h2 / PHIT1, 0.05 * h2 / PHIT2};
+  double gammaP = 1;
+  double PHIP[2] = {gammaP * h2 / PHIT1,gammaP * h2 / PHIT2};
 
   if (Ci < 1.0e-10   || Cj < 1.0e-10) PHIP[0] = 0.;
   if (Ci > 1. - 1.0e-10 || Cj > 1. - 1.0e-10) PHIP[1] = 0.;
@@ -182,10 +183,10 @@ void BuildAllPenalty(const double &mu1, const double &mu2, const double &rho1, c
         else if (2 == J + K) L = dim + 2; // xz
         else if (3 == J + K) L = dim + 1; // yz
         for (unsigned i = 0; i < nDofsVi; i++) {
-          aResi[offsetVi[I] + i] +=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
+          aResi[offsetVi[I] + i] +=  0.00 * PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
         }
         for (unsigned j = 0; j < nDofsVj; j++) {
-          aResj[offsetVj[I] + j] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVj[j * dim2 + L] * normal[K] * weight;
+          aResj[offsetVj[I] + j] -=  0.00 * PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVj[j * dim2 + L] * normal[K] * weight;
         }
       }
     }
@@ -199,10 +200,10 @@ void BuildAllPenalty(const double &mu1, const double &mu2, const double &rho1, c
           else if (2 == J + K) L = dim + 2; // xz
           else if (3 == J + K) L = dim + 1; // yz
           for (unsigned i = 0; i < nDofsVi; i++) {
-            aResi[offsetVi[I] + i] +=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
+            aResi[offsetVi[I] + i] +=  0.00 * PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVi[i * dim2 + L] * normal[K] * weight;
           }
           for (unsigned j = 0; j < nDofsVj; j++) {
-            aResj[offsetVj[I] + j] -=  PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVj[j * dim2 + L] * normal[K] * weight;
+            aResj[offsetVj[I] + j] -=  0.00 * PHIT * h3 * (HessSolVdotNi[I][J] - HessSolVdotNj[I][J]) * hessPhiVj[j * dim2 + L] * normal[K] * weight;
           }
         }
       }
