@@ -64,9 +64,9 @@ void ProjectSolution(MultiLevelSolution & mlSol, MultiLevelSolution & mlSol1, Sp
 // Turek 2
 
 //circle
-//std::vector <double> A = {1., 0, 1., 0, 0, -1.};
+std::vector <double> A = {1., 0, 1., 0, 0, -1.};
 //ellsipse
-std::vector <double> A = {1.2, 0, .8, 0, 0, -1.};
+//std::vector <double> A = {1.2, 0, .8, 0, 0, -1.};
 
 
 const double mu1 = 1.;
@@ -142,11 +142,16 @@ int main(int argc, char** args) {
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
+  std::map<FEOrder, string> FEMType;
+  FEMType[FIRST] = "Quad4";
+  FEMType[SERENDIPITY] = "Quad8";
+  FEMType[SECOND] = "Quad9";
+
   FEOrder Vorder = SECOND;
   FEOrder Porder = SECOND;
-  unsigned nx0 = 16;
+  unsigned nx0 = 8;
   unsigned nit = 3;
-  bool analyticSolutioIsAvailable = false;
+  bool analyticSolutioIsAvailable = true;
 
   std::vector<std::vector<double>> globaErr(nit);
   std::vector<std::vector<double>> globaErr1(nit);
@@ -200,7 +205,7 @@ int main(int argc, char** args) {
     InitCurvature(mlProb, A);
     //vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
     system.MGsolve();
-    if(nx == nx0) vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+    if (nx == nx0) vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
     if (analyticSolutioIsAvailable) {
       std::cout << "Errors using analytic solution\n";
@@ -266,7 +271,7 @@ int main(int argc, char** args) {
     InitCurvature(mlProb1, A);
     //vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
     system1.MGsolve();
-    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k+1);
+    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, k + 1);
 
     if (analyticSolutioIsAvailable) {
       std::cout << "Errors using analytic solution\n";
@@ -280,41 +285,54 @@ int main(int argc, char** args) {
     nx *= 2;
     ny *= 2;
   }
+  std::cout.precision(3);
 
   if (analyticSolutioIsAvailable) {
     std::cout << std::endl;
     nx = ny = nx0;
-    std::cout << "Error and Convergence Table using analytic solution\n";
-    std::cout << "nx = " << nx << " ; " << globaErr[0][0] << " ; " << globaErr[0][1] << " ; " << globaErr[0][2] << " ; " << globaErr[0][3] << " ; "
-              << globaErr[0][4] << " ; " << globaErr[0][5] << " ; " << globaErr[0][6] << " ; " << globaErr[0][7] << " ; " << globaErr[0][8] << std::endl;
-    for (unsigned k = 0; k < nit; k++) {
-      std::cout << "conv order ; " << log(globaErr[k][0] / globaErr1[k][0]) / log(2) << " ; " << log(globaErr[k][1] / globaErr1[k][1]) / log(2) << " ; " << log(globaErr[k][2] / globaErr1[k][2]) / log(2) << " ; " << log(globaErr[k][3] / globaErr1[k][3]) / log(2) << " ; "
-                << log(globaErr[k][4] / globaErr1[k][4]) / log(2) << " ; " << log(globaErr[k][5] / globaErr1[k][5]) / log(2) << " ; " << log(globaErr[k][6] / globaErr1[k][6]) / log(2) << " ; " << log(globaErr[k][7] / globaErr1[k][7]) / log(2) << " ; "
-                << log(globaErr[k][8] / globaErr1[k][8]) / log(2) << std::endl;;
-      std::cout << "nx = " << 2 * nx << " ; " << globaErr1[k][0] << " ; " << globaErr1[k][1] << " ; " << globaErr1[k][2] << " ; " << globaErr1[k][3] << " ; "
-                << globaErr1[k][4] << " ; " << globaErr1[k][5] << " ; " << globaErr1[k][6] << " ; " << globaErr1[k][7] << " ; " << globaErr1[k][8] << std::endl;
+    std::cout << "\\" << "begin{center}" << std::endl;
+    std::cout << "\\" << "normalsize" << std::endl;
+    std::cout << "Error and Convergence Table Using the Analytic Solution\n";
+    std::cout << "\\" << "scriptsize" << std::endl;
+    std::cout << "\\" << "begin{tabular}{|c|c|c|c|c|c|}" << " " << "\\" << "hline" << std::endl;
+    std::cout << FEMType[Vorder] << "/" << FEMType[Porder] <<  " & $||" << "\\" << "mathbf{u-u_{ex}" << "}||$ & $|" << "\\" << "mathbf{u-u_{ex}" << "}|$ & $|||" << "\\"
+              << "mathbf{u-u_{ex}" << "}|||$ & $||P_1-{P_1}_{ex}||$ & $||P_2-{P_2}_{ex}||$" << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
+    std::cout << std::scientific << "n = " << nx << "$" << "\\" << "times$" << ny << " & " << globaErr[0][0] << " & " << globaErr[0][1] << " & "
+              << globaErr[0][2] << " & " << globaErr[0][3] << " & " << globaErr[0][4] << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
 
+    for (unsigned k = 0; k < nit; k++) {
+      std::cout << std::fixed << "conv order & " << log(globaErr[k][0] / globaErr1[k][0]) / log(2) << " & " << log(globaErr[k][1] / globaErr1[k][1]) / log(2) << " & "
+                << log(globaErr[k][2] / globaErr1[k][2]) / log(2) << " & " << log(globaErr[k][3] / globaErr1[k][3]) / log(2) << " & " << log(globaErr[k][4] / globaErr1[k][4]) / log(2) << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
+      std::cout << std::scientific << "n = " << 2 * nx << "$" << "\\" << "times$" << 2 * ny << " & " << globaErr1[k][0] << " & " << globaErr1[k][1] << " & "
+                << globaErr1[k][2] << " & " << globaErr1[k][3] << " & " << globaErr1[k][4] << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
       nx *= 2;
       ny *= 2;
     }
+    std::cout << "\\" << "end{tabular}" << std::endl;
+    std::cout << "\\" << "end{center}" << std::endl;
   }
   else {
     std::cout << std::endl << std::endl;
     nx = ny = nx0;
-    std::cout << "Error and Convergence Table using two solutions\n";
-    std::cout << "nx = " << nx << " ; " << globaErr2[0][0] << " ; " << globaErr2[0][1] << " ; " << globaErr2[0][2] << " ; " << globaErr2[0][3] << " ; "
-              << globaErr2[0][4] << " ; " << globaErr2[0][5] << " ; " << globaErr2[0][6] << " ; " << globaErr2[0][7] << " ; " << globaErr2[0][8] << std::endl;
+    std::cout << "\\" << "begin{center}" << std::endl;
+    std::cout << "\\" << "normalsize" << std::endl;
+    std::cout << "Error and Convergence Order Table Using Two Consecutive Solutions\n";
+    std::cout << "\\" << "scriptsize" << std::endl;
+    std::cout << "\\" << "begin{tabular}{|c|c|c|c|c|c|}" << " " << "\\" << "hline" << std::endl;
+    std::cout << FEMType[Vorder] << "/" << FEMType[Porder] <<  " & $||" << "\\" << "mathbf{u_n-u_{n+1}" << "}||$ & $|" << "\\" << "mathbf{u_n-u_{n+1}" << "}|$ & $|||" << "\\"
+              << "mathbf{u_n-u_{n+1}" << "}|||$ & $||{P_1}_n-{P_1}_{n+1}||$ & $||{P_2}_n-{P_2}_{n+1}||$" << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
+    std::cout << std::scientific << "n = " << nx << "$" << "\\" << "times$" << ny << " & " << globaErr2[0][0] << " & " << globaErr2[0][1] << " & " << globaErr2[0][2] << " & " << globaErr2[0][3] << " & " << globaErr2[0][4] << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
 
     for (unsigned k = 0; k < nit - 1; k++) {
-      std::cout << "conv order ; " << log(globaErr2[k][0] / globaErr2[k + 1][0]) / log(2) << " ; " << log(globaErr2[k][1] / globaErr2[k + 1][1]) / log(2) << " ; " << log(globaErr2[k][2] / globaErr2[k + 1][2]) / log(2) << " ; " << log(globaErr2[k][3] / globaErr2[k + 1][3]) / log(2) << " ; "
-                << log(globaErr2[k][4] / globaErr2[k + 1][4]) / log(2) << " ; " << log(globaErr2[k][5] / globaErr2[k + 1][5]) / log(2) << " ; " << log(globaErr2[k][6] / globaErr2[k + 1][6]) / log(2) << " ; " << log(globaErr2[k][7] / globaErr2[k + 1][7]) / log(2) << " ; "
-                << log(globaErr2[k][8] / globaErr2[k + 1][8]) / log(2) << std::endl;;
-      std::cout << "nx = " << 2 * nx << " ; " << globaErr2[k + 1][0] << " ; " << globaErr2[k + 1][1] << " ; " << globaErr2[k + 1][2] << " ; " << globaErr2[k + 1][3] << " ; "
-                << globaErr2[k + 1][4] << " ; " << globaErr2[k + 1][5] << " ; " << globaErr2[k + 1][6] << " ; " << globaErr2[k + 1][7] << " ; " << globaErr2[k + 1][8] << std::endl;
-
+      std::cout << std::fixed << "conv order & " << log(globaErr2[k][0] / globaErr2[k + 1][0]) / log(2) << " & " << log(globaErr2[k][1] / globaErr2[k + 1][1]) / log(2) << " & "
+                << log(globaErr2[k][2] / globaErr2[k + 1][2]) / log(2) << " & " << log(globaErr2[k][3] / globaErr2[k + 1][3]) / log(2) << " & " << log(globaErr2[k][4] / globaErr2[k + 1][4]) / log(2) << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
+      std::cout << std::scientific << "n = " << 2 * nx << "$" << "\\" << "times$" << 2 * ny << " & " << globaErr2[k + 1][0] << " & " << globaErr2[k + 1][1] << " & "
+                << globaErr2[k + 1][2] << " & " << globaErr2[k + 1][3] << " & " << globaErr2[k + 1][4] << "\\" << "\\" << " " << "\\" << "hline" << std::endl;
       nx *= 2;
       ny *= 2;
     }
+    std::cout << "\\" << "end{tabular}" << std::endl;
+    std::cout << "\\" << "end{center}" << std::endl;
   }
   std::cout << std::endl;
 
@@ -804,9 +822,11 @@ void GetError(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::v
   MPI_Allreduce(localErr.data(), globalErr.data(), localErr.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-  error = {sqrt(globalErr[0]), sqrt(globalErr[1]), sqrt(globalErr[2]), sqrt(globalErr[3]),
-           sqrt(globalErr[0]) + sqrt(globalErr[2]), sqrt(globalErr[1]) + sqrt(globalErr[3]),
-           sqrt(globalErr[4]), sqrt(globalErr[5]), sqrt(globalErr[6])
+  error = {sqrt(globalErr[0] + globalErr[1]),
+           sqrt(globalErr[2] + globalErr[3]),
+           sqrt(globalErr[0] + globalErr[2]) + sqrt(globalErr[1] + globalErr[3]),
+           sqrt(globalErr[4]),
+           sqrt(globalErr[5])
           };
 
   std::cout.precision(14);
@@ -938,9 +958,11 @@ void GetError2(MultiLevelProblem & ml_prob, const std::vector <double> &A, std::
   MPI_Allreduce(localErr.data(), globalErr.data(), localErr.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-  error = {sqrt(globalErr[0]), sqrt(globalErr[1]), sqrt(globalErr[2]), sqrt(globalErr[3]),
-           sqrt(globalErr[0]) + sqrt(globalErr[2]), sqrt(globalErr[1]) + sqrt(globalErr[3]),
-           sqrt(globalErr[4]), sqrt(globalErr[5]), sqrt(globalErr[6])
+  error = {sqrt(globalErr[0] + globalErr[1]),
+           sqrt(globalErr[2] + globalErr[3]),
+           sqrt(globalErr[0] + globalErr[2]) + sqrt(globalErr[1] + globalErr[3]),
+           sqrt(globalErr[4]),
+           sqrt(globalErr[5])
           };
 
   std::cout.precision(14);
