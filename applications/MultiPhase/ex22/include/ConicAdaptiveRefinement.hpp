@@ -23,11 +23,11 @@ using namespace femus;
 class Data {
   public:
     Data(const unsigned &VType, const unsigned &PType,
-         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1, const std::vector<double> &C1,
+         const std::vector<std::vector<double>> &V, const std::vector<double> &P1, const std::vector<double> &P2, const std::vector<double> &K1, const double &C0, const std::vector<double> &C1,
          std::vector<double> &res, std::vector<double> &jac,
          const std::vector<std::vector<double>> &xv, const unsigned &elType,
          const double &rho1, const double &rho2, const double &mu1, const double &mu2, const double &sigma, const double&dt, const std::vector<double> &g, const std::vector<double> &A, const bool& distributedCurvature, const double &eps) :
-      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _C1(C1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature), _eps(eps) {}
+      _VType(VType), _PType(PType), _V(V), _P1(P1), _P2(P2), _K1(K1), _C0(C0), _C1(C1), _res(res), _jac(jac), _elType(elType), _xv(xv), _rho1(rho1), _rho2(rho2), _mu1(mu1), _mu2(mu2), _sigma(sigma), _dt(dt), _g(g), _A(A), _distributedCurvature(distributedCurvature), _eps(eps) {}
 
     // DATA TO ASSEMBLE TWO PHASE NAVIER-STOKES
     const unsigned &_VType, &_PType;
@@ -36,6 +36,7 @@ class Data {
     const std::vector<double> &_P1;
     const std::vector<double> &_P2;
     const std::vector<double> &_K1;
+    const double &_C0;
     const std::vector<double> &_C1;
     const std::vector<double> &_A;
 
@@ -904,7 +905,9 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
 
 
   double rho = data->_rho1 * weight1 + data->_rho2 * weight2;
-  double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
+  //double mu = data->_mu1 * weight1 + data->_mu2 * weight2;
+  //double rho = data->_rho1 * data->_C0 + data->_rho2 * (1 - data->_C0);
+  double mu = data->_mu1 * data->_C0 + data->_mu2 * (1 - data->_C0);
   double rhoC = rho;
 
   // double rho = data->_rho1 * C + data->_rho2 * (1. - C);
@@ -941,10 +944,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
       data->_res[dim * nDofsV + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight1; //continuity
       data->_res[dim * nDofsV + nDofsP + i] += - SolVg_x[I][I] * phiP[i]  * weight * weight2; //continuity
     }
-    if (C == 0 && data->_C1[i] < 0.1) {
+    if (C == 0 && data->_C1[i] < 1.e-10) {
       data->_res[dim * nDofsV + i] += -0.* data->_P1[i] * phiP[i]  * weight * data->_eps; //penalty
     }
-    if (C == 1 && data->_C1[i] >  0.9) {
+    if (C == 1 && data->_C1[i] >  1 - 1.e-10) {
       data->_res[dim * nDofsV + nDofsP + i] += -0.* data->_P2[i] * phiP[i]  * weight * data->_eps; //penalty
     }
   } // end phiP_i loop
@@ -957,7 +960,7 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
         unsigned VIcolumn = I * nDofsV + j;
         data->_jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / data->_dt; // inertia
 
-        for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+        for (unsigned J = 0; J < dim; J++) { //column velocity blocks or dimension
           unsigned VJcolumn = J * nDofsV + j;
           data->_jac[ VIrow * nDofsVP + VIcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
           data->_jac[ VIrow * nDofsVP + VJcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
@@ -983,10 +986,10 @@ void AssembleNavierStokes(Data *data, const std::vector <double> &phiV, const st
     for (unsigned j = 0; j < nDofsP; j++) {
       unsigned P1column = dim * nDofsV + i;
       unsigned P2column = dim * nDofsV + nDofsP + i;
-      if (C == 0 && data->_C1[i] < 0.1) {
+      if (C == 0 && data->_C1[i] < 1.e-10) {
         data->_jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * data->_eps; // continuity
       }
-      if (C == 1 && data->_C1[i] > 0.9) {
+      if (C == 1 && data->_C1[i] > 1.0 - 1.e-10) {
         data->_jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * data->_eps; //continuity
       }
     }
