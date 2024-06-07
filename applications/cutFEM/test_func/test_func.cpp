@@ -15,7 +15,7 @@
 #include <string>
 // #include <filesystem>
 
-namespace fs = boost::filesystem;
+// namespace fs = boost::filesystem;
 
 using namespace std;
 
@@ -562,9 +562,8 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
     std::vector<double>modified_weights;
 
     Fem fem = Fem(3 * 2, 2);
-    unsigned quad = 3;
     unsigned linear = 0;
-    const elem_type *femQuad = fem.GetFiniteElement(quad, linear);
+    const elem_type *femQuad = fem.GetFiniteElement(ielType, linear);
 
     std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This fins the points in physical space
 
@@ -656,11 +655,11 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
           else modified_weights = interp_point_weights;
 // modified_weights = interp_point_weights;
 
-          std::cout << "AAAA\n";
-          for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-            std::cout << modified_weights[aq] << " ";
-          }
-          std::cout << std::endl;
+          // std::cout << "AAAA\n";
+          // for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+          //   std::cout << modified_weights[aq] << " ";
+          // }
+          // std::cout << std::endl;
 
           std::vector<double> phi, gradPhi;
           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);

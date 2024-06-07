@@ -450,6 +450,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
             element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
 
+
             double d2W1CF = 0.;
             for(unsigned ig = 0; ig < ng1CF; ig++) {
               double d2 = 0.;

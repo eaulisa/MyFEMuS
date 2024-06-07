@@ -196,7 +196,6 @@ bool GetPoint(const std::vector<double> &A,
   return true;
 }
 
-
 using boost::multiprecision::cpp_bin_float_oct;
 
 std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
