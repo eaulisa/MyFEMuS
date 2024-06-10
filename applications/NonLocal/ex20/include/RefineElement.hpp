@@ -4,6 +4,8 @@
 #include "OctTreeElement.hpp"
 #include "CutFemWeight.hpp"
 #include "CDWeights.hpp"
+#include "parabInt/polyWPar.cpp"
+#include "parabInt/polyWPar.hpp"
 
 
 class RefineElement {
@@ -111,6 +113,7 @@ class RefineElement {
     unsigned _quadOrder;
     
     CDWeight <double> *_CDweight;
+    polyWPar <double> *_CDWeightPar;
 
     OctTreeElement _octTreeElement1;
     OctTreeElement _octTreeElementCF;
@@ -150,6 +153,7 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
       _elType = 3;
       _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
       _CDweight  = new CDWeightQUAD<double> (_quadOrder, 0.025, 1.);
+      _CDWeightPar = new polyWParQUAD<double> (_quadOrder);
     }
     else {
       _elType = 4;
@@ -208,6 +212,7 @@ RefineElement::~RefineElement() {
   if(_elType == 3 || _elType == 4 || _elType == 1) {
     delete _cutFem;
     delete _CDweight;
+    delete _CDWeightPar;
   }
 }
 
