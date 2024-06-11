@@ -94,6 +94,10 @@ class RefineElement {
     CDWeight <double> *GetCDweight() const {
       return _CDweight;
     }
+
+    polyWPar <double> *GetCDWeightPar() const {
+      return _CDWeightPar;
+    }
     
     const unsigned GetQuadratureOrder() {
       return _quadOrder;
@@ -153,7 +157,7 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
       _elType = 3;
       _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
       _CDweight  = new CDWeightQUAD<double> (_quadOrder, 0.025, 1.);
-      _CDWeightPar = new polyWParQUAD<double> (_quadOrder);
+      _CDWeightPar = new polyWParQUAD<double> (_quadOrder, 4, 0.01);
     }
     else {
       _elType = 4;

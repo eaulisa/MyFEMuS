@@ -373,7 +373,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
   }
   else if(level == levelMax1 - 1) {
     const unsigned &dim = element1.GetDimension();
-    const std::vector < std::vector <double> >  &xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+    std::vector < std::vector <double> >  xv1 = element1.GetElement1NodeCoordinates(level, iFather);
 
     const unsigned &nDof1 = element1.GetNumberOfNodes();
     const elem_type *fem1 = element1.GetFem1();
@@ -448,7 +448,27 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             element1.GetCutFem()->clear();
 //             element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
-            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+
+            // BEGIN Parabola integration
+            bool twoInt = false;
+            for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+
+            if(jg == 3 && jj == 24){
+              int a = 1;
+            }
+
+            std::vector<double> A(6, 0.);
+            A[0] = 1;
+            A[1] = 0;
+            A[2] = 1;
+            A[3] = - 2 * xg2[jg][0];
+            A[4] = - 2 * xg2[jg][1];
+            A[5] = xg2[jg][0] * xg2[jg][0] + xg2[jg][1] * xg2[jg][1] - delta * delta;
+            element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
+            if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // END Parabola integration
+
 
 
             double d2W1CF = 0.;

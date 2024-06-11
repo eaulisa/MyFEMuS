@@ -2025,7 +2025,7 @@ int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& ve
 }
 
 template <class Type>
-std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, const std::vector<std::vector<double>> &xv, const std::vector<double> &A){
+bool find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights){
 
 
     unsigned nInt;
@@ -2036,7 +2036,7 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
     unsigned femType = 0; //linear FEM
     std::vector< double > interp_point_weights;
     PointT <Type> p1, p2, p3;
-    std::vector<double>modified_weights;
+    bool twoInt = true;
 
     Fem fem = Fem(3 * 2, 2);
     unsigned quad = 3;
@@ -2133,11 +2133,11 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
           else modified_weights = interp_point_weights;
 // modified_weights = interp_point_weights;
 
-          std::cout << "AAAA\n";
-          for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-            std::cout << modified_weights[aq] << " ";
-          }
-          std::cout << std::endl;
+          // std::cout << "AAAA\n";
+          // for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+          //   std::cout << modified_weights[aq] << " ";
+          // }
+          // std::cout << std::endl;
 
           std::vector<double> phi, gradPhi;
           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
@@ -2150,35 +2150,17 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
               Xg[ig] += phi[i]*xv[0][i];
               Yg[ig] += phi[i]*xv[1][i];
             }
-            //std::cout <<ig<<" "<< xg[ig] <<" "<<Xg[ig]<<" "<< yg[ig] <<" "<<Yg[ig]<<" "<<Jg[ig]<<std::endl;
           }
 
-          // Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
 
-/*
-          double Area0 = 0, Area = 0, Ix = 0, Iy = 0, Ix3 = 0, Ix2y = 0, Ixy2 = 0, Iy3 = 0, Ix2y2 = 0;
-          Area = GaussIntegral(0, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix  = GaussIntegral(1, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Iy  = GaussIntegral(0, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix3  = GaussIntegral(3, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix2y  = GaussIntegral(2, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ixy2  = GaussIntegral(1, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Iy3 = GaussIntegral(0, 3, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix2y2  = GaussIntegral(2, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
-
-
-          std::cout << "Area = " << Area << std::endl;
-          std::cout << "Ix = " << Ix << std::endl;
-          std::cout << "Iy = " << Iy << std::endl;
-          std::cout << "Ix3 = " << Ix3 << std::endl;
-          std::cout << "Ix2y = " << Ix2y << std::endl;
-          std::cout << "Ixy2 = " << Ixy2 << std::endl;
-          std::cout << "Iy3 = " << Iy3 << std::endl;
-          std::cout << "Ix2y2 = " << Ix2y2 << std::endl;*/
         }
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
         }
+      }
+      else{
+        twoInt = false;
+
       }
     }
 
@@ -2265,16 +2247,6 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
             }
           }
 
-
-
-
-// //           std::cout << "BBBBB\n";
-//           for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// //             std::cout << modified_weights[aq] << " ";
-//           }
-// //           std::cout << std::endl;
-
-
           std::vector<double> phi, gradPhi;
           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
           std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
@@ -2288,71 +2260,18 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
             }
             //std::cout <<ig<<" "<< xg[ig] <<" "<<Xg[ig]<<" "<< yg[ig] <<" "<<Yg[ig]<<" "<<Jg[ig]<<std::endl;
           }
-/*
-          // Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
-          double Area0 = 0, Area = 0, Ix = 0, Iy = 0, Ix3 = 0, Ix2y = 0, Ixy2 = 0, Iy3 = 0, Ix2y2 = 0;
-          Area = GaussIntegral(0, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix  = GaussIntegral(0, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Iy  = GaussIntegral(1, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix3  = GaussIntegral(0, 3, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix2y  = GaussIntegral(1, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ixy2  = GaussIntegral(2, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Iy3 = GaussIntegral(3, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix2y2  = GaussIntegral(2, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
-
-          std::cout << "Area = " << Area << std::endl;
-          std::cout << "Ix = " << Ix << std::endl;
-          std::cout << "Iy = " << Iy << std::endl;
-          std::cout << "Ix3 = " << Ix3 << std::endl;
-          std::cout << "Ix2y = " << Ix2y << std::endl;
-          std::cout << "Ixy2 = " << Ixy2 << std::endl;
-          std::cout << "Iy3 = " << Iy3 << std::endl;
-          std::cout << "Ix2y2 = " << Ix2y2 << std::endl;*/
-
-//           Type AArea = find_area_2intersection_formula(0, 0, s, a, c, table_number, p1, p2, p3);
-//           Pweights(s, a, c, table_number, p1, p2, p3, weightCF);
-//
-//
-//           std::cout << "corner points:\n";
-//           for (unsigned ig = 0; ig < result->corners.size(); ig++) {
-//               std::cout << "(" << result->corners[ig][0] << ", " << result->corners[ig][1] << ", " << result->corners[ig][2] << ") : ";
-//                 std::cout << result->cornerAreas[ig][0] << ", " << result->cornerAreas[ig][1] << ", " << result->cornerAreas[ig][2] << " ; "<<endl;
-//                 PointT <Type> p1, p2, p3 ;
-//                 get_p1_p2_p3(table_number, interp_point, p1, p2, p3);
-//           }
-
-/*
-          trilinier_interpolation_vector(result->corners, result->cornerAreas, interp_point, interp_point_weights);  // interpolating the integrals from corners.
-
-          cout << "\n interpolated area " ;
-          for(unsigned ig = 0; ig < interp_point_weights.size(); ig++) {
-            cout <<  interp_point_weights[ig] << " " ;
-          }
-          cout << endl;*/
-/*
-
-          cout << " weightCF = " ;
-          for(unsigned ig = 0; ig < weightCF.size(); ig++) {
-            cout <<  weightCF[ig] << " " ;
-          }
-          cout << endl;
-
-          cout << " 1 - weightCF = " ;
-          for(unsigned ig = 0; ig < weightCF.size(); ig++) {
-            cout <<  1 - weightCF[ig] << " " ;
-          }
-          cout << endl;
-
-          cout << " Analytic area = " << AArea << endl ;*/
         }
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
         }
       }
+      else{
+        twoInt = false;
+      }
 
     }
 
-    return modified_weights ;
+    return twoInt ;
 
 }
 

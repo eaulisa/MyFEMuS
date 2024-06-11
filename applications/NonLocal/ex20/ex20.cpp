@@ -14,7 +14,7 @@
 
 #include "slepceps.h"
 
-unsigned lmax1 = 1; // consistency form 3 -> 7
+unsigned lmax1 = 3; // consistency form 3 -> 7
 const bool correctConstant = !false;
 
 #include "./include/nonlocal_assembly_adaptive.hpp"
@@ -24,7 +24,6 @@ const bool correctConstant = !false;
 #include "./include/parabInt/parabolaIntegration.hpp"
 
 #include "include/parabInt/polyWPar.cpp"
-#include "include/parabInt/polyWPar.hpp"
 
 
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
@@ -113,13 +112,13 @@ int main(int argc, char** argv) {
 
 
 
-  // char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
 //   char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
 //   char fileName[100] = "../input/martaTest4Tri.neu";
  // char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
    // char fileName[100] = "../input/salome/martaTest4QuadUnstr.med";
-  char fileName[100] = "../input/salome/martaTest4QuadUnstr2.med";
+  // char fileName[100] = "../input/salome/martaTest4QuadUnstr2.med";
   // char fileName[100] = "../input/martaTest4-3D-tet.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
