@@ -24,14 +24,16 @@ template <class TypeA>
 class polyWParQUAD :
   public polyWPar <TypeA> {
   public:
-    polyWParQUAD(const unsigned &qM);
-    polyWParQUAD(const unsigned &qM, int &maxDepth, double &maxRelErr);
+    polyWParQUAD(const unsigned &qM);                                     //Rifat: How it is going to build if we do not provide maxDepth and relerr.
+    polyWParQUAD(const unsigned &qM, int &maxDepth, double &maxRelErr);   //Rifat: why do we need two of them?
     ~polyWParQUAD();
 
     void build();
 
     void setTableDepth(int depth) {_maxDepth = depth;}
     void setTableRelErr(double relErr) {_maxRelErr = relErr;}
+
+    std::vector<double> Calculate_Weight_CF(std::vector<OctreeNode<TypeA>> &loadedRoots, const std::vector<std::vector<double>> &xv, const std::vector<double> &A);
 
  private:
      unsigned _dim;

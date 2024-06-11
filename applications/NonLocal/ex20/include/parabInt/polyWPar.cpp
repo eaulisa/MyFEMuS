@@ -14,23 +14,27 @@
 
 using namespace femus;
 
-  template <class TypeA> polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM) {
+  template <class TypeA>
+  polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM) {
     _qM = qM;
     _dim = 2;
 
     this->build();
   }
 
-  template <class TypeA> polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM, int &maxDepth, double &maxRelErr) {
+  template <class TypeA>
+  polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM, int &maxDepth, double &maxRelErr) {
     _qM = qM;
     _dim = 2;
     _maxDepth = maxDepth;
     _maxRelErr = maxRelErr;
-
     this->build();
   }
 
-  template <class TypeA> void polyWParQUAD<TypeA>::build(){
+
+
+  template <class TypeA>
+  void polyWParQUAD<TypeA>::build(){
       // TODO this is a generic random initialization of Pweights, needs to be done better
       _s = 0; // TODO in this case we use s = 0 for area integration
       _p1 = { static_cast<TypeA>(0), static_cast<TypeA>(0.5) }; // TODO all these variables can be eliminated in the future
@@ -43,4 +47,8 @@ using namespace femus;
       generateAndLoadOctrees<TypeA>(_maxDepth, _qM, _maxRelErr, Pweights, _loadedRoots);
     }
 
-
+  template <class TypeA>
+  std::vector<double> polyWParQUAD<TypeA>:: Calculate_Weight_CF (std::vector<OctreeNode<TypeA>> &loadedRoots, const std::vector<std::vector<double>> &xv, const std::vector<double> &A) {
+        _weightCF = find_Weight_CF(_loadedRoots, xv, A);
+        return _weightCF;
+  }
