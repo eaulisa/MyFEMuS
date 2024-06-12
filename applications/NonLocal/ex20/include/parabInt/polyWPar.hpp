@@ -15,7 +15,7 @@ using namespace femus;
 template <class TypeA>
 class polyWPar {
   public:
-    // virtual ~polyWPar() {};
+    virtual ~polyWPar() {};
     virtual void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt) = 0;
 };
 
@@ -26,7 +26,7 @@ class polyWParQUAD :
   public:
     polyWParQUAD(const unsigned &qM);
     polyWParQUAD(const unsigned &qM, const int &maxDepth, const double &maxRelErr);
-    ~polyWParQUAD();
+    // ~polyWParQUAD();
 
     void build();
 
@@ -34,6 +34,8 @@ class polyWParQUAD :
     void setTableRelErr(double relErr) {_maxRelErr = relErr;}
 
     void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt);
+    bool find_Weight_CF( const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights);
+    void GetCellPointsFromQuadric (const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/);
 
  private:
      unsigned _dim;
@@ -49,6 +51,9 @@ class polyWParQUAD :
      double _maxRelErr = 0.001; // max relative error of the table (initialized to 10^-3)
 
      std::vector<OctreeNode<cpp_bin_float_oct>>_loadedRoots; // Map
+
+     std::vector < std::vector <double> > _xe;
+     std::vector <double> _ds;
 
  };
 

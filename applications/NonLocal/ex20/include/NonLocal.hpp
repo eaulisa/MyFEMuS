@@ -454,10 +454,6 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             bool twoInt = false;
             for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
 
-            if(jg == 3 && jj == 24){
-              int a = 1;
-            }
-
             std::vector<double> A(6, 0.);
             A[0] = 1;
             A[1] = 0;

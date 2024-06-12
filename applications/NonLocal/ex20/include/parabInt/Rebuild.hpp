@@ -80,7 +80,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
   P[nk] = (!reverse) ? P2 : P1;
 
 
-//   std::cout << "aaaaaaaaaaa " << n << " " << dt << std::endl;
 
   std::vector<double> Nt = N;
   for(unsigned k = 1, nk = n0 + signKappa; k < n - 1; k++, nk += signKappa) {
@@ -197,119 +196,7 @@ bool GetPoint(const std::vector<double> &A,
 }
 
 
-using boost::multiprecision::cpp_bin_float_oct;
 
-std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
-
-  typedef cpp_bin_float_oct oct;
-
-  unsigned cnt = 0;
-  const unsigned dim = xv.size();    //in this case it is 4. xv is defined by four vertices.
-  std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));       //xe is a matrix with size (min 8 by 2) TODO is this the other way around?
-  std::vector <double> ds(npt);     //ds has size number of marker.
-
-  //if(_A.find(iel) != _A.end()) {
-
-  const unsigned nve = xv[0].size();     //nve = 2 (x,y)
-//       std::cout<< " xv size() =" << nve <<endl;
-  //const std::vector<double> &Cf = _A[iel];
-  std::vector<double> v(dim, 0.); // zero vector with size 4
-
-  for(unsigned i = 0; i < nve; i++) {
-    unsigned ip1 = (i + 1) % nve;
-    for(unsigned k = 0; k < dim; k++) v[k] = xv[k][ip1] - xv[k][i];   // (xi-yi)
-
-    const double &x0 = xv[0][i];     //isn't it more like x0 and x1
-    const double &y0 = xv[1][i];
-
-    oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
-    oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
-    oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
-
-    oct norm = sqrt(a * a + b * b + c * c);
-    a /= norm;
-    b /= norm;
-    c /= norm;
-
-    if(fabs(a) > 1.e-8) {
-      oct delta = b * b - 4 * a * c;
-      if(delta > 0) {
-        for(unsigned j = 0; j < 2; j++) {
-          double t = static_cast<double>((- b + pow(-1, j) * sqrt(delta)) / (2 * a));
-          if(t >= 0 && t <= 1) {
-            for(unsigned  k = 0; k < dim; k++) {
-              xe[cnt][k] = xv[k][i]  + t * v[k];
-            }
-            cnt++;
-          }
-        }
-      }
-    }
-    else if(b != 0) {
-      double t = static_cast<double>(-c / b);
-      if(t >= 0 && t <= 1) {
-        for(unsigned  k = 0; k < dim; k++) {
-          xe[cnt][k] = xv[k][i]  + t * v[k];
-        }
-        cnt++;
-      }
-    }
-  }
-
-  nInt = cnt;
-      if(cnt >= 2) nInt = 2;
-
-//   std::cout<< " cnt size() =" << cnt <<endl;
-
-  if(cnt == 2) {
-
-    std::vector<double> Xg(2, 0);
-
-
-    for(unsigned i = 0; i < nve; i++) {
-      Xg[0] += xv[0][i];
-      Xg[1] += xv[1][i];
-    }
-    Xg = {Xg[0] / nve, Xg[1] / nve};
-
-    std::vector<double> P1 = xe[0];
-    std::vector<double> P2 = xe[1];
-
-//     for (const auto& val : P1) {
-//         std::cout << val << " ";
-//     }
-//     std::cout << std::endl;
-//     for (const auto& val : P2) {
-//         std::cout << val << " ";
-//     }
-//     std::cout << std::endl;
-
-    BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, xe);
-
-    npt = xe.size();
-//     std::cout<< " xe size() =" << npt <<endl;
-//
-//     for(unsigned k = 0; k < npt; k++) {
-//       std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
-//     }
-//     std::cout << std::endl;
-
-
-
-    ds.assign(npt, 0);
-    for(unsigned i = 0; i < xe.size() - 1; i++) {
-      double DS = 0.5 * sqrt((xe[i][0] - xe[i + 1][0]) * (xe[i][0] - xe[i + 1][0]) + (xe[i][1] - xe[i + 1][1]) * (xe[i][1] - xe[i + 1][1]));
-      ds[i] += DS;
-      ds[i + 1] += DS;
-    }
-
-    //}
-
-
-
-    return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
-  }
-}
 
 
 #endif

@@ -157,7 +157,7 @@ RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const 
       _elType = 3;
       _cutFem  = new CutFemWeight<double, double >(QUAD, _quadOrder, "legendre");
       _CDweight  = new CDWeightQUAD<double> (_quadOrder, 0.025, 1.);
-      _CDWeightPar = new polyWParQUAD<double> (_quadOrder, 4, 0.01);
+      _CDWeightPar = new polyWParQUAD<double> (_quadOrder, 5, 0.001);
     }
     else {
       _elType = 4;
@@ -216,8 +216,8 @@ RefineElement::~RefineElement() {
   if(_elType == 3 || _elType == 4 || _elType == 1) {
     delete _cutFem;
     delete _CDweight;
-    delete _CDWeightPar;
   }
+  if(_elType == 3) delete _CDWeightPar;
 }
 
 const std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > & RefineElement::GetProlongationMatrix() {
