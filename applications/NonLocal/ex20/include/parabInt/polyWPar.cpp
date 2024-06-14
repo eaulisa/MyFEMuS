@@ -123,7 +123,7 @@ using namespace femus;
       p3.x = (p1.x + p2.x) / 2;
       p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
 
-      if(interp_point.size() == 2) {
+      // if(interp_point.size() == 2) {
         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
@@ -157,11 +157,11 @@ using namespace femus;
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
         }
-      }
-      else{
-        twoInt = false;
-
-      }
+      // }
+      // else{
+      //   twoInt = false;
+      //
+      // }
     }
 
 
@@ -193,7 +193,7 @@ using namespace femus;
       p3.x = (p1.x + p2.x) / 2;
       p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
 
-      if(interp_point.size() == 2) {
+      // if(interp_point.size() == 2) {
 
         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
@@ -245,10 +245,10 @@ using namespace femus;
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
         }
-      }
-      else{
-        twoInt = false;
-      }
+      // }
+      // else{
+      //   twoInt = false;
+      // }
 
     }
     }
@@ -328,7 +328,7 @@ using namespace femus;
 
     BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, _xe);
 
-    npt = _xe.size();
+    // npt = _xe.size();
 
     // _ds.assign(npt, 0);
     // for(unsigned i = 0; i < _xe.size() - 1; i++) {

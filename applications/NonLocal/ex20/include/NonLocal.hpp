@@ -467,44 +467,45 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
 
 
-            // //TODO TMP!!
+            //TODO TMP!!
             // xv1 = {{-0.5,1.5,1.5,-0.5,0.5,1.5,0.5,-0.5},{0.5,0.5,2.5,2.5,0.5,1.5,2.5,1.5}};
-            // _weight1CF.resize(ng1CF);
-            // _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
-            // for(unsigned ig = 0; ig < ng1CF; ig++) {
-            //   const double *phi;
-            //   fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
-            //   for(unsigned i = 0; i < nDof1; i++) {
-            //     for(unsigned k = 0; k < dim; k++) {
-            //       _xg1CF[ig][k] += phi[i] * xv1[k][i];
-            //     }
-            //   }
-            // }
-            // twoInt = false;
-            // for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
-            //
-            // A.resize(6, 0.);
-            // A[0] = -1;
-            // A[1] = 0;
-            // A[2] = -1;
-            // A[3] = 0;
-            // A[4] = 0;
-            // A[5] = 5;
-            // element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
-            // // if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            // double Integral = 0;
-            // for(unsigned ig = 0; ig < ng1CF; ig++) {
-            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0];
-            // }
-            // std::cout << "AAAAAAA " << Integral << " correct: "<< 1.75 <<"\n";
-            //
-            // _ballAprx->GetNormal(element1.GetElementType(), xv1, {0,0}, sqrt(5), _a, _d, _cut);
-            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            // Integral = 0;
-            // for(unsigned ig = 0; ig < ng1CF; ig++) {
-            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
-            // }
-            // std::cout << "AAAAAAA " << Integral << " correct: "<< 1.75 <<"\n";
+            xv1 = {{0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5),0},{0,0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5)}};
+            _weight1CF.resize(ng1CF);
+            _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              const double *phi;
+              fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
+              for(unsigned i = 0; i < nDof1; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  _xg1CF[ig][k] += phi[i] * xv1[k][i];
+                }
+              }
+            }
+            twoInt = false;
+            for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+
+            A.resize(6, 0.);
+            A[0] = -1;
+            A[1] = 0;
+            A[2] = -1;
+            A[3] = 0;
+            A[4] = 0;
+            A[5] = 6;
+            element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
+            // if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            double Integral = 0;
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              Integral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0];
+            }
+            std::cout << "AAAAAAA " << Integral << " correct: "<< 3.75 <<"\n";
+
+            _ballAprx->GetNormal(element1.GetElementType(), xv1, {0,0}, sqrt(5.5), _a, _d, _cut);
+            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            Integral = 0;
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
+            }
+            std::cout << "AAAAAAA " << Integral << " correct: "<< 3.75 <<"\n";
 
 
 
