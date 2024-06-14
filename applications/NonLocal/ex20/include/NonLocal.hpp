@@ -468,7 +468,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
 
             // //TODO TMP!!
-            // xv1 = {{3,3,1,1,3,2,1,2},{-1,1,1,-1,0,1,0,-1}};
+            // xv1 = {{-0.5,1.5,1.5,-0.5,0.5,1.5,0.5,-0.5},{0.5,0.5,2.5,2.5,0.5,1.5,2.5,1.5}};
             // _weight1CF.resize(ng1CF);
             // _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
             // for(unsigned ig = 0; ig < ng1CF; ig++) {
@@ -492,19 +492,19 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             // A[5] = 5;
             // element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
             // // if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            // double Area = 0;
+            // double Integral = 0;
             // for(unsigned ig = 0; ig < ng1CF; ig++) {
-            //   Area += _weight1CF[ig] * _eqPolyWeight[ig];
+            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0];
             // }
-            // std::cout << "AAAAAAA " << Area << " correct: "<< 2.318238045 <<"\n";
+            // std::cout << "AAAAAAA " << Integral << " correct: "<< 1.75 <<"\n";
             //
             // _ballAprx->GetNormal(element1.GetElementType(), xv1, {0,0}, sqrt(5), _a, _d, _cut);
             // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            // Area = 0;
+            // Integral = 0;
             // for(unsigned ig = 0; ig < ng1CF; ig++) {
-            //   Area += _weight1CF[ig] * _eqPolyWeight[ig];
+            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
             // }
-            // std::cout << "AAAAAAA " << Area << " correct: "<< 2.318238045 <<"\n";
+            // std::cout << "AAAAAAA " << Integral << " correct: "<< 1.75 <<"\n";
 
 
 

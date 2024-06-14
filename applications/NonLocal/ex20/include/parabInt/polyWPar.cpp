@@ -330,12 +330,12 @@ using namespace femus;
 
     npt = _xe.size();
 
-    _ds.assign(npt, 0);
-    for(unsigned i = 0; i < _xe.size() - 1; i++) {
-      double DS = 0.5 * sqrt((_xe[i][0] - _xe[i + 1][0]) * (_xe[i][0] - _xe[i + 1][0]) + (_xe[i][1] - _xe[i + 1][1]) * (_xe[i][1] - _xe[i + 1][1]));
-      _ds[i] += DS;
-      _ds[i + 1] += DS;
-    }
+    // _ds.assign(npt, 0);
+    // for(unsigned i = 0; i < _xe.size() - 1; i++) {
+    //   double DS = 0.5 * sqrt((_xe[i][0] - _xe[i + 1][0]) * (_xe[i][0] - _xe[i + 1][0]) + (_xe[i][1] - _xe[i + 1][1]) * (_xe[i][1] - _xe[i + 1][1]));
+    //   _ds[i] += DS;
+    //   _ds[i + 1] += DS;
+    // }
 
   }
 }
