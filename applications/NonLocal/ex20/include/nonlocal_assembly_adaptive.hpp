@@ -387,13 +387,13 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   }
   else if(dim == 2) {
-    refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fifth", "fifth", "legendre");
-    refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fifth", "fifth", "legendre");
+    refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fourth", "fourth", "legendre");
+    refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fourth", "fourth", "legendre");
+    refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fourth", "fourth", "legendre");
 
-    refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fifth", "fifth", "legendre");
-    refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fifth", "fifth", "legendre");
-    refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fifth", "fifth", "legendre");
+    refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fourth", "fourth", "legendre");
+    refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fourth", "fourth", "legendre");
+    refineElement[4][2] = new RefineElement(lmax1, "tri", "biquadratic", "fourth", "fourth", "legendre");
 
     refineElement[3][soluType]->SetConstants(eps);
     refineElement[4][soluType]->SetConstants(eps);

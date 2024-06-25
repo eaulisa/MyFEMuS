@@ -101,8 +101,20 @@ using namespace femus;
       xvsign[l] = ((A[0] * xv[0][l] * xv[0][l] + A[1] * xv[0][l] * xv[1][l] + A[2] * xv[1][l] * xv[1][l] + A[3] * xv[0][l] + A[4] * xv[1][l] + A[5]) >= 0) ? 1 : -1 ;
     }
 
+    bool vertical = false;
+    if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])){
+      if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) vertical = true;
+      else vertical = false;
+    }
+    else if (fabs(xi[0][0] - xi[2][0]) < fabs(xi[0][1] - xi[2][1])){
+      if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) vertical = false;
+      else vertical = true;
+    }
 
-    if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
+
+
+    // if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
+    if(vertical){
 
 
 //       p1 = { static_cast<TypeA>(xi[0][0]), static_cast<TypeA>(xi[0][1]) };
@@ -173,7 +185,8 @@ using namespace femus;
 
 
 
-    else if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) { //horizontal
+    // else if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) { //horizontal
+    else{
 
       q1 = { xi[0][1], xi[0][0] };
       q2 = { xi[2][1], xi[2][0] };

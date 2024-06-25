@@ -448,11 +448,21 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             element1.GetCutFem()->clear();
 //             element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
-            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight); // To activate line integration
+
+            std::vector<double> weightsTMP;
+            element1.GetCDweight()->GetWeight(_a, _d, weightsTMP);
 
             // BEGIN Parabola integration
             bool twoInt = false;
             for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+
+            // if(jj == 1 && jg == 6){
+            //   int a  = 1;
+            //
+            //   xv1 = {{-0.5,-0.4,-0.4,-0.5},{-0.4,-0.4,-0.3,-0.3}};
+            // }
+
 
             std::vector<double> A(6, 0.);
             A[0] = -1;
@@ -462,50 +472,77 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             A[4] = + 2 * xg2[jg][1];
             A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
             element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
-            if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            if(!twoInt) {
+              std::cout << "not twoIntersections!\n";
+              element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            }
             // END Parabola integration
 
 
+            // bool different = false;
+            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+            //   if(fabs(_eqPolyWeight[i] - weightsTMP[i])< 0.01)  different = true;
+            // }
+            //
+            //
+            // if(different){
+            // double AreaPar = 0.;
+            // double AreaLin = 0.;
+            // std::cout<<std::endl<<"parabola:\n";
+            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+            //   std::cout << _eqPolyWeight[i] << "  ";
+            //   AreaPar += _weight1CF[i] * _eqPolyWeight[i];
+            // }
+            // std::cout<<std::endl<<"line:\n";
+            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+            //   std::cout << weightsTMP[i] << "  ";
+            //   AreaLin += _weight1CF[i] * weightsTMP[i];
+            // }
+            // std::cout<<std::endl;
+            // std::cout<<AreaPar << " " << AreaLin << "\n";
+            // }
 
-            //TODO TMP!!
-            // xv1 = {{-0.5,1.5,1.5,-0.5,0.5,1.5,0.5,-0.5},{0.5,0.5,2.5,2.5,0.5,1.5,2.5,1.5}};
-            xv1 = {{0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5),0},{0,0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5)}};
-            _weight1CF.resize(ng1CF);
-            _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
-            for(unsigned ig = 0; ig < ng1CF; ig++) {
-              const double *phi;
-              fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
-              for(unsigned i = 0; i < nDof1; i++) {
-                for(unsigned k = 0; k < dim; k++) {
-                  _xg1CF[ig][k] += phi[i] * xv1[k][i];
-                }
-              }
-            }
-            twoInt = false;
-            for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
 
-            A.resize(6, 0.);
-            A[0] = -1;
-            A[1] = 0;
-            A[2] = -1;
-            A[3] = 0;
-            A[4] = 0;
-            A[5] = 6;
-            element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
-            // if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            double Integral = 0;
-            for(unsigned ig = 0; ig < ng1CF; ig++) {
-              Integral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0];
-            }
-            std::cout << "AAAAAAA " << Integral << " correct: "<< 3.75 <<"\n";
 
-            _ballAprx->GetNormal(element1.GetElementType(), xv1, {0,0}, sqrt(5.5), _a, _d, _cut);
-            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
-            Integral = 0;
-            for(unsigned ig = 0; ig < ng1CF; ig++) {
-              Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
-            }
-            std::cout << "BBBBBB " << Integral << " correctt: "<< 3.75 <<"\n";
+            // //TODO TMP!!
+            // // xv1 = {{-0.5,1.5,1.5,-0.5,0.5,1.5,0.5,-0.5},{0.5,0.5,2.5,2.5,0.5,1.5,2.5,1.5}};
+            // xv1 = {{0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5),0},{0,0,sqrt(5),sqrt(5),0,0.5*sqrt(5),sqrt(5),0.5*sqrt(5)}};
+            // _weight1CF.resize(ng1CF);
+            // _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
+            // for(unsigned ig = 0; ig < ng1CF; ig++) {
+            //   const double *phi;
+            //   fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
+            //   for(unsigned i = 0; i < nDof1; i++) {
+            //     for(unsigned k = 0; k < dim; k++) {
+            //       _xg1CF[ig][k] += phi[i] * xv1[k][i];
+            //     }
+            //   }
+            // }
+            // twoInt = false;
+            // for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+            //
+            // A.resize(6, 0.);
+            // A[0] = -1;
+            // A[1] = 0;
+            // A[2] = -1;
+            // A[3] = 0;
+            // A[4] = 0;
+            // A[5] = 6;
+            // element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
+            // // if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // double Integral = 0;
+            // for(unsigned ig = 0; ig < ng1CF; ig++) {
+            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0];
+            // }
+            // std::cout << "AAAAAAA " << Integral << " correct: "<< 3.75 <<"\n";
+            //
+            // _ballAprx->GetNormal(element1.GetElementType(), xv1, {0,0}, sqrt(5.5), _a, _d, _cut);
+            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // Integral = 0;
+            // for(unsigned ig = 0; ig < ng1CF; ig++) {
+            //   Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
+            // }
+            // std::cout << "BBBBBB " << Integral << " correct: "<< 3.75 <<"\n";
 
 
 
@@ -676,7 +713,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
   }
   else if(level == levelMax1 - 1) {
     const unsigned &dim = element1.GetDimension();
-    const std::vector < std::vector <double> >  &xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+    std::vector < std::vector <double> >  xv1 = element1.GetElement1NodeCoordinates(level, iFather);
 
     const unsigned &nDof1 = element1.GetNumberOfNodes();
     const elem_type *fem1 = element1.GetFem1();
@@ -763,7 +800,26 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             element1.GetCutFem()->clear();
             //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
-            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // // BEGIN Line integration
+            // element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // // END line integration
+
+
+            // BEGIN Parabola integration
+            bool twoInt = false;
+            for (unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+
+            std::vector<double> A(6, 0.);
+            A[0] = -1;
+            A[1] = 0;
+            A[2] = -1;
+            A[3] = + 2 * xg2[jg][0];
+            A[4] = + 2 * xg2[jg][1];
+            A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
+            element1.GetCDWeightPar()->GetWeight(xv1,A,_eqPolyWeight,twoInt);
+            if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            // END Parabola integration
+
 
             double W1CF = 0.;
             _phi1W1CF.assign(nDof1, 0.);
