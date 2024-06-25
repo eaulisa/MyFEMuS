@@ -71,6 +71,9 @@ using namespace femus;
     std::vector< double > interp_point_weights;
     PointT <TypeA> p1, p2, p3;
     bool twoInt = true;
+    unsigned table_number;
+    PointT <double> q1, q2, q3;
+    Point3D searchP(0., 0., 0.);
 
     Fem fem = Fem(3 * 2, _dim);
     unsigned quad = 3;
@@ -99,33 +102,37 @@ using namespace femus;
     }
 
 
-    if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) {  //vertical
+    if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
 
 
-      p1 = { static_cast<TypeA>(xi[0][0]), static_cast<TypeA>(xi[0][1]) };
-      p2 = { static_cast<TypeA>(xi[2][0]), static_cast<TypeA>(xi[2][1]) };
-      p3 = { static_cast<TypeA>(xi[1][0]), static_cast<TypeA>(xi[1][1]) };
+//       p1 = { static_cast<TypeA>(xi[0][0]), static_cast<TypeA>(xi[0][1]) };
+//       p2 = { static_cast<TypeA>(xi[2][0]), static_cast<TypeA>(xi[2][1]) };
+//       p3 = { static_cast<TypeA>(xi[1][0]), static_cast<TypeA>(xi[1][1]) };
 
-      Parabola <TypeA> parabola = get_parabola_equation(p1, p2, p3);
+      q1 = { xi[0][0], xi[0][1] };
+      q2 = { xi[2][0], xi[2][1] };
+      q3 = { xi[1][0], xi[1][1] };
+
+      Parabola <double> parabola = get_parabola_equation(q1, q2, q3);
+//       Parabola <TypeA> parabola = get_parabola_equation(p1, p2, p3);
       int normal;
 
       for(unsigned l = 0; l < 4 ; l++) {
-        unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[0][l] * unitxv[0][l] + static_cast<double>(parabola.b) * unitxv[0][l] + static_cast<double>(parabola.d) + unitxv[1][l]) > 0) ? 1 : -1;
+//         unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[0][l] * unitxv[0][l] + static_cast<double>(parabola.b) * unitxv[0][l] + static_cast<double>(parabola.d) + unitxv[1][l]) > 0) ? 1 : -1;
+        unitxvsign[l] = ((parabola.k * unitxv[0][l] * unitxv[0][l] + parabola.b * unitxv[0][l] + parabola.d + unitxv[1][l]) > 0) ? 1 : -1;
       }
 
       normal = checkVectorRelation(xvsign, unitxvsign);
 
-      int intersect_number;
-      unsigned table_number;
-      std::vector <TypeA> intersection;
-      std::vector <TypeA> interp_point;
-      CheckIntersection<TypeA>(intersect_number, table_number, intersection, interp_point, parabola);
-      p3.x = (p1.x + p2.x) / 2;
-      p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
+      q3.x = (q1.x + q2.x) / 2;
+      q3.y = -parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
+
+      find_search_table(q1, q2, q3, table_number, searchP);
 
       // if(interp_point.size() == 2) {
-        Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
+//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
+//         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
 
           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
@@ -139,18 +146,18 @@ using namespace femus;
           }
           else modified_weights = interp_point_weights;
 
-          std::vector<double> phi, gradPhi;
-          std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
-          std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
-          std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
-          for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
-            // *** get gauss point weight, test function and test function partial derivatives ***
-            femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
-            for(unsigned i =0;i<phi.size();i++){
-              Xg[ig] += phi[i]*xv[0][i];
-              Yg[ig] += phi[i]*xv[1][i];
-            }
-          }
+//           std::vector<double> phi, gradPhi;
+//           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
+//           std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
+//           std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
+//           for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
+//             // *** get gauss point weight, test function and test function partial derivatives ***
+//             femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
+//             for(unsigned i =0;i<phi.size();i++){
+//               Xg[ig] += phi[i]*xv[0][i];
+//               Yg[ig] += phi[i]*xv[1][i];
+//             }
+//           }
 
 
         }
@@ -168,11 +175,11 @@ using namespace femus;
 
     else if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) { //horizontal
 
-      p1 = { static_cast<TypeA>(xi[0][1]), static_cast<TypeA>(xi[0][0]) };
-      p2 = { static_cast<TypeA>(xi[2][1]), static_cast<TypeA>(xi[2][0]) };
-      p3 = { static_cast<TypeA>(xi[1][1]), static_cast<TypeA>(xi[1][0]) };
+      q1 = { xi[0][1], xi[0][0] };
+      q2 = { xi[2][1], xi[2][0] };
+      q3 = { xi[1][1], xi[1][0] };
 
-      Parabola <TypeA> parabola = get_parabola_equation(p1, p2, p3);
+      Parabola <double> parabola = get_parabola_equation(q1, q2, q3);
       int normal;
 
       //use horizotal parabola for the normal
@@ -183,19 +190,16 @@ using namespace femus;
 
       normal = checkVectorRelation(xvsign, unitxvsign);
 
+      q3.x = (q1.x + q2.x) / 2.;
+      q3.y = -parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
 
-      int intersect_number;
-      unsigned table_number;
-      std::vector <TypeA> intersection;
-      std::vector <TypeA> interp_point;
-      CheckIntersection<TypeA>(intersect_number, table_number, intersection, interp_point, parabola);
-
-      p3.x = (p1.x + p2.x) / 2;
-      p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
+      find_search_table(q1, q2, q3, table_number, searchP);
 
       // if(interp_point.size() == 2) {
 
-        Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
+//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
+//         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
+
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
@@ -208,15 +212,33 @@ using namespace femus;
           if (table_number == 2 || table_number == 4){
             if(normal == -1) {
               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
+                modified_weights[aq] = 1 - interp_point_weights[aq];
               }
             }
             else{
+              modified_weights = interp_point_weights;
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+//               }
+            }
+          }
+
+          else if (table_number == 0 || table_number == 6){
+            if(normal == -1) {
+              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+                modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+//                 modified_weights[aq] = 1 - interp_point_weights[aq];
+              }
+            }
+            else{
+//               modified_weights = interp_point_weights;
               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
               }
             }
           }
+
 
           else{
             if(normal == -1) {
@@ -226,19 +248,6 @@ using namespace femus;
             }
             else{
               modified_weights = interp_point_weights;
-            }
-          }
-
-          std::vector<double> phi, gradPhi;
-          std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
-          std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
-          std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
-          for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
-            // *** get gauss point weight, test function and test function partial derivatives ***
-            femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
-            for(unsigned i =0;i<phi.size();i++){
-              Xg[ig] += phi[i]*xv[0][i];
-              Yg[ig] += phi[i]*xv[1][i];
             }
           }
         }

@@ -1086,7 +1086,7 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 int main() {
   unsigned int m = 0;
-  unsigned int n = 2;
+  unsigned int n = 0;
   int s = 0;
 
   std::cout.precision(16);
@@ -1135,9 +1135,10 @@ int main() {
 
 // -12.4444x^2+ 2.33333x+ -0.125+y =0
 
-   k = -12.4444;
-   b = 2.33333;
-   d = -0.125; a = 0;
+   k = 1.382;
+   b = -1;
+   d = -0.829178;
+  a = 0;
   c = 1;
 
 

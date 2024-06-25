@@ -505,7 +505,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             for(unsigned ig = 0; ig < ng1CF; ig++) {
               Integral += _weight1CF[ig] * _eqPolyWeight[ig] * _xg1CF[ig][1]* _xg1CF[ig][0];
             }
-            std::cout << "AAAAAAA " << Integral << " correct: "<< 3.75 <<"\n";
+            std::cout << "BBBBBB " << Integral << " correctt: "<< 3.75 <<"\n";
 
 
 

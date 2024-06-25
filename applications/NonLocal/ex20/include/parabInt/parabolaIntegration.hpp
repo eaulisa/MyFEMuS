@@ -1999,29 +1999,63 @@ double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const d
 int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& vec2) {
     // Check if the sizes of the vectors are different
     if (vec1.size() != vec2.size()) {
+        std::cerr << "Warning: Number of sign do not match" << std::endl;
         return 0;
     }
-    // Check if vectors are equal
-    bool equal = true;
-    bool multipliedByMinusOne = true;
+
+    int equalCount = 0;
+    int negativeCount = 0;
+
+    // Iterate through the vectors to count equal and negative elements
     for (size_t i = 0; i < vec1.size(); ++i) {
-        if (vec1[i] != vec2[i]) {
-            equal = false;
+        if (vec1[i] == vec2[i]) {
+            ++equalCount;
         }
-        if (vec1[i] != -vec2[i]) {
-            multipliedByMinusOne = false;
+        if (vec1[i] == -vec2[i]) {
+            ++negativeCount;
         }
     }
 
-    if (equal) {
+    if (equalCount > negativeCount) {
         return 1;
-    }
-    else if (multipliedByMinusOne) {
+    } else if (negativeCount > equalCount) {
         return -1;
-    }
-    else {
+    } else {
+        std::cerr << "Warning: Equal number of positive and negative sign on the corner" << std::endl;
         return 0;
     }
+}
+
+void find_search_table(const PointT <double> &q1, const PointT <double> &q2, const PointT <double> &q3, unsigned &table_number, Point3D &searchP){
+        double epsilon =0.0000000000001;
+      if (fabs(q1.x-0) < epsilon) {
+        if (fabs(q2.y-1) < epsilon) {table_number = 0; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y;}
+        else if (fabs(q2.x-1) < epsilon) {table_number = 1; searchP.x = q1.y; searchP.y = q2.y; searchP.z = q3.y; }
+        else if (fabs(q2.y-0) < epsilon) {table_number = 2; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q2.x-0) < epsilon) {
+        if (fabs(q1.y-1) < epsilon) {table_number = 0; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+        else if (fabs(q1.x-1) < epsilon) {table_number = 1; searchP.x = q2.y; searchP.y = q1.y; searchP.z = q3.y; }
+        else if (fabs(q1.y-0) < epsilon) {table_number = 2; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q1.x-1) < epsilon) {
+        if (fabs(q2.y-1) < epsilon) {table_number = 4; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
+        else if (fabs(q2.y-0) < epsilon) {table_number = 6; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q2.x-1) < epsilon) {
+        if (fabs(q1.y-1) < epsilon) {table_number = 4; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+        else if (fabs(q1.y-0) < epsilon) {table_number = 6; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q1.y-0) < epsilon) {
+        if (fabs(q2.y-1) < epsilon) {table_number = 5; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
+        else if (fabs(q2.y-0) < epsilon) {table_number = 7; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q2.y-0) < epsilon) {
+        if (fabs(q1.y-1) < epsilon) {table_number = 5; searchP.x = q2.x; searchP.y = q1.x; searchP.z = q3.y; }
+      }
+      else if (fabs(q1.y-1) < epsilon) {
+        if (fabs(q2.y-1) < epsilon) {table_number = 3; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
+      }
 }
 
 // template <class Type>
