@@ -482,7 +482,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             // BEGIN EXAMPLE find the difference
             bool different = false;
             for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-              if(fabs(_eqPolyWeight[i] - weightsTMP[i])> 0.1)  different = true;
+              if(fabs(_eqPolyWeight[i] - weightsTMP[i])> 0.02)  different = true;
             }
 
 
