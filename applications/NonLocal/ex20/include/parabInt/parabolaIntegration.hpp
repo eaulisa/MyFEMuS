@@ -2039,19 +2039,19 @@ void find_search_table(const PointT <double> &q1, const PointT <double> &q2, con
         else if (fabs(q1.y-0) < epsilon) {table_number = 2; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.x-1) < epsilon) {
-        if (fabs(q2.y-1) < epsilon) {table_number = 4; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
+        if (fabs(q2.y-1) < epsilon) {table_number = 4; searchP.x = q2.x; searchP.y = q1.y; searchP.z = q3.y; }
         else if (fabs(q2.y-0) < epsilon) {table_number = 6; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q2.x-1) < epsilon) {
-        if (fabs(q1.y-1) < epsilon) {table_number = 4; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+        if (fabs(q1.y-1) < epsilon) {table_number = 4; searchP.x = q1.x; searchP.y = q2.y; searchP.z = q3.y; }
         else if (fabs(q1.y-0) < epsilon) {table_number = 6; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.y-0) < epsilon) {
-        if (fabs(q2.y-1) < epsilon) {table_number = 5; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
+        if (fabs(q2.y-1) < epsilon) {table_number = 5; searchP.x = q2.x; searchP.y = q1.x; searchP.z = q3.y; }
         else if (fabs(q2.y-0) < epsilon) {table_number = 7; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q2.y-0) < epsilon) {
-        if (fabs(q1.y-1) < epsilon) {table_number = 5; searchP.x = q2.x; searchP.y = q1.x; searchP.z = q3.y; }
+        if (fabs(q1.y-1) < epsilon) {table_number = 5; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.y-1) < epsilon) {
         if (fabs(q2.y-1) < epsilon) {table_number = 3; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }

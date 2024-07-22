@@ -80,51 +80,51 @@ int main() {
 
   generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, /*roots,*/ loadedRoots);
 // Example: Search for a point in the loaded Octree
-  table = 0 ;
-  Point3D searchPoint(static_cast<double>(p1.x), static_cast<double>(p2.y), static_cast<double>(p3.y));
-  OctreeNode<Type>* result = loadedRoots[table].search(searchPoint);
-  if(result) {
-    std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
-    std::cout << "\nSearch Point: (" << searchPoint.x << ", " << searchPoint.y << ", " << searchPoint.z << ")\n";
-    std::cout << "Smallest Sub-cube Bounds: ";
-    std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
-    std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
-    std::cout << "depth : = " << result->depth << " \n";
-
-    std::vector<double>interp_point = {searchPoint.x, searchPoint.y, searchPoint.z};
-    std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
-
-    trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
-
-    Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
-    Ix  = GaussIntegral(1, 0, xg, yg, interp_point_weights, gaussWeight);
-    Iy  = GaussIntegral(0, 1, xg, yg, interp_point_weights, gaussWeight);
-    Ix3  = GaussIntegral(3, 0, xg, yg, interp_point_weights, gaussWeight);
-    Ix2y  = GaussIntegral(2, 1, xg, yg, interp_point_weights, gaussWeight);
-    Ixy2  = GaussIntegral(1, 2, xg, yg, interp_point_weights, gaussWeight);
-    Iy3 = GaussIntegral(0, 3, xg, yg, interp_point_weights, gaussWeight);
-    Ix2y2  = GaussIntegral(2, 2, xg, yg, interp_point_weights, gaussWeight);
-
-    std::cout << "Area0 = " << Area0 << std::endl;
-    std::cout << "Area = " << Area << std::endl;
-    std::cout << "Ix = " << Ix << std::endl;
-    std::cout << "Iy = " << Iy << std::endl;
-    std::cout << "Ix3 = " << Ix3 << std::endl;
-    std::cout << "Ix2y = " << Ix2y << std::endl;
-    std::cout << "Ixy2 = " << Ixy2 << std::endl;
-    std::cout << "Iy3 = " << Iy3 << std::endl;
-    std::cout << "Ix2y2 = " << Ix2y2 << std::endl;
-  }
-  else {
-    std::cout << "Search point not found in the Octree." << std::endl;
-  }
-
-  Type direct_area_00 = find_area_2intersection_formula<Type>(0, 0, 0, 0, 1, 4,  p1,  p2, p3);
-  Type direct_area_10 = find_area_2intersection_formula<Type>(1, 0, 0, 0, 1, 4,  p1,  p2, p3);
-  Type direct_area_01 = find_area_2intersection_formula<Type>(0, 1, 0, 0, 1, 4,  p1,  p2, p3);
-  cout << " area = " << direct_area_00 << endl;
-  cout << " area10 = " << direct_area_10 << endl;
-  cout << " area01 = " << direct_area_01 << endl;
+//   table = 0 ;
+//   Point3D searchPoint(static_cast<double>(p1.x), static_cast<double>(p2.y), static_cast<double>(p3.y));
+//   OctreeNode<Type>* result = loadedRoots[table].search(searchPoint);
+//   if(result) {
+//     std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
+//     std::cout << "\nSearch Point: (" << searchPoint.x << ", " << searchPoint.y << ", " << searchPoint.z << ")\n";
+//     std::cout << "Smallest Sub-cube Bounds: ";
+//     std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
+//     std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
+//     std::cout << "depth : = " << result->depth << " \n";
+//
+//     std::vector<double>interp_point = {searchPoint.x, searchPoint.y, searchPoint.z};
+//     std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
+//
+//     trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
+//
+//     Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+//     Ix  = GaussIntegral(1, 0, xg, yg, interp_point_weights, gaussWeight);
+//     Iy  = GaussIntegral(0, 1, xg, yg, interp_point_weights, gaussWeight);
+//     Ix3  = GaussIntegral(3, 0, xg, yg, interp_point_weights, gaussWeight);
+//     Ix2y  = GaussIntegral(2, 1, xg, yg, interp_point_weights, gaussWeight);
+//     Ixy2  = GaussIntegral(1, 2, xg, yg, interp_point_weights, gaussWeight);
+//     Iy3 = GaussIntegral(0, 3, xg, yg, interp_point_weights, gaussWeight);
+//     Ix2y2  = GaussIntegral(2, 2, xg, yg, interp_point_weights, gaussWeight);
+//
+//     std::cout << "Area0 = " << Area0 << std::endl;
+//     std::cout << "Area = " << Area << std::endl;
+//     std::cout << "Ix = " << Ix << std::endl;
+//     std::cout << "Iy = " << Iy << std::endl;
+//     std::cout << "Ix3 = " << Ix3 << std::endl;
+//     std::cout << "Ix2y = " << Ix2y << std::endl;
+//     std::cout << "Ixy2 = " << Ixy2 << std::endl;
+//     std::cout << "Iy3 = " << Iy3 << std::endl;
+//     std::cout << "Ix2y2 = " << Ix2y2 << std::endl;
+//   }
+//   else {
+//     std::cout << "Search point not found in the Octree." << std::endl;
+//   }
+//
+//   Type direct_area_00 = find_area_2intersection_formula<Type>(0, 0, 0, 0, 1, 4,  p1,  p2, p3);
+//   Type direct_area_10 = find_area_2intersection_formula<Type>(1, 0, 0, 0, 1, 4,  p1,  p2, p3);
+//   Type direct_area_01 = find_area_2intersection_formula<Type>(0, 1, 0, 0, 1, 4,  p1,  p2, p3);
+//   cout << " area = " << direct_area_00 << endl;
+//   cout << " area10 = " << direct_area_10 << endl;
+//   cout << " area01 = " << direct_area_01 << endl;
 
 
 
@@ -147,13 +147,27 @@ int main() {
   //   std::vector<std::vector<double>> xv = {{2., 1., 1., 2.}, {2., 2., 1., 1.}};
   //   std::vector<std::vector<double>> xv = {{1., 1., 2., 2.}, {2., 1., 1., 2.}};
 //   std::vector<std::vector<double>> xv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
-  std::vector<std::vector<double>> xv = {{0., 2.2361, 2.2361, 0.}, {0., 0., 2.2361, 2.2361}};
+//   std::vector<std::vector<double>> xv = {{0., 2.2361, 2.2361, 0.}, {0., 0., 2.2361, 2.2361}};
+//     std::vector<std::vector<double>> xv = {{0., 2.2361, 2.2361, 0.}, {-2.2361, -2.2361, 0., 0.}};
+//     std::vector<std::vector<double>> xv = {{-1., 1., 1., -1}, {1., 1., 3., 3.}};
+//     std::vector<double> A = {1., 0., 1., 0., 0., -6.};      // Table 1 or 5 gives trouble when rotated.
+
+    // trouble case nonlocal 1 . jg=6, jj=4
+      std::vector<std::vector<double>> xv = {{-0.4, -0.4, -0.5, -0.5}, {-0.4, -0.3, -0.3, -0.4}};
+      std::vector<double> A = {-1., 0., -1., -0.82254033307585184, -0.22254033307585197, -0.14152419984551109};
+
+//       std::vector<double> A = {-1., 0., -1., -1.1, -0.42254033307585198, -0.30713508326896299};
+//       -1x^{2}-1.\ y^{2}-1.0225403330758518\ x-0.22254033307585197y\ -0.23377823315309629\ =0
+//       std::vector<double> A = {-1., 0., -1., -1.0225403330758518, -0.22254033307585197, -0.23377823315309629};
+
+//     std::vector<std::vector<double>> xv = {{0.55, 2.3, 2.3, 0.55}, {0.5, 0.5, 2.25, 2.25}};
+//     std::cout <<  "     llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll" <<  std::endl;
 //   std::vector<std::vector<double>> xv = {{0., 2., 2., 0.}, {0., 0., 2.2361, 2.2361}};
 //   std::vector<std::vector<double>> xv = {{2., 3., 3., 2.}, {0., 0., 1., 1.}};
   //     std::vector<double> A = {-10, 0, 0, 4, 1, -0.5}; // {a,b,c,d,e,f} means ax^2 + bxy + cy^2 + dx + ey + f = 0
   //     std::vector<double> A = {0, 0, -10, 1, 4, -0.5};
   // horizotal prabola
-  std::vector<double> A = {1., 0., 1., 0., 0., -6.};
+//   std::vector<double> A = {1., 0., 1., 0., 0., -6.};
     PointT <double> q1, q2, q3;
     Point3D searchP(0., 0., 0.);
 
@@ -169,32 +183,45 @@ int main() {
     cout << "\n....................................................................." << endl;
     cout << "\n \n Box(" << i << "): xv = {" << xv[0][0] << " " << xv[0][1] << " " << xv[0][2] << " " << xv[0][3] << "},{" << xv[1][0] << " " << xv[1][1] << " " << xv[1][2] << " " << xv[1][3] << "}"  << endl;
 
-    std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This fins the points in physical space
+    std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This finds the points in physical space
+
+   std::cout << "Intersection Point = (" << xp.first[0][0] << ", " << xp.first[0][1] << "), (" <<  xp.first[1][0] << ", " << xp.first[1][1] << "), (" <<  xp.first[2][0] << ", " << xp.first[2][1] << "), ("<<   std::endl;
+
+
+//     for (size_t i = 0; i < xp.first.size(); ++i) {
+//         std::cout << "(" << xp.first[i][0] << ", " << xp.first[i][1] << ")\n";
+//     }
+
+    vector<vector<double>> qvector = transformPoints(xv, unitxv, xp.first);
+    cout << "affine transformation" << i+1;
+    for (size_t i = 0; i < qvector.size(); ++i) {
+        cout << ": (" << qvector[i][0] << ", " << qvector[i][1] << "), ";
+    }
+
+    cout <<  endl;
+
 
     std::vector < std::vector < std::vector <double > > > aP(1);
     ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);   //TODO what does this do?
 
-
-    cout << "======================================== >>>>>>>>>>>>>>> size of aP = "<<aP.size() << endl;
-        for (const auto& matrix : aP) {
-        std::cout << "{" << std::endl;
-        for (const auto& row : matrix) {
-            std::cout << "  {";
-            for (const auto& elem : row) {
-                std::cout << elem << " ";
-              }
-            std::cout << "}" << std::endl;
-            }
-          std::cout << "}" << std::endl;
-        }
-
-
+//     cout << "======================================== >>>>>>>>>>>>>>> size of aP = "<<aP.size() << endl;
+//         for (const auto& matrix : aP) {
+//         std::cout << "{" << std::endl;
+//         for (const auto& row : matrix) {
+//             std::cout << "  {";
+//             for (const auto& elem : row) {
+//                 std::cout << elem << " ";
+//               }
+//             std::cout << "}" << std::endl;
+//             }
+//           std::cout << "}" << std::endl;
+//         }
 
 
     std::vector<int> xvsign(4);
     std::vector<int> unitxvsign(4);
-
     std::vector<std::vector<double>> xi(nPoints, std::vector<double>(2, 0.));
+
     for(unsigned i = 0; i < nPoints; i++) {
       bool inverseMapping = GetInverseMapping(femType, ielType, aP, xp.first[i], xi[i], 100);        //This maps the phsical points to {(-1,-1),(1,1)} box
 //         std::cout << " \nx[i] physical value " << i << " " << xp.first[i][0] << " " << xp.first[i][1] << std::endl;
@@ -202,6 +229,10 @@ int main() {
       xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};                                        // //This maps the points to unit box
       std::cout << "value in unit box" << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
     }
+
+
+
+
 
 
     //finiding monotone
@@ -404,8 +435,8 @@ int main() {
       }
       cout << "} " << endl;
 
-      cout <<  "( " << p1.y << "," << p1.x << " )" << " , ( " << p2.y << "," << p2.x << " )" << " , ( " << p3.y << "," << p3.x << " ) " << endl;
-      cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
+      cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+      cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
 
       normal = checkVectorRelation(xvsign, unitxvsign);
       cout << " normal = " << normal << endl ;
@@ -469,6 +500,14 @@ int main() {
             }
           }
 
+          else if (table_number == 1) {
+
+            for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+                modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+//                 modified_weights[aq] = 1 - interp_point_weights[aq];
+              }
+          }
 
           else{
             if(normal == -1) {
@@ -484,7 +523,7 @@ int main() {
 
 
 
-          std::cout << "BBBBB original weight\n";
+          std::cout << "AAAAA original weight\n";
           for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
             std::cout << interp_point_weights[aq] << " ";
           }
@@ -529,8 +568,8 @@ int main() {
           Ix3  = GaussIntegral(0, 3, Yg.data(), Xg.data(), modified_weights, Jg.data());
           Ix2y  = GaussIntegral(1, 2,Yg.data(), Xg.data(), modified_weights, Jg.data());
           Ixy2  = GaussIntegral(2, 1,Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Iy3 = GaussIntegral(3, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
-          Ix2y2  = GaussIntegral(2, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Iy3 = GaussIntegral(3, 0, Yg.data(), Xg.data(), modified_weights, Jg.data());
+          Ix2y2  = GaussIntegral(2, 2, Yg.data(), Xg.data(), modified_weights, Jg.data());
 
           std::cout << "Area = " << Area << std::endl;
           std::cout << "Ix = " << Ix << std::endl;
@@ -599,18 +638,38 @@ int main() {
     xv[1][3] = swap;
   }
 
-  cout << "========================================>  using function" <<endl;
+  cout << "========================================>    " <<endl;
 
-  std::vector<double> interpolated_Weight_CF = find_Weight_CF<Type>(loadedRoots, xv, A);
-  cout << " interpolated weightCF = " <<endl;
-
-          for(unsigned ig = 0; ig < interpolated_Weight_CF.size(); ig++) {
-            cout <<  interpolated_Weight_CF[ig] << " " ;
-          }
+//   std::vector<double> interpolated_Weight_CF = find_Weight_CF<Type>(loadedRoots, xv, A);
+//   cout << " interpolated weightCF = " <<endl;
+//
+//           for(unsigned ig = 0; ig < interpolated_Weight_CF.size(); ig++) {
+//             cout <<  interpolated_Weight_CF[ig] << " " ;
+//           }
 
 
   return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 template <class Type>
@@ -648,6 +707,10 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
       xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};                                        // //This maps the points to unit box
 //       std::cout << "value in unit box" << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
     }
+
+
+
+
 
         //finiding monotone
 //     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) cout << " monotonous in x " << endl;
@@ -841,6 +904,14 @@ std::vector<double> find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, 
                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
               }
             }
+          }
+
+          else if (table_number == 1) {
+
+            for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+                modified_weights[aq] = 1 - interp_point_weights[aq];
+              }
           }
 
           else{

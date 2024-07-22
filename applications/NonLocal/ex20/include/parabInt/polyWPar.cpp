@@ -111,7 +111,7 @@ using namespace femus;
       else vertical = true;
     }
 
-
+    cout << " vertical = " << vertical << endl;
 
     // if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
     if(vertical){
@@ -141,14 +141,13 @@ using namespace femus;
 
       find_search_table(q1, q2, q3, table_number, searchP);
 
+      cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+      cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
+      cout << "table = " << table_number << endl;
       // if(interp_point.size() == 2) {
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
-//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
-//         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
-
           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
-
           trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
           modified_weights.resize(interp_point_weights.size());
           if(normal == -1) {
@@ -157,21 +156,6 @@ using namespace femus;
             }
           }
           else modified_weights = interp_point_weights;
-
-//           std::vector<double> phi, gradPhi;
-//           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
-//           for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
-//             // *** get gauss point weight, test function and test function partial derivatives ***
-//             femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
-//             for(unsigned i =0;i<phi.size();i++){
-//               Xg[ig] += phi[i]*xv[0][i];
-//               Yg[ig] += phi[i]*xv[1][i];
-//             }
-//           }
-
-
         }
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
@@ -208,10 +192,12 @@ using namespace femus;
 
       find_search_table(q1, q2, q3, table_number, searchP);
 
-      // if(interp_point.size() == 2) {
+      cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+      cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
+      cout << "table = " << table_number << endl;
 
-//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
-//         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
+
+      // if(interp_point.size() == 2) {
 
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
@@ -220,7 +206,6 @@ using namespace femus;
           trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
 
           modified_weights.resize(interp_point_weights.size());
-
 
           if (table_number == 2 || table_number == 4){
             if(normal == -1) {

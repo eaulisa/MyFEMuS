@@ -6,7 +6,7 @@
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp>
 #include <fstream>
-
+#include <vector>
 using namespace std;
 
 using boost::math::factorial;
@@ -2037,19 +2037,19 @@ void find_search_table(const PointT <double> &q1, const PointT <double> &q2, con
         else if (fabs(q1.y-0) < epsilon) {table_number = 2; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.x-1) < epsilon) {
-        if (fabs(q2.y-1) < epsilon) {table_number = 4; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
+        if (fabs(q2.y-1) < epsilon) {table_number = 4; searchP.x = q2.x; searchP.y = q1.y; searchP.z = q3.y; }
         else if (fabs(q2.y-0) < epsilon) {table_number = 6; searchP.x = q1.y; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q2.x-1) < epsilon) {
-        if (fabs(q1.y-1) < epsilon) {table_number = 4; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
+        if (fabs(q1.y-1) < epsilon) {table_number = 4; searchP.x = q1.x; searchP.y = q2.y; searchP.z = q3.y; }
         else if (fabs(q1.y-0) < epsilon) {table_number = 6; searchP.x = q2.y; searchP.y = q1.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.y-0) < epsilon) {
-        if (fabs(q2.y-1) < epsilon) {table_number = 5; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
+        if (fabs(q2.y-1) < epsilon) {table_number = 5; searchP.x = q2.x; searchP.y = q1.x; searchP.z = q3.y; }
         else if (fabs(q2.y-0) < epsilon) {table_number = 7; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q2.y-0) < epsilon) {
-        if (fabs(q1.y-1) < epsilon) {table_number = 5; searchP.x = q2.x; searchP.y = q1.x; searchP.z = q3.y; }
+        if (fabs(q1.y-1) < epsilon) {table_number = 5; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
       }
       else if (fabs(q1.y-1) < epsilon) {
         if (fabs(q2.y-1) < epsilon) {table_number = 3; searchP.x = q1.x; searchP.y = q2.x; searchP.z = q3.y; }
@@ -2057,6 +2057,98 @@ void find_search_table(const PointT <double> &q1, const PointT <double> &q2, con
 }
 
 
+
+
+vector<vector<double>> transformPoints(const vector<vector<double>>& xv, const vector<vector<double>>& unitxv, const vector<vector<double>>& pvector) {
+    vector<vector<double>> A(8, vector<double>(8));
+    vector<double> b(8);
+    vector<double> x(8);
+
+    for (int i = 0; i < 4; ++i) {
+        A[2 * i][0] = xv[0][i];
+        A[2 * i][1] = xv[1][i];
+        A[2 * i][2] = 1;
+        A[2 * i][3] = 0;
+        A[2 * i][4] = 0;
+        A[2 * i][5] = 0;
+        A[2 * i][6] = -unitxv[0][i] * xv[0][i];
+        A[2 * i][7] = -unitxv[0][i] * xv[1][i];
+
+        A[2 * i + 1][0] = 0;
+        A[2 * i + 1][1] = 0;
+        A[2 * i + 1][2] = 0;
+        A[2 * i + 1][3] = xv[0][i];
+        A[2 * i + 1][4] = xv[1][i];
+        A[2 * i + 1][5] = 1;
+        A[2 * i + 1][6] = -unitxv[1][i] * xv[0][i];
+        A[2 * i + 1][7] = -unitxv[1][i] * xv[1][i];
+
+        b[2 * i] = unitxv[0][i];
+        b[2 * i + 1] = unitxv[1][i];
+    }
+
+    // Solving the linear system A * x = b using Gaussian elimination
+    for (int i = 0; i < 8; ++i) {
+        // Partial pivoting
+        int maxRow = i;
+        for (int k = i + 1; k < 8; ++k) {
+            if (abs(A[k][i]) > abs(A[maxRow][i])) {
+                maxRow = k;
+            }
+        }
+
+        // Swap rows
+        std::swap(A[i], A[maxRow]);
+        std::swap(b[i], b[maxRow]);
+
+        // Eliminate
+        for (int k = i + 1; k < 8; ++k) {
+            double factor = A[k][i] / A[i][i];
+            for (int j = i; j < 8; ++j) {
+                A[k][j] -= factor * A[i][j];
+            }
+            b[k] -= factor * b[i];
+        }
+    }
+
+    // Back substitution
+    for (int i = 7; i >= 0; --i) {
+        x[i] = b[i] / A[i][i];
+        for (int k = i - 1; k >= 0; --k) {
+            b[k] -= A[k][i] * x[i];
+        }
+    }
+
+    // Constructing the transformation matrix H
+    vector<vector<double>> H(3, vector<double>(3));
+    H[0][0] = x[0];
+    H[0][1] = x[1];
+    H[0][2] = x[2];
+    H[1][0] = x[3];
+    H[1][1] = x[4];
+    H[1][2] = x[5];
+    H[2][0] = x[6];
+    H[2][1] = x[7];
+    H[2][2] = 1;
+
+    // Transforming the points
+    vector<vector<double>> qvector(pvector.size(), vector<double>(2));
+    for (size_t i = 0; i < pvector.size(); ++i) {
+        vector<double> p_homogeneous = {pvector[i][0], pvector[i][1], 1};
+        vector<double> q_homogeneous(3);
+
+        for (int j = 0; j < 3; ++j) {
+            q_homogeneous[j] = 0;
+            for (int k = 0; k < 3; ++k) {
+                q_homogeneous[j] += H[j][k] * p_homogeneous[k];
+            }
+        }
+
+        qvector[i] = {q_homogeneous[0] / q_homogeneous[2], q_homogeneous[1] / q_homogeneous[2]};
+    }
+
+    return qvector;
+}
 
 
 #endif // PARABOLAINTEGRATION_HPP_INCLUDED

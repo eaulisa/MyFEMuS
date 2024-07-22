@@ -479,29 +479,34 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             // END Parabola integration
 
 
-            // bool different = false;
-            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-            //   if(fabs(_eqPolyWeight[i] - weightsTMP[i])< 0.01)  different = true;
-            // }
-            //
-            //
-            // if(different){
-            // double AreaPar = 0.;
-            // double AreaLin = 0.;
-            // std::cout<<std::endl<<"parabola:\n";
-            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-            //   std::cout << _eqPolyWeight[i] << "  ";
-            //   AreaPar += _weight1CF[i] * _eqPolyWeight[i];
-            // }
-            // std::cout<<std::endl<<"line:\n";
-            // for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-            //   std::cout << weightsTMP[i] << "  ";
-            //   AreaLin += _weight1CF[i] * weightsTMP[i];
-            // }
-            // std::cout<<std::endl;
-            // std::cout<<AreaPar << " " << AreaLin << "\n";
-            // }
+            // BEGIN EXAMPLE find the difference
+            bool different = false;
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              if(fabs(_eqPolyWeight[i] - weightsTMP[i])> 0.1)  different = true;
+            }
 
+
+            if(different){
+            double AreaPar = 0.;
+            double AreaLin = 0.;
+            std::cout<<std::endl<<"parabola:\n";
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              std::cout << _eqPolyWeight[i] << "  ";
+              AreaPar += _weight1CF[i] * _eqPolyWeight[i];
+            }
+            std::cout<<std::endl<<"line:\n";
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              std::cout << weightsTMP[i] << "  ";
+              AreaLin += _weight1CF[i] * weightsTMP[i];
+            }
+            std::cout<<std::endl;
+            std::cout<<AreaPar << " " << AreaLin << "\n";
+            if (fabs(AreaPar-AreaLin)>0.0001){
+              std::cout <<  " test case  " << std::endl;
+
+              }
+            }
+            // END example
 
 
             // //TODO TMP!!
