@@ -776,7 +776,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
         }
       }
     }
-    // std::cout<<I2;
+    std::cout<<I2;
     //END parallel corrective moment Constant evaluation
   }
 

@@ -146,7 +146,7 @@ int main() {
   //   std::vector<std::vector<double>> xv = {{2., 2., 1., 1.}, {1., 2., 2., 1.}};
   //   std::vector<std::vector<double>> xv = {{2., 1., 1., 2.}, {2., 2., 1., 1.}};
   //   std::vector<std::vector<double>> xv = {{1., 1., 2., 2.}, {2., 1., 1., 2.}};
-//   std::vector<std::vector<double>> xv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
+
 //   std::vector<std::vector<double>> xv = {{0., 2.2361, 2.2361, 0.}, {0., 0., 2.2361, 2.2361}};
 //     std::vector<std::vector<double>> xv = {{0., 2.2361, 2.2361, 0.}, {-2.2361, -2.2361, 0., 0.}};
 //     std::vector<std::vector<double>> xv = {{-1., 1., 1., -1}, {1., 1., 3., 3.}};
@@ -154,10 +154,9 @@ int main() {
 
     // trouble case nonlocal 1 . jg=6, jj=4
       std::vector<std::vector<double>> xv = {{-0.4, -0.4, -0.5, -0.5}, {-0.4, -0.3, -0.3, -0.4}};
-//       std::vector<double> A = {-1., 0., -1., -0.82254033307585184, -0.22254033307585197, -0.14152419984551109};
-
-
       std::vector<double> A = {-1., 0., -1., -1.1774596669241479, -0.49999999999999994, -0.36910281680828139};
+
+//       std::vector<double> A = {-1., 0., -1., -0.82254033307585184, -0.22254033307585197, -0.14152419984551109};
 //       std::vector<double> A = {-1., 0., -1., -1.1, -0.42254033307585198, -0.30713508326896299};
 //       -1x^{2}-1.\ y^{2}-1.0225403330758518\ x-0.22254033307585197y\ -0.23377823315309629\ =0
 //       std::vector<double> A = {-1., 0., -1., -1.0225403330758518, -0.22254033307585197, -0.23377823315309629};
@@ -170,6 +169,10 @@ int main() {
   //     std::vector<double> A = {0, 0, -10, 1, 4, -0.5};
   // horizotal prabola
 //   std::vector<double> A = {1., 0., 1., 0., 0., -6.};
+
+//     std::vector<std::vector<double>> xv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
+//     std::vector<double> A = {-2.3, 0., 0., 4.3, 1., -0.95};
+
     PointT <double> q1, q2, q3;
     Point3D searchP(0., 0., 0.);
 
@@ -474,33 +477,80 @@ int main() {
 
           if (table_number == 2 || table_number == 4){
             if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
-                modified_weights[aq] = 1 - interp_point_weights[aq];
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+                for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+                }
               }
+
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// // //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
+//                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               }
+
             }
             else{
-              modified_weights = interp_point_weights;
+//               modified_weights = interp_point_weights;
+
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+               for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+               }
+              }
+
+
+
+
 //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+// //                   modified_weights[aq] = 1 - interp_point_weights[aq];
+// //                 modified_weights[aq] = 1- interp_point_weights[interp_point_weights.size()-1-aq];
+// //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
 //               }
             }
           }
 
+//           else if (table_number == 0 || table_number == 6){
+//             if(normal == -1) {
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               }
+//             }
+//             else{
+// //               modified_weights = interp_point_weights;
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+//               }
+//             }
+//           }
+
+
           else if (table_number == 0 || table_number == 6){
             if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-//                 modified_weights[aq] = 1 - interp_point_weights[aq];
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+                for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+                }
               }
             }
             else{
-//               modified_weights = interp_point_weights;
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+               for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+               }
               }
             }
           }
+
+
+
+
+
+
 
           else if (table_number == 1) {
 
@@ -563,15 +613,16 @@ int main() {
           Iy3 = GaussIntegral(3, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
           Ix2y2  = GaussIntegral(2, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());*/
 
-          Area = GaussIntegral(0, 0, Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ix  = GaussIntegral(0, 1,  Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Iy  = GaussIntegral(1, 0,  Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ixy  = GaussIntegral(1, 1, Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ix3  = GaussIntegral(0, 3, Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ix2y  = GaussIntegral(1, 2,Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ixy2  = GaussIntegral(2, 1,Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Iy3 = GaussIntegral(3, 0, Yg.data(), Xg.data(), modified_weights, Jg.data());
-          Ix2y2  = GaussIntegral(2, 2, Yg.data(), Xg.data(), modified_weights, Jg.data());
+
+          Area = GaussIntegral(0, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ix  = GaussIntegral(1, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Iy  = GaussIntegral(0, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ixy  = GaussIntegral(1, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ix3  = GaussIntegral(3, 0, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ix2y  = GaussIntegral(2, 1, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ixy2  = GaussIntegral(1, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Iy3 = GaussIntegral(0, 3, Xg.data(), Yg.data(), modified_weights, Jg.data());
+          Ix2y2  = GaussIntegral(2, 2, Xg.data(), Yg.data(), modified_weights, Jg.data());
 
           std::cout << "Area = " << Area << std::endl;
           std::cout << "Ix = " << Ix << std::endl;

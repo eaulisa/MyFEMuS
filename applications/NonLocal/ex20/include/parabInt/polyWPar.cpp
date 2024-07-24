@@ -111,7 +111,7 @@ using namespace femus;
       else vertical = true;
     }
 
-    cout << " vertical = " << vertical << endl;
+//     cout << " vertical = " << vertical << endl;
 
     // if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
     if(vertical){
@@ -141,9 +141,9 @@ using namespace femus;
 
       find_search_table(q1, q2, q3, table_number, searchP);
 
-      cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
-      cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
-      cout << "table = " << table_number << endl;
+//       cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+//       cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
+//       cout << "table = " << table_number << endl;
       // if(interp_point.size() == 2) {
         OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
         if(result) {
@@ -192,9 +192,9 @@ using namespace femus;
 
       find_search_table(q1, q2, q3, table_number, searchP);
 
-      cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
-      cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
-      cout << "table = " << table_number << endl;
+//       cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+//       cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
+//       cout << "table = " << table_number << endl;
 
 
       // if(interp_point.size() == 2) {
@@ -207,47 +207,66 @@ using namespace femus;
 
           modified_weights.resize(interp_point_weights.size());
 
-          if (table_number == 2 || table_number == 4){
-            if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
-                modified_weights[aq] = 1 - interp_point_weights[aq];
-              }
-            }
-            else{
-              modified_weights = interp_point_weights;
+//           if (table_number == 2 || table_number == 4){
+//             if(normal == -1) {
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
+//                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               }
+//             }
+//             else{
+//               modified_weights = interp_point_weights;
+// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+// //               }
+//             }
+//           }
+//
+//           else if (table_number == 0 || table_number == 6){
+//             if(normal == -1) {
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               }
+//             }
+//             else{
+// //               modified_weights = interp_point_weights;
 //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
 //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
 //               }
-            }
-          }
-
-          else if (table_number == 0 || table_number == 6){
-            if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+//             }
+//           }
+//
+//
+//           else{
+//             if(normal == -1) {
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
 //                 modified_weights[aq] = 1 - interp_point_weights[aq];
-              }
-            }
-            else{
+//               }
+//             }
+//             else{
 //               modified_weights = interp_point_weights;
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
-              }
-            }
-          }
+//             }
+//           }
 
-
-          else{
             if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = 1 - interp_point_weights[aq];
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+                for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+                }
               }
             }
             else{
-              modified_weights = interp_point_weights;
+              int sqrt_size = sqrt(interp_point_weights.size());
+              for(unsigned ai = 0; ai < sqrt_size; ai++) {
+               for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+               }
+              }
             }
-          }
+
+
         }
         else {
           std::cout << "Search point not found in the Octree." << std::endl;
