@@ -47,8 +47,8 @@ class polyWParQUAD :
      PointT <cpp_bin_float_oct> _p1, _p2, _p3;
      std::vector<double>_weightCF;
 
-     int _maxDepth = 5; // max depth of the table (initialized to 5)
-     double _maxRelErr = 0.001; // max relative error of the table (initialized to 10^-3)
+     int _maxDepth = 6; // max depth of the table (initialized to 5)
+     double _maxRelErr = 0.0005; // max relative error of the table (initialized to 10^-3)
 
      std::vector<OctreeNode<cpp_bin_float_oct>>_loadedRoots; // Map
 

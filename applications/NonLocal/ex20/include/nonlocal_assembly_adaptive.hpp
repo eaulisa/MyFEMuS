@@ -738,6 +738,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             jelIndex[j] = j;
           }
 
+          std::cout << "\n ...\n ...\n ...\n ...\n ...\n ...\n ...\n ...\n ...\n ...\n ...\n ... \n .........................Iel "<< iel <<std::endl;
+
           nonlocal->AssemblyCutFemI2(0, lmin1, lmax1, 0,
                                      refineElement[ielGeom][soluType]->GetOctTreeElement1(), refineElement[ielGeom][soluType]->GetOctTreeElement1CF(),
                                      *refineElement[ielGeom][soluType], region2, jelIndex, solu1, kappa1, delta1, printMesh);

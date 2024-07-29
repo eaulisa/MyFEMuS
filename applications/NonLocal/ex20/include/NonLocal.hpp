@@ -414,6 +414,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
     for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
       unsigned jel = jelIndexF[jj];
+      std::cout << "Jel = "<<jel<<endl;
       const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
 
       const elem_type *fem2 = region2.GetFem(jel);
@@ -482,32 +483,69 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
 
             // BEGIN EXAMPLE find the difference
-//             bool different = false;
-//             for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-//               if(fabs(_eqPolyWeight[i] - weightsTMP[i])> 0.02)  different = true;
-//             }
-//
-//
-//             if(different){
-//             double AreaPar = 0.;
-//             double AreaLin = 0.;
-//             std::cout<<std::endl<<"parabola:\n";
-//             for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-//               std::cout << _eqPolyWeight[i] << "  ";
-//               AreaPar += _weight1CF[i] * _eqPolyWeight[i];
-//             }
-//             std::cout<<std::endl<<"line:\n";
-//             for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
-//               std::cout << weightsTMP[i] << "  ";
-//               AreaLin += _weight1CF[i] * weightsTMP[i];
-//             }
-//             std::cout<<std::endl;
-//             std::cout<<AreaPar << " " << AreaLin << "\n";
-//             if (fabs(AreaPar-AreaLin)>0.0001){
-//               std::cout <<  " test case  " << std::endl;
-//
-//               }
-//             }
+            bool different = false;
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              if(fabs(_eqPolyWeight[i] - weightsTMP[i])> 0.02)  different = true;
+            }
+
+
+            if(different){
+            double AreaPar = 0.;
+            double AreaLin = 0.;
+
+            _weight1CF.resize(ng1CF);
+            _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              const double *phi;
+              fem1CF->GetGaussQuantities(xv1, ig, _weight1CF[ig], phi);
+              for(unsigned i = 0; i < nDof1; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  _xg1CF[ig][k] += phi[i] * xv1[k][i];
+                }
+              }
+            }
+
+
+            std::cout<<std::endl<<"parabola:\n";
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              std::cout << _eqPolyWeight[i] << "  ";
+              AreaPar += _weight1CF[i] * _eqPolyWeight[i];
+            }
+            std::cout<<std::endl<<"line:\n";
+            for (unsigned i = 0; i < _eqPolyWeight.size(); i++){
+              std::cout << weightsTMP[i] << "  ";
+              AreaLin += _weight1CF[i] * weightsTMP[i] ;
+            }
+            std::cout<<std::endl;
+            std::cout<<AreaPar << " " << AreaLin << "\n";
+
+            double pIntegral = 0;
+            double lIntegral = 0;
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              pIntegral += _weight1CF[ig] * _eqPolyWeight[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0]*  _xg1CF[ig][1]*  _xg1CF[ig][0];
+            }
+            std::cout << "parabola integral " << pIntegral <<"\n";
+
+            for(unsigned ig = 0; ig < ng1CF; ig++) {
+              lIntegral += _weight1CF[ig] * weightsTMP[ig] *  _xg1CF[ig][1]*  _xg1CF[ig][0]*  _xg1CF[ig][1]*  _xg1CF[ig][0];
+            }
+            std::cout << "line integral " << lIntegral <<"\n";
+
+
+
+            if (fabs(AreaPar-AreaLin)>0.000008){
+              std::cout <<  " test case area  " << std::endl;
+              }
+
+            if (fabs(pIntegral-lIntegral)>0.000005){
+              std::cout <<  " test case integral " << std::endl;
+              }
+
+
+
+
+
+            }
             // END example
 
 

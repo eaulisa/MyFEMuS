@@ -153,8 +153,8 @@ int main() {
 //     std::vector<double> A = {1., 0., 1., 0., 0., -6.};      // Table 1 or 5 gives trouble when rotated.
 
     // trouble case nonlocal 1 . jg=6, jj=4
-      std::vector<std::vector<double>> xv = {{-0.4, -0.4, -0.5, -0.5}, {-0.4, -0.3, -0.3, -0.4}};
-      std::vector<double> A = {-1., 0., -1., -1.1774596669241479, -0.49999999999999994, -0.36910281680828139};
+//       std::vector<std::vector<double>> xv = {{-0.4, -0.4, -0.5, -0.5}, {-0.4, -0.3, -0.3, -0.4}};
+//       std::vector<double> A = {-1., 0., -1., -1.1774596669241479, -0.49999999999999994, -0.36910281680828139};
 
 //       std::vector<double> A = {-1., 0., -1., -0.82254033307585184, -0.22254033307585197, -0.14152419984551109};
 //       std::vector<double> A = {-1., 0., -1., -1.1, -0.42254033307585198, -0.30713508326896299};
@@ -172,6 +172,9 @@ int main() {
 
 //     std::vector<std::vector<double>> xv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
 //     std::vector<double> A = {-2.3, 0., 0., 4.3, 1., -0.95};
+
+      std::vector<std::vector<double>> xv = {{-0.4, -0.4, -0.45, -0.45}, {-0.4, -0.35, -0.35, -0.4}};
+      std::vector<double> A = {-1., 0., -1., -0.94999999999999996, -0.41127016653792603, -0.22791078747103335};
 
     PointT <double> q1, q2, q3;
     Point3D searchP(0., 0., 0.);
@@ -473,104 +476,123 @@ int main() {
 
           std::vector<double>modified_weights(interp_point_weights.size());
 
-
-
-          if (table_number == 2 || table_number == 4){
-            if(normal == -1) {
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-                for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
-                }
+          if(normal == -1) {
+            int sqrt_size = sqrt(interp_point_weights.size());
+            for(unsigned ai = 0; ai < sqrt_size; ai++) {
+              for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
               }
-
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// // //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
-//                 modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-
             }
-            else{
-//               modified_weights = interp_point_weights;
-
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-               for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
-               }
+          }
+          else{
+            int sqrt_size = sqrt(interp_point_weights.size());
+            for(unsigned ai = 0; ai < sqrt_size; ai++) {
+              for(unsigned aj = 0; aj < sqrt_size; aj++) {
+                modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
               }
-
-
-
-
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// //                   modified_weights[aq] = 1 - interp_point_weights[aq];
-// //                 modified_weights[aq] = 1- interp_point_weights[interp_point_weights.size()-1-aq];
-// //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
-//               }
             }
           }
 
-//           else if (table_number == 0 || table_number == 6){
+
+
+
+
+//           if (table_number == 2 || table_number == 4){
 //             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               int sqrt_size = sqrt(interp_point_weights.size());
+//               for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                 for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                   modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+//                 }
 //               }
+//
+// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// // // //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
+// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+// //               }
+//
 //             }
 //             else{
 // //               modified_weights = interp_point_weights;
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+//
+//               int sqrt_size = sqrt(interp_point_weights.size());
+//               for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                   modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+//                }
+//               }
+//
+//
+//
+//
+// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// // //                   modified_weights[aq] = 1 - interp_point_weights[aq];
+// // //                 modified_weights[aq] = 1- interp_point_weights[interp_point_weights.size()-1-aq];
+// // //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+// //               }
+//             }
+//           }
+//
+// //           else if (table_number == 0 || table_number == 6){
+// //             if(normal == -1) {
+// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+// // //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+// //               }
+// //             }
+// //             else{
+// // //               modified_weights = interp_point_weights;
+// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+// //               }
+// //             }
+// //           }
+//
+//
+//           else if (table_number == 0 || table_number == 6){
+//             if(normal == -1) {
+//               int sqrt_size = sqrt(interp_point_weights.size());
+//               for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                 for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                   modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+//                 }
+//               }
+//             }
+//             else{
+//               int sqrt_size = sqrt(interp_point_weights.size());
+//               for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                   modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+//                }
 //               }
 //             }
 //           }
-
-
-          else if (table_number == 0 || table_number == 6){
-            if(normal == -1) {
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-                for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
-                }
-              }
-            }
-            else{
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-               for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
-               }
-              }
-            }
-          }
-
-
-
-
-
-
-
-          else if (table_number == 1) {
-
-            for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-                modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+//
+//
+//
+//
+//
+//
+//
+//           else if (table_number == 1) {
+//
+//             for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+// //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
+// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
+//               }
+//           }
+//
+//           else{
+//             if(normal == -1) {
+//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
 //                 modified_weights[aq] = 1 - interp_point_weights[aq];
-              }
-          }
-
-          else{
-            if(normal == -1) {
-              for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-                modified_weights[aq] = 1 - interp_point_weights[aq];
-              }
-            }
-            else{
-              modified_weights = interp_point_weights;
-            }
-          }
+//               }
+//             }
+//             else{
+//               modified_weights = interp_point_weights;
+//             }
+//           }
 
 
 
