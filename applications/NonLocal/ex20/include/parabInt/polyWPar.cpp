@@ -14,76 +14,73 @@
 
 using namespace femus;
 
-  template <class TypeA>
-  polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM) {
-    _qM = qM;
-    _dim = 2;
+template <class TypeA>
+polyWParQUAD<TypeA>::polyWParQUAD(const unsigned &qM) {
+  _qM = qM;
+  _dim = 2;
 
-    this->build();
+  this->build();
+}
+
+template <class TypeA>
+polyWParQUAD<TypeA>::polyWParQUAD(const unsigned &qM, const int &maxDepth, const double &maxRelErr) {
+  _qM = qM;
+  _dim = 2;
+  _maxDepth = maxDepth;
+  _maxRelErr = maxRelErr;
+  this->build();
+}
+
+
+
+template <class TypeA>
+void polyWParQUAD<TypeA>::build() {
+  // TODO this is a generic random initialization of Pweights, needs to be done better
+  _s = 0; // TODO in this case we use s = 0 for area integration
+  _p1 = { static_cast<cpp_bin_float_oct>(0), static_cast<cpp_bin_float_oct>(0.5) }; // TODO all these variables can be eliminated in the future
+  _p2 = { static_cast<cpp_bin_float_oct>(0.5), static_cast<cpp_bin_float_oct>(1) };
+  _p3 = { static_cast<cpp_bin_float_oct>((_p1.x + _p2.x) / 2.0), static_cast<cpp_bin_float_oct>(0.125) };
+
+  CutFemWeightParabola <double, cpp_bin_float_oct> Pweights(QUAD, _qM, "legendre");
+  Pweights(_s, 0, 1, 0, _p1, _p2, _p3, _weightCF); // TODO here we put a=0, c=1, table=0
+
+  generateAndLoadOctrees<cpp_bin_float_oct>(_maxDepth, _qM, _maxRelErr, Pweights, _loadedRoots);
+
+
+
+
+
+
+}
+
+template <class TypeA>
+void polyWParQUAD<TypeA>:: GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt) {
+  twoInt = find_Weight_CF(xv, A, weightCF);
+}
+
+
+
+template <class TypeA>
+bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights) {
+
+  unsigned nInt;
+  std::vector<std::vector<double>> unitxv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
+  unsigned nPoints = 3;
+  short unsigned ielType = 3; //quad
+  unsigned femType = 0; //linear FEM
+  std::vector< double > interp_point_weights;
+  PointT <TypeA> p1, p2, p3;
+  bool twoInt = true;
+  unsigned table_number;
+  PointT <double> q1, q2, q3;
+  Point3D searchP(0., 0., 0.);
+
+  GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This finds the intersection points + the middle point in physical space
+
+  if(nInt != 2) {
+    return false;
   }
-
-  template <class TypeA>
-  polyWParQUAD<TypeA>::polyWParQUAD (const unsigned &qM, const int &maxDepth, const double &maxRelErr) {
-    _qM = qM;
-    _dim = 2;
-    _maxDepth = maxDepth;
-    _maxRelErr = maxRelErr;
-    this->build();
-  }
-
-
-
-  template <class TypeA>
-  void polyWParQUAD<TypeA>::build(){
-      // TODO this is a generic random initialization of Pweights, needs to be done better
-      _s = 0; // TODO in this case we use s = 0 for area integration
-      _p1 = { static_cast<cpp_bin_float_oct>(0), static_cast<cpp_bin_float_oct>(0.5) }; // TODO all these variables can be eliminated in the future
-      _p2 = { static_cast<cpp_bin_float_oct>(0.5), static_cast<cpp_bin_float_oct>(1) };
-      _p3 = { static_cast<cpp_bin_float_oct>((_p1.x + _p2.x) / 2.0), static_cast<cpp_bin_float_oct>(0.125) };
-
-      CutFemWeightParabola <double, cpp_bin_float_oct> Pweights(QUAD, _qM, "legendre");
-      Pweights(_s, 0, 1, 0, _p1, _p2, _p3, _weightCF); // TODO here we put a=0, c=1, table=0
-
-      generateAndLoadOctrees<cpp_bin_float_oct>(_maxDepth, _qM, _maxRelErr, Pweights, _loadedRoots);
-
-
-
-
-
-
-    }
-
-  template <class TypeA>
-  void polyWParQUAD<TypeA>:: GetWeight (const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt) {
-        twoInt = find_Weight_CF(xv, A, weightCF);
-  }
-
-
-
-  template <class TypeA>
-  bool polyWParQUAD<TypeA>:: find_Weight_CF( const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights){
-
-    unsigned nInt;
-    std::vector<std::vector<double>> unitxv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
-    unsigned nPoints = 3;
-    short unsigned ielType = 3; //quad
-    unsigned femType = 0; //linear FEM
-    std::vector< double > interp_point_weights;
-    PointT <TypeA> p1, p2, p3;
-    bool twoInt = true;
-    unsigned table_number;
-    PointT <double> q1, q2, q3;
-    Point3D searchP(0., 0., 0.);
-
-    Fem fem = Fem(3 * 2, _dim);
-    unsigned quad = 3;
-    unsigned linear = 0;
-    const elem_type *femQuad = fem.GetFiniteElement(quad, linear);
-
-    GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This fins the points in physical space
-
-    if(nInt != 2){return false;}
-    else{
+  else {
 
     std::vector < std::vector < std::vector <double > > > aP(1);
     ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
@@ -102,75 +99,57 @@ using namespace femus;
     }
 
     bool vertical = false;
-    if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])){
+    if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) {
       if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) vertical = true;
       else vertical = false;
     }
-    else if (fabs(xi[0][0] - xi[2][0]) < fabs(xi[0][1] - xi[2][1])){
+    else {
       if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) vertical = false;
       else vertical = true;
     }
 
-//     cout << " vertical = " << vertical << endl;
+    if(vertical) {
 
-    // if(((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) && table_number !=5) {  //vertical
-    if(vertical){
-
-
-//       p1 = { static_cast<TypeA>(xi[0][0]), static_cast<TypeA>(xi[0][1]) };
-//       p2 = { static_cast<TypeA>(xi[2][0]), static_cast<TypeA>(xi[2][1]) };
-//       p3 = { static_cast<TypeA>(xi[1][0]), static_cast<TypeA>(xi[1][1]) };
+      _countv++;
 
       q1 = { xi[0][0], xi[0][1] };
       q2 = { xi[2][0], xi[2][1] };
       q3 = { xi[1][0], xi[1][1] };
 
       Parabola <double> parabola = get_parabola_equation(q1, q2, q3);
-//       Parabola <TypeA> parabola = get_parabola_equation(p1, p2, p3);
       int normal;
 
       for(unsigned l = 0; l < 4 ; l++) {
-//         unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[0][l] * unitxv[0][l] + static_cast<double>(parabola.b) * unitxv[0][l] + static_cast<double>(parabola.d) + unitxv[1][l]) > 0) ? 1 : -1;
         unitxvsign[l] = ((parabola.k * unitxv[0][l] * unitxv[0][l] + parabola.b * unitxv[0][l] + parabola.d + unitxv[1][l]) > 0) ? 1 : -1;
       }
-
       normal = checkVectorRelation(xvsign, unitxvsign);
 
       q3.x = (q1.x + q2.x) / 2;
       q3.y = -parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
-
       find_search_table(q1, q2, q3, table_number, searchP);
+      OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
 
-//       cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
-//       cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
-//       cout << "table = " << table_number << endl;
-      // if(interp_point.size() == 2) {
-        OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
-        if(result) {
-          std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
-          trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
-          modified_weights.resize(interp_point_weights.size());
-          if(normal == -1) {
-            for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-              modified_weights[aq] = 1 - interp_point_weights[aq];
-            }
+      if(result) {
+
+        std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
+        trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
+        modified_weights.resize(interp_point_weights.size());
+
+        if(normal == -1) {
+          for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+            modified_weights[aq] = 1 - interp_point_weights[aq];
           }
-          else modified_weights = interp_point_weights;
         }
-        else {
-          std::cout << "Search point not found in the Octree." << std::endl;
-        }
-      // }
-      // else{
-      //   twoInt = false;
-      //
-      // }
+        else modified_weights = interp_point_weights;
+      }
+      else {
+        std::cout << "Search point not found in the Octree." << std::endl;
+      }
     }
 
+    else {//horizontal
 
-
-    // else if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) { //horizontal
-    else{
+       _counth++;
 
       q1 = { xi[0][1], xi[0][0] };
       q2 = { xi[2][1], xi[2][0] };
@@ -186,105 +165,51 @@ using namespace femus;
 
 
       normal = checkVectorRelation(xvsign, unitxvsign);
-
       q3.x = (q1.x + q2.x) / 2.;
       q3.y = -parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
-
       find_search_table(q1, q2, q3, table_number, searchP);
 
-//       cout <<  "( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
-//       cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
-//       cout << "table = " << table_number << endl;
+      OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
+      if(result) {
 
+        std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
+        trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
+        modified_weights.resize(interp_point_weights.size());
 
-      // if(interp_point.size() == 2) {
-
-        OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
-        if(result) {
-          std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
-
-          trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
-
-          modified_weights.resize(interp_point_weights.size());
-
-//           if (table_number == 2 || table_number == 4){
-//             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// //                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];   // Originally I use this. I changed it to the bottom one.
-//                 modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-//             }
-//             else{
-//               modified_weights = interp_point_weights;
-// //               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// //                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
-// //               }
-//             }
-//           }
-//
-//           else if (table_number == 0 || table_number == 6){
-//             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-// //                 modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-//             }
-//             else{
-// //               modified_weights = interp_point_weights;
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
-//               }
-//             }
-//           }
-//
-//
-//           else{
-//             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-//             }
-//             else{
-//               modified_weights = interp_point_weights;
-//             }
-//           }
-
-            if(normal == -1) {
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-                for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
-                }
-              }
+        if(normal == -1) {
+          int sqrt_size = sqrt(interp_point_weights.size());
+          for(unsigned ai = 0; ai < sqrt_size; ai++) {
+            for(unsigned aj = 0; aj < sqrt_size; aj++) {
+              modified_weights[ai * sqrt_size + aj] = 1 - interp_point_weights[aj * sqrt_size + ai];
             }
-            else{
-              int sqrt_size = sqrt(interp_point_weights.size());
-              for(unsigned ai = 0; ai < sqrt_size; ai++) {
-               for(unsigned aj = 0; aj < sqrt_size; aj++) {
-                  modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
-               }
-              }
-            }
-
-
+          }
         }
         else {
-          std::cout << "Search point not found in the Octree." << std::endl;
+          int sqrt_size = sqrt(interp_point_weights.size());
+          for(unsigned ai = 0; ai < sqrt_size; ai++) {
+            for(unsigned aj = 0; aj < sqrt_size; aj++) {
+              modified_weights[ai * sqrt_size + aj] = interp_point_weights[aj * sqrt_size + ai];
+            }
+          }
         }
-      // }
-      // else{
-      //   twoInt = false;
-      // }
+
+
+      }
+      else {
+        std::cout << "Search point not found in the Octree." << std::endl;
+      }
 
     }
-    }
-
-    return twoInt ;
-
   }
 
+  // std::cout<<_countv<< " " <<_counth<<"\t";
 
-  template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric (const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
+  return twoInt ;
+
+}
+
+
+template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
 
   typedef cpp_bin_float_oct oct;
 
@@ -352,7 +277,7 @@ using namespace femus;
     std::vector<double> P1 = _xe[0];
     std::vector<double> P2 = _xe[1];
 
-    BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, _xe);
+    BuildMarkersOnConicArc(2 * M_PI, npt, Cf, Xg, P1, P2, _xe);
 
     // npt = _xe.size();
 
