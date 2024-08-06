@@ -3,8 +3,16 @@
 #include <boost/random/normal_distribution.hpp>
 #include "MultiLevelSolution.hpp"
 
-
 using namespace femus;
+
+#include "CDWeights.hpp"
+
+#include "./parabInt/Rebuild.hpp"
+#include "./parabInt/parabolaIntegration.hpp"
+
+#include "./parabInt/polyWPar.cpp"
+
+
 
 class Region {
   private:
@@ -738,7 +746,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
             jelIndex[j] = j;
           }
 
-          std::cout << "...Iel "<< iel <<std::endl;
+          //std::cout << "...Iel "<< iel <<std::endl;
 
           nonlocal->AssemblyCutFemI2(0, lmin1, lmax1, 0,
                                      refineElement[ielGeom][soluType]->GetOctTreeElement1(), refineElement[ielGeom][soluType]->GetOctTreeElement1CF(),
@@ -764,6 +772,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     std::cout << std::endl;
 
     double I2real = (dim == 2) ? 0.5 * M_PI * pow(delta1, 4) : 4. / 5. * M_PI * pow(delta1, 5);
+
+    std::cout<<" I2real = " << I2real<<std::endl;
 
     for(unsigned jel = offset; jel < offsetp1; jel++) {
       unsigned jelGroup = msh->GetElementGroup(jel);

@@ -415,6 +415,9 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
     for(unsigned jj = 0; jj < jelIndexF.size(); jj++) {
       unsigned jel = jelIndexF[jj];
 
+      unsigned jelReal = region2.GetElementNumber(jj);
+
+
       const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
 
       const elem_type *fem2 = region2.GetFem(jel);
@@ -443,6 +446,8 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
               d2W1 += d2 * _weight1[ig];
               //d2W1 += _weight1[ig];
             }
+
+            //if(jelReal == 0 && jg==0) std::cout << d2W1 <<std::endl;
             region2.AddI2(jel, jg, d2W1);
           }
           else if(_cut == 1) { //cut element
@@ -481,7 +486,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             }
             // END Parabola integration
 
-
+/*
             // BEGIN EXAMPLE find the difference
             bool different = false;
             for(unsigned i = 0; i < _eqPolyWeight.size(); i++) {
@@ -560,7 +565,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
 
 
-            }
+            }*/
             // END example
 
 
@@ -619,6 +624,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
               d2W1CF += d2 * _weight1CF[ig] * _eqPolyWeight[ig];
               //d2W1CF += _weight1CF[ig] * _eqPolyWeight[ig];
             }
+            if(jelReal == 0 && jg==0) std::cout << d2W1CF <<std::endl;
             region2.AddI2(jel, jg, d2W1CF);
           }
         }

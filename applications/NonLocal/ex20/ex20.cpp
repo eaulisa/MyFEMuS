@@ -15,15 +15,10 @@
 #include "slepceps.h"
 
 unsigned lmax1 = 1; // consistency form 3 -> 7
-const bool correctConstant = false;
+const bool correctConstant = !false;
 
 #include "./include/nonlocal_assembly_adaptive.hpp"
-#include "CDWeights.hpp"
 
-#include "./include/parabInt/Rebuild.hpp"
-#include "./include/parabInt/parabolaIntegration.hpp"
-
-#include "include/parabInt/polyWPar.cpp"
 
 
 //2D NONLOCAL EX : nonlocal diffusion for a body with different material properties
