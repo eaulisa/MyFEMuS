@@ -301,6 +301,7 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
         }
 
         double d2W1 = 0.;
+//         cout<< " ng1cf = " << ng1CF << endl;
         for(unsigned ig = 0; ig < ng1CF; ig++) {
           double d2 = 0.;
           for(unsigned k = 0; k < dim; k++) {
@@ -316,7 +317,19 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
           localAreap += weight1[ig] * eqPolyWeight[ig];
         }
 
-        std::cout << iel << " " << d2W1 << std::endl;
+        std::cout /*<< iel << " "*/ << d2W1 << " , "<< std::endl;
+//         std::cout << "     center" << xg2[0]<<" " <<xg2[1] << " delta "<<delta << std::endl;
+/*
+        for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
+            std::cout << eqPolyWeight[i] << " , ";
+        }
+        std::cout<<std::endl;*/
+
+        std::cout<< " weight1 size = " << weight1.size()<<std::endl;
+        for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
+            std::cout << weight1[i] << " , ";
+        }
+        std::cout<<std::endl;
 
       }
     }

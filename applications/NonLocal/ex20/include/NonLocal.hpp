@@ -393,6 +393,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
       }
     }
 
+
     _weight1CF.resize(ng1CF);
     _xg1CF.assign(ng1CF, std::vector<double>(dim, 0));
     for(unsigned ig = 0; ig < ng1CF; ig++) {
@@ -616,6 +617,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 
 
             double d2W1CF = 0.;
+//             cout<< " ng1cf = " << ng1CF << endl;
             for(unsigned ig = 0; ig < ng1CF; ig++) {
               double d2 = 0.;
               for(unsigned k = 0; k < dim; k++) {
@@ -624,8 +626,27 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
               d2W1CF += d2 * _weight1CF[ig] * _eqPolyWeight[ig];
               //d2W1CF += _weight1CF[ig] * _eqPolyWeight[ig];
             }
-            if(jelReal == 0 && jg==0) std::cout << d2W1CF <<std::endl;
+            if(jelReal == 0 && jg==0){
+
+              std::cout <<" d2W1CF " <<  d2W1CF <<" , " /*<<std::endl*/;
+
+//               std::cout << "     center" << xg2[jg][0]<<" " <<xg2[jg][1] << " delta "<<delta << std::endl;
+//             for(unsigned i = 0; i < _eqPolyWeight.size(); i++) {
+//                 std::cout << _eqPolyWeight[i] << " , ";
+//             }
+//             std::cout<<std::endl;
+
+            std::cout<< " weight1CF size = " << _weight1CF.size()<<std::endl;
+            for(unsigned i = 0; i < _weight1CF.size(); i++) {
+                std::cout << _weight1CF[i] << " , ";
+            }
+            std::cout<<std::endl;
+
+          }
             region2.AddI2(jel, jg, d2W1CF);
+
+
+
           }
         }
       }
