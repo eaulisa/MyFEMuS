@@ -183,8 +183,8 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
   std::vector < std::vector <double> >  xv1l;
 
 
-    double subarea_total = 0.0;
-    double subI2_total = 0.0;
+  double subarea_total = 0.0;
+  double subI2_total = 0.0;
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -251,7 +251,39 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
       }
     }
 
+
+
     if(coarseIntersectionTest) {
+
+      int n = 1000;
+
+      double hx = (xv1[0][2] - xv1[0][0]) / n;
+      double hy = (xv1[1][2] - xv1[1][0]) / n;
+
+      double area = fabs(hx * hy);
+
+      double subarea = 0.0;
+      double subI2 = 0.0;
+
+      double xm = xv1[0][0] + 0.5 * hx;
+      // Loop over each sub-element
+      for(int i = 0; i < n; ++i, xm += hx) {
+        double ym = xv1[1][0] + 0.5 * hy;
+        for(int j = 0; j < n; ++j, ym += hy) {
+          double levelSetValue = (xm - xg2[0]) * (xm - xg2[0]) + (ym - xg2[1]) * (ym - xg2[1]) - delta * delta;
+          if(levelSetValue < 0) {
+            subarea += area;
+            subI2 += area * ((xm - xg2[0]) * (xm - xg2[0]) + (ym - xg2[1]) * (ym - xg2[1]));
+          }
+        }
+      }
+
+      // Output the results
+      //std::cout << "A " <<iel<<" "<< subarea << std::endl;
+      std::cout << "A " << iel << " " << subI2 << std::endl;
+
+      subarea_total += subarea;
+      subI2_total += subI2;
 
       xv1l = xv1;
       for(unsigned k = 0; k < xv1l.size(); k++) xv1l[k].resize(element1.GetNumberOfLinearNodes());
@@ -266,20 +298,24 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
 
       if(cut == 0) { //interior element
         double d2W1 = 0.;
+        double areaW1 = 0.;
         for(unsigned ig = 0; ig < ng1; ig++) {
           double d2 = 0.;
           for(unsigned k = 0; k < dim; k++) {
             d2 += (xg2[k] - xg1[ig][k]) * (xg2[k] - xg1[ig][k]);
           }
+
           localI2l += d2 * weight1[ig];
           localAreal += weight1[ig];
 
+          areaW1 += weight1[ig];
           d2W1 += d2 * weight1[ig];
 
           localI2p += d2 * weight1[ig];
           localAreap += weight1[ig];
         }
-        //std::cout << iel << " " << d2W1 << std::endl;
+        //std::cout << "B " << iel << " " << areaW1 << std::endl;
+        std::cout << "B " << iel << " " << d2W1 << std::endl;
       }
       else if(cut == 1) { //cut element
         element1.GetCutFem()->clear();
@@ -307,30 +343,38 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
           element1.GetCDweight()->GetWeight(a, d, eqPolyWeight);
         }
 
-        double d2W1 = 0.;
-//         cout<< " ng1cf = " << ng1CF << endl;
+        double areaW1l = 0.;
+        double d2W1l = 0.;
+
+        double areaW1p = 0.;
+        double d2W1p = 0.;
         for(unsigned ig = 0; ig < ng1CF; ig++) {
           double d2 = 0.;
           for(unsigned k = 0; k < dim; k++) {
             d2 += (xg2[k] - xg1CF[ig][k]) * (xg2[k] - xg1CF[ig][k]);
           }
 
+          areaW1l += weight1CF[ig] * weightsTMP[ig];
+          d2W1l += d2 * weight1CF[ig] * weightsTMP[ig];
+
           localI2l += d2 * weight1CF[ig] * weightsTMP[ig];
           localAreal += weight1CF[ig] * weightsTMP[ig];
 
-          d2W1 += d2 * weight1CF[ig] * eqPolyWeight[ig];
+          areaW1p += weight1CF[ig] * eqPolyWeight[ig];
+          d2W1p += d2 * weight1CF[ig] * eqPolyWeight[ig];
 
           localI2p += d2 * weight1CF[ig] * eqPolyWeight[ig];
           localAreap += weight1CF[ig] * eqPolyWeight[ig];
         }
-
-        std::cout << iel << " " << d2W1 << " , "<< std::endl;
+        //std::cout << "C " << iel << " " << areaW1 << " , " << std::endl;
+        std::cout << "Cl " << iel << " " << d2W1l << std::endl;
+        std::cout << "Cp " << iel << " " << d2W1p << std::endl;
 //         std::cout << "     center" << xg2[0]<<" " <<xg2[1] << " delta "<<delta << std::endl;
-/*
-        for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
-            std::cout << eqPolyWeight[i] << " , ";
-        }
-        std::cout<<std::endl;*/
+        /*
+                for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
+                    std::cout << eqPolyWeight[i] << " , ";
+                }
+                std::cout<<std::endl;*/
 
 //         std::cout<< " weight1 size = " << weight1CF.size()<<std::endl;
 //         for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
@@ -338,53 +382,7 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
 //         }
 //         std::cout<<std::endl;
 
-        int n = 10 ;
 
-        // Loop through each vertex to find the min and max of x and y
-        double min_x = xv1l[0][0];
-        double max_x = xv1l[0][0];
-        double min_y = xv1l[1][0];
-        double max_y = xv1l[1][0];
-
-        // Loop through each vertex to find the min and max of x and y
-        for (int i = 1; i < 4; ++i) {  // Start from the second vertex (index 1)
-            min_x = std::min(min_x, xv1l[0][i]);
-            max_x = std::max(max_x, xv1l[0][i]);
-            min_y = std::min(min_y, xv1l[1][i]);
-            max_y = std::max(max_y, xv1l[1][i]);
-        }
-
-        // Here hx and hy should be equal. If not print a warning
-        double hx = (max_x - min_x) / n;
-        double hy = (max_y - min_y) / n;
-        cout << " h = " <<hx << " "<< hy<<endl;
-        if (fabs(hx-hy) > 0.0000000001)std::cout<<":::::WARNING::::: hx and hy are not equal "<< endl;
-        double subarea = 0.0;
-        double subI2 = 0.0;
-
-        // Loop over each sub-element
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                // Calculate the middle point of the sub-element
-                double xm = min_x + hx * (i + 0.5);
-                double ym = min_y + hx * (j + 0.5);
-
-                // Check the condition (xm - xc)^2 + (ym - yc)^2 - delta^2
-                double check_value = (xm - xg2[0])*(xm - xg2[0]) + (ym - xg2[1])*(ym - xg2[1]) - delta*delta;
-                if (check_value < 0) {
-                    // Add to the area if the sign is negative
-                    subarea += hx * hx;
-                    subI2 += hx * hx * (xm * xm + ym * ym);
-                }
-            }
-        }
-
-        // Output the results
-        std::cout << "sub Area: " << subarea << std::endl;
-        std::cout << "sub I2: " << subI2 << std::endl;
-
-        subarea_total += subarea;
-        subI2_total += subI2;
       }
     }
   }
@@ -398,10 +396,10 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
   std::cout << "Area Analytic = " << area << std::endl;
 
   MPI_Allreduce(&localAreal, &areal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  std::cout << "Areal = " << areal << " " << area/areal << std::endl;
+  std::cout << "Areal = " << areal << " " << area / areal << std::endl;
 
   MPI_Allreduce(&localAreap, &areap, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  std::cout << "Areap = " << areap <<" " << area/areap << std::endl;
+  std::cout << "Areap = " << areap << " " << area / areap << std::endl;
 
   double I2l = 0.;
   double I2p = 0.;
@@ -409,10 +407,10 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
   std::cout << "I2 Analytic = " << I2 << std::endl;
 
   MPI_Allreduce(&localI2l, &I2l, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  std::cout << "I2l = " << I2l <<" "<< I2/I2l << std::endl;
+  std::cout << "I2l = " << I2l << " " << I2 / I2l << std::endl;
 
   MPI_Allreduce(&localI2p, &I2p, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  std::cout << "I2p = " << I2p <<" "<< I2/I2p << std::endl;
+  std::cout << "I2p = " << I2p << " " << I2 / I2p << std::endl;
 
 
 
