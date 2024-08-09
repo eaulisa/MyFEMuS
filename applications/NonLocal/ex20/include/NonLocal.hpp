@@ -628,7 +628,7 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
             }
             if(jelReal == 0 && jg==0){
 
-              std::cout <<" d2W1CF " <<  d2W1CF <<" , " /*<<std::endl*/;
+              std::cout <<" d2W1CF " <<  d2W1CF <<" , " <<std::endl;
 
 //               std::cout << "     center" << xg2[jg][0]<<" " <<xg2[jg][1] << " delta "<<delta << std::endl;
 //             for(unsigned i = 0; i < _eqPolyWeight.size(); i++) {
@@ -636,11 +636,11 @@ void NonLocal::AssemblyCutFemI2(const unsigned &level, const unsigned &levelMin1
 //             }
 //             std::cout<<std::endl;
 
-            std::cout<< " weight1CF size = " << _weight1CF.size()<<std::endl;
-            for(unsigned i = 0; i < _weight1CF.size(); i++) {
-                std::cout << _weight1CF[i] << " , ";
-            }
-            std::cout<<std::endl;
+//             std::cout<< " weight1CF size = " << _weight1CF.size()<<std::endl;
+//             for(unsigned i = 0; i < _weight1CF.size(); i++) {
+//                 std::cout << _weight1CF[i] << " , ";
+//             }
+//             std::cout<<std::endl;
 
           }
             region2.AddI2(jel, jg, d2W1CF);

@@ -182,6 +182,10 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
   std::vector < std::vector <double> >  xv1(dim);
   std::vector < std::vector <double> >  xv1l;
 
+
+    double subarea_total = 0.0;
+    double subI2_total = 0.0;
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     short unsigned ielGeom = msh->GetElementType(iel);
 
@@ -257,6 +261,9 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
       unsigned cut;
       ballAprx->GetNormal(element1.GetElementType(), xv1l, xg2, delta, a, d, cut);
 
+
+
+
       if(cut == 0) { //interior element
         double d2W1 = 0.;
         for(unsigned ig = 0; ig < ng1; ig++) {
@@ -308,16 +315,16 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
             d2 += (xg2[k] - xg1CF[ig][k]) * (xg2[k] - xg1CF[ig][k]);
           }
 
-          localI2l += d2 * weight1[ig] * weightsTMP[ig];
-          localAreal += weight1[ig] * weightsTMP[ig];
+          localI2l += d2 * weight1CF[ig] * weightsTMP[ig];
+          localAreal += weight1CF[ig] * weightsTMP[ig];
 
-          d2W1 += d2 * weight1[ig] * eqPolyWeight[ig];
+          d2W1 += d2 * weight1CF[ig] * eqPolyWeight[ig];
 
-          localI2p += d2 * weight1[ig] * eqPolyWeight[ig];
-          localAreap += weight1[ig] * eqPolyWeight[ig];
+          localI2p += d2 * weight1CF[ig] * eqPolyWeight[ig];
+          localAreap += weight1CF[ig] * eqPolyWeight[ig];
         }
 
-        std::cout /*<< iel << " "*/ << d2W1 << " , "<< std::endl;
+        std::cout << iel << " " << d2W1 << " , "<< std::endl;
 //         std::cout << "     center" << xg2[0]<<" " <<xg2[1] << " delta "<<delta << std::endl;
 /*
         for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
@@ -325,17 +332,65 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
         }
         std::cout<<std::endl;*/
 
-        std::cout<< " weight1 size = " << weight1.size()<<std::endl;
-        for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
-            std::cout << weight1[i] << " , ";
-        }
-        std::cout<<std::endl;
+//         std::cout<< " weight1 size = " << weight1CF.size()<<std::endl;
+//         for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
+//             std::cout << weight1CF[i] << " , ";
+//         }
+//         std::cout<<std::endl;
 
+        int n = 10 ;
+
+        // Loop through each vertex to find the min and max of x and y
+        double min_x = xv1l[0][0];
+        double max_x = xv1l[0][0];
+        double min_y = xv1l[1][0];
+        double max_y = xv1l[1][0];
+
+        // Loop through each vertex to find the min and max of x and y
+        for (int i = 1; i < 4; ++i) {  // Start from the second vertex (index 1)
+            min_x = std::min(min_x, xv1l[0][i]);
+            max_x = std::max(max_x, xv1l[0][i]);
+            min_y = std::min(min_y, xv1l[1][i]);
+            max_y = std::max(max_y, xv1l[1][i]);
+        }
+
+        // Here hx and hy should be equal. If not print a warning
+        double hx = (max_x - min_x) / n;
+        double hy = (max_y - min_y) / n;
+        cout << " h = " <<hx << " "<< hy<<endl;
+        if (fabs(hx-hy) > 0.0000000001)std::cout<<":::::WARNING::::: hx and hy are not equal "<< endl;
+        double subarea = 0.0;
+        double subI2 = 0.0;
+
+        // Loop over each sub-element
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                // Calculate the middle point of the sub-element
+                double xm = min_x + hx * (i + 0.5);
+                double ym = min_y + hx * (j + 0.5);
+
+                // Check the condition (xm - xc)^2 + (ym - yc)^2 - delta^2
+                double check_value = (xm - xg2[0])*(xm - xg2[0]) + (ym - xg2[1])*(ym - xg2[1]) - delta*delta;
+                if (check_value < 0) {
+                    // Add to the area if the sign is negative
+                    subarea += hx * hx;
+                    subI2 += hx * hx * (xm * xm + ym * ym);
+                }
+            }
+        }
+
+        // Output the results
+        std::cout << "sub Area: " << subarea << std::endl;
+        std::cout << "sub I2: " << subI2 << std::endl;
+
+        subarea_total += subarea;
+        subI2_total += subI2;
       }
     }
   }
 
-
+  std::cout << "sub Area total : " << subarea_total << std::endl;
+  std::cout << "sub I2 total : " << subI2_total << std::endl;
 
   double areal = 0.;
   double areap = 0.;
