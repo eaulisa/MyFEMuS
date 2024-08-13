@@ -1282,7 +1282,7 @@ Type find_area_2intersection_formula(const unsigned &m, const unsigned &n, const
     std::vector <Type> interp_point;    //never used in this function. it was used in interpolation;
     unsigned int table_number = table;
     Parabola <Type> parabola;
-    Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x) ;// only sort out the points parallel to y axis
+    Type det = p1.x * p1.x * (p2.x - p3.x) -p1.x* (p2.x*p2.x - p3.x*p3.x)+ p2.x*p3.x*(p2.x - p3.x); // only sort out the points parallel to y axis
     parabola = get_parabola_equation(p1, p2, p3);
     CheckIntersection <Type> (intersect_number, table_number, intersection, interp_point, parabola);
 
@@ -1372,8 +1372,12 @@ Type find_area_2intersection_formula(const unsigned &m, const unsigned &n, const
       }
     }
 
-
     pol2[0] = parabola.k; pol2[1] = parabola.b; pol2[2] = parabola.d;
+
+//     if (c == -1){
+//       pol2[0] *= -1; pol2[1] *= -1; pol2[2] *= -1;
+//     }
+
     if(do_line){
       if (table == 0){
         I1.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
@@ -1398,21 +1402,22 @@ Type find_area_2intersection_formula(const unsigned &m, const unsigned &n, const
         }
     }
 
-     else {
+    else {
+      pol1[0] = parabola.k ; pol1[1] = a + parabola.b; pol1[2] = c + parabola.d;
+//       if (c == -1) { pol1[0] *= -1; pol1[1] *= -1; pol1[2] *= -1; }
 
-       pol1[0] = parabola.k ; pol1[1] = a + parabola.b; pol1[2] = c + parabola.d;
-        GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+      GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
 
-        if(I1.size() > 0) {
-            A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
-        }
-        if(I2.size() > 0) {
-            A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
-        }
-        if(I3.size() > 0) {
-            A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
-        }
-        area = A1 + A2 + A3;
+      if(I1.size() > 0) {
+          A1 = easy_integral_A3(m, n, s, a, c, pol2, I1) -  easy_integral_A2(m, n, s, a, c, pol2, I1);
+      }
+      if(I2.size() > 0) {
+          A2 = easy_integral_A2(m, n, s, a, c, pol2, I2);
+      }
+      if(I3.size() > 0) {
+          A3 = easy_integral_A3(m, n, s, a, c, pol2, I3);
+      }
+      area = A1 + A2 + A3;
     }
 
 
@@ -1676,35 +1681,59 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 //
 //                 index += jj+3 ;
 
-                for (size_t ic = 0; ic < corners.size(); ++ic) {
-                  interpolation_vector[ic] = {corners[ic][0],corners[ic][1],corners[ic][2],cornerAreas[ic][0]};
+              int count = 0;
+                for(unsigned qq = 0; qq <= qM; qq++) {
+                  for(unsigned jj = 0; jj <= qq; jj++) {
+                    unsigned ii = qq - jj;
+                    for (size_t ic = 0; ic < corners.size(); ++ic) {
+                      interpolation_vector[ic] = {corners[ic][0],corners[ic][1],corners[ic][2],cornerAreas[ic][count]};
+                    }
+                    double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
+                    f_area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
+                    double formula_area = static_cast<double>(f_area);
+                    double r_error = fabs(formula_area - interp_area) / formula_area;
+                    double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(ii+1)*(jj+1) - formula_area);
+
+                    relativeErrors.push_back(r_error);
+                    relativeErrorsOpposite.push_back(r_error_opposite);
+
+                    count++;
+                  }
                 }
 
 
 
-                double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
-                f_area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
-                double formula_area = static_cast<double>(f_area);
-                double r_error = fabs(formula_area - interp_area) / formula_area;
-                double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(ii+1)*(jj+1) - formula_area);
-
-                relativeErrors.push_back(r_error);
-                relativeErrorsOpposite.push_back(r_error_opposite);
-//               }
-//             }
 
 
-//                 f_area = find_area_2intersection_formula(m, n, s, a, c, table, p1, p2, p3);
+
+//                 for (size_t ic = 0; ic < corners.size(); ++ic) {
+//                   interpolation_vector[ic] = {corners[ic][0],corners[ic][1],corners[ic][2],cornerAreas[ic][0]};
+//                 }
+//                 double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
+//                 f_area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
 //                 double formula_area = static_cast<double>(f_area);
-
-    //             double r_error = (m+1)*(n+1) * fabs(formula_area - interp_area) / formula_area;
-    //             double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(m+1)*(n+1) - formula_area);
-
 //                 double r_error = fabs(formula_area - interp_area) / formula_area;
-//                 double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(m+1)*(n+1) - formula_area);
+//                 double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(ii+1)*(jj+1) - formula_area);
 //
 //                 relativeErrors.push_back(r_error);
 //                 relativeErrorsOpposite.push_back(r_error_opposite);
+//
+//
+// //               }
+// //             }
+//
+//
+// //                 f_area = find_area_2intersection_formula(m, n, s, a, c, table, p1, p2, p3);
+// //                 double formula_area = static_cast<double>(f_area);
+//
+//     //             double r_error = (m+1)*(n+1) * fabs(formula_area - interp_area) / formula_area;
+//     //             double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(m+1)*(n+1) - formula_area);
+//
+// //                 double r_error = fabs(formula_area - interp_area) / formula_area;
+// //                 double r_error_opposite = fabs(formula_area - interp_area) /(1.0/(m+1)*(n+1) - formula_area);
+// //
+// //                 relativeErrors.push_back(r_error);
+// //                 relativeErrorsOpposite.push_back(r_error_opposite);
 
 
 
@@ -1712,25 +1741,7 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
         relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
         relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
 
-
-
-//         std::vector< double > interp_point = {midX,midY,midZ};
-//         double interp_area = trilinier_interpolation(corners , interp_point);
-
-//         cout <<  interp_point[0]  << " " << interp_point[1] << " " << interp_point[2] << " "<<endl ;
-
-//         Type f_area(0) ;
-//         Type c = 1 ;
-//         PointT <Type> p1, p2, p3 ;
-//         get_p1_p2_p3(table, interp_point, p1, p2, p3);
-//         f_area = find_area(m,n,s,a,c,table, p1,p2, p3);
-//         double formula_area = static_cast<double>(f_area);
-//         relative_error = fabs(formula_area - interp_area)/formula_area;
-
-
-//         cout << " interp_area = " << interp_area << " f_area =" << f_area << " r error = "<< relative_error << endl;
-
-        if (depth <= 2 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
+        if (depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003 ) {
             isLeaf = false;
             children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM, _Pweights));
             children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights));
@@ -2058,256 +2069,7 @@ void find_search_table(const PointT <double> &q1, const PointT <double> &q2, con
       }
 }
 
-// template <class Type>
-// bool find_Weight_CF( std::vector<OctreeNode<Type>> &loadedRoots, const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights){
-//
-//
-//     unsigned nInt;
-//     std::vector<std::vector<double>> unitxv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
-//     unsigned nPoints = 3;
-//     unsigned dim = 2;
-//     short unsigned ielType = 3; //quad
-//     unsigned femType = 0; //linear FEM
-//     std::vector< double > interp_point_weights;
-//     PointT <Type> p1, p2, p3;
-//     bool twoInt = true;
-//
-//     Fem fem = Fem(3 * 2, 2);
-//     unsigned quad = 3;
-//     unsigned linear = 0;
-//     const elem_type *femQuad = fem.GetFiniteElement(quad, linear);
-//
-//     std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);     //This fins the points in physical space
-//
-//     std::vector < std::vector < std::vector <double > > > aP(1);
-//     ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
-//
-//     std::vector<int> xvsign(4);
-//     std::vector<int> unitxvsign(4);
-//
-//     std::vector<std::vector<double>> xi(nPoints, std::vector<double>(2, 0.));
-//     for(unsigned i = 0; i < nPoints; i++) {
-//       bool inverseMapping = GetInverseMapping(femType, ielType, aP, xp.first[i], xi[i], 100);        //This maps the phsical points to {(-1,-1),(1,1)} box
-// //         std::cout << " \nx[i] physical value " << i << " " << xp.first[i][0] << " " << xp.first[i][1] << std::endl;
-// //         std::cout << " x[i] value in (-1,1) " << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
-//       xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};                                        // //This maps the points to unit box
-// //       std::cout << "value in unit box" << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
-//     }
-//
-//         //finiding monotone
-// //     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) cout << " monotonous in x " << endl;
-// //     else cout << " non-monotonous in x " << endl;
-// //
-// //     if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) cout << " monotonous in y " << endl;
-// //     else cout << " non-monotonous in y " << endl;
-//
-// //     cout << " xv sign = {" ;
-//     for(unsigned l = 0; l < 4 ; l++) {
-//       xvsign[l] = ((A[0] * xv[0][l] * xv[0][l] + A[1] * xv[0][l] * xv[1][l] + A[2] * xv[1][l] * xv[1][l] + A[3] * xv[0][l] + A[4] * xv[1][l] + A[5]) >= 0) ? 1 : -1 ;
-// //       cout << xvsign[l] << ", ";
-//     }
-// //     cout << "} " << endl;
-//
-//
-//     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) {  //vertical
-//
-//
-//       p1 = { static_cast<Type>(xi[0][0]), static_cast<Type>(xi[0][1]) };
-//       p2 = { static_cast<Type>(xi[2][0]), static_cast<Type>(xi[2][1]) };
-//       p3 = { static_cast<Type>(xi[1][0]), static_cast<Type>(xi[1][1]) };
-//
-//       Parabola <Type> parabola = get_parabola_equation(p1, p2, p3);
-//       int normal;
-//
-// //       cout << " unit box sign = {" ;
-//       for(unsigned l = 0; l < 4 ; l++) {
-//         unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[0][l] * unitxv[0][l] + static_cast<double>(parabola.b) * unitxv[0][l] + static_cast<double>(parabola.d) + unitxv[1][l]) > 0) ? 1 : -1;
-// //         cout << unitxvsign[l] << ", ";
-//       }
-// //       cout << "} " << endl;
-//
-// //       cout <<  "( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) " << endl;
-// //       cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
-//
-//       normal = checkVectorRelation(xvsign, unitxvsign);
-// //       cout << " normal = " << normal << endl;
-//
-//       int intersect_number;
-//       unsigned table_number;
-//       std::vector <Type> intersection;
-//       std::vector <Type> interp_point;
-//       CheckIntersection<Type>(intersect_number, table_number, intersection, interp_point, parabola);
-// //       cout << " table number = " << table_number << endl;
-//       p3.x = (p1.x + p2.x) / 2;
-//       p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
-// //       cout <<  "( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) " << endl;
-//
-//       if(interp_point.size() == 2) {
-//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
-//         OctreeNode<Type>* result = loadedRoots[table_number].search(searchP);
-//         if(result) {
-// //           std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
-// //           std::cout << "\nSearch Point: (" << searchP.x << ", " << searchP.y << ", " << searchP.z << ")\n";
-// //           std::cout << "Smallest Sub-cube Bounds: ";
-// //           std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
-// //           std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
-// //           std::cout << "depth : = " << result->depth << " \n";
-//
-//           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
-// //           std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
-//
-//           trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
-//           modified_weights.resize(interp_point_weights.size());
-//           if(normal == -1) {
-//             for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-// //               modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-//               modified_weights[aq] = 1 - interp_point_weights[aq];
-//             }
-//           }
-//           else modified_weights = interp_point_weights;
-// // modified_weights = interp_point_weights;
-//
-//           // std::cout << "AAAA\n";
-//           // for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//           //   std::cout << modified_weights[aq] << " ";
-//           // }
-//           // std::cout << std::endl;
-//
-//           std::vector<double> phi, gradPhi;
-//           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
-//           for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
-//             // *** get gauss point weight, test function and test function partial derivatives ***
-//             femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
-//             for(unsigned i =0;i<phi.size();i++){
-//               Xg[ig] += phi[i]*xv[0][i];
-//               Yg[ig] += phi[i]*xv[1][i];
-//             }
-//           }
-//
-//
-//         }
-//         else {
-//           std::cout << "Search point not found in the Octree." << std::endl;
-//         }
-//       }
-//       else{
-//         twoInt = false;
-//
-//       }
-//     }
-//
-//
-//
-//     else if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) { //horizontal
-//
-//       p1 = { static_cast<Type>(xi[0][1]), static_cast<Type>(xi[0][0]) };
-//       p2 = { static_cast<Type>(xi[2][1]), static_cast<Type>(xi[2][0]) };
-//       p3 = { static_cast<Type>(xi[1][1]), static_cast<Type>(xi[1][0]) };
-//
-//       Parabola <Type> parabola = get_parabola_equation(p1, p2, p3);
-//       int normal;
-//
-//       //use horizotal parabola for the normal
-// //       cout << " unit box sign = {" ;
-//       for(unsigned l = 0; l < 4 ; l++) {
-//         unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[1][l] * unitxv[1][l] + static_cast<double>(parabola.b) * unitxv[1][l] + static_cast<double>(parabola.d) + unitxv[0][l]) > 0) ? 1 : -1;
-// //         cout << unitxvsign[l] << ", ";
-//       }
-// //       cout << "} " << endl;
-//
-// //       cout <<  "( " << p1.y << "," << p1.x << " )" << " , ( " << p2.y << "," << p2.x << " )" << " , ( " << p3.y << "," << p3.x << " ) " << endl;
-// //       cout << parabola.k << "x^2+ " << parabola.b << "x+ " << parabola.d << "+y =0 " << endl;
-//
-//       normal = checkVectorRelation(xvsign, unitxvsign);
-// //       cout << " normal = " << normal << endl ;
-//
-//
-//       int intersect_number;
-//       unsigned table_number;
-//       std::vector <Type> intersection;
-//       std::vector <Type> interp_point;
-//       CheckIntersection<Type>(intersect_number, table_number, intersection, interp_point, parabola);
-// //       cout << " table number = " << table_number << endl;
-//
-//       p3.x = (p1.x + p2.x) / 2;
-//       p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
-// //       cout <<  "( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) " << endl;
-//
-//       if(interp_point.size() == 2) {
-//
-//         Point3D searchP(static_cast<double>(interp_point[0]), static_cast<double>(interp_point[1]), static_cast<double>(p3.y));
-//         OctreeNode<Type>* result = loadedRoots[table_number].search(searchP);
-//         if(result) {
-// //           std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
-// //           std::cout << "\nSearch Point: (" << searchP.x << ", " << searchP.y << ", " << searchP.z << ")\n";
-// //           std::cout << "Smallest Sub-cube Bounds: ";
-// //           std::cout << "(" << result->minBounds.x << ", " << result->minBounds.y << ", " << result->minBounds.z << ") to ";
-// //           std::cout << "(" << result->maxBounds.x << ", " << result->maxBounds.y << ", " << result->maxBounds.z << ")\n";
-// //           std::cout << "depth : = " << result->depth << " \n";
-//
-//           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
-// //           std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
-//
-//           trilinier_interpolation_vector(result->corners, result->cornerWeights, interp_point, interp_point_weights);
-//
-//           modified_weights.resize(interp_point_weights.size());
-//
-//
-//           if (table_number == 2 || table_number == 4){
-//             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-//   //               modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-//             }
-//             else{
-//   //             modified_weights = interp_point_weights;
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = interp_point_weights[interp_point_weights.size()-1-aq];
-//               }
-//             }
-//           }
-//
-//           else{
-//             if(normal == -1) {
-//               for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//                 modified_weights[aq] = 1 - interp_point_weights[aq];
-//               }
-//             }
-//             else{
-//               modified_weights = interp_point_weights;
-//             }
-//           }
-//
-//           std::vector<double> phi, gradPhi;
-//           std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
-//           std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
-//           for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
-//             // *** get gauss point weight, test function and test function partial derivatives ***
-//             femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
-//             for(unsigned i =0;i<phi.size();i++){
-//               Xg[ig] += phi[i]*xv[0][i];
-//               Yg[ig] += phi[i]*xv[1][i];
-//             }
-//             //std::cout <<ig<<" "<< xg[ig] <<" "<<Xg[ig]<<" "<< yg[ig] <<" "<<Yg[ig]<<" "<<Jg[ig]<<std::endl;
-//           }
-//         }
-//         else {
-//           std::cout << "Search point not found in the Octree." << std::endl;
-//         }
-//       }
-//       else{
-//         twoInt = false;
-//       }
-//
-//     }
-//
-//     return twoInt ;
-//
-// }
+
 
 
 

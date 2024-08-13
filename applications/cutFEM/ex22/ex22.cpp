@@ -1085,8 +1085,8 @@ Type easy_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 int main() {
-  unsigned int m = 0;
-  unsigned int n = 0;
+  unsigned int m = 2;
+  unsigned int n = 2;
   int s = 0;
 
   std::cout.precision(16);

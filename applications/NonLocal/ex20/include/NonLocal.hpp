@@ -888,23 +888,23 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
             // // BEGIN Line integration
-//             element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
             // // END line integration
 
 
             // BEGIN Parabola integration
-            bool twoInt = false;
-            for(unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
-
-            std::vector<double> A(6, 0.);
-            A[0] = -1;
-            A[1] = 0;
-            A[2] = -1;
-            A[3] = + 2 * xg2[jg][0];
-            A[4] = + 2 * xg2[jg][1];
-            A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
-            element1.GetCDWeightPar()->GetWeight(xv1, A, _eqPolyWeight, twoInt);
-            if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+//             bool twoInt = false;
+//             for(unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+//
+//             std::vector<double> A(6, 0.);
+//             A[0] = -1;
+//             A[1] = 0;
+//             A[2] = -1;
+//             A[3] = + 2 * xg2[jg][0];
+//             A[4] = + 2 * xg2[jg][1];
+//             A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
+//             element1.GetCDWeightPar()->GetWeight(xv1, A, _eqPolyWeight, twoInt);
+//             if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
             // END Parabola integration
 
 

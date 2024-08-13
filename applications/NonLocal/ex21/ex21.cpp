@@ -285,6 +285,7 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
       subarea_total += subarea;
       subI2_total += subI2;
 
+
       xv1l = xv1;
       for(unsigned k = 0; k < xv1l.size(); k++) xv1l[k].resize(element1.GetNumberOfLinearNodes());
 
@@ -369,19 +370,17 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
         //std::cout << "C " << iel << " " << areaW1 << " , " << std::endl;
         std::cout << "Cl " << iel << " " << d2W1l << std::endl;
         std::cout << "Cp " << iel << " " << d2W1p << std::endl;
-//         std::cout << "     center" << xg2[0]<<" " <<xg2[1] << " delta "<<delta << std::endl;
-        /*
-                for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
-                    std::cout << eqPolyWeight[i] << " , ";
-                }
-                std::cout<<std::endl;*/
 
-//         std::cout<< " weight1 size = " << weight1CF.size()<<std::endl;
-//         for(unsigned i = 0; i < eqPolyWeight.size(); i++) {
-//             std::cout << weight1CF[i] << " , ";
-//         }
-//         std::cout<<std::endl;
-
+//         unsigned int table_number;
+//         PointT <double> q1,q2,q3;
+//         Point3D searchP(0.,0.,0.);
+//
+//         find_search_table(q1, q2, q3, table_number, searchP);
+//
+//         PointT <Type> p1,p2,p3;
+//
+//
+//         ind_area_2intersection_formula(0, 0, 0, 0, 1, table_number, p1, p2, p3)
 
       }
     }
