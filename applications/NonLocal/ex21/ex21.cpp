@@ -327,8 +327,6 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
         // BEGIN Parabola integration
         bool twoInt = false;
 
-
-
         std::vector<double> A(6, 0.);
         A[0] = -1;
         A[1] = 0;
@@ -337,12 +335,11 @@ void BuildI2(MultiLevelSolution & mlSol, const std::vector<double> &xg2, const d
         A[4] = + 2 * xg2[1];
         A[5] = - xg2[0] * xg2[0] - xg2[1] * xg2[1] + delta * delta;
 
+        std::vector < std::vector < std::vector <double > > > aP(1);
+        ProjectNodalToPolynomialCoefficients(aP[0], xv1l, ielGeom, 0);
+
         std::vector<double> eqPolyWeight;
-        element1.GetCDWeightPar()->GetWeight(xv1l, A, eqPolyWeight, twoInt);
-        if(!twoInt) {
-          std::cout << "not twoIntersections!\n";
-          element1.GetCDweight()->GetWeight(a, d, eqPolyWeight);
-        }
+        element1.GetCDWeightPar()->GetWeight(xv1l, A, aP, eqPolyWeight, twoInt);
 
         double areaW1l = 0.;
         double d2W1l = 0.;

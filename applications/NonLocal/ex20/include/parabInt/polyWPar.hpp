@@ -16,7 +16,7 @@ template <class TypeA>
 class polyWPar {
   public:
     virtual ~polyWPar() {};
-    virtual void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt) = 0;
+    virtual void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &weightCF, bool &twoInt) = 0;
 };
 
 
@@ -33,8 +33,8 @@ class polyWParQUAD :
     void setTableDepth(int depth) {_maxDepth = depth;}
     void setTableRelErr(double relErr) {_maxRelErr = relErr;}
 
-    void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt);
-    bool find_Weight_CF( const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights);
+    void GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &weightCF, bool &twoInt);
+    bool find_Weight_CF( const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &modified_weights);
     void GetCellPointsFromQuadric (const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/);
 
  private:

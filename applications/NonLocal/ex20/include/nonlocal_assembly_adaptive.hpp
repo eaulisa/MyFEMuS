@@ -467,6 +467,8 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   unsigned sizeAll = (offsetp1 - offset) * pow(3, dim);
 
+  time_t overallAssemblyTime = clock();
+
   time_t exchangeTime = clock();
 
   for(unsigned kproc = 0; kproc < nprocs; kproc++) {
@@ -953,6 +955,11 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   KK->close();
   std::cout << "[" << iproc << "] ";
   std::cout << "Closing Time = " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC << std::endl;
+  std::cout << std::endl;
+
+
+  std::cout << "[" << iproc << "] ";
+  std::cout << "Overall Assembly Time = " << static_cast<double>(clock() - overallAssemblyTime) / CLOCKS_PER_SEC << std::endl;
   std::cout << std::endl;
 
   //END nonlocal assembly

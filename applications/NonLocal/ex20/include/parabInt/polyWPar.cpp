@@ -54,14 +54,14 @@ void polyWParQUAD<TypeA>::build() {
 }
 
 template <class TypeA>
-void polyWParQUAD<TypeA>:: GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &weightCF, bool &twoInt) {
-  twoInt = find_Weight_CF(xv, A, weightCF);
+void polyWParQUAD<TypeA>:: GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &weightCF, bool &twoInt) {
+  twoInt = find_Weight_CF(xv, A, aP, weightCF);
 }
 
 
 
 template <class TypeA>
-bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, std::vector<double> &modified_weights) {
+bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &modified_weights) {
 
   unsigned nInt;
   std::vector<std::vector<double>> unitxv = {{0., 1., 1., 0.}, {0., 0., 1., 1.}};
@@ -81,9 +81,6 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
     return false;
   }
   else {
-
-    std::vector < std::vector < std::vector <double > > > aP(1);
-    ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
 
     std::vector<int> xvsign(4);
     std::vector<int> unitxvsign(4);
@@ -149,7 +146,7 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
 
     else {//horizontal
 
-       _counth++;
+      _counth++;
 
       q1 = { xi[0][1], xi[0][0] };
       q2 = { xi[2][1], xi[2][0] };
@@ -211,7 +208,8 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
 
 template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric(const std::vector<std::vector<double>> &xv, const std::vector<double> &Cf, unsigned npt, unsigned & nInt/*, unsigned level*/) {
 
-  typedef cpp_bin_float_oct oct;
+  //typedef cpp_bin_float_oct myType;
+  typedef double myType;
 
   unsigned cnt = 0;
   _xe.resize(((8 < npt) ? npt : 8), std::vector<double>(_dim));       //xe is a matrix with size (min 8 by 2) TODO is this the other way around?
@@ -220,6 +218,8 @@ template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric(const
   const unsigned nve = xv[0].size();     //nve = 2 (x,y)
   std::vector<double> v(_dim, 0.); // zero vector with size 4
 
+  double pm[2] ={1, -1};
+
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;
     for(unsigned k = 0; k < _dim; k++) v[k] = xv[k][ip1] - xv[k][i];   // (xi-yi)
@@ -227,20 +227,23 @@ template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric(const
     const double &x0 = xv[0][i];     //isn't it more like x0 and x1
     const double &y0 = xv[1][i];
 
-    oct a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
-    oct b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
-    oct c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
+    myType a = Cf[0] * v[0] * v[0] + Cf[1] * v[0] * v[1] + Cf[2] * v[1] * v[1];
+    myType b = 2 * Cf[0] * v[0] * x0 + Cf[1] * v[1] * x0 + Cf[1] * v[0] * y0 + 2 * Cf[2] * v[1] * y0 + Cf[3] * v[0] + Cf[4] * v[1];
+    myType c = Cf[0] * x0 * x0 + Cf[1] * x0 * y0 + Cf[2] * y0 * y0 + Cf[3] * x0 + Cf[4] * y0 + Cf[5];
 
-    oct norm = sqrt(a * a + b * b + c * c);
-    a /= norm;
-    b /= norm;
-    c /= norm;
+    // myType norm = sqrt(a * a + b * b + c * c);
+    // a /= norm;
+    // b /= norm;
+    // c /= norm;
+    //if(fabs(a) > 1.e-8) {
 
-    if(fabs(a) > 1.e-8) {
-      oct delta = b * b - 4 * a * c;
+    myType norm2 = a * a + b * b + c * c;
+    if(a * a / norm2 > 1.e-16) {
+      myType delta = b * b - 4 * a * c;
       if(delta > 0) {
+        myType sqrtDelta = sqrt(delta);
         for(unsigned j = 0; j < 2; j++) {
-          double t = static_cast<double>((- b + pow(-1, j) * sqrt(delta)) / (2 * a));
+          double t = static_cast<double>((- b + pm[j] * sqrtDelta) / (2 * a));
           if(t >= 0 && t <= 1) {
             for(unsigned  k = 0; k < _dim; k++) {
               _xe[cnt][k] = xv[k][i]  + t * v[k];
