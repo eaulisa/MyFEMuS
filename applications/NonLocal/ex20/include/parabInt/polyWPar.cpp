@@ -105,9 +105,42 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
       else vertical = true;
     }
 
+//     bool vertical = false;
+//     bool xSpan = false;
+//     bool ySpan = false;
+//     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) xSpan = true ;
+//     if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) ySpan = true ;
+//
+// //     if(xSpan && ySpan){
+// //       if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
+// //       else vertical = false ;
+// //     }
+// //     else if(xSpan && !ySpan) vertical = true;
+// //     else if(!xSpan && ySpan) vertical = false;
+// //     else std::cout << " The parabola formed by ths three points is not a function. Use line cut " << std::endl;
+//
+//
+//     if (xSpan){
+//      if (ySpan){
+//       if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
+//       else vertical = false;
+//      }
+//      else{
+//        vertical = true;
+//      }
+//     }
+//     else {
+//      if (ySpan) vertical = true;
+//      else std::cout << " The parabola formed by ths three points is not a function. Use line cut " << std::endl;
+//     }
+
+
+
+
+
     if(vertical) {
 
-      _countv++;
+      _countv++;          //TODO we don't need this
 
       q1 = { xi[0][0], xi[0][1] };
       q2 = { xi[2][0], xi[2][1] };
