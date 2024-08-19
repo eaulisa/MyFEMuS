@@ -395,6 +395,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
 
   }
   else if(dim == 2) {
+
     refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fourth", "fourth", "legendre");
     refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fourth", "fourth", "legendre");
     refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fourth", "fourth", "legendre");

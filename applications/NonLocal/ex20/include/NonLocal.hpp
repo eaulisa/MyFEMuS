@@ -812,7 +812,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
   }
   else if(level == levelMax1 - 1) {
     const unsigned &dim = element1.GetDimension();
-    std::vector < std::vector <double> >  xv1 = element1.GetElement1NodeCoordinates(level, iFather);
+    const std::vector < std::vector <double> >  & xv1 = element1.GetElement1NodeCoordinates(level, iFather);
 
     const unsigned &nDof1 = element1.GetNumberOfNodes();
     const elem_type *fem1 = element1.GetFem1();
@@ -861,8 +861,17 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
     //BEGIN NEW STUFF
 
+    unsigned ielType = element1.GetElementType();
     std::vector < std::vector < std::vector <double > > > aP(1);
-    bool aPInit = false;
+    ProjectNodalToPolynomialCoefficients(aP[0], xv1, ielType, 0);
+
+    std::vector < std::vector <double> >  xv1l(xv1.size());
+    for(unsigned k = 0; k < xv1l.size(); k++) {
+      xv1l[k].resize(element1.GetNumberOfLinearNodes());
+      for(unsigned i = 0; i < xv1l[k].size(); i++) {
+        xv1l[k][i] = xv1[k][i];
+      }
+    }
 
     std::vector < std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> > x1MinMax(dim);
     for(unsigned k = 0; k < dim; k++) {
@@ -891,7 +900,8 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
         }
 
         if(coarseIntersectionTest) {
-          _ballAprx->GetNormal(element1.GetElementType(), xv1, xg2[jg], delta, _a, _d, _cut);
+
+          _ballAprx->GetNormal(element1.GetElementType(), xv1l, xg2[jg], delta, _a, _d, _cut);
 
           if(_cut == 0) { //interior element
             double W2 = 2. * weight2[jg] * _kernel * I2[jg];
@@ -901,11 +911,8 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
           else if(_cut == 1) { //cut element
             element1.GetCutFem()->clear();
 
-            unsigned ielType = element1.GetElementType();
-            if(!aPInit) {
-              ProjectNodalToPolynomialCoefficients(aP[0], xv1, ielType, 0);
-              aPInit = true;
-            }
+
+
 
             //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
@@ -916,7 +923,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
             // BEGIN Parabola integration
             bool twoInt = false;
-            for(unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
+            //for(unsigned k = 0; k < xv1.size(); k++) xv1[k].resize(element1.GetNumberOfLinearNodes());
 
             std::vector<double> A(6, 0.);
             A[0] = -1;
@@ -926,7 +933,7 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             A[4] = + 2 * xg2[jg][1];
             A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
 
-            element1.GetCDWeightPar()->GetWeight(xv1, A, aP, _eqPolyWeight, twoInt);
+            element1.GetCDWeightPar()->GetWeight(xv1l, A, aP, _eqPolyWeight, twoInt);
             if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
             // END Parabola integration
 

@@ -55,9 +55,6 @@ class polyWParQUAD :
      std::vector < std::vector <double> > _xe;
      std::vector <double> _ds;
 
-     unsigned _counth = 0;
-     unsigned _countv = 0;
-
  };
 
 

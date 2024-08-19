@@ -70,7 +70,6 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
   unsigned femType = 0; //linear FEM
   std::vector< double > interp_point_weights;
   PointT <TypeA> p1, p2, p3;
-  bool twoInt = true;
   unsigned table_number;
   PointT <double> q1, q2, q3;
   Point3D searchP(0., 0., 0.);
@@ -95,52 +94,53 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
       xvsign[l] = ((A[0] * xv[0][l] * xv[0][l] + A[1] * xv[0][l] * xv[1][l] + A[2] * xv[1][l] * xv[1][l] + A[3] * xv[0][l] + A[4] * xv[1][l] + A[5]) >= 0) ? 1 : -1 ;
     }
 
+    // bool vertical = false;
+    // if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) {
+    //   if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) vertical = true;
+    //   else vertical = false;
+    // }
+    // else {
+    //   if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) vertical = false;
+    //   else vertical = true;
+    // }
+
     bool vertical = false;
-    if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) {
-      if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) vertical = true;
-      else vertical = false;
+    bool xSpan = false;
+    bool ySpan = false;
+    if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) xSpan = true ;
+    if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) ySpan = true ;
+
+//     if(xSpan && ySpan){
+//       if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
+//       else vertical = false ;
+//     }
+//     else if(xSpan && !ySpan) vertical = true;
+//     else if(!xSpan && ySpan) vertical = false;
+//     else std::cout << " The parabola formed by ths three points is not a function. Use line cut " << std::endl;
+
+
+    if(xSpan) {
+      if(ySpan) {
+        if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
+        else vertical = false;
+      }
+      else {
+        vertical = true;
+      }
     }
     else {
-      if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) vertical = false;
-      else vertical = true;
+      if(ySpan) vertical = false;
+      else {
+        std::cout << " The parabola formed by this three points is not a function. Use line cut " << std::endl;
+        return false;
+      }
     }
-
-//     bool vertical = false;
-//     bool xSpan = false;
-//     bool ySpan = false;
-//     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) xSpan = true ;
-//     if((xi[0][1] < xi[1][1] && xi[1][1] < xi[2][1]) || (xi[0][1] > xi[1][1] && xi[1][1] > xi[2][1])) ySpan = true ;
-//
-// //     if(xSpan && ySpan){
-// //       if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
-// //       else vertical = false ;
-// //     }
-// //     else if(xSpan && !ySpan) vertical = true;
-// //     else if(!xSpan && ySpan) vertical = false;
-// //     else std::cout << " The parabola formed by ths three points is not a function. Use line cut " << std::endl;
-//
-//
-//     if (xSpan){
-//      if (ySpan){
-//       if(fabs(xi[0][0] - xi[2][0]) >= fabs(xi[0][1] - xi[2][1])) vertical = true;
-//       else vertical = false;
-//      }
-//      else{
-//        vertical = true;
-//      }
-//     }
-//     else {
-//      if (ySpan) vertical = true;
-//      else std::cout << " The parabola formed by ths three points is not a function. Use line cut " << std::endl;
-//     }
 
 
 
 
 
     if(vertical) {
-
-      _countv++;          //TODO we don't need this
 
       q1 = { xi[0][0], xi[0][1] };
       q2 = { xi[2][0], xi[2][1] };
@@ -178,8 +178,6 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
     }
 
     else {//horizontal
-
-      _counth++;
 
       q1 = { xi[0][1], xi[0][0] };
       q2 = { xi[2][1], xi[2][0] };
@@ -232,9 +230,7 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
     }
   }
 
-  // std::cout<<_countv<< " " <<_counth<<"\t";
-
-  return twoInt ;
+  return true ;
 
 }
 
@@ -251,7 +247,7 @@ template <class TypeA> void polyWParQUAD<TypeA>:: GetCellPointsFromQuadric(const
   const unsigned nve = xv[0].size();     //nve = 2 (x,y)
   std::vector<double> v(_dim, 0.); // zero vector with size 4
 
-  double pm[2] ={1, -1};
+  double pm[2] = {1, -1};
 
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;

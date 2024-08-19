@@ -1592,6 +1592,8 @@ class OctreeNode {
     OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola <double, Type> *Pweights)
       : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {}
 
+    ~OctreeNode() {};
+
     // Function to get the eight corners of the node
     void getCorners() {  //TODO initialize it once without using push_back
       corners.resize(8, std::vector<double>(3));
@@ -1916,10 +1918,11 @@ class OctreeNode {
 
       // Deserialize children recursively
       if(!isLeaf) {
+        children.resize(8);
         for(int i = 0; i < 8; ++i) {
           OctreeNode* child = new OctreeNode({0, 0, 0}, {1, 1, 1}, 0, 0, 0, nullptr);
           child->deserialize(ifs);
-          children.push_back(child);
+          children[i] = child;
         }
       }
     }
@@ -2093,7 +2096,7 @@ int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& ve
     if(vec1[i] == vec2[i]) {
       ++equalCount;
     }
-    else(vec1[i] == -vec2[i]) {
+    else {
       ++negativeCount;
     }
   }
