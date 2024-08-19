@@ -2080,10 +2080,10 @@ double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const d
 
 int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& vec2) {
   // Check if the sizes of the vectors are different
-  if(vec1.size() != vec2.size()) {
-    std::cerr << "Warning: Number of sign do not match" << std::endl;
-    return 0;
-  }
+//   if(vec1.size() != vec2.size()) {
+//     std::cerr << "Warning: Number of sign do not match" << std::endl;
+//     return 0;
+//   }
 
   int equalCount = 0;
   int negativeCount = 0;
@@ -2093,7 +2093,7 @@ int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& ve
     if(vec1[i] == vec2[i]) {
       ++equalCount;
     }
-    if(vec1[i] == -vec2[i]) {
+    else(vec1[i] == -vec2[i]) {
       ++negativeCount;
     }
   }
