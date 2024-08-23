@@ -6,11 +6,11 @@
 class BallApproximation {
   public:
 
-    BallApproximation(){
+    BallApproximation() {
       _linearHex = new const elem_type_3D("hex", "linear", "zero");
     }
 
-    ~BallApproximation(){
+    ~BallApproximation() {
       delete _linearHex;
     }
 
@@ -22,26 +22,39 @@ class BallApproximation {
     void GetNormalTri(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &b, double &db, unsigned &cut);
     void GetNormal(const unsigned &elType, const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &b, double &db, unsigned &cut) {
       switch(elType)  {
-        case 0:
-          GetNormalHex(xv, xg, R, b, db, cut);
-          break;
-        case 1:
-          GetNormalTet(xv, xg, R, b, db, cut);
-          break;
-        case 3:
-          GetNormalQuad(xv, xg, R, b, db, cut);
-          break;
-        case 4:
-          GetNormalTri(xv, xg, R, b, db, cut);
-          break;
-        default:
-          std::cout << "Element type " << elType << " in GetNormal class not yet implemented\n";
-          abort();
+      case 0:
+        GetNormalHex(xv, xg, R, b, db, cut);
+        break;
+      case 1:
+        GetNormalTet(xv, xg, R, b, db, cut);
+        break;
+      case 3:
+        GetNormalQuad(xv, xg, R, b, db, cut);
+        break;
+      case 4:
+        GetNormalTri(xv, xg, R, b, db, cut);
+        break;
+      default:
+        std::cout << "Element type " << elType << " in GetNormal class not yet implemented\n";
+        abort();
+      }
+    }
+
+    void CheckIntersectionQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, unsigned & cut);
+
+    void CheckIntersection(const unsigned & elType, const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double & R, unsigned & cut) {
+      switch(elType)  {
+      case 3:
+        CheckIntersectionQuad(xv, xg, R, cut);
+        break;
+      default:
+        std::cout << "Element type " << elType << " in CheckIntersection class not yet implemented\n";
+        abort();
       }
     }
 
 
-    double GetHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &b, const std::vector <double> &a, const std::vector <double> &xg, const double &R);
+    double GetHeightPolyhedronSphereInt(const std::vector < std::vector <double> > &b, const std::vector <double> &a, const std::vector <double> &xg, const double & R);
 
 
   private:
@@ -54,6 +67,80 @@ class BallApproximation {
     const elem_type *_linearHex;
 };
 
+
+void BallApproximation::CheckIntersectionQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, unsigned &cut) {
+  const unsigned &dim =  xv.size();
+  const unsigned nve =  4;
+
+  const double& x1 = xv[0][0];
+  const double& x2 = xv[0][1];
+  const double& x3 = xv[0][2];
+  const double& x4 = xv[0][3];
+  const double& y1 = xv[1][0];
+  const double& y2 = xv[1][1];
+  const double& y3 = xv[1][2];
+  const double& y4 = xv[1][3];
+
+  double hx = 0.5 * (fabs(x3 - x1) + fabs(x4 - x2));
+  double hy = 0.5 * (fabs(y3 - y1) + fabs(y4 - y2));
+  double h = sqrt(hx * hx + hy * hy);
+  double eps = 1.0e-10 * h;
+
+  _dist.assign(nve, 0);
+  _dist0.resize(nve);
+  unsigned cnt0 = 0;
+  for(unsigned i = 0; i < nve; i++) {
+    for(unsigned k = 0;  k < dim; k++) {
+      _dist[i] += (xv[k][i] - xg[k]) * (xv[k][i] - xg[k]);
+    }
+    _dist[i] = sqrt(_dist[i]) - R;
+
+    if(fabs(_dist[i]) < eps) {
+      _dist0[i] = (_dist[i] < 0) ? -eps : eps;
+      _dist[i] = 0.;
+      cnt0++;
+    }
+    else {
+      _dist0[i] = _dist[i];
+    }
+  }
+
+  if(cnt0 > 0) {
+    unsigned cntp = 0;
+    for(unsigned i = 0; i < nve; i++) {
+      if(_dist[i] > 0) cntp++;
+      _dist[i] = _dist0[i];
+    }
+    if(cntp == 0) { // the element is inside the ball
+      cut = 0;
+      return;
+    }
+    else if(cntp == nve - cnt0) {  // the element in outside the ball
+      cut = 2;
+      return;
+    }
+  }
+
+  _theta.resize(nve);
+  unsigned cnt = 0;
+  for(unsigned e = 0; e < nve; e++) {
+    unsigned ep1 = (e + 1) % nve;
+    if(_dist[e] * _dist[ep1] < 0) {
+      double s = 0.5  * (1 + (_dist[e] + _dist[ep1]) / (_dist[e] - _dist[ep1]));
+      _theta[cnt] = atan2((1 - s) * xv[1][e] + s * xv[1][ep1]  - xg[1], (1 - s) * xv[0][e] + s * xv[0][ep1] - xg[0]) ;
+      cnt++;
+    }
+  }
+  _theta.resize(2);
+
+  if(cnt == 0) {
+    if(_dist[0] < 0) cut = 0; // cell inside the ball
+    else cut = 2; // cell outside the ball
+  }
+  else {
+    cut = 1;
+  }
+}
 
 
 void BallApproximation::GetNormalQuad(const std::vector < std::vector<double> > &xv, const std::vector<double> &xg, const double &R, std::vector<double> &b, double &db, unsigned &cut) {

@@ -375,7 +375,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   std::cout << "EPS = " << eps << " " << "delta1 = " << delta1 + eps << " " << " lmax1 = " << lmax1 << " lmin1 = " << lmin1 << std::endl;
 
   RefineElement *refineElement[6][3];
-  //RefineElement *refineElementCF[6][3];
+  polyWPar <double> *CDWeightPar;
 
   NonLocal *nonlocal;
 
@@ -396,9 +396,17 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   }
   else if(dim == 2) {
 
+
+
     refineElement[3][0] = new RefineElement(lmax1, "quad", "linear", "fourth", "fourth", "legendre");
     refineElement[3][1] = new RefineElement(lmax1, "quad", "quadratic", "fourth", "fourth", "legendre");
     refineElement[3][2] = new RefineElement(lmax1, "quad", "biquadratic", "fourth", "fourth", "legendre");
+
+    CDWeightPar = new polyWParQUAD<double> (refineElement[3][2]->GetQuadratureOrder(), 6, 0.001);
+    refineElement[3][0]->SetCDParabolaWeights(CDWeightPar);
+    refineElement[3][1]->SetCDParabolaWeights(CDWeightPar);
+    refineElement[3][2]->SetCDParabolaWeights(CDWeightPar);
+
 
     refineElement[4][0] = new RefineElement(lmax1, "tri", "linear", "fourth", "fourth", "legendre");
     refineElement[4][1] = new RefineElement(lmax1, "tri", "quadratic", "fourth", "fourth", "legendre");
@@ -988,6 +996,7 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
     delete refineElement[4][0];
     delete refineElement[4][1];
     delete refineElement[4][2];
+    delete CDWeightPar;
   }
   // ***************** END ASSEMBLY *******************
 }

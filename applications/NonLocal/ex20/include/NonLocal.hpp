@@ -901,7 +901,8 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
 
         if(coarseIntersectionTest) {
 
-          _ballAprx->GetNormal(element1.GetElementType(), xv1l, xg2[jg], delta, _a, _d, _cut);
+          _ballAprx->CheckIntersection(element1.GetElementType(), xv1l, xg2[jg], delta, _cut);
+          //_ballAprx->GetNormal(element1.GetElementType(), xv1l, xg2[jg], delta, _a, _d, _cut);
 
           if(_cut == 0) { //interior element
             double W2 = 2. * weight2[jg] * _kernel * I2[jg];
@@ -910,9 +911,6 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
           }
           else if(_cut == 1) { //cut element
             element1.GetCutFem()->clear();
-
-
-
 
             //       element1.GetCutFem()->GetWeightWithMap(0, _a, _d, _eqPolyWeight);
 //             (*element1.GetCutFem())(0, _a, _d, _eqPolyWeight);
@@ -934,7 +932,10 @@ void NonLocal::AssemblyCutFem1(const unsigned &level, const unsigned &levelMin1,
             A[5] = - xg2[jg][0] * xg2[jg][0] - xg2[jg][1] * xg2[jg][1] + delta * delta;
 
             element1.GetCDWeightPar()->GetWeight(xv1l, A, aP, _eqPolyWeight, twoInt);
-            if(!twoInt) element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            if(!twoInt) {
+              _ballAprx->GetNormal(element1.GetElementType(), xv1l, xg2[jg], delta, _a, _d, _cut);
+              element1.GetCDweight()->GetWeight(_a, _d, _eqPolyWeight);
+            }
             // END Parabola integration
 
 

@@ -45,13 +45,13 @@ void polyWParQUAD<TypeA>::build() {
   Pweights(_s, 0, 1, 0, _p1, _p2, _p3, _weightCF); // TODO here we put a=0, c=1, table=0
 
   generateAndLoadOctrees<cpp_bin_float_oct>(_maxDepth, _qM, _maxRelErr, Pweights, _loadedRoots);
-
-
-
-
-
-
 }
+
+
+
+
+
+
 
 template <class TypeA>
 void polyWParQUAD<TypeA>:: GetWeight(const std::vector<std::vector<double>> &xv, const std::vector<double> &A, const std::vector < std::vector < std::vector <double > > > &aP, std::vector<double> &weightCF, bool &twoInt) {
@@ -135,10 +135,6 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
         return false;
       }
     }
-
-
-
-
 
     if(vertical) {
 
