@@ -1096,12 +1096,342 @@ struct Point3D {
   Point3D(double _x, double _y, double _z) : x(_x), y(_y), z(_z) {}
 };
 
+// template <class Type>
+// class OctreeNode {
+//   public:
+//     Point3D minBounds, maxBounds;
+//     bool isLeaf;
+//     std::vector<OctreeNode*> children;
+//     std::vector<std::vector<double>> corners;
+//     std::vector<std::vector<double>> cornerAreas;
+//     std::vector<std::vector<double>> cornerWeights;
+//     int table;
+//     unsigned depth;
+//     unsigned qM;
+//     int s = 0;
+//     Type a = 0;
+//     double relative_error = -1;
+//     double relative_error_opposite = -1;
+//     CutFemWeightParabola <double, Type> *_Pweights;
+//
+//     OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola <double, Type> *Pweights)
+//       : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {}
+//
+//     // Destructor to properly clean up memory
+//     ~OctreeNode() {
+//       for(OctreeNode* child : children) {
+//         delete child;
+//       }
+//       children.clear();
+//     }
+//
+// // Function to get the eight corners of the node
+//     void getCorners() {  //TODO initialize it once without using push_back
+//       corners.resize(8, std::vector<double>(3));
+//       corners[0] = {minBounds.x, minBounds.y, minBounds.z};
+//       corners[1] = {minBounds.x, minBounds.y, maxBounds.z};
+//       corners[2] = {minBounds.x, maxBounds.y, minBounds.z};
+//       corners[3] = {minBounds.x, maxBounds.y, maxBounds.z};
+//       corners[4] = {maxBounds.x, minBounds.y, minBounds.z};
+//       corners[5] = {maxBounds.x, minBounds.y, maxBounds.z};
+//       corners[6] = {maxBounds.x, maxBounds.y, minBounds.z};
+//       corners[7] = {maxBounds.x, maxBounds.y, maxBounds.z};
+//
+//       Type area(0) ;
+//       Type c(1) ;
+//       cornerAreas.resize(8);
+//       cornerWeights.resize(8);
+//       PointT <Type> p1, p2, p3 ;
+//       //CutFemWeightParabola <double, Type> Pweight(QUAD, 2, "legendre");
+//
+//       for(size_t i = 0; i < corners.size(); ++i) {
+//         const auto& corner = corners[i];
+//         get_p1_p2_p3(table, corner, p1, p2, p3);
+//
+//         int count = 0;
+//         for(unsigned qq = 0; qq <= qM; qq++) {
+//           for(unsigned jj = 0; jj <= qq; jj++) {
+//             unsigned ii = qq - jj;
+//             area = find_area_2intersection_formula(ii, jj, s, a, c, table, p1, p2, p3);
+//             cornerAreas[i].push_back(static_cast<double>(area));
+//             count++;
+//           }
+//         }
+//         (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
+//       }
+//     }
+//
+//     void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+//       if(currentDepth >= maxDepth || !isLeaf) {
+//         getCorners();
+//         return;
+//       }
+//
+//       getCorners();
+//
+//       double midX = (minBounds.x + maxBounds.x) / 2.0;
+//       double midY = (minBounds.y + maxBounds.y) / 2.0;
+//       double midZ = (minBounds.z + maxBounds.z) / 2.0;
+//       std::vector<double> relativeErrors;
+//       std::vector<double> relativeErrorsOpposite;
+//       std::vector<std::vector<double>>boundary_mid_points(19);
+//
+//       boundary_mid_points[0] = {midX, minBounds.y, minBounds.z};
+//       boundary_mid_points[1] = {maxBounds.x, midY, minBounds.z};
+//       boundary_mid_points[2] = {midX, maxBounds.y, minBounds.z};
+//       boundary_mid_points[3] = {minBounds.x, midY, minBounds.z};
+//       boundary_mid_points[4] = {minBounds.x, minBounds.y, midZ};
+//       boundary_mid_points[5] = {maxBounds.x, minBounds.y, midZ};
+//       boundary_mid_points[6] = {maxBounds.x, maxBounds.y, midZ};
+//       boundary_mid_points[7] = {minBounds.x, maxBounds.y, midZ};
+//       boundary_mid_points[8] = {midX, minBounds.y, maxBounds.z};
+//       boundary_mid_points[9] = {maxBounds.x, midY, maxBounds.z};
+//       boundary_mid_points[10] = {midX, maxBounds.y, maxBounds.z};
+//       boundary_mid_points[11] = {minBounds.x, midY, maxBounds.z};
+//       boundary_mid_points[12] = {midX, midY, minBounds.z};
+//       boundary_mid_points[13] = {minBounds.x, midY, midZ};
+//       boundary_mid_points[14] = {midX, minBounds.y, midZ};
+//       boundary_mid_points[15] = {midX, midY, maxBounds.z};
+//       boundary_mid_points[16] = {maxBounds.x, midY, midZ};
+//       boundary_mid_points[17] = {midX, maxBounds.y, midZ};
+//       boundary_mid_points[18] = {midX, midY, midZ};
+//
+//       for(int i = 0; i < boundary_mid_points.size(); ++i) {  //TODO all nineteen points
+//         // Generate a random 3D point within the bounds
+// //             double randomX = minBounds.x + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.x - minBounds.x);
+// //             double randomY = minBounds.y + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.y - minBounds.y);
+// //             double randomZ = minBounds.z + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.z - minBounds.z);
+//
+//         //not random using middle boundary points
+//         double randomX = boundary_mid_points[i][0];
+//         double randomY = boundary_mid_points[i][1];
+//         double randomZ = boundary_mid_points[i][2];
+//
+//         std::vector<double> interp_point = {randomX, randomY, randomZ};
+//
+//
+//         Type f_area(0);
+//         Type c = 1 ;
+//         PointT<Type> p1, p2, p3;
+//         get_p1_p2_p3(table, interp_point, p1, p2, p3);
+//
+//         std::vector<std::vector<double>>interpolation_vector(8);
+//         int count = 0;
+//         for(unsigned qq = 0; qq <= qM; qq++) {
+//           for(unsigned jj = 0; jj <= qq; jj++) {
+//             unsigned ii = qq - jj;
+//             for(size_t ic = 0; ic < corners.size(); ++ic) {
+//               interpolation_vector[ic] = {corners[ic][0], corners[ic][1], corners[ic][2], cornerAreas[ic][count]};
+//             }
+//             double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
+//             f_area = find_area_2intersection_formula(jj, ii, s, a, c, table, p1, p2, p3);
+//             double formula_area = static_cast<double>(f_area);
+//             double r_error = fabs(formula_area - interp_area) / formula_area;
+//             double r_error_opposite = fabs(formula_area - interp_area) / (1.0 / (ii + 1) * (jj + 1) - formula_area);
+//
+//             relativeErrors.push_back(r_error);
+//             relativeErrorsOpposite.push_back(r_error_opposite);
+//
+//             count++;
+//           }
+//         }
+//       }
+//       relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+//       relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+//
+//       if(depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003) {
+//         isLeaf = false;
+//         children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM, _Pweights));
+//         children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1, qM, _Pweights));
+//
+//         // Recursively check for subdivision in each child node
+//         for(OctreeNode* child : children) {
+//           child->subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+//         }
+//       }
+//     }
+//     // Recursive search for the smallest sub-cube containing a given point
+//
+// OctreeNode* search(const Point3D& point) {
+//   if(isLeaf) {
+//     return this;
+//   }
+//   if(point.z <= &children[0]->maxBounds.z) { // 0->3
+//     if(point.y <= &children[0]->maxBounds.y) { // 0->1
+//       if(point.x <= &children[0]->maxBounds.x)
+//         return &children[0]->search(point);
+//       else
+//         return &children[1]->search(point);
+//     }
+//     else { // 2->3
+//       if(point.x <= &children[2]->maxBounds.x)
+//         return &children[2]->search(point);
+//       else
+//         return &children[3]->search(point);
+//     }
+//   }
+//   else { // 4->7
+//     if(point.y <= &children[4]->maxBounds.y) { // 4->5
+//       if(point.x <= &children[4]->maxBounds.x)
+//         return &children[4]->search(point);
+//       else
+//         return &children[5]->search(point);
+//     }
+//     else { // 6->7
+//       if(point.x <= &children[6]->maxBounds.x)
+//         return &children[6]->search(point);
+//       else
+//         return &children[7]->search(point);
+//     }
+//   }
+//   return nullptr; // Should not reach here under normal circumstances
+// }
+
+//     void saveOctreeToCSV(const std::string& filename) const {
+//       std::ofstream ofs(filename, std::ios::binary);
+//       if(!ofs.is_open()) {
+//         std::cerr << "Error: Unable to open file for writing: " << filename << std::endl;
+//         return;
+//       }
+//       serialize(ofs);
+//       ofs.close();
+//     }
+//
+//     // Function to load the octree structure from a CSV file
+//     void loadOctreeFromCSV(const std::string& filename) {
+//       std::ifstream ifs(filename, std::ios::binary);
+//       if(!ifs.is_open()) {
+//         std::cerr << "Error: Unable to open file for reading: " << filename << std::endl;
+//         return;
+//       }
+//       deserialize(ifs);
+//       ifs.close();
+//     }
+//
+//
+//   private:
+//
+//     // Serialize the OctreeNode
+//     void serialize(std::ofstream& ofs) const {
+//       // Serialize the current node
+//       ofs.write(reinterpret_cast<const char*>(&minBounds), sizeof(minBounds));
+//       ofs.write(reinterpret_cast<const char*>(&maxBounds), sizeof(maxBounds));
+//       ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
+//       ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
+//
+//       // Serialize the vectors
+//       serializeVector(ofs, corners);
+//       serializeVector(ofs, cornerAreas);
+//       serializeVector(ofs, cornerWeights);
+//
+//       // Serialize children recursively
+//       for(OctreeNode* child : children) {
+//         child->serialize(ofs);
+//       }
+//     }
+//
+//     // Deserialize the OctreeNode
+//     void deserialize(std::ifstream& ifs) {
+//       // Deserialize the current node
+//       ifs.read(reinterpret_cast<char*>(&minBounds), sizeof(minBounds));
+//       ifs.read(reinterpret_cast<char*>(&maxBounds), sizeof(maxBounds));
+//       ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
+//       ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
+//
+//       // Deserialize the vectors
+//       deserializeVector(ifs, corners);
+//       deserializeVector(ifs, cornerAreas);
+//       deserializeVector(ifs, cornerWeights);
+//
+//       // Delete existing children
+//       for(OctreeNode* child : children) {
+//         delete child;
+//       }
+//       children.clear();
+//
+//       // Deserialize children recursively
+//       if(!isLeaf) {
+//         for(int i = 0; i < 8; ++i) {
+//           OctreeNode* child = new OctreeNode({0, 0, 0}, {1, 1, 1}, 0, 0, 0, nullptr);
+//           child->deserialize(ifs);
+//           children.push_back(child);
+//         }
+//       }
+//     }
+//
+//     // Helper function to serialize a vector
+//     void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
+//       size_t size = vec.size();
+//       ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+//
+//       for(const auto& innerVec : vec) {
+//         size_t innerSize = innerVec.size();
+//         ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
+//         ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
+//       }
+//     }
+//
+//     // Helper function to deserialize a vector
+//     void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
+//       size_t size;
+//       ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+//
+//       vec.resize(size);
+//       for(size_t i = 0; i < size; ++i) {
+//         size_t innerSize;
+//         ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
+//         vec[i].resize(innerSize);
+//         ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
+//       }
+//     }
+// };
+//
+// template <class Type>
+// void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, std::vector<OctreeNode<Type>>& loadedRoots) {
+// for(int ttable = 0; ttable < 8; ++ttable) {
+//   std::string filename = "save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv";
+//
+//   FILE *fp;
+//   fp = fopen(filename.c_str(), "r");
+//   if(fp != NULL) {
+//     fclose(fp);
+//   }
+//   else {
+//     cout << "creating the tables" << endl;
+//     OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
+//     if(ttable != 5) {
+//       root.subdivideWithRelativeError(maxDepth, percent);
+//     }
+//     else {
+//       root.subdivideWithRelativeError(3, 0.1);
+//     }
+//     root.saveOctreeToCSV(filename);
+//     std::cout << "Octree Structure:\n";
+//   }
+// }
+//
+// // Load the octree structure and vectors from the CSV file
+// loadedRoots.clear();  // Clear any existing data
+// loadedRoots.reserve(8);  // Reserve space for 8 octrees
+// for(int ttable = 0; ttable < 8; ++ttable) {
+//   loadedRoots.emplace_back(Point3D{0., 0., 0.}, Point3D{1., 1., 1.}, ttable, 0, degree, nullptr);
+//   loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
+// }
+// }
+
+
 template <class Type>
 class OctreeNode {
   public:
     Point3D minBounds, maxBounds;
     bool isLeaf;
-    std::vector<OctreeNode*> children;
+    std::vector<OctreeNode> children;
     std::vector<std::vector<double>> corners;
     std::vector<std::vector<double>> cornerAreas;
     std::vector<std::vector<double>> cornerWeights;
@@ -1117,16 +1447,11 @@ class OctreeNode {
     OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola <double, Type> *Pweights)
       : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {}
 
-    // Destructor to properly clean up memory
     ~OctreeNode() {
-      for(OctreeNode* child : children) {
-        delete child;
-      }
-      children.clear();
+      // No need to manually delete children
     }
 
-// Function to get the eight corners of the node
-    void getCorners() {  //TODO initialize it once without using push_back
+    void getCorners() {
       corners.resize(8, std::vector<double>(3));
       corners[0] = {minBounds.x, minBounds.y, minBounds.z};
       corners[1] = {minBounds.x, minBounds.y, maxBounds.z};
@@ -1137,12 +1462,11 @@ class OctreeNode {
       corners[6] = {maxBounds.x, maxBounds.y, minBounds.z};
       corners[7] = {maxBounds.x, maxBounds.y, maxBounds.z};
 
-      Type area(0) ;
-      Type c(1) ;
+      Type area(0);
+      Type c(1);
       cornerAreas.resize(8);
       cornerWeights.resize(8);
-      PointT <Type> p1, p2, p3 ;
-      //CutFemWeightParabola <double, Type> Pweight(QUAD, 2, "legendre");
+      PointT <Type> p1, p2, p3;
 
       for(size_t i = 0; i < corners.size(); ++i) {
         const auto& corner = corners[i];
@@ -1174,7 +1498,7 @@ class OctreeNode {
       double midZ = (minBounds.z + maxBounds.z) / 2.0;
       std::vector<double> relativeErrors;
       std::vector<double> relativeErrorsOpposite;
-      std::vector<std::vector<double>>boundary_mid_points(19);
+      std::vector<std::vector<double>> boundary_mid_points(19);
 
       boundary_mid_points[0] = {midX, minBounds.y, minBounds.z};
       boundary_mid_points[1] = {maxBounds.x, midY, minBounds.z};
@@ -1196,26 +1520,19 @@ class OctreeNode {
       boundary_mid_points[17] = {midX, maxBounds.y, midZ};
       boundary_mid_points[18] = {midX, midY, midZ};
 
-      for(int i = 0; i < boundary_mid_points.size(); ++i) {  //TODO all nineteen points
-        // Generate a random 3D point within the bounds
-//             double randomX = minBounds.x + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.x - minBounds.x);
-//             double randomY = minBounds.y + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.y - minBounds.y);
-//             double randomZ = minBounds.z + static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * (maxBounds.z - minBounds.z);
-
-        //not random using middle boundary points
+      for(int i = 0; i < boundary_mid_points.size(); ++i) {
         double randomX = boundary_mid_points[i][0];
         double randomY = boundary_mid_points[i][1];
         double randomZ = boundary_mid_points[i][2];
 
         std::vector<double> interp_point = {randomX, randomY, randomZ};
 
-
         Type f_area(0);
-        Type c = 1 ;
+        Type c = 1;
         PointT<Type> p1, p2, p3;
         get_p1_p2_p3(table, interp_point, p1, p2, p3);
 
-        std::vector<std::vector<double>>interpolation_vector(8);
+        std::vector<std::vector<double>> interpolation_vector(8);
         int count = 0;
         for(unsigned qq = 0; qq <= qM; qq++) {
           for(unsigned jj = 0; jj <= qq; jj++) {
@@ -1241,53 +1558,73 @@ class OctreeNode {
 
       if(depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003) {
         isLeaf = false;
-        children.push_back(new OctreeNode(minBounds, {midX, midY, midZ}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({midX, minBounds.y, minBounds.z}, {maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({minBounds.x, midY, minBounds.z}, {midX, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({midX, midY, minBounds.z}, {maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({minBounds.x, minBounds.y, midZ}, {midX, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({midX, minBounds.y, midZ}, {maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({minBounds.x, midY, midZ}, {midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM, _Pweights));
-        children.push_back(new OctreeNode({midX, midY, midZ}, maxBounds, table, depth + 1, qM, _Pweights));
+        children.reserve(children.size() + 8);
+        children.emplace_back(minBounds, Point3D{midX, midY, midZ}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{midX, minBounds.y, minBounds.z}, Point3D{maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{minBounds.x, midY, minBounds.z}, Point3D{midX, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{midX, midY, minBounds.z}, Point3D{maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{minBounds.x, minBounds.y, midZ}, Point3D{midX, midY, maxBounds.z}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{midX, minBounds.y, midZ}, Point3D{maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{minBounds.x, midY, midZ}, Point3D{midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM, _Pweights);
+        children.emplace_back(Point3D{midX, midY, midZ}, maxBounds, table, depth + 1, qM, _Pweights);
 
-        // Recursively check for subdivision in each child node
-        for(OctreeNode* child : children) {
-          child->subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+        for(auto& child : children) {
+          child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
         }
       }
     }
-    // Recursive search for the smallest sub-cube containing a given point
+    /*
+        OctreeNode& search(const Point3D& point) {
+            if(isLeaf) {
+                return *this;
+            }
+
+            if(point.z <= children[0].maxBounds.z) {
+                if(point.y <= children[0].maxBounds.y) {
+                    return (point.x <= children[0].maxBounds.x) ? children[0].search(point) : children[1].search(point);
+                } else {
+                    return (point.x <= children[2].maxBounds.x) ? children[2].search(point) : children[3].search(point);
+                }
+            } else {
+                if(point.y <= children[4].maxBounds.y) {
+                    return (point.x <= children[4].maxBounds.x) ? children[4].search(point) : children[5].search(point);
+                } else {
+                    return (point.x <= children[6].maxBounds.x) ? children[6].search(point) : children[7].search(point);
+                }
+            }
+        }*/
+
 
     OctreeNode* search(const Point3D& point) {
       if(isLeaf) {
         return this;
       }
-      if(point.z <= children[0]->maxBounds.z) { // 0->3
-        if(point.y <= children[0]->maxBounds.y) { // 0->1
-          if(point.x <= children[0]->maxBounds.x)
-            return children[0]->search(point);
+      if(point.z <= children[0].maxBounds.z) { // 0.3
+        if(point.y <= children[0].maxBounds.y) { // 0.1
+          if(point.x <= children[0].maxBounds.x)
+            return children[0].search(point);
           else
-            return children[1]->search(point);
+            return children[1].search(point);
         }
-        else { // 2->3
-          if(point.x <= children[2]->maxBounds.x)
-            return children[2]->search(point);
+        else { // 2.3
+          if(point.x <= children[2].maxBounds.x)
+            return children[2].search(point);
           else
-            return children[3]->search(point);
+            return children[3].search(point);
         }
       }
-      else { // 4->7
-        if(point.y <= children[4]->maxBounds.y) { // 4->5
-          if(point.x <= children[4]->maxBounds.x)
-            return children[4]->search(point);
+      else { // 4.7
+        if(point.y <= children[4].maxBounds.y) { // 4.5
+          if(point.x <= children[4].maxBounds.x)
+            return children[4].search(point);
           else
-            return children[5]->search(point);
+            return children[5].search(point);
         }
-        else { // 6->7
-          if(point.x <= children[6]->maxBounds.x)
-            return children[6]->search(point);
+        else { // 6.7
+          if(point.x <= children[6].maxBounds.x)
+            return children[6].search(point);
           else
-            return children[7]->search(point);
+            return children[7].search(point);
         }
       }
       return nullptr; // Should not reach here under normal circumstances
@@ -1303,7 +1640,6 @@ class OctreeNode {
       ofs.close();
     }
 
-    // Function to load the octree structure from a CSV file
     void loadOctreeFromCSV(const std::string& filename) {
       std::ifstream ifs(filename, std::ios::binary);
       if(!ifs.is_open()) {
@@ -1314,58 +1650,44 @@ class OctreeNode {
       ifs.close();
     }
 
-
   private:
-
-    // Serialize the OctreeNode
     void serialize(std::ofstream& ofs) const {
-      // Serialize the current node
       ofs.write(reinterpret_cast<const char*>(&minBounds), sizeof(minBounds));
       ofs.write(reinterpret_cast<const char*>(&maxBounds), sizeof(maxBounds));
       ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
       ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
 
-      // Serialize the vectors
       serializeVector(ofs, corners);
       serializeVector(ofs, cornerAreas);
       serializeVector(ofs, cornerWeights);
 
-      // Serialize children recursively
-      for(OctreeNode* child : children) {
-        child->serialize(ofs);
+      size_t childCount = children.size();
+      ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
+      for(const auto& child : children) {
+        child.serialize(ofs);
       }
     }
 
-    // Deserialize the OctreeNode
     void deserialize(std::ifstream& ifs) {
-      // Deserialize the current node
       ifs.read(reinterpret_cast<char*>(&minBounds), sizeof(minBounds));
       ifs.read(reinterpret_cast<char*>(&maxBounds), sizeof(maxBounds));
       ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
       ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
 
-      // Deserialize the vectors
       deserializeVector(ifs, corners);
       deserializeVector(ifs, cornerAreas);
       deserializeVector(ifs, cornerWeights);
 
-      // Delete existing children
-      for(OctreeNode* child : children) {
-        delete child;
-      }
+      size_t childCount;
+      ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
       children.clear();
-
-      // Deserialize children recursively
-      if(!isLeaf) {
-        for(int i = 0; i < 8; ++i) {
-          OctreeNode* child = new OctreeNode({0, 0, 0}, {1, 1, 1}, 0, 0, 0, nullptr);
-          child->deserialize(ifs);
-          children.push_back(child);
-        }
+      children.reserve(childCount);
+      for(size_t i = 0; i < childCount; ++i) {
+        children.emplace_back(Point3D{0, 0, 0}, Point3D{1, 1, 1}, 0, 0, 0, nullptr);
+        children.back().deserialize(ifs);
       }
     }
 
-    // Helper function to serialize a vector
     void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
       size_t size = vec.size();
       ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
@@ -1377,7 +1699,6 @@ class OctreeNode {
       }
     }
 
-    // Helper function to deserialize a vector
     void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
       size_t size;
       ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
@@ -1394,321 +1715,36 @@ class OctreeNode {
 
 template <class Type>
 void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, std::vector<OctreeNode<Type>>& loadedRoots) {
-for(int ttable = 0; ttable < 8; ++ttable) {
-  std::string filename = "save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv";
-
-  FILE *fp;
-  fp = fopen(filename.c_str(), "r");
-  if(fp != NULL) {
-    fclose(fp);
-  }
-  else {
-    cout << "creating the tables" << endl;
-    OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
-    if(ttable != 5) {
-      root.subdivideWithRelativeError(maxDepth, percent);
-    }
-    else {
-      root.subdivideWithRelativeError(3, 0.1);
-    }
-    root.saveOctreeToCSV(filename);
-    std::cout << "Octree Structure:\n";
-  }
-}
-
-// Load the octree structure and vectors from the CSV file
-loadedRoots.clear();  // Clear any existing data
-loadedRoots.reserve(8);  // Reserve space for 8 octrees
-for(int ttable = 0; ttable < 8; ++ttable) {
-  loadedRoots.emplace_back(Point3D{0., 0., 0.}, Point3D{1., 1., 1.}, ttable, 0, degree, nullptr);
-  loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
-}
-}
-
-/*
-template <class Type>
-class OctreeNode {
-public:
-    Point3D minBounds, maxBounds;
-    bool isLeaf;
-    std::vector<OctreeNode> children;
-    std::vector<std::vector<double>> corners;
-    std::vector<std::vector<double>> cornerAreas;
-    std::vector<std::vector<double>> cornerWeights;
-    int table;
-    unsigned depth;
-    unsigned qM;
-    int s = 0;
-    Type a = 0;
-    double relative_error = -1;
-    double relative_error_opposite = -1;
-    CutFemWeightParabola <double, Type> *_Pweights;
-
-    OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola <double, Type> *Pweights)
-        : minBounds(_minBounds), maxBounds(_maxBounds), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {}
-
-    ~OctreeNode() {
-        // No need to manually delete children
-    }
-
-    void getCorners() {
-        corners.resize(8, std::vector<double>(3));
-        corners[0] = {minBounds.x, minBounds.y, minBounds.z};
-        corners[1] = {minBounds.x, minBounds.y, maxBounds.z};
-        corners[2] = {minBounds.x, maxBounds.y, minBounds.z};
-        corners[3] = {minBounds.x, maxBounds.y, maxBounds.z};
-        corners[4] = {maxBounds.x, minBounds.y, minBounds.z};
-        corners[5] = {maxBounds.x, minBounds.y, maxBounds.z};
-        corners[6] = {maxBounds.x, maxBounds.y, minBounds.z};
-        corners[7] = {maxBounds.x, maxBounds.y, maxBounds.z};
-
-        Type area(0);
-        Type c(1);
-        cornerAreas.resize(8);
-        cornerWeights.resize(8);
-        PointT <Type> p1, p2, p3;
-
-        for(size_t i = 0; i < corners.size(); ++i) {
-            const auto& corner = corners[i];
-            get_p1_p2_p3(table, corner, p1, p2, p3);
-
-            int count = 0;
-            for(unsigned qq = 0; qq <= qM; qq++) {
-                for(unsigned jj = 0; jj <= qq; jj++) {
-                    unsigned ii = qq - jj;
-                    area = find_area_2intersection_formula(ii, jj, s, a, c, table, p1, p2, p3);
-                    cornerAreas[i].push_back(static_cast<double>(area));
-                    count++;
-                }
-            }
-            (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
-        }
-    }
-
-    void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
-        if(currentDepth >= maxDepth || !isLeaf) {
-            getCorners();
-            return;
-        }
-
-        getCorners();
-
-        double midX = (minBounds.x + maxBounds.x) / 2.0;
-        double midY = (minBounds.y + maxBounds.y) / 2.0;
-        double midZ = (minBounds.z + maxBounds.z) / 2.0;
-        std::vector<double> relativeErrors;
-        std::vector<double> relativeErrorsOpposite;
-        std::vector<std::vector<double>> boundary_mid_points(19);
-
-        boundary_mid_points[0] = {midX, minBounds.y, minBounds.z};
-        boundary_mid_points[1] = {maxBounds.x, midY, minBounds.z};
-        boundary_mid_points[2] = {midX, maxBounds.y, minBounds.z};
-        boundary_mid_points[3] = {minBounds.x, midY, minBounds.z};
-        boundary_mid_points[4] = {minBounds.x, minBounds.y, midZ};
-        boundary_mid_points[5] = {maxBounds.x, minBounds.y, midZ};
-        boundary_mid_points[6] = {maxBounds.x, maxBounds.y, midZ};
-        boundary_mid_points[7] = {minBounds.x, maxBounds.y, midZ};
-        boundary_mid_points[8] = {midX, minBounds.y, maxBounds.z};
-        boundary_mid_points[9] = {maxBounds.x, midY, maxBounds.z};
-        boundary_mid_points[10] = {midX, maxBounds.y, maxBounds.z};
-        boundary_mid_points[11] = {minBounds.x, midY, maxBounds.z};
-        boundary_mid_points[12] = {midX, midY, minBounds.z};
-        boundary_mid_points[13] = {minBounds.x, midY, midZ};
-        boundary_mid_points[14] = {midX, minBounds.y, midZ};
-        boundary_mid_points[15] = {midX, midY, maxBounds.z};
-        boundary_mid_points[16] = {maxBounds.x, midY, midZ};
-        boundary_mid_points[17] = {midX, maxBounds.y, midZ};
-        boundary_mid_points[18] = {midX, midY, midZ};
-
-        for(int i = 0; i < boundary_mid_points.size(); ++i) {
-            double randomX = boundary_mid_points[i][0];
-            double randomY = boundary_mid_points[i][1];
-            double randomZ = boundary_mid_points[i][2];
-
-            std::vector<double> interp_point = {randomX, randomY, randomZ};
-
-            Type f_area(0);
-            Type c = 1;
-            PointT<Type> p1, p2, p3;
-            get_p1_p2_p3(table, interp_point, p1, p2, p3);
-
-            std::vector<std::vector<double>> interpolation_vector(8);
-            int count = 0;
-            for(unsigned qq = 0; qq <= qM; qq++) {
-                for(unsigned jj = 0; jj <= qq; jj++) {
-                    unsigned ii = qq - jj;
-                    for(size_t ic = 0; ic < corners.size(); ++ic) {
-                        interpolation_vector[ic] = {corners[ic][0], corners[ic][1], corners[ic][2], cornerAreas[ic][count]};
-                    }
-                    double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
-                    f_area = find_area_2intersection_formula(jj, ii, s, a, c, table, p1, p2, p3);
-                    double formula_area = static_cast<double>(f_area);
-                    double r_error = fabs(formula_area - interp_area) / formula_area;
-                    double r_error_opposite = fabs(formula_area - interp_area) / (1.0 / (ii + 1) * (jj + 1) - formula_area);
-
-                    relativeErrors.push_back(r_error);
-                    relativeErrorsOpposite.push_back(r_error_opposite);
-
-                    count++;
-                }
-            }
-        }
-        relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
-        relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
-
-        if(depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError || minBounds.y < 0.003) {
-            isLeaf = false;
-            children.reserve(children.size() + 8);
-            children.emplace_back(minBounds, Point3D{midX, midY, midZ}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{midX, minBounds.y, minBounds.z}, Point3D{maxBounds.x, midY, midZ}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{minBounds.x, midY, minBounds.z}, Point3D{midX, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{midX, midY, minBounds.z}, Point3D{maxBounds.x, maxBounds.y, midZ}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{minBounds.x, minBounds.y, midZ}, Point3D{midX, midY, maxBounds.z}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{midX, minBounds.y, midZ}, Point3D{maxBounds.x, midY, maxBounds.z}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{minBounds.x, midY, midZ}, Point3D{midX, maxBounds.y, maxBounds.z}, table, depth + 1, qM, _Pweights);
-            children.emplace_back(Point3D{midX, midY, midZ}, maxBounds, table, depth + 1, qM, _Pweights);
-
-            for(auto& child : children) {
-                child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
-            }
-        }
-    }
-
-    OctreeNode& search(const Point3D& point) {
-        if(isLeaf) {
-            return *this;
-        }
-
-        if(point.z <= children[0].maxBounds.z) {
-            if(point.y <= children[0].maxBounds.y) {
-                return (point.x <= children[0].maxBounds.x) ? children[0].search(point) : children[1].search(point);
-            } else {
-                return (point.x <= children[2].maxBounds.x) ? children[2].search(point) : children[3].search(point);
-            }
-        } else {
-            if(point.y <= children[4].maxBounds.y) {
-                return (point.x <= children[4].maxBounds.x) ? children[4].search(point) : children[5].search(point);
-            } else {
-                return (point.x <= children[6].maxBounds.x) ? children[6].search(point) : children[7].search(point);
-            }
-        }
-    }
-
-    void saveOctreeToCSV(const std::string& filename) const {
-        std::ofstream ofs(filename, std::ios::binary);
-        if(!ofs.is_open()) {
-            std::cerr << "Error: Unable to open file for writing: " << filename << std::endl;
-            return;
-        }
-        serialize(ofs);
-        ofs.close();
-    }
-
-    void loadOctreeFromCSV(const std::string& filename) {
-        std::ifstream ifs(filename, std::ios::binary);
-        if(!ifs.is_open()) {
-            std::cerr << "Error: Unable to open file for reading: " << filename << std::endl;
-            return;
-        }
-        deserialize(ifs);
-        ifs.close();
-    }
-
-private:
-    void serialize(std::ofstream& ofs) const {
-        ofs.write(reinterpret_cast<const char*>(&minBounds), sizeof(minBounds));
-        ofs.write(reinterpret_cast<const char*>(&maxBounds), sizeof(maxBounds));
-        ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
-        ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
-
-        serializeVector(ofs, corners);
-        serializeVector(ofs, cornerAreas);
-        serializeVector(ofs, cornerWeights);
-
-        size_t childCount = children.size();
-        ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
-        for(const auto& child : children) {
-            child.serialize(ofs);
-        }
-    }
-
-    void deserialize(std::ifstream& ifs) {
-        ifs.read(reinterpret_cast<char*>(&minBounds), sizeof(minBounds));
-        ifs.read(reinterpret_cast<char*>(&maxBounds), sizeof(maxBounds));
-        ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
-        ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
-
-        deserializeVector(ifs, corners);
-        deserializeVector(ifs, cornerAreas);
-        deserializeVector(ifs, cornerWeights);
-
-        size_t childCount;
-        ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
-        children.clear();
-        children.reserve(childCount);
-        for(size_t i = 0; i < childCount; ++i) {
-            children.emplace_back(Point3D{0, 0, 0}, Point3D{1, 1, 1}, 0, 0, 0, nullptr);
-            children.back().deserialize(ifs);
-        }
-    }
-
-    void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
-        size_t size = vec.size();
-        ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
-
-        for(const auto& innerVec : vec) {
-            size_t innerSize = innerVec.size();
-            ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
-            ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
-        }
-    }
-
-    void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
-        size_t size;
-        ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
-
-        vec.resize(size);
-        for(size_t i = 0; i < size; ++i) {
-            size_t innerSize;
-            ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
-            vec[i].resize(innerSize);
-            ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
-        }
-    }
-};
-
-template <class Type>
-void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double &percent, CutFemWeightParabola <double, Type> &Pweights, std::vector<OctreeNode<Type>>& loadedRoots) {
-for(int ttable = 0; ttable < 8; ++ttable) {
+  for(int ttable = 0; ttable < 8; ++ttable) {
     std::string filename = "save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv";
 
     FILE *fp;
     fp = fopen(filename.c_str(), "r");
     if(fp != NULL) {
-        fclose(fp);
+      fclose(fp);
     }
     else {
-        cout << "creating the tables" << endl;
-        OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
-        if(ttable != 5) {
-            root.subdivideWithRelativeError(maxDepth, percent);
-        }
-        else {
-            root.subdivideWithRelativeError(3, 0.1);
-        }
-        root.saveOctreeToCSV(filename);
-        std::cout << "Octree Structure:\n";
+      cout << "creating the tables" << endl;
+      OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, ttable, 0, degree, &Pweights);
+      if(ttable != 5) {
+        root.subdivideWithRelativeError(maxDepth, percent);
+      }
+      else {
+        root.subdivideWithRelativeError(3, 0.1);
+      }
+      root.saveOctreeToCSV(filename);
+      std::cout << "Octree Structure:\n";
     }
-}
+  }
 
-// Load the octree structure and vectors from the CSV file
-loadedRoots.clear();
-loadedRoots.reserve(8);
-for(int ttable = 0; ttable < 8; ++ttable) {
-  loadedRoots.emplace_back(Point3D{0., 0., 0.}, Point3D{1., 1., 1.}, ttable, 0, degree, nullptr);
-  loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
+  // Load the octree structure and vectors from the CSV file
+  loadedRoots.clear();
+  loadedRoots.reserve(8);
+  for(int ttable = 0; ttable < 8; ++ttable) {
+    loadedRoots.emplace_back(Point3D{0., 0., 0.}, Point3D{1., 1., 1.}, ttable, 0, degree, nullptr);
+    loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
+  }
 }
-}*/
 
 
 
