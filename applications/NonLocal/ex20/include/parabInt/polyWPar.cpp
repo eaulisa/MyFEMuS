@@ -155,6 +155,12 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
       find_search_table(q1, q2, q3, table_number, searchP);
       OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
 
+//       OctreeNode<cpp_bin_float_oct>& result = _loadedRoots[table_number].search(searchP);
+//       if (result.isLeaf) {
+//           std::vector<double> interp_point = {searchP.x, searchP.y, searchP.z};
+//           trilinier_interpolation_vector(result.corners, result.cornerWeights, interp_point, interp_point_weights);
+//           modified_weights.resize(interp_point_weights.size());
+//
       if(result) {
 
         std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};
@@ -192,6 +198,13 @@ bool polyWParQUAD<TypeA>:: find_Weight_CF(const std::vector<std::vector<double>>
       q3.x = (q1.x + q2.x) / 2.;
       q3.y = -parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
       find_search_table(q1, q2, q3, table_number, searchP);
+
+//             OctreeNode<cpp_bin_float_oct>& result = _loadedRoots[table_number].search(searchP);
+//       if (result.isLeaf) {
+//           std::vector<double> interp_point = {searchP.x, searchP.y, searchP.z};
+//           trilinier_interpolation_vector(result.corners, result.cornerWeights, interp_point, interp_point_weights);
+//           modified_weights.resize(interp_point_weights.size());
+
 
       OctreeNode<cpp_bin_float_oct>* result = _loadedRoots[table_number].search(searchP);
       if(result) {
