@@ -1096,6 +1096,7 @@ struct Point3D {
   Point3D(double _x, double _y, double _z) : x(_x), y(_y), z(_z) {}
 };
 
+// BEGIN old octree
 // template <class Type>
 // class OctreeNode {
 //   public:
@@ -1424,7 +1425,7 @@ struct Point3D {
 //   loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
 // }
 // }
-
+// END old octree
 
 template <class Type>
 class OctreeNode {
@@ -1745,12 +1746,6 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" +  std::to_string(degree) + ".csv");
   }
 }
-
-
-
-
-
-
 
 template <class Type>
 void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {

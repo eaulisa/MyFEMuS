@@ -1595,14 +1595,6 @@ OctreeNode(const Point3D& _minBounds, const Point3D& _maxBounds, const int& _tab
 
                 (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
 
-
-//             for (size_t ii = 0; ii <= mPn; ++ii){
-//               for (size_t jj = 0; ii+jj <= mPn; ++jj){
-//                 area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
-//                 corners[i].push_back(static_cast<double>(area));
-//               }
-//             }
-
         }
       }
 
