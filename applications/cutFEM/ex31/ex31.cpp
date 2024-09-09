@@ -1132,6 +1132,8 @@ public:
 private:
 
       void serialize(std::ofstream& ofs) const {
+
+
       ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
       ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
 
@@ -1159,7 +1161,7 @@ private:
       children.clear();
       children.reserve(childCount);
       for(size_t i = 0; i < childCount; ++i) {
-        children.emplace_back(Point3D{0., 0., 0.}, Point3D{1., 1., 1.}, 0, 0, 0, nullptr);
+        children.emplace_back(corners, 0, 0, 0, nullptr);
         children.back().deserialize(ifs);
       }
     }
@@ -1175,6 +1177,7 @@ private:
       }
     }
 
+
     void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
       size_t size;
       ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
@@ -1186,6 +1189,27 @@ private:
         vec[i].resize(innerSize);
         ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
       }
+    }
+
+    void serializeVector(std::ofstream& ofs, const std::vector<Point3D>& vec) const {
+        size_t size = vec.size();
+        ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (const auto& point : vec) {
+            ofs.write(reinterpret_cast<const char*>(&point.x), sizeof(double));
+            ofs.write(reinterpret_cast<const char*>(&point.y), sizeof(double));
+            ofs.write(reinterpret_cast<const char*>(&point.z), sizeof(double));
+        }
+    }
+
+    void deserializeVector(std::ifstream& ifs, std::vector<Point3D>& vec) {
+        size_t size;
+        ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+        vec.resize(size);
+        for (size_t i = 0; i < size; ++i) {
+            ifs.read(reinterpret_cast<char*>(&vec[i].x), sizeof(double));
+            ifs.read(reinterpret_cast<char*>(&vec[i].y), sizeof(double));
+            ifs.read(reinterpret_cast<char*>(&vec[i].z), sizeof(double));
+        }
     }
 
 
@@ -1295,21 +1319,21 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
 
     // Load the octree structure and vectors from the CSV file
     loadedRoots.clear();
-    loadedRoots.reserve(1);
+    loadedRoots.reserve(2);
     for (int ttable = 0; ttable < 1; ++ttable) {
 
         std::vector<Point3D> initialCorners = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5},
                                                {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
 
-        if (ttable == 1){
-          initialCorners = { {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5},
-                             {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
-        }
-
-        else if (ttable == 2){
-          initialCorners = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0},
-                            {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
-        }
+//         if (ttable == 1){
+//           initialCorners = { {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5},
+//                              {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
+//         }
+//
+//         else if (ttable == 2){
+//           initialCorners = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0},
+//                             {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
+//         }
 
         loadedRoots.emplace_back(initialCorners, ttable, 0, degree, nullptr);
         loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" + std::to_string(degree) + ".csv");
@@ -1417,10 +1441,6 @@ int main() {
   p2 = { static_cast<Type>(1), static_cast<Type>(0.4471) };
   p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.8291) };
 
-
-  std::vector<Point3D> initialCorners = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5},
-                                               {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}};
-
     // Create a CutFemWeightParabola object (you may need to adjust this based on your actual implementation)
     std::vector<double>weightCF;
     CutFemWeightParabola <double, Type> Pweights(QUAD, 3, "legendre");
@@ -1433,7 +1453,7 @@ int main() {
 //   std::vector<OctreeNode<Type>> roots;
   std::vector<OctreeNode<Type>>loadedRoots;
 
-  generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, /*roots,*/ loadedRoots);
+  generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, loadedRoots);
 
 
 
@@ -1443,7 +1463,7 @@ int main() {
 //     // Subdivide the octree
 //     root.subdivideWithRelativeError(4, 0.1);
 
-        Point3D searchP(0.1,0.6,0.4);
+        Point3D searchP(0.2,0.6,0.6);
         OctreeNode<Type>* result = loadedRoots[0].search(searchP);
         if(result) {
           std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
