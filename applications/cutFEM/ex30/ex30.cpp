@@ -1450,8 +1450,8 @@ Type trig_integral_A3(const unsigned &m, const unsigned &n, const int &s, const 
 
 
 int main() {
-  unsigned int m = 1;
-  unsigned int n = 2;
+  unsigned int m = 0;
+  unsigned int n = 0;
   int s = 0;
 
   std::cout.precision(16);
@@ -1464,17 +1464,17 @@ int main() {
   //std::srand((unsigned)std::time(NULL));
   std::srand(10);
   int count = 0;
-  for(unsigned int j = 0; j < 10000; j++) {
+  for(unsigned int j = 0; j < 1; j++) {
     Type A1 = 0, A2 = 0, A3 = 0, Easy_A1 = 0,  Easy_A2 = 0, Easy_A3 = 0;
     Type B1 = 0, B2 = 0, B3 = 0, Easy_B1 = 0, Easy_B2 = 0, Easy_B3 = 0;
     Type Trig_A1 = 0,  Trig_A2 = 0, Trig_A3 = 0,Trig_B1 = 0,  Trig_B2 = 0, Trig_B3 = 0;
 
 
 
-    random_polynomial(pol1, pol2);
-//     a = pol1[0] - pol2[0];
-    a = 0;
-    c = pol1[1] - pol2[1];
+//     random_polynomial(pol1, pol2);
+// //     a = pol1[0] - pol2[0];
+//     a = 0;
+//     c = pol1[1] - pol2[1];
 
 //      k = 0.85764624125214572459; b = 0.54315816543212092071; d = 1.4313877017383407342; a = -0.0012779049581279622316; c = -1.5795148879194236269;
 //     std::vector<std::vector<Type>> sample{{1, -1, 0.25, 0.5, -0.1, 0,0,1}, {0, 0,0,0.5,0,1,0,0}, {1, 0,0,0.5,0,0,0,1},{0.1, 0.2,-1,2,0.1,0.251724386116496,0,0}, {1, -1, 0.25, 0, -0.25, 0,0.3333333333333333,0},{1, -1, 0.25, 0, -0.1, 0,0.2108185106778920348,0.36754446796632406214},{20,-8.4,0.6,-6.5,1.3,0.045806466059993167228,0.136242991647203604,0.5095766326720312378}, {-0.69657011083167508225, -0.69655399150054631008, 1.4832208284564414313, 1, -1.4513087502919645999,0,0.34978109786848710083,0.52319330960346455139}};
@@ -1489,25 +1489,29 @@ int main() {
 //       pol2[2] = sample[j][2];
 //       a = sample[j][3];
 //       c = sample[j][4];
+// -3.2x^2+ 3.8x+ -1.1+y =0
+// 2A    14.4x^2+ -9.8x+ 1.3+ y =0
+// 2C  6.4x^2+ -6.8x+ 1.3+y =0
+// 2B    2.37037x^2+ -3.80741x+ 0.803704+y =0
+// 2D    -3.52x^2+ 3.64x+ -0.94+y =0
+// 2E    -4.8x^{2}+4.6x+-1.1+y=0
+   k = -4.8;
+   b = 4.6;
+   d = -1.1;
+  a = 0;
+  c = 1;
 
 
-//    k = -0.5;
-//    b = 1;
-//    d = -1;
-//   a = 0;
-//   c = 1;
-
-
-//     pol1[0] = k+a; pol1[1] = b + c; pol1[2] = d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
+    pol1[0] = k+a; pol1[1] = b + c; pol1[2] = d; pol2[0] = k; pol2[1] = b; pol2[2] = d;
 
     std::vector< std::pair <Type, Type> > I1, I2, I3, nI1, nI2, nI3 ;
     GetIntervalall<Type, Type>(pol1, pol2, I1, I2, I3);
-/*
+
           std::cout<< "\nSample " << j+1 << " : " <<std::endl;
           std::cout <<"\nm = "<< m << "; n = "<< n << "; s = " << s << "; k = "<<pol2[0] << "; b = " << pol2[1] << "; d = " << pol2[2] << "; a = " << a << "; c = " << c << ";" << std::endl;
               for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
               for(unsigned i = 0; i < I2.size(); i++) {std::cout << "I2_1 = " << I2[i].first << "; I2_2 = " << I2[i].second << ";" << std::endl;}
-              for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}*/
+              for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
 
 //                   cout << "I_size = " << I1.size() <<" "<<I2.size()<<" "<< I3.size() <<endl;
 
@@ -1540,7 +1544,22 @@ int main() {
     }
 
     Trig_area1 = Trig_A1 + Trig_A2 + Trig_A3;
-//     cout << "Trig_A1 = " << Trig_A1 << "\n Trig_A2 = " << Trig_A2 << "\n Trig_A3 = " << Trig_A3 <<"\n trig area = " << Trig_area1 <<endl;
+    cout << "Trig_A1 = " << Trig_A1 << "\n Trig_A2 = " << Trig_A2 << "\n Trig_A3 = " << Trig_A3 <<"\n trig area = " << Trig_area1 <<endl;
+
+    I1.resize(0);
+    I3.resize(0);
+    I1.resize(1, std::pair<Type, Type>(static_cast<Type>(0.25), static_cast<Type>(0.4583)));
+    I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0.4583), static_cast<Type>(1)));
+
+  for(unsigned i = 0; i < I1.size(); i++) {std::cout << "I1_1 = " << I1[i].first << "; I1_2 = " << I1[i].second << ";" << std::endl;}
+  for(unsigned i = 0; i < I3.size(); i++) {std::cout << "I3_1 = " << I3[i].first << "; I3_2 = " << I3[i].second << ";" << std::endl;}
+  //When I do this I1 is resizing but it is not taking any value. Kept the original value. I don't know how my previous code worked.
+
+
+
+  Type Trig_1A = trig_integral_A3(m, n, s, a, c, pol2, I1) -  trig_integral_A2(m, n, s, a, c, pol2, I1);
+  Type Trig_1B = trig_integral_A3(m, n, s, a, c, pol2, I3) ;
+  cout<< " -----------------Check area -----"<< Trig_1A << " "<<Trig_1B<<  " " <<Trig_1A+Trig_1B << endl;
 
 
     pol1[0] *= -1;
@@ -1602,7 +1621,7 @@ int main() {
 //   return 2;
 
     Type err = 0.0000000001;
-      if((fabs(Trig_area1 + Trig_area2 - 1. / ((m + n + 2.) * (n + 1.))) > err)) {
+      if((fabs(Trig_area1 + Trig_area2 - 1. / ((m + n + 2.) * (n + 1.))) < err)) {
       std::cout << "................................ Failed...................................... " << std::endl;
       std::cout << "\nm = " << m << "; n = " << n << "; s = " << s << "; k = " << -pol2[0] << "; b = " << -pol2[1] << "; d = " << -pol2[2] << "; a = " << -a << "; c = " << -c << ";" << std::endl;
 //       for(unsigned i = 0; i < I1.size(); i++) {
@@ -1679,6 +1698,10 @@ int main() {
   t = clock() - t;
   std::cout << "Time taken " << (Type)(t) / CLOCKS_PER_SEC << std::endl;
 
+
+
+
+
   return 1;
 
   {
@@ -1741,6 +1764,8 @@ int main() {
     t = clock() - t;
     std::cout << "Time taken for hard integral" << (Type)(t) / CLOCKS_PER_SEC << std::endl;
   }
+
+
   return 1;
 }
 
