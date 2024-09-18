@@ -258,7 +258,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
         unsigned i = q - j;
         //TODO change it with area = find_area_2intersection_formula(jj,ii,s,a,c,table, p1,p2, p3);
   //      _f[count] = (*_obj)(s, {i, j}, aA, dA);
-        _f[count] = find_area_2intersection_formula(i,j,s,a,c,table, p1,p2, p3);
+        _f[count] = find_trig_area_2intersection_formula(i,j,s,a,c,table, p1,p2, p3);
 //         cout<< " f values = " << i << " "<< j << " "<< _f[count] <<endl;
         count++;
       }

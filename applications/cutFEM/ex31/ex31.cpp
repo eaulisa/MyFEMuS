@@ -693,7 +693,7 @@ cout<< " " << " left " << left << " top "<< top << " right "<< right << " bottom
 }
 
 template <class Type>
-Type find_area_2intersection_formula(const unsigned &m, const unsigned &n, const int &s, const Type &a, Type c,const int &table,  PointT <Type> &p1,  PointT <Type> &p2, const PointT <Type> &p3){   //TODO we have 5 tables. each of them works differently. Work the math first.
+Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, const int &s, const Type &a, Type c,const int &table,  PointT <Type> &p1,  PointT <Type> &p2, const PointT <Type> &p3){   //TODO we have 5 tables. each of them works differently. Work the math first.
     Type area(0);
     Type A1 (0), A2 (0), A3 (0);
     std::vector< std::pair <Type, Type> > I1, I2, I3 ;
@@ -1101,7 +1101,7 @@ public:
             for (unsigned qq = 0; qq <= qM; qq++) {
                 for (unsigned jj = 0; jj <= qq; jj++) {
                     unsigned ii = qq - jj;
-                    area = find_area_2intersection_formula(ii, jj, s, a, c, table, p1, p2, p3);
+                    area = find_trig_area_2intersection_formula(ii, jj, s, a, c, table, p1, p2, p3);
                     cornerAreas[i].push_back(static_cast<double>(area));
                     count++;
                 }
@@ -1142,7 +1142,7 @@ public:
                         interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
                     }
                     double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
-                    f_area = find_area_2intersection_formula(jj, ii, s, a, c, table, p1, p2, p3);
+                    f_area = find_trig_area_2intersection_formula(jj, ii, s, a, c, table, p1, p2, p3);
                     double formula_area = static_cast<double>(f_area);
                     double r_error = fabs(formula_area - interp_area) / formula_area;
                     double r_error_opposite = fabs(formula_area - interp_area) / (1.0 / (ii + 1) * (jj + 1) - formula_area);
@@ -1641,15 +1641,15 @@ int main() {
         }
 
 
-        Type direct_area_00 = find_area_2intersection_formula<Type>(0, 0, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_10 = find_area_2intersection_formula<Type>(1, 0, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_01 = find_area_2intersection_formula<Type>(0, 1, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_11 = find_area_2intersection_formula<Type>(1, 1, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_30 = find_area_2intersection_formula<Type>(3, 0, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_21 = find_area_2intersection_formula<Type>(2, 1, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_12 = find_area_2intersection_formula<Type>(1, 2, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_03 = find_area_2intersection_formula<Type>(0, 3, 0, 0, 1, 0,  q1,  q2, q3);
-        Type direct_area_22 = find_area_2intersection_formula<Type>(2, 2, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_00 = find_trig_area_2intersection_formula<Type>(0, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_10 = find_trig_area_2intersection_formula<Type>(1, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_01 = find_trig_area_2intersection_formula<Type>(0, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_11 = find_trig_area_2intersection_formula<Type>(1, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_30 = find_trig_area_2intersection_formula<Type>(3, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_21 = find_trig_area_2intersection_formula<Type>(2, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_12 = find_trig_area_2intersection_formula<Type>(1, 2, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_03 = find_trig_area_2intersection_formula<Type>(0, 3, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_22 = find_trig_area_2intersection_formula<Type>(2, 2, 0, 0, 1, 0,  q1,  q2, q3);
         cout << " area = " << direct_area_00 << endl;
         cout << " area x = " << direct_area_10 << endl;
         cout << " area y = " << direct_area_01 << endl;
