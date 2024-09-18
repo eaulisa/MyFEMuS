@@ -1048,6 +1048,14 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
 }
 
 
+double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
+  double Integral = 0;
+  for(unsigned ig = 0; ig < interp_point_weights.size(); ig++) {
+    Integral += pow(xg[ig],xExp) * pow(yg[ig],yExp) * interp_point_weights[ig] * gaussWeight[ig];
+  }
+  return Integral;
+}
+
 template <class Type>
 class OctreeNode {
 public:
@@ -1385,9 +1393,6 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
         else {
             cout << "creating the tables" << endl;
 
-
-
-
             OctreeNode<Type> root(initialCorners[ttable], ttable, 0, degree, &Pweights);
             root.subdivideWithRelativeError(maxDepth, percent);
 
@@ -1397,6 +1402,7 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     }
 
     // Load the octree structure and vectors from the CSV file
+    cout << "Loading the tables" << endl;
     loadedRoots.clear();
     loadedRoots.reserve(2);
     for (int ttable = 0; ttable < 1; ++ttable) {
@@ -1496,35 +1502,55 @@ int main() {
 
   typedef cpp_bin_float_oct Type;
   Type k, b, d, a, c, area1, area2, easy_area1, easy_area2,Trig_area1,Trig_area2;
+  double Area0 = 0, Area = 0, Ix = 0, Iy = 0,Ixy =0, Ix3 = 0, Ix2y = 0, Ixy2 = 0, Iy3 = 0, Ix2y2 = 0;
+
   std::vector <Type> pol1(3, 0);
   std::vector <Type> pol2(3, 0);
   clock_t t = clock();
   //std::srand((unsigned)std::time(NULL));
   std::srand(10);
   int count = 0;
-  PointT <Type> p1, p2, p3;
-  p1 = { static_cast<Type>(0.3), static_cast<Type>(0.3) };
-  p2 = { static_cast<Type>(1), static_cast<Type>(0.8) };
+  PointT <Type> p1, p2, p3;  // points in domain D
+  p1 = { static_cast<Type>(0.7), static_cast<Type>(0.3) };
+  p2 = { static_cast<Type>(0.2), static_cast<Type>(0.8) };
   p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.2) };
+
+  PointT <Type> q1, q2, q3;   // points in domain D*
+  q1 = { static_cast<Type>(1.0-0.7), static_cast<Type>(0.3) };
+  q2 = { static_cast<Type>(1.0-0.2), static_cast<Type>(0.8) };
+  q3 = { static_cast<Type>((q1.x + q2.x) / 2.0), static_cast<Type>(0.2) };
+
   Parabola <Type> parabola = get_parabola_equation(p1,p2,p3);
   std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
 
   std::vector<double>weightCF;
   std::vector< double > interp_point_weights;
+  std::vector< double > interp_point_integrals;
 
     CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
     Pweights(s, a, c, 0, p1, p2, p3, weightCF);
 
+    cout<< " gause weight = ";
+    for (size_t j = 0; j < weightCF.size(); ++j){
+      std::cout << weightCF[j] << ", ";
+    }
+    cout<<endl;
 
-  int maxDepth = 4;
+
+    const double* gaussWeight =  Pweights.GetGaussWeightPointer();
+    const double* xg = Pweights.GetGaussCoordinatePointer(0);
+    const double* yg = Pweights.GetGaussCoordinatePointer(1);
+
+
+  int maxDepth = 5;
   int degree = 3;
-  double percent = 0.01;
+  double percent = 0.001;
 //   std::vector<OctreeNode<Type>> roots;
   std::vector<OctreeNode<Type>>loadedRoots;
 
   generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, loadedRoots);
 
-
+//   printOctreeStructure(&loadedRoots[0]);
 
 //     // Create the root node
 //     OctreeNode<Type> root(initialCorners, 0, 0, 2, &Pweights);
@@ -1532,9 +1558,12 @@ int main() {
 //     // Subdivide the octree
 //     root.subdivideWithRelativeError(4, 0.1);
 
-        Point3D searchP(0.3,0.8,0.2);
 
+        Point3D originalPoint(0.7,0.2,0.2);
+        Point3D searchP(1. - originalPoint.x , 1. - originalPoint.y, originalPoint.z );
+        std::cout << "\nSearch Point: (" << searchP.x << ", " << searchP.y << ", " << searchP.z << ")\n";
         OctreeNode<Type>* result = loadedRoots[0].search(searchP);
+        cout<< " results =" << result ;
         if(result) {
           std::cout << "Found the smallest sub-cube containing the search point." << std::endl;
           std::cout << "\nSearch Point: (" << searchP.x << ", " << searchP.y << ", " << searchP.z << ")\n";
@@ -1549,21 +1578,21 @@ int main() {
           }
 
 
-          for (size_t i = 0; i < result->cornerAreas.size(); ++i) {
-            std::cout << "    Corner " << i << " Areas : (" ;
-            for (size_t j = 0; j < result->cornerAreas[i].size(); ++j){
-              std::cout << result->cornerAreas[i][j] << ", ";
-            }
-            std::cout << " )"<<std::endl;
-          }
-
-          for (size_t i = 0; i < result->cornerWeights.size(); ++i) {
-            std::cout << "    Corner " << i << " Weights : (" ;
-            for (size_t j = 0; j < result->cornerWeights[i].size(); ++j){
-              std::cout << result->cornerWeights[i][j] << ", ";
-            }
-            std::cout << " )"<<std::endl;
-          }
+//           for (size_t i = 0; i < result->cornerAreas.size(); ++i) {
+//             std::cout << "    Corner " << i << " Areas : (" ;
+//             for (size_t j = 0; j < result->cornerAreas[i].size(); ++j){
+//               std::cout << result->cornerAreas[i][j] << ", ";
+//             }
+//             std::cout << " )"<<std::endl;
+//           }
+//
+//           for (size_t i = 0; i < result->cornerWeights.size(); ++i) {
+//             std::cout << "    Corner " << i << " Weights : (" ;
+//             for (size_t j = 0; j < result->cornerWeights[i].size(); ++j){
+//               std::cout << result->cornerWeights[i][j] << ", ";
+//             }
+//             std::cout << " )"<<std::endl;
+//           }
 
           std::vector<double>interp_point = {searchP.x, searchP.y, searchP.z};\
           std::vector<std::vector<double>> corners(8, std::vector<double>(3));  // A 2D vector of size 8x3
@@ -1589,7 +1618,47 @@ int main() {
               std::cout << interp_point_weights[j] << ", ";
             }
             std::cout << " )"<<std::endl;
+
+            Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+            Ix  = GaussIntegral(1, 0, xg, yg, interp_point_weights, gaussWeight);
+            Iy  = GaussIntegral(0, 1, xg, yg, interp_point_weights, gaussWeight);
+            Ix3  = GaussIntegral(3, 0, xg, yg, interp_point_weights, gaussWeight);
+            Ix2y  = GaussIntegral(2, 1, xg, yg, interp_point_weights, gaussWeight);
+            Ixy2  = GaussIntegral(1, 2, xg, yg, interp_point_weights, gaussWeight);
+            Iy3 = GaussIntegral(0, 3, xg, yg, interp_point_weights, gaussWeight);
+            Ix2y2  = GaussIntegral(2, 2, xg, yg, interp_point_weights, gaussWeight);
+
+            std::cout << "Area0 = " << Area0 << std::endl;
+            std::cout << "Area = " << Area << std::endl;
+            std::cout << "Ix = " << Ix << std::endl;
+            std::cout << "Iy = " << Iy << std::endl;
+            std::cout << "Ix3 = " << Ix3 << std::endl;
+            std::cout << "Ix2y = " << Ix2y << std::endl;
+            std::cout << "Ixy2 = " << Ixy2 << std::endl;
+            std::cout << "Iy3 = " << Iy3 << std::endl;
+            std::cout << "Ix2y2 = " << Ix2y2 << std::endl;
+
         }
+
+
+        Type direct_area_00 = find_area_2intersection_formula<Type>(0, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_10 = find_area_2intersection_formula<Type>(1, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_01 = find_area_2intersection_formula<Type>(0, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_11 = find_area_2intersection_formula<Type>(1, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_30 = find_area_2intersection_formula<Type>(3, 0, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_21 = find_area_2intersection_formula<Type>(2, 1, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_12 = find_area_2intersection_formula<Type>(1, 2, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_03 = find_area_2intersection_formula<Type>(0, 3, 0, 0, 1, 0,  q1,  q2, q3);
+        Type direct_area_22 = find_area_2intersection_formula<Type>(2, 2, 0, 0, 1, 0,  q1,  q2, q3);
+        cout << " area = " << direct_area_00 << endl;
+        cout << " area x = " << direct_area_10 << endl;
+        cout << " area y = " << direct_area_01 << endl;
+        cout << " area xy = " << direct_area_11 << endl;
+        cout << " area x3 = " << direct_area_30 << endl;
+        cout << " area x2y = " << direct_area_21 << endl;
+        cout << " area xy2 = " << direct_area_12 << endl;
+        cout << " area y3 = " << direct_area_03 << endl;
+        cout << " area x2y2 = " << direct_area_22 << endl;
 
     // Print the octree structure
 //     std::cout << "Octree Structure:\n";
