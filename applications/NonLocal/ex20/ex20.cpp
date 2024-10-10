@@ -56,9 +56,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-unsigned numberOfUniformLevels = 5; //consistency
+//unsigned numberOfUniformLevels = 4; //consistency
 //unsigned numberOfUniformLevels = 1; //cubic-quartic 2->6 //cubic Marta4Quad Tri Mix
-//unsigned numberOfUniformLevels = 2; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
+unsigned numberOfUniformLevels = 4; //cubic-quartic 2->4 mappa a 4->6 //cubic Marta4Fine
 
 unsigned numberOfUniformLevelsFine = 1;
 
@@ -107,8 +107,8 @@ int main(int argc, char** argv) {
 
 
 
-  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
-//   char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
+  //char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+  char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
 //   char fileName[100] = "../input/martaTest4Tri.neu";
  // char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  system.SetSparsityPatternMinimumSize(60000u);    //TODO tune
+  system.SetSparsityPatternMinimumSize(20000u);    //TODO tune
 
   system.init();
 

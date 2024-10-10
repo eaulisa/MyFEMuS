@@ -297,6 +297,9 @@ void AssembleNonLocalRefined(MultiLevelProblem& ml_prob) {
   SparseMatrix*            KK = pdeSys->_KK;
   NumericVector*           RES = pdeSys->_RES;
 
+
+  MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_IGNORE_ZERO_ENTRIES,PETSC_TRUE);
+
   Region region2(10);
 
   const unsigned  dim = msh->GetDimension();
