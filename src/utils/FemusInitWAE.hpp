@@ -39,7 +39,7 @@
 /// Class FemusInit
 // ========================================
 
-//#include "adept.h"
+#include "adept.h"
 #include "uq.hpp"
 
 namespace femus {
@@ -54,7 +54,7 @@ public:
     /// Destructor
     ~FemusInit();
     
-    //static adept::Stack _adeptStack;
+    static adept::Stack _adeptStack; 
     static uq _uqHermite; 
     static uq _uqLegendre; 
      

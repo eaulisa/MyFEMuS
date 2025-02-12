@@ -29,7 +29,7 @@ algebra/ParsedFunction.cpp
 algebra/SlepcSVD.cpp
 equations/assemble/Quantity.cpp
 equations/assemble/DofMap.cpp
-equations/assemble/Assemble_jacobian.cpp
+#equations/assemble/Assemble_jacobian.cpp
 equations/assemble/Assemble_unknown.cpp
 equations/assemble/BoundaryConditions.cpp
 equations/assemble/CurrentElem.cpp
@@ -47,8 +47,8 @@ equations/TimeLoop.cpp
 equations/TransientSystem.cpp
 fe/ElemType.cpp
 fe/ElemType1.cpp
-fe/ElemType_template.cpp
-fe/ElemType_template_base.cpp
+#fe/ElemType_template.cpp
+#fe/ElemType_template_base.cpp
 fe/Hexaedron.cpp
 fe/Line.cpp
 fe/Quadrilateral.cpp
@@ -115,7 +115,7 @@ solution/output/XDMFWriter.cpp
 utils/FemusInit.cpp
 utils/Files.cpp
 uq/uq.cpp
-utils/eigen/MyEigenFunctions.cpp
+#utils/eigen/MyEigenFunctions.cpp
 uq/sparseGrid.cpp
 )
 

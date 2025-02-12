@@ -35,21 +35,21 @@ namespace femus {
 
 //BEGIN Base Class specialization for template and inheritance.
 
-  // void elem_type::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
-  //                                    adept::adouble &weight,
-  //                                    const double *&phi,
-  //                                    boost::optional < vector < adept::adouble > & > gradphi,
-  //                                    boost::optional < vector < adept::adouble > & > nablaphi) const {
-  //   if(_dim1) {
-  //     static_cast<const elem_type_1D&>(*this).GetGaussQuantities_type(vt, ig, weight,  phi, gradphi, nablaphi);
-  //   }
-  //   else if(_dim2) {
-  //     static_cast<const elem_type_2D&>(*this).GetGaussQuantities_type(vt, ig, weight, phi, gradphi, nablaphi);
-  //   }
-  //   else {
-  //     static_cast<const elem_type_3D&>(*this).GetGaussQuantities_type(vt, ig, weight, phi, gradphi, nablaphi);
-  //   }
-  // }
+  void elem_type::GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
+                                     adept::adouble &weight,
+                                     const double *&phi,
+                                     boost::optional < vector < adept::adouble > & > gradphi,
+                                     boost::optional < vector < adept::adouble > & > nablaphi) const {
+    if(_dim1) {
+      static_cast<const elem_type_1D&>(*this).GetGaussQuantities_type(vt, ig, weight,  phi, gradphi, nablaphi);
+    }
+    else if(_dim2) {
+      static_cast<const elem_type_2D&>(*this).GetGaussQuantities_type(vt, ig, weight, phi, gradphi, nablaphi);
+    }
+    else {
+      static_cast<const elem_type_3D&>(*this).GetGaussQuantities_type(vt, ig, weight, phi, gradphi, nablaphi);
+    }
+  }
 
 
   void elem_type::GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
@@ -70,20 +70,20 @@ namespace femus {
   }
 
 
-  // void elem_type::GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const  vector < double  >& xi,
-  //                                   adept::adouble &det,
-  //                                   vector < vector < adept::adouble > > & Jac,
-  //                                   vector < vector < adept::adouble > > & JacI) const {
-  //   if(_dim1) {
-  //     static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
-  //   }
-  //   else if(_dim2) {
-  //     static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
-  //   }
-  //   else {
-  //     static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
-  //   }
-  // }
+  void elem_type::GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const  vector < double  >& xi,
+                                    adept::adouble &det,
+                                    vector < vector < adept::adouble > > & Jac,
+                                    vector < vector < adept::adouble > > & JacI) const {
+    if(_dim1) {
+      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
+    }
+    else if(_dim2) {
+      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
+    }
+    else {
+      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, xi, det, Jac, JacI);
+    }
+  }
 
 
   void elem_type::GetJacobianMatrix(const vector < vector < double > >& vt, const  vector < double  >& xi,
@@ -101,18 +101,18 @@ namespace femus {
     }
   }
 
-  // void elem_type::GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
-  //                                   vector< vector < adept::adouble > >& Jac, vector< vector < adept::adouble > >& JacI) const {
-  //   if(_dim1) {
-  //     static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
-  //   }
-  //   else if(_dim2) {
-  //     static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
-  //   }
-  //   else {
-  //     static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
-  //   }
-  // }
+  void elem_type::GetJacobianMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                                    vector< vector < adept::adouble > >& Jac, vector< vector < adept::adouble > >& JacI) const {
+    if(_dim1) {
+      static_cast<const elem_type_1D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
+    }
+    else if(_dim2) {
+      static_cast<const elem_type_2D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
+    }
+    else {
+      static_cast<const elem_type_3D&>(*this).GetJacobianMatrix_type(vt, ig, Weight, Jac, JacI);
+    }
+  }
 
   void elem_type::GetJacobianMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
                                     vector< vector < double > >& Jac, vector< vector < double > >& JacI) const {

@@ -18,7 +18,7 @@
 
 namespace femus {
 
-//adept::Stack FemusInit::_adeptStack;
+adept::Stack FemusInit::_adeptStack;
 
 uq FemusInit::_uqHermite(UQ_HERMITE); 
 uq FemusInit::_uqLegendre(UQ_LEGENDRE); 

@@ -29,7 +29,7 @@ class assemble_jacobian/* : public assemble_jacobian_base*/ {
  public:
     
                                                
- //void prepare_before_integration_loop(adept::Stack& stack) const;
+ void prepare_before_integration_loop(adept::Stack& stack) const;
 
  
  void  compute_jacobian_inside_integration_loop(const unsigned i,
@@ -42,24 +42,24 @@ class assemble_jacobian/* : public assemble_jacobian_base*/ {
                                                 std::vector< double > & Jac) const;
   
                                                
- // void  compute_jacobian_outside_integration_loop(adept::Stack & stack,
- //                                               const std::vector< std::vector< real_num > > & solu,
- //                                               const std::vector< real_num > & Res,
- //                                               std::vector< real_num_mov > & Jac,
- //                                               const std::vector< int > & loc_to_glob_map,
- //                                               NumericVector*           RES,
- //                                               SparseMatrix*             KK
- //                                                                   ) const;
+ void  compute_jacobian_outside_integration_loop(adept::Stack & stack,
+                                               const std::vector< std::vector< real_num > > & solu,
+                                               const std::vector< real_num > & Res,
+                                               std::vector< real_num_mov > & Jac, 
+                                               const std::vector< int > & loc_to_glob_map,
+                                               NumericVector*           RES,
+                                               SparseMatrix*             KK
+                                                                   ) const;
                                                                    
     
- // void  compute_jacobian_outside_integration_loop(adept::Stack & stack,
- //                                               const std::vector< UnknownLocal < real_num > > & unk_vec,
- //                                               const std::vector< real_num > & Res,
- //                                               std::vector< real_num_mov > & Jac,
- //                                               const std::vector< int > & loc_to_glob_map,
- //                                               NumericVector*           RES,
- //                                               SparseMatrix*             KK
- //                                                                   ) const;
+ void  compute_jacobian_outside_integration_loop(adept::Stack & stack,
+                                               const std::vector< UnknownLocal < real_num > > & unk_vec,
+                                               const std::vector< real_num > & Res,
+                                               std::vector< real_num_mov > & Jac, 
+                                               const std::vector< int > & loc_to_glob_map,
+                                               NumericVector*           RES,
+                                               SparseMatrix*             KK
+                                                                   ) const;
                                                                    
     
 static void print_element_jacobian(const unsigned int iel,
