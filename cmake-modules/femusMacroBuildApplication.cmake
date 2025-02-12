@@ -39,10 +39,10 @@ IF(HDF5_FOUND)
 ENDIF(HDF5_FOUND)
 
 if(OpenMP_FOUND)
-  include_directories(${OpenMP_INCLUDE_DIRS})
-  target_link_libraries(${appname} OpenMP::OpenMP_CXX)
+  #include_directories(${OpenMP_INCLUDE_DIRS})
+  #target_link_libraries(${appname} OpenMP::OpenMP_CXX)
   # set_property(TARGET ${appname} PROPERTY COMPILE_FLAGS "-fopenmp --offload-arch=gfx942")
-  set_property(TARGET ${appname} PROPERTY COMPILE_FLAGS "-fopenmp")
+  #set_property(TARGET ${appname} PROPERTY COMPILE_FLAGS "-fopenmp")
 endif()
 
 IF(TARGET_CERES_LIBRARY)
