@@ -16,6 +16,7 @@ class RefineElement {
     void BuildElement1Prolongation(const unsigned &level, const unsigned &i);
     void SetConstants(const double &eps);
 
+    #pragma omp begin declare target
     double GetSmoothStepFunction(const double &dg1) const {
       if(dg1 < - _eps)
         return 0.;
@@ -26,6 +27,7 @@ class RefineElement {
       else
         return 1.;
     };
+#pragma omp end declare target
 
     const elem_type *GetFem1() const {
       return _finiteElement1;

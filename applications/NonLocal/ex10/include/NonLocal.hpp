@@ -3,7 +3,11 @@
 
 #include "GetNormal.hpp"
 
+#pragma omp requires unified_shared_memory
+
 std::ofstream fout;
+
+class NonLocalBall;
 
 class NonLocal {
   public:
@@ -21,7 +25,10 @@ class NonLocal {
       return sqrt(distance);
 
     };
-    virtual double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) const = 0;
+    #pragma omp begin declare target
+    virtual double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) {};
+    #pragma omp end declare target
+
     virtual void SetKernel(const double  &kappa, const double &delta, const double &eps) = 0;
     const double & GetKernel() const {
       return _kernel;
@@ -270,85 +277,6 @@ void NonLocal::Assembly1(const unsigned &level, const unsigned &levelMin1, const
   }
 }
 
-
-
-
-
-
-double NonLocal::Assembly2(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
-                           const unsigned & nDof1, const vector < double > &xg1,
-                           const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
-                           const double & delta, const bool & printMesh) {
-
-  double area = 0.;
-
-  double solu1g = 0.;
-  for(unsigned i = 0; i < nDof1; i++) {
-    solu1g += solu1[i] * phi1[i];
-  }
-
-  const double *phi2;
-  const double *phi2pt;
-  double U;
-
-  std::vector< double > mCphi2iSum;
-
-  const double& eps = element1.GetEps();
-
-  for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
-
-    unsigned jel = jelIndex[jj];
-
-    const unsigned &dim = region2.GetDimension(jel);
-    const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
-
-    bool coarseIntersectionTest = true;
-    for(unsigned k = 0; k < dim; k++) {
-      if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
-        coarseIntersectionTest = false;
-        break;
-      }
-    }
-
-    if(coarseIntersectionTest) {
-
-      const unsigned &nDof2 = region2.GetDofNumber(jel);
-      const elem_type *fem = region2.GetFem(jel);
-      const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
-      const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
-      const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
-
-      mCphi2iSum.assign(nDof2, 0.);
-
-      for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
-        phi2 = fem->GetPhi(jg);
-        U = element1.GetSmoothStepFunction(this->GetInterfaceDistance(xg1, xg2[jg], delta));
-        if(U > 0.) {
-          double C =  U * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
-          double *jac22pt = &_jac22[jel][0];
-          for(unsigned i = 0; i < nDof2; i++) {
-            double cPhi2i = C * phi2[i];
-            mCphi2iSum[i] -= cPhi2i;
-            unsigned j = 0;
-            for(phi2pt = phi2; j < nDof2; j++, phi2pt++, jac22pt++) {
-              *jac22pt -= cPhi2i * (*phi2pt);
-            }
-            _res2[jel][i] += cPhi2i * solu2g[jg];
-          }
-        }//end if U > 0.
-      }//end jg loop
-
-      unsigned ijIndex = 0;
-      for(unsigned i = 0; i < nDof2; i++) {
-        for(unsigned j = 0; j < nDof1; j++, ijIndex++) {
-          _jac21[jel][ijIndex] -= mCphi2iSum[i] * phi1[j];
-        }
-        _res2[jel][i] += mCphi2iSum[i] * solu1g;
-      }
-    }
-  }
-  return area;
-}
 
 
 
@@ -905,6 +833,7 @@ class NonLocalBall: public NonLocal {
     NonLocalBall(): NonLocal() {};
     ~NonLocalBall() {};
 
+#pragma omp begin declare target
     double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
       double distance  = 0.;
       for(unsigned k = 0; k < xc.size(); k++) {
@@ -913,6 +842,8 @@ class NonLocalBall: public NonLocal {
       distance = radius - sqrt(distance);
       return distance;
     };
+    #pragma omp end declare target
+
 
     void SetKernel(const double  &kappa, const double &delta, const double &eps) {
       _kernel = 4. * kappa / (M_PI  * delta * delta * delta * delta)
@@ -937,6 +868,7 @@ class NonLocalBall3D: public NonLocal {
     NonLocalBall3D(): NonLocal() {};
     ~NonLocalBall3D() {};
 
+    #pragma omp begin declare target
     double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
       double distance  = 0.;
       for(unsigned k = 0; k < xc.size(); k++) {
@@ -945,6 +877,7 @@ class NonLocalBall3D: public NonLocal {
       distance = radius - sqrt(distance);
       return distance;
     };
+#pragma omp end declare target
 
     void SetKernel(const double  &kappa, const double &delta, const double &eps) {
       _kernel = 15. * kappa / (4. * M_PI  * delta * delta * delta * delta * delta)
@@ -971,6 +904,7 @@ class NonLocalBall1: public NonLocal {
     NonLocalBall1(): NonLocal() {};
     ~NonLocalBall1() {};
 
+    #pragma omp begin declare target
     double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) const {
       double distance  = 0.;
       for(unsigned k = 0; k < xc.size(); k++) {
@@ -979,6 +913,7 @@ class NonLocalBall1: public NonLocal {
       distance = radius - sqrt(distance);
       return distance;
     }
+    #pragma omp end declare target
 
     void SetKernel(const double  &kappa, const double &delta, const double &eps) {
       _kernel = 3. * kappa / (M_PI  * delta * delta * delta)
@@ -1006,26 +941,9 @@ class NonLocalBox: public NonLocal {
   public:
     NonLocalBox(): NonLocal() {};
     ~NonLocalBox() {};
-    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const;
-    void SetKernel(const double  &kappa, const double &delta, const double &eps) {
-      _kernel = 0.75 * kappa / (delta * delta * delta * delta);
-    };
-    double GetArea(const double &delta, const double &eps) const {
-      return delta * delta;
-    };
-
-    double GetGamma(const double &d) const {
-      return 1.;
-    }
-    double GetGamma(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
-      return 1.;
-    }
-};
-
-
-double NonLocalBox::GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double & halfSide) const {
-
-  double distance = 0.;
+    #pragma omp begin declare target
+    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &halfSide) const{
+    double distance = 0.;
   unsigned dim = xc.size();
   std::vector < double > din(2 * dim); // used only if the point is inside
   std::vector < double > dout(dim, 0.); // used only if the point is outside
@@ -1055,6 +973,122 @@ double NonLocalBox::GetInterfaceDistance(const std::vector < double>  &xc, const
     distance = -sqrt(distance);
   }
   return distance;
+    };
+    #pragma omp end declare target
+
+    void SetKernel(const double  &kappa, const double &delta, const double &eps) {
+      _kernel = 0.75 * kappa / (delta * delta * delta * delta);
+    };
+    double GetArea(const double &delta, const double &eps) const {
+      return delta * delta;
+    };
+
+    double GetGamma(const double &d) const {
+      return 1.;
+    }
+    double GetGamma(const std::vector < double>  &x1, const std::vector < double>  &x2) const {
+      return 1.;
+    }
+};
+
+
+double NonLocal::Assembly2(const RefineElement & element1, const Region & region2, const std::vector<unsigned> &jelIndex,
+                           const unsigned & nDof1, const vector < double > &xg1,
+                           const double & twoWeigh1Kernel, const vector < double > &phi1, const vector < double >  &solu1,
+                           const double & delta, const bool & printMesh) {
+
+  double area = 0.;
+
+  double solu1g = 0.;
+  for(unsigned i = 0; i < nDof1; i++) {
+    solu1g += solu1[i] * phi1[i];
+  }
+
+// const double *phi2;
+//  const double *phi2pt;
+
+
+  std::vector<std::vector< double > > mCphi2iSum(jelIndex.size());
+
+  for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
+    unsigned jel = jelIndex[jj];
+    const unsigned &nDof2 = region2.GetDofNumber(jel);
+    mCphi2iSum[jj].assign(nDof2, 0.);
+  }
+
+  const double& eps = element1.GetEps();
+  NonLocalBall* thisBall=dynamic_cast<NonLocalBall*> (this);
+
+  const elem_type *fem = region2.GetFem(0);
+  std::vector<double*> phi2(fem->GetGaussPointNumber());
+
+  std::vector<std::vector<double>> U(jelIndex.size(),std::vector<double>(fem->GetGaussPointNumber(),0.));
+     
+  for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
+    unsigned jel = jelIndex[jj];
+    const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+    for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+      U[jj][jg] = element1.GetSmoothStepFunction(thisBall->GetInterfaceDistance(xg1, xg2[jg], delta));
+    }
+  }     
+  for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+    phi2[jg] = fem->GetPhi(jg);
+  }
+
+#pragma omp target  
+  for(unsigned jj = 0; jj < jelIndex.size(); jj++) {
+    const double *phi2pt;
+    unsigned jel = jelIndex[jj];
+
+    const unsigned &dim = region2.GetDimension(jel);
+    const std::vector<std::vector<double>>& x2MinMax = region2.GetMinMax(jel);
+
+    bool coarseIntersectionTest = true;
+    for(unsigned k = 0; k < dim; k++) {
+      if((xg1[k]  - x2MinMax[k][1]) > delta + eps  || (x2MinMax[k][0] - xg1[k]) > delta + eps) {
+        coarseIntersectionTest = false;
+        break;
+      }
+    }
+
+    if(coarseIntersectionTest) {
+      const unsigned &nDof2 = region2.GetDofNumber(jel);
+      const elem_type *fem = region2.GetFem(jel);
+      const std::vector <double >  &solu2g = region2.GetGaussSolution(jel);
+      region2.GetGaussSolution(jel).data();
+      const std::vector <double >  &weight2 = region2.GetGaussWeight(jel);
+      const std::vector < std::vector <double> >  &xg2 = region2.GetGaussCoordinates(jel);
+
+      for(unsigned jg = 0; jg < fem->GetGaussPointNumber(); jg++) {
+        if( U[jj][jg] > 0.) {
+//          double C =  U[jj] * GetGamma(xg1, xg2[jg]) *  weight2[jg] * twoWeigh1Kernel;
+	  double C =  U[jj][jg] * weight2[jg] * twoWeigh1Kernel;
+	  double *jac22pt = &_jac22[jel][0];
+
+          for(unsigned i = 0; i < nDof2; i++) {
+            double cPhi2i = C * phi2[jg][i];
+            mCphi2iSum[jj][i] -= cPhi2i;
+            unsigned j = 0;
+            for(phi2pt = phi2[jg]; j < nDof2; j++, phi2pt++, jac22pt++) {
+              *jac22pt -= cPhi2i * (*phi2pt);
+            }
+            _res2[jel][i] += cPhi2i * solu2g[jg];
+          }
+        }//end if U > 0.
+      }//end jg loop
+
+
+      unsigned ijIndex = 0;
+      for(unsigned i = 0; i < nDof2; i++) {
+        for(unsigned j = 0; j < nDof1; j++, ijIndex++) {
+          _jac21[jel][ijIndex] -= mCphi2iSum[jj][i] * phi1[j];
+        }
+        _res2[jel][i] += mCphi2iSum[jj][i] * solu1g;
+      }
+    }
+  }
+
+  return area;
 }
 
 
