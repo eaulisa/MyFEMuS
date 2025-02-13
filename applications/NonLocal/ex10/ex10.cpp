@@ -221,7 +221,7 @@ int main(int argc, char** argv) {
   // ******* Set Preconditioner *******
   system.SetLinearEquationSolverType(FEMuS_DEFAULT);
 
-  system.SetSparsityPatternMinimumSize(60000u);    //TODO tune
+  system.SetSparsityPatternMinimumSize(30000u);    //TODO tune
 
   system.init();
 
