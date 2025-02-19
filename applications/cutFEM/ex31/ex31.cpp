@@ -1949,7 +1949,7 @@ int main() {
   std::vector<double>weightCF, interp_point_weights, interp_point_integrals;
 
     CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
-    Pweights(s, a, c, 0, q1, q2, q3, weightCF);                  // WeightCF is always calculated in Domain D*
+    Pweights(s, a, c, table_number, q1, q2, q3, weightCF);                  // WeightCF is always calculated in Domain D*
 //     Pweights(s, a, c, 0, p1, p2, p3, weightCF);
 
     cout<< " cutfem weight = ";

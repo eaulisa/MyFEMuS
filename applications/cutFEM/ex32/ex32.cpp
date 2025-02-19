@@ -1071,8 +1071,11 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
   bool xSpan = false;
   bool ySpan = false;
 
-  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x > p3.x && p3.x > p1.x)) xSpan = true ;
-  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y > p3.y && p3.y > p1.y)) ySpan = true ;
+  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
+  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
+
+  cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
+
   if(xSpan) {
     if(ySpan) {
       if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
@@ -1110,6 +1113,106 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
         else if (fabs(q1.y - 0.) < epsilon) {
           table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
       }
+      else if (fabs(q1.x - 1.) < epsilon){
+        if (fabs(q2.y - 0.) < epsilon){
+          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+      }
+      else if (fabs(q2.x - 1.) < epsilon){
+        if (fabs(q1.y - 0.) < epsilon){
+          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+      }
+      else if (fabs(q1.y - 0.) < epsilon){
+        if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
+          );}
+      }
+  }
+  else{ //Horizontal
+    q1 = {(1. - p1.y), p1.x};
+    q2 = {(1. - p2.y), p2.x};
+    q3 = {(1. - p3.y), p3.x};
+    if (fabs(q1.x-q1.y) < epsilon) {
+      if (fabs(q2.y- 0.) < epsilon) {
+        table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+      else if (fabs(q2.x- q2.y) < epsilon) {
+        table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
+      else if (fabs(q2.x- 1.) < epsilon) {
+        table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+    }
+
+    else if (fabs(q2.x-q2.y) < epsilon) {
+      if (fabs(q1.y- 0.) < epsilon) {
+        table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+      else if (fabs(q1.x- 1.) < epsilon) {
+        table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+    }
+
+    else if (fabs(q1.x - 1.) < epsilon){
+        if (fabs(q2.y - 0.) < epsilon){
+          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+    }
+    else if (fabs(q2.x - 1.) < epsilon){
+        if (fabs(q1.y - 0.) < epsilon){
+          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+    }
+
+
+    else if (fabs(q1.y - 0.) < epsilon){
+        if (fabs(q2.y - 0.) < epsilon){
+          table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+    }
+  }
+}
+
+
+
+//this find search function does not care about verticality
+
+template <class Type>
+void find_search_table_trig_only_vertical(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
+  double epsilon =0.0000000000001;
+  vertical = true;
+  bool xSpan = false;
+  bool ySpan = false;
+
+  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x > p3.x && p3.x > p1.x)) xSpan = true ;
+  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y > p3.y && p3.y > p1.y)) ySpan = true ;
+  if(xSpan) {
+    if(ySpan) {
+      if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+      else vertical = false;
+    }
+    else {
+      vertical = true;
+    }
+  }
+  else {
+    if(ySpan) vertical = false;
+    else {
+      std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
+
+    }
+  }
+
+
+
+      q1 = {(1. - p1.x), p1.y};
+      q2 = {(1. - p2.x), p2.y};
+      q3 = {(1. - p3.x), p3.y};
+
+      if (fabs(q1.x-q1.y) < epsilon) {
+        if (fabs(q2.x - 1.) < epsilon) {
+          table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+        else if (fabs(q2.x - q2.y) < epsilon) {
+          table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+        else if (fabs(q2.y - 0.) < epsilon) {
+          table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+      }
+      else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
+        if (fabs(q1.x - 1.) < epsilon) {
+          table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+        else if (fabs(q1.y - 0.) < epsilon) {
+          table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+      }
 
 
       else if (fabs(q1.x - 1.) < epsilon){
@@ -1128,44 +1231,8 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
       }
 
 
-  }
-  else{ //Horizontal
-
-    q1 = {(1. - p1.y), p1.x};
-    q2 = {(1. - p2.y), p2.x};
-    q3 = {(1. - p3.y), p3.x};
-
-    if (fabs(q1.x-q1.y) < epsilon) {
-      if (fabs(q2.y- 0.) < epsilon) {
-        table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-      else if (fabs(q2.x- q2.y) < epsilon) {
-        table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
-      else if (fabs(q2.x- 1.) < epsilon) {
-        table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
-    }
-    else if (fabs(q2.x-q2.y) < epsilon) {
-      if (fabs(q1.y- 0.) < epsilon) {
-        table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-      else if (fabs(q1.x- 1.) < epsilon) {
-        table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
-    }
 
 
-    else if (fabs(q1.x - 1.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-    }
-    else if (fabs(q2.x - 1.) < epsilon){
-        if (fabs(q1.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-    }
-
-
-    else if (fabs(q1.x - 0.) < epsilon){
-        if (fabs(q2.x - 0.) < epsilon){
-          table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-    }
-  }
 }
 
 double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
@@ -1294,24 +1361,24 @@ public:
     OctreeNode* search(const Point3D& point) {
       // First check if point is even in this node
       if (contains(point)) {
-        std::cout << "\nFound containing node at depth " << depth << ":\n";
-        std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
-        std::cout << "Node corners:\n";
-        for (size_t i = 0; i < corners.size(); ++i) {
-            std::cout << "Corner " << i << ": ("
-                     << corners[i].x << ", "
-                     << corners[i].y << ", "
-                     << corners[i].z << ")\n";
-        }
+//         std::cout << "\nFound containing node at depth " << depth << ":\n";
+//         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+//         std::cout << "Node corners:\n";
+//         for (size_t i = 0; i < corners.size(); ++i) {
+//             std::cout << "Corner " << i << ": ("
+//                      << corners[i].x << ", "
+//                      << corners[i].y << ", "
+//                      << corners[i].z << ")\n";
+//         }
 
         // If this is a leaf node, we're done
         if (isLeaf) {
-            std::cout << "This is a leaf node - returning\n";
+//             std::cout << "This is a leaf node - returning\n";
             return this;
         }
 
         // If not a leaf, check children
-        std::cout << "Checking " << children.size() << " children\n";
+//         std::cout << "Checking " << children.size() << " children\n";
         for (auto& child : children) {
             OctreeNode* result = child.search(point);
             if (result != nullptr) {
@@ -1627,15 +1694,39 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
     }
 }
 
+int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& vec2) {
+    // Check if the sizes of the vectors are different
+    if (vec1.size() != vec2.size()) {
+        std::cerr << "Warning: Number of sign do not match" << std::endl;
+        return 0;
+    }
+
+    int equalCount = 0;
+    int negativeCount = 0;
+
+    // Iterate through the vectors to count equal and negative elements
+    for (size_t i = 0; i < vec1.size(); ++i) {
+        if (vec1[i] == vec2[i]) {
+            ++equalCount;
+        }
+        if (vec1[i] == -vec2[i]) {
+            ++negativeCount;
+        }
+    }
+
+    if (equalCount > negativeCount) {
+        return 1;
+    } else if (negativeCount > equalCount) {
+        return -1;
+    } else {
+        std::cerr << "Warning: Equal number of positive and negative sign on the corner" << std::endl;
+        return 0;
+    }
+}
 
 
 
 
-
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <algorithm>
 
 // Utility function to check if a point is inside the circle
 bool isPointInCircle(double x, double y, double centerX, double centerY, double radius) {
@@ -1696,15 +1787,65 @@ std::vector<std::pair<double, double>> findCircleLineIntersection(
             isOnSegment(ix2, iy2, x1 + centerX, y1 + centerY, x2 + centerX, y2 + centerY)) {
             intersections.push_back({ix2, iy2});
         }
+
+        if (intersections.size() == 2){
+
+
+
+        }
     }
 
     return intersections;
 }
 
-// Function to find circle-triangle intersection points
+// // Function to find circle-triangle intersection points
+// std::vector<std::pair<double, double>> findCircleTriangleIntersectionPoints(
+//     double x1, double y1, double x2, double y2, double x3, double y3,
+//     double centerX, double centerY, double radius) {
+//
+//     std::vector<std::pair<double, double>> intersections;
+//
+//     // Check each edge of the triangle
+//     auto points1 = findCircleLineIntersection(x1, y1, x2, y2, centerX, centerY, radius);
+//     auto points2 = findCircleLineIntersection(x2, y2, x3, y3, centerX, centerY, radius);
+//     auto points3 = findCircleLineIntersection(x3, y3, x1, y1, centerX, centerY, radius);
+//
+//     // Collect all intersection points
+//     intersections.insert(intersections.end(), points1.begin(), points1.end());
+//     intersections.insert(intersections.end(), points2.begin(), points2.end());
+//     intersections.insert(intersections.end(), points3.begin(), points3.end());
+//
+//     // Sort intersection points to ensure consistent ordering
+//     std::sort(intersections.begin(), intersections.end(),
+//         [](const auto& a, const auto& b) {
+//             return a.first < b.first || (a.first == b.first && a.second < b.second);
+//         });
+//
+//     // Remove duplicate points (within small epsilon)
+//     if (!intersections.empty()) {
+//         std::vector<std::pair<double, double>> uniqueIntersections;
+//         const double epsilon = 1e-10;
+//         uniqueIntersections.push_back(intersections[0]);
+//
+//         for (size_t i = 1; i < intersections.size(); i++) {
+//             double dx = intersections[i].first - uniqueIntersections.back().first;
+//             double dy = intersections[i].second - uniqueIntersections.back().second;
+//             if (dx * dx + dy * dy > epsilon) {
+//                 uniqueIntersections.push_back(intersections[i]);
+//             }
+//         }
+//
+//         intersections = uniqueIntersections;
+//     }
+//
+//     return intersections;
+// }
+
+
+// Modified function to find circle-triangle intersection points with vertical flag
 std::vector<std::pair<double, double>> findCircleTriangleIntersectionPoints(
     double x1, double y1, double x2, double y2, double x3, double y3,
-    double centerX, double centerY, double radius) {
+    double centerX, double centerY, double radius, bool& vertical) {
 
     std::vector<std::pair<double, double>> intersections;
 
@@ -1718,27 +1859,38 @@ std::vector<std::pair<double, double>> findCircleTriangleIntersectionPoints(
     intersections.insert(intersections.end(), points2.begin(), points2.end());
     intersections.insert(intersections.end(), points3.begin(), points3.end());
 
-    // Sort intersection points to ensure consistent ordering
-    std::sort(intersections.begin(), intersections.end(),
-        [](const auto& a, const auto& b) {
-            return a.first < b.first || (a.first == b.first && a.second < b.second);
-        });
+    // Sort and remove duplicates
+    std::sort(intersections.begin(), intersections.end());
+    intersections.erase(std::unique(intersections.begin(), intersections.end()), intersections.end());
 
-    // Remove duplicate points (within small epsilon)
-    if (!intersections.empty()) {
-        std::vector<std::pair<double, double>> uniqueIntersections;
-        const double epsilon = 1e-10;
-        uniqueIntersections.push_back(intersections[0]);
+    // If we have exactly two intersection points, add a third point
+    if (intersections.size() == 2) {
+        double x_diff = std::abs(intersections[1].first - intersections[0].first);
+        double y_diff = std::abs(intersections[1].second - intersections[0].second);
 
-        for (size_t i = 1; i < intersections.size(); i++) {
-            double dx = intersections[i].first - uniqueIntersections.back().first;
-            double dy = intersections[i].second - uniqueIntersections.back().second;
-            if (dx * dx + dy * dy > epsilon) {
-                uniqueIntersections.push_back(intersections[i]);
+        vertical = (x_diff >= y_diff);
+
+        if (vertical) {
+            // Find third point using x-midpoint
+            double x3 = (intersections[0].first + intersections[1].first) / 2.0;
+            double y3 = centerY + sqrt(radius * radius - pow(x3 - centerX, 2));
+            // Choose the y value that's between the two intersection points
+            if (y3 < std::min(intersections[0].second, intersections[1].second) ||
+                y3 > std::max(intersections[0].second, intersections[1].second)) {
+                y3 = centerY - sqrt(radius * radius - pow(x3 - centerX, 2));
             }
+            intersections.push_back({x3, y3});
+        } else {
+            // Find third point using y-midpoint
+            double y3 = (intersections[0].second + intersections[1].second) / 2.0;
+            double x3 = centerX + sqrt(radius * radius - pow(y3 - centerY, 2));
+            // Choose the x value that's between the two intersection points
+            if (x3 < std::min(intersections[0].first, intersections[1].first) ||
+                x3 > std::max(intersections[0].first, intersections[1].first)) {
+                x3 = centerX - sqrt(radius * radius - pow(y3 - centerY, 2));
+            }
+            intersections.push_back({x3, y3});
         }
-
-        intersections = uniqueIntersections;
     }
 
     return intersections;
@@ -1795,12 +1947,15 @@ void printTriangleState(int triangleIndex,
                        double centerX, double centerY, double radius,
                        const std::vector<std::pair<double, double>>& intersections,
                        const std::vector<std::pair<double, double>>& refIntersections,
-                       double area) {
-    std::cout << "\n=== Triangle " << triangleIndex << " ===" << std::endl;
+                       double totalarea, double area, bool vertical) {
+//     std::cout << "\n=== Triangle " << triangleIndex << " ===" << std::endl;
     std::cout << "Physical coordinates: " << std::endl;
     std::cout << "V1: (" << x1 << ", " << y1 << ")" << std::endl;
     std::cout << "V2: (" << x2 << ", " << y2 << ")" << std::endl;
     std::cout << "V3: (" << x3 << ", " << y3 << ")" << std::endl;
+
+
+
 
     // Determine triangle state
     bool v1Inside = isPointInCircle(x1, y1, centerX, centerY, radius);
@@ -1827,45 +1982,79 @@ void printTriangleState(int triangleIndex,
             std::cout << "(" << p.first << ", " << p.second << ")" << std::endl;
         }
 
-        // Calculate and print parabola points
-        std::cout << "\nParabola points (physical space):" << std::endl;
-        for (double t = 0; t <= 1; t += 0.1) {
-            // Linear interpolation between intersection points
-            double x = intersections[0].first + t * (intersections[1].first - intersections[0].first);
-            // Calculate y using circle equation
-            double y = centerY + sqrt(radius * radius - (x - centerX) * (x - centerX));
-            // Check if this y-value is between the intersection points
-            if (y >= std::min(intersections[0].second, intersections[1].second) &&
-                y <= std::max(intersections[0].second, intersections[1].second)) {
-                std::cout << "(" << x << ", " << y << ")" << std::endl;
-            }
-        }
-    }
 
-    std::cout << "Cumulative area: " << area << std::endl;
+        // Calculate and print parabola points
+//         std::cout << "\nParabola points (physical space):" << std::endl;
+//         for (double t = 0; t <= 1; t += 0.1) {
+//             // Linear interpolation between intersection points
+//             double x = intersections[0].first + t * (intersections[1].first - intersections[0].first);
+//             // Calculate y using circle equation
+//             double y = centerY + sqrt(radius * radius - (x - centerX) * (x - centerX));
+//             // Check if this y-value is between the intersection points
+//             if (y >= std::min(intersections[0].second, intersections[1].second) &&
+//                 y <= std::max(intersections[0].second, intersections[1].second)) {
+//                 std::cout << "(" << x << ", " << y << ")" << std::endl;
+//             }
+//         }
+    }
+    std::cout << "vertical: " << vertical << std::endl;
+    std::cout << "area: " << area << std::endl;
+
+    std::cout << "Cumulative area: " << totalarea << std::endl;
 }
 
 int main() {
+  typedef cpp_bin_float_oct Type;
+  unsigned int m = 0;
+  unsigned int n = 0;
+  int s = 0;
+  Type k, b, d, a = 0, c = 1;
+
+  std::cout.precision(16);
+
+  PointT <Type> p1, p2, p3;
+  p1 = { static_cast<Type>(0.4471), static_cast<Type>(1) };
+  p2 = { static_cast<Type>(1), static_cast<Type>(0.4471) };
+  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.8291) };
+
+  std::vector<double>weightCF;
+  CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
+  Pweights(s, a, c, 0, p1, p2, p3, weightCF);
+
+
     // Circle parameters
     double centerX = 0.5;
     double centerY = 0.5;
     double radius = 0.397;
+//     double radius = 0.19;
 
     // Mesh parameters
-    int n = 2;  // Number of divisions per side
-    double h = 1.0 / n;  // Grid spacing
+    int nd = 4;  // Number of divisions per side
+    double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
     int triangleIndex = 0;
     int fourintersection = 0;
 
+
+
+    int maxDepth = 5;
+    int degree = 3;
+    double percent = 0.001;
+  //   std::vector<OctreeNode<Type>> roots;
+    std::vector<OctreeNode<Type>>loadedRoots;
+
+    generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, loadedRoots);
+
     // Loop through the mesh
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            // Create two triangles for each square cell
+    for (int i = 0; i < nd; i++) {
+        for (int j = 0; j < nd; j++) {
             for (int t = 0; t < 2; t++) {
                 triangleIndex++;
-                double x1, y1, x2, y2, x3, y3;
+
+                cout<< " ======= Triangle ====== " << triangleIndex<<endl;
+                double x1, y1, x2, y2, x3, y3, area;
+                bool normal = true;
 
                 if (t == 0) {
                     // First triangle
@@ -1879,34 +2068,185 @@ int main() {
                     x3 = i * h;     y3 = (j+1) * h;
                 }
 
+                bool vertical = false;
                 std::vector<std::pair<double, double>> refIntersections;
 
-                if (doesCircleIntersectTriangle(x1, y1, x2, y2, x3, y3, centerX, centerY, radius)) {
+           if (doesCircleIntersectTriangle(x1, y1, x2, y2, x3, y3, centerX, centerY, radius)) {
                     auto intersections = findCircleTriangleIntersectionPoints(
-                        x1, y1, x2, y2, x3, y3, centerX, centerY, radius);
+                        x1, y1, x2, y2, x3, y3, centerX, centerY, radius, vertical);
 
-                    if (intersections.size() >= 2) {
-                        // Transform intersection points to reference triangle
-                        for (const auto& p : intersections) {
+                    cout<<"Vertical (intersection)? = " << vertical <<endl;
+
+                    if (intersections.size() == 4) {
+                        std::cout << "Triangle " << triangleIndex << " has four intersections - skipping : We assume the tri is inside. area = " << 0.5*h*h << std::endl;
+                        totalArea += 0.5 * h * h;  // Add full triangle area
+                        continue;
+                    }
+
+                    if (intersections.size() == 3) {
+                        // Transform to reference triangle points
+                        PointT<Type> q1, q2, q3;
+                        std::vector<int> circlesign(3);
+                        std::vector<int> parabolasign(3);
+                        for (size_t i = 0; i < 3; ++i) {
                             double xi, eta;
                             transformToReferenceTriangle(x1, y1, x2, y2, x3, y3,
-                                                       p.first, p.second, xi, eta);
+                                                       intersections[i].first,
+                                                       intersections[i].second,
+                                                       xi, eta);
+                            if (i == 0) p1 = {static_cast<Type>(xi), static_cast<Type>(eta)};
+                            if (i == 1) p2 = {static_cast<Type>(xi), static_cast<Type>(eta)};
+                            if (i == 2) p3 = {static_cast<Type>(xi), static_cast<Type>(eta)};
                             refIntersections.push_back({xi, eta});
                         }
 
-                        // Calculate area contribution (simplified for this example)
-                        double cutArea = 0.1 * h * h;  // TODO This is a placeholder - replace with actual calculation
-                        totalArea += cutArea;
 
-                        if (intersections.size() > 2) {
-                          cout<< "It is a " << intersections.size() <<" intersection "<< endl;
-                        fourintersection++;
+                        //checking and storing the sign of the vertices
+
+                          circlesign[0] = ((x1-centerX)*(x1-centerX) + (y1-centerY)*(y1-centerY) - radius*radius >= 0) ? 1 : -1 ;
+                          circlesign[1] = ((x2-centerX)*(x2-centerX) + (y2-centerY)*(y2-centerY) - radius*radius >= 0) ? 1 : -1 ;
+                          circlesign[2] = ((x3-centerX)*(x3-centerX) + (y3-centerY)*(y3-centerY) - radius*radius >= 0) ? 1 : -1 ;
+                          cout <<"Circle sign "<< circlesign[0] << ", " << circlesign[1] << ", " << circlesign[2] << endl;
+
+
+                        unsigned table_number=9999;
+                        Parabola <Type> parabola;
+                        Point3D searchP;
+                        find_search_table_trig<Type>(p1, p2, p3, table_number, searchP, q1, q2, q3, vertical);
+                        cout<<"Vertical (table)? = " << vertical << " table_number = "<<table_number<<endl;
+
+                        if(vertical){
+                          parabola = get_parabola_equation(p1,p2,p3);
+                          std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+                          //check the parabola sign
+                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
+                          parabolasign[1] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
+                          parabolasign[2] = ((parabola.d + 1)>= 0) ? 1 : -1;
+                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
+
                         }
-                        printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
-                                         centerX, centerY, radius,
-                                         intersections, refIntersections, totalArea);
+                        else{
+                          PointT<Type> r1 = {p1.y,p1.x};
+                          PointT<Type> r2 = {p2.y,p2.x};
+                          PointT<Type> r3 = {p3.y,p3.x};
+                          parabola = get_parabola_equation(r1,r2,r3);
+                          std::cout<< "parabola " << parabola.k<<"y^2+"<<parabola.b<<"y+" << parabola.d << " + x = 0 " <<std::endl;
+                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
+                          parabolasign[2] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
+                          parabolasign[1] = ((parabola.d + 1)>= 0) ? 1 : -1;
+                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
+
+                        }
+
+
+
+                        std::vector<double>weightCF, interp_point_weights, interp_point_integrals;
+
+//                           CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
+                          Pweights(s, a, c, table_number, q1, q2, q3, weightCF);                  // WeightCF is always calculated in Domain D*
+                      //     Pweights(s, a, c, 0, p1, p2, p3, weightCF);
+
+//                           cout<< " cutfem weight = ";
+//                           for (size_t j = 0; j < weightCF.size(); ++j){
+//                             std::cout << weightCF[j] << ", ";
+//                           }
+//                           cout<<endl;
+
+                          const double* gaussWeight =  Pweights.GetGaussWeightPointer();
+                          const double* xg = Pweights.GetGaussCoordinatePointer(0);
+                          const double* yg = Pweights.GetGaussCoordinatePointer(1);
+
+                        // Search in octree
+                        OctreeNode<Type>* result = loadedRoots[table_number].search(searchP);
+
+                        if (result) {
+                            std::vector<double> interp_point = {searchP.x, searchP.y, searchP.z};
+                            std::vector<std::vector<double>> corners(8, std::vector<double>(3));
+
+                            for (size_t i = 0; i < result->corners.size(); ++i) {
+                                corners[i][0] = result->corners[i].x;
+                                corners[i][1] = result->corners[i].y;
+                                corners[i][2] = result->corners[i].z;
+                            }
+
+                            std::vector<double> interp_point_weights;
+                            trilinier_interpolation_vector(corners, result->cornerWeights,
+                                                         interp_point, interp_point_weights);
+
+                             //here when it calculates the Pweight it calculate wheather it is vertical or not based on q1,q2,q3. All of these are already calculated only thing I do here is change the powers. It should not have any effect on area. TODO wait, does it mean that when I create the table it already considering all the horizontal parabola. Does it mean I do not have to change the table based on whether it is vertical or horizontal? ----> No, we find the table based on vertical or horizontal.  TODO check what happens if we do not change the table based on verticality.  ---> No, does not work.
+
+                            //Use check normal vector ;
+
+
+                            int checksign = checkVectorRelation(circlesign, parabolasign);
+                            if (checksign == 1){
+                              normal = false;
+                            }
+
+                            std::vector<double>modified_weights(interp_point_weights.size());
+
+                            if(!normal){  //this probably only for vertical
+                                  for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+    //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+                                    interp_point_weights[aq] = 1 - interp_point_weights[aq];
+                                  }
+                                }
+//                              area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+
+                            if (vertical) {
+                                area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+                            } else {
+                                area = GaussIntegral(0, 0, yg, xg, interp_point_weights, gaussWeight);
+                            }
+
+
+//
+//
+//                             if(!vertical){
+//                               if(!normal) {
+//                                 int sqrt_size = sqrt(interp_point_weights.size());
+//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                                     modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
+//                                   }
+//                                 }
+//                               }
+//                               else{
+//                                 int sqrt_size = sqrt(interp_point_weights.size());
+//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
+//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
+//                                     modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
+//                                   }
+//                                 }
+//                               }
+//                             }
+//
+//                             else{
+//                               if(!normal){  //this probably only for vertical
+//                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
+//     //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+//                                     modified_weights[aq] = 1 - interp_point_weights[aq];
+// //                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
+//                                   }
+//                                 }
+//                             }
+//                             if (vertical) {
+//                                 area = GaussIntegral(0, 0, xg, yg, modified_weights, gaussWeight);
+//                             } else {
+//                                 area = GaussIntegral(0, 0, yg, xg, modified_weights, gaussWeight);
+//                             }
+
+
+                            totalArea += area * (h * h);  // Scale by element area
+                            printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
+                                             centerX, centerY, radius,
+                                             intersections, refIntersections, totalArea,area,vertical);
+                            std::cout << "scaled area: " << area*h*h << std::endl;
+                            cout<<"table : "<<table_number<<endl;
+                        }
                     }
                 }
+
                 // If triangle is completely inside circle
                 else if (isPointInCircle(x1, y1, centerX, centerY, radius) &&
                          isPointInCircle(x2, y2, centerX, centerY, radius) &&
@@ -1916,12 +2256,14 @@ int main() {
                     std::vector<std::pair<double, double>> emptyIntersections;
                     printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
                                      centerX, centerY, radius,
-                                     emptyIntersections, emptyIntersections, totalArea);
+                                     emptyIntersections, emptyIntersections, totalArea,area,vertical);
+                    std::cout << "scaled area: " << area*h*h << std::endl;
                 } else {
                     std::vector<std::pair<double, double>> emptyIntersections;
                     printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
                                      centerX, centerY, radius,
-                                     emptyIntersections, emptyIntersections, totalArea);
+                                     emptyIntersections, emptyIntersections, totalArea,area,vertical);
+                    std::cout << "scaled area: " << area*h*h << std::endl;
                 }
             }
         }

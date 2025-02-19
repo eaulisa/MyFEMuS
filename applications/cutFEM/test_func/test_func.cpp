@@ -239,10 +239,6 @@ int main() {
     }
 
 
-
-
-
-
     //finiding monotone
     if((xi[0][0] < xi[1][0] && xi[1][0] < xi[2][0]) || (xi[0][0] > xi[1][0] && xi[1][0] > xi[2][0])) cout << " monotonous in x " << endl;
     else cout << " non-monotonous in x " << endl;
