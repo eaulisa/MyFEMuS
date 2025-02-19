@@ -310,7 +310,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
       else {
         if(ySpan) vertical = false;
         else {
-          std::cout << " The parabola formed by this three points is not a function. Use line cut . points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
+//           std::cout << " The parabola formed by this three points is not a function. Use line cut . points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
 
         }
       }

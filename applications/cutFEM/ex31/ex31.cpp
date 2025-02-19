@@ -742,11 +742,11 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         Type delta = (b+1.)*(b+1.) - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
-          int sign = (k > 0) ? 1 : -1;    //TODO we can get rid of this if
+          int sign = 1;    //TODO we can get rid of this if
           for(unsigned i = 0; i < 2; i++) {
             Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x > p1.x) {
+            if(x > 0 && x < 1 && x > p1.x) {
               p1.x = x;
             }
             sign *= -1;
@@ -761,7 +761,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               for(unsigned i = 0; i < 2; i++) {
                 Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
     //          cout<< "Top x = "<< x<< endl;
-                if(x > 0 && x < p1.x) {
+                if(x > 0 && x<1 && x < p1.x) {
                     p1.x = x;
                 }
                 sign *= -1;
@@ -779,7 +779,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
           for(unsigned i = 0; i < 2; i++) {
             Type x = (- b - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x < p2.x) {
+            if(x > 0 && x<1 && x < p2.x) {
               p2.x = x;
             }
             sign *= -1;
@@ -794,7 +794,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
           for(unsigned i = 0; i < 2; i++) {
             Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x > p1.x) {  //highest p2.x
+            if(x > 0 && x<1 && x > p1.x) {  //highest p2.x
                 p1.x = x;
             }
             sign *= -1;
@@ -814,7 +814,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               for(unsigned i = 0; i < 2; i++) {
                 Type x = (- b - sign * sqrtdelta) / (2 * k);
     //             cout<< "Top x = "<< x<< endl;
-                 if(x < 1 && x < p2.x) {   //lowest p2.x
+                 if (x < 1 && x < p2.x) {   //lowest p2.x  //TODO should use if ( x>0 &&  x < 1 && x < p2.x )
                     p2.x = x;
                 }
                 sign *= -1;
@@ -1064,6 +1064,110 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
 }
 
 
+// template <class Type>
+// void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
+//   double epsilon =0.0000000000001;
+//   vertical = true;
+//   bool xSpan = false;
+//   bool ySpan = false;
+//
+//   if((p1.x < p3.x && p3.x < p2.x) || ( p2.x > p3.x && p3.x > p1.x)) xSpan = true ;
+//   if((p1.y < p3.y && p3.y < p2.y) || ( p2.y > p3.y && p3.y > p1.y)) ySpan = true ;
+//   if(xSpan) {
+//     if(ySpan) {
+//       if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+//       else vertical = false;
+//     }
+//     else {
+//       vertical = true;
+//     }
+//   }
+//   else {
+//     if(ySpan) vertical = false;
+//     else {
+//       std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
+//
+//     }
+//   }
+//
+//   if(vertical){
+//
+//       q1 = {(1. - p1.x), p1.y};
+//       q2 = {(1. - p2.x), p2.y};
+//       q3 = {(1. - p3.x), p3.y};
+//
+//       if (fabs(q1.x-q1.y) < epsilon) {
+//         if (fabs(q2.x - 1.) < epsilon) {
+//           table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.x - q2.y) < epsilon) {
+//           table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.y - 0.) < epsilon) {
+//           table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
+//         if (fabs(q1.x - 1.) < epsilon) {
+//           table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q1.y - 0.) < epsilon) {
+//           table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//
+//
+//       else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//
+//
+//       else if (fabs(q1.y - 0.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
+//           );}
+//       }
+//
+//
+//   }
+//   else{ //Horizontal
+//
+//     q1 = {(1. - p1.y), p1.x};
+//     q2 = {(1. - p2.y), p2.x};
+//     q3 = {(1. - p3.y), p3.x};
+//
+//     if (fabs(q1.x-q1.y) < epsilon) {
+//       if (fabs(q2.y- 0.) < epsilon) {
+//         table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q2.x- q2.y) < epsilon) {
+//         table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
+//       else if (fabs(q2.x- 1.) < epsilon) {
+//         table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//     }
+//     else if (fabs(q2.x-q2.y) < epsilon) {
+//       if (fabs(q1.y- 0.) < epsilon) {
+//         table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q1.x- 1.) < epsilon) {
+//         table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//
+//     else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//     else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//
+//     else if (fabs(q1.x - 0.) < epsilon){
+//         if (fabs(q2.x - 0.) < epsilon){
+//           table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//   }
+// }
+
 template <class Type>
 void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
   double epsilon =0.0000000000001;
@@ -1071,8 +1175,11 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
   bool xSpan = false;
   bool ySpan = false;
 
-  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x > p3.x && p3.x > p1.x)) xSpan = true ;
-  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y > p3.y && p3.y > p1.y)) ySpan = true ;
+  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
+  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
+
+  cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
+
   if(xSpan) {
     if(ySpan) {
       if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
@@ -1110,8 +1217,6 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
         else if (fabs(q1.y - 0.) < epsilon) {
           table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
       }
-
-
       else if (fabs(q1.x - 1.) < epsilon){
         if (fabs(q2.y - 0.) < epsilon){
           table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
@@ -1120,21 +1225,15 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
         if (fabs(q1.y - 0.) < epsilon){
           table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
       }
-
-
       else if (fabs(q1.y - 0.) < epsilon){
         if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
           );}
       }
-
-
   }
   else{ //Horizontal
-
     q1 = {(1. - p1.y), p1.x};
     q2 = {(1. - p2.y), p2.x};
     q3 = {(1. - p3.y), p3.x};
-
     if (fabs(q1.x-q1.y) < epsilon) {
       if (fabs(q2.y- 0.) < epsilon) {
         table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
@@ -1143,13 +1242,13 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
       else if (fabs(q2.x- 1.) < epsilon) {
         table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
     }
+
     else if (fabs(q2.x-q2.y) < epsilon) {
       if (fabs(q1.y- 0.) < epsilon) {
         table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
       else if (fabs(q1.x- 1.) < epsilon) {
         table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
     }
-
 
     else if (fabs(q1.x - 1.) < epsilon){
         if (fabs(q2.y - 0.) < epsilon){
@@ -1161,14 +1260,12 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
     }
 
 
-    else if (fabs(q1.x - 0.) < epsilon){
-        if (fabs(q2.x - 0.) < epsilon){
+    else if (fabs(q1.y - 0.) < epsilon){
+        if (fabs(q2.y - 0.) < epsilon){
           table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
     }
   }
 }
-
-
 
 
 double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
@@ -1895,6 +1992,13 @@ int main() {
 //     p2 = { static_cast<Type>(0.2), static_cast<Type>(0.) };
 //     p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.55) };
 
+//   (0.2335898832269985, 0.7664101167730015)
+// (0, 0.4892436980320261)
+// (0.1472202598121948, 0.5974015892038183)
+
+    p1 = { static_cast<Type>(0.2335898832269985), static_cast<Type>(0.7664101167730015) };
+    p2 = { static_cast<Type>(0.), static_cast<Type>(0.4892436980320261) };
+    p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.5974015892038183) };
 
 
 //table 3 vertical singleintersection
@@ -1941,10 +2045,22 @@ int main() {
 
   cout<<" table = "<< table_number <<". q = ("<<q1.x<<","<<q1.y<<"), ("<<q2.x<<","<<q2.y<<"), ("<<q3.x<<","<<q3.y<<") " << " searchp = (" << searchP.x << "," << searchP.y <<"," << searchP.z <<") " << "vertical =" << vertical << endl;
 
+Parabola<Type> parabola;
+  if(vertical){
+   parabola = get_parabola_equation(p1,p2,p3);
+    std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+    //check the parabola sign
+//     cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
 
+  }
+  else{
+    PointT<Type> r1 = {p1.y,p1.x};
+    PointT<Type> r2 = {p2.y,p2.x};
+    PointT<Type> r3 = {p3.y,p3.x};
+    parabola = get_parabola_equation(r1,r2,r3);
+//     cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
 
-  Parabola <Type> parabola = get_parabola_equation(p1,p2,p3);
-  std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+  }
 
   std::vector<double>weightCF, interp_point_weights, interp_point_integrals;
 
