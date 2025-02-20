@@ -713,6 +713,9 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
     Type d = parabola.d;
     Type singleintersection;
 
+//     cout << "\n---------------------- \n points = \n("<<p1.x<<","<<p1.y<<")\n"<<"("<<p2.x<<","<<p2.y<<")\n"<<"("<<p3.x<<","<<p3.y<<")\n"<<endl;
+//     cout<< "parabola = "<<k<<"x^2 +"<<b<<"x+"<<d<<"+y=0"<<endl;
+
     bool do_line = 0;
 
     if (table == 1){ //we only use modified integrals if it is concave down
@@ -771,7 +774,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
 
      }
      else{     //concave up k<0 , table 2 case d,e,f
-      if(p1.x < p2.x){ //case (d and e) take highest
+      if(p1.x < p2.x){ //case (d and e) take lowest
         Type delta = b*b - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
@@ -787,15 +790,15 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         }
       }
       else{  //case f,  x1>x2
-        Type delta = (b+1.)*(b+1.) - 4*k*d;
+        Type delta = (b)*(b) - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
           int sign = (k > 0) ? -1 : 1;  //this gives us highest x first then lowest.
           for(unsigned i = 0; i < 2; i++) {
-            Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
+            Type x = (- (b) - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x<1 && x > p1.x) {  //highest p2.x
-                p1.x = x;
+            if(x > 0 && x<1 && x > p2.x) {  //highest p2.x
+                p2.x = x;
             }
             sign *= -1;
           }
@@ -833,12 +836,12 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         }
       else if (table==2){ //TODO
         if (k>0){
-            if (p1.x < p2.x){   //a
+            if (p1.x < p2.x){   //a  //TODO check all the others. I have just fixed one problem in case a. It was (p1.x,1) . It should be (p2.x,1) . Check other cases.
               I1.resize(0);
               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(p2.x)));
               I3.resize(0);
               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(1)));  //not sure if it is taking value. Lets do I1 manually.
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, static_cast<Type>(1)}});
             }
             else{   //b,c
               I1.resize(0);
@@ -849,14 +852,14 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
             }
         }
         else {
-            if (p1.x<p2.x){   //d,e
+            if (p1.x<p2.x){  //d,e
               I1.resize(0);
               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(p2.x)));
               I3.resize(0);
               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(1)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p2.x, static_cast<Type>(1)}});
             }
-            else{  //f
+            else{  //f //TODO check
               I1.resize(0);
               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
               I3.resize(0);
@@ -1987,6 +1990,7 @@ int main() {
   p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.2) };
 
 
+
 // // table 2 vertical multipleintersection. It has 5 different cases.
 //     p1 = { static_cast<Type>(.6), static_cast<Type>(0.4) };
 //     p2 = { static_cast<Type>(0.2), static_cast<Type>(0.) };
@@ -1998,7 +2002,8 @@ int main() {
 
     p1 = { static_cast<Type>(0.2335898832269985), static_cast<Type>(0.7664101167730015) };
     p2 = { static_cast<Type>(0.), static_cast<Type>(0.4892436980320261) };
-    p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.5974015892038183) };
+//     p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.5974015892038183) };
+    p3 = { static_cast<Type>(0.14722), static_cast<Type>((p1.y+p2.y)/2) };
 
 
 //table 3 vertical singleintersection
@@ -2059,7 +2064,6 @@ Parabola<Type> parabola;
     PointT<Type> r3 = {p3.y,p3.x};
     parabola = get_parabola_equation(r1,r2,r3);
 //     cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
-
   }
 
   std::vector<double>weightCF, interp_point_weights, interp_point_integrals;

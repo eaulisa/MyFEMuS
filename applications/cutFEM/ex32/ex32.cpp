@@ -2029,7 +2029,7 @@ int main() {
 //     double radius = 0.19;
 
     // Mesh parameters
-    int nd = 4;  // Number of divisions per side
+    int nd = 8;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
@@ -2242,7 +2242,9 @@ int main() {
                                              centerX, centerY, radius,
                                              intersections, refIntersections, totalArea,area,vertical);
                             std::cout << "scaled area: " << area*h*h << std::endl;
-                            cout<<"table : "<<table_number<<endl;
+                            cout<<"sign & table : "<< checksign << " " <<table_number;
+                            (vertical)? cout <<"v \n\n" : cout <<"h\n\n" << endl;
+
                         }
                     }
                 }
@@ -2254,16 +2256,17 @@ int main() {
                     totalArea += 0.5 * h * h;  // Add full triangle area
 
                     std::vector<std::pair<double, double>> emptyIntersections;
-                    printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
-                                     centerX, centerY, radius,
-                                     emptyIntersections, emptyIntersections, totalArea,area,vertical);
-                    std::cout << "scaled area: " << area*h*h << std::endl;
+//                     printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
+//                                      centerX, centerY, radius,
+//                                      emptyIntersections, emptyIntersections, totalArea,area,vertical);
+                    std::cout << "It is inside. Scaled area: " << 0.5*h*h << std::endl;
+                    cout<< " Cumulative area = " << totalArea<<endl;
                 } else {
                     std::vector<std::pair<double, double>> emptyIntersections;
-                    printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
-                                     centerX, centerY, radius,
-                                     emptyIntersections, emptyIntersections, totalArea,area,vertical);
-                    std::cout << "scaled area: " << area*h*h << std::endl;
+//                     printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
+//                                      centerX, centerY, radius,
+//                                      emptyIntersections, emptyIntersections, totalArea,area,vertical);
+                    std::cout << "It is outside. Scaled area: " << 0 << std::endl;
                 }
             }
         }
