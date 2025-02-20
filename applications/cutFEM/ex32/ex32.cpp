@@ -1361,19 +1361,20 @@ public:
     OctreeNode* search(const Point3D& point) {
       // First check if point is even in this node
       if (contains(point)) {
-//         std::cout << "\nFound containing node at depth " << depth << ":\n";
-//         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
-//         std::cout << "Node corners:\n";
-//         for (size_t i = 0; i < corners.size(); ++i) {
-//             std::cout << "Corner " << i << ": ("
-//                      << corners[i].x << ", "
-//                      << corners[i].y << ", "
-//                      << corners[i].z << ")\n";
-//         }
+        std::cout << "\nFound containing node at depth " << depth << ":\n";
+        std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+        std::cout << "Node corners:\n";
+        for (size_t i = 0; i < corners.size(); ++i) {
+            std::cout << "Corner " << i << ": ("
+                     << corners[i].x << ", "
+                     << corners[i].y << ", "
+                     << corners[i].z << ") "
+                     << cornerAreas[i][0]<<"\n";
+        }
 
         // If this is a leaf node, we're done
         if (isLeaf) {
-//             std::cout << "This is a leaf node - returning\n";
+            std::cout << "This is a leaf node - returning\n";
             return this;
         }
 
@@ -2170,8 +2171,7 @@ int main() {
                             }
 
                             std::vector<double> interp_point_weights;
-                            trilinier_interpolation_vector(corners, result->cornerWeights,
-                                                         interp_point, interp_point_weights);
+                            trilinier_interpolation_vector(corners, result->cornerWeights,interp_point, interp_point_weights);
 
                              //here when it calculates the Pweight it calculate wheather it is vertical or not based on q1,q2,q3. All of these are already calculated only thing I do here is change the powers. It should not have any effect on area. TODO wait, does it mean that when I create the table it already considering all the horizontal parabola. Does it mean I do not have to change the table based on whether it is vertical or horizontal? ----> No, we find the table based on vertical or horizontal.  TODO check what happens if we do not change the table based on verticality.  ---> No, does not work.
 
@@ -2183,7 +2183,31 @@ int main() {
                               normal = false;
                             }
 
+
+                            std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
+                            trilinier_interpolation_vector(corners, result->cornerAreas, interp_point, interp_point_weights);
+                            std::cout << " interpolated integrals = ";
+                            for (size_t j = 0; j < interp_point_weights.size(); ++j){
+                                std::cout << interp_point_weights[j] << ", ";
+                            }
+                            std::cout << " )"<<std::endl;
+
+
+                            // trilinier_interpolation_vector(corners, result->cornerWeights, interp_point, interp_point_weights);
+                            std::cout << " interpolated weights = ";
+                            for (size_t j = 0; j < interp_point_weights.size(); ++j){
+                              std::cout << interp_point_weights[j] << ", ";
+                            }
+                            std::cout << " )"<<std::endl;
+
+
+
+
+
                             std::vector<double>modified_weights(interp_point_weights.size());
+
+
+
 
                             if(!normal){  //this probably only for vertical
                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
