@@ -713,6 +713,9 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
     Type d = parabola.d;
     Type singleintersection;
 
+//     cout << "\n---------------------- \n points = \n("<<p1.x<<","<<p1.y<<")\n"<<"("<<p2.x<<","<<p2.y<<")\n"<<"("<<p3.x<<","<<p3.y<<")\n"<<endl;
+//     cout<< "parabola = "<<k<<"x^2 +"<<b<<"x+"<<d<<"+y=0"<<endl;
+
     bool do_line = 0;
 
     if (table == 1){ //we only use modified integrals if it is concave down
@@ -742,11 +745,11 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         Type delta = (b+1.)*(b+1.) - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
-          int sign = (k > 0) ? 1 : -1;    //TODO we can get rid of this if
+          int sign = 1;    //TODO we can get rid of this if
           for(unsigned i = 0; i < 2; i++) {
             Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x > p1.x) {
+            if(x > 0 && x < 1 && x > p1.x) {
               p1.x = x;
             }
             sign *= -1;
@@ -761,7 +764,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               for(unsigned i = 0; i < 2; i++) {
                 Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
     //          cout<< "Top x = "<< x<< endl;
-                if(x > 0 && x < p1.x) {
+                if(x > 0 && x<1 && x < p1.x) {
                     p1.x = x;
                 }
                 sign *= -1;
@@ -771,7 +774,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
 
      }
      else{     //concave up k<0 , table 2 case d,e,f
-      if(p1.x < p2.x){ //case (d and e) take highest
+      if(p1.x < p2.x){ //case (d and e) take lowest
         Type delta = b*b - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
@@ -779,7 +782,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
           for(unsigned i = 0; i < 2; i++) {
             Type x = (- b - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x < p2.x) {
+            if(x > 0 && x<1 && x < p2.x) {
               p2.x = x;
             }
             sign *= -1;
@@ -787,15 +790,15 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         }
       }
       else{  //case f,  x1>x2
-        Type delta = (b+1.)*(b+1.) - 4*k*d;
+        Type delta = (b)*(b) - 4*k*d;
         if (delta >= 0){
           Type sqrtdelta = sqrt(delta);
           int sign = (k > 0) ? -1 : 1;  //this gives us highest x first then lowest.
           for(unsigned i = 0; i < 2; i++) {
-            Type x = (- (b+1) - sign * sqrtdelta) / (2 * k);
+            Type x = (- (b) - sign * sqrtdelta) / (2 * k);
 //          cout<< "Top x = "<< x<< endl;
-            if(x > 0 && x > p1.x) {  //highest p2.x
-                p1.x = x;
+            if(x > 0 && x<1 && x > p2.x) {  //highest p2.x
+                p2.x = x;
             }
             sign *= -1;
           }
@@ -814,7 +817,7 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               for(unsigned i = 0; i < 2; i++) {
                 Type x = (- b - sign * sqrtdelta) / (2 * k);
     //             cout<< "Top x = "<< x<< endl;
-                 if(x < 1 && x < p2.x) {   //lowest p2.x
+                 if (x < 1 && x < p2.x) {   //lowest p2.x  //TODO should use if ( x>0 &&  x < 1 && x < p2.x )
                     p2.x = x;
                 }
                 sign *= -1;
@@ -833,35 +836,51 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         }
       else if (table==2){ //TODO
         if (k>0){
-            if (p1.x < p2.x){   //a
+            if (p1.x < p2.x){   //a  //TODO check all the others. I have just fixed one problem in case a. It was (p1.x,1) . It should be (p2.x,1) . Check other cases.
               I1.resize(0);
               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(p2.x)));
               I3.resize(0);
               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(1)));  //not sure if it is taking value. Lets do I1 manually.
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, static_cast<Type>(1)}});
             }
             else{   //b,c
-              I1.resize(0);
-              I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I1.resize(0);
+//               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I3.resize(0);
+//               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
+//               area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+
+              I2.resize(0);  //Here we are integrating oposite site. normal -1 .
+              I2.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
               I3.resize(0);
-              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(1)));
+//               area = trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A2(m, n, s, a, c, pol2, I2) + trig_integral_A3(m, n, s, a, c, pol2, I3);
             }
         }
         else {
-            if (p1.x<p2.x){   //d,e
+            if (p1.x<p2.x){  //d,e
               I1.resize(0);
               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(p2.x)));
               I3.resize(0);
               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(1)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p2.x, static_cast<Type>(1)}});
             }
-            else{  //f
-              I1.resize(0);
-              I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+            else{  //f //TODO check
+//               I1.resize(0);
+//               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I3.resize(0);
+//               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
+//               area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+
+              I2.resize(0);  //Here we are integrating oposite site. normal -1 .
+              I2.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
               I3.resize(0);
-              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(1)));
+//               area = trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A2(m, n, s, a, c, pol2, I2) + trig_integral_A3(m, n, s, a, c, pol2, I3);
+
+
             }
         }
 
@@ -911,6 +930,27 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
         }
         area = A1 + A2 + A3;
     }
+
+
+    //we will delete it
+    //
+    //this is just calculating area forcefuly
+
+            pol1[0] = k+a; pol1[1] = b + c; pol1[2] = d;
+        GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+
+        if(I1.size() > 0) {
+            A1 = trig_integral_A3(m, n, s, a, c, pol2, I1) -  trig_integral_A2(m, n, s, a, c, pol2, I1);
+        }
+        if(I2.size() > 0) {
+            A2 = trig_integral_A2(m, n, s, a, c, pol2, I2);
+        }
+        if(I3.size() > 0) {
+            A3 = trig_integral_A3(m, n, s, a, c, pol2, I3);
+        }
+        area = A1 + A2 + A3;
+
+    // delete this till now
 
 
     return area ;
@@ -1099,6 +1139,22 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
       q2 = {(1. - p2.x), p2.y};
       q3 = {(1. - p3.x), p3.y};
 
+      cout << "q1 = (" << q1.x<<","<<q1.y<<")"<<endl;
+      cout << "q2 = (" << q2.x<<","<<q2.y<<")"<<endl;
+      cout << "q3 = (" << q3.x<<","<<q3.y<<")"<<endl;
+
+      if ( fabs(q3.x - (q1.x+q2.x)/2.) > epsilon) {
+
+        Parabola <Type> parabola = get_parabola_equation(q1, q2, q3) ;
+        cout<< " ****** Third point q3 changes position from (" << q3.x<<","<<q3.y<<") to (" ;
+        q3.x = (q1.x+q2.x)/2. ;
+        q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
+        cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
+
+        std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+
+      }
+
       if (fabs(q1.x-q1.y) < epsilon) {
         if (fabs(q2.x - 1.) < epsilon) {
           table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
@@ -1130,6 +1186,25 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
     q1 = {(1. - p1.y), p1.x};
     q2 = {(1. - p2.y), p2.x};
     q3 = {(1. - p3.y), p3.x};
+
+
+
+    cout << "q1 = (" << q1.x<<","<<q1.y<<")"<<endl;
+    cout << "q2 = (" << q2.x<<","<<q2.y<<")"<<endl;
+    cout << "q3 = (" << q3.x<<","<<q3.y<<")"<<endl;
+    if ( fabs(q3.x - (q1.x+q2.x)/2.) > epsilon) {
+
+        Parabola <Type> parabola = get_parabola_equation(q1, q2, q3) ;
+        cout<< " ****** Third point q3 changes position from (" << q3.x<<","<<q3.y<<") to (" ;
+        q3.x = (q1.x+q2.x)/2. ;
+        q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
+        cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
+
+        std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+
+      }
+
+
     if (fabs(q1.x-q1.y) < epsilon) {
       if (fabs(q2.y- 0.) < epsilon) {
         table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
@@ -1165,8 +1240,7 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
 
 
 
-//this find search function does not care about verticality
-
+//this find search function does not care about verticality. test
 template <class Type>
 void find_search_table_trig_only_vertical(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
   double epsilon =0.0000000000001;
@@ -1799,49 +1873,6 @@ std::vector<std::pair<double, double>> findCircleLineIntersection(
     return intersections;
 }
 
-// // Function to find circle-triangle intersection points
-// std::vector<std::pair<double, double>> findCircleTriangleIntersectionPoints(
-//     double x1, double y1, double x2, double y2, double x3, double y3,
-//     double centerX, double centerY, double radius) {
-//
-//     std::vector<std::pair<double, double>> intersections;
-//
-//     // Check each edge of the triangle
-//     auto points1 = findCircleLineIntersection(x1, y1, x2, y2, centerX, centerY, radius);
-//     auto points2 = findCircleLineIntersection(x2, y2, x3, y3, centerX, centerY, radius);
-//     auto points3 = findCircleLineIntersection(x3, y3, x1, y1, centerX, centerY, radius);
-//
-//     // Collect all intersection points
-//     intersections.insert(intersections.end(), points1.begin(), points1.end());
-//     intersections.insert(intersections.end(), points2.begin(), points2.end());
-//     intersections.insert(intersections.end(), points3.begin(), points3.end());
-//
-//     // Sort intersection points to ensure consistent ordering
-//     std::sort(intersections.begin(), intersections.end(),
-//         [](const auto& a, const auto& b) {
-//             return a.first < b.first || (a.first == b.first && a.second < b.second);
-//         });
-//
-//     // Remove duplicate points (within small epsilon)
-//     if (!intersections.empty()) {
-//         std::vector<std::pair<double, double>> uniqueIntersections;
-//         const double epsilon = 1e-10;
-//         uniqueIntersections.push_back(intersections[0]);
-//
-//         for (size_t i = 1; i < intersections.size(); i++) {
-//             double dx = intersections[i].first - uniqueIntersections.back().first;
-//             double dy = intersections[i].second - uniqueIntersections.back().second;
-//             if (dx * dx + dy * dy > epsilon) {
-//                 uniqueIntersections.push_back(intersections[i]);
-//             }
-//         }
-//
-//         intersections = uniqueIntersections;
-//     }
-//
-//     return intersections;
-// }
-
 
 // Modified function to find circle-triangle intersection points with vertical flag
 std::vector<std::pair<double, double>> findCircleTriangleIntersectionPoints(
@@ -2030,10 +2061,11 @@ int main() {
 //     double radius = 0.19;
 
     // Mesh parameters
-    int nd = 8;  // Number of divisions per side
+    int nd = 4;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
+    double totalformulaArea =0.0;
     int triangleIndex = 0;
     int fourintersection = 0;
 
@@ -2054,7 +2086,7 @@ int main() {
                 triangleIndex++;
 
                 cout<< " ======= Triangle ====== " << triangleIndex<<endl;
-                double x1, y1, x2, y2, x3, y3, area;
+                double x1, y1, x2, y2, x3, y3, area ;
                 bool normal = true;
 
                 if (t == 0) {
@@ -2068,6 +2100,27 @@ int main() {
                     x2 = (i+1) * h; y2 = (j+1) * h;
                     x3 = i * h;     y3 = (j+1) * h;
                 }
+
+//               if (t == 0) {
+//                     x2 = i * h;     y2 = j * h;
+//                     x3 = (i+1) * h; y3 = j * h;
+//                     x1 = i * h;     y1 = (j+1) * h;
+//                 } else {
+//                     x2 = (i+1) * h; y2 = j * h;
+//                     x3 = (i+1) * h; y3 = (j+1) * h;
+//                     x1 = i * h;     y1 = (j+1) * h;
+//                 }
+
+
+//               if (t == 0) {
+//                     x3 = i * h;     y3 = j * h;
+//                     x1 = (i+1) * h; y1 = j * h;
+//                     x2 = i * h;     y2 = (j+1) * h;
+//                 } else {
+//                     x3 = (i+1) * h; y3 = j * h;
+//                     x1 = (i+1) * h; y1 = (j+1) * h;
+//                     x2 = i * h;     y2 = (j+1) * h;
+//                 }
 
                 bool vertical = false;
                 std::vector<std::pair<double, double>> refIntersections;
@@ -2113,8 +2166,8 @@ int main() {
                         unsigned table_number=9999;
                         Parabola <Type> parabola;
                         Point3D searchP;
-                        find_search_table_trig<Type>(p1, p2, p3, table_number, searchP, q1, q2, q3, vertical);
-                        cout<<"Vertical (table)? = " << vertical << " table_number = "<<table_number<<endl;
+
+
 
                         if(vertical){
                           parabola = get_parabola_equation(p1,p2,p3);
@@ -2124,6 +2177,8 @@ int main() {
                           parabolasign[1] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
                           parabolasign[2] = ((parabola.d + 1)>= 0) ? 1 : -1;
                           cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
+//                           p3.x = (p1.x+p2.x)/2;
+//                           p3.y = - parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
 
                         }
                         else{
@@ -2138,6 +2193,34 @@ int main() {
                           cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
 
                         }
+
+
+
+                        find_search_table_trig<Type>(p1, p2, p3, table_number, searchP, q1, q2, q3, vertical);
+                        cout<<"Vertical (table)? = " << vertical << " table_number = "<< table_number << endl;
+
+
+
+                        int checksign = checkVectorRelation(circlesign, parabolasign);
+                        if (checksign == 1){
+                          normal = false;
+                        }
+                        Type ref_formula_area(0);
+
+
+
+                        if (normal){
+                          ref_formula_area = find_trig_area_2intersection_formula<Type>(0, 0, 0, 0, 1, table_number,  q1,  q2, q3);
+                        }
+
+                        else{
+                          ref_formula_area = 0.5 - find_trig_area_2intersection_formula<Type>(0, 0, 0, 0, 1, table_number,  q1,  q2, q3);
+                        }
+
+                        totalformulaArea += static_cast<double>(ref_formula_area)*h*h;
+
+
+
 
 
 
@@ -2193,7 +2276,7 @@ int main() {
                             std::cout << " )"<<std::endl;
 
 
-                            // trilinier_interpolation_vector(corners, result->cornerWeights, interp_point, interp_point_weights);
+                            trilinier_interpolation_vector(corners, result->cornerWeights, interp_point, interp_point_weights);
                             std::cout << " interpolated weights = ";
                             for (size_t j = 0; j < interp_point_weights.size(); ++j){
                               std::cout << interp_point_weights[j] << ", ";
@@ -2215,13 +2298,14 @@ int main() {
                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
                                   }
                                 }
-//                              area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+                             area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+                             cout << "Ref quadrature area = " << area << endl;
 
-                            if (vertical) {
-                                area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
-                            } else {
-                                area = GaussIntegral(0, 0, yg, xg, interp_point_weights, gaussWeight);
-                            }
+//                             if (vertical) {
+//                                 area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+//                             } else {
+//                                 area = GaussIntegral(0, 0, yg, xg, interp_point_weights, gaussWeight);
+//                             }
 
 
 //
@@ -2261,11 +2345,18 @@ int main() {
 //                             }
 
 
+
                             totalArea += area * (h * h);  // Scale by element area
                             printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
                                              centerX, centerY, radius,
                                              intersections, refIntersections, totalArea,area,vertical);
                             std::cout << "scaled area: " << area*h*h << std::endl;
+
+
+                            cout<<"--"<<endl;
+                            cout<< " Ref formula area = " << ref_formula_area << endl;
+                            cout<< " difference between formula and quadrature = " << fabs(area- static_cast<double>(ref_formula_area)) << endl;
+                            cout<< " Relative difference  " << fabs(area- static_cast<double>(ref_formula_area))/ref_formula_area <<endl;
                             cout<<"sign & table : "<< checksign << " " <<table_number;
                             (vertical)? cout <<"v \n\n" : cout <<"h\n\n" << endl;
 
@@ -2298,15 +2389,21 @@ int main() {
 
     // Calculate errors
     double analyticalArea = M_PI * radius * radius;
-    double absoluteError = std::abs(totalArea - analyticalArea);
+    double absoluteError = fabs(totalArea - analyticalArea);
     double relativeError = absoluteError / analyticalArea;
+    double formulaAbsError = fabs(totalformulaArea - analyticalArea);
+    double formulaRelError = formulaAbsError/analyticalArea;
 
     cout<< "Number of four intersection = " << fourintersection <<endl;
     std::cout << "\n=== Final Results ===" << std::endl;
+    std::cout << "Formula Area: " << totalformulaArea << std::endl;
     std::cout << "Numerical Area: " << totalArea << std::endl;
     std::cout << "Analytical Area: " << analyticalArea << std::endl;
-    std::cout << "Absolute Error: " << absoluteError << std::endl;
+    std::cout << "Numerical Absolute Error: " << absoluteError << std::endl;
     std::cout << "Relative Error: " << relativeError * 100 << "%" << std::endl;
+
+    std::cout << "Formula Absolute Error: " << formulaAbsError << std::endl;
+    std::cout << "formulaRelative Error: " << formulaRelError * 100 << "%" << std::endl;
 
     return 0;
 }

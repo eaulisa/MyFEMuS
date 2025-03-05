@@ -844,11 +844,18 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, static_cast<Type>(1)}});
             }
             else{   //b,c
-              I1.resize(0);
-              I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I1.resize(0);
+//               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I3.resize(0);
+//               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
+//               area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+
+              I2.resize(0);  //Here we are integrating oposite site. normal -1 .
+              I2.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
               I3.resize(0);
-              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(1)));
+//               area = trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A2(m, n, s, a, c, pol2, I2) + trig_integral_A3(m, n, s, a, c, pol2, I3);
             }
         }
         else {
@@ -860,11 +867,20 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
               area = trig_integral_A3(m, n, s, a, c, pol2, {{p1.x, p2.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p1.x, p2.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p2.x, static_cast<Type>(1)}});
             }
             else{  //f //TODO check
-              I1.resize(0);
-              I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I1.resize(0);
+//               I1.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
+//               I3.resize(0);
+//               I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
+//               area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+
+              I2.resize(0);  //Here we are integrating oposite site. normal -1 .
+              I2.resize(1, std::pair<Type, Type>(static_cast<Type>(p2.x), static_cast<Type>(p1.x)));
               I3.resize(0);
-              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(0), static_cast<Type>(p2.x)));
-              area = trig_integral_A3(m, n, s, a, c, pol2, {{p2.x, p1.x}}) -  trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ static_cast<Type>(0), p2.x}});
+              I3.resize(1, std::pair<Type, Type>(static_cast<Type>(p1.x), static_cast<Type>(1)));
+//               area = trig_integral_A2(m, n, s, a, c, pol2, {{p2.x, p1.x}}) + trig_integral_A3(m, n, s, a, c, pol2, {{ p1.x, static_cast<Type>(1)}});
+              area = trig_integral_A2(m, n, s, a, c, pol2, I2) + trig_integral_A3(m, n, s, a, c, pol2, I3);
+
+
             }
         }
 
@@ -1016,7 +1032,7 @@ void trilinier_interpolation_vector(const std::vector< std::vector< Type >> & in
 
 template <class Type>   //TODO change this based on 5 table
 void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <Type> &p1, PointT <Type> &p2, PointT <Type> &p3){
-    double epsilon = 0.000000000000001;
+    double epsilon = 0.000000000001;
     Type i1_pm_eps(-1) , i2_pm_eps(-1);
 
     // std::cout << "Corner " << i << ": (" << corner[0] << ", " << corner[1] << ", " << corner[2] << ") - Print Something\n";
@@ -1028,37 +1044,43 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
 
             p1 = {i1_pm_eps, i1_pm_eps};
             p2 = {i2_pm_eps, i2_pm_eps};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 1:
-            i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
-            i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
+            i1_pm_eps = static_cast<Type>(corner[0]);
+//             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
+            i2_pm_eps = static_cast<Type>(corner[1] - epsilon );   //TODO Trying this new way without using epsilon. Or manually put the integral value zero on the top corner.
 //                    if (i1 == partition ) i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);     //it keeps my i2 in (0,1)
             p1 = {i1_pm_eps, i1_pm_eps};
             p2 = {static_cast<Type>(1), i2_pm_eps};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])-epsilon};
             break;
         case 2:
-            //Do we really need epsilon on this table?
-            i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
-            i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
+            //Do we really need epsilon on this table?  //TODO change back to original if it does not work. see 32
+            i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
+            i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
             p1 = {i1_pm_eps, i1_pm_eps};
             p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 3:
             i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
             p1 = {static_cast<Type>(1), i1_pm_eps};
             p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 4:
             i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
             p1 = {i1_pm_eps, static_cast<Type>(0)};
             p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
-            //TODO It is not 3 table it is more like 5 table. fix it.
+
     }
 
-    p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
+
 //       if(fabs(p3.x - p3.y) < epsilon) p3.y = p3.y static_cast<Type>(epsilon);
 //     if (fabs(corner[2] - 0) < epsilon ) p3.y = static_cast<Type>(epsilon);
 //     if (fabs(corner[2] - 1) < epsilon ) p3.y = static_cast<Type>(1-epsilon);
@@ -1410,6 +1432,44 @@ public:
 
 
 
+//     OctreeNode* search(const Point3D& point) {
+//       // First check if point is even in this node
+//       if (contains(point)) {
+//         std::cout << "\nFound containing node at depth " << depth << ":\n";
+//         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+//         std::cout << "Node corners:\n";
+//         for (size_t i = 0; i < corners.size(); ++i) {
+//             std::cout << "Corner " << i << ": ("
+//                      << corners[i].x << ", "
+//                      << corners[i].y << ", "
+//                      << corners[i].z << ")\n";
+//         }
+//
+//         // If this is a leaf node, we're done
+//         if (isLeaf) {
+//             std::cout << "This is a leaf node - returning\n";
+//             return this;
+//         }
+//
+//         // If not a leaf, check children
+//         std::cout << "Checking " << children.size() << " children\n";
+//         for (auto& child : children) {
+//             OctreeNode* result = child.search(point);
+//             if (result != nullptr) {
+//                 return result;
+//             }
+//         }
+//
+//         // If no children contain the point, return this node
+//         std::cout << "No children contain point - returning this node\n";
+//         return this;
+//     }
+//
+//     // Point not in this node
+//     return nullptr;
+//     }
+
+
     OctreeNode* search(const Point3D& point) {
       // First check if point is even in this node
       if (contains(point)) {
@@ -1420,7 +1480,8 @@ public:
             std::cout << "Corner " << i << ": ("
                      << corners[i].x << ", "
                      << corners[i].y << ", "
-                     << corners[i].z << ")\n";
+                     << corners[i].z << ") "
+                     << cornerAreas[i][0]<<"\n";
         }
 
         // If this is a leaf node, we're done
@@ -1430,7 +1491,7 @@ public:
         }
 
         // If not a leaf, check children
-        std::cout << "Checking " << children.size() << " children\n";
+//         std::cout << "Checking " << children.size() << " children\n";
         for (auto& child : children) {
             OctreeNode* result = child.search(point);
             if (result != nullptr) {
@@ -1446,31 +1507,6 @@ public:
     // Point not in this node
     return nullptr;
     }
-
-
-//         OctreeNode* search(const Point3D& point) {
-//             // First check if point is even in this node
-//             if (!contains(point)) {
-//                 return nullptr;
-//             }
-//
-//             // If this is a leaf node and contains the point, return this node
-//             if (isLeaf) {
-//                 return this;
-//             }
-//
-//             // Check each child
-//             for (auto& child : children) {
-//                 OctreeNode* result = child.search(point);
-//                 if (result != nullptr) {
-//                     return result;
-//                 }
-//             }
-//
-//             // If no child contains the point (shouldn't happen with proper subdivision)
-//             // return this node as the best match
-//             return this;
-//         }
 
 
     void saveOctreeToCSV(const std::string& filename) const {
@@ -1983,27 +2019,27 @@ int main() {
 //
 //
 
+/*
+table 1 vertical singleintersection
+  p1 = { static_cast<Type>(1.-0.9785), static_cast<Type>(0.9785) };
+  p2 = { static_cast<Type>(0), static_cast<Type>(0.9855) };
+  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.982) };*/
 
-//table 1 vertical singleintersection
-  p1 = { static_cast<Type>(0), static_cast<Type>(0.3) };
-  p2 = { static_cast<Type>(0.2), static_cast<Type>(0.8) };
-  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.2) };
 
 
-
-// // table 2 vertical multipleintersection. It has 5 different cases.
-//     p1 = { static_cast<Type>(.6), static_cast<Type>(0.4) };
-//     p2 = { static_cast<Type>(0.2), static_cast<Type>(0.) };
-//     p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.55) };
+// table 2 vertical multipleintersection. It has 5 different cases.
+    p1 = { static_cast<Type>(1.-0.69377), static_cast<Type>(0.69377) };
+    p2 = { static_cast<Type>(1-0.34361), static_cast<Type>(0.) };
+    p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.362205) };
 
 //   (0.2335898832269985, 0.7664101167730015)
 // (0, 0.4892436980320261)
 // (0.1472202598121948, 0.5974015892038183)
 
-    p1 = { static_cast<Type>(0.2335898832269985), static_cast<Type>(0.7664101167730015) };
-    p2 = { static_cast<Type>(0.), static_cast<Type>(0.4892436980320261) };
-//     p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.5974015892038183) };
-    p3 = { static_cast<Type>(0.14722), static_cast<Type>((p1.y+p2.y)/2) };
+//     p1 = { static_cast<Type>(0.2335898832269985), static_cast<Type>(0.7664101167730015) };
+//     p2 = { static_cast<Type>(0.), static_cast<Type>(0.4892436980320261) };
+// //     p3 = { (p1.x+p2.x)/2., static_cast<Type>(0.5974015892038183) };
+//     p3 = { static_cast<Type>(0.14722), static_cast<Type>((p1.y+p2.y)/2) };
 
 
 //table 3 vertical singleintersection
@@ -2176,13 +2212,24 @@ Parabola<Type> parabola;
       }
 
       std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
-      trilinier_interpolation_vector(corners, result->cornerAreas, interp_point, interp_point_weights);
+      trilinier_interpolation_vector(corners, result->cornerAreas, interp_point, interp_point_integrals);
       std::cout << " interpolated integrals = ";
-      for (size_t j = 0; j < interp_point_weights.size(); ++j){
-          std::cout << interp_point_weights[j] << ", ";
+      for (size_t j = 0; j < interp_point_integrals.size(); ++j){
+          std::cout << interp_point_integrals[j] << ", ";
       }
       std::cout << " )"<<std::endl;
 
+
+
+      for (size_t i = 0; i < result->corners.size(); ++i) {
+            std::cout << " \n   Corner " << i << ": ("
+              << result->corners[i].x << ", "
+              << result->corners[i].y << ", "
+              << result->corners[i].z << ") : Weight : " ;
+        for (size_t j = 0; j < result->cornerWeights[i].size(); ++j){
+              cout<< result->cornerWeights[i][j] <<" ";
+        }
+    }
 
       trilinier_interpolation_vector(corners, result->cornerWeights, interp_point, interp_point_weights);
       std::cout << " interpolated weights = ";
@@ -2190,6 +2237,8 @@ Parabola<Type> parabola;
         std::cout << interp_point_weights[j] << ", ";
       }
       std::cout << " )"<<std::endl;
+
+
 
       if(vertical){
         Area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);

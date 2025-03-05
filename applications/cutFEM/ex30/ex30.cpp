@@ -1498,9 +1498,9 @@ int main() {
 //
 // 8.750000000000002x^2+-8.000000000000002x+1.25 + y = 0
 // 1.11111x^2+ -2.55556x+ 0.844444+y =0
-   k = -3.52;
-   b = 3.64;
-   d = -0.94;
+   k = -3.5;
+   b = 2.7;
+   d = -0.5;
   a = 0;
   c = 1;
 
@@ -1548,6 +1548,11 @@ int main() {
 
     Trig_area1 = Trig_A1 + Trig_A2 + Trig_A3;
     cout << "Trig_A1 = " << Trig_A1 << "\n Trig_A2 = " << Trig_A2 << "\n Trig_A3 = " << Trig_A3 <<"\n trig area = " << Trig_area1 <<endl;
+
+
+    cout<< "sampling to see what happens A2= " << trig_integral_A2(m, n, s, a, c, pol2, {{0.2499983315720803,0.484365127143741},{0.7000111516650526,1.}}) <<endl;
+    cout<< "sampling to see what happens A3 without changing just the I3= " << trig_integral_A3(m, n, s, a, c, pol2, {{0.484365127143741,0.7000111516650526}}) <<endl;
+
 
 //     I1.resize(0);
 //     I3.resize(0);
