@@ -2061,7 +2061,7 @@ int main() {
 //     double radius = 0.19;
 
     // Mesh parameters
-    int nd = 4;  // Number of divisions per side
+    int nd = 8;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
@@ -2369,6 +2369,7 @@ int main() {
                          isPointInCircle(x2, y2, centerX, centerY, radius) &&
                          isPointInCircle(x3, y3, centerX, centerY, radius)) {
                     totalArea += 0.5 * h * h;  // Add full triangle area
+                    totalformulaArea += 0.5 * h * h;
 
                     std::vector<std::pair<double, double>> emptyIntersections;
 //                     printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
