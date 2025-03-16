@@ -2401,7 +2401,7 @@ int main() {
 
 
  //Number of grids
-    int itter = 7;
+    int itter = 6;
     std::vector<Type> errors_interpolation(0) ;
     std::vector<Type> errors_formula(0) ;
     std::vector<std::vector<double>> errors_by_table{{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}} ;
