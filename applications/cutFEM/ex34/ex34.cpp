@@ -958,77 +958,100 @@ Type find_trig_area_2intersection_formula_second(const unsigned &m, const unsign
 
 template <class Type>
 void change_points_covert_table(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, const int &actual_table, int &old_table, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
-  double epsilon =0.0000000000001;
-  vertical = true;
-  bool xSpan = false;
-  bool ySpan = false;
 
-  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
-  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
-
-//   cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
-
-  if(xSpan) {
-    if(ySpan) {
-      double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
-      double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
-      if(dx >= dy) vertical = true;
-      else vertical = false;
-    }
-    else {
-      vertical = true;
-    }
-  }
-
-
-  else {
-    if(ySpan) vertical = false;
-    else {
-      std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
-    }
-  }
-
-  if(vertical){
+  if(actual_table == 0 || actual_table == 1 || actual_table == 2){
+    vertical = true ;
       q1 = {(1. - p1.x), p1.y};
       q2 = {(1. - p2.x), p2.y};
       q3 = {(1. - p3.x), p3.y};
-
-      switch(actual_table){
-        case 0 :
-          old_table = 1;
-        case 1 :
-          old_table = 3;
-        case 2 :
-          old_table = 2;
-        case 3 :
-          old_table = 1;
-        case 4 :
-          old_table = 3;
-        case 5 :
-          old_table = 2;
-      }
+         if(actual_table == 0) old_table = 1 ;
+    else if(actual_table == 1) old_table = 3 ;
+    else if(actual_table == 2) old_table = 2 ;
   }
-  else{ //Horizontal
+  else{
+    vertical = false ;
     q1 = {(1. - p1.y), p1.x};
     q2 = {(1. - p2.y), p2.x};
     q3 = {(1. - p3.y), p3.x};
 
-    switch(actual_table){
-      case 0 :
-        old_table = 2;
-      case 1 :
-        old_table = 3;
-      case 2 :
-        old_table = 1;
-      case 3 :
-        old_table = 2;
-      case 4 :
-        old_table = 3;
-      case 5 :
-        old_table = 1;
-    }
+         if(actual_table == 3) old_table = 2 ;
+    else if(actual_table == 4) old_table = 3 ;
+    else if(actual_table == 5) old_table = 1 ;
 
   }
+
+
+//   double epsilon =0.0000000000001;
+//   vertical = true;
+//   bool xSpan = false;
+//   bool ySpan = false;
+//
+//   if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
+//   if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
+//
+// //   cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
+//
+//   if(xSpan) {
+//     if(ySpan) {
+//       double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
+//       double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
+//       if(dx >= dy) vertical = true;
+//       else vertical = false;
+//     }
+//     else {
+//       vertical = true;
+//     }
+//   }
+//
+//
+//   else {
+//     if(ySpan) vertical = false;
+//     else {
+//       std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
+//     }
+//   }
+//
+//   if(vertical){
+//       q1 = {(1. - p1.x), p1.y};
+//       q2 = {(1. - p2.x), p2.y};
+//       q3 = {(1. - p3.x), p3.y};
+//
+//       switch(actual_table){
+//         case 0 :
+//           old_table = 1;
+//         case 1 :
+//           old_table = 3;
+//         case 2 :
+//           old_table = 2;
+//         case 3 :
+//           old_table = 1;
+//         case 4 :
+//           old_table = 3;
+//         case 5 :
+//           old_table = 2;
+//       }
+//   }
+//   else{ //Horizontal
+//     q1 = {(1. - p1.y), p1.x};
+//     q2 = {(1. - p2.y), p2.x};
+//     q3 = {(1. - p3.y), p3.x};
+//
+//     switch(actual_table){
+//       case 0 :
+//         old_table = 2;
+//       case 1 :
+//         old_table = 3;
+//       case 2 :
+//         old_table = 1;
+//       case 3 :
+//         old_table = 2;
+//       case 4 :
+//         old_table = 3;
+//       case 5 :
+//         old_table = 1;
+//     }
+//
+//   }
 }
 
 
@@ -2530,23 +2553,23 @@ int main() {
 
 
 
-//                         if (normal){   //using second area beacause we want to use the formula on q directly after the transformation. TODO or should we always use first area integral with P
-//                           ref_formula_area = find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
-//                         }
-//
-//                         else{
-//                           ref_formula_area = 0.5 - find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
-//                         }
-
-
-
                         if (normal){   //using second area beacause we want to use the formula on q directly after the transformation. TODO or should we always use first area integral with P
-                          ref_formula_area = find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
+                          ref_formula_area = find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
                         }
 
                         else{
-                          ref_formula_area = 0.5 - find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
+                          ref_formula_area = 0.5 - find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
                         }
+
+
+
+//                         if (normal){   //using second area beacause we want to use the formula on q directly after the transformation. TODO or should we always use first area integral with P
+//                           ref_formula_area = find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
+//                         }
+//
+//                         else{
+//                           ref_formula_area = 0.5 - find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
+//                         }
 
 
 

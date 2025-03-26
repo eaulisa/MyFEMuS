@@ -290,33 +290,34 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
       for(unsigned k = 0; k < _dim; k++)  x[k] = 0.5 * (1. + _xgp[k][ig]);
     }
     else if(_geomElemType == TRI) {    // We will change the basis here. For vertical parabola x*=1-x and y*=y . For Horizontal parabola x** = 1-y and y** = x ;
-      bool vertical = true;
-      bool xSpan = false;
-      bool ySpan = false;
+//       bool vertical = true;
+//       bool xSpan = false;
+//       bool ySpan = false;
+//
+//       if((p1.x < p3.x && p3.x < p2.x) || ( p1.x > p3.x && p3.x > p2.x)) xSpan = true ;     // TODO I am calculating this multiple times. I only need to do it once. may be calculate this out of the for loop.
+//       if((p1.y < p3.y && p3.y < p2.y) || ( p1.y > p3.y && p3.y > p2.y)) ySpan = true ;
+//
+// //       cout << "xspan = " << xSpan << " yspan = "<< ySpan <<endl;
+//       if(xSpan) {
+//         if(ySpan) {
+//           double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
+//           double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
+//           if(dx >= dy) vertical = true;
+//           else vertical = false;
+//         }
+//         else {
+//           vertical = true;
+//         }
+//       }
+//       else {
+//         if(ySpan) vertical = false;
+//         else {
+//           std::cout << " The parabola formed by this three points is not a function. Table=" << table <<"  points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
+//
+//         }
+//       }
 
-      if((p1.x < p3.x && p3.x < p2.x) || ( p1.x > p3.x && p3.x > p2.x)) xSpan = true ;     // TODO I am calculating this multiple times. I only need to do it once. may be calculate this out of the for loop.
-      if((p1.y < p3.y && p3.y < p2.y) || ( p1.y > p3.y && p3.y > p2.y)) ySpan = true ;
-
-//       cout << "xspan = " << xSpan << " yspan = "<< ySpan <<endl;
-      if(xSpan) {
-        if(ySpan) {
-          double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
-          double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
-          if(dx >= dy) vertical = true;
-          else vertical = false;
-        }
-        else {
-          vertical = true;
-        }
-      }
-      else {
-        if(ySpan) vertical = false;
-        else {
-          std::cout << " The parabola formed by this three points is not a function. Table=" << table <<"  points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
-
-        }
-      }
-      if (vertical){ //This is where we change the basis
+      if (table == 0 || table ==1 || table ==2){ //This is where we change the basis
         x[0] = (1. - _xgp[0][ig]);
         x[1] = _xgp[1][ig];
       }
