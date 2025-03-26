@@ -54,9 +54,10 @@ struct Parabola {
 };
 
 
-
-
 #include "cutFemWeightParabola.hpp"
+#include "Rebuild.hpp"
+#include "PolynomialBases.hpp"
+#include "Fem.hpp"
 
 
 template <class TypeIO, class TypeA>
@@ -1303,10 +1304,6 @@ void find_search_table_trig_only_vertical(const PointT <Type> &p1, const PointT 
         if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
           );}
       }
-
-
-
-
 }
 
 double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
@@ -2070,6 +2067,24 @@ int main() {
     int fourintersection = 0;
 
 
+      cout<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= " <<endl;
+
+    Fem fem = Fem(3 * 2, 2);
+    unsigned TRI = 4;
+    unsigned linear = 0;
+    const elem_type *femQuad = fem.GetFiniteElement(TRI, linear);
+    unsigned nInt;
+
+    unsigned nPoints = 3;
+    unsigned dim = 2;
+    short unsigned ielType = 4; //quad = 3 and tri = 4
+    unsigned femType = 0; //linear FEM
+
+    std::vector<std::vector<double>> xv ;
+    std::vector<std::vector<double>> unitxv = {{0., 1., 0.}, {0., 0., 1.}};
+//     std::vector<std::vector<double>> xv = {{0.125, 0.125, 0.}, {0.25, 0.375, 0.375}};
+    std::vector<double> A = {1., 0., 1., -1., -1., 0.342391}; //ax^2+bxy+cy^2+dx+ey+f =0
+
 
     int maxDepth = 5;
     int degree = 3;
@@ -2122,6 +2137,8 @@ int main() {
                     x2 = i * h;     y2 = (j+1) * h;
                 }
 
+               xv = {{x1, x2, x3}, {y1, y2, y3}};  //physical triangle
+
                 bool vertical = false;
                 std::vector<std::pair<double, double>> refIntersections;
 
@@ -2142,65 +2159,96 @@ int main() {
                         PointT<Type> q1, q2, q3;
                         std::vector<int> circlesign(3);
                         std::vector<int> parabolasign(3);
-                        for (size_t i = 0; i < 3; ++i) {
-                            double xi, eta;
-                            transformToReferenceTriangle(x1, y1, x2, y2, x3, y3,
-                                                       intersections[i].first,
-                                                       intersections[i].second,
-                                                       xi, eta);
-                            if (i == 0) p1 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            if (i == 1) p2 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            if (i == 2) p3 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            refIntersections.push_back({xi, eta});
-                        }
-
-
-                        //checking and storing the sign of the vertices
-
-                          circlesign[0] = ((x1-centerX)*(x1-centerX) + (y1-centerY)*(y1-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          circlesign[1] = ((x2-centerX)*(x2-centerX) + (y2-centerY)*(y2-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          circlesign[2] = ((x3-centerX)*(x3-centerX) + (y3-centerY)*(y3-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          cout <<"Circle sign "<< circlesign[0] << ", " << circlesign[1] << ", " << circlesign[2] << endl;
-
-
                         unsigned table_number=9999;
                         Parabola <Type> parabola;
                         Point3D searchP;
 
+                        std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);
+                        std::vector < std::vector < std::vector <double > > > aP(1);
+                        ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
 
+                        std::vector<int> xvsign(3);
+                        std::vector<int> unitxvsign(3);
+                        std::vector<std::vector<double>> xi(nPoints, std::vector<double>(2, 0.));
+
+                        for(unsigned i = 0; i < nPoints; i++) {
+                          bool inverseMapping = GetInverseMapping(femType, ielType, aP, xp.first[i], xi[i], 100);        //This maps the phsical points to {(-1,-1),(1,1)} box for quad. For triangle it maps to (0,0),(1,0),(0,1)
+                            std::cout << " \nx[i] physical value " << i << " " << xp.first[i][0] << " " << xp.first[i][1] << std::endl;
+                            std::cout << " x[i] value in (-1,1) " << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
+
+                    //       xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};                                        // //This maps the points to unit box. For quad
+                    //       std::cout << "value in reference triangle : check if it works" << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
+                        }
+
+                        cout << " xv sign = {" ;
+                        for(unsigned l = 0; l < 3 ; l++) {
+                          xvsign[l] = ((A[0] * xv[0][l] * xv[0][l] + A[1] * xv[0][l] * xv[1][l] + A[2] * xv[1][l] * xv[1][l] + A[3] * xv[0][l] + A[4] * xv[1][l] + A[5]) >= 0) ? 1 : -1 ;
+                          cout << xvsign[l] << ", ";
+                        }
+                        cout << "} " << endl;
+
+                        std::vector<double> phi, gradPhi;
+                        std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
+                        std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
+                        std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
+                        for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
+                          // *** get gauss point weight, test function and test function partial derivatives ***
+                          femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
+                          for(unsigned i =0;i<phi.size();i++){
+                            Xg[ig] += phi[i]*xv[0][i];
+                            Yg[ig] += phi[i]*xv[1][i];
+                          }
+//                           std::cout <<"checking gauss points and jacobian"<<ig<<" "<<Xg[ig]<<" "<<Yg[ig]<<" "<<Jg[ig]<<std::endl;
+                        }
+
+                        //points in reference domain
+                        p1 = { static_cast<Type>(xi[0][0]), static_cast<Type>(xi[0][1]) };
+                        p2 = { static_cast<Type>(xi[2][0]), static_cast<Type>(xi[2][1]) };
+                        p3 = { static_cast<Type>(xi[1][0]), static_cast<Type>(xi[1][1]) };
 
                         find_search_table_trig<Type>(p1, p2, p3, table_number, searchP, q1, q2, q3, vertical);
-                        cout<<"Vertical (table)? = " << vertical << " table_number = "<< table_number << endl;
 
+                        cout<<"Vertical (table)? = " << vertical << " table_number = "<< table_number << " : points in table : ( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
 
+                        //Just testing the signsxv
                         if(vertical){
                           parabola = get_parabola_equation(p1,p2,p3);
                           std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
                           //check the parabola sign
-                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
-                          parabolasign[1] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
-                          parabolasign[2] = ((parabola.d + 1)>= 0) ? 1 : -1;
-                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
-//                           p3.x = (p1.x+p2.x)/2;
-//                           p3.y = - parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
+
+                          cout << " unit triangle sign = {" ;
+                          for(unsigned l = 0; l < 3 ; l++) {
+                            unitxvsign[l] = ((parabola.k * unitxv[0][l] * unitxv[0][l] + parabola.b * unitxv[0][l] + parabola.d + unitxv[1][l]) > 0) ? 1 : -1;
+                            cout << unitxvsign[l] << ", ";
+                          }
+                          cout << "} " << endl;
+
+//                           p3.x = (p1.x + p2.x) / 2;
+//                           p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
 
                         }
                         else{
-                          PointT<Type> r1 = {p1.y,p1.x};
-                          PointT<Type> r2 = {p2.y,p2.x};
-                          PointT<Type> r3 = {p3.y,p3.x};
-                          parabola = get_parabola_equation(r1,r2,r3);
-                          std::cout<< "parabola " << parabola.k<<"y^2+"<<parabola.b<<"y+" << parabola.d << " + x = 0 " <<std::endl;
-                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
-                          parabolasign[2] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
-                          parabolasign[1] = ((parabola.d + 1)>= 0) ? 1 : -1;
-                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
+                          cout<<" it is a Horizontal parabola .......@.......@........@........"<<endl;
+                          p1 = { static_cast<Type>(xi[0][1]), static_cast<Type>(xi[0][0]) };
+                          p2 = { static_cast<Type>(xi[2][1]), static_cast<Type>(xi[2][0]) };
+                          p3 = { static_cast<Type>(xi[1][1]), static_cast<Type>(xi[1][0]) };
+                          cout <<  "( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) " << endl;
+                          cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
 
+                          Parabola <Type> parabola = get_parabola_equation(p1, p2, p3);
+
+                          //use horizotal parabola for the normal
+                          cout << " unit triangle sign = {" ;
+                          for(unsigned l = 0; l < 3 ; l++) {
+                            unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[1][l] * unitxv[1][l] + static_cast<double>(parabola.b) * unitxv[1][l] + static_cast<double>(parabola.d) + unitxv[0][l]) > 0) ? 1 : -1;
+                            cout << unitxvsign[l] << ", ";
+                          }
+                          cout << "} " << endl;
+//                           p3.x = (p1.x + p2.x) / 2.;
+//                           p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
                         }
 
-
-
-                        int checksign = checkVectorRelation(circlesign, parabolasign);   //TODO checkVectorRelation output int
+                        int checksign = checkVectorRelation(xvsign, unitxvsign);   //TODO checkVectorRelation output int
                         if (checksign == 1){
                           normal = false;
                         }
@@ -2221,19 +2269,9 @@ int main() {
 
                         std::vector<double>weightCF, interp_point_weights, interp_point_integrals;
 
-//                           CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
-                          Pweights(s, a, c, table_number, q1, q2, q3, weightCF);                  // WeightCF is always calculated in Domain D*
-                      //     Pweights(s, a, c, 0, p1, p2, p3, weightCF);
+                 // WeightCF is always calculated in Domain D*
 
-//                           cout<< " cutfem weight = ";
-//                           for (size_t j = 0; j < weightCF.size(); ++j){
-//                             std::cout << weightCF[j] << ", ";
-//                           }
-//                           cout<<endl;
 
-                          const double* gaussWeight =  Pweights.GetGaussWeightPointer();
-                          const double* xg = Pweights.GetGaussCoordinatePointer(0);
-                          const double* yg = Pweights.GetGaussCoordinatePointer(1);
 
                         // Search in octree
                         OctreeNode<Type>* result = loadedRoots[table_number].search(searchP);
@@ -2250,16 +2288,6 @@ int main() {
 
                             std::vector<double> interp_point_weights;
                             trilinier_interpolation_vector(corners, result->cornerWeights,interp_point, interp_point_weights);
-
-                             //here when it calculates the Pweight it calculate wheather it is vertical or not based on q1,q2,q3. All of these are already calculated only thing I do here is change the powers. It should not have any effect on area. TODO wait, does it mean that when I create the table it already considering all the horizontal parabola. Does it mean I do not have to change the table based on whether it is vertical or horizontal? ----> No, we find the table based on vertical or horizontal.  TODO check what happens if we do not change the table based on verticality.  ---> No, does not work.
-
-                            //Use check normal vector ;
-
-
-                            int checksign = checkVectorRelation(circlesign, parabolasign);
-                            if (checksign == 1){
-                              normal = false;
-                            }
 
 
                             std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
@@ -2278,74 +2306,24 @@ int main() {
                             }
                             std::cout << " )"<<std::endl;
 
-
-
-
-
                             std::vector<double>modified_weights(interp_point_weights.size());
 
-
-
-
-                            if(!normal){  //this probably only for vertical
+                            if(!normal){
                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-    //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+
                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
                                   }
                                 }
-                             area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+
+                             area = GaussIntegral(0, 0, Xg.data(), Yg.data(), interp_point_weights, Jg.data());
                              cout << "Ref quadrature area = " << area << endl;
 
-//                             if (vertical) {
-//                                 area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
-//                             } else {
-//                                 area = GaussIntegral(0, 0, yg, xg, interp_point_weights, gaussWeight);
-//                             }
 
-
-//
-//
-//                             if(!vertical){
-//                               if(!normal) {
-//                                 int sqrt_size = sqrt(interp_point_weights.size());
-//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
-//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
-//                                     modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
-//                                   }
-//                                 }
-//                               }
-//                               else{
-//                                 int sqrt_size = sqrt(interp_point_weights.size());
-//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
-//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
-//                                     modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
-//                                   }
-//                                 }
-//                               }
-//                             }
-//
-//                             else{
-//                               if(!normal){  //this probably only for vertical
-//                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//     //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-//                                     modified_weights[aq] = 1 - interp_point_weights[aq];
-// //                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
-//                                   }
-//                                 }
-//                             }
-//                             if (vertical) {
-//                                 area = GaussIntegral(0, 0, xg, yg, modified_weights, gaussWeight);
-//                             } else {
-//                                 area = GaussIntegral(0, 0, yg, xg, modified_weights, gaussWeight);
-//                             }
-
-
-
-                            totalArea += area * (h * h);  // Scale by element area
-                            printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
-                                             centerX, centerY, radius,
-                                             intersections, refIntersections, totalArea,area,vertical);
-                            std::cout << "scaled area: " << area*h*h << std::endl;
+                            totalArea += area;  // No need to scale it. jacobian does it for us.
+//                             printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
+//                                              centerX, centerY, radius,
+//                                              intersections, refIntersections, totalArea,area,vertical);
+//                             std::cout << "scaled area: " << area*h*h << std::endl;
 
 
                             cout<<"--"<<endl;

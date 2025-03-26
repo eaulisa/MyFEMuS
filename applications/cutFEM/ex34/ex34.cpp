@@ -54,9 +54,10 @@ struct Parabola {
 };
 
 
-
-
 #include "cutFemWeightParabola.hpp"
+#include "Rebuild.hpp"
+#include "PolynomialBases.hpp"
+#include "Fem.hpp"
 
 
 template <class TypeIO, class TypeA>
@@ -691,9 +692,8 @@ void CheckIntersection(int &intersect_number, unsigned int &table_number , std::
 cout<< " " << " left " << left << " top "<< top << " right "<< right << " bottom " << bottom  << " table number :"<< table_number << " number of intersection " << intersect_number <<endl;*/
 
 }
-
 template <class Type>
-Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, const int &s, const Type &a, Type c,const int &table,  PointT <Type> &p1,  PointT <Type> &p2, const PointT <Type> &p3){   //TODO we have 5 tables. each of them works differently. Work the math first.
+Type find_trig_area_2intersection_formula_second(const unsigned &m, const unsigned &n, const int &s, const Type &a, Type c,const int &table,  PointT <Type> &p1,  PointT <Type> &p2, const PointT <Type> &p3){   //TODO we have 5 tables. each of them works differently. Work the math first.
     Type area(0);
     Type A1 (0), A2 (0), A3 (0);
     std::vector< std::pair <Type, Type> > I1, I2, I3 ;
@@ -956,6 +956,92 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
     return area ;
 }
 
+template <class Type>
+void change_points_covert_table(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, const int &actual_table, int &old_table, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
+  double epsilon =0.0000000000001;
+  vertical = true;
+  bool xSpan = false;
+  bool ySpan = false;
+
+  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
+  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
+
+//   cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
+
+  if(xSpan) {
+    if(ySpan) {
+      if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+      else vertical = false;
+    }
+    else {
+      vertical = true;
+    }
+  }
+  else {
+    if(ySpan) vertical = false;
+    else {
+      std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
+    }
+  }
+
+  if(vertical){
+      q1 = {(1. - p1.x), p1.y};
+      q2 = {(1. - p2.x), p2.y};
+      q3 = {(1. - p3.x), p3.y};
+
+      switch(actual_table){
+        case 0 :
+          old_table = 1;
+        case 1 :
+          old_table = 3;
+        case 2 :
+          old_table = 2;
+        case 3 :
+          old_table = 1;
+        case 4 :
+          old_table = 3;
+        case 5 :
+          old_table = 2;
+      }
+  }
+  else{ //Horizontal
+    q1 = {(1. - p1.y), p1.x};
+    q2 = {(1. - p2.y), p2.x};
+    q3 = {(1. - p3.y), p3.x};
+
+    switch(actual_table){
+      case 0 :
+        old_table = 2;
+      case 1 :
+        old_table = 3;
+      case 2 :
+        old_table = 1;
+      case 3 :
+        old_table = 2;
+      case 4 :
+        old_table = 3;
+      case 5 :
+        old_table = 1;
+    }
+
+  }
+}
+
+
+template <class Type>
+Type find_trig_area_2intersection_formula_first(const unsigned &m, const unsigned &n, const int &s, const Type &a, Type c,const int &actual_table,  PointT <Type> &p1,  PointT <Type> &p2, const PointT <Type> &p3){
+  Type area(0);
+  PointT <Type> q1,q2,q3 ;
+  int old_table;
+  bool vertical;
+
+  change_points_covert_table<Type>(p1, p2, p3, actual_table, old_table, q1, q2, q3, vertical);
+  area = find_trig_area_2intersection_formula_second<Type>(m, n, s, a, c, old_table,  q1,  q2, q3);
+
+ return area;
+}
+
+
 struct Point3D {
     double x, y, z;
 
@@ -1051,7 +1137,7 @@ void trilinier_interpolation_vector(const std::vector< std::vector< Type >> & in
 }
 
 
-template <class Type>   //TODO change this based on 5 table
+template <class Type>   //TODO change this based on 6 table
 void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <Type> &p1, PointT <Type> &p2, PointT <Type> &p3){
     double epsilon = 0.000000000000001;
     Type i1_pm_eps(-1) , i2_pm_eps(-1);
@@ -1063,49 +1149,55 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
             i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
 
-            p1 = {i1_pm_eps, i1_pm_eps};
-            p2 = {i2_pm_eps, i2_pm_eps};
+            p1 = {static_cast<Type>(0), i1_pm_eps};
+            p2 = {i2_pm_eps, static_cast<Type>(1) - i2_pm_eps};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 1:
-            i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
+            i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
 //                    if (i1 == partition ) i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);     //it keeps my i2 in (0,1)
-            p1 = {i1_pm_eps, i1_pm_eps};
-            p2 = {static_cast<Type>(1), i2_pm_eps};
+            p1 = {static_cast<Type>(0), i1_pm_eps};
+            p2 = {i2_pm_eps,static_cast<Type>(0)};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 2:
             //Do we really need epsilon on this table?
             i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
-            p1 = {i1_pm_eps, i1_pm_eps};
+            p1 = {i1_pm_eps, static_cast<Type>(1) - i1_pm_eps};
             p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
             break;
         case 3:
-            i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
-            i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
-            p1 = {static_cast<Type>(1), i1_pm_eps};
-            p2 = {i2_pm_eps, static_cast<Type>(0)};
-            break;
-        case 4:
             i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
-            p1 = {i1_pm_eps, static_cast<Type>(0)};
-            p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p1 = {static_cast<Type>(0), i1_pm_eps};
+            p2 = {i2_pm_eps, static_cast<Type>(1) - i2_pm_eps};
+            p3 = {static_cast<Type>(corner[2] + epsilon), (p1.y + p2.y)*0.5};
             break;
-            //TODO It is not 3 table it is more like 5 table. fix it.
+        case 4:
+            i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
+            i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
+            p1 = {static_cast<Type>(0), i1_pm_eps};
+            p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {static_cast<Type>(corner[2]), (p1.y + p2.y)*0.5};
+            break;
+
+        case 5:
+            i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
+            i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
+            p1 = {i1_pm_eps, static_cast<Type>(1) - i1_pm_eps};
+            p2 = {i2_pm_eps, static_cast<Type>(0)};
+            p3 = {static_cast<Type>(corner[2]), (p1.y + p2.y)*0.5};
+            break;
+
     }
-
-    p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
-//       if(fabs(p3.x - p3.y) < epsilon) p3.y = p3.y static_cast<Type>(epsilon);
-//     if (fabs(corner[2] - 0) < epsilon ) p3.y = static_cast<Type>(epsilon);
-//     if (fabs(corner[2] - 1) < epsilon ) p3.y = static_cast<Type>(1-epsilon);
-
 
 }
 
-
 template <class Type>
-void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
+void find_actual_table_trig(const PointT <Type> &p1, const PointT <Type> &p2,  PointT <Type> &p3, int &actual_table, int &old_table, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
   double epsilon =0.0000000000001;
   vertical = true;
   bool xSpan = false;
@@ -1118,7 +1210,9 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
 
   if(xSpan) {
     if(ySpan) {
-      if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+      double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
+      double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
+      if(dx >= dy) vertical = true;
       else vertical = false;
     }
     else {
@@ -1151,163 +1245,332 @@ void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, co
         q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
         cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
 
+        p3.x = 1. - q3.x ;
+        p3.y = q3.y ;
+
         std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
-
       }
 
-      if (fabs(q1.x-q1.y) < epsilon) {
-        if (fabs(q2.x - 1.) < epsilon) {
-          table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q2.x - q2.y) < epsilon) {
-          table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q2.y - 0.) < epsilon) {
-          table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+      if (fabs(p1.x-0.) < epsilon) {
+        if (fabs(p2.x + p2.y - 1.) < epsilon) {
+          actual_table = 0; old_table = 1; searchP = {static_cast<double>(p1.y), static_cast<double>(p2.x), static_cast<double>(p3.y)};
+        }
+        else if(fabs(p2.y - 0.) < epsilon){
+          actual_table = 1; old_table = 3; searchP = {static_cast<double>(p1.y), static_cast<double>(p2.x), static_cast<double>(p3.y)};
+        }
       }
-      else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
-        if (fabs(q1.x - 1.) < epsilon) {
-          table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q1.y - 0.) < epsilon) {
-          table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+
+      else if (fabs(p2.x-0.) < epsilon) {
+        if (fabs(p1.x + p1.y - 1.) < epsilon) {
+          actual_table = 0; old_table = 1; searchP = {static_cast<double>(p2.y), static_cast<double>(p1.x), static_cast<double>(p3.y)};
+        }
+        else if(fabs(p1.y - 0.) < epsilon){
+          actual_table = 1; old_table = 3; searchP = {static_cast<double>(p2.y), static_cast<double>(p1.x), static_cast<double>(p3.y)};
+        }
       }
-      else if (fabs(q1.x - 1.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+
+      else if (fabs(p1.x + p1.y - 1.) < epsilon) {
+        if(fabs(p2.y - 0.) < epsilon){
+          actual_table = 2; old_table = 2; searchP = {static_cast<double>(p1.x), static_cast<double>(p2.x), static_cast<double>(p3.y)};
+        }
       }
-      else if (fabs(q2.x - 1.) < epsilon){
-        if (fabs(q1.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+      else if (fabs(p2.x + p2.y - 1.) < epsilon) {
+        if(fabs(p1.y - 0.) < epsilon){
+          actual_table = 2; old_table = 2; searchP = {static_cast<double>(p2.x), static_cast<double>(p1.x), static_cast<double>(p3.y)};
+        }
       }
-      else if (fabs(q1.y - 0.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
-          );}
-      }
+
+
+
+
+
+//       if (fabs(q1.x-q1.y) < epsilon) {  //TODO redo it using p1,p2,p3
+//         if (fabs(q2.x - 1.) < epsilon) {
+//           old_table = 1; searchP.x = static_cast<double>(1.-q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.x - q2.y) < epsilon) {
+//           old_table = 0; searchP.x = static_cast<double>(1.-q1.x); searchP.y = static_cast<double>(1.-q2.x); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.y - 0.) < epsilon) {
+//           old_table = 2; searchP.x = static_cast<double>(1.-q1.x); searchP.y = static_cast<double>(1.-q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
+//         if (fabs(q1.x - 1.) < epsilon) {
+//           old_table = 1; searchP.x = static_cast<double>(1.-q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q1.y - 0.) < epsilon) {
+//           old_table = 2; searchP.x = static_cast<double>(1.-q2.x); searchP.y = static_cast<double>(1.-q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           old_table = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(1.-q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           old_table = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(1.-q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q1.y - 0.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           old_table = 4; searchP.x = static_cast<double>(1.-q1.x); searchP.y = static_cast<double>(1.-q2.x); searchP.z = static_cast<double>(q3.y);
+//         }
+//       }
+//
+//       switch(old_table){
+//         case 0 :
+//           cout<< " four intersection was not implimented in this version "<<endl;
+//           break;
+//         case 1 :
+//           actual_table = 0;
+//           break;
+//         case 2 :
+//           actual_table = 2;
+//           break;
+//         case 3 :
+//           actual_table = 1;
+//           break;
+//         case 4 :
+//           cout<< " four intersection was not implimented in this version "<<endl;
+//           break;
+//       }
+
   }
   else{ //Horizontal
     q1 = {(1. - p1.y), p1.x};
     q2 = {(1. - p2.y), p2.x};
     q3 = {(1. - p3.y), p3.x};
 
-
-
     cout << "q1 = (" << q1.x<<","<<q1.y<<")"<<endl;
     cout << "q2 = (" << q2.x<<","<<q2.y<<")"<<endl;
     cout << "q3 = (" << q3.x<<","<<q3.y<<")"<<endl;
     if ( fabs(q3.x - (q1.x+q2.x)/2.) > epsilon) {
-
         Parabola <Type> parabola = get_parabola_equation(q1, q2, q3) ;
         cout<< " ****** Third point q3 changes position from (" << q3.x<<","<<q3.y<<") to (" ;
         q3.x = (q1.x+q2.x)/2. ;
         q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
         cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
+        p3.y = 1.-q3.x ;
+        p3.x = q3.y;
 
         std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
-
       }
 
 
-    if (fabs(q1.x-q1.y) < epsilon) {
-      if (fabs(q2.y- 0.) < epsilon) {
-        table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-      else if (fabs(q2.x- q2.y) < epsilon) {
-        table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
-      else if (fabs(q2.x- 1.) < epsilon) {
-        table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
-    }
-
-    else if (fabs(q2.x-q2.y) < epsilon) {
-      if (fabs(q1.y- 0.) < epsilon) {
-        table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-      else if (fabs(q1.x- 1.) < epsilon) {
-        table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
-    }
-
-    else if (fabs(q1.x - 1.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-    }
-    else if (fabs(q2.x - 1.) < epsilon){
-        if (fabs(q1.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-    }
+      if (fabs(p1.x-0.) < epsilon) {
+        if (fabs(p2.x + p2.y - 1.) < epsilon) {
+          actual_table = 3; old_table = 2; searchP = {static_cast<double>(p1.y), static_cast<double>(p2.x), static_cast<double>(p3.x)};
+        }
+        else if(fabs(p2.y - 0.) < epsilon){
+          actual_table = 4; old_table = 3; searchP = {static_cast<double>(p1.y), static_cast<double>(p2.x), static_cast<double>(p3.x)};
+        }
+      }
+      else if (fabs(p2.x-0.) < epsilon) {
+        if (fabs(p1.x + p1.y - 1.) < epsilon) {
+          actual_table = 3; old_table = 2; searchP = {static_cast<double>(p2.y), static_cast<double>(p1.x), static_cast<double>(p3.x)};
+        }
+        else if(fabs(p1.y - 0.) < epsilon){
+          actual_table = 4; old_table = 3; searchP = {static_cast<double>(p2.y), static_cast<double>(p1.x), static_cast<double>(p3.x)};
+        }
+      }
 
 
-    else if (fabs(q1.y - 0.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){
-          table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-    }
+      else if (fabs(p1.x + p1.y - 1.) < epsilon) {
+        if(fabs(p2.y - 0.) < epsilon){
+          actual_table = 5; old_table = 1; searchP = {static_cast<double>(p1.x), static_cast<double>(p2.x), static_cast<double>(p3.x)};
+        }
+      }
+      else if (fabs(p2.x + p2.y - 1.) < epsilon) {
+        if(fabs(p1.y - 0.) < epsilon){
+          actual_table = 5; old_table = 1; searchP = {static_cast<double>(p2.x), static_cast<double>(p1.x), static_cast<double>(p3.x)};
+        }
+      }
+
+
+
+//     if (fabs(q1.x-q1.y) < epsilon) {
+//       if (fabs(q2.y- 0.) < epsilon) {
+//         old_table = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q2.x- 1.) < epsilon) {
+//         old_table = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//
+//       else if (fabs(q2.x- q2.y) < epsilon) {
+//         old_table = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
+//     }
+//
+//     else if (fabs(q2.x-q2.y) < epsilon) {
+//       if (fabs(q1.y- 0.) < epsilon) {
+//         old_table = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q1.x- 1.) < epsilon) {
+//         old_table = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//     else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           old_table = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//     else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           old_table = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//     else if (fabs(q1.y - 0.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           old_table = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//     switch(old_table){
+//       case 0 :
+//         cout<< " four intersection was not implimented in this version old table 0 "<<endl;
+//         break;
+//       case 1 :
+//         actual_table = 2;
+//         break;
+//       case 2 :
+//         actual_table = 0;
+//         break;
+//       case 3 :
+//         actual_table = 1;
+//         break;
+//       case 4 :
+//         cout<< " four intersection was not implimented in this version old table 4"<<endl;
+//         break;
+//     }
+
   }
 }
 
 
 
-//this find search function does not care about verticality. test
-template <class Type>
-void find_search_table_trig_only_vertical(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
-  double epsilon =0.0000000000001;
-  vertical = true;
-  bool xSpan = false;
-  bool ySpan = false;
+// template <class Type>
+// void find_search_table_trig(const PointT <Type> &p1, const PointT <Type> &p2, const PointT <Type> &p3, unsigned &table_number, Point3D &searchP, PointT <Type> &q1, PointT <Type> &q2, PointT <Type> &q3, bool &vertical){
+//   double epsilon =0.0000000000001;
+//   vertical = true;
+//   bool xSpan = false;
+//   bool ySpan = false;
+//
+//   if((p1.x < p3.x && p3.x < p2.x) || ( p2.x < p3.x && p3.x < p1.x)) xSpan = true ;
+//   if((p1.y < p3.y && p3.y < p2.y) || ( p2.y < p3.y && p3.y < p1.y)) ySpan = true ;
+//
+//   cout<< "xspan = "<<xSpan<<" ySpan = "<<ySpan<<endl;
+//
+//   if(xSpan) {
+//     if(ySpan) {
+//       if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+//       else vertical = false;
+//     }
+//     else {
+//       vertical = true;
+//     }
+//   }
+//   else {
+//     if(ySpan) vertical = false;
+//     else {
+//       std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
+//
+//     }
+//   }
+//
+//   if(vertical){
+//
+//       q1 = {(1. - p1.x), p1.y};
+//       q2 = {(1. - p2.x), p2.y};
+//       q3 = {(1. - p3.x), p3.y};
+//
+//       cout << "q1 = (" << q1.x<<","<<q1.y<<")"<<endl;
+//       cout << "q2 = (" << q2.x<<","<<q2.y<<")"<<endl;
+//       cout << "q3 = (" << q3.x<<","<<q3.y<<")"<<endl;
+//
+//       if ( fabs(q3.x - (q1.x+q2.x)/2.) > epsilon) {
+//
+//         Parabola <Type> parabola = get_parabola_equation(q1, q2, q3) ;
+//         cout<< " ****** Third point q3 changes position from (" << q3.x<<","<<q3.y<<") to (" ;
+//         q3.x = (q1.x+q2.x)/2. ;
+//         q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
+//         cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
+//
+//         std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+//
+//       }
+//
+//       if (fabs(q1.x-q1.y) < epsilon) {
+//         if (fabs(q2.x - 1.) < epsilon) {
+//           table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.x - q2.y) < epsilon) {
+//           table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q2.y - 0.) < epsilon) {
+//           table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
+//         if (fabs(q1.x - 1.) < epsilon) {
+//           table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//         else if (fabs(q1.y - 0.) < epsilon) {
+//           table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       }
+//       else if (fabs(q1.y - 0.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
+//           );}
+//       }
+//   }
+//   else{ //Horizontal
+//     q1 = {(1. - p1.y), p1.x};
+//     q2 = {(1. - p2.y), p2.x};
+//     q3 = {(1. - p3.y), p3.x};
+//
+//
+//
+//     cout << "q1 = (" << q1.x<<","<<q1.y<<")"<<endl;
+//     cout << "q2 = (" << q2.x<<","<<q2.y<<")"<<endl;
+//     cout << "q3 = (" << q3.x<<","<<q3.y<<")"<<endl;
+//     if ( fabs(q3.x - (q1.x+q2.x)/2.) > epsilon) {
+//
+//         Parabola <Type> parabola = get_parabola_equation(q1, q2, q3) ;
+//         cout<< " ****** Third point q3 changes position from (" << q3.x<<","<<q3.y<<") to (" ;
+//         q3.x = (q1.x+q2.x)/2. ;
+//         q3.y = - parabola.k * q3.x * q3.x - parabola.b * q3.x - parabola.d ;
+//         cout<< q3.x <<","<<q3.y<<") .******** "<< endl;
+//
+//         std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+//
+//       }
+//
+//
+//     if (fabs(q1.x-q1.y) < epsilon) {
+//       if (fabs(q2.y- 0.) < epsilon) {
+//         table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q2.x- q2.y) < epsilon) {
+//         table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);} // No need for table 0 again
+//       else if (fabs(q2.x- 1.) < epsilon) {
+//         table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//     else if (fabs(q2.x-q2.y) < epsilon) {
+//       if (fabs(q1.y- 0.) < epsilon) {
+//         table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//       else if (fabs(q1.x- 1.) < epsilon) {
+//         table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//     else if (fabs(q1.x - 1.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//     else if (fabs(q2.x - 1.) < epsilon){
+//         if (fabs(q1.y - 0.) < epsilon){
+//           table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//
+//
+//     else if (fabs(q1.y - 0.) < epsilon){
+//         if (fabs(q2.y - 0.) < epsilon){
+//           table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
+//     }
+//   }
+// }
 
-  if((p1.x < p3.x && p3.x < p2.x) || ( p2.x > p3.x && p3.x > p1.x)) xSpan = true ;
-  if((p1.y < p3.y && p3.y < p2.y) || ( p2.y > p3.y && p3.y > p1.y)) ySpan = true ;
-  if(xSpan) {
-    if(ySpan) {
-      if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
-      else vertical = false;
-    }
-    else {
-      vertical = true;
-    }
-  }
-  else {
-    if(ySpan) vertical = false;
-    else {
-      std::cout << " The parabola formed by this three points is not a function. Use line cuts " << std::endl;
-
-    }
-  }
-
-
-
-      q1 = {(1. - p1.x), p1.y};
-      q2 = {(1. - p2.x), p2.y};
-      q3 = {(1. - p3.x), p3.y};
-
-      if (fabs(q1.x-q1.y) < epsilon) {
-        if (fabs(q2.x - 1.) < epsilon) {
-          table_number = 1; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.y); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q2.x - q2.y) < epsilon) {
-          table_number = 0; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q2.y - 0.) < epsilon) {
-          table_number = 2; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-      }
-      else if (fabs(q2.x-q2.y) < epsilon) {  // I dont need to do anything for table 0
-        if (fabs(q1.x - 1.) < epsilon) {
-          table_number = 1; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.y); searchP.z = static_cast<double>(q3.y);}
-        else if (fabs(q1.y - 0.) < epsilon) {
-          table_number = 2; searchP.x = static_cast<double>(q2.x); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-      }
-
-
-      else if (fabs(q1.x - 1.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q1.y); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y);}
-      }
-      else if (fabs(q2.x - 1.) < epsilon){
-        if (fabs(q1.y - 0.) < epsilon){
-          table_number = 3; searchP.x = static_cast<double>(q2.y); searchP.y = static_cast<double>(q1.x); searchP.z = static_cast<double>(q3.y);}
-      }
-
-
-      else if (fabs(q1.y - 0.) < epsilon){
-        if (fabs(q2.y - 0.) < epsilon){table_number = 4; searchP.x = static_cast<double>(q1.x); searchP.y = static_cast<double>(q2.x); searchP.z = static_cast<double>(q3.y
-          );}
-      }
-
-
-
-
-}
 
 double GaussIntegral(const int &xExp, const int &yExp, const double* xg, const double* yg, const std::vector<double> &interp_point_weights, const double* gaussWeight){
   double Integral = 0;
@@ -1362,7 +1625,7 @@ public:
             for (unsigned qq = 0; qq <= qM; qq++) {
                 for (unsigned jj = 0; jj <= qq; jj++) {
                     unsigned ii = qq - jj;
-                    area = find_trig_area_2intersection_formula(ii, jj, s, a, c, table, p1, p2, p3);
+                    area = find_trig_area_2intersection_formula_first(ii, jj, s, a, c, table, p1, p2, p3);
                     cornerAreas[i].push_back(static_cast<double>(area));
                     count++;
                 }
@@ -1403,10 +1666,10 @@ public:
                         interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
                     }
                     double interp_area = trilinier_interpolation(interpolation_vector, interp_point);
-                    f_area = find_trig_area_2intersection_formula(jj, ii, s, a, c, table, p1, p2, p3);
+                    f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
                     double formula_area = static_cast<double>(f_area);
                     double r_error = fabs(formula_area - interp_area) / formula_area;
-                    double r_error_opposite = fabs(formula_area - interp_area) / (1.0 / (ii + 1) * (jj + 1) - formula_area);
+                    double r_error_opposite = fabs(formula_area - interp_area) / (0.5 / (ii + 1) * (jj + 1) - formula_area);  //TODO fix it. 1 was for square
 
                     relativeErrors.push_back(r_error);
                     relativeErrorsOpposite.push_back(r_error_opposite);
@@ -1702,13 +1965,14 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
 
 
     std::vector<std::vector<Point3D>> initialCorners = {
-      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
-      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
-      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
-      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
-      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}, {1.0, 1.0, 0.0}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 1.0}, {1.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 0.5}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 0.5}},
+      {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.5}, {0.0, 1.0, 0.0}, {0.0, 1.0, 0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}}
     };
-    for (int ttable = 0; ttable < 5; ++ttable) {
+    for (int ttable = 0; ttable < 6; ++ttable) {
         std::string filename = "save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" + std::to_string(degree) + ".csv";
 
         FILE *fp;
@@ -1731,7 +1995,7 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
     cout << "Loading the tables" << endl;
     loadedRoots.clear();
     loadedRoots.reserve(2);
-    for (int ttable = 0; ttable < 5; ++ttable) {
+    for (int ttable = 0; ttable < 6; ++ttable) {
 
         loadedRoots.emplace_back(initialCorners[ttable], ttable, 0, degree, nullptr);
         loadedRoots.back().loadOctreeFromCSV("save/octree_table_" + std::to_string(ttable) + "_maxdepth_" + std::to_string(maxDepth) + "_per_" + std::to_string(percent) + "_degree_" + std::to_string(degree) + ".csv");
@@ -2045,9 +2309,9 @@ int main() {
   std::cout.precision(16);
 
   PointT <Type> p1, p2, p3;
-  p1 = { static_cast<Type>(0.4471), static_cast<Type>(1) };
-  p2 = { static_cast<Type>(1), static_cast<Type>(0.4471) };
-  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.8291) };
+  p1 = { static_cast<Type>(0.), static_cast<Type>(0.4471) };
+  p2 = { static_cast<Type>(0.4471), static_cast<Type>(0.) };
+  p3 = { static_cast<Type>((p1.x + p2.x) / 2.0), static_cast<Type>(0.5) };
 
   std::vector<double>weightCF;
   CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
@@ -2057,11 +2321,11 @@ int main() {
     // Circle parameters
     double centerX = 0.5;
     double centerY = 0.5;
-    double radius = 0.397;
-//     double radius = 0.19;
+//     double radius = 0.397;
+    double radius = 0.2;
 
     // Mesh parameters
-    int nd = 4;  // Number of divisions per side
+    int nd = 2;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
@@ -2069,6 +2333,25 @@ int main() {
     int triangleIndex = 0;
     int fourintersection = 0;
 
+
+      cout<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= " <<endl;
+
+    Fem fem = Fem(3 * 2, 2);
+    unsigned TRI = 4;
+    unsigned linear = 0;
+    const elem_type *femQuad = fem.GetFiniteElement(TRI, linear);
+    unsigned nInt;
+
+    unsigned nPoints = 3;
+    unsigned dim = 2;
+    short unsigned ielType = 4; //quad = 3 and tri = 4
+    unsigned femType = 0; //linear FEM
+
+    std::vector<std::vector<double>> xv ;
+    std::vector<std::vector<double>> unitxv = {{0., 1., 0.}, {0., 0., 1.}};
+//     std::vector<std::vector<double>> xv = {{0.125, 0.125, 0.}, {0.25, 0.375, 0.375}};
+//     std::vector<double> A = {1., 0., 1., -1., -1., 0.342391}; //ax^2+bxy+cy^2+dx+ey+f =0
+    std::vector<double> A = {1., 0., 1., -1., -1., 0.46};
 
 
     int maxDepth = 5;
@@ -2089,17 +2372,17 @@ int main() {
                 double x1, y1, x2, y2, x3, y3, area ;
                 bool normal = true;
 
-//                 if (t == 0) {
-//                     // First triangle
-//                     x1 = i * h;     y1 = j * h;
-//                     x2 = (i+1) * h; y2 = j * h;
-//                     x3 = i * h;     y3 = (j+1) * h;
-//                 } else {
-//                     // Second triangle
-//                     x1 = (i+1) * h; y1 = j * h;
-//                     x2 = (i+1) * h; y2 = (j+1) * h;
-//                     x3 = i * h;     y3 = (j+1) * h;
-//                 }
+                if (t == 0) {
+                    // First triangle
+                    x1 = i * h;     y1 = j * h;
+                    x2 = (i+1) * h; y2 = j * h;
+                    x3 = i * h;     y3 = (j+1) * h;
+                } else {
+                    // Second triangle
+                    x1 = (i+1) * h; y1 = j * h;
+                    x2 = (i+1) * h; y2 = (j+1) * h;
+                    x3 = i * h;     y3 = (j+1) * h;
+                }
 
 //               if (t == 0) {
 //                     x2 = i * h;     y2 = j * h;
@@ -2112,15 +2395,17 @@ int main() {
 //                 }
 
 
-              if (t == 0) {
-                    x3 = i * h;     y3 = j * h;
-                    x1 = (i+1) * h; y1 = j * h;
-                    x2 = i * h;     y2 = (j+1) * h;
-                } else {
-                    x3 = (i+1) * h; y3 = j * h;
-                    x1 = (i+1) * h; y1 = (j+1) * h;
-                    x2 = i * h;     y2 = (j+1) * h;
-                }
+//               if (t == 0) {
+//                     x3 = i * h;     y3 = j * h;
+//                     x1 = (i+1) * h; y1 = j * h;
+//                     x2 = i * h;     y2 = (j+1) * h;
+//                 } else {
+//                     x3 = (i+1) * h; y3 = j * h;
+//                     x1 = (i+1) * h; y1 = (j+1) * h;
+//                     x2 = i * h;     y2 = (j+1) * h;
+//                 }
+
+               xv = {{x1, x2, x3}, {y1, y2, y3}};  //physical triangle
 
                 bool vertical = false;
                 std::vector<std::pair<double, double>> refIntersections;
@@ -2129,7 +2414,7 @@ int main() {
                     auto intersections = findCircleTriangleIntersectionPoints(
                         x1, y1, x2, y2, x3, y3, centerX, centerY, radius, vertical);
 
-                    cout<<"Vertical (intersection)? = " << vertical <<endl;
+                    cout<<"Vertical (intersection)? " << vertical <<  "intersection = "<< intersections.size() <<endl;
 
                     if (intersections.size() == 4) {
                         std::cout << "Triangle " << triangleIndex << " has four intersections - skipping : We assume the tri is inside. area = " << 0.5*h*h << std::endl;
@@ -2142,65 +2427,97 @@ int main() {
                         PointT<Type> q1, q2, q3;
                         std::vector<int> circlesign(3);
                         std::vector<int> parabolasign(3);
-                        for (size_t i = 0; i < 3; ++i) {
-                            double xi, eta;
-                            transformToReferenceTriangle(x1, y1, x2, y2, x3, y3,
-                                                       intersections[i].first,
-                                                       intersections[i].second,
-                                                       xi, eta);
-                            if (i == 0) p1 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            if (i == 1) p2 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            if (i == 2) p3 = {static_cast<Type>(xi), static_cast<Type>(eta)};
-                            refIntersections.push_back({xi, eta});
-                        }
-
-
-                        //checking and storing the sign of the vertices
-
-                          circlesign[0] = ((x1-centerX)*(x1-centerX) + (y1-centerY)*(y1-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          circlesign[1] = ((x2-centerX)*(x2-centerX) + (y2-centerY)*(y2-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          circlesign[2] = ((x3-centerX)*(x3-centerX) + (y3-centerY)*(y3-centerY) - radius*radius >= 0) ? 1 : -1 ;
-                          cout <<"Circle sign "<< circlesign[0] << ", " << circlesign[1] << ", " << circlesign[2] << endl;
-
-
-                        unsigned table_number=9999;
+                        int actual_table = 9999;
+                        int old_table = 999;
                         Parabola <Type> parabola;
                         Point3D searchP;
 
+                        std::pair<std::vector<std::vector<double>>, std::vector<double>> xp = GetCellPointsFromQuadric(xv, A, nPoints, nInt);
+                        std::vector < std::vector < std::vector <double > > > aP(1);
+                        ProjectNodalToPolynomialCoefficients(aP[femType], xv, ielType, femType);
 
+                        std::vector<int> xvsign(3);
+                        std::vector<int> unitxvsign(3);
+                        std::vector<std::vector<double>> xi(nPoints, std::vector<double>(2, 0.));
 
-                        find_search_table_trig<Type>(p1, p2, p3, table_number, searchP, q1, q2, q3, vertical);
-                        cout<<"Vertical (table)? = " << vertical << " table_number = "<< table_number << endl;
+                        for(unsigned i = 0; i < nPoints; i++) {
+                          bool inverseMapping = GetInverseMapping(femType, ielType, aP, xp.first[i], xi[i], 100);        //This maps the phsical points to {(-1,-1),(1,1)} box for quad. For triangle it maps to (0,0),(1,0),(0,1)
+                            std::cout << " \nx[i] physical value " << i << " " << xp.first[i][0] << " " << xp.first[i][1] << std::endl;
+                            std::cout << " x[i] value in reference " << i << " (" << xi[i][0] << ", " << xi[i][1]<<")" << std::endl;
 
+                    //       xi[i] = {0.5 * (xi[i][0] + 1.), 0.5 * (xi[i][1] + 1.)};                                        // //This maps the points to unit box. For quad
+                    //       std::cout << "value in reference triangle : check if it works" << i << " " << xi[i][0] << " " << xi[i][1] << std::endl;
+                        }
 
+                        cout << " xv sign = {" ;
+                        for(unsigned l = 0; l < 3 ; l++) {
+                          xvsign[l] = ((A[0] * xv[0][l] * xv[0][l] + A[1] * xv[0][l] * xv[1][l] + A[2] * xv[1][l] * xv[1][l] + A[3] * xv[0][l] + A[4] * xv[1][l] + A[5]) >= 0) ? 1 : -1 ;
+                          cout << xvsign[l] << ", ";
+                        }
+                        cout << "} " << endl;
+
+                        std::vector<double> phi, gradPhi;
+                        std::vector<double> Xg(femQuad->GetGaussPointNumber(),0);
+                        std::vector<double> Yg(femQuad->GetGaussPointNumber(),0);
+                        std::vector<double> Jg(femQuad->GetGaussPointNumber(),0);
+                        for(unsigned ig = 0; ig < femQuad->GetGaussPointNumber(); ig++) {
+                          // *** get gauss point weight, test function and test function partial derivatives ***
+                          femQuad->Jacobian(xv, ig, Jg[ig], phi, gradPhi);
+                          for(unsigned i =0;i<phi.size();i++){
+                            Xg[ig] += phi[i]*xv[0][i];
+                            Yg[ig] += phi[i]*xv[1][i];
+                          }
+//                           std::cout <<"checking gauss points and jacobian"<<ig<<" "<<Xg[ig]<<" "<<Yg[ig]<<" "<<Jg[ig]<<std::endl;
+                        }
+
+                        //points in reference domain
+                        p1 = { static_cast<Type>(xi[0][0]), static_cast<Type>(xi[0][1]) };
+                        p2 = { static_cast<Type>(xi[2][0]), static_cast<Type>(xi[2][1]) };
+                        p3 = { static_cast<Type>(xi[1][0]), static_cast<Type>(xi[1][1]) };
+
+                        find_actual_table_trig<Type>(p1, p2, p3, actual_table, old_table, searchP, q1, q2, q3, vertical);
+
+                        cout<<"Vertical (table)? = " << vertical << " actual_table_number = "<< actual_table << " : points in actual table : ( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) &&&&&&  old_table_number" << old_table << " : points in old table : ( " << q1.x << "," << q1.y << " )" << " , ( " << q2.x << "," << q2.y << " )" << " , ( " << q3.x << "," << q3.y << " ) " << endl;
+
+                        //Just testing the signsxv
                         if(vertical){
                           parabola = get_parabola_equation(p1,p2,p3);
                           std::cout<< "parabola " << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
                           //check the parabola sign
-                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
-                          parabolasign[1] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
-                          parabolasign[2] = ((parabola.d + 1)>= 0) ? 1 : -1;
-                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
-//                           p3.x = (p1.x+p2.x)/2;
-//                           p3.y = - parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
+
+                          cout << " unit triangle sign = {" ;
+                          for(unsigned l = 0; l < 3 ; l++) {
+                            unitxvsign[l] = ((parabola.k * unitxv[0][l] * unitxv[0][l] + parabola.b * unitxv[0][l] + parabola.d + unitxv[1][l]) > 0) ? 1 : -1;
+                            cout << unitxvsign[l] << ", ";
+                          }
+                          cout << "} " << endl;
+
+//                           p3.x = (p1.x + p2.x) / 2;
+//                           p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
 
                         }
                         else{
-                          PointT<Type> r1 = {p1.y,p1.x};
-                          PointT<Type> r2 = {p2.y,p2.x};
-                          PointT<Type> r3 = {p3.y,p3.x};
-                          parabola = get_parabola_equation(r1,r2,r3);
-                          std::cout<< "parabola " << parabola.k<<"y^2+"<<parabola.b<<"y+" << parabola.d << " + x = 0 " <<std::endl;
-                          parabolasign[0] = (parabola.d >= 0) ? 1 : -1;
-                          parabolasign[2] = ((parabola.k + parabola.b + parabola.d )>= 0) ? 1 : -1;
-                          parabolasign[1] = ((parabola.d + 1)>= 0) ? 1 : -1;
-                          cout <<"parabola sign "<< parabolasign[0] << ", " << parabolasign[1] << ", " << parabolasign[2] << endl;
+                          cout<<" it is a Horizontal parabola .......@.......@........@........"<<endl;
+                          p1 = { static_cast<Type>(xi[0][1]), static_cast<Type>(xi[0][0]) };
+                          p2 = { static_cast<Type>(xi[2][1]), static_cast<Type>(xi[2][0]) };
+                          p3 = { static_cast<Type>(xi[1][1]), static_cast<Type>(xi[1][0]) };
+                          cout <<  "( " << p1.x << "," << p1.y << " )" << " , ( " << p2.x << "," << p2.y << " )" << " , ( " << p3.x << "," << p3.y << " ) " << endl;
 
+                          Parabola <Type> parabola = get_parabola_equation(p1, p2, p3);
+                          cout << parabola.k << "y^2+ " << parabola.b << "y+ " << parabola.d << "+x =0 " << endl;
+
+                          //use horizotal parabola for the normal
+                          cout << " unit triangle sign = {" ;
+                          for(unsigned l = 0; l < 3 ; l++) {
+                            unitxvsign[l] = ((static_cast<double>(parabola.k) * unitxv[1][l] * unitxv[1][l] + static_cast<double>(parabola.b) * unitxv[1][l] + static_cast<double>(parabola.d) + unitxv[0][l]) > 0) ? 1 : -1;
+                            cout << unitxvsign[l] << ", ";
+                          }
+                          cout << "} " << endl;
+//                           p3.x = (p1.x + p2.x) / 2.;
+//                           p3.y = -parabola.k * p3.x * p3.x - parabola.b * p3.x - parabola.d ;
                         }
 
-
-
-                        int checksign = checkVectorRelation(circlesign, parabolasign);   //TODO checkVectorRelation output int
+                        int checksign = checkVectorRelation(xvsign, unitxvsign);   //TODO checkVectorRelation output int
                         if (checksign == 1){
                           normal = false;
                         }
@@ -2208,35 +2525,41 @@ int main() {
 
 
 
-                        if (normal){
-                          ref_formula_area = find_trig_area_2intersection_formula<Type>(0, 0, 0, 0, 1, table_number,  q1,  q2, q3);
+
+//                         if (normal){   //using second area beacause we want to use the formula on q directly after the transformation. TODO or should we always use first area integral with P
+//                           ref_formula_area = find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
+//                         }
+//
+//                         else{
+//                           ref_formula_area = 0.5 - find_trig_area_2intersection_formula_second<Type>(0, 0, 0, 0, 1, old_table,  q1,  q2, q3);
+//                         }
+
+
+
+                        if (normal){   //using second area beacause we want to use the formula on q directly after the transformation. TODO or should we always use first area integral with P
+                          ref_formula_area = find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
                         }
 
                         else{
-                          ref_formula_area = 0.5 - find_trig_area_2intersection_formula<Type>(0, 0, 0, 0, 1, table_number,  q1,  q2, q3);
+                          ref_formula_area = 0.5 - find_trig_area_2intersection_formula_first<Type>(0, 0, 0, 0, 1, actual_table,  p1,  p2, p3);
                         }
+
+
+
+
+
 
                         totalformulaArea += static_cast<double>(ref_formula_area)*h*h;
 
 
                         std::vector<double>weightCF, interp_point_weights, interp_point_integrals;
 
-//                           CutFemWeightParabola <double, Type> Pweights(TRI, 3, "legendre");
-                          Pweights(s, a, c, table_number, q1, q2, q3, weightCF);                  // WeightCF is always calculated in Domain D*
-                      //     Pweights(s, a, c, 0, p1, p2, p3, weightCF);
+                 // WeightCF is always calculated in Domain D*
 
-//                           cout<< " cutfem weight = ";
-//                           for (size_t j = 0; j < weightCF.size(); ++j){
-//                             std::cout << weightCF[j] << ", ";
-//                           }
-//                           cout<<endl;
 
-                          const double* gaussWeight =  Pweights.GetGaussWeightPointer();
-                          const double* xg = Pweights.GetGaussCoordinatePointer(0);
-                          const double* yg = Pweights.GetGaussCoordinatePointer(1);
 
                         // Search in octree
-                        OctreeNode<Type>* result = loadedRoots[table_number].search(searchP);
+                        OctreeNode<Type>* result = loadedRoots[actual_table].search(searchP);
 
                         if (result) {
                             std::vector<double> interp_point = {searchP.x, searchP.y, searchP.z};
@@ -2250,16 +2573,6 @@ int main() {
 
                             std::vector<double> interp_point_weights;
                             trilinier_interpolation_vector(corners, result->cornerWeights,interp_point, interp_point_weights);
-
-                             //here when it calculates the Pweight it calculate wheather it is vertical or not based on q1,q2,q3. All of these are already calculated only thing I do here is change the powers. It should not have any effect on area. TODO wait, does it mean that when I create the table it already considering all the horizontal parabola. Does it mean I do not have to change the table based on whether it is vertical or horizontal? ----> No, we find the table based on vertical or horizontal.  TODO check what happens if we do not change the table based on verticality.  ---> No, does not work.
-
-                            //Use check normal vector ;
-
-
-                            int checksign = checkVectorRelation(circlesign, parabolasign);
-                            if (checksign == 1){
-                              normal = false;
-                            }
 
 
                             std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
@@ -2278,81 +2591,32 @@ int main() {
                             }
                             std::cout << " )"<<std::endl;
 
-
-
-
-
                             std::vector<double>modified_weights(interp_point_weights.size());
 
-
-
-
-                            if(!normal){  //this probably only for vertical
+                            if(!normal){
                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-    //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
+
                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
                                   }
                                 }
-                             area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
+
+                             area = GaussIntegral(0, 0, Xg.data(), Yg.data(), interp_point_weights, Jg.data());
                              cout << "Ref quadrature area = " << area << endl;
 
-//                             if (vertical) {
-//                                 area = GaussIntegral(0, 0, xg, yg, interp_point_weights, gaussWeight);
-//                             } else {
-//                                 area = GaussIntegral(0, 0, yg, xg, interp_point_weights, gaussWeight);
-//                             }
 
-
-//
-//
-//                             if(!vertical){
-//                               if(!normal) {
-//                                 int sqrt_size = sqrt(interp_point_weights.size());
-//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
-//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
-//                                     modified_weights[ai*sqrt_size + aj] = 1 - interp_point_weights[aj*sqrt_size + ai];
-//                                   }
-//                                 }
-//                               }
-//                               else{
-//                                 int sqrt_size = sqrt(interp_point_weights.size());
-//                                 for(unsigned ai = 0; ai < sqrt_size; ai++) {
-//                                   for(unsigned aj = 0; aj < sqrt_size; aj++) {
-//                                     modified_weights[ai*sqrt_size + aj] = interp_point_weights[aj*sqrt_size + ai];
-//                                   }
-//                                 }
-//                               }
-//                             }
-//
-//                             else{
-//                               if(!normal){  //this probably only for vertical
-//                                   for(unsigned aq = 0; aq < interp_point_weights.size(); aq++) {
-//     //                              modified_weights[aq] = 1 - interp_point_weights[interp_point_weights.size()-1-aq];
-//                                     modified_weights[aq] = 1 - interp_point_weights[aq];
-// //                                     interp_point_weights[aq] = 1 - interp_point_weights[aq];
-//                                   }
-//                                 }
-//                             }
-//                             if (vertical) {
-//                                 area = GaussIntegral(0, 0, xg, yg, modified_weights, gaussWeight);
-//                             } else {
-//                                 area = GaussIntegral(0, 0, yg, xg, modified_weights, gaussWeight);
-//                             }
-
-
-
-                            totalArea += area * (h * h);  // Scale by element area
-                            printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
-                                             centerX, centerY, radius,
-                                             intersections, refIntersections, totalArea,area,vertical);
-                            std::cout << "scaled area: " << area*h*h << std::endl;
+                            totalArea += area;  // No need to scale it. jacobian does it for us.
+//                             printTriangleState(triangleIndex, x1, y1, x2, y2, x3, y3,
+//                                              centerX, centerY, radius,
+//                                              intersections, refIntersections, totalArea,area,vertical);
+//                             std::cout << "scaled area: " << area*h*h << std::endl;
 
 
                             cout<<"--"<<endl;
-                            cout<< " Ref formula area = " << ref_formula_area << endl;
-                            cout<< " difference between formula and quadrature = " << fabs(area- static_cast<double>(ref_formula_area)) << endl;
-                            cout<< " Relative difference  " << fabs(area- static_cast<double>(ref_formula_area))/ref_formula_area <<endl;
-                            cout<<"sign & table : "<< checksign << " " <<table_number;
+//                             cout<< " Ref formula area = " << ref_formula_area << endl;
+                            cout<< " Ref scaled area = " << (ref_formula_area)*h*h << endl;
+                            cout<< " difference between formula and quadrature = " << fabs(area- static_cast<double>((ref_formula_area)*h*h)) << endl;
+                            cout<< " Relative difference  " << fabs(area- static_cast<double>((ref_formula_area)*h*h))/((ref_formula_area)*h*h) <<endl;
+                            cout<<"sign & table : "<< checksign << " " <<actual_table;
                             (vertical)? cout <<"v \n\n" : cout <<"h\n\n" << endl;
 
                         }

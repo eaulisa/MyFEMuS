@@ -297,7 +297,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
       if((p1.x < p3.x && p3.x < p2.x) || ( p1.x > p3.x && p3.x > p2.x)) xSpan = true ;     // TODO I am calculating this multiple times. I only need to do it once. may be calculate this out of the for loop.
       if((p1.y < p3.y && p3.y < p2.y) || ( p1.y > p3.y && p3.y > p2.y)) ySpan = true ;
 
-//       cout << "xspan = " << xSpan << " yspan = "<< ySpan <<endl;
+      cout << "xspan = " << xSpan << " yspan = "<< ySpan <<endl;
       if(xSpan) {
         if(ySpan) {
           if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
@@ -310,7 +310,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
       else {
         if(ySpan) vertical = false;
         else {
-//           std::cout << " The parabola formed by this three points is not a function. Use line cut . points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
+          std::cout << " The parabola formed by this three points is not a function. Table=" << table <<"  points = ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
 
         }
       }
@@ -322,7 +322,10 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
         x[0] = (1. - _xgp[1][ig]);
         x[1] = _xgp[0][ig];
       }
+
+
     }
+
     else if(_geomElemType == WEDGE) {
       x[0] = (1. - _xgp[0][ig]);
       x[1] = (_xgp[1][ig]);
@@ -423,102 +426,6 @@ void CutFemWeightParabola<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x
     abort();
   }
 }
-
-
-
-vector<vector<double>> transformPoints(const vector<vector<double>>& xv, const vector<vector<double>>& unitxv, const vector<vector<double>>& pvector) {
-    vector<vector<double>> A(8, vector<double>(8));
-    vector<double> b(8);
-    vector<double> x(8);
-
-    for (int i = 0; i < 4; ++i) {
-        A[2 * i][0] = xv[0][i];
-        A[2 * i][1] = xv[1][i];
-        A[2 * i][2] = 1;
-        A[2 * i][3] = 0;
-        A[2 * i][4] = 0;
-        A[2 * i][5] = 0;
-        A[2 * i][6] = -unitxv[0][i] * xv[0][i];
-        A[2 * i][7] = -unitxv[0][i] * xv[1][i];
-
-        A[2 * i + 1][0] = 0;
-        A[2 * i + 1][1] = 0;
-        A[2 * i + 1][2] = 0;
-        A[2 * i + 1][3] = xv[0][i];
-        A[2 * i + 1][4] = xv[1][i];
-        A[2 * i + 1][5] = 1;
-        A[2 * i + 1][6] = -unitxv[1][i] * xv[0][i];
-        A[2 * i + 1][7] = -unitxv[1][i] * xv[1][i];
-
-        b[2 * i] = unitxv[0][i];
-        b[2 * i + 1] = unitxv[1][i];
-    }
-
-    // Solving the linear system A * x = b using Gaussian elimination
-    for (int i = 0; i < 8; ++i) {
-        // Partial pivoting
-        int maxRow = i;
-        for (int k = i + 1; k < 8; ++k) {
-            if (abs(A[k][i]) > abs(A[maxRow][i])) {
-                maxRow = k;
-            }
-        }
-
-        // Swap rows
-        std::swap(A[i], A[maxRow]);
-        std::swap(b[i], b[maxRow]);
-
-        // Eliminate
-        for (int k = i + 1; k < 8; ++k) {
-            double factor = A[k][i] / A[i][i];
-            for (int j = i; j < 8; ++j) {
-                A[k][j] -= factor * A[i][j];
-            }
-            b[k] -= factor * b[i];
-        }
-    }
-
-    // Back substitution
-    for (int i = 7; i >= 0; --i) {
-        x[i] = b[i] / A[i][i];
-        for (int k = i - 1; k >= 0; --k) {
-            b[k] -= A[k][i] * x[i];
-        }
-    }
-
-    // Constructing the transformation matrix H
-    vector<vector<double>> H(3, vector<double>(3));
-    H[0][0] = x[0];
-    H[0][1] = x[1];
-    H[0][2] = x[2];
-    H[1][0] = x[3];
-    H[1][1] = x[4];
-    H[1][2] = x[5];
-    H[2][0] = x[6];
-    H[2][1] = x[7];
-    H[2][2] = 1;
-
-    // Transforming the points
-    vector<vector<double>> qvector(pvector.size(), vector<double>(2));
-    for (size_t i = 0; i < pvector.size(); ++i) {
-        vector<double> p_homogeneous = {pvector[i][0], pvector[i][1], 1};
-        vector<double> q_homogeneous(3);
-
-        for (int j = 0; j < 3; ++j) {
-            q_homogeneous[j] = 0;
-            for (int k = 0; k < 3; ++k) {
-                q_homogeneous[j] += H[j][k] * p_homogeneous[k];
-            }
-        }
-
-        qvector[i] = {q_homogeneous[0] / q_homogeneous[2], q_homogeneous[1] / q_homogeneous[2]};
-    }
-
-    return qvector;
-}
-
-
-
 
 
 #endif
