@@ -970,13 +970,17 @@ void change_points_covert_table(const PointT <Type> &p1, const PointT <Type> &p2
 
   if(xSpan) {
     if(ySpan) {
-      if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;
+      double dx = min(fabs(static_cast<double>(p1.x - p3.x)),fabs(static_cast<double>(p1.x - p3.x)));
+      double dy = min(fabs(static_cast<double>(p1.y - p3.y)),fabs(static_cast<double>(p1.y - p3.y)));
+      if(dx >= dy) vertical = true;
       else vertical = false;
     }
     else {
       vertical = true;
     }
   }
+
+
   else {
     if(ySpan) vertical = false;
     else {
