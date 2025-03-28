@@ -269,6 +269,8 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
     abort();
   }
 
+//         std::cout<< " pweight points ("<<p1.x<<","<<p1.y<<"), ("<<p2.x<<","<<p2.y<<"), ("<<p3.x<<","<<p3.y<<") "<< std::endl;
+
   _Co = _ATA * _f;
 //   cout << "c = " << _Co[0] ;
 //
@@ -297,7 +299,7 @@ void CutFemWeightParabola<TypeIO, TypeA>::operator()(const int &s, const TypeA &
       if((p1.x < p3.x && p3.x < p2.x) || ( p1.x > p3.x && p3.x > p2.x)) xSpan = true ;     // TODO I am calculating this multiple times. I only need to do it once. may be calculate this out of the for loop.
       if((p1.y < p3.y && p3.y < p2.y) || ( p1.y > p3.y && p3.y > p2.y)) ySpan = true ;
 
-//       cout << "xspan = " << xSpan << " yspan = "<< ySpan <<endl;
+
       if(xSpan) {
         if(ySpan) {
           if(fabs(p1.x - p2.x) >= fabs(p1.y - p2.y)) vertical = true;

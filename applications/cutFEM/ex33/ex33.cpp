@@ -937,19 +937,19 @@ Type find_trig_area_2intersection_formula(const unsigned &m, const unsigned &n, 
     //
     //this is just calculating area forcefuly
 
-            pol1[0] = k+a; pol1[1] = b + c; pol1[2] = d;
-        GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
-
-        if(I1.size() > 0) {
-            A1 = trig_integral_A3(m, n, s, a, c, pol2, I1) -  trig_integral_A2(m, n, s, a, c, pol2, I1);
-        }
-        if(I2.size() > 0) {
-            A2 = trig_integral_A2(m, n, s, a, c, pol2, I2);
-        }
-        if(I3.size() > 0) {
-            A3 = trig_integral_A3(m, n, s, a, c, pol2, I3);
-        }
-        area = A1 + A2 + A3;
+//       pol1[0] = k+a; pol1[1] = b + c; pol1[2] = d;
+//         GetIntervalall<Type, double>(pol1, pol2, I1, I2, I3);
+//
+//         if(I1.size() > 0) {
+//             A1 = trig_integral_A3(m, n, s, a, c, pol2, I1) -  trig_integral_A2(m, n, s, a, c, pol2, I1);
+//         }
+//         if(I2.size() > 0) {
+//             A2 = trig_integral_A2(m, n, s, a, c, pol2, I2);
+//         }
+//         if(I3.size() > 0) {
+//             A3 = trig_integral_A3(m, n, s, a, c, pol2, I3);
+//         }
+//         area = A1 + A2 + A3;
 
     // delete this till now
 
