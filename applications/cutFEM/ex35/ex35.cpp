@@ -151,17 +151,6 @@ void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &
 
 }
 
-template <class Type>
-void random_polynomial(std::vector <Type> &a1, std::vector <Type> &a2) {
-  a1[0] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
-  a1[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
-  a1[2] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
-  a2[0] = a1[0] ;                                               // this gives us a = 0 ;
-//   a2[1] = a1[1];
-  a2[1] = ((double(std::rand()) / double(RAND_MAX)) * (4)) - 2;
-  a2[2] = a1[2];
-//             std::cout <<"\n ** k = "<<a2[0] << "; b = " << a2[1] << "; d = " << a2[2] << "; a = " << a1[1] - a2[1]<< "; c = " << a1[2] - a2[2] << ";" << std::endl;
-}
 
 template <class Type>
 Parabola <Type>  get_parabola_equation( const PointT <Type> p1,const PointT <Type> p2,const PointT <Type> p3) {
@@ -190,9 +179,9 @@ Parabola <Type>  get_parabola_equation( const PointT <Type> p1,const PointT <Typ
 //        d = p1.x ;
 //     }
 
-    if (fabs(k) < 1.e-16) k = 0 ;
-    if (fabs(b) < 1.e-16) b = 0 ;
-    if (fabs(d) < 1.e-16) d = 0 ;
+    if (fabs(k) < 1.e-14) k = 0 ;
+    if (fabs(b) < 1.e-14) b = 0 ;
+    if (fabs(d) < 1.e-14) d = 0 ;
 
     return {k, b, d};
 }
@@ -587,8 +576,8 @@ Type find_trig_area_2intersection_formula_second(const unsigned &m, const unsign
 
     bool do_line = 0;
 
+//     if(fabs(k - 0.) < 0.00000000001){
     if(k != 0){
-
         if (table == 1){ //we only use modified integrals if it is concave down
           if (k>0) {
             ankor = p1.x;
@@ -954,6 +943,272 @@ void trilinier_interpolation_vector(const std::vector< std::vector< Type >> & in
 }
 
 template <class Type>
+void trilinier_interpolation_vector_fixed(const std::vector<std::vector<Type>> & interp_table,
+                                       const std::vector<std::vector<Type>> & interp_table_values,
+                                       const std::vector<Type> &interp_point,
+                                       std::vector<Type> &interp_point_values) {
+
+    interp_point_values.resize(interp_table_values[0].size());
+
+    // Find the minimum and maximum coordinates of the cube
+//     Type x_min = interp_table[0][0];
+//     Type x_max = interp_table[0][0];
+//     Type y_min = interp_table[0][1];
+//     Type y_max = interp_table[0][1];
+//     Type z_min = interp_table[0][2];
+//     Type z_max = interp_table[0][2];
+//
+//     for (size_t i = 1; i < interp_table.size(); ++i) {
+//         x_min = std::min(x_min, interp_table[i][0]);
+//         x_max = std::max(x_max, interp_table[i][0]);
+//         y_min = std::min(y_min, interp_table[i][1]);
+//         y_max = std::max(y_max, interp_table[i][1]);
+//         z_min = std::min(z_min, interp_table[i][2]);
+//         z_max = std::max(z_max, interp_table[i][2]);
+//     }
+
+    Type x_min = interp_table[0][0];
+    Type x_max = interp_table[1][0];
+    Type y_min = interp_table[0][1];
+    Type y_max = interp_table[2][1];
+    Type z_min = interp_table[0][2];
+    Type z_max = interp_table[4][2];
+
+
+    std::cout << "Cube bounds: x[" << x_min << ", " << x_max << "] y[" << y_min << ", " << y_max
+              << "] z[" << z_min << ", " << z_max << "]" << std::endl;
+
+
+
+
+
+    // Check if the dimensions are valid (non-zero)
+    Type x_dim = x_max - x_min;
+    Type y_dim = y_max - y_min;
+    Type z_dim = z_max - z_min;
+
+    if (x_dim < std::numeric_limits<Type>::epsilon() ||
+        y_dim < std::numeric_limits<Type>::epsilon() ||
+        z_dim < std::numeric_limits<Type>::epsilon()) {
+        std::cout << "WARNING: Cube has zero or near-zero dimension!" << std::endl;
+        // Use small epsilon values to avoid division by zero
+        x_dim = (x_dim < std::numeric_limits<Type>::epsilon()) ?
+                std::numeric_limits<Type>::epsilon() * 10 : x_dim;
+        y_dim = (y_dim < std::numeric_limits<Type>::epsilon()) ?
+                std::numeric_limits<Type>::epsilon() * 10 : y_dim;
+        z_dim = (z_dim < std::numeric_limits<Type>::epsilon()) ?
+                std::numeric_limits<Type>::epsilon() * 10 : z_dim;
+    }
+
+    // Calculate normalized coordinates of the query point
+    Type x_d = (interp_point[0] - x_min) / x_dim;
+    Type y_d = (interp_point[1] - y_min) / y_dim;
+    Type z_d = (interp_point[2] - z_min) / z_dim;
+
+    // Optional: Clamp coordinates to [0,1] if slightly outside the bounds
+    x_d = std::max(static_cast<Type>(0), std::min(static_cast<Type>(1), x_d));
+    y_d = std::max(static_cast<Type>(0), std::min(static_cast<Type>(1), y_d));
+    z_d = std::max(static_cast<Type>(0), std::min(static_cast<Type>(1), z_d));
+
+    std::cout << "Normalized coordinates: (" << x_d << ", " << y_d << ", " << z_d << ")" << std::endl;
+
+    // Map vertices to their correct positions in the unit cube
+    // We need to identify which vertex corresponds to which corner
+
+    // Define corners of the unit cube
+    std::vector<std::vector<int>> corners = {
+        {0, 0, 0}, // lower-left-front  (000)
+        {1, 0, 0}, // lower-right-front (100)
+        {0, 1, 0}, // lower-left-back   (010)
+        {1, 1, 0}, // lower-right-back  (110)
+        {0, 0, 1}, // upper-left-front  (001)
+        {1, 0, 1}, // upper-right-front (101)
+        {0, 1, 1}, // upper-left-back   (011)
+        {1, 1, 1}  // upper-right-back  (111)
+    };
+
+    // Map vertices to corners
+    std::vector<int> vertex_map(8, -1);
+    for (size_t i = 0; i < interp_table.size(); ++i) {
+        // Determine which corner this vertex is closest to
+        int closest_corner = 0;
+        Type min_distance = std::numeric_limits<Type>::max();
+
+        for (int c = 0; c < 8; ++c) {
+            // Calculate the normalized position of this vertex
+            Type nx = (interp_table[i][0] - x_min) / x_dim;
+            Type ny = (interp_table[i][1] - y_min) / y_dim;
+            Type nz = (interp_table[i][2] - z_min) / z_dim;
+
+            // Calculate distance to this corner
+            Type dx = nx - corners[c][0];
+            Type dy = ny - corners[c][1];
+            Type dz = nz - corners[c][2];
+            Type distance = dx*dx + dy*dy + dz*dz;
+
+            if (distance < min_distance) {
+                min_distance = distance;
+                closest_corner = c;
+            }
+        }
+
+        // Record this vertex as being closest to this corner
+        vertex_map[closest_corner] = i;
+    }
+
+    // Check that all corners have a vertex assigned
+    bool all_corners_mapped = true;
+    for (int i = 0; i < 8; ++i) {
+        if (vertex_map[i] == -1) {
+            all_corners_mapped = false;
+            std::cout << "WARNING: Corner " << i << " doesn't have a vertex assigned!" << std::endl;
+
+            // As a fallback, find the first unused vertex
+            for (size_t j = 0; j < interp_table.size(); ++j) {
+                bool is_used = false;
+                for (int k = 0; k < 8; ++k) {
+                    if (vertex_map[k] == static_cast<int>(j)) {
+                        is_used = true;
+                        break;
+                    }
+                }
+
+                if (!is_used) {
+                    vertex_map[i] = j;
+                    break;
+                }
+            }
+        }
+    }
+
+    std::cout << "Vertex mapping: ";
+    for (int i = 0; i < 8; ++i) {
+        std::cout << vertex_map[i] << " ";
+    }
+    std::cout << std::endl;
+
+    // Now perform the trilinear interpolation using the mapped vertices
+    for (unsigned i = 0; i < interp_table_values[0].size(); i++) {
+        // Get the values at the 8 corners of the cube using the vertex mapping
+        Type c_000 = interp_table_values[vertex_map[0]][i]; // (0,0,0)
+        Type c_100 = interp_table_values[vertex_map[1]][i]; // (1,0,0)
+        Type c_010 = interp_table_values[vertex_map[2]][i]; // (0,1,0)
+        Type c_110 = interp_table_values[vertex_map[3]][i]; // (1,1,0)
+        Type c_001 = interp_table_values[vertex_map[4]][i]; // (0,0,1)
+        Type c_101 = interp_table_values[vertex_map[5]][i]; // (1,0,1)
+        Type c_011 = interp_table_values[vertex_map[6]][i]; // (0,1,1)
+        Type c_111 = interp_table_values[vertex_map[7]][i]; // (1,1,1)
+
+        // Perform trilinear interpolation
+        Type c_00 = c_000 * (1 - x_d) + c_100 * x_d;
+        Type c_01 = c_001 * (1 - x_d) + c_101 * x_d;
+        Type c_10 = c_010 * (1 - x_d) + c_110 * x_d;
+        Type c_11 = c_011 * (1 - x_d) + c_111 * x_d;
+
+        Type c_0 = c_00 * (1 - y_d) + c_10 * y_d;
+        Type c_1 = c_01 * (1 - y_d) + c_11 * y_d;
+
+        interp_point_values[i] = c_0 * (1 - z_d) + c_1 * z_d;
+    }
+}
+
+template <class Type>
+Type trilinier_interpolation_FEM_orientation(const int table, std::vector< std::vector< Type >> & interp_table , const std::vector< Type > &interp_point){
+
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+
+  Type denominator (0), denominatorz0(0), denominatorz1(0);
+
+  if (table < 2 || table > 3) denominator = y - 2;
+  else denominator = x + y - 2;
+
+  Type z = -(2 * interp_point[2])/ denominator;
+
+
+  Type c_000 = interp_table[0][3];
+  Type c_100 = interp_table[1][3];
+  Type c_110 = interp_table[2][3];
+  Type c_010 = interp_table[3][3];
+  Type c_001 = interp_table[4][3];
+  Type c_101 = interp_table[5][3];
+  Type c_111 = interp_table[6][3];
+  Type c_011 = interp_table[7][3];
+
+  Type x0 = interp_table[0][0];
+  Type x1 = interp_table[1][0];
+  Type y0 = interp_table[0][1];
+  Type y1 = interp_table[7][1];
+
+  if (table < 2 || table > 3) {denominatorz0 = interp_table[0][1] - 2.; denominatorz1 = interp_table[7][1] - 2.;}
+  else { denominatorz0  = interp_table[0][0] + interp_table[0][1] - 2.; denominatorz0 = interp_table[7][0] + interp_table[7][1] - 2.;}
+  Type z0 = - ( 2 * interp_table[0][2]) / denominatorz0;
+  Type z1 = - ( 2 * interp_table[7][2]) / denominatorz1;
+
+    Type x_d = (x-x0)/(x1-x0);
+    Type y_d = (y-y0)/(y1-y0);
+    Type z_d = (z-z0)/(z1-z0);
+
+  Type c_00 = c_000 * (1-x_d) + c_100 * x_d ;
+  Type c_01 = c_001 * (1-x_d) + c_101 * x_d ;
+  Type c_10 = c_010 * (1-x_d) + c_110 * x_d ;
+  Type c_11 = c_011 * (1-x_d) + c_111 * x_d ;
+
+  Type c_0 = c_00 * (1-y_d) + c_10 * y_d ;
+  Type c_1 = c_01 * (1-y_d) + c_11 * y_d ;
+
+  Type cc = c_0 * (1-z_d) + c_1 * z_d ;
+
+  return cc;
+}
+
+
+template <class Type>
+void trilinier_interpolation_vector_FEM_orientation(const std::vector< std::vector< Type >> & interp_table, const std::vector< std::vector< Type >> & interp_table_values  , const std::vector< Type > &interp_point, std::vector< Type > &interp_point_values){
+
+  interp_point_values.resize(interp_table_values[0].size());
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+  Type z = interp_point[2];
+
+  Type x0 = interp_table[0][0];
+  Type x1 = interp_table[1][0];
+  Type y0 = interp_table[0][1];
+  Type y1 = interp_table[7][1];
+  Type z0 = interp_table[0][2];
+  Type z1 = interp_table[7][2];
+
+
+
+  Type x_d = (x-x0)/(x1-x0);
+  Type y_d = (y-y0)/(y1-y0);
+  Type z_d = (z-z0)/(z1-z0);
+
+  for (unsigned i = 0; i < interp_table_values[0].size(); i++ ){
+
+      Type c_000 = interp_table_values[0][i];
+      Type c_100 = interp_table_values[1][i];
+      Type c_110 = interp_table_values[2][i];
+      Type c_010 = interp_table_values[3][i];
+      Type c_001 = interp_table_values[4][i];
+      Type c_101 = interp_table_values[5][i];
+      Type c_111 = interp_table_values[6][i];
+      Type c_011 = interp_table_values[7][i];
+
+      Type c_00 = c_000 * (1-x_d) + c_100 * x_d ;
+      Type c_01 = c_001 * (1-x_d) + c_101 * x_d ;
+      Type c_10 = c_010 * (1-x_d) + c_110 * x_d ;
+      Type c_11 = c_011 * (1-x_d) + c_111 * x_d ;
+
+      Type c_0 = c_00 * (1-y_d) + c_10 * y_d ;
+      Type c_1 = c_01 * (1-y_d) + c_11 * y_d ;
+
+      interp_point_values[i] = c_0 * (1-z_d) + c_1 * z_d ;
+    }
+}
+
+
+template <class Type>
 void trilinear_interpolation_vector_deformed(
     const std::vector<std::vector<Type>>& cube_vertices,       // 8 vertices of the deformed cube
     const std::vector<std::vector<Type>>& vertex_values,       // Values at each vertex
@@ -1118,245 +1373,165 @@ void trilinear_interpolation_vector_deformed(
     }
 }
 
-template <class Type>
-void trilinear_interpolation_vector_deformed2(
-    const std::vector<std::vector<Type>>& cube_vertices,       // 8 vertices of the deformed cube
-    const std::vector<std::vector<Type>>& vertex_values,       // Values at each vertex
-    const std::vector<Type>& query_point,                      // Point to interpolate at
-    std::vector<Type>& interpolated_values) {                  // Result storage
-
-    interpolated_values.resize(vertex_values[0].size());
-
-    // We need to compute the trilinear coordinates (weights) for the query point
-    // First, we'll map the query point to a reference unit cube coordinate system using
-    // an inverse mapping approach
-
-    // The general formula for a point inside a trilinearly interpolated hexahedron is:
-    // P(u,v,w) = sum(i=0 to 7) { N_i(u,v,w) * P_i }
-    // where N_i are the 8 trilinear basis functions and P_i are the vertices
-
-    // Instead of directly solving the inverse mapping (which is complex),
-    // we'll use an iterative approach based on Newton-Raphson method to find u,v,w
-
-    Type u = 0.5, v = 0.5, w = 0.5;  // Initial guess at center of unit cube
-    const int MAX_ITERATIONS = 10;
-    const Type TOLERANCE = Type(1e-6);
-
-    // Newton-Raphson iterations to find u,v,w coordinates
-    for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
-        cout << "  Mapped interpolated points (u,v,w) by iterations = (" << u <<", "<< v <<", "<< w << ") "<< endl;
-        // Compute the interpolated position at current u,v,w
-        std::vector<Type> interpolated_position(3, 0);
-
-        // Basis functions for the corners of a unit cube
-        Type N[8];
-        N[0] = (1-u) * (1-v) * (1-w);  // (0,0,0)
-        N[1] = (1-u) * (1-v) * w;      // (0,0,1)
-        N[2] = (1-u) * v * (1-w);      // (0,1,0)
-        N[3] = (1-u) * v * w;          // (0,1,1)
-        N[4] = u * (1-v) * (1-w);      // (1,0,0)
-        N[5] = u * (1-v) * w;          // (1,0,1)
-        N[6] = u * v * (1-w);          // (1,1,0)
-        N[7] = u * v * w;              // (1,1,1)
-
-        // P = sum(N_i * P_i)
-        for (int i = 0; i < 8; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                interpolated_position[j] += N[i] * cube_vertices[i][j];
-            }
-        }
-
-        // Compute the residual (difference between actual and current interpolated position)
-        std::vector<Type> residual(3);
-        for (int j = 0; j < 3; ++j) {
-            residual[j] = query_point[j] - interpolated_position[j];
-            cout<<" Residual = " << residual[j] ;
-        }
-
-        // Early exit if we're close enough
-        if (std::abs(residual[0]) < TOLERANCE &&
-            std::abs(residual[1]) < TOLERANCE &&
-            std::abs(residual[2]) < TOLERANCE) {
-          cout<< " exit ?" <<endl;
-            break;
-        }
-
-        // Compute Jacobian matrix
-        // J_ij = dP_i/dj where j is u,v,w and P_i is x,y,z
-        std::vector<std::vector<Type>> jacobian(3, std::vector<Type>(3, 0));
-
-        // Derivatives of basis functions with respect to u
-        Type dNdu[8];
-        dNdu[0] = -(1-v) * (1-w);
-        dNdu[1] = -(1-v) * w;
-        dNdu[2] = -v * (1-w);
-        dNdu[3] = -v * w;
-        dNdu[4] = (1-v) * (1-w);
-        dNdu[5] = (1-v) * w;
-        dNdu[6] = v * (1-w);
-        dNdu[7] = v * w;
-
-        // Derivatives of basis functions with respect to v
-        Type dNdv[8];
-        dNdv[0] = -(1-u) * (1-w);
-        dNdv[1] = -(1-u) * w;
-        dNdv[2] = (1-u) * (1-w);
-        dNdv[3] = (1-u) * w;
-        dNdv[4] = -u * (1-w);
-        dNdv[5] = -u * w;
-        dNdv[6] = u * (1-w);
-        dNdv[7] = u * w;
-
-        // Derivatives of basis functions with respect to w
-        Type dNdw[8];
-        dNdw[0] = -(1-u) * (1-v);
-        dNdw[1] = (1-u) * (1-v);
-        dNdw[2] = -(1-u) * v;
-        dNdw[3] = (1-u) * v;
-        dNdw[4] = -u * (1-v);
-        dNdw[5] = u * (1-v);
-        dNdw[6] = -u * v;
-        dNdw[7] = u * v;
-
-        // Fill the Jacobian
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 8; ++j) {
-                jacobian[i][0] += dNdu[j] * cube_vertices[j][i];
-                jacobian[i][1] += dNdv[j] * cube_vertices[j][i];
-                jacobian[i][2] += dNdw[j] * cube_vertices[j][i];
-            }
-        }
-
-        // Solve the system J * delta = residual for delta using Cramer's rule
-        // (for a 3x3 system this is faster than general matrix inversion)
-        Type det = jacobian[0][0] * (jacobian[1][1] * jacobian[2][2] - jacobian[1][2] * jacobian[2][1])
-                 - jacobian[0][1] * (jacobian[1][0] * jacobian[2][2] - jacobian[1][2] * jacobian[2][0])
-                 + jacobian[0][2] * (jacobian[1][0] * jacobian[2][1] - jacobian[1][1] * jacobian[2][0]);
-
-        if (std::abs(det) < TOLERANCE) {
-            // Jacobian is close to singular, we might need a better initial guess
-            // or the point might be outside the cube
-
-          cout<< " exit 2 ? = " << det <<endl;
-            break;
-        }
-
-        Type delta_u = (residual[0] * (jacobian[1][1] * jacobian[2][2] - jacobian[1][2] * jacobian[2][1])
-                      - jacobian[0][1] * (residual[1] * jacobian[2][2] - jacobian[1][2] * residual[2])
-                      + jacobian[0][2] * (residual[1] * jacobian[2][1] - jacobian[1][1] * residual[2])) / det;
-
-        Type delta_v = (jacobian[0][0] * (residual[1] * jacobian[2][2] - jacobian[1][2] * residual[2])
-                      - residual[0] * (jacobian[1][0] * jacobian[2][2] - jacobian[1][2] * jacobian[2][0])
-                      + jacobian[0][2] * (jacobian[1][0] * residual[2] - residual[1] * jacobian[2][0])) / det;
-
-        Type delta_w = (jacobian[0][0] * (jacobian[1][1] * residual[2] - residual[1] * jacobian[2][1])
-                      - jacobian[0][1] * (jacobian[1][0] * residual[2] - residual[1] * jacobian[2][0])
-                      + residual[0] * (jacobian[1][0] * jacobian[2][1] - jacobian[1][1] * jacobian[2][0])) / det;
-
-        // Update u, v, w
-        u += delta_u;
-        v += delta_v;
-        w += delta_w;
-
-        // Clamp to unit cube
-        u = std::max(Type(0), std::min(Type(1), u));
-        v = std::max(Type(0), std::min(Type(1), v));
-        w = std::max(Type(0), std::min(Type(1), w));
-    cout << "  Mapped interpolated points (u,v,w) by iterations = (" << u <<", "<< v <<", "<< w << ") "<< endl;
-    }
-
-
-    cout << "  Mapped interpolated points (u,v,w) final = (" << u <<", "<< v <<", "<< w << ") "<< endl;
-
-    // Now that we have u, v, w, compute the final interpolated values
-    // Recompute basis functions for the final u, v, w
-    Type N[8];
-    N[0] = (1-u) * (1-v) * (1-w);  // (0,0,0)
-    N[1] = (1-u) * (1-v) * w;      // (0,0,1)
-    N[2] = (1-u) * v * (1-w);      // (0,1,0)
-    N[3] = (1-u) * v * w;          // (0,1,1)
-    N[4] = u * (1-v) * (1-w);      // (1,0,0)
-    N[5] = u * (1-v) * w;          // (1,0,1)
-    N[6] = u * v * (1-w);          // (1,1,0)
-    N[7] = u * v * w;              // (1,1,1)
-
-    // Interpolate all value components
-    for (size_t i = 0; i < interpolated_values.size(); ++i) {
-        interpolated_values[i] = 0;
-        for (int j = 0; j < 8; ++j) {
-            interpolated_values[i] += N[j] * vertex_values[j][i];
-        }
-    }
-}
-
-
-
 
 
 template <class Type>
-void trilinear_interpolation_vector_deformed_mapped(
+void trilinear_interpolation_vector_remap_to_unitcube(
     const int table,
     const std::vector<std::vector<Type>>& cube_vertices,       // 8 vertices of the deformed cube
     const std::vector<std::vector<Type>>& vertex_values,       // Values at each vertex
     const std::vector<Type>& query_point,                      // Point to interpolate at
-    std::vector<Type>& interpolated_values) {                  // Result storage
+    std::vector<Type>& interpolated_values) {
 
-    interpolated_values.resize(vertex_values[0].size());
+    std::cout << "DEBUG: Input parameters" << std::endl;
+    std::cout << "Table: " << table << std::endl;
+    std::cout << "Query point: (";
+    for (size_t i = 0; i < query_point.size(); ++i) {
+        std::cout << query_point[i];
+        if (i < query_point.size() - 1) std::cout << ", ";
+    }
+    std::cout << ")" << std::endl;
+
+    // Print original cube vertices
+//     std::cout << "Original cube vertices:" << std::endl;
+//     for (size_t i = 0; i < cube_vertices.size(); ++i) {
+//         std::cout << "Vertex " << i << ": (";
+//         for (size_t j = 0; j < cube_vertices[i].size(); ++j) {
+//             std::cout << cube_vertices[i][j];
+//             if (j < cube_vertices[i].size() - 1) std::cout << ", ";
+//         }
+//         std::cout << ")" << std::endl;
+//     }
 
     // We need to compute the trilinear coordinates (weights) for the query point
-    // First, we'll map the query point to a reference unit cube coordinate system using
-    // an inverse mapping approach
+    // First, we'll map the deformed cube to a unit cube:
+    // We do this for all the corner points and interpolation points.
+    // Now we can use the trilinear interpolations.
 
-    // The general formula for a point inside a trilinearly interpolated hexahedron is:
-    // P(u,v,w) = sum(i=0 to 7) { N_i(u,v,w) * P_i }
-    // where N_i are the 8 trilinear basis functions and P_i are the vertices
+    // Create new cube vertices with the modified mapping
+    std::vector<std::vector<Type>> new_cube_vertices(cube_vertices.size());
 
-    // Instead of directly solving the inverse mapping (which is complex),
-    // we'll use an iterative approach based on Newton-Raphson method to find u,v,w
+    // Create the transformed cube vertices with table-dependent mapping
+//     std::cout << "\nTransforming cube vertices:" << std::endl;
+    for (size_t i = 0; i < cube_vertices.size(); i++) {
+        new_cube_vertices[i] = cube_vertices[i];  // Copy all coordinates
 
- // Initial guess at center of unit cube
-    Type x = query_point[0], y = query_point[1], z = query_point[1];
-//     const int MAX_ITERATIONS = 10;
-//     const Type TOLERANCE = Type(1e-6);
-    Type u = x, v = y, w = 0.5;
+        // Extract coordinates for clearer code
+        Type x = cube_vertices[i][0];
+        Type y = cube_vertices[i][1];
+        Type z = cube_vertices[i][2];
+        Type denominator = 0;
 
-    // Now that we have u, v, w, compute the final interpolated values
-    // Recompute basis functions for the final u, v, w
-    if(table < 2){
-      w = - (2 * z) / (y - 2);
-    }
-    else if (table == 2){
-      w = - (2 * z) / (x + y - 2);
-    }
-    else if (table == 3){
-      w = - (2 * z) / (x - y - 1);
-    }
-    else if (table > 3){
-      w = - (2 * z) / (x - 2);
-    }
+        // Apply the mapping for z-coordinate based on table number
+        if (table < 2 || table > 3) {
+            denominator = y - 2;
+//             std::cout << "Vertex " << i << ": using formula -(2*z)/(y-2), denominator = " << denominator << std::endl;
+        }
+        else {
+            denominator = x + y - 2;
+//             std::cout << "Vertex " << i << ": using formula -(2*z)/(x+y-2), denominator = " << denominator << std::endl;
+        }
 
-    cout << " Mapped interpolated points (u,v,w) using analytic formula = (" << u <<", "<< v <<", "<< w << ") "<< endl;
-
-    Type N[8];
-    N[0] = (1-u) * (1-v) * (1-w);  // (0,0,0) - Bottom-front-left
-    N[1] = u     * (1-v) * (1-w);  // (1,0,0) - Bottom-front-right
-    N[2] = u     * v     * (1-w);  // (1,1,0) - Bottom-back-right
-    N[3] = (1-u) * v     * (1-w);  // (0,1,0) - Bottom-back-left
-    N[4] = (1-u) * (1-v) * w;      // (0,0,1) - Top-front-left
-    N[5] = u     * (1-v) * w;      // (1,0,1) - Top-front-right
-    N[6] = u     * v     * w;      // (1,1,1) - Top-back-right
-    N[7] = (1-u) * v     * w;      // (0,1,1) - Top-back-left
-
-
-    // Interpolate all value components
-    for (size_t i = 0; i < interpolated_values.size(); ++i) {
-        interpolated_values[i] = 0;
-        for (int j = 0; j < 8; ++j) {
-            interpolated_values[i] += N[j] * vertex_values[j][i];
+        // Apply the transformation if denominator is not close to zero
+        if (std::abs(denominator) > std::numeric_limits<Type>::epsilon()) {
+            Type new_z = -(2 * z) / denominator;
+//             std::cout << "  Transformed z: " << z << " -> " << new_z << std::endl;
+            new_cube_vertices[i][2] = new_z;
+        } else {
+            // Handle case where denominator is close to zero
+            std::cout << "  WARNING: Denominator close to zero. Keeping original z value." << std::endl;
+            new_cube_vertices[i][2] = z; // Keep original as a fallback
         }
     }
-}
 
+    // Print new cube vertices
+    std::cout << "\nTransformed cube vertices:" << std::endl;
+    for (size_t i = 0; i < new_cube_vertices.size(); ++i) {
+        std::cout << "Vertex " << i << ": (";
+        for (size_t j = 0; j < new_cube_vertices[i].size(); ++j) {
+            std::cout << new_cube_vertices[i][j];
+            if (j < new_cube_vertices[i].size() - 1) std::cout << ", ";
+        }
+        std::cout << ")" << std::endl;
+    }
+
+    // Create new query point with the same table-dependent transformation
+    std::vector<Type> new_query_point = query_point;
+
+    // Extract coordinates for clearer code
+    Type x = query_point[0];
+    Type y = query_point[1];
+    Type z = query_point[2];
+    Type denominator = 0;
+
+//     std::cout << "\nTransforming query point:" << std::endl;
+    // Apply the mapping for z-coordinate based on table number
+        if (table < 2 || table > 3) {
+            denominator = y - 2;
+//             std::cout << "table " << table << ": using formula -(2*z)/(y-2), denominator = " << denominator << std::endl;
+        }
+        else {
+            denominator = x + y - 2;
+//             std::cout << "table " << table << ": using formula -(2*z)/(x+y-2), denominator = " << denominator << std::endl;
+        }
+
+    // Apply the transformation if denominator is not close to zero
+    if (std::abs(denominator) > std::numeric_limits<Type>::epsilon()) {
+        Type new_z = -(2 * z) / denominator;
+//         std::cout << "  Transformed z: " << z << " -> " << new_z << std::endl;
+        new_query_point[2] = new_z;
+    } else {
+        // Handle case where denominator is close to zero
+        std::cout << "  WARNING: Denominator close to zero. Keeping original z value." << std::endl;
+        new_query_point[2] = z; // Keep original as a fallback
+    }
+
+    std::cout << "\nTransformed query point: (";
+    for (size_t i = 0; i < new_query_point.size(); ++i) {
+        std::cout << new_query_point[i];
+        if (i < new_query_point.size() - 1) std::cout << ", ";
+    }
+    std::cout << ")" << std::endl;
+
+    // Check if any values are NaN before passing to the trilinear interpolation
+//     bool has_nan = false;
+//     for (size_t i = 0; i < new_cube_vertices.size(); ++i) {
+//         for (size_t j = 0; j < new_cube_vertices[i].size(); ++j) {
+//             if (std::isnan(new_cube_vertices[i][j])) {
+//                 std::cout << "ERROR: NaN detected in transformed vertex " << i << " coordinate " << j << std::endl;
+//                 has_nan = true;
+//             }
+//         }
+//     }
+//
+//     for (size_t i = 0; i < new_query_point.size(); ++i) {
+//         if (std::isnan(new_query_point[i])) {
+//             std::cout << "ERROR: NaN detected in transformed query point coordinate " << i << std::endl;
+//             has_nan = true;
+//         }
+//     }
+//
+//     if (has_nan) {
+//         std::cout << "WARNING: NaN values detected! Interpolation will likely fail." << std::endl;
+//     }
+
+    std::cout << "\nCalling trilinear interpolation with transformed coordinates..." << std::endl;
+    // Everything is in unit_cube. We can use the standard trilinear interpolation now
+    trilinier_interpolation_vector_FEM_orientation(new_cube_vertices, vertex_values, new_query_point, interpolated_values);
+
+/*
+    std::cout << "\nInterpolated values:" << std::endl;
+    for (size_t i = 0; i < interpolated_values.size(); ++i) {
+        std::cout << "Value " << i << ": " << interpolated_values[i] << std::endl;
+    }*/
+
+//     // Check if any interpolated values are NaN
+//     for (size_t i = 0; i < interpolated_values.size(); ++i) {
+//         if (std::isnan(interpolated_values[i])) {
+//             std::cout << "ERROR: NaN detected in interpolated value " << i << std::endl;
+//         }
+//     }
+}
 
 
 template <class Type>
@@ -1396,7 +1571,7 @@ Type trilinear_interpolation_deformed(
 template <class Type>   //TODO change this based on 6 table
 void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <Type> &p1, PointT <Type> &p2, PointT <Type> &p3){
     double epsilon = 0.000000000000001;
-    Type i1_pm_eps(-1) , i2_pm_eps(-1);
+    Type i1_pm_eps(-1) , i2_pm_eps(-1),i3_pm_eps(-1);
 
     // std::cout << "Corner " << i << ": (" << corner[0] << ", " << corner[1] << ", " << corner[2] << ") - Print Something\n";
 
@@ -1404,34 +1579,39 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
         case 0:
             i1_pm_eps = static_cast<Type>(corner[0] );
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
 
             p1 = {static_cast<Type>(0), i1_pm_eps};
             p2 = {i2_pm_eps, static_cast<Type>(1) - i2_pm_eps};
-            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
+            p3 = {(p1.x + p2.x)*0.5 , i3_pm_eps};
             break;
         case 1:
             i1_pm_eps = static_cast<Type>(corner[0] );
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
-//                    if (i1 == partition ) i1_pm_eps = static_cast<Type>(i1*del_x - epsilon);     //it keeps my i2 in (0,1)
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
+
             p1 = {static_cast<Type>(0), i1_pm_eps};
             p2 = {i2_pm_eps,static_cast<Type>(0)};
-            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
+            p3 = {(p1.x + p2.x)*0.5 , i3_pm_eps};
             break;
         case 2:
             //Do we really need epsilon on this table?
             i1_pm_eps = static_cast<Type>(corner[0]);
             i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
+
             p1 = {i1_pm_eps, static_cast<Type>(1) - i1_pm_eps};
             p2 = {i2_pm_eps, static_cast<Type>(0)};
-            p3 = {(p1.x + p2.x)*0.5 , static_cast<Type>(corner[2])};
+            p3 = {(p1.x + p2.x)*0.5 , i3_pm_eps};
             break;
         case 3:
             i1_pm_eps = static_cast<Type>(corner[0]);
             i2_pm_eps = static_cast<Type>(corner[1] - epsilon);
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
 
             p1 = {static_cast<Type>(1) - i1_pm_eps , i1_pm_eps};
             p2 = {static_cast<Type>(0), i2_pm_eps};
-            p3 = {static_cast<Type>(corner[2]), (p1.y + p2.y)*0.5};
+            p3 = {i3_pm_eps, (p1.y + p2.y)*0.5};
 
 //             i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
 //             i2_pm_eps = static_cast<Type>(corner[1] );
@@ -1442,10 +1622,11 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
         case 4:
             i1_pm_eps = static_cast<Type>(corner[0] );
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
 
             p1 = {i1_pm_eps, static_cast<Type>(0)};
             p2 = {static_cast<Type>(0), i2_pm_eps};
-            p3 = {static_cast<Type>(corner[2]), (p1.y + p2.y)*0.5};
+            p3 = {i3_pm_eps, (p1.y + p2.y)*0.5};
 
 //             i1_pm_eps = static_cast<Type>(corner[0] + epsilon);
 //             i2_pm_eps = static_cast<Type>(corner[1] );
@@ -1457,10 +1638,11 @@ void get_p1_p2_p3(const int &table, const std::vector<double> &corner, PointT <T
         case 5:
             i1_pm_eps = static_cast<Type>(corner[0] );
             i2_pm_eps = static_cast<Type>(corner[1] + epsilon);
+            i3_pm_eps = static_cast<Type>(corner[2] + epsilon);
 
             p1 = {i1_pm_eps, static_cast<Type>(0)};
             p2 = {static_cast<Type>(1) - i2_pm_eps, i2_pm_eps};
-            p3 = {static_cast<Type>(corner[2]), (p1.y + p2.y)*0.5};
+            p3 = {i3_pm_eps, (p1.y + p2.y)*0.5};
 
 //             i1_pm_eps = static_cast<Type>(corner[0] - epsilon);
 //             i2_pm_eps = static_cast<Type>(corner[1] );
@@ -1688,7 +1870,7 @@ public:
         }
     }
 
-    void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+    void subdivideWithRelativeError_old(int maxDepth, double maxRelativeError, int currentDepth = 0) {
         if (currentDepth >= maxDepth || !isLeaf) {
             getCorners();
             return;
@@ -1719,25 +1901,54 @@ public:
                       }
 
                       // Use the new deformed interpolation function
-                      double interp_area = trilinear_interpolation_deformed<double>(interpolation_vector, interp_point);
+
+
+                      double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
 
                       f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
                       double formula_area = static_cast<double>(f_area);
                       double r_error = fabs(formula_area - interp_area) / formula_area;
-                      double r_error_opposite = fabs(formula_area - interp_area) / (1./ (ii + jj + 2) * (jj + 1) - formula_area);
+                      double r_error_opposite = fabs(formula_area - interp_area) / (1./ (ii + jj + 2.) * (jj + 1.) - formula_area);
                       relativeErrors.push_back(r_error);
                       relativeErrorsOpposite.push_back(r_error_opposite);
-                      count++;
+//                       count++;
                   }
               }
           }
           relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
           relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
 
+        bool force_subdevide = false;
+
+        if(table == 0 || table == 5) {
+            if (corners[1].x > 0.9999999999 ) {
+                if(corners[1].y < 0.0000000001) {
+                  force_subdevide = true;
+                }
+            }
+        }
+        else if(table == 1 || table == 4) {
+            if (corners[0].x < 0.0000000001 ) {
+                if(corners[0].y < 0.0000000001) {
+                  force_subdevide = true;
+                }
+            }
+        }
+
+        else if(table == 2 || table == 3) {
+            if (corners[2].x > 0.9999999999 ) {
+                if(corners[2].y > 0.9999999999) {
+                  force_subdevide = true;
+                }
+            }
+        }
+
+//         if((table == 0 || table == 5) && corners[1].x > 0.9999 && corners[1].y < 0.0001) force_subdevide = true;
+//         else if((table == 1 || table == 4) && corners[0].x < 0.0001 && corners[0].y < 0.0001) force_subdevide = true;
+//         else if ((table == 2 || table ==3) && corners[2].x > 0.9999 && corners[2].y > 0.9999) force_subdevide = true;
 
 
-
-        if (depth <= 3 || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError) {
+        if (depth <= 3 || force_subdevide || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError) {
             isLeaf = false;
             children.reserve(children.size() + 8);
             std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
@@ -1745,7 +1956,160 @@ public:
                 children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
             }
 
+        for (auto& child : children) {
+                child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+        }
+
+//             if(force_subdevide){
+//                for (auto& child : children) {
+//                 child.subdivideWithRelativeError(10, maxRelativeError, currentDepth + 1);
+//                }
+//             }
+//             else{
+//               for (auto& child : children) {
+//                 child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+//               }
+//             }
+        }
+    }
+
+
+    void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+        if (!isLeaf) {
+            getCorners();
+            return;  // Already subdivided, no need to process further
+        }
+
+        getCorners();
+
+        // Determine if this octant contains the target corner we want to force subdivide to depth 10
+        bool containsTargetCorner = false;
+
+        if(table == 0 || table == 5) {
+            // Check if this octant contains the corner at x=1, y=0
+            for (const auto& corner : corners) {
+                if (corner.x > 0.9999999999 && corner.y < 0.0000000001) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+        else if(table == 1 || table == 4) {
+            // Check if this octant contains the corner at x=0, y=0
+            for (const auto& corner : corners) {
+                if (corner.x < 0.0000000001 && corner.y < 0.0000000001) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+        else if(table == 2 || table == 3) {
+            // Check if this octant contains the corner at x=1, y=1
+            for (const auto& corner : corners) {
+                if (corner.x > 0.9999999999 && corner.y > 0.9999999999) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+
+        // Exit early if we've reached maximum depth and this isn't a target corner
+        if (currentDepth >= maxDepth && !containsTargetCorner) {
+            return;
+        }
+
+        // Exit early if we've reached depth 10 for target corners
+        if (currentDepth >= 9 && containsTargetCorner) {
+            return;
+        }
+
+        getCorners();
+
+        // Calculate midpoints for subdivision
+        std::vector<Point3D> midpoints(19);
+        calculateMidpoints(midpoints);
+
+        // We already determined containsTargetCorner above
+        bool shouldForceSubdivide = containsTargetCorner && currentDepth < 9;
+
+        std::vector<double> relativeErrors;
+        std::vector<double> relativeErrorsOpposite;
+        for (const auto& midpoint : midpoints) {
+            std::vector<double> interp_point = {midpoint.x, midpoint.y, midpoint.z};
+            Type f_area(0);
+            Type c = 1;
+            PointT<Type> p1, p2, p3;
+            get_p1_p2_p3(table, interp_point, p1, p2, p3);
+            std::vector<std::vector<double>> interpolation_vector(8);
+            int count = 0;
+            for (unsigned qq = 0; qq <= 0; qq++) {   //just based on area
+                for (unsigned jj = 0; jj <= qq; jj++) {
+                    unsigned ii = qq - jj;
+                    for (size_t ic = 0; ic < corners.size(); ++ic) {
+                        interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
+                    }
+
+                    // Use the new deformed interpolation function
+                    double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
+
+                    f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
+                    double formula_area = static_cast<double>(f_area);
+
+
+
+                    double r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+                    if(isnan(r_error)) r_error = 1.0 ;
+                    double r_error_opposite = fabs(formula_area - interp_area) / (0.5 - fabs(formula_area));
+                    if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
+                    relativeErrors.push_back(r_error);
+                    relativeErrorsOpposite.push_back(r_error_opposite);
+
+                    // Handle potential division by zero to avoid NaN values
+//                     double r_error = 0.0;
+//                     if (fabs(formula_area) > 0.000000000001) {  // Check if denominator is not too close to zero
+//                         r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+//                     }
+//                     else r_error = 1.0 ;
+                    // For opposite error calculation
+//                     double denom_opposite = 1./ ((ii + jj + 2.) * (jj + 1.)) - formula_area;
+//                     double r_error_opposite = 0.0;
+//                     if (fabs(denom_opposite) > 0.000000000001) {  // Check if denominator is not too close to zero
+//                         r_error_opposite = fabs(formula_area - interp_area) / fabs(denom_opposite);
+//                     }
+//                     else r_error_opposite = 1.0 ;
+/*
+                    if(!isnan(r_error)){
+                      relativeErrors.push_back(r_error);
+                    }
+                    if(!isnan(r_error_opposite)){
+                      relativeErrorsOpposite.push_back(r_error_opposite);
+                    }*/
+                }
+            }
+        }
+
+          relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+          relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+
+        // Decide whether to subdivide based on depth, error, or target corner
+        bool shouldSubdivide = (currentDepth < 3) ||
+                              (relative_error > maxRelativeError) ||
+                              (relative_error_opposite > maxRelativeError) ||
+                              shouldForceSubdivide;  // Force target corner to subdivide to depth 10
+
+        if (shouldSubdivide) {
+            isLeaf = false;
+            children.reserve(children.size() + 8);
+            std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
+
+            for (const auto& childCorner : childCorners) {
+                children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
+            }
+
+            // Recursively subdivide all children
             for (auto& child : children) {
+                // Pass the same maxDepth for all children
+                // The per-child containsTargetCorner check will handle special treatment for target corners
                 child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
             }
         }
@@ -1756,7 +2120,7 @@ public:
       if (contains(point)) {
         std::cout << "\nFound containing node at depth " << depth << ":\n";
         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
-        std::cout << "Node corners:\n";
+        std::cout << "Rel_error =" << relative_error << ", "<< relative_error_opposite <<"\n Node corners:\n";
         for (size_t i = 0; i < corners.size(); ++i) {
             std::cout << "Corner " << i << ": ("
                      << corners[i].x << ", "
@@ -1810,295 +2174,295 @@ public:
 
 private:
 
-      void serialize(std::ofstream& ofs) const {
+void serialize(std::ofstream& ofs) const {
+    ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
+    ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
+    ofs.write(reinterpret_cast<const char*>(&relative_error), sizeof(relative_error));
+    ofs.write(reinterpret_cast<const char*>(&relative_error_opposite), sizeof(relative_error_opposite));
 
+    serializeVector(ofs, corners);
+    serializeVector(ofs, cornerAreas);
+    serializeVector(ofs, cornerWeights);
 
-      ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
-      ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
-
-      serializeVector(ofs, corners);
-      serializeVector(ofs, cornerAreas);
-      serializeVector(ofs, cornerWeights);
-
-      size_t childCount = children.size();
-      ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
-      for(const auto& child : children) {
+    size_t childCount = children.size();
+    ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
+    for(const auto& child : children) {
         child.serialize(ofs);
-      }
     }
+}
 
-    void deserialize(std::ifstream& ifs) {
-      ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
-      ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
+void deserialize(std::ifstream& ifs) {
+    ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
+    ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
+    ifs.read(reinterpret_cast<char*>(&relative_error), sizeof(relative_error));
+    ifs.read(reinterpret_cast<char*>(&relative_error_opposite), sizeof(relative_error_opposite));
 
-      deserializeVector(ifs, corners);
-      deserializeVector(ifs, cornerAreas);
-      deserializeVector(ifs, cornerWeights);
+    deserializeVector(ifs, corners);
+    deserializeVector(ifs, cornerAreas);
+    deserializeVector(ifs, cornerWeights);
 
-      size_t childCount;
-      ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
-      children.clear();
-      children.reserve(childCount);
-      for(size_t i = 0; i < childCount; ++i) {
+    size_t childCount;
+    ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
+    children.clear();
+    children.reserve(childCount);
+    for(size_t i = 0; i < childCount; ++i) {
         children.emplace_back(corners, 0, 0, 0, nullptr);
         children.back().deserialize(ifs);
-      }
     }
+}
 
-    void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
-      size_t size = vec.size();
-      ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
+  size_t size = vec.size();
+  ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
 
-      for(const auto& innerVec : vec) {
-        size_t innerSize = innerVec.size();
-        ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
-        ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
-      }
+  for(const auto& innerVec : vec) {
+    size_t innerSize = innerVec.size();
+    ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
+    ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
+  }
+}
+
+
+void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
+  size_t size;
+  ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+
+  vec.resize(size);
+  for(size_t i = 0; i < size; ++i) {
+    size_t innerSize;
+    ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
+    vec[i].resize(innerSize);
+    ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
+  }
+}
+
+void serializeVector(std::ofstream& ofs, const std::vector<Point3D>& vec) const {
+    size_t size = vec.size();
+    ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    for (const auto& point : vec) {
+        ofs.write(reinterpret_cast<const char*>(&point.x), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&point.y), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&point.z), sizeof(double));
     }
+}
 
-
-    void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
-      size_t size;
-      ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
-
-      vec.resize(size);
-      for(size_t i = 0; i < size; ++i) {
-        size_t innerSize;
-        ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
-        vec[i].resize(innerSize);
-        ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
-      }
+void deserializeVector(std::ifstream& ifs, std::vector<Point3D>& vec) {
+    size_t size;
+    ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+    vec.resize(size);
+    for (size_t i = 0; i < size; ++i) {
+        ifs.read(reinterpret_cast<char*>(&vec[i].x), sizeof(double));
+        ifs.read(reinterpret_cast<char*>(&vec[i].y), sizeof(double));
+        ifs.read(reinterpret_cast<char*>(&vec[i].z), sizeof(double));
     }
+}
 
-    void serializeVector(std::ofstream& ofs, const std::vector<Point3D>& vec) const {
-        size_t size = vec.size();
-        ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
-        for (const auto& point : vec) {
-            ofs.write(reinterpret_cast<const char*>(&point.x), sizeof(double));
-            ofs.write(reinterpret_cast<const char*>(&point.y), sizeof(double));
-            ofs.write(reinterpret_cast<const char*>(&point.z), sizeof(double));
+Point3D middleof(Point3D& point1, Point3D& point2){
+  Point3D midpoint{
+          (point1.x + point2.x) / 2.,
+          (point1.y + point2.y) / 2.,
+          (point1.z + point2.z) / 2.
+          };
+  return midpoint;
+}
+
+void calculateMidpoints(std::vector<Point3D>& midpoints) {
+    midpoints.resize(19);
+
+    // Midpoints of bottom face edges (counter-clockwise)
+    midpoints[0] = middleof(corners[0], corners[1]); // Bottom edge: front
+    midpoints[1] = middleof(corners[1], corners[2]); // Bottom edge: right
+    midpoints[2] = middleof(corners[2], corners[3]); // Bottom edge: back
+    midpoints[3] = middleof(corners[3], corners[0]); // Bottom edge: left
+
+    // Midpoints of top face edges (counter-clockwise)
+    midpoints[4] = middleof(corners[4], corners[5]); // Top edge: front
+    midpoints[5] = middleof(corners[5], corners[6]); // Top edge: right
+    midpoints[6] = middleof(corners[6], corners[7]); // Top edge: back
+    midpoints[7] = middleof(corners[7], corners[4]); // Top edge: left
+
+    // Midpoints of vertical edges
+    midpoints[8] = middleof(corners[0], corners[4]);  // Vertical edge: front-left
+    midpoints[9] = middleof(corners[1], corners[5]);  // Vertical edge: front-right
+    midpoints[10] = middleof(corners[2], corners[6]); // Vertical edge: back-right
+    midpoints[11] = middleof(corners[3], corners[7]); // Vertical edge: back-left
+
+    // Midpoints of faces
+    midpoints[12] = middleof(midpoints[0], midpoints[2]); // Bottom face center
+    midpoints[13] = middleof(midpoints[4], midpoints[6]); // Top face center
+    midpoints[14] = middleof(midpoints[0], midpoints[4]); // Front face center
+    midpoints[15] = middleof(midpoints[1], midpoints[5]); // Right face center
+    midpoints[16] = middleof(midpoints[2], midpoints[6]); // Back face center
+    midpoints[17] = middleof(midpoints[3], midpoints[7]); // Left face center
+
+    // Center point of the octree node
+    midpoints[18] = middleof(midpoints[12], midpoints[13]); // Center of the cube
+}
+
+
+std::vector<std::vector<Point3D>> subdivideCorners() {
+    std::vector<std::vector<Point3D>> childCorners(8, std::vector<Point3D>(8));
+    std::vector<Point3D> midpoints(19);
+    calculateMidpoints(midpoints);
+
+    // Child 0: Bottom-front-left (following counter-clockwise convention)
+    childCorners[0] = {
+        corners[0],      // Bottom-front-left
+        midpoints[0],    // Bottom-front-middle
+        midpoints[12],   // Bottom-center
+        midpoints[3],    // Bottom-left-middle
+        midpoints[8],    // Front-left-middle
+        midpoints[14],   // Front-center
+        midpoints[18],   // Center
+        midpoints[17]    // Left-center
+    };
+
+    // Child 1: Bottom-front-right
+    childCorners[1] = {
+        midpoints[0],    // Bottom-front-middle
+        corners[1],      // Bottom-front-right
+        midpoints[1],    // Bottom-right-middle
+        midpoints[12],   // Bottom-center
+        midpoints[14],   // Front-center
+        midpoints[9],    // Front-right-middle
+        midpoints[15],   // Right-center
+        midpoints[18]    // Center
+    };
+
+    // Child 2: Bottom-back-right
+    childCorners[2] = {
+        midpoints[12],   // Bottom-center
+        midpoints[1],    // Bottom-right-middle
+        corners[2],      // Bottom-back-right
+        midpoints[2],    // Bottom-back-middle
+        midpoints[18],   // Center
+        midpoints[15],   // Right-center
+        midpoints[10],   // Back-right-middle
+        midpoints[16]    // Back-center
+    };
+
+    // Child 3: Bottom-back-left
+    childCorners[3] = {
+        midpoints[3],    // Bottom-left-middle
+        midpoints[12],   // Bottom-center
+        midpoints[2],    // Bottom-back-middle
+        corners[3],      // Bottom-back-left
+        midpoints[17],   // Left-center
+        midpoints[18],   // Center
+        midpoints[16],   // Back-center
+        midpoints[11]    // Back-left-middle
+    };
+
+    // Child 4: Top-front-left
+    childCorners[4] = {
+        midpoints[8],    // Front-left-middle
+        midpoints[14],   // Front-center
+        midpoints[18],   // Center
+        midpoints[17],   // Left-center
+        corners[4],      // Top-front-left
+        midpoints[4],    // Top-front-middle
+        midpoints[13],   // Top-center
+        midpoints[7]     // Top-left-middle
+    };
+
+    // Child 5: Top-front-right
+    childCorners[5] = {
+        midpoints[14],   // Front-center
+        midpoints[9],    // Front-right-middle
+        midpoints[15],   // Right-center
+        midpoints[18],   // Center
+        midpoints[4],    // Top-front-middle
+        corners[5],      // Top-front-right
+        midpoints[5],    // Top-right-middle
+        midpoints[13]    // Top-center
+    };
+
+    // Child 6: Top-back-right
+    childCorners[6] = {
+        midpoints[18],   // Center
+        midpoints[15],   // Right-center
+        midpoints[10],   // Back-right-middle
+        midpoints[16],   // Back-center
+        midpoints[13],   // Top-center
+        midpoints[5],    // Top-right-middle
+        corners[6],      // Top-back-right
+        midpoints[6]     // Top-back-middle
+    };
+
+    // Child 7: Top-back-left
+    childCorners[7] = {
+        midpoints[17],   // Left-center
+        midpoints[18],   // Center
+        midpoints[16],   // Back-center
+        midpoints[11],   // Back-left-middle
+        midpoints[7],    // Top-left-middle
+        midpoints[13],   // Top-center
+        midpoints[6],    // Top-back-middle
+        corners[7]       // Top-back-left
+    };
+
+    return childCorners;
+}
+
+bool contains(const Point3D& point) const {
+    const double EPSILON = 1e-10;
+
+    // Helper function to calculate dot product
+    auto dot = [](const Point3D& a, const Point3D& b) -> double {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    };
+
+    // Helper function to calculate cross product
+    auto cross = [](const Point3D& a, const Point3D& b) -> Point3D {
+        return Point3D{
+            a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x
+        };
+    };
+
+    // Helper function to create vector from two points
+    auto makeVector = [](const Point3D& from, const Point3D& to) -> Point3D {
+        return Point3D{to.x - from.x, to.y - from.y, to.z - from.z};
+    };
+
+    // Define the six faces of the hexahedron
+    // Each face is defined by four corners in counter-clockwise order when viewed from outside
+    // This ensures the normal is pointing outward
+    const std::vector<std::vector<int>> faces = {
+        {0, 3, 2, 1},    // bottom face (viewed from below)
+        {4, 5, 6, 7},    // top face
+        {0, 1, 5, 4},    // front face
+        {1, 2, 6, 5},    // right face
+        {2, 3, 7, 6},    // back face
+        {3, 0, 4, 7}     // left face
+    };
+
+    // Check if point is on the correct side of all faces
+    for (const auto& face : faces) {
+        // Get three points from the face to define the plane
+        const Point3D& v0 = corners[face[0]];
+        const Point3D& v1 = corners[face[1]];
+        const Point3D& v2 = corners[face[2]];
+
+        // Calculate face normal using cross product (pointing outward)
+        Point3D edge1 = makeVector(v0, v1);
+        Point3D edge2 = makeVector(v0, v2);
+        Point3D normal = cross(edge1, edge2);
+
+        // Calculate signed distance from point to plane
+        Point3D toPoint = makeVector(v0, point);
+        double signedDist = dot(normal, toPoint);
+
+        // For a point inside the octree, the signed distance should be negative
+        // (point is on the opposite side of the face normal)
+        if (signedDist > EPSILON) {
+            return false;
         }
     }
 
-    void deserializeVector(std::ifstream& ifs, std::vector<Point3D>& vec) {
-        size_t size;
-        ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
-        vec.resize(size);
-        for (size_t i = 0; i < size; ++i) {
-            ifs.read(reinterpret_cast<char*>(&vec[i].x), sizeof(double));
-            ifs.read(reinterpret_cast<char*>(&vec[i].y), sizeof(double));
-            ifs.read(reinterpret_cast<char*>(&vec[i].z), sizeof(double));
-        }
-    }
-
-
-
-      Point3D middleof(Point3D& point1, Point3D& point2){
-        Point3D midpoint{
-                (point1.x + point2.x) / 2.,
-                (point1.y + point2.y) / 2.,
-                (point1.z + point2.z) / 2.
-                };
-        return midpoint;
-      }
-
-      void calculateMidpoints(std::vector<Point3D>& midpoints) {
-          midpoints.resize(19);
-
-          // Midpoints of bottom face edges (counter-clockwise)
-          midpoints[0] = middleof(corners[0], corners[1]); // Bottom edge: front
-          midpoints[1] = middleof(corners[1], corners[2]); // Bottom edge: right
-          midpoints[2] = middleof(corners[2], corners[3]); // Bottom edge: back
-          midpoints[3] = middleof(corners[3], corners[0]); // Bottom edge: left
-
-          // Midpoints of top face edges (counter-clockwise)
-          midpoints[4] = middleof(corners[4], corners[5]); // Top edge: front
-          midpoints[5] = middleof(corners[5], corners[6]); // Top edge: right
-          midpoints[6] = middleof(corners[6], corners[7]); // Top edge: back
-          midpoints[7] = middleof(corners[7], corners[4]); // Top edge: left
-
-          // Midpoints of vertical edges
-          midpoints[8] = middleof(corners[0], corners[4]);  // Vertical edge: front-left
-          midpoints[9] = middleof(corners[1], corners[5]);  // Vertical edge: front-right
-          midpoints[10] = middleof(corners[2], corners[6]); // Vertical edge: back-right
-          midpoints[11] = middleof(corners[3], corners[7]); // Vertical edge: back-left
-
-          // Midpoints of faces
-          midpoints[12] = middleof(midpoints[0], midpoints[2]); // Bottom face center
-          midpoints[13] = middleof(midpoints[4], midpoints[6]); // Top face center
-          midpoints[14] = middleof(midpoints[0], midpoints[4]); // Front face center
-          midpoints[15] = middleof(midpoints[1], midpoints[5]); // Right face center
-          midpoints[16] = middleof(midpoints[2], midpoints[6]); // Back face center
-          midpoints[17] = middleof(midpoints[3], midpoints[7]); // Left face center
-
-          // Center point of the octree node
-          midpoints[18] = middleof(midpoints[12], midpoints[13]); // Center of the cube
-      }
-
-
-      std::vector<std::vector<Point3D>> subdivideCorners() {
-          std::vector<std::vector<Point3D>> childCorners(8, std::vector<Point3D>(8));
-          std::vector<Point3D> midpoints(19);
-          calculateMidpoints(midpoints);
-
-          // Child 0: Bottom-front-left (following counter-clockwise convention)
-          childCorners[0] = {
-              corners[0],      // Bottom-front-left
-              midpoints[0],    // Bottom-front-middle
-              midpoints[12],   // Bottom-center
-              midpoints[3],    // Bottom-left-middle
-              midpoints[8],    // Front-left-middle
-              midpoints[14],   // Front-center
-              midpoints[18],   // Center
-              midpoints[17]    // Left-center
-          };
-
-          // Child 1: Bottom-front-right
-          childCorners[1] = {
-              midpoints[0],    // Bottom-front-middle
-              corners[1],      // Bottom-front-right
-              midpoints[1],    // Bottom-right-middle
-              midpoints[12],   // Bottom-center
-              midpoints[14],   // Front-center
-              midpoints[9],    // Front-right-middle
-              midpoints[15],   // Right-center
-              midpoints[18]    // Center
-          };
-
-          // Child 2: Bottom-back-right
-          childCorners[2] = {
-              midpoints[12],   // Bottom-center
-              midpoints[1],    // Bottom-right-middle
-              corners[2],      // Bottom-back-right
-              midpoints[2],    // Bottom-back-middle
-              midpoints[18],   // Center
-              midpoints[15],   // Right-center
-              midpoints[10],   // Back-right-middle
-              midpoints[16]    // Back-center
-          };
-
-          // Child 3: Bottom-back-left
-          childCorners[3] = {
-              midpoints[3],    // Bottom-left-middle
-              midpoints[12],   // Bottom-center
-              midpoints[2],    // Bottom-back-middle
-              corners[3],      // Bottom-back-left
-              midpoints[17],   // Left-center
-              midpoints[18],   // Center
-              midpoints[16],   // Back-center
-              midpoints[11]    // Back-left-middle
-          };
-
-          // Child 4: Top-front-left
-          childCorners[4] = {
-              midpoints[8],    // Front-left-middle
-              midpoints[14],   // Front-center
-              midpoints[18],   // Center
-              midpoints[17],   // Left-center
-              corners[4],      // Top-front-left
-              midpoints[4],    // Top-front-middle
-              midpoints[13],   // Top-center
-              midpoints[7]     // Top-left-middle
-          };
-
-          // Child 5: Top-front-right
-          childCorners[5] = {
-              midpoints[14],   // Front-center
-              midpoints[9],    // Front-right-middle
-              midpoints[15],   // Right-center
-              midpoints[18],   // Center
-              midpoints[4],    // Top-front-middle
-              corners[5],      // Top-front-right
-              midpoints[5],    // Top-right-middle
-              midpoints[13]    // Top-center
-          };
-
-          // Child 6: Top-back-right
-          childCorners[6] = {
-              midpoints[18],   // Center
-              midpoints[15],   // Right-center
-              midpoints[10],   // Back-right-middle
-              midpoints[16],   // Back-center
-              midpoints[13],   // Top-center
-              midpoints[5],    // Top-right-middle
-              corners[6],      // Top-back-right
-              midpoints[6]     // Top-back-middle
-          };
-
-          // Child 7: Top-back-left
-          childCorners[7] = {
-              midpoints[17],   // Left-center
-              midpoints[18],   // Center
-              midpoints[16],   // Back-center
-              midpoints[11],   // Back-left-middle
-              midpoints[7],    // Top-left-middle
-              midpoints[13],   // Top-center
-              midpoints[6],    // Top-back-middle
-              corners[7]       // Top-back-left
-          };
-
-          return childCorners;
-      }
-
-      bool contains(const Point3D& point) const {
-          const double EPSILON = 1e-10;
-
-          // Helper function to calculate dot product
-          auto dot = [](const Point3D& a, const Point3D& b) -> double {
-              return a.x * b.x + a.y * b.y + a.z * b.z;
-          };
-
-          // Helper function to calculate cross product
-          auto cross = [](const Point3D& a, const Point3D& b) -> Point3D {
-              return Point3D{
-                  a.y * b.z - a.z * b.y,
-                  a.z * b.x - a.x * b.z,
-                  a.x * b.y - a.y * b.x
-              };
-          };
-
-          // Helper function to create vector from two points
-          auto makeVector = [](const Point3D& from, const Point3D& to) -> Point3D {
-              return Point3D{to.x - from.x, to.y - from.y, to.z - from.z};
-          };
-
-          // Define the six faces of the hexahedron
-          // Each face is defined by four corners in counter-clockwise order when viewed from outside
-          // This ensures the normal is pointing outward
-          const std::vector<std::vector<int>> faces = {
-              {0, 3, 2, 1},    // bottom face (viewed from below)
-              {4, 5, 6, 7},    // top face
-              {0, 1, 5, 4},    // front face
-              {1, 2, 6, 5},    // right face
-              {2, 3, 7, 6},    // back face
-              {3, 0, 4, 7}     // left face
-          };
-
-          // Check if point is on the correct side of all faces
-          for (const auto& face : faces) {
-              // Get three points from the face to define the plane
-              const Point3D& v0 = corners[face[0]];
-              const Point3D& v1 = corners[face[1]];
-              const Point3D& v2 = corners[face[2]];
-
-              // Calculate face normal using cross product (pointing outward)
-              Point3D edge1 = makeVector(v0, v1);
-              Point3D edge2 = makeVector(v0, v2);
-              Point3D normal = cross(edge1, edge2);
-
-              // Calculate signed distance from point to plane
-              Point3D toPoint = makeVector(v0, point);
-              double signedDist = dot(normal, toPoint);
-
-              // For a point inside the octree, the signed distance should be negative
-              // (point is on the opposite side of the face normal)
-              if (signedDist > EPSILON) {
-                  return false;
-              }
-          }
-
-          return true;
-      }
+    return true;
+}
 };
 
 template <class Type>
@@ -2166,37 +2530,38 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
     std::cout << indent << "Node at depth " << node.depth << ": ";
     std::cout << "Is Leaf: " << (node.isLeaf ? "Yes" : "No") << "\n";
 
+    // Print relative error information for all nodes (not just leaves)
+    std::cout << indent << "  Relative Error: " << node.relative_error << "\n";
+    std::cout << indent << "  Relative Error Opposite: " << node.relative_error_opposite << "\n";
+
     // Print corner information
     std::cout << indent << "  Corners:\n";
     for (size_t i = 0; i < node.corners.size(); ++i) {
         std::cout << indent << "    Corner " << i << ": ("
                   << node.corners[i].x << ", "
                   << node.corners[i].y << ", "
-                  << node.corners[i].z << ")\n";
+                  << node.corners[i].z << ") = " << node.cornerAreas[i][0] << "\n";
     }
 
     // If it's a leaf node, print detailed corner areas and weights
     if (node.isLeaf) {
-        std::cout << indent << "  Corner Areas:\n";
-        for (size_t i = 0; i < node.cornerAreas.size(); ++i) {
-            std::cout << indent << "    Corner " << i << " Areas:\n";
-            for (size_t j = 0; j < node.cornerAreas[i].size(); ++j) {
-                std::cout << node.cornerAreas[i][j] << "\n";
-            }
-        }
-
-        std::cout << indent << "  Corner Weights:\n";
-        for (size_t i = 0; i < node.cornerWeights.size(); ++i) {
-            std::cout << indent << "    Corner " << i << " Weights:\n";
-            for (size_t j = 0; j < node.cornerWeights[i].size(); ++j) {
-                std::cout << indent << "      [" << j << "]: "
-                          << node.cornerWeights[i][j] << "\n";
-            }
-        }
-
-        // Additional leaf node information
-        std::cout << indent << "  Relative Error: " << node.relative_error << "\n";
-        std::cout << indent << "  Relative Error Opposite: " << node.relative_error_opposite << "\n";
+//         std::cout << indent << "  Corner Areas:\n";
+//         for (size_t i = 0; i < node.cornerAreas.size(); ++i) {
+//             std::cout << indent << "    Corner " << i << " Areas:\n";
+//             for (size_t j = 0; j < node.cornerAreas[i].size(); ++j) {
+//                 std::cout << indent << "      [" << j << "]: "
+//                           << node.cornerAreas[i][j] << "\n";
+//             }
+//         }
+//
+//         std::cout << indent << "  Corner Weights:\n";
+//         for (size_t i = 0; i < node.cornerWeights.size(); ++i) {
+//             std::cout << indent << "    Corner " << i << " Weights:\n";
+//             for (size_t j = 0; j < node.cornerWeights[i].size(); ++j) {
+//                 std::cout << indent << "      [" << j << "]: "
+//                           << node.cornerWeights[i][j] << "\n";
+//             }
+//         }
     }
     else {
         // If not a leaf, recursively print children
@@ -2205,6 +2570,7 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
         }
     }
 }
+
 
 int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& vec2) {
     // Check if the sizes of the vectors are different
@@ -2235,8 +2601,6 @@ int checkVectorRelation(const std::vector<int>& vec1, const std::vector<int>& ve
         return 0;
     }
 }
-
-
 
 
 // Utility function to check if a point is inside the circle
@@ -2495,10 +2859,9 @@ int main() {
     double centerX = 0.5;
     double centerY = 0.5;
     double radius = 0.397;
-//     double radius = 0.19;
-
-    // Mesh parameters
-    int nd = 8;  // Number of divisions per side
+//  double radius = 0.19;
+//  Mesh parameters
+    int nd = 32;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
@@ -2506,8 +2869,7 @@ int main() {
     int triangleIndex = 0;
     int fourintersection = 0;
 
-
-      cout<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= " <<endl;
+    cout<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= " <<endl;
 
     Fem fem = Fem(3 * 2, 2);
     unsigned TRI = 4;
@@ -2527,7 +2889,7 @@ int main() {
 //     std::vector<double> A = {1., 0., 1., -1., -1., 0.46};
 
 
-    int maxDepth = 5;
+    int maxDepth = 7;
     int degree = 3;
     double percent = 0.001;
   //   std::vector<OctreeNode<Type>> roots;
@@ -2535,7 +2897,7 @@ int main() {
 
     generateAndLoadOctrees<Type>(maxDepth, degree, percent, Pweights, loadedRoots);
 
-//     printOctreeStructure(loadedRoots[2],0);
+//     printOctreeStructure(loadedRoots[0],0);
 //     return 1;
     // Loop through the mesh
     for (int i = 0; i < nd; i++) {
@@ -2581,6 +2943,8 @@ int main() {
 //                 }
 
                xv = {{x1, x2, x3}, {y1, y2, y3}};  //physical triangle
+
+               cout<< "Physical triangle = (" << x1 << ", " << y1 <<"), ("<< x2 << ", "<<y2<<"), ("<< x3 <<", " << y3 << ") "<< endl;
 
                 bool vertical = false;
                 std::vector<std::pair<double, double>> refIntersections;
@@ -2745,6 +3109,15 @@ int main() {
                                 corners[i][2] = result->corners[i].z;
                             }
 
+
+                            PointT <Type> pp1, pp2, pp3;     //This is just to print the parabolas on the corner
+                            for (size_t i = 0; i < result->corners.size(); ++i) {
+                              get_p1_p2_p3(actual_table, corners[i], pp1, pp2, pp3);
+                              parabola = get_parabola_equation(pp1,pp2,pp3);
+                              std::cout << parabola.k<<"x^2+"<<parabola.b<<"x+" << parabola.d << " + y = 0 " <<std::endl;
+                            }
+
+
                             std::vector<double> interp_point_weights;
 //                             trilinear_interpolation_vector_deformed(corners, result->cornerWeights,interp_point, interp_point_weights);
 
@@ -2752,23 +3125,20 @@ int main() {
                             std::cout << "\n interp Point: (" << interp_point[0] << ", " << interp_point[1] << ", " << interp_point[2] << ")\n";
 
 
-                            trilinear_interpolation_vector_deformed(corners, result->cornerAreas, interp_point, interp_point_weights);
+//                             trilinear_interpolation_vector_deformed(corners, result->cornerAreas, interp_point, interp_point_weights);
 
+                            trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerAreas, interp_point, interp_point_weights);
 
-//                             trilinear_interpolation_vector_deformed_mapped(actual_table, corners, result->cornerAreas, interp_point, interp_point_weights);
                             std::cout << " interpolated integrals = ";
                             for (size_t j = 0; j < interp_point_weights.size(); ++j){
                                 std::cout << interp_point_weights[j] << ", ";
                             }
                             std::cout << " )"<<std::endl;
 
-//                          trilinier_interpolation_vector(corners, result->cornerWeights, interp_point, interp_point_weights);
+//                             trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
 
+                            trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);
 
-
-                            trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
-
-//                             trilinear_interpolation_vector_deformed_mapped(actual_table, corners, result->cornerWeights, interp_point, interp_point_weights);
                             std::cout << " interpolated weights = ";
                             for (size_t j = 0; j < interp_point_weights.size(); ++j){
                               std::cout << interp_point_weights[j] << ", ";
@@ -2803,7 +3173,7 @@ int main() {
                             cout<< " Physical formula  area = " << (ref_formula_area)*h*h << endl;
                             cout<< " difference between formula and quadrature = " << reldif << endl;
                             cout<< " Relative difference  " << reldif/static_cast<double>((ref_formula_area)) <<endl;
-                            if(reldif/static_cast<double>((ref_formula_area)) > 0.002){
+                            if(reldif/static_cast<double>((ref_formula_area)) > percent/2.){
                                 std::vector<double> badcaseEntry = {
                                     static_cast<double>(triangleIndex),
                                     static_cast<double>(actual_table),
@@ -2884,15 +3254,15 @@ int main() {
 //       std::cout << " " << badcase[i]<< std::endl;
 //     }
 
-            std::cout << "All Cases:" << std::endl;
-        cout<< "index   table   difference            relative     "<<endl;
-        for (size_t i = 0; i < case_summary.size(); ++i) {
-            std::cout << "Case " << i << ": ";
-            for (const auto& value : case_summary[i]) {
-                std::cout << value << " ";
-            }
-            std::cout << std::endl;
-        }
+//             std::cout << "All Cases:" << std::endl;
+//         cout<< "index   table   difference            relative     "<<endl;
+//         for (size_t i = 0; i < case_summary.size(); ++i) {
+//             std::cout << "Case " << i << ": ";
+//             for (const auto& value : case_summary[i]) {
+//                 std::cout << value << " ";
+//             }
+//             std::cout << std::endl;
+//         }
 
         std::cout << "Bad Cases:" << std::endl;
         cout<< "index table   analytica_area(max1/2)      analytical_scale      interpolation_area         difference         relative     "<<endl;

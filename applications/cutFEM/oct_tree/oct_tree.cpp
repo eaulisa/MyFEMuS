@@ -1811,12 +1811,14 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
     std::cout << "(" << node->maxBounds.x << ", " << node->maxBounds.y << ", " << node->maxBounds.z << ")";
 
     if (node->isLeaf) {
-        std::cout << " relative error = " << node-> relative_error <<" " <<node->depth << " [Leaf] \n";
+        std::cout << " relative errors = " << node-> relative_error <<" & " << node-> relative_error_opposite << " Depth = " << node->depth << " [Leaf] \n";
 
 //         Print the corner vectors for the leaf node
-        std::cout << "  Corners:\n";
+//         std::cout << "  Corners:\n";
       for (const auto& corner : node->corners) {
-
+          for (int i = 0; i < depth; ++i) {
+              std::cout << "  ";
+          }
           for (const auto& entry : corner) {
               std::cout << " " << entry;
           }
@@ -1824,7 +1826,7 @@ void printOctreeStructure(OctreeNode<Type>* node, int depth = 0) {
       }
     }
     else {
-        std::cout<< " relative error = " << node-> relative_error <<" "<< node->depth << " [Non-Leaf]\n";
+        std::cout << " relative errors = " << node-> relative_error <<" & " << node-> relative_error_opposite << " Depth = " << node->depth << " [Non-Leaf]\n";
         for (OctreeNode<Type>* child : node->children) {
             printOctreeStructure(child, depth + 1);
         }
@@ -1849,10 +1851,10 @@ int main() {
     int table = 0;
     Type a(0);
     Type c (1) ;
-    int maxDepth = 5;
+    int maxDepth = 6;
     std::vector<OctreeNode<Type>> roots;
 
-    for (int ttable = 0; ttable < 8; ++ttable) {
+    for (int ttable = 0; ttable < 1; ++ttable) {
         OctreeNode<Type> root({0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},ttable, 0);
         if(ttable == 0 || ttable == 1 || ttable == 2 || ttable == 4 || ttable == 6){
           root.subdivideWithRelativeError(maxDepth, 0.01);
@@ -1865,8 +1867,8 @@ int main() {
         roots.push_back(root);
     }
 
-//     printOctreeStructure(&roots[0]);
-//     return 0;
+    printOctreeStructure(&roots[0]);
+    return 0;
 
 
 
