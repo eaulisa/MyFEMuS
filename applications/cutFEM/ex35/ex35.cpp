@@ -1974,7 +1974,7 @@ public:
     }
 
 
-    void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+    void subdivideWithRelativeError_now(int maxDepth, double maxRelativeError, int currentDepth = 0) {
         if (!isLeaf) {
             getCorners();
             return;  // Already subdivided, no need to process further
@@ -2058,9 +2058,9 @@ public:
 
 
                     double r_error = fabs(formula_area - interp_area) / fabs(formula_area);
-                    if(isnan(r_error)) r_error = 1.0 ;
+//                     if(isnan(r_error)) r_error = 1.0 ;
                     double r_error_opposite = fabs(formula_area - interp_area) / (0.5 - fabs(formula_area));
-                    if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
+//                     if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
                     relativeErrors.push_back(r_error);
                     relativeErrorsOpposite.push_back(r_error_opposite);
 
@@ -2092,6 +2092,178 @@ public:
           relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
 
         // Decide whether to subdivide based on depth, error, or target corner
+        bool shouldSubdivide = (currentDepth < 3) ||
+                              (relative_error > maxRelativeError) ||
+                              (relative_error_opposite > maxRelativeError) ||
+                              shouldForceSubdivide;  // Force target corner to subdivide to depth 10
+
+        if (shouldSubdivide) {
+            isLeaf = false;
+            children.reserve(children.size() + 8);
+            std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
+
+            for (const auto& childCorner : childCorners) {
+                children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
+            }
+
+            // Recursively subdivide all children
+            for (auto& child : children) {
+                // Pass the same maxDepth for all children
+                // The per-child containsTargetCorner check will handle special treatment for target corners
+                child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+            }
+        }
+    }
+
+    void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+        if (!isLeaf) {
+            getCorners();
+            return;  // Already subdivided, no need to process further
+        }
+
+        getCorners();
+
+        // Determine if this octant contains the target corner we want to force subdivide to depth 10
+        bool containsTargetCorner = false;
+
+        if(table == 0 || table == 5) {
+            // Check if this octant contains the corner at x=1, y=0
+            for (const auto& corner : corners) {
+                if (corner.x > 0.9999999999 && corner.y < 0.0000000001) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+        else if(table == 1 || table == 4) {
+            // Check if this octant contains the corner at x=0, y=0
+            for (const auto& corner : corners) {
+                if (corner.x < 0.0000000001 && corner.y < 0.0000000001) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+        else if(table == 2 || table == 3) {
+            // Check if this octant contains the corner at x=1, y=1
+            for (const auto& corner : corners) {
+                if (corner.x > 0.9999999999 && corner.y > 0.9999999999) {
+                    containsTargetCorner = true;
+                    break;
+                }
+            }
+        }
+
+        // Exit early if we've reached maximum depth and this isn't a target corner
+        if (currentDepth >= maxDepth && !containsTargetCorner) {
+            return;
+        }
+
+        // Exit early if we've reached depth 10 for target corners
+        if (currentDepth >= 9 && containsTargetCorner) {
+            return;
+        }
+
+        getCorners();
+
+        // We already determined containsTargetCorner above
+        bool shouldForceSubdivide = containsTargetCorner && currentDepth < 9;
+
+        double average_area = 0.0;
+        double max_area = cornerAreas[0][0];
+        double min_area = cornerAreas[0][0];
+
+        // Calculate average, find max and min
+        for (size_t i = 0; i < 8; ++i) {
+            average_area += cornerAreas[i][0];
+            if (cornerAreas[i][0] > max_area) max_area = cornerAreas[i][0];
+            if (cornerAreas[i][0] < min_area) min_area = cornerAreas[i][0];
+        }
+        average_area /= 8.0;
+
+        relative_error          = std::fabs(max_area - min_area) / average_area;
+        relative_error_opposite = std::fabs(max_area - min_area) / (0.5 - average_area);
+
+        double denominator1 = 2.0 * std::atan(100.0 * (average_area + 0.0001)) / M_PI;
+        double denominator2 = 2.0 * std::atan(100.0 * ((0.5 - average_area) + 0.0001)) / M_PI;
+
+        // Calculate relative errors with new denominators
+        relative_error = std::fabs(max_area - min_area) / denominator1;
+        relative_error_opposite = std::fabs(max_area - min_area) / denominator2;
+
+
+
+        // Calculate midpoints for subdivision
+//         std::vector<Point3D> midpoints(19);
+//         calculateMidpoints(midpoints);
+//
+//         std::vector<double> relativeErrors;
+//         std::vector<double> relativeErrorsOpposite;
+//         for (const auto& midpoint : midpoints) {
+//             std::vector<double> interp_point = {midpoint.x, midpoint.y, midpoint.z};
+//             Type f_area(0);
+//             Type c = 1;
+//             PointT<Type> p1, p2, p3;
+//             get_p1_p2_p3(table, interp_point, p1, p2, p3);
+//             std::vector<std::vector<double>> interpolation_vector(8);
+//             int count = 0;
+//             for (unsigned qq = 0; qq <= 0; qq++) {   //just based on area
+//                 for (unsigned jj = 0; jj <= qq; jj++) {
+//                     unsigned ii = qq - jj;
+//                     for (size_t ic = 0; ic < corners.size(); ++ic) {
+//                         interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
+//                     }
+//
+//                     // Use the new deformed interpolation function
+//                     double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
+//
+//                     f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
+//                     double formula_area = static_cast<double>(f_area);
+//
+//
+//
+//                     double r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// //                     if(isnan(r_error)) r_error = 1.0 ;
+//                     double r_error_opposite = fabs(formula_area - interp_area) / (0.5 - fabs(formula_area));
+// //                     if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
+//                     relativeErrors.push_back(r_error);
+//                     relativeErrorsOpposite.push_back(r_error_opposite);
+//
+//                     // Handle potential division by zero to avoid NaN values
+// //                     double r_error = 0.0;
+// //                     if (fabs(formula_area) > 0.000000000001) {  // Check if denominator is not too close to zero
+// //                         r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// //                     }
+// //                     else r_error = 1.0 ;
+//                     // For opposite error calculation
+// //                     double denom_opposite = 1./ ((ii + jj + 2.) * (jj + 1.)) - formula_area;
+// //                     double r_error_opposite = 0.0;
+// //                     if (fabs(denom_opposite) > 0.000000000001) {  // Check if denominator is not too close to zero
+// //                         r_error_opposite = fabs(formula_area - interp_area) / fabs(denom_opposite);
+// //                     }
+// //                     else r_error_opposite = 1.0 ;
+// /*
+//                     if(!isnan(r_error)){
+//                       relativeErrors.push_back(r_error);
+//                     }
+//                     if(!isnan(r_error_opposite)){
+//                       relativeErrorsOpposite.push_back(r_error_opposite);
+//                     }*/
+//                 }
+//             }
+//         }
+
+//           relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+//           relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+
+        // Decide whether to subdivide based on depth, error, or target corner
+/*        bool shouldSubdivide = (currentDepth < 3) ||
+                              (box_relative_error > 0.1) ||
+                              (box_relative_error_opposite > 0.1) ||
+                              (relative_error > maxRelativeError) ||
+                              (relative_error_opposite > maxRelativeError) ||
+                              shouldForceSubdivide;*/  // Force target corner to subdivide to depth 10
+
         bool shouldSubdivide = (currentDepth < 3) ||
                               (relative_error > maxRelativeError) ||
                               (relative_error_opposite > maxRelativeError) ||
@@ -2560,6 +2732,7 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
 //             for (size_t j = 0; j < node.cornerWeights[i].size(); ++j) {
 //                 std::cout << indent << "      [" << j << "]: "
 //                           << node.cornerWeights[i][j] << "\n";
+
 //             }
 //         }
     }
@@ -2861,7 +3034,7 @@ int main() {
     double radius = 0.397;
 //  double radius = 0.19;
 //  Mesh parameters
-    int nd = 32;  // Number of divisions per side
+    int nd = 8;  // Number of divisions per side
     double h = 1.0 / nd;  // Grid spacing
 
     double totalArea = 0.0;
@@ -2891,7 +3064,7 @@ int main() {
 
     int maxDepth = 7;
     int degree = 3;
-    double percent = 0.001;
+    double percent = 0.01;
   //   std::vector<OctreeNode<Type>> roots;
     std::vector<OctreeNode<Type>>loadedRoots;
 
@@ -3135,9 +3308,9 @@ int main() {
                             }
                             std::cout << " )"<<std::endl;
 
-//                             trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
+                            trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
 
-                            trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);
+//                             trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);
 
                             std::cout << " interpolated weights = ";
                             for (size_t j = 0; j < interp_point_weights.size(); ++j){
