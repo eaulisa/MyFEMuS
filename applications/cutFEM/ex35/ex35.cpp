@@ -2738,7 +2738,7 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
   }
   for(size_t i = 0; i < node.midWeights.size(); ++i) {
     std::cout << indent << "    midpoint weights " << i << ": ("
-                        << node.midWeights[i][0] << node.midWeights[i][1]<< node.midWeights[i][2]<< "\n";
+              << node.midWeights[i][0] << node.midWeights[i][1] << node.midWeights[i][2] << "\n";
   }
 
   // If it's a leaf node, print detailed corner areas and weights
@@ -3041,26 +3041,36 @@ void printTriangleState(int triangleIndex,
 
 
 template <class Type>
-void GetTriquadraticInterpolationVector(int table, const std::vector< std::vector< Type >> & interp_table, const std::vector< std::vector< Type >> & interp_table_values,const std::vector< std::vector< Type >> & middle_point_values, const std::vector< Type > &interp_point, std::vector< Type > &interp_point_values) {
-  double denominator;
-  interp_point_values.resize(interp_table_values[0].size());
-  Type x = interp_point[0];
-  Type y = interp_point[1];
-  if(table < 2 || table > 3) denominator = y - 2;
-  else denominator = x + y - 2;
-  Type z = -(2 * interp_point[2]) / denominator;
+void GetTriquadraticInterpolationVector(int table, const std::vector< std::vector< Type >> & vtxCrdn, const std::vector< std::vector< Type >> & vtxValues, const std::vector< std::vector< Type >> & mdlValues, const std::vector< Type > &intPoint, std::vector< Type > &intValues) {
+
+  intValues.resize(vtxValues[0].size());
+  const Type & x = intPoint[0];
+  const Type & y = intPoint[1];
+  const Type z = (table == 2 || table == 3) ? - (2. * intPoint[2]) / (x + y - 2.) : -(2. * intPoint[2]) / (y - 2.);
 
 
-  Type x0 = interp_table[0][0];
-  Type x1 = interp_table[1][0];
-  Type y0 = interp_table[0][1];
-  Type y1 = interp_table[7][1];
-  Type z0 = interp_table[0][2];
-  Type z1 = interp_table[7][2];
+  // const Type & x = 0.125 * (vtxCrdn[0][0] + vtxCrdn[1][0] + vtxCrdn[2][0] + vtxCrdn[3][0] + vtxCrdn[4][0] + vtxCrdn[5][0] + vtxCrdn[6][0] + vtxCrdn[7][0]);
+  // const Type & y = 0.125 * (vtxCrdn[0][1] + vtxCrdn[1][1] + vtxCrdn[2][1] + vtxCrdn[3][1] + vtxCrdn[4][1] + vtxCrdn[5][1] + vtxCrdn[6][1] + vtxCrdn[7][1]);
+  //
+  // const Type & zz = 0.125 * (vtxCrdn[0][2] + vtxCrdn[1][2] + vtxCrdn[2][2] + vtxCrdn[3][2] + vtxCrdn[4][2] + vtxCrdn[5][2] + vtxCrdn[6][2] + vtxCrdn[7][2]);
+  // const Type z = (table == 2 || table == 3) ? - (2. * zz) / (x + y - 2.) : -(2. * zz) / (y - 2.);
+
+
+  const Type & x0 = vtxCrdn[0][0];
+  const Type & y0 = vtxCrdn[0][1];
+  const Type z0 = (table == 2 || table == 3) ? - (2. * vtxCrdn[0][2]) / (vtxCrdn[0][0] + vtxCrdn[0][1] - 2.) : -(2. * vtxCrdn[0][2]) / (vtxCrdn[0][1] - 2.);
+
+  const Type & x1 = vtxCrdn[1][0];
+  const Type & y1 = vtxCrdn[7][1];
+  const Type z1 = (table == 2 || table == 3) ? - (2. * vtxCrdn[7][2]) / (vtxCrdn[7][0] + vtxCrdn[7][1] - 2.) : -(2. * vtxCrdn[7][2]) / (vtxCrdn[7][1] - 2.);
 
   Type s1 = (x - x0) / (x1 - x0);
   Type s2 = (y - y0) / (y1 - y0);
   Type s3 = (z - z0) / (z1 - z0);
+
+
+
+  //abort();
 
   double phi[3], phj[3], phk[3];
   phi[0] = (1. - s1) * (1. - 2. * s1);
@@ -3075,16 +3085,20 @@ void GetTriquadraticInterpolationVector(int table, const std::vector< std::vecto
   phk[1] = 4. * s3 * (1. -  s3);
   phk[2] = s3 * (2. * s3 - 1.);
 
-  for(unsigned i = 0; i < interp_table_values[0].size(); i++) {
+  // std::cerr<<table<<" "<< s1 <<" "<< s2<<" "<<s3<<std::endl;
+  // std::cerr<<table<<" "<< phi[0] <<" "<< phi[1]<<" "<<phi[2]<<std::endl;
+  // std::cerr<<table<<" "<< phj[0] <<" "<< phj[1]<<" "<<phj[2]<<std::endl;
+  // std::cerr<<table<<" "<< phk[0] <<" "<< phk[1]<<" "<<phk[2]<<std::endl;
+
+
+  for(unsigned k = 0; k < vtxValues[0].size(); k++) {
 
     double W[27];
-    for(unsigned j = 0; j < 27; j++){
-      if (j < 8){
-        W[j] = interp_table_values[j][i] ;
-      }
-      else{
-       W[j] = middle_point_values[j-8][i] ;
-      }
+    for(unsigned j = 0; j < 8; j++)     {
+      W[j] = vtxValues[j][k];
+    }
+    for(unsigned j = 8; j < 27; j++)      {
+      W[j] = mdlValues[j - 8][k] ;
     }
 
     double b[3][3];
@@ -3096,26 +3110,47 @@ void GetTriquadraticInterpolationVector(int table, const std::vector< std::vecto
     b[1][1] = W[25] * phi[0] + W[26] * phi[1] + W[23] * phi[2];
     b[1][2] = W[19] * phi[0] + W[24] * phi[1] + W[18] * phi[2];
 
-    b[1][0] = W[4] * phi[0] + W[12] * phi[1] + W[5] * phi[2];
-    b[1][1] = W[15] * phi[0] + W[21] * phi[1] + W[13] * phi[2];
-    b[1][2] = W[7] * phi[0] + W[14] * phi[1] + W[6] * phi[2];
+    b[2][0] = W[4] * phi[0] + W[12] * phi[1] + W[5] * phi[2];
+    b[2][1] = W[15] * phi[0] + W[21] * phi[1] + W[13] * phi[2];
+    b[2][2] = W[7] * phi[0] + W[14] * phi[1] + W[6] * phi[2];
+
+    // std::cerr << b[0][0] - W[8] << " ";
+    // std::cerr << b[0][1] - W[20] << " ";
+    // std::cerr << b[0][2] - W[10] << std::endl;
+    //
+    //  std::cerr << b[1][0] - W[22] << " ";
+    // std::cerr << b[1][1] - W[26] << " ";
+    // std::cerr << b[1][2] - W[24] << std::endl;
+
 
     double a[3] = {0., 0., 0.};
 
     for(unsigned i = 0; i < 3; i++) {
       for(unsigned j = 0; j < 3; j++) {
-        a[i] += b[i][j] * phi[j];
+        a[i] += b[i][j] * phj[j];
       }
     }
 
-    interp_point_values[i] = a[0] * phi[0] + a[1] * phi[1] +  a[2] * phi[2];
+    // std::cerr << a[0] - W[20] << " ";
+    // std::cerr << a[1] - W[26] << " ";
+    // std::cerr << a[2] - W[21] << " ";
+
+    intValues[k] = a[0] * phk[0] + a[1] * phk[1] +  a[2] * phk[2];
+    //std::cerr << intValues[k] - W[26] << std::endl;
   }
+  //std::cerr<<std::endl;
 }
 
+#include "FemusInit.hpp"
+using namespace femus;
 
 
 
-int main() {
+int main (int argc, char** args) {
+
+  FemusInit mpinit (argc, args, MPI_COMM_WORLD);
+
+
   typedef cpp_bin_float_oct Type;
   unsigned int m = 0;
   unsigned int n = 0;
@@ -3167,7 +3202,7 @@ int main() {
 //     std::vector<double> A = {1., 0., 1., -1., -1., 0.46};
 
 
-  int maxDepth = 4;
+  int maxDepth = 5;
   int degree = 1;
   double percent = -1;
   //   std::vector<OctreeNode<Type>> roots;
@@ -3433,10 +3468,10 @@ int main() {
 
 //                 trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
 
-/*
-                trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);*/
+                /*
+                                trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);*/
 
-                GetTriquadraticInterpolationVector(actual_table, corners, result->cornerWeights,result->midWeights, interp_point, interp_point_weights);
+                GetTriquadraticInterpolationVector(actual_table, corners, result->cornerWeights, result->midWeights, interp_point, interp_point_weights);
 
                 std::cout << " interpolated weights = ";
                 for(size_t j = 0; j < interp_point_weights.size(); ++j) {
@@ -3633,7 +3668,7 @@ double GetBiquadraticInterpolation(const std::vector<double> & W, const std::vec
 }
 
 template <class Type>
-Type GetTriquadraticInterpolation(const int table, std::vector< std::vector< Type >> & interp_table,std::vector< std::vector< Type >> & midpoint_table, const std::vector< Type > &interp_point) {
+Type GetTriquadraticInterpolation(const int table, std::vector< std::vector< Type >> & interp_table, std::vector< std::vector< Type >> & midpoint_table, const std::vector< Type > &interp_point) {
 
   Type x = interp_point[0];
   Type y = interp_point[1];
@@ -3671,12 +3706,12 @@ Type GetTriquadraticInterpolation(const int table, std::vector< std::vector< Typ
   Type z1 = - (2 * interp_table[7][2]) / denominatorz1;
 
   double W[27];
-  for(unsigned j = 0; j < 27; j++){
-    if (j < 8){
-       W[j] = interp_table[j][3] ;
+  for(unsigned j = 0; j < 27; j++) {
+    if(j < 8) {
+      W[j] = interp_table[j][3] ;
     }
-    else{
-       W[j] = midpoint_table[j][3] ;
+    else {
+      W[j] = midpoint_table[j][3] ;
     }
   }
 
