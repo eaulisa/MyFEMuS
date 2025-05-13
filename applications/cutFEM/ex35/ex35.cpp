@@ -1150,7 +1150,7 @@ Type trilinier_interpolation_FEM_orientation(const int table, std::vector< std::
   }
   else {
     denominatorz0  = interp_table[0][0] + interp_table[0][1] - 2.;
-    denominatorz0 = interp_table[7][0] + interp_table[7][1] - 2.;
+    denominatorz1 = interp_table[7][0] + interp_table[7][1] - 2.;
   }
   Type z0 = - (2 * interp_table[0][2]) / denominatorz0;
   Type z1 = - (2 * interp_table[7][2]) / denominatorz1;
@@ -1187,8 +1187,6 @@ void trilinier_interpolation_vector_FEM_orientation(const std::vector< std::vect
   Type y1 = interp_table[7][1];
   Type z0 = interp_table[0][2];
   Type z1 = interp_table[7][2];
-
-
 
   Type x_d = (x - x0) / (x1 - x0);
   Type y_d = (y - y0) / (y1 - y0);
@@ -1402,22 +1400,6 @@ void trilinear_interpolation_vector_remap_to_unitcube(
   }
   std::cout << ")" << std::endl;
 
-  // Print original cube vertices
-//     std::cout << "Original cube vertices:" << std::endl;
-//     for (size_t i = 0; i < cube_vertices.size(); ++i) {
-//         std::cout << "Vertex " << i << ": (";
-//         for (size_t j = 0; j < cube_vertices[i].size(); ++j) {
-//             std::cout << cube_vertices[i][j];
-//             if (j < cube_vertices[i].size() - 1) std::cout << ", ";
-//         }
-//         std::cout << ")" << std::endl;
-//     }
-
-  // We need to compute the trilinear coordinates (weights) for the query point
-  // First, we'll map the deformed cube to a unit cube:
-  // We do this for all the corner points and interpolation points.
-  // Now we can use the trilinear interpolations.
-
   // Create new cube vertices with the modified mapping
   std::vector<std::vector<Type>> new_cube_vertices(cube_vertices.size());
 
@@ -1435,11 +1417,9 @@ void trilinear_interpolation_vector_remap_to_unitcube(
     // Apply the mapping for z-coordinate based on table number
     if(table < 2 || table > 3) {
       denominator = y - 2;
-//             std::cout << "Vertex " << i << ": using formula -(2*z)/(y-2), denominator = " << denominator << std::endl;
     }
     else {
       denominator = x + y - 2;
-//             std::cout << "Vertex " << i << ": using formula -(2*z)/(x+y-2), denominator = " << denominator << std::endl;
     }
 
     // Apply the transformation if denominator is not close to zero
@@ -1479,11 +1459,9 @@ void trilinear_interpolation_vector_remap_to_unitcube(
   // Apply the mapping for z-coordinate based on table number
   if(table < 2 || table > 3) {
     denominator = y - 2;
-//             std::cout << "table " << table << ": using formula -(2*z)/(y-2), denominator = " << denominator << std::endl;
   }
   else {
     denominator = x + y - 2;
-//             std::cout << "table " << table << ": using formula -(2*z)/(x+y-2), denominator = " << denominator << std::endl;
   }
 
   // Apply the transformation if denominator is not close to zero
@@ -1505,44 +1483,10 @@ void trilinear_interpolation_vector_remap_to_unitcube(
   }
   std::cout << ")" << std::endl;
 
-  // Check if any values are NaN before passing to the trilinear interpolation
-//     bool has_nan = false;
-//     for (size_t i = 0; i < new_cube_vertices.size(); ++i) {
-//         for (size_t j = 0; j < new_cube_vertices[i].size(); ++j) {
-//             if (std::isnan(new_cube_vertices[i][j])) {
-//                 std::cout << "ERROR: NaN detected in transformed vertex " << i << " coordinate " << j << std::endl;
-//                 has_nan = true;
-//             }
-//         }
-//     }
-//
-//     for (size_t i = 0; i < new_query_point.size(); ++i) {
-//         if (std::isnan(new_query_point[i])) {
-//             std::cout << "ERROR: NaN detected in transformed query point coordinate " << i << std::endl;
-//             has_nan = true;
-//         }
-//     }
-//
-//     if (has_nan) {
-//         std::cout << "WARNING: NaN values detected! Interpolation will likely fail." << std::endl;
-//     }
-
   std::cout << "\nCalling trilinear interpolation with transformed coordinates..." << std::endl;
   // Everything is in unit_cube. We can use the standard trilinear interpolation now
   trilinier_interpolation_vector_FEM_orientation(new_cube_vertices, vertex_values, new_query_point, interpolated_values);
 
-  /*
-      std::cout << "\nInterpolated values:" << std::endl;
-      for (size_t i = 0; i < interpolated_values.size(); ++i) {
-          std::cout << "Value " << i << ": " << interpolated_values[i] << std::endl;
-      }*/
-
-//     // Check if any interpolated values are NaN
-//     for (size_t i = 0; i < interpolated_values.size(); ++i) {
-//         if (std::isnan(interpolated_values[i])) {
-//             std::cout << "ERROR: NaN detected in interpolated value " << i << std::endl;
-//         }
-//     }
 }
 
 
@@ -1860,6 +1804,7 @@ class OctreeNode {
     std::vector<OctreeNode> children;
     std::vector<std::vector<double>> cornerAreas;
     std::vector<std::vector<double>> cornerWeights;
+    std::vector<std::vector<double>> midWeights;
     int table;
     unsigned depth;
     unsigned qM;
@@ -1903,6 +1848,30 @@ class OctreeNode {
           }
         }
         (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
+      }
+    }
+
+    void getmiddlepoints_weights() {
+      // Calculate the midpoints first
+      std::vector<Point3D> midpoints(19);
+      calculateMidpoints(midpoints);
+
+      // Resize the midWeights vector to hold weights for all 19 midpoints
+      midWeights.resize(19);
+
+      // Calculate weights for each midpoint
+      Type c(1);
+      PointT<Type> p1, p2, p3;
+
+      for(size_t i = 0; i < midpoints.size(); ++i) {
+        const auto& midpoint = midpoints[i];
+        std::vector<double> midpoint_vec = {midpoint.x, midpoint.y, midpoint.z};
+
+        // Get p1, p2, p3 for this midpoint
+        get_p1_p2_p3(table, midpoint_vec, p1, p2, p3);
+
+        // Use _Pweights to calculate the weights for this midpoint
+        (*_Pweights)(s, a, c, table, p1, p2, p3, midWeights[i]);
       }
     }
 
@@ -2154,10 +2123,12 @@ class OctreeNode {
     void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
       if(!isLeaf) {
         getCorners();
+        getmiddlepoints_weights();
         return;  // Already subdivided, no need to process further
       }
 
       getCorners();
+      getmiddlepoints_weights();
 
       // Determine if this octant contains the target corner we want to force subdivide to depth 10
       bool containsTargetCorner = false;
@@ -2200,7 +2171,7 @@ class OctreeNode {
         return;
       }
 
-      getCorners();
+//       getCorners();
 
       // We already determined containsTargetCorner above
       bool shouldForceSubdivide = containsTargetCorner && currentDepth < 9;
@@ -2360,6 +2331,7 @@ class OctreeNode {
       // Point not in this node
       return nullptr;
     }
+
     void saveOctreeToCSV(const std::string& filename) const {
       std::ofstream ofs(filename, std::ios::binary);
       if(!ofs.is_open()) {
@@ -2392,6 +2364,9 @@ class OctreeNode {
       serializeVector(ofs, cornerAreas);
       serializeVector(ofs, cornerWeights);
 
+      // Serialize midWeights
+      serializeVector(ofs, midWeights);
+
       size_t childCount = children.size();
       ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
       for(const auto& child : children) {
@@ -2408,6 +2383,9 @@ class OctreeNode {
       deserializeVector(ifs, corners);
       deserializeVector(ifs, cornerAreas);
       deserializeVector(ifs, cornerWeights);
+
+      // Deserialize midWeights
+      deserializeVector(ifs, midWeights);
 
       size_t childCount;
       ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
@@ -2735,6 +2713,8 @@ void generateAndLoadOctrees(const int &maxDepth, const int &degree, const double
 }
 
 
+
+
 template <class Type>
 void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
   // Print indentation based on depth
@@ -2755,6 +2735,10 @@ void printOctreeStructure(const OctreeNode<Type>& node, int depth = 0) {
               << node.corners[i].x << ", "
               << node.corners[i].y << ", "
               << node.corners[i].z << ") = " << node.cornerAreas[i][0] << "\n";
+  }
+  for(size_t i = 0; i < node.midWeights.size(); ++i) {
+    std::cout << indent << "    midpoint weights " << i << ": ("
+                        << node.midWeights[i][0] << node.midWeights[i][1]<< node.midWeights[i][2]<< "\n";
   }
 
   // If it's a leaf node, print detailed corner areas and weights
@@ -3055,6 +3039,82 @@ void printTriangleState(int triangleIndex,
   std::cout << "Cumulative area: " << totalarea << std::endl;
 }
 
+
+template <class Type>
+void GetTriquadraticInterpolationVector(int table, const std::vector< std::vector< Type >> & interp_table, const std::vector< std::vector< Type >> & interp_table_values,const std::vector< std::vector< Type >> & middle_point_values, const std::vector< Type > &interp_point, std::vector< Type > &interp_point_values) {
+  double denominator;
+  interp_point_values.resize(interp_table_values[0].size());
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+  if(table < 2 || table > 3) denominator = y - 2;
+  else denominator = x + y - 2;
+  Type z = -(2 * interp_point[2]) / denominator;
+
+
+  Type x0 = interp_table[0][0];
+  Type x1 = interp_table[1][0];
+  Type y0 = interp_table[0][1];
+  Type y1 = interp_table[7][1];
+  Type z0 = interp_table[0][2];
+  Type z1 = interp_table[7][2];
+
+  Type s1 = (x - x0) / (x1 - x0);
+  Type s2 = (y - y0) / (y1 - y0);
+  Type s3 = (z - z0) / (z1 - z0);
+
+  double phi[3], phj[3], phk[3];
+  phi[0] = (1. - s1) * (1. - 2. * s1);
+  phi[1] = 4. * s1 * (1. -  s1);
+  phi[2] = s1 * (2. * s1 - 1.);
+
+  phj[0] = (1. - s2) * (1. - 2. * s2);
+  phj[1] = 4. * s2 * (1. -  s2);
+  phj[2] = s2 * (2. * s2 - 1.);
+
+  phk[0] = (1. - s3) * (1. - 2. * s3);
+  phk[1] = 4. * s3 * (1. -  s3);
+  phk[2] = s3 * (2. * s3 - 1.);
+
+  for(unsigned i = 0; i < interp_table_values[0].size(); i++) {
+
+    double W[27];
+    for(unsigned j = 0; j < 27; j++){
+      if (j < 8){
+        W[j] = interp_table_values[j][i] ;
+      }
+      else{
+       W[j] = middle_point_values[j-8][i] ;
+      }
+    }
+
+    double b[3][3];
+    b[0][0] = W[0] * phi[0] + W[8] * phi[1] + W[1] * phi[2];
+    b[0][1] = W[11] * phi[0] + W[20] * phi[1] + W[9] * phi[2];
+    b[0][2] = W[3] * phi[0] + W[10] * phi[1] + W[2] * phi[2];
+
+    b[1][0] = W[16] * phi[0] + W[22] * phi[1] + W[17] * phi[2];
+    b[1][1] = W[25] * phi[0] + W[26] * phi[1] + W[23] * phi[2];
+    b[1][2] = W[19] * phi[0] + W[24] * phi[1] + W[18] * phi[2];
+
+    b[1][0] = W[4] * phi[0] + W[12] * phi[1] + W[5] * phi[2];
+    b[1][1] = W[15] * phi[0] + W[21] * phi[1] + W[13] * phi[2];
+    b[1][2] = W[7] * phi[0] + W[14] * phi[1] + W[6] * phi[2];
+
+    double a[3] = {0., 0., 0.};
+
+    for(unsigned i = 0; i < 3; i++) {
+      for(unsigned j = 0; j < 3; j++) {
+        a[i] += b[i][j] * phi[j];
+      }
+    }
+
+    interp_point_values[i] = a[0] * phi[0] + a[1] * phi[1] +  a[2] * phi[2];
+  }
+}
+
+
+
+
 int main() {
   typedef cpp_bin_float_oct Type;
   unsigned int m = 0;
@@ -3107,8 +3167,8 @@ int main() {
 //     std::vector<double> A = {1., 0., 1., -1., -1., 0.46};
 
 
-  int maxDepth = 7;
-  int degree = 2;
+  int maxDepth = 4;
+  int degree = 1;
   double percent = -1;
   //   std::vector<OctreeNode<Type>> roots;
   std::vector<OctreeNode<Type>>loadedRoots;
@@ -3134,7 +3194,7 @@ int main() {
         for(int t = 0; t < 2; t++) {
           triangleIndex++;
 
-          cout << " ======= Triangle ====== " << triangleIndex << endl;
+//           cout << " ======= Triangle ====== " << triangleIndex << endl;
           double x1, y1, x2, y2, x3, y3, area ;
           bool normal = true;
 
@@ -3371,9 +3431,12 @@ int main() {
                 }
                 std::cout << " )" << std::endl;
 
-                trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
+//                 trilinear_interpolation_vector_deformed(corners, result->cornerWeights, interp_point, interp_point_weights);
 
-//                             trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);
+/*
+                trilinear_interpolation_vector_remap_to_unitcube(actual_table,corners, result->cornerWeights, interp_point, interp_point_weights);*/
+
+                GetTriquadraticInterpolationVector(actual_table, corners, result->cornerWeights,result->midWeights, interp_point, interp_point_weights);
 
                 std::cout << " interpolated weights = ";
                 for(size_t j = 0; j < interp_point_weights.size(); ++j) {
@@ -3523,12 +3586,103 @@ int main() {
   return 0;
 }
 
+
+
 double GetBiquadraticInterpolation(const std::vector<double> & W, const std::vector<double> & s) {
 
 
   const double &s1 = s[0];
   const double &s2 = s[1];
   const double &s3 = s[2];
+
+  double phi[3];
+  phi[0] = (1. - s1) * (1. - 2. * s1);
+  phi[1] = 4. * s1 * (1. -  s1);
+  phi[2] = s1 * (2. * s1 - 1.);
+
+  double b[3][3];
+  b[0][0] = W[0] * phi[0] + W[8] * phi[1] + W[1] * phi[2];
+  b[0][1] = W[11] * phi[0] + W[20] * phi[1] + W[9] * phi[2];
+  b[0][2] = W[3] * phi[0] + W[10] * phi[1] + W[2] * phi[2];
+
+  b[1][0] = W[16] * phi[0] + W[22] * phi[1] + W[17] * phi[2];
+  b[1][1] = W[25] * phi[0] + W[26] * phi[1] + W[23] * phi[2];
+  b[1][2] = W[19] * phi[0] + W[24] * phi[1] + W[18] * phi[2];
+
+  b[1][0] = W[4] * phi[0] + W[12] * phi[1] + W[5] * phi[2];
+  b[1][1] = W[15] * phi[0] + W[21] * phi[1] + W[13] * phi[2];
+  b[1][2] = W[7] * phi[0] + W[14] * phi[1] + W[6] * phi[2];
+
+  phi[0] = (1. - s2) * (1. - 2. * s2);
+  phi[1] = 4. * s2 * (1. -  s2);
+  phi[2] = s2 * (2. * s2 - 1.);
+  double a[3] = {0., 0., 0.};
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      a[i] += b[i][j] * phi[j];
+    }
+  }
+
+  phi[0] = (1. - s3) * (1. - 2. * s3);
+  phi[1] = 4. * s3 * (1. -  s3);
+  phi[2] = s3 * (2. * s3 - 1.);
+  double weight = a[0] * phi[0] + a[1] * phi[1] +  a[2] * phi[2];
+
+  return weight;
+
+}
+
+template <class Type>
+Type GetTriquadraticInterpolation(const int table, std::vector< std::vector< Type >> & interp_table,std::vector< std::vector< Type >> & midpoint_table, const std::vector< Type > &interp_point) {
+
+  Type x = interp_point[0];
+  Type y = interp_point[1];
+
+  Type denominator(0), denominatorz0(0), denominatorz1(0);
+
+  if(table < 2 || table > 3) denominator = y - 2;
+  else denominator = x + y - 2;
+
+  Type z = -(2 * interp_point[2]) / denominator;
+
+
+  Type c_000 = interp_table[0][3];
+  Type c_100 = interp_table[1][3];
+  Type c_110 = interp_table[2][3];
+  Type c_010 = interp_table[3][3];
+  Type c_001 = interp_table[4][3];
+  Type c_101 = interp_table[5][3];
+  Type c_111 = interp_table[6][3];
+  Type c_011 = interp_table[7][3];
+
+  Type x0 = interp_table[0][0];
+  Type x1 = interp_table[1][0];
+  Type y0 = interp_table[0][1];
+  Type y1 = interp_table[7][1];
+  if(table < 2 || table > 3) {
+    denominatorz0 = interp_table[0][1] - 2.;
+    denominatorz1 = interp_table[7][1] - 2.;
+  }
+  else {
+    denominatorz0  = interp_table[0][0] + interp_table[0][1] - 2.;
+    denominatorz1 = interp_table[7][0] + interp_table[7][1] - 2.;
+  }
+  Type z0 = - (2 * interp_table[0][2]) / denominatorz0;
+  Type z1 = - (2 * interp_table[7][2]) / denominatorz1;
+
+  double W[27];
+  for(unsigned j = 0; j < 27; j++){
+    if (j < 8){
+       W[j] = interp_table[j][3] ;
+    }
+    else{
+       W[j] = midpoint_table[j][3] ;
+    }
+  }
+
+  const double &s1 = (x - x0) / (x1 - x0);
+  const double &s2 = (y - y0) / (y1 - y0);
+  const double &s3 = (z - z0) / (z1 - z0);
 
   double phi[3];
   phi[0] = (1. - s1) * (1. - 2. * s1);
@@ -3562,6 +3716,6 @@ double GetBiquadraticInterpolation(const std::vector<double> & W, const std::vec
   phi[0] = (1. - s3) * (1. - 2. * s3);
   phi[1] = 4. * s3 * (1. -  s3);
   phi[2] = s3 * (2. * s3 - 1.);
-  double weight = a[0] * phi[0] + a[1] * phi[1] +  a[2] * phi[2];
-
+  Type weight = a[0] * phi[0] + a[1] * phi[1] +  a[2] * phi[2];
+  return weight;
 }

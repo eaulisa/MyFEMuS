@@ -2653,3 +2653,828 @@ int main() {
     return 0;
 }
 
+
+
+
+
+
+// template <class Type>
+// class OctreeNode {
+//   public:
+//     std::vector<Point3D> corners;  // All 8 corners of the node
+//     bool isLeaf;
+//     std::vector<OctreeNode> children;
+//     std::vector<std::vector<double>> cornerAreas;
+//     std::vector<std::vector<double>> cornerWeights;
+//     int table;
+//     unsigned depth;
+//     unsigned qM;
+//     int s = 0;
+//     Type a = 0;
+//     double relative_error = -1;
+//     double relative_error_opposite = -1;
+//     CutFemWeightParabola<double, Type>* _Pweights;
+//
+//     OctreeNode(const std::vector<Point3D>& _corners, const int& _table, const int& _depth, const unsigned& _qM, CutFemWeightParabola<double, Type>* Pweights)
+//       : corners(_corners), isLeaf(true), table(_table), depth(_depth), qM(_qM), _Pweights(Pweights) {
+//       if(corners.size() != 8) {
+//         throw std::invalid_argument("OctreeNode must be initialized with exactly 8 corners");
+//       }
+//     }
+//
+//     ~OctreeNode() {
+//       // No need to manually delete children
+//     }
+//
+//     void getCorners() {
+//       // Corners are already stored, so we just need to calculate areas and weights
+//       Type area(0);
+//       Type c(1);
+//       cornerAreas.resize(8);
+//       cornerWeights.resize(8);
+//       PointT<Type> p1, p2, p3;
+//
+//       for(size_t i = 0; i < corners.size(); ++i) {
+//         const auto& corner = corners[i];
+//         std::vector<double> corner_vec = {corner.x, corner.y, corner.z};
+//         get_p1_p2_p3(table, corner_vec, p1, p2, p3);
+//
+//         int count = 0;
+//         for(unsigned qq = 0; qq <= qM; qq++) {
+//           for(unsigned jj = 0; jj <= qq; jj++) {
+//             unsigned ii = qq - jj;
+//             area = find_trig_area_2intersection_formula_first(ii, jj, s, a, c, table, p1, p2, p3);
+//             cornerAreas[i].push_back(static_cast<double>(area));
+//             count++;
+//           }
+//         }
+//         (*_Pweights)(s, a, c, table, p1, p2, p3, cornerWeights[i]);
+//       }
+//     }
+//
+//     void subdivideWithRelativeError_old(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+//       if(currentDepth >= maxDepth || !isLeaf) {
+//         getCorners();
+//         return;
+//       }
+//
+//       getCorners();
+//
+//       // Calculate midpoints for subdivision
+//       std::vector<Point3D> midpoints(19);
+//       calculateMidpoints(midpoints);
+//
+//       std::vector<double> relativeErrors;
+//       std::vector<double> relativeErrorsOpposite;
+//       for(const auto& midpoint : midpoints) {
+//         std::vector<double> interp_point = {midpoint.x, midpoint.y, midpoint.z};
+//         Type f_area(0);
+//         Type c = 1;
+//         PointT<Type> p1, p2, p3;
+//         get_p1_p2_p3(table, interp_point, p1, p2, p3);
+//         std::vector<std::vector<double>> interpolation_vector(8);
+//         int count = 0;
+// //               for (unsigned qq = 0; qq <= qM; qq++) {
+//         for(unsigned qq = 0; qq <= 0; qq++) {    //just based on area
+//           for(unsigned jj = 0; jj <= qq; jj++) {
+//             unsigned ii = qq - jj;
+//             for(size_t ic = 0; ic < corners.size(); ++ic) {
+//               interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
+//             }
+//
+//             // Use the new deformed interpolation function
+//
+//
+//             double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
+//
+//             f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
+//             double formula_area = static_cast<double>(f_area);
+//             double r_error = fabs(formula_area - interp_area) / formula_area;
+//             double r_error_opposite = fabs(formula_area - interp_area) / (1. / (ii + jj + 2.) * (jj + 1.) - formula_area);
+//             relativeErrors.push_back(r_error);
+//             relativeErrorsOpposite.push_back(r_error_opposite);
+// //                       count++;
+//           }
+//         }
+//       }
+//       relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+//       relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+//
+//       bool force_subdevide = false;
+//
+//       if(table == 0 || table == 5) {
+//         if(corners[1].x > 0.9999999999) {
+//           if(corners[1].y < 0.0000000001) {
+//             force_subdevide = true;
+//           }
+//         }
+//       }
+//       else if(table == 1 || table == 4) {
+//         if(corners[0].x < 0.0000000001) {
+//           if(corners[0].y < 0.0000000001) {
+//             force_subdevide = true;
+//           }
+//         }
+//       }
+//
+//       else if(table == 2 || table == 3) {
+//         if(corners[2].x > 0.9999999999) {
+//           if(corners[2].y > 0.9999999999) {
+//             force_subdevide = true;
+//           }
+//         }
+//       }
+//
+// //         if((table == 0 || table == 5) && corners[1].x > 0.9999 && corners[1].y < 0.0001) force_subdevide = true;
+// //         else if((table == 1 || table == 4) && corners[0].x < 0.0001 && corners[0].y < 0.0001) force_subdevide = true;
+// //         else if ((table == 2 || table ==3) && corners[2].x > 0.9999 && corners[2].y > 0.9999) force_subdevide = true;
+//
+//
+//       if(depth <= 3 || force_subdevide || relative_error > maxRelativeError || relative_error_opposite > maxRelativeError) {
+//         isLeaf = false;
+//         children.reserve(children.size() + 8);
+//         std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
+//         for(const auto& childCorner : childCorners) {
+//           children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
+//         }
+//
+//         for(auto& child : children) {
+//           child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+//         }
+//
+// //             if(force_subdevide){
+// //                for (auto& child : children) {
+// //                 child.subdivideWithRelativeError(10, maxRelativeError, currentDepth + 1);
+// //                }
+// //             }
+// //             else{
+// //               for (auto& child : children) {
+// //                 child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+// //               }
+// //             }
+//       }
+//     }
+//
+//
+//     void subdivideWithRelativeError_now(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+//       if(!isLeaf) {
+//         getCorners();
+//         return;  // Already subdivided, no need to process further
+//       }
+//
+//       getCorners();
+//
+//       // Determine if this octant contains the target corner we want to force subdivide to depth 10
+//       bool containsTargetCorner = false;
+//
+//       if(table == 0 || table == 5) {
+//         // Check if this octant contains the corner at x=1, y=0
+//         for(const auto& corner : corners) {
+//           if(corner.x > 0.9999999999 && corner.y < 0.0000000001) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//       else if(table == 1 || table == 4) {
+//         // Check if this octant contains the corner at x=0, y=0
+//         for(const auto& corner : corners) {
+//           if(corner.x < 0.0000000001 && corner.y < 0.0000000001) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//       else if(table == 2 || table == 3) {
+//         // Check if this octant contains the corner at x=1, y=1
+//         for(const auto& corner : corners) {
+//           if(corner.x > 0.9999999999 && corner.y > 0.9999999999) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//
+//       // Exit early if we've reached maximum depth and this isn't a target corner
+//       if(currentDepth >= maxDepth && !containsTargetCorner) {
+//         return;
+//       }
+//
+//       // Exit early if we've reached depth 10 for target corners
+//       if(currentDepth >= 9 && containsTargetCorner) {
+//         return;
+//       }
+//
+//       getCorners();
+//
+//       // Calculate midpoints for subdivision
+//       std::vector<Point3D> midpoints(19);
+//       calculateMidpoints(midpoints);
+//
+//       // We already determined containsTargetCorner above
+//       bool shouldForceSubdivide = containsTargetCorner && currentDepth < 9;
+//
+//       std::vector<double> relativeErrors;
+//       std::vector<double> relativeErrorsOpposite;
+//       for(const auto& midpoint : midpoints) {
+//         std::vector<double> interp_point = {midpoint.x, midpoint.y, midpoint.z};
+//         Type f_area(0);
+//         Type c = 1;
+//         PointT<Type> p1, p2, p3;
+//         get_p1_p2_p3(table, interp_point, p1, p2, p3);
+//         std::vector<std::vector<double>> interpolation_vector(8);
+//         int count = 0;
+//         for(unsigned qq = 0; qq <= 0; qq++) {    //just based on area
+//           for(unsigned jj = 0; jj <= qq; jj++) {
+//             unsigned ii = qq - jj;
+//             for(size_t ic = 0; ic < corners.size(); ++ic) {
+//               interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
+//             }
+//
+//             // Use the new deformed interpolation function
+//             double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
+//
+//             f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
+//             double formula_area = static_cast<double>(f_area);
+//
+//
+//
+//             double r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// //                     if(isnan(r_error)) r_error = 1.0 ;
+//             double r_error_opposite = fabs(formula_area - interp_area) / (0.5 - fabs(formula_area));
+// //                     if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
+//             relativeErrors.push_back(r_error);
+//             relativeErrorsOpposite.push_back(r_error_opposite);
+//
+//             // Handle potential division by zero to avoid NaN values
+// //                     double r_error = 0.0;
+// //                     if (fabs(formula_area) > 0.000000000001) {  // Check if denominator is not too close to zero
+// //                         r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// //                     }
+// //                     else r_error = 1.0 ;
+//             // For opposite error calculation
+// //                     double denom_opposite = 1./ ((ii + jj + 2.) * (jj + 1.)) - formula_area;
+// //                     double r_error_opposite = 0.0;
+// //                     if (fabs(denom_opposite) > 0.000000000001) {  // Check if denominator is not too close to zero
+// //                         r_error_opposite = fabs(formula_area - interp_area) / fabs(denom_opposite);
+// //                     }
+// //                     else r_error_opposite = 1.0 ;
+//             /*
+//                                 if(!isnan(r_error)){
+//                                   relativeErrors.push_back(r_error);
+//                                 }
+//                                 if(!isnan(r_error_opposite)){
+//                                   relativeErrorsOpposite.push_back(r_error_opposite);
+//                                 }*/
+//           }
+//         }
+//       }
+//
+//       relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+//       relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+//
+//       // Decide whether to subdivide based on depth, error, or target corner
+//       bool shouldSubdivide = (currentDepth < 3) ||
+//                              (relative_error > maxRelativeError) ||
+//                              (relative_error_opposite > maxRelativeError) ||
+//                              shouldForceSubdivide;  // Force target corner to subdivide to depth 10
+//
+//       if(shouldSubdivide) {
+//         isLeaf = false;
+//         children.reserve(children.size() + 8);
+//         std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
+//
+//         for(const auto& childCorner : childCorners) {
+//           children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
+//         }
+//
+//         // Recursively subdivide all children
+//         for(auto& child : children) {
+//           // Pass the same maxDepth for all children
+//           // The per-child containsTargetCorner check will handle special treatment for target corners
+//           child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+//         }
+//       }
+//     }
+//
+//     void subdivideWithRelativeError(int maxDepth, double maxRelativeError, int currentDepth = 0) {
+//       if(!isLeaf) {
+//         getCorners();
+//         return;  // Already subdivided, no need to process further
+//       }
+//
+//       getCorners();
+//
+//       // Determine if this octant contains the target corner we want to force subdivide to depth 10
+//       bool containsTargetCorner = false;
+//
+//       if(table == 0 || table == 5) {
+//         // Check if this octant contains the corner at x=1, y=0
+//         for(const auto& corner : corners) {
+//           if(corner.x > 0.9999999999 && corner.y < 0.0000000001) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//       else if(table == 1 || table == 4) {
+//         // Check if this octant contains the corner at x=0, y=0
+//         for(const auto& corner : corners) {
+//           if(corner.x < 0.0000000001 && corner.y < 0.0000000001) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//       else if(table == 2 || table == 3) {
+//         // Check if this octant contains the corner at x=1, y=1
+//         for(const auto& corner : corners) {
+//           if(corner.x > 0.9999999999 && corner.y > 0.9999999999) {
+//             containsTargetCorner = true;
+//             break;
+//           }
+//         }
+//       }
+//
+//       // Exit early if we've reached maximum depth and this isn't a target corner
+//       if(currentDepth >= maxDepth && !containsTargetCorner) {
+//         return;
+//       }
+//
+//       // Exit early if we've reached depth 10 for target corners
+//       if(currentDepth >= 9 && containsTargetCorner) {
+//         return;
+//       }
+//
+//       getCorners();
+//
+//       // We already determined containsTargetCorner above
+//       bool shouldForceSubdivide = containsTargetCorner && currentDepth < 9;
+//
+//       double average_area = 0.0;
+//       double max_area = cornerAreas[0][0];
+//       double min_area = cornerAreas[0][0];
+//
+//       // Calculate average, find max and min
+//       for(size_t i = 0; i < 8; ++i) {
+//         average_area += cornerAreas[i][0];
+//         if(cornerAreas[i][0] > max_area) max_area = cornerAreas[i][0];
+//         if(cornerAreas[i][0] < min_area) min_area = cornerAreas[i][0];
+//       }
+//       average_area /= 8.0;
+//
+//       relative_error          = std::fabs(max_area - min_area) / average_area;
+//       relative_error_opposite = std::fabs(max_area - min_area) / (0.5 - average_area);
+//
+//       double denominator1 = 2.0 * std::atan(100.0 * (average_area + 0.0001)) / M_PI;
+//       double denominator2 = 2.0 * std::atan(100.0 * ((0.5 - average_area) + 0.0001)) / M_PI;
+//
+//       // Calculate relative errors with new denominators
+//       relative_error = std::fabs(max_area - min_area) / denominator1;
+//       relative_error_opposite = std::fabs(max_area - min_area) / denominator2;
+//
+//
+//
+//       // Calculate midpoints for subdivision
+// //         std::vector<Point3D> midpoints(19);
+// //         calculateMidpoints(midpoints);
+// //
+// //         std::vector<double> relativeErrors;
+// //         std::vector<double> relativeErrorsOpposite;
+// //         for (const auto& midpoint : midpoints) {
+// //             std::vector<double> interp_point = {midpoint.x, midpoint.y, midpoint.z};
+// //             Type f_area(0);
+// //             Type c = 1;
+// //             PointT<Type> p1, p2, p3;
+// //             get_p1_p2_p3(table, interp_point, p1, p2, p3);
+// //             std::vector<std::vector<double>> interpolation_vector(8);
+// //             int count = 0;
+// //             for (unsigned qq = 0; qq <= 0; qq++) {   //just based on area
+// //                 for (unsigned jj = 0; jj <= qq; jj++) {
+// //                     unsigned ii = qq - jj;
+// //                     for (size_t ic = 0; ic < corners.size(); ++ic) {
+// //                         interpolation_vector[ic] = {corners[ic].x, corners[ic].y, corners[ic].z, cornerAreas[ic][count]};
+// //                     }
+// //
+// //                     // Use the new deformed interpolation function
+// //                     double interp_area = trilinier_interpolation_FEM_orientation<double>(table, interpolation_vector, interp_point);
+// //
+// //                     f_area = find_trig_area_2intersection_formula_first(jj, ii, s, a, c, table, p1, p2, p3);
+// //                     double formula_area = static_cast<double>(f_area);
+// //
+// //
+// //
+// //                     double r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// // //                     if(isnan(r_error)) r_error = 1.0 ;
+// //                     double r_error_opposite = fabs(formula_area - interp_area) / (0.5 - fabs(formula_area));
+// // //                     if(isnan(r_error_opposite)) r_error_opposite = 1.0 ;
+// //                     relativeErrors.push_back(r_error);
+// //                     relativeErrorsOpposite.push_back(r_error_opposite);
+// //
+// //                     // Handle potential division by zero to avoid NaN values
+// // //                     double r_error = 0.0;
+// // //                     if (fabs(formula_area) > 0.000000000001) {  // Check if denominator is not too close to zero
+// // //                         r_error = fabs(formula_area - interp_area) / fabs(formula_area);
+// // //                     }
+// // //                     else r_error = 1.0 ;
+// //                     // For opposite error calculation
+// // //                     double denom_opposite = 1./ ((ii + jj + 2.) * (jj + 1.)) - formula_area;
+// // //                     double r_error_opposite = 0.0;
+// // //                     if (fabs(denom_opposite) > 0.000000000001) {  // Check if denominator is not too close to zero
+// // //                         r_error_opposite = fabs(formula_area - interp_area) / fabs(denom_opposite);
+// // //                     }
+// // //                     else r_error_opposite = 1.0 ;
+// // /*
+// //                     if(!isnan(r_error)){
+// //                       relativeErrors.push_back(r_error);
+// //                     }
+// //                     if(!isnan(r_error_opposite)){
+// //                       relativeErrorsOpposite.push_back(r_error_opposite);
+// //                     }*/
+// //                 }
+// //             }
+// //         }
+//
+// //           relative_error = *std::max_element(relativeErrors.begin(), relativeErrors.end());
+// //           relative_error_opposite = *std::max_element(relativeErrorsOpposite.begin(), relativeErrorsOpposite.end());
+//
+//       // Decide whether to subdivide based on depth, error, or target corner
+//       /*        bool shouldSubdivide = (currentDepth < 3) ||
+//                                     (box_relative_error > 0.1) ||
+//                                     (box_relative_error_opposite > 0.1) ||
+//                                     (relative_error > maxRelativeError) ||
+//                                     (relative_error_opposite > maxRelativeError) ||
+//                                     shouldForceSubdivide;*/  // Force target corner to subdivide to depth 10
+//
+//       bool shouldSubdivide = (currentDepth < 3) ||
+//                              (relative_error > maxRelativeError) ||
+//                              (relative_error_opposite > maxRelativeError) ||
+//                              shouldForceSubdivide;  // Force target corner to subdivide to depth 10
+//
+//       if(shouldSubdivide) {
+//         isLeaf = false;
+//         children.reserve(children.size() + 8);
+//         std::vector<std::vector<Point3D>> childCorners = subdivideCorners();
+//
+//         for(const auto& childCorner : childCorners) {
+//           children.emplace_back(childCorner, table, depth + 1, qM, _Pweights);
+//         }
+//
+//         // Recursively subdivide all children
+//         for(auto& child : children) {
+//           // Pass the same maxDepth for all children
+//           // The per-child containsTargetCorner check will handle special treatment for target corners
+//           child.subdivideWithRelativeError(maxDepth, maxRelativeError, currentDepth + 1);
+//         }
+//       }
+//     }
+//
+//     OctreeNode* search(const Point3D& point) {
+//       // First check if point is even in this node
+//       if(contains(point)) {
+//         std::cout << "\nFound containing node at depth " << depth << ":\n";
+//         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+//         std::cout << "Rel_error =" << relative_error << ", " << relative_error_opposite << "\n Node corners:\n";
+//         for(size_t i = 0; i < corners.size(); ++i) {
+//           std::cout << "Corner " << i << ": ("
+//                     << corners[i].x << ", "
+//                     << corners[i].y << ", "
+//                     << corners[i].z << ") "
+//                     << cornerAreas[i][0] << "\n";
+//         }
+//
+//         // If this is a leaf node, we're done
+//         if(isLeaf) {
+//           std::cout << "This is a leaf node - returning\n";
+//           return this;
+//         }
+//
+//         // If not a leaf, check children
+// //         std::cout << "Checking " << children.size() << " children\n";
+//         for(auto& child : children) {
+//           OctreeNode* result = child.search(point);
+//           if(result != nullptr) {
+//             return result;
+//           }
+//         }
+//
+//         // If no children contain the point, return this node
+//         std::cout << "No children contain point - returning this node\n";
+//         return this;
+//       }
+//
+//       // Point not in this node
+//       return nullptr;
+//     }
+//     void saveOctreeToCSV(const std::string& filename) const {
+//       std::ofstream ofs(filename, std::ios::binary);
+//       if(!ofs.is_open()) {
+//         std::cerr << "Error: Unable to open file for writing: " << filename << std::endl;
+//         return;
+//       }
+//       serialize(ofs);
+//       ofs.close();
+//     }
+//
+//     void loadOctreeFromCSV(const std::string& filename) {
+//       std::ifstream ifs(filename, std::ios::binary);
+//       if(!ifs.is_open()) {
+//         std::cerr << "Error: Unable to open file for reading: " << filename << std::endl;
+//         return;
+//       }
+//       deserialize(ifs);
+//       ifs.close();
+//     }
+//
+//   private:
+//
+//     void serialize(std::ofstream& ofs) const {
+//       ofs.write(reinterpret_cast<const char*>(&isLeaf), sizeof(isLeaf));
+//       ofs.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
+//       ofs.write(reinterpret_cast<const char*>(&relative_error), sizeof(relative_error));
+//       ofs.write(reinterpret_cast<const char*>(&relative_error_opposite), sizeof(relative_error_opposite));
+//
+//       serializeVector(ofs, corners);
+//       serializeVector(ofs, cornerAreas);
+//       serializeVector(ofs, cornerWeights);
+//
+//       size_t childCount = children.size();
+//       ofs.write(reinterpret_cast<const char*>(&childCount), sizeof(childCount));
+//       for(const auto& child : children) {
+//         child.serialize(ofs);
+//       }
+//     }
+//
+//     void deserialize(std::ifstream& ifs) {
+//       ifs.read(reinterpret_cast<char*>(&isLeaf), sizeof(isLeaf));
+//       ifs.read(reinterpret_cast<char*>(&depth), sizeof(depth));
+//       ifs.read(reinterpret_cast<char*>(&relative_error), sizeof(relative_error));
+//       ifs.read(reinterpret_cast<char*>(&relative_error_opposite), sizeof(relative_error_opposite));
+//
+//       deserializeVector(ifs, corners);
+//       deserializeVector(ifs, cornerAreas);
+//       deserializeVector(ifs, cornerWeights);
+//
+//       size_t childCount;
+//       ifs.read(reinterpret_cast<char*>(&childCount), sizeof(childCount));
+//       children.clear();
+//       children.reserve(childCount);
+//       for(size_t i = 0; i < childCount; ++i) {
+//         children.emplace_back(corners, 0, 0, 0, nullptr);
+//         children.back().deserialize(ifs);
+//       }
+//     }
+//
+//     void serializeVector(std::ofstream& ofs, const std::vector<std::vector<double>>& vec) const {
+//       size_t size = vec.size();
+//       ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+//
+//       for(const auto& innerVec : vec) {
+//         size_t innerSize = innerVec.size();
+//         ofs.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
+//         ofs.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
+//       }
+//     }
+//
+//
+//     void deserializeVector(std::ifstream& ifs, std::vector<std::vector<double>>& vec) {
+//       size_t size;
+//       ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+//
+//       vec.resize(size);
+//       for(size_t i = 0; i < size; ++i) {
+//         size_t innerSize;
+//         ifs.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
+//         vec[i].resize(innerSize);
+//         ifs.read(reinterpret_cast<char*>(vec[i].data()), innerSize * sizeof(double));
+//       }
+//     }
+//
+//     void serializeVector(std::ofstream& ofs, const std::vector<Point3D>& vec) const {
+//       size_t size = vec.size();
+//       ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+//       for(const auto& point : vec) {
+//         ofs.write(reinterpret_cast<const char*>(&point.x), sizeof(double));
+//         ofs.write(reinterpret_cast<const char*>(&point.y), sizeof(double));
+//         ofs.write(reinterpret_cast<const char*>(&point.z), sizeof(double));
+//       }
+//     }
+//
+//     void deserializeVector(std::ifstream& ifs, std::vector<Point3D>& vec) {
+//       size_t size;
+//       ifs.read(reinterpret_cast<char*>(&size), sizeof(size));
+//       vec.resize(size);
+//       for(size_t i = 0; i < size; ++i) {
+//         ifs.read(reinterpret_cast<char*>(&vec[i].x), sizeof(double));
+//         ifs.read(reinterpret_cast<char*>(&vec[i].y), sizeof(double));
+//         ifs.read(reinterpret_cast<char*>(&vec[i].z), sizeof(double));
+//       }
+//     }
+//
+//     Point3D middleof(Point3D& point1, Point3D& point2) {
+//       Point3D midpoint{
+//         (point1.x + point2.x) / 2.,
+//         (point1.y + point2.y) / 2.,
+//         (point1.z + point2.z) / 2.
+//       };
+//       return midpoint;
+//     }
+//
+//     void calculateMidpoints(std::vector<Point3D>& midpoints) {
+//       midpoints.resize(19);
+//
+//       // Midpoints of bottom face edges (counter-clockwise)
+//       midpoints[0] = middleof(corners[0], corners[1]); // Bottom edge: front
+//       midpoints[1] = middleof(corners[1], corners[2]); // Bottom edge: right
+//       midpoints[2] = middleof(corners[2], corners[3]); // Bottom edge: back
+//       midpoints[3] = middleof(corners[3], corners[0]); // Bottom edge: left
+//
+//       // Midpoints of top face edges (counter-clockwise)
+//       midpoints[4] = middleof(corners[4], corners[5]); // Top edge: front
+//       midpoints[5] = middleof(corners[5], corners[6]); // Top edge: right
+//       midpoints[6] = middleof(corners[6], corners[7]); // Top edge: back
+//       midpoints[7] = middleof(corners[7], corners[4]); // Top edge: left
+//
+//       // Midpoints of vertical edges
+//       midpoints[8] = middleof(corners[0], corners[4]);  // Vertical edge: front-left
+//       midpoints[9] = middleof(corners[1], corners[5]);  // Vertical edge: front-right
+//       midpoints[10] = middleof(corners[2], corners[6]); // Vertical edge: back-right
+//       midpoints[11] = middleof(corners[3], corners[7]); // Vertical edge: back-left
+//
+//       // Midpoints of faces
+//       midpoints[12] = middleof(midpoints[0], midpoints[2]); // Bottom face center
+//       midpoints[13] = middleof(midpoints[4], midpoints[6]); // Top face center
+//       midpoints[14] = middleof(midpoints[0], midpoints[4]); // Front face center
+//       midpoints[15] = middleof(midpoints[1], midpoints[5]); // Right face center
+//       midpoints[16] = middleof(midpoints[2], midpoints[6]); // Back face center
+//       midpoints[17] = middleof(midpoints[3], midpoints[7]); // Left face center
+//
+//       // Center point of the octree node
+//       midpoints[18] = middleof(midpoints[12], midpoints[13]); // Center of the cube
+//     }
+//
+//
+//     std::vector<std::vector<Point3D>> subdivideCorners() {
+//       std::vector<std::vector<Point3D>> childCorners(8, std::vector<Point3D>(8));
+//       std::vector<Point3D> midpoints(19);
+//       calculateMidpoints(midpoints);
+//
+//       // Child 0: Bottom-front-left (following counter-clockwise convention)
+//       childCorners[0] = {
+//         corners[0],      // Bottom-front-left
+//         midpoints[0],    // Bottom-front-middle
+//         midpoints[12],   // Bottom-center
+//         midpoints[3],    // Bottom-left-middle
+//         midpoints[8],    // Front-left-middle
+//         midpoints[14],   // Front-center
+//         midpoints[18],   // Center
+//         midpoints[17]    // Left-center
+//       };
+//
+//       // Child 1: Bottom-front-right
+//       childCorners[1] = {
+//         midpoints[0],    // Bottom-front-middle
+//         corners[1],      // Bottom-front-right
+//         midpoints[1],    // Bottom-right-middle
+//         midpoints[12],   // Bottom-center
+//         midpoints[14],   // Front-center
+//         midpoints[9],    // Front-right-middle
+//         midpoints[15],   // Right-center
+//         midpoints[18]    // Center
+//       };
+//
+//       // Child 2: Bottom-back-right
+//       childCorners[2] = {
+//         midpoints[12],   // Bottom-center
+//         midpoints[1],    // Bottom-right-middle
+//         corners[2],      // Bottom-back-right
+//         midpoints[2],    // Bottom-back-middle
+//         midpoints[18],   // Center
+//         midpoints[15],   // Right-center
+//         midpoints[10],   // Back-right-middle
+//         midpoints[16]    // Back-center
+//       };
+//
+//       // Child 3: Bottom-back-left
+//       childCorners[3] = {
+//         midpoints[3],    // Bottom-left-middle
+//         midpoints[12],   // Bottom-center
+//         midpoints[2],    // Bottom-back-middle
+//         corners[3],      // Bottom-back-left
+//         midpoints[17],   // Left-center
+//         midpoints[18],   // Center
+//         midpoints[16],   // Back-center
+//         midpoints[11]    // Back-left-middle
+//       };
+//
+//       // Child 4: Top-front-left
+//       childCorners[4] = {
+//         midpoints[8],    // Front-left-middle
+//         midpoints[14],   // Front-center
+//         midpoints[18],   // Center
+//         midpoints[17],   // Left-center
+//         corners[4],      // Top-front-left
+//         midpoints[4],    // Top-front-middle
+//         midpoints[13],   // Top-center
+//         midpoints[7]     // Top-left-middle
+//       };
+//
+//       // Child 5: Top-front-right
+//       childCorners[5] = {
+//         midpoints[14],   // Front-center
+//         midpoints[9],    // Front-right-middle
+//         midpoints[15],   // Right-center
+//         midpoints[18],   // Center
+//         midpoints[4],    // Top-front-middle
+//         corners[5],      // Top-front-right
+//         midpoints[5],    // Top-right-middle
+//         midpoints[13]    // Top-center
+//       };
+//
+//       // Child 6: Top-back-right
+//       childCorners[6] = {
+//         midpoints[18],   // Center
+//         midpoints[15],   // Right-center
+//         midpoints[10],   // Back-right-middle
+//         midpoints[16],   // Back-center
+//         midpoints[13],   // Top-center
+//         midpoints[5],    // Top-right-middle
+//         corners[6],      // Top-back-right
+//         midpoints[6]     // Top-back-middle
+//       };
+//
+//       // Child 7: Top-back-left
+//       childCorners[7] = {
+//         midpoints[17],   // Left-center
+//         midpoints[18],   // Center
+//         midpoints[16],   // Back-center
+//         midpoints[11],   // Back-left-middle
+//         midpoints[7],    // Top-left-middle
+//         midpoints[13],   // Top-center
+//         midpoints[6],    // Top-back-middle
+//         corners[7]       // Top-back-left
+//       };
+//
+//       return childCorners;
+//     }
+//
+//     bool contains(const Point3D& point) const {
+//       const double EPSILON = 1e-10;
+//
+//       // Helper function to calculate dot product
+//       auto dot = [](const Point3D & a, const Point3D & b) -> double {
+//         return a.x * b.x + a.y * b.y + a.z * b.z;
+//       };
+//
+//       // Helper function to calculate cross product
+//       auto cross = [](const Point3D & a, const Point3D & b) -> Point3D {
+//         return Point3D{
+//           a.y * b.z - a.z * b.y,
+//           a.z * b.x - a.x * b.z,
+//           a.x * b.y - a.y * b.x
+//         };
+//       };
+//
+//       // Helper function to create vector from two points
+//       auto makeVector = [](const Point3D & from, const Point3D & to) -> Point3D {
+//         return Point3D{to.x - from.x, to.y - from.y, to.z - from.z};
+//       };
+//
+//       // Define the six faces of the hexahedron
+//       // Each face is defined by four corners in counter-clockwise order when viewed from outside
+//       // This ensures the normal is pointing outward
+//       const std::vector<std::vector<int>> faces = {
+//         {0, 3, 2, 1},    // bottom face (viewed from below)
+//         {4, 5, 6, 7},    // top face
+//         {0, 1, 5, 4},    // front face
+//         {1, 2, 6, 5},    // right face
+//         {2, 3, 7, 6},    // back face
+//         {3, 0, 4, 7}     // left face
+//       };
+//
+//       // Check if point is on the correct side of all faces
+//       for(const auto& face : faces) {
+//         // Get three points from the face to define the plane
+//         const Point3D& v0 = corners[face[0]];
+//         const Point3D& v1 = corners[face[1]];
+//         const Point3D& v2 = corners[face[2]];
+//
+//         // Calculate face normal using cross product (pointing outward)
+//         Point3D edge1 = makeVector(v0, v1);
+//         Point3D edge2 = makeVector(v0, v2);
+//         Point3D normal = cross(edge1, edge2);
+//
+//         // Calculate signed distance from point to plane
+//         Point3D toPoint = makeVector(v0, point);
+//         double signedDist = dot(normal, toPoint);
+//
+//         // For a point inside the octree, the signed distance should be negative
+//         // (point is on the opposite side of the face normal)
+//         if(signedDist > EPSILON) {
+//           return false;
+//         }
+//       }
+//
+//       return true;
+//     }
+// };
