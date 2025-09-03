@@ -40,7 +40,7 @@ class NonLocal {
 
     };
     #pragma omp begin declare target
-    double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) {
+    inline double GetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &size) {
       return (*_getInterfaceDistance)(xc, xp, size);
     };
     #pragma omp end declare target
@@ -64,7 +64,7 @@ class NonLocal {
 
 
     #pragma omp begin declare target
-    static double Ball2DGetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
+    inline static double Ball2DGetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
       double distance  = 0.;
       for(unsigned k = 0; k < xc.size(); k++) {
         distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
@@ -88,7 +88,7 @@ class NonLocal {
 
 
     #pragma omp begin declare target
-    static double Ball3DGetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
+    inline static double Ball3DGetInterfaceDistance(const std::vector < double>  &xc, const std::vector < double>  &xp, const double &radius) {
       double distance  = 0.;
       for(unsigned k = 0; k < xc.size(); k++) {
         distance += (xp[k] - xc[k]) * (xp[k] - xc[k]);
