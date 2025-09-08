@@ -38,7 +38,55 @@ Fem fem = Fem(tri.GetGaussQuadratureOrder(), tri.GetDimension());*/
 
 using namespace femus;
 
-void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T) {};
+void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double &time, const double &T) {
+
+  Mesh* msh = sol->GetMesh();    // pointer to the mesh (level) object
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+
+  std::vector < unsigned > uIndex(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    uIndex[k] = sol->GetIndex(U[k].c_str());
+  }
+  unsigned uType = sol->GetSolutionType(uIndex[0]);
+
+  std::vector < double > xv(dim);    // local coordinates
+  unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned nDofsU = msh->GetElementDofNumber(iel, uType);
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofsU; i++) {
+      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // local to global mapping between coordinates node and coordinate dof
+      for(unsigned k = 0; k < dim; k++) {
+        xv[k] = (*msh->_topology->_Sol[k])(xDof);
+      }
+      unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
+      //rotation;
+//       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+//       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
+
+      //single vortex;
+      double x = xv[0] + 0.5;
+      double y = xv[1] + 0.5;
+      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+
+      //double x = xv[0] + 0.25;
+      //double y = xv[1] /*+ 0.5*/;
+
+//       double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
+//       double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
+      sol->_Sol[uIndex[0]]->set(uDof, u);
+      sol->_Sol[uIndex[1]]->set(uDof, v);
+    }
+  }
+  for(unsigned  k = 0; k < dim; k++) {
+    sol->_Sol[uIndex[k]]->close();
+  }
+
+}
 
 void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &U, std::string &PSI, const double & dt, Solution *_sol);
 
@@ -106,7 +154,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 4;
   unsigned numberOfSelectiveLevels = 0;
 
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -143,23 +191,27 @@ int main(int argc, char** args) {
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
-
-  VTKWriter vtkIO(&mlSol);
-  vtkIO.SetDebugOutput(true);
-
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  std::vector<std::string> velocity = {"U", "V"};
+  std::string levelSet = {"PSI"};
 
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
+  double period = 8;
+  SetVelocity(sol, velocity, 0, period);
 
-  unsigned nIterations = 100;
+  VTKWriter vtkIO(&mlSol);
+  vtkIO.SetDebugOutput(true);
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+
+
+  unsigned nIterations = 320;
   double time = 0;
-  double period = 2 * M_PI;
+  //double period = 2 * M_PI;
   double dt = period/nIterations;
 
-  std::vector<std::string> velocity = {"U", "V"};
-  std::string levelSet = {"PSI"};
+
 
   unsigned stages = 4;
 
@@ -174,7 +226,7 @@ int main(int argc, char** args) {
   return 0;
 }
 
-double const XI[6][27][3] = {
+const double XI[6][27][3] = {
   {
     //hex
     {-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1}, {-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1}, {0, -1, -1},
