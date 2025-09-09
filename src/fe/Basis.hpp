@@ -54,6 +54,8 @@ namespace femus {
         faceNumber[2] = faceNumber2;
       };
 
+      virtual ~basis(){};
+
       virtual void PrintType() const = 0 ;
 
       double eval_phi(const unsigned &j, const std::vector < double > &x) const {
