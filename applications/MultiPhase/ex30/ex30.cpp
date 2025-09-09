@@ -154,7 +154,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
 
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -209,7 +209,7 @@ int main(int argc, char** args) {
   unsigned nIterations = 320;
   double time = 0;
   //double period = 2 * M_PI;
-  double dt = period/nIterations;
+  double dt = period / nIterations;
 
 
 
@@ -290,6 +290,7 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
 
   unsigned solUType = _sol->GetSolutionType(solUIndex[0]);
   unsigned solPSIType = _sol->GetSolutionType(solPSIIndex);
+  const unsigned xType = 2;
 
   std::vector<std::vector<std::vector<double>>> solU(stages);
   std::vector<std::vector<std::vector<double>>> solUOld(stages);
@@ -318,6 +319,11 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
 
   MyMarker mrk;
 
+  unsigned PSIoffset = msh->_dofOffset[solPSIType][iproc];
+  unsigned PSIoffsetp1 = msh->_dofOffset[solPSIType][iproc + 1];
+  unsigned PSIsize = PSIoffsetp1 - PSIoffset;
+  std::vector < unsigned > checkPSInode(PSIsize, 0);
+
   for(unsigned jel = msh->_elementOffset[iproc]; jel < msh->_elementOffset[iproc + 1]; jel++) {
 
     iel[0] = jel;
@@ -338,267 +344,280 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
     }
     unsigned nPSIDofs = msh->GetElementDofNumber(jel, solPSIType);
     for(unsigned j = 0; j < nPSIDofs; j++) {
-
       unsigned jDof = msh->GetSolutionDof(j, jel, solPSIType);
-      std::vector <double> xp(dim, 0.);
-      unsigned idof  = msh->GetSolutionDof(j, jel, 2);    // local to global mapping between coordinates node and coordinate dof
-      for(unsigned k = 0; k < dim; k++) {
-        xp[k] = (*msh->_topology->_Sol[k])(idof);      // global extraction and local storage for the element coordinates
-      }
-      X[0] = xp;
+      if(jDof >= PSIoffset && jDof < PSIoffsetp1 && checkPSInode[jDof - PSIoffset] == 0) {
 
-      std::vector <double> xi(dim, 0.);
-      for(unsigned k = 0; k < dim; k++) xi[k] = XI[ielType[0]][j][k];
-      msh->_finiteElement[ielType[0]][solUType]->GetPhi(phi, xi);
-
-      F[0].assign(dim, 0);
-      for(unsigned i = 0; i < nUDofs[0]; i++) {
+        std::vector <double> xp(dim, 0.);
+        unsigned idof  = msh->GetSolutionDof(j, jel, 2);    // local to global mapping between coordinates node and coordinate dof
         for(unsigned k = 0; k < dim; k++) {
-          F[0][k] -= ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
+          xp[k] = (*msh->_topology->_Sol[k])(idof);      // global extraction and local storage for the element coordinates
         }
-      }
+        X[0] = xp;
 
-      bool insideLocalDomain = true;
-      for(unsigned rk = 1; rk < stages; rk++) {
-        X[rk] = X[0];
-        for(unsigned jk = 0; jk < rk; jk++) {
+        std::vector <double> xi(dim, 0.);
+        for(unsigned k = 0; k < dim; k++) xi[k] = XI[ielType[0]][j][k];
+        msh->_finiteElement[ielType[0]][solUType]->GetPhi(phi, xi);
+
+        F[0].assign(dim, 0);
+        for(unsigned i = 0; i < nUDofs[0]; i++) {
           for(unsigned k = 0; k < dim; k++) {
-            X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
+            F[0][k] -= ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
           }
         }
-        insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solUType, iel[rk - 1]);
-        if(!insideLocalDomain) {
-          unsigned kel = mrk.GetElement();
-          if(kel == UINT_MAX) {
-            _sol->_Sol[solPSIIndex]->set(jDof, GetAnalyticPSI(X[0]));
+
+        bool insideLocalDomain = true;
+        for(unsigned rk = 1; rk < stages; rk++) {
+          X[rk] = X[0];
+          for(unsigned jk = 0; jk < rk; jk++) {
+            for(unsigned k = 0; k < dim; k++) {
+              X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
+            }
           }
-          else {
-            pSearch[jDof] = true;
-          }
-          break;
-        }
-        iel[rk] = mrk.GetElement();
-        bool sameElement = false;
-        for(unsigned jk = 0; jk < rk; jk++) {
-          if(iel[rk] == iel[jk]) {
-            sameElement = true;
-            ielType[rk] = ielType[jk];
-            nUDofs[rk] =  nUDofs[jk];
-            solU[rk] = solU[jk];
-            solUOld[rk] = solUOld[jk];
+          insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solUType, iel[rk - 1]);
+          if(!insideLocalDomain) {
+            unsigned kel = mrk.GetElement();
+            if(kel == UINT_MAX) {
+              _sol->_Sol[solPSIIndex]->set(jDof, GetAnalyticPSI(X[0]));
+              checkPSInode[jDof - PSIoffset] = 2; //the point ended up outside the domain;
+            }
+            else {
+              pSearch[jDof] = true;
+              checkPSInode[jDof - PSIoffset] = 3; //the point ended up in a neighbooring process domain;
+            }
             break;
           }
-        }
-        if(sameElement == false) {
-          ielType[rk] = msh->GetElementType(iel[rk]);
-          nUDofs[rk] = msh->GetElementDofNumber(iel[rk], solUType);
-          for(unsigned k = 0; k < dim; k++) {
-            solU[rk][k].resize(nUDofs[rk]);
-            solUOld[rk][k].resize(nUDofs[rk]);
+          iel[rk] = mrk.GetElement();
+          bool sameElement = false;
+          for(unsigned jk = 0; jk < rk; jk++) {
+            if(iel[rk] == iel[jk]) {
+              sameElement = true;
+              ielType[rk] = ielType[jk];
+              nUDofs[rk] =  nUDofs[jk];
+              solU[rk] = solU[jk];
+              solUOld[rk] = solUOld[jk];
+              break;
+            }
           }
-          for(unsigned i = 0; i < nUDofs[rk]; i++) {
-            unsigned iDof = msh->GetSolutionDof(i, iel[rk], solUType);
+          if(sameElement == false) {
+            ielType[rk] = msh->GetElementType(iel[rk]);
+            nUDofs[rk] = msh->GetElementDofNumber(iel[rk], solUType);
             for(unsigned k = 0; k < dim; k++) {
-              solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
-              solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+              solU[rk][k].resize(nUDofs[rk]);
+              solUOld[rk][k].resize(nUDofs[rk]);
+            }
+            for(unsigned i = 0; i < nUDofs[rk]; i++) {
+              unsigned iDof = msh->GetSolutionDof(i, iel[rk], solUType);
+              for(unsigned k = 0; k < dim; k++) {
+                solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+              }
+            }
+          }
+          msh->_finiteElement[ielType[rk]][solUType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
+          F[rk].assign(dim, 0);
+          for(unsigned i = 0; i < nUDofs[rk]; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              F[rk][k] -= ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
             }
           }
         }
-        msh->_finiteElement[ielType[rk]][solUType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
-        F[rk].assign(dim, 0);
-        for(unsigned i = 0; i < nUDofs[rk]; i++) {
+        if(insideLocalDomain) {
+
           for(unsigned k = 0; k < dim; k++) {
-            F[rk][k] -= ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
+            for(unsigned rk = 0; rk < stages; rk++) {
+              xp[k] += b[stages - 1][rk] * F[rk][k] * dt;
+            }
+          }
+          insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(xp, _sol, solUType, iel[0]);
+          unsigned  kel = mrk.GetElement();
+          if(insideLocalDomain) {
+            unsigned kelType = msh->GetElementType(kel);
+            msh->_finiteElement[kelType][solPSIType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
+            unsigned nDofsPSIKel = msh->GetElementDofNumber(kel, solPSIType);
+            double PSI = 0.;
+            for(unsigned i = 0; i < nDofsPSIKel; i++) {
+              unsigned iDof = msh->GetSolutionDof(i, kel, solPSIType);
+
+              PSI += (*_sol->_SolOld[solPSIIndex])(iDof) * phi[i];
+
+            }
+            _sol->_Sol[solPSIIndex]->set(jDof, PSI);
+            checkPSInode[jDof - PSIoffset] = 1; //the point has been updated
+          }
+          else {
+
+            if(kel == UINT_MAX) {
+              _sol->_Sol[solPSIIndex]->set(jDof,  GetAnalyticPSI(X[0]));
+              checkPSInode[jDof - PSIoffset] = 2; //the point ended up outside the domain;
+            }
+            else {
+              pSearch[jDof]  = true;
+              checkPSInode[jDof - PSIoffset] = 3; //the point ended up outside the domain;
+            }
           }
         }
       }
-      if(insideLocalDomain) {
 
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned rk = 0; rk < stages; rk++) {
-            xp[k] += b[stages - 1][rk] * F[rk][k] * dt;
-          }
+    }
+  }
+
+  unsigned nprocs = _sol->n_processors();
+
+  if(nprocs > 1) {
+    for(unsigned kp = 0; kp < nprocs; kp++) {
+
+      unsigned np;
+      if(iproc == kp) {
+        np = pSearch.size();
+      }
+      MPI_Bcast(&np, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+
+      for(unsigned jel = msh->_elementOffset[kp]; jel < msh->_elementOffset[kp + 1]; jel++) {
+
+        unsigned nPSIDofs;
+        if(iproc == kp) {
+          nPSIDofs = msh->GetElementDofNumber(jel, solPSIType);
         }
-        insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(xp, _sol, solUType, iel[0]);
-        unsigned  kel = mrk.GetElement();
-        if(insideLocalDomain) {
-          unsigned kelType = msh->GetElementType(kel);
-          msh->_finiteElement[kelType][solPSIType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
-          unsigned nDofsPSIKel = msh->GetElementDofNumber(kel, solPSIType);
-          double PSI = 0.;
-          for(unsigned i = 0; i < nDofsPSIKel; i++) {
-            unsigned iDof = msh->GetSolutionDof(i, kel, solPSIType);
+        MPI_Bcast(&nPSIDofs, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+        for(unsigned j = 0; j < nPSIDofs; j++) {
 
-            PSI += (*_sol->_SolOld[solPSIIndex])(iDof) * phi[i];
-
+          unsigned jDof;
+          unsigned testIfParallel = 0;
+          if(iproc == kp) {
+            jDof = msh->GetSolutionDof(j, jel, solPSIType);
+            if(jDof >= PSIoffset && jDof < PSIoffsetp1 && checkPSInode[jDof - PSIoffset] == 3) {
+              testIfParallel = 1;
+            }
           }
-          _sol->_Sol[solPSIIndex]->set(jDof, PSI);
 
-        }
-        else {
+          MPI_Bcast(&testIfParallel, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
 
-          if(kel == UINT_MAX) {
-            _sol->_Sol[solPSIIndex]->set(jDof,  GetAnalyticPSI(X[0]));
-          }
-          else {
-            pSearch[jDof]  = true;
+          std::vector <double> xp(dim);
+
+          if(testIfParallel) {
+            MPI_Bcast(&jDof, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+
+            if(iproc == kp) {
+              iel[0] = jel;
+              ielType[0] = msh->GetElementType(iel[0]);
+
+              //extract velocity quantities in the iel[0] element
+              nUDofs[0] = msh->GetElementDofNumber(iel[0], solUType);
+              for(unsigned k = 0; k < dim; k++) {
+                solU[0][k].resize(nUDofs[0]);
+                solUOld[0][k].resize(nUDofs[0]);
+              }
+              for(unsigned i = 0; i < nUDofs[0]; i++) {
+                unsigned iDof = msh->GetSolutionDof(i, iel[0], solUType);
+                for(unsigned k = 0; k < dim; k++) {
+                  solU[0][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                  solUOld[0][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+                }
+              }
+
+              unsigned idof  = msh->GetSolutionDof(j, jel, 2);    // local to global mapping between coordinates node and coordinate dof
+              for(unsigned k = 0; k < dim; k++) {
+                xp[k] = (*msh->_topology->_Sol[k])(idof);      // global extraction and local storage for the element coordinates
+              }
+              X[0] = xp;
+
+              std::vector <double> xi(dim, 0.);
+              for(unsigned k = 0; k < dim; k++) xi[k] = XI[ielType[0]][j][k];
+              msh->_finiteElement[ielType[0]][solUType]->GetPhi(phi, xi);
+
+              F[0].assign(dim, 0);
+              for(unsigned i = 0; i < nUDofs[0]; i++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  F[0][k] -= ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
+                }
+              }
+            }
+            MPI_Bcast(&iel[0], 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
+            MPI_Bcast(X[0].data(), X[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
+            MPI_Bcast(F[0].data(), F[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
+
+            xp = X[0];
+
+            bool insideLocalDomain = true;
+            for(unsigned rk = 1; rk < stages; rk++) {
+              X[rk] = X[0];
+              for(unsigned jk = 0; jk < rk; jk++) {
+                for(unsigned k = 0; k < dim; k++) {
+                  X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
+                }
+              }
+              insideLocalDomain = mrk.ParallelElementSearchWithInverseMapping(X[rk], _sol, solUType, iel[rk - 1]);
+              if(!insideLocalDomain) {
+                if(iproc == kp) {
+                  _sol->_Sol[solPSIIndex]->set(jDof, GetAnalyticPSI(X[0]));
+                  checkPSInode[jDof - PSIoffset] = 2; //the point ended up outside the domain
+                }
+                break;
+              }
+              iel[rk] = mrk.GetElement();
+              if(mrk.GetProc() == iproc) {
+                ielType[rk] = msh->GetElementType(iel[rk]);
+                nUDofs[rk] = msh->GetElementDofNumber(iel[rk], solUType);
+                for(unsigned k = 0; k < dim; k++) {
+                  solU[rk][k].resize(nUDofs[rk]);
+                  solUOld[rk][k].resize(nUDofs[rk]);
+                }
+                for(unsigned i = 0; i < nUDofs[rk]; i++) {
+                  unsigned iDof = msh->GetSolutionDof(i, iel[rk], solUType);
+                  for(unsigned k = 0; k < dim; k++) {
+                    solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
+                    solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
+                  }
+                }
+
+                msh->_finiteElement[ielType[rk]][solUType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
+                F[rk].assign(dim, 0);
+                for(unsigned i = 0; i < nUDofs[rk]; i++) {
+                  for(unsigned k = 0; k < dim; k++) {
+                    F[rk][k] -= ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
+                  }
+                }
+              }
+              MPI_Bcast(F[rk].data(), F[rk].size(), MPI_DOUBLE, mrk.GetProc(), MPI_COMM_WORLD);
+            }
+
+            if(insideLocalDomain) {
+              for(unsigned k = 0; k < dim; k++) {
+                for(unsigned rk = 0; rk < stages; rk++) {
+                  xp[k] += b[stages - 1][rk] * F[rk][k] * dt;
+                }
+              }
+              insideLocalDomain = mrk.ParallelElementSearchWithInverseMapping(xp, _sol, solUType, iel[0]);
+              if(insideLocalDomain) {
+                if(mrk.GetProc() == iproc) {
+                  unsigned kel = mrk.GetElement();
+                  unsigned kelType = msh->GetElementType(kel);
+                  msh->_finiteElement[kelType][solPSIType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
+                  unsigned nDofsPSIKel = msh->GetElementDofNumber(kel, solPSIType);
+                  double PSI = 0.;
+                  for(unsigned i = 0; i < nDofsPSIKel; i++) {
+                    unsigned iDof = msh->GetSolutionDof(i, kel, solPSIType);
+                    PSI += (*_sol->_SolOld[solPSIIndex])(iDof) * phi[i];
+                  }
+                  _sol->_Sol[solPSIIndex]->set(jDof, PSI);
+                }
+                if(kp == iproc) {
+                  checkPSInode[jDof - PSIoffset] = 1; //the point has been updated
+                }
+              }
+              else {
+                if(iproc == kp) {
+                  _sol->_Sol[solPSIIndex]->set(jDof, GetAnalyticPSI(X[0]));
+                  checkPSInode[jDof - PSIoffset] = 2; //the point ended up outside the domain
+                }
+              }
+            }
           }
         }
       }
     }
   }
-// _ypNew.resize(cnt);
-// _elemNew.resize(cnt);
-// _NNew.resize(cnt);
-// _kappaNew.resize(cnt);
-// _dsNew.resize(cnt);
-//
-// map<unsigned, bool>::iterator it;
-//
-// unsigned iproc = _sol->processor_id();
-// unsigned nprocs = _sol->n_processors();
-
-// if(nprocs > 1) {
-//   for(unsigned kp = 0; kp < nprocs; kp++) {
-//
-//     unsigned np;
-//     if(iproc == kp) {
-//       np = pSearch.size();
-//     }
-//     MPI_Bcast(&np, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
-//
-//     if(np > 0) {
-//       if(iproc == kp) {
-//         it =  pSearch.begin();
-//       }
-//
-//       for(unsigned jcnt = 0; jcnt < np; jcnt++) {
-//         unsigned j;
-//         if(iproc == kp) {
-//           j = it->first;
-//
-//           iel[0] = _elem[_map[j]];
-//           ielType[0] = msh->GetElementType(iel[0]);
-//           nDofs[0] = msh->GetElementDofNumber(iel[0], solType);
-//
-//           for(unsigned k = 0; k < dim; k++) {
-//             solU[0][k].resize(nDofs[0]);
-//             solUOld[0][k].resize(nDofs[0]);
-//           }
-//
-//           for(unsigned i = 0; i < nDofs[0]; i++) {
-//             unsigned iDof = msh->GetSolutionDof(i, iel[0], solType);
-//             for(unsigned k = 0; k < dim; k++) {
-//               solU[0][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
-//               solUOld[0][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
-//             }
-//           }
-//           msh->_finiteElement[ielType[0]][solType]->GetPhi(phi, _yi[_map[j]]);
-//           X[0] = _yp[_map[j]];
-//           F[0].assign(dim, 0);
-//           for(unsigned i = 0; i < nDofs[0]; i++) {
-//             for(unsigned k = 0; k < dim; k++) {
-//               F[0][k] += ((1. - c[stages - 1][0]) * solUOld[0][k][i] + c[stages - 1][0] * solU[0][k][i]) * phi[i];
-//             }
-//           }
-//         }
-//         MPI_Bcast(&iel[0], 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
-//         MPI_Bcast(X[0].data(), X[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
-//         MPI_Bcast(F[0].data(), F[0].size(), MPI_DOUBLE, kp, MPI_COMM_WORLD);
-//
-//         bool insideLocalDomain = true;
-//         for(unsigned rk = 1; rk < stages; rk++) {
-//           X[rk] = X[0];
-//           for(unsigned jk = 0; jk < rk; jk++) {
-//             for(unsigned k = 0; k < dim; k++) {
-//               X[rk][k] += a[stages - 1][rk][jk] * F[jk][k] * dt;
-//             }
-//           }
-//           insideLocalDomain = _mrk.ParallelElementSearchWithInverseMapping(X[rk], _sol, solType, iel[rk - 1]);
-//           if(!insideLocalDomain) {
-//             break;
-//           }
-//
-//           iel[rk] = _mrk.GetElement();
-//           if(_mrk.GetProc() == iproc) {
-//             ielType[rk] = msh->GetElementType(iel[rk]);
-//             nDofs[rk] = msh->GetElementDofNumber(iel[rk], solType);
-//             for(unsigned k = 0; k < dim; k++) {
-//               solU[rk][k].resize(nDofs[rk]);
-//               solUOld[rk][k].resize(nDofs[rk]);
-//             }
-//             for(unsigned i = 0; i < nDofs[rk]; i++) {
-//               unsigned iDof = msh->GetSolutionDof(i, iel[rk], solType);
-//               for(unsigned k = 0; k < dim; k++) {
-//                 solU[rk][k][i] = (*_sol->_Sol[solUIndex[k]])(iDof);
-//                 solUOld[rk][k][i] = (*_sol->_SolOld[solUIndex[k]])(iDof);
-//               }
-//             }
-//
-//             msh->_finiteElement[ielType[rk]][solType]->GetPhi(phi, _mrk.GetIprocLocalCoordinates());
-//             F[rk].assign(dim, 0);
-//             for(unsigned i = 0; i < nDofs[rk]; i++) {
-//               for(unsigned k = 0; k < dim; k++) {
-//                 F[rk][k] += ((1. - c[stages - 1][rk]) * solUOld[rk][k][i] + c[stages - 1][rk] * solU[rk][k][i]) * phi[i];
-//               }
-//             }
-//           }
-//           MPI_Bcast(F[rk].data(), F[rk].size(), MPI_DOUBLE, _mrk.GetProc(), MPI_COMM_WORLD);
-//         }
-//
-//         if(insideLocalDomain) {
-//           std::vector<double> ypNew = X[0];
-//           for(unsigned k = 0; k < dim; k++) {
-//             for(unsigned rk = 0; rk < stages; rk++) {
-//               ypNew[k] += b[stages - 1][rk] * F[rk][k] * dt;
-//             }
-//           }
-//           insideLocalDomain = _mrk.ParallelElementSearch(ypNew, _sol, solType, iel[0]);
-//           if(insideLocalDomain) {
-//             if(kp == iproc) {
-//               MPI_Send(_N[_map[j]].data(), _N[_map[j]].size(), MPI_DOUBLE, _mrk.GetProc(), 1, MPI_COMM_WORLD);
-//               MPI_Send(&_kappa[_map[j]], 1, MPI_DOUBLE, _mrk.GetProc(), 2, MPI_COMM_WORLD);
-//               MPI_Send(&_ds[_map[j]], 1, MPI_DOUBLE, _mrk.GetProc(), 3, MPI_COMM_WORLD);
-//             }
-//
-//             if(_mrk.GetProc() == iproc) {
-//               _ypNew.resize(cnt + 1);
-//               _ypNew[cnt] = ypNew;
-//               _elemNew.resize(cnt + 1);
-//               _elemNew[cnt] = _mrk.GetElement();
-//               _NNew.resize(cnt + 1, std::vector<double> (dim));
-//               MPI_Recv(_NNew[cnt].data(), _NNew[cnt].size(), MPI_DOUBLE, kp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//               _kappaNew.resize(cnt + 1);
-//               MPI_Recv(&_kappaNew[cnt], 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//               _dsNew.resize(cnt + 1);
-//               MPI_Recv(&_dsNew[cnt], 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//               cnt++;
-//             }
-//           }
-//         }
-//         if(iproc == kp) {
-//           it++;
-//         }
-//       }
-//     }
-//   }
-// }
-//
-//
-//
-//
-// _yp.swap(_ypNew);
-// _elem.swap(_elemNew);
-// _kappa.swap(_kappaNew);
-// _ds.swap(_dsNew);
-// _N.swap(_NNew);
-//
-// _yi.assign(cnt, std::vector<double>(dim, 0));
-//
-// CreateMap();
-
-
-  _sol->_SolOld[solPSIIndex]->close();
+  _sol->_Sol[solPSIIndex]->close();
 }
 
 
