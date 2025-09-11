@@ -64,22 +64,54 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
       }
       unsigned uDof = msh->GetSolutionDof(i, iel, uType);    // local to global mapping between solution node and solution dof
       //rotation;
-//       sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
-//       sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
 
-      //single vortex;
-      double x = xv[0] + 0.5;
-      double y = xv[1] + 0.5;
-      double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
-      double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+      double u, v, w;
+      if(dim == 2) {
+        // sol->_Sol[uIndex[0]]->set(uDof, -xv[1]);
+        // sol->_Sol[uIndex[1]]->set(uDof, xv[0]);
 
-      //double x = xv[0] + 0.25;
-      //double y = xv[1] /*+ 0.5*/;
+        //single vortex;
+        double x = xv[0] + 0.5;
+        double y = xv[1] + 0.5;
+
+        double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
+        double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+
+        //double x = xv[0] + 0.25;
+        //double y = xv[1] /*+ 0.5*/;
 
 //       double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
 //       double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
-      sol->_Sol[uIndex[0]]->set(uDof, u);
-      sol->_Sol[uIndex[1]]->set(uDof, v);
+
+        sol->_Sol[uIndex[0]]->set(uDof, u);
+        sol->_Sol[uIndex[1]]->set(uDof, v);
+
+      }
+      else if(dim == 3) {
+        // sol->_Sol[uIndex[0]]->set(uDof, -xv[1] + xv[2]);
+        // sol->_Sol[uIndex[1]]->set(uDof, -xv[2] + xv[0]);
+        // sol->_Sol[uIndex[2]]->set(uDof, -xv[0] + xv[1]);
+
+        //single vortex;
+        double x = xv[0] + 0.5;
+        double y = xv[1] + 0.5;
+        double z = xv[2] + 0.5;
+
+        double u = 2. * sin(M_PI * x) * sin(M_PI * x) * (-sin(M_PI * y) * cos(M_PI * y) + sin(M_PI * z) * cos(M_PI * z)) * cos(M_PI * time / T);
+        double v = 2. * sin(M_PI * y) * sin(M_PI * y) * (-sin(M_PI * z) * cos(M_PI * z) + sin(M_PI * x) * cos(M_PI * x)) * cos(M_PI * time / T);
+        double w = 2. * sin(M_PI * z) * sin(M_PI * z) * (-sin(M_PI * x) * cos(M_PI * x) + sin(M_PI * y) * cos(M_PI * y)) * cos(M_PI * time / T);
+
+        //double x = xv[0] + 0.25;
+        //double y = xv[1] /*+ 0.5*/;
+
+//       double u = - cos(M_PI * 2 * x) * cos(M_PI * 2 * y);
+//       double v = - sin(M_PI * 2 * x) * sin(M_PI * 2 * y);
+
+        sol->_Sol[uIndex[0]]->set(uDof, u);
+        sol->_Sol[uIndex[1]]->set(uDof, v);
+        sol->_Sol[uIndex[2]]->set(uDof, w);
+
+      }
     }
   }
   for(unsigned  k = 0; k < dim; k++) {
@@ -112,6 +144,8 @@ double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector 
 
   double value = 0.;
 
+  unsigned dim = x.size();
+
   if(!strcmp(name, "U")) {
     value = -x[1];
   }
@@ -124,9 +158,9 @@ double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector 
   else if(!strcmp(name, "PSI")) {
     double sigma = 0.18016836131796748;
     double r = 0.15;
-    double xc = 0.;
     double yc = 0.25;
-    value = exp( (r * r - x[0] * x[0] - (x[1] - yc) * (x[1] - yc) ) / (sigma * sigma) ) - 1.;
+    if(dim == 2) value = exp( (r * r - x[0] * x[0] - (x[1] - yc) * (x[1] - yc)) / (sigma * sigma) ) - 1.;
+    else if(dim == 3) value = exp( (r * r - x[0] * x[0] - (x[1] - yc) * (x[1] - yc) - x[2] * x[2] ) / (sigma * sigma) ) - 1.;
   }
 
   return value;
@@ -150,7 +184,9 @@ int main(int argc, char** args) {
   double scalingFactor = 1.;
 
   //mlMsh.GenerateCoarseBoxMesh(256, 256, 0, -0.75, 0.75, -0.75, 0.75, 0., 0., TRI6, "seventh");
-  mlMsh.GenerateCoarseBoxMesh(16 * 3 / 2, 16 * 3 / 2, 0, -0.75, 0.75, -0.75, 0.75, 0., 0., QUAD9, "seventh");
+  //mlMsh.GenerateCoarseBoxMesh(16 * 3 / 2, 16 * 3 / 2, 0, -0.75, 0.75, -0.75, 0.75, 0., 0., QUAD9, "seventh");
+  mlMsh.GenerateCoarseBoxMesh(16 * 3 / 2, 16 * 3 / 2, 16 * 3 / 2, -0.75, 0.75, -0.75, 0.75, -0.75, 0.75, HEX27, "seventh");
+
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -187,17 +223,20 @@ int main(int argc, char** args) {
 
   mlSol.GenerateBdc("All");
 
-
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
-  std::vector<std::string> velocity = {"U", "V"};
+  std::vector<std::string> velocity;
+  if(dim == 2)  velocity = {"U", "V"};
+  else if (dim == 3 ) velocity = {"U", "V", "W"};
   std::string levelSet = {"PSI"};
 
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
-  double period = 8;
+  //double period = 8;
+  double period = 2 * M_PI;
+
   SetVelocity(sol, velocity, 0, period);
 
   VTKWriter vtkIO(&mlSol);
@@ -205,10 +244,10 @@ int main(int argc, char** args) {
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
-
   unsigned nIterations = 320;
+  //unsigned nIterations = 100;
   double time = 0;
-  //double period = 2 * M_PI;
+
   double dt = period / nIterations;
 
 
@@ -374,6 +413,7 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
             }
           }
           insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(X[rk], _sol, solUType, iel[rk - 1]);
+          //insideLocalDomain = mrk.SerialElementSearch(X[rk], _sol, solUType, iel[rk - 1]);
           if(!insideLocalDomain) {
             unsigned kel = mrk.GetElement();
             if(kel == UINT_MAX) {
@@ -414,6 +454,7 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
             }
           }
           msh->_finiteElement[ielType[rk]][solUType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
+          //msh->_finiteElement[ielType[rk]][solUType]->GetPhi(phi, {0, 0., 0.});
           F[rk].assign(dim, 0);
           for(unsigned i = 0; i < nUDofs[rk]; i++) {
             for(unsigned k = 0; k < dim; k++) {
@@ -428,10 +469,12 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
               xp[k] += b[stages - 1][rk] * F[rk][k] * dt;
             }
           }
+          //insideLocalDomain = mrk.SerialElementSearch(xp, _sol, solUType, iel[0]);
           insideLocalDomain = mrk.SerialElementSearchWithInverseMapping(xp, _sol, solUType, iel[0]);
           unsigned  kel = mrk.GetElement();
           if(insideLocalDomain) {
             unsigned kelType = msh->GetElementType(kel);
+            //msh->_finiteElement[kelType][solPSIType]->GetPhi(phi, {0.,0.,0.});
             msh->_finiteElement[kelType][solPSIType]->GetPhi(phi, mrk.GetIprocLocalCoordinates());
             unsigned nDofsPSIKel = msh->GetElementDofNumber(kel, solPSIType);
             double PSI = 0.;
