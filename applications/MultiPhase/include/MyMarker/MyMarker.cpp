@@ -945,7 +945,7 @@ namespace femus {
 
                   double  scalarProduct = q0 * A + q1 * B + q2 * C;
 
-                  //   std::cout << "fabs(scalarProduct) = " << fabs(scalarProduct) << std::endl;
+                  //   std::cout << "fabs(scalarPr oduct) = " << fabs(scalarProduct) << std::endl;
 
                   if(scalarProduct > epsilon) {
                     //   std::cout << "r is outside triangle " << itri <<  std::endl;
