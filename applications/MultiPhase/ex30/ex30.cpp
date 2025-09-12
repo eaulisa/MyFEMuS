@@ -13,6 +13,7 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 
+#include <gperftools/profiler.h>
 
 // #include "CutFemWeight.hpp"
 // #include "CDWeights.hpp"
@@ -174,6 +175,7 @@ double GetAnalyticPSI(const std::vector < double >& x) {
 
 
 int main(int argc, char** args) {
+  ProfilerStart("profiling.prof");
 
 
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -190,7 +192,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -234,8 +236,8 @@ int main(int argc, char** args) {
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
-  //double period = 8;
-  double period = 2 * M_PI;
+  double period = 4;
+  // double period = 2 * M_PI;
 
   SetVelocity(sol, velocity, 0, period);
 
@@ -244,13 +246,12 @@ int main(int argc, char** args) {
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
-  unsigned nIterations = 320;
+  unsigned nIterations = 1; //320
   //unsigned nIterations = 100;
   double time = 0;
 
-  double dt = period / nIterations;
-
-
+  // double dt = period / nIterations;
+  double dt = period / 100;
 
   unsigned stages = 4;
 
@@ -262,6 +263,7 @@ int main(int argc, char** args) {
     LevelSetAdvection(stages, velocity, levelSet, dt, sol);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
   }
+  ProfilerStop();
   return 0;
 }
 

@@ -12,4 +12,15 @@ SET(EXEC_FILE "${APP_FOLDER_NAME_PARENT}_${MAIN_FILE}") # the name of the execut
 
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
+find_path(GPERFTOOLS_INCLUDE_DIR profiler.h PATH_SUFFIXES gperftools)
+find_library(GPERFTOOLS_LIB profiler)
+
+if (GPERFTOOLS_INCLUDE_DIR AND GPERFTOOLS_LIB)
+    message(STATUS "Found gperftools: ${GPERFTOOLS_LIB}")
+    include_directories(${GPERFTOOLS_INCLUDE_DIR})
+    target_link_libraries(${EXEC_FILE} ${GPERFTOOLS_LIB})
+else()
+    message(WARNING "gperftools not found, profiling disabled")
+endif()
+
 FILE(COPY ${PROJECT_SOURCE_DIR}/paraviewReadMarker.xml DESTINATION ${PROJECT_BINARY_DIR}/)
