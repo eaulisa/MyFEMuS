@@ -24,12 +24,12 @@ namespace femus {
 
 //BEGIN Interface
   void ProjectNodalToPolynomialCoefficients (std::vector < std::vector <double > > &aP, const std::vector< std::vector < double > > &aN,
-                                             const short unsigned &ielType, const unsigned &solType) {
+      const short unsigned &ielType, const unsigned &solType) {
 
     if (ielType == LINE) {
       ProjectLineNodalToPolynomialCoefficients (aP, aN, solType);
     }
-    
+
     else if (ielType == QUAD) {
       ProjectQuadNodalToPolynomialCoefficients (aP, aN, solType);
     }
@@ -73,7 +73,7 @@ namespace femus {
     if (ielType == LINE) {
       GetLinePolynomialShapeFunction (phi,  xi,  solType);
     }
-    
+
     else if (ielType == QUAD) {
       GetQuadPolynomialShapeFunction (phi,  xi,  solType);
     }
@@ -96,12 +96,12 @@ namespace femus {
   }
 
   void GetPolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                           const std::vector < double >& xi,  short unsigned &ielType, const unsigned & solType) {
+      const std::vector < double >& xi,  short unsigned &ielType, const unsigned & solType) {
 
     if (ielType == LINE) {
       GetLinePolynomialShapeFunctionGradient (phi, gradPhi,  xi,  solType);
     }
-    
+
     else if (ielType == QUAD) {
       GetQuadPolynomialShapeFunctionGradient (phi, gradPhi,  xi,  solType);
     }
@@ -124,13 +124,13 @@ namespace femus {
   }
 
   void GetPolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                  std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi,
-                                                  short unsigned &ielType, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi,
+      short unsigned &ielType, const unsigned & solType) {
 
     if (ielType == LINE) {
       GetLinePolynomialShapeFunctionGradientHessian (phi, gradPhi,  hessPhi,  xi,  solType);
     }
-    
+
     else if (ielType == QUAD) {
       GetQuadPolynomialShapeFunctionGradientHessian (phi, gradPhi,  hessPhi,  xi,  solType);
     }
@@ -202,7 +202,7 @@ namespace femus {
   }
 
   void GetLinePolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                               const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetLinePolynomialShapeFunction (phi,  xi, solType);
 
@@ -221,7 +221,7 @@ namespace femus {
   }
 
   void GetLinePolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetLinePolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -329,7 +329,7 @@ namespace femus {
   }
 
   void GetQuadPolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                               const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetQuadPolynomialShapeFunction (phi,  xi, solType);
 
@@ -370,7 +370,7 @@ namespace femus {
   }
 
   void GetQuadPolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetQuadPolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -487,7 +487,7 @@ namespace femus {
   }
 
   void GetTriPolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                              const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetTriPolynomialShapeFunction (phi,  xi, solType);
 
@@ -525,7 +525,7 @@ namespace femus {
   }
 
   void GetTriPolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                     std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetTriPolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -728,7 +728,7 @@ namespace femus {
   }
 
   void GetHexPolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                              const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetHexPolynomialShapeFunction (phi,  xi, solType);
 
@@ -824,7 +824,7 @@ namespace femus {
   }
 
   void GetHexPolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                     std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetHexPolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -1034,7 +1034,7 @@ namespace femus {
 
 
   void GetTetPolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                              const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetTetPolynomialShapeFunction (phi,  xi, solType);
 
@@ -1090,7 +1090,7 @@ namespace femus {
   }
 
   void GetTetPolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                     std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetTetPolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -1276,7 +1276,7 @@ namespace femus {
   }
 
   void GetWedgePolynomialShapeFunctionGradient (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetWedgePolynomialShapeFunction (phi,  xi, solType);
 
@@ -1375,7 +1375,7 @@ namespace femus {
   }
 
   void GetWedgePolynomialShapeFunctionGradientHessian (std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                       std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetWedgePolynomialShapeFunctionGradient (phi,   gradPhi,  xi, solType);
 
@@ -1632,21 +1632,43 @@ namespace femus {
 
     bool convergence = false;
     std::vector < double > F (dim, 0.);
-    std::vector < std::vector < double > > J (dim);
+    std::vector < std::vector < double > > J (dim, std::vector<double>(dim,0.));
 
-    for (int k = 0; k < dim; k++) {
-      J[k].assign (dim, 0.);
-    }
+    // for (int k = 0; k < dim; k++) {
+    //   for (int i = 0; i < nDofs; i++) {
+    //     F[k] += a[k][i] * phi[i];
+    //
+    //     for (int i1 = 0; i1 < dim; i1++) {
+    //       J[k][i1] += a[k][i] * gradPhi[i][i1];
+    //     }
+    //   }
+    //   F[k] -= x[k];
+    // }
 
-    for (int k = 0; k < dim; k++) {
-      for (int i = 0; i < nDofs; i++) {
-        F[k] += a[k][i] * phi[i];
 
-        for (int i1 = 0; i1 < dim; i1++) {
-          J[k][i1] += a[k][i] * gradPhi[i][i1];
+    const std::vector<double> *a_k = a.data();
+    const double *phi_i;
+    const double *a_ki;
+    const std::vector<double> *gradPhi_i;
+    const double *gradPhi_ij;
+
+    double *F_k = F.data();
+    std::vector<double> *J_k = J.data();
+    double *J_kj;
+
+    for (int k = 0; k < dim; ++k, ++a_k, ++F_k, ++ J_k) {
+      phi_i = phi.data();
+      a_ki = a_k->data();
+      gradPhi_i = gradPhi.data();
+      for (int i = 0; i < nDofs; ++i, ++phi_i, ++a_ki, ++gradPhi_i) {
+        (*F_k) += (*a_ki) * (*phi_i);
+        gradPhi_ij = gradPhi_i->data();
+        J_kj = J_k->data();
+        for (int j = 0; j < dim; ++j, ++gradPhi_ij, ++J_kj) {
+          (*J_kj) += (*a_ki) * (*gradPhi_ij);
         }
       }
-      F[k] -= x[k];
+      (*F_k) -= x[k];
     }
 
 
@@ -1761,6 +1783,7 @@ namespace femus {
     }
 
     double detA;
+    double detAI;
     if (dim == 1) {
 
       if (A[0][0] == 0) {
@@ -1778,10 +1801,11 @@ namespace femus {
         abort();
       }
       else {
-        invA[0][0] = A[1][1] / detA;
-        invA[0][1] = -A[0][1] / detA;
-        invA[1][0] = -A[1][0] / detA;
-        invA[1][1] = A[0][0] / detA;
+        detAI = 1. / detA;
+        invA[0][0] = A[1][1] * detAI ;
+        invA[0][1] = -A[0][1] * detAI ;
+        invA[1][0] = -A[1][0] * detAI ;
+        invA[1][1] = A[0][0] * detAI ;
       }
     }
     else if (dim == 3) {
@@ -1794,16 +1818,16 @@ namespace femus {
         abort();
       }
       else {
-
-        invA[0][0] = (A[1][1] * A[2][2] - A[2][1] * A[1][2]) / detA ;
-        invA[0][1] = (A[0][2] * A[2][1] - A[2][2] * A[0][1]) / detA ;
-        invA[0][2] = (A[0][1] * A[1][2] - A[1][1] * A[0][2]) / detA ;
-        invA[1][0] = (A[1][2] * A[2][0] - A[2][2] * A[1][0]) / detA ;
-        invA[1][1] = (A[0][0] * A[2][2] - A[2][0] * A[0][2]) / detA ;
-        invA[1][2] = (A[0][2] * A[1][0] - A[0][0] * A[1][2]) / detA ;
-        invA[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1]) / detA ;
-        invA[2][1] = (A[0][1] * A[2][0] - A[2][1] * A[0][0]) / detA ;
-        invA[2][2] = (A[0][0] * A[1][1] - A[1][0] * A[0][1]) / detA ;
+        detAI = 1. / detA;
+        invA[0][0] = (A[1][1] * A[2][2] - A[2][1] * A[1][2]) * detAI ;
+        invA[0][1] = (A[0][2] * A[2][1] - A[2][2] * A[0][1]) * detAI ;
+        invA[0][2] = (A[0][1] * A[1][2] - A[1][1] * A[0][2]) * detAI ;
+        invA[1][0] = (A[1][2] * A[2][0] - A[2][2] * A[1][0]) * detAI ;
+        invA[1][1] = (A[0][0] * A[2][2] - A[2][0] * A[0][2]) * detAI ;
+        invA[1][2] = (A[0][2] * A[1][0] - A[0][0] * A[1][2]) * detAI ;
+        invA[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1]) * detAI ;
+        invA[2][1] = (A[0][1] * A[2][0] - A[2][1] * A[0][0]) * detAI ;
+        invA[2][2] = (A[0][0] * A[1][1] - A[1][0] * A[0][1]) * detAI ;
 
       }
     }
@@ -1908,7 +1932,7 @@ namespace femus {
       {0, 0, 1},       {1, 0, 1},       {0, 1, 1},
       {0.5, 0, -1},    {0.5, 0.5, -1},  {0, 0.5, -1},                   //midpoints triangoli
       {0.5, 0, 1},     {0.5, 0.5, 1},   {0, 0.5, 1},
-      {0, 0, 0},       {1, 0, 0} ,      {0, 1, 0},                      //midpoints quadrati
+      {0, 0, 0},       {1, 0, 0},      {0, 1, 0},                       //midpoints quadrati
       {0.5, 0, 0},     {0.5, 0.5, 0},    {0, 0.5, 0}, //0->17           //facce quadrati
       {1. / 3., 1. / 3., -1}, {1. / 3., 1. / 3., 1}, {1. / 3., 1. / 3., 0}
     },
@@ -1988,7 +2012,7 @@ namespace femus {
     char* buffer_char = static_cast <char*> (buffer_void);
 
     size_t cch;
-    cch = b64::b64_encode (&buffer_char[0], buffer_size , NULL, 0);
+    cch = b64::b64_encode (&buffer_char[0], buffer_size, NULL, 0);
     std::vector <char> enc;
     enc.resize (cch);
     char* pt_char;
@@ -2027,7 +2051,7 @@ namespace femus {
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
 
     //print coordinates array
-    cch = b64::b64_encode (&var_coord[0], dim_array_coord[0] , NULL, 0);
+    cch = b64::b64_encode (&var_coord[0], dim_array_coord[0], NULL, 0);
     b64::b64_encode (&var_coord[0], dim_array_coord[0], &enc[0], cch);
     pt_char = &enc[0];
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
@@ -2067,7 +2091,7 @@ namespace femus {
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
 
     //print connectivity array
-    cch = b64::b64_encode (&var_conn[0], dim_array_conn[0] , NULL, 0);
+    cch = b64::b64_encode (&var_conn[0], dim_array_conn[0], NULL, 0);
     b64::b64_encode (&var_conn[0], dim_array_conn[0], &enc[0], cch);
     pt_char = &enc[0];
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
@@ -2089,7 +2113,7 @@ namespace femus {
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
 
     //print offset array
-    cch = b64::b64_encode (&var_off[0], dim_array_off[0] , NULL, 0);
+    cch = b64::b64_encode (&var_off[0], dim_array_off[0], NULL, 0);
     b64::b64_encode (&var_off[0], dim_array_off[0], &enc[0], cch);
     pt_char = &enc[0];
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
@@ -2119,7 +2143,7 @@ namespace femus {
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
 
     //print element format array
-    cch = b64::b64_encode (&var_type[0], dim_array_type[0] , NULL, 0);
+    cch = b64::b64_encode (&var_type[0], dim_array_type[0], NULL, 0);
     b64::b64_encode (&var_type[0], dim_array_type[0], &enc[0], cch);
     pt_char = &enc[0];
     for (unsigned i = 0; i < cch; i++, pt_char++) fout << *pt_char;
@@ -2153,3 +2177,4 @@ namespace femus {
 
 
 }
+

@@ -25,6 +25,8 @@
 #include "vector"
 #include "map"
 #include "MyVector.hpp"
+#include "Classify.hpp"
+
 
 namespace femus {
 
@@ -202,17 +204,27 @@ namespace femus {
       }
 
     private:
+      // double GetMeshCoordinatesNonFSI(Solution *sol, const unsigned &k, const unsigned &i, const double &s) {
+      //   return (*sol->GetMesh()->_topology->_Sol[k])(i);
+      // }
+      //
+      // double GetMeshCoordinatesFSI(Solution *sol, const unsigned &k, const unsigned &i, const double &s) {
+      //   const char varname[3][3] = {"DX", "DY", "DZ"};
+      //   unsigned solIndex = sol->GetIndex(&varname[k][0]);
+      //   return (*sol->GetMesh()->_topology->_Sol[k])(i)
+      //          + (1. - s) * (*sol->_SolOld[solIndex])(i)
+      //          + s * (*sol->_Sol[solIndex])(i);
+      // }
+      //
+      //
+      // using GetMeshCoordinates = double (MyMarker::*) (Solution *sol, const unsigned &k, const unsigned &i, const double &s);
+      // /** Initial condition function pointer typedef */
+      // GetMeshCoordinates _getMeshCoordinates;
+
+
+
       double GetMeshCoordinates(Solution *sol, const unsigned &k, const unsigned &i, const double &s) {
-        if(!sol->GetIfFSI()) {
-          return (*sol->GetMesh()->_topology->_Sol[k])(i);
-        }
-        else {
-          const char varname[3][3] = {"DX", "DY", "DZ"};
-          unsigned solIndex = sol->GetIndex(&varname[k][0]);
-          return (*sol->GetMesh()->_topology->_Sol[k])(i)
-                 + (1. - s) * (*sol->_SolOld[solIndex])(i)
-                 + s * (*sol->_Sol[solIndex])(i);
-        }
+        return (*sol->GetMesh()->_topology->_Sol[k])(i);
       }
 
       unsigned GetMarkerProc(Solution *sol) {
@@ -232,12 +244,11 @@ namespace femus {
       unsigned GetNextElement3D(const unsigned & iel, const std::vector< unsigned > &searchHistory, Solution * sol, const double & s);
       int FastForward(const unsigned & currentElem, const unsigned & previousElem, Solution * sol, const double & s);
 
-      std::vector < double > _x; // global coordinates
-      std::vector < double > _xi; // local coordinates
+
       unsigned _solType; // FEM interpolation: linear, serendipity, or quadratic
 
-      unsigned _elem; // element that owns the marker, UINT_MAX if outside the domain
-      unsigned _dim;
+
+
       unsigned _mproc; //process that owns the marker
 
 
@@ -248,7 +259,36 @@ namespace femus {
       static const double _b[4][4];
       static const double _c[4][4];
 
+    protected:
+      unsigned _elem; // element that owns the marker, UINT_MAX if outside the domain
+      unsigned _dim;
+      std::vector < double > _x; // global coordinates
+      std::vector < double > _xi; // local coordinates
+
   };
+
+
+
+  class MyMarkerWithFSI : public MyMarker {
+
+      double GetMeshCoordinates(Solution *sol, const unsigned &k, const unsigned &i, const double &s) {
+
+        const char varname[3][3] = {"DX", "DY", "DZ"};
+        unsigned solIndex = sol->GetIndex(&varname[k][0]);
+        return (*sol->GetMesh()->_topology->_Sol[k])(i)
+               + (1. - s) * (*sol->_SolOld[solIndex])(i)
+               + s * (*sol->_Sol[solIndex])(i);
+      }
+
+      void FindLocalCoordinates(const unsigned & solVType, std::vector < std::vector < std::vector < std::vector < double > > > > &aX,
+                                const bool & pcElemUpdate, Solution * sol, const double & s);
+
+
+
+  };
+
+
+
 } //end namespace femus
 
 
