@@ -487,15 +487,15 @@ namespace femus {
     //END projection
 
     //BEGIN inverse mapping search
-    std::vector < double > phi;
-    std::vector < std::vector < double > > gradPhi;
+    //std::vector < double > phi;
+    //std::vector < std::vector < double > > gradPhi;
 
     std::vector < double > xi(_dim);
     for(int k = 0; k < _dim; k++) {
       xi[k] = _localCentralNode[ielType][k];
     }
 
-    GetPolynomialShapeFunctionGradient(phi, gradPhi, xi, ielType, linear);
+    GetPolynomialShapeFunctionGradient(_phi, _gradPhi, xi, ielType, linear);
 
     std::vector < double > v(_dim, 0.);
     std::vector < std::vector < double > > J(_dim);
@@ -506,10 +506,10 @@ namespace femus {
 
     for(int k = 0; k < _dim; k++) {
       for(int i = 0; i < nDofs; i++) {
-        v[k] -= a[k][i] * phi[i];
+        v[k] -= a[k][i] * _phi[i];
 
         for(int i1 = 0; i1 < _dim; i1++) {
-          J[k][i1] += a[k][i] * gradPhi[i][i1];
+          J[k][i1] += a[k][i] * _gradPhi[i][i1];
         }
       }
     }
@@ -1165,12 +1165,12 @@ namespace femus {
         //BEGIN Inverse mapping loop
         for(unsigned j = 0; j < _solType + 1; j++) {
 
-          std::vector < double > phi;
-          std::vector < std::vector < double > > gradPhi;
+          // std::vector < double > phi;
+          // std::vector < std::vector < double > > gradPhi;
           bool convergence = false;
           while(!convergence) {
-            GetPolynomialShapeFunctionGradient(phi, gradPhi, _xi, elemType, _solType);
-            convergence = GetNewLocalCoordinates(_xi, {0., 0., 0.}, phi, gradPhi, _aX[0][_solType]);
+            GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, _solType);
+            convergence = GetNewLocalCoordinates(_xi, {0., 0., 0.}, _phi, _gradPhi, _aX[0][_solType]);
           }
         }
 
@@ -1603,12 +1603,12 @@ namespace femus {
     //BEGIN Inverse mapping loop
     for(unsigned j = 0; j < solType + 1; j++) {
 
-      std::vector < double > phi;
-      std::vector < std::vector < double > > gradPhi;
+      // std::vector < double > phi;
+      // std::vector < std::vector < double > > gradPhi;
       bool convergence = false;
       while(!convergence) {
-        GetPolynomialShapeFunctionGradient(phi, gradPhi, _xi, elemType, solType);
-        convergence = GetNewLocalCoordinates(_xi, _x, phi, gradPhi, aX[0][solType]);
+        GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, solType);
+        convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType]);
       }
     }
 
@@ -1686,16 +1686,16 @@ namespace femus {
     //BEGIN Inverse mapping loop
     for(unsigned j = 0; j < solType + 1; j++) {
 
-      std::vector < double > phi;
-      std::vector < std::vector < double > > gradPhi;
+      // std::vector < double > phi;
+      // std::vector < std::vector < double > > gradPhi;
       bool convergence = false;
       while(!convergence) {
-        GetPolynomialShapeFunctionGradient(phi, gradPhi, _xi, elemType, solType);
+        GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, solType);
         if(!sol->GetIfFSI()) {
-          convergence = GetNewLocalCoordinates(_xi, _x, phi, gradPhi, aX[0][solType]);
+          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType]);
         }
         else {
-          convergence = GetNewLocalCoordinates(_xi, _x, phi, gradPhi, aXs[solType]);
+          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aXs[solType]);
         }
       }
     }

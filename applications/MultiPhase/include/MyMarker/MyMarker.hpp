@@ -42,7 +42,7 @@ namespace femus {
         _solType = solType;
         _dim = sol->GetMesh()->GetDimension();
 
-        if(elem == UINT_MAX) { //parallel search
+        if (elem == UINT_MAX) { //parallel search
           ParallelElementSearch(true, UINT_MAX, sol, s1);
         }
         else { //try first a serial search starting from the given elem
@@ -52,7 +52,7 @@ namespace femus {
           _mproc = GetMarkerProc(sol); //based on _elem we identify the process the search should start from
 
           unsigned preMproc = _mproc;
-          if(_iproc == preMproc) {
+          if (_iproc == preMproc) {
             // careful this function can change _mproc, only in _iproc = preMproc, if _iproc believes that the marker does not belong to it
             SerialElementSearch(previousElem, sol, s1);
           }
@@ -60,9 +60,9 @@ namespace femus {
           MPI_Bcast(& _elem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
           MPI_Bcast(& previousElem, 1, MPI_UNSIGNED, preMproc, PETSC_COMM_WORLD);
 
-          if(_elem != UINT_MAX) { // if the search in preMproc did not bring us outside the domain
+          if (_elem != UINT_MAX) { // if the search in preMproc did not bring us outside the domain
             _mproc = GetMarkerProc(sol); //
-            if(_mproc != preMproc) {  //if the search moved outside _preProc domain we call the global search
+            if (_mproc != preMproc) { //if the search moved outside _preProc domain we call the global search
               // this is a parallel wrapper to serial search
               ParallelSerialElementSearch(previousElem, preMproc, sol, s1);
             }
@@ -83,7 +83,7 @@ namespace femus {
 //           std::vector < double > ().swap(_x);
 //         }
 
-        if(_iproc != _mproc) {
+        if (_iproc != _mproc) {
           std::vector < double > ().swap(_x);
         }
 
@@ -99,7 +99,7 @@ namespace femus {
         _solType = solType;
         _dim = sol->GetMesh()->GetDimension();
 
-        if(elem == UINT_MAX) { //parallel search
+        if (elem == UINT_MAX) { //parallel search
           ParallelElementSearch(true, UINT_MAX, sol, s1);
         }
         else { //try first a serial search starting from the given elem
@@ -110,7 +110,7 @@ namespace femus {
           //std::cout <<previousElem<<" "<< _elem <<" "<< _mproc<<"\t";
 
           unsigned preMproc = _mproc;
-          if(_iproc == preMproc) {
+          if (_iproc == preMproc) {
             // careful this function can change _mproc, only in _iproc = preMproc, if _iproc believes that the marker does not belong to it
             SerialElementSearch(previousElem, sol, s1);
           }
@@ -120,9 +120,9 @@ namespace femus {
 
           //std::cout << previousElem<<" "<< _elem <<" "<< _mproc<<"\t";
 
-          if(_elem != UINT_MAX) { // if the search in preMproc did not bring us outside the domain
+          if (_elem != UINT_MAX) { // if the search in preMproc did not bring us outside the domain
             _mproc = GetMarkerProc(sol); //
-            if(_mproc != preMproc) {  //if the search moved outside _preProc domain we call the global search
+            if (_mproc != preMproc) { //if the search moved outside _preProc domain we call the global search
               // this is a parallel wrapper to serial search
               ParallelSerialElementSearch(previousElem, preMproc, sol, s1);
               //std::cout << _elem <<" "<< _mproc<<"\n";
@@ -133,16 +133,16 @@ namespace femus {
             ParallelElementSearch(true, UINT_MAX, sol, s1);
           }
         }
-        if(_iproc != _mproc) {
+        if (_iproc != _mproc) {
           std::vector < double > ().swap(_x);
         }
         return (_elem == UINT_MAX) ? false : true;
       }
 
       bool ParallelElementSearchWithInverseMapping(const std::vector < double > &x, Solution *sol, const unsigned & solType,
-          const unsigned &elem = UINT_MAX, const double &s1 = 0.) {
+                                                   const unsigned &elem = UINT_MAX, const double &s1 = 0.) {
         bool elemFound = ParallelElementSearch(x, sol, solType, elem, s1);
-        if(_iproc == _mproc && elemFound) {
+        if (_iproc == _mproc && elemFound) {
           FindLocalCoordinates(_solType, _aX, true, sol, s1);
         }
         return elemFound;
@@ -158,7 +158,7 @@ namespace femus {
         _elem = elem;
         _mproc = GetMarkerProc(sol);
 
-        if(_iproc != _mproc) {
+        if (_iproc != _mproc) {
           return false;
         }
         else {
@@ -168,9 +168,9 @@ namespace femus {
       }
 
       bool SerialElementSearchWithInverseMapping(const std::vector < double > &x, Solution *sol, const unsigned & solType,
-          const unsigned &elem, const double &s1 = 0.) {
+                                                 const unsigned &elem, const double &s1 = 0.) {
         bool elementFound = SerialElementSearch(x, sol, solType, elem, s1);
-        if(elementFound == false) return false;
+        if (elementFound == false) return false;
         else {
           FindLocalCoordinates(_solType, _aX, true, sol, s1);
           return true;
@@ -264,6 +264,10 @@ namespace femus {
       unsigned _dim;
       std::vector < double > _x; // global coordinates
       std::vector < double > _xi; // local coordinates
+
+
+      std::vector < double > _phi;
+      std::vector < std::vector < double > > _gradPhi;
 
   };
 
