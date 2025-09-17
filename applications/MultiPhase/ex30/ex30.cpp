@@ -192,7 +192,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 1;
+  unsigned numberOfUniformLevels = 2;
   unsigned numberOfSelectiveLevels = 0;
 
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -246,16 +246,16 @@ int main(int argc, char** args) {
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
-  unsigned nIterations = 1; //320
+  unsigned nIterations = 320;
   //unsigned nIterations = 100;
   double time = 0;
 
-  // double dt = period / nIterations;
-  double dt = period / 100;
+  double dt = period / nIterations;
+  //double dt = period / 100;
 
   unsigned stages = 4;
 
-  for(unsigned it = 1; it <= nIterations; it++) {
+  for(unsigned it = 1; it <= 1/*nIterations*/; it++) {
     std::cout << "ITERATION " << it << "\n";
     sol->CopySolutionToOldSolution();
     time += dt;
