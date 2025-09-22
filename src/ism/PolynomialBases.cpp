@@ -30,29 +30,37 @@ namespace femus {
   void ProjectNodalToPolynomialCoefficients(std::vector < std::vector <double > > &aP, const std::vector< std::vector < double > > &aN,
                                             const short unsigned &ielType, const unsigned &solType) {
 
-    if (ielType == LINE) {
-      ProjectLineNodalToPolynomialCoefficients(aP, aN, solType);
-    }
-
-    else if (ielType == QUAD) {
-      ProjectQuadNodalToPolynomialCoefficients(aP, aN, solType);
-    }
-
-    else if (ielType == TRI) {
-      ProjectTriNodalToPolynomialCoefficients(aP, aN, solType);
-    }
-
-    else if (ielType == HEX) {
+    switch (ielType) {
+    case HEX:
       ProjectHexNodalToPolynomialCoefficients(aP, aN, solType);
-    }
+      break;
 
-    else if (ielType == TET) {
+    case TET:
       ProjectTetNodalToPolynomialCoefficients(aP, aN, solType);
+      break;
+
+    case WEDGE:
+      ProjectWedgeNodalToPolynomialCoefficients(aP, aN, solType);
+      break;
+
+    case QUAD:
+      ProjectQuadNodalToPolynomialCoefficients(aP, aN, solType);
+      break;
+
+    case TRI:
+      ProjectTriNodalToPolynomialCoefficients(aP, aN, solType);
+      break;
+
+    case LINE:
+      ProjectLineNodalToPolynomialCoefficients(aP, aN, solType);
+      break;
+
+    default:
+      std::cerr << "Error: unknown element type in ProjectNodalToPolynomialCoefficients: "
+                << ielType << std::endl;
+      std::abort();  // failsafe abort
     }
 
-    else if (ielType == WEDGE) {
-      ProjectWedgeNodalToPolynomialCoefficients(aP, aN, solType);
-    }
   }
 
   void InterpolatePolynomialCoefficients(std::vector<std::vector < std::vector <double > > > &aXs, const std::vector<std::vector < std::vector <double > > > &aX0,
@@ -74,86 +82,110 @@ namespace femus {
   void GetPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi,
                                   short unsigned &ielType, const unsigned & solType) {
 
-    if (ielType == LINE) {
-      GetLinePolynomialShapeFunction(phi,  xi,  solType);
-    }
-
-    else if (ielType == QUAD) {
-      GetQuadPolynomialShapeFunction(phi,  xi,  solType);
-    }
-
-    else if (ielType == TRI) {
-      GetTriPolynomialShapeFunction(phi, xi, solType);
-    }
-
-    else if (ielType == HEX) {
+    switch (ielType) {
+    case HEX:
       GetHexPolynomialShapeFunction(phi, xi, solType);
-    }
+      break;
 
-    else if (ielType == TET) {
+    case TET:
       GetTetPolynomialShapeFunction(phi, xi, solType);
-    }
+      break;
 
-    else if (ielType == WEDGE) {
+    case WEDGE:
       GetWedgePolynomialShapeFunction(phi, xi, solType);
+      break;
+
+    case QUAD:
+      GetQuadPolynomialShapeFunction(phi, xi, solType);
+      break;
+
+    case TRI:
+      GetTriPolynomialShapeFunction(phi, xi, solType);
+      break;
+
+    case LINE:
+      GetLinePolynomialShapeFunction(phi, xi, solType);
+      break;
+
+    default:
+      std::cerr << "Error: unknown element type in GetPolynomialShapeFunction: "
+                << ielType << std::endl;
+      std::abort();  // failsafe abort
     }
   }
 
   void GetPolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
                                           const std::vector < double >& xi,  short unsigned &ielType, const unsigned & solType) {
 
-    if (ielType == LINE) {
-      GetLinePolynomialShapeFunctionGradient(phi, gradPhi,  xi,  solType);
-    }
+    switch (ielType) {
 
-    else if (ielType == QUAD) {
-      GetQuadPolynomialShapeFunctionGradient(phi, gradPhi,  xi,  solType);
-    }
-
-    else if (ielType == TRI) {
-      GetTriPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-    }
-
-    else if (ielType == HEX) {
+    case HEX:
       GetHexPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-    }
+      break;
 
-    else if (ielType == TET) {
+    case TET:
       GetTetPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+      break;
+
+    case WEDGE:
+      GetWedgePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+      break;
+
+    case QUAD:
+      GetQuadPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+      break;
+
+    case TRI:
+      GetTriPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+      break;
+
+    case LINE:
+      GetLinePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+      break;
+
+    default:
+      std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradient: "
+                << ielType << std::endl;
+      std::abort();  // failsafe abort
     }
 
-    else if (ielType == WEDGE) {
-      GetWedgePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-    }
   }
 
   void GetPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
                                                  std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi,
                                                  short unsigned &ielType, const unsigned & solType) {
 
-    if (ielType == LINE) {
-      GetLinePolynomialShapeFunctionGradientHessian(phi, gradPhi,  hessPhi,  xi,  solType);
-    }
-
-    else if (ielType == QUAD) {
-      GetQuadPolynomialShapeFunctionGradientHessian(phi, gradPhi,  hessPhi,  xi,  solType);
-    }
-
-    else if (ielType == TRI) {
-      GetTriPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-    }
-
-    else if (ielType == HEX) {
+    switch (ielType) {
+    case HEX:
       GetHexPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-    }
+      break;
 
-    else if (ielType == TET) {
+    case TET:
       GetTetPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+      break;
+
+    case WEDGE:
+      GetWedgePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+      break;
+
+    case QUAD:
+      GetQuadPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+      break;
+
+    case TRI:
+      GetTriPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+      break;
+
+    case LINE:
+      GetLinePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+      break;
+
+    default:
+      std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradientHessian: "
+                << ielType << std::endl;
+      std::abort();  // failsafe abort
     }
 
-    else if (ielType == WEDGE) {
-      GetWedgePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-    }
   }
 //END Interface
 
@@ -569,120 +601,250 @@ namespace femus {
 //BEGIN HEX specialized functions
   const unsigned hexNumberOfDofs[3] = {8, 20, 27};
 
-  void ProjectHexNodalToPolynomialCoefficients(std::vector < std::vector <double > > &aP, const std::vector < std::vector <double > > &aN, const unsigned &solType) {
-
-    unsigned dim =  aN.size();
+  void ProjectHexNodalToPolynomialCoefficients(std::vector<std::vector<double>>& aP,
+                                               const std::vector<std::vector<double>>& aN,
+                                               const unsigned &solType) {
+    const unsigned dim   = static_cast<unsigned>(aN.size());
     aP.resize(dim);
 
-    unsigned nDofs = hexNumberOfDofs[solType];
-    if (nDofs > aN[0].size()) {
-      std::cout << "Error in ProjectHexNodalToPolynomialCoefficients(...) the number of Dofs is inconsistent" << std::endl;
-      abort();
+    const unsigned nDofs = hexNumberOfDofs[solType];
+    if (dim == 0 || aN[0].size() < nDofs) {
+      std::cerr << "Error in ProjectHexNodalToPolynomialCoefficients(...): inconsistent DoFs\n";
+      std::abort();
+    }
+    for (unsigned k = 0; k < dim; ++k)
+      aP[k].resize(nDofs); // reuses capacity if large enough
+
+    // Hoist constants so the compiler can fold better.
+    constexpr double c125 = 0.125;
+    constexpr double c25  = 0.25;
+    constexpr double c50  = 0.5;
+
+    switch (solType) {
+    case 0: {
+      for (unsigned k = 0; k < dim; ++k) {
+        const auto& NK = aN[k]; // alias row once
+        auto& PK = aP[k];
+
+        // keep the eight nodes in registers
+        const double n0 = NK[0], n1 = NK[1], n2 = NK[2], n3 = NK[3],
+                     n4 = NK[4], n5 = NK[5], n6 = NK[6], n7 = NK[7];
+
+        PK[0] = c125 * (n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
+        PK[1] = c125 * (-n0 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
+        PK[2] = c125 * (-n0 - n1 + n2 + n3 - n4 - n5 + n6 + n7);
+        PK[3] = c125 * (-n0 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
+        PK[4] = c125 * (n0 - n1 + n2 - n3 + n4 - n5 + n6 - n7);
+        PK[5] = c125 * (n0 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+        PK[6] = c125 * (n0 + n1 - n2 - n3 - n4 - n5 + n6 + n7);
+        PK[7] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+      }
+      break;
     }
 
-    for (unsigned k = 0; k < dim; k++) {
-      aP[k].resize(nDofs);
+    case 1: {
+      for (unsigned k = 0; k < dim; ++k) {
+        const auto& NK = aN[k];
+        auto& PK = aP[k];
+
+        // Pull frequently-used nodes into locals (registers).
+        const double n0 = NK[0],  n1 = NK[1],  n2 = NK[2],  n3 = NK[3],
+                     n4 = NK[4],  n5 = NK[5],  n6 = NK[6],  n7 = NK[7],
+                     n8 = NK[8],  n9 = NK[9], n10 = NK[10], n11 = NK[11],
+                     n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
+                     n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19];
+
+        PK[0]  = c25  * (-n0 + n9 + n10 + n11 + n12 + n13 + n14 + n15 + n16 + n17 + n18 - n1 + n19 - n2 - n3 - n4 - n5 - n6 - n7 + n8);
+        PK[1]  = c125 * (n0 + 2 * n9 - 2 * n11 + 2 * n13 - 2 * n15 - 2 * n16 + 2 * n17 + 2 * n18 - n1 - 2 * n19 - n2 + n3 + n4 - n5 - n6 + n7);
+        PK[2]  = c125 * (n0 + 2 * n10 - 2 * n12 + 2 * n14 - 2 * n16 - 2 * n17 + 2 * n18 + n1 + 2 * n19 - n2 - n3 + n4 + n5 - n6 - n7 - 2 * n8);
+        PK[3]  = c125 * (n0 - 2 * n9 - 2 * n10 - 2 * n11 + 2 * n12 + 2 * n13 + 2 * n14 + 2 * n15 + n1 + n2 + n3 - n4 - n5 - n6 - n7 - 2 * n8);
+        PK[4]  = c25  * (n16 - n17 + n18 - n19);
+        PK[5]  = c25  * (-n9 + n11 + n13 - n15);
+        PK[6]  = c25  * (-n10 - n12 + n14 + n8);
+        PK[7]  = c125 * (n0 - 2 * n10 - 2 * n12 - 2 * n14 + n1 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
+        PK[8]  = c125 * (n0 - 2 * n9  - 2 * n11 - 2 * n13 - 2 * n15 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
+        PK[9]  = c125 * (n0 - 2 * n16 - 2 * n17 - 2 * n18 + n1 - 2 * n19 + n2 + n3 + n4 + n5 + n6 + n7);
+        PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+        PK[11] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 - n1 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
+        PK[12] = c125 * (-n0 + 2 * n10 - 2 * n12 - 2 * n14 - n1 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
+        PK[13] = c125 * (-n0 + 2 * n9  + 2 * n11 - 2 * n13 - 2 * n15 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
+        PK[14] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
+        PK[15] = c125 * (-n0 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + n2 - n3 - n4 + n5 + n6 - n7);
+        PK[16] = c125 * (-n0 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 + n2 + n3 - n4 - n5 + n6 + n7);
+        PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
+        PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+        PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
+      }
+      break;
     }
 
-    if (solType == 0) {
-      for (int k = 0; k < dim; k++) {
-        aP[k][0] = 0.125 * (aN[k][0] + aN[k][1] + aN[k][2] + aN[k][3] + aN[k][4] +
-                            aN[k][5] + aN[k][6] + aN[k][7]) ;
-        aP[k][1] = 0.125 * (- aN[k][0] + aN[k][1] + aN[k][2] - aN[k][3] - aN[k][4] +
-                            aN[k][5] + aN[k][6] - aN[k][7]) ;
-        aP[k][2] = 0.125 * (- aN[k][0] - aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] -
-                            aN[k][5] + aN[k][6] + aN[k][7]) ;
-        aP[k][3] = 0.125 * (- aN[k][0] - aN[k][1] - aN[k][2] - aN[k][3] + aN[k][4] +
-                            aN[k][5] + aN[k][6] + aN[k][7]) ;
-        aP[k][4] = 0.125 * (aN[k][0] - aN[k][1] + aN[k][2] - aN[k][3] + aN[k][4] -
-                            aN[k][5] + aN[k][6] - aN[k][7]) ;
-        aP[k][5] = 0.125 * (aN[k][0] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] +
-                            aN[k][5] + aN[k][6] - aN[k][7]) ;
-        aP[k][6] = 0.125 * (aN[k][0] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] -
-                            aN[k][5] + aN[k][6] + aN[k][7]) ;
-        aP[k][7] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] -
-                            aN[k][5] + aN[k][6] - aN[k][7]) ;
+    case 2: {
+      for (unsigned k = 0; k < dim; ++k) {
+        const auto& NK = aN[k];
+        auto& PK = aP[k];
+
+        const double n0 = NK[0],  n1  = NK[1],  n2  = NK[2],  n3  = NK[3],
+                     n4 = NK[4],  n5  = NK[5],  n6  = NK[6],  n7  = NK[7],
+                     n8 = NK[8],  n9  = NK[9], n10 = NK[10], n11 = NK[11],
+                     n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
+                     n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19],
+                     n20 = NK[20], n21 = NK[21], n22 = NK[22], n23 = NK[23],
+                     n24 = NK[24], n25 = NK[25], n26 = NK[26];
+
+        PK[0]  = n26;
+        PK[1]  = c50 * (n21 - n23);
+        PK[2]  = c50 * (n22 - n20);
+        PK[3]  = c50 * (n25 - n24);
+        PK[4]  = c25 * (n16 - n17 + n18 - n19);
+        PK[5]  = c25 * (-n9  + n11 + n13 - n15);
+        PK[6]  = c25 * (-n10 - n12 + n14 + n8);
+        PK[7]  = c50 * (n21 + n23 - 2 * n26);
+        PK[8]  = c50 * (n20 + n22 - 2 * n26);
+        PK[9]  = c50 * (n24 + n25 - 2 * n26);
+        PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+        PK[11] = c25  * (-n16 - n17 + n18 + n19 + 2 * n20 - 2 * n22);
+        PK[12] = c25  * (-n9  - n11 + n13 + n15 + 2 * n24 - 2 * n25);
+        PK[13] = c25  * (-n10 + n12 + n14 + 2 * n24 - 2 * n25 - n8);
+        PK[14] = c25  * (-n16 + n17 + n18 - n19 - 2 * n21 + 2 * n23);
+        PK[15] = c25  * (n9  - n11 + n13 - n15 - 2 * n21 + 2 * n23);
+        PK[16] = c25  * (n10 - n12 + n14 + 2 * n20 - 2 * n22 - n8);
+        PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
+        PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+        PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
+        PK[20] = c25  * (n16 + n17 + n18 + n19 - 2 * (n20 + n21 + n22 + n23)) + n26;
+        PK[21] = c25  * (n9  + n11 + n13 + n15 - 2 * (n21 + n23 + n24 + n25)) + n26;
+        PK[22] = c25  * (n10 + n12 + n14 - 2 * (n20 + n22 + n24 + n25 - 2 * n26) + n8);
+        PK[23] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 - 4 * n20 + 4 * n22 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
+        PK[24] = c125 * (-n0 + 2 * n9  + 2 * n10 + 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - n1 - 4 * n24 + 4 * n25 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
+        PK[25] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + 4 * n21 - 4 * n23 + n2 - n3 - n4 + n5 + n6 - n7);
+        PK[26] = c125 * (n0 - 2 * n9  - 2 * n10 - 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - 2 * n16 - 2 * n17 - 2 * n18
+                         + n1 - 2 * n19 + 4 * n20 + 4 * n21 + 4 * n22 + 4 * n23 + 4 * n24 + 4 * n25 - 8 * n26 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
       }
+      break;
     }
-    else if (solType == 1) {
-      for (int k = 0; k < dim; k++) {
-        aP[k][0] = 0.25 * (- aN[k][0] + aN[k][9] + aN[k][10] + aN[k][11] + aN[k][12] + aN[k][13] + aN[k][14] +
-                           aN[k][15] + aN[k][16] + aN[k][17] + aN[k][18] - aN[k][1] + aN[k][19] - aN[k][2] -
-                           aN[k][3] - aN[k][4] - aN[k][5] - aN[k][6] - aN[k][7] + aN[k][8]);
-        aP[k][1] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] + 2 * aN[k][13] - 2 * aN[k][15] - 2 * aN[k][16] +
-                            2 * aN[k][17] + 2 * aN[k][18] - aN[k][1] - 2 * aN[k][19] - aN[k][2] + aN[k][3] +
-                            aN[k][4] - aN[k][5] - aN[k][6] + aN[k][7]);
-        aP[k][2] = 0.125 * (aN[k][0] + 2 * aN[k][10] - 2 * aN[k][12] + 2 * aN[k][14] - 2 * aN[k][16] - 2 * aN[k][17] +
-                            2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] - aN[k][2] - aN[k][3] + aN[k][4] + aN[k][5] - aN[k][6] - aN[k][7] - 2 * aN[k][8]);
-        aP[k][3] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][10] - 2 * aN[k][11] + 2 * aN[k][12] + 2 * aN[k][13] + 2 * aN[k][14] +
-                            2 * aN[k][15] + aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] - aN[k][5] - aN[k][6] - aN[k][7] - 2 * aN[k][8]);
-        aP[k][4] = 0.25 * (aN[k][16] - aN[k][17] + aN[k][18] - aN[k][19]);
-        aP[k][5] = 0.25 * (- aN[k][9] + aN[k][11] + aN[k][13] - aN[k][15]);
-        aP[k][6] = 0.25 * (- aN[k][10] - aN[k][12] + aN[k][14] + aN[k][8]);
-        aP[k][7] = 0.125 * (aN[k][0] - 2 * aN[k][10] - 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] + aN[k][2] + aN[k][3] + aN[k][4] +
-                            aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
-        aP[k][8] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] - 2 * aN[k][15] + aN[k][1] + aN[k][2] + aN[k][3] +
-                            aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
-        aP[k][9] = 0.125 * (aN[k][0] - 2  * aN[k][16] - 2 * aN[k][17] - 2 *  aN[k][18] + aN[k][1] - 2 * aN[k][19] + aN[k][2] + aN[k][3] +
-                            aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
-        aP[k][10] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][11] = 0.125 * (- aN[k][0] - 2 * aN[k][10] + 2 *  aN[k][12] - 2 * aN[k][14] - aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] -
-                             aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
-        aP[k][12] = 0.125 * (- aN[k][0] + 2 * aN[k][10] - 2 * aN[k][12] - 2 * aN[k][14] - aN[k][1] - aN[k][2] - aN[k][3] + aN[k][4] +
-                             aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
-        aP[k][13] = 0.125 * (- aN[k][0] + 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] - 2 * aN[k][15] - aN[k][1] - aN[k][2] - aN[k][3] +
-                             aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
-        aP[k][14] = 0.125 * (- aN[k][0] - 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] + aN[k][1] + aN[k][2] - aN[k][3] -
-                             aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][15] = 0.125 * (- aN[k][0] + 2 * aN[k][16] - 2 * aN[k][17] - 2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] - aN[k][4] +
-                             aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][16] = 0.125 * (- aN[k][0] + 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] - 2 * aN[k][19] + aN[k][2] + aN[k][3] - aN[k][4] -
-                             aN[k][5] + aN[k][6] + aN[k][7]);
-        aP[k][17] = 0.125 * (aN[k][0] + 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] +
-                             aN[k][7] - 2 * aN[k][8]);
-        aP[k][18] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] +
-                             aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][19] = 0.125 * (aN[k][0] - 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] + aN[k][4] -
-                             aN[k][5] + aN[k][6] - aN[k][7]);
-      }
-    }
-    else if (solType == 2) {
-      for (int k = 0; k < dim; k++) {
-        aP[k][0] = aN[k][26];
-        aP[k][1] = 0.5 * (aN[k][21] - aN[k][23]);
-        aP[k][2] = 0.5 * (aN[k][22] - aN[k][20]);
-        aP[k][3] = 0.5 * (aN[k][25] - aN[k][24]);
-        aP[k][4] = 0.25 * (aN[k][16] - aN[k][17] + aN[k][18] - aN[k][19]);
-        aP[k][5] = 0.25 * (- aN[k][9] + aN[k][11] + aN[k][13] - aN[k][15]);
-        aP[k][6] = 0.25 * (- aN[k][10] - aN[k][12] + aN[k][14] + aN[k][8]);
-        aP[k][7] = 0.5 * (aN[k][21] + aN[k][23] - 2 * aN[k][26]);
-        aP[k][8] = 0.5 * (aN[k][20] + aN[k][22] - 2 * aN[k][26]);
-        aP[k][9] = 0.5 * (aN[k][24] + aN[k][25] - 2 * aN[k][26]);
-        aP[k][10] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][11] = 0.25 * (- aN[k][16] - aN[k][17] + aN[k][18] + aN[k][19] + 2 * aN[k][20] - 2 * aN[k][22]);
-        aP[k][12] = 0.25 * (- aN[k][9] - aN[k][11] + aN[k][13] + aN[k][15] + 2 * aN[k][24] - 2 * aN[k][25]);
-        aP[k][13] = 0.25 * (- aN[k][10] + aN[k][12] + aN[k][14] + 2 * aN[k][24] - 2 * aN[k][25] - aN[k][8]);
-        aP[k][14] = 0.25 * (- aN[k][16] + aN[k][17] + aN[k][18] - aN[k][19] - 2 * aN[k][21] + 2 * aN[k][23]);
-        aP[k][15] = 0.25 * (aN[k][9] - aN[k][11] + aN[k][13] - aN[k][15] - 2 * aN[k][21] + 2 * aN[k][23]);
-        aP[k][16] = 0.25 * (aN[k][10] - aN[k][12] + aN[k][14] + 2 * aN[k][20] - 2 * aN[k][22] - aN[k][8]);
-        aP[k][17] = 0.125 * (aN[k][0] + 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
-        aP[k][18] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][19] = 0.125 * (aN[k][0] - 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][20] = 0.25 * (aN[k][16] + aN[k][17] + aN[k][18] + aN[k][19] - 2 * (aN[k][20] + aN[k][21] + aN[k][22] + aN[k][23])) + aN[k][26];
-        aP[k][21] = 0.25 * (aN[k][9] + aN[k][11] + aN[k][13] + aN[k][15] - 2 * (aN[k][21] + aN[k][23] + aN[k][24] + aN[k][25])) + aN[k][26];
-        aP[k][22] = 0.25 * (aN[k][10] + aN[k][12] + aN[k][14] - 2 * (aN[k][20] + aN[k][22] + aN[k][24] + aN[k][25] - 2 * aN[k][26]) + aN[k][8]);
-        aP[k][23] = 0.125 * (- aN[k][0] - 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] -
-                             2 * aN[k][19] - 4 * aN[k][20] + 4 * aN[k][22] + aN[k][2] + aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
-        aP[k][24] = 0.125 * (- aN[k][0] + 2 * aN[k][9] + 2 * aN[k][10] + 2 * aN[k][11] - 2 * aN[k][12] - 2 * aN[k][13] - 2 * aN[k][14] -
-                             2 * aN[k][15] - aN[k][1] - 4 * aN[k][24] + 4 * aN[k][25] - aN[k][2] - aN[k][3] + aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
-        aP[k][25] = 0.125 * (- aN[k][0] - 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] + 2 * aN[k][16] - 2 * aN[k][17] -
-                             2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] + 4 * aN[k][21] - 4 * aN[k][23] + aN[k][2] - aN[k][3] - aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
-        aP[k][26] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][10] - 2 * aN[k][11] - 2 * aN[k][12] - 2 * aN[k][13] - 2 * aN[k][14] - 2 * aN[k][15] -
-                             2 * aN[k][16] - 2 * aN[k][17] - 2 * aN[k][18] + aN[k][1] - 2 * aN[k][19] + 4 * aN[k][20] + 4 * aN[k][21] + 4 * aN[k][22] + 4 * aN[k][23] +
-                             4 * aN[k][24] + 4 * aN[k][25] - 8 * aN[k][26] + aN[k][2] + aN[k][3] + aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
-      }
+
+    default:
+      std::cerr << "Error: unsupported solType in ProjectHexNodalToPolynomialCoefficients\n";
+      std::abort();
     }
   }
+
+
+
+  // void ProjectHexNodalToPolynomialCoefficients(std::vector < std::vector <double > > &aP, const std::vector < std::vector <double > > &aN, const unsigned &solType) {
+  //
+  //   unsigned dim =  aN.size();
+  //   aP.resize(dim);
+  //
+  //   unsigned nDofs = hexNumberOfDofs[solType];
+  //   if (nDofs > aN[0].size()) {
+  //     std::cout << "Error in ProjectHexNodalToPolynomialCoefficients(...) the number of Dofs is inconsistent" << std::endl;
+  //     abort();
+  //   }
+  //
+  //   for (unsigned k = 0; k < dim; k++) {
+  //     aP[k].resize(nDofs);
+  //   }
+  //
+  //   if (solType == 0) {
+  //     for (int k = 0; k < dim; k++) {
+  //       aP[k][0] = 0.125 * (aN[k][0] + aN[k][1] + aN[k][2] + aN[k][3] + aN[k][4] +
+  //                           aN[k][5] + aN[k][6] + aN[k][7]) ;
+  //       aP[k][1] = 0.125 * (- aN[k][0] + aN[k][1] + aN[k][2] - aN[k][3] - aN[k][4] +
+  //                           aN[k][5] + aN[k][6] - aN[k][7]) ;
+  //       aP[k][2] = 0.125 * (- aN[k][0] - aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] -
+  //                           aN[k][5] + aN[k][6] + aN[k][7]) ;
+  //       aP[k][3] = 0.125 * (- aN[k][0] - aN[k][1] - aN[k][2] - aN[k][3] + aN[k][4] +
+  //                           aN[k][5] + aN[k][6] + aN[k][7]) ;
+  //       aP[k][4] = 0.125 * (aN[k][0] - aN[k][1] + aN[k][2] - aN[k][3] + aN[k][4] -
+  //                           aN[k][5] + aN[k][6] - aN[k][7]) ;
+  //       aP[k][5] = 0.125 * (aN[k][0] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] +
+  //                           aN[k][5] + aN[k][6] - aN[k][7]) ;
+  //       aP[k][6] = 0.125 * (aN[k][0] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] -
+  //                           aN[k][5] + aN[k][6] + aN[k][7]) ;
+  //       aP[k][7] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] -
+  //                           aN[k][5] + aN[k][6] - aN[k][7]) ;
+  //     }
+  //   }
+  //   else if (solType == 1) {
+  //     for (int k = 0; k < dim; k++) {
+  //       aP[k][0] = 0.25 * (- aN[k][0] + aN[k][9] + aN[k][10] + aN[k][11] + aN[k][12] + aN[k][13] + aN[k][14] +
+  //                          aN[k][15] + aN[k][16] + aN[k][17] + aN[k][18] - aN[k][1] + aN[k][19] - aN[k][2] -
+  //                          aN[k][3] - aN[k][4] - aN[k][5] - aN[k][6] - aN[k][7] + aN[k][8]);
+  //       aP[k][1] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] + 2 * aN[k][13] - 2 * aN[k][15] - 2 * aN[k][16] +
+  //                           2 * aN[k][17] + 2 * aN[k][18] - aN[k][1] - 2 * aN[k][19] - aN[k][2] + aN[k][3] +
+  //                           aN[k][4] - aN[k][5] - aN[k][6] + aN[k][7]);
+  //       aP[k][2] = 0.125 * (aN[k][0] + 2 * aN[k][10] - 2 * aN[k][12] + 2 * aN[k][14] - 2 * aN[k][16] - 2 * aN[k][17] +
+  //                           2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] - aN[k][2] - aN[k][3] + aN[k][4] + aN[k][5] - aN[k][6] - aN[k][7] - 2 * aN[k][8]);
+  //       aP[k][3] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][10] - 2 * aN[k][11] + 2 * aN[k][12] + 2 * aN[k][13] + 2 * aN[k][14] +
+  //                           2 * aN[k][15] + aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] - aN[k][5] - aN[k][6] - aN[k][7] - 2 * aN[k][8]);
+  //       aP[k][4] = 0.25 * (aN[k][16] - aN[k][17] + aN[k][18] - aN[k][19]);
+  //       aP[k][5] = 0.25 * (- aN[k][9] + aN[k][11] + aN[k][13] - aN[k][15]);
+  //       aP[k][6] = 0.25 * (- aN[k][10] - aN[k][12] + aN[k][14] + aN[k][8]);
+  //       aP[k][7] = 0.125 * (aN[k][0] - 2 * aN[k][10] - 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] + aN[k][2] + aN[k][3] + aN[k][4] +
+  //                           aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
+  //       aP[k][8] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] - 2 * aN[k][15] + aN[k][1] + aN[k][2] + aN[k][3] +
+  //                           aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
+  //       aP[k][9] = 0.125 * (aN[k][0] - 2  * aN[k][16] - 2 * aN[k][17] - 2 *  aN[k][18] + aN[k][1] - 2 * aN[k][19] + aN[k][2] + aN[k][3] +
+  //                           aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
+  //       aP[k][10] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][11] = 0.125 * (- aN[k][0] - 2 * aN[k][10] + 2 *  aN[k][12] - 2 * aN[k][14] - aN[k][1] + aN[k][2] + aN[k][3] - aN[k][4] -
+  //                            aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
+  //       aP[k][12] = 0.125 * (- aN[k][0] + 2 * aN[k][10] - 2 * aN[k][12] - 2 * aN[k][14] - aN[k][1] - aN[k][2] - aN[k][3] + aN[k][4] +
+  //                            aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
+  //       aP[k][13] = 0.125 * (- aN[k][0] + 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] - 2 * aN[k][15] - aN[k][1] - aN[k][2] - aN[k][3] +
+  //                            aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7]);
+  //       aP[k][14] = 0.125 * (- aN[k][0] - 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] + aN[k][1] + aN[k][2] - aN[k][3] -
+  //                            aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][15] = 0.125 * (- aN[k][0] + 2 * aN[k][16] - 2 * aN[k][17] - 2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] - aN[k][4] +
+  //                            aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][16] = 0.125 * (- aN[k][0] + 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] - 2 * aN[k][19] + aN[k][2] + aN[k][3] - aN[k][4] -
+  //                            aN[k][5] + aN[k][6] + aN[k][7]);
+  //       aP[k][17] = 0.125 * (aN[k][0] + 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] +
+  //                            aN[k][7] - 2 * aN[k][8]);
+  //       aP[k][18] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] +
+  //                            aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][19] = 0.125 * (aN[k][0] - 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] + aN[k][4] -
+  //                            aN[k][5] + aN[k][6] - aN[k][7]);
+  //     }
+  //   }
+  //   else if (solType == 2) {
+  //     for (int k = 0; k < dim; k++) {
+  //       aP[k][0] = aN[k][26];
+  //       aP[k][1] = 0.5 * (aN[k][21] - aN[k][23]);
+  //       aP[k][2] = 0.5 * (aN[k][22] - aN[k][20]);
+  //       aP[k][3] = 0.5 * (aN[k][25] - aN[k][24]);
+  //       aP[k][4] = 0.25 * (aN[k][16] - aN[k][17] + aN[k][18] - aN[k][19]);
+  //       aP[k][5] = 0.25 * (- aN[k][9] + aN[k][11] + aN[k][13] - aN[k][15]);
+  //       aP[k][6] = 0.25 * (- aN[k][10] - aN[k][12] + aN[k][14] + aN[k][8]);
+  //       aP[k][7] = 0.5 * (aN[k][21] + aN[k][23] - 2 * aN[k][26]);
+  //       aP[k][8] = 0.5 * (aN[k][20] + aN[k][22] - 2 * aN[k][26]);
+  //       aP[k][9] = 0.5 * (aN[k][24] + aN[k][25] - 2 * aN[k][26]);
+  //       aP[k][10] = 0.125 * (- aN[k][0] + aN[k][1] - aN[k][2] + aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][11] = 0.25 * (- aN[k][16] - aN[k][17] + aN[k][18] + aN[k][19] + 2 * aN[k][20] - 2 * aN[k][22]);
+  //       aP[k][12] = 0.25 * (- aN[k][9] - aN[k][11] + aN[k][13] + aN[k][15] + 2 * aN[k][24] - 2 * aN[k][25]);
+  //       aP[k][13] = 0.25 * (- aN[k][10] + aN[k][12] + aN[k][14] + 2 * aN[k][24] - 2 * aN[k][25] - aN[k][8]);
+  //       aP[k][14] = 0.25 * (- aN[k][16] + aN[k][17] + aN[k][18] - aN[k][19] - 2 * aN[k][21] + 2 * aN[k][23]);
+  //       aP[k][15] = 0.25 * (aN[k][9] - aN[k][11] + aN[k][13] - aN[k][15] - 2 * aN[k][21] + 2 * aN[k][23]);
+  //       aP[k][16] = 0.25 * (aN[k][10] - aN[k][12] + aN[k][14] + 2 * aN[k][20] - 2 * aN[k][22] - aN[k][8]);
+  //       aP[k][17] = 0.125 * (aN[k][0] + 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + aN[k][1] - aN[k][2] - aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
+  //       aP[k][18] = 0.125 * (aN[k][0] + 2 * aN[k][9] - 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] - aN[k][1] - aN[k][2] + aN[k][3] - aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][19] = 0.125 * (aN[k][0] - 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] + 2 * aN[k][19] + aN[k][2] - aN[k][3] + aN[k][4] - aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][20] = 0.25 * (aN[k][16] + aN[k][17] + aN[k][18] + aN[k][19] - 2 * (aN[k][20] + aN[k][21] + aN[k][22] + aN[k][23])) + aN[k][26];
+  //       aP[k][21] = 0.25 * (aN[k][9] + aN[k][11] + aN[k][13] + aN[k][15] - 2 * (aN[k][21] + aN[k][23] + aN[k][24] + aN[k][25])) + aN[k][26];
+  //       aP[k][22] = 0.25 * (aN[k][10] + aN[k][12] + aN[k][14] - 2 * (aN[k][20] + aN[k][22] + aN[k][24] + aN[k][25] - 2 * aN[k][26]) + aN[k][8]);
+  //       aP[k][23] = 0.125 * (- aN[k][0] - 2 * aN[k][10] + 2 * aN[k][12] - 2 * aN[k][14] + 2 * aN[k][16] + 2 * aN[k][17] - 2 * aN[k][18] - aN[k][1] -
+  //                            2 * aN[k][19] - 4 * aN[k][20] + 4 * aN[k][22] + aN[k][2] + aN[k][3] - aN[k][4] - aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
+  //       aP[k][24] = 0.125 * (- aN[k][0] + 2 * aN[k][9] + 2 * aN[k][10] + 2 * aN[k][11] - 2 * aN[k][12] - 2 * aN[k][13] - 2 * aN[k][14] -
+  //                            2 * aN[k][15] - aN[k][1] - 4 * aN[k][24] + 4 * aN[k][25] - aN[k][2] - aN[k][3] + aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7] + 2 * aN[k][8]);
+  //       aP[k][25] = 0.125 * (- aN[k][0] - 2 * aN[k][9] + 2 * aN[k][11] - 2 * aN[k][13] + 2 * aN[k][15] + 2 * aN[k][16] - 2 * aN[k][17] -
+  //                            2 * aN[k][18] + aN[k][1] + 2 * aN[k][19] + 4 * aN[k][21] - 4 * aN[k][23] + aN[k][2] - aN[k][3] - aN[k][4] + aN[k][5] + aN[k][6] - aN[k][7]);
+  //       aP[k][26] = 0.125 * (aN[k][0] - 2 * aN[k][9] - 2 * aN[k][10] - 2 * aN[k][11] - 2 * aN[k][12] - 2 * aN[k][13] - 2 * aN[k][14] - 2 * aN[k][15] -
+  //                            2 * aN[k][16] - 2 * aN[k][17] - 2 * aN[k][18] + aN[k][1] - 2 * aN[k][19] + 4 * aN[k][20] + 4 * aN[k][21] + 4 * aN[k][22] + 4 * aN[k][23] +
+  //                            4 * aN[k][24] + 4 * aN[k][25] - 8 * aN[k][26] + aN[k][2] + aN[k][3] + aN[k][4] + aN[k][5] + aN[k][6] + aN[k][7] - 2 * aN[k][8]);
+  //     }
+  //   }
+  // }
 
 
   void GetHexPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
@@ -1671,167 +1833,197 @@ namespace femus {
     }
   }
 
-  // bool GetNewLocalCoordinates(std::vector<double>& xi,
-  //                             const std::vector<double>& x,
-  //                             const std::vector<double>& phi,
-  //                             const std::vector<std::vector<double>>& gradPhi,
-  //                             const std::vector<std::vector<double>>& a) {
-  //   // Dimensions
-  //   const int dim   = static_cast<int>(gradPhi[0].size()); // number of spatial dims
-  //   const int nDofs = static_cast<int>(phi.size());        // number of shape functions
-  //
-  //   // Accumulators (stack-like reuse if you move them outside on hot paths)
-  //   std::vector<double> F(dim, 0.0);
-  //   std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
-  //
-  //   // ------------------------------------------------------------
-  //   // Fast build: i-outer loops (rank-1 updates)
-  //   //   F += a_col(i) * phi[i]
-  //   //   J += a_col(i) * gradPhi_row(i)^T
-  //   // where a_col(i) has length dim and gradPhi_row(i) has length dim.
-  //   // ------------------------------------------------------------
-  //   for (int i = 0; i < nDofs; ++i) {
-  //     const double phi_i = phi[i];
-  //     const double* __restrict__ g = gradPhi[i].data(); // length dim
-  //
-  //     // Access a[k][i] as "column i" across k
-  //     for (int k = 0; k < dim; ++k) {
-  //       const double a_ki = a[k][i];
-  //       F[k] += a_ki * phi_i;
-  //
-  //       double* __restrict__ Jk = J[k].data();
-  //       // rank-1 update to row k of J
-  //       // J[k][j] += a_ki * g[j] for j=0..dim-1
-  //       #pragma omp simd
-  //       for (int j = 0; j < dim; ++j) {
-  //         Jk[j] += a_ki * g[j];
-  //       }
-  //     }
-  //   }
-  //
-  //   // Finish F -= x
-  //   for (int k = 0; k < dim; ++k) F[k] -= x[k];
-  //
-  //   // ------------------------------------------------------------
-  //   // Solve J * delta = -F  (avoid forming inverse)
-  //   // ------------------------------------------------------------
-  //   std::vector<double> rhs = F;                // rhs := -F
-  //   for (double& v : rhs) v = -v;
-  //   solve_small(J, rhs);                        // rhs becomes delta
-  //
-  //   // Update xi and compute ||delta||^2
-  //   double delta2 = 0.0;
-  //   for (int i = 0; i < dim; ++i) {
-  //     xi[i] += rhs[i];
-  //     delta2 += rhs[i] * rhs[i];
-  //   }
-  //
-  //   return (delta2 < 1.0e-9);
-  // }
+  bool GetNewLocalCoordinates(std::vector<double>& xi,
+                              const std::vector<double>& x,
+                              const std::vector<double>& phi,
+                              const std::vector<std::vector<double>>& gradPhi,
+                              const std::vector<std::vector<double>>& a) {
+    // Dimensions
+    const int dim   = static_cast<int>(gradPhi[0].size()); // number of spatial dims
+    const int nDofs = static_cast<int>(phi.size());        // number of shape functions
 
+    // Accumulators (stack-like reuse if you move them outside on hot paths)
+    std::vector<double> F(dim, 0.0);
+    std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
 
+    // ------------------------------------------------------------
+    // Fast build: i-outer loops (rank-1 updates)
+    //   F += a_col(i) * phi[i]
+    //   J += a_col(i) * gradPhi_row(i)^T
+    // where a_col(i) has length dim and gradPhi_row(i) has length dim.
+    // ------------------------------------------------------------
+    for (int i = 0; i < nDofs; ++i) {
+      const double phi_i = phi[i];
+      const double* __restrict__ g = gradPhi[i].data(); // length dim
 
+      // Access a[k][i] as "column i" across k
+      for (int k = 0; k < dim; ++k) {
+        const double a_ki = a[k][i];
+        F[k] += a_ki * phi_i;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  bool GetNewLocalCoordinates(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
-                              const std::vector < std::vector <double > > &gradPhi,
-                              const std::vector < std::vector <double > > &a) {
-
-    const unsigned dim = gradPhi[0].size();
-    const unsigned  nDofs = phi.size();
-
-    bool convergence = false;
-    std::vector < double > F(dim, 0.);
-    std::vector < std::vector < double > > J(dim, std::vector<double>(dim, 0.));
-
-    // for (int k = 0; k < dim; k++) {
-    //   for (int i = 0; i < nDofs; i++) {
-    //     F[k] += a[k][i] * phi[i];
-    //
-    //     for (int i1 = 0; i1 < dim; i1++) {
-    //       J[k][i1] += a[k][i] * gradPhi[i][i1];
-    //     }
-    //   }
-    //   F[k] -= x[k];
-    // }
-
-
-    const std::vector<double> *a_k = a.data();
-    const double *phi_i;
-    const double *a_ki;
-    const std::vector<double> *gradPhi_i;
-    const double *gradPhi_ij;
-
-    double *F_k = F.data();
-    std::vector<double> *J_k = J.data();
-    double *J_kj;
-
-    for (int k = 0; k < dim; ++k, ++a_k, ++F_k, ++ J_k) {
-      phi_i = phi.data();
-      a_ki = a_k->data();
-      gradPhi_i = gradPhi.data();
-      for (int i = 0; i < nDofs; ++i, ++phi_i, ++a_ki, ++gradPhi_i) {
-        (*F_k) += (*a_ki) * (*phi_i);
-        gradPhi_ij = gradPhi_i->data();
-        J_kj = J_k->data();
-        for (int j = 0; j < dim; ++j, ++gradPhi_ij, ++J_kj) {
-          (*J_kj) += (*a_ki) * (*gradPhi_ij);
+        double* __restrict__ Jk = J[k].data();
+        // rank-1 update to row k of J
+        // J[k][j] += a_ki * g[j] for j=0..dim-1
+        #pragma omp simd
+        for (int j = 0; j < dim; ++j) {
+          Jk[j] += a_ki * g[j];
         }
       }
-      (*F_k) -= x[k];
     }
 
+    // Finish F -= x
+    for (int k = 0; k < dim; ++k) F[k] -= x[k];
 
-    std::vector < std::vector < double > >  Jm1;
-    InverseMatrix(J, Jm1);
+    // ------------------------------------------------------------
+    // Solve J * delta = -F  (avoid forming inverse)
+    // ------------------------------------------------------------
+    std::vector<double> rhs = F;                // rhs := -F
+    for (double& v : rhs) v = -v;
+    solve_small(J, rhs);                        // rhs becomes delta
 
-    double delta2 = 0.;
-
-    for (int i1 = 0; i1 < dim; i1++) {
-      double deltak = 0.;
-
-      for (int i2 = 0; i2 < dim; i2++) {
-        deltak -= Jm1[i1][i2] * F[i2];
-      }
-
-      xi[i1] += deltak;
-      delta2 += deltak * deltak;
+    // Update xi and compute ||delta||^2
+    double delta2 = 0.0;
+    for (int i = 0; i < dim; ++i) {
+      xi[i] += rhs[i];
+      delta2 += rhs[i] * rhs[i];
     }
 
-    if (delta2 < 1.0e-9) {
-      convergence = true;
-    }
-
-    return convergence;
+    return (delta2 < 1.0e-9);
   }
+
+
+  bool GetNewLocalCoordinates(std::vector<double>& xi,
+                              const std::vector<double>& x,
+                              const std::vector<double>& phi,
+                              const std::vector<std::vector<double>>& gradPhi,
+                              const std::vector<std::vector<double>>& a,
+                              std::vector<double> &F,
+                              std::vector<std::vector<double>> &J) {
+    // Dimensions
+    const int dim   = static_cast<int>(gradPhi[0].size()); // number of spatial dims
+    const int nDofs = static_cast<int>(phi.size());        // number of shape functions
+
+    F.assign(dim, 0.0);
+
+    J.resize(dim);
+    for (unsigned k = 0; k < dim; k++) J[k].assign(dim, 0.0);
+
+    // ------------------------------------------------------------
+    // Fast build: i-outer loops (rank-1 updates)
+    //   F += a_col(i) * phi[i]
+    //   J += a_col(i) * gradPhi_row(i)^T
+    // where a_col(i) has length dim and gradPhi_row(i) has length dim.
+    // ------------------------------------------------------------
+    for (int i = 0; i < nDofs; ++i) {
+      const double phi_i = phi[i];
+      const double* __restrict__ g = gradPhi[i].data(); // length dim
+
+      // Access a[k][i] as "column i" across k
+      for (int k = 0; k < dim; ++k) {
+        const double a_ki = a[k][i];
+        F[k] += a_ki * phi_i;
+
+        double* __restrict__ Jk = J[k].data();
+        // rank-1 update to row k of J
+        // J[k][j] += a_ki * g[j] for j=0..dim-1
+        #pragma omp simd
+        for (int j = 0; j < dim; ++j) {
+          Jk[j] += a_ki * g[j];
+        }
+      }
+    }
+
+    // Finish F -= x
+    for (int k = 0; k < dim; ++k) F[k] -= x[k];
+
+    // ------------------------------------------------------------
+    // Solve J * delta = -F  (avoid forming inverse)
+    // ------------------------------------------------------------
+    //std::vector<double> rhs = F;                // rhs := -F
+    for (double& v : F) v = -v;
+    solve_small(J, F);                        // rhs becomes delta
+
+    // Update xi and compute ||delta||^2
+    double delta2 = 0.0;
+    for (int i = 0; i < dim; ++i) {
+      xi[i] += F[i];
+      delta2 += F[i] * F[i];
+    }
+
+    return (delta2 < 1.0e-9);
+  }
+
+  // bool GetNewLocalCoordinates(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
+  //                             const std::vector < std::vector <double > > &gradPhi,
+  //                             const std::vector < std::vector <double > > &a) {
+  //
+  //   const unsigned dim = gradPhi[0].size();
+  //   const unsigned  nDofs = phi.size();
+  //
+  //   bool convergence = false;
+  //   std::vector < double > F(dim, 0.);
+  //   std::vector < std::vector < double > > J(dim, std::vector<double>(dim, 0.));
+  //
+  //   // for (int k = 0; k < dim; k++) {
+  //   //   for (int i = 0; i < nDofs; i++) {
+  //   //     F[k] += a[k][i] * phi[i];
+  //   //
+  //   //     for (int i1 = 0; i1 < dim; i1++) {
+  //   //       J[k][i1] += a[k][i] * gradPhi[i][i1];
+  //   //     }
+  //   //   }
+  //   //   F[k] -= x[k];
+  //   // }
+  //
+  //
+  //   const std::vector<double> *a_k = a.data();
+  //   const double *phi_i;
+  //   const double *a_ki;
+  //   const std::vector<double> *gradPhi_i;
+  //   const double *gradPhi_ij;
+  //
+  //   double *F_k = F.data();
+  //   std::vector<double> *J_k = J.data();
+  //   double *J_kj;
+  //
+  //   for (int k = 0; k < dim; ++k, ++a_k, ++F_k, ++ J_k) {
+  //     phi_i = phi.data();
+  //     a_ki = a_k->data();
+  //     gradPhi_i = gradPhi.data();
+  //     for (int i = 0; i < nDofs; ++i, ++phi_i, ++a_ki, ++gradPhi_i) {
+  //       (*F_k) += (*a_ki) * (*phi_i);
+  //       gradPhi_ij = gradPhi_i->data();
+  //       J_kj = J_k->data();
+  //       for (int j = 0; j < dim; ++j, ++gradPhi_ij, ++J_kj) {
+  //         (*J_kj) += (*a_ki) * (*gradPhi_ij);
+  //       }
+  //     }
+  //     (*F_k) -= x[k];
+  //   }
+  //
+  //
+  //   std::vector < std::vector < double > >  Jm1;
+  //   InverseMatrix(J, Jm1);
+  //
+  //   double delta2 = 0.;
+  //
+  //   for (int i1 = 0; i1 < dim; i1++) {
+  //     double deltak = 0.;
+  //
+  //     for (int i2 = 0; i2 < dim; i2++) {
+  //       deltak -= Jm1[i1][i2] * F[i2];
+  //     }
+  //
+  //     xi[i1] += deltak;
+  //     delta2 += deltak * deltak;
+  //   }
+  //
+  //   if (delta2 < 1.0e-9) {
+  //     convergence = true;
+  //   }
+  //
+  //   return convergence;
+  // }
 
 
   bool GetNewLocalCoordinatesHess(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,

@@ -143,9 +143,10 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
 double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector < double >& x, const char name[]) {
 
+  const unsigned level = ml_prob->GetNumberOfLevels() - 1;
+  Mesh* msh = ml_prob->_ml_msh->GetLevel(level);
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
   double value = 0.;
-
-  unsigned dim = x.size();
 
   if(!strcmp(name, "U")) {
     value = -x[1];
@@ -175,7 +176,7 @@ double GetAnalyticPSI(const std::vector < double >& x) {
 
 
 int main(int argc, char** args) {
-  //ProfilerStart("profiling.prof");
+ // ProfilerStart("profiling.prof");
 
 
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -255,7 +256,7 @@ int main(int argc, char** args) {
 
   unsigned stages = 4;
 
-  for(unsigned it = 1; it <= 10/*nIterations*/; it++) {
+  for(unsigned it = 1; it <= nIterations; it++) {
     std::cout << "ITERATION " << it << "\n";
     sol->CopySolutionToOldSolution();
     time += dt;
@@ -263,7 +264,7 @@ int main(int argc, char** args) {
     LevelSetAdvection(stages, velocity, levelSet, dt, sol);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
   }
-  //ProfilerStop();
+ // ProfilerStop();
   return 0;
 }
 

@@ -269,6 +269,9 @@ namespace femus {
       std::vector < double > _phi;
       std::vector < std::vector < double > > _gradPhi;
 
+      std::vector < double > _F;
+      std::vector < std::vector < double > > _J;
+
   };
 
 

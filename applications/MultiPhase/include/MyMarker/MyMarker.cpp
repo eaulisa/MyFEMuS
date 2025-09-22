@@ -1170,7 +1170,7 @@ namespace femus {
           bool convergence = false;
           while(!convergence) {
             GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, _solType);
-            convergence = GetNewLocalCoordinates(_xi, {0., 0., 0.}, _phi, _gradPhi, _aX[0][_solType]);
+            convergence = GetNewLocalCoordinates(_xi, {0., 0., 0.}, _phi, _gradPhi, _aX[0][_solType], _F, _J);
           }
         }
 
@@ -1608,7 +1608,7 @@ namespace femus {
       bool convergence = false;
       while(!convergence) {
         GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, solType);
-        convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType]);
+        convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType], _F, _J);
       }
     }
 
@@ -1692,10 +1692,10 @@ namespace femus {
       while(!convergence) {
         GetPolynomialShapeFunctionGradient(_phi, _gradPhi, _xi, elemType, solType);
         if(!sol->GetIfFSI()) {
-          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType]);
+          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aX[0][solType], _F, _J);
         }
         else {
-          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aXs[solType]);
+          convergence = GetNewLocalCoordinates(_xi, _x, _phi, _gradPhi, aXs[solType], _F, _J);
         }
       }
     }
