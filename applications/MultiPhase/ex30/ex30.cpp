@@ -193,7 +193,7 @@ int main(int argc, char** args) {
 
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 2;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
 
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -256,7 +256,7 @@ int main(int argc, char** args) {
 
   unsigned stages = 4;
 
-  for(unsigned it = 1; it <= nIterations; it++) {
+  for(unsigned it = 1; it <= 3/*nIterations*/; it++) {
     std::cout << "ITERATION " << it << "\n";
     sol->CopySolutionToOldSolution();
     time += dt;

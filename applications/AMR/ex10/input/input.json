@@ -58,7 +58,7 @@
     // MG Solver properties
     "mgsolver" : { "nlevels" : 1,
 		   "AMR" : "yes",
-		   "maxAMRlevels" : 100,
+		   "maxAMRlevels" : 10,
 		   "AMRnorm" : "H1",
 		   "AMRthreshold": 0.00001,
                    "npresmoothing" : 0,
