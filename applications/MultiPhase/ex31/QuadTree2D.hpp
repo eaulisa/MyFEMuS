@@ -8,6 +8,8 @@
 #include <functional>
 #include <fstream>
 #include <iomanip>
+#include <algorithm>
+
 
 
 namespace fem {
@@ -229,7 +231,16 @@ namespace fem {
           _X[i] = x9[i];
           _Y[i] = y9[i];
         }
+        _geom_ready = true;
       }
+
+
+      inline void require_geometry() const {
+        // Debug-time assert; in release we just proceed (or you can early-return).
+        assert(_geom_ready && "Call set_physical_quad9(...) before geometric operations.");
+      }
+
+
 
       // ---- refinement ----
       bool refine(u32 i) {
@@ -301,10 +312,17 @@ namespace fem {
           for (u32 i = 0; i < (u32)_nodes.size(); ++i)
             if (_alive[i] && _nodes[i].is_leaf())
               _leaves.push_back(i);
+
+          // rebuild node-index -> leaf-position map
+          _leaf_pos.assign(_nodes.size(), npos32);
+          for (u32 pos = 0; pos < (u32)_leaves.size(); ++pos) {
+            _leaf_pos[_leaves[pos]] = pos;
+          }
           _leaf_dirty = false;
         }
         return _leaves;
       }
+
 
 
 // One refinement "pass": evaluate the predicate on the CURRENT leaves only,
@@ -376,10 +394,20 @@ namespace fem {
         }
       }
 
+      // Public:
+      u32 locate_physical(double x, double y) const {
+        double xi, eta;
+        if (!inverse_map_quad9(x, y, xi, eta)) return npos32;
+        return locate_parent(xi, eta);
+      }
+
+
       // Inverse map physical (x,y) -> (xi,eta) using Quad9 isoparametric map (Newton)
       // Returns false if fails to converge or Jacobian singular. On success sets (xi,eta).
       bool inverse_map_quad9(double x, double y, double& xi, double& eta,
                              double tol = 1e-12, int maxit = 25) const {
+
+        require_geometry();
         // Start from center or a quick affine guess:
         xi  = 0.0;
         eta = 0.0;
@@ -465,6 +493,8 @@ namespace fem {
 
       // Evaluate field fid at physical (x,y). Returns false if inverse fails or outside.
       bool evaluate_physical(u32 fid, double x, double y, double& value) {
+
+        require_geometry();
         double xi, eta;
         if (!inverse_map_quad9(x, y, xi, eta)) return false;
         const u32 leaf = locate_parent(xi, eta);
@@ -479,39 +509,36 @@ namespace fem {
         // Locate leaf position in compact list
         const auto& L = leaves();
         // For speed, cache a map; here we do linear search (ok for prototype).
-        u32 leaf_pos = npos32;
-        for (u32 k = 0; k < (u32)L.size(); ++k) if (L[k] == leaf) {
-            leaf_pos = k;
-            break;
-          }
+        const u32 leaf_pos = leaf_position(leaf);
         if (leaf_pos == npos32) return false;
+
 
         const Field& f = _fields[fid];
         const double* c = leaf_coeff_ptr(fid, leaf_pos);
 
         switch (f.basis) {
-          case Basis::Q1_Quad4: {
-            double N4[4];
-            Shapes::Q1(shat, that, N4);
-            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-          }
-          break;
-          case Basis::Serendipity8: {
-            double N8[8];
-            Shapes::Serendipity8(shat, that, N8);
-            double v = 0.0;
-            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-            value = v;
-          }
-          break;
-          case Basis::Q2_Quad9: {
-            double N9[9];
-            Quad9Shape::N(shat, that, N9);
-            double v = 0.0;
-            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-            value = v;
-          }
-          break;
+        case Basis::Q1_Quad4: {
+          double N4[4];
+          Shapes::Q1(shat, that, N4);
+          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+        }
+        break;
+        case Basis::Serendipity8: {
+          double N8[8];
+          Shapes::Serendipity8(shat, that, N8);
+          double v = 0.0;
+          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+          value = v;
+        }
+        break;
+        case Basis::Q2_Quad9: {
+          double N9[9];
+          Quad9Shape::N(shat, that, N9);
+          double v = 0.0;
+          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+          value = v;
+        }
+        break;
         }
         return true;
       }
@@ -570,6 +597,7 @@ namespace fem {
 // Map given leaf basis nodes to physical (x,y) via Quad9 isoparametric map
       void leaf_physical_nodes(Basis basis, u32 leaf,
                                std::vector<std::array<double, 2>>& out_xy) const {
+        require_geometry();
         std::vector<std::array<double, 2>> pts;
         leaf_parent_nodes(basis, leaf, pts);
         out_xy.resize(pts.size());
@@ -715,48 +743,62 @@ namespace fem {
         // Find leaf position in the compact leaf list
         // (For speed, you can maintain a leaf->position map. This is simple & safe.)
         const auto& L = leaves();
-        u32 leaf_pos = npos32;
-        for (u32 k = 0; k < (u32)L.size(); ++k) if (L[k] == leaf) {
-            leaf_pos = k;
-            break;
-          }
+        const u32 leaf_pos = leaf_position(leaf);
         if (leaf_pos == npos32) return false;
+
 
         const Field& f = _fields[fid];
         const double* c = _fields[fid].coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
 
         switch (f.basis) {
-          case Basis::Q1_Quad4: {
-            double N4[4];
-            Shapes::Q1(shat, that, N4);
-            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-          }
-          break;
-          case Basis::Serendipity8: {
-            double N8[8];
-            Shapes::Serendipity8(shat, that, N8);
-            double v = 0.0;
-            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-            value = v;
-          }
-          break;
-          case Basis::Q2_Quad9: {
-            double N9[9];
-            Quad9Shape::N(shat, that, N9);
-            double v = 0.0;
-            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-            value = v;
-          }
-          break;
+        case Basis::Q1_Quad4: {
+          double N4[4];
+          Shapes::Q1(shat, that, N4);
+          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+        }
+        break;
+        case Basis::Serendipity8: {
+          double N8[8];
+          Shapes::Serendipity8(shat, that, N8);
+          double v = 0.0;
+          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+          value = v;
+        }
+        break;
+        case Basis::Q2_Quad9: {
+          double N9[9];
+          Quad9Shape::N(shat, that, N9);
+          double v = 0.0;
+          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+          value = v;
+        }
+        break;
         }
         return true;
       }
 
       bool write_vtu(const std::string& filename, u32 fid, const std::string& name,
                      bool cell_centered = false) const {
+
+
+
+        require_geometry();
         const auto& L = leaves();
         const size_t numCells = L.size();
         if (numCells == 0) return false;
+
+        const Field& fld = _fields[fid];
+        const size_t need = numCells * (size_t)fld.dofs_per_cell;
+        if (fld.coeffs.size() < need) {
+          // You can assert in debug or just return false in release
+          assert(false && "Field coefficients not sized to current leaves. Call resize_fields_to_leaves().");
+          return false;
+        }
+        // ... existing body ...
+
+
+
+
 
         struct Pt {
           double x, y, z;
@@ -782,7 +824,7 @@ namespace fem {
 
         static const double ST[4][2] = { {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1} };
 
-        const Field& fld = _fields[fid];
+
         const int ndof = (int)fld.dofs_per_cell;
         const double* coeff_base = fld.coeffs.data();
 
@@ -814,24 +856,24 @@ namespace fem {
             if (!cell_centered) {
               double v = 0.0;
               switch (fld.basis) {
-                case Basis::Q1_Quad4: {
-                  double N4[4];
-                  Shapes::Q1(sh, th, N4);
-                  v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-                }
-                break;
-                case Basis::Serendipity8: {
-                  double N8[8];
-                  Shapes::Serendipity8(sh, th, N8);
-                  for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-                }
-                break;
-                case Basis::Q2_Quad9: {
-                  double Nq[9];
-                  Quad9Shape::N(sh, th, Nq);
-                  for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-                }
-                break;
+              case Basis::Q1_Quad4: {
+                double N4[4];
+                Shapes::Q1(sh, th, N4);
+                v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+              }
+              break;
+              case Basis::Serendipity8: {
+                double N8[8];
+                Shapes::Serendipity8(sh, th, N8);
+                for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+              }
+              break;
+              case Basis::Q2_Quad9: {
+                double Nq[9];
+                Quad9Shape::N(sh, th, Nq);
+                for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+              }
+              break;
               }
               pointData.push_back(v);
             }
@@ -848,24 +890,24 @@ namespace fem {
           if (cell_centered) {
             double v = 0.0;
             switch (fld.basis) {
-              case Basis::Q1_Quad4: {
-                double N4[4];
-                Shapes::Q1(0.0, 0.0, N4);
-                v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-              }
-              break;
-              case Basis::Serendipity8: {
-                double N8[8];
-                Shapes::Serendipity8(0.0, 0.0, N8);
-                for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-              }
-              break;
-              case Basis::Q2_Quad9: {
-                double Nq[9];
-                Quad9Shape::N(0.0, 0.0, Nq);
-                for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-              }
-              break;
+            case Basis::Q1_Quad4: {
+              double N4[4];
+              Shapes::Q1(0.0, 0.0, N4);
+              v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+            }
+            break;
+            case Basis::Serendipity8: {
+              double N8[8];
+              Shapes::Serendipity8(0.0, 0.0, N8);
+              for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+            }
+            break;
+            case Basis::Q2_Quad9: {
+              double Nq[9];
+              Quad9Shape::N(0.0, 0.0, Nq);
+              for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+            }
+            break;
             }
             cellData.push_back(v);
           }
@@ -935,66 +977,7 @@ namespace fem {
 
 
 
-    private:
-      u32  _root{npos32};
-      u32  _maxDepth;
-      u32  _minDepth{0};
-      bool _allowCoarsenBelowMinDepth{true};
-      std::vector<QuadNode> _nodes;
-      std::vector<uint8_t>  _alive;
-      std::vector<u32>      _free;
-      mutable std::vector<u32> _leaves;
-      mutable bool _leaf_dirty{true};
-      std::vector<Field> _fields;
 
-      // Physical geometry (Quad9 nodes)
-      double _X[9] {}, _Y[9] {};
-
-      // Ensure all leaves have level >= _minDepth by refining only
-      void ensure_min_depth() {
-        if (_minDepth == 0) return;
-        bool changed = true;
-        while (changed) {
-          changed = false;
-          const auto& L = leaves();
-          for (u32 leaf : L) {
-            if (_nodes[leaf].level < _minDepth) {
-              if (refine(leaf)) changed = true;
-            }
-          }
-        }
-      }
-
-      u32 alloc_node() {
-        u32 i;
-        if (!_free.empty()) {
-          i = _free.back();
-          _free.pop_back();
-        }
-        else {
-          i = (u32)_nodes.size();
-          _nodes.emplace_back();
-          _alive.push_back(0);
-        }
-        _alive[i] = 1;
-        _nodes[i] = QuadNode();
-        return i;
-      }
-      void free_node(u32 i) {
-        _alive[i] = 0;
-        _free.push_back(i);
-      }
-
-      inline void bounds_of(const QuadNode& n, double& xi0, double& eta0, double& xi1, double& eta1) const {
-        u32 ix, iy;
-        deinterleave2(n.morton, ix, iy);
-        const double N = double(1u << n.level);
-        const double dx = 2.0 / N, dy = 2.0 / N;
-        xi0  = -1.0 + ix * dx;
-        eta0 = -1.0 + iy * dy;
-        xi1  = xi0 + dx;
-        eta1 = eta0 + dy;
-      }
 
 
     public:
@@ -1012,19 +995,20 @@ namespace fem {
       }
 
       static int basis_nodes(Basis b) {
-        switch(b) {
-          case Basis::Q1_Quad4:
-            return 4;
-          case Basis::Serendipity8:
-            return 8;
-          case Basis::Q2_Quad9:
-            return 9;
+        switch (b) {
+        case Basis::Q1_Quad4:
+          return 4;
+        case Basis::Serendipity8:
+          return 8;
+        case Basis::Q2_Quad9:
+          return 9;
         }
         return 0;
       }
 
 // Gather unique coordinates and associated field values
       void gather_field(u32 fid) {
+        require_geometry();
         struct Flat {
           std::array<double, 2> xy;
           double val;
@@ -1105,6 +1089,7 @@ namespace fem {
 // Each entry in the result corresponds to one leaf and contains its node coordinates in physical space.
       std::vector<std::vector<std::array<double, 2>>>
       extract_leaf_nodes_in_level_range(u32 minLevel, u32 maxLevel, Basis basis) const {
+        require_geometry();
         std::vector<std::vector<std::array<double, 2>>> result;
         const auto& L = leaves();
         for (u32 leaf : L) {
@@ -1122,6 +1107,7 @@ namespace fem {
 // Returns a flat vector of coordinates (duplicates possible).
       std::vector<std::array<double, 2>>
       extract_node_coords_in_level_range(u32 minLevel, u32 maxLevel, Basis basis) const {
+        require_geometry();
         std::vector<std::array<double, 2>> coords;
         const auto& L = leaves();
         for (u32 leaf : L) {
@@ -1137,31 +1123,111 @@ namespace fem {
 
 
       // Reset the tree to a single root cell (remove all refinements)
-void reset() {
-    _nodes.clear();
-    _alive.clear();
-    _free.clear();
-    _leaves.clear();
-    _leaf_dirty = true;
+      void reset() {
+        _nodes.clear();
+        _alive.clear();
+        _free.clear();
+        _leaves.clear();
+        _leaf_dirty = true;
 
-    _root = alloc_node();
-    _nodes[_root].level = 0;
-    _nodes[_root].morton = 0;
+        _root = alloc_node();
+        _nodes[_root].level = 0;
+        _nodes[_root].morton = 0;
 
-    // Keep existing fields but resize coefficients to 1 cell
-    for (auto& f : _fields) {
-        f.coeffs.clear();
-        f.coeffs.resize(f.dofs_per_cell);
-    }
-}
+        // Keep existing fields but resize coefficients to 1 cell
+        for (auto& f : _fields) {
+          f.coeffs.clear();
+          f.coeffs.resize(f.dofs_per_cell);
+        }
+      }
+
+    private:
 
 
+
+      // Physical geometry (Quad9 nodes)
+      double _X[9] {}, _Y[9] {};
+
+      // Ensure all leaves have level >= _minDepth by refining only
+      void ensure_min_depth() {
+        if (_minDepth == 0) return;
+        bool changed = true;
+        while (changed) {
+          changed = false;
+          const auto& L = leaves();
+          for (u32 leaf : L) {
+            if (_nodes[leaf].level < _minDepth) {
+              if (refine(leaf)) changed = true;
+            }
+          }
+        }
+      }
+
+      u32 alloc_node() {
+        u32 i;
+        if (!_free.empty()) {
+          i = _free.back();
+          _free.pop_back();
+        }
+        else {
+          i = (u32)_nodes.size();
+          _nodes.emplace_back();
+          _alive.push_back(0);
+        }
+        _alive[i] = 1;
+        _nodes[i] = QuadNode();
+        return i;
+      }
+
+      void free_node(u32 i) {
+        _alive[i] = 0;
+        _free.push_back(i);
+        _leaf_dirty = true; // ensure leaves() rebuilds map
+      }
+
+      inline void bounds_of(const QuadNode& n, double& xi0, double& eta0, double& xi1, double& eta1) const {
+        u32 ix, iy;
+        deinterleave2(n.morton, ix, iy);
+        const double N = double(1u << n.level);
+        const double dx = 2.0 / N, dy = 2.0 / N;
+        xi0  = -1.0 + ix * dx;
+        eta0 = -1.0 + iy * dy;
+        xi1  = xi0 + dx;
+        eta1 = eta0 + dy;
+      }
+
+
+      inline u32 leaf_position(u32 leaf) const {
+        // ensure cache is built
+        (void)leaves();
+        return (leaf < _leaf_pos.size()) ? _leaf_pos[leaf] : npos32;
+      }
+
+
+
+
+      u32  _root{npos32};
+      u32  _maxDepth;
+      u32  _minDepth{0};
+      bool _allowCoarsenBelowMinDepth{true};
+      std::vector<QuadNode> _nodes;
+      std::vector<uint8_t>  _alive;
+      std::vector<u32>      _free;
+      mutable std::vector<u32> _leaves;
+      mutable bool _leaf_dirty{true};
+      std::vector<Field> _fields;
+
+      mutable std::vector<u32> _leaf_pos;  // map: node index -> position in _leaves (or npos32)
+      bool _geom_ready{false};
 
 
 
   };
 
 } // namespace fem
+
+
+
 
 
 

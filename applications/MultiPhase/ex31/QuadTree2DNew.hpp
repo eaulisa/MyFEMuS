@@ -268,7 +268,6 @@ namespace fem {
         return true;
       }
 
-
       bool coarsen(u32 i) {
         // Basic guards
         if (i == npos32 || !_alive[i]) return false;
@@ -492,7 +491,7 @@ namespace fem {
       }
 
       // Evaluate field fid at physical (x,y). Returns false if inverse fails or outside.
-      bool evaluate_physical(u32 fid, double x, double y, double& value) {
+      bool evaluate_physical(u32 fid, double x, double y, double& value) const {
 
         require_geometry();
         double xi, eta;
@@ -517,28 +516,28 @@ namespace fem {
         const double* c = leaf_coeff_ptr(fid, leaf_pos);
 
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        }
-        break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -738,6 +737,81 @@ namespace fem {
 
       }
 
+
+      // Rebuild the field fid on *this* tree by interpolating from another tree (src).
+// Both trees must share the same coarse parent geometry.
+      void rebuild_field_from(const QuadTree2D& src, u32 fid) {
+        resize_fields_to_leaves();
+        Field& f = field(fid);
+
+        const auto& L = leaf_indices();
+        for (u32 k = 0; k < L.size(); ++k) {
+          u32 leaf = L[k];
+          std::vector<std::array<double, 2>> xy;
+          leaf_physical_nodes(f.basis, leaf, xy);
+
+          double* coeffs = leaf_coeff_ptr(fid, k);
+          for (size_t j = 0; j < xy.size(); ++j) {
+            double val;
+            if (!src.evaluate_physical(fid, xy[j][0], xy[j][1], val))
+              val = 0.0; // default for outside domain
+            coeffs[j] = val;
+          }
+        }
+      }
+
+
+
+      // Conservative coarsen cycle:
+//  - Coarsening criterion uses only field fid.
+//  - After coarsening, *all fields* are rebuilt from a frozen snapshot.
+      std::size_t coarsen_only_cycle_safe(u32 fid,
+                                          double tau_coarse,
+                                          u32 max_passes = 10,
+                                          Basis probe_basis = Basis::Q2_Quad9) {
+        // Snapshot the current state (geometry + all fields)
+        QuadTree2D snapshot = *this;
+
+        // Predicate: check variation of field fid on the frozen snapshot
+        auto pred = [&](u32 /*parent*/, u32 level,
+                        const std::vector<std::array<double, 2>>& /*pts_xi*/,
+                        const std::vector<std::array<double, 2>>& pts_xy,
+        const std::vector<std::array<double, 9>>& /*Nvals*/) -> bool {
+          if (level <= min_depth()) return false;
+          if (pts_xy.empty()) return false;
+
+          double v0;
+          if (!snapshot.evaluate_physical(fid, pts_xy[0][0], pts_xy[0][1], v0))
+            return false;
+          double mn = v0, mx = v0;
+
+          for (size_t i = 1; i < pts_xy.size(); ++i) {
+            double val;
+            if (snapshot.evaluate_physical(fid, pts_xy[i][0], pts_xy[i][1], val)) {
+              mn = std::min(mn, val);
+              mx = std::max(mx, val);
+            }
+          }
+
+          return (mn > +tau_coarse) || (mx < -tau_coarse);
+        };
+
+        // Perform coarsening passes
+        std::size_t total = 0;
+        for (u32 pass = 0; pass < max_passes; ++pass) {
+          std::size_t c = coarsen_pass(pred, probe_basis);
+          total += c;
+          if (c == 0) break; // converged
+        }
+
+        // --- Rebuild all fields from snapshot ---
+        for (u32 f = 0; f < _fields.size(); ++f) {
+          rebuild_field_from(snapshot, f);
+        }
+
+        return total;
+      }
+
       // Evaluate a field on a known leaf using leaf-local (shat,that) in [-1,1]^2
       bool evaluate_on_leaf(u32 fid, u32 leaf, double shat, double that, double& value) const {
         // Find leaf position in the compact leaf list
@@ -751,28 +825,28 @@ namespace fem {
         const double* c = _fields[fid].coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
 
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        }
-        break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -856,24 +930,24 @@ namespace fem {
             if (!cell_centered) {
               double v = 0.0;
               switch (fld.basis) {
-              case Basis::Q1_Quad4: {
-                double N4[4];
-                Shapes::Q1(sh, th, N4);
-                v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-              }
-              break;
-              case Basis::Serendipity8: {
-                double N8[8];
-                Shapes::Serendipity8(sh, th, N8);
-                for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-              }
-              break;
-              case Basis::Q2_Quad9: {
-                double Nq[9];
-                Quad9Shape::N(sh, th, Nq);
-                for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-              }
-              break;
+                case Basis::Q1_Quad4: {
+                  double N4[4];
+                  Shapes::Q1(sh, th, N4);
+                  v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+                }
+                break;
+                case Basis::Serendipity8: {
+                  double N8[8];
+                  Shapes::Serendipity8(sh, th, N8);
+                  for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+                }
+                break;
+                case Basis::Q2_Quad9: {
+                  double Nq[9];
+                  Quad9Shape::N(sh, th, Nq);
+                  for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+                }
+                break;
               }
               pointData.push_back(v);
             }
@@ -890,24 +964,24 @@ namespace fem {
           if (cell_centered) {
             double v = 0.0;
             switch (fld.basis) {
-            case Basis::Q1_Quad4: {
-              double N4[4];
-              Shapes::Q1(0.0, 0.0, N4);
-              v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-            }
-            break;
-            case Basis::Serendipity8: {
-              double N8[8];
-              Shapes::Serendipity8(0.0, 0.0, N8);
-              for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-            }
-            break;
-            case Basis::Q2_Quad9: {
-              double Nq[9];
-              Quad9Shape::N(0.0, 0.0, Nq);
-              for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-            }
-            break;
+              case Basis::Q1_Quad4: {
+                double N4[4];
+                Shapes::Q1(0.0, 0.0, N4);
+                v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+              }
+              break;
+              case Basis::Serendipity8: {
+                double N8[8];
+                Shapes::Serendipity8(0.0, 0.0, N8);
+                for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+              }
+              break;
+              case Basis::Q2_Quad9: {
+                double Nq[9];
+                Quad9Shape::N(0.0, 0.0, Nq);
+                for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+              }
+              break;
             }
             cellData.push_back(v);
           }
@@ -996,12 +1070,12 @@ namespace fem {
 
       static int basis_nodes(Basis b) {
         switch (b) {
-        case Basis::Q1_Quad4:
-          return 4;
-        case Basis::Serendipity8:
-          return 8;
-        case Basis::Q2_Quad9:
-          return 9;
+          case Basis::Q1_Quad4:
+            return 4;
+          case Basis::Serendipity8:
+            return 8;
+          case Basis::Q2_Quad9:
+            return 9;
         }
         return 0;
       }
@@ -1140,6 +1214,11 @@ namespace fem {
           f.coeffs.resize(f.dofs_per_cell);
         }
       }
+
+      u32 max_depth() const {
+        return _maxDepth;
+      }
+
 
     private:
 

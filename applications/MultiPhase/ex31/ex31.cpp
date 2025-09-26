@@ -8,6 +8,8 @@
 #include <gperftools/profiler.h>
 
 #include "QuadTree2DNew.hpp"
+#include "FieldAdvection.hpp"
+
 
 using namespace fem;
 
@@ -68,6 +70,82 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
     return (mn > +tau_coarse) || (mx < -tau_coarse);
   };
 }
+
+
+
+
+
+// // ---------------- Refine predicate based on a field ----------------
+// inline auto make_refine_pred_field(const QuadTree2D& qt, u32 fid,
+//                                    double tau_refine, u32 max_level_cap) {
+//   return [&, fid, tau_refine, max_level_cap](u32 leaf,
+//          const std::vector<std::array<double, 2>>& /*pts_xi*/,
+//          const std::vector<std::array<double, 2>>& pts_xy,
+//   const std::vector<std::array<double, 9>>& /*Nvals*/) -> bool {
+//     if (pts_xy.empty()) return false;
+//
+//     double v0;
+//     bool ok0 = qt.evaluate_physical(fid, pts_xy[0][0], pts_xy[0][1], v0);
+//     if (!ok0) return false;
+//     double mn = v0, mx = v0;
+//
+//     for (size_t i = 1; i < pts_xy.size(); ++i) {
+//       double val;
+//       bool ok = qt.evaluate_physical(fid, pts_xy[i][0], pts_xy[i][1], val);
+//       if (!ok) continue;
+//       mn = std::min(mn, val);
+//       mx = std::max(mx, val);
+//     }
+//
+//     double var = mx - mn;
+//     bool sign_change = (mn <= 0.0 && mx >= 0.0);
+//
+//     (void)max_level_cap; // cap is enforced by QuadTree2D::refine
+//     return sign_change || (var > tau_refine);
+//   };
+// }
+
+// // ---------------- Coarsen predicate based on a field ----------------
+// inline auto make_coarsen_pred_field(const QuadTree2D& qt, u32 fid,
+//                                     double tau_coarse, u32 min_level)
+// {
+//   return [&, fid, tau_coarse, min_level](u32 /*parent*/, u32 level,
+//                                          const std::vector<std::array<double,2>>& /*pts_xi*/,
+//                                          const std::vector<std::array<double,2>>& pts_xy,
+//                                          const std::vector<std::array<double,9>>& /*Nvals*/) -> bool
+//   {
+//     if (level <= min_level) return false;
+//     if (pts_xy.empty()) return false;
+//
+//     double v0;
+//     bool ok0 = qt.evaluate_physical(fid, pts_xy[0][0], pts_xy[0][1], v0);
+//     if (!ok0) return false;
+//     double mn = v0, mx = v0;
+//
+//     for (size_t i = 1; i < pts_xy.size(); ++i) {
+//       double val;
+//       bool ok = qt.evaluate_physical(fid, pts_xy[i][0], pts_xy[i][1], val);
+//       if (!ok) continue;
+//       mn = std::min(mn, val);
+//       mx = std::max(mx, val);
+//     }
+//
+//     // Far from interface: strictly on one side with margin tau_coarse
+//     return (mn > +tau_coarse) || (mx < -tau_coarse);
+//   };
+// }
+
+
+
+
+
+
+
+
+
+
+
+
 
 // int main() {
 //   // -------- Explicit control --------
@@ -252,7 +330,7 @@ int main() {
   psi1.xc = 0.5;      // small shift of interface
   psi1.yc = 0.5;      // small shift of interface
 
-  const double tau_coarse = 2e-3;  // coarsen margin ( > tau_ref for hysteresis)
+  const double tau_coarse = 2e-2;  // coarsen margin ( > tau_ref for hysteresis)
   const u32    min_level  = 0;     // optionally keep a minimum level
 
   auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);
@@ -276,52 +354,105 @@ int main() {
   qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
   std::cout << "Printing " << filename << "\n";
 
+  for (u32 k = 1; k <= 100; k++) {
 
-  for (u32 k = 1; k <= 5; k++) {
+    std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
+    std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
+    // fill vOld, vNew with {u,v} at coarse nodes
+    double dt = 2. * M_PI / 100.;
 
-    auto coords = qt.extract_node_coords_in_level_range(maxDepth, maxDepth, Basis::Q2_Quad9);
+    std::vector<std::array<double, 2>> leftOld, stayedNew;
+    fem::advect_markers_forward(qt, Basis::Q2_Quad9, vOld, vNew, dt, leftOld, stayedNew);
 
-    std::cout << "Collected " << coords.size() << " node coordinates\n";
-    for (auto& xy : coords) {
-      xy[0] -= 0.02;
-      xy[1] -= 0.02;
-    }
+    QuadTree2D qt1(qt.max_depth());
+    qt1.set_allow_coarsen_below_min(allowDrop);
 
-    qt.reset();
-    qt.refine_to_contain_points(coords, maxDepth);
+    qt1.set_physical_quad9(X, Y);
+    qt1.refine_to_contain_points(stayedNew, qt1.max_depth());
 
-    Psi psi1 = psi0;
-    psi1.xc = 0.5 - 0.02 * k;      // small shift of interface
-    psi1.yc = 0.5 - 0.02 * k;      // small shift of interface
+    u32 fid0 = 0; // some scalar field id in qt0
+    u32 fid1 = qt1.add_field(Basis::Q2_Quad9);
+    fem::advect_nodes_backward_and_transport_field(qt, fid0, Basis::Q2_Quad9, vOld, vNew, dt, qt1, fid1);
 
-    const double tau_coarse = 2e-3;  // coarsen margin ( > tau_ref for hysteresis)
-    const u32    min_level  = 0;     // optionally keep a minimum level
 
-    auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);
-    auto coarsen1 = make_coarsen_pred(psi1, tau_coarse, min_level);
+    u32 num_coarsened = qt1.coarsen_only_cycle_safe(fid0, tau_coarse);
+    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
 
-    std::size_t changed = qt.adapt_cycle(coarsen1, refine1, Basis::Q2_Quad9, /*max_passes=*/10);
-    std::cout << "Adapt-cycle changed " << changed << " cells\n";
-    std::cout << "Leaves after cycle: " << qt.leaf_count() << "\n";
+    std::swap(qt, qt1);
 
-    // --- Re-size and refresh field coefficients for new mesh (from psi1) ---
-    qt.resize_fields_to_leaves();
-    const auto& L1 = qt.leaf_indices();
-    for (u32 k = 0; k < (u32)L1.size(); ++k) {
-      std::vector<std::array<double, 2>> xy9;
-      qt.leaf_physical_nodes(Basis::Q2_Quad9, L1[k], xy9);
-      double* c = qt.leaf_coeff_ptr(fid, k);
-      for (int a = 0; a < 9; ++a) c[a] = psi1(xy9[a][0], xy9[a][1]);
-    }
-
-    std::string filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
     qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
     std::cout << "Printing " << filename << "\n";
   }
-
-  //ProfilerStop();
-
   return 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // for (u32 k = 1; k <= 5; k++) {
+  //
+  //   auto coords = qt.extract_node_coords_in_level_range(maxDepth, maxDepth, Basis::Q2_Quad9);
+  //
+  //   std::cout << "Collected " << coords.size() << " node coordinates\n";
+  //   for (auto& xy : coords) {
+  //     xy[0] -= 0.02;
+  //     xy[1] -= 0.02;
+  //   }
+  //
+  //   qt.reset();
+  //   qt.refine_to_contain_points(coords, maxDepth);
+  //
+  //   Psi psi1 = psi0;
+  //   psi1.xc = 0.5 - 0.02 * k;      // small shift of interface
+  //   psi1.yc = 0.5 - 0.02 * k;      // small shift of interface
+  //
+  //   const double tau_coarse = 2e-3;  // coarsen margin ( > tau_ref for hysteresis)
+  //   const u32    min_level  = 0;     // optionally keep a minimum level
+  //
+  //   auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);
+  //   auto coarsen1 = make_coarsen_pred(psi1, tau_coarse, min_level);
+  //
+  //   std::size_t changed = qt.adapt_cycle(coarsen1, refine1, Basis::Q2_Quad9, /*max_passes=*/10);
+  //   std::cout << "Adapt-cycle changed " << changed << " cells\n";
+  //   std::cout << "Leaves after cycle: " << qt.leaf_count() << "\n";
+  //
+  //   // --- Re-size and refresh field coefficients for new mesh (from psi1) ---
+  //   qt.resize_fields_to_leaves();
+  //   const auto& L1 = qt.leaf_indices();
+  //   for (u32 k = 0; k < (u32)L1.size(); ++k) {
+  //     std::vector<std::array<double, 2>> xy9;
+  //     qt.leaf_physical_nodes(Basis::Q2_Quad9, L1[k], xy9);
+  //     double* c = qt.leaf_coeff_ptr(fid, k);
+  //     for (int a = 0; a < 9; ++a) c[a] = psi1(xy9[a][0], xy9[a][1]);
+  //   }
+  //
+  //   std::string filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+  //   qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+  //   std::cout << "Printing " << filename << "\n";
+  // }
+  //
+  // //ProfilerStop();
+  //
+  // return 0;
 
 }
 
