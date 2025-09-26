@@ -7,7 +7,7 @@
 #include <vector>
 #include <gperftools/profiler.h>
 
-#include "QuadTree2D.hpp"
+#include "QuadTree2DNew.hpp"
 
 using namespace fem;
 
@@ -205,7 +205,7 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
 int main() {
 
 
-  ProfilerStart("profiling.prof");
+  //ProfilerStart("profiling.prof");
   // -------- Explicit control --------
   const u32 maxDepth   = 12;   // absolute cap on tree depth
   const u32 minDepth   = 3;    // baseline depth enforced by the class
@@ -277,7 +277,7 @@ int main() {
   std::cout << "Printing " << filename << "\n";
 
 
-  for (u32 k = 1; k <= 100; k++) {
+  for (u32 k = 1; k <= 5; k++) {
 
     auto coords = qt.extract_node_coords_in_level_range(maxDepth, maxDepth, Basis::Q2_Quad9);
 
@@ -319,7 +319,7 @@ int main() {
     std::cout << "Printing " << filename << "\n";
   }
 
-  ProfilerStop();
+  //ProfilerStop();
 
   return 0;
 
