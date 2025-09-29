@@ -119,7 +119,7 @@ int main() {
   psi1.xc = 0.5;      // small shift of interface
   psi1.yc = 0.5;      // small shift of interface
 
-  const double tau_coarse = 1e-9;  // coarsen margin ( > tau_ref for hysteresis)
+  const double tau_coarse = 1e-5;  // coarsen margin ( > tau_ref for hysteresis)
   const u32    min_level  = 0;     // optionally keep a minimum level
 
   auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);

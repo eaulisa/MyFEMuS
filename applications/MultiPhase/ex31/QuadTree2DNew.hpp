@@ -48,7 +48,8 @@ namespace fem {
       double Lx[3], Ly[3], dx[3], dy[3];
       q2_1d(xi,  Lx[0], Lx[1], Lx[2], dx[0], dx[1], dx[2]);
       q2_1d(eta, Ly[0], Ly[1], Ly[2], dy[0], dy[1], dy[2]);
-      (void)dx; (void)dy;
+      (void)dx;
+      (void)dy;
 
       // corners
       N9[0] = Lx[0] * Ly[0]; // (-1,-1)
@@ -70,15 +71,24 @@ namespace fem {
       q2_1d(xi,  Lx[0], Lx[1], Lx[2], dx[0], dx[1], dx[2]);
       q2_1d(eta, Ly[0], Ly[1], Ly[2], dy[0], dy[1], dy[2]);
 
-      dN_dxi[0]  = dx[0] * Ly[0]; dN_deta[0] = Lx[0] * dy[0];
-      dN_dxi[1]  = dx[2] * Ly[0]; dN_deta[1] = Lx[2] * dy[0];
-      dN_dxi[2]  = dx[2] * Ly[2]; dN_deta[2] = Lx[2] * dy[2];
-      dN_dxi[3]  = dx[0] * Ly[2]; dN_deta[3] = Lx[0] * dy[2];
-      dN_dxi[4]  = dx[1] * Ly[0]; dN_deta[4] = Lx[1] * dy[0];
-      dN_dxi[5]  = dx[2] * Ly[1]; dN_deta[5] = Lx[2] * dy[1];
-      dN_dxi[6]  = dx[1] * Ly[2]; dN_deta[6] = Lx[1] * dy[2];
-      dN_dxi[7]  = dx[0] * Ly[1]; dN_deta[7] = Lx[0] * dy[1];
-      dN_dxi[8]  = dx[1] * Ly[1]; dN_deta[8] = Lx[1] * dy[1];
+      dN_dxi[0]  = dx[0] * Ly[0];
+      dN_deta[0] = Lx[0] * dy[0];
+      dN_dxi[1]  = dx[2] * Ly[0];
+      dN_deta[1] = Lx[2] * dy[0];
+      dN_dxi[2]  = dx[2] * Ly[2];
+      dN_deta[2] = Lx[2] * dy[2];
+      dN_dxi[3]  = dx[0] * Ly[2];
+      dN_deta[3] = Lx[0] * dy[2];
+      dN_dxi[4]  = dx[1] * Ly[0];
+      dN_deta[4] = Lx[1] * dy[0];
+      dN_dxi[5]  = dx[2] * Ly[1];
+      dN_deta[5] = Lx[2] * dy[1];
+      dN_dxi[6]  = dx[1] * Ly[2];
+      dN_deta[6] = Lx[1] * dy[2];
+      dN_dxi[7]  = dx[0] * Ly[1];
+      dN_deta[7] = Lx[0] * dy[1];
+      dN_dxi[8]  = dx[1] * Ly[1];
+      dN_deta[8] = Lx[1] * dy[1];
     }
   };
 
@@ -403,7 +413,8 @@ namespace fem {
       bool inverse_map_quad9(double x, double y, double& xi, double& eta,
                              double tol = 1e-12, int maxit = 25) const {
         require_geometry();
-        xi  = 0.0; eta = 0.0;
+        xi  = 0.0;
+        eta = 0.0;
         for (int it = 0; it < maxit; ++it) {
           double N9[9], dNdxi[9], dNdeta[9];
           Quad9Shape::N(xi, eta, N9);
@@ -411,9 +422,12 @@ namespace fem {
 
           double Xh = 0.0, Yh = 0.0, dXdxi = 0.0, dXdeta = 0.0, dYdxi = 0.0, dYdeta = 0.0;
           for (int a = 0; a < 9; ++a) {
-            Xh += N9[a] * _X[a]; Yh += N9[a] * _Y[a];
-            dXdxi  += dNdxi[a] * _X[a]; dXdeta += dNdeta[a] * _X[a];
-            dYdxi  += dNdxi[a] * _Y[a]; dYdeta += dNdeta[a] * _Y[a];
+            Xh += N9[a] * _X[a];
+            Yh += N9[a] * _Y[a];
+            dXdxi  += dNdxi[a] * _X[a];
+            dXdeta += dNdeta[a] * _X[a];
+            dYdxi  += dNdxi[a] * _Y[a];
+            dYdeta += dNdeta[a] * _Y[a];
           }
 
           const double rx = Xh - x, ry = Yh - y;
@@ -427,7 +441,8 @@ namespace fem {
 
           const double dxi  = (J11 * rx - J01 * ry) / detJ;
           const double deta = (-J10 * rx + J00 * ry) / detJ;
-          xi  -= dxi; eta -= deta;
+          xi  -= dxi;
+          eta -= deta;
           if (std::abs(dxi) + std::abs(deta) < tol * 1e-6) return true;
         }
         return false;
@@ -494,18 +509,28 @@ namespace fem {
         const double* c = leaf_coeff_ptr(fid, leaf_pos);
 
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4]; Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        } break;
-        case Basis::Serendipity8: {
-          double N8[8]; Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0; for (int i = 0; i < 8; ++i) v += N8[i] * c[i]; value = v;
-        } break;
-        case Basis::Q2_Quad9: {
-          double N9[9]; Quad9Shape::N(shat, that, N9);
-          double v = 0.0; for (int i = 0; i < 9; ++i) v += N9[i] * c[i]; value = v;
-        } break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -540,27 +565,30 @@ namespace fem {
 
         out_pts.clear();
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          static const double S[4][2] = {{-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}};
-          out_pts.reserve(4);
-          for (int i = 0; i < 4; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        } break;
-        case Basis::Serendipity8: {
-          static const double S[8][2] = {
-            {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
-            {0, -1}, {+1, 0}, {0, +1}, {-1, 0}
-          };
-          out_pts.reserve(8);
-          for (int i = 0; i < 8; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        } break;
-        case Basis::Q2_Quad9: {
-          static const double S[9][2] = {
-            {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
-            {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
-          };
-          out_pts.reserve(9);
-          for (int i = 0; i < 9; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        } break;
+          case Basis::Q1_Quad4: {
+            static const double S[4][2] = {{-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}};
+            out_pts.reserve(4);
+            for (int i = 0; i < 4; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
+          case Basis::Serendipity8: {
+            static const double S[8][2] = {
+              {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
+              {0, -1}, {+1, 0}, {0, +1}, {-1, 0}
+            };
+            out_pts.reserve(8);
+            for (int i = 0; i < 8; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            static const double S[9][2] = {
+              {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
+              {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
+            };
+            out_pts.reserve(9);
+            for (int i = 0; i < 9; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
         }
       }
 
@@ -573,7 +601,8 @@ namespace fem {
         out_xy.resize(pts.size());
         for (size_t i = 0; i < pts.size(); ++i) {
           const double xi = pts[i][0], eta = pts[i][1];
-          double N9[9]; Quad9Shape::N(xi, eta, N9);
+          double N9[9];
+          Quad9Shape::N(xi, eta, N9);
           double X = 0.0, Y = 0.0;
           for (int a = 0; a < 9; ++a) {
             X += N9[a] * _X[a];
@@ -588,7 +617,8 @@ namespace fem {
                            std::vector<std::array<double, 9>>& out_N) const {
         out_N.resize(points.size());
         for (size_t i = 0; i < points.size(); ++i) {
-          double N9[9]; Quad9Shape::N(points[i][0], points[i][1], N9);
+          double N9[9];
+          Quad9Shape::N(points[i][0], points[i][1], N9);
           for (int a = 0; a < 9; ++a) out_N[i][a] = N9[a];
         }
       }
@@ -628,7 +658,8 @@ namespace fem {
           for (int k = 0; k < 4; ++k) {
             u32 c = n.child[k];
             if (c == npos32 || !_alive[c] || !_nodes[c].is_leaf() || _nodes[c].parent != i) {
-              ok = false; break;
+              ok = false;
+              break;
             }
           }
           if (!ok) continue;
@@ -693,38 +724,41 @@ namespace fem {
         double xi0, eta0, xi1, eta1;
         leaf_bounds(leaf, xi0, eta0, xi1, eta1);
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          xi.resize(4);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-        } break;
-        case Basis::Serendipity8: {
-          xi.resize(8);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-        } break;
-        case Basis::Q2_Quad9: {
-          xi.resize(9);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-          xi[8] = {xm,  ym };
-        } break;
+          case Basis::Q1_Quad4: {
+            xi.resize(4);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+          }
+          break;
+          case Basis::Serendipity8: {
+            xi.resize(8);
+            double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+            xi[4] = {xm,  eta0};
+            xi[5] = {xi1, ym };
+            xi[6] = {xm,  eta1};
+            xi[7] = {xi0, ym };
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            xi.resize(9);
+            double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+            xi[4] = {xm,  eta0};
+            xi[5] = {xi1, ym };
+            xi[6] = {xm,  eta1};
+            xi[7] = {xi0, ym };
+            xi[8] = {xm,  ym };
+          }
+          break;
         }
       }
 
@@ -735,18 +769,28 @@ namespace fem {
         const Field& f = _fields[fid];
         const double* c = _fields[fid].coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4]; Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        } break;
-        case Basis::Serendipity8: {
-          double N8[8]; Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0; for (int i = 0; i < 8; ++i) v += N8[i] * c[i]; value = v;
-        } break;
-        case Basis::Q2_Quad9: {
-          double N9[9]; Quad9Shape::N(shat, that, N9);
-          double v = 0.0; for (int i = 0; i < 9; ++i) v += N9[i] * c[i]; value = v;
-        } break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -772,29 +816,31 @@ namespace fem {
 
         // Step 4. Evaluate basis interpolation
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        } break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
 
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        } break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
 
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        } break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
-
         return true;
       }
 
@@ -816,7 +862,7 @@ namespace fem {
             double val;
             if (!src.evaluate_field_on_parent(fid, xi[j][0], xi[j][1], val)) {
               val = 0.0;
-              std::cout<< "error!";
+              std::cout << "error!";
             }
             coeffs[j] = val;
           }
@@ -829,7 +875,11 @@ namespace fem {
                                           double tau_coarse,
                                           u32 max_passes = 10,
                                           Basis probe_basis = Basis::Q2_Quad9) {
+
+
         QuadTree2D snapshot = *this;
+
+
 
         // Predicate: coarsening criterion
         auto pred = [&](u32 /*parent*/, u32 level,
@@ -872,8 +922,194 @@ namespace fem {
           rebuild_field_from(snapshot, f);
         }
 
+        //enforce_hanging_constraints();
+
         return total;
       }
+
+
+      u32 find_neighbor(u32 leaf, int edge) const {
+        double xi0, eta0, xi1, eta1;
+        leaf_bounds(leaf, xi0, eta0, xi1, eta1);
+
+        double eps = 1.0E-10;
+
+        // local element sizes in parent space
+        double dx = xi1 - xi0;
+        double dy = eta1 - eta0;
+
+        // relative perturbation factor (safe wrt machine precision)
+
+
+        // test point starts at element center
+        double xm = 0.5 * (xi0 + xi1);
+        double ym = 0.5 * (eta0 + eta1);
+
+        // shift across the requested edge
+        switch (edge) {
+          case 0:
+            ym = eta0 - eps * dy;
+            break; // bottom
+          case 1:
+            xm = xi1 + eps * dx;
+            break; // right
+          case 2:
+            ym = eta1 + eps * dy;
+            break; // top
+          case 3:
+            xm = xi0 - eps * dx;
+            break; // left
+          default:
+            break;
+        }
+
+        return locate_leaf_on_parent(xm, ym);
+
+
+
+      }
+
+
+      // Collect edge nodes of a leaf and return both coordinates (xi,eta) and local indices.
+      // The coordinates are shifted slightly outside the fine element so evaluation
+      // comes from the coarse neighbor.
+      void edge_reference_nodes_with_mapping(Basis basis, u32 leaf, int edge,
+                                             std::vector<std::array<double, 2>>& out_coords,
+                                             std::vector<int>& out_indices) const {
+        out_coords.clear();
+        out_indices.clear();
+
+        std::vector<std::array<double, 2>> xi;
+        leaf_reference_nodes(basis, leaf, xi);
+
+        double eps = 1e-10;  // small outward shift
+        double xi0, eta0, xi1, eta1;
+        leaf_bounds(leaf, xi0, eta0, xi1, eta1);
+        const double dx = xi1 - xi0, dy = eta1 - eta0;
+
+        for (int i = 0; i < (int)xi.size(); ++i) {
+          auto p = xi[i];
+          bool isOnEdge = false;
+
+          if (edge == 0) { // bottom edge
+            p[1] -= eps * dy;
+            switch (i) {
+              case 0: // bottom-left corner
+                p[0] += eps * dx;
+                isOnEdge = true;
+                break;
+              case 1: // bottom-right corner
+                p[0] -= eps * dx;
+                isOnEdge = true;
+                break;
+              case 4: // bottom midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
+            }
+          }
+          else if (edge == 1) { // right edge
+            p[0] += eps * dx;
+            switch (i) {
+              case 1: // bottom-right corner
+                p[1] += eps * dy;
+                isOnEdge = true;
+                break;
+              case 2: // top-right corner
+                p[1] -= eps * dy;
+                isOnEdge = true;
+                break;
+              case 5: // right midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
+            }
+          }
+          else if (edge == 2) { // top edge
+            p[1] += eps * dy;
+            switch (i) {
+              case 2: // top-right corner
+                p[0] -= eps * dx;
+                isOnEdge = true;
+                break;
+              case 3: // top-left corner
+                p[0] += eps * dx;
+                isOnEdge = true;
+                break;
+              case 6: // top midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
+            }
+          }
+          else if (edge == 3) { // left edge
+            p[0] -= eps * dx;
+            switch (i) {
+              case 0: // bottom-left corner
+                p[1] += eps * dy;
+                isOnEdge = true;
+                break;
+              case 3: // top-left corner
+                p[1] -= eps * dy;
+                isOnEdge = true;
+                break;
+              case 7: // left midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
+            }
+          }
+
+          if (isOnEdge) {
+            out_coords.push_back(p);   // store nudged point
+            out_indices.push_back(i); // store local index of node
+          }
+        }
+      }
+
+      // Enforce hanging-node constraints for all fields
+      void enforce_hanging_constraints() {
+        for (u32 leaf : leaf_indices()) {
+          for (int e = 0; e < 4; ++e) {
+            u32 neigh = find_neighbor(leaf, e);
+            if (neigh == npos32) continue;
+
+            if (level_of(leaf) > level_of(neigh)) {
+              enforce_edge_constraints(neigh, leaf, e);
+            }
+          }
+        }
+      }
+
+
+      void enforce_edge_constraints(u32 coarse, u32 fine, int edge) {
+        for (u32 fid = 0; fid < _fields.size(); ++fid) {
+          const Field& f = _fields[fid];
+          double* coeffF = leaf_coeff_ptr(fid, leaf_position(fine));
+
+          std::vector<std::array<double, 2>> xiFine;
+          std::vector<int> idxFine;
+          edge_reference_nodes_with_mapping(f.basis, fine, edge, xiFine, idxFine);
+
+          for (size_t j = 0; j < xiFine.size(); ++j) {
+            double val;
+            if (!evaluate_field_on_parent(fid, xiFine[j][0], xiFine[j][1], val)) {
+              val = 0.0;
+              std::cout << "error!";
+            }
+
+
+
+
+            coeffF[idxFine[j]] = val;  // write into correct slot
+          }
+        }
+      }
+
 
 
 
@@ -1030,8 +1266,188 @@ namespace fem {
 
 
 
+      // // Write current mesh + field to VTK UnstructuredGrid ASCII (.vtu)
+      // bool write_vtu(const std::string & filename, u32 fid, const std::string & name,
+      //                bool cell_centered = false) const {
+      //   require_geometry();
+      //   const auto& L = leaves();
+      //   const size_t numCells = L.size();
+      //   if (numCells == 0) return false;
+      //
+      //   const Field& fld = _fields[fid];
+      //   const size_t need = numCells * (size_t)fld.dofs_per_cell;
+      //   if (fld.coeffs.size() < need) {
+      //     assert(false && "Field coefficients not sized to current leaves. Call resize_fields_to_leaves().");
+      //     return false;
+      //   }
+      //
+      //   struct Pt {
+      //     double x, y, z;
+      //   };
+      //   std::vector<Pt> points;
+      //   points.reserve(numCells * 4);
+      //
+      //   std::vector<int> connectivity;
+      //   connectivity.reserve(numCells * 4);
+      //   std::vector<int> offsets;
+      //   offsets.reserve(numCells);
+      //   std::vector<unsigned char> types;
+      //   types.reserve(numCells);
+      //
+      //   std::vector<double> pointData;
+      //   pointData.reserve(numCells * 4);
+      //   std::vector<double> cellData;
+      //   cellData.reserve(numCells);
+      //
+      //   std::vector<int> levels;
+      //   levels.reserve(numCells);
+      //
+      //   static const double ST[4][2] = { {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1} };
+      //
+      //   const int ndof = (int)fld.dofs_per_cell;
+      //   const double* coeff_base = fld.coeffs.data();
+      //
+      //   for (size_t k = 0; k < numCells; ++k) {
+      //     const u32 leaf = L[k];
+      //     levels.push_back((int)_nodes[leaf].level);
+      //
+      //     const double* c = coeff_base + size_t(k) * ndof;
+      //
+      //     double xi0, eta0, xi1, eta1;
+      //     leaf_bounds(leaf, xi0, eta0, xi1, eta1);
+      //     const double cx = 0.5 * (xi0 + xi1), hx = 0.5 * (xi1 - xi0);
+      //     const double cy = 0.5 * (eta0 + eta1), hy = 0.5 * (eta1 - eta0);
+      //
+      //     for (int q = 0; q < 4; ++q) {
+      //       const double sh = ST[q][0], th = ST[q][1];
+      //       const double xi  = cx + sh * hx;
+      //       const double eta = cy + th * hy;
+      //
+      //       double N9[9];
+      //       Quad9Shape::N(xi, eta, N9);
+      //       double X = 0.0, Y = 0.0;
+      //       for (int a = 0; a < 9; ++a) {
+      //         X += N9[a] * _X[a];
+      //         Y += N9[a] * _Y[a];
+      //       }
+      //       points.push_back({X, Y, 0.0});
+      //
+      //       if (!cell_centered) {
+      //         double v = 0.0;
+      //         switch (fld.basis) {
+      //           case Basis::Q1_Quad4: {
+      //             double N4[4];
+      //             Shapes::Q1(sh, th, N4);
+      //             v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+      //           }
+      //           break;
+      //           case Basis::Serendipity8: {
+      //             double N8[8];
+      //             Shapes::Serendipity8(sh, th, N8);
+      //             for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+      //           }
+      //           break;
+      //           case Basis::Q2_Quad9: {
+      //             double Nq[9];
+      //             Quad9Shape::N(sh, th, Nq);
+      //             for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+      //           }
+      //           break;
+      //         }
+      //         pointData.push_back(v);
+      //       }
+      //     }
+      //
+      //     const int base = (int)(k * 4);
+      //     connectivity.push_back(base + 0);
+      //     connectivity.push_back(base + 1);
+      //     connectivity.push_back(base + 2);
+      //     connectivity.push_back(base + 3);
+      //     offsets.push_back(base + 4);
+      //     types.push_back(9); // VTK_QUAD
+      //
+      //     if (cell_centered) {
+      //       double v = 0.0;
+      //       switch (fld.basis) {
+      //         case Basis::Q1_Quad4: {
+      //           double N4[4];
+      //           Shapes::Q1(0.0, 0.0, N4);
+      //           v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+      //         }
+      //         break;
+      //         case Basis::Serendipity8: {
+      //           double N8[8];
+      //           Shapes::Serendipity8(0.0, 0.0, N8);
+      //           for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
+      //         }
+      //         break;
+      //         case Basis::Q2_Quad9: {
+      //           double Nq[9];
+      //           Quad9Shape::N(0.0, 0.0, Nq);
+      //           for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
+      //         }
+      //         break;
+      //       }
+      //       cellData.push_back(v);
+      //     }
+      //   }
+      //
+      //   std::ofstream os(filename);
+      //   if (!os) return false;
+      //   os << std::setprecision(16);
+      //   os << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+      //   os << "  <UnstructuredGrid>\n";
+      //   os << "    <Piece NumberOfPoints=\"" << points.size()
+      //      << "\" NumberOfCells=\"" << numCells << "\">\n";
+      //
+      //   os << "      <Points>\n";
+      //   os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+      //   for (const auto& p : points) os << "          " << p.x << " " << p.y << " " << p.z << "\n";
+      //   os << "        </DataArray>\n";
+      //   os << "      </Points>\n";
+      //
+      //   os << "      <Cells>\n";
+      //   os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
+      //   for (size_t i = 0; i < connectivity.size(); i += 4)
+      //     os << "          " << connectivity[i] << " " << connectivity[i + 1]
+      //        << " " << connectivity[i + 2] << " " << connectivity[i + 3] << "\n";
+      //   os << "        </DataArray>\n";
+      //   os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
+      //   for (int off : offsets) os << "          " << off << "\n";
+      //   os << "        </DataArray>\n";
+      //   os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
+      //   for (unsigned char t : types) os << "          " << (int)t << "\n";
+      //   os << "        </DataArray>\n";
+      //   os << "      </Cells>\n";
+      //
+      //   os << "      <CellData Scalars=\"" << name << "\">\n";
+      //   os << "        <DataArray type=\"Int32\" Name=\"level\" format=\"ascii\">\n";
+      //   for (int lv : levels) os << "          " << lv << "\n";
+      //   os << "        </DataArray>\n";
+      //
+      //   if (cell_centered) {
+      //     os << "        <DataArray type=\"Float64\" Name=\"" << name << "\" format=\"ascii\">\n";
+      //     for (double v : cellData) os << "          " << v << "\n";
+      //     os << "        </DataArray>\n";
+      //     os << "      </CellData>\n";
+      //   }
+      //   else {
+      //     os << "      </CellData>\n";
+      //     os << "      <PointData Scalars=\"" << name << "\">\n";
+      //     os << "        <DataArray type=\"Float64\" Name=\"" << name << "\" format=\"ascii\">\n";
+      //     for (double v : pointData) os << "          " << v << "\n";
+      //     os << "        </DataArray>\n";
+      //     os << "      </PointData>\n";
+      //   }
+      //
+      //   os << "    </Piece>\n";
+      //   os << "  </UnstructuredGrid>\n";
+      //   os << "</VTKFile>\n";
+      //   return true;
+      // }
+
       // Write current mesh + field to VTK UnstructuredGrid ASCII (.vtu)
-      bool write_vtu(const std::string& filename, u32 fid, const std::string& name,
+      bool write_vtu(const std::string & filename, u32 fid, const std::string & name,
                      bool cell_centered = false) const {
         require_geometry();
         const auto& L = leaves();
@@ -1049,94 +1465,82 @@ namespace fem {
           double x, y, z;
         };
         std::vector<Pt> points;
-        points.reserve(numCells * 4);
-
-        std::vector<int> connectivity; connectivity.reserve(numCells * 4);
-        std::vector<int> offsets;       offsets.reserve(numCells);
-        std::vector<unsigned char> types; types.reserve(numCells);
-
-        std::vector<double> pointData; pointData.reserve(numCells * 4);
-        std::vector<double> cellData;  cellData.reserve(numCells);
-
-        std::vector<int> levels; levels.reserve(numCells);
-
-        static const double ST[4][2] = { {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1} };
+        std::vector<int> connectivity;
+        std::vector<int> offsets;
+        std::vector<unsigned char> types;
+        std::vector<double> pointData;
+        std::vector<double> cellData;
+        std::vector<int> levels;
 
         const int ndof = (int)fld.dofs_per_cell;
         const double* coeff_base = fld.coeffs.data();
+        int pointCounter = 0;
 
         for (size_t k = 0; k < numCells; ++k) {
           const u32 leaf = L[k];
           levels.push_back((int)_nodes[leaf].level);
-
           const double* c = coeff_base + size_t(k) * ndof;
 
-          double xi0, eta0, xi1, eta1;
-          leaf_bounds(leaf, xi0, eta0, xi1, eta1);
-          const double cx = 0.5 * (xi0 + xi1), hx = 0.5 * (xi1 - xi0);
-          const double cy = 0.5 * (eta0 + eta1), hy = 0.5 * (eta1 - eta0);
+          // Get geometry nodes depending on basis
+          std::vector<std::array<double, 2>> xy;
+          leaf_physical_nodes(fld.basis, leaf, xy);
 
-          for (int q = 0; q < 4; ++q) {
-            const double sh = ST[q][0], th = ST[q][1];
-            const double xi  = cx + sh * hx;
-            const double eta = cy + th * hy;
-
-            double N9[9]; Quad9Shape::N(xi, eta, N9);
-            double X = 0.0, Y = 0.0;
-            for (int a = 0; a < 9; ++a) {
-              X += N9[a] * _X[a];
-              Y += N9[a] * _Y[a];
-            }
-            points.push_back({X, Y, 0.0});
-
-            if (!cell_centered) {
-              double v = 0.0;
-              switch (fld.basis) {
-              case Basis::Q1_Quad4: {
-                double N4[4]; Shapes::Q1(sh, th, N4);
-                v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-              } break;
-              case Basis::Serendipity8: {
-                double N8[8]; Shapes::Serendipity8(sh, th, N8);
-                for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-              } break;
-              case Basis::Q2_Quad9: {
-                double Nq[9]; Quad9Shape::N(sh, th, Nq);
-                for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-              } break;
-              }
-              pointData.push_back(v);
-            }
+          // Append nodes to point list
+          for (auto &p : xy) {
+            points.push_back({p[0], p[1], 0.0});
           }
 
-          const int base = (int)(k * 4);
-          connectivity.push_back(base + 0);
-          connectivity.push_back(base + 1);
-          connectivity.push_back(base + 2);
-          connectivity.push_back(base + 3);
-          offsets.push_back(base + 4);
-          types.push_back(9); // VTK_QUAD
+          // Connectivity: sequential nodes
+          for (int i = 0; i < ndof; ++i)
+            connectivity.push_back(pointCounter + i);
+          pointCounter += ndof;
+          offsets.push_back((int)connectivity.size());
+
+          // Cell type
+          switch(fld.basis) {
+            case Basis::Q1_Quad4:
+              types.push_back(9);
+              break;  // VTK_QUAD
+            case Basis::Serendipity8:
+              types.push_back(23);
+              break;  // VTK_QUADRATIC_QUAD
+            case Basis::Q2_Quad9:
+              types.push_back(28);
+              break;  // VTK_BIQUADRATIC_QUAD
+          }
 
           if (cell_centered) {
+            // Just evaluate at element center (0,0)
             double v = 0.0;
-            switch (fld.basis) {
-            case Basis::Q1_Quad4: {
-              double N4[4]; Shapes::Q1(0.0, 0.0, N4);
-              v = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-            } break;
-            case Basis::Serendipity8: {
-              double N8[8]; Shapes::Serendipity8(0.0, 0.0, N8);
-              for (int a = 0; a < 8; ++a) v += N8[a] * c[a];
-            } break;
-            case Basis::Q2_Quad9: {
-              double Nq[9]; Quad9Shape::N(0.0, 0.0, Nq);
-              for (int a = 0; a < 9; ++a) v += Nq[a] * c[a];
-            } break;
+            switch(fld.basis) {
+              case Basis::Q1_Quad4: {
+                double N4[4];
+                Shapes::Q1(0, 0, N4);
+                for (int i = 0; i < 4; ++i) v += N4[i] * c[i];
+              }
+              break;
+              case Basis::Serendipity8: {
+                double N8[8];
+                Shapes::Serendipity8(0, 0, N8);
+                for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+              }
+              break;
+              case Basis::Q2_Quad9: {
+                double N9[9];
+                Quad9Shape::N(0, 0, N9);
+                for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+              }
+              break;
             }
             cellData.push_back(v);
           }
+          else {
+            // Push values at nodes
+            for (int i = 0; i < ndof; ++i) pointData.push_back(c[i]);
+          }
         }
 
+        // Write ASCII VTK
         std::ofstream os(filename);
         if (!os) return false;
         os << std::setprecision(16);
@@ -1147,32 +1551,32 @@ namespace fem {
 
         os << "      <Points>\n";
         os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-        for (const auto& p : points) os << "          " << p.x << " " << p.y << " " << p.z << "\n";
+        for (auto &p : points) os << "          " << p.x << " " << p.y << " " << p.z << "\n";
         os << "        </DataArray>\n";
         os << "      </Points>\n";
 
         os << "      <Cells>\n";
         os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
-        for (size_t i = 0; i < connectivity.size(); i += 4)
-          os << "          " << connectivity[i] << " " << connectivity[i + 1]
-             << " " << connectivity[i + 2] << " " << connectivity[i + 3] << "\n";
+        for (size_t i = 0; i < connectivity.size(); ++i) {
+          os << connectivity[i] << ((i + 1) % ndof == 0 ? "\n" : " ");
+        }
         os << "        </DataArray>\n";
         os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
-        for (int off : offsets) os << "          " << off << "\n";
+        for (int off : offsets) os << off << "\n";
         os << "        </DataArray>\n";
         os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
-        for (unsigned char t : types) os << "          " << (int)t << "\n";
+        for (auto t : types) os << (int)t << "\n";
         os << "        </DataArray>\n";
         os << "      </Cells>\n";
 
         os << "      <CellData Scalars=\"" << name << "\">\n";
         os << "        <DataArray type=\"Int32\" Name=\"level\" format=\"ascii\">\n";
-        for (int lv : levels) os << "          " << lv << "\n";
+        for (int lv : levels) os << lv << "\n";
         os << "        </DataArray>\n";
 
         if (cell_centered) {
           os << "        <DataArray type=\"Float64\" Name=\"" << name << "\" format=\"ascii\">\n";
-          for (double v : cellData) os << "          " << v << "\n";
+          for (double v : cellData) os << v << "\n";
           os << "        </DataArray>\n";
           os << "      </CellData>\n";
         }
@@ -1180,7 +1584,7 @@ namespace fem {
           os << "      </CellData>\n";
           os << "      <PointData Scalars=\"" << name << "\">\n";
           os << "        <DataArray type=\"Float64\" Name=\"" << name << "\" format=\"ascii\">\n";
-          for (double v : pointData) os << "          " << v << "\n";
+          for (double v : pointData) os << v << "\n";
           os << "        </DataArray>\n";
           os << "      </PointData>\n";
         }
@@ -1190,6 +1594,7 @@ namespace fem {
         os << "</VTKFile>\n";
         return true;
       }
+
 
       // === Data extraction utilities ===
 
@@ -1203,9 +1608,12 @@ namespace fem {
       // Return number of nodes for a given basis
       static int basis_nodes(Basis b) {
         switch (b) {
-        case Basis::Q1_Quad4:      return 4;
-        case Basis::Serendipity8:  return 8;
-        case Basis::Q2_Quad9:      return 9;
+          case Basis::Q1_Quad4:
+            return 4;
+          case Basis::Serendipity8:
+            return 8;
+          case Basis::Q2_Quad9:
+            return 9;
         }
         return 0;
       }
@@ -1282,6 +1690,7 @@ namespace fem {
           }
         }
         (void)leaves();
+        enforce_balance();
       }
 
       // Extract node coordinates (physical) for all leaves in [minLevel,maxLevel]
@@ -1320,8 +1729,11 @@ namespace fem {
 
       // Reset to single root cell; keep existing fields but size to 1 leaf
       void reset() {
-        _nodes.clear(); _alive.clear(); _free.clear();
-        _leaves.clear(); _leaf_dirty = true;
+        _nodes.clear();
+        _alive.clear();
+        _free.clear();
+        _leaves.clear();
+        _leaf_dirty = true;
 
         _root = alloc_node();
         _nodes[_root].level = 0;
@@ -1383,7 +1795,8 @@ namespace fem {
           _nodes.emplace_back();
           _alive.push_back(0);
         }
-        _alive[i] = 1; _nodes[i] = QuadNode();
+        _alive[i] = 1;
+        _nodes[i] = QuadNode();
         return i;
       }
 
@@ -1395,7 +1808,7 @@ namespace fem {
       }
 
       // Bounds helper for any node
-      inline void bounds_of(const QuadNode& n, double& xi0, double& eta0, double& xi1, double& eta1) const {
+      inline void bounds_of(const QuadNode & n, double & xi0, double & eta0, double & xi1, double & eta1) const {
         u32 ix, iy;
         deinterleave2(n.morton, ix, iy);
         const double N = double(1u << n.level);
