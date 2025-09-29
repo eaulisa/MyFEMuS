@@ -11,7 +11,7 @@
 #include "FieldAdvection.hpp"
 
 
-using namespace fem;
+using namespace  fem;
 
 // ---------------- Level set (example) ----------------
 struct Psi {
@@ -70,6 +70,123 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
     return (mn > +tau_coarse) || (mx < -tau_coarse);
   };
 }
+
+
+int main() {
+
+  ProfilerStart("profiling.prof");
+  // -------- Explicit control --------
+  const u32 maxDepth   = 12;   // absolute cap on tree depth
+  const u32 minDepth   = 3;    // baseline depth enforced by the class
+  const bool allowDrop = true; // allow coarsening below minDepth where safe?
+
+  std::cout << "Quadtree config: maxDepth=" << maxDepth
+            << " minDepth=" << minDepth
+            << " allowDrop=" << (allowDrop ? 1 : 0) << "\n";
+
+  // Construct the quadtree with explicit minDepth
+  QuadTree2D qt(maxDepth, minDepth);
+
+  double X[9], Y[9];
+  auto phys = [](double xi, double eta) {
+    // identity map (distort later if you want)
+    return std::array<double, 2> {xi, eta};
+  };
+  const double nodePE[9][2] = {
+    {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}, {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
+  };
+  for (int a = 0; a < 9; ++a) {
+    auto p = phys(nodePE[a][0], nodePE[a][1]);
+    X[a] = p[0];
+    Y[a] = p[1];
+  }
+  qt.set_physical_quad9(X, Y);
+
+  // Soft floor policy (true = may coarsen below floor where coarsen_pred says it's safe)
+  qt.set_allow_coarsen_below_min(allowDrop);
+
+  // Level set and thresholds
+  Psi psi0;
+  // psi0.xc = 0.6;        // small shift of interface
+  // psi0.yc = 0.5;
+  const double tau_ref    = 2;  // refine if |psi| small or sign-crossing
+
+  const u32 fid = qt.add_field(Basis::Q2_Quad9);
+
+  // --- Now change Psi slightly and run coarsen+refine with hysteresis ---
+
+  Psi psi1 = psi0;
+  psi1.xc = 0.5;      // small shift of interface
+  psi1.yc = 0.5;      // small shift of interface
+
+  const double tau_coarse = 1e-9;  // coarsen margin ( > tau_ref for hysteresis)
+  const u32    min_level  = 0;     // optionally keep a minimum level
+
+  auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);
+  auto coarsen1 = make_coarsen_pred(psi1, tau_coarse, min_level);
+
+  std::size_t changed = qt.adapt_cycle(coarsen1, refine1, Basis::Q2_Quad9, /*max_passes=*/10);
+  std::cout << "Adapt-cycle changed " << changed << " cells\n";
+  std::cout << "Leaves after cycle: " << qt.leaf_count() << "\n";
+
+  // --- Re-size and refresh field coefficients for new mesh (from psi1) ---
+  qt.resize_fields_to_leaves();
+  const auto& L1 = qt.leaf_indices();
+  for (u32 k = 0; k < (u32)L1.size(); ++k) {
+    std::vector<std::array<double, 2>> xy9;
+    qt.leaf_physical_nodes(Basis::Q2_Quad9, L1[k], xy9);
+    double* c = qt.leaf_coeff_ptr(fid, k);
+    for (int a = 0; a < 9; ++a) c[a] = psi1(xy9[a][0], xy9[a][1]);
+  }
+
+  std::string filename = "./output/element_adaptive." + std::to_string(0) + ".vtu";
+  qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+  std::cout << "Printing " << filename << "\n";
+
+  for (u32 k = 1; k <= 100; k++) {
+
+    std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
+    std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
+    // fill vOld, vNew with {u,v} at coarse nodes
+    double dt = 2. * M_PI / 100.;
+
+    std::vector<std::array<double, 2>> leftOld, stayedNew;
+    fem::advect_markers_forward(qt, Basis::Q2_Quad9, vOld, vNew, dt, leftOld, stayedNew);
+
+    QuadTree2D qt1(qt.max_depth());
+    qt1.set_allow_coarsen_below_min(allowDrop);
+
+    qt1.set_physical_quad9(X, Y);
+    qt1.refine_to_contain_points(stayedNew, qt1.max_depth());
+
+    u32 fid0 = 0; // some scalar field id in qt0
+    u32 fid1 = qt1.add_field(Basis::Q2_Quad9);
+    fem::advect_nodes_backward_and_transport_field(qt, fid0, Basis::Q2_Quad9, vOld, vNew, dt, qt1, fid1);
+
+    u32 num_coarsened = qt1.coarsen_only_cycle_safe(fid0, tau_coarse);
+    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+
+    std::swap(qt, qt1);
+
+    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+    qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+    std::cout << "Printing " << filename << "\n";
+  }
+
+  filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
+    qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+    std::cout << "Printing " << filename << "\n";
+
+   ProfilerStop();
+   return 0;
+}
+
+
+
+
+
+
+
 
 
 
@@ -280,128 +397,6 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
 
 
 
-int main() {
-
-
-  //ProfilerStart("profiling.prof");
-  // -------- Explicit control --------
-  const u32 maxDepth   = 12;   // absolute cap on tree depth
-  const u32 minDepth   = 3;    // baseline depth enforced by the class
-  const bool allowDrop = true; // allow coarsening below minDepth where safe?
-
-  std::cout << "Quadtree config: maxDepth=" << maxDepth
-            << " minDepth=" << minDepth
-            << " allowDrop=" << (allowDrop ? 1 : 0) << "\n";
-
-  // Construct the quadtree with explicit minDepth
-  QuadTree2D qt(maxDepth, minDepth);
-
-  double X[9], Y[9];
-  auto phys = [](double xi, double eta) {
-    // identity map (distort later if you want)
-    return std::array<double, 2> {xi, eta};
-  };
-  const double nodePE[9][2] = {
-    {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}, {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
-  };
-  for (int a = 0; a < 9; ++a) {
-    auto p = phys(nodePE[a][0], nodePE[a][1]);
-    X[a] = p[0];
-    Y[a] = p[1];
-  }
-  qt.set_physical_quad9(X, Y);
-
-  // Soft floor policy (true = may coarsen below floor where coarsen_pred says it's safe)
-  qt.set_allow_coarsen_below_min(allowDrop);
-
-  // Level set and thresholds
-  Psi psi0;
-  // psi0.xc = 0.6;        // small shift of interface
-  // psi0.yc = 0.5;
-  const double tau_ref    = 2;  // refine if |psi| small or sign-crossing
-
-  const u32 fid = qt.add_field(Basis::Q2_Quad9);
-
-  // --- Now change Psi slightly and run coarsen+refine with hysteresis ---
-
-
-
-  Psi psi1 = psi0;
-  psi1.xc = 0.5;      // small shift of interface
-  psi1.yc = 0.5;      // small shift of interface
-
-  const double tau_coarse = 2e-2;  // coarsen margin ( > tau_ref for hysteresis)
-  const u32    min_level  = 0;     // optionally keep a minimum level
-
-  auto refine1  = make_refine_pred(psi1, tau_ref, maxDepth);
-  auto coarsen1 = make_coarsen_pred(psi1, tau_coarse, min_level);
-
-  std::size_t changed = qt.adapt_cycle(coarsen1, refine1, Basis::Q2_Quad9, /*max_passes=*/10);
-  std::cout << "Adapt-cycle changed " << changed << " cells\n";
-  std::cout << "Leaves after cycle: " << qt.leaf_count() << "\n";
-
-  // --- Re-size and refresh field coefficients for new mesh (from psi1) ---
-  qt.resize_fields_to_leaves();
-  const auto& L1 = qt.leaf_indices();
-  for (u32 k = 0; k < (u32)L1.size(); ++k) {
-    std::vector<std::array<double, 2>> xy9;
-    qt.leaf_physical_nodes(Basis::Q2_Quad9, L1[k], xy9);
-    double* c = qt.leaf_coeff_ptr(fid, k);
-    for (int a = 0; a < 9; ++a) c[a] = psi1(xy9[a][0], xy9[a][1]);
-  }
-
-  std::string filename = "./output/element_adaptive." + std::to_string(0) + ".vtu";
-  qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
-  std::cout << "Printing " << filename << "\n";
-
-  for (u32 k = 1; k <= 100; k++) {
-
-    std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
-    std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
-    // fill vOld, vNew with {u,v} at coarse nodes
-    double dt = 2. * M_PI / 100.;
-
-    std::vector<std::array<double, 2>> leftOld, stayedNew;
-    fem::advect_markers_forward(qt, Basis::Q2_Quad9, vOld, vNew, dt, leftOld, stayedNew);
-
-    QuadTree2D qt1(qt.max_depth());
-    qt1.set_allow_coarsen_below_min(allowDrop);
-
-    qt1.set_physical_quad9(X, Y);
-    qt1.refine_to_contain_points(stayedNew, qt1.max_depth());
-
-    u32 fid0 = 0; // some scalar field id in qt0
-    u32 fid1 = qt1.add_field(Basis::Q2_Quad9);
-    fem::advect_nodes_backward_and_transport_field(qt, fid0, Basis::Q2_Quad9, vOld, vNew, dt, qt1, fid1);
-
-
-    u32 num_coarsened = qt1.coarsen_only_cycle_safe(fid0, tau_coarse);
-    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
-
-    std::swap(qt, qt1);
-
-    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
-    std::cout << "Printing " << filename << "\n";
-  }
-  return 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -454,7 +449,7 @@ int main() {
   //
   // return 0;
 
-}
+//}
 
 
 
