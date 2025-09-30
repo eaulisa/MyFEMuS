@@ -1,7 +1,7 @@
 
 
 #pragma once
-#include "QuadTree2DNew.hpp"
+#include "QuadTree2D.hpp"
 #include <array>
 #include <vector>
 #include <cassert>
@@ -93,17 +93,18 @@ namespace fem {
       return std::array<double, 2> { a[0] + s*b[0], a[1] + s*b[1] };
     };
 
-    std::array<double, 2> k1 = vel_eval(xi0eta0, 0.0);
-    std::array<double, 2> k2 = vel_eval(add(xi0eta0, k1, 0.5 * dt), 0.5 * dt);
-    std::array<double, 2> k3 = vel_eval(add(xi0eta0, k2, 0.5 * dt), 0.5 * dt);
-    std::array<double, 2> k4 = vel_eval(add(xi0eta0, k3, dt), dt);
+    // τ values are {0, dt/2, dt/2, dt}; if dt<0 they are negative — that's OK.
+    const std::array<double, 2> k1 = vel_eval(xi0eta0, 0.0);
+    const std::array<double, 2> k2 = vel_eval(add(xi0eta0, k1, 0.5 * dt), 0.5 * dt);
+    const std::array<double, 2> k3 = vel_eval(add(xi0eta0, k2, 0.5 * dt), 0.5 * dt);
+    const std::array<double, 2> k4 = vel_eval(add(xi0eta0, k3, dt), dt);
 
     std::array<double, 2> xiEta = xi0eta0;
     xiEta[0] += dt / 6.0 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
     xiEta[1] += dt / 6.0 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
-
     return xiEta;
   }
+
 
 //----------------------------------------
 // 3. Forward advection of markers (parent RK)
@@ -134,7 +135,8 @@ namespace fem {
       u32 leaf = qt0.locate_leaf_on_parent(xiEta1[0], xiEta1[1]);
       if (leaf == npos32) coordsLeftOld.push_back(qt0.parent_to_physical(xiEta0[0], xiEta0[1]));
       else {
-        double N9[9]; Quad9Shape::N(xiEta1[0], xiEta1[1], N9);
+        double N9[9];
+        Quad9Shape::N(xiEta1[0], xiEta1[1], N9);
         double x1 = 0, y1 = 0;
         const auto& X = qt0.get_X();
         const auto& Y = qt0.get_Y();
