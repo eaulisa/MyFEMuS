@@ -140,7 +140,7 @@ int main() {
   }
 
   std::string filename = "./output/element_adaptive." + std::to_string(0) + ".vtu";
-  qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+  qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
   std::cout << "Printing " << filename << "\n";
 
   for (u32 k = 1; k <= 100; k++) {
@@ -169,12 +169,12 @@ int main() {
     std::swap(qt, qt1);
 
     filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+    qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
     std::cout << "Printing " << filename << "\n";
   }
 
   filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
-    qt.write_vtu(filename, fid, "u", /*cell_centered=*/false);
+    qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
     std::cout << "Printing " << filename << "\n";
 
    ProfilerStop();
