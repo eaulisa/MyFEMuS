@@ -186,6 +186,7 @@ OPTION(BUILD_MGAMR "Build the MGAMR" OFF)
 
 OPTION(BUILD_CUTFEM "Build the cut FEM" OFF)
 
+OPTION(BUILD_LSAT "Build the Least-Squares Asymptotic Tracking (LSAT)" ON)
 # --
 OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" OFF)
 

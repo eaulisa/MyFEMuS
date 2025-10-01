@@ -17,7 +17,7 @@ using namespace  fem;
 struct Psi {
   double xc{0.0}, yc{0.0}, sigma{0.18016836131796748}, r{0.15}, delta{0.0};
   double operator()(double x, double y) const {
-    return std::exp((r * r - (x - xc) * (x - xc) - (y - yc) * (y - yc)) / (sigma * sigma)) - 1.0 + delta;
+    return (std::exp((r * r - (x - xc) * (x - xc) - (y - yc) * (y - yc)) / (sigma * sigma)) + 0 * std::exp((r * r - (x - xc) * (x - xc) - (y + yc) * (y + yc)) / (sigma * sigma)) - 1.0 + delta);
   }
 };
 
@@ -80,6 +80,16 @@ auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
 
   double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
   double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
+
+
+
+  // y += 0.25;
+  //
+  //
+  // double u = sin(M_PI * 2 * x) * sin(M_PI * 2 * y) * cos(M_PI * time / T);
+  // double v = cos(M_PI * 2 * x) * cos(M_PI * 2 * y) * cos(M_PI * time / T);
+
+
 
   return { u, v };
 };
