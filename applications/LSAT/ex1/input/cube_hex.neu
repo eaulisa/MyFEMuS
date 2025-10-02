@@ -2,9 +2,9 @@
 ** GAMBIT NEUTRAL FILE
 cube_hex
 PROGRAM:                Gambit     VERSION:  2.3.16
- 5 May 2015    13:28:31
+ 8 May 2015    14:13:51 
      NUMNP     NELEM     NGRPS    NBSETS     NDFCD     NDFVL
-       125         8         1         3         3         3
+       125         8         1         2         3         3
 ENDOFSECTION
    NODAL COORDINATES 2.3.16
          1   5.00000000000e-01  -5.00000000000e-01   5.00000000000e-01
@@ -181,14 +181,11 @@ ENDOFSECTION
          8    4    6
 ENDOFSECTION
  BOUNDARY CONDITIONS 2.3.16
-                               2       1       4       0       6
+                               2       1      20       0       6
          2    4    5
          1    4    5
          4    4    5
          3    4    5
-ENDOFSECTION
- BOUNDARY CONDITIONS 2.3.16
-                               3       1      16       0       6
          1    4    4
          5    4    4
          3    4    4
