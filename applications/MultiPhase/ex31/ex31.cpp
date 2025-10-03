@@ -8,8 +8,9 @@
 #include <gperftools/profiler.h>
 
 #include "QuadTree2D.hpp"
-#include "FieldAdvection.hpp"
-#include "FieldAdvectionWithAnalyticVelocity.hpp"
+//#include "QuadTree2DOld.hpp"
+//#include "FieldAdvection.hpp"
+//#include "FieldAdvectionWithAnalyticVelocity.hpp"
 
 using namespace  fem;
 
@@ -164,6 +165,8 @@ int main() {
   std::cout << "Printing " << filename << "\n";
 
 
+  return 0;/*
+
   double period = 8;
   unsigned nIterations = 320;
   double dt = period / nIterations;
@@ -202,13 +205,13 @@ int main() {
     std::swap(qt, qt1);
 
     filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
+    qt.write_binary_vtu(filename, fid, "u", false);
     std::cout << "Printing " << filename << "\n";
   }
 
   filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
-  qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
-  std::cout << "Printing " << filename << "\n";
+  qt.write_binary_vtu(filename, fid, "u", false);
+  std::cout << "Printing " << filename << "\n";*/
 
   ProfilerStop();
   return 0;
