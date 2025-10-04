@@ -9,6 +9,8 @@
 #include <iomanip>
 #include <limits>
 #include <string>
+#include <unordered_set>
+
 
 #include "Encoder.hpp"
 
@@ -84,7 +86,38 @@ namespace fem {
       N9[7] = Lx[0] * Ly[1];
       N9[8] = Lx[1] * Ly[1];
     }
+
+    //Compute derivative wrt xi and eta for Q2 at(xi, eta)
+    static inline void dN(double xi, double eta, double dN_dxi[9], double dN_deta[9]) {
+      double Lx[3], Ly[3], dx[3], dy[3];
+      q2_1d(xi,  Lx[0], Lx[1], Lx[2], dx[0], dx[1], dx[2]);
+      q2_1d(eta, Ly[0], Ly[1], Ly[2], dy[0], dy[1], dy[2]);
+
+      dN_dxi[0]  = dx[0] * Ly[0];
+      dN_deta[0] = Lx[0] * dy[0];
+      dN_dxi[1]  = dx[2] * Ly[0];
+      dN_deta[1] = Lx[2] * dy[0];
+      dN_dxi[2]  = dx[2] * Ly[2];
+      dN_deta[2] = Lx[2] * dy[2];
+      dN_dxi[3]  = dx[0] * Ly[2];
+      dN_deta[3] = Lx[0] * dy[2];
+      dN_dxi[4]  = dx[1] * Ly[0];
+      dN_deta[4] = Lx[1] * dy[0];
+      dN_dxi[5]  = dx[2] * Ly[1];
+      dN_deta[5] = Lx[2] * dy[1];
+      dN_dxi[6]  = dx[1] * Ly[2];
+      dN_deta[6] = Lx[1] * dy[2];
+      dN_dxi[7]  = dx[0] * Ly[1];
+      dN_deta[7] = Lx[0] * dy[1];
+      dN_dxi[8]  = dx[1] * Ly[1];
+      dN_deta[8] = Lx[1] * dy[1];
+    }
   };
+
+
+
+
+
 
   struct Shapes {
     static inline void Q1(double xi, double eta, double N4[4]) {
@@ -97,8 +130,8 @@ namespace fem {
     static inline void Serendipity8(double xi, double eta, double N8[8]) {
       const double xm = xi, em = eta;
       N8[0] = 0.25 * (1 - xm) * (1 - em) * (-xm - em - 1);
-      N8[1] = 0.25 * (1 + xm) * (1 - em) * ( xm - em - 1);
-      N8[2] = 0.25 * (1 + xm) * (1 + em) * ( xm + em - 1);
+      N8[1] = 0.25 * (1 + xm) * (1 - em) * (xm - em - 1);
+      N8[2] = 0.25 * (1 + xm) * (1 + em) * (xm + em - 1);
       N8[3] = 0.25 * (1 - xm) * (1 + em) * (-xm + em - 1);
       N8[4] = 0.5 * (1 - xm * xm) * (1 - em);
       N8[5] = 0.5 * (1 + xm) * (1 - em * em);
@@ -110,6 +143,16 @@ namespace fem {
 //--------------------------------------------
 // Core data
 //--------------------------------------------
+
+// Quadtree node (internal or leaf)
+  struct TreeNode {
+    u64 morton{0};            // Morton code of this node
+    u32 level{0};             // Refinement level
+    u32 child[4] {npos32, npos32, npos32, npos32}; // Children indices (npos32 = none)
+    bool is_leaf{true};       // True if this node is a leaf
+    u32 parent{npos32};       // Parent node index (npos32 if root)
+  };
+
   struct Leaf {
     u64 morton{0};
     u32 level{0};
@@ -121,7 +164,7 @@ namespace fem {
     std::vector<double> coeffs; // per-leaf coefficients (kept for API compatibility)
   };
 
-  struct Node {
+  struct FEMNode {
     int gid;
     std::array<double, 2> parent;
     std::array<double, 2> physical;
@@ -133,9 +176,31 @@ namespace fem {
   class QuadTree2D {
     public:
       QuadTree2D(u32 maxDepth, u32 minDepth = 0)
-        : _maxDepth(maxDepth), _minDepth(std::min(minDepth, maxDepth)) {
-        // start with root leaf (level 0 at morton(0,0))
-        _leaves.push_back(Leaf{interleave2(0, 0), 0});
+        : _maxDepth(maxDepth),
+          _minDepth(std::min(minDepth, maxDepth)) {
+        // --- 1. Build root TreeNode covering [-1,1]^2 ---
+        TreeNode root;
+        root.morton = interleave2(0, 0);
+        root.level  = 0;
+        root.is_leaf = true;
+        root.parent  = npos32;
+        root.child[0] = root.child[1] = root.child[2] = root.child[3] = npos32;
+
+        _tree_nodes.clear();
+        _tree_nodes.push_back(root);
+        _root = 0;
+
+        // --- 2. Root is the only active leaf at start ---
+        _leaves.clear();
+        _leaves.push_back(_root);
+
+        // --- 3. Basis registries empty ---
+        for (int b = 0; b < 3; ++b) {
+          _basisReg[b].clear();
+        }
+
+        // --- 4. Geometry not set yet ---
+        _geom_ready = false;
       }
 
       // ---- config ----
@@ -158,7 +223,7 @@ namespace fem {
           _Y[i] = y9[i];
         }
         _geom_ready = true;
-        rebuild_connectivity_all_bases(); // geometry known -> can build physical coords
+        rebuild_connectivity_active_bases(); // geometry known -> can build physical coords
       }
       inline void require_geometry() const {
         assert(_geom_ready && "Call set_physical_quad9(...) before geometric operations.");
@@ -180,10 +245,13 @@ namespace fem {
         Field f;
         f.basis = b;
         f.dofs_per_cell = (b == Basis::Q1_Quad4 ? 4 : (b == Basis::Serendipity8 ? 8 : 9));
-        f.coeffs.resize(leaf_count()*f.dofs_per_cell, 0.0);
+        f.coeffs.resize(leaf_count() * f.dofs_per_cell, 0.0);
         _fields.push_back(std::move(f));
+
+        _activeBases.insert(b);   // mark basis as active
         return (u32)_fields.size() - 1;
       }
+
       Field& field(u32 fid) {
         return _fields[fid];
       }
@@ -206,36 +274,43 @@ namespace fem {
       }
 
       // ---- node generators (parent & physical) ----
+      // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
       void leaf_parent_nodes(Basis basis, u32 leaf_idx,
                              std::vector<std::array<double, 2>>& out_pts) const {
-        const Leaf& leaf = _leaves[leaf_idx];
+        // leaf_idx is an index into _leaves, which stores indices into _tree_nodes
+        u32 nodeIdx = _leaves[leaf_idx];
+        const TreeNode& leaf = _tree_nodes[nodeIdx];
+
         double xi0, eta0, xi1, eta1;
         leaf_bounds(leaf, xi0, eta0, xi1, eta1);
-        const double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+
+        const double xm = 0.5 * (xi0 + xi1);
+        const double ym = 0.5 * (eta0 + eta1);
+
         out_pts.clear();
-        switch(basis) {
-          case Basis::Q1_Quad4: {
-            out_pts = { std::array<double, 2>{xi0, eta0},
-              {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
-            };
-          }
-          break;
-          case Basis::Serendipity8: {
-            out_pts = { std::array<double, 2>{xi0, eta0},
-              {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-            };
-          }
-          break;
-          case Basis::Q2_Quad9: {
-            out_pts = { std::array<double, 2>{xi0, eta0},
-              {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-            };
-          }
-          break;
+        switch (basis) {
+        case Basis::Q1_Quad4: {
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
+          };
+        } break;
+
+        case Basis::Serendipity8: {
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+          };
+        } break;
+
+        case Basis::Q2_Quad9: {
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+          };
+        } break;
         }
       }
+
 
       void leaf_physical_nodes(Basis basis, u32 leaf_idx,
                                std::vector<std::array<double, 2>>& out_xy) const {
@@ -257,126 +332,185 @@ namespace fem {
         for (u32 pass = 0; pass < max_passes; ++pass) {
           std::size_t changed = 0;
           changed += coarsen_pass(should_coarsen, probe_basis);
-          changed += refine_pass (should_refine, probe_basis);
+          changed += refine_pass(should_refine, probe_basis);
           if (changed == 0) break;
           total += changed;
         }
         return total;
       }
 
+      // Perform one refinement pass: split leaves if predicate says so
       template<class RefinePred>
       std::size_t refine_pass(RefinePred&& should_refine, Basis probe_basis) {
-        std::vector<Leaf> newLeaves;
+        std::vector<u32> newLeaves;
         newLeaves.reserve(_leaves.size() * 2);
         std::size_t refined = 0;
 
         for (u32 idx = 0; idx < leaf_count(); ++idx) {
-          const Leaf& leaf = _leaves[idx];
-          // probe
+          u32 leaf_node_idx = _leaves[idx];          // index into _tree_nodes
+          const TreeNode leaf_copy = _tree_nodes[leaf_node_idx]; // snapshot (safe!)
+
+          // probe geometry for refinement
           std::vector<std::array<double, 2>> pts_xi, pts_xy;
-          leaf_parent_nodes (probe_basis, idx, pts_xi);
+          leaf_parent_nodes(probe_basis, idx, pts_xi);
           leaf_physical_nodes(probe_basis, idx, pts_xy);
           std::vector<std::array<double, 9>> dummy;
 
-          if (should_refine(idx, pts_xi, pts_xy, dummy) && leaf.level < _maxDepth) {
+          if (should_refine(idx, pts_xi, pts_xy, dummy) && leaf_copy.level < _maxDepth) {
             // split into 4 children
             u32 ix, iy;
-            deinterleave2(leaf.morton, ix, iy);
-            for (int dy = 0; dy < 2; ++dy)
-              for (int dx = 0; dx < 2; ++dx)
-                newLeaves.push_back(Leaf{ interleave2(2 * ix + dx, 2 * iy + dy), leaf.level + 1 });
+            deinterleave2(leaf_copy.morton, ix, iy);
+
+            for (int dy = 0; dy < 2; ++dy) {
+              for (int dx = 0; dx < 2; ++dx) {
+                u64 cmorton = interleave2(2 * ix + dx, 2 * iy + dy);
+
+                TreeNode child;
+                child.morton  = cmorton;
+                child.level   = leaf_copy.level + 1;
+                child.is_leaf = true;
+                child.parent  = leaf_node_idx;
+                child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
+
+
+                u32 child_idx = (u32)_tree_nodes.size();
+                _tree_nodes.push_back(child);
+
+                // ✅ re-fetch parent AFTER push_back
+                _tree_nodes[leaf_node_idx].child[(dy << 1) | dx] = child_idx;
+                newLeaves.push_back(child_idx);
+              }
+            }
+
+            _tree_nodes[leaf_node_idx].is_leaf = false;  // mark parent
             refined++;
           }
           else {
-            newLeaves.push_back(leaf);
+            newLeaves.push_back(leaf_node_idx);
           }
         }
+
         _leaves.swap(newLeaves);
-        rebuild_connectivity_all_bases();
+        rebuild_connectivity_active_bases();
         resize_fields_to_leaves();
         return refined;
       }
 
+      // Perform one coarsening pass: merge 4 siblings into parent if predicate allows
       template<class CoarsenPred>
       std::size_t coarsen_pass(CoarsenPred&& should_coarsen, Basis probe_basis) {
-        // group siblings by parent morton
         struct Kid {
-          u32 idx;
-          u64 morton;
-          u32 level;
+          u32 leaf_idx;
+          u32 node_idx;
         };
-        std::unordered_map<u64, std::vector<Kid>> groups; // parent morton -> 0..4 kids
+        std::unordered_map<u64, std::vector<Kid>> groups;
 
+        // group leaves by parent Morton
         for (u32 idx = 0; idx < leaf_count(); ++idx) {
-          const Leaf& lf = _leaves[idx];
+          u32 node_idx = _leaves[idx];
+          const TreeNode& lf = _tree_nodes[node_idx];
           if (lf.level == 0) continue;
+
           u32 ix, iy;
           deinterleave2(lf.morton, ix, iy);
           u64 pm = interleave2(ix / 2, iy / 2);
-          groups[pm].push_back({idx, lf.morton, lf.level});
+          groups[pm].push_back({idx, node_idx});
         }
 
         std::vector<char> mark_remove(leaf_count(), 0);
-        std::vector<Leaf> to_add;
-
+        std::vector<u32> to_add; to_add.reserve(groups.size());
         std::size_t coarsened = 0;
+
         for (auto& kv : groups) {
-          u64 pm = kv.first;
+          const u64 pm = kv.first;
           auto& kids = kv.second;
-          if (kids.size() != 4) continue;         // need exactly 4 siblings
-          u32 lev = kids[0].level;                // all same level
+          if (kids.size() != 4) continue;
+
+          // Ensure all 4 kids share the same existing parent node
+          const u32 pidx0 = _tree_nodes[kids[0].node_idx].parent;
+          if (pidx0 == npos32) continue; // safety
+          bool same_parent = true;
+          for (int i = 1; i < 4; ++i)
+            if (_tree_nodes[kids[i].node_idx].parent != pidx0) {
+              same_parent = false;
+              break;
+            }
+          if (!same_parent) continue;
+
+          // Level checks
+          u32 lev = _tree_nodes[kids[0].node_idx].level; // kids' level
           if (lev <= _minDepth && !_allowCoarsenBelowMinDepth) continue;
 
-          // evaluate predicate on parent cell (pm, level-1)
-          Leaf parent{pm, lev - 1};
-          // build probe points on parent
-          std::vector<std::array<double, 2>> pts_xi, pts_xy;
-          // to use leaf_* helpers we need a temporary index; do bounds directly:
+          // Probe coarse parent cell (use the *existing* parent)
+          TreeNode& parent = _tree_nodes[pidx0];
+
+          // parent.morton should equal pm; keep it as is
           double xi0, eta0, xi1, eta1;
           leaf_bounds(parent, xi0, eta0, xi1, eta1);
+
+          std::vector<std::array<double, 2>> pts_xi; pts_xi.reserve(9);
           const double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
           switch (probe_basis) {
-            case Basis::Q1_Quad4:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
-              break;
-            case Basis::Serendipity8:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-                }
-              };
-              break;
-            case Basis::Q2_Quad9:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-                }
-              };
-              break;
+          case Basis::Q1_Quad4:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
+            break;
+          case Basis::Serendipity8:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+              }
+            };
+            break;
+          case Basis::Q2_Quad9:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+              }
+            };
+            break;
           }
-          pts_xy.resize(pts_xi.size());
-          for (size_t i = 0; i < pts_xi.size(); ++i) pts_xy[i] = parent_to_physical(pts_xi[i][0], pts_xi[i][1]);
+
+          std::vector<std::array<double, 2>> pts_xy; pts_xy.resize(pts_xi.size());
+          for (size_t i = 0; i < pts_xi.size(); ++i)
+            pts_xy[i] = parent_to_physical(pts_xi[i][0], pts_xi[i][1]);
+
           std::vector<std::array<double, 9>> dummy;
 
           if (should_coarsen((u32)pm, lev, pts_xi, pts_xy, dummy)) {
-            // coarsen: remove 4 kids, add parent
-            for (auto& k : kids) mark_remove[k.idx] = 1;
-            to_add.push_back(parent);
+            // (1) remove kids from leaves
+            for (auto& k : kids) {
+              mark_remove[k.leaf_idx] = 1;
+              _tree_nodes[k.node_idx].is_leaf = false; // they are no longer active leaves
+            }
+
+            // (2) make the existing parent a true leaf
+            parent.is_leaf = true;
+            parent.child[0] = parent.child[1] = parent.child[2] = parent.child[3] = npos32;
+
+            // (3) add parent to new leaf set
+            to_add.push_back(pidx0);
             coarsened++;
           }
         }
 
-        std::vector<Leaf> newLeaves;
-        newLeaves.reserve(_leaves.size());
-        for (u32 i = 0; i < leaf_count(); ++i) if (!mark_remove[i]) newLeaves.push_back(_leaves[i]);
-        newLeaves.insert(newLeaves.end(), to_add.begin(), to_add.end());
+        // rebuild leaf set
         if (coarsened > 0) {
+          std::vector<u32> newLeaves;
+          newLeaves.reserve(_leaves.size());
+          for (u32 i = 0; i < leaf_count(); ++i)
+            if (!mark_remove[i]) newLeaves.push_back(_leaves[i]);
+          newLeaves.insert(newLeaves.end(), to_add.begin(), to_add.end());
           _leaves.swap(newLeaves);
-          rebuild_connectivity_all_bases();
+
+          rebuild_connectivity_active_bases();
           resize_fields_to_leaves();
         }
         return coarsened;
       }
 
-      // ---- geometry map ----
+
+
+
+
+// ---- geometry map ----
       std::array<double, 2> parent_to_physical(double xi, double eta) const {
         require_geometry();
         double N9[9];
@@ -393,19 +527,21 @@ namespace fem {
       bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
                             bool cell_centered = false) const {
         require_geometry();
-        const size_t numCells = _leaves.size();
-        if (numCells == 0) return false;
+        if (fid >= _fields.size()) return false;
 
         const Field &fld = _fields[fid];
-        // Sanity: each element must have a connectivity
-        assert(_elem2glob.size() == numCells);
+        Basis b = fld.basis;
+        const BasisRegistry &R = _basisReg[(int)b];
+
+        const size_t numCells = R.elem2glob.size();
+        if (numCells == 0) return false;
 
         // -------------------------
         // Points (global nodes)
         // -------------------------
         std::vector<double> flatPoints;
-        flatPoints.reserve(_global_nodes.size() * 3);
-        for (auto &n : _global_nodes) {
+        flatPoints.reserve(R.nodes.size() * 3);
+        for (auto &n : R.nodes) {
           flatPoints.push_back(n.physical[0]);
           flatPoints.push_back(n.physical[1]);
           flatPoints.push_back(0.0); // 2D
@@ -423,21 +559,15 @@ namespace fem {
 
         int offset = 0;
         for (size_t e = 0; e < numCells; ++e) {
-          const auto &conn = _elem2glob[e];
+          const auto &conn = R.elem2glob[e];
           for (int gid : conn) connectivity.push_back(gid);
           offset += (int)conn.size();
           offsets.push_back(offset);
 
           switch (fld.basis) {
-            case Basis::Q1_Quad4:
-              types.push_back(9);
-              break;  // VTK_QUAD
-            case Basis::Serendipity8:
-              types.push_back(23);
-              break;  // VTK_QUADRATIC_QUAD
-            case Basis::Q2_Quad9:
-              types.push_back(28);
-              break;  // VTK_BIQUADRATIC_QUAD
+          case Basis::Q1_Quad4:     types.push_back(9);  break;  // VTK_QUAD
+          case Basis::Serendipity8: types.push_back(23); break;  // VTK_QUADRATIC_QUAD
+          case Basis::Q2_Quad9:     types.push_back(28); break;  // VTK_BIQUADRATIC_QUAD
           }
         }
 
@@ -450,17 +580,16 @@ namespace fem {
           cellData.reserve(numCells);
           for (size_t e = 0; e < numCells; ++e) {
             const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
-            // simple average
             double v = 0.0;
             for (int i = 0; i < fld.dofs_per_cell; ++i) v += c[i];
             cellData.push_back(v / fld.dofs_per_cell);
           }
         }
         else {
-          pointData.resize(_global_nodes.size(), 0.0);
-          std::vector<int> counts(_global_nodes.size(), 0);
+          pointData.resize(R.nodes.size(), 0.0);
+          std::vector<int> counts(R.nodes.size(), 0);
           for (size_t e = 0; e < numCells; ++e) {
-            const auto &conn = _elem2glob[e];
+            const auto &conn = R.elem2glob[e];
             const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
             for (size_t i = 0; i < conn.size(); ++i) {
               int gid = conn[i];
@@ -480,7 +609,7 @@ namespace fem {
 
         os << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
         os << "  <UnstructuredGrid>\n";
-        os << "    <Piece NumberOfPoints=\"" << _global_nodes.size()
+        os << "    <Piece NumberOfPoints=\"" << R.nodes.size()
            << "\" NumberOfCells=\"" << numCells << "\">\n";
 
         // Points
@@ -514,127 +643,269 @@ namespace fem {
         return true;
       }
 
+
+
+// Accessors for coarse geometry coordinates (const-ref)
+      inline const std::array<double, 9>& get_X() const {
+        return _X;
+      }
+      inline const std::array<double, 9>& get_Y() const {
+        return _Y;
+      }
+
+// Collect reference coordinates (xi,eta) of nodes for all leaves
+// in a level range. Much like extract_node_coords_in_level_range,
+// but stays in parent reference space (avoids inverse_map).
+      std::vector<std::array<double, 2>>
+      extract_node_parent_coords_in_level_range(u32 lev_min, u32 lev_max, Basis basis) const {
+        std::vector<std::array<double, 2>> coords;
+
+        for (u32 leaf : leaf_indices()) {
+          u32 lev = level_of(leaf);          // use accessor, not _nodes
+          if (lev < lev_min || lev > lev_max) continue;
+
+          std::vector<std::array<double, 2>> xi;
+          leaf_reference_nodes(basis, leaf, xi);
+
+          coords.insert(coords.end(), xi.begin(), xi.end());
+        }
+
+        return coords;
+      }
+
+// Return refinement level of a given leaf index
+      u32 level_of(u32 leaf_idx) const {
+        u32 node_idx = _leaves[leaf_idx];          // leaf index → node index
+        return _tree_nodes[node_idx].level;        // get level from TreeNode
+      }
+
+
+//Return global maximum depth allowed
+      u32 max_depth() const {
+        return _maxDepth;
+      }
+
+
+// Fill vector with parent-space interpolation nodes for a given leaf and basis
+      void leaf_reference_nodes(Basis basis, u32 leaf_idx,
+                                std::vector<std::array<double, 2>>& xi) const {
+        xi.clear();
+
+        // Map leaf_idx → actual TreeNode
+        const TreeNode& node = _tree_nodes[_leaves[leaf_idx]];
+
+        // Bounds of this leaf in reference space
+        double xi0, eta0, xi1, eta1;
+        leaf_bounds(node, xi0, eta0, xi1, eta1);
+
+        switch (basis) {
+        case Basis::Q1_Quad4: {
+          xi.resize(4);
+          xi[0] = {xi0, eta0};
+          xi[1] = {xi1, eta0};
+          xi[2] = {xi1, eta1};
+          xi[3] = {xi0, eta1};
+          break;
+        }
+        case Basis::Serendipity8: {
+          xi.resize(8);
+          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+          xi[0] = {xi0, eta0};
+          xi[1] = {xi1, eta0};
+          xi[2] = {xi1, eta1};
+          xi[3] = {xi0, eta1};
+          xi[4] = {xm,  eta0};
+          xi[5] = {xi1, ym };
+          xi[6] = {xm,  eta1};
+          xi[7] = {xi0, ym };
+          break;
+        }
+        case Basis::Q2_Quad9: {
+          xi.resize(9);
+          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+          xi[0] = {xi0, eta0};
+          xi[1] = {xi1, eta0};
+          xi[2] = {xi1, eta1};
+          xi[3] = {xi0, eta1};
+          xi[4] = {xm,  eta0};
+          xi[5] = {xi1, ym };
+          xi[6] = {xm,  eta1};
+          xi[7] = {xi0, ym };
+          xi[8] = {xm,  ym };
+          break;
+        }
+        }
+      }
+
+
+// Locate leaf containing (xi,eta) in parent space [-1,1]^2 using Morton traversal
+      u32 locate_leaf_on_parent(double xi, double eta) const {
+        if (xi < -1.0 || xi > 1.0 || eta < -1.0 || eta > 1.0) return npos32;
+
+        // Scale to integer grid at max depth
+        const double scale = double(1u << _maxDepth) / 2.0;  // maps [-1,1] -> [0, 2^maxDepth)
+        u32 ix = std::min<u32>((u32)((xi + 1.0) * scale), (1u << _maxDepth) - 1);
+        u32 iy = std::min<u32>((u32)((eta + 1.0) * scale), (1u << _maxDepth) - 1);
+
+        u32 node = _root;
+        for (u32 level = 0; level < _maxDepth; ++level) {
+          const TreeNode& n = _tree_nodes[node];
+          if (n.is_leaf) return node;  // found a leaf
+
+          // Extract bit for this level (from MSB downwards)
+          const int shift = _maxDepth - level - 1;
+          const int qx = (ix >> shift) & 1u;
+          const int qy = (iy >> shift) & 1u;
+          const int q  = (qy << 1) | qx; // quadrant index 0=LL,1=LR,2=UL,3=UR
+
+          u32 c = n.child[q];
+          if (c == npos32) return node; // child not refined -> current is leaf
+          node = c;
+        }
+        return node;
+      }
+
+
+
     private:
-      // ======= internal helpers =======
+// ======= internal helpers =======
+// Ensure all leaves are refined down to at least _minDepth
       void ensure_min_depth() {
         if (_minDepth == 0) return;
+
         bool changed = true;
         while (changed) {
           changed = false;
-          std::vector<Leaf> newLeaves;
-          for (auto& lf : _leaves) {
-            if (lf.level < _minDepth) {
+          std::vector<u32> newLeaves;
+
+          for (u32 leaf_idx : _leaves) {
+            const TreeNode node_copy = _tree_nodes[leaf_idx];
+
+            if (node_copy.level < _minDepth) {
+              // refine this leaf into 4 children
               u32 ix, iy;
-              deinterleave2(lf.morton, ix, iy);
-              for (int dy = 0; dy < 2; ++dy)
-                for (int dx = 0; dx < 2; ++dx)
-                  newLeaves.push_back(Leaf{ interleave2(2 * ix + dx, 2 * iy + dy), lf.level + 1 });
+              deinterleave2(node_copy.morton, ix, iy);
+
+              _tree_nodes[leaf_idx].is_leaf = false;
+
+              for (int dy = 0; dy < 2; ++dy) {
+                for (int dx = 0; dx < 2; ++dx) {
+                  u64 cmorton = interleave2(2 * ix + dx, 2 * iy + dy);
+                  u32 cindex = (u32)_tree_nodes.size();
+
+                  TreeNode child;
+                  child.morton  = cmorton;
+                  child.level   = node_copy.level + 1;
+                  child.is_leaf = true;
+                  child.parent  = leaf_idx;
+                  child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
+
+
+                  _tree_nodes.push_back(child);
+                  _tree_nodes[leaf_idx].child[(dy << 1) | dx] = cindex;
+                  newLeaves.push_back(cindex);
+                }
+              }
+
               changed = true;
             }
             else {
-              newLeaves.push_back(lf);
+              newLeaves.push_back(leaf_idx);
             }
           }
-          if (changed) _leaves.swap(newLeaves);
+
+          if (changed) {
+            _leaves.swap(newLeaves);
+          }
         }
-        rebuild_connectivity_all_bases();
+
+        rebuild_connectivity_active_bases();
         resize_fields_to_leaves();
       }
 
-      inline void leaf_bounds(const Leaf& leaf,
-                              double& xi0, double& eta0, double& xi1, double& eta1) const {
+
+
+// Compute physical bounds in parent space [-1,1]^2 for a given TreeNode
+      inline void leaf_bounds(const TreeNode& node,
+                              double& xi0, double& eta0,
+                              double& xi1, double& eta1) const {
         u32 ix, iy;
-        deinterleave2(leaf.morton, ix, iy);
-        const double N = double(1u << leaf.level);
-        const double dx = 2.0 / N, dy = 2.0 / N;
-        xi0 = -1.0 + ix * dx;
+        deinterleave2(node.morton, ix, iy);
+
+        const double N  = double(1u << node.level); // grid resolution at this level
+        const double dx = 2.0 / N;
+        const double dy = 2.0 / N;
+
+        xi0  = -1.0 + ix * dx;
         eta0 = -1.0 + iy * dy;
-        xi1 = xi0 + dx;
+        xi1  = xi0 + dx;
         eta1 = eta0 + dy;
       }
 
-      // ======= global node registries per basis =======
       struct BasisRegistry {
         std::unordered_map<u64, int> nodeMap;            // key -> gid
-        std::vector<std::array<double, 2>> parent_nodes; // gid -> (xi,eta)
-        std::vector<std::array<double, 2>> phys_nodes;   // gid -> (x,y)
-        std::vector<std::vector<int>> elem2glob;         // per-element local->global
+        std::vector<FEMNode> nodes;                      // gid -> FEM node (parent + physical)
+        std::vector<std::vector<int>> elem2glob;         // per-element connectivity
         void clear() {
           nodeMap.clear();
-          parent_nodes.clear();
-          phys_nodes.clear();
+          nodes.clear();
           elem2glob.clear();
         }
       };
 
-      int get_or_insert_gid(Basis b, double xi, double eta) {
-        BasisRegistry& R = _basisReg[(int)b];
+      int get_or_insert_gid(BasisRegistry &R, double xi, double eta) {
         const u32 gridN = (1u << _maxDepth);
-        auto clampu = [&](long long v) {
-          if (v < 0) v = 0;
-          if (v > (long long)gridN) v = gridN;
-          return (u32)v;
-        };
-        const double scale = double(gridN) / 2.0;
-        u32 ix = clampu( llround((xi + 1.0) * scale) );
-        u32 iy = clampu( llround((eta + 1.0) * scale) );
-        const u64 key = interleave2(ix, iy);
+        long long ix_l = llround((xi + 1.0) * gridN / 2.0);
+        long long iy_l = llround((eta + 1.0) * gridN / 2.0);
+        if (ix_l < 0) ix_l = 0;
+        if (iy_l < 0) iy_l = 0;
+        if (ix_l > (long long)gridN) ix_l = (long long)gridN;
+        if (iy_l > (long long)gridN) iy_l = (long long)gridN;
+        u32 ix = (u32)ix_l;
+        u32 iy = (u32)iy_l;
+
+        u64 key = interleave2(ix, iy);
 
         auto it = R.nodeMap.find(key);
         if (it != R.nodeMap.end()) return it->second;
 
-        const int gid = (int)R.parent_nodes.size();
+        int gid = (int)R.nodes.size();
+        FEMNode node{gid, {xi, eta}, parent_to_physical(xi, eta)};
+        R.nodes.push_back(node);
         R.nodeMap.emplace(key, gid);
-        R.parent_nodes.push_back({xi, eta});
-        R.phys_nodes.push_back(parent_to_physical(xi, eta));
         return gid;
       }
 
       void rebuild_connectivity(Basis b) {
-        // clear both registries
-        _global_nodes.clear();
-        _nodeMap.clear();
-        _elem2glob.clear();
-
-        BasisRegistry& R = _basisReg[(int)b];
+        BasisRegistry &R = _basisReg[(int)b];
         R.clear();
 
         std::vector<std::array<double, 2>> xi;
-        std::vector<int> conn;
-
         for (u32 e = 0; e < leaf_count(); ++e) {
           leaf_parent_nodes(b, e, xi);
-          conn.clear();
+          std::vector<int> conn;
           conn.reserve(xi.size());
 
-          std::vector<int> connGlobal;
-          connGlobal.reserve(xi.size());
-
           for (auto &p : xi) {
-            // FEM basis connectivity
-            int gidBasis = get_or_insert_gid(b, p[0], p[1]);
-            conn.push_back(gidBasis);
-
-            // Global mesh connectivity
-            int gidGlobal = get_or_insert_node(p[0], p[1]);
-            connGlobal.push_back(gidGlobal);
+            int gid = get_or_insert_gid(R, p[0], p[1]); // now uses registry
+            conn.push_back(gid);
           }
-          R.elem2glob.push_back(conn);
-          _elem2glob.push_back(connGlobal);
+          R.elem2glob.push_back(std::move(conn));
         }
       }
 
 
-      void rebuild_connectivity_all_bases() {
-        if (!_geom_ready) return; // need geometry for physical nodes
-        rebuild_connectivity(Basis::Q1_Quad4);
-        rebuild_connectivity(Basis::Serendipity8);
-        rebuild_connectivity(Basis::Q2_Quad9);
+
+      void rebuild_connectivity_active_bases() {
+        if (!_geom_ready) return;
+        for (Basis b : _activeBases) {
+          rebuild_connectivity(b);
+        }
       }
 
-      // ======= VTU (ASCII) =======
+// ======= VTU (ASCII) =======
       bool write_ascii_vtu(const std::string& filename, u32 fid, const std::string& name,
-                            bool cell_centered) const {
+                           bool cell_centered) const {
         if (!_geom_ready) return false;
         if (fid >= _fields.size()) return false;
 
@@ -643,8 +914,8 @@ namespace fem {
         const BasisRegistry& R = _basisReg[(int)b];
 
         // gather point data from per-leaf coeffs onto unique global nodes
-        std::vector<double> pointData(R.parent_nodes.size(), 0.0);
-        std::vector<char>   filled(R.parent_nodes.size(), 0);
+        std::vector<double> pointData(R.nodes.size(), 0.0);
+        std::vector<char>   filled(R.nodes.size(), 0);
 
         const int ndof = (int)fld.dofs_per_cell;
         for (u32 e = 0; e < leaf_count(); ++e) {
@@ -652,7 +923,6 @@ namespace fem {
           const auto& conn = R.elem2glob[e];
           for (int a = 0; a < ndof; ++a) {
             int gid = conn[a];
-            // If multiple writes happen to same gid they should be equal (shared node).
             pointData[gid] = c[a];
             filled[gid] = 1;
           }
@@ -663,13 +933,14 @@ namespace fem {
         os << std::setprecision(16);
         os << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
         os << "  <UnstructuredGrid>\n";
-        os << "    <Piece NumberOfPoints=\"" << R.phys_nodes.size()
+        os << "    <Piece NumberOfPoints=\"" << R.nodes.size()
            << "\" NumberOfCells=\"" << R.elem2glob.size() << "\">\n";
 
         // Points
         os << "      <Points>\n";
         os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-        for (auto &p : R.phys_nodes) os << "          " << p[0] << " " << p[1] << " 0\n";
+        for (auto &n : R.nodes)
+          os << "          " << n.physical[0] << " " << n.physical[1] << " 0\n";
         os << "        </DataArray>\n";
         os << "      </Points>\n";
 
@@ -690,7 +961,8 @@ namespace fem {
         os << "        </DataArray>\n";
         os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
         const int vtkType = (b == Basis::Q1_Quad4) ? 9 : (b == Basis::Serendipity8 ? 23 : 28);
-        for (size_t k = 0; k < R.elem2glob.size(); ++k) os << "          " << vtkType << "\n";
+        for (size_t k = 0; k < R.elem2glob.size(); ++k)
+          os << "          " << vtkType << "\n";
         os << "        </DataArray>\n";
         os << "      </Cells>\n";
 
@@ -727,52 +999,67 @@ namespace fem {
         return true;
       }
 
-      int get_or_insert_node(double xi, double eta) {
-        // snap to dyadic grid at maxDepth
-        u32 ix = (u32)std::llround((xi + 1.0) * (1u << _maxDepth) / 2.0);
-        u32 iy = (u32)std::llround((eta + 1.0) * (1u << _maxDepth) / 2.0);
+
+// Insert a unique FEM node (global interpolation node) based on parent coords (xi, eta)
+// into the registry for the given basis
+      int get_or_insert_node(BasisRegistry& R, double xi, double eta, u32 maxDepth) {
+        // snap to dyadic grid at maxDepth to build a unique Morton key
+        u32 ix = (u32)std::llround((xi + 1.0) * (1u << maxDepth) / 2.0);
+        u32 iy = (u32)std::llround((eta + 1.0) * (1u << maxDepth) / 2.0);
         u64 key = interleave2(ix, iy);
 
-        auto it = _nodeMap.find(key);
-        if (it != _nodeMap.end()) return it->second;
+        // check if already exists
+        auto it = R.nodeMap.find(key);
+        if (it != R.nodeMap.end())
+          return it->second;
 
-        int gid = (int)_global_nodes.size();
-        _nodeMap[key] = gid;
+        // assign new global id
+        int gid = static_cast<int>(R.nodes.size());
+        R.nodeMap[key] = gid;
 
-        Node n{gid, {xi, eta}, parent_to_physical(xi, eta)};
-        _global_nodes.push_back(n);
+        // create FEM node with parent and physical coordinates
+        FEMNode node;
+        node.gid      = gid;
+        node.parent   = {xi, eta};
+        node.physical = parent_to_physical(xi, eta);
+
+
+        R.nodes.push_back(std::move(node));
         return gid;
       }
 
 
+
     private:
-      // config
+// config
       u32  _maxDepth;
       u32  _minDepth{0};
       bool _allowCoarsenBelowMinDepth{true};
 
-      // geometry (Q2)
-      double _X[9] {}, _Y[9] {};
+// geometry (Q2)
+      std::array<double, 9> _X {}, _Y {};
       bool _geom_ready{false};
 
-      // mesh leaves
-      std::vector<Leaf> _leaves;
+// mesh leaves
+      std::vector<u32> _leaves;
       mutable std::vector<u32> _leaf_ids;
 
-      // fields (per-leaf coefficients for API compatibility)
+// fields (per-leaf coefficients for API compatibility)
       std::vector<Field> _fields;
 
-      // per-basis global node registries + connectivity
+// per-basis global node registries + connectivity
       BasisRegistry _basisReg[3]; // 0:Q1, 1:S8, 2:Q2
 
+      std::vector<TreeNode> _tree_nodes;        // full tree hierarchy
+      u32 _root{0};
 
+      struct BasisHasher {
+        size_t operator()(fem::Basis b) const noexcept {
+          return std::hash<uint8_t>()(static_cast<uint8_t>(b));
+        }
+      };
 
-
-
-      std::vector<Node> _global_nodes;              // unique global nodes
-      std::unordered_map<u64, int> _nodeMap;        // Morton key -> gid
-      std::vector<std::vector<int>> _elem2glob;     // element → global node ids
-
+      std::unordered_set<Basis, BasisHasher> _activeBases;
 
 
   };
@@ -2709,3 +2996,4 @@ namespace fem {
 // } // namespace fem
 //
 //
+
