@@ -32,9 +32,12 @@ namespace fem {
 //--------------------------------------------
   inline unsigned char vtk_cell_type(Basis b) {
     switch (b) {
-    case Basis::Q1_Quad4:     return 9;   // VTK_QUAD
-    case Basis::Serendipity8: return 23;  // VTK_QUADRATIC_QUAD
-    case Basis::Q2_Quad9:     return 28;  // VTK_BIQUADRATIC_QUAD
+      case Basis::Q1_Quad4:
+        return 9;   // VTK_QUAD
+      case Basis::Serendipity8:
+        return 23;  // VTK_QUADRATIC_QUAD
+      case Basis::Q2_Quad9:
+        return 28;  // VTK_BIQUADRATIC_QUAD
     }
     return 9; // sensible default
   }
@@ -82,56 +85,112 @@ namespace fem {
 // Shapes / geometry
 //--------------------------------------------
   struct Quad9Shape {
-    static inline void q2_1d(double s, double& L0, double& L1, double& L2,
-                             double& dL0, double& dL1, double& dL2) {
+    // 1D quadratic Lagrange basis (values only)
+    static inline void q2_1d_vals(double s, double& L0, double& L1, double& L2) {
       L0 = 0.5 * s * (s - 1.0);
       L1 = 1.0 - s * s;
       L2 = 0.5 * s * (s + 1.0);
+    }
+
+    // 1D quadratic Lagrange basis (derivatives only)
+    static inline void q2_1d_derivs(double s, double& dL0, double& dL1, double& dL2) {
       dL0 = s - 0.5;
       dL1 = -2.0 * s;
       dL2 = s + 0.5;
     }
+
+    // 2D Q2 shape values (no derivative work here)
     static inline void N(double xi, double eta, double N9[9]) {
-      double Lx[3], Ly[3], dx[3], dy[3];
-      q2_1d(xi,  Lx[0], Lx[1], Lx[2], dx[0], dx[1], dx[2]);
-      q2_1d(eta, Ly[0], Ly[1], Ly[2], dy[0], dy[1], dy[2]);
-      N9[0] = Lx[0] * Ly[0];
-      N9[1] = Lx[2] * Ly[0];
-      N9[2] = Lx[2] * Ly[2];
-      N9[3] = Lx[0] * Ly[2];
-      N9[4] = Lx[1] * Ly[0];
-      N9[5] = Lx[2] * Ly[1];
-      N9[6] = Lx[1] * Ly[2];
-      N9[7] = Lx[0] * Ly[1];
-      N9[8] = Lx[1] * Ly[1];
+      double Lx0, Lx1, Lx2;
+      double Ly0, Ly1, Ly2;
+      q2_1d_vals(xi,  Lx0, Lx1, Lx2);
+      q2_1d_vals(eta, Ly0, Ly1, Ly2);
+
+      N9[0] = Lx0 * Ly0;  // (-1,-1)
+      N9[1] = Lx2 * Ly0;  // (+1,-1)
+      N9[2] = Lx2 * Ly2;  // (+1,+1)
+      N9[3] = Lx0 * Ly2;  // (-1,+1)
+      N9[4] = Lx1 * Ly0;  // ( 0,-1)
+      N9[5] = Lx2 * Ly1;  // (+1, 0)
+      N9[6] = Lx1 * Ly2;  // ( 0,+1)
+      N9[7] = Lx0 * Ly1;  // (-1, 0)
+      N9[8] = Lx1 * Ly1;  // ( 0, 0)
     }
 
-    //Compute derivative wrt xi and eta for Q2 at(xi, eta)
+    // 2D Q2 shape derivatives
     static inline void dN(double xi, double eta, double dN_dxi[9], double dN_deta[9]) {
-      double Lx[3], Ly[3], dx[3], dy[3];
-      q2_1d(xi,  Lx[0], Lx[1], Lx[2], dx[0], dx[1], dx[2]);
-      q2_1d(eta, Ly[0], Ly[1], Ly[2], dy[0], dy[1], dy[2]);
+      double Lx0, Lx1, Lx2, dx0, dx1, dx2;
+      double Ly0, Ly1, Ly2, dy0, dy1, dy2;
 
-      dN_dxi[0]  = dx[0] * Ly[0];
-      dN_deta[0] = Lx[0] * dy[0];
-      dN_dxi[1]  = dx[2] * Ly[0];
-      dN_deta[1] = Lx[2] * dy[0];
-      dN_dxi[2]  = dx[2] * Ly[2];
-      dN_deta[2] = Lx[2] * dy[2];
-      dN_dxi[3]  = dx[0] * Ly[2];
-      dN_deta[3] = Lx[0] * dy[2];
-      dN_dxi[4]  = dx[1] * Ly[0];
-      dN_deta[4] = Lx[1] * dy[0];
-      dN_dxi[5]  = dx[2] * Ly[1];
-      dN_deta[5] = Lx[2] * dy[1];
-      dN_dxi[6]  = dx[1] * Ly[2];
-      dN_deta[6] = Lx[1] * dy[2];
-      dN_dxi[7]  = dx[0] * Ly[1];
-      dN_deta[7] = Lx[0] * dy[1];
-      dN_dxi[8]  = dx[1] * Ly[1];
-      dN_deta[8] = Lx[1] * dy[1];
+      q2_1d_vals  (xi,  Lx0, Lx1, Lx2);
+      q2_1d_derivs(xi,  dx0, dx1, dx2);
+      q2_1d_vals  (eta, Ly0, Ly1, Ly2);
+      q2_1d_derivs(eta, dy0, dy1, dy2);
+
+      dN_dxi[0]  = dx0 * Ly0;
+      dN_deta[0] = Lx0 * dy0;
+      dN_dxi[1]  = dx2 * Ly0;
+      dN_deta[1] = Lx2 * dy0;
+      dN_dxi[2]  = dx2 * Ly2;
+      dN_deta[2] = Lx2 * dy2;
+      dN_dxi[3]  = dx0 * Ly2;
+      dN_deta[3] = Lx0 * dy2;
+      dN_dxi[4]  = dx1 * Ly0;
+      dN_deta[4] = Lx1 * dy0;
+      dN_dxi[5]  = dx2 * Ly1;
+      dN_deta[5] = Lx2 * dy1;
+      dN_dxi[6]  = dx1 * Ly2;
+      dN_deta[6] = Lx1 * dy2;
+      dN_dxi[7]  = dx0 * Ly1;
+      dN_deta[7] = Lx0 * dy1;
+      dN_dxi[8]  = dx1 * Ly1;
+      dN_deta[8] = Lx1 * dy1;
+    }
+
+    // Optional: compute N and dN together without duplicating 1D work
+    static inline void N_and_dN(double xi, double eta,
+                                double N9[9], double dN_dxi[9], double dN_deta[9]) {
+      double Lx0, Lx1, Lx2, dx0, dx1, dx2;
+      double Ly0, Ly1, Ly2, dy0, dy1, dy2;
+
+      q2_1d_vals  (xi,  Lx0, Lx1, Lx2);
+      q2_1d_derivs(xi,  dx0, dx1, dx2);
+      q2_1d_vals  (eta, Ly0, Ly1, Ly2);
+      q2_1d_derivs(eta, dy0, dy1, dy2);
+
+      // N
+      N9[0] = Lx0 * Ly0;
+      N9[1] = Lx2 * Ly0;
+      N9[2] = Lx2 * Ly2;
+      N9[3] = Lx0 * Ly2;
+      N9[4] = Lx1 * Ly0;
+      N9[5] = Lx2 * Ly1;
+      N9[6] = Lx1 * Ly2;
+      N9[7] = Lx0 * Ly1;
+      N9[8] = Lx1 * Ly1;
+
+      // dN
+      dN_dxi[0]  = dx0 * Ly0;
+      dN_deta[0] = Lx0 * dy0;
+      dN_dxi[1]  = dx2 * Ly0;
+      dN_deta[1] = Lx2 * dy0;
+      dN_dxi[2]  = dx2 * Ly2;
+      dN_deta[2] = Lx2 * dy2;
+      dN_dxi[3]  = dx0 * Ly2;
+      dN_deta[3] = Lx0 * dy2;
+      dN_dxi[4]  = dx1 * Ly0;
+      dN_deta[4] = Lx1 * dy0;
+      dN_dxi[5]  = dx2 * Ly1;
+      dN_deta[5] = Lx2 * dy1;
+      dN_dxi[6]  = dx1 * Ly2;
+      dN_deta[6] = Lx1 * dy2;
+      dN_dxi[7]  = dx0 * Ly1;
+      dN_deta[7] = Lx0 * dy1;
+      dN_dxi[8]  = dx1 * Ly1;
+      dN_deta[8] = Lx1 * dy1;
     }
   };
+
 
 
 
@@ -178,9 +237,14 @@ namespace fem {
   };
 
   struct Field {
+    // Basis basis{Basis::Q1_Quad4};
+    // u32   dofs_per_cell{4};
+    // std::vector<double> coeffs; // per-leaf coefficients (kept for API compatibility)
+
     Basis basis{Basis::Q1_Quad4};
-    u32   dofs_per_cell{4};
-    std::vector<double> coeffs; // per-leaf coefficients (kept for API compatibility)
+    // Nodal values, one per unique global node in the basis registry.
+    std::vector<double> nodal;  // size == _basisReg[(int)basis].nodes.size()
+
   };
 
   struct FEMNode {
@@ -263,11 +327,20 @@ namespace fem {
       u32 add_field(Basis b) {
         Field f;
         f.basis = b;
-        f.dofs_per_cell = (b == Basis::Q1_Quad4 ? 4 : (b == Basis::Serendipity8 ? 8 : 9));
-        f.coeffs.resize(leaf_count() * f.dofs_per_cell, 0.0);
-        _fields.push_back(std::move(f));
+        // f.dofs_per_cell = (b == Basis::Q1_Quad4 ? 4 : (b == Basis::Serendipity8 ? 8 : 9));
+        // f.coeffs.resize(leaf_count() * f.dofs_per_cell, 0.0);
 
-        _activeBases.insert(b);   // mark basis as active
+
+        // Ensure registry exists so we can size nodal storage
+        _activeBases.insert(b);
+        rebuild_connectivity_active_bases();
+        const auto& R = _basisReg[(int)b];
+        f.nodal.assign(R.nodes.size(), 0.0);
+
+        // _fields.push_back(std::move(f));
+        //_activeBases.insert(b);   // mark basis as active
+
+        _fields.push_back(std::move(f));
         return (u32)_fields.size() - 1;
       }
 
@@ -278,24 +351,32 @@ namespace fem {
         return _fields[fid];
       }
 
-      void resize_fields_to_leaves() {
-        const u32 nL = leaf_count();
-        for (auto& f : _fields) f.coeffs.resize(size_t(nL)*f.dofs_per_cell);
-      }
+      // void resize_fields_to_leaves() {
+      //   const u32 nL = leaf_count();
+      //   for (auto& f : _fields) f.coeffs.resize(size_t(nL)*f.dofs_per_cell);
+      // }
+      //
+      // double* leaf_coeff_ptr(u32 fid, u32 leaf_pos) {
+      //   Field& f = _fields[fid];
+      //   return f.coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
+      // }
+      // const double* leaf_coeff_ptr(u32 fid, u32 leaf_pos) const {
+      //   const Field& f = _fields[fid];
+      //   return f.coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
+      // }
 
-      double* leaf_coeff_ptr(u32 fid, u32 leaf_pos) {
-        Field& f = _fields[fid];
-        return f.coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
-      }
-      const double* leaf_coeff_ptr(u32 fid, u32 leaf_pos) const {
-        const Field& f = _fields[fid];
-        return f.coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
+      // Resize all fields so their nodal arrays match current basis registries
+      void resize_fields_to_nodes() {
+        for (auto& f : _fields) {
+          const auto& R = _basisReg[(int)f.basis];
+          f.nodal.resize(R.nodes.size(), 0.0);
+        }
       }
 
       // ---- node generators (parent & physical) ----
       // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
       void extract_node_parent_coords_in_level_range(Basis basis, u32 leaf_idx,
-                                                     std::vector<std::array<double, 2>>& out_pts) const {
+          std::vector<std::array<double, 2>>& out_pts) const {
 
         // Map leaf_idx → actual TreeNode
         const TreeNode& leaf = _tree_nodes[_leaves[leaf_idx]];
@@ -306,27 +387,32 @@ namespace fem {
         out_pts.clear();
         out_pts.reserve(9);
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
-          };
-        } break;
+          case Basis::Q1_Quad4: {
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
+            };
+          }
+          break;
 
-        case Basis::Serendipity8: {
-          const double xm = 0.5 * (xi0 + xi1); const double ym = 0.5 * (eta0 + eta1);
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-          };
-        } break;
+          case Basis::Serendipity8: {
+            const double xm = 0.5 * (xi0 + xi1);
+            const double ym = 0.5 * (eta0 + eta1);
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+            };
+          }
+          break;
 
-        case Basis::Q2_Quad9: {
-          const double xm = 0.5 * (xi0 + xi1); const double ym = 0.5 * (eta0 + eta1);
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-          };
-        } break;
+          case Basis::Q2_Quad9: {
+            const double xm = 0.5 * (xi0 + xi1);
+            const double ym = 0.5 * (eta0 + eta1);
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+            };
+          }
+          break;
         }
       }
 
@@ -410,8 +496,12 @@ namespace fem {
         }
 
         _leaves.swap(newLeaves);
+        //rebuild_connectivity_active_bases();
+        //resize_fields_to_leaves();
+
         rebuild_connectivity_active_bases();
-        resize_fields_to_leaves();
+        resize_fields_to_nodes();
+
         return refined;
       }
 
@@ -437,7 +527,8 @@ namespace fem {
         }
 
         std::vector<char> mark_remove(leaf_count(), 0);
-        std::vector<u32> to_add; to_add.reserve(groups.size());
+        std::vector<u32> to_add;
+        to_add.reserve(groups.size());
         std::size_t coarsened = 0;
 
         for (auto& kv : groups) {
@@ -467,27 +558,29 @@ namespace fem {
           double xi0, eta0, xi1, eta1;
           leaf_bounds(parent, xi0, eta0, xi1, eta1);
 
-          std::vector<std::array<double, 2>> pts_xi; pts_xi.reserve(9);
+          std::vector<std::array<double, 2>> pts_xi;
+          pts_xi.reserve(9);
           const double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
           switch (probe_basis) {
-          case Basis::Q1_Quad4:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
-            break;
-          case Basis::Serendipity8:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-              }
-            };
-            break;
-          case Basis::Q2_Quad9:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-              }
-            };
-            break;
+            case Basis::Q1_Quad4:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
+              break;
+            case Basis::Serendipity8:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+                }
+              };
+              break;
+            case Basis::Q2_Quad9:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+                }
+              };
+              break;
           }
 
-          std::vector<std::array<double, 2>> pts_xy; pts_xy.resize(pts_xi.size());
+          std::vector<std::array<double, 2>> pts_xy;
+          pts_xy.resize(pts_xi.size());
           for (size_t i = 0; i < pts_xi.size(); ++i)
             pts_xy[i] = parent_to_physical(pts_xi[i][0], pts_xi[i][1]);
 
@@ -519,8 +612,13 @@ namespace fem {
           newLeaves.insert(newLeaves.end(), to_add.begin(), to_add.end());
           _leaves.swap(newLeaves);
 
+//          rebuild_connectivity_active_bases();
+//          resize_fields_to_leaves();
+
+
           rebuild_connectivity_active_bases();
-          resize_fields_to_leaves();
+          resize_fields_to_nodes();
+
         }
         return coarsened;
       }
@@ -572,7 +670,11 @@ namespace fem {
         std::vector<int> connectivity;
         std::vector<int> offsets;
         std::vector<unsigned char> types;
-        connectivity.reserve(numCells * fld.dofs_per_cell);
+        //connectivity.reserve(numCells * fld.dofs_per_cell);
+
+        // Reserve approximately (safe upper bound if uniform)
+        connectivity.reserve(numCells * (b == Basis::Q1_Quad4 ? 4 : (b == Basis::Serendipity8 ? 8 : 9)));
+
         offsets.reserve(numCells);
         types.reserve(numCells);
 
@@ -589,32 +691,49 @@ namespace fem {
         // -------------------------
         // Field values
         // -------------------------
+        // std::vector<double> pointData;
+        // std::vector<double> cellData;
+        // if (cell_centered) {
+        //   cellData.reserve(numCells);
+        //   for (size_t e = 0; e < numCells; ++e) {
+        //     const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
+        //     double v = 0.0;
+        //     for (int i = 0; i < fld.dofs_per_cell; ++i) v += c[i];
+        //     cellData.push_back(v / fld.dofs_per_cell);
+        //   }
+        // }
+        // else {
+        //   pointData.resize(R.nodes.size(), 0.0);
+        //   std::vector<int> counts(R.nodes.size(), 0);
+        //   for (size_t e = 0; e < numCells; ++e) {
+        //     const auto &conn = R.elem2glob[e];
+        //     const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
+        //     for (size_t i = 0; i < conn.size(); ++i) {
+        //       int gid = conn[i];
+        //       pointData[gid] += c[i];
+        //       counts[gid]++;
+        //     }
+        //   }
+        //   for (size_t i = 0; i < pointData.size(); ++i)
+        //     if (counts[i] > 0) pointData[i] /= counts[i];
+        // }
+
         std::vector<double> pointData;
         std::vector<double> cellData;
         if (cell_centered) {
           cellData.reserve(numCells);
           for (size_t e = 0; e < numCells; ++e) {
-            const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
+            const auto &conn = R.elem2glob[e];
             double v = 0.0;
-            for (int i = 0; i < fld.dofs_per_cell; ++i) v += c[i];
-            cellData.push_back(v / fld.dofs_per_cell);
+            for (int gid : conn) v += fld.nodal[gid];
+            cellData.push_back(v / (double)conn.size());
           }
         }
         else {
-          pointData.resize(R.nodes.size(), 0.0);
-          std::vector<int> counts(R.nodes.size(), 0);
-          for (size_t e = 0; e < numCells; ++e) {
-            const auto &conn = R.elem2glob[e];
-            const double *c = fld.coeffs.data() + e * fld.dofs_per_cell;
-            for (size_t i = 0; i < conn.size(); ++i) {
-              int gid = conn[i];
-              pointData[gid] += c[i];
-              counts[gid]++;
-            }
-          }
-          for (size_t i = 0; i < pointData.size(); ++i)
-            if (counts[i] > 0) pointData[i] /= counts[i];
+          // Point data is directly the nodal storage
+          pointData = fld.nodal;
         }
+
 
         // -------------------------
         // Write XML
@@ -747,29 +866,41 @@ namespace fem {
 
         // 3) access field + coefficients
         const Field& f = _fields[fid];
-        const double* c = leaf_coeff_ptr(fid, leaf_pos);
+        //const double* c = leaf_coeff_ptr(fid, leaf_pos);
+        const BasisRegistry& R = _basisReg[(int)f.basis];
+        // Connectivity for this element (leaf_pos is aligned with rebuild_connectivity)
+        const auto& conn = R.elem2glob[leaf_pos];
 
         // 4) interpolate
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        } break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        } break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        } break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            //value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+            value = 0.0;
+            for (int a = 0; a < 4; ++a) value += N4[a] * f.nodal[conn[a]];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            //double v = 0.0;
+            //for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            //value = v;
+            value = 0.0;
+            for (int a = 0; a < 8; ++a) value += N8[a] * f.nodal[conn[a]];
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            // double v = 0.0;
+            // for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            // value = v;
+            value = 0.0;
+            for (int a = 0; a < 9; ++a) value += N9[a] * f.nodal[conn[a]];
+          }
+          break;
         }
         return true;
       }
@@ -910,7 +1041,7 @@ namespace fem {
 
         // Rebuild once at the end
         rebuild_connectivity_active_bases();
-        resize_fields_to_leaves();
+        resize_fields_to_nodes();
       }
 
 
@@ -954,13 +1085,22 @@ namespace fem {
           if (c == 0) break;
           total += c;
 
-          enforce_balance();
+
         }
 
-        // Rebuild all fields from the snapshot (conservative transfer)
-        // (Assumes you have rebuild_field_from(QuadTree2D const&, u32) implemented.)
+        enforce_balance();
+
+        // // Rebuild all fields from the snapshot (conservative transfer)
+        // // (Assumes you have rebuild_field_from(QuadTree2D const&, u32) implemented.)
+        // rebuild_connectivity_active_bases();
+        // resize_fields_to_leaves();
+        // for (u32 f = 0; f < _fields.size(); ++f) {
+        //   rebuild_field_from(snapshot, f);
+        // }
+
+        // Rebuild all fields from the snapshot (conservative transfer) on nodal sets
         rebuild_connectivity_active_bases();
-        resize_fields_to_leaves();
+        resize_fields_to_nodes();
         for (u32 f = 0; f < _fields.size(); ++f) {
           rebuild_field_from(snapshot, f);
         }
@@ -968,36 +1108,72 @@ namespace fem {
         return total;
       }
 
+      void rebuild_connectivity_active_bases() {
+        if (!_geom_ready) return;
+        for (Basis b : _activeBases) {
+          rebuild_connectivity(b);
+        }
+      }
+
+      // ------------------------------
+      // Public read-only registry API
+      // ------------------------------
+      // Returns the unique global FEM nodes (per-basis), with parent & physical coords.
+      const std::vector<FEMNode>& basis_nodes(Basis b) const {
+        return _basisReg[(int)b].nodes;
+      }
+      // Returns the element-to-global connectivity (per-basis).
+      const std::vector<std::vector<int>>& basis_connectivity(Basis b) const {
+        return _basisReg[(int)b].elem2glob;
+      }
 
 
       // ---- Private helpers -------------------------------------------------
     private:
 
-      // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes
+      // // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes
+      // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes (global nodal storage)
       void rebuild_field_from(const QuadTree2D& src, u32 fid) {
-        // sanity
+        //   // sanity
+        //   assert(fid < _fields.size() && fid < src._fields.size());
+        //   Field& dst = _fields[fid];
+        //   const Field& s = src._fields[fid];
+        //   assert(dst.basis == s.basis && "Source/dest field bases must match");
+        //
+        //   // ensure coeff storage matches current leaf count
+        //   resize_fields_to_leaves();
+        //
+        //   const auto& L = leaf_indices(); // positions into leaf storage [0..n-1]
+        //   for (u32 k = 0; k < L.size(); ++k) {
+        //     const u32 leaf = L[k];
+        //
+        //     // parent-space interpolation nodes of this leaf for the field basis
+        //     std::vector<std::array<double, 2>> xi;
+        //     extract_node_parent_coords_in_level_range(dst.basis, leaf, xi);
+        //
+        //     double* coeffs = leaf_coeff_ptr(fid, k);
+        //     for (size_t j = 0; j < xi.size(); ++j) {
+        //       double val;
+        //       const bool ok = src.evaluate_field_on_parent(fid, xi[j][0], xi[j][1], val);
+        //       coeffs[j] = ok ? val : std::numeric_limits<double>::quiet_NaN();
+        //     }
+        //   }
+        // }
+
         assert(fid < _fields.size() && fid < src._fields.size());
         Field& dst = _fields[fid];
         const Field& s = src._fields[fid];
         assert(dst.basis == s.basis && "Source/dest field bases must match");
 
-        // ensure coeff storage matches current leaf count
-        resize_fields_to_leaves();
+        const BasisRegistry& Rdst = _basisReg[(int)dst.basis];
+        dst.nodal.resize(Rdst.nodes.size());
 
-        const auto& L = leaf_indices(); // positions into leaf storage [0..n-1]
-        for (u32 k = 0; k < L.size(); ++k) {
-          const u32 leaf = L[k];
-
-          // parent-space interpolation nodes of this leaf for the field basis
-          std::vector<std::array<double, 2>> xi;
-          extract_node_parent_coords_in_level_range(dst.basis, leaf, xi);
-
-          double* coeffs = leaf_coeff_ptr(fid, k);
-          for (size_t j = 0; j < xi.size(); ++j) {
-            double val;
-            const bool ok = src.evaluate_field_on_parent(fid, xi[j][0], xi[j][1], val);
-            coeffs[j] = ok ? val : std::numeric_limits<double>::quiet_NaN();
-          }
+        // Sample source field at each destination nodal parent coordinate
+        for (size_t gid = 0; gid < Rdst.nodes.size(); ++gid) {
+          const auto& pr = Rdst.nodes[gid].parent;
+          double val;
+          const bool ok = src.evaluate_field_on_parent(fid, pr[0], pr[1], val);
+          dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
         }
       }
 
@@ -1023,10 +1199,22 @@ namespace fem {
 
         double qx, qy;
         switch (dir) {
-        case 0: qx = xi0 - epsx; qy = ym;        break; // left
-        case 1: qx = xi1 + epsx; qy = ym;        break; // right
-        case 2: qx = xm;        qy = eta0 - epsy; break; // down
-        default:/*3*/ qx = xm;  qy = eta1 + epsy; break; // up
+          case 0:
+            qx = xi0 - epsx;
+            qy = ym;
+            break; // left
+          case 1:
+            qx = xi1 + epsx;
+            qy = ym;
+            break; // right
+          case 2:
+            qx = xm;
+            qy = eta0 - epsy;
+            break; // down
+          default:/*3*/
+            qx = xm;
+            qy = eta1 + epsy;
+            break; // up
         }
 
         // outside global domain? no neighbor
@@ -1135,9 +1323,17 @@ namespace fem {
         }
 
         rebuild_connectivity_active_bases();
-        resize_fields_to_leaves();
+        resize_fields_to_nodes();
       }
 
+      // // In class QuadTree2D (public:)
+      // const std::vector<FEMNode>& basis_nodes(Basis b) const {
+      //   return _basisReg[(int)b].nodes;
+      // }
+      //
+      // const std::vector<std::vector<int>>& basis_connectivity(Basis b) const {
+      //   return _basisReg[(int)b].elem2glob;
+      // }
 
 
 // Compute physical bounds in parent space [-1,1]^2 for a given TreeNode
@@ -1211,12 +1407,7 @@ namespace fem {
 
 
 
-      void rebuild_connectivity_active_bases() {
-        if (!_geom_ready) return;
-        for (Basis b : _activeBases) {
-          rebuild_connectivity(b);
-        }
-      }
+
 
 // ======= VTU (ASCII) =======
       bool write_ascii_vtu(const std::string& filename, u32 fid, const std::string& name,
@@ -1228,20 +1419,23 @@ namespace fem {
         const Basis b = fld.basis;
         const BasisRegistry& R = _basisReg[(int)b];
 
-        // gather point data from per-leaf coeffs onto unique global nodes
-        std::vector<double> pointData(R.nodes.size(), 0.0);
-        std::vector<char>   filled(R.nodes.size(), 0);
+        // // gather point data from per-leaf coeffs onto unique global nodes
+        // std::vector<double> pointData(R.nodes.size(), 0.0);
+        // std::vector<char>   filled(R.nodes.size(), 0);
+        //
+        // const int ndof = (int)fld.dofs_per_cell;
+        // for (u32 e = 0; e < leaf_count(); ++e) {
+        //   const double* c = fld.coeffs.data() + size_t(e) * ndof;
+        //   const auto& conn = R.elem2glob[e];
+        //   for (int a = 0; a < ndof; ++a) {
+        //     int gid = conn[a];
+        //     pointData[gid] = c[a];
+        //     filled[gid] = 1;
+        //   }
+        // }
 
-        const int ndof = (int)fld.dofs_per_cell;
-        for (u32 e = 0; e < leaf_count(); ++e) {
-          const double* c = fld.coeffs.data() + size_t(e) * ndof;
-          const auto& conn = R.elem2glob[e];
-          for (int a = 0; a < ndof; ++a) {
-            int gid = conn[a];
-            pointData[gid] = c[a];
-            filled[gid] = 1;
-          }
-        }
+        // point data is directly the nodal values
+        const std::vector<double>& pointData = fld.nodal;
 
         std::ofstream os(filename);
         if (!os) return false;
@@ -1348,7 +1542,8 @@ namespace fem {
                              int maxIts = 25, double tol = 1e-12) const {
         require_geometry();
         // start at center
-        xi = 0.0; eta = 0.0;
+        xi = 0.0;
+        eta = 0.0;
 
         for (int it = 0; it < maxIts; ++it) {
           double N9[9], dNdxi[9], dNdeta[9];
@@ -3397,4 +3592,5 @@ namespace fem {
 // } // namespace fem
 //
 //
+
 

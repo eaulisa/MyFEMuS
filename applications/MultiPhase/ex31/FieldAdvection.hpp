@@ -149,37 +149,86 @@ namespace fem {
     }
   }
 
-//----------------------------------------
-// 4. Backward advection & field transport (parent RK)
-//----------------------------------------
+// //----------------------------------------
+// // 4. Backward advection & field transport (parent RK)
+// //----------------------------------------
+//   inline void advect_nodes_backward_and_transport_field(
+//     const QuadTree2D& qt0,
+//     u32 fid0,
+//     Basis velBasis,
+//     const std::vector<std::array<double, 2>>& vOld,
+//     const std::vector<std::array<double, 2>>& vNew,
+//     double dt,
+//     QuadTree2D& qt1,
+//     u32 fid1) {
+//     auto coords1 = qt1.extract_node_parent_coords_in_level_range(0, qt1.max_depth(), Basis::Q2_Quad9);
+//     Field& fld1 = qt1.field(fid1);
+//     fld1.coeffs.resize(coords1.size());
+//
+//     for (size_t i = 0; i < coords1.size(); ++i) {
+//       auto xiEta1 = coords1[i];
+//
+//       // 1. Velocity evaluator works in parent space
+//       auto vel_eval = [&](const std::array<double, 2>& xiEta, double t) {
+//         return eval_velocity_parent(qt0, velBasis, vOld, vNew, xiEta[0], xiEta[1], t, dt);
+//       };
+//
+//       // 2. Backward RK4 in parent space
+//       auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);
+//
+//       // 3. Evaluate field directly in reference space (skip Newton)
+//       double val;
+//       bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
+//       fld1.coeffs[i] = ok ? val : -1.0;
+//     }
+//   }
+
+
+// Free function (not a member)
   inline void advect_nodes_backward_and_transport_field(
-    const QuadTree2D& qt0,
-    u32 fid0,
+    const QuadTree2D& qt0,          // geometry + source field at old time
+    u32 fid0,                       // source field id in qt0
     Basis velBasis,
     const std::vector<std::array<double, 2>>& vOld,
     const std::vector<std::array<double, 2>>& vNew,
-    double dt,
-    QuadTree2D& qt1,
-    u32 fid1) {
-    auto coords1 = qt1.extract_node_parent_coords_in_level_range(0, qt1.max_depth(), Basis::Q2_Quad9);
+    double dt,                      // > 0
+    QuadTree2D& qt1,                // geometry at end time
+    u32 fid1) {                     // destination field id in qt1
+    // Ensure registries are valid for qt1’s active bases
+    qt1.rebuild_connectivity_active_bases();
+
+    // Destination field must be nodal
     Field& fld1 = qt1.field(fid1);
-    fld1.coeffs.resize(coords1.size());
+    const Basis b = fld1.basis;
 
-    for (size_t i = 0; i < coords1.size(); ++i) {
-      auto xiEta1 = coords1[i];
+    // Iterate unique destination nodes (global GIDs)
+    const auto& nodes = qt1.basis_nodes(b);
 
-      // 1. Velocity evaluator works in parent space
+    // Size destination nodal vector
+    fld1.nodal.resize(nodes.size());
+
+    for (size_t gid = 0; gid < nodes.size(); ++gid) {
+      const auto& pr = nodes[gid].parent;           // (xi, eta) at t^{n+1} in parent space
+      const std::array<double, 2> xiEta1{pr[0], pr[1]};
+
+      // Velocity evaluator in parent coords (uses qt0 geometry)
       auto vel_eval = [&](const std::array<double, 2>& xiEta, double t) {
-        return eval_velocity_parent(qt0, velBasis, vOld, vNew, xiEta[0], xiEta[1], t, dt);
+        return eval_velocity_parent(qt0, velBasis, vOld, vNew,
+                                    xiEta[0], xiEta[1], t, dt);
       };
 
-      // 2. Backward RK4 in parent space
-      auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);
+      // Backward RK4 in parent space: t^{n+1} -> t^{n}
+      const auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);
 
-      // 3. Evaluate field directly in reference space (skip Newton)
-      double val;
-      bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
-      fld1.coeffs[i] = ok ? val : -1.0;
+      // Sample source field directly in parent space on qt0
+      double val = std::numeric_limits<double>::quiet_NaN();
+      (void) qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
+
+      fld1.nodal[gid] = val;
     }
   }
+
+
+
+
 } // namespace fem
