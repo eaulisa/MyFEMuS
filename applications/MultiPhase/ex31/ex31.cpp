@@ -8,9 +8,8 @@
 #include <gperftools/profiler.h>
 
 #include "QuadTree2D.hpp"
-//#include "QuadTree2DOld.hpp"
-//#include "FieldAdvection.hpp"
-//#include "FieldAdvectionWithAnalyticVelocity.hpp"
+#include "FieldAdvection.hpp"
+#include "FieldAdvectionWithAnalyticVelocity.hpp"
 
 using namespace  fem;
 
@@ -165,13 +164,13 @@ int main() {
   std::cout << "Printing " << filename << "\n";
 
 
-  return 0;/*
+
 
   double period = 8;
   unsigned nIterations = 320;
   double dt = period / nIterations;
 
-  for (u32 k = 1; k <= nIterations; k++) {
+  for (u32 k = 1; k <= 10+0* nIterations; k++) {
 
     std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
@@ -197,8 +196,6 @@ int main() {
     //fem::advect_nodes_backward_and_transport_field(qt, fid0, Basis::Q2_Quad9, vOld, vNew, dt, qt1, fid1);
     fem::advect_nodes_backward_and_transport_field_analytic(qt, fid0, time, dt, rotVel, qt1, fid1);
 
-
-
     u32 num_coarsened = qt1.coarsen_only_cycle_safe(fid0, tau_coarse);
     std::cout << "Coarsened " << num_coarsened << " leaves.\n";
 
@@ -209,9 +206,9 @@ int main() {
     std::cout << "Printing " << filename << "\n";
   }
 
-  filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
-  qt.write_binary_vtu(filename, fid, "u", false);
-  std::cout << "Printing " << filename << "\n";*/
+  // filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
+  // qt.write_binary_vtu(filename, fid, "u", false);
+  // std::cout << "Printing " << filename << "\n";
 
   ProfilerStop();
   return 0;

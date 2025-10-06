@@ -10,6 +10,10 @@
 #include <limits>
 #include <string>
 #include <unordered_set>
+#include <cstdint>
+#include <functional>
+#include <utility>
+
 
 
 #include "Encoder.hpp"
@@ -21,6 +25,21 @@ namespace fem {
   constexpr u32 npos32 = std::numeric_limits<u32>::max();
 
   enum class Basis : uint8_t { Q1_Quad4 = 0, Serendipity8 = 1, Q2_Quad9 = 2 };
+
+
+//--------------------------------------------
+// VTK cell-type helper
+//--------------------------------------------
+  inline unsigned char vtk_cell_type(Basis b) {
+    switch (b) {
+    case Basis::Q1_Quad4:     return 9;   // VTK_QUAD
+    case Basis::Serendipity8: return 23;  // VTK_QUADRATIC_QUAD
+    case Basis::Q2_Quad9:     return 28;  // VTK_BIQUADRATIC_QUAD
+    }
+    return 9; // sensible default
+  }
+
+
 
 //--------------------------------------------
 // Morton helpers
@@ -275,19 +294,17 @@ namespace fem {
 
       // ---- node generators (parent & physical) ----
       // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
-      void leaf_parent_nodes(Basis basis, u32 leaf_idx,
-                             std::vector<std::array<double, 2>>& out_pts) const {
-        // leaf_idx is an index into _leaves, which stores indices into _tree_nodes
-        u32 nodeIdx = _leaves[leaf_idx];
-        const TreeNode& leaf = _tree_nodes[nodeIdx];
+      void extract_node_parent_coords_in_level_range(Basis basis, u32 leaf_idx,
+                                                     std::vector<std::array<double, 2>>& out_pts) const {
+
+        // Map leaf_idx → actual TreeNode
+        const TreeNode& leaf = _tree_nodes[_leaves[leaf_idx]];
 
         double xi0, eta0, xi1, eta1;
         leaf_bounds(leaf, xi0, eta0, xi1, eta1);
 
-        const double xm = 0.5 * (xi0 + xi1);
-        const double ym = 0.5 * (eta0 + eta1);
-
         out_pts.clear();
+        out_pts.reserve(9);
         switch (basis) {
         case Basis::Q1_Quad4: {
           out_pts = {
@@ -296,6 +313,7 @@ namespace fem {
         } break;
 
         case Basis::Serendipity8: {
+          const double xm = 0.5 * (xi0 + xi1); const double ym = 0.5 * (eta0 + eta1);
           out_pts = {
             {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
             {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
@@ -303,6 +321,7 @@ namespace fem {
         } break;
 
         case Basis::Q2_Quad9: {
+          const double xm = 0.5 * (xi0 + xi1); const double ym = 0.5 * (eta0 + eta1);
           out_pts = {
             {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
             {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
@@ -316,7 +335,7 @@ namespace fem {
                                std::vector<std::array<double, 2>>& out_xy) const {
         require_geometry();
         std::vector<std::array<double, 2>> xi;
-        leaf_parent_nodes(basis, leaf_idx, xi);
+        extract_node_parent_coords_in_level_range(basis, leaf_idx, xi);
         out_xy.resize(xi.size());
         for (size_t i = 0; i < xi.size(); ++i) out_xy[i] = parent_to_physical(xi[i][0], xi[i][1]);
       }
@@ -352,7 +371,7 @@ namespace fem {
 
           // probe geometry for refinement
           std::vector<std::array<double, 2>> pts_xi, pts_xy;
-          leaf_parent_nodes(probe_basis, idx, pts_xi);
+          extract_node_parent_coords_in_level_range(probe_basis, idx, pts_xi);
           leaf_physical_nodes(probe_basis, idx, pts_xy);
           std::vector<std::array<double, 9>> dummy;
 
@@ -564,11 +583,7 @@ namespace fem {
           offset += (int)conn.size();
           offsets.push_back(offset);
 
-          switch (fld.basis) {
-          case Basis::Q1_Quad4:     types.push_back(9);  break;  // VTK_QUAD
-          case Basis::Serendipity8: types.push_back(23); break;  // VTK_QUADRATIC_QUAD
-          case Basis::Q2_Quad9:     types.push_back(28); break;  // VTK_BIQUADRATIC_QUAD
-          }
+          types.push_back(vtk_cell_type(fld.basis));
         }
 
         // -------------------------
@@ -665,7 +680,7 @@ namespace fem {
           if (lev < lev_min || lev > lev_max) continue;
 
           std::vector<std::array<double, 2>> xi;
-          leaf_reference_nodes(basis, leaf, xi);
+          extract_node_parent_coords_in_level_range(basis, leaf, xi);
 
           coords.insert(coords.end(), xi.begin(), xi.end());
         }
@@ -684,59 +699,6 @@ namespace fem {
       u32 max_depth() const {
         return _maxDepth;
       }
-
-
-// Fill vector with parent-space interpolation nodes for a given leaf and basis
-      void leaf_reference_nodes(Basis basis, u32 leaf_idx,
-                                std::vector<std::array<double, 2>>& xi) const {
-        xi.clear();
-
-        // Map leaf_idx → actual TreeNode
-        const TreeNode& node = _tree_nodes[_leaves[leaf_idx]];
-
-        // Bounds of this leaf in reference space
-        double xi0, eta0, xi1, eta1;
-        leaf_bounds(node, xi0, eta0, xi1, eta1);
-
-        switch (basis) {
-        case Basis::Q1_Quad4: {
-          xi.resize(4);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          break;
-        }
-        case Basis::Serendipity8: {
-          xi.resize(8);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-          break;
-        }
-        case Basis::Q2_Quad9: {
-          xi.resize(9);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-          xi[8] = {xm,  ym };
-          break;
-        }
-        }
-      }
-
 
 // Locate leaf containing (xi,eta) in parent space [-1,1]^2 using Morton traversal
       u32 locate_leaf_on_parent(double xi, double eta) const {
@@ -766,8 +728,361 @@ namespace fem {
       }
 
 
+// Evaluate field directly in parent coordinates (xi, eta).
+// Locates the leaf, maps to local [-1,1]^2, and interpolates.
+      bool evaluate_field_on_parent(u32 fid, double xi, double eta, double& value) const {
+        if (fid >= _fields.size()) return false;
 
+        u32 leaf_node_idx;
+        double shat, that;
+
+        // 1) locate leaf and local reference coords
+        if (!locate_leaf_on_parent_and_ref(xi, eta, leaf_node_idx, shat, that)) {
+          return false;
+        }
+
+        // 2) leaf node index -> position in coefficient storage
+        const u32 leaf_pos = leaf_position(leaf_node_idx);
+        if (leaf_pos == npos32) return false;
+
+        // 3) access field + coefficients
+        const Field& f = _fields[fid];
+        const double* c = leaf_coeff_ptr(fid, leaf_pos);
+
+        // 4) interpolate
+        switch (f.basis) {
+        case Basis::Q1_Quad4: {
+          double N4[4];
+          Shapes::Q1(shat, that, N4);
+          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+        } break;
+        case Basis::Serendipity8: {
+          double N8[8];
+          Shapes::Serendipity8(shat, that, N8);
+          double v = 0.0;
+          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+          value = v;
+        } break;
+        case Basis::Q2_Quad9: {
+          double N9[9];
+          Quad9Shape::N(shat, that, N9);
+          double v = 0.0;
+          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+          value = v;
+        } break;
+        }
+        return true;
+      }
+
+// Map a leaf's node index (into _tree_nodes) to its position in _leaves.
+      u32 leaf_position(u32 leaf_node_idx) const {
+        for (u32 i = 0; i < (u32)_leaves.size(); ++i)
+          if (_leaves[i] == leaf_node_idx) return i;
+        return npos32;
+      }
+
+// Locate leaf containing (xi,eta) and compute local reference coords (shat,that) in [-1,1]^2.
+      bool locate_leaf_on_parent_and_ref(double xi, double eta,
+                                         u32& leaf_node_idx,
+                                         double& shat, double& that) const {
+        leaf_node_idx = locate_leaf_on_parent(xi, eta);
+        if (leaf_node_idx == npos32) return false;
+
+        double xi0, eta0, xi1, eta1;
+        leaf_bounds(_tree_nodes[leaf_node_idx], xi0, eta0, xi1, eta1);
+        const double dx = xi1 - xi0;
+        const double dy = eta1 - eta0;
+        if (dx <= 0.0 || dy <= 0.0) return false;
+
+        const double xm = 0.5 * (xi0 + xi1);
+        const double ym = 0.5 * (eta0 + eta1);
+        shat = 2.0 * (xi  - xm) / dx;
+        that = 2.0 * (eta - ym) / dy;
+        return true;
+      }
+
+// Refine tree so that each physical point lies in a leaf of at least 'maxDepthTarget'
+      void refine_to_contain_points(const std::vector<std::array<double, 2>>& pts,
+                                    u32 maxDepthTarget) {
+        if (pts.empty()) return;
+
+        // Iterate until all points are in leaves with level >= target (or no more splits possible)
+        for (;;) {
+          // Mark the *node indices* (not positions) that need refinement this pass
+          std::unordered_set<u32> nodes_to_refine;
+          nodes_to_refine.reserve(pts.size());
+
+          for (const auto& p : pts) {
+            double xi, eta;
+            if (!inverse_map_quad9(p[0], p[1], xi, eta)) continue;
+
+            const u32 node = locate_leaf_on_parent(xi, eta);
+            if (node == npos32) continue;
+
+            if (_tree_nodes[node].level < maxDepthTarget)
+              nodes_to_refine.insert(node);
+          }
+
+          if (nodes_to_refine.empty()) break;
+
+          // Refine exactly those leaves; use the cheapest probe basis since we ignore pts_xi/pts_xy
+          auto should_refine = [&](u32 leaf_pos,
+                                   const std::vector<std::array<double, 2>>&,
+                                   const std::vector<std::array<double, 2>>&,
+          const std::vector<std::array<double, 9>>&) -> bool {
+            const u32 node = _leaves[leaf_pos];
+            return nodes_to_refine.count(node) &&
+            (_tree_nodes[node].level < maxDepthTarget);
+          };
+
+          const std::size_t nsplit = refine_pass(should_refine, Basis::Q1_Quad4);
+          if (nsplit == 0) break; // nothing changed (e.g., already at/above target)
+        }
+
+        // Keep mesh 1-irregular
+        enforce_balance();
+      }
+
+
+// // --- public: refine so that each physical point is inside a leaf at least 'maxDepthTarget' ---
+//       void refine_to_contain_points(const std::vector<std::array<double, 2>>& pts,
+//                                     u32 maxDepthTarget) {
+//         if (pts.empty()) return;
+//         require_geometry();
+//
+//         maxDepthTarget = std::min(maxDepthTarget, _maxDepth);
+//
+//         for (const auto& p : pts) {
+//           double xi, eta;
+//           if (!inverse_map_quad9(p[0], p[1], xi, eta)) continue;
+//
+//           u32 node_idx = locate_leaf_on_parent(xi, eta);
+//           // Refine until we reach the requested depth (or maxDepth)
+//           while (node_idx != npos32 &&
+//                  _tree_nodes[node_idx].is_leaf &&
+//                  _tree_nodes[node_idx].level < maxDepthTarget) {
+//             if (!refine_leaf_and_update_leaves(node_idx)) break;
+//             // after refinement, locate again (the point is in one of the new children)
+//             node_idx = locate_leaf_on_parent(xi, eta);
+//           }
+//         }
+//
+//         // refresh connectivity/fields after topology changes
+//         rebuild_connectivity_active_bases();
+//         resize_fields_to_leaves();
+//       }
+
+
+      // ---- Public: enforce 1-irregularity ---------------------------------
+    public:
+      // Enforce 1-irregularity: adjacent leaves may differ by at most 1 level.
+      // This refines only the coarser side until the constraint is satisfied.
+      void enforce_balance() {
+        bool changed = true;
+        while (changed) {
+          changed = false;
+
+          // work on a snapshot to avoid invalidating indices while refining
+          const std::vector<u32> leaves_snapshot = _leaves;
+
+          for (u32 leaf_node_idx : leaves_snapshot) {
+            if (_tree_nodes[leaf_node_idx].is_leaf == false) continue; // may have been refined already
+            const u32 lev = _tree_nodes[leaf_node_idx].level;
+
+            for (int dir = 0; dir < 4; ++dir) {
+              u32 nb = neighbor_leaf_by_dir(leaf_node_idx, dir);
+              if (nb == npos32) continue;
+              if (_tree_nodes[nb].is_leaf == false) continue; // very unlikely, but safe
+
+              const u32 lev_nb = _tree_nodes[nb].level;
+
+              // If neighbor is too coarse relative to this leaf, refine neighbor
+              if (lev > lev_nb + 1) {
+                changed |= refine_leaf_once(nb);
+              }
+              // Symmetric check (in case we iterate this leaf before the finer neighbor does)
+              else if (lev_nb > lev + 1) {
+                changed |= refine_leaf_once(leaf_node_idx);
+              }
+            }
+          }
+        }
+
+        // Rebuild once at the end
+        rebuild_connectivity_active_bases();
+        resize_fields_to_leaves();
+      }
+
+
+
+      // Conservative coarsen cycle using snapshot + parent coords; rebuild all fields
+      std::size_t coarsen_only_cycle_safe(u32 fid,
+                                          double tau_coarse,
+                                          u32 max_passes = 10,
+                                          Basis probe_basis = Basis::Q2_Quad9) {
+        // Freeze current state for conservative evaluation/transfer
+        QuadTree2D snapshot = *this;
+
+        // Coarsen predicate (evaluated on the snapshot, in parent coords)
+        auto pred = [&](u32 /*parent_morton*/, u32 level,
+                        const std::vector<std::array<double, 2>>& pts_xi,
+                        const std::vector<std::array<double, 2>>& /*pts_xy*/,
+        const std::vector<std::array<double, 9>>& /*Nvals*/) -> bool {
+          if (level <= min_depth()) return false;
+          if (pts_xi.empty()) return false;
+
+          double v0;
+          if (!snapshot.evaluate_field_on_parent(fid, pts_xi[0][0], pts_xi[0][1], v0))
+            return false;
+
+          double mn = v0, mx = v0;
+          for (size_t i = 1; i < pts_xi.size(); ++i) {
+            double val;
+            if (snapshot.evaluate_field_on_parent(fid, pts_xi[i][0], pts_xi[i][1], val)) {
+              mn = std::min(mn, val);
+              mx = std::max(mx, val);
+            }
+          }
+          return (mn > +tau_coarse) || (mx < -tau_coarse);
+        };
+
+        std::size_t total = 0;
+
+        // Coarsen passes + enforce 1-irregularity after each pass
+        for (u32 pass = 0; pass < max_passes; ++pass) {
+          std::size_t c = coarsen_pass(pred, probe_basis);
+          if (c == 0) break;
+          total += c;
+
+          enforce_balance();
+        }
+
+        // Rebuild all fields from the snapshot (conservative transfer)
+        // (Assumes you have rebuild_field_from(QuadTree2D const&, u32) implemented.)
+        rebuild_connectivity_active_bases();
+        resize_fields_to_leaves();
+        for (u32 f = 0; f < _fields.size(); ++f) {
+          rebuild_field_from(snapshot, f);
+        }
+
+        return total;
+      }
+
+
+
+      // ---- Private helpers -------------------------------------------------
     private:
+
+      // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes
+      void rebuild_field_from(const QuadTree2D& src, u32 fid) {
+        // sanity
+        assert(fid < _fields.size() && fid < src._fields.size());
+        Field& dst = _fields[fid];
+        const Field& s = src._fields[fid];
+        assert(dst.basis == s.basis && "Source/dest field bases must match");
+
+        // ensure coeff storage matches current leaf count
+        resize_fields_to_leaves();
+
+        const auto& L = leaf_indices(); // positions into leaf storage [0..n-1]
+        for (u32 k = 0; k < L.size(); ++k) {
+          const u32 leaf = L[k];
+
+          // parent-space interpolation nodes of this leaf for the field basis
+          std::vector<std::array<double, 2>> xi;
+          extract_node_parent_coords_in_level_range(dst.basis, leaf, xi);
+
+          double* coeffs = leaf_coeff_ptr(fid, k);
+          for (size_t j = 0; j < xi.size(); ++j) {
+            double val;
+            const bool ok = src.evaluate_field_on_parent(fid, xi[j][0], xi[j][1], val);
+            coeffs[j] = ok ? val : std::numeric_limits<double>::quiet_NaN();
+          }
+        }
+      }
+
+
+
+
+      // Compute a neighbor leaf by probing an edge midpoint in parent space.
+      // dir: 0=left (−x), 1=right (+x), 2=down (−y), 3=up (+y).
+      u32 neighbor_leaf_by_dir(u32 leaf_node_idx, int dir) const {
+        const TreeNode& n = _tree_nodes[leaf_node_idx];
+
+        double xi0, eta0, xi1, eta1;
+        leaf_bounds(n, xi0, eta0, xi1, eta1);
+
+        const double xm = 0.5 * (xi0 + xi1);
+        const double ym = 0.5 * (eta0 + eta1);
+
+        // step slightly outside the edge to guarantee we land in the neighbor
+        const double dx = (xi1 - xi0);
+        const double dy = (eta1 - eta0);
+        const double epsx = 1e-6 * dx;
+        const double epsy = 1e-6 * dy;
+
+        double qx, qy;
+        switch (dir) {
+        case 0: qx = xi0 - epsx; qy = ym;        break; // left
+        case 1: qx = xi1 + epsx; qy = ym;        break; // right
+        case 2: qx = xm;        qy = eta0 - epsy; break; // down
+        default:/*3*/ qx = xm;  qy = eta1 + epsy; break; // up
+        }
+
+        // outside global domain? no neighbor
+        if (qx < -1.0 || qx > 1.0 || qy < -1.0 || qy > 1.0) return npos32;
+
+        return locate_leaf_on_parent(qx, qy);
+      }
+
+      // Refine a single leaf node into 4 children, update _leaves in place.
+      // Returns true if a refinement actually occurred.
+      bool refine_leaf_once(u32 leaf_node_idx) {
+        TreeNode& parent = _tree_nodes[leaf_node_idx];
+        if (!parent.is_leaf) return false;
+        if (parent.level >= _maxDepth) return false;
+
+        // mark parent as internal
+        parent.is_leaf = false;
+
+        u32 ix, iy;
+        deinterleave2(parent.morton, ix, iy);
+
+        // Remove parent from _leaves (swap-erase)
+        for (u32 i = 0; i < _leaves.size(); ++i) {
+          if (_leaves[i] == leaf_node_idx) {
+            _leaves[i] = _leaves.back();
+            _leaves.pop_back();
+            break;
+          }
+        }
+
+        // create 2x2 children
+        for (int dy = 0; dy < 2; ++dy) {
+          for (int dx = 0; dx < 2; ++dx) {
+            const u64 cmorton = interleave2(2 * ix + dx, 2 * iy + dy);
+
+            TreeNode child;
+            child.morton  = cmorton;
+            child.level   = parent.level + 1;
+            child.is_leaf = true;
+            child.parent  = leaf_node_idx;
+            child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
+
+            const u32 child_idx = (u32)_tree_nodes.size();
+            _tree_nodes.push_back(child);
+
+            const int q = (dy << 1) | dx;
+            _tree_nodes[leaf_node_idx].child[q] = child_idx;
+
+            // add to leaves
+            _leaves.push_back(child_idx);
+          }
+        }
+        return true;
+      }
+
+
 // ======= internal helpers =======
 // Ensure all leaves are refined down to at least _minDepth
       void ensure_min_depth() {
@@ -882,7 +1197,7 @@ namespace fem {
 
         std::vector<std::array<double, 2>> xi;
         for (u32 e = 0; e < leaf_count(); ++e) {
-          leaf_parent_nodes(b, e, xi);
+          extract_node_parent_coords_in_level_range(b, e, xi);
           std::vector<int> conn;
           conn.reserve(xi.size());
 
@@ -960,7 +1275,7 @@ namespace fem {
         }
         os << "        </DataArray>\n";
         os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
-        const int vtkType = (b == Basis::Q1_Quad4) ? 9 : (b == Basis::Serendipity8 ? 23 : 28);
+        const int vtkType = vtk_cell_type(b);
         for (size_t k = 0; k < R.elem2glob.size(); ++k)
           os << "          " << vtkType << "\n";
         os << "        </DataArray>\n";
@@ -1028,7 +1343,93 @@ namespace fem {
         return gid;
       }
 
+// --- private: Q2 inverse map (Newton in parent space) ---
+      bool inverse_map_quad9(double x, double y, double& xi, double& eta,
+                             int maxIts = 25, double tol = 1e-12) const {
+        require_geometry();
+        // start at center
+        xi = 0.0; eta = 0.0;
 
+        for (int it = 0; it < maxIts; ++it) {
+          double N9[9], dNdxi[9], dNdeta[9];
+          Quad9Shape::N(xi, eta, N9);
+          Quad9Shape::dN(xi, eta, dNdxi, dNdeta);
+
+          const auto& X = _X;
+          const auto& Y = _Y;
+
+          // current mapped point and Jacobian
+          double Xp = 0.0, Yp = 0.0, dXdxi = 0.0, dXdeta = 0.0, dYdxi = 0.0, dYdeta = 0.0;
+          for (int a = 0; a < 9; ++a) {
+            Xp     += N9[a]    * X[a];
+            Yp     += N9[a]    * Y[a];
+            dXdxi  += dNdxi[a] * X[a];
+            dXdeta += dNdeta[a] * X[a];
+            dYdxi  += dNdxi[a] * Y[a];
+            dYdeta += dNdeta[a] * Y[a];
+          }
+
+          double rx = Xp - x, ry = Yp - y;
+          double nrm = std::sqrt(rx * rx + ry * ry);
+          if (nrm < tol) return true;
+
+          double detJ = dXdxi * dYdeta - dXdeta * dYdxi;
+          if (std::abs(detJ) < 1e-20) break; // singular
+
+          // Newton step: [dXi, dEta] = J^{-1} * r
+          double dXi  = (dYdeta * rx - dXdeta * ry) / detJ;
+          double dEta = (-dYdxi * rx + dXdxi * ry) / detJ;
+
+          xi  -= dXi;
+          eta -= dEta;
+
+          // keep iterates reasonable (light clamp)
+          xi  = std::max(-1.5, std::min(1.5, xi));
+          eta = std::max(-1.5, std::min(1.5, eta));
+        }
+        return false; // not converged
+      }
+
+// --- private: split one leaf and update _leaves ---
+      bool refine_leaf_and_update_leaves(u32 leaf_node_idx) {
+        if (leaf_node_idx == npos32) return false;
+        TreeNode& parent = _tree_nodes[leaf_node_idx];
+        if (!parent.is_leaf || parent.level >= _maxDepth) return false;
+
+        u32 ix, iy;
+        deinterleave2(parent.morton, ix, iy);
+
+        for (int dy = 0; dy < 2; ++dy) {
+          for (int dx = 0; dx < 2; ++dx) {
+            const u64 cmorton = interleave2(2 * ix + dx, 2 * iy + dy);
+            TreeNode child;
+            child.morton  = cmorton;
+            child.level   = parent.level + 1;
+            child.is_leaf = true;
+            child.parent  = leaf_node_idx;
+            child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
+
+            const u32 cidx = (u32)_tree_nodes.size();
+            _tree_nodes.push_back(child);
+            parent.child[(dy << 1) | dx] = cidx;
+          }
+        }
+        parent.is_leaf = false;
+
+        // replace parent in _leaves with its 4 children
+        auto it = std::find(_leaves.begin(), _leaves.end(), leaf_node_idx);
+        if (it != _leaves.end()) {
+          // erase parent
+          _leaves.erase(it);
+          // append children
+          for (int q = 0; q < 4; ++q) _leaves.push_back(parent.child[q]);
+        }
+        else {
+          // if for some reason parent wasn't in _leaves, just append children
+          for (int q = 0; q < 4; ++q) _leaves.push_back(parent.child[q]);
+        }
+        return true;
+      }
 
     private:
 // config
