@@ -107,8 +107,6 @@ int main(int argc, char** args) {
 
   unsigned cascadeIterations = 3;
 
-  int a = 1;
-
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string Zj = "Z" + std::to_string(j);
     std::string ZjOld = "Z" + std::to_string(j) + "Old";
