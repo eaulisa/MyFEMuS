@@ -67,7 +67,7 @@ namespace fem {
 
     // -- Map to parent coords: (ξ̇,η̇) = J^{-1} v
     std::array<double, 2> vParent;
-    vParent[0] = (dYdeta * vPhys[0] - dXdeta * vPhys[1]) / detJ;
+    vParent[0] = ( dYdeta * vPhys[0] - dXdeta * vPhys[1]) / detJ;
     vParent[1] = (-dYdxi  * vPhys[0] + dXdxi  * vPhys[1]) / detJ;
     return vParent;
   }
@@ -127,40 +127,40 @@ namespace fem {
 //    Traces back from absolute time `time` to `time - dt`.
 //    We integrate with -dt, and the RK local τ is added to START=time.
 //----------------------------------------
-//   template<class AnalyticVel>
-//   inline void advect_nodes_backward_and_transport_field_analytic(
-//     const QuadTree2D& qt0,   // geometry + field at old time (time - dt)
-//     u32 fid0,                // field id in qt0 to sample from
-//     double time,             // absolute END time t^{n+1}
-//     double dt,               // dt > 0
-//     AnalyticVel&& vfun,      // v(x,y,t_abs)
-//     QuadTree2D& qt1,         // geometry at END time (time)
-//     u32 fid1) {              // output field id in qt1
-//     assert(dt > 0.0 && "Backward advection here expects dt > 0");
-//     auto coords1 = qt1.extract_node_parent_coords_in_level_range(
-//                      0, qt1.max_depth(), Basis::Q2_Quad9);
-//
-//     Field& fld1 = qt1.field(fid1);
-//     fld1.coeffs.resize(coords1.size());
-//
-//     // RK starts at absolute time `time` and steps with τ in {0, -dt/2, -dt/2, -dt}
-//     const double start_abs = time;
-//
-//     for (size_t i = 0; i < coords1.size(); ++i) {
-//       const auto xiEta1 = coords1[i];
-//
-//       // Build evaluator with absolute start time = time (end of step).
-//       auto vel_eval = make_parent_vel_eval(qt0, start_abs, vfun);
-//
-//       // RK4 with -dt: integrates from time to time - dt
-//       const auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);
-//
-//       // Sample field directly in parent coords of qt0
-//       double val;
-//       bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
-//       fld1.coeffs[i] = ok ? val : -1.0;
-//     }
-//   }
+  // template<class AnalyticVel>
+  // inline void advect_nodes_backward_and_transport_field_analytic(
+  //   const QuadTree2D& qt0,   // geometry + field at old time (time - dt)
+  //   u32 fid0,                // field id in qt0 to sample from
+  //   double time,             // absolute END time t^{n+1}
+  //   double dt,               // dt > 0
+  //   AnalyticVel&& vfun,      // v(x,y,t_abs)
+  //   QuadTree2D& qt1,         // geometry at END time (time)
+  //   u32 fid1) {              // output field id in qt1
+  //   assert(dt > 0.0 && "Backward advection here expects dt > 0");
+  //   auto coords1 = qt1.extract_node_parent_coords_in_level_range(
+  //                    0, qt1.max_depth(), Basis::Q2_Quad9);
+  //
+  //   Field& fld1 = qt1.field(fid1);
+  //   fld1.coeffs.resize(coords1.size());
+  //
+  //   // RK starts at absolute time `time` and steps with τ in {0, -dt/2, -dt/2, -dt}
+  //   const double start_abs = time;
+  //
+  //   for (size_t i = 0; i < coords1.size(); ++i) {
+  //     const auto xiEta1 = coords1[i];
+  //
+  //     // Build evaluator with absolute start time = time (end of step).
+  //     auto vel_eval = make_parent_vel_eval(qt0, start_abs, vfun);
+  //
+  //     // RK4 with -dt: integrates from time to time - dt
+  //     const auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);
+  //
+  //     // Sample field directly in parent coords of qt0
+  //     double val;
+  //     bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
+  //     fld1.coeffs[i] = ok ? val : -1.0;
+  //   }
+  // }
 
   template<class AnalyticVel>
   inline void advect_nodes_backward_and_transport_field_analytic(
@@ -180,7 +180,7 @@ namespace fem {
     const auto& nodes = qt1.basis_nodes(b);
 
     // Ensure destination storage matches node set
-    dst.nodal.assign(nodes.size(), NAN);
+    dst.nodal.assign(nodes.size(), 0.0);
 
     // Build evaluator starting at absolute time `time`
     const double start_abs = time;
@@ -188,35 +188,12 @@ namespace fem {
 
     // For each global node of qt1, trace back to qt0 and sample fid0
     for (size_t gid = 0; gid < nodes.size(); ++gid) {
-      if (gid != nodes[gid].gid) std::cout << "error ";
       const std::array<double, 2> xiEta1 = nodes[gid].parent;        // parent coords in qt1
       const auto xiEta0 = rk4_advect_parent(xiEta1, -dt, vel_eval);  // backtrace in parent space
 
-      bool debug = false;
-      const std::array<double, 2> x1 = nodes[gid].physical;
-      if (x1[0] == -0.125 && x1[1] == 0.25) {
-        debug = true;
-      }
       double val;
-      const bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val, debug);
+      const bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val);
       dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
-
-
-      // if (x1[0] == -0.125 && x1[1] == 0.25) {
-      //   double theta1 = atan2(xiEta1[1], xiEta1[0]);
-      //   double theta0 = atan2(xiEta0[1], xiEta0[0]);
-      //   std::cout << theta1 - theta0 << " " << 2. * M_PI / 100. << " " << theta1 - theta0 - 2. * M_PI / 100. << std::endl;
-      //   std::cout << xiEta1[0] << " " << xiEta1[1] << std::endl;
-      //   std::cout << x1[0] << " " << x1[1] << std::endl;
-      //
-      //   double xc{0.0}, yc{0.25}, sigma{0.18016836131796748}, r{0.15}, delta{0.0};
-      //   double x = xiEta0[0] * 0.5;
-      //   double y = xiEta0[1] * 0.5;
-      //   double valA = (std::exp((r * r - (x - xc) * (x - xc) - (y - yc) * (y - yc)) / (sigma * sigma)) - 1.0 + delta);
-      //   std::cout << xiEta0[0] << " " << xiEta0[1] << std::endl;
-      //   std::cout << x << " " << y << " " << val << " " << valA << std::endl;
-      // }
-
     }
   }
 

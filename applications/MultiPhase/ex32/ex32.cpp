@@ -74,11 +74,6 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
 
 auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
 
-  // double u = -y;
-  // double v =  x;
-
-
-
   double T = 8.;
   x += 0.5;
   y += 0.5;
@@ -101,7 +96,7 @@ auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
 
 int main() {
 
-  ProfilerStart("profiling.prof");
+  //ProfilerStart("profiling.prof");
   // -------- Explicit control --------
   const u32 maxDepth   = 12;   // absolute cap on tree depth
   const u32 minDepth   = 3;    // baseline depth enforced by the class
@@ -180,14 +175,9 @@ int main() {
 
   double period = 8;
   unsigned nIterations = 320;
-
-  // double period = 2. * M_PI;
-  // unsigned nIterations = 100;
-
-
   double dt = period / nIterations;
 
-  for (u32 k = 1; k <= nIterations; k++) {
+  for (u32 k = 1; k <= 20+0*nIterations; k++) {
 
     std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
@@ -218,9 +208,9 @@ int main() {
 
     std::swap(qt, qt1);
 
-    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    qt.write_binary_vtu(filename, fid, "u", false);
-    std::cout << "Printing " << filename << "\n";
+    // filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+    // qt.write_binary_vtu(filename, fid, "u", false);
+    // std::cout << "Printing " << filename << "\n";
   }
 
   // filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
