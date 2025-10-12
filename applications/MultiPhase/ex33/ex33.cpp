@@ -7,9 +7,9 @@
 #include <vector>
 #include <gperftools/profiler.h>
 
-#include "QuadTree2D.hpp"
-#include "FieldAdvection.hpp"
-#include "FieldAdvectionWithAnalyticVelocity.hpp"
+#include "QuadTree2DOld.hpp"
+#include "FieldAdvectionOld.hpp"
+#include "FieldAdvectionWithAnalyticVelocityOld.hpp"
 
 using namespace  fem;
 
@@ -73,11 +73,6 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
 
 
 auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
-
-  // double u = -y;
-  // double v =  x;
-
-
 
   double T = 8.;
   x += 0.5;
@@ -154,40 +149,44 @@ int main() {
   std::cout << "Adapt-cycle changed " << changed << " cells\n";
   std::cout << "Leaves after cycle: " << qt.leaf_count() << "\n";
 
-// --- Resize field storage to match current global node set ---
-  qt.resize_fields_to_nodes();
 
-  Field& fld = qt.field(fid);
-  const Basis b = fld.basis;
 
-// Get the unique global FEM nodes (with physical coords)
-  const auto& nodes = qt.basis_nodes(b);
 
-// Initialize nodal values from psi1 at node physical coordinates
-  fld.nodal.resize(nodes.size());
-  for (size_t gid = 0; gid < nodes.size(); ++gid) {
-    const auto& xy = nodes[gid].physical;  // (x,y)
-    fld.nodal[gid] = psi1(xy[0], xy[1]);
+    // --- Re-size and refresh field coefficients for new mesh (from psi1) ---
+  qt.resize_fields_to_leaves();
+  const auto& L1 = qt.leaf_indices();
+  for (u32 k = 0; k < (u32)L1.size(); ++k) {
+    std::vector<std::array<double, 2>> xy9;
+    qt.leaf_physical_nodes(Basis::Q2_Quad9, L1[k], xy9);
+    double* c = qt.leaf_coeff_ptr(fid, k);
+    for (int a = 0; a < 9; ++a) c[a] = psi1(xy9[a][0], xy9[a][1]);
   }
+
+// --- Resize field storage to match current global node set ---
+//   qt.resize_fields_to_nodes();
+//
+//   Field& fld = qt.field(fid);
+//   const Basis b = fld.basis;
+//
+// // Get the unique global FEM nodes (with physical coords)
+//   const auto& nodes = qt.basis_nodes(b);
+//
+// // Initialize nodal values from psi1 at node physical coordinates
+//   fld.nodal.resize(nodes.size());
+//   for (size_t gid = 0; gid < nodes.size(); ++gid) {
+//     const auto& xy = nodes[gid].physical;  // (x,y)
+//     fld.nodal[gid] = psi1(xy[0], xy[1]);
+//   }
 
   std::string filename = "./output/element_adaptive." + std::to_string(0) + ".vtu";
   qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
   std::cout << "Printing " << filename << "\n";
 
-
-
-
-
   double period = 8;
   unsigned nIterations = 320;
-
-  // double period = 2. * M_PI;
-  // unsigned nIterations = 100;
-
-
   double dt = period / nIterations;
 
-  for (u32 k = 1; k <= nIterations; k++) {
+  for (u32 k = 1; k <= 20 + 0*nIterations; k++) {
 
     std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
@@ -218,9 +217,9 @@ int main() {
 
     std::swap(qt, qt1);
 
-    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    qt.write_binary_vtu(filename, fid, "u", false);
-    std::cout << "Printing " << filename << "\n";
+    // filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+    // qt.write_binary_vtu(filename, fid, "u", false);
+    // std::cout << "Printing " << filename << "\n";
   }
 
   // filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";

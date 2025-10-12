@@ -32,12 +32,12 @@ namespace fem {
 //--------------------------------------------
   inline unsigned char vtk_cell_type(Basis b) {
     switch (b) {
-      case Basis::Q1_Quad4:
-        return 9;   // VTK_QUAD
-      case Basis::Serendipity8:
-        return 23;  // VTK_QUADRATIC_QUAD
-      case Basis::Q2_Quad9:
-        return 28;  // VTK_BIQUADRATIC_QUAD
+    case Basis::Q1_Quad4:
+      return 9;   // VTK_QUAD
+    case Basis::Serendipity8:
+      return 23;  // VTK_QUADRATIC_QUAD
+    case Basis::Q2_Quad9:
+      return 28;  // VTK_BIQUADRATIC_QUAD
     }
     return 9; // sensible default
   }
@@ -122,9 +122,9 @@ namespace fem {
       double Lx0, Lx1, Lx2, dx0, dx1, dx2;
       double Ly0, Ly1, Ly2, dy0, dy1, dy2;
 
-      q2_1d_vals  (xi,  Lx0, Lx1, Lx2);
+      q2_1d_vals(xi,  Lx0, Lx1, Lx2);
       q2_1d_derivs(xi,  dx0, dx1, dx2);
-      q2_1d_vals  (eta, Ly0, Ly1, Ly2);
+      q2_1d_vals(eta, Ly0, Ly1, Ly2);
       q2_1d_derivs(eta, dy0, dy1, dy2);
 
       dN_dxi[0]  = dx0 * Ly0;
@@ -153,9 +153,9 @@ namespace fem {
       double Lx0, Lx1, Lx2, dx0, dx1, dx2;
       double Ly0, Ly1, Ly2, dy0, dy1, dy2;
 
-      q2_1d_vals  (xi,  Lx0, Lx1, Lx2);
+      q2_1d_vals(xi,  Lx0, Lx1, Lx2);
       q2_1d_derivs(xi,  dx0, dx1, dx2);
-      q2_1d_vals  (eta, Ly0, Ly1, Ly2);
+      q2_1d_vals(eta, Ly0, Ly1, Ly2);
       q2_1d_derivs(eta, dy0, dy1, dy2);
 
       // N
@@ -376,7 +376,7 @@ namespace fem {
       // ---- node generators (parent & physical) ----
       // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
       void extract_node_parent_coords_in_level_range(Basis basis, u32 leaf_idx,
-          std::vector<std::array<double, 2>>& out_pts) const {
+                                                     std::vector<std::array<double, 2>>& out_pts) const {
 
         // Map leaf_idx → actual TreeNode
         const TreeNode& leaf = _tree_nodes[_leaves[leaf_idx]];
@@ -387,32 +387,32 @@ namespace fem {
         out_pts.clear();
         out_pts.reserve(9);
         switch (basis) {
-          case Basis::Q1_Quad4: {
-            out_pts = {
-              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
-            };
-          }
-          break;
+        case Basis::Q1_Quad4: {
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
+          };
+        }
+        break;
 
-          case Basis::Serendipity8: {
-            const double xm = 0.5 * (xi0 + xi1);
-            const double ym = 0.5 * (eta0 + eta1);
-            out_pts = {
-              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-            };
-          }
-          break;
+        case Basis::Serendipity8: {
+          const double xm = 0.5 * (xi0 + xi1);
+          const double ym = 0.5 * (eta0 + eta1);
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+          };
+        }
+        break;
 
-          case Basis::Q2_Quad9: {
-            const double xm = 0.5 * (xi0 + xi1);
-            const double ym = 0.5 * (eta0 + eta1);
-            out_pts = {
-              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-            };
-          }
-          break;
+        case Basis::Q2_Quad9: {
+          const double xm = 0.5 * (xi0 + xi1);
+          const double ym = 0.5 * (eta0 + eta1);
+          out_pts = {
+            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+          };
+        }
+        break;
         }
       }
 
@@ -562,21 +562,21 @@ namespace fem {
           pts_xi.reserve(9);
           const double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
           switch (probe_basis) {
-            case Basis::Q1_Quad4:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
-              break;
-            case Basis::Serendipity8:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-                }
-              };
-              break;
-            case Basis::Q2_Quad9:
-              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-                }
-              };
-              break;
+          case Basis::Q1_Quad4:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
+            break;
+          case Basis::Serendipity8:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+              }
+            };
+            break;
+          case Basis::Q2_Quad9:
+            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+              }
+            };
+            break;
           }
 
           std::vector<std::array<double, 2>> pts_xy;
@@ -849,7 +849,7 @@ namespace fem {
 
 // Evaluate field directly in parent coordinates (xi, eta).
 // Locates the leaf, maps to local [-1,1]^2, and interpolates.
-      bool evaluate_field_on_parent(u32 fid, double xi, double eta, double& value) const {
+      bool evaluate_field_on_parent(u32 fid, double xi, double eta, double& value, bool debug = false) const {
         if (fid >= _fields.size()) return false;
 
         u32 leaf_node_idx;
@@ -860,9 +860,13 @@ namespace fem {
           return false;
         }
 
+
+
         // 2) leaf node index -> position in coefficient storage
         const u32 leaf_pos = leaf_position(leaf_node_idx);
         if (leaf_pos == npos32) return false;
+
+
 
         // 3) access field + coefficients
         const Field& f = _fields[fid];
@@ -873,34 +877,41 @@ namespace fem {
 
         // 4) interpolate
         switch (f.basis) {
-          case Basis::Q1_Quad4: {
-            double N4[4];
-            Shapes::Q1(shat, that, N4);
-            //value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-            value = 0.0;
-            for (int a = 0; a < 4; ++a) value += N4[a] * f.nodal[conn[a]];
+        case Basis::Q1_Quad4: {
+          double N4[4];
+          Shapes::Q1(shat, that, N4);
+          //value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          value = 0.0;
+          for (int a = 0; a < 4; ++a) value += N4[a] * f.nodal[conn[a]];
+        }
+        break;
+        case Basis::Serendipity8: {
+          double N8[8];
+          Shapes::Serendipity8(shat, that, N8);
+          //double v = 0.0;
+          //for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+          //value = v;
+          value = 0.0;
+          for (int a = 0; a < 8; ++a) value += N8[a] * f.nodal[conn[a]];
+        }
+        break;
+        case Basis::Q2_Quad9: {
+          double N9[9];
+          Quad9Shape::N(shat, that, N9);
+
+
+          //if (debug) std::cout << "AAAA\n" << xi << " " << eta << " " << leaf_node_idx << " " << leaf_pos << " " << shat << " " << that << std::endl;
+
+          // double v = 0.0;
+          // for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+          // value = v;
+          value = 0.0;
+          for (int a = 0; a < 9; ++a) {
+            value += N9[a] * f.nodal[conn[a]];
+            //if (debug) std::cout << a << " " << conn[a] << " " << N9[a] << " " << f.nodal[conn[a]] << std::endl;
           }
-          break;
-          case Basis::Serendipity8: {
-            double N8[8];
-            Shapes::Serendipity8(shat, that, N8);
-            //double v = 0.0;
-            //for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-            //value = v;
-            value = 0.0;
-            for (int a = 0; a < 8; ++a) value += N8[a] * f.nodal[conn[a]];
-          }
-          break;
-          case Basis::Q2_Quad9: {
-            double N9[9];
-            Quad9Shape::N(shat, that, N9);
-            // double v = 0.0;
-            // for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-            // value = v;
-            value = 0.0;
-            for (int a = 0; a < 9; ++a) value += N9[a] * f.nodal[conn[a]];
-          }
-          break;
+        }
+        break;
         }
         return true;
       }
@@ -1199,22 +1210,22 @@ namespace fem {
 
         double qx, qy;
         switch (dir) {
-          case 0:
-            qx = xi0 - epsx;
-            qy = ym;
-            break; // left
-          case 1:
-            qx = xi1 + epsx;
-            qy = ym;
-            break; // right
-          case 2:
-            qx = xm;
-            qy = eta0 - epsy;
-            break; // down
-          default:/*3*/
-            qx = xm;
-            qy = eta1 + epsy;
-            break; // up
+        case 0:
+          qx = xi0 - epsx;
+          qy = ym;
+          break; // left
+        case 1:
+          qx = xi1 + epsx;
+          qy = ym;
+          break; // right
+        case 2:
+          qx = xm;
+          qy = eta0 - epsy;
+          break; // down
+        default:/*3*/
+          qx = xm;
+          qy = eta1 + epsy;
+          break; // up
         }
 
         // outside global domain? no neighbor
@@ -1365,27 +1376,61 @@ namespace fem {
       };
 
       int get_or_insert_gid(BasisRegistry &R, double xi, double eta) {
-        const u32 gridN = (1u << _maxDepth);
-        long long ix_l = llround((xi + 1.0) * gridN / 2.0);
-        long long iy_l = llround((eta + 1.0) * gridN / 2.0);
-        if (ix_l < 0) ix_l = 0;
-        if (iy_l < 0) iy_l = 0;
-        if (ix_l > (long long)gridN) ix_l = (long long)gridN;
-        if (iy_l > (long long)gridN) iy_l = (long long)gridN;
-        u32 ix = (u32)ix_l;
-        u32 iy = (u32)iy_l;
+        // +1 bit so deepest-level midpoints/center are representable
+        const u32 nodeBits = _maxDepth + 1;        // supports Q4/Q8/Q9
+        const u32 nodesN   = (1u << nodeBits);     // 128 when _maxDepth=6 -> indices 0..128
 
-        u64 key = interleave2(ix, iy);
+        auto to_idx = [nodesN](double s)->u32 {
+          if (s <= -1.0) return 0u;
+          if (s >=  1.0) return nodesN;
+          double t = (s + 1.0) * double(nodesN) * 0.5;   // [-1,1] -> [0,nodesN]
+          long long li = llround(t);
+          if (li < 0) li = 0;
+          if (li > (long long)nodesN) li = (long long)nodesN;
+          return (u32)li;
+        };
 
+        const u32 ix = to_idx(xi);
+        const u32 iy = to_idx(eta);
+
+        // Unique, collision-free key (or use Morton with bits=nodeBits)
+        const u64 key = (u64(ix) << 32) | u64(iy);
         auto it = R.nodeMap.find(key);
         if (it != R.nodeMap.end()) return it->second;
 
-        int gid = (int)R.nodes.size();
-        FEMNode node{gid, {xi, eta}, parent_to_physical(xi, eta)};
-        R.nodes.push_back(node);
+        const int gid = (int)R.nodes.size();
+        R.nodes.push_back(FEMNode{gid, {xi, eta}, parent_to_physical(xi, eta)});
         R.nodeMap.emplace(key, gid);
         return gid;
       }
+
+      /*
+
+
+            int get_or_insert_gid(BasisRegistry &R, double xi, double eta) {
+              const u32 gridN = (1u << _maxDepth);
+              long long ix_l = llround((xi + 1.0) * gridN / 2.0);
+              long long iy_l = llround((eta + 1.0) * gridN / 2.0);
+              if (ix_l < 0) ix_l = 0;
+              if (iy_l < 0) iy_l = 0;
+              if (ix_l > (long long)gridN) ix_l = (long long)gridN;
+              if (iy_l > (long long)gridN) iy_l = (long long)gridN;
+              u32 ix = (u32)ix_l;
+              u32 iy = (u32)iy_l;
+
+              //u64 key = interleave2(ix, iy);
+              u64 key = (u64(ix) << 32) | u64(iy);
+
+
+              auto it = R.nodeMap.find(key);
+              if (it != R.nodeMap.end()) return it->second;
+
+              int gid = (int)R.nodes.size();
+              FEMNode node{gid, {xi, eta}, parent_to_physical(xi, eta)};
+              R.nodes.push_back(node);
+              R.nodeMap.emplace(key, gid);
+              return gid;
+            }*/
 
       void rebuild_connectivity(Basis b) {
         BasisRegistry &R = _basisReg[(int)b];
@@ -1397,10 +1442,17 @@ namespace fem {
           std::vector<int> conn;
           conn.reserve(xi.size());
 
+
+
+          bool print = false;
           for (auto &p : xi) {
             int gid = get_or_insert_gid(R, p[0], p[1]); // now uses registry
+            if (print == false && p[0] == -0.25 && p[1] == 0.5) print = true;
             conn.push_back(gid);
+            //if (print) std::cout << e << " " << p[0] << " " << p[1] << " " << gid << std::endl;
           }
+          //if (print) std::cout << std::endl;
+
           R.elem2glob.push_back(std::move(conn));
         }
       }
@@ -1509,33 +1561,33 @@ namespace fem {
       }
 
 
-// Insert a unique FEM node (global interpolation node) based on parent coords (xi, eta)
-// into the registry for the given basis
-      int get_or_insert_node(BasisRegistry& R, double xi, double eta, u32 maxDepth) {
-        // snap to dyadic grid at maxDepth to build a unique Morton key
-        u32 ix = (u32)std::llround((xi + 1.0) * (1u << maxDepth) / 2.0);
-        u32 iy = (u32)std::llround((eta + 1.0) * (1u << maxDepth) / 2.0);
-        u64 key = interleave2(ix, iy);
-
-        // check if already exists
-        auto it = R.nodeMap.find(key);
-        if (it != R.nodeMap.end())
-          return it->second;
-
-        // assign new global id
-        int gid = static_cast<int>(R.nodes.size());
-        R.nodeMap[key] = gid;
-
-        // create FEM node with parent and physical coordinates
-        FEMNode node;
-        node.gid      = gid;
-        node.parent   = {xi, eta};
-        node.physical = parent_to_physical(xi, eta);
-
-
-        R.nodes.push_back(std::move(node));
-        return gid;
-      }
+// // Insert a unique FEM node (global interpolation node) based on parent coords (xi, eta)
+// // into the registry for the given basis
+//       int get_or_insert_node(BasisRegistry& R, double xi, double eta, u32 maxDepth) {
+//         // snap to dyadic grid at maxDepth to build a unique Morton key
+//         u32 ix = (u32)std::llround((xi + 1.0) * (1u << maxDepth) / 2.0);
+//         u32 iy = (u32)std::llround((eta + 1.0) * (1u << maxDepth) / 2.0);
+//         u64 key = interleave2(ix, iy);
+//
+//         // check if already exists
+//         auto it = R.nodeMap.find(key);
+//         if (it != R.nodeMap.end())
+//           return it->second;
+//
+//         // assign new global id
+//         int gid = static_cast<int>(R.nodes.size());
+//         R.nodeMap[key] = gid;
+//
+//         // create FEM node with parent and physical coordinates
+//         FEMNode node;
+//         node.gid      = gid;
+//         node.parent   = {xi, eta};
+//         node.physical = parent_to_physical(xi, eta);
+//
+//
+//         R.nodes.push_back(std::move(node));
+//         return gid;
+//       }
 
 // --- private: Q2 inverse map (Newton in parent space) ---
       bool inverse_map_quad9(double x, double y, double& xi, double& eta,
