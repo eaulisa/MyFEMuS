@@ -34,7 +34,12 @@ double SetVariableTimeStep(const double time) {
 using namespace std;
 using namespace femus;
 
-double SetRegions(Solution *sol);
+struct RegionBox {
+  double xMin, xMax;
+  double yMin, yMax;
+};
+
+double SetRegions(Solution *sol, const RegionBox& boxB, const RegionBox& boxC);
 void SetTarget(Solution *sol, const std::string &R, const double &time);
 
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
@@ -150,7 +155,12 @@ int main(int argc, char** args) {
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
-  SetRegions(sol);
+  RegionBox boxB{0.5, 1.0, 0.25, 0.75}; //xMin, xMax; yMin, yMax;
+  RegionBox boxC{0.5, 1.0, 0.25, 0.75}; //xMin, xMax; yMin, yMax;
+
+  SetRegions(sol, boxB, boxC);
+
+  // SetRegions(sol);
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
@@ -272,16 +282,20 @@ void SetTarget(Solution *sol, const std::string &R, const double &time) {
   sol->_Sol[rIndex]->close();
 }
 
-
-double CheckIfInsideB(const std::vector<double> &xv) {
-  return (xv[0] > 0.5 && xv[0] < 1. && xv[1] > 0.25 && xv[1] < 0.75);
+bool CheckIfInside(const std::vector<double>& xv, const RegionBox& box) {
+  return (xv[0] > box.xMin && xv[0] < box.xMax &&
+          xv[1] > box.yMin && xv[1] < box.yMax);
 }
 
-double CheckIfInsideC(const std::vector<double> &xv) {
-  return (xv[0] > 0.5 && xv[0] < 1. && xv[1] > 0.25 && xv[1] < 0.75);
-}
+// double CheckIfInsideB(const std::vector<double> &xv) {
+//   return (xv[0] > 0.5 && xv[0] < 1. && xv[1] > 0.25 && xv[1] < 0.75);
+// }
+//
+// double CheckIfInsideC(const std::vector<double> &xv) {
+//   return (xv[0] > 0.5 && xv[0] < 1. && xv[1] > 0.25 && xv[1] < 0.75);
+// }
 
-double SetRegions(Solution *sol) {
+double SetRegions(Solution *sol, const RegionBox& boxB, const RegionBox& boxC) {
 
   Mesh* msh = sol->GetMesh();    // pointer to the mesh (level) object
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
@@ -298,20 +312,34 @@ double SetRegions(Solution *sol) {
     unsigned nDofs = msh->GetElementDofNumber(iel, 1);
     // local storage of global mapping and solution
 
-    double ielIsB = 1.;
-    double ielIsC = 1.;
+    bool elementInB = true;
+    bool elementInC = true;
 
-    for (unsigned i = 0; i < nDofs; i++) {
-      unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // local to global mapping between coordinates node and coordinate dof
-      for (unsigned k = 0; k < dim; k++) {
+    for (unsigned i = 0; i < nDofs; ++i) {
+      unsigned xDof = msh->GetSolutionDof(i, iel, xType);
+      for (unsigned k = 0; k < dim; ++k)
         xv[k] = (*msh->_topology->_Sol[k])(xDof);
-      }
 
-      ielIsB = CheckIfInsideB(xv);
-      ielIsC = CheckIfInsideC(xv);
+        elementInB = elementInB && CheckIfInside(xv, boxB);
+        elementInC = elementInC && CheckIfInside(xv, boxC);
+
     }
-    sol->_Sol[IndexB]->set(iel, ielIsB);
-    sol->_Sol[IndexC]->set(iel, ielIsC);
+    sol->_Sol[IndexB]->set(iel, elementInB ? 1.0 : 0.0);
+    sol->_Sol[IndexC]->set(iel, elementInC ? 1.0 : 0.0);
+    // double ielIsB = 1.;
+    // double ielIsC = 1.;
+    //
+    // for (unsigned i = 0; i < nDofs; i++) {
+    //   unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // local to global mapping between coordinates node and coordinate dof
+    //   for (unsigned k = 0; k < dim; k++) {
+    //     xv[k] = (*msh->_topology->_Sol[k])(xDof);
+    //   }
+    //
+    //   ielIsB = CheckIfInsideB(xv);
+    //   ielIsC = CheckIfInsideC(xv);
+    // }
+    // sol->_Sol[IndexB]->set(iel, ielIsB);
+    // sol->_Sol[IndexC]->set(iel, ielIsC);
   }
   sol->_Sol[IndexB]->close();
   sol->_Sol[IndexC]->close();
