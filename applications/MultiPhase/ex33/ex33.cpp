@@ -186,7 +186,7 @@ int main() {
   unsigned nIterations = 320;
   double dt = period / nIterations;
 
-  for (u32 k = 1; k <= 20 + 0*nIterations; k++) {
+  for (u32 k = 1; k <= nIterations; k++) {
 
     std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
@@ -217,9 +217,9 @@ int main() {
 
     std::swap(qt, qt1);
 
-    // filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
-    // qt.write_binary_vtu(filename, fid, "u", false);
-    // std::cout << "Printing " << filename << "\n";
+    filename = "./output/element_adaptive." + std::to_string(k) + ".vtu";
+    qt.write_binary_vtu(filename, fid, "u", false);
+    std::cout << "Printing " << filename << "\n";
   }
 
   // filename = "./output/element_adaptive." + std::to_string(100) + ".vtu";
