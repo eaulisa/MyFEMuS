@@ -360,15 +360,15 @@ namespace fem {
     Point3 physical;
   };
 
-// ---------- OctTree3D (minimum workable stub) ----------
-  class OctTree3D {
+// ---------- HexTree3D (minimum workable stub) ----------
+  class HexTree3D {
     public:
-      OctTree3D(u32 maxDepth, u32 minDepth = 0)
+      HexTree3D(u32 maxDepth, u32 minDepth = 0)
         : _maxDepth(maxDepth),
           _minDepth(std::min(minDepth, maxDepth)) {
 
         // We interleave 21 bits per axis: limit depth accordingly.
-        assert(_maxDepth <= 20 && "OctTree3D supports up to 20 levels per axis (expand3_21).");
+        assert(_maxDepth <= 20 && "HexTree3D supports up to 20 levels per axis (expand3_21).");
 
         // --- 1) Build root TreeNode covering [-1,1]^3 ---
         TreeNode3D root{};
@@ -447,17 +447,18 @@ namespace fem {
       }
 
 // --- special members (3D) ---
-      OctTree3D(OctTree3D&&) noexcept = default;
-      OctTree3D& operator=(OctTree3D&&) noexcept = default;
-      OctTree3D(const OctTree3D&) = delete;
-      OctTree3D& operator=(const OctTree3D&) = delete;
+      HexTree3D(HexTree3D&&) noexcept = default;
+      HexTree3D& operator=(HexTree3D&&) noexcept = default;
+      HexTree3D(const HexTree3D&) = delete;
+      HexTree3D& operator=(const HexTree3D&) = delete;
 
 // --- swap (3D) ---
-      friend void swap(OctTree3D& a, OctTree3D& b) noexcept {
+      friend void swap(HexTree3D& a, HexTree3D& b) noexcept {
         using std::swap;
         swap(a._maxDepth, b._maxDepth);
         swap(a._minDepth, b._minDepth);
         swap(a._allowCoarsenBelowMinDepth, b._allowCoarsenBelowMinDepth);
+        swap(a._leafpos_valid, b._leafpos_valid);
 
         swap(a._X, b._X);
         swap(a._Y, b._Y);
@@ -520,8 +521,6 @@ namespace fem {
         resize_fields_to_nodes();            // sync field storage to current node registries
       }
 
-
-
       inline void rebuild_leafpos_lookup() {
         _node2leafpos.assign(_tree_nodes.size(), npos32);
         for (u32 i = 0; i < static_cast<u32>(_leaves.size()); ++i) {
@@ -530,8 +529,6 @@ namespace fem {
         }
         _leafpos_valid = true;
       }
-
-
 
       void rebuild_connectivity_active_bases() {
         if (!_geom_ready) return;
@@ -1577,7 +1574,7 @@ namespace fem {
 
       // Copia "veloce": riusa la memoria già allocata, cresce solo se serve.
 // NON chiama post_topology_update() (stai copiando strutture già consistenti).
-      void assign_from(const OctTree3D& rhs) {
+      void assign_from(const HexTree3D& rhs) {
         if (this == &rhs) return;
 
         // ---- helper locali per copiare riusando capacità ----
@@ -1643,7 +1640,7 @@ namespace fem {
       // Conservative coarsen cycle using snapshot + parent coords; rebuild all fields (3D)
       std::size_t coarsen_only_cycle_safe(u32 fid,
                                           double tau_coarse,
-                                          OctTree3D& snapshot,
+                                          HexTree3D& snapshot,
                                           u32 max_passes = 10,
                                           Basis probe_basis = Basis::H27) {
         // Freeze current state for conservative evaluation/transfer
@@ -1695,7 +1692,7 @@ namespace fem {
 
 
       // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes (global nodal storage) — 3D
-      void rebuild_field_from(const OctTree3D& src, u32 fid) {
+      void rebuild_field_from(const HexTree3D& src, u32 fid) {
         assert(fid < _fields.size() && fid < src._fields.size());
 
         Field&       dst = _fields[fid];
@@ -1754,7 +1751,7 @@ namespace fem {
         return _basisReg[(int)b].nodes;
       }
 
-
+// Print field on a vtu binary mesh to visualize on Paraview
       bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
                             bool cell_centered = false) const {
         require_geometry();
@@ -1787,37 +1784,37 @@ namespace fem {
         types.reserve(numCells);
 
         auto vtk_cell_type = [](Basis bb) -> unsigned char {
-          // VTK: HEX=12, QUADRATIC_HEX=25, TRIQUADRATIC_HEX=37
+          // VTK: HEX=12, QUADRATIC_HEX=25, TRIQUADRATIC_HEX=29
           switch (bb) {
-          case Basis::H8: return 12;
+          case Basis::H8:  return 12;
           case Basis::H20: return 25;
           case Basis::H27: return 29;
           }
           return 12;
         };
 
-        // Local tail shuffler for H27 last 7 nodes (indices 20..26).
-        // Change this if your ordering needs remapping.
-        //const std::array<int, 7> tail_map{{4, 5, 0, 1, 2, 3, 6}}; // identity by default
-        const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}}; // identity by default
-
+        // H27 tail remap (indices 20..26 in our internal ordering → VTK ordering)
+        // Confirmed correct: {20+3, 20+1, 20+0, 20+2, 20+4, 20+5, 20+6}
+        const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}};
 
         int offset = 0;
         for (size_t e = 0; e < numCells; ++e) {
           const auto &conn = R.elem2glob[e];
 
-          if (b == Basis::H27 && conn.size() == 27) {
-            // first 20 as-is
+          if (b == Basis::H27) {
+            // Expect 27 nodes. First 20 match VTK; remap the last 7 via tail_map.
+            assert(conn.size() == 27 && "H27 element must have 27 nodes");
             connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
-            // shuffle tail 20..26
-            for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
+            for (int i = 0; i < 7; ++i) {
+              connectivity.push_back(conn[20 + tail_map[i]]);
+            }
+            offset += 27;
           }
           else {
-            // H8/H20 or fallback
             connectivity.insert(connectivity.end(), conn.begin(), conn.end());
+            offset += (int)conn.size();
           }
 
-          offset += (int)conn.size();
           offsets.push_back(offset);
           types.push_back(vtk_cell_type(b));
         }
@@ -1833,7 +1830,7 @@ namespace fem {
           }
         }
         else {
-          pointData = fld.nodal;
+          pointData = fld.nodal; // unchanged: points array order == registry order
         }
 
         // -------- XML --------
@@ -1872,11 +1869,37 @@ namespace fem {
         return true;
       }
 
-
-
 // ---- global maximum depth allowed (unchanged) ----
       u32 max_depth() const {
         return _maxDepth;
+      }
+
+      // ---- coarse geometry accessors (3D) ----
+      inline const std::array<double, 27>& get_X() const {
+        return _X;
+      }
+      inline const std::array<double, 27>& get_Y() const {
+        return _Y;
+      }
+      inline const std::array<double, 27>& get_Z() const {
+        return _Z;
+      }
+
+      // ---- collect reference (parent) coordinates across a level range (3D) ----
+      std::vector<Point3>
+      extract_node_parent_coords_in_level_range(u32 lev_min, u32 lev_max, Basis basis) const {
+        std::vector<Point3> coords;
+
+        const auto& ids = leaf_indices();          // assumes you have the 3D version returning [0..n-1]
+        for (u32 leaf_pos : ids) {
+          const u32 lev = level_of(leaf_pos);      // leaf position -> level
+          if (lev < lev_min || lev > lev_max) continue;
+
+          std::vector<Point3> s;
+          extract_leaf_parent_coords(basis, leaf_pos, s);  // fills parent-space nodes for this leaf
+          coords.insert(coords.end(), s.begin(), s.end());
+        }
+        return coords;
       }
 
     private:
@@ -1974,39 +1997,6 @@ namespace fem {
       }
 
 
-
-
-
-// ---- coarse geometry accessors (3D) ----
-      inline const std::array<double, 27>& get_X() const {
-        return _X;
-      }
-      inline const std::array<double, 27>& get_Y() const {
-        return _Y;
-      }
-      inline const std::array<double, 27>& get_Z() const {
-        return _Z;
-      }
-
-
-
-// ---- collect reference (parent) coordinates across a level range (3D) ----
-      std::vector<Point3>
-      extract_node_parent_coords_in_level_range(u32 lev_min, u32 lev_max, Basis basis) const {
-        std::vector<Point3> coords;
-
-        const auto& ids = leaf_indices();          // assumes you have the 3D version returning [0..n-1]
-        for (u32 leaf_pos : ids) {
-          const u32 lev = level_of(leaf_pos);      // leaf position -> level
-          if (lev < lev_min || lev > lev_max) continue;
-
-          std::vector<Point3> s;
-          extract_leaf_parent_coords(basis, leaf_pos, s);  // fills parent-space nodes for this leaf
-          coords.insert(coords.end(), s.begin(), s.end());
-        }
-        return coords;
-      }
-
 // ---- return refinement level of a given leaf *position* (3D) ----
       u32 level_of(u32 leaf_pos) const {
         const u32 node_idx = _leaves[leaf_pos];    // leaf position -> node index
@@ -2014,22 +2004,13 @@ namespace fem {
       }
 
 
-
-
-
-
-
-
-
       int get_or_insert_gid(BasisRegistry &R, double xi, double eta, double zeta) {
         // Need +1 bit so level=_maxDepth mid/center nodes (half-steps) map to integers.
-        //const u32 nodeBits = _maxDepth + 1;
         const u32 nodeBits = std::max<u32>(2, std::min<u32>(_maxDepth + 1, 21));
 
 
         // Our 3-way Morton interleaver packs 21 bits per axis.
         assert(nodeBits <= 21 && "node index packing requires (_maxDepth + 1) <= 21");
-//        const u32 nodesN = (1u << nodeBits); // indices will be clamped to [0..nodesN-1]
         const u32 nodesN = (1u << nodeBits); // indices in [0..nodesN-1]
 
         auto to_idx = [nodesN](double s)->u32 {
@@ -2061,6 +2042,11 @@ namespace fem {
         return gid;
       }
 
+      struct BasisHasher {
+        size_t operator()(fem::Basis b) const noexcept {
+          return std::hash<uint8_t>()(static_cast<uint8_t>(b));
+        }
+      };
 
     private: //data
 // config
@@ -2068,7 +2054,6 @@ namespace fem {
       u32  _minDepth{0};
       bool _allowCoarsenBelowMinDepth{true};
       bool _leafpos_valid{false};
-
 
 // geometry (H27)
       std::array<double, 27> _X {}, _Y {}, _Z{};
@@ -2088,28 +2073,8 @@ namespace fem {
       u32 _root{0};
 
       mutable std::vector<u32> _node2leafpos; // size == _tree_nodes.size(), npos32 default
-
-
-
-      struct BasisHasher {
-        size_t operator()(fem::Basis b) const noexcept {
-          return std::hash<uint8_t>()(static_cast<uint8_t>(b));
-        }
-      };
       std::unordered_set<Basis, BasisHasher> _activeBases;
 
-
-
-      /*
-
-      u32 _maxDepth;
-      std::vector<TreeNode3D> _tree_nodes;
-      std::vector<u32> _leaves;
-      u32 _root{0};
-
-      // geometry (H27)
-      std::array<double, 27> _X{}, _Y{}, _Z{};
-      bool _geom_ready{false};*/
   };
 
 } // namespace fem

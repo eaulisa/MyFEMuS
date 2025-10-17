@@ -359,6 +359,7 @@ namespace fem {
         swap(a._maxDepth, b._maxDepth);
         swap(a._minDepth, b._minDepth);
         swap(a._allowCoarsenBelowMinDepth, b._allowCoarsenBelowMinDepth);
+        swap(a._leafpos_valid, b._leafpos_valid);
         swap(a._X, b._X);
         swap(a._Y, b._Y);
         swap(a._geom_ready, b._geom_ready);
@@ -373,6 +374,7 @@ namespace fem {
         swap(a._node2leafpos, b._node2leafpos);
         swap(a._activeBases, b._activeBases);
       }
+
 
       // ---- config ----
       void set_min_depth(u32 d) {

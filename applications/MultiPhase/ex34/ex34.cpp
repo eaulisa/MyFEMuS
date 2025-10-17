@@ -8,8 +8,8 @@
 #include <gperftools/profiler.h>
 
 #include "HexTree3D.hpp"
-//#include "FieldAdvection3D.hpp"
-//#include "FieldAdvectionWithAnalyticVelocity3D.hpp"
+#include "FieldAdvection3D.hpp"
+#include "FieldAdvectionWithAnalyticVelocity3D.hpp"
 
 using namespace fem;
 
@@ -71,22 +71,36 @@ auto make_coarsen_pred_3d(const PsiFunc& psi, double tau_coarse, u32 min_level) 
   };
 }
 
-// ---------------- Analytic velocity (3D: TG-like, w=0 by default) ----------------
-auto rotVel3D = [](double x, double y, double z, double time) -> std::array<double,3> {
-  (void)z; // easy extension: add a z-structure if you want
-  double T = 8.0;
-  x += 0.5; y += 0.5;
-  double u = -2. * std::sin(M_PI*x)*std::sin(M_PI*x) * std::sin(M_PI*y)*std::cos(M_PI*y) * std::cos(M_PI*time/T);
-  double v =  2. * std::sin(M_PI*x)*std::cos(M_PI*x) * std::sin(M_PI*y)*std::sin(M_PI*y) * std::cos(M_PI*time/T);
-  double w = 0.0;
-  return {u, v, w};
-};
+inline std::array<double,3>
+rotVel3D(double x, double y, double z, double time) noexcept {
+  x += 0.5; y += 0.5; z += 0.5;
+
+  double sx, cx, sy, cy, sz, cz;
+  ::sincos(M_PI * x, &sx, &cx);
+  ::sincos(M_PI * y, &sy, &cy);
+  ::sincos(M_PI * z, &sz, &cz);
+
+  // cos(pi*time/4)
+  const double cosT = std::cos(M_PI * (time * 0.25));
+
+  const double s2x = sx*sx, s2y = sy*sy, s2z = sz*sz;
+  const double sxcx = sx*cx, sycy = sy*cy, szcz = sz*cz;
+
+  const double k = 2.0 * cosT;
+
+  return {
+    k * s2x * (-sycy + szcz),
+    k * s2y * (-szcz + sxcx),
+    k * s2z * (-sxcx + sycy)
+  };
+}
+
 
 int main() {
-  //ProfilerStart("profiling_3d.prof");
+  ProfilerStart("profiling_3d.prof");
 
   // -------- Explicit control --------
-  const u32 maxDepth   = 6;   // absolute cap on tree depth (<=20 is supported by your impl)
+  const u32 maxDepth   = 7;   // absolute cap on tree depth (<=20 is supported by your impl)
   const u32 minDepth   = 2;    // baseline depth
   const bool allowDrop = true; // allow coarsening below minDepth where safe?
 
@@ -95,7 +109,7 @@ int main() {
             << " allowDrop=" << (allowDrop ? 1 : 0) << "\n";
 
   // Construct the octree
-  OctTree3D ot(maxDepth, minDepth);
+  HexTree3D ot(maxDepth, minDepth);
 
   // --- Coarse HEX27 geometry: identity map on [-0.5,0.5]^3 ---
   double X[27], Y[27], Z[27];
@@ -171,57 +185,57 @@ int main() {
   std::cout << "Printing " << filename << "\n";
 
   // --- Time loop (analytic advection) ---
-  double period = 8.0;
+  double period = 4.0;
   unsigned nIterations = 320;
   double dt = period / nIterations;
 
-  OctTree3D ot1(ot.max_depth());
+  HexTree3D ot1(ot.max_depth());
 
-  // for (u32 k = 1; k <= nIterations; ++k) {
-  //   // coarse-node reference marker set for Hex27 in parent space
-  //   std::vector<std::array<double,3>> vOld = {
-  //     {+1,-1,-1},{+1,+1,-1},{-1,+1,-1},{-1,-1,-1},
-  //     {+1,-1,+1},{+1,+1,+1},{-1,+1,+1},{-1,-1,+1},
-  //     {+1, 0,-1},{ 0,+1,-1},{-1, 0,-1},{ 0,-1,-1},
-  //     {+1, 0,+1},{ 0,+1,+1},{-1, 0,+1},{ 0,-1,+1},
-  //     {-1,-1, 0},{+1,-1, 0},{+1,+1, 0},{-1,+1, 0},
-  //     { 0,-1, 0},{+1, 0, 0},{ 0,+1, 0},{-1, 0, 0},
-  //     { 0, 0,-1},{ 0, 0,+1},{ 0, 0, 0}
-  //   };
-  //   std::vector<std::array<double,3>> vNew = vOld; // placeholder
-  //
-  //   ot1.reset(false, false);
-  //   ot1.set_allow_coarsen_below_min(allowDrop);
-  //   ot1.set_physical_hex27(X, Y, Z);
-  //
-  //   double time = k * dt;
-  //
-  //   std::vector<std::array<double,3>> leftOld, stayedNew;
-  //   // Forward trace analytic markers
-  //   fem::advect_markers_forward_analytic_3d(ot, time, dt, rotVel3D, leftOld, stayedNew);
-  //
-  //   // Refine ot1 to contain all traced markers
-  //   ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
-  //
-  //   u32 fid0 = fid; // advected scalar from ot
-  //   u32 fid1 = ot1.add_field(Basis::H27);
-  //
-  //   // Backtrace element nodes and transport field (analytic 3D velocity)
-  //   fem::advect_nodes_backward_and_transport_field_analytic_3d(ot, fid0, time, dt, rotVel3D, ot1, fid1);
-  //
-  //   // Conservative coarsen (safe), using snapshot
-  //   u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, tau_coarse, ot);
-  //   std::cout << "Coarsened " << num_coarsened << " leaves.\n";
-  //
-  //   using std::swap;
-  //   swap(ot, ot1);
-  //
-  //   filename = "./output/element_adaptive3d." + std::to_string(k) + ".vtu";
-  //   ot.write_binary_vtu(filename, fid, "u", false);
-  //   std::cout << "Printing " << filename << "\n";
-  // }
+  for (u32 k = 1; k <= 10 + 0*nIterations; ++k) {
+    // coarse-node reference marker set for Hex27 in parent space
+    std::vector<std::array<double,3>> vOld = {
+      {+1,-1,-1},{+1,+1,-1},{-1,+1,-1},{-1,-1,-1},
+      {+1,-1,+1},{+1,+1,+1},{-1,+1,+1},{-1,-1,+1},
+      {+1, 0,-1},{ 0,+1,-1},{-1, 0,-1},{ 0,-1,-1},
+      {+1, 0,+1},{ 0,+1,+1},{-1, 0,+1},{ 0,-1,+1},
+      {-1,-1, 0},{+1,-1, 0},{+1,+1, 0},{-1,+1, 0},
+      { 0,-1, 0},{+1, 0, 0},{ 0,+1, 0},{-1, 0, 0},
+      { 0, 0,-1},{ 0, 0,+1},{ 0, 0, 0}
+    };
+    std::vector<std::array<double,3>> vNew = vOld; // placeholder
 
-  //ProfilerStop();
+    ot1.reset(false, false);
+    ot1.set_allow_coarsen_below_min(allowDrop);
+    ot1.set_physical_hex27(X, Y, Z);
+
+    double time = k * dt;
+
+    std::vector<std::array<double,3>> leftOld, stayedNew;
+    // Forward trace analytic markers
+    fem::advect_markers_forward_analytic(ot, time, dt, rotVel3D, leftOld, stayedNew);
+
+    // Refine ot1 to contain all traced markers
+    ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
+
+    u32 fid0 = fid; // advected scalar from ot
+    u32 fid1 = ot1.add_field(Basis::H27);
+
+    // Backtrace element nodes and transport field (analytic 3D velocity)
+    fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, rotVel3D, ot1, fid1);
+
+    // Conservative coarsen (safe), using snapshot
+    u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, tau_coarse, ot);
+    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+
+    using std::swap;
+    swap(ot, ot1);
+
+    filename = "./output/element_adaptive3d." + std::to_string(k) + ".vtu";
+    ot.write_binary_vtu(filename, fid, "u", false);
+    std::cout << "Printing " << filename << "\n";
+  }
+
+  ProfilerStop();
   return 0;
 }
 
@@ -269,7 +283,7 @@ int main() {
 // using namespace  fem;
 //
 // int main(){
-//   fem::OctTree3D T(6);
+//   fem::HexTree3D T(6);
 //   // unit cube mapping: parent == physical (for quick test)
 //   double X[27],Y[27],Z[27];
 //   // fill H27 grid points in the given order
