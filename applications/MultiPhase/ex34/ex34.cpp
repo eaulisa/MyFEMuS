@@ -100,7 +100,7 @@ int main() {
   ProfilerStart("profiling_3d.prof");
 
   // -------- Explicit control --------
-  const u32 maxDepth   = 7;   // absolute cap on tree depth (<=20 is supported by your impl)
+  const u32 maxDepth   = 8;   // absolute cap on tree depth (<=20 is supported by your impl)
   const u32 minDepth   = 2;    // baseline depth
   const bool allowDrop = true; // allow coarsening below minDepth where safe?
 
@@ -191,7 +191,7 @@ int main() {
 
   HexTree3D ot1(ot.max_depth());
 
-  for (u32 k = 1; k <= 10 + 0*nIterations; ++k) {
+  for (u32 k = 1; k <= 0 + 1*nIterations; ++k) {
     // coarse-node reference marker set for Hex27 in parent space
     std::vector<std::array<double,3>> vOld = {
       {+1,-1,-1},{+1,+1,-1},{-1,+1,-1},{-1,-1,-1},
