@@ -7,7 +7,8 @@
 #include <vector>
 #include <gperftools/profiler.h>
 
-#include "HexTree3D.hpp"
+#include "HexTree.hpp"
+#include "OctTree.hpp"
 #include "FieldAdvection3D.hpp"
 #include "FieldAdvectionWithAnalyticVelocity3D.hpp"
 
@@ -97,8 +98,10 @@ rotVel3D(double x, double y, double z, double time) noexcept {
 
 
 int main() {
-  ProfilerStart("profiling_3d.prof");
+  //ProfilerStart("profiling_3d.prof");
 
+
+  const unsigned DIM = 3;
   // -------- Explicit control --------
   const u32 maxDepth   = 8;   // absolute cap on tree depth (<=20 is supported by your impl)
   const u32 minDepth   = 2;    // baseline depth
@@ -109,17 +112,18 @@ int main() {
             << " allowDrop=" << (allowDrop ? 1 : 0) << "\n";
 
   // Construct the octree
-  HexTree3D ot(maxDepth, minDepth);
+  HexTree hex(maxDepth, minDepth);
+  OctTree<DIM, HexTree>& ot = hex;
 
   // --- Coarse HEX27 geometry: identity map on [-0.5,0.5]^3 ---
-  double X[27], Y[27], Z[27];
+  std::array<std::array<double, 27>, DIM> X;
 
   // Parent nodes in your H27 order:
   // corners 0..7
   // bottom edges 8..11, top edges 12..15, vertical edges 16..19
   // face centers 20..25, cell center 26
   auto add = [&](int i, double xi, double eta, double z) {
-    X[i]=xi; Y[i]=eta; Z[i]=z;
+    X[0][i]=xi; X[1][i]=eta; X[2][i]=z;
   };
 
   const double a=-0.5,b=+0.5, xm=0.0, ym=0.0, zm=0.0;
@@ -139,14 +143,14 @@ int main() {
   // cell center
   add(26,xm,ym,zm);
 
-  ot.set_physical_hex27(X,Y,Z);
+  ot.set_physical_hex(X);
   ot.set_allow_coarsen_below_min(allowDrop);
 
   // Level set and thresholds
   Psi3D psi0;
 
   const double tau_ref = 2.0;  // refine tolerance
-  const u32 fid = ot.add_field(Basis::H27);
+  const u32 fid = ot.add_field(BasisT<DIM>::H27);
 
   // Slightly shifted level set
   Psi3D psi1 = psi0;
@@ -160,7 +164,7 @@ int main() {
   auto refine1  = make_refine_pred_3d(psi1, tau_ref, maxDepth);
   auto coarsen1 = make_coarsen_pred_3d(psi1, tau_coarse, min_level);
 
-  std::size_t changed = ot.adapt_cycle(coarsen1, refine1, Basis::H27, /*max_passes=*/10);
+  std::size_t changed = ot.adapt_cycle(coarsen1, refine1, BasisT<DIM>::H27, /*max_passes=*/10);
   std::cout << "Adapt-cycle changed " << changed << " cells\n";
   std::cout << "Leaves after cycle: " << ot.leaf_count() << "\n";
 
@@ -168,7 +172,7 @@ int main() {
   ot.resize_fields_to_nodes();
 
   Field& fld = ot.field(fid);
-  const Basis bs = fld.basis;
+  const BasisT<DIM> bs = to_basis<DIM>(fld.basis_id);
 
   // Unique global FEM nodes with physical coords
   const auto& nodes = ot.basis_nodes(bs);
@@ -189,11 +193,13 @@ int main() {
   unsigned nIterations = 320;
   double dt = period / nIterations;
 
-  HexTree3D ot1(ot.max_depth());
+  HexTree hex1(ot.max_depth());
+  OctTree<DIM, HexTree>& ot1 = hex1;
 
-  for (u32 k = 1; k <= 0 + 1*nIterations; ++k) {
+
+  for (u32 k = 1; k <= 20 + 0*nIterations; ++k) {
     // coarse-node reference marker set for Hex27 in parent space
-    std::vector<std::array<double,3>> vOld = {
+    std::vector<std::array<double,DIM>> vOld = {
       {+1,-1,-1},{+1,+1,-1},{-1,+1,-1},{-1,-1,-1},
       {+1,-1,+1},{+1,+1,+1},{-1,+1,+1},{-1,-1,+1},
       {+1, 0,-1},{ 0,+1,-1},{-1, 0,-1},{ 0,-1,-1},
@@ -202,11 +208,11 @@ int main() {
       { 0,-1, 0},{+1, 0, 0},{ 0,+1, 0},{-1, 0, 0},
       { 0, 0,-1},{ 0, 0,+1},{ 0, 0, 0}
     };
-    std::vector<std::array<double,3>> vNew = vOld; // placeholder
+    std::vector<std::array<double,DIM>> vNew = vOld; // placeholder
 
     ot1.reset(false, false);
     ot1.set_allow_coarsen_below_min(allowDrop);
-    ot1.set_physical_hex27(X, Y, Z);
+    ot1.set_physical_hex(X);
 
     double time = k * dt;
 
@@ -218,7 +224,7 @@ int main() {
     ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
 
     u32 fid0 = fid; // advected scalar from ot
-    u32 fid1 = ot1.add_field(Basis::H27);
+    u32 fid1 = ot1.add_field(BasisT<DIM>::H27);
 
     // Backtrace element nodes and transport field (analytic 3D velocity)
     fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, rotVel3D, ot1, fid1);
@@ -235,7 +241,7 @@ int main() {
     std::cout << "Printing " << filename << "\n";
   }
 
-  ProfilerStop();
+  //ProfilerStop();
   return 0;
 }
 

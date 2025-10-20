@@ -1,5 +1,5 @@
 #pragma once
-#include "HexTree3D.hpp"
+#include "OctTree.hpp"
 #include <array>
 #include <vector>
 #include <cassert>
@@ -11,12 +11,13 @@ namespace fem {
 // 1. Evaluate velocity in parent coords (ξ,η,ζ)
 //    vOld/vNew are nodal 3D velocities at the chosen velocity basis
 //----------------------------------------
-  inline Point3 eval_velocity_parent(
-    const HexTree3D& hex,
-    Basis velBasis,
-    const std::vector<Point3>& vOld,
-    const std::vector<Point3>& vNew,
-    const Point3& s,          // parent coords (ξ,η,ζ)
+  template<std::size_t DIM>
+  inline Point<DIM> eval_velocity_parent(
+    const OctTree<DIM, HexTree>& hex,
+    BasisT<DIM> velBasis,
+    const std::vector<Point<DIM>>& vOld,
+    const std::vector<Point<DIM>>& vNew,
+    const Point<DIM>& s,          // parent coords (ξ,η,ζ)
     double t, double dt) {    // t ∈ {0, dt/2, dt/2, dt} during RK
     // ---- shapes at s ----
     double N8 [8];
@@ -26,9 +27,9 @@ namespace fem {
     const double* N = nullptr;
     int nBasis = 0;
     switch (velBasis) {
-    case Basis::H8:  Shapes3::H8(s, N8); N = N8;  nBasis = 8;  break;
-    case Basis::H20: Shapes3::H20(s, N20); N = N20; nBasis = 20; break;
-    case Basis::H27: Shapes3::H27(s, N27); N = N27; nBasis = 27; break;
+    case BasisT<DIM>::H8:  Shapes3::H8(s, N8); N = N8;  nBasis = 8;  break;
+    case BasisT<DIM>::H20: Shapes3::H20(s, N20); N = N20; nBasis = 20; break;
+    case BasisT<DIM>::H27: Shapes3::H27(s, N27); N = N27; nBasis = 27; break;
     }
 
     // ---- time interpolation weight ----
@@ -78,7 +79,7 @@ namespace fem {
 
     const double inv = 1.0 / det;
 
-    Point3 sdot;
+    Point<DIM> sdot;
     sdot[0] = ((A22 * A33 - A23 * A32) * vx - (A12 * A33 - A13 * A32) * vy + (A12 * A23 - A13 * A22) * vz) * inv;
     sdot[1] = (-(A21 * A33 - A23 * A31) * vx + (A11 * A33 - A13 * A31) * vy - (A11 * A23 - A13 * A21) * vz) * inv;
     sdot[2] = ((A21 * A32 - A22 * A31) * vx - (A11 * A32 - A12 * A31) * vy + (A11 * A22 - A12 * A21) * vz) * inv;
@@ -89,21 +90,21 @@ namespace fem {
 //----------------------------------------
 // 2. RK4 in parent space (3D)
 //----------------------------------------
-  template<class VelEval3D>
-  inline Point3 rk4_advect_parent(
-    const Point3& s0,
+  template<class VelEval3D, std::size_t DIM>
+  inline Point<DIM> rk4_advect_parent(
+    const Point<DIM>& s0,
     double dt,
     VelEval3D&& vel_eval) {
-    auto add = [](const Point3 & a, const Point3 & b, double s) {
-      return Point3{ a[0] + s*b[0], a[1] + s*b[1], a[2] + s*b[2] };
+    auto add = [](const Point<DIM> & a, const Point<DIM> & b, double s) {
+      return Point<DIM> { a[0] + s*b[0], a[1] + s*b[1], a[2] + s*b[2] };
     };
 
-    const Point3 k1 = vel_eval(s0,              0.0);
-    const Point3 k2 = vel_eval(add(s0, k1, 0.5 * dt), 0.5 * dt);
-    const Point3 k3 = vel_eval(add(s0, k2, 0.5 * dt), 0.5 * dt);
-    const Point3 k4 = vel_eval(add(s0, k3,     dt),     dt);
+    const Point<DIM> k1 = vel_eval(s0,              0.0);
+    const Point<DIM> k2 = vel_eval(add(s0, k1, 0.5 * dt), 0.5 * dt);
+    const Point<DIM> k3 = vel_eval(add(s0, k2, 0.5 * dt), 0.5 * dt);
+    const Point<DIM> k4 = vel_eval(add(s0, k3,     dt),     dt);
 
-    Point3 s = s0;
+    Point<DIM> s = s0;
     s[0] += dt / 6.0 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
     s[1] += dt / 6.0 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
     s[2] += dt / 6.0 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
@@ -114,28 +115,29 @@ namespace fem {
 // 3. Forward advection of markers (parent RK, 3D)
 //    Emits physical coords that left the domain and those that stayed
 //----------------------------------------
+  template<std::size_t DIM>
   inline void advect_markers_forward(
-    const HexTree3D& hex0,
-    Basis velBasis,
-    const std::vector<Point3>& vOld,    // size 8/20/27 depending on velBasis
-    const std::vector<Point3>& vNew,    // same size as vOld
+    const HexTree& hex0,
+    BasisT<DIM> velBasis,
+    const std::vector<Point<DIM>>& vOld,    // size 8/20/27 depending on velBasis
+    const std::vector<Point<DIM>>& vNew,    // same size as vOld
     double dt,
-    std::vector<Point3>& coordsLeftOld, // physical positions at t^n that left
-    std::vector<Point3>& coordsStayedNew) { // physical positions at t^{n+1} that stayed
+    std::vector<Point<DIM>>& coordsLeftOld, // physical positions at t^n that left
+    std::vector<Point<DIM>>& coordsStayedNew) { // physical positions at t^{n+1} that stayed
     coordsLeftOld.clear();
     coordsStayedNew.clear();
 
     // seed: parent nodes on the finest current level (you can change range if needed)
-    const auto s0_all = hex0.extract_node_parent_coords_in_level_range(hex0.max_depth(), hex0.max_depth(), Basis::H27);
+    const auto s0_all = hex0.extract_node_parent_coords_in_level_range(hex0.max_depth(), hex0.max_depth(), BasisT<DIM>::H27);
 
     for (const auto& s0 : s0_all) {
       // velocity evaluator in parent space (uses hex0 coarse geometry)
-      auto vel_eval = [&](const Point3 & s, double t) {
+      auto vel_eval = [&](const Point<DIM> & s, double t) {
         return eval_velocity_parent(hex0, velBasis, vOld, vNew, s, t, dt);
       };
 
       // RK4 step in parent
-      const Point3 s1 = rk4_advect_parent(s0, dt, vel_eval);
+      const Point<DIM> s1 = rk4_advect_parent(s0, dt, vel_eval);
 
       // classify + output physical coordinates
       const u32 leaf = hex0.locate_leaf_on_parent(s1);
@@ -165,36 +167,37 @@ namespace fem {
 // 4. Backward advection & field transport (parent RK, 3D)
 //    Samples source field in parent space on hex0
 //----------------------------------------
+  template<std::size_t DIM>
   inline void advect_nodes_backward_and_transport_field(
-    const HexTree3D& hex0,    // geometry + source field at old time
+    const HexTree& hex0,    // geometry + source field at old time
     u32 fid0,                 // source field id in hex0
-    Basis velBasis,
-    const std::vector<Point3>& vOld,
-    const std::vector<Point3>& vNew,
+    BasisT<DIM> velBasis,
+    const std::vector<Point<DIM>>& vOld,
+    const std::vector<Point<DIM>>& vNew,
     double dt,                // > 0
-    HexTree3D& hex1,          // geometry at end time
+    HexTree& hex1,          // geometry at end time
     u32 fid1) {               // destination field id in hex1
     // make sure destination connectivity/registries are up to date
     hex1.rebuild_connectivity_active_bases();
 
     // destination field (nodal)
     Field& fld1 = hex1.field(fid1);
-    const Basis b = fld1.basis;
+    const BasisT<DIM> b = to_basis<DIM>(fld1.basis_id);
 
     // unique destination nodes (global)
     const auto& nodes = hex1.basis_nodes(b);
     fld1.nodal.resize(nodes.size());
 
     for (size_t gid = 0; gid < nodes.size(); ++gid) {
-      const Point3 s1 = nodes[gid].parent; // (ξ,η,ζ) at t^{n+1} in parent
+      const Point<DIM> s1 = nodes[gid].parent; // (ξ,η,ζ) at t^{n+1} in parent
 
       // velocity evaluator (uses hex0 geometry/Jacobian)
-      auto vel_eval = [&](const Point3 & s, double t) {
+      auto vel_eval = [&](const Point<DIM> & s, double t) {
         return eval_velocity_parent(hex0, velBasis, vOld, vNew, s, t, dt);
       };
 
       // backward RK4 in parent: s1 -> s0
-      const Point3 s0 = rk4_advect_parent(s1, -dt, vel_eval);
+      const Point<DIM> s0 = rk4_advect_parent(s1, -dt, vel_eval);
 
       // sample source field on hex0 directly in parent space
       double val = std::numeric_limits<double>::quiet_NaN();
