@@ -823,12 +823,98 @@ namespace fem {
         post_topology_update(); // rebuild connectivity for active bases, resize fields if kept
       }
 
-// ---- Defaulted special members (move-only; copy disabled) (DIM-independent) ----
-      OctTree(OctTree&&) noexcept = default;
-      OctTree& operator=(OctTree&&) noexcept = default;
-      OctTree(const OctTree&) = delete;
-      OctTree& operator=(const OctTree&) = delete;
 
+      // ---- Defaulted special members (move-only; copy disabled) (DIM-independent) ----
+
+      OctTree(const OctTree&)            = default;
+      OctTree& operator=(const OctTree&) = default;
+      OctTree(OctTree&&) noexcept        = default;
+      OctTree& operator=(OctTree&&) noexcept = default;
+
+
+      OctTree(const OctTree& oct1, u32 fid1,
+              const OctTree& oct2, u32 fid2)
+        : OctTree( /* choose a conservative cap & min */
+            std::max(oct1.max_depth(), oct2.max_depth()),
+            std::min(oct1.min_depth(), oct2.min_depth())) {
+
+        _X = oct1._X;
+        _geom_ready = true;
+        // Allow safe coarsening below min if either source allowed it
+        this->set_allow_coarsen_below_min(oct1.allow_coarsen_below_min() || oct2.allow_coarsen_below_min());
+
+        // Helper to pick the highest geometry basis (Q9/H27) for dense node sampling per level.
+        const BasisT<DIM> geomHi =
+          (DIM == 2) ? static_cast<BasisT<DIM>>(static_cast<int>(Basis2D::Q9))
+          : static_cast<BasisT<DIM>>(static_cast<int>(Basis3D::H27));
+
+        const u32 Lmax = std::max(oct1.max_depth(), oct2.max_depth());
+
+        // Refine to match 'oct1'
+        for (u32 L = 0; L <= Lmax; ++L) {
+          // sample parent nodes of level L on oct1 using the highest geometry basis
+          const auto s_all = oct1.extract_node_parent_coords_in_level_range(L, L, geomHi);
+          if (s_all.empty()) continue;
+
+          std::vector<Point<DIM>> pts_phys;
+          pts_phys.reserve(s_all.size());
+          for (const auto& s : s_all) pts_phys.push_back(oct1.parent_to_physical(s));
+
+          // Refine this overlay so each point is contained in a leaf at level >= L
+          this->refine_to_contain_points(pts_phys, L);
+        }
+
+        // Refine to match 'oct2'
+        for (u32 L = 0; L <= Lmax; ++L) {
+          const auto s_all = oct2.extract_node_parent_coords_in_level_range(L, L, geomHi);
+          if (s_all.empty()) continue;
+
+          std::vector<Point<DIM>> pts_phys;
+          pts_phys.reserve(s_all.size());
+          for (const auto& s : s_all) pts_phys.push_back(oct2.parent_to_physical(s));
+
+          this->refine_to_contain_points(pts_phys, L);
+        }
+
+        // 2) Add two fields on the overlay using the SAME bases as the sources (keep original bases)
+        const Field& src1 = oct1.field(fid1);
+        const Field& src2 = oct2.field(fid2);
+        const auto b1 = to_basis<DIM>(src1.basis_id);
+        const auto b2 = to_basis<DIM>(src2.basis_id);
+
+        const u32 dst_fid1 = this->add_field(b1); // overlay field for src1
+        const u32 dst_fid2 = this->add_field(b2); // overlay field for src2
+
+        // Build connectivity for both active bases and size nodal arrays
+        this->rebuild_connectivity_active_bases();
+        this->resize_fields_to_nodes();
+
+        // 3) Project (sample) src fields into overlay at overlay nodes of each basis
+        {
+          Field& D = this->field(dst_fid1);
+          const auto bb = to_basis<DIM>(D.basis_id);
+          const auto& nodes = this->basis_nodes(bb);
+          D.nodal.assign(nodes.size(), 0.0);
+          for (size_t gid = 0; gid < nodes.size(); ++gid) {
+            double val = 0.0;
+            // evaluate *on oct1* at overlay's parent coordinate
+            (void) oct1.evaluate_field_on_parent(fid1, nodes[gid].parent, val);
+            D.nodal[gid] = val;
+          }
+        }
+        {
+          Field& D = this->field(dst_fid2);
+          const auto bb = to_basis<DIM>(D.basis_id);
+          const auto& nodes = this->basis_nodes(bb);
+          D.nodal.assign(nodes.size(), 0.0);
+          for (size_t gid = 0; gid < nodes.size(); ++gid) {
+            double val = 0.0;
+            // evaluate *on oct2* at overlay's parent coordinate
+            (void) oct2.evaluate_field_on_parent(fid2, nodes[gid].parent, val);
+            D.nodal[gid] = val;
+          }
+        }
+      }
 
 // --- swap Octrees (DIM-independent) ----
       friend void swap(OctTree& a, OctTree& b) noexcept {
@@ -2763,3 +2849,5 @@ namespace fem {
   };
 
 } // namespace fem
+
+
