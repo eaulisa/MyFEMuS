@@ -18,7 +18,7 @@ public:
   // using Base::get_Y;
   // using Base::get_Z;
   using Base::parent_to_physical;
-  using Base::inverse_map_hex27;       // if you want to expose it with the base name
+  using Base::inverse_map;       // if you want to expose it with the base name
   using Base::extract_leaf_parent_coords;
   using Base::leaf_physical_nodes;
   using Base::write_binary_vtu;

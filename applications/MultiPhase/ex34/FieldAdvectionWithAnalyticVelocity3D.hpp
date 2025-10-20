@@ -8,57 +8,85 @@
 
 namespace fem {
 
-//----------------------------------------
-// 0) Utility: parent-space velocity evaluator with absolute time
-//    vfun(x,y,z,t_abs) -> {vx,vy,vz}
-//----------------------------------------
-  template<class AnalyticVel3D, std::size_t DIM>
-  inline auto make_parent_vel_eval(
-    const OctTree<DIM, HexTree>& hex,
-    double start_time,                 // absolute time where RK local τ=0
-    AnalyticVel3D&& vfun) {
-    return [&](const Point<DIM> & s, double tau) {
-      const double t_abs = start_time + tau;
-      return eval_velocity_parent_analytic(hex, s, t_abs, vfun);
-    };
+// ============================================================
+// Analytic parent-velocity: 2D overload
+// eval_parent_sdot(tree, s, t_abs, vfun)
+// vfun: v(x,y,t) -> Point<2>
+// ============================================================
+  template<class AnalyticVel>
+  inline Point<2> eval_parent_sdot(
+    const OctTree<2>& tree,
+    const Point<2>& s,
+    double t_abs,
+    const AnalyticVel& vfun) {
+    // Map to physical with Q9
+    double N9[9]; Shapes2D::Q9(s, N9);
+    const auto& X = tree.get_X();
+    const auto& Y = tree.get_Y();
+
+    double x = 0.0, y = 0.0;
+    for (int a = 0; a < 9; ++a) {
+      x += N9[a] * X[a];
+      y += N9[a] * Y[a];
+    }
+
+    // Physical velocity
+    const Point<2> v = vfun(x, y, t_abs);
+
+    // J = d(x,y)/d(ξ,η) via Q9_dN
+    double dNdxi[9], dNdeta[9];
+    Shapes2D::Q9_dN(s, dNdxi, dNdeta);
+
+    double A11 = 0, A12 = 0, A21 = 0, A22 = 0;
+    for (int a = 0; a < 9; ++a) {
+      A11 += dNdxi[a] * X[a];  A12 += dNdeta[a] * X[a];
+      A21 += dNdxi[a] * Y[a];  A22 += dNdeta[a] * Y[a];
+    }
+
+    const double det = A11 * A22 - A12 * A21;
+    assert(std::fabs(det) > 1e-20 && "Singular 2D mapping Jacobian");
+    const double inv = 1.0 / det;
+
+    Point<2> sdot{};
+    sdot[0] = (A22 * v[0] - A12 * v[1]) * inv;
+    sdot[1] = (-A21 * v[0] + A11 * v[1]) * inv;
+    return sdot;
   }
 
-//----------------------------------------
-// 1) Velocity evaluator from analytic function (3D).
-//    Map (ξ,η,ζ)->(x,y,z), eval v(x,y,z,t_abs), then return (ξ̇,η̇,ζ̇).
-//----------------------------------------
-  template<class AnalyticVel3D, std::size_t DIM>
-  inline Point<DIM> eval_velocity_parent_analytic(
-    const OctTree<DIM, HexTree>& hex,
-    const Point<DIM>& s,
+// ============================================================
+// Analytic parent-velocity: 3D overload
+// eval_parent_sdot(tree, s, t_abs, vfun)
+// vfun: v(x,y,z,t) -> Point<3>
+// ============================================================
+  template<class AnalyticVel>
+  inline Point<3> eval_parent_sdot(
+    const OctTree<3>& tree,
+    const Point<3>& s,
     double t_abs,
-    AnalyticVel3D&& vfun) {
-    // -- Physical coordinates via H27
-    double N27[27];
-    Shapes3::H27(s, N27);
+    const AnalyticVel& vfun) {
+    // Map to physical with H27
+    double N27[27]; Shapes3D::H27(s, N27);
+    const auto& X = tree.get_X();
+    const auto& Y = tree.get_Y();
+    const auto& Z = tree.get_Z();
 
-    const auto& X = hex.get_X();
-    const auto& Y = hex.get_Y();
-    const auto& Z = hex.get_Z();
-
-    double x = 0.0, y = 0.0, z = 0.0;
+    double x = 0, y = 0, z = 0;
     for (int a = 0; a < 27; ++a) {
       x += N27[a] * X[a];
       y += N27[a] * Y[a];
       z += N27[a] * Z[a];
     }
 
-    // -- Physical velocity
-    const Point<DIM> v = vfun(x, y, z, t_abs); // {vx,vy,vz}
+    // Physical velocity
+    const Point<3> v = vfun(x, y, z, t_abs);
 
-    // -- Jacobian J = d(x,y,z)/d(ξ,η,ζ) and inverse
+    // J = d(x,y,z)/d(ξ,η,ζ) via H27_dN
     double dNdxi[27], dNdeta[27], dNdz[27];
-    Shapes3::H27_dN(s, dNdxi, dNdeta, dNdz);
+    Shapes3D::H27_dN(s, dNdxi, dNdeta, dNdz);
 
     double A11 = 0, A12 = 0, A13 = 0,
            A21 = 0, A22 = 0, A23 = 0,
            A31 = 0, A32 = 0, A33 = 0;
-
     for (int a = 0; a < 27; ++a) {
       A11 += dNdxi[a] * X[a];  A12 += dNdeta[a] * X[a];  A13 += dNdz[a] * X[a];
       A21 += dNdxi[a] * Y[a];  A22 += dNdeta[a] * Y[a];  A23 += dNdz[a] * Y[a];
@@ -69,110 +97,113 @@ namespace fem {
       A11 * (A22 * A33 - A23 * A32)
       - A12 * (A21 * A33 - A23 * A31)
       + A13 * (A21 * A32 - A22 * A31);
-    assert(std::abs(det) > 1e-20 && "singular hex mapping Jacobian");
-
+    assert(std::fabs(det) > 1e-20 && "Singular 3D mapping Jacobian");
     const double inv = 1.0 / det;
 
-    // ṡ = J^{-1} v (adjugate * v / det)
-    Point<DIM> sdot;
+    Point<3> sdot{};
     sdot[0] = ((A22 * A33 - A23 * A32) * v[0]
                - (A12 * A33 - A13 * A32) * v[1]
                + (A12 * A23 - A13 * A22) * v[2]) * inv;
-
     sdot[1] = (-(A21 * A33 - A23 * A31) * v[0]
                + (A11 * A33 - A13 * A31) * v[1]
                - (A11 * A23 - A13 * A21) * v[2]) * inv;
-
     sdot[2] = ((A21 * A32 - A22 * A31) * v[0]
                - (A11 * A32 - A12 * A31) * v[1]
                + (A11 * A22 - A12 * A21) * v[2]) * inv;
-
     return sdot;
   }
 
-//----------------------------------------
-// 2) Forward advection of markers (analytic velocity, 3D).
+// ============================================================
+// Make parent-space velocity evaluator with absolute time
+// Returns: lambda (s, tau) -> sdot
+// Works for DIM=2 or 3 by picking the right overload above
+// ============================================================
+  template<class AnalyticVel, std::size_t DIM>
+  inline auto make_parent_vel_eval(
+    const OctTree<DIM>& tree,
+    double start_time,
+    AnalyticVel&& vfun) {
+    // capture by value to avoid ref-binding issues with function pointers
+    auto   vfun_captured          = std::forward<AnalyticVel>(vfun);
+    const double start_time_local = start_time;
+
+    return [&tree, start_time_local, vfun_captured](const Point<DIM>& s, double tau) {
+      const double t_abs = start_time_local + tau;
+      return eval_parent_sdot(tree, s, t_abs, vfun_captured); // overload picks 2D/3D
+    };
+  }
+
+// ======================================================================
+// 2) Forward advection of markers (analytic velocity, DIM=2/3)
 //    Integrates from (time - dt) to (time).
-//    Uses existing rk4_advect_parent(Point, dt, vel_eval).
-//----------------------------------------
-  template<class AnalyticVel3D, std::size_t DIM>
+// ======================================================================
+  template<class AnalyticVel, std::size_t DIM>
   inline void advect_markers_forward_analytic(
-    const OctTree<DIM, HexTree>& hex0,
+    const OctTree<DIM>& tree0,
     double time,                 // absolute END time t^{n+1}
     double dt,                   // dt > 0
-    AnalyticVel3D&& vfun,
+    AnalyticVel&& vfun,
     std::vector<Point<DIM>>& coordsLeftOld,
     std::vector<Point<DIM>>& coordsStayedNew) {
     assert(dt > 0.0 && "Forward advection expects dt > 0");
     coordsLeftOld.clear();
     coordsStayedNew.clear();
 
-    // sample nodes at finest level (H27)
+    // sample nodes at finest level using highest-order geometry basis (id==2 ⇒ Q9/H27)
     const auto s0_all =
-      hex0.extract_node_parent_coords_in_level_range(hex0.max_depth(), hex0.max_depth(), BasisT<DIM>::H27);
+      tree0.extract_node_parent_coords_in_level_range(
+        tree0.max_depth(), tree0.max_depth(),
+        static_cast<BasisT<DIM>>(2));
 
     const double t0_abs = time - dt;
 
     for (const auto& s0 : s0_all) {
-      auto vel_eval = make_parent_vel_eval(hex0, t0_abs, vfun);
+      auto vel_eval = make_parent_vel_eval(tree0, t0_abs, vfun);
+      const Point<DIM> s1 = rk4_advect_parent<DIM>(s0, dt, vel_eval);
 
-      const Point<DIM> s1 = rk4_advect_parent(s0, dt, vel_eval); // <- provided elsewhere
-
-      const u32 leaf = hex0.locate_leaf_on_parent(s1);
+      const u32 leaf = tree0.locate_leaf_on_parent(s1);
       if (leaf == npos32) {
-        coordsLeftOld.push_back(hex0.parent_to_physical(s0));
+        coordsLeftOld.push_back(tree0.parent_to_physical(s0));
       }
       else {
-        // physical at s1 via H27
-        double N27[27];
-        Shapes3::H27(s1, N27);
-        const auto& X = hex0.get_X();
-        const auto& Y = hex0.get_Y();
-        const auto& Z = hex0.get_Z();
-        double x = 0, y = 0, z = 0;
-        for (int a = 0; a < 27; ++a) {
-          x += N27[a] * X[a];
-          y += N27[a] * Y[a];
-          z += N27[a] * Z[a];
-        }
-        coordsStayedNew.push_back({x, y, z});
+        coordsStayedNew.push_back(tree0.parent_to_physical(s1));
       }
     }
   }
 
-//----------------------------------------
-// 3) Backward advection & field transport (analytic, 3D).
+// ======================================================================
+// 3) Backward advection & field transport (analytic, DIM=2/3).
 //    Traces back from absolute time `time` to `time - dt`.
-//    Uses existing rk4_advect_parent(Point, -dt, vel_eval).
-//----------------------------------------
-  template<class AnalyticVel3D, std::size_t DIM>
+// ======================================================================
+  template<class AnalyticVel, std::size_t DIM>
   inline void advect_nodes_backward_and_transport_field_analytic(
-    const OctTree<DIM, HexTree>& hex0,   // geometry + field at old time (time - dt)
-    u32 fid0,                // field id in hex0 to sample from
-    double time,             // absolute END time t^{n+1}
-    double dt,               // dt > 0
-    AnalyticVel3D&& vfun,    // v(x,y,z,t_abs)
-    OctTree<DIM, HexTree> &hex1,         // geometry at END time (time)
-    u32 fid1) {              // output field id in hex1
+    const OctTree<DIM>& tree0,  // geometry + source field at old time (time - dt)
+    u32 fid0,                   // field id in tree0 to sample from
+    double time,                // absolute END time t^{n+1}
+    double dt,                  // dt > 0
+    AnalyticVel&& vfun,         // v(x,y[,z], t_abs) -> Point<DIM>
+    OctTree<DIM>& tree1,        // geometry at END time (time)
+    u32 fid1) {                 // output field id in tree1
     assert(dt > 0.0 && "Backward advection expects dt > 0");
 
-    Field& dst = hex1.field(fid1);
-    const BasisT<DIM> b = to_basis<DIM>(dst.basis_id);
-    const auto& nodes = hex1.basis_nodes(b);
+    tree1.rebuild_connectivity_active_bases();
+
+    Field& dst = tree1.field(fid1);
+    const auto b = to_basis<DIM>(dst.basis_id);
+    const auto& nodes = tree1.basis_nodes(b);
     dst.nodal.assign(nodes.size(), 0.0);
 
-    const double start_abs = time;
-    auto vel_eval = make_parent_vel_eval(hex0, start_abs, vfun);
+    // local time origin at t^{n+1}; integrate with negative dt
+    auto vel_eval = make_parent_vel_eval(tree0, time, vfun);
 
     for (size_t gid = 0; gid < nodes.size(); ++gid) {
-      const Point<DIM> s1 = nodes[gid].parent;                 // parent coords in hex1
-      const Point<DIM> s0 = rk4_advect_parent(s1, -dt, vel_eval); // <- provided elsewhere
+      const Point<DIM> s1 = nodes[gid].parent;                 // parent coords in tree1
+      const Point<DIM> s0 = rk4_advect_parent<DIM>(s1, -dt, vel_eval);
 
       double val = std::numeric_limits<double>::quiet_NaN();
-      (void) hex0.evaluate_field_on_parent(fid0, s0, val);
+      (void)tree0.evaluate_field_on_parent(fid0, s0, val);
       dst.nodal[gid] = val;
     }
   }
 
 } // namespace fem
-

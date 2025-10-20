@@ -14,6 +14,7 @@
 #include <functional>
 #include <utility>
 #include <deque>
+#include <type_traits>
 #include "Encoder.hpp"
 
 namespace fem {
@@ -27,6 +28,23 @@ namespace fem {
 
   using Point2 = std::array<double, 2>;
   using Point3 = std::array<double, 3>;
+
+  // Build a Point<DIM> from (x,y,z) consistently in 2D/3D.
+  template<std::size_t DIM> struct PtMake;
+
+  template<> struct PtMake<2> {
+    static inline Point<2> mk(double x, double y, double /*z*/) {
+      return Point<2> {x, y};
+    }
+  };
+
+  template<> struct PtMake<3> {
+    static inline Point<3> mk(double x, double y, double z) {
+      return Point<3> {x, y, z};
+    }
+  };
+
+
 
   template<std::size_t DIM>
   using u32Point = std::array<u32, DIM>;
@@ -77,7 +95,7 @@ namespace fem {
   }
 
 
-// ---- Dimension-dependent geometry storage with axis-first layout: access as _G[axis][node] (DIM-independent)
+// ---- Dimension-dependent geometry storage with axis-first layout: access as _G[axis][node] (DIM-independent) ----
   template <std::size_t DIM> struct GeomNodeCount;
   template <> struct GeomNodeCount<2> : std::integral_constant<std::size_t, 9>  {}; // Q9
   template <> struct GeomNodeCount<3> : std::integral_constant<std::size_t, 27> {}; // H27
@@ -124,7 +142,7 @@ namespace fem {
     return xx | yy | zz;
   }
 
-  struct Shapes2 {
+  struct Shapes2D {
     // ---------- 1D Q2 Lagrange ----------
     static inline void q2_1d_vals(double s, double& L0, double& L1, double& L2) noexcept {
       const double s2 = s * s;
@@ -144,13 +162,13 @@ namespace fem {
     // ============================================================
     static inline void Q4(const Point2& s, double* __restrict__ N) noexcept {
       const double xi = s[0], eta = s[1];
-      const double a = 0.25 * (1.0 - xi), b = 1.0 + xi;
-      const double c = 1.0 - eta,          d = 1.0 + eta;
+      const double a = (1.0 - xi), b = 1.0 + xi;
+      const double c = 1.0 - eta,  d = 1.0 + eta;
 
-      N[0] = a * c * 0.25 * 4.0;            // 0.25*(1-ξ)*(1-η)
-      N[1] = 0.25 * b * c;                  // 0.25*(1+ξ)*(1-η)
-      N[2] = 0.25 * b * d;                  // 0.25*(1+ξ)*(1+η)
-      N[3] = 0.25 * a * d;                  // 0.25*(1-ξ)*(1+η)
+      N[0] = 0.25 * a * c;            // 0.25*(1-ξ)*(1-η)
+      N[1] = 0.25 * b * c;            // 0.25*(1+ξ)*(1-η)
+      N[2] = 0.25 * b * d;            // 0.25*(1+ξ)*(1+η)
+      N[3] = 0.25 * a * d;            // 0.25*(1-ξ)*(1+η)
     }
     static inline void Q4_dN(const Point2& s,
                              double* __restrict__ dNdxi,
@@ -166,6 +184,20 @@ namespace fem {
       dNdeta[1] = -0.25 * (1.0 + xi);
       dNdeta[2] = +0.25 * (1.0 + xi);
       dNdeta[3] = +0.25 * (1.0 - xi);
+
+#ifndef NDEBUG
+      {
+        constexpr double tol = 1e-12;
+        double sx = 0.0, se = 0.0;
+        for (int i = 0; i < 4; ++i) {
+          sx += dNdxi[i];
+          se += dNdeta[i];
+        }
+        assert(std::fabs(sx) < tol && "Q4: sum(dN/dxi) must be 0");
+        assert(std::fabs(se) < tol && "Q4: sum(dN/deta) must be 0");
+      }
+#endif
+
     }
 
     // ============================================================
@@ -227,6 +259,19 @@ namespace fem {
 
       // center
       fill(8, Lx1, Ly1, dLx1, dLy1);
+
+#ifndef NDEBUG
+      {
+        constexpr double tol = 1e-12;
+        double sx = 0.0, se = 0.0;
+        for (int i = 0; i < 9; ++i) {
+          sx += dNdxi[i];
+          se += dNdeta[i];
+        }
+        assert(std::fabs(sx) < tol && "Q9: sum(dN/dxi) must be 0");
+        assert(std::fabs(se) < tol && "Q9: sum(dN/deta) must be 0");
+      }
+#endif
     }
 
     // ============================================================
@@ -250,42 +295,62 @@ namespace fem {
       N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);   // top    (η=+1)
       N[7] = 0.5 * (1.0 - xi)     * (1.0 - eta * eta); // left   (ξ=-1)
     }
+
+    // Q8 serendipity derivatives (node order: 0..3 corners, 4..7 edges)
     static inline void Q8_dN(const Point2& s,
                              double* __restrict__ dNdxi,
                              double* __restrict__ dNdeta) noexcept {
-      const double xi = s[0], eta = s[1];
+      const double xi  = s[0];
+      const double eta = s[1];
 
-      // corners
-      dNdxi[0] = 0.25 * ((eta + xi) + (eta - 1.0));       // derivative of N0 wrt xi
-      dNdeta[0] = 0.25 * ((xi + eta) + (xi - 1.0));       // wrt eta
+      // Corners: N = 1/4 (1+sx*xi)(1+sy*eta)(sx*xi + sy*eta - 1)
+      // dN/dxi  = 1/4 * sx * (1+sy*eta) * [ (sx*xi + sy*eta - 1) + (1+sx*xi) ]
+      // dN/deta = 1/4 * sy * (1+sx*xi)  * [ (sx*xi + sy*eta - 1) + (1+sy*eta) ]
+      auto dN_corner = [&](int sx, int sy, int i) {
+        const double a = 1.0 + sx * xi;
+        const double b = 1.0 + sy * eta;
+        const double c = sx * xi + sy * eta - 1.0;
+        dNdxi[i]  = 0.25 * sx * b * (c + a);
+        dNdeta[i] = 0.25 * sy * a * (c + b);
+      };
 
-      dNdxi[1] = 0.25 * ((eta - xi) - (eta + 1.0));       // N1
-      dNdeta[1] = 0.25 * (-(xi - eta) - (xi + 1.0));
+      // corners 0..3: (-,-), (+,-), (+,+), (-,+)
+      dN_corner(-1, -1, 0);
+      dN_corner(+1, -1, 1);
+      dN_corner(+1, +1, 2);
+      dN_corner(-1, +1, 3);
 
-      dNdxi[2] = 0.25 * ((eta + xi) + (eta + 1.0));       // N2
-      dNdeta[2] = 0.25 * ((xi + eta) + (xi + 1.0));
-
-      dNdxi[3] = 0.25 * ((eta - xi) - (eta - 1.0));       // N3
-      dNdeta[3] = 0.25 * (-(xi - eta) + (xi - 1.0));
-
-      // edges
-      dNdxi[4] = -xi * (1.0 - eta);               // d/dξ [ 0.5*(1-ξ^2)*(1-η) ]
+      // Edges (serendipity)
+      // 4 bottom:  1/2 (1 - xi^2)(1 - eta)
+      dNdxi[4]  = -xi * (1.0 - eta);
       dNdeta[4] = -0.5 * (1.0 - xi * xi);
 
-      dNdxi[5] = 0.5 * (1.0 - eta * eta);         // d/dξ [ 0.5*(1+ξ)*(1-η^2) ]
+      // 5 right:   1/2 (1 + xi)(1 - eta^2)
+      dNdxi[5]  =  0.5 * (1.0 - eta * eta);
       dNdeta[5] = -(1.0 + xi) * eta;
 
-      dNdxi[6] = -xi * (1.0 + eta);               // d/dξ [ 0.5*(1-ξ^2)*(1+η) ]
+      // 6 top:     1/2 (1 - xi^2)(1 + eta)
+      dNdxi[6]  = -xi * (1.0 + eta);
       dNdeta[6] =  0.5 * (1.0 - xi * xi);
 
-      dNdxi[7] = -0.5 * (1.0 - eta * eta);        // d/dξ [ 0.5*(1-ξ)*(1-η^2) ]
+      // 7 left:    1/2 (1 - xi)(1 - eta^2)
+      dNdxi[7]  = -0.5 * (1.0 - eta * eta);
       dNdeta[7] = -(1.0 - xi) * eta;
+
+#ifndef NDEBUG
+      // Partition of unity ⇒ ∑ dN/dξ = 0, ∑ dN/dη = 0 (use a loose tolerance)
+      double sxsum = 0.0, setasum = 0.0;
+      for (int i = 0; i < 8; ++i) {
+        sxsum += dNdxi[i];
+        setasum += dNdeta[i];
+      }
+      assert(std::fabs(sxsum)   < 1e-12 && "Q8: sum(dN/dxi) must be 0");
+      assert(std::fabs(setasum) < 1e-12 && "Q8: sum(dN/deta) must be 0");
+#endif
     }
   };
 
-
-
-  struct Shapes3 {
+  struct Shapes3D {
     // 1D Q2 Lagrange
     static inline void q2_1d_vals(double s, double& L0, double& L1, double& L2) noexcept {
       const double s2 = s * s;
@@ -343,6 +408,22 @@ namespace fem {
       const double c3 = 0.125 * (1 - xi) * (1 + eta);
       dNdz[0] = -c0; dNdz[1] = -c1; dNdz[2] = -c2; dNdz[3] = -c3;
       dNdz[4] =  c0; dNdz[5] =  c1; dNdz[6] =  c2; dNdz[7] =  c3;
+
+#ifndef NDEBUG
+      {
+        constexpr double tol = 1e-12;
+        double sx = 0.0, se = 0.0, sz = 0.0;
+        for (int i = 0; i < 8; ++i) {
+          sx += dNdxi[i];
+          se += dNdeta[i];
+          sz += dNdz[i];
+        }
+        assert(std::fabs(sx) < tol && "H8: sum(dN/dxi) must be 0");
+        assert(std::fabs(se) < tol && "H8: sum(dN/deta) must be 0");
+        assert(std::fabs(sz) < tol && "H8: sum(dN/dz)   must be 0");
+      }
+#endif
+
     }
 
     // ---------- H27 (triquadratic) ----------
@@ -435,6 +516,22 @@ namespace fem {
 
       // cell center (26)
       fill(26, Lx1, Ly1, Lz1, dLx1, dLy1, dLz1);
+
+#ifndef NDEBUG
+      {
+        constexpr double tol = 1e-12;
+        double sx = 0.0, se = 0.0, sz = 0.0;
+        for (int i = 0; i < 27; ++i) {
+          sx += dNdxi[i];
+          se += dNdeta[i];
+          sz += dNdz[i];
+        }
+        assert(std::fabs(sx) < tol && "H27: sum(dN/dxi) must be 0");
+        assert(std::fabs(se) < tol && "H27: sum(dN/deta) must be 0");
+        assert(std::fabs(sz) < tol && "H27: sum(dN/dz)   must be 0");
+      }
+#endif
+
     }
 
     // ---------- H20 (true serendipity) ----------
@@ -571,6 +668,22 @@ namespace fem {
       dNe_z(+1, -1, dNdxi[17], dNdeta[17], dNdz[17]);
       dNe_z(+1, +1, dNdxi[18], dNdeta[18], dNdz[18]);
       dNe_z(-1, +1, dNdxi[19], dNdeta[19], dNdz[19]);
+
+
+#ifndef NDEBUG
+      {
+        constexpr double tol = 1e-12;
+        double sx = 0.0, se = 0.0, sz = 0.0;
+        for (int i = 0; i < 20; ++i) {
+          sx += dNdxi[i];
+          se += dNdeta[i];
+          sz += dNdz[i];
+        }
+        assert(std::fabs(sx) < tol && "H20: sum(dN/dxi) must be 0");
+        assert(std::fabs(se) < tol && "H20: sum(dN/deta) must be 0");
+        assert(std::fabs(sz) < tol && "H20: sum(dN/dz)   must be 0");
+      }
+#endif
     }
   };
 
@@ -623,10 +736,11 @@ namespace fem {
 
 
 // ---------- OctTree (minimum workable stub) ----------
-  template<std::size_t DIM, class Derived>
+  template<std::size_t DIM/*, class Derived*/>
   class OctTree {
     public:
       using Basis = BasisT<DIM>;
+      using PM = PtMake<DIM>;
       // ---- Constructs an empty tree with a single root covering [-1,1]^DIM; clamps minDepth; validates depth vs Morton capacity.
       OctTree(u32 maxDepth, u32 minDepth = 0)
         : _maxDepth(maxDepth),
@@ -657,7 +771,7 @@ namespace fem {
       virtual ~OctTree() = default;
 
 // ---- Morton interleave wrapper (DIM-independent) ----
-      inline uint64_t interleave(const u32Point<DIM>& x) noexcept {
+      inline uint64_t interleave(const u32Point<DIM>& x) const noexcept {
         static_assert(DIM == 2 || DIM == 3, "interleave supports DIM = 2 or 3");
 #ifndef NDEBUG
         // 2D: up to 32 levels; 3D: up to 21 levels.
@@ -665,13 +779,13 @@ namespace fem {
         return interleave_impl(x, std::integral_constant<std::size_t, DIM> {});
       }
 
-// ---- CRTP helpers to access the derived type (DIM-independent) ----
-      inline const Derived& derived() const noexcept {
-        return static_cast<const Derived&>(*this);
-      }
-      inline       Derived& derived()       noexcept {
-        return static_cast<      Derived&>(*this);
-      }
+// // ---- CRTP helpers to access the derived type (DIM-independent) ----
+//       inline const Derived& derived() const noexcept {
+//         return static_cast<const Derived&>(*this);
+//       }
+//       inline       Derived& derived()       noexcept {
+//         return static_cast<      Derived&>(*this);
+//       }
 
 // ---- Resets the tree to a single root; optionally keeps geometry/fields; rebuilds registries (fixed _basisReg length = 3) (DIM-independent) ----
       inline void reset(bool keep_geometry = true, bool keep_fields = true) {
@@ -762,7 +876,7 @@ namespace fem {
       }
 
 // --- geometry setters (DIM-independent) ----
-      void set_physical_hex(const std::array<std::array<double, GeomNodeCount<DIM>::value>, DIM> X) {
+      void set_physical_coordinates(const std::array<std::array<double, GeomNodeCount<DIM>::value>, DIM> X) {
         _X = X;
         _geom_ready = true;
       }
@@ -931,10 +1045,10 @@ namespace fem {
           case Basis3D::H8: {
             out_pts.reserve(8);
             out_pts = {
-              Point<DIM>{x0, y0, z0}, Point<DIM>{x1, y0, z0},
-              Point<DIM>{x1, y1, z0}, Point<DIM>{x0, y1, z0},
-              Point<DIM>{x0, y0, z1}, Point<DIM>{x1, y0, z1},
-              Point<DIM>{x1, y1, z1}, Point<DIM>{x0, y1, z1}
+              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
             };
           } break;
 
@@ -942,61 +1056,61 @@ namespace fem {
             out_pts.reserve(20);
             // corners 0..7
             out_pts = {
-              Point<DIM>{x0, y0, z0}, Point<DIM>{x1, y0, z0},
-              Point<DIM>{x1, y1, z0}, Point<DIM>{x0, y1, z0},
-              Point<DIM>{x0, y0, z1}, Point<DIM>{x1, y0, z1},
-              Point<DIM>{x1, y1, z1}, Point<DIM>{x0, y1, z1}
+              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
             };
             // bottom z=-1 edges 8..11
-            out_pts.push_back(Point<DIM> {xm, y0, z0});
-            out_pts.push_back(Point<DIM> {x1, ym, z0});
-            out_pts.push_back(Point<DIM> {xm, y1, z0});
-            out_pts.push_back(Point<DIM> {x0, ym, z0});
+            out_pts.push_back(PM::mk(xm, y0, z0));
+            out_pts.push_back(PM::mk(x1, ym, z0));
+            out_pts.push_back(PM::mk(xm, y1, z0));
+            out_pts.push_back(PM::mk(x0, ym, z0));
             // top z=+1 edges 12..15
-            out_pts.push_back(Point<DIM> {xm, y0, z1});
-            out_pts.push_back(Point<DIM> {x1, ym, z1});
-            out_pts.push_back(Point<DIM> {xm, y1, z1});
-            out_pts.push_back(Point<DIM> {x0, ym, z1});
+            out_pts.push_back(PM::mk(xm, y0, z1));
+            out_pts.push_back(PM::mk(x1, ym, z1));
+            out_pts.push_back(PM::mk(xm, y1, z1));
+            out_pts.push_back(PM::mk(x0, ym, z1));
             // vertical edges 16..19
-            out_pts.push_back(Point<DIM> {x0, y0, zm});
-            out_pts.push_back(Point<DIM> {x1, y0, zm});
-            out_pts.push_back(Point<DIM> {x1, y1, zm});
-            out_pts.push_back(Point<DIM> {x0, y1, zm});
+            out_pts.push_back(PM::mk(x0, y0, zm));
+            out_pts.push_back(PM::mk(x1, y0, zm));
+            out_pts.push_back(PM::mk(x1, y1, zm));
+            out_pts.push_back(PM::mk(x0, y1, zm));
           } break;
 
           case Basis3D::H27: {
             out_pts.reserve(27);
             // corners 0..7
             out_pts = {
-              Point<DIM>{x0, y0, z0}, Point<DIM>{x1, y0, z0},
-              Point<DIM>{x1, y1, z0}, Point<DIM>{x0, y1, z0},
-              Point<DIM>{x0, y0, z1}, Point<DIM>{x1, y0, z1},
-              Point<DIM>{x1, y1, z1}, Point<DIM>{x0, y1, z1}
+              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
             };
             // bottom z=-1 edges 8..11
-            out_pts.push_back(Point<DIM> {xm, y0, z0});
-            out_pts.push_back(Point<DIM> {x1, ym, z0});
-            out_pts.push_back(Point<DIM> {xm, y1, z0});
-            out_pts.push_back(Point<DIM> {x0, ym, z0});
+            out_pts.push_back(PM::mk(xm, y0, z0));
+            out_pts.push_back(PM::mk(x1, ym, z0));
+            out_pts.push_back(PM::mk(xm, y1, z0));
+            out_pts.push_back(PM::mk(x0, ym, z0));
             // top z=+1 edges 12..15
-            out_pts.push_back(Point<DIM> {xm, y0, z1});
-            out_pts.push_back(Point<DIM> {x1, ym, z1});
-            out_pts.push_back(Point<DIM> {xm, y1, z1});
-            out_pts.push_back(Point<DIM> {x0, ym, z1});
+            out_pts.push_back(PM::mk(xm, y0, z1));
+            out_pts.push_back(PM::mk(x1, ym, z1));
+            out_pts.push_back(PM::mk(xm, y1, z1));
+            out_pts.push_back(PM::mk(x0, ym, z1));
             // vertical edges 16..19
-            out_pts.push_back(Point<DIM> {x0, y0, zm});
-            out_pts.push_back(Point<DIM> {x1, y0, zm});
-            out_pts.push_back(Point<DIM> {x1, y1, zm});
-            out_pts.push_back(Point<DIM> {x0, y1, zm});
+            out_pts.push_back(PM::mk(x0, y0, zm));
+            out_pts.push_back(PM::mk(x1, y0, zm));
+            out_pts.push_back(PM::mk(x1, y1, zm));
+            out_pts.push_back(PM::mk(x0, y1, zm));
             // face centers 20..25
-            out_pts.push_back(Point<DIM> {xm, y0, zm}); // y=y0
-            out_pts.push_back(Point<DIM> {x1, ym, zm}); // x=x1
-            out_pts.push_back(Point<DIM> {xm, y1, zm}); // y=y1
-            out_pts.push_back(Point<DIM> {x0, ym, zm}); // x=x0
-            out_pts.push_back(Point<DIM> {xm, ym, z0}); // bottom face center
-            out_pts.push_back(Point<DIM> {xm, ym, z1}); // top face center
+            out_pts.push_back(PM::mk(xm, y0, zm)); // y=y0
+            out_pts.push_back(PM::mk(x1, ym, zm)); // x=x1
+            out_pts.push_back(PM::mk(xm, y1, zm)); // y=y1
+            out_pts.push_back(PM::mk(x0, ym, zm)); // x=x0
+            out_pts.push_back(PM::mk(xm, ym, z0)); // bottom face center
+            out_pts.push_back(PM::mk(xm, ym, z1)); // top face center
             // cell center 26
-            out_pts.push_back(Point<DIM> {xm, ym, zm});
+            out_pts.push_back(PM::mk(xm, ym, zm));
           } break;
 
           default:
@@ -1018,12 +1132,12 @@ namespace fem {
         if (DIM == 2) {
           // Shapes2 expects Point2
           Point2 s2{ s[0], s[1] };
-          Shapes2::Q9(s2, N);
+          Shapes2D::Q9(s2, N);
         }
         else if (DIM == 3) {
           // Shapes3 expects Point3
           Point3 s3{ s[0], s[1], s[2] };
-          Shapes3::H27(s3, N);
+          Shapes3D::H27(s3, N);
         }
         else {
           static_assert(DIM == 2 || DIM == 3, "Unsupported DIM");
@@ -1081,25 +1195,37 @@ namespace fem {
       }
 
 // ---- Newton inverse map using Q4/H8 warm-up then Q9/H27; generic J-solve (DIM-independent) ----
-      inline bool inverse_map_hex27(const Point<DIM>& x,
-                                    Point<DIM>& s,
-                                    int maxIts = 30, double tol = 1e-12) const {
+      inline bool inverse_map(const Point<DIM>& x,
+                              Point<DIM>& s,
+                              int maxIts = 30, double tol = 1e-12) const {
         require_geometry(); // ensure _X is set: _X[axis][node]
 
-        // init
+        // init at center
         s = {};
         const double tol2 = tol * tol;
 
-        // Node counts (keep warm-up at H8 as requested)
-        constexpr std::size_t Nnodes0 = 8;
-        constexpr std::size_t Nnodes1 = GeomNodeCount<DIM>::value; // 27 for H27
+        // Node counts per DIM
+        const std::size_t Nnodes0 = (DIM == 2 ? 4u : 8u);                       // Q4 or H8
+        const std::size_t Nnodes1 = GeomNodeCount<DIM>::value;                   // Q9 (9) or H27 (27)
 
-        // Buffers
-        double N0[Nnodes0], dN0dx[Nnodes0], dN0dy[Nnodes0], dN0dz[Nnodes0];
-        double N1[Nnodes1], dN1dx[Nnodes1], dN1dy[Nnodes1], dN1dz[Nnodes1];
+        // Buffers (z-components unused in 2D)
+        // warm-up shapes
+        std::vector<double> N0(Nnodes0), dN0dx(Nnodes0), dN0dy(Nnodes0), dN0dz(Nnodes0, 0.0);
+        // full shapes
+        std::vector<double> N1(Nnodes1), dN1dx(Nnodes1), dN1dy(Nnodes1), dN1dz(Nnodes1, 0.0);
 
-        // --- Warm-up with H8 at current s (start at center) ---
-        Shapes3::H8(s, N0);
+        // --- Warm-up with Q4 (2D) or H8 (3D) at current s ---
+        if (DIM == 2) {
+          Point2 s2{ s[0], s[1] };
+          Shapes2D::Q4(s2, N0.data());
+        }
+        else if (DIM == 3) {
+          Point3 s3{ s[0], s[1], s[2] };
+          Shapes3D::H8(s3, N0.data());
+        }
+        else {
+          return false; // unsupported DIM
+        }
 
         // Xp = sum_a N0[a] * X[:,a]
         Point<DIM> Xp{}; // zero-init
@@ -1108,12 +1234,20 @@ namespace fem {
           for (std::size_t k = 0; k < DIM; ++k) Xp[k] += Na * _X[k][a];
         }
 
-        // J at H8
-        Shapes3::H8_dN(s, dN0dx, dN0dy, dN0dz);
+        // J at warm-up shape
+        if (DIM == 2) {
+          Point2 s2{ s[0], s[1] };
+          Shapes2D::Q4_dN(s2, dN0dx.data(), dN0dy.data());
+        }
+        else { /* DIM==3 */
+          Point3 s3{ s[0], s[1], s[2] };
+          Shapes3D::H8_dN(s3, dN0dx.data(), dN0dy.data(), dN0dz.data());
+        }
+
         double J[DIM][DIM] = {{0.0}};
         for (std::size_t a = 0; a < Nnodes0; ++a) {
-          const double dNa[3] = { dN0dx[a], dN0dy[a], dN0dz[a] }; // only first DIM are used
-          for (std::size_t i = 0; i < DIM; ++i) {                 // row: d(X_i)/d(s_j)
+          const double dNa[3] = { dN0dx[a], dN0dy[a], dN0dz[a] }; // only first DIM used
+          for (std::size_t i = 0; i < DIM; ++i) {
             const double Xi_a = _X[i][a];
             for (std::size_t j = 0; j < DIM; ++j) J[i][j] += dNa[j] * Xi_a;
           }
@@ -1136,7 +1270,7 @@ namespace fem {
             ds[0] = (A22 * r[0] - A12 * r[1]) * inv;
             ds[1] = (-A21 * r[0] + A11 * r[1]) * inv;
           }
-          else if (DIM == 3) {
+          else { /* DIM==3 */
             const double A11 = J[0][0], A12 = J[0][1], A13 = J[0][2];
             const double A21 = J[1][0], A22 = J[1][1], A23 = J[1][2];
             const double A31 = J[2][0], A32 = J[2][1], A33 = J[2][2];
@@ -1146,24 +1280,32 @@ namespace fem {
               A13 * (A21 * A32 - A22 * A31);
             if (std::fabs(det) < 1e-20) break;
             const double inv = 1.0 / det;
-            ds[0] = ((A22 * A33 - A23 * A32) * r[0] - (A12 * A33 - A13 * A32) * r[1] + (A12 * A23 - A13 * A22) * r[2]) * inv;
-            ds[1] = (-(A21 * A33 - A23 * A31) * r[0] + (A11 * A33 - A13 * A31) * r[1] - (A11 * A23 - A13 * A21) * r[2]) * inv;
-            ds[2] = ((A21 * A32 - A22 * A31) * r[0] - (A11 * A32 - A12 * A31) * r[1] + (A11 * A22 - A12 * A21) * r[2]) * inv;
-          }
-          else {
-            // Extend here if you add more DIM values
-            assert(false && "Unsupported DIM in inverse_map_hex27 solver");
-            break;
+            ds[0] = ((A22 * A33 - A23 * A32) * r[0]
+                     - (A12 * A33 - A13 * A32) * r[1]
+                     + (A12 * A23 - A13 * A22) * r[2]) * inv;
+            ds[1] = (-(A21 * A33 - A23 * A31) * r[0]
+                     + (A11 * A33 - A13 * A31) * r[1]
+                     - (A11 * A23 - A13 * A21) * r[2]) * inv;
+            ds[2] = ((A21 * A32 - A22 * A31) * r[0]
+                     - (A11 * A32 - A12 * A31) * r[1]
+                     + (A11 * A22 - A12 * A21) * r[2]) * inv;
           }
 
           // Update s := s - ds with clamp to [-1,1]
-          for (std::size_t k = 0; k < DIM; ++k) {
+          for (std::size_t k = 0; k < DIM; ++k)
             s[k] = std::max(-1.0, std::min(1.0, s[k] - ds[k]));
+
+          // Recompute residual with Q9/H27 at updated s
+          if (DIM == 2) {
+            Point2 s2{ s[0], s[1] };
+            Shapes2D::Q9(s2, N1.data());
+          }
+          else { /* DIM==3 */
+            Point3 s3{ s[0], s[1], s[2] };
+            Shapes3D::H27(s3, N1.data());
           }
 
-          // Recompute residual with H27 at updated s
-          Shapes3::H27(s, N1);
-          Xp.fill(0.0);
+          for (std::size_t k = 0; k < DIM; ++k) Xp[k] = 0.0;
           for (std::size_t a = 0; a < Nnodes1; ++a) {
             const double Na = N1[a];
             for (std::size_t k = 0; k < DIM; ++k) Xp[k] += Na * _X[k][a];
@@ -1177,16 +1319,34 @@ namespace fem {
           }
           if (nrm2 < tol2) return true;
 
-          // Next Jacobian with H27 derivatives
-          Shapes3::H27_dN(s, dN1dx, dN1dy, dN1dz);
-          for (std::size_t i = 0; i < DIM; ++i)
-            for (std::size_t j = 0; j < DIM; ++j) J[i][j] = 0.0;
-
-          for (std::size_t a = 0; a < Nnodes1; ++a) {
-            const double dNa[3] = { dN1dx[a], dN1dy[a], dN1dz[a] }; // only first DIM are used
-            for (std::size_t i = 0; i < DIM; ++i) {
-              const double Xi_a = _X[i][a];
-              for (std::size_t j = 0; j < DIM; ++j) J[i][j] += dNa[j] * Xi_a;
+          // Next Jacobian with Q9/H27 derivatives
+          if (DIM == 2) {
+            Point2 s2{ s[0], s[1] };
+            Shapes2D::Q9_dN(s2, dN1dx.data(), dN1dy.data());
+            for (std::size_t i = 0; i < 2; ++i)
+              for (std::size_t j = 0; j < 2; ++j) J[i][j] = 0.0;
+            for (std::size_t a = 0; a < Nnodes1; ++a) {
+              const double dNa0 = dN1dx[a], dNa1 = dN1dy[a];
+              for (std::size_t i = 0; i < 2; ++i) {
+                const double Xi_a = _X[i][a];
+                J[i][0] += dNa0 * Xi_a;
+                J[i][1] += dNa1 * Xi_a;
+              }
+            }
+          }
+          else { /* DIM==3 */
+            Point3 s3{ s[0], s[1], s[2] };
+            Shapes3D::H27_dN(s3, dN1dx.data(), dN1dy.data(), dN1dz.data());
+            for (std::size_t i = 0; i < 3; ++i)
+              for (std::size_t j = 0; j < 3; ++j) J[i][j] = 0.0;
+            for (std::size_t a = 0; a < Nnodes1; ++a) {
+              const double dNa0 = dN1dx[a], dNa1 = dN1dy[a], dNa2 = dN1dz[a];
+              for (std::size_t i = 0; i < 3; ++i) {
+                const double Xi_a = _X[i][a];
+                J[i][0] += dNa0 * Xi_a;
+                J[i][1] += dNa1 * Xi_a;
+                J[i][2] += dNa2 * Xi_a;
+              }
             }
           }
         }
@@ -1443,37 +1603,37 @@ namespace fem {
             const double zm = 0.5 * (z0 + z1);
             int n = 0;
             // corners 0..7
-            sbuf[n++] = Point<DIM> {x0, y0, z0}; sbuf[n++] = Point<DIM> {x1, y0, z0};
-            sbuf[n++] = Point<DIM> {x1, y1, z0}; sbuf[n++] = Point<DIM> {x0, y1, z0};
-            sbuf[n++] = Point<DIM> {x0, y0, z1}; sbuf[n++] = Point<DIM> {x1, y0, z1};
-            sbuf[n++] = Point<DIM> {x1, y1, z1}; sbuf[n++] = Point<DIM> {x0, y1, z1};
+            sbuf[n++] = PM::mk(x0, y0, z0); sbuf[n++] = PM::mk(x1, y0, z0);
+            sbuf[n++] = PM::mk(x1, y1, z0); sbuf[n++] = PM::mk(x0, y1, z0);
+            sbuf[n++] = PM::mk(x0, y0, z1); sbuf[n++] = PM::mk(x1, y0, z1);
+            sbuf[n++] = PM::mk(x1, y1, z1); sbuf[n++] = PM::mk(x0, y1, z1);
             if (nprobe >= 20) {
               // z=-1 edges (8..11)
-              sbuf[n++] = Point<DIM> {xm, y0, z0};
-              sbuf[n++] = Point<DIM> {x1, ym, z0};
-              sbuf[n++] = Point<DIM> {xm, y1, z0};
-              sbuf[n++] = Point<DIM> {x0, ym, z0};
+              sbuf[n++] = PM::mk(xm, y0, z0);
+              sbuf[n++] = PM::mk(x1, ym, z0);
+              sbuf[n++] = PM::mk(xm, y1, z0);
+              sbuf[n++] = PM::mk(x0, ym, z0);
               // z=+1 edges (12..15)
-              sbuf[n++] = Point<DIM> {xm, y0, z1};
-              sbuf[n++] = Point<DIM> {x1, ym, z1};
-              sbuf[n++] = Point<DIM> {xm, y1, z1};
-              sbuf[n++] = Point<DIM> {x0, ym, z1};
+              sbuf[n++] = PM::mk(xm, y0, z1);
+              sbuf[n++] = PM::mk(x1, ym, z1);
+              sbuf[n++] = PM::mk(xm, y1, z1);
+              sbuf[n++] = PM::mk(x0, ym, z1);
               // vertical edges (16..19)
-              sbuf[n++] = Point<DIM> {x0, y0, zm};
-              sbuf[n++] = Point<DIM> {x1, y0, zm};
-              sbuf[n++] = Point<DIM> {x1, y1, zm};
-              sbuf[n++] = Point<DIM> {x0, y1, zm};
+              sbuf[n++] = PM::mk(x0, y0, zm);
+              sbuf[n++] = PM::mk(x1, y0, zm);
+              sbuf[n++] = PM::mk(x1, y1, zm);
+              sbuf[n++] = PM::mk(x0, y1, zm);
             }
             if (nprobe == 27) {
               // face centers (20..25)
-              sbuf[n++] = Point<DIM> {xm, y0, zm};
-              sbuf[n++] = Point<DIM> {x1, ym, zm};
-              sbuf[n++] = Point<DIM> {xm, y1, zm};
-              sbuf[n++] = Point<DIM> {x0, ym, zm};
-              sbuf[n++] = Point<DIM> {xm, ym, z0};
-              sbuf[n++] = Point<DIM> {xm, ym, z1};
+              sbuf[n++] = PM::mk(xm, y0, zm);
+              sbuf[n++] = PM::mk(x1, ym, zm);
+              sbuf[n++] = PM::mk(xm, y1, zm);
+              sbuf[n++] = PM::mk(x0, ym, zm);
+              sbuf[n++] = PM::mk(xm, ym, z0);
+              sbuf[n++] = PM::mk(xm, ym, z1);
               // cell center (26)
-              sbuf[n++] = Point<DIM> {xm, ym, zm};
+              sbuf[n++] = PM::mk(xm, ym, zm);
             }
             return n;
           }
@@ -1716,54 +1876,76 @@ namespace fem {
         return _tree_nodes[idx];
       }
 
-      // Evaluate field directly in parent coordinates (xi, eta, zeta).
-// Locates the leaf, maps to local [-1,1]^3, and interpolates.
+// ---- evaluate scalar field at parent coords for quad/octant bases (DIM-independent) ----
       bool evaluate_field_on_parent(u32 fid, const Point<DIM>& s, double& value) const {
         if (fid >= _fields.size()) return false;
 
-        u32    leaf_node_idx = npos32;
-        Point<DIM> shat;
+        u32        leaf_node_idx = npos32;
+        Point<DIM> shat; // local reference coords in [-1,1]^DIM
 
-        // 1) locate leaf and local reference coords in [-1,1]^3
-        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) {
-          return false;
-        }
+        // 1) locate leaf and local reference coords in [-1,1]^DIM
+        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) return false;
 
         // 2) leaf node index -> position in coefficient storage
         const u32 leaf_pos = (leaf_node_idx < _node2leafpos.size()) ? _node2leafpos[leaf_node_idx] : npos32;
         if (leaf_pos == npos32) return false;
 
         // 3) access field + connectivity
-        const Field&          f = _fields[fid];
-        const BasisRegistry<DIM>&  R = _basisReg[(int)f.basis_id];
-        const auto&           conn = R.elem2glob[leaf_pos];
+        const Field&              f = _fields[fid];
+        const BasisRegistry<DIM>& R = _basisReg[(int)f.basis_id];
+        const auto&               conn = R.elem2glob[leaf_pos];
 
-        // 4) interpolate by basis
-        switch (to_basis<DIM>(f.basis_id)) {
-        case Basis::H8: {
-          double N[8];
-          Shapes3::H8(shat, N);
-          value = 0.0;
-          for (int a = 0; a < 8; ++a) value += N[a] * f.nodal[conn[a]];
-        } break;
+        value = 0.0;
 
-        case Basis::H20: {
-          double N[20];
-          Shapes3::H20(shat, N);
-          value = 0.0;
-          for (int a = 0; a < 20; ++a) value += N[a] * f.nodal[conn[a]];
-        } break;
+        // Runtime DIM branch (C++14): construct both s2/s3 safely, use enum casts per DIM
+        if (DIM == 2) {
+          Point2 s2{ shat[0], shat[1] };
 
-        case Basis::H27: {
-          double N[27];
-          Shapes3::H27(shat, N);
-          value = 0.0;
-          for (int a = 0; a < 27; ++a) value += N[a] * f.nodal[conn[a]];
-        } break;
+          switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
+          case Basis2D::Q4: {
+            double N[4];  Shapes2D::Q4(s2, N);
+            for (int a = 0; a < 4; ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q8: {
+            double N[8];  Shapes2D::Q8(s2, N);
+            for (int a = 0; a < 8; ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q9: {
+            double N[9];  Shapes2D::Q9(s2, N);
+            for (int a = 0; a < 9; ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
+          }
+
+        }
+        else if (DIM == 3) {
+          // Only access shat[2] in the DIM==3 path
+          Point3 s3{ shat[0], shat[1], shat[2] };
+
+          switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
+          case Basis3D::H8: {
+            double N[8];   Shapes3D::H8(s3, N);
+            for (int a = 0; a < 8;  ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H20: {
+            double N[20];  Shapes3D::H20(s3, N);
+            for (int a = 0; a < 20; ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H27: {
+            double N[27];  Shapes3D::H27(s3, N);
+            for (int a = 0; a < 27; ++a) value += N[a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
+          }
+
+        }
+        else {
+          return false; // unsupported DIM
         }
 
         return true;
       }
+
 
 
 // ---- Locates the leaf for parent-space point s and maps it to that leaf’s local [-1,1]^DIM (DIM-independent) ----
@@ -1780,22 +1962,25 @@ namespace fem {
       }
 
 
-// Refine tree so that each physical point lies in a leaf of at least 'maxDepthTarget'.
-// Caches ONLY the inverse map (xi,eta,zeta) per point; uses _node2leafpos instead of per-pass node_to_pos.
-      void refine_to_contain_points(const std::vector<Point<DIM>>& pts,
-                                    u32 maxDepthTarget) {
+// ---- refine so each point lies in a leaf by at least maxDepthTarget — caches only inverse-map per point (DIM-independent) ----
+      void refine_to_contain_points(const std::vector<Point<DIM>>& pts, u32 maxDepthTarget) {
         if (pts.empty()) return;
 
-        // ---- Cache inverse map (xi,eta,zeta) once for all points ----
+        // ---- Cache inverse map once for all points ----
         struct XiEtaZeta {
           Point<DIM> xi;
-          bool   valid;
+          bool       valid;
         };
         std::vector<XiEtaZeta> pm(pts.size());
+
         for (size_t i = 0; i < pts.size(); ++i) {
           Point<DIM> s;
-          if (!inverse_map_hex27(pts[i], s)) {
-            pm[i] = { {0.0, 0.0, 0.0}, false };
+          bool ok = false;
+
+          ok = inverse_map(pts[i], s);
+
+          if (!ok) {
+            pm[i] = { Point<DIM>{}, false };
           }
           else {
             pm[i] = { s, true };
@@ -1816,7 +2001,7 @@ namespace fem {
           for (size_t i = 0; i < pm.size(); ++i) {
             if (!pm[i].valid) continue;
 
-            // Reuse cached (xi,eta,zeta); do only the tree lookup per pass
+            // Reuse cached (ξ,η[,ζ]); do only the tree lookup per pass
             const u32 node = locate_leaf_on_parent(pm[i].xi);
             if (node == npos32) continue;
 
@@ -1846,16 +2031,14 @@ namespace fem {
           u32 to_split = 0;
           for (u32 pos = 0; pos < nleaves; ++pos) if (mark_by_leaf[pos]) ++to_split;
 
-          // Net new nodes per split in 3D octree: +7 tree nodes (8 kids minus parent as leaf)
+          // Net new nodes/leaves per split: (1<<DIM) - 1  (children minus the parent-as-leaf)
+          const u32 add_per_split = (1u << DIM) - 1u;
           if (to_split) {
-            _tree_nodes.reserve(_tree_nodes.size() + to_split * 7u);
-            _leaves.reserve(_leaves.size() + to_split * 7u); // parent replaced by 8 children → +7 leaves
+            _tree_nodes.reserve(_tree_nodes.size() + to_split * add_per_split);
+            _leaves.reserve(_leaves.size() + to_split * add_per_split);
           }
 
-          // Assumes you have a 3D version that refines leaves by *position* mark:
-          // - It should read marks via should_refine_pos(leaf_pos)
-          // - It should split a leaf into 8 children
-          // - It should update _leaves and _tree_nodes accordingly
+          // Refine marked leaves (by position)
           const std::size_t nsplit = refine_pass_min(should_refine_pos);
           if (nsplit == 0) break; // reached max depth locally or topology unchanged
 
@@ -1863,14 +2046,13 @@ namespace fem {
           // at the top of the next loop iteration.
         }
 
-        // Keep mesh 1-irregular and refresh bookkeeping
+        // Keep mesh balanced and refresh bookkeeping
         enforce_balance();
         post_topology_update();
       }
 
-// Perform one refinement pass with a minimal predicate: bool(u32 leaf_pos)
-// DIM-independent (works for DIM==2,3,...) — splits each refined leaf into 2^DIM children.
-// No geometry probing; fastest path.
+
+// ---- refine pass — splits each selected leaf into 2^DIM children — (DIM-independent) ----
       template<class RefinePred>
       std::size_t refine_pass_min(RefinePred&& should_refine) {
         std::vector<u32> newLeaves;
@@ -1880,8 +2062,8 @@ namespace fem {
         const u32 n0 = static_cast<u32>(leaf_count()); // snapshot leaf count
 
         for (u32 idx = 0; idx < n0; ++idx) {
-          const u32 leaf_node_idx = _leaves[idx];                 // index into _tree_nodes
-          const TreeNode<DIM> leaf_copy = _tree_nodes[leaf_node_idx]; // snapshot (safe vs reallocation)
+          const u32 leaf_node_idx = _leaves[idx];                      // index into _tree_nodes
+          const TreeNode<DIM> leaf_copy = _tree_nodes[leaf_node_idx];  // snapshot (safe vs reallocation)
 
           if (leaf_copy.is_leaf && leaf_copy.level < _maxDepth && should_refine(idx)) {
             // Parent becomes internal; reset its child slots
@@ -1904,7 +2086,7 @@ namespace fem {
               TreeNode<DIM> child{};
               child.ix      = cix;
               child.level   = leaf_copy.level + 1;
-              child.morton  = interleave(cix);            // or derived().interleave(cix) in CRTP
+              child.morton  = interleave(cix);           // or derived().interleave(cix) in CRTP
               child.is_leaf = true;
               child.parent  = leaf_node_idx;
               for (std::size_t c = 0; c < TreeNode<DIM>::NCHILD; ++c)
@@ -1929,6 +2111,7 @@ namespace fem {
         _leaves.swap(newLeaves);
         return refined;
       }
+
 
 // ---- Simple cache-friendly FIFO ring buffer with advancing head (DIM-independent) ----
       struct RingQ {
@@ -2095,27 +2278,25 @@ namespace fem {
         }
       }
 
-
-      // Conservative coarsen cycle using snapshot + parent coords; rebuild all fields (3D)
+// ---- conservative coarsen cycle using snapshot + parent coords; rebuild all fields — (DIM-independent) ----
       std::size_t coarsen_only_cycle_safe(u32 fid,
                                           double tau_coarse,
                                           OctTree& snapshot,
                                           u32 max_passes = 10,
-                                          Basis probe_basis = Basis::H27) {
+                                          Basis probe_basis = static_cast<Basis>(2)) { // highest-order for DIM (Q9/H27)
         // Freeze current state for conservative evaluation/transfer
         snapshot.assign_from(*this);
 
         // Coarsen predicate (evaluated on the snapshot, in parent coords)
         auto pred = [&](u64 /*parent_morton*/, u32 level,
-                        const std::vector<Point<DIM>>& pts_s,     // parent (xi,eta,zeta)
+                        const std::vector<Point<DIM>>& pts_s,     // parent (ξ,η[,ζ])
                         const std::vector<Point<DIM>>& /*pts_xyz*/,
         const std::vector<std::array<double, GeomNodeCount<DIM>::value>>& /*Nvals*/) -> bool {
           if (level <= min_depth()) return false;
           if (pts_s.empty()) return false;
 
           double v0;
-          if (!snapshot.evaluate_field_on_parent(fid, pts_s[0], v0))
-            return false;
+          if (!snapshot.evaluate_field_on_parent(fid, pts_s[0], v0)) return false;
 
           double mn = v0, mx = v0;
           for (size_t i = 1; i < pts_s.size(); ++i) {
@@ -2143,15 +2324,15 @@ namespace fem {
 
         // Rebuild all fields from the snapshot (conservative transfer) on nodal sets
         for (u32 f = 0; f < _fields.size(); ++f) {
-          rebuild_field_from(snapshot, f);
+          rebuild_field_from(snapshot, f);   // ensure rebuild_field_from is DIM-aware (2D/3D)
         }
 
         return total;
       }
 
-
-      // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes (global nodal storage) — 3D
+// ---- rebuild field from another tree by sampling at parent nodes — (DIM-independent) ----
       void rebuild_field_from(const OctTree& src, u32 fid) {
+        static_assert(DIM == 2 || DIM == 3, "rebuild_field_from supports DIM = 2 or 3");
         assert(fid < _fields.size() && fid < src._fields.size());
 
         Field&       dst = _fields[fid];
@@ -2164,14 +2345,15 @@ namespace fem {
         dst.nodal.resize(Rdst.nodes.size());
 
         // Quantization helper that matches src.get_or_insert_gid(...)
-        const u32 nodeBits_src = src._maxDepth + 1;                  // include midpoints at last level
-        assert(nodeBits_src <= 21 && "node index packing requires (_maxDepth + 1) <= 21");
-        const u32 nodesN_src   = (1u << nodeBits_src);
+        const u32 maxBitsPerAxis = (DIM == 3) ? 21u : 32u;     // fits 64-bit Morton
+        const u32 nodeBits_src   = src._maxDepth + 1u;         // include midpoints at last level
+        assert(nodeBits_src <= maxBitsPerAxis && "node index packing exceeds Morton capacity for this DIM");
+        const u32 nodesN_src     = (1u << nodeBits_src);
 
         auto to_idx_src = [nodesN_src](double ss) -> u32 {
           if (ss <= -1.0) return 0u;
-          if (ss >=  1.0) return nodesN_src - 1u;                    // keep within range, match src
-          double t = (ss + 1.0) * double(nodesN_src) * 0.5;          // [-1,1] -> [0, nodesN)
+          if (ss >=  1.0) return nodesN_src - 1u;              // clamp
+          const double t = (ss + 1.0) * (double(nodesN_src) * 0.5); // [-1,1] -> [0, nodesN)
           long long li = llround(t);
           if (li < 0) li = 0;
           if (li > (long long)(nodesN_src - 1)) li = (long long)(nodesN_src - 1);
@@ -2179,25 +2361,30 @@ namespace fem {
         };
 
         for (size_t gid = 0; gid < Rdst.nodes.size(); ++gid) {
-          const auto& pr = Rdst.nodes[gid].parent;                   // (xi,eta,zeta) at destination
-          const u32 ix = to_idx_src(pr[0]);
-          const u32 iy = to_idx_src(pr[1]);
-          const u32 iz = to_idx_src(pr[2]);
-          const u64 key = interleave({ix, iy, iz});                   // same 3-way Morton packing as src
+          const auto& pr = Rdst.nodes[gid].parent;             // parent coord (ξ,η[,ζ])
 
+          // Integer parent-grid indices per axis (DIM-generic)
+          u32Point<DIM> idx{};
+          for (std::size_t k = 0; k < DIM; ++k) idx[k] = to_idx_src(pr[k]);
+
+          // Morton key with DIM-appropriate interleave; use *this* (non-const) utility
+          const u64 key = this->interleave(idx);
+
+          // Fast path: direct copy if the node exists in src's registry
           auto it = Rsrc.nodeMap.find(key);
           if (it != Rsrc.nodeMap.end()) {
-            // Fast path: direct copy from src nodal storage
             dst.nodal[gid] = s.nodal[it->second];
+            continue;
           }
-          else {
-            // Fallback: sample from src at parent coords (rare if depths/registries differ)
-            double val = std::numeric_limits<double>::quiet_NaN();
-            const bool ok = src.evaluate_field_on_parent(fid, Point<DIM> {pr[0], pr[1], pr[2]}, val);
-            dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
-          }
+
+          // Fallback: sample from src at the exact parent coord (works for DIM=2 or 3)
+          double val = std::numeric_limits<double>::quiet_NaN();
+          Point<DIM> p{}; for (std::size_t k = 0; k < DIM; ++k) p[k] = pr[k];
+          const bool ok = src.evaluate_field_on_parent(fid, p, val);
+          dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
         }
       }
+
 
 
 // ---- Returns the element-to-global connectivity for the given basis (DIM-independent) ----
@@ -2210,7 +2397,7 @@ namespace fem {
         return _basisReg[static_cast<int>(b)].nodes;
       }
 
-
+// ---- write VTU (DIM-independent) ----
 // Print field on a vtu binary mesh to visualize on Paraview
       bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
                             bool cell_centered = false) const {
@@ -2230,7 +2417,8 @@ namespace fem {
         for (const auto &n : R.nodes) {
           flatPoints.push_back(n.physical[0]);
           flatPoints.push_back(n.physical[1]);
-          flatPoints.push_back(n.physical[2]);
+          if (DIM == 3) flatPoints.push_back(n.physical[2]);
+          else          flatPoints.push_back(0.0); // 2D → embed in z=0 plane
         }
 
         // -------- Connectivity --------
@@ -2238,41 +2426,68 @@ namespace fem {
         std::vector<int> offsets;
         std::vector<unsigned char> types;
 
-        const int perCell = (b == Basis::H8 ? 8 : (b == Basis::H20 ? 20 : 27));
+        auto per_cell = [&](Basis bb) -> int {
+          if (DIM == 3) {
+            switch (static_cast<Basis3D>(bb)) {
+            case Basis3D::H8:  return 8;
+            case Basis3D::H20: return 20;
+            case Basis3D::H27: return 27;
+            }
+          }
+          else {
+            switch (static_cast<Basis2D>(bb)) {
+            case Basis2D::Q4: return 4;
+            case Basis2D::Q8: return 8;
+            case Basis2D::Q9: return 9;
+            }
+          }
+          return 0;
+        };
+
+        auto vtk_cell_type = [&](Basis bb) -> unsigned char {
+          if (DIM == 3) {
+            // VTK_HEXAHEDRON=12, VTK_QUADRATIC_HEXAHEDRON=25, VTK_TRIQUADRATIC_HEXAHEDRON=29
+            switch (static_cast<Basis3D>(bb)) {
+            case Basis3D::H8:  return 12;
+            case Basis3D::H20: return 25;
+            case Basis3D::H27: return 29;
+            }
+          }
+          else {
+            // VTK_QUAD=9, VTK_QUADRATIC_QUAD=23 (8-node serendipity), VTK_BIQUADRATIC_QUAD=28 (9-node with center)
+            switch (static_cast<Basis2D>(bb)) {
+            case Basis2D::Q4: return 9;
+            case Basis2D::Q8: return 23;
+            case Basis2D::Q9: return 28;
+            }
+          }
+          return 0;
+        };
+
+        const int perCell = per_cell(b);
         connectivity.reserve(numCells * perCell);
         offsets.reserve(numCells);
         types.reserve(numCells);
 
-        auto vtk_cell_type = [](Basis bb) -> unsigned char {
-          // VTK: HEX=12, QUADRATIC_HEX=25, TRIQUADRATIC_HEX=29
-          switch (bb) {
-          case Basis::H8:  return 12;
-          case Basis::H20: return 25;
-          case Basis::H27: return 29;
-          }
-          return 12;
-        };
-
         // H27 tail remap (indices 20..26 in our internal ordering → VTK ordering)
-        // Confirmed correct: {20+3, 20+1, 20+0, 20+2, 20+4, 20+5, 20+6}
+        // Confirmed: {20+3, 20+1, 20+0, 20+2, 20+4, 20+5, 20+6}
         const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}};
 
         int offset = 0;
         for (size_t e = 0; e < numCells; ++e) {
           const auto &conn = R.elem2glob[e];
 
-          if (b == Basis::H27) {
-            // Expect 27 nodes. First 20 match VTK; remap the last 7 via tail_map.
+          if (DIM == 3 && static_cast<Basis3D>(b) == Basis3D::H27) {
+            // First 20 match VTK; remap the last 7.
             assert(conn.size() == 27 && "H27 element must have 27 nodes");
             connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
-            for (int i = 0; i < 7; ++i) {
-              connectivity.push_back(conn[20 + tail_map[i]]);
-            }
+            for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
             offset += 27;
           }
           else {
+            // Q4/Q8/Q9 and H8/H20 match VTK ordering with the node conventions used above.
             connectivity.insert(connectivity.end(), conn.begin(), conn.end());
-            offset += (int)conn.size();
+            offset += static_cast<int>(conn.size());
           }
 
           offsets.push_back(offset);
@@ -2286,11 +2501,11 @@ namespace fem {
           for (size_t e = 0; e < numCells; ++e) {
             const auto &conn = R.elem2glob[e];
             double v = 0.0; for (int gid : conn) v += fld.nodal[gid];
-            cellData.push_back(v / (double)conn.size());
+            cellData.push_back(v / static_cast<double>(conn.size()));
           }
         }
         else {
-          pointData = fld.nodal; // unchanged: points array order == registry order
+          pointData = fld.nodal; // points array order == registry order
         }
 
         // -------- XML --------
@@ -2329,12 +2544,12 @@ namespace fem {
         return true;
       }
 
-// ---- global maximum depth allowed (unchanged) ----
+// ---- global maximum depth allowed (unchanged) DIM-independent) ----
       u32 max_depth() const {
         return _maxDepth;
       }
 
-      // ---- Returns the X-coordinates array of the coarse geometry (DIM-independent) ----
+// ---- Returns the X-coordinates array of the coarse geometry (DIM-independent) ----
       inline const std::array<double, GeomNodeCount<DIM>::value>& get_X() const noexcept {
         return _X[0];
       }
@@ -2351,7 +2566,7 @@ namespace fem {
         return _X[2];
       }
 
-// ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent)
+// ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent) ----
       std::vector<Point<DIM>> extract_node_parent_coords_in_level_range(u32 lev_min,
                                                                         u32 lev_max,
       Basis basis) const {
@@ -2543,26 +2758,8 @@ namespace fem {
       mutable std::vector<u32> _node2leafpos; // size == _tree_nodes.size(), npos32 default
       std::unordered_set<Basis, BasisHasher> _activeBases;
 
-      BasisRegistry<DIM> _basisReg[3]; // 0:H8, 1:H20, 2:H27
+      BasisRegistry<DIM> _basisReg[3]; // 0:Q4/H8, 1:Q8/H20, 2:Q9/H27
 
   };
 
-
-
-
-
-
 } // namespace fem
-
-
-
-
-
-
-
-
-
-
-
-
-
