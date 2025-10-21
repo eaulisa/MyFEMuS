@@ -44,8 +44,6 @@ namespace fem {
     }
   };
 
-
-
   template<std::size_t DIM>
   using u32Point = std::array<u32, DIM>;
 
@@ -100,7 +98,6 @@ namespace fem {
   template <> struct GeomNodeCount<2> : std::integral_constant<std::size_t, 9>  {}; // Q9
   template <> struct GeomNodeCount<3> : std::integral_constant<std::size_t, 27> {}; // H27
 
-
 // ---------- Morton helpers (3-way) ----------
   static inline uint64_t expand3_21(uint64_t v) {
     v &= 0x1FFFFF;
@@ -112,8 +109,7 @@ namespace fem {
     return v;
   }
 
-
-  // 2D helper: expand 32 LSBits to 0b a0 0 a1 0 a2 ...
+// 2D helper: expand 32 LSBits to 0b a0 0 a1 0 a2 ...
   static inline uint64_t expand2_32(uint64_t v) noexcept {
     v &= 0x00000000FFFFFFFFull;
     v = (v | (v << 16)) & 0x0000FFFF0000FFFFull;
@@ -2680,81 +2676,148 @@ namespace fem {
         return _X[2];
       }
 
-// ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent) ----
+// ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent)
       inline void extract_node_parent_coords_in_level_range(u32 lev_min,
                                                             u32 lev_max,
                                                             Basis basis,
-                                                            std::vector<Point<DIM>> &coords) const {
-
+                                                            std::vector<Point<DIM>>& coords) const {
         coords.clear();
-        coords.reserve((_level_offset[lev_max + 1] - _level_offset[lev_min]) * NDOFS[DIM][to_basis_id<DIM>(basis)]);
 
-        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
-          std::vector<Point<DIM>> s;                    // parent-space nodes for this leaf
+        // Need level offsets prepared
+        if (_level_offset.empty()) return;
+
+        // Levels present are [0 .. max_level_present]; index max_level_present+1 is the sentinel
+        const u32 max_level_present =
+          static_cast<u32>(_level_offset.size() >= 2 ? _level_offset.size() - 2 : 0);
+
+        // Clamp and normalize input range
+        u32 Lmin = (lev_min > max_level_present) ? max_level_present : lev_min;
+        u32 Lmax = (lev_max > max_level_present) ? max_level_present : lev_max;
+        if (Lmin > Lmax) std::swap(Lmin, Lmax);
+
+        // Compute half-open span [lo, hi)
+        const u32 lo = _level_offset[Lmin];
+        const u32 hi = _level_offset[Lmax + 1];
+
+        // Empty span? nothing to do
+        if (lo >= hi) return;
+
+        // Per-leaf node count for the requested basis
+        const uint8_t bid = to_basis_id<DIM>(basis);     // 0..2
+        const u32 ndofs_per_leaf = NDOFS[DIM][bid];
+
+        // Conservative reserve
+        coords.reserve(static_cast<size_t>(hi - lo) * ndofs_per_leaf);
+
+        // Scratch buffer for per-leaf parent nodes; avoid realloc by reserving once
+        std::vector<Point<DIM>> s;
+        s.reserve(ndofs_per_leaf);
+
+        for (u32 leaf_pos = lo; leaf_pos < hi; ++leaf_pos) {
+          s.clear();
           extract_leaf_parent_coords(basis, leaf_pos, s);
-          coords.insert(coords.end(), s.begin(), s.end());
+          if (!s.empty()) {
+            coords.insert(coords.end(), s.begin(), s.end());
+          }
         }
       }
 
+
 // ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of
 //      the Q9/H27 nodes where field fid reaches min and max on that leaf. (DIM-independent) ----
+
       inline void extract_parent_coords_by_field_extremes_in_level_range(u32 lev_min,
                                                                          u32 lev_max,
                                                                          u32 fid,
                                                                          std::vector<Point<DIM>>& out) const {
-        // Always probe with highest-order geometry basis (Q9 in 2D, H27 in 3D)
-        Basis basisHi;
-        if (DIM == 2) basisHi = static_cast<Basis>(Basis2D::Q9);
-        else          basisHi = static_cast<Basis>(Basis3D::H27);
-
-        // 1) use level_offset to reserve
         out.clear();
-        out.reserve(_level_offset[lev_max + 1] - _level_offset[lev_min]);
 
-        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
+        // Must have offsets computed: offsets[L] = start of level L, offsets[maxL+1] = sentinel
+        if (_level_offset.empty()) return;
 
-          std::vector<Point<DIM>> s;                 // parent nodes (Q9/H27)
+        // Valid level range present in this tree:
+        // If size is K, levels are [0 .. K-2], and index K-1 is the sentinel (== _leaves.size()).
+        const u32 max_level_present = static_cast<u32>(_level_offset.size() >= 2 ? _level_offset.size() - 2 : 0);
+
+        // Clamp and normalize input range
+        u32 Lmin = (lev_min > max_level_present) ? max_level_present : lev_min;
+        u32 Lmax = (lev_max > max_level_present) ? max_level_present : lev_max;
+        if (Lmin > Lmax) std::swap(Lmin, Lmax);
+
+        // Nothing to do?
+        if (_level_offset[Lmin] == _level_offset[Lmax + 1]) return;
+
+        // Reserve: at most 2 points per leaf (min+max), for all leaves in [Lmin, Lmax]
+        const u32 lo = _level_offset[Lmin];
+        const u32 hi = _level_offset[Lmax + 1];
+        const u32 nleafs = hi - lo;
+        out.reserve(static_cast<size_t>(nleafs) * 2u);
+
+        // Always sample extremes on the highest geometry basis (Q9/H27)
+        const Basis basisHi = (DIM == 2)
+                              ? static_cast<Basis>(Basis2D::Q9)
+                              : static_cast<Basis>(Basis3D::H27);
+
+        for (u32 leaf_pos = lo; leaf_pos < hi; ++leaf_pos) {
+          std::vector<Point<DIM>> s;
           extract_leaf_parent_coords(basisHi, leaf_pos, s);
           if (s.empty()) continue;
 
-          // Find min/max field values over the nodal sample
-          double v_min = std::numeric_limits<double>::infinity();
-          double v_max = -std::numeric_limits<double>::infinity();
-          u32 idx_min = 0, idx_max = 0;
+          double vmin =  std::numeric_limits<double>::infinity();
+          double vmax = -std::numeric_limits<double>::infinity();
+          u32 imin = 0, imax = 0;
 
           for (u32 i = 0; i < static_cast<u32>(s.size()); ++i) {
             double val = std::numeric_limits<double>::quiet_NaN();
-            (void) evaluate_field_on_parent(fid, s[i], val);
-            if (val < v_min) {
-              v_min = val;
-              idx_min = i;
+            (void)evaluate_field_on_parent(fid, s[i], val);
+            if (val < vmin) {
+              vmin = val;
+              imin = i;
             }
-            if (val > v_max) {
-              v_max = val;
-              idx_max = i;
+            if (val > vmax) {
+              vmax = val;
+              imax = i;
             }
           }
 
-          // Append min location (always), and max location if different
-          out.push_back(s[idx_min]);
-          if (idx_max != idx_min) out.push_back(s[idx_max]);
+          out.push_back(s[imin]);
+          if (imax != imin) out.push_back(s[imax]);
         }
       }
 
-      // ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent) ----
+      // ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent)
       inline void extract_leaf_centers_in_level_range(u32 lev_min,
                                                       u32 lev_max,
                                                       std::vector<Point<DIM>>& centers) const {
-
         centers.clear();
-        centers.reserve(_level_offset[lev_max + 1] - _level_offset[lev_min]);
 
-        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
+        // Need level offsets available
+        if (_level_offset.empty()) return;
+
+        // Levels present are [0 .. max_level_present]; index max_level_present+1 is the sentinel
+        const u32 max_level_present =
+          static_cast<u32>(_level_offset.size() >= 2 ? _level_offset.size() - 2 : 0);
+
+        // Clamp and normalize input range
+        u32 Lmin = (lev_min > max_level_present) ? max_level_present : lev_min;
+        u32 Lmax = (lev_max > max_level_present) ? max_level_present : lev_max;
+        if (Lmin > Lmax) std::swap(Lmin, Lmax);
+
+        // No leaves in the range? (start == end)
+        if (_level_offset[Lmin] == _level_offset[Lmax + 1]) return;
+
+        const u32 lo = _level_offset[Lmin];
+        const u32 hi = _level_offset[Lmax + 1];
+
+        centers.reserve(static_cast<size_t>(hi - lo));
+
+        for (u32 leaf_pos = lo; leaf_pos < hi; ++leaf_pos) {
           Point<DIM> s_center{};
           extract_leaf_parent_center_coord(leaf_pos, s_center); // Q9/H27 center internally
           centers.push_back(s_center);
         }
       }
+
 
     private:
       // ---- Computes the axis-aligned bounds [x0, x1] of leaf node n in parent space [-1,1]^DIM (DIM-independent) ----
