@@ -149,11 +149,9 @@ namespace fem {
     coordsLeftOld.clear();
     coordsStayedNew.clear();
 
-    // sample nodes at finest level using highest-order geometry basis (id==2 ⇒ Q9/H27)
-    const auto s0_all =
-      tree0.extract_node_parent_coords_in_level_range(
-        tree0.max_depth(), tree0.max_depth(),
-        static_cast<BasisT<DIM>>(2));
+    //sample nodes at finest level using highest-order geometry basis (id==0 ⇒ Q4/H8)
+    std::vector<Point<DIM>> s0_all;
+    tree0.extract_node_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(), static_cast<BasisT<DIM>>(0), s0_all);
 
     const double t0_abs = time - dt;
 

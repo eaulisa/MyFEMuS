@@ -850,10 +850,12 @@ namespace fem {
 
         const u32 Lmax = std::max(oct1.max_depth(), oct2.max_depth());
 
+        std::vector<Point<DIM>> s_all{};
         // Refine to match 'oct1'
         for (u32 L = 0; L <= Lmax; ++L) {
           // sample parent nodes of level L on oct1 using the highest geometry basis
-          const auto s_all = oct1.extract_node_parent_coords_in_level_range(L, L, geomHi);
+          s_all.resize(0);
+          oct1.extract_leaf_centers_in_level_range(L, L, s_all);
           if (s_all.empty()) continue;
 
           std::vector<Point<DIM>> pts_phys;
@@ -866,7 +868,8 @@ namespace fem {
 
         // Refine to match 'oct2'
         for (u32 L = 0; L <= Lmax; ++L) {
-          const auto s_all = oct2.extract_node_parent_coords_in_level_range(L, L, geomHi);
+          s_all.resize(0);
+          oct2.extract_leaf_centers_in_level_range(L, L, s_all);
           if (s_all.empty()) continue;
 
           std::vector<Point<DIM>> pts_phys;
@@ -939,6 +942,7 @@ namespace fem {
         swap(a._root, b._root);
         swap(a._node2leafpos, b._node2leafpos);
         swap(a._activeBases, b._activeBases);
+        swap(a._level_offset, b._level_offset);
       }
 
 // ---- Sets the minimum refinement depth (clamped to _maxDepth; DIM-independent).
@@ -972,13 +976,59 @@ namespace fem {
         assert(_geom_ready && "Geometry not initialized: call the appropriate set_*_geometry(...) before using geometric ops.");
       }
 
-// ---- Re-sorts leaves by Morton order, refreshes lookups/registries, and resizes field storage (DIM-independent) ----
-      inline void post_topology_update() {
+// ---- Order _leaves by level, and then morton. (DIM-independnet) ---
+      void sort_leaves_by_level_then_morton() {
+        std::sort(_leaves.begin(), _leaves.end(),
+        [this](u32 a, u32 b) {
+          const auto& na = _tree_nodes[a];
+          const auto& nb = _tree_nodes[b];
+          if (na.level != nb.level) return na.level < nb.level;   // primary: level
+          return na.morton < nb.morton;                           // secondary: morton
+        });
+      }
+
+// ---- Order _leaves by morton. (DIM-independnet) ---
+      void sort_leaves_by_morton() {
         std::sort(_leaves.begin(), _leaves.end(),
         [this](u32 a, u32 b) {
           return _tree_nodes[a].morton < _tree_nodes[b].morton;
         });
+      }
 
+
+// ---- Build offsets so that leaves of level L are in the half-open range [offsets[L], offsets[L+1]) of _leaves (DIM -independent) ----
+      void compute_level_offsets() {
+        _level_offset.clear();
+        if (_leaves.empty()) return;
+
+        // Find the maximum level present among current leaves
+        u32 maxL = 0;
+        for (u32 node_id : _leaves) {
+          maxL = std::max(maxL, _tree_nodes[node_id].level);
+        }
+
+        // Count leaves per level
+        _level_offset.assign(maxL + 2, 0u);               // +1 for sentinel
+        for (u32 node_id : _leaves) {
+          ++_level_offset[_tree_nodes[node_id].level];
+        }
+
+        // Prefix sum → offsets[L] = start index, offsets[L+1] = end
+        u32 run = 0;
+        for (u32 l = 0; l < _level_offset.size(); ++l) {
+          u32 c = _level_offset[l];
+          _level_offset[l] = run;
+          run += c;
+        }
+        // Now: offsets[maxL+1] == _leaves.size() (the sentinel)
+      }
+
+
+// ---- Re-sorts leaves by Morton order, refreshes lookups/registries, and resizes field storage (DIM-independent) ----
+      inline void post_topology_update() {
+        //sort_leaves_by_morton();
+        sort_leaves_by_level_then_morton();
+        compute_level_offsets();
         rebuild_leafpos_lookup();            // node index -> position in _leaves
         rebuild_connectivity_active_bases(); // per-basis registries/connectivity
         resize_fields_to_nodes();            // field storage size matches registries
@@ -1013,9 +1063,7 @@ namespace fem {
 
         // Nodes per element by basis id (0..2) for each DIM
         const uint8_t idx = static_cast<uint8_t>(b);
-        const int per = (DIM == 3)
-                        ? (idx == 0 ? 8 : (idx == 1 ? 20 : 27))  // H8, H20, H27
-                        : (idx == 0 ? 4 : (idx == 1 ? 8  : 9));  // Q4, Q8, Q9
+        const int per = NDOFS[DIM][idx];
 
         // A decent estimate for unique nodes is ~(per * leaves) * 0.6..0.8 due to sharing.
         // Keep it conservative (1.5x leaves*per) to minimize rehashes:
@@ -1207,6 +1255,17 @@ namespace fem {
         else {
           out_pts.clear(); // unsupported DIM at compile time
         }
+      }
+
+// ---- Parent-space center of a leaf (DIM-independent) ----
+      void extract_leaf_parent_center_coord(u32 leaf_idx, Point<DIM>& out_pt) const {
+        const TreeNode<DIM>& leaf = _tree_nodes[_leaves[leaf_idx]];
+
+        Point<DIM> X0, X1;
+        leaf_bounds(leaf, X0, X1);           // parent-space AABB of the leaf
+
+        for (std::size_t d = 0; d < DIM; ++d)
+          out_pt[d] = 0.5 * (X0[d] + X1[d]); // midpoint along each dimension
       }
 
       // ---- map parent → physical with DIM-appropriate shape (DIM-independet)
@@ -1588,8 +1647,7 @@ namespace fem {
         return refined;
       }
 
-
-      // ---- multi-D coarsen pass with DIM-appropriate grouping and probe points (DIM-independet) ----
+// ---- multi-D coarsen pass with DIM-appropriate grouping and probe points (DIM-independet) ----
       template<class CoarsenPred>
       std::size_t coarsen_pass(CoarsenPred&& should_coarsen, Basis probe_basis) {
         struct Group {
@@ -1635,24 +1693,8 @@ namespace fem {
         // Reuse vector wrappers for the predicate (avoid allocs)
         static thread_local std::vector<Point<DIM>> pts_s_vec, pts_xyz_vec;
 
-        // --- helpers: probe count (enum-cast by DIM) + fill probe nodes ---
         auto probe_count = [&](Basis b) -> int {
-          if (DIM == 2) {
-            switch (static_cast<Basis2D>(b)) {
-            case Basis2D::Q4: return 4;
-            case Basis2D::Q8: return 8;
-            case Basis2D::Q9: return 9;
-            default:          return 0;
-            }
-          }
-          else {
-            switch (static_cast<Basis3D>(b)) {
-            case Basis3D::H8:  return 8;
-            case Basis3D::H20: return 20;
-            case Basis3D::H27: return 27;
-            default:           return 0;
-            }
-          }
+          return NDOFS[DIM][static_cast<uint8_t>(b)];
         };
 
         auto fill_probe_nodes = [&](const Point<DIM>& X0, const Point<DIM>& X1,
@@ -2355,7 +2397,7 @@ namespace fem {
         copy_vec(_leaves,        rhs._leaves);        // indices of leaf nodes
         copy_vec(_leaf_ids,      rhs._leaf_ids);      // cached leaf ids [0..n-1]
         copy_vec(_node2leafpos,  rhs._node2leafpos);  // node index -> leaf position
-
+        copy_vec(_level_offset,  rhs._level_offset);
         // ---- per-basis registries ----
         for (int b = 0; b < 3; ++b) {
           copy_umap(_basisReg[b].nodeMap, rhs._basisReg[b].nodeMap);            // u64 -> int
@@ -2513,21 +2555,7 @@ namespace fem {
         std::vector<unsigned char> types;
 
         auto per_cell = [&](Basis bb) -> int {
-          if (DIM == 3) {
-            switch (static_cast<Basis3D>(bb)) {
-            case Basis3D::H8:  return 8;
-            case Basis3D::H20: return 20;
-            case Basis3D::H27: return 27;
-            }
-          }
-          else {
-            switch (static_cast<Basis2D>(bb)) {
-            case Basis2D::Q4: return 4;
-            case Basis2D::Q8: return 8;
-            case Basis2D::Q9: return 9;
-            }
-          }
-          return 0;
+          return NDOFS[DIM][static_cast<uint8_t>(bb)];
         };
 
         auto vtk_cell_type = [&](Basis bb) -> unsigned char {
@@ -2653,21 +2681,79 @@ namespace fem {
       }
 
 // ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent) ----
-      std::vector<Point<DIM>> extract_node_parent_coords_in_level_range(u32 lev_min,
-                                                                        u32 lev_max,
-      Basis basis) const {
-        std::vector<Point<DIM>> coords;
+      inline void extract_node_parent_coords_in_level_range(u32 lev_min,
+                                                            u32 lev_max,
+                                                            Basis basis,
+                                                            std::vector<Point<DIM>> &coords) const {
 
-        const auto& ids = leaf_indices();               // positions [0..num_leaves-1]
-        for (u32 leaf_pos : ids) {
-          const u32 lev = level_of(leaf_pos);           // leaf position -> level
-          if (lev < lev_min || lev > lev_max) continue;
+        coords.clear();
+        coords.reserve((_level_offset[lev_max + 1] - _level_offset[lev_min]) * NDOFS[DIM][to_basis_id<DIM>(basis)]);
 
+        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
           std::vector<Point<DIM>> s;                    // parent-space nodes for this leaf
           extract_leaf_parent_coords(basis, leaf_pos, s);
           coords.insert(coords.end(), s.begin(), s.end());
         }
-        return coords;
+      }
+
+// ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of
+//      the Q9/H27 nodes where field fid reaches min and max on that leaf. (DIM-independent) ----
+      inline void extract_parent_coords_by_field_extremes_in_level_range(u32 lev_min,
+                                                                         u32 lev_max,
+                                                                         u32 fid,
+                                                                         std::vector<Point<DIM>>& out) const {
+        // Always probe with highest-order geometry basis (Q9 in 2D, H27 in 3D)
+        Basis basisHi;
+        if (DIM == 2) basisHi = static_cast<Basis>(Basis2D::Q9);
+        else          basisHi = static_cast<Basis>(Basis3D::H27);
+
+        // 1) use level_offset to reserve
+        out.clear();
+        out.reserve(_level_offset[lev_max + 1] - _level_offset[lev_min]);
+
+        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
+
+          std::vector<Point<DIM>> s;                 // parent nodes (Q9/H27)
+          extract_leaf_parent_coords(basisHi, leaf_pos, s);
+          if (s.empty()) continue;
+
+          // Find min/max field values over the nodal sample
+          double v_min = std::numeric_limits<double>::infinity();
+          double v_max = -std::numeric_limits<double>::infinity();
+          u32 idx_min = 0, idx_max = 0;
+
+          for (u32 i = 0; i < static_cast<u32>(s.size()); ++i) {
+            double val = std::numeric_limits<double>::quiet_NaN();
+            (void) evaluate_field_on_parent(fid, s[i], val);
+            if (val < v_min) {
+              v_min = val;
+              idx_min = i;
+            }
+            if (val > v_max) {
+              v_max = val;
+              idx_max = i;
+            }
+          }
+
+          // Append min location (always), and max location if different
+          out.push_back(s[idx_min]);
+          if (idx_max != idx_min) out.push_back(s[idx_max]);
+        }
+      }
+
+      // ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent) ----
+      inline void extract_leaf_centers_in_level_range(u32 lev_min,
+                                                      u32 lev_max,
+                                                      std::vector<Point<DIM>>& centers) const {
+
+        centers.clear();
+        centers.reserve(_level_offset[lev_max + 1] - _level_offset[lev_min]);
+
+        for (u32 leaf_pos = _level_offset[lev_min]; leaf_pos < _level_offset[lev_max + 1]; ++leaf_pos) {
+          Point<DIM> s_center{};
+          extract_leaf_parent_center_coord(leaf_pos, s_center); // Q9/H27 center internally
+          centers.push_back(s_center);
+        }
       }
 
     private:
@@ -2832,6 +2918,7 @@ namespace fem {
 
 // mesh leaves
       std::vector<u32> _leaves;
+      std::vector<u32> _level_offset;
       mutable std::vector<u32> _leaf_ids;
 
 // fields (per-leaf coefficients for API compatibility)
@@ -2846,8 +2933,24 @@ namespace fem {
 
       BasisRegistry<DIM> _basisReg[3]; // 0:Q4/H8, 1:Q8/H20, 2:Q9/H27
 
+      // inside class OctTree<DIM>
+      static const u32 NDOFS[4][3];
+
+
   };
 
+  // after the class definition, in the same header
+  template<std::size_t DIM>
+  const u32 OctTree<DIM>::NDOFS[4][3] = {
+    {0, 0, 0},   // unused row (DIM=1)
+    {2, 3, 3},   // DIM=1 placeholders if you ever used it
+    {4, 8, 9},   // DIM=2:  Q4,Q8,Q9
+    {8, 20, 27}  // DIM=3:  H8,H20,H27
+  };
+
+
 } // namespace fem
+
+
 
 
