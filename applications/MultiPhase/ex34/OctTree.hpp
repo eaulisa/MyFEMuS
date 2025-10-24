@@ -15,6 +15,7 @@
 #include <utility>
 #include <deque>
 #include <type_traits>
+#include <variant>
 #include "Encoder.hpp"
 
 namespace fem {
@@ -47,7 +48,14 @@ namespace fem {
   template<std::size_t DIM>
   using u32Point = std::array<u32, DIM>;
 
-// ==== Basis enums (outside any class) ====
+  inline constexpr std::size_t NDOFS[4][3] = {
+    {0, 0, 0},     // DIM = 0 (unused)
+    {0, 0, 0},     // DIM = 1 (unused)
+    {4, 8, 9},     // DIM = 2 -> Q1, Serendipity8, Q2
+    {8, 20, 27}    // DIM = 3 -> H8, H20, H27
+  };
+
+  // ==== Basis enums (outside any class) ====
   enum class Basis3D : uint8_t { H8 = 0, H20 = 1, H27 = 2 };
   enum class Basis2D : uint8_t { Q4 = 0, Q8  = 1, Q9  = 2 };
 
@@ -91,12 +99,6 @@ namespace fem {
     return (DIM == 3) ? basis_name(static_cast<Basis3D>(b))
            : basis_name(static_cast<Basis2D>(b));
   }
-
-
-// ---- Dimension-dependent geometry storage with axis-first layout: access as _G[axis][node] (DIM-independent) ----
-  template <std::size_t DIM> struct GeomNodeCount;
-  template <> struct GeomNodeCount<2> : std::integral_constant<std::size_t, 9>  {}; // Q9
-  template <> struct GeomNodeCount<3> : std::integral_constant<std::size_t, 27> {}; // H27
 
 // ---------- Morton helpers (3-way) ----------
   static inline uint64_t expand3_21(uint64_t v) {
@@ -705,6 +707,7 @@ namespace fem {
   struct Field {
     uint8_t basis_id{0};           // 0..2
     std::vector<double> nodal;
+    std::string name;
   };
 
 // ---- Finite-element node with parent-space and physical coordinates (DIM-independent) ----
@@ -742,8 +745,7 @@ namespace fem {
         : _maxDepth(maxDepth),
           _minDepth(std::min(minDepth, maxDepth)) {
         static_assert(DIM == 2 || DIM == 3, "OctTree supports DIM = 2 or 3");
-        const u32 maxBitsPerAxis = (DIM == 3) ? 21u : 32u; // bits per axis supported by 64-bit Morton
-        assert(_maxDepth <= maxBitsPerAxis - 1u && "Depth exceeds Morton capacity for this DIM");
+        recompute_quant_params();
 
         // 1) Build root TreeNode covering [-1,1]^DIM
         TreeNode<DIM> root{};
@@ -816,7 +818,7 @@ namespace fem {
         rebuild_leafpos_lookup();
 
         // 5) basis registries / field sizes depend on active bases
-        post_topology_update(); // rebuild connectivity for active bases, resize fields if kept
+        post_topology_update(); // very cheap (there is only one element)
       }
 
 
@@ -833,6 +835,9 @@ namespace fem {
         : OctTree( /* choose a conservative cap & min */
             std::max(oct1.max_depth(), oct2.max_depth()),
             std::min(oct1.min_depth(), oct2.min_depth())) {
+
+        static_assert(DIM == 2 || DIM == 3, "OctTree supports DIM = 2 or 3");
+        recompute_quant_params();
 
         _X = oct1._X;
         _geom_ready = true;
@@ -881,8 +886,8 @@ namespace fem {
         const auto b1 = to_basis<DIM>(src1.basis_id);
         const auto b2 = to_basis<DIM>(src2.basis_id);
 
-        const u32 dst_fid1 = this->add_field(b1); // overlay field for src1
-        const u32 dst_fid2 = this->add_field(b2); // overlay field for src2
+        const u32 dst_fid1 = this->add_field(b1, oct1.field(fid1).name + "1"); // overlay field for src1
+        const u32 dst_fid2 = this->add_field(b2, oct1.field(fid2).name + "2"); // overlay field for src2
 
         // Build connectivity for both active bases and size nodal arrays
         this->rebuild_connectivity_active_bases();
@@ -919,6 +924,8 @@ namespace fem {
       friend void swap(OctTree& a, OctTree& b) noexcept {
         using std::swap;
         swap(a._maxDepth, b._maxDepth);
+        a.recompute_quant_params();
+        b.recompute_quant_params();
         swap(a._minDepth, b._minDepth);
         swap(a._allowCoarsenBelowMinDepth, b._allowCoarsenBelowMinDepth);
         swap(a._leafpos_valid, b._leafpos_valid);
@@ -962,7 +969,7 @@ namespace fem {
       }
 
 // --- geometry setters (DIM-independent) ----
-      void set_physical_coordinates(const std::array<std::array<double, GeomNodeCount<DIM>::value>, DIM> X) {
+      void set_physical_coordinates(const std::array<std::array<double, NDOFS[DIM][2]>, DIM> X) {
         _X = X;
         _geom_ready = true;
       }
@@ -1020,9 +1027,8 @@ namespace fem {
       }
 
 
-// ---- Re-sorts leaves by Morton order, refreshes lookups/registries, and resizes field storage (DIM-independent) ----
+// ---- Re-sorts leaves by level/Morton order, refreshes lookups/registries, and resizes field storage (DIM-independent) ----
       inline void post_topology_update() {
-        //sort_leaves_by_morton();
         sort_leaves_by_level_then_morton();
         compute_level_offsets();
         rebuild_leafpos_lookup();            // node index -> position in _leaves
@@ -1051,6 +1057,7 @@ namespace fem {
 
 // ---- Rebuilds per-basis unique nodes and element-to-global connectivity (DIM-independent) ----
       inline void rebuild_connectivity(Basis b) {
+
         BasisRegistry<DIM>& R = _basisReg[static_cast<int>(b)];
         R.clear();
 
@@ -1058,8 +1065,7 @@ namespace fem {
         const u32 nleaves = leaf_count();
 
         // Nodes per element by basis id (0..2) for each DIM
-        const uint8_t idx = static_cast<uint8_t>(b);
-        const int per = NDOFS[DIM][idx];
+        const int per = leaf_dof_number(b);
 
         // A decent estimate for unique nodes is ~(per * leaves) * 0.6..0.8 due to sharing.
         // Keep it conservative (1.5x leaves*per) to minimize rehashes:
@@ -1268,7 +1274,7 @@ namespace fem {
       inline Point<DIM> parent_to_physical(const Point<DIM>& s) const noexcept {
         require_geometry();
 
-        double N[GeomNodeCount<DIM>::value];
+        double N[NDOFS[DIM][2]];
 
         if (DIM == 2) {
           // Shapes2 expects Point2
@@ -1285,7 +1291,7 @@ namespace fem {
         }
 
         Point<DIM> x{}; // zero-initialize
-        constexpr std::size_t Nnodes = GeomNodeCount<DIM>::value;
+        constexpr std::size_t Nnodes = NDOFS[DIM][2];
         for (std::size_t a = 0; a < Nnodes; ++a) {
           const double Na = N[a];
           for (std::size_t k = 0; k < DIM; ++k) x[k] += Na * _X[k][a]; // _X[axis][node]
@@ -1308,16 +1314,20 @@ namespace fem {
       }
 
 // ---- Adds a new field for basis `b`; sizes nodal storage to current topology (DIM-independent) ----
-      inline u32 add_field(Basis b) {
-        // Ensure registry/basis data is ready so we can size the nodal vector
-        _activeBases.insert(b);
-        post_topology_update();
-
+      inline u32 add_field(const Basis &b, const std::string &name) {
+        // Insert returns {iterator, bool}. bool==true iff b was newly inserted.
+        const bool first_time_for_basis = _activeBases.insert(b).second;
+        if (first_time_for_basis) {
+          // Build connectivity if not already there
+          rebuild_connectivity(b);
+        }
+        // Now size the new field to whatever registry currently has
         const auto& R = _basisReg[static_cast<int>(b)];
 
         Field f;
         f.basis_id = to_basis_id<DIM>(b);
         f.nodal.assign(R.nodes.size(), 0.0);
+        f.name = name;
 
         _fields.emplace_back(std::move(f));
         return static_cast<u32>(_fields.size() - 1);
@@ -1346,8 +1356,8 @@ namespace fem {
         const double tol2 = tol * tol;
 
         // Node counts per DIM
-        const std::size_t Nnodes0 = (DIM == 2 ? 4u : 8u);                       // Q4 or H8
-        const std::size_t Nnodes1 = GeomNodeCount<DIM>::value;                   // Q9 (9) or H27 (27)
+        const std::size_t Nnodes0 = NDOFS[DIM][0]; // Q4 (4) or H8 (9)
+        const std::size_t Nnodes1 = NDOFS[DIM][2]; // Q9 (9) or H27 (27)
 
         // Buffers (z-components unused in 2D)
         // warm-up shapes
@@ -1554,34 +1564,36 @@ namespace fem {
         });
       }
 
-// ---- Runs one adapt cycle (coarsen then refine passes) until stable or max_passes; default probe_basis is highest-order for this DIM (DIM-independent) ----
+// ---- Runs one adapt cycle (coarsen then refine passes) until stable or max_passes (DIM-independent) ----
       template<class CoarsenPred, class RefinePred>
       inline std::size_t adapt_cycle(CoarsenPred&& should_coarsen,
                                      RefinePred&&  should_refine,
-                                     Basis probe_basis = static_cast<Basis>(2), // 0,1,2 ⇒ highest order for 2D/3D
                                      u32   max_passes  = 10) {
         ensure_min_depth(); // enforce refinement floor only
         std::size_t total = 0;
 
         for (u32 pass = 0; pass < max_passes; ++pass) {
           std::size_t changed = 0;
-          changed += coarsen_pass(should_coarsen, probe_basis);
-          changed += refine_pass(should_refine,  probe_basis);
+          changed += coarsen_pass(should_coarsen);
+          changed += refine_pass(should_refine);
           if (changed == 0) break;
           total += changed;
         }
-
+        enforce_balance();
         post_topology_update();
         return total;
       }
 
-
 // ---- Perform one refinement pass: split leaves if predicate says so (DIM-independent) ----
       template<class RefinePred>
-      std::size_t refine_pass(RefinePred&& should_refine, Basis probe_basis) {
+      std::size_t refine_pass(RefinePred&& should_refine) {
         std::vector<u32> newLeaves;
         newLeaves.reserve(_leaves.size() * 2u); // heuristic (not all leaves refine)
         std::size_t refined = 0;
+
+        const Basis basisHi = (DIM == 2)
+                              ? static_cast<Basis>(Basis2D::Q9)
+                              : static_cast<Basis>(Basis3D::H27);
 
         const u32 n0 = static_cast<u32>(leaf_count()); // snapshot leaf count
 
@@ -1591,9 +1603,9 @@ namespace fem {
 
           // Probe geometry for refinement (keeps current API semantics: probe by leaf position 'idx')
           std::vector<Point<DIM>> pts_s, pts_xyz;
-          extract_leaf_parent_coords(probe_basis, idx, pts_s);
-          leaf_physical_nodes(probe_basis, idx, pts_xyz);
-          std::vector<std::array<double, GeomNodeCount<DIM>::value>> dummy; // placeholder if predicate needs extra data
+          extract_leaf_parent_coords(basisHi, idx, pts_s);
+          leaf_physical_nodes(basisHi, idx, pts_xyz);
+          std::vector<std::array<double, NDOFS[DIM][2]>> dummy; // placeholder if predicate needs extra data
 
           if (leaf_copy.is_leaf &&
               leaf_copy.level < _maxDepth &&
@@ -1643,9 +1655,9 @@ namespace fem {
         return refined;
       }
 
-// ---- multi-D coarsen pass with DIM-appropriate grouping and probe points (DIM-independet) ----
+// ---- coarsen pass with DIM-appropriate grouping and probe points (DIM-independet) ----
       template<class CoarsenPred>
-      std::size_t coarsen_pass(CoarsenPred&& should_coarsen, Basis probe_basis) {
+      std::size_t coarsen_pass(CoarsenPred&& should_coarsen) {
         struct Group {
           u32      pos[(1u << DIM)]; // positions in _leaves of the children (4 in 2D, 8 in 3D)
           uint8_t  cnt   = 0;
@@ -1684,17 +1696,13 @@ namespace fem {
         };
 
         // tiny fixed buffers for parent-space samples
-        std::array<Point<DIM>, GeomNodeCount<DIM>::value> s_buf, xyz_buf;
+        std::array<Point<DIM>, NDOFS[DIM][2]> s_buf, xyz_buf;
 
         // Reuse vector wrappers for the predicate (avoid allocs)
         static thread_local std::vector<Point<DIM>> pts_s_vec, pts_xyz_vec;
 
-        auto probe_count = [&](Basis b) -> int {
-          return NDOFS[DIM][static_cast<uint8_t>(b)];
-        };
-
         auto fill_probe_nodes = [&](const Point<DIM>& X0, const Point<DIM>& X1,
-        int nprobe, std::array<Point<DIM>, GeomNodeCount<DIM>::value>& sbuf) -> int {
+        int nprobe, std::array<Point<DIM>, NDOFS[DIM][2]>& sbuf) -> int {
           if (DIM == 2) {
             const double x0 = X0[0], y0 = X0[1];
             const double x1 = X1[0], y1 = X1[1];
@@ -1763,8 +1771,6 @@ namespace fem {
           }
         };
 
-        const int nprobe = probe_count(probe_basis);
-
         // 1) group leaves by parent (store LEAF POSITIONS, tag parent lazily)
         for (u32 pos = 0; pos < L; ++pos) {
           const u32 c = _leaves[pos];
@@ -1798,7 +1804,7 @@ namespace fem {
           leaf_bounds(P, X0, X1);
 
           // fill parent-space samples (actually physical in your code path)
-          const int n = fill_probe_nodes(X0, X1, nprobe, s_buf);
+          const int n = fill_probe_nodes(X0, X1, NDOFS[DIM][2], s_buf);
 
           // map to physical
           for (int i = 0; i < n; ++i) xyz_buf[i] = parent_to_physical(s_buf[i]);
@@ -1833,7 +1839,6 @@ namespace fem {
           for (u32 i = 0; i < L; ++i) if (!is_marked(i)) newLeaves.push_back(_leaves[i]);
           newLeaves.insert(newLeaves.end(), to_add.begin(), to_add.end());
           _leaves.swap(newLeaves);
-          // (optional) defer _node2leafpos rebuild; post_topology_update() will handle it.
         }
 
         return coarsened;
@@ -2070,8 +2075,6 @@ namespace fem {
         return true;
       }
 
-
-
 // ---- Locates the leaf for parent-space point s and maps it to that leaf’s local [-1,1]^DIM (DIM-independent) ----
       inline bool locate_leaf_on_parent_and_ref(const Point<DIM>& s,
                                                 u32& leaf_node_idx,
@@ -2084,7 +2087,6 @@ namespace fem {
         local_ref_fast(_tree_nodes[leaf_node_idx], s, shat);
         return true;
       }
-
 
 // ---- refine so each point lies in a leaf by at least maxDepthTarget — caches only inverse-map per point (DIM-independent) ----
       void refine_to_contain_points(const std::vector<Point<DIM>>& pts, u32 maxDepthTarget) {
@@ -2175,7 +2177,6 @@ namespace fem {
         post_topology_update();
       }
 
-
 // ---- refine pass — splits each selected leaf into 2^DIM children — (DIM-independent) ----
       template<class RefinePred>
       std::size_t refine_pass_min(RefinePred&& should_refine) {
@@ -2223,7 +2224,6 @@ namespace fem {
               _tree_nodes[leaf_node_idx].child[mask] = child_idx;
               newLeaves.push_back(child_idx);
             }
-
             ++refined;
           }
           else {
@@ -2231,11 +2231,9 @@ namespace fem {
             newLeaves.push_back(leaf_node_idx);
           }
         }
-
         _leaves.swap(newLeaves);
         return refined;
       }
-
 
 // ---- Simple cache-friendly FIFO ring buffer with advancing head (DIM-independent) ----
       struct RingQ {
@@ -2259,7 +2257,6 @@ namespace fem {
           ++head;
         }
       };
-
 
 // ---- Enforces 2:1 balance (1-irregularity): adjacent leaves may differ by at most one level (DIM-independent) ----
       inline void enforce_balance() {
@@ -2339,8 +2336,6 @@ namespace fem {
         }
       }
 
-
-
 // ---- Fast copy that reuses capacity without recomputing registries (DIM-independent)
       void assign_from(const OctTree& rhs) {
         if (this == &rhs) return;
@@ -2374,6 +2369,8 @@ namespace fem {
 
         // ---- scalars / config ----
         _maxDepth  = rhs._maxDepth;
+        recompute_quant_params();
+
         _minDepth  = rhs._minDepth;
         _allowCoarsenBelowMinDepth = rhs._allowCoarsenBelowMinDepth;
         _leafpos_valid = rhs._leafpos_valid;
@@ -2406,8 +2403,7 @@ namespace fem {
       std::size_t coarsen_only_cycle_safe(u32 fid,
                                           double tau_coarse,
                                           OctTree& snapshot,
-                                          u32 max_passes = 10,
-                                          Basis probe_basis = static_cast<Basis>(2)) { // highest-order for DIM (Q9/H27)
+                                          u32 max_passes = 10) { // highest-order for DIM (Q9/H27)
         // Freeze current state for conservative evaluation/transfer
         snapshot.assign_from(*this);
 
@@ -2415,7 +2411,7 @@ namespace fem {
         auto pred = [&](u64 /*parent_morton*/, u32 level,
                         const std::vector<Point<DIM>>& pts_s,     // parent (ξ,η[,ζ])
                         const std::vector<Point<DIM>>& /*pts_xyz*/,
-        const std::vector<std::array<double, GeomNodeCount<DIM>::value>>& /*Nvals*/) -> bool {
+        const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
           if (level <= min_depth()) return false;
           if (pts_s.empty()) return false;
 
@@ -2437,7 +2433,7 @@ namespace fem {
 
         // Coarsen passes; (balance+topology update happen after the loop)
         for (u32 pass = 0; pass < max_passes; ++pass) {
-          std::size_t c = coarsen_pass(pred, probe_basis);
+          std::size_t c = coarsen_pass(pred);
           if (c == 0) break;
           total += c;
         }
@@ -2468,31 +2464,9 @@ namespace fem {
 
         dst.nodal.resize(Rdst.nodes.size());
 
-        // Quantization helper that matches src.get_or_insert_gid(...)
-        const u32 maxBitsPerAxis = (DIM == 3) ? 21u : 32u;     // fits 64-bit Morton
-        const u32 nodeBits_src   = src._maxDepth + 1u;         // include midpoints at last level
-        assert(nodeBits_src <= maxBitsPerAxis && "node index packing exceeds Morton capacity for this DIM");
-        const u32 nodesN_src     = (1u << nodeBits_src);
-
-        auto to_idx_src = [nodesN_src](double ss) -> u32 {
-          if (ss <= -1.0) return 0u;
-          if (ss >=  1.0) return nodesN_src - 1u;              // clamp
-          const double t = (ss + 1.0) * (double(nodesN_src) * 0.5); // [-1,1] -> [0, nodesN)
-          long long li = llround(t);
-          if (li < 0) li = 0;
-          if (li > (long long)(nodesN_src - 1)) li = (long long)(nodesN_src - 1);
-          return (u32)li;
-        };
-
         for (size_t gid = 0; gid < Rdst.nodes.size(); ++gid) {
           const auto& pr = Rdst.nodes[gid].parent;             // parent coord (ξ,η[,ζ])
-
-          // Integer parent-grid indices per axis (DIM-generic)
-          u32Point<DIM> idx{};
-          for (std::size_t k = 0; k < DIM; ++k) idx[k] = to_idx_src(pr[k]);
-
-          // Morton key with DIM-appropriate interleave; use *this* (non-const) utility
-          const u64 key = this->interleave(idx);
+          const u64 key = morton_node_key_from_parent(pr);
 
           // Fast path: direct copy if the node exists in src's registry
           auto it = Rsrc.nodeMap.find(key);
@@ -2509,8 +2483,6 @@ namespace fem {
         }
       }
 
-
-
 // ---- Returns the element-to-global connectivity for the given basis (DIM-independent) ----
       inline const std::vector<std::vector<int>>& basis_connectivity(Basis b) const {
         return _basisReg[static_cast<int>(b)].elem2glob;
@@ -2521,19 +2493,19 @@ namespace fem {
         return _basisReg[static_cast<int>(b)].nodes;
       }
 
-// ---- write VTU (DIM-independent) ----
-// Print field on a vtu binary mesh to visualize on Paraview
-      bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
+// ---- VTU writer: automatic 2D→3D vector padding for ParaView ----
+      bool write_binary_vtu(const std::string &filename, Basis b,
+                            const std::vector<std::variant<u32, std::vector<u32>>> &field_groups,
                             bool cell_centered = false) const {
+
         require_geometry();
-        if (fid >= _fields.size()) return false;
 
-        const Field &fld = _fields[fid];
-        Basis b = to_basis<DIM>(fld.basis_id);
         const BasisRegistry<DIM> &R = _basisReg[(int)b];
-
         const size_t numCells = R.elem2glob.size();
-        if (numCells == 0) return false;
+        if (numCells == 0) {
+          std::cerr << "[VTU] Warning: No elements registered for basis " << (int)b << "\n";
+          return false;
+        }
 
         // -------- Points (global) --------
         std::vector<double> flatPoints;
@@ -2541,8 +2513,10 @@ namespace fem {
         for (const auto &n : R.nodes) {
           flatPoints.push_back(n.physical[0]);
           flatPoints.push_back(n.physical[1]);
-          if (DIM == 3) flatPoints.push_back(n.physical[2]);
-          else          flatPoints.push_back(0.0); // 2D → embed in z=0 plane
+          if constexpr(DIM == 3)
+            flatPoints.push_back(n.physical[2]);
+          else
+            flatPoints.push_back(0.0); // 2D → embed in z=0 plane
         }
 
         // -------- Connectivity --------
@@ -2550,13 +2524,8 @@ namespace fem {
         std::vector<int> offsets;
         std::vector<unsigned char> types;
 
-        auto per_cell = [&](Basis bb) -> int {
-          return NDOFS[DIM][static_cast<uint8_t>(bb)];
-        };
-
         auto vtk_cell_type = [&](Basis bb) -> unsigned char {
-          if (DIM == 3) {
-            // VTK_HEXAHEDRON=12, VTK_QUADRATIC_HEXAHEDRON=25, VTK_TRIQUADRATIC_HEXAHEDRON=29
+          if constexpr(DIM == 3) {
             switch (static_cast<Basis3D>(bb)) {
             case Basis3D::H8:  return 12;
             case Basis3D::H20: return 25;
@@ -2564,7 +2533,6 @@ namespace fem {
             }
           }
           else {
-            // VTK_QUAD=9, VTK_QUADRATIC_QUAD=23 (8-node serendipity), VTK_BIQUADRATIC_QUAD=28 (9-node with center)
             switch (static_cast<Basis2D>(bb)) {
             case Basis2D::Q4: return 9;
             case Basis2D::Q8: return 23;
@@ -2574,28 +2542,238 @@ namespace fem {
           return 0;
         };
 
-        const int perCell = per_cell(b);
+        const int perCell = leaf_dof_number(b);
         connectivity.reserve(numCells * perCell);
         offsets.reserve(numCells);
         types.reserve(numCells);
 
-        // H27 tail remap (indices 20..26 in our internal ordering → VTK ordering)
-        // Confirmed: {20+3, 20+1, 20+0, 20+2, 20+4, 20+5, 20+6}
+        const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}};
+        int offset = 0;
+
+        for (size_t e = 0; e < numCells; ++e) {
+          const auto &conn = R.elem2glob[e];
+          if (DIM == 3 && static_cast<Basis3D>(b) == Basis3D::H27) {
+            connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
+            for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
+            offset += 27;
+          }
+          else {
+            connectivity.insert(connectivity.end(), conn.begin(), conn.end());
+            offset += static_cast<int>(conn.size());
+          }
+          offsets.push_back(offset);
+          types.push_back(vtk_cell_type(b));
+        }
+
+        // -------- XML output --------
+        std::ofstream os(filename);
+        if (!os) {
+          std::cerr << "[VTU] Error: cannot open file " << filename << "\n";
+          return false;
+        }
+
+        os << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+        os << "  <UnstructuredGrid>\n";
+        os << "    <Piece NumberOfPoints=\"" << R.nodes.size()
+           << "\" NumberOfCells=\"" << numCells << "\">\n";
+
+        os << "      <Points>\n";
+        write_binary_array(os, "Float64", "", 3, flatPoints);
+        os << "      </Points>\n";
+
+        os << "      <Cells>\n";
+        write_binary_array(os, "Int32", "connectivity", 1, connectivity);
+        write_binary_array(os, "Int32", "offsets", 1, offsets);
+        write_binary_array(os, "UInt8", "types", 1, types);
+        os << "      </Cells>\n";
+
+        // -------- Detect first scalar/vector names for ParaView attributes --------
+        std::string first_scalar_name;
+        std::string first_vector_name;
+
+        for (const auto &entry : field_groups) {
+          if (std::holds_alternative<u32>(entry)) {
+            const u32 fid = std::get<u32>(entry);
+            if (fid < _fields.size()) {
+              const Field &fld = _fields[fid];
+              if (to_basis<DIM>(fld.basis_id) == b && first_scalar_name.empty())
+                first_scalar_name = fld.name;
+            }
+          }
+          else {
+            const auto &group = std::get<std::vector<u32>>(entry);
+            if (group.size() == DIM && first_vector_name.empty()) {
+              const Field &f = _fields[group[0]];
+              first_vector_name = f.name;
+              for (size_t i = 1; i < group.size(); ++i)
+                first_vector_name += "-" + _fields[group[i]].name;
+            }
+          }
+        }
+
+        // -------- Open PointData/CellData with attributes --------
+        if (cell_centered)
+          os << "      <CellData";
+        else
+          os << "      <PointData";
+
+        if (!first_scalar_name.empty())
+          os << " Scalars=\"" << first_scalar_name << "\"";
+        if (!first_vector_name.empty())
+          os << " Vectors=\"" << first_vector_name << "\"";
+        os << ">\n";
+
+        // -------- Write Field Data --------
+        for (const auto &entry : field_groups) {
+
+          // ---- Scalar ----
+          if (std::holds_alternative<u32>(entry)) {
+            const u32 fid = std::get<u32>(entry);
+            if (fid >= _fields.size()) continue;
+            const Field &fld = _fields[fid];
+            if (to_basis<DIM>(fld.basis_id) != b) continue;
+
+            if (cell_centered) {
+              std::vector<double> cellData;
+              cellData.reserve(numCells);
+              for (const auto &conn : R.elem2glob) {
+                double v = 0.0; for (int gid : conn) v += fld.nodal[gid];
+                cellData.push_back(v / static_cast<double>(conn.size()));
+              }
+              write_binary_array(os, "Float64", fld.name, 1, cellData);
+            }
+            else {
+              write_binary_array(os, "Float64", fld.name, 1, fld.nodal);
+            }
+          }
+
+          // ---- Vector ----
+          else {
+            const auto &group = std::get<std::vector<u32>>(entry);
+            if (group.size() != DIM) continue;
+
+            std::vector<const Field*> vecFld;
+            vecFld.reserve(DIM);
+            bool valid = true;
+            for (u32 fid : group) {
+              if (fid >= _fields.size()) {
+                valid = false;
+                break;
+              }
+              const Field &f = _fields[fid];
+              if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
+                valid = false; break;
+              }
+              vecFld.push_back(&f);
+            }
+            if (!valid) continue;
+
+            std::string vname = vecFld.front()->name;
+            for (size_t i = 1; i < vecFld.size(); ++i)
+              vname += "-" + vecFld[i]->name;
+
+            // Build combined vector (pad z=0 if DIM==2)
+            std::vector<double> combined;
+            combined.reserve(R.nodes.size() * 3);
+            for (size_t i = 0; i < R.nodes.size(); ++i) {
+              combined.push_back(vecFld[0]->nodal[i]);
+              if constexpr(DIM > 1)
+                combined.push_back(vecFld[1]->nodal[i]);
+              else
+                combined.push_back(0.0);
+              if constexpr(DIM == 3)
+                combined.push_back(vecFld[2]->nodal[i]);
+              else
+                combined.push_back(0.0);
+            }
+
+            // Always output 3 components for ParaView
+            write_binary_array(os, "Float64", vname, 3, combined);
+          }
+        }
+
+        os << (cell_centered ? "      </CellData>\n" : "      </PointData>\n");
+        os << "    </Piece>\n";
+        os << "  </UnstructuredGrid>\n";
+        os << "</VTKFile>\n";
+
+        std::cout << "[VTU] Wrote " << filename << " with "
+                  << field_groups.size() << " field groups.\n";
+        return true;
+      }
+
+
+// ---- write VTU for all fields with the given Basis ----
+      bool write_binary_vtu(const std::string &filename, Basis b,
+                            bool cell_centered = false) const {
+
+        require_geometry();
+
+        // Select registry
+        const BasisRegistry<DIM> &R = _basisReg[(int)b];
+        const size_t numCells = R.elem2glob.size();
+        if (numCells == 0) return false;
+
+        // -------- Points (global) --------
+        std::vector<double> flatPoints;
+        flatPoints.reserve(R.nodes.size() * 3);
+        for (const auto &n : R.nodes) {
+          flatPoints.push_back(n.physical[0]);
+          flatPoints.push_back(n.physical[1]);
+          if constexpr(DIM == 3)
+            flatPoints.push_back(n.physical[2]);
+          else
+            flatPoints.push_back(0.0); // 2D → embed in z=0 plane
+        }
+
+        // -------- Connectivity --------
+        std::vector<int> connectivity;
+        std::vector<int> offsets;
+        std::vector<unsigned char> types;
+
+        auto vtk_cell_type = [&](Basis bb) -> unsigned char {
+          if constexpr(DIM == 3) {
+            switch (static_cast<Basis3D>(bb)) {
+            case Basis3D::H8:  return 12; // VTK_HEXAHEDRON
+            case Basis3D::H20: return 25; // VTK_QUADRATIC_HEXAHEDRON
+            case Basis3D::H27: return 29; // VTK_TRIQUADRATIC_HEXAHEDRON
+            }
+          }
+          else {
+            switch (static_cast<Basis2D>(bb)) {
+            case Basis2D::Q4: return 9;  // VTK_QUAD
+            case Basis2D::Q8: return 23; // VTK_QUADRATIC_QUAD
+            case Basis2D::Q9: return 28; // VTK_BIQUADRATIC_QUAD
+            }
+          }
+          return 0;
+        };
+
+        const int perCell = leaf_dof_number(b);
+        connectivity.reserve(numCells * perCell);
+        offsets.reserve(numCells);
+        types.reserve(numCells);
+
+        // H27 tail remap (indices 20..26 → VTK ordering)
         const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}};
 
         int offset = 0;
         for (size_t e = 0; e < numCells; ++e) {
           const auto &conn = R.elem2glob[e];
 
-          if (DIM == 3 && static_cast<Basis3D>(b) == Basis3D::H27) {
-            // First 20 match VTK; remap the last 7.
-            assert(conn.size() == 27 && "H27 element must have 27 nodes");
-            connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
-            for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
-            offset += 27;
+          if constexpr(DIM == 3) {
+            if (static_cast<Basis3D>(b) == Basis3D::H27) {
+              assert(conn.size() == 27 && "H27 element must have 27 nodes");
+              connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
+              for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
+              offset += 27;
+            }
+            else {
+              connectivity.insert(connectivity.end(), conn.begin(), conn.end());
+              offset += static_cast<int>(conn.size());
+            }
           }
           else {
-            // Q4/Q8/Q9 and H8/H20 match VTK ordering with the node conventions used above.
             connectivity.insert(connectivity.end(), conn.begin(), conn.end());
             offset += static_cast<int>(conn.size());
           }
@@ -2604,21 +2782,15 @@ namespace fem {
           types.push_back(vtk_cell_type(b));
         }
 
-        // -------- Data --------
-        std::vector<double> pointData, cellData;
-        if (cell_centered) {
-          cellData.reserve(numCells);
-          for (size_t e = 0; e < numCells; ++e) {
-            const auto &conn = R.elem2glob[e];
-            double v = 0.0; for (int gid : conn) v += fld.nodal[gid];
-            cellData.push_back(v / static_cast<double>(conn.size()));
-          }
-        }
-        else {
-          pointData = fld.nodal; // points array order == registry order
-        }
+        // -------- Collect all fields with matching basis --------
+        std::vector<const Field*> fields;
+        for (const auto &f : _fields)
+          if (to_basis<DIM>(f.basis_id) == b)
+            fields.push_back(&f);
 
-        // -------- XML --------
+        if (fields.empty()) return false;
+
+        // -------- XML output --------
         std::ofstream os(filename);
         if (!os) return false;
 
@@ -2637,14 +2809,26 @@ namespace fem {
         write_binary_array(os, "UInt8", "types", 1, types);
         os << "      </Cells>\n";
 
+        // -------- Field Data (multiple fields, same basis) --------
         if (cell_centered) {
-          os << "      <CellData Scalars=\"" << name << "\">\n";
-          write_binary_array(os, "Float64", name, 1, cellData);
+          os << "      <CellData>\n";
+          for (const Field* f : fields) {
+            const auto &fld = *f;
+            std::vector<double> cellData;
+            cellData.reserve(numCells);
+            for (const auto &conn : R.elem2glob) {
+              double v = 0.0;
+              for (int gid : conn) v += fld.nodal[gid];
+              cellData.push_back(v / static_cast<double>(conn.size()));
+            }
+            write_binary_array(os, "Float64", fld.name, 1, cellData);
+          }
           os << "      </CellData>\n";
         }
         else {
-          os << "      <PointData Scalars=\"" << name << "\">\n";
-          write_binary_array(os, "Float64", name, 1, pointData);
+          os << "      <PointData>\n";
+          for (const Field* f : fields)
+            write_binary_array(os, "Float64", f->name, 1, f->nodal);
           os << "      </PointData>\n";
         }
 
@@ -2654,25 +2838,27 @@ namespace fem {
         return true;
       }
 
-// ---- global maximum depth allowed (unchanged) DIM-independent) ----
+
+
+// ---- global maximum depth allowed (DIM-independent) ----
       u32 max_depth() const {
         return _maxDepth;
       }
 
 // ---- Returns the X-coordinates array of the coarse geometry (DIM-independent) ----
-      inline const std::array<double, GeomNodeCount<DIM>::value>& get_X() const noexcept {
+      inline const std::array<double, NDOFS[DIM][2]>& get_X() const noexcept {
         return _X[0];
       }
 
 // ---- Returns the Y-coordinates array of the coarse geometry (DIM-independent) ----
-      inline const std::array<double, GeomNodeCount<DIM>::value>& get_Y() const noexcept {
+      inline const std::array<double, NDOFS[DIM][2]>& get_Y() const noexcept {
         return _X[1];
       }
 
 // ---- Returns the Z-coordinates array of the coarse geometry; asserts DIM == 3 (DIM-independent) ----
 // ---- Only participates in overload resolution when DIM==3
       template <std::size_t D = DIM, typename std::enable_if<D == 3, int>::type = 0>
-      inline const std::array<double, GeomNodeCount<DIM>::value>& get_Z() const noexcept {
+      inline const std::array<double, NDOFS[DIM][2]>& get_Z() const noexcept {
         return _X[2];
       }
 
@@ -2702,9 +2888,7 @@ namespace fem {
         // Empty span? nothing to do
         if (lo >= hi) return;
 
-        // Per-leaf node count for the requested basis
-        const uint8_t bid = to_basis_id<DIM>(basis);     // 0..2
-        const u32 ndofs_per_leaf = NDOFS[DIM][bid];
+        const u32 ndofs_per_leaf = leaf_dof_number(basis);
 
         // Conservative reserve
         coords.reserve(static_cast<size_t>(hi - lo) * ndofs_per_leaf);
@@ -2722,10 +2906,7 @@ namespace fem {
         }
       }
 
-
-// ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of
-//      the Q9/H27 nodes where field fid reaches min and max on that leaf. (DIM-independent) ----
-
+// ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of the Q9/H27 nodes where field fid reaches min and max on that leaf (DIM-independent) ----
       inline void extract_parent_coords_by_field_extremes_in_level_range(u32 lev_min,
                                                                          u32 lev_max,
                                                                          u32 fid,
@@ -2785,7 +2966,7 @@ namespace fem {
         }
       }
 
-      // ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent)
+// ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent)
       inline void extract_leaf_centers_in_level_range(u32 lev_min,
                                                       u32 lev_max,
                                                       std::vector<Point<DIM>>& centers) const {
@@ -2818,9 +2999,12 @@ namespace fem {
         }
       }
 
+      int leaf_dof_number(Basis b) const noexcept {
+        return NDOFS[DIM][static_cast<uint8_t>(b)];
+      }
 
     private:
-      // ---- Computes the axis-aligned bounds [x0, x1] of leaf node n in parent space [-1,1]^DIM (DIM-independent) ----
+// ---- Computes the axis-aligned bounds [x0, x1] of leaf node n in parent space [-1,1]^DIM (DIM-independent) ----
       inline void leaf_bounds(const TreeNode<DIM>& n,
                               Point<DIM>& x0,
                               Point<DIM>& x1) const noexcept {
@@ -2906,10 +3090,7 @@ namespace fem {
 
           if (changed) _leaves.swap(newLeaves);
         }
-
-        post_topology_update();
       }
-
 
 // ---- Returns the refinement level of a given leaf position (DIM-independent) ----
       inline u32 level_of(u32 leaf_pos) const noexcept {
@@ -2920,39 +3101,12 @@ namespace fem {
 
 // ---- Inserts (or retrieves) a grid node for parent point s in [-1,1]^DIM; returns its global id (DIM-independent) ----
       inline int get_or_insert_gid(BasisRegistry<DIM>& R, const Point<DIM>& s) {
-        static_assert(DIM == 2 || DIM == 3, "get_or_insert_gid supports DIM = 2 or 3");
+        const u64 key = morton_node_key_from_parent(s);
 
-        // Need +1 bit so mid/center nodes at level = _maxDepth land on integers.
-        const u32 maxBitsPerAxis = (DIM == 3) ? 21u : 32u;          // fits 64-bit Morton
-        const u32 nodeBits       = std::max<u32>(2u, std::min<u32>(_maxDepth + 1u, maxBitsPerAxis));
-        const u32 nodesN         = (1u << nodeBits);                 // indices in [0 .. nodesN-1]
-        const double nodesN_d    = static_cast<double>(nodesN);
-        const u32 maxIdx         = nodesN - 1u;
-
-        // Map parent coord in [-1,1] to integer grid index with clamping and rounding.
-        auto to_idx = [&](double sk) -> u32 {
-          if (sk <= -1.0) return 0u;
-          if (sk >=  1.0) return maxIdx;                   // clamp top
-          // [-1,1] -> [0, nodesN]; round to nearest integer grid point
-          const double t = (sk + 1.0) * (nodesN_d * 0.5);
-          long long li = llround(t);
-          if (li < 0)               li = 0;
-          else if (li > (long long)maxIdx) li = (long long)maxIdx;
-          return static_cast<u32>(li);
-        };
-
-        // Integer grid coordinates per axis
-        u32Point<DIM> ix{};
-        for (std::size_t k = 0; k < DIM; ++k) ix[k] = to_idx(s[k]);
-
-        // DIM-generic Morton key (uses your interleave for DIM==2 or 3)
-        const u64 key = interleave(ix);
-
-        // Lookup or insert
         auto it = R.nodeMap.find(key);
         if (it != R.nodeMap.end()) return it->second;
 
-        const int gid = static_cast<int>(R.nodes.size());
+        const int gid = (int)R.nodes.size();
         R.nodes.push_back(FEMNode<DIM> {gid, s, parent_to_physical(s)});
         R.nodeMap.emplace(key, gid);
         return gid;
@@ -2968,6 +3122,41 @@ namespace fem {
         }
       };
 
+// ---- Recompute node-quantization parameters from _maxDepth (DIM-independent) ---
+      inline void recompute_quant_params() noexcept {
+        constexpr u32 kMaxBitsPerAxis = (DIM == 3) ? 21u : 32u; // bits per axis supported by 64-bit Morton
+        assert(_maxDepth <= kMaxBitsPerAxis - 1u && "Depth exceeds Morton capacity for this DIM");
+        _nodeBitsQ  = std::max<u32>(2u, std::min<u32>(_maxDepth + 1u, kMaxBitsPerAxis));
+        _nodesNQ    = (1u << _nodeBitsQ);
+        _halfNodesN = double(_nodesNQ) * 0.5;
+        _maxIdxQ    = _nodesNQ - 1u;
+      }
+
+// ---- Quantize parent coord s∈[-1,1] to integer node index on 2^{_maxDepth+1} grid (DIM-independent) ---
+      inline u32 quantize_parent_coord(double s) const noexcept {
+        if (s <= -1.0) return 0u;
+        if (s >=  1.0) return _maxIdxQ;
+
+        // Map [-1,1] → [0, _nodesNQ] and round-to-nearest.
+        // We avoid llround; t is non-negative so floor(t+0.5) is fine.
+        double t = (s + 1.0) * _halfNodesN;
+
+        // Guard against tiny FP drift at the ends.
+        if (t <= 0.0) return 0u;
+        if (t >= double(_nodesNQ)) return _maxIdxQ;
+
+        u64 iu = (u64)(t + 0.5);
+        if (iu > _maxIdxQ) iu = _maxIdxQ; // handle t==_nodesNQ after rounding
+        return (u32)iu;
+      }
+
+// ---- Build Morton key for a parent-space point using nodal quantization (DIM-independent) ---
+      inline u64 morton_node_key_from_parent(const Point<DIM>& s) const noexcept {
+        u32Point<DIM> ix{};
+        for (std::size_t k = 0; k < DIM; ++k) ix[k] = quantize_parent_coord(s[k]);
+        return interleave(ix);
+      }
+
     private: //data
 // config
       u32  _maxDepth;
@@ -2975,8 +3164,8 @@ namespace fem {
       bool _allowCoarsenBelowMinDepth{true};
       bool _leafpos_valid{false};
 
-      // Store coordinates as _G[axis][a], where axis = 0:x,1:y,(2:z if DIM==3) and a = node index.
-      std::array<std::array<double, GeomNodeCount<DIM>::value>, DIM> _X{};
+// Store coordinates as _G[axis][a], where axis = 0:x,1:y,(2:z if DIM==3) and a = node index.
+      std::array<std::array<double, NDOFS[DIM][2]>, DIM> _X{};
       bool _geom_ready{false};
 
 // mesh leaves
@@ -2996,23 +3185,18 @@ namespace fem {
 
       BasisRegistry<DIM> _basisReg[3]; // 0:Q4/H8, 1:Q8/H20, 2:Q9/H27
 
-      // inside class OctTree<DIM>
-      static const u32 NDOFS[4][3];
-
-
+// Quantization params (depend only on DIM and _maxDepth)
+      u32 _nodeBitsQ{0};
+      u32 _nodesNQ{0};
+      double _halfNodesN{0.0};   // = _nodesNQ * 0.5
+      u32 _maxIdxQ{0};           // = _nodesNQ - 1
   };
-
-  // after the class definition, in the same header
-  template<std::size_t DIM>
-  const u32 OctTree<DIM>::NDOFS[4][3] = {
-    {0, 0, 0},   // unused row (DIM=1)
-    {2, 3, 3},   // DIM=1 placeholders if you ever used it
-    {4, 8, 9},   // DIM=2:  Q4,Q8,Q9
-    {8, 20, 27}  // DIM=3:  H8,H20,H27
-  };
-
 
 } // namespace fem
+
+
+
+
 
 
 

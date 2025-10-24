@@ -96,7 +96,7 @@ auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
 
 int main() {
 
-  //ProfilerStart("profiling.prof");
+  ProfilerStart("profiling.prof");
   // -------- Explicit control --------
   const u32 maxDepth   = 12;   // absolute cap on tree depth
   const u32 minDepth   = 3;    // baseline depth enforced by the class
