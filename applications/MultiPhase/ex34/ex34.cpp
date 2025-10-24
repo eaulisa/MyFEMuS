@@ -226,10 +226,10 @@ static inline Scenario parse_scenario(const std::string& s) {
 
 // ---------------- The dimensioned runner ----------------
 template<std::size_t DIM>
-int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu = true, bool pprof = false) {
+int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth) {
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
-  const u32 maxDepth = (DIM == 3 ? 8u : 12u);
+  const u32 maxDepth = max_depth;
   const u32 minDepth = (DIM == 3 ? 2u : 3u);
   const bool allowDrop = true;
 
@@ -556,6 +556,8 @@ int main(int argc, char** argv) {
   bool vtu = true;
   Scenario scenario = Scenario::ROT2D; // default; reconciled with dim inside run
 
+  unsigned max_depth = 8;
+
   for (int i = 1; i < argc; ++i) {
     std::string a = argv[i];
     if (a == "-d" || a == "--dim") {
@@ -599,11 +601,18 @@ int main(int argc, char** argv) {
     else if (a == "--no-vtu-output") {
       vtu = false;
     }
+    if (a == "--max_depth") {
+      if (i + 1 >= argc) {
+        print_usage(argv[0]);
+        return 1;
+      }
+      max_depth = std::atoi(argv[++i]);
+    }
   }
 
   switch (dim) {
-  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof);
-  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof);
+  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth);
+  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth);
   default:
     std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
     print_usage(argv[0]);
