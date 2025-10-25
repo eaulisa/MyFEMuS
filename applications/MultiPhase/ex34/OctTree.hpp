@@ -2013,7 +2013,11 @@ namespace fem {
         Point<DIM> shat; // local reference coords in [-1,1]^DIM
 
         // 1) locate leaf and local reference coords in [-1,1]^DIM
-        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) return false;
+        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) {
+          value = -1.;// if the node is outside the bounding box [-1,+1]^DIM
+          return false;
+        }
+
 
         // 2) leaf node index -> position in coefficient storage
         const u32 leaf_pos = (leaf_node_idx < _node2leafpos.size()) ? _node2leafpos[leaf_node_idx] : npos32;
