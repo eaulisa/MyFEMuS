@@ -12,8 +12,8 @@
 #include <gperftools/profiler.h>
 
 #include "OctTree.hpp"
-#include "FieldAdvection3D.hpp"
-#include "FieldAdvectionWithAnalyticVelocity3D.hpp"
+#include "FieldAdvection.hpp"
+#include "FieldAdvectionWithAnalyticVelocity.hpp"
 
 using namespace fem;
 
