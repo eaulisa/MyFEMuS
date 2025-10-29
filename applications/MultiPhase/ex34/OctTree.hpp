@@ -700,6 +700,7 @@ namespace fem {
     std::array<u32, NCHILD> child{};           // filled to npos32 in ctor
 
     bool is_leaf{true};
+    u32 node2leafIdx{0};
     u32 parent{npos32};
   };
 
@@ -755,8 +756,7 @@ namespace fem {
         _root = 0;
         _leaves.clear();           _leaves.push_back(_root);
         _leaf_ids.clear();
-        _node2leafpos.clear();
-        _leafpos_valid = false;
+
 
         // 3) Basis registries empty (fixed length = 3)
         for (int i = 0; i < 3; ++i) _basisReg[i].clear();
@@ -814,8 +814,6 @@ namespace fem {
 
         // 4) clear/refresh lookups (reuse capacity)
         _leaf_ids.clear();
-        _node2leafpos.clear();
-        rebuild_leafpos_lookup();
 
         // 5) basis registries / field sizes depend on active bases
         post_topology_update(); // very cheap (there is only one element)
@@ -928,7 +926,6 @@ namespace fem {
         b.recompute_quant_params();
         swap(a._minDepth, b._minDepth);
         swap(a._allowCoarsenBelowMinDepth, b._allowCoarsenBelowMinDepth);
-        swap(a._leafpos_valid, b._leafpos_valid);
 
         swap(a._X, b._X);
         swap(a._geom_ready, b._geom_ready);
@@ -943,7 +940,7 @@ namespace fem {
 
         swap(a._tree_nodes, b._tree_nodes);
         swap(a._root, b._root);
-        swap(a._node2leafpos, b._node2leafpos);
+        //swap(a._node2leafpos, b._node2leafpos);
         swap(a._activeBases, b._activeBases);
         swap(a._level_offset, b._level_offset);
       }
@@ -1038,13 +1035,17 @@ namespace fem {
 
 // ---- Rebuilds the node-index → leaf-position lookup table (DIM-independent) ----
       inline void rebuild_leafpos_lookup() {
-        _node2leafpos.assign(_tree_nodes.size(), npos32);
+
+        for(u32 i=0; i < _tree_nodes.size(); i++){
+          _tree_nodes[i].node2leafIdx = npos32;
+        }
+
+        //_node2leafpos.assign(_tree_nodes.size(), npos32);
         for (u32 i = 0; i < static_cast<u32>(_leaves.size()); ++i) {
           const u32 node_idx = _leaves[i];
-          assert(node_idx < _node2leafpos.size());
-          _node2leafpos[node_idx] = i;
+          assert(node_idx < _tree_nodes.size());
+          _tree_nodes[node_idx].node2leafIdx = i;
         }
-        _leafpos_valid = true;
       }
 
 // ---- Rebuilds connectivity/registries for all active bases if geometry is ready (DIM-independent) ----
@@ -1305,13 +1306,13 @@ namespace fem {
         return static_cast<u32>(_leaves.size());
       }
 
-// ---- Returns a cached vector of leaf positions [0..leaf_count-1] (DIM-independent) ----
-      inline const std::vector<u32>& leaf_indices() const {
-        const u32 n = static_cast<u32>(_leaves.size());
-        _leaf_ids.resize(n);
-        for (u32 i = 0; i < n; ++i) _leaf_ids[i] = i;
-        return _leaf_ids;
-      }
+// // ---- Returns a cached vector of leaf positions [0..leaf_count-1] (DIM-independent) ----
+//       inline const std::vector<u32>& leaf_indices() const {
+//         const u32 n = static_cast<u32>(_leaves.size());
+//         _leaf_ids.resize(n);
+//         for (u32 i = 0; i < n; ++i) _leaf_ids[i] = i;
+//         return _leaf_ids;
+//       }
 
 // ---- Adds a new field for basis `b`; sizes nodal storage to current topology (DIM-independent) ----
       inline u32 add_field(const Basis &b, const std::string &name) {
@@ -1579,6 +1580,7 @@ namespace fem {
           if (changed == 0) break;
           total += changed;
         }
+
         enforce_balance();
         post_topology_update();
         return total;
@@ -1844,6 +1846,8 @@ namespace fem {
         return coarsened;
       }
 
+
+
 // ---- Refines the given leaf into 2^DIM children and updates topology; returns true if a split occurred (DIM-independent) ----
       inline bool refine_leaf_once(u32 leaf_node_idx) noexcept {
         if (leaf_node_idx == npos32) return false;
@@ -1995,10 +1999,10 @@ namespace fem {
         }
       }
 
-// ---- Returns the vector of current leaf node indices (DIM-independent) ----
-      inline const std::vector<u32>& leaves() const noexcept {
-        return _leaves;
-      }
+// // ---- Returns the vector of current leaf node indices (DIM-independent) ----
+//       inline const std::vector<u32>& leaves() const noexcept {
+//         return _leaves;
+//       }
 
 // ---- Returns a const reference to the tree node at index idx (DIM-independent) ----
       inline const TreeNode<DIM>& node(u32 idx) const noexcept {
@@ -2020,7 +2024,7 @@ namespace fem {
 
 
         // 2) leaf node index -> position in coefficient storage
-        const u32 leaf_pos = (leaf_node_idx < _node2leafpos.size()) ? _node2leafpos[leaf_node_idx] : npos32;
+        const u32 leaf_pos = (leaf_node_idx < _tree_nodes.size()) ? _tree_nodes[leaf_node_idx].node2leafIdx : npos32;
         if (leaf_pos == npos32) return false;
 
         // 3) access field + connectivity
@@ -2138,7 +2142,7 @@ namespace fem {
             const u32 lvl = _tree_nodes[node].level;
             if (lvl >= maxDepthTarget) continue;
 
-            const u32 pos = _node2leafpos[node]; // fast, no per-pass map build
+            const u32 pos = _tree_nodes[node].node2leafIdx; // fast, no per-pass map build
             if (pos != npos32) mark_by_leaf[pos] = 1;
           }
 
@@ -2177,6 +2181,7 @@ namespace fem {
         }
 
         // Keep mesh balanced and refresh bookkeeping
+
         enforce_balance();
         post_topology_update();
       }
@@ -2264,6 +2269,8 @@ namespace fem {
 
 // ---- Enforces 2:1 balance (1-irregularity): adjacent leaves may differ by at most one level (DIM-independent) ----
       inline void enforce_balance() {
+        sort_leaves_by_level_then_morton(); // this is not needed, but it speeds up the leaf neighboor search
+        compute_level_offsets();
         // local enqueue that avoids duplicates
         auto enqueue = [](RingQ & q, std::vector<char>& inq, u32 n) {
           if (n == npos32) return;
@@ -2313,13 +2320,12 @@ namespace fem {
                 // containers may have grown; keep inq sized
                 if (inq.size() < _tree_nodes.size()) inq.resize(_tree_nodes.size(), 0);
 
-                // enqueue neighbor's neighbors (only affected cells)
-                for (int d = 0; d < int(2 * DIM); ++d) {
-                  u32 nb2 = neighbor_leaf_by_face_any(nb, d);
-                  if (nb2 != npos32) enqueue(q, inq, nb2);
+                const auto& refined_node = _tree_nodes[nb];  // `nb` is the index of the refined node
+                for (int i = 0; i < (1 << DIM); ++i) {
+                  u32 child_idx = refined_node.child[i];
+                  if (child_idx == npos32) continue; // if uninitialized or invalid
+                  enqueue(q, inq, child_idx);
                 }
-                // re-check the current leaf again (may still violate against new children)
-                enqueue(q, inq, leaf);
               }
             }
             else if (lnb > lev + 1) {
@@ -2327,10 +2333,11 @@ namespace fem {
               if (refine_leaf_once(leaf)) {
                 if (inq.size() < _tree_nodes.size()) inq.resize(_tree_nodes.size(), 0);
 
-                // enqueue this (former) leaf's neighbors
-                for (int d = 0; d < int(2 * DIM); ++d) {
-                  u32 nb2 = neighbor_leaf_by_face_any(leaf, d);
-                  if (nb2 != npos32) enqueue(q, inq, nb2);
+                const auto& refined_node = _tree_nodes[leaf];  // `leaf` is the index of the refined node
+                for (int i = 0; i < (1 << DIM); ++i) {
+                  u32 child_idx = refined_node.child[i];
+                  if (child_idx == npos32) continue; // if uninitialized or invalid
+                  enqueue(q, inq, child_idx);
                 }
                 // no point checking other dirs for the old leaf; it’s not a leaf now
                 break;
@@ -2339,6 +2346,7 @@ namespace fem {
           }
         }
       }
+
 
 // ---- Fast copy that reuses capacity without recomputing registries (DIM-independent)
       void assign_from(const OctTree& rhs) {
@@ -2377,7 +2385,6 @@ namespace fem {
 
         _minDepth  = rhs._minDepth;
         _allowCoarsenBelowMinDepth = rhs._allowCoarsenBelowMinDepth;
-        _leafpos_valid = rhs._leafpos_valid;
 
         _root       = rhs._root;
         _geom_ready = rhs._geom_ready;
@@ -2393,7 +2400,7 @@ namespace fem {
         copy_vec(_tree_nodes,    rhs._tree_nodes);    // vector<TreeNode<DIM>>
         copy_vec(_leaves,        rhs._leaves);        // indices of leaf nodes
         copy_vec(_leaf_ids,      rhs._leaf_ids);      // cached leaf ids [0..n-1]
-        copy_vec(_node2leafpos,  rhs._node2leafpos);  // node index -> leaf position
+        //copy_vec(_node2leafpos,  rhs._node2leafpos);  // node index -> leaf position
         copy_vec(_level_offset,  rhs._level_offset);
         // ---- per-basis registries ----
         for (int b = 0; b < 3; ++b) {
@@ -2443,6 +2450,7 @@ namespace fem {
         }
 
         // Enforce 1-irregularity and refresh bookkeeping
+
         enforce_balance();
         post_topology_update();
 
@@ -3166,7 +3174,6 @@ namespace fem {
       u32  _maxDepth;
       u32  _minDepth{0};
       bool _allowCoarsenBelowMinDepth{true};
-      bool _leafpos_valid{false};
 
 // Store coordinates as _G[axis][a], where axis = 0:x,1:y,(2:z if DIM==3) and a = node index.
       std::array<std::array<double, NDOFS[DIM][2]>, DIM> _X{};
@@ -3184,7 +3191,7 @@ namespace fem {
       std::vector<TreeNode<DIM>> _tree_nodes;        // full tree hierarchy
       u32 _root{0};
 
-      mutable std::vector<u32> _node2leafpos; // size == _tree_nodes.size(), npos32 default
+      //mutable std::vector<u32> _node2leafpos; // size == _tree_nodes.size(), npos32 default
       std::unordered_set<Basis, BasisHasher> _activeBases;
 
       BasisRegistry<DIM> _basisReg[3]; // 0:Q4/H8, 1:Q8/H20, 2:Q9/H27
@@ -3197,6 +3204,11 @@ namespace fem {
   };
 
 } // namespace fem
+
+
+
+
+
 
 
 

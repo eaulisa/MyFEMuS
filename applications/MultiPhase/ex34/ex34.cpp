@@ -133,10 +133,10 @@ VortexVel3D(double x, double y, double z, double time) noexcept {
 
 
 // ---------------- Geometry builders ----------------
-template<std::size_t DIM> struct Geom;
+template<std::size_t DIM> struct Box;
 
 // 2D
-template<> struct Geom<2> {
+template<> struct Box<2> {
   static std::array<std::array<double, 9>, 2>
   coords(const std::array<double, 2>& minCorner = {-0.5, -0.5},
          const std::array<double, 2>& maxCorner = {+0.5, +0.5}) {
@@ -153,7 +153,7 @@ template<> struct Geom<2> {
   }
 };
 // 3D
-template<> struct Geom<3> {
+template<> struct Box<3> {
   static std::array<std::array<double, 27>, 3>
   coords(const std::array<double, 3>& minCorner = {-0.5, -0.5, -0.5},
          const std::array<double, 3>& maxCorner = {+0.5, +0.5, +0.5}) {
@@ -178,6 +178,97 @@ template<> struct Geom<3> {
   }
 };
 
+template<std::size_t DIM> struct Ball;
+// 2D circle
+
+template<> struct Ball<2> {
+  static std::array<std::array<double, 9>, 2>
+  data(const double R = 0.5, const double cx = 0.0, const double cy = 0.0) {
+    const double inv_sqrt2 = 0.70710678118654752440084436210485; // 1/sqrt(2)
+    const double c = R * inv_sqrt2;
+
+    std::array<std::array<double, 9>, 2> XY{{
+        // x row [0][j]
+        { -c,  +c,  +c,  -c,  0.0, +R,  0.0, -R,  0.0 },
+        // y row [1][j]
+        { -c,  -c,  +c,  +c, -R,   0.0, +R,   0.0, 0.0 }
+      }};
+
+    // shift by center (cx, cy)
+    for (int j = 0; j < 9; ++j) {
+      XY[0][j] += cx;
+      XY[1][j] += cy;
+    }
+    return XY;
+  }
+};
+
+//3D sphere
+template<> struct Ball<3> {
+  static std::array<std::array<double, 27>, 3>
+  data(const double R = 0.5, const double cx = 0.0, const double cy = 0.0, const double cz = 0.0) {
+    const double inv_sqrt3 = 0.57735026918962576451; // 1/sqrt(3)
+    const double inv_sqrt2 = 0.70710678118654752440; // 1/sqrt(2)
+    const double a = R * inv_sqrt3; // corners on diagonals
+    const double b = R * inv_sqrt2; // edge midpoints
+
+    std::array<std::array<double, 27>, 3> XYZ{};
+
+    // ---- corners (0..7) ----
+    // Morton-like: z-, then z+
+    const int sgn[8][3] = {
+      {-1, -1, -1}, {+1, -1, -1}, {+1, +1, -1}, {-1, +1, -1},
+      {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}
+    };
+    for (int k = 0; k < 8; ++k) {
+      XYZ[0][k] = a * sgn[k][0];
+      XYZ[1][k] = a * sgn[k][1];
+      XYZ[2][k] = a * sgn[k][2];
+    }
+
+    // ---- z = -1 edges (8..11): bottom ring ----
+    // order: 0-1, 1-2, 2-3, 3-0
+    XYZ[0][ 8] =  0.0; XYZ[1][ 8] = -b;  XYZ[2][ 8] = -b;  // between (-a,-a,-a) and (+a,-a,-a)
+    XYZ[0][ 9] = +b;  XYZ[1][ 9] =  0.0; XYZ[2][ 9] = -b;  // between (+a,-a,-a) and (+a,+a,-a)
+    XYZ[0][10] = 0.0; XYZ[1][10] = +b;  XYZ[2][10] = -b;  // between (+a,+a,-a) and (-a,+a,-a)
+    XYZ[0][11] = -b;  XYZ[1][11] = 0.0; XYZ[2][11] = -b;  // between (-a,+a,-a) and (-a,-a,-a)
+
+    // ---- z = +1 edges (12..15): top ring ----
+    // order: 4-5, 5-6, 6-7, 7-4
+    XYZ[0][12] =  0.0; XYZ[1][12] = -b;  XYZ[2][12] = +b;  // between (-a,-a,+a) and (+a,-a,+a)
+    XYZ[0][13] = +b;  XYZ[1][13] =  0.0; XYZ[2][13] = +b;  // between (+a,-a,+a) and (+a,+a,+a)
+    XYZ[0][14] =  0.0; XYZ[1][14] = +b;  XYZ[2][14] = +b;  // between (+a,+a,+a) and (-a,+a,+a)
+    XYZ[0][15] = -b;  XYZ[1][15] =  0.0; XYZ[2][15] = +b;  // between (-a,+a,+a) and (-a,-a,+a)
+
+    // ---- vertical edges (16..19): 0-4, 1-5, 2-6, 3-7 ----
+    XYZ[0][16] = -b;  XYZ[1][16] = -b;  XYZ[2][16] = 0.0;  // 0-4
+    XYZ[0][17] = +b;  XYZ[1][17] = -b;  XYZ[2][17] = 0.0;  // 1-5
+    XYZ[0][18] = +b;  XYZ[1][18] = +b;  XYZ[2][18] = 0.0;  // 2-6
+    XYZ[0][19] = -b;  XYZ[1][19] = +b;  XYZ[2][19] = 0.0;  // 3-7
+
+    // ---- face centers (20..25): (y=-1, x=+1, y=+1, x=-1, z=-1, z=+1) ----
+    XYZ[0][20] =  0.0; XYZ[1][20] = -R;  XYZ[2][20] =  0.0; // y = -1 (−Y)
+    XYZ[0][21] = +R;   XYZ[1][21] =  0.0; XYZ[2][21] =  0.0; // x = +1 (+X)
+    XYZ[0][22] =  0.0; XYZ[1][22] = +R;  XYZ[2][22] =  0.0; // y = +1 (+Y)
+    XYZ[0][23] = -R;   XYZ[1][23] =  0.0; XYZ[2][23] =  0.0; // x = -1 (−X)
+    XYZ[0][24] =  0.0; XYZ[1][24] =  0.0; XYZ[2][24] = -R;  // z = -1 (bottom)
+    XYZ[0][25] =  0.0; XYZ[1][25] =  0.0; XYZ[2][25] = +R;  // z = +1 (top)
+
+    // ---- cell center (26) ----
+    XYZ[0][26] = 0.0; XYZ[1][26] = 0.0; XYZ[2][26] = 0.0;
+
+    // translate by (cx, cy, cz)
+    for (int j = 0; j < 27; ++j) {
+      XYZ[0][j] += cx;
+      XYZ[1][j] += cy;
+      XYZ[2][j] += cz;
+    }
+
+    return XYZ;
+  }
+};
+
+
 // ---------------- Dimension traits (as you had) ----------------
 template<std::size_t DIM> struct DimOps;
 
@@ -193,10 +284,14 @@ template<> struct DimOps<2> {
   static double evalPsi(const Psi<2>& psi, const Pt<2>& p) {
     return psi(p[0], p[1]);
   }
-  static std::array<std::array<double, 9>, 2> geom(
+  static std::array<std::array<double, 9>, 2> box_geom(
     const std::array<double, 2>& minCorner = {-0.5, -0.5},
     const std::array<double, 2>& maxCorner = {+0.5, +0.5}) {
-    return Geom<2>::coords(minCorner, maxCorner);
+    return Box<2>::coords(minCorner, maxCorner);
+  }
+  static std::array<std::array<double, 9>, 2> ball_geom(
+    const double R = 0.5, const std::array<double, 2> xc = {0., 0.}){
+    return Ball<2>::data(R, xc[0], xc[1]);
   }
 };
 
@@ -213,10 +308,14 @@ template<> struct DimOps<3> {
   static double evalPsi(const Psi<3>& psi, const Pt<3>& p) {
     return psi(p[0], p[1], p[2]);
   }
-  static std::array<std::array<double, 27>, 3> geom(
+  static std::array<std::array<double, 27>, 3> box_geom(
     const std::array<double, 3>& minCorner = {-0.5, -0.5, -0.5},
     const std::array<double, 3>& maxCorner = {+0.5, +0.5, +0.5}) {
-    return Geom<3>::coords(minCorner, maxCorner);
+    return Box<3>::coords(minCorner, maxCorner);
+  }
+  static std::array<std::array<double, 27>, 3> ball_geom(
+    const double R = 0.5, const std::array<double, 3> xc = {0., 0., 0.}){
+    return Ball<3>::data(R, xc[0], xc[1], xc[2]);
   }
 };
 
@@ -359,7 +458,7 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
 
 // ======================== Unified run<DIM> (exact signatures) ========================
 template<std::size_t DIM>
-int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth) {
+int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain) {
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
   const u32 maxDepth = max_depth;
@@ -373,12 +472,21 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
   // Select scenario/domain/velocity per DIM
   scenario = reconcile_dim<DIM>(scenario);
-  const auto [minCorner, maxCorner] = make_domain<DIM>(scenario);
+
   Vel<DIM> evalVelocity = make_velocity<DIM>(scenario);
 
   OctTree<DIM> ot(maxDepth, minDepth);
   ot.set_allow_coarsen_below_min(allowDrop);
-  auto X = DimOps<DIM>::geom(minCorner, maxCorner);
+
+  const auto [minCorner, maxCorner] = make_domain<DIM>(scenario);
+  auto X =(box_domain)?
+    DimOps<DIM>::box_geom(minCorner, maxCorner):
+    DimOps<DIM>::ball_geom(0.65, Point<DIM>{0});
+
+  // if (scenario == Scenario::ROT2D || scenario == Scenario::ROT3D) {
+  //   X = DimOps<DIM>::ball_geom(0.65, Point<DIM>{0});
+  // }
+
   ot.set_physical_coordinates(X);
 
   // Level set
@@ -499,14 +607,32 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
 // ---------------- CLI dispatcher ----------------
 static void print_usage(const char* prog) {
-  std::cerr << "Usage: " << prog
-            << " [-d|--dim 2|3] [-n|--niter N]"
-               " [--scenario RB2D|RB3D|VX2D|VX3D|ROT2D|ROT3D]"
-               " [--max_depth M]"
-               " [--profiling|--no-profiling]"
-               " [--vtu-output|--no-vtu-output]\n"
-            << "  --niter controls the number of STEPS executed (nSteps),\n"
-            << "  while dt is computed with a fixed nIter=320.\n";
+  std::cerr
+    << "Usage: " << prog << "\n"
+    << "  [-d|--dim 2|3]\n"
+    << "  [-n|--niter N]\n"
+    << "  [--scenario RB2D|RB3D|VX2D|VX3D|ROT2D|ROT3D]\n"
+    << "  [--max_depth M]\n"
+    << "  [--profiling|--no-profiling]\n"
+    << "  [--vtu-output|--no-vtu-output]\n"
+    << "  [--box_domain|--ball_domain]\n"
+    << "\n"
+    << "Options:\n"
+    << "  -d, --dim           Dimension (2 or 3). Default: 2\n"
+    << "  -n, --niter         Number of time steps to execute (nSteps). Default: 320\n"
+    << "      --scenario      Flow/velocity setup. Default reconciled from dim; default is VX2D.\n"
+    << "                      Valid: RB2D, RB3D, VX2D, VX3D, ROT2D, ROT3D\n"
+    << "      --max_depth     Maximum tree depth (u32). Default: 8\n"
+    << "      --profiling     Enable gperftools CPU profiling\n"
+    << "      --no_profiling  Disable profiling (default)\n"
+    << "      --vtu           Write VTU frames (default)\n"
+    << "      --no_vtu        Do not write VTU\n"
+    << "      --box_domain    Use box geometry (default)\n"
+    << "      --ball_domain   Use ball geometry (circle in 2D, sphere in 3D)\n"
+    << "\n"
+    << "Notes:\n"
+    << "  --niter controls the number of STEPS executed (nSteps),\n"
+    << "  while dt is computed with a fixed nIter=320.\n";
 }
 
 
@@ -515,6 +641,7 @@ int main(int argc, char** argv) {
   unsigned nSteps = 320;  // default steps
   bool pprof = false;
   bool vtu = true;
+  bool box_domain = true;
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
 
   unsigned max_depth = 8;
@@ -553,13 +680,13 @@ int main(int argc, char** argv) {
     else if (a == "--profiling") {
       pprof = true;
     }
-    else if (a == "--no-profiling") {
+    else if (a == "--no_profiling") {
       pprof = false;
     }
-    else if (a == "--vtu-output") {
+    else if (a == "--vtu") {
       vtu = true;
     }
-    else if (a == "--no-vtu-output") {
+    else if (a == "--no_vtu") {
       vtu = false;
     }
     else if (a == "--max_depth") {
@@ -569,11 +696,17 @@ int main(int argc, char** argv) {
       }
       max_depth = std::atoi(argv[++i]);
     }
+    else if (a == "--ball_domain") {
+      box_domain = false;
+    }
+    else if (a == "--box_domain") {
+      box_domain = true;
+    }
   }
 
   switch (dim) {
-  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth);
-  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth);
+  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain);
+  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain);
   default:
     std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
     print_usage(argv[0]);
