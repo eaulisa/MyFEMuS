@@ -460,7 +460,7 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
 
 // ======================== Unified run<DIM> (exact signatures) ========================
 template<std::size_t DIM>
-int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain) {
+int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit) {
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
   const u32 maxDepth = max_depth;
@@ -586,7 +586,7 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     using std::swap; swap(ot, ot1);
 
-    if (k % 10 == 0) {
+    if (reinit && (k % reinit == 0)) {
       Reinitializer<DIM> reinit(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
       reinit.compute_signed_distance();
     }
@@ -623,6 +623,7 @@ static void print_usage(const char* prog) {
       << "  [--profiling|--no-profiling]\n"
       << "  [--vtu-output|--no-vtu-output]\n"
       << "  [--box_domain|--ball_domain]\n"
+      << "  [--reinit R]\n"
       << "\n"
       << "Options:\n"
       << "  -d, --dim           Dimension (2 or 3). Default: 2\n"
@@ -636,6 +637,7 @@ static void print_usage(const char* prog) {
       << "      --no_vtu        Do not write VTU\n"
       << "      --box_domain    Use box geometry (default)\n"
       << "      --ball_domain   Use ball geometry (circle in 2D, sphere in 3D)\n"
+      << "      --reinit        Number of time steps beween reinitializations; deafult is 0, i.e., no reinitialization\n"
       << "\n"
       << "Notes:\n"
       << "  --niter controls the number of STEPS executed (nSteps),\n"
@@ -649,6 +651,7 @@ int main(int argc, char** argv) {
   bool pprof = false;
   bool vtu = true;
   bool box_domain = true;
+  unsigned reinit = 0; //(default false)
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
 
   unsigned max_depth = 8;
@@ -709,11 +712,18 @@ int main(int argc, char** argv) {
     else if (a == "--box_domain") {
       box_domain = true;
     }
+    if (a == "--reinit") {
+      if (i + 1 >= argc) {
+        print_usage(argv[0]);
+        return 1;
+      }
+      reinit = std::atoi(argv[++i]);
+    }
   }
 
   switch (dim) {
-  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain);
-  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain);
+  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain, reinit);
+  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain, reinit);
   default:
     std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
     print_usage(argv[0]);
