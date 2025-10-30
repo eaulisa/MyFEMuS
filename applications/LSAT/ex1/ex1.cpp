@@ -250,14 +250,24 @@ double flc4hs(double const & x, double const & eps) {
   }
 }
 
-double GetTargetSolution(const std::vector<double> &xv, const double &time) {
+/*double GetTargetSolution(const std::vector<double> &xv, const double &time) {
   // return cos(xv[0] * xv[1]) * flc4hs(time - .5, 0.5) ;
   return xv[0] * (M_PI - xv[0]) * xv[1] * (1. - xv[1]) * sin(time) * flc4hs(time - .5, 0.5) ;
+}*/
+
+double GetTargetSolution(const std::vector<double> &xv, const double &time) {
+  sin(xv[0]) * sin(M_PI * xv[1]) * sin(time) * flc4hs(time - 0.5, 0.5);
 }
 
-double GetDisturbanceSolution(const std::vector<double>& xv, const double& time) {
+
+/*double GetDisturbanceSolution(const std::vector<double>& xv, const double& time) {
   return xv[1] * (1. - xv[1]) * sin(2. * time) * flc4hs(time - .5, 0.5);
+}*/
+
+double GetDisturbanceSolution(const std::vector<double>& xv, const double& time) {
+    return (xv[0] - 2*M_PI/3.0)*(M_PI - xv[0]) * xv[1]*(1 - xv[1]) * sin(2*time) * flc4hs(time - 0.5, 0.5);
 }
+
 
 void SetPrescribedFields(Solution* sol, const double& time, const std::string& R, const std::string& D) {
 
