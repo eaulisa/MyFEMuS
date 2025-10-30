@@ -54,6 +54,24 @@ namespace fem {
   }
 
 // ============================================================
+// Analytic physical-velocity: 2D overload
+// eval_physical(s, t_abs, vfun)
+// vfun: v(x,y,t) -> Point<2>
+// ============================================================
+  template<class AnalyticVel>
+  inline Point<2> eval_physical(
+    const Point<2>& s,
+    double t_abs,
+    const AnalyticVel& vfun) {
+    // Map to physical with H27
+
+    // Physical velocity
+    const Point<2> v = vfun(s[0], s[1], t_abs);
+
+    return v;
+  }
+
+// ============================================================
 // Analytic parent-velocity: 3D overload
 // eval_parent_sdot(tree, s, t_abs, vfun)
 // vfun: v(x,y,z,t) -> Point<3>
@@ -114,6 +132,24 @@ namespace fem {
   }
 
 // ============================================================
+// Analytic physical-velocity: 3D overload
+// eval_physical(s, t_abs, vfun)
+// vfun: v(x,y,z,t) -> Point<3>
+// ============================================================
+  template<class AnalyticVel>
+  inline Point<3> eval_physical(
+    const Point<3>& s,
+    double t_abs,
+    const AnalyticVel& vfun) {
+    // Map to physical with H27
+
+    // Physical velocity
+    const Point<3> v = vfun(s[0], s[1], s[2], t_abs);
+
+    return v;
+  }
+
+// ============================================================
 // Make parent-space velocity evaluator with absolute time
 // Returns: lambda (s, tau) -> sdot
 // Works for DIM=2 or 3 by picking the right overload above
@@ -130,6 +166,25 @@ namespace fem {
     return [&tree, start_time_local, vfun_captured](const Point<DIM>& s, double tau) {
       const double t_abs = start_time_local + tau;
       return eval_parent_sdot(tree, s, t_abs, vfun_captured); // overload picks 2D/3D
+    };
+  }
+
+// ============================================================
+// Make physical-space velocity evaluator with absolute time
+// Returns: lambda (s, tau) -> sdot
+// Works for DIM=2 or 3 by picking the right overload above
+// ============================================================
+  template<class AnalyticVel, std::size_t DIM>
+  inline auto make_physical_vel_eval(
+    double start_time,
+    AnalyticVel&& vfun) {
+    // capture by value to avoid ref-binding issues with function pointers
+    auto   vfun_captured          = std::forward<AnalyticVel>(vfun);
+    const double start_time_local = start_time;
+
+    return [start_time_local, vfun_captured](const Point<DIM>& s, double tau) {
+      const double t_abs = start_time_local + tau;
+      return eval_physical(s, t_abs, vfun_captured); // overload picks 2D/3D
     };
   }
 
@@ -165,6 +220,41 @@ namespace fem {
       }
       else {
         coordsStayedNew.push_back(tree0.parent_to_physical(s1));
+      }
+    }
+  }
+
+// ======================================================================
+// 2) Forward advection of markers (analytic velocity, DIM=2/3)
+//    Integrates from (time - dt) to (time).
+// ======================================================================
+  template<class AnalyticVel, std::size_t DIM>
+  inline void advect_physical_markers_forward_analytic(
+    const OctTree<DIM>& tree0,
+    double time,                 // absolute END time t^{n+1}
+    double dt,                   // dt > 0
+    AnalyticVel&& vfun,
+    const std::vector<Point<DIM>>& markers,
+    std::vector<Point<DIM>>& coordsLeftOld,
+    std::vector<Point<DIM>>& coordsStayedNew) {
+    assert(dt > 0.0 && "Forward advection expects dt > 0");
+    coordsLeftOld.clear();
+    coordsStayedNew.clear();
+
+    //sample nodes at finest level using highest-order geometry basis (id==0 ⇒ Q4/H8)
+    const double t0_abs = time - dt;
+
+    for (const auto& s0 : markers) {
+      auto vel_eval = make_physical_vel_eval<decltype(vfun), DIM>(t0_abs, vfun);
+
+      const Point<DIM> s1 = rk4_advect_parent<DIM>(s0, dt, vel_eval);
+
+      const u32 leaf = tree0.locate_leaf_on_parent(s1);
+      if (leaf == npos32) {
+        coordsLeftOld.push_back(s0);
+      }
+      else {
+        coordsStayedNew.push_back(s1);
       }
     }
   }

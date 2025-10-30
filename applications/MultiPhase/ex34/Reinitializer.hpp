@@ -93,15 +93,15 @@ namespace fem {
         // this routine creates a csv with all markers
         void write_markers_csv(const std::string&) const;
 
+        // this routine collect and returns markers on the level set interface
+        std::vector<Point<DIM>> collect_markers();
+
     private:
         // this routine identifies cut cells and compute cell intersections with the interface
         bool leaf_is_cut(u32 leaf_pos, std::vector<Point<DIM>>* cell_intersections = nullptr);
         
         // this routine compute markers on the cell interface
         void compute_cell_markers(std::vector<Point<DIM>> cell_intersections);
-
-        // this routine collect markers on the level set interface
-        void collect_markers();
 
         // this routine project the cut cells nodes on to the interface
         void project_cut_cells_nodes();

@@ -565,11 +565,15 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   OctTree<DIM> ot0 = ot;
   OctTree<DIM> ot1(maxDepth, minDepth);
 
+  Reinitializer<DIM> reinitializer(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
+  std::vector<Pt<DIM>> markers = reinitializer.collect_markers();
+
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
-    fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
+    // fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
+    fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
 
     ot1.reset(false, false);
     ot1.set_allow_coarsen_below_min(allowDrop);
@@ -586,15 +590,18 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     using std::swap; swap(ot, ot1);
 
+    markers.clear();
+    markers = reinitializer.collect_markers();
+    
     if (reinit && (k % reinit == 0)) {
-      Reinitializer<DIM> reinit(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
-      reinit.compute_signed_distance();
+      reinitializer.compute_signed_distance();
     }
 
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
       write_vtu_frame_generic(ot, k, time, evalVelocity, bHi, stem);
     }
+
   }
 
   // Union mesh VTU
