@@ -24,7 +24,7 @@ const double BETA = 0.25;
 const double GAMMA = 0.5;
 bool UseNewmarkUpdateWithD = true;
 double dt = 0.025;
-bool withDisturbance = true;
+bool withDisturbance = false;
 
 double SetVariableTimeStep(const double time) {
   return dt;
@@ -99,6 +99,8 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Ei", LAGRANGE, SECOND, false);
   mlSol.AddSolution("Z", LAGRANGE, SECOND, false);
 
+  mlSol.AddSolution("P", LAGRANGE, SECOND, false);
+
   unsigned cascadeIterations = 3;
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string Zj = "Z" + std::to_string(j);
@@ -150,6 +152,10 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(false);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
+  sol->_Sol[mlSol.GetIndex("P")]->zero();
+
+  // ****here we solve the system for P****
+
   const unsigned n_timesteps = 150;
 
   for (unsigned j = 0; j < cascadeIterations; j++) {
@@ -174,6 +180,7 @@ int main(int argc, char** args) {
     errorFile << std::setprecision(8);
   }
 
+  // Time loop
   for (unsigned t = 1; t <= n_timesteps; t++) {
     if(withDisturbance) SetPrescribedFields(sol, t * dt, "R", "d");
     else SetPrescribedFields(sol, t * dt, "R");
