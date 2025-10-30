@@ -11,6 +11,8 @@
 #include <vector>
 #include <gperftools/profiler.h>
 
+
+#include "Reinitializer.hpp"
 #include "OctTree.hpp"
 #include "FieldAdvection.hpp"
 #include "FieldAdvectionWithAnalyticVelocity.hpp"
@@ -290,7 +292,7 @@ template<> struct DimOps<2> {
     return Box<2>::coords(minCorner, maxCorner);
   }
   static std::array<std::array<double, 9>, 2> ball_geom(
-    const double R = 0.5, const std::array<double, 2> xc = {0., 0.}){
+    const double R = 0.5, const std::array<double, 2> xc = {0., 0.}) {
     return Ball<2>::data(R, xc[0], xc[1]);
   }
 };
@@ -314,7 +316,7 @@ template<> struct DimOps<3> {
     return Box<3>::coords(minCorner, maxCorner);
   }
   static std::array<std::array<double, 27>, 3> ball_geom(
-    const double R = 0.5, const std::array<double, 3> xc = {0., 0., 0.}){
+    const double R = 0.5, const std::array<double, 3> xc = {0., 0., 0.}) {
     return Ball<3>::data(R, xc[0], xc[1], xc[2]);
   }
 };
@@ -479,9 +481,9 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   ot.set_allow_coarsen_below_min(allowDrop);
 
   const auto [minCorner, maxCorner] = make_domain<DIM>(scenario);
-  auto X =(box_domain)?
-    DimOps<DIM>::box_geom(minCorner, maxCorner):
-    DimOps<DIM>::ball_geom(0.65, Point<DIM>{0});
+  auto X = (box_domain) ?
+           DimOps<DIM>::box_geom(minCorner, maxCorner) :
+           DimOps<DIM>::ball_geom(0.65, fem::Point<DIM> {0});
 
   // if (scenario == Scenario::ROT2D || scenario == Scenario::ROT3D) {
   //   X = DimOps<DIM>::ball_geom(0.65, Point<DIM>{0});
@@ -584,6 +586,11 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     using std::swap; swap(ot, ot1);
 
+    if (k % 10 == 0) {
+      Reinitializer<DIM> reinit(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
+      reinit.compute_signed_distance();
+    }
+
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
       write_vtu_frame_generic(ot, k, time, evalVelocity, bHi, stem);
@@ -608,31 +615,31 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 // ---------------- CLI dispatcher ----------------
 static void print_usage(const char* prog) {
   std::cerr
-    << "Usage: " << prog << "\n"
-    << "  [-d|--dim 2|3]\n"
-    << "  [-n|--niter N]\n"
-    << "  [--scenario RB2D|RB3D|VX2D|VX3D|ROT2D|ROT3D]\n"
-    << "  [--max_depth M]\n"
-    << "  [--profiling|--no-profiling]\n"
-    << "  [--vtu-output|--no-vtu-output]\n"
-    << "  [--box_domain|--ball_domain]\n"
-    << "\n"
-    << "Options:\n"
-    << "  -d, --dim           Dimension (2 or 3). Default: 2\n"
-    << "  -n, --niter         Number of time steps to execute (nSteps). Default: 320\n"
-    << "      --scenario      Flow/velocity setup. Default reconciled from dim; default is VX2D.\n"
-    << "                      Valid: RB2D, RB3D, VX2D, VX3D, ROT2D, ROT3D\n"
-    << "      --max_depth     Maximum tree depth (u32). Default: 8\n"
-    << "      --profiling     Enable gperftools CPU profiling\n"
-    << "      --no_profiling  Disable profiling (default)\n"
-    << "      --vtu           Write VTU frames (default)\n"
-    << "      --no_vtu        Do not write VTU\n"
-    << "      --box_domain    Use box geometry (default)\n"
-    << "      --ball_domain   Use ball geometry (circle in 2D, sphere in 3D)\n"
-    << "\n"
-    << "Notes:\n"
-    << "  --niter controls the number of STEPS executed (nSteps),\n"
-    << "  while dt is computed with a fixed nIter=320.\n";
+      << "Usage: " << prog << "\n"
+      << "  [-d|--dim 2|3]\n"
+      << "  [-n|--niter N]\n"
+      << "  [--scenario RB2D|RB3D|VX2D|VX3D|ROT2D|ROT3D]\n"
+      << "  [--max_depth M]\n"
+      << "  [--profiling|--no-profiling]\n"
+      << "  [--vtu-output|--no-vtu-output]\n"
+      << "  [--box_domain|--ball_domain]\n"
+      << "\n"
+      << "Options:\n"
+      << "  -d, --dim           Dimension (2 or 3). Default: 2\n"
+      << "  -n, --niter         Number of time steps to execute (nSteps). Default: 320\n"
+      << "      --scenario      Flow/velocity setup. Default reconciled from dim; default is VX2D.\n"
+      << "                      Valid: RB2D, RB3D, VX2D, VX3D, ROT2D, ROT3D\n"
+      << "      --max_depth     Maximum tree depth (u32). Default: 8\n"
+      << "      --profiling     Enable gperftools CPU profiling\n"
+      << "      --no_profiling  Disable profiling (default)\n"
+      << "      --vtu           Write VTU frames (default)\n"
+      << "      --no_vtu        Do not write VTU\n"
+      << "      --box_domain    Use box geometry (default)\n"
+      << "      --ball_domain   Use ball geometry (circle in 2D, sphere in 3D)\n"
+      << "\n"
+      << "Notes:\n"
+      << "  --niter controls the number of STEPS executed (nSteps),\n"
+      << "  while dt is computed with a fixed nIter=320.\n";
 }
 
 

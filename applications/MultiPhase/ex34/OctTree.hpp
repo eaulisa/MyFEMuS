@@ -18,6 +18,8 @@
 #include <variant>
 #include "Encoder.hpp"
 
+#include "Reinitializer.hpp"
+
 namespace fem {
 
   using u32 = uint32_t;
@@ -734,11 +736,16 @@ namespace fem {
     }
   };
 
+  template<std::size_t DIM> class Reinitializer;
+
 
 // ---------- OctTree (minimum workable stub) ----------
   template<std::size_t DIM/*, class Derived*/>
   class OctTree {
     public:
+
+      friend class Reinitializer<DIM>;
+
       using Basis = BasisT<DIM>;
       using PM = PtMake<DIM>;
       // ---- Constructs an empty tree with a single root covering [-1,1]^DIM; clamps minDepth; validates depth vs Morton capacity.
@@ -1036,7 +1043,7 @@ namespace fem {
 // ---- Rebuilds the node-index → leaf-position lookup table (DIM-independent) ----
       inline void rebuild_leafpos_lookup() {
 
-        for(u32 i=0; i < _tree_nodes.size(); i++){
+        for (u32 i = 0; i < _tree_nodes.size(); i++) {
           _tree_nodes[i].node2leafIdx = npos32;
         }
 
@@ -1999,10 +2006,10 @@ namespace fem {
         }
       }
 
-// // ---- Returns the vector of current leaf node indices (DIM-independent) ----
-//       inline const std::vector<u32>& leaves() const noexcept {
-//         return _leaves;
-//       }
+// ---- Returns the vector of current leaf node indices (DIM-independent) ----
+      inline const std::vector<u32>& leaves() const noexcept {
+        return _leaves;
+      }
 
 // ---- Returns a const reference to the tree node at index idx (DIM-independent) ----
       inline const TreeNode<DIM>& node(u32 idx) const noexcept {
@@ -2082,6 +2089,103 @@ namespace fem {
 
         return true;
       }
+
+ // ---- evaluate gradient at parent coords for quad/octant bases (DIM-independent) ----
+ bool evaluate_gradient_on_parent(u32 fid, const Point<DIM>& s,
+                                 std::array<double,DIM>& gradient) const
+      {
+        if (fid >= _fields.size()) return false;
+
+        u32        leaf_node_idx = npos32;
+        Point<DIM> shat; // local reference coords in [-1,1]^DIM
+
+        // 1) locate leaf and local reference coords in [-1,1]^DIM
+        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) return false;
+
+        // 2) leaf node index -> position in coefficient storage
+
+        const u32 leaf_pos = (leaf_node_idx < _tree_nodes.size()) ? _tree_nodes[leaf_node_idx].node2leafIdx : npos32;
+        if (leaf_pos == npos32) return false;
+
+        // 3) access field + connectivity
+        const Field&              f = _fields[fid];
+        const BasisRegistry<DIM>& R = _basisReg[(int)f.basis_id];
+        const auto&               conn = R.elem2glob[leaf_pos];
+
+        for (int idim = 0; idim<DIM; idim++)
+
+        if (DIM == 2) {
+          Point2 s2{ shat[0], shat[1] };
+
+          switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
+          case Basis2D::Q4: {
+            std::array<std::array<double, 4> , 2> dN{};
+            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 4; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q8: {
+            std::array<std::array<double, 8> , 2> dN{};
+            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 8; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q9: {
+            std::array<std::array<double, 9> , 2> dN{};
+            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 9; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
+          }
+
+        }
+        else if (DIM == 3) {
+          // Only access shat[2] in the DIM==3 path
+          Point3 s3{ shat[0], shat[1], shat[2] };
+
+          switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
+          case Basis3D::H8: {
+            std::array<std::array<double, 8> , 3> dN{};
+            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 8; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H20: {
+            std::array<std::array<double, 20> , 3> dN{};
+            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 20; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H27: {
+            std::array<std::array<double, 27> , 3> dN{};
+            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 27; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
+          }
+
+        }
+        else {
+          return false; // unsupported DIM
+        }
+
+        const u32   L     = _tree_nodes[leaf_pos].level;
+        const double scale = std::ldexp(1.0, int(L)); // 2^L
+        for (std::size_t d=0; d<DIM; ++d)
+            gradient[d] = scale * gradient[d] ;
+
+        return true;
+      }
+
+
 
 // ---- Locates the leaf for parent-space point s and maps it to that leaf’s local [-1,1]^DIM (DIM-independent) ----
       inline bool locate_leaf_on_parent_and_ref(const Point<DIM>& s,
