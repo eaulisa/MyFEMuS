@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <functional>
 
 #include <cstddef>
 #include <cassert>
@@ -85,7 +86,7 @@ namespace fem {
     class Reinitializer
     {
     public:
-        explicit Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, bool flag = true, double density = 10.);
+        explicit Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_ = {}, bool flag = true, double density = 10.);
 
         // this routine reinitializes the level set field fid
         void compute_signed_distance();
@@ -114,7 +115,6 @@ namespace fem {
         double      evaluate_field_on_leaf(const Point<DIM> P_local);
         Vector<DIM> evaluate_gradient_on_leaf(const Point<DIM> P);
 
-
         OctTree<DIM> * tree = nullptr;
         std::vector<Point<DIM>> markers;
         std::vector<u32> cut_cells;
@@ -127,6 +127,8 @@ namespace fem {
 
         bool proj_flag;
         double marker_density;
+
+        std::function<double(double)> mollifier;
     };
 }
 

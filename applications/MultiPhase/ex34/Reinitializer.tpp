@@ -2,8 +2,8 @@
 namespace fem {
 
     template<std::size_t DIM>
-    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, bool flag, double density) 
-        : tree(tree_ptr), fid(fid_phi), proj_flag(flag), marker_density(density) {}
+    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_, bool flag, double density) 
+        : tree(tree_ptr), fid(fid_phi), mollifier(std::move(mollifier_)), proj_flag(flag), marker_density(density) {}
 
     template <std::size_t DIM>
     void Reinitializer<DIM>::write_markers_csv(const std::string& filename) const
@@ -534,6 +534,11 @@ namespace fem {
                         Field.nodal[conn[i_node]] = sign * new_dist;
                     }
                 }
+            }
+
+        if (mollifier)
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                Field.nodal[i] = mollifier(Field.nodal[i]);
             }
     }
 

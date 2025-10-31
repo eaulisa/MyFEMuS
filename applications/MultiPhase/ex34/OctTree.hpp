@@ -2113,69 +2113,70 @@ namespace fem {
         const auto&               conn = R.elem2glob[leaf_pos];
 
         for (int idim = 0; idim < DIM; idim++)
+          gradient[idim] = 0;
 
-          if (DIM == 2) {
-            Point2 s2{ shat[0], shat[1] };
+        if (DIM == 2) {
+          Point2 s2{ shat[0], shat[1] };
 
-            switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
-            case Basis2D::Q4: {
-              std::array<std::array<double, 4>, 2> dN{};
-              Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
-              for (int a = 0; a < 4; ++a)
-                for (int idim = 0; idim < 2; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            case Basis2D::Q8: {
-              std::array<std::array<double, 8>, 2> dN{};
-              Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
-              for (int a = 0; a < 8; ++a)
-                for (int idim = 0; idim < 2; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            case Basis2D::Q9: {
-              std::array<std::array<double, 9>, 2> dN{};
-              Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
-              for (int a = 0; a < 9; ++a)
-                for (int idim = 0; idim < 2; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            default: return false;
-            }
-
+          switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
+          case Basis2D::Q4: {
+            std::array<std::array<double, 4>, 2> dN{};
+            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 4; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q8: {
+            std::array<std::array<double, 8>, 2> dN{};
+            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 8; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis2D::Q9: {
+            std::array<std::array<double, 9>, 2> dN{};
+            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+            for (int a = 0; a < 9; ++a)
+              for (int idim = 0; idim < 2; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
           }
-          else if (DIM == 3) {
-            // Only access shat[2] in the DIM==3 path
-            Point3 s3{ shat[0], shat[1], shat[2] };
 
-            switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
-            case Basis3D::H8: {
-              std::array<std::array<double, 8>, 3> dN{};
-              Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-              for (int a = 0; a < 8; ++a)
-                for (int idim = 0; idim < 3; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            case Basis3D::H20: {
-              std::array<std::array<double, 20>, 3> dN{};
-              Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-              for (int a = 0; a < 20; ++a)
-                for (int idim = 0; idim < 3; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            case Basis3D::H27: {
-              std::array<std::array<double, 27>, 3> dN{};
-              Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-              for (int a = 0; a < 27; ++a)
-                for (int idim = 0; idim < 3; idim++)
-                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-            } break;
-            default: return false;
-            }
+        }
+        else if (DIM == 3) {
+          // Only access shat[2] in the DIM==3 path
+          Point3 s3{ shat[0], shat[1], shat[2] };
 
+          switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
+          case Basis3D::H8: {
+            std::array<std::array<double, 8>, 3> dN{};
+            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 8; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H20: {
+            std::array<std::array<double, 20>, 3> dN{};
+            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 20; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          case Basis3D::H27: {
+            std::array<std::array<double, 27>, 3> dN{};
+            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int a = 0; a < 27; ++a)
+              for (int idim = 0; idim < 3; idim++)
+                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+          } break;
+          default: return false;
           }
-          else {
-            return false; // unsupported DIM
-          }
+
+        }
+        else {
+          return false; // unsupported DIM
+        }
 
         const u32   L     = _tree_nodes[leaf_pos].level;
         const double scale = std::ldexp(1.0, int(L)); // 2^L

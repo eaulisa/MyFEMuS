@@ -562,7 +562,9 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
     }
   }
 
-  Reinitializer<DIM> reinitializer(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
+  double eps = 1./pow(2,maxDepth-3);
+  Mollifier m(eps);
+  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept { return m.Sigmoid(x); }, true /*projection flag*/, 10. /*marker density*/);
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
   // }
