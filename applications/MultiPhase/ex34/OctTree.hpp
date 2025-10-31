@@ -3378,6 +3378,55 @@ namespace fem {
         return interleave(ix);
       }
 
+// ---- Determinante di J in s (usa _X e le tue shape derivate Q9/H27)
+      double detJ_at(const Point<DIM>& s) const noexcept {
+        require_geometry();
+
+        // buffer derivati
+        constexpr std::size_t Nnodes = NDOFS[DIM][2]; // Q9/H27
+        std::vector<double> dNx(Nnodes), dNy(Nnodes), dNz((DIM == 3) ? Nnodes : 0);
+
+        if constexpr (DIM == 2) {
+          Point2 s2{ s[0], s[1] };
+          Shapes2D::Q9_dN(s2, dNx.data(), dNy.data());
+          double J[2][2] = {{0.0, 0.0}, {0.0, 0.0}};
+          for (std::size_t a = 0; a < Nnodes; ++a) {
+            const double dNa0 = dNx[a], dNa1 = dNy[a];
+            const double X0 = _X[0][a], X1 = _X[1][a];
+            J[0][0] += dNa0 * X0;  J[0][1] += dNa1 * X0;
+            J[1][0] += dNa0 * X1;  J[1][1] += dNa1 * X1;
+          }
+          return J[0][0] * J[1][1] - J[0][1] * J[1][0];
+        } else { // DIM == 3
+          Point3 s3{ s[0], s[1], s[2] };
+          Shapes3D::H27_dN(s3, dNx.data(), dNy.data(), dNz.data());
+          double J[3][3] = {{0.0, 0.0, 0.0},
+                            {0.0, 0.0, 0.0},
+                            {0.0, 0.0, 0.0}};
+          for (std::size_t a = 0; a < Nnodes; ++a) {
+            const double dNa0 = dNx[a], dNa1 = dNy[a], dNa2 = dNz[a];
+            const double X0 = _X[0][a], X1 = _X[1][a], X2 = _X[2][a];
+            // J(i,j) = sum_a dN_j(a) * X_i(a)
+            J[0][0] += dNa0 * X0;  J[0][1] += dNa1 * X0;  J[0][2] += dNa2 * X0;
+            J[1][0] += dNa0 * X1;  J[1][1] += dNa1 * X1;  J[1][2] += dNa2 * X1;
+            J[2][0] += dNa0 * X2;  J[2][1] += dNa1 * X2;  J[2][2] += dNa2 * X2;
+          }
+          // det 3x3
+          const double A11 = J[0][0], A12 = J[0][1], A13 = J[0][2];
+          const double A21 = J[1][0], A22 = J[1][1], A23 = J[1][2];
+          const double A31 = J[2][0], A32 = J[2][1], A33 = J[2][2];
+          return A11 * (A22 * A33 - A23 * A32)
+                - A12 * (A21 * A33 - A23 * A31)
+                + A13 * (A21 * A32 - A22 * A31);
+        }
+      }
+
+    public:
+// ---- Determinante di J in un punto parent s (wrapper pubblico, const) ----
+      double detJ_parent(const Point<DIM>& s) const noexcept {
+        return detJ_at(s);  // chiama la privata
+      }
+
     private: //data
 // config
       u32  _maxDepth;
@@ -3411,6 +3460,224 @@ namespace fem {
       double _halfNodesN{0.0};   // = _nodesNQ * 0.5
       u32 _maxIdxQ{0};           // = _nodesNQ - 1
   };
+
+// ============================================================
+// Compute integral of sign(phi) over the domain using public API
+// ============================================================
+// template<std::size_t DIM>
+// double compute_sign_integral(const fem::OctTree<DIM>& tree, fem::u32 field_id) {
+//   using namespace fem;
+//   double integral = 0.0;
+//
+//   // 1. Ottieni riferimento al campo
+//   const Field& fld = tree.field(field_id);
+//   const auto basis = to_basis<DIM>(fld.basis_id);
+//
+//   // 2. Ottieni riferimento al registro del basis
+//   const auto& registry = tree.basis_nodes(basis);
+//   const auto& elem2glob = tree.basis_connectivity(basis);
+//
+//   // 3. Cicla sugli elementi (leaves)
+//   for (const auto& conn : elem2glob) {
+//     // Ottieni le coordinate fisiche dei nodi
+//     std::vector<Point<DIM>> x(conn.size());
+//     std::vector<double> phi(conn.size());
+//     for (size_t i = 0; i < conn.size(); ++i) {
+//       x[i] = registry[conn[i]].physical;
+//       phi[i] = fld.nodal[conn[i]];
+//     }
+//
+//     // 4. Calcola un'approssimazione semplice dell'integrale sul leaf
+//     //    (es. media del segno * area/volume approssimato)
+//     double avg_sign = 0.0;
+//     for (double p : phi) avg_sign += (p >= 0.0 ? 1.0 : -1.0);
+//     avg_sign /= static_cast<double>(phi.size());
+//
+//     // Stima dimensionale dell'elemento
+//     double measure = 1.0;
+//     if constexpr (DIM == 2) {
+//       // area ≈ (Δx * Δy)
+//       double dx = std::abs(x[1][0] - x[0][0]);
+//       double dy = std::abs(x[3][1] - x[0][1]);
+//       measure = dx * dy;
+//     } else {
+//       // volume ≈ (Δx * Δy * Δz)
+//       double dx = std::abs(x[1][0] - x[0][0]);
+//       double dy = std::abs(x[3][1] - x[0][1]);
+//       double dz = std::abs(x[4][2] - x[0][2]);
+//       measure = dx * dy * dz;
+//     }
+//
+//     integral += avg_sign * measure;
+//   }
+//
+//   return integral;
+// }
+// ------- mass and geometric error -------
+  template<std::size_t DIM>
+  std::pair<double,double>
+  compute_mass_and_geom_errors_overlay(
+    const OctTree<DIM>& overlay,
+    const OctTree<DIM>& tree_t0, u32 fid_t0,
+    const OctTree<DIM>& tree_t1, u32 fid_t1
+  ) {
+
+    const u32 Nel = overlay.leaf_count();
+    double M0 = 0.0, M1 = 0.0;
+    double Eg = 0.0;
+    double Vtot = 0.0;
+
+    std::vector<fem::Point<DIM>> gauss3_pts;
+    std::vector<double> w3;
+    std::vector<fem::Point<DIM>> gauss7_pts;
+    std::vector<double> w7;
+
+    if constexpr (DIM == 2) {
+      gauss3_pts.reserve(9);  w3.reserve(9);
+      gauss7_pts.reserve(49); w7.reserve(49);
+    } else if constexpr (DIM == 3) {
+      gauss3_pts.reserve(27);  w3.reserve(27);
+      gauss7_pts.reserve(343); w7.reserve(343);
+    }
+
+    // ===============================
+    // COSTRUZIONE QUADRATURE
+    // ===============================
+    const double a = std::sqrt(3.0 / 5.0);
+    if constexpr (DIM == 2) {
+      {
+        // ---- 3x3 ----
+        const double pts[3] = {-a, 0.0, +a};
+        const double w[3] = {5.0/9.0, 8.0/9.0, 5.0/9.0};
+        for (int i = 0; i < 3; ++i)
+          for (int j = 0; j < 3; ++j) {
+            gauss3_pts.push_back({pts[i], pts[j]});
+            w3.push_back(w[i]*w[j]);
+          }
+      }
+      {
+        // ---- 7x7 ----
+        const double x[7] = {-0.9491079123, -0.7415311856, -0.4058451514, 0.0, 0.4058451514,  0.7415311856,  0.9491079123};
+        const double w[7] = {0.1294849662, 0.2797053915, 0.3818300505, 0.4179591837, 0.3818300505, 0.2797053915, 0.1294849662};
+        for (int i = 0; i < 7; ++i)
+          for (int j = 0; j < 7; ++j) {
+            gauss7_pts.push_back({x[i], x[j]});
+            w7.push_back(w[i]*w[j]);
+          }
+      }
+    }
+    else if constexpr (DIM == 3) {
+      {
+        // ---- 3x3x3 ----
+        const double pts[3] = {-a, 0.0, +a};
+        const double w[3] = {5.0/9.0, 8.0/9.0, 5.0/9.0};
+        for (int i = 0; i < 3; ++i)
+          for (int j = 0; j < 3; ++j)
+            for (int k = 0; k < 3; ++k) {
+              gauss3_pts.push_back({pts[i], pts[j], pts[k]});
+              w3.push_back(w[i]*w[j]*w[k]);
+            }
+      }
+      {
+        // ---- 7x7x7 ----
+        const double x[7] = {-0.9491079123, -0.7415311856, -0.4058451514, 0.0, 0.4058451514,  0.7415311856,  0.9491079123};
+        const double w[7] = {0.1294849662, 0.2797053915, 0.3818300505, 0.4179591837, 0.3818300505, 0.2797053915, 0.1294849662};
+        for (int i = 0; i < 7; ++i)
+          for (int j = 0; j < 7; ++j)
+            for (int k = 0; k < 7; ++k) {
+              gauss7_pts.push_back({x[i], x[j], x[k]});
+              w7.push_back(w[i]*w[j]*w[k]);
+            }
+      }
+    }
+
+    // ===============================
+    // LOOP SULLE CELLE
+    // ===============================
+    for (u32 e = 0; e < Nel; ++e) {
+      Point<DIM> X0, X1;
+      std::vector<Point<DIM>> pts;
+      if constexpr (DIM == 2)
+        overlay.extract_leaf_parent_coords(Basis2D::Q4, e, pts);
+      else if constexpr (DIM == 3)
+        overlay.extract_leaf_parent_coords(Basis3D::H8, e, pts);
+
+      // Bounds in parent space (min/max sui nodi Q4/H8 del leaf)
+      for (int d = 0; d < DIM; ++d) {
+        X0[d] = std::numeric_limits<double>::max();
+        X1[d] = -std::numeric_limits<double>::max();
+      }
+      for (const auto& p : pts) {
+        for (int d = 0; d < DIM; ++d) {
+          X0[d] = std::min(X0[d], p[d]);
+          X1[d] = std::max(X1[d], p[d]);
+        }
+      }
+
+      // Guardie anti-degenerazione (facoltative ma utili)
+      if ((X1[0] <= X0[0]) || (X1[1] <= X0[1]) || (DIM==3 && (X1[2] <= X0[2]))) {
+        continue; // salta cella degenerata
+      }
+
+
+      // === Determina se la cella è tagliata ===
+      double phi_min0 = 1e30, phi_max0 = -1e30;
+      double phi_min1 = 1e30, phi_max1 = -1e30;
+      for (const auto& p : pts) {
+        double phi0, phi1;
+        tree_t0.evaluate_field_on_parent(fid_t0, p, phi0);
+        tree_t1.evaluate_field_on_parent(fid_t1, p, phi1);
+        phi_min0 = std::min(phi_min0, phi0);
+        phi_max0 = std::max(phi_max0, phi0);
+        phi_min1 = std::min(phi_min1, phi1);
+        phi_max1 = std::max(phi_max1, phi1);
+      }
+      bool cut_cell = ((phi_min0 * phi_max0 < 0.0) || (phi_min1 * phi_max1 < 0.0));
+
+      // === Seleziona quadratura ===
+      const auto& gauss_pts = cut_cell ? gauss7_pts : gauss3_pts;
+      const auto& weights   = cut_cell ? w7        : w3;
+
+      // === Loop sui punti di Gauss ===
+      double integ_sign0 = 0.0, integ_sign1 = 0.0;
+      double Jacc = 0.0;
+      const double Jparent = 0.5 * (X1[0] - X0[0])
+                     * 0.5 * (X1[1] - X0[1])
+                     * ((DIM == 3) ? 0.5 * (X1[2] - X0[2]) : 1.0);
+
+
+      for (size_t q = 0; q < gauss_pts.size(); ++q) {
+        const auto& s = gauss_pts[q];
+        const double wq = weights[q];
+        Point<DIM> s_parent;
+        for (int d = 0; d < DIM; ++d) s_parent[d] = 0.5 * ((1.0 - s[d]) * X0[d] + (1.0 + s[d]) * X1[d]);
+
+        const double detJ_phys = std::fabs(overlay.detJ_parent(s_parent));
+        const double w_phys = wq * detJ_phys * Jparent;
+
+        double phi0 = 0.0, phi1 = 0.0;
+        tree_t0.evaluate_field_on_parent(fid_t0, s_parent, phi0);
+        tree_t1.evaluate_field_on_parent(fid_t1, s_parent, phi1);
+
+        integ_sign0 += w_phys * ((phi0 >= 0.0) ? 1.0 : -1.0);
+        integ_sign1 += w_phys * ((phi1 >= 0.0) ? 1.0 : -1.0);
+        Jacc        += w_phys;
+      }
+
+      // Media del segno → color function
+      const double C0 = 0.5 * (1.0 + integ_sign0 / Jacc);
+      const double C1 = 0.5 * (1.0 + integ_sign1 / Jacc);
+      const double Ai = Jacc;
+      M0 += Ai * C0;
+      M1 += Ai * C1;
+      Eg += Ai * std::fabs(C1 - C0);
+      Vtot += Ai;
+    }
+
+    const double Em = (std::fabs(M0) > 1e-14) ? std::fabs(M1 - M0) / std::fabs(M0) : 0.0;
+    const double Eg_rel = (std::fabs(M0) > 1e-14) ? Eg / std::fabs(M0) : 0.0;
+    return {Em, Eg_rel};
+  }
 
 } // namespace fem
 

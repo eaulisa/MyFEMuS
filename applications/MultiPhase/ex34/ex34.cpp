@@ -578,6 +578,10 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   const double dt = period / static_cast<double>(nIter);
 
   OctTree<DIM> ot0 = ot;
+  double N_cells_sum = 0.0;
+  double N_cells_max = 0.0;
+  unsigned n_samples = 0;
+  const u32 fid_t0 = fid;
   OctTree<DIM> ot1(maxDepth, minDepth);
 
 
@@ -604,8 +608,16 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     using std::swap; swap(ot, ot1);
 
+
     markers.clear();
     markers = reinitializer.collect_markers();
+
+    // --- Statistiche sulle celle ---
+    const double n_cells = static_cast<double>(ot.leaf_count());
+    N_cells_sum += n_cells;
+    N_cells_max = std::max(N_cells_max, n_cells);
+    n_samples++;
+
 
     if (reinit && (k % reinit == 0)) {
       reinitializer.compute_signed_distance();
@@ -618,6 +630,15 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
   }
 
+  // --- Calcolo di h_min ---
+  const double domain_length = maxCorner[0] - minCorner[0];  // vale 1.0 per te
+  const double h_min = domain_length / std::pow(2.0, static_cast<double>(maxDepth));
+  const double N_cells_mean = (n_samples > 0) ? (N_cells_sum / n_samples) : 0.0;
+
+  std::cout << "Statistiche celle: max=" << N_cells_max
+            << "  mean=" << N_cells_mean
+            << "  h_min=" << h_min << "\n";
+
   // Union mesh VTU
   OctTree<DIM> ot3(ot0, 0, ot, 0);
   if (vtu) {
@@ -626,6 +647,41 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
                                   : "element_adaptive_union3d.vtu");
     ot3.write_binary_vtu(filename, bHi, false);
     std::cout << "Printing " << filename << "\n";
+  }
+
+// --- Compute integral of sign(phi) ---
+  // double I = compute_sign_integral(ot3, 0);
+  // double total = (DIM == 2 ? 4.0 : 8.0); // dominio [-1,1]^DIM
+  // double V_neg = 0.5 * (total - I);
+  // double V_pos = total - V_neg;
+  // std::cout << "Integral of sign(phi): " << I << "\n";
+  // std::cout << "Volume(phi<0): " << V_neg
+  //           << "  Volume(phi>0): " << V_pos << "\n";
+
+  // --- Compute relative mass and geometrical errors ---
+  const u32 fid_t1 = fid;  // id del campo φ al tempo t1
+
+  auto [Em, Eg] = compute_mass_and_geom_errors_overlay(ot3, ot0, fid_t0, ot, fid_t1);
+
+  std::cout << "---------------------------------------------\n";
+  std::cout << "Relative mass error  E_m = " << Em << "\n";
+  std::cout << "Geometrical error     E_g = " << Eg << "\n";
+  std::cout << "---------------------------------------------\n";
+
+  std::string suffix = (DIM == 3 ? "_3D" : "_2D");
+  std::ofstream fout("errors_vs_depth" + suffix + ".dat", std::ios::app);
+
+  if (fout) {
+    fout << std::setw(3) << max_depth << " "
+    << std::scientific << std::setprecision(10)
+    << std::setw(15) << Em << " "
+    << std::setw(15) << Eg << " "
+    << std::scientific << std::setprecision(3)
+    << std::setw(14) << N_cells_max << " "
+    << std::setw(14) << N_cells_mean << " "
+    << std::setw(14) << h_min << "\n";
+  } else {
+    std::cerr << "⚠️ Error: can't open errors_vs_depth.dat for writing.\n";
   }
 
   if (pprof) ProfilerStop();
