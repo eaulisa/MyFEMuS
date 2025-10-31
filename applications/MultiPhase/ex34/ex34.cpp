@@ -12,6 +12,7 @@
 #include <gperftools/profiler.h>
 
 
+#include "Mollifier.hpp"
 #include "Reinitializer.hpp"
 #include "OctTree.hpp"
 #include "FieldAdvection.hpp"
@@ -26,20 +27,28 @@ template<std::size_t DIM> struct Psi;
 
 template<> struct Psi<2> {
   double xc{0.0}, yc{0.0};
-  double sigma{0.18016836131796748}, r{0.15}, delta{0.0};
+  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1./512};
   double operator()(double x, double y) const {
-    const double rr = (x - xc) * (x - xc) + (y - yc) * (y - yc);
-    return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
+    //const double rr = (x - xc) * (x - xc) + (y - yc) * (y - yc);
+    //return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
+    Mollifier m(eps);
+    const double d = r - sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
+    return m.Sigmoid(d);
   }
 };
 
 template<> struct Psi<3> {
   double xc{0.0}, yc{0.0}, zc{0.0};
-  double sigma{0.18016836131796748}, r{0.15}, delta{0.0};
+  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1./128};
   double operator()(double x, double y, double z) const {
     const double dx = x - xc, dy = y - yc, dz = z - zc;
-    const double rr = dx * dx + dy * dy + dz * dz;
-    return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
+    //const double rr = dx * dx + dy * dy + dz * dz;
+    //return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
+
+    Mollifier m(eps);
+    const double d = r - sqrt(dx * dx + dy * dy + dz * dz);
+    return m.Sigmoid(d);
+
   }
 };
 
@@ -492,8 +501,10 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   ot.set_physical_coordinates(X);
 
   // Level set
-  Psi<DIM> psi0, psi1 = psi0;
-  DimOps<DIM>::shift(psi1);
+  Psi<DIM> psi;
+  psi.eps = pow(2.,-(max_depth - 6.));
+  std::cout<<"AAAAAAAAAAAAAAAAA"<< psi.eps<<std::endl;
+  DimOps<DIM>::shift(psi);
 
   const double tau_ref    = 2.0;
   const double tau_coarse = 1e-5;
@@ -510,9 +521,9 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
                            const std::vector<Pt<DIM>>& pts_xyz,
   const ShapeCache<DIM>& /*cache*/) -> bool {
     if (pts_xyz.empty()) return false;
-    double v0 = DimOps<DIM>::evalPsi(psi1, pts_xyz[0]), mn = v0, mx = v0;
+    double v0 = DimOps<DIM>::evalPsi(psi, pts_xyz[0]), mn = v0, mx = v0;
     for (size_t i = 1; i < pts_xyz.size(); ++i) {
-      double v = DimOps<DIM>::evalPsi(psi1, pts_xyz[i]);
+      double v = DimOps<DIM>::evalPsi(psi, pts_xyz[i]);
       mn = std::min(mn, v);
       mx = std::max(mx, v);
     }
@@ -524,9 +535,9 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
                             const std::vector<Pt<DIM>>& pts_xyz,
   const ShapeCache<DIM>& /*cache*/) -> bool {
     if (level <= min_level || pts_xyz.empty()) return false;
-    double v0 = DimOps<DIM>::evalPsi(psi1, pts_xyz[0]), mn = v0, mx = v0;
+    double v0 = DimOps<DIM>::evalPsi(psi, pts_xyz[0]), mn = v0, mx = v0;
     for (size_t i = 1; i < pts_xyz.size(); ++i) {
-      double v = DimOps<DIM>::evalPsi(psi1, pts_xyz[i]);
+      double v = DimOps<DIM>::evalPsi(psi, pts_xyz[i]);
       mn = std::min(mn, v);
       mx = std::max(mx, v);
     }
@@ -547,10 +558,14 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
     fld.nodal.resize(nodes.size());
     for (size_t gid = 0; gid < nodes.size(); ++gid) {
       const auto& p = nodes[gid].physical;
-      fld.nodal[gid] = DimOps<DIM>::evalPsi(psi1, p);
+      fld.nodal[gid] = DimOps<DIM>::evalPsi(psi, p);
     }
   }
 
+  Reinitializer<DIM> reinitializer(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
+  // if (reinit) {
+  //   reinitializer.compute_signed_distance();
+  // }
   // First VTU frame
   if (vtu) {
     const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
@@ -565,9 +580,8 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   OctTree<DIM> ot0 = ot;
   OctTree<DIM> ot1(maxDepth, minDepth);
 
-  Reinitializer<DIM> reinitializer(&ot, fid, true /*projection flag*/, 10. /*marker density*/);
-  std::vector<Pt<DIM>> markers = reinitializer.collect_markers();
 
+  std::vector<Pt<DIM>> markers = reinitializer.collect_markers();
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
@@ -592,7 +606,7 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     markers.clear();
     markers = reinitializer.collect_markers();
-    
+
     if (reinit && (k % reinit == 0)) {
       reinitializer.compute_signed_distance();
     }

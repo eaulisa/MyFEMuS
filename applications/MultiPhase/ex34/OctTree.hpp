@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <variant>
 #include "Encoder.hpp"
+#include "Mollifier.hpp"
 
 #include "Reinitializer.hpp"
 
@@ -2546,70 +2547,137 @@ namespace fem {
 
 
         auto pred1 = [&](u64 /*parent_morton*/, u32 level,
-                         const std::vector<Point<DIM>>& pts_s,     // Q9 order: 0..3 verts, 4..7 mids, 8 center
+                         const std::vector<Point<DIM>>& pts_s,     // Q9 (2D): 0..3 verts, 4..7 mids, 8 center
                          const std::vector<Point<DIM>>& /*pts_xyz*/,
-        const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
-
-
-          if (level <= min_depth() || level < max_depth() - 1) return false;
+        const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) noexcept -> bool {
+          if (level <= min_depth()) return false;
           if (pts_s.empty()) return false;
 
-          const size_t npts = pts_s.size();
-          std::vector<double> vQ9(npts, 0.0); // sampled values (name per your request)
+          // ---- small helpers (hot, inlinable) ----
+          auto sq   = [](double x) noexcept {
+            return x * x;
+          };
+          auto avg2 = [](double a, double b) noexcept {
+            return 0.5 * (a + b);
+          };
 
-          // sample field
-          bool any_ok = false;
-          //double mn = std::numeric_limits<double>::infinity();
-          //double mx = -mn;
-          for (size_t i = 0; i < npts; ++i) {
+          double mn = std::numeric_limits<double>::infinity();
+          double mx = -mn;
 
-            if (!snapshot.evaluate_field_on_parent(fid, pts_s[i], vQ9[i])) continue;
-            double v = vQ9[i];
-            any_ok = true;
-            // mn = std::min(mn, v);
-            // mx = std::max(mx, v);
-          }
-          if (!any_ok) return false;
-
-          // original sign/threshold test
-          //const bool strictly_outside = (mn > +tau_coarse) || (mx < -tau_coarse);
-          //if (!strictly_outside) return false;
-
-          //std::cout<<"A";
+          // sample one point; updates mn/mx; returns false on failure
+          auto sample = [&](size_t i, double & out) noexcept -> bool {
+            double v;
+            if (!snapshot.evaluate_field_on_parent(fid, pts_s[i], v)) return false;
+            out = v;
+            mn = (v < mn ? v : mn);
+            mx = (v > mx ? v : mx);
+            return true;
+          };
 
           if constexpr(DIM == 2) {
-            if (npts < 9) return false;
+            if (pts_s.size() < 9) return false;
 
-            // vertex values
+            // sample all 9 (abort on first failure)
+            std::array<double, 9> vQ9;
+            for (size_t i = 0; i < 9; ++i) {
+              if (!sample(i, vQ9[i])) return false;
+            }
+
+            // if sign change and not at deepest allowable level, do not accept
+            if (mn * mx < 0.0 && level + 1u < max_depth()) return false;
+
+            // vertices
             const double v0 = vQ9[0], v1 = vQ9[1], v2 = vQ9[2], v3 = vQ9[3];
 
-            // Q4 nodal (by vertex averages only, exactly as specified)
-            double vQ4_mid[5];
-            vQ4_mid[0] = 0.5 * (v0 + v1); // node 4 = (0+1)/2
-            vQ4_mid[1] = 0.5 * (v1 + v2); // node 5 = (1+2)/2
-            vQ4_mid[2] = 0.5 * (v2 + v3); // node 6 = (2+3)/2
-            vQ4_mid[3] = 0.5 * (v3 + v0); // node 7 = (3+0)/2
-            vQ4_mid[4] = 0.5 * (vQ4_mid[0] + vQ4_mid[1]); // node 8 = (3+2+1+0)/4
+            // Q4 “reference” from vertex averages (edges 4..7), center 8
+            double vQ4_edge[4];
+            vQ4_edge[0] = avg2(v0, v1); // edge(0-1) -> node 4
+            vQ4_edge[1] = avg2(v1, v2); // edge(1-2) -> node 5
+            vQ4_edge[2] = avg2(v2, v3); // edge(2-3) -> node 6
+            vQ4_edge[3] = avg2(v3, v0); // edge(3-0) -> node 7
 
-            // element area at this level: |K_l| = 4 / 4^l
-            const double meas = 4.;//4.0 * std::pow(0.25, static_cast<int>(level));
+            // center: 0.25*(0+1+2+3) == 0.5*(4+6) == 0.5*(5+7)
+            const double vQ4_center = avg2(vQ4_edge[0], vQ4_edge[2]);
 
-            // heuristic error ONLY on midpoints and center (vertices give zero diff)
+            // error: mids (weight 1) + center (weight 2)
             double e = 0.0;
-            e += (vQ9[4] - vQ4_mid[0]) * (vQ9[4] - vQ4_mid[0]);
-            e += (vQ9[5] - vQ4_mid[1]) * (vQ9[5] - vQ4_mid[1]);
-            e += (vQ9[6] - vQ4_mid[2]) * (vQ9[6] - vQ4_mid[2]);
-            e += (vQ9[7] - vQ4_mid[3]) * (vQ9[7] - vQ4_mid[3]);
-            e += 2. * (vQ9[8] - vQ4_mid[4]) * (vQ9[8] - vQ4_mid[3]);
+            e += sq(vQ9[4] - vQ4_edge[0]);
+            e += sq(vQ9[5] - vQ4_edge[1]);
+            e += sq(vQ9[6] - vQ4_edge[2]);
+            e += sq(vQ9[7] - vQ4_edge[3]);
+            e += 2.0 * sq(vQ9[8] - vQ4_center);
+
+            // element measure (constant, as in your code)
+            const double meas = 6.0 / sq(mx - mn);
             e *= meas;
 
-            // threshold: compare to tau_coarse (adjust if you want a factor)
-            //std::cout << e <<" ";
-            return e <= 1.0E-6;
+            return e <= 1.0e-5;
           }
           else {
-            // leave 3D behavior unchanged for now
-            return true;
+            if (pts_s.size() < 27) return false;
+
+            // sample all 27 (abort on first failure)
+            std::array<double, 27> vH27;
+            for (size_t i = 0; i < 27; ++i) {
+              if (!sample(i, vH27[i])) return false;
+            }
+
+            // if sign change and not at deepest allowable level, do not accept
+            if (mn * mx < 0.0 && level + 1u < max_depth()) return false;
+
+            // vertices (0..7)
+            const double v0 = vH27[0], v1 = vH27[1], v2 = vH27[2], v3 = vH27[3];
+            const double v4 = vH27[4], v5 = vH27[5], v6 = vH27[6], v7 = vH27[7];
+
+            // H8 edge mids from vertex avgs (reference), H27 edge DOFs are 8..19
+            double vH8_edge[12];
+            vH8_edge[0]  = avg2(v0, v1);
+            vH8_edge[1]  = avg2(v1, v2);
+            vH8_edge[2]  = avg2(v2, v3);
+            vH8_edge[3]  = avg2(v3, v0);
+            vH8_edge[4]  = avg2(v4, v5);
+            vH8_edge[5]  = avg2(v5, v6);
+            vH8_edge[6]  = avg2(v6, v7);
+            vH8_edge[7]  = avg2(v7, v4);
+            vH8_edge[8]  = avg2(v0, v4);
+            vH8_edge[9]  = avg2(v1, v5);
+            vH8_edge[10] = avg2(v2, v6);
+            vH8_edge[11] = avg2(v3, v7);
+
+            // H8 face centers from edge mids (reference), H27 face DOFs are 20..25
+            double vH8_face[6];
+            vH8_face[0] = avg2(vH8_edge[8],  vH8_edge[9]);   // (0,1,5,4)
+            vH8_face[1] = avg2(vH8_edge[9],  vH8_edge[10]);  // (1,2,6,5)
+            vH8_face[2] = avg2(vH8_edge[10], vH8_edge[11]);  // (2,3,7,6)
+            vH8_face[3] = avg2(vH8_edge[11], vH8_edge[8]);   // (3,0,4,7)
+            vH8_face[4] = avg2(vH8_edge[0],  vH8_edge[2]);   // bottom (0,1,2,3)
+            vH8_face[5] = avg2(vH8_edge[4],  vH8_edge[6]);   // top    (4,5,6,7)
+
+            // H8 center
+            const double vH8_center = avg2(vH8_face[4], vH8_face[5]);
+
+            // error accumulators (weights as in your code)
+            double e = 0.0;
+            auto add_edge_err = [&](unsigned i) noexcept {
+              const double d = vH27[i + 8] - vH8_edge[i];
+              e += d * d;
+            };
+            auto add_face_err = [&](unsigned i) noexcept {
+              const double d = vH27[i + 20] - vH8_face[i];
+              e += 2.0 * d * d;
+            };
+
+            for (unsigned i = 0; i < 12; ++i) add_edge_err(i);
+            for (unsigned i = 0; i < 6;  ++i) add_face_err(i);
+            {
+              const double d = vH27[26] - vH8_center;
+              e += 8.0 * d * d;
+            }
+
+            const double meas = 32. / sq(mx - mn);
+            e *= meas;
+
+            return e <= 1.0e-5;
           }
         };
 
@@ -2629,6 +2697,8 @@ namespace fem {
           if (c == 0) break;
           total += c;
         }
+
+
 
         // Enforce 1-irregularity and refresh bookkeeping
 
@@ -3343,6 +3413,15 @@ namespace fem {
   };
 
 } // namespace fem
+
+
+
+
+
+
+
+
+
 
 
 
