@@ -314,7 +314,7 @@ namespace fem {
     
 
     template <std::size_t DIM>
-    void Reinitializer<DIM>::collect_markers()
+    std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers()
     {
         const auto& L = tree->leaves();
         const size_t numCells = L.size();
@@ -357,6 +357,8 @@ namespace fem {
                 compute_cell_markers(cell_intersections);
             }
         }
+
+        return markers;
     }
 
     template <std::size_t DIM>
@@ -485,7 +487,6 @@ namespace fem {
     void Reinitializer<DIM>::compute_signed_distance()
     {
 
-        collect_markers();
         if (proj_flag)
             project_cut_cells_nodes();
 
