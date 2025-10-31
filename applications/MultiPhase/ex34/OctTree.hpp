@@ -2090,10 +2090,9 @@ namespace fem {
         return true;
       }
 
- // ---- evaluate gradient at parent coords for quad/octant bases (DIM-independent) ----
- bool evaluate_gradient_on_parent(u32 fid, const Point<DIM>& s,
-                                 std::array<double,DIM>& gradient) const
-      {
+// ---- evaluate gradient at parent coords for quad/octant bases (DIM-independent) ----
+      bool evaluate_gradient_on_parent(u32 fid, const Point<DIM>& s,
+                                       std::array<double, DIM>& gradient) const {
         if (fid >= _fields.size()) return false;
 
         u32        leaf_node_idx = npos32;
@@ -2112,75 +2111,75 @@ namespace fem {
         const BasisRegistry<DIM>& R = _basisReg[(int)f.basis_id];
         const auto&               conn = R.elem2glob[leaf_pos];
 
-        for (int idim = 0; idim<DIM; idim++)
+        for (int idim = 0; idim < DIM; idim++)
 
-        if (DIM == 2) {
-          Point2 s2{ shat[0], shat[1] };
+          if (DIM == 2) {
+            Point2 s2{ shat[0], shat[1] };
 
-          switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
-          case Basis2D::Q4: {
-            std::array<std::array<double, 4> , 2> dN{};
-            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 4; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q8: {
-            std::array<std::array<double, 8> , 2> dN{};
-            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 8; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q9: {
-            std::array<std::array<double, 9> , 2> dN{};
-            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 9; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
+            switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
+            case Basis2D::Q4: {
+              std::array<std::array<double, 4>, 2> dN{};
+              Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 4; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            case Basis2D::Q8: {
+              std::array<std::array<double, 8>, 2> dN{};
+              Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 8; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            case Basis2D::Q9: {
+              std::array<std::array<double, 9>, 2> dN{};
+              Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 9; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            default: return false;
+            }
+
           }
+          else if (DIM == 3) {
+            // Only access shat[2] in the DIM==3 path
+            Point3 s3{ shat[0], shat[1], shat[2] };
 
-        }
-        else if (DIM == 3) {
-          // Only access shat[2] in the DIM==3 path
-          Point3 s3{ shat[0], shat[1], shat[2] };
+            switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
+            case Basis3D::H8: {
+              std::array<std::array<double, 8>, 3> dN{};
+              Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 8; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            case Basis3D::H20: {
+              std::array<std::array<double, 20>, 3> dN{};
+              Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 20; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            case Basis3D::H27: {
+              std::array<std::array<double, 27>, 3> dN{};
+              Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 27; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            } break;
+            default: return false;
+            }
 
-          switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
-          case Basis3D::H8: {
-            std::array<std::array<double, 8> , 3> dN{};
-            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 8; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H20: {
-            std::array<std::array<double, 20> , 3> dN{};
-            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 20; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H27: {
-            std::array<std::array<double, 27> , 3> dN{};
-            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 27; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
           }
-
-        }
-        else {
-          return false; // unsupported DIM
-        }
+          else {
+            return false; // unsupported DIM
+          }
 
         const u32   L     = _tree_nodes[leaf_pos].level;
         const double scale = std::ldexp(1.0, int(L)); // 2^L
-        for (std::size_t d=0; d<DIM; ++d)
-            gradient[d] = scale * gradient[d] ;
+        for (std::size_t d = 0; d < DIM; ++d)
+          gradient[d] = scale * gradient[d] ;
 
         return true;
       }
@@ -2523,9 +2522,9 @@ namespace fem {
         snapshot.assign_from(*this);
 
         // Coarsen predicate (evaluated on the snapshot, in parent coords)
-        auto pred = [&](u64 /*parent_morton*/, u32 level,
+        auto pred = [&](u64 parent_morton, u32 level,
                         const std::vector<Point<DIM>>& pts_s,     // parent (ξ,η[,ζ])
-                        const std::vector<Point<DIM>>& /*pts_xyz*/,
+                        const std::vector<Point<DIM>>& pts_xyz,
         const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
           if (level <= min_depth()) return false;
           if (pts_s.empty()) return false;
@@ -2544,6 +2543,78 @@ namespace fem {
           return (mn > +tau_coarse) || (mx < -tau_coarse);
         };
 
+
+
+        auto pred1 = [&](u64 /*parent_morton*/, u32 level,
+                         const std::vector<Point<DIM>>& pts_s,     // Q9 order: 0..3 verts, 4..7 mids, 8 center
+                         const std::vector<Point<DIM>>& /*pts_xyz*/,
+        const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
+
+
+          if (level <= min_depth() || level < max_depth() - 1) return false;
+          if (pts_s.empty()) return false;
+
+          const size_t npts = pts_s.size();
+          std::vector<double> vQ9(npts, 0.0); // sampled values (name per your request)
+
+          // sample field
+          bool any_ok = false;
+          //double mn = std::numeric_limits<double>::infinity();
+          //double mx = -mn;
+          for (size_t i = 0; i < npts; ++i) {
+
+            if (!snapshot.evaluate_field_on_parent(fid, pts_s[i], vQ9[i])) continue;
+            double v = vQ9[i];
+            any_ok = true;
+            // mn = std::min(mn, v);
+            // mx = std::max(mx, v);
+          }
+          if (!any_ok) return false;
+
+          // original sign/threshold test
+          //const bool strictly_outside = (mn > +tau_coarse) || (mx < -tau_coarse);
+          //if (!strictly_outside) return false;
+
+          //std::cout<<"A";
+
+          if constexpr(DIM == 2) {
+            if (npts < 9) return false;
+
+            // vertex values
+            const double v0 = vQ9[0], v1 = vQ9[1], v2 = vQ9[2], v3 = vQ9[3];
+
+            // Q4 nodal (by vertex averages only, exactly as specified)
+            double vQ4_mid[5];
+            vQ4_mid[0] = 0.5 * (v0 + v1); // node 4 = (0+1)/2
+            vQ4_mid[1] = 0.5 * (v1 + v2); // node 5 = (1+2)/2
+            vQ4_mid[2] = 0.5 * (v2 + v3); // node 6 = (2+3)/2
+            vQ4_mid[3] = 0.5 * (v3 + v0); // node 7 = (3+0)/2
+            vQ4_mid[4] = 0.5 * (vQ4_mid[0] + vQ4_mid[1]); // node 8 = (3+2+1+0)/4
+
+            // element area at this level: |K_l| = 4 / 4^l
+            const double meas = 4.;//4.0 * std::pow(0.25, static_cast<int>(level));
+
+            // heuristic error ONLY on midpoints and center (vertices give zero diff)
+            double e = 0.0;
+            e += (vQ9[4] - vQ4_mid[0]) * (vQ9[4] - vQ4_mid[0]);
+            e += (vQ9[5] - vQ4_mid[1]) * (vQ9[5] - vQ4_mid[1]);
+            e += (vQ9[6] - vQ4_mid[2]) * (vQ9[6] - vQ4_mid[2]);
+            e += (vQ9[7] - vQ4_mid[3]) * (vQ9[7] - vQ4_mid[3]);
+            e += 2. * (vQ9[8] - vQ4_mid[4]) * (vQ9[8] - vQ4_mid[3]);
+            e *= meas;
+
+            // threshold: compare to tau_coarse (adjust if you want a factor)
+            //std::cout << e <<" ";
+            return e <= 1.0E-6;
+          }
+          else {
+            // leave 3D behavior unchanged for now
+            return true;
+          }
+        };
+
+
+
         std::size_t total = 0;
 
         // Coarsen passes; (balance+topology update happen after the loop)
@@ -2552,10 +2623,17 @@ namespace fem {
           if (c == 0) break;
           total += c;
         }
+        // Coarsen passes; (balance+topology update happen after the loop)
+        for (u32 pass = 0; pass < max_passes; ++pass) {
+          std::size_t c = coarsen_pass(pred1);
+          if (c == 0) break;
+          total += c;
+        }
 
         // Enforce 1-irregularity and refresh bookkeeping
 
         enforce_balance();
+
         post_topology_update();
 
         // Rebuild all fields from the snapshot (conservative transfer) on nodal sets
@@ -2609,7 +2687,7 @@ namespace fem {
         return _basisReg[static_cast<int>(b)].nodes;
       }
 
-// ---- VTU writer: automatic 2D→3D vector padding for ParaView ----
+// ---- VTU writer: automatic 2D→3D vector padding for ParaView + cell "level" ----
       bool write_binary_vtu(const std::string &filename, Basis b,
                             const std::vector<std::variant<u32, std::vector<u32>>> &field_groups,
                             bool cell_centered = false) const {
@@ -2681,6 +2759,21 @@ namespace fem {
           types.push_back(vtk_cell_type(b));
         }
 
+        // -------- Prepare per-cell "level" from _leaves --------
+        std::vector<int> cellLevel;
+        cellLevel.reserve(numCells);
+        const size_t nmap = std::min(numCells, _leaves.size());
+        for (size_t e = 0; e < nmap; ++e) {
+          const u32 leaf_node = _leaves[e];
+          cellLevel.push_back(static_cast<int>(_tree_nodes[leaf_node].level));
+        }
+        if (nmap < numCells) {
+          std::cerr << "[VTU] Warning: _leaves.size() (" << _leaves.size()
+                    << ") < NumberOfCells (" << numCells
+                    << "); padding remaining levels with 0.\n";
+          cellLevel.insert(cellLevel.end(), numCells - nmap, 0);
+        }
+
         // -------- XML output --------
         std::ofstream os(filename);
         if (!os) {
@@ -2698,263 +2791,205 @@ namespace fem {
         os << "      </Points>\n";
 
         os << "      <Cells>\n";
-        write_binary_array(os, "Int32", "connectivity", 1, connectivity);
-        write_binary_array(os, "Int32", "offsets", 1, offsets);
-        write_binary_array(os, "UInt8", "types", 1, types);
+        write_binary_array(os, "Int32",  "connectivity", 1, connectivity);
+        write_binary_array(os, "Int32",  "offsets",      1, offsets);
+        write_binary_array(os, "UInt8",  "types",        1, types);
         os << "      </Cells>\n";
 
-        // -------- Detect first scalar/vector names for ParaView attributes --------
-        std::string first_scalar_name;
-        std::string first_vector_name;
-
-        for (const auto &entry : field_groups) {
-          if (std::holds_alternative<u32>(entry)) {
-            const u32 fid = std::get<u32>(entry);
-            if (fid < _fields.size()) {
-              const Field &fld = _fields[fid];
-              if (to_basis<DIM>(fld.basis_id) == b && first_scalar_name.empty())
-                first_scalar_name = fld.name;
+        // -------- Attribute names for ParaView (per the section we will write) --------
+        auto detect_first_names = [&](bool for_cell_section) {
+          std::string first_scalar_name, first_vector_name;
+          for (const auto &entry : field_groups) {
+            if (std::holds_alternative<u32>(entry)) {
+              const u32 fid = std::get<u32>(entry);
+              if (fid < _fields.size()) {
+                const Field &fld = _fields[fid];
+                if (to_basis<DIM>(fld.basis_id) == b && first_scalar_name.empty()) {
+                  first_scalar_name = fld.name; // same label even if averaged to cells
+                }
+              }
+            }
+            else {
+              const auto &group = std::get<std::vector<u32>>(entry);
+              if (group.size() == DIM && first_vector_name.empty()) {
+                const Field &f0 = _fields[group[0]];
+                std::string nm = f0.name;
+                for (size_t i = 1; i < group.size(); ++i) nm += "-" + _fields[group[i]].name;
+                first_vector_name = nm; // same label; layout differs by section
+              }
             }
           }
-          else {
-            const auto &group = std::get<std::vector<u32>>(entry);
-            if (group.size() == DIM && first_vector_name.empty()) {
-              const Field &f = _fields[group[0]];
-              first_vector_name = f.name;
-              for (size_t i = 1; i < group.size(); ++i)
-                first_vector_name += "-" + _fields[group[i]].name;
-            }
-          }
-        }
+          return std::pair<std::string, std::string> {first_scalar_name, first_vector_name};
+        };
 
-        // -------- Open PointData/CellData with attributes --------
-        if (cell_centered)
-          os << "      <CellData";
-        else
+        // -------- Write Data Sections --------
+        if (!cell_centered) {
+          // --- PointData: nodal fields ---
+          auto [p_scalar, p_vector] = detect_first_names(false);
           os << "      <PointData";
+          if (!p_scalar.empty()) os << " Scalars=\"" << p_scalar << "\"";
+          if (!p_vector.empty()) os << " Vectors=\"" << p_vector << "\"";
+          os << ">\n";
 
-        if (!first_scalar_name.empty())
-          os << " Scalars=\"" << first_scalar_name << "\"";
-        if (!first_vector_name.empty())
-          os << " Vectors=\"" << first_vector_name << "\"";
-        os << ">\n";
+          // Scalars/vectors at nodes
+          for (const auto &entry : field_groups) {
+            if (std::holds_alternative<u32>(entry)) {
+              const u32 fid = std::get<u32>(entry);
+              if (fid >= _fields.size()) continue;
+              const Field &fld = _fields[fid];
+              if (to_basis<DIM>(fld.basis_id) != b) continue;
+              write_binary_array(os, "Float64", fld.name, 1, fld.nodal);
+            }
+            else {
+              const auto &group = std::get<std::vector<u32>>(entry);
+              if (group.size() != DIM) continue;
 
-        // -------- Write Field Data --------
-        for (const auto &entry : field_groups) {
+              std::vector<const Field*> vecFld;
+              vecFld.reserve(DIM);
+              bool valid = true;
+              for (u32 fid : group) {
+                if (fid >= _fields.size()) {
+                  valid = false;
+                  break;
+                }
+                const Field &f = _fields[fid];
+                if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
+                  valid = false; break;
+                }
+                vecFld.push_back(&f);
+              }
+              if (!valid) continue;
 
-          // ---- Scalar ----
-          if (std::holds_alternative<u32>(entry)) {
-            const u32 fid = std::get<u32>(entry);
-            if (fid >= _fields.size()) continue;
-            const Field &fld = _fields[fid];
-            if (to_basis<DIM>(fld.basis_id) != b) continue;
+              std::string vname = vecFld.front()->name;
+              for (size_t i = 1; i < vecFld.size(); ++i) vname += "-" + vecFld[i]->name;
 
-            if (cell_centered) {
+              std::vector<double> combined;
+              combined.reserve(R.nodes.size() * 3);
+              for (size_t i = 0; i < R.nodes.size(); ++i) {
+                combined.push_back(vecFld[0]->nodal[i]);
+                if constexpr(DIM > 1) combined.push_back(vecFld[1]->nodal[i]);
+                else                   combined.push_back(0.0);
+                if constexpr(DIM == 3) combined.push_back(vecFld[2]->nodal[i]);
+                else                    combined.push_back(0.0);
+              }
+              write_binary_array(os, "Float64", vname, 3, combined);
+            }
+          }
+          os << "      </PointData>\n";
+
+          // --- CellData: just the per-cell "level" ---
+          os << "      <CellData Scalars=\"level\">\n";
+          write_binary_array(os, "Int32", "level", 1, cellLevel);
+          os << "      </CellData>\n";
+        }
+        else {
+          // --- CellData: averaged cell fields + per-cell "level" ---
+          auto [c_scalar, c_vector] = detect_first_names(true);
+          os << "      <CellData";
+          // We always have 'level'; choose user scalar name if present, else "level"
+          if (!c_scalar.empty()) os << " Scalars=\"" << c_scalar << "\"";
+          else                   os << " Scalars=\"level\"";
+          if (!c_vector.empty()) os << " Vectors=\"" << c_vector << "\"";
+          os << ">\n";
+
+          // Scalars: average nodal to cell
+          for (const auto &entry : field_groups) {
+            if (std::holds_alternative<u32>(entry)) {
+              const u32 fid = std::get<u32>(entry);
+              if (fid >= _fields.size()) continue;
+              const Field &fld = _fields[fid];
+              if (to_basis<DIM>(fld.basis_id) != b) continue;
+
               std::vector<double> cellData;
               cellData.reserve(numCells);
               for (const auto &conn : R.elem2glob) {
-                double v = 0.0; for (int gid : conn) v += fld.nodal[gid];
+                double v = 0.0;
+                for (int gid : conn) v += fld.nodal[gid];
                 cellData.push_back(v / static_cast<double>(conn.size()));
               }
               write_binary_array(os, "Float64", fld.name, 1, cellData);
             }
             else {
-              write_binary_array(os, "Float64", fld.name, 1, fld.nodal);
+              const auto &group = std::get<std::vector<u32>>(entry);
+              if (group.size() != DIM) continue;
+
+              std::vector<const Field*> vecFld;
+              vecFld.reserve(DIM);
+              bool valid = true;
+              for (u32 fid : group) {
+                if (fid >= _fields.size()) {
+                  valid = false;
+                  break;
+                }
+                const Field &f = _fields[fid];
+                if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
+                  valid = false; break;
+                }
+                vecFld.push_back(&f);
+              }
+              if (!valid) continue;
+
+              std::string vname = vecFld.front()->name;
+              for (size_t i = 1; i < vecFld.size(); ++i) vname += "-" + vecFld[i]->name;
+
+              // Average components to cell centers, then 3-pad
+              std::vector<double> cx, cy, cz;
+              cx.reserve(numCells);
+              if constexpr(DIM > 1) cy.reserve(numCells);
+              if constexpr(DIM == 3) cz.reserve(numCells);
+
+              for (const auto &conn : R.elem2glob) {
+                auto avg_comp = [&](const Field * fptr) {
+                  double v = 0.0; for (int gid : conn) v += fptr->nodal[gid];
+                  return v / static_cast<double>(conn.size());
+                };
+                cx.push_back(avg_comp(vecFld[0]));
+                if constexpr(DIM > 1) cy.push_back(avg_comp(vecFld[1]));
+                if constexpr(DIM == 3) cz.push_back(avg_comp(vecFld[2]));
+              }
+
+              std::vector<double> combined3;
+              combined3.reserve(numCells * 3);
+              for (size_t i = 0; i < numCells; ++i) {
+                combined3.push_back(cx[i]);
+                if constexpr(DIM > 1) combined3.push_back(cy[i]); else combined3.push_back(0.0);
+                if constexpr(DIM == 3) combined3.push_back(cz[i]); else combined3.push_back(0.0);
+              }
+              write_binary_array(os, "Float64", vname, 3, combined3);
             }
           }
 
-          // ---- Vector ----
-          else {
-            const auto &group = std::get<std::vector<u32>>(entry);
-            if (group.size() != DIM) continue;
-
-            std::vector<const Field*> vecFld;
-            vecFld.reserve(DIM);
-            bool valid = true;
-            for (u32 fid : group) {
-              if (fid >= _fields.size()) {
-                valid = false;
-                break;
-              }
-              const Field &f = _fields[fid];
-              if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
-                valid = false; break;
-              }
-              vecFld.push_back(&f);
-            }
-            if (!valid) continue;
-
-            std::string vname = vecFld.front()->name;
-            for (size_t i = 1; i < vecFld.size(); ++i)
-              vname += "-" + vecFld[i]->name;
-
-            // Build combined vector (pad z=0 if DIM==2)
-            std::vector<double> combined;
-            combined.reserve(R.nodes.size() * 3);
-            for (size_t i = 0; i < R.nodes.size(); ++i) {
-              combined.push_back(vecFld[0]->nodal[i]);
-              if constexpr(DIM > 1)
-                combined.push_back(vecFld[1]->nodal[i]);
-              else
-                combined.push_back(0.0);
-              if constexpr(DIM == 3)
-                combined.push_back(vecFld[2]->nodal[i]);
-              else
-                combined.push_back(0.0);
-            }
-
-            // Always output 3 components for ParaView
-            write_binary_array(os, "Float64", vname, 3, combined);
-          }
+          // Append the per-cell "level"
+          write_binary_array(os, "Int32", "level", 1, cellLevel);
+          os << "      </CellData>\n";
         }
 
-        os << (cell_centered ? "      </CellData>\n" : "      </PointData>\n");
         os << "    </Piece>\n";
         os << "  </UnstructuredGrid>\n";
         os << "</VTKFile>\n";
 
         std::cout << "[VTU] Wrote " << filename << " with "
-                  << field_groups.size() << " field groups.\n";
+                  << field_groups.size() << " field groups and cell levels.\n";
         return true;
       }
 
-
-// ---- write VTU for all fields with the given Basis ----
+// ---- write VTU for all fields with the given Basis (simple scalar listing) ----
       bool write_binary_vtu(const std::string &filename, Basis b,
                             bool cell_centered = false) const {
+        using FG = std::variant<u32, std::vector<u32>>;
 
-        require_geometry();
+        std::vector<FG> field_groups;
+        field_groups.reserve(_fields.size());
 
-        // Select registry
-        const BasisRegistry<DIM> &R = _basisReg[(int)b];
-        const size_t numCells = R.elem2glob.size();
-        if (numCells == 0) return false;
-
-        // -------- Points (global) --------
-        std::vector<double> flatPoints;
-        flatPoints.reserve(R.nodes.size() * 3);
-        for (const auto &n : R.nodes) {
-          flatPoints.push_back(n.physical[0]);
-          flatPoints.push_back(n.physical[1]);
-          if constexpr(DIM == 3)
-            flatPoints.push_back(n.physical[2]);
-          else
-            flatPoints.push_back(0.0); // 2D → embed in z=0 plane
+        for (u32 i = 0; i < _fields.size(); ++i) {
+          if (to_basis<DIM>(_fields[i].basis_id) == b) {
+            field_groups.emplace_back(i); // add as scalar
+          }
         }
 
-        // -------- Connectivity --------
-        std::vector<int> connectivity;
-        std::vector<int> offsets;
-        std::vector<unsigned char> types;
-
-        auto vtk_cell_type = [&](Basis bb) -> unsigned char {
-          if constexpr(DIM == 3) {
-            switch (static_cast<Basis3D>(bb)) {
-            case Basis3D::H8:  return 12; // VTK_HEXAHEDRON
-            case Basis3D::H20: return 25; // VTK_QUADRATIC_HEXAHEDRON
-            case Basis3D::H27: return 29; // VTK_TRIQUADRATIC_HEXAHEDRON
-            }
-          }
-          else {
-            switch (static_cast<Basis2D>(bb)) {
-            case Basis2D::Q4: return 9;  // VTK_QUAD
-            case Basis2D::Q8: return 23; // VTK_QUADRATIC_QUAD
-            case Basis2D::Q9: return 28; // VTK_BIQUADRATIC_QUAD
-            }
-          }
-          return 0;
-        };
-
-        const int perCell = leaf_dof_number(b);
-        connectivity.reserve(numCells * perCell);
-        offsets.reserve(numCells);
-        types.reserve(numCells);
-
-        // H27 tail remap (indices 20..26 → VTK ordering)
-        const std::array<int, 7> tail_map{{3, 1, 0, 2, 4, 5, 6}};
-
-        int offset = 0;
-        for (size_t e = 0; e < numCells; ++e) {
-          const auto &conn = R.elem2glob[e];
-
-          if constexpr(DIM == 3) {
-            if (static_cast<Basis3D>(b) == Basis3D::H27) {
-              assert(conn.size() == 27 && "H27 element must have 27 nodes");
-              connectivity.insert(connectivity.end(), conn.begin(), conn.begin() + 20);
-              for (int i = 0; i < 7; ++i) connectivity.push_back(conn[20 + tail_map[i]]);
-              offset += 27;
-            }
-            else {
-              connectivity.insert(connectivity.end(), conn.begin(), conn.end());
-              offset += static_cast<int>(conn.size());
-            }
-          }
-          else {
-            connectivity.insert(connectivity.end(), conn.begin(), conn.end());
-            offset += static_cast<int>(conn.size());
-          }
-
-          offsets.push_back(offset);
-          types.push_back(vtk_cell_type(b));
-        }
-
-        // -------- Collect all fields with matching basis --------
-        std::vector<const Field*> fields;
-        for (const auto &f : _fields)
-          if (to_basis<DIM>(f.basis_id) == b)
-            fields.push_back(&f);
-
-        if (fields.empty()) return false;
-
-        // -------- XML output --------
-        std::ofstream os(filename);
-        if (!os) return false;
-
-        os << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
-        os << "  <UnstructuredGrid>\n";
-        os << "    <Piece NumberOfPoints=\"" << R.nodes.size()
-           << "\" NumberOfCells=\"" << numCells << "\">\n";
-
-        os << "      <Points>\n";
-        write_binary_array(os, "Float64", "", 3, flatPoints);
-        os << "      </Points>\n";
-
-        os << "      <Cells>\n";
-        write_binary_array(os, "Int32", "connectivity", 1, connectivity);
-        write_binary_array(os, "Int32", "offsets", 1, offsets);
-        write_binary_array(os, "UInt8", "types", 1, types);
-        os << "      </Cells>\n";
-
-        // -------- Field Data (multiple fields, same basis) --------
-        if (cell_centered) {
-          os << "      <CellData>\n";
-          for (const Field* f : fields) {
-            const auto &fld = *f;
-            std::vector<double> cellData;
-            cellData.reserve(numCells);
-            for (const auto &conn : R.elem2glob) {
-              double v = 0.0;
-              for (int gid : conn) v += fld.nodal[gid];
-              cellData.push_back(v / static_cast<double>(conn.size()));
-            }
-            write_binary_array(os, "Float64", fld.name, 1, cellData);
-          }
-          os << "      </CellData>\n";
-        }
-        else {
-          os << "      <PointData>\n";
-          for (const Field* f : fields)
-            write_binary_array(os, "Float64", f->name, 1, f->nodal);
-          os << "      </PointData>\n";
-        }
-
-        os << "    </Piece>\n";
-        os << "  </UnstructuredGrid>\n";
-        os << "</VTKFile>\n";
-        return true;
+        // Delegate to the main overload (which also writes per-cell "level")
+        return write_binary_vtu(filename, b, field_groups, cell_centered);
       }
-
-
 
 // ---- global maximum depth allowed (DIM-independent) ----
       u32 max_depth() const {
