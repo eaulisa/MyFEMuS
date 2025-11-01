@@ -854,7 +854,7 @@ int main(int argc, char** argv) {
     }
   }
   if (delta_depth > 1) {
-    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / (delta_depth * log(2.))
+    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / ((delta_depth-1) * log(2.))
               << "\t\t" << log(Er[0].second / Er[delta_depth - 1].second) / ((delta_depth - 1) * log(2.))
               << "\t\t" << log((double)Time[delta_depth-1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
   }
