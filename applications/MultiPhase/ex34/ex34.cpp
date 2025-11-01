@@ -469,7 +469,7 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
 
 // ======================== Unified run<DIM> (exact signatures) ========================
 template<std::size_t DIM>
-int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit) {
+std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit) {
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
   const u32 maxDepth = max_depth;
@@ -596,7 +596,7 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
-    if(!reinit) fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
+    if (!reinit) fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
     else fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
 
     ot1.reset(false, false);
@@ -609,7 +609,7 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
 
-    if(reinit){
+    if (reinit) {
       const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
       std::cout << "Coarsened " << num_coarsened << " leaves.\n";
     }
@@ -699,7 +699,7 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
   }
 
   if (pprof) ProfilerStop();
-  return 0;
+  return {Em, Eg};
 }
 
 
@@ -746,6 +746,7 @@ int main(int argc, char** argv) {
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
 
   unsigned max_depth = 8;
+  unsigned delta_depth = 1;
 
   for (int i = 1; i < argc; ++i) {
     std::string a = argv[i];
@@ -797,6 +798,13 @@ int main(int argc, char** argv) {
       }
       max_depth = std::atoi(argv[++i]);
     }
+    else if (a == "--delta_depth") {
+      if (i + 1 >= argc) {
+        print_usage(argv[0]);
+        return 1;
+      }
+      delta_depth = std::atoi(argv[++i]);
+    }
     else if (a == "--ball_domain") {
       box_domain = false;
     }
@@ -812,13 +820,45 @@ int main(int argc, char** argv) {
     }
   }
 
-  switch (dim) {
-  case 2: return run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain, reinit);
-  case 3: return run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth, box_domain, reinit);
-  default:
-    std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
-    print_usage(argv[0]);
-    return 2;
+  std::vector<std::pair<double, double>> Er(delta_depth);
+  std::vector<clock_t> Time(delta_depth);
+  clock_t start_time;
+
+  for (unsigned i = 0; i < delta_depth; ++i) {
+    switch (dim) {
+    case 2:
+      start_time = clock();
+      Er[i] = run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit);
+      Time[i] = clock() - start_time;
+      break;
+    case 3:
+      start_time = clock();
+      Er[i] = run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit);
+      Time[i] = clock() - start_time;
+      break;
+    default:
+      std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
+      print_usage(argv[0]);
+      return 2;
+    }
   }
+
+  std::cout << "Max_Depth\tMass_Error\tGeometric_Error\tCompt_Time(s)" << std::endl;
+  for (unsigned i = 0; i < delta_depth; i++) {
+    std::cout << max_depth + i << "\t\t" << Er[i].first << "\t" << Er[i].second <<"\t"
+    /*      */<<static_cast<double>(Time[i]) / CLOCKS_PER_SEC<< std::endl;
+    if (i + 1 < delta_depth) {
+      std::cout << "conv.\t\t" << log(Er[i].first / Er[i + 1].first) / log(2.) << "\t\t"
+      /*      */<< log(Er[i].second / Er[i + 1].second) / log(2.) << "\t\t"
+      /*      */<< log((double)Time[i+1] / (double)Time[i]) / log(2.) << std::endl;
+    }
+  }
+  if (delta_depth > 1) {
+    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / (delta_depth * log(2.))
+              << "\t\t" << log(Er[0].second / Er[delta_depth - 1].second) / ((delta_depth - 1) * log(2.))
+              << "\t\t" << log((double)Time[delta_depth-1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
+  }
+  return 0;
+
 }
 
