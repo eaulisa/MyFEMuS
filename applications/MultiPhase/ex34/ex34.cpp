@@ -27,19 +27,19 @@ template<std::size_t DIM> struct Psi;
 
 template<> struct Psi<2> {
   double xc{0.0}, yc{0.0};
-  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1./512};
+  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1. / 512};
   double operator()(double x, double y) const {
-    //const double rr = (x - xc) * (x - xc) + (y - yc) * (y - yc);
-    //return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
+    // const double rr = (x - xc) * (x - xc) + (y - yc) * (y - yc);
+    // return std::exp((r * r - rr) / (sigma * sigma)) - 1.0 + delta;
     Mollifier m(eps);
     const double d = r - sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
-    return m.Sigmoid(d);
+    return m.SigmoidC1(d);
   }
 };
 
 template<> struct Psi<3> {
   double xc{0.0}, yc{0.0}, zc{0.0};
-  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1./128};
+  double sigma{0.18016836131796748}, r{0.15}, delta{0.0}, eps{1. / 128};
   double operator()(double x, double y, double z) const {
     const double dx = x - xc, dy = y - yc, dz = z - zc;
     //const double rr = dx * dx + dy * dy + dz * dz;
@@ -47,7 +47,7 @@ template<> struct Psi<3> {
 
     Mollifier m(eps);
     const double d = r - sqrt(dx * dx + dy * dy + dz * dz);
-    return m.Sigmoid(d);
+    return m.SigmoidC1(d);
 
   }
 };
@@ -500,10 +500,12 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
   ot.set_physical_coordinates(X);
 
+  double eps = 1. / pow(2, maxDepth - 7);
+
   // Level set
   Psi<DIM> psi;
-  psi.eps = pow(2.,-(max_depth - 6.));
-  std::cout<<"AAAAAAAAAAAAAAAAA"<< psi.eps<<std::endl;
+  psi.eps = eps;
+
   DimOps<DIM>::shift(psi);
 
   const double tau_ref    = 2.0;
@@ -562,9 +564,11 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
     }
   }
 
-  double eps = 1./pow(2,maxDepth-3);
+
   Mollifier m(eps);
-  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept { return m.Sigmoid(x); }, true /*projection flag*/, 10. /*marker density*/);
+  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept {
+    return m.SigmoidC1(x);
+  }, true /*projection flag*/, 10. /*marker density*/);
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
   // }
@@ -592,8 +596,8 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
-    // fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
-    fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
+    if(!reinit) fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
+    else fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
 
     ot1.reset(false, false);
     ot1.set_allow_coarsen_below_min(allowDrop);
@@ -605,14 +609,21 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
     fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
 
-    const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, tau_coarse, ot);
-    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+    if(reinit){
+      const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
+      std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+    }
+    else {
+      const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse}, ot);
+      std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+    }
 
     using std::swap; swap(ot, ot1);
 
-
-    markers.clear();
-    markers = reinitializer.collect_markers();
+    if (reinit) {
+      markers.clear();
+      markers = reinitializer.collect_markers();
+    }
 
     // --- Statistiche sulle celle ---
     const double n_cells = static_cast<double>(ot.leaf_count());
@@ -675,14 +686,15 @@ int run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool 
 
   if (fout) {
     fout << std::setw(3) << max_depth << " "
-    << std::scientific << std::setprecision(10)
-    << std::setw(15) << Em << " "
-    << std::setw(15) << Eg << " "
-    << std::scientific << std::setprecision(3)
-    << std::setw(14) << N_cells_max << " "
-    << std::setw(14) << N_cells_mean << " "
-    << std::setw(14) << h_min << "\n";
-  } else {
+         << std::scientific << std::setprecision(10)
+         << std::setw(15) << Em << " "
+         << std::setw(15) << Eg << " "
+         << std::scientific << std::setprecision(3)
+         << std::setw(14) << N_cells_max << " "
+         << std::setw(14) << N_cells_mean << " "
+         << std::setw(14) << h_min << "\n";
+  }
+  else {
     std::cerr << "⚠️ Error: can't open errors_vs_depth.dat for writing.\n";
   }
 

@@ -2517,7 +2517,7 @@ namespace fem {
 
 // ---- conservative coarsen cycle using snapshot + parent coords; rebuild all fields — (DIM-independent) ----
       std::size_t coarsen_only_cycle_safe(u32 fid,
-                                          double tau_coarse,
+                                          std::vector <double> tolerance,
                                           OctTree& snapshot,
                                           u32 max_passes = 10) { // highest-order for DIM (Q9/H27)
         // Freeze current state for conservative evaluation/transfer
@@ -2542,7 +2542,7 @@ namespace fem {
               mx = std::max(mx, val);
             }
           }
-          return (mn > +tau_coarse) || (mx < -tau_coarse);
+          return (mn > +tolerance[0]) || (mx < -tolerance[0]);
         };
 
 
@@ -2612,7 +2612,7 @@ namespace fem {
             const double meas = 6.0 / sq(mx - mn);
             e *= meas;
 
-            return e <= 1.0e-5;
+            return e < tolerance[1];
           }
           else {
             if (pts_s.size() < 27) return false;
@@ -2678,7 +2678,7 @@ namespace fem {
             const double meas = 32. / sq(mx - mn);
             e *= meas;
 
-            return e <= 1.0e-5;
+            return e < tolerance[1];
           }
         };
 
@@ -2692,11 +2692,13 @@ namespace fem {
           if (c == 0) break;
           total += c;
         }
-        // Coarsen passes; (balance+topology update happen after the loop)
-        for (u32 pass = 0; pass < max_passes; ++pass) {
-          std::size_t c = coarsen_pass(pred1);
-          if (c == 0) break;
-          total += c;
+        if (tolerance.size() > 1) {
+          // Coarsen passes; (balance+topology update happen after the loop)
+          for (u32 pass = 0; pass < max_passes; ++pass) {
+            std::size_t c = coarsen_pass(pred1);
+            if (c == 0) break;
+            total += c;
+          }
         }
 
 
@@ -3387,7 +3389,7 @@ namespace fem {
         constexpr std::size_t Nnodes = NDOFS[DIM][2]; // Q9/H27
         std::vector<double> dNx(Nnodes), dNy(Nnodes), dNz((DIM == 3) ? Nnodes : 0);
 
-        if constexpr (DIM == 2) {
+        if constexpr(DIM == 2) {
           Point2 s2{ s[0], s[1] };
           Shapes2D::Q9_dN(s2, dNx.data(), dNy.data());
           double J[2][2] = {{0.0, 0.0}, {0.0, 0.0}};
@@ -3398,12 +3400,14 @@ namespace fem {
             J[1][0] += dNa0 * X1;  J[1][1] += dNa1 * X1;
           }
           return J[0][0] * J[1][1] - J[0][1] * J[1][0];
-        } else { // DIM == 3
+        }
+        else {   // DIM == 3
           Point3 s3{ s[0], s[1], s[2] };
           Shapes3D::H27_dN(s3, dNx.data(), dNy.data(), dNz.data());
           double J[3][3] = {{0.0, 0.0, 0.0},
-                            {0.0, 0.0, 0.0},
-                            {0.0, 0.0, 0.0}};
+            {0.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0}
+          };
           for (std::size_t a = 0; a < Nnodes; ++a) {
             const double dNa0 = dNx[a], dNa1 = dNy[a], dNa2 = dNz[a];
             const double X0 = _X[0][a], X1 = _X[1][a], X2 = _X[2][a];
@@ -3417,8 +3421,8 @@ namespace fem {
           const double A21 = J[1][0], A22 = J[1][1], A23 = J[1][2];
           const double A31 = J[2][0], A32 = J[2][1], A33 = J[2][2];
           return A11 * (A22 * A33 - A23 * A32)
-                - A12 * (A21 * A33 - A23 * A31)
-                + A13 * (A21 * A32 - A22 * A31);
+                 - A12 * (A21 * A33 - A23 * A31)
+                 + A13 * (A21 * A32 - A22 * A31);
         }
       }
 
@@ -3516,7 +3520,7 @@ namespace fem {
 // }
 // ------- mass and geometric error -------
   template<std::size_t DIM>
-  std::pair<double,double>
+  std::pair<double, double>
   compute_mass_and_geom_errors_overlay(
     const OctTree<DIM>& overlay,
     const OctTree<DIM>& tree_t0, u32 fid_t0,
@@ -3533,10 +3537,11 @@ namespace fem {
     std::vector<fem::Point<DIM>> gauss7_pts;
     std::vector<double> w7;
 
-    if constexpr (DIM == 2) {
+    if constexpr(DIM == 2) {
       gauss3_pts.reserve(9);  w3.reserve(9);
       gauss7_pts.reserve(49); w7.reserve(49);
-    } else if constexpr (DIM == 3) {
+    }
+    else if constexpr(DIM == 3) {
       gauss3_pts.reserve(27);  w3.reserve(27);
       gauss7_pts.reserve(343); w7.reserve(343);
     }
@@ -3545,11 +3550,11 @@ namespace fem {
     // COSTRUZIONE QUADRATURE
     // ===============================
     const double a = std::sqrt(3.0 / 5.0);
-    if constexpr (DIM == 2) {
+    if constexpr(DIM == 2) {
       {
         // ---- 3x3 ----
         const double pts[3] = {-a, 0.0, +a};
-        const double w[3] = {5.0/9.0, 8.0/9.0, 5.0/9.0};
+        const double w[3] = {5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0};
         for (int i = 0; i < 3; ++i)
           for (int j = 0; j < 3; ++j) {
             gauss3_pts.push_back({pts[i], pts[j]});
@@ -3567,11 +3572,11 @@ namespace fem {
           }
       }
     }
-    else if constexpr (DIM == 3) {
+    else if constexpr(DIM == 3) {
       {
         // ---- 3x3x3 ----
         const double pts[3] = {-a, 0.0, +a};
-        const double w[3] = {5.0/9.0, 8.0/9.0, 5.0/9.0};
+        const double w[3] = {5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0};
         for (int i = 0; i < 3; ++i)
           for (int j = 0; j < 3; ++j)
             for (int k = 0; k < 3; ++k) {
@@ -3598,9 +3603,9 @@ namespace fem {
     for (u32 e = 0; e < Nel; ++e) {
       Point<DIM> X0, X1;
       std::vector<Point<DIM>> pts;
-      if constexpr (DIM == 2)
+      if constexpr(DIM == 2)
         overlay.extract_leaf_parent_coords(Basis2D::Q4, e, pts);
-      else if constexpr (DIM == 3)
+      else if constexpr(DIM == 3)
         overlay.extract_leaf_parent_coords(Basis3D::H8, e, pts);
 
       // Bounds in parent space (min/max sui nodi Q4/H8 del leaf)
@@ -3616,7 +3621,7 @@ namespace fem {
       }
 
       // Guardie anti-degenerazione (facoltative ma utili)
-      if ((X1[0] <= X0[0]) || (X1[1] <= X0[1]) || (DIM==3 && (X1[2] <= X0[2]))) {
+      if ((X1[0] <= X0[0]) || (X1[1] <= X0[1]) || (DIM == 3 && (X1[2] <= X0[2]))) {
         continue; // salta cella degenerata
       }
 
@@ -3643,8 +3648,8 @@ namespace fem {
       double integ_sign0 = 0.0, integ_sign1 = 0.0;
       double Jacc = 0.0;
       const double Jparent = 0.5 * (X1[0] - X0[0])
-                     * 0.5 * (X1[1] - X0[1])
-                     * ((DIM == 3) ? 0.5 * (X1[2] - X0[2]) : 1.0);
+                             * 0.5 * (X1[1] - X0[1])
+                             * ((DIM == 3) ? 0.5 * (X1[2] - X0[2]) : 1.0);
 
 
       for (size_t q = 0; q < gauss_pts.size(); ++q) {
