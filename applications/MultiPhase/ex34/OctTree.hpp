@@ -1813,31 +1813,73 @@ namespace fem {
           Point<DIM> X0, X1;
           leaf_bounds(P, X0, X1);
 
-          // fill parent-space samples (actually physical in your code path)
-          const int n = fill_probe_nodes(X0, X1, NDOFS[DIM][2], s_buf);
+          // precompute midpoints once
+          Point<DIM> M;
+          for (u32 d = 0; d < DIM; ++d) M[d] = 0.5 * (X0[d] + X1[d]);
 
-          // map to physical
-          for (int i = 0; i < n; ++i) xyz_buf[i] = parent_to_physical(s_buf[i]);
+          auto child_bounds_from_parent = [&](u32 child_ord, Point<DIM>& C0, Point<DIM>& C1) {
+            if constexpr(DIM == 2) {
+              const bool rx = child_ord & 1u; // bit 0 = x high
+              const bool ry = child_ord & 2u; // bit 1 = y high
+              C0 = { rx ? M[0] : X0[0], ry ? M[1] : X0[1] };
+              C1 = { rx ? X1[0] : M[0], ry ? X1[1] : M[1] };
+            }
+            else {
+              const bool rx = child_ord & 1u;        // x high?
+              const bool ry = (child_ord >> 1) & 1u; // y high?
+              const bool rz = (child_ord >> 2) & 1u; // z high?
+              C0 = { rx ? M[0] : X0[0], ry ? M[1] : X0[1], rz ? M[2] : X0[2] };
+              C1 = { rx ? X1[0] : M[0], ry ? X1[1] : M[1], rz ? X1[2] : M[2] };
+            }
+          };
 
-          // wrap with pre-sized vectors (no alloc)
-          pts_s_vec.resize(n);
-          pts_xyz_vec.resize(n);
-          for (int i = 0; i < n; ++i) {
-            pts_s_vec[i]   = s_buf[i];
-            pts_xyz_vec[i] = xyz_buf[i];
+          // ---- CHILD-ONLY CHECK: all must pass ----
+          bool all_children_ok = true;
+
+          for (u32 k = 0; k < NCH; ++k) {
+            const u32 leaf_pos = g.pos[k];
+            const u32 child_id = _leaves[leaf_pos];
+            const TreeNode<DIM>& C = _tree_nodes[child_id];
+
+            // // min-depth guard per child (explicit)
+            // if (C.level <= _minDepth && !_allowCoarsenBelowMinDepth) {
+            //   all_children_ok = false;
+            //   break;
+            // }
+
+            // derive this child's bbox from the parent bbox
+            // (Assumes canonical child ordering; if not, compute ordinal from C.morton ^ P.morton.)
+            Point<DIM> C0, C1;
+            child_bounds_from_parent(/*child ordinal*/ k, C0, C1);
+
+            // sample inside the child (PHYSICAL sampling to match your current fill_probe_nodes)
+            const int nC = fill_probe_nodes(C0, C1, NDOFS[DIM][2], s_buf);
+
+            // map to physical
+            for (int i = 0; i < nC; ++i) xyz_buf[i] = parent_to_physical(s_buf[i]);
+
+            pts_s_vec.resize(nC);
+            pts_xyz_vec.resize(nC);
+            for (int i = 0; i < nC; ++i) {
+              pts_s_vec[i] = s_buf[i];   // parent points
+              pts_xyz_vec[i] = xyz_buf[i];   // physical-points)
+            }
+
+            // reuse the same predicate for children; pass child's morton and level
+            if (!should_coarsen(C.morton, C.level, pts_s_vec, pts_xyz_vec, /*dummy*/{})) {
+              all_children_ok = false;
+              break; // short-circuit: one fails => all fail
+            }
           }
 
-          if (!should_coarsen(P.morton, lev, pts_s_vec, pts_xyz_vec, /*dummy*/{}))
-            continue;
+          if (!all_children_ok) continue; // do not coarsen this parent
 
-          // mark kids by leaf position; don’t mutate _leaves yet
+          // ---- reach here: ALL children passed -> mark and promote parent ----
           for (u32 k = 0; k < NCH; ++k) {
             const u32 pos = g.pos[k];
             _tree_nodes[_leaves[pos]].is_leaf = false;
             mark_pos(pos);
           }
-
-          // parent becomes leaf
           P.is_leaf = true;
           for (u32 c = 0; c < NCH; ++c) P.child[c] = npos32;
           to_add.push_back(pidx);
@@ -1853,7 +1895,6 @@ namespace fem {
 
         return coarsened;
       }
-
 
 
 // ---- Refines the given leaf into 2^DIM children and updates topology; returns true if a split occurred (DIM-independent) ----
@@ -2528,7 +2569,7 @@ namespace fem {
                         const std::vector<Point<DIM>>& pts_s,     // parent (ξ,η[,ζ])
                         const std::vector<Point<DIM>>& pts_xyz,
         const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
-          if (level <= min_depth()) return false;
+          if (level <= min_depth() + 1u || level == max_depth()) return false;
           if (pts_s.empty()) return false;
 
           double v0;
@@ -2551,7 +2592,7 @@ namespace fem {
                          const std::vector<Point<DIM>>& pts_s,     // Q9 (2D): 0..3 verts, 4..7 mids, 8 center
                          const std::vector<Point<DIM>>& /*pts_xyz*/,
         const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) noexcept -> bool {
-          if (level <= min_depth()) return false;
+          if (level <= min_depth() + 1u) return false;
           if (pts_s.empty()) return false;
 
           // ---- small helpers (hot, inlinable) ----
@@ -2575,6 +2616,9 @@ namespace fem {
             return true;
           };
 
+
+
+
           if constexpr(DIM == 2) {
             if (pts_s.size() < 9) return false;
 
@@ -2585,7 +2629,8 @@ namespace fem {
             }
 
             // if sign change and not at deepest allowable level, do not accept
-            if (mn * mx < 0.0 && level + 1u < max_depth()) return false;
+            if (mn * mx < 0.0 && level + 2u < max_depth()) return false;
+            if (((mn > +tolerance[0]) || (mx < -tolerance[0])) && level + 2u < max_depth()) return true;
 
             // vertices
             const double v0 = vQ9[0], v1 = vQ9[1], v2 = vQ9[2], v3 = vQ9[3];
@@ -2611,7 +2656,7 @@ namespace fem {
             // element measure (constant, as in your code)
             const double meas = 6.0 / sq(mx - mn);
             e *= meas;
-
+            //std::cout<<e<<" ";
             return e < tolerance[1];
           }
           else {
@@ -2624,7 +2669,8 @@ namespace fem {
             }
 
             // if sign change and not at deepest allowable level, do not accept
-            if (mn * mx < 0.0 && level + 1u < max_depth()) return false;
+            if (mn * mx < 0.0 && level + 2u < max_depth()) return false;
+            if (((mn > +tolerance[0]) || (mx < -tolerance[0])) && level + 2u < max_depth()) return true;
 
             // vertices (0..7)
             const double v0 = vH27[0], v1 = vH27[1], v2 = vH27[2], v3 = vH27[3];
@@ -2682,17 +2728,17 @@ namespace fem {
           }
         };
 
-
-
         std::size_t total = 0;
 
-        // Coarsen passes; (balance+topology update happen after the loop)
-        for (u32 pass = 0; pass < max_passes; ++pass) {
-          std::size_t c = coarsen_pass(pred);
-          if (c == 0) break;
-          total += c;
+        if (tolerance.size() == 1) {
+          // // Coarsen passes; (balance+topology update happen after the loop)
+          for (u32 pass = 0; pass < max_passes; ++pass) {
+            std::size_t c = coarsen_pass(pred);
+            if (c == 0) break;
+            total += c;
+          }
         }
-        if (tolerance.size() > 1) {
+        else if (tolerance.size() > 1) {
           // Coarsen passes; (balance+topology update happen after the loop)
           for (u32 pass = 0; pass < max_passes; ++pass) {
             std::size_t c = coarsen_pass(pred1);
@@ -3686,6 +3732,7 @@ namespace fem {
   }
 
 } // namespace fem
+
 
 
 

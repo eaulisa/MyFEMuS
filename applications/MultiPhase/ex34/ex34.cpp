@@ -434,7 +434,7 @@ static inline double period_for(Scenario s) {
 // DIM-generic VTU vector write (phi must already exist as field 0)
 template<std::size_t DIM>
 static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
-                                           int k, double time,
+                                           unsigned max_depth, unsigned k, double time,
                                            Vel<DIM> evalVelocity,
                                            BasisT<DIM> bHi,
                                            const char* stem) {
@@ -463,7 +463,7 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
   groups.emplace_back(std::vector<u32>(fidv.begin(), fidv.begin() + DIM)); // velocity
 
   const std::string filename =
-    std::string("./output/") + stem + "." + std::to_string(k) + ".vtu";
+    std::string("./output/") + stem + "." + std::to_string(max_depth) + "." + std::to_string(k) + ".vtu";
   ot.write_binary_vtu(filename, bHi, groups, false);
 }
 
@@ -510,7 +510,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
   const double tau_ref    = 2.0;
   const double tau_coarse = 1e-5;
-  const u32    min_level  = 0;
 
   const typename DimOps<DIM>::BasisType bHi = DimOps<DIM>::highest_basis();
 
@@ -536,7 +535,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
                             const std::vector<Pt<DIM>>& /*pts_s*/,
                             const std::vector<Pt<DIM>>& pts_xyz,
   const ShapeCache<DIM>& /*cache*/) -> bool {
-    if (level <= min_level || pts_xyz.empty()) return false;
+    if (level <= minDepth + 1u || level == maxDepth || pts_xyz.empty()) return false;
     double v0 = DimOps<DIM>::evalPsi(psi, pts_xyz[0]), mn = v0, mx = v0;
     for (size_t i = 1; i < pts_xyz.size(); ++i) {
       double v = DimOps<DIM>::evalPsi(psi, pts_xyz[i]);
@@ -575,7 +574,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   // First VTU frame
   if (vtu) {
     const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
-    write_vtu_frame_generic(ot, 0, 0.0, evalVelocity, bHi, stem);
+    write_vtu_frame_generic(ot, max_depth, 0, 0.0, evalVelocity, bHi, stem);
   }
 
   // Time-stepping (dt from fixed nIter=320)
@@ -611,6 +610,12 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
     if (reinit) {
       const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
+      std::cout << "\x1b[1A"   // cursor up 1
+          << "\x1b[2K"   // erase entire line
+          << "\x1b[1A"   // cursor up 1
+          << "\x1b[2K"   // erase entire line
+          << "\r"        // return to column 1
+          << std::flush;
       std::cout << "Coarsened " << num_coarsened << " leaves.\n";
     }
     else {
@@ -638,7 +643,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
-      write_vtu_frame_generic(ot, k, time, evalVelocity, bHi, stem);
+      write_vtu_frame_generic(ot, max_depth, k, time, evalVelocity, bHi, stem);
     }
 
   }
