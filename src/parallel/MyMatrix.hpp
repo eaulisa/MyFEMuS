@@ -25,9 +25,6 @@
 #include <stdlib.h>
 
 #include <mpi.h>
-#include <boost/throw_exception.hpp>
-#include <boost/mpi/datatype.hpp>
-
 #include "MyVector.hpp"
 
 namespace femus {
