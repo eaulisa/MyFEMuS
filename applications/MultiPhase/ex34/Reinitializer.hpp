@@ -310,19 +310,106 @@ namespace Tri_ord{
   };
 
 
-  auto sample_triangle = [&](const Tri3& T, int res, std::vector<Point<3>>& out) {
-      for (int i=0; i<=res; ++i) {
-          for (int j=0; j<=res-i; ++j) {
-              double u = static_cast<double>(i)/res;
-              double v = static_cast<double>(j)/res;
-              double w = 1.0 - u - v;
-              Point<3> P;
-              for (int d=0; d<3; ++d)
-                  P[d] = w*T.A[d] + u*T.B[d] + v*T.C[d];
-              out.push_back(P);
-          }
-      }
-  };
+    static inline double dot3(const Point<3>& a, const Point<3>& b){
+        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    }
+    static inline void sub3(const Point<3>& a, const Point<3>& b, Point<3>& r){
+        r[0]=a[0]-b[0]; r[1]=a[1]-b[1]; r[2]=a[2]-b[2];
+    }
+    static inline void madd3(Point<3>& x, const Point<3>& v, double s){
+        x[0]+=s*v[0]; x[1]+=s*v[1]; x[2]+=s*v[2];
+    }
+    static inline void lerp3(const Point<3>& P, const Point<3>& Q, double a, Point<3>& R){
+        R[0]=(1.0-a)*P[0]+a*Q[0]; R[1]=(1.0-a)*P[1]+a*Q[1]; R[2]=(1.0-a)*P[2]+a*Q[2];
+    }
+    static inline double norm3(const Point<3>& v){ return std::sqrt(dot3(v,v)); }
+    static inline void cross3(const Point<3>& a, const Point<3>& b, Point<3>& c){
+        c[0]=a[1]*b[2]-a[2]*b[1]; c[1]=a[2]*b[0]-a[0]*b[2]; c[2]=a[0]*b[1]-a[1]*b[0];
+    }
+
+    void sample_triangle_with_density(const Tri3& T,
+                                    const double& den,
+                                    std::vector<Point<3>>& out){
+        Point<3> ABv, BCv, CAv;
+        sub3(T.B, T.A, ABv);
+        sub3(T.C, T.B, BCv);
+        sub3(T.A, T.C, CAv);
+        const double LAB = norm3(ABv);
+        const double LBC = norm3(BCv);
+        const double LCA = norm3(CAv);
+
+        const double rho = std::max(0.0, den);
+        const double s_line = (rho>0.0) ? 1.0/rho : 0.0;
+
+        auto nz = [](int x){ return (x>1)?x:1; };
+        const int N_AB = (rho>0.0) ? nz((int)std::lround(rho*LAB)) : 0;
+        const int N_BC = (rho>0.0) ? nz((int)std::lround(rho*LBC)) : 0;
+        const int N_CA = (rho>0.0) ? nz((int)std::lround(rho*LCA)) : 0;
+
+        for (int i=0; i<=N_AB; ++i){
+            double t = (N_AB==0)?0.5 : (double)i/N_AB;
+            Point<3> P; lerp3(T.A, T.B, t, P);
+            out.push_back(P);
+        }
+        for (int i=1; i<=N_BC; ++i){
+            double t = (N_BC==0)?0.5 : (double)i/N_BC;
+            Point<3> P; lerp3(T.B, T.C, t, P);
+            out.push_back(P);
+        }
+        for (int i=1; i<=N_CA; ++i){
+            double t = (N_CA==0)?0.5 : (double)i/N_CA;
+            Point<3> P; lerp3(T.C, T.A, t, P);
+            out.push_back(P);
+        }
+
+        const Point<3> *P, *Q, *R;
+        Point<3> baseQP;
+        double   Lbase;
+        if (LBC >= LAB && LBC >= LCA) { P=&T.B; Q=&T.C; R=&T.A; Lbase=LBC; baseQP=BCv; }
+        else if (LAB >= LBC && LAB >= LCA) { P=&T.A; Q=&T.B; R=&T.C; Lbase=LAB; baseQP=ABv; }
+        else { P=&T.C; Q=&T.A; R=&T.B; Lbase=LCA; baseQP=CAv; }
+
+        Point<3> RP, QP;
+        sub3(*R, *P, RP);
+        sub3(*Q, *P, QP); 
+        Point<3> cr; cross3(QP, RP, cr);
+        const double h = norm3(cr) / std::max(1e-30, Lbase);
+        if (Lbase<=0.0 || h<=0.0) return;
+
+        int nT = 0;
+        if (s_line>0.0) nT = std::max(1, (int)std::ceil(h / s_line));
+        else            nT = std::max(1, std::max(N_AB, std::max(N_BC, N_CA)));
+
+        if (rho>0.0){
+            const double sum_t = (nT>1) ? ( (nT-1)*nT*0.5 / nT ) : 0.0;
+            const size_t est_internal = (size_t)std::max(0.0, rho * Lbase * sum_t);
+            out.reserve(out.size() + est_internal + 8);
+        } else {
+            out.reserve(out.size() + (size_t)(nT * std::max({N_AB,N_BC,N_CA})) + 8);
+        }
+
+        Point<3> RtoP, RtoQ;
+        sub3(*P, *R, RtoP);
+        sub3(*Q, *R, RtoQ);
+
+        for (int k=1; k<=nT-1; ++k){
+            const double t = (double)k / nT;
+            const double ell = t * Lbase;
+
+            int nk = 1;
+            if (rho>0.0) nk = std::max(1, (int)std::lround(ell * rho));
+            else         nk = std::max(1, (int)std::lround((ell / Lbase) * std::max(N_AB, std::max(N_BC, N_CA))));
+
+            Point<3> segDir; sub3(RtoQ, RtoP, segDir); 
+            for (int j=0; j<nk; ++j){
+                const double a = (nk==1) ? 0.5 : (double)j/(nk-1);
+                Point<3> X = *R;
+                madd3(X, RtoP, t);
+                madd3(X, segDir, t*a);
+                out.push_back(X);
+            }
+        }
+    }
 
 
 

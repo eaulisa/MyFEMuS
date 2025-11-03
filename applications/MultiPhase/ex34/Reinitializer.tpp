@@ -119,6 +119,7 @@ namespace fem {
     {
         // only cutcell with two (for DIM==2) and up to 5 (DIM==3) intersections are accepted
 
+        const int cell_density = marker_density * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
         std::vector<Point<DIM>> cell_markers;
         if constexpr (DIM==2)
         {
@@ -129,7 +130,7 @@ namespace fem {
             const auto& A = cell_intersections[0];
             const auto& B = cell_intersections[1];
 
-            int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * marker_density));
+            int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
             n_segments = std::max(1, n_segments);
 
             Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
@@ -154,9 +155,8 @@ namespace fem {
             auto tris = Tri_ord::triangulate_poly(poly);
                 
             // finally we place markers on each triangles
-            const int tri_res = marker_density;  // TODO compute curvature sensitive density
             for (const auto& tr : tris)
-                Tri_ord::sample_triangle(tr, tri_res, cell_markers);
+                Tri_ord::sample_triangle_with_density(tr, cell_density, cell_markers);
 
         }
         
@@ -189,6 +189,15 @@ namespace fem {
 
             unmatched.swap(next);
         }
+
+        std::vector<Point<DIM>> accepted_markers;
+        for (unsigned int i = 0; i < cell_markers.size(); i++){
+            double value = evaluate_field_on_leaf(cell_markers[i]);
+            if (std::abs(value) <= tol){
+                accepted_markers.push_back(cell_markers[i]);
+            }
+        }
+        cell_markers.swap(accepted_markers);
         
         for (unsigned int i = 0; i < cell_markers.size(); i++)
         {
