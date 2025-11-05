@@ -379,7 +379,7 @@ namespace fem {
         const auto field = tree->field(fid);
         const auto basis = to_basis<DIM>(field.basis_id);
         
-        const double tol      = 1e-8;
+        const double tol      = 1e-10;
         const int    max_iter = 30;
 
         cut_cells_nodes_dist.clear();
@@ -449,7 +449,7 @@ namespace fem {
 
                         if (tree->evaluate_field_on_parent(fid, p_try, value_new)) 
                         {
-                            if (std::abs(value_new) < f0) 
+                            if ((std::abs(value_new) < f0 && value*value_new >= 0) || std::abs(value_new) < f0*0.5) 
                             { 
                                 accepted = true;
                                 break;
@@ -459,19 +459,8 @@ namespace fem {
                         alpha *= 0.5; 
                     }
 
-                    if (!accepted) 
+                    if (accepted) 
                     {
-                        if (g2 > eps_g2) {
-                            const double gn = std::sqrt(g2);
-                            Vector<DIM> n = Geom_op<DIM>::div(grad_parent, gn); 
-                            const double tau = std::min(smax, 0.1 * h);         
-                            p = Geom_op<DIM>::sub(p, Geom_op<DIM>::mul( (value/ (gn + 1e-16)) * (tau / (std::abs(value) + 1e-16)), n ));
-                        } else 
-                        {
-                            break;
-                        }
-                    } else {
-
                         p = p_try;
 
                         if (std::abs(value_new) <= tol) {
@@ -479,6 +468,8 @@ namespace fem {
                             break;
                         }
                     }
+                    else 
+                        break; // TODO add something
                 }
 
                 Point<DIM> p_physical = tree->parent_to_physical(p);
