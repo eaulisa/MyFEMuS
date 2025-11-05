@@ -885,6 +885,7 @@ namespace fem {
 
           this->refine_to_contain_points(pts_phys, L);
         }
+        enforce_balance();
 
         // 2) Add two fields on the overlay using the SAME bases as the sources (keep original bases)
         const Field& src1 = oct1.field(fid1);
@@ -1588,9 +1589,7 @@ namespace fem {
           if (changed == 0) break;
           total += changed;
         }
-
-        enforce_balance();
-        post_topology_update();
+        enlarge_top_layer_and_enforce_balance();
         return total;
       }
 
@@ -1751,29 +1750,20 @@ namespace fem {
             sbuf[n++] = PM::mk(x1, y1, z1); sbuf[n++] = PM::mk(x0, y1, z1);
             if (nprobe >= 20) {
               // z=-1 edges (8..11)
-              sbuf[n++] = PM::mk(xm, y0, z0);
-              sbuf[n++] = PM::mk(x1, ym, z0);
-              sbuf[n++] = PM::mk(xm, y1, z0);
-              sbuf[n++] = PM::mk(x0, ym, z0);
+              sbuf[n++] = PM::mk(xm, y0, z0); sbuf[n++] = PM::mk(x1, ym, z0);
+              sbuf[n++] = PM::mk(xm, y1, z0); sbuf[n++] = PM::mk(x0, ym, z0);
               // z=+1 edges (12..15)
-              sbuf[n++] = PM::mk(xm, y0, z1);
-              sbuf[n++] = PM::mk(x1, ym, z1);
-              sbuf[n++] = PM::mk(xm, y1, z1);
-              sbuf[n++] = PM::mk(x0, ym, z1);
+              sbuf[n++] = PM::mk(xm, y0, z1); sbuf[n++] = PM::mk(x1, ym, z1);
+              sbuf[n++] = PM::mk(xm, y1, z1); sbuf[n++] = PM::mk(x0, ym, z1);
               // vertical edges (16..19)
-              sbuf[n++] = PM::mk(x0, y0, zm);
-              sbuf[n++] = PM::mk(x1, y0, zm);
-              sbuf[n++] = PM::mk(x1, y1, zm);
-              sbuf[n++] = PM::mk(x0, y1, zm);
+              sbuf[n++] = PM::mk(x0, y0, zm); sbuf[n++] = PM::mk(x1, y0, zm);
+              sbuf[n++] = PM::mk(x1, y1, zm); sbuf[n++] = PM::mk(x0, y1, zm);
             }
             if (nprobe == 27) {
               // face centers (20..25)
-              sbuf[n++] = PM::mk(xm, y0, zm);
-              sbuf[n++] = PM::mk(x1, ym, zm);
-              sbuf[n++] = PM::mk(xm, y1, zm);
-              sbuf[n++] = PM::mk(x0, ym, zm);
-              sbuf[n++] = PM::mk(xm, ym, z0);
-              sbuf[n++] = PM::mk(xm, ym, z1);
+              sbuf[n++] = PM::mk(xm, y0, zm); sbuf[n++] = PM::mk(x1, ym, zm);
+              sbuf[n++] = PM::mk(xm, y1, zm); sbuf[n++] = PM::mk(x0, ym, zm);
+              sbuf[n++] = PM::mk(xm, ym, z0); sbuf[n++] = PM::mk(xm, ym, z1);
               // cell center (26)
               sbuf[n++] = PM::mk(xm, ym, zm);
             }
@@ -1840,12 +1830,6 @@ namespace fem {
             const u32 leaf_pos = g.pos[k];
             const u32 child_id = _leaves[leaf_pos];
             const TreeNode<DIM>& C = _tree_nodes[child_id];
-
-            // // min-depth guard per child (explicit)
-            // if (C.level <= _minDepth && !_allowCoarsenBelowMinDepth) {
-            //   all_children_ok = false;
-            //   break;
-            // }
 
             // derive this child's bbox from the parent bbox
             // (Assumes canonical child ordering; if not, compute ordinal from C.morton ^ P.morton.)
@@ -2327,9 +2311,8 @@ namespace fem {
         }
 
         // Keep mesh balanced and refresh bookkeeping
-
-        enforce_balance();
         post_topology_update();
+
       }
 
 // ---- refine pass — splits each selected leaf into 2^DIM children — (DIM-independent) ----
@@ -2412,6 +2395,211 @@ namespace fem {
           ++head;
         }
       };
+
+      inline std::size_t enlarge_top_layer_and_enforce_balance() {
+        std::size_t nref = 0;
+        nref += enlarge_top_layer();
+        enforce_balance();
+        post_topology_update();
+        return nref;
+      }
+
+
+// Return the [begin,end) range in _leaves for a given level.
+      inline std::pair<u32, u32> leaf_level_range(u32 L) const {
+        // _leaf_level_off[L] is the first index in _leaves at level L,
+        // _leaf_level_off[L+1] is one past the last.
+        return {_level_offset[L], _level_offset[L + 1]};
+      }
+
+      // ---- Two-phase: enlarge around the (implicit) Lmax set, mark-then-refine ----
+      inline std::size_t enlarge_top_layer() {
+        if (_leaves.empty()) return 0;
+
+        const u32 Lmax = max_depth();
+        if (Lmax == 0) return 0;
+        if (min_depth() >= Lmax) return 0;
+
+        std::size_t nref_total = 0;
+
+        // ----------------
+        // Phase 1: repeatedly lift ONLY neighbors of Lmax with level <= Lmax-2 to Lmax-1
+        // ----------------
+        bool changed = true;
+        while (changed) {
+          changed = false;
+
+          // Keep neighbor search consistent/fast
+          sort_leaves_by_level_then_morton();
+          compute_level_offsets();
+
+          auto [ib, ie] = leaf_level_range(Lmax);
+          if (ib >= ie) break; // no Lmax leaves (degenerate)
+
+          std::vector<u32> to_refine;
+          to_refine.reserve((ie - ib) * (2 * DIM));           // heuristic
+          std::vector<char> mark(_tree_nodes.size(), 0);
+
+          // Sweep ONLY current Lmax leaves
+          for (u32 i = ib; i < ie; ++i) {
+            const u32 lmax_id = _leaves[i];
+            if (lmax_id == npos32 || lmax_id >= _tree_nodes.size()) continue;
+
+            const auto& me = _tree_nodes[lmax_id];
+            if (!me.is_leaf || me.level != Lmax) continue; // never refine Lmax in Phase 1
+
+            for (int dir = 0; dir < int(2 * DIM); ++dir) {
+              const u32 nb = neighbor_leaf_by_face_any(lmax_id, dir);
+              if (nb == npos32 || nb >= _tree_nodes.size()) continue;
+
+              const auto& nn = _tree_nodes[nb];
+              if (!nn.is_leaf) continue;
+
+              if (nn.level <= Lmax - 2) {
+                if (!mark[nb]) {
+                  mark[nb] = 1;
+                  to_refine.push_back(nb);
+                }
+                if (nn.level < Lmax - 2) changed = true;
+              }
+            }
+          }
+
+          // Refine all marked leaves once (raise to Lmax-1 or closer)
+          if (!to_refine.empty()) {
+            std::size_t nref = 0;
+            for (u32 idx : to_refine) {
+              if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
+                nref += refine_leaf_once(idx) ? 1u : 0u;
+              }
+            }
+            nref_total += nref;
+            //if (nref > 0) changed = true;
+          }
+        }
+
+        // ----------------
+        // Phase 2: lift remaining neighbors of Lmax at level == Lmax-1 to Lmax
+        // ----------------
+        // Keep neighbor search consistent/fast
+        sort_leaves_by_level_then_morton();
+        compute_level_offsets();
+
+        {
+          auto [ib, ie] = leaf_level_range(Lmax);
+          if (ib < ie) {
+            std::vector<u32> to_refine;
+            to_refine.reserve((ie - ib) * 2);
+            std::vector<char> mark(_tree_nodes.size(), 0);
+
+            // Sweep ONLY current Lmax leaves
+            for (u32 i = ib; i < ie; ++i) {
+              const u32 lmax_id = _leaves[i];
+              if (lmax_id == npos32 || lmax_id >= _tree_nodes.size()) continue;
+
+              const auto& me = _tree_nodes[lmax_id];
+              if (!me.is_leaf || me.level != Lmax) continue;
+
+              for (int dir = 0; dir < int(2 * DIM); ++dir) {
+                const u32 nb = neighbor_leaf_by_face_any(lmax_id, dir);
+                if (nb == npos32 || nb >= _tree_nodes.size()) continue;
+
+                const auto& nn = _tree_nodes[nb];
+                if (!nn.is_leaf) continue;
+
+                if (nn.level == Lmax - 1) {
+                  if (!mark[nb]) {
+                    mark[nb] = 1;
+                    to_refine.push_back(nb);
+                  }
+                }
+                else if (nn.level < Lmax - 1)  {std::cout<<"We missed somthing! ";}
+              }
+            }
+
+            // Refine all marked Lmax-1 neighbors to Lmax
+            for (u32 idx : to_refine) {
+              if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
+                nref_total += refine_leaf_once(idx) ? 1u : 0u;
+              }
+            }
+          }
+        }
+
+        return nref_total;
+      }
+
+
+
+
+// // ---- One-sweep: scan all leaves level by level (DIM independent) ----
+//       inline std::size_t enlarge_top_layer() {
+//         if (_leaves.empty()) return 0;
+//
+//         const u32 Lmax = max_depth();
+//         if (Lmax == 0) return 0;
+//
+//         // If min_depth() >= Lmax there is no slice to process.
+//         if (min_depth() >= Lmax) return 0;
+//
+//         std::size_t nref = 0;
+//
+//         // Ascend: Lchk = min_depth, ..., Lmax-1.
+//         // Note: Lmax set cannot change until Lchk == Lmax-1 (final iteration).
+//         for (u32 Lchk = min_depth(); Lchk < Lmax; ++Lchk) {
+//
+//           // Keep neighbor search consistent/fast
+//           sort_leaves_by_level_then_morton();
+//           compute_level_offsets();
+//
+//           auto [ibeg, iend] = leaf_level_range(Lchk);
+//           if (ibeg >= iend) continue; // no leaves at this level
+//
+//           std::vector<u32> to_refine;
+//           to_refine.reserve(iend - ibeg);
+//           std::vector<char> mark(_tree_nodes.size(), 0); // dedup within this pass
+//
+//           // Sweep ONLY the leaves at level Lchk
+//           for (u32 i = ibeg; i < iend; ++i) {
+//             const u32 leaf = _leaves[i];
+//             if (leaf == npos32 || leaf >= _tree_nodes.size()) continue;
+//
+//             const auto& n = _tree_nodes[leaf];
+//             if (!n.is_leaf) continue; // could have been refined earlier
+//             // n.level == Lchk by construction
+//
+//             bool touches_max = false;
+//             for (int dir = 0; dir < int(2 * DIM); ++dir) {
+//               const u32 nb = neighbor_leaf_by_face_any(leaf, dir);
+//               if (nb == npos32 || nb >= _tree_nodes.size()) continue;
+//
+//               const auto& nn = _tree_nodes[nb];
+//               if (!nn.is_leaf) continue;
+//
+//               // Adjacency checked against the (unchanged) Lmax set until the very last iteration
+//               if (nn.level == Lmax) {
+//                 touches_max = true;
+//                 break;
+//               }
+//             }
+//
+//             if (touches_max && !mark[leaf]) {
+//               mark[leaf] = 1;
+//               to_refine.push_back(leaf);
+//             }
+//           }
+//
+//           // Refine all marked leaves once
+//           for (u32 idx : to_refine) {
+//             if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
+//               nref += refine_leaf_once(idx) ? 1u : 0u;
+//             }
+//           }
+//         }
+//
+//         return nref;
+//       }
+
 
 // ---- Enforces 2:1 balance (1-irregularity): adjacent leaves may differ by at most one level (DIM-independent) ----
       inline void enforce_balance() {
@@ -2569,7 +2757,9 @@ namespace fem {
                         const std::vector<Point<DIM>>& pts_s,     // parent (ξ,η[,ζ])
                         const std::vector<Point<DIM>>& pts_xyz,
         const std::vector<std::array<double, NDOFS[DIM][2]>>& /*Nvals*/) -> bool {
-          if (level <= min_depth() + 1u || level == max_depth()) return false;
+          //std::cout<<"A "<<level<<" ";
+          if (level <= min_depth() + 1u /*|| level == max_depth()*/) return false;
+          //std::cout<<"B ";
           if (pts_s.empty()) return false;
 
           double v0;
@@ -2583,6 +2773,8 @@ namespace fem {
               mx = std::max(mx, val);
             }
           }
+          //std::cout << mn <<" "<<mx<<"\t";
+
           return (mn > +tolerance[0]) || (mx < -tolerance[0]);
         };
 
@@ -2615,9 +2807,6 @@ namespace fem {
             mx = (v > mx ? v : mx);
             return true;
           };
-
-
-
 
           if constexpr(DIM == 2) {
             if (pts_s.size() < 9) return false;
@@ -2730,30 +2919,31 @@ namespace fem {
 
         std::size_t total = 0;
 
-        if (tolerance.size() == 1) {
-          // // Coarsen passes; (balance+topology update happen after the loop)
-          for (u32 pass = 0; pass < max_passes; ++pass) {
-            std::size_t c = coarsen_pass(pred);
-            if (c == 0) break;
-            total += c;
-          }
-        }
-        else if (tolerance.size() > 1) {
-          // Coarsen passes; (balance+topology update happen after the loop)
-          for (u32 pass = 0; pass < max_passes; ++pass) {
-            std::size_t c = coarsen_pass(pred1);
-            if (c == 0) break;
-            total += c;
-          }
-        }
+        // if (tolerance.size() == 1) {
+        //   // Coarsen passes; (balance+topology update happen after the loop)
+        //   for (u32 pass = 0; pass < max_passes; ++pass) {
+        //     std::size_t c = coarsen_pass(pred);
+        //     if (c == 0) break;
+        //     total += c;
+        //   }
+        // }
+        // else if (tolerance.size() > 1) {
+        //   // Coarsen passes; (balance+topology update happen after the loop)
+        //   for (u32 pass = 0; pass < max_passes; ++pass) {
+        //     std::size_t c = coarsen_pass(pred1);
+        //     if (c == 0) break;
+        //     total += c;
+        //   }
+        // }
+        //
+        //
+        //
+        // // Enforce 1-irregularity and refresh bookkeeping
+        //
+
+        enlarge_top_layer_and_enforce_balance();
 
 
-
-        // Enforce 1-irregularity and refresh bookkeeping
-
-        enforce_balance();
-
-        post_topology_update();
 
         // Rebuild all fields from the snapshot (conservative transfer) on nodal sets
         for (u32 f = 0; f < _fields.size(); ++f) {
@@ -3175,6 +3365,134 @@ namespace fem {
           }
         }
       }
+
+
+
+// ---- Collect parent-space node coordinates from leaves in [lev_min, lev_max]
+//      that are "interface" for field `fid`, i.e., their nodal values have opposite signs.
+//      Zeros are treated as neutral; only strict sign-mix (pos & neg) marks interface.
+//      If you want zeros to count as interface, set `treat_zero_as_interface = true`.
+      inline void extract_interface_leaf_parent_coords_in_level_range(u32  lev_min,
+                                                                      u32  lev_max,
+                                                                      Basis basis,
+                                                                      u32  fid,
+                                                                      std::vector<Point<DIM>>& coords,
+                                                                      double tol = 0.0,
+                                                                      bool treat_zero_as_interface = false) const {
+        coords.clear();
+
+        if (_level_offset.empty()) return;
+
+        const u32 max_level_present =
+          static_cast<u32>(_level_offset.size() >= 2 ? _level_offset.size() - 2 : 0);
+
+        // Clamp & normalize level range
+        u32 Lmin = (lev_min > max_level_present) ? max_level_present : lev_min;
+        u32 Lmax = (lev_max > max_level_present) ? max_level_present : lev_max;
+        if (Lmin > Lmax) std::swap(Lmin, Lmax);
+
+        const u32 lo = _level_offset[Lmin];
+        const u32 hi = _level_offset[Lmax + 1];
+        if (lo >= hi) return;
+
+        const u32 ndofs_per_leaf = leaf_dof_number(basis);
+
+        // Rough upper bound reserve (only a subset will be pushed)
+        coords.reserve(static_cast<size_t>(hi - lo) * (1 << DIM));
+
+        std::vector<Point<DIM>> s; s.reserve(ndofs_per_leaf);
+
+        // Scratch for field values at nodal parent coords
+        std::vector<double> vals; vals.reserve(ndofs_per_leaf);
+
+        for (u32 leaf_pos = lo; leaf_pos < hi; ++leaf_pos) {
+          s.clear();
+          extract_leaf_parent_coords(basis, leaf_pos, s);
+          if (s.empty()) continue;
+
+          vals.clear();
+          vals.resize(s.size());
+
+          bool ok = true;
+          for (size_t k = 0; k < s.size(); ++k) {
+            double v;
+            if (!evaluate_field_on_parent(fid, s[k], v)) {
+              ok = false;
+              break;
+            }
+            vals[k] = v;
+          }
+          if (!ok) continue;
+
+          // Sign-mix test
+          bool has_pos = false, has_neg = false, has_zero = false;
+          for (double v : vals) {
+            if (v >  tol) has_pos = true;
+            else if (v < -tol) has_neg = true;
+            else has_zero = true; // |v| <= tol
+            if (has_pos && has_neg) break;
+          }
+
+          const bool is_interface =
+            (has_pos && has_neg) ||
+            (treat_zero_as_interface && has_zero && (has_pos || has_neg));
+
+          if (is_interface) {
+            Point<DIM> c, h;
+            if (center_half_from_known_vertices(s, c, h)) {
+              append_mid_offsets_from_ch(c, h, coords);
+            }
+          }
+
+
+        }
+      }
+
+
+      // Inside the class (DIM is the template parameter)
+
+// Assumes: in 2D, s[0] = min corner, s[2] = max corner
+//          in 3D, s[0] = min corner, s[6] = max corner
+      inline bool center_half_from_known_vertices(const std::vector<Point<DIM>>& s,
+                                                  Point<DIM>& c, Point<DIM>& h) const {
+        if constexpr(DIM == 2) {
+          if (s.size() < 4) return false;
+          const auto& pmin = s[0];
+          const auto& pmax = s[2];
+          c[0] = 0.5 * (pmin[0] + pmax[0]);  h[0] = 0.5 * (pmax[0] - pmin[0]);
+          c[1] = 0.5 * (pmin[1] + pmax[1]);  h[1] = 0.5 * (pmax[1] - pmin[1]);
+          return true;
+        }
+        else if constexpr(DIM == 3) {
+          if (s.size() < 8) return false;
+          const auto& pmin = s[0];
+          const auto& pmax = s[6];
+          c[0] = 0.5 * (pmin[0] + pmax[0]);  h[0] = 0.5 * (pmax[0] - pmin[0]);
+          c[1] = 0.5 * (pmin[1] + pmax[1]);  h[1] = 0.5 * (pmax[1] - pmin[1]);
+          c[2] = 0.5 * (pmin[2] + pmax[2]);  h[2] = 0.5 * (pmax[2] - pmin[2]);
+          return true;
+        }
+        else {
+          static_assert(DIM == 2 || DIM == 3, "Supported only for DIM=2 or DIM=3.");
+          return false;
+        }
+      }
+
+// Append the 2^DIM points at offsets ±(h/2) along each axis from center c.
+      inline void append_mid_offsets_from_ch(const Point<DIM>& c, const Point<DIM>& h,
+                                             std::vector<Point<DIM>>& coords) const {
+        const int n = (1 << DIM);
+        for (int mask = 0; mask < n; ++mask) {
+          Point<DIM> p = c;
+          for (int j = 0; j < DIM; ++j) {
+            const double offs = 0.5 * h[j];            // corresponds to ξ = ±0.5 in leaf-local
+            const double sgn  = ((mask >> j) & 1) ? 1.0 : -1.0;
+            p[j] += sgn * offs;
+          }
+          coords.push_back(p);
+        }
+      }
+
 
 // ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of the Q9/H27 nodes where field fid reaches min and max on that leaf (DIM-independent) ----
       inline void extract_parent_coords_by_field_extremes_in_level_range(u32 lev_min,
@@ -3732,6 +4050,8 @@ namespace fem {
   }
 
 } // namespace fem
+
+
 
 
 

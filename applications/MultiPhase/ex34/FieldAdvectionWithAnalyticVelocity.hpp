@@ -193,8 +193,9 @@ namespace fem {
 //    Integrates from (time - dt) to (time).
 // ======================================================================
   template<class AnalyticVel, std::size_t DIM>
-  inline void advect_markers_forward_analytic(
+  inline void advect_interface_markers_forward_analytic(
     const OctTree<DIM>& tree0,
+    const u32 &fid0,
     double time,                 // absolute END time t^{n+1}
     double dt,                   // dt > 0
     AnalyticVel&& vfun,
@@ -206,7 +207,12 @@ namespace fem {
 
     //sample nodes at finest level using highest-order geometry basis (id==0 ⇒ Q4/H8)
     std::vector<Point<DIM>> s0_all;
-    tree0.extract_node_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(), static_cast<BasisT<DIM>>(0), s0_all);
+    //tree0.extract_node_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(), static_cast<BasisT<DIM>>(0), s0_all);
+
+    tree0.extract_interface_leaf_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(),
+                                                              static_cast<BasisT<DIM>>(2), fid0,
+                                                              s0_all);
+
 
     const double t0_abs = time - dt;
 

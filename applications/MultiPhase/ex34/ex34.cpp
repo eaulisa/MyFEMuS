@@ -142,7 +142,6 @@ VortexVel3D(double x, double y, double z, double time) noexcept {
 }
 
 
-
 // ---------------- Geometry builders ----------------
 template<std::size_t DIM> struct Box;
 
@@ -280,6 +279,125 @@ template<> struct Ball<3> {
 };
 
 
+// ---------------- Funnel geometry builder ----------------
+template<std::size_t DIM> struct Funnel;
+
+// 2D specialization
+template<>
+struct Funnel<2> {
+  static std::array<std::array<double, 9>, 2>
+  data(double a, double b, double h, double k, double y0, double y1) {
+    std::array<std::array<double, 9>, 2> X{};
+
+    // Compute y mid
+    const double ym = 0.5 * (y0 + y1);
+
+    // Compute x positions from hyperbola for left/right boundaries
+    auto x_from_y = [&](double y, double sign) {
+      const double term = 1.0 + std::pow((y - k) / b, 2);
+      return h + sign * a * std::sqrt(term);
+    };
+
+    // Left (−) and right (+) x at bottom, mid, top
+    const double xl0 = x_from_y(y0, -1.0);
+    const double xr0 = x_from_y(y0, +1.0);
+    const double xlm = x_from_y(ym, -1.0);
+    const double xrm = x_from_y(ym, +1.0);
+    const double xl1 = x_from_y(y1, -1.0);
+    const double xr1 = x_from_y(y1, +1.0);
+
+    // Fill Q9 nodes (same order as Box<2>)
+    X[0][0] = xl0;  X[1][0] = y0;  // bottom-left
+    X[0][1] = xr0;  X[1][1] = y0;  // bottom-right
+    X[0][2] = xr1;  X[1][2] = y1;  // top-right
+    X[0][3] = xl1;  X[1][3] = y1;  // top-left
+
+    X[0][4] = h;     X[1][4] = y0;  // mid-bottom
+    X[0][5] = xrm;   X[1][5] = ym;  // mid-right
+    X[0][6] = h;     X[1][6] = y1;  // mid-top
+    X[0][7] = xlm;   X[1][7] = ym;  // mid-left
+
+    X[0][8] = 0.5 * (xlm + xrm);  X[1][8] = ym;  // center (approx average midsection)
+
+    return X;
+  }
+};
+
+// 3D specialization -----------------------------------------------------------
+template<>
+struct Funnel<3> {
+  static std::array<std::array<double, 27>, 3>
+  data(double a, double b, double c,
+       double h, double k, double l,
+       double z0, double z1) {
+    std::array<std::array<double, 27>, 3> X{};
+
+    // --- Midplane ---
+    const double zm = 0.5 * (z0 + z1);
+
+    // --- Hyperbolic scale factor ---
+    auto scale = [&](double z) {
+      return std::sqrt(1.0 + std::pow((z - l) / c, 2));
+    };
+
+    const double s0 = scale(z0);
+    const double sm = scale(zm);
+    const double s1 = scale(z1);
+
+    // --- Local semi-axes for each z plane ---
+    const double ax0 = a * s0, ay0 = b * s0;
+    const double axm = a * sm, aym = b * sm;
+    const double ax1 = a * s1, ay1 = b * s1;
+
+    auto set = [&](int i, double x, double y, double z) {
+      X[0][i] = x;  X[1][i] = y;  X[2][i] = z;
+    };
+
+    // --- Corner nodes (bottom z=z0, top z=z1) -------------------------------
+    set(0, h - ax0, k - ay0, z0);
+    set(1, h + ax0, k - ay0, z0);
+    set(2, h + ax0, k + ay0, z0);
+    set(3, h - ax0, k + ay0, z0);
+
+    set(4, h - ax1, k - ay1, z1);
+    set(5, h + ax1, k - ay1, z1);
+    set(6, h + ax1, k + ay1, z1);
+    set(7, h - ax1, k + ay1, z1);
+
+    // --- Midpoints on bottom face (z=z0) -----------------------------------
+    set(8,  h,       k - ay0, z0); // front
+    set(9,  h + ax0, k,       z0); // right
+    set(10, h,       k + ay0, z0); // back
+    set(11, h - ax0, k,       z0); // left
+
+    // --- Midpoints on top face (z=z1) --------------------------------------
+    set(12, h,       k - ay1, z1); // front
+    set(13, h + ax1, k,       z1); // right
+    set(14, h,       k + ay1, z1); // back
+    set(15, h - ax1, k,       z1); // left
+
+    // --- Corners on middle z plane (z=zm) ----------------------------------
+    set(16, h - axm, k - aym, zm);
+    set(17, h + axm, k - aym, zm);
+    set(18, h + axm, k + aym, zm);
+    set(19, h - axm, k + aym, zm);
+
+    // --- Mid-edge nodes on middle layer (front→right→back→left) ------------
+    set(20, h,       k - aym, zm); // front (y=-1)
+    set(21, h + axm, k,       zm); // right (x=+1)
+    set(22, h,       k + aym, zm); // back  (y=+1)
+    set(23, h - axm, k,       zm); // left  (x=-1)
+
+    // --- Face centers + element center -------------------------------------
+    set(24, h, k, z0);  // bottom center
+    set(25, h, k, z1);  // top center
+    set(26, h, k, zm);  // mid center
+
+    return X;
+  }
+};
+
+
 // ---------------- Dimension traits (as you had) ----------------
 template<std::size_t DIM> struct DimOps;
 
@@ -304,6 +422,14 @@ template<> struct DimOps<2> {
     const double R = 0.5, const std::array<double, 2> xc = {0., 0.}) {
     return Ball<2>::data(R, xc[0], xc[1]);
   }
+
+  static std::array<std::array<double, 9>, 2> funnel_geom(
+    const double a = 0.375, const double b = 0.5,
+    const std::array<double, 2> xc = {0., 0.5},
+    const double y0 = 0, const double y1 = 1) {
+    return Funnel<2>::data(a, b, xc[0], xc[1], y0,  y1);
+  }
+
 };
 
 template<> struct DimOps<3> {
@@ -327,6 +453,13 @@ template<> struct DimOps<3> {
   static std::array<std::array<double, 27>, 3> ball_geom(
     const double R = 0.5, const std::array<double, 3> xc = {0., 0., 0.}) {
     return Ball<3>::data(R, xc[0], xc[1], xc[2]);
+  }
+
+  static std::array<std::array<double, 27>, 3> funnel_geom(
+    const double a = 0.375, const double b = 0.4, const double c = 0.5,
+    const std::array<double, 3> xc = {0., 0., 0.5},
+    const double z0 = 0, const double z1 = 1) {
+    return Funnel<3>::data(a, b, c, xc[0], xc[1], xc[2], z0,  z1);
   }
 };
 
@@ -492,15 +625,12 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   const auto [minCorner, maxCorner] = make_domain<DIM>(scenario);
   auto X = (box_domain) ?
            DimOps<DIM>::box_geom(minCorner, maxCorner) :
-           DimOps<DIM>::ball_geom(0.65, fem::Point<DIM> {0});
-
-  // if (scenario == Scenario::ROT2D || scenario == Scenario::ROT3D) {
-  //   X = DimOps<DIM>::ball_geom(0.65, Point<DIM>{0});
-  // }
+           ((scenario == Scenario::RB2D || scenario == Scenario::RB3D) ? DimOps<DIM>::funnel_geom() : DimOps<DIM>::ball_geom(0.65, fem::Point<DIM> {0}));
 
   ot.set_physical_coordinates(X);
 
-  double eps = 1. / pow(2, maxDepth - 7);
+  double eps = (DIM == 2) ? 1. / pow(2, std::max(maxDepth - 7u, 1u)) : 1. / pow(2, std::max(maxDepth - 4u, 1u)); //this parameter is fundamental, if I make it too small the convergence breaks.
+  //double eps = 1. / pow(2, 5);
 
   // Level set
   Psi<DIM> psi;
@@ -565,9 +695,8 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
 
   Mollifier m(eps);
-  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept {
-    return m.SigmoidC1(x);
-  }, true /*projection flag*/, 10. /*marker density*/);
+  Reinitializer<DIM> reinitializer(&ot, fid, {},//[&m](double x) noexcept { return m.SigmoidC1(x);},
+                                   true /*projection flag*/, 10. /*marker density*/);
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
   // }
@@ -595,33 +724,34 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
-    if (!reinit) fem::advect_markers_forward_analytic(ot, time, dt, evalVelocity, leftOld, stayedNew);
-    else fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
+    // if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
+    // else
+
+    fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
 
     ot1.reset(false, false);
     ot1.set_allow_coarsen_below_min(allowDrop);
     ot1.set_physical_coordinates(X);
     ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
+    ot1.enlarge_top_layer_and_enforce_balance();
 
     const u32 fid0 = fid;
     const u32 fid1 = ot1.add_field(bHi, "phi");
 
     fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
 
+    u32 num_coarsened = 0;
     if (reinit) {
-      const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
-      std::cout << "\x1b[1A"   // cursor up 1
-          << "\x1b[2K"   // erase entire line
-          << "\x1b[1A"   // cursor up 1
-          << "\x1b[2K"   // erase entire line
-          << "\r"        // return to column 1
-          << std::flush;
-      std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+      //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
     }
     else {
-      const u32 num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse}, ot);
-      std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+      //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse}, ot);
     }
+    std::cout << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
+              << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
+              << "\r"        // return to column 1
+              << std::flush;
+    std::cout << "Coarsened " << num_coarsened << " leaves.\n";
 
     using std::swap; swap(ot, ot1);
 
@@ -718,7 +848,7 @@ static void print_usage(const char* prog) {
       << "  [--max_depth M]\n"
       << "  [--profiling|--no-profiling]\n"
       << "  [--vtu-output|--no-vtu-output]\n"
-      << "  [--box_domain|--ball_domain]\n"
+      << "  [--box_domain|--curved_domain]\n"
       << "  [--reinit R]\n"
       << "\n"
       << "Options:\n"
@@ -732,7 +862,7 @@ static void print_usage(const char* prog) {
       << "      --vtu           Write VTU frames (default)\n"
       << "      --no_vtu        Do not write VTU\n"
       << "      --box_domain    Use box geometry (default)\n"
-      << "      --ball_domain   Use ball geometry (circle in 2D, sphere in 3D)\n"
+      << "      --ball_domain   Use curved domain (circle or hyperbola in 2D, sphere or funnel in 3D depending on the scenario)\n"
       << "      --reinit        Number of time steps beween reinitializations; deafult is 0, i.e., no reinitialization\n"
       << "\n"
       << "Notes:\n"
@@ -768,8 +898,8 @@ int main(int argc, char** argv) {
         return 1;
       }
       long v = std::strtol(argv[++i], nullptr, 10);
-      if (v <= 0) {
-        std::cerr << "Error: --niter must be positive\n";
+      if (v < 0) {
+        std::cerr << "Error: --niter must be non-negative\n";
         return 1;
       }
       nSteps = static_cast<unsigned>(v);
@@ -810,7 +940,7 @@ int main(int argc, char** argv) {
       }
       delta_depth = std::atoi(argv[++i]);
     }
-    else if (a == "--ball_domain") {
+    else if (a == "--curved_domain") {
       box_domain = false;
     }
     else if (a == "--box_domain") {
@@ -850,18 +980,18 @@ int main(int argc, char** argv) {
 
   std::cout << "Max_Depth\tMass_Error\tGeometric_Error\tCompt_Time(s)" << std::endl;
   for (unsigned i = 0; i < delta_depth; i++) {
-    std::cout << max_depth + i << "\t\t" << Er[i].first << "\t" << Er[i].second <<"\t"
-    /*      */<<static_cast<double>(Time[i]) / CLOCKS_PER_SEC<< std::endl;
+    std::cout << max_depth + i << "\t\t" << Er[i].first << "\t" << Er[i].second << "\t"
+              /*      */ << static_cast<double>(Time[i]) / CLOCKS_PER_SEC << std::endl;
     if (i + 1 < delta_depth) {
       std::cout << "conv.\t\t" << log(Er[i].first / Er[i + 1].first) / log(2.) << "\t\t"
-      /*      */<< log(Er[i].second / Er[i + 1].second) / log(2.) << "\t\t"
-      /*      */<< log((double)Time[i+1] / (double)Time[i]) / log(2.) << std::endl;
+                /*      */ << log(Er[i].second / Er[i + 1].second) / log(2.) << "\t\t"
+                /*      */ << log((double)Time[i + 1] / (double)Time[i]) / log(2.) << std::endl;
     }
   }
   if (delta_depth > 1) {
-    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / ((delta_depth-1) * log(2.))
+    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / ((delta_depth - 1) * log(2.))
               << "\t\t" << log(Er[0].second / Er[delta_depth - 1].second) / ((delta_depth - 1) * log(2.))
-              << "\t\t" << log((double)Time[delta_depth-1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
+              << "\t\t" << log((double)Time[delta_depth - 1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
   }
   return 0;
 
