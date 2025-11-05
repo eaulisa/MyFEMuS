@@ -500,7 +500,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
   ot.set_physical_coordinates(X);
 
-  double eps = 1. / pow(2, maxDepth - 7);
+  double eps = 1. / pow(2, maxDepth - 4);
 
   // Level set
   Psi<DIM> psi;
@@ -567,7 +567,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   Mollifier m(eps);
   Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept {
     return m.SigmoidC1(x);
-  }, true /*projection flag*/, 10. /*marker density*/);
+  }, true /*projection flag*/);
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
   // }
@@ -589,8 +589,12 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   const u32 fid_t0 = fid;
   OctTree<DIM> ot1(maxDepth, minDepth);
 
-
-  std::vector<Pt<DIM>> markers = reinitializer.collect_markers();
+  std::vector<Pt<DIM>> markers;
+  if (reinit){
+    markers.clear();
+    markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
+  }
+  
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
@@ -626,8 +630,9 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     using std::swap; swap(ot, ot1);
 
     if (reinit) {
+      int marker_density = (k % reinit == 0) ? 10. : 0.;
       markers.clear();
-      markers = reinitializer.collect_markers();
+      markers = reinitializer.collect_markers(marker_density, 3 /*min segments*/);
     }
 
     // --- Statistiche sulle celle ---
@@ -644,6 +649,9 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
       write_vtu_frame_generic(ot, max_depth, k, time, evalVelocity, bHi, stem);
+      // reinitializer.write_markers_csv(
+      //   (DIM == 2 ? "./output_markers/markers2d." : "./output_markers/markers3d.") +
+      //   std::to_string(max_depth) + "." + std::to_string(k) + ".csv");
     }
 
   }
