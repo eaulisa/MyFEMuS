@@ -2,8 +2,8 @@
 namespace fem {
 
     template<std::size_t DIM>
-    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_, bool flag, double density) 
-        : tree(tree_ptr), fid(fid_phi), mollifier(std::move(mollifier_)), proj_flag(flag), marker_density(density) {}
+    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_, bool flag) 
+        : tree(tree_ptr), fid(fid_phi), mollifier(std::move(mollifier_)), proj_flag(flag) {}
 
     template <std::size_t DIM>
     void Reinitializer<DIM>::write_markers_csv(const std::string& filename) const
@@ -119,18 +119,18 @@ namespace fem {
     {
         // only cutcell with two (for DIM==2) and up to 5 (DIM==3) intersections are accepted
 
+        const int cell_density = marker_density * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
+        const int cell_min_segments = min_segments * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
         std::vector<Point<DIM>> cell_markers;
         if constexpr (DIM==2)
         {
-            // we create 10 markers per cell along this segment
-
             assert(cell_intersections.size() == 2 && "More than 2 intersections in cut cell");
 
             const auto& A = cell_intersections[0];
             const auto& B = cell_intersections[1];
 
-            int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * marker_density));
-            n_segments = std::max(1, n_segments);
+            int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
+            n_segments = std::max(cell_min_segments, n_segments);
 
             Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
 
@@ -154,9 +154,8 @@ namespace fem {
             auto tris = Tri_ord::triangulate_poly(poly);
                 
             // finally we place markers on each triangles
-            const int tri_res = marker_density;  // TODO compute curvature sensitive density
             for (const auto& tr : tris)
-                Tri_ord::sample_triangle(tr, tri_res, cell_markers);
+                Tri_ord::sample_triangle_with_density(tr, cell_density, cell_min_segments, cell_markers);
 
         }
         
@@ -189,6 +188,15 @@ namespace fem {
 
             unmatched.swap(next);
         }
+
+        std::vector<Point<DIM>> accepted_markers;
+        for (unsigned int i = 0; i < cell_markers.size(); i++){
+            double value = evaluate_field_on_leaf(cell_markers[i]);
+            if (std::abs(value) <= tol){
+                accepted_markers.push_back(cell_markers[i]);
+            }
+        }
+        cell_markers.swap(accepted_markers);
         
         for (unsigned int i = 0; i < cell_markers.size(); i++)
         {
@@ -314,8 +322,11 @@ namespace fem {
     
 
     template <std::size_t DIM>
-    std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers()
+    std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers(int density, int min_segments_)
     {
+        marker_density = density;
+        min_segments = min_segments_;
+
         const auto& L = tree->leaves();
         const size_t numCells = L.size();
 
@@ -332,8 +343,6 @@ namespace fem {
         for (int k = 0; k < static_cast<int>(numCells); k++) 
         {
             leaf_id = L[k];
-
-           //const u32 leaf_pos = (leaf_id < tree->_node2leafpos.size()) ? tree->_node2leafpos[leaf_id] : npos32;
 
             const u32 leaf_pos = (leaf_id < tree->_tree_nodes.size()) ? tree->_tree_nodes[leaf_id].node2leafIdx : npos32;
 

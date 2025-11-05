@@ -629,6 +629,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
   ot.set_physical_coordinates(X);
 
+
   double eps = (DIM == 2) ? 1. / pow(2, std::max(maxDepth - 7u, 1u)) : 1. / pow(2, std::max(maxDepth - 4u, 1u)); //this parameter is fundamental, if I make it too small the convergence breaks.
   //double eps = 1. / pow(2, 5);
 
@@ -695,8 +696,11 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
 
   Mollifier m(eps);
-  Reinitializer<DIM> reinitializer(&ot, fid, {},//[&m](double x) noexcept { return m.SigmoidC1(x);},
-                                   true /*projection flag*/, 10. /*marker density*/);
+
+  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept {
+    return m.SigmoidC1(x);
+  }, true /*projection flag*/);
+
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
   // }
@@ -718,15 +722,18 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   const u32 fid_t0 = fid;
   OctTree<DIM> ot1(maxDepth, minDepth);
 
-
-  std::vector<Pt<DIM>> markers = reinitializer.collect_markers();
+  std::vector<Pt<DIM>> markers;
+  if (reinit){
+    markers.clear();
+    markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
+  }
+  
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
     // if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
-    // else
-
+    // else //TODO (check Samuele New Advection Functions)
     fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
 
     ot1.reset(false, false);
@@ -756,8 +763,9 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     using std::swap; swap(ot, ot1);
 
     if (reinit) {
+      int marker_density = (k % reinit == 0) ? 10. : 0.;
       markers.clear();
-      markers = reinitializer.collect_markers();
+      markers = reinitializer.collect_markers(marker_density, 3 /*min segments*/);
     }
 
     // --- Statistiche sulle celle ---
@@ -774,6 +782,9 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
       write_vtu_frame_generic(ot, max_depth, k, time, evalVelocity, bHi, stem);
+      // reinitializer.write_markers_csv(
+      //   (DIM == 2 ? "./output_markers/markers2d." : "./output_markers/markers3d.") +
+      //   std::to_string(max_depth) + "." + std::to_string(k) + ".csv");
     }
 
   }

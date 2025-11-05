@@ -2919,29 +2919,25 @@ namespace fem {
 
         std::size_t total = 0;
 
-        // if (tolerance.size() == 1) {
-        //   // Coarsen passes; (balance+topology update happen after the loop)
-        //   for (u32 pass = 0; pass < max_passes; ++pass) {
-        //     std::size_t c = coarsen_pass(pred);
-        //     if (c == 0) break;
-        //     total += c;
-        //   }
-        // }
-        // else if (tolerance.size() > 1) {
-        //   // Coarsen passes; (balance+topology update happen after the loop)
-        //   for (u32 pass = 0; pass < max_passes; ++pass) {
-        //     std::size_t c = coarsen_pass(pred1);
-        //     if (c == 0) break;
-        //     total += c;
-        //   }
-        // }
-        //
-        //
-        //
-        // // Enforce 1-irregularity and refresh bookkeeping
-        //
+        if (tolerance.size() == 1) {
+          // Coarsen passes; (balance+topology update happen after the loop)
+          for (u32 pass = 0; pass < max_passes; ++pass) {
+            std::size_t c = coarsen_pass(pred);
+            if (c == 0) break;
+            total += c;
+          }
+        }
+        else if (tolerance.size() > 1) {
+          // Coarsen passes; (balance+topology update happen after the loop)
+          for (u32 pass = 0; pass < max_passes; ++pass) {
+            std::size_t c = coarsen_pass(pred1);
+            if (c == 0) break;
+            total += c;
+          }
+        }
 
-        enlarge_top_layer_and_enforce_balance();
+        // Enforce 1-irregularity and refresh bookkeeping
+        enforce_balance();
 
 
 
