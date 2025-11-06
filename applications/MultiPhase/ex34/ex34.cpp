@@ -786,7 +786,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
       //   (DIM == 2 ? "./output_markers/markers2d." : "./output_markers/markers3d.") +
       //   std::to_string(max_depth) + "." + std::to_string(k) + ".csv");
     }
-
   }
 
   // --- Calcolo di h_min ---
