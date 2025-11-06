@@ -26,6 +26,9 @@ bool UseNewmarkUpdateWithD = true;
 double dt = 0.025;
 bool withDisturbance = false;
 
+static double PStar = 0.0;
+static std::vector<double> PStarNodes;
+
 double SetVariableTimeStep(const double time) {
   return dt;
 }
@@ -64,7 +67,16 @@ void NewmarkUpdate(MultiLevelSolution *mlSol);
 void NewmarkUpdateWithD(MultiLevelSolution *mlSol);
 
 void AssembleResAD(MultiLevelProblem& ml_prob);
+void AssembleResP(MultiLevelProblem& ml_prob);
+
+std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol);
+
+
 std::vector<double> ComputeL2NormCascadeOverC(Solution* sol, unsigned cascadeIterations);
+
+
+unsigned FindClosestNode(const Mesh* msh, const std::vector<double>& x0);
+std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vector<double>>& points);
 
 int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -93,21 +105,21 @@ int main(int argc, char** args) {
 
   MultiLevelSolution mlSol(&mlMsh);
 
-  mlSol.AddSolution("Zi", LAGRANGE, SECOND, 2);
-  mlSol.AddSolution("Xi", LAGRANGE, SECOND);
-  mlSol.AddSolution("Yi", LAGRANGE, SECOND);
+  mlSol.AddSolution("Zi0", LAGRANGE, SECOND, 2);
+  mlSol.AddSolution("Xi0", LAGRANGE, SECOND);
+  mlSol.AddSolution("Yi0", LAGRANGE, SECOND);
   mlSol.AddSolution("Ei", LAGRANGE, SECOND, false);
-  mlSol.AddSolution("Z", LAGRANGE, SECOND, false);
+  mlSol.AddSolution("Z0", LAGRANGE, SECOND, false);
 
   mlSol.AddSolution("P", LAGRANGE, SECOND, false);
 
   unsigned cascadeIterations = 3;
   for (unsigned j = 0; j < cascadeIterations; j++) {
-    std::string Zj = "Z" + std::to_string(j);
-    std::string ZjOld = "Z" + std::to_string(j) + "Old";
+    std::string Zj0 = "Z" + std::to_string(j) + "0";
+    std::string Zj0Old = "Z" + std::to_string(j) + "0Old";
     std::string Ej = "E" + std::to_string(j);
-    mlSol.AddSolution(Zj.c_str(), LAGRANGE, SECOND, false);
-    mlSol.AddSolution(ZjOld.c_str(), LAGRANGE, SECOND, false);
+    mlSol.AddSolution(Zj0.c_str(), LAGRANGE, SECOND, false);
+    mlSol.AddSolution(Zj0Old.c_str(), LAGRANGE, SECOND, false);
     mlSol.AddSolution(Ej.c_str(), LAGRANGE, SECOND, false);
   }
 
@@ -123,11 +135,20 @@ int main(int argc, char** args) {
   mlSol.GenerateBdc("All");
 
   MultiLevelProblem mlProb(&mlSol);
+
+  // New stationary system for P
+  LinearImplicitSystem& systemP = mlProb.add_system<LinearImplicitSystem>("LP");
+  systemP.AddSolutionToSystemPDE("P");
+  systemP.SetAssembleFunction(AssembleResP);
+  systemP.init();
+
+
+
   TransientLinearImplicitSystem& system = mlProb.add_system<TransientLinearImplicitSystem>("LSAT");
 
-  system.AddSolutionToSystemPDE("Zi");
-  system.AddSolutionToSystemPDE("Xi");
-  system.AddSolutionToSystemPDE("Yi");
+  system.AddSolutionToSystemPDE("Zi0");
+  system.AddSolutionToSystemPDE("Xi0");
+  system.AddSolutionToSystemPDE("Yi0");
   system.SetAssembleFunction(AssembleResAD);
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   system.init();
@@ -136,6 +157,14 @@ int main(int argc, char** args) {
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
   Mesh* msh = sol->GetMesh();
+
+  std::vector<std::vector<double>> controlPoints = {
+  {0.3, 0.3},
+  {1.4, 0.7},
+  {2.9, 0.5}
+  };
+
+  std::vector<double> controlNodes = MarkControlNodes(msh, controlPoints);
 
   RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
   RegionBox boxC{M_PI/3., 2*M_PI/3., 0., 1};
@@ -154,13 +183,20 @@ int main(int argc, char** args) {
 
   sol->_Sol[mlSol.GetIndex("P")]->zero();
 
+  // systemP.MGsolve(); //TODO
+
+  auto [IntegralP, WeightsP] = PrecomputePstarIntegrals(sol);
+
+  PStar = IntegralP;
+  PStarNodes = std::move(WeightsP);
+
   // ****here we solve the system for P****
 
   const unsigned n_timesteps = 150;
 
   for (unsigned j = 0; j < cascadeIterations; j++) {
-    std::string ZjOld = "Z" + std::to_string(j) + "Old";
-    sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]->zero();
+    std::string Zj0Old = "Z" + std::to_string(j) + "0Old";
+    sol->_Sol[(mlSol.GetIndex(Zj0Old.c_str()))]->zero();
   }
 
   int world_rank = -1;
@@ -188,25 +224,25 @@ int main(int argc, char** args) {
     std::shared_ptr<NumericVector> dOriginal;
     if (withDisturbance) dOriginal = sol->_Sol[mlSol.GetIndex("d")]->clone();
 
-    sol->_Sol[mlSol.GetIndex("Z")]->zero();
+    sol->_Sol[mlSol.GetIndex("Z0")]->zero();
     *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex("R"))]);
 
     for (unsigned j = 0; j < cascadeIterations; j++) {
-      std::string Zj = "Z" + std::to_string(j);
-      std::string ZjOld = "Z" + std::to_string(j) + "Old";
+      std::string Zj0 = "Z" + std::to_string(j) + "0";
+      std::string Zj0Old = "Z" + std::to_string(j) + "0Old";
       std::string Ej = "E" + std::to_string(j);
 
       //For withDisturbance, and j = 1,2,.., we set the disturbance to be zero
       if (withDisturbance && j > 0) sol->_Sol[mlSol.GetIndex("d")]->zero();
 
-      *(sol->_Sol[mlSol.GetIndex("Zi")]) = *(sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]);
-      *(sol->_SolOld[mlSol.GetIndex("Zi")]) = *(sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]);
+      *(sol->_Sol[mlSol.GetIndex("Zi0")]) = *(sol->_Sol[(mlSol.GetIndex(Zj0Old.c_str()))]);
+      *(sol->_SolOld[mlSol.GetIndex("Zi0")]) = *(sol->_Sol[(mlSol.GetIndex(Zj0Old.c_str()))]);
       system.MGsolve();
 
-      *(sol->_Sol[mlSol.GetIndex("Z")]) += *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
-      *(sol->_Sol[mlSol.GetIndex(Zj.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
+      *(sol->_Sol[mlSol.GetIndex("Z0")]) += *(sol->_Sol[(mlSol.GetIndex("Zi0"))]);
+      *(sol->_Sol[mlSol.GetIndex(Zj0.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Zi0"))]);
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Ei"))]);
-      *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) -= *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
+      *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) -= *(sol->_Sol[(mlSol.GetIndex("Zi0"))]);
       *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex(Ej.c_str()))]);
     }
 
@@ -224,9 +260,9 @@ int main(int argc, char** args) {
     }
 
     for (unsigned j = 0; j < cascadeIterations; j++) {
-      std::string Zj = "Z" + std::to_string(j);
-      std::string ZjOld = "Z" + std::to_string(j) + "Old";
-      *(sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]) = *(sol->_Sol[mlSol.GetIndex(Zj.c_str())]);
+      std::string Zj0 = "Z" + std::to_string(j) + "0";
+      std::string Zj0Old = "Z" + std::to_string(j) + "0Old";
+      *(sol->_Sol[(mlSol.GetIndex(Zj0Old.c_str()))]) = *(sol->_Sol[mlSol.GetIndex(Zj0.c_str())]);
     }
   }
 
@@ -426,9 +462,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
 
   //solution variable
-  unsigned solIndexZ = mlSol->GetIndex("Zi");
-  unsigned solIndexX = mlSol->GetIndex("Xi");
-  unsigned solIndexY = mlSol->GetIndex("Yi");
+  unsigned solIndexZ0 = mlSol->GetIndex("Zi0");
+  unsigned solIndexX0 = mlSol->GetIndex("Xi0");
+  unsigned solIndexY0 = mlSol->GetIndex("Yi0");
 
   unsigned solIndexE = mlSol->GetIndex("Ei");
 
@@ -443,19 +479,19 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
 
 
-  unsigned solType = mlSol->GetSolutionType(solIndexZ);
+  unsigned solType = mlSol->GetSolutionType(solIndexZ0);
 
 
-  unsigned solPdeIndexZ = mlPdeSys->GetSolPdeIndex("Zi");
-  unsigned solPdeIndexX = mlPdeSys->GetSolPdeIndex("Xi");
-  unsigned solPdeIndexY = mlPdeSys->GetSolPdeIndex("Yi");
+  unsigned solPdeIndexZ0 = mlPdeSys->GetSolPdeIndex("Zi0");
+  unsigned solPdeIndexX0 = mlPdeSys->GetSolPdeIndex("Xi0");
+  unsigned solPdeIndexY0 = mlPdeSys->GetSolPdeIndex("Yi0");
 
 
-  std::vector < double > solZOld;    // local solution
+  std::vector < double > solZ0Old;    // local solution
 
-  std::vector < adept::adouble > solZ;    // local solution
-  std::vector < adept::adouble > solX;
-  std::vector < adept::adouble > solY;
+  std::vector < adept::adouble > solZ0;    // local solution
+  std::vector < adept::adouble > solX0;
+  std::vector < adept::adouble > solY0;
 
   std::vector < double > solE;
   std::vector < double > solBd;
@@ -492,10 +528,10 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     sysDof.resize(nDofsAll);
     aRes.assign(nDofsAll, 0.);
 
-    solZOld.resize(nDofs);
-    solZ.resize(nDofs);
-    solX.resize(nDofs);
-    solY.resize(nDofs);
+    solZ0Old.resize(nDofs);
+    solZ0.resize(nDofs);
+    solX0.resize(nDofs);
+    solY0.resize(nDofs);
     solE.resize(nDofs);
     if(withDisturbance) solBd.resize(nDofs);
 
@@ -507,18 +543,18 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, solType);
 
-      solZOld[i] = (*sol->_SolOld[solIndexZ])(iDof);
-      solZ[i] = (*sol->_Sol[solIndexZ])(iDof);
-      solX[i] = (*sol->_Sol[solIndexX])(iDof);
-      solY[i] = (*sol->_Sol[solIndexY])(iDof);
+      solZ0Old[i] = (*sol->_SolOld[solIndexZ0])(iDof);
+      solZ0[i] = (*sol->_Sol[solIndexZ0])(iDof);
+      solX0[i] = (*sol->_Sol[solIndexX0])(iDof);
+      solY0[i] = (*sol->_Sol[solIndexY0])(iDof);
 
       solE[i] = (*sol->_Sol[solIndexE])(iDof);
       if(withDisturbance) solBd[i] = (*sol->_Sol[solIndexd])(iDof);
 
       for (unsigned  k = 0; k < 3; k++) {
-        unsigned solIndex = (k == 0) ? solIndexZ : ((k == 1) ? solIndexX : solIndexY);
-        unsigned solPdeIndex = (k == 0) ? solPdeIndexZ : ((k == 1) ? solPdeIndexX : solPdeIndexY);
-        sysDof[k * nDofs + i] = pdeSys->GetSystemDof(solIndex, solPdeIndex, i, iel);
+        unsigned solIndex0 = (k == 0) ? solIndexZ0 : ((k == 1) ? solIndexX0 : solIndexY0);
+        unsigned solPdeIndex0 = (k == 0) ? solPdeIndexZ0 : ((k == 1) ? solPdeIndexX0 : solPdeIndexY0);
+        sysDof[k * nDofs + i] = pdeSys->GetSystemDof(solIndex0, solPdeIndex0, i, iel);
       }
     }
 
@@ -537,32 +573,32 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       msh->_finiteElement[ielGeom][solType]->Jacobian(coordX, ig, weight, phi, gradPhi);
 
-      double ZOldg = 0.;
-      adept::adouble Zg = 0.;
-      adept::adouble Xg = 0.;
-      adept::adouble Yg = 0.;
+      double Z0Oldg = 0.;
+      adept::adouble Z0g = 0.;
+      adept::adouble X0g = 0.;
+      adept::adouble Y0g = 0.;
 
       double r = 0.;
       double d = 0.;
 
-      std::vector < adept::adouble > gradZg(dim, 0.);
-      std::vector < adept::adouble > gradXg(dim, 0.);
-      std::vector < adept::adouble > gradYg(dim, 0.);
+      std::vector < adept::adouble > gradZ0g(dim, 0.);
+      std::vector < adept::adouble > gradX0g(dim, 0.);
+      std::vector < adept::adouble > gradY0g(dim, 0.);
 
       for (unsigned i = 0; i < nDofs; i++) {
 
-        ZOldg += solZOld[i] * phi[i];
-        Zg += solZ[i] * phi[i];
-        Xg += solX[i] * phi[i];
-        Yg += solY[i] * phi[i];
+        Z0Oldg += solZ0Old[i] * phi[i];
+        Z0g += solZ0[i] * phi[i];
+        X0g += solX0[i] * phi[i];
+        Y0g += solY0[i] * phi[i];
 
         r += solE[i] * phi[i];
         if(withDisturbance) d += solBd[i] * phi[i];
 
         for (unsigned j = 0; j < dim; j++) {
-          gradZg[j] += solZ[i] * gradPhi[i * dim + j];
-          gradXg[j] += solX[i] * gradPhi[i * dim + j];
-          gradYg[j] += solY[i] * gradPhi[i * dim + j];
+          gradZ0g[j] += solZ0[i] * gradPhi[i * dim + j];
+          gradX0g[j] += solX0[i] * gradPhi[i * dim + j];
+          gradY0g[j] += solY0[i] * gradPhi[i * dim + j];
         }
       }
 
@@ -574,20 +610,20 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       // *** phiA_i loop ***
       for (unsigned i = 0; i < nDofs; i++) {
 
-        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] - (BBs > 0.5) * Xg / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
-        adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * Zg - beta * Yg) * phi[i];
-        adept::adouble aResY = - (BBs > 0.5) * Xg / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
+        adept::adouble aResZ0 = (Z0g - Z0Oldg) / dt * phi[i] - (BBs > 0.5) * X0g / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
+        adept::adouble aResX0 = - (CsC > 0.5) * (r - (1. - beta) * Z0g - beta * Y0g) * phi[i];
+        adept::adouble aResY0 = - (BBs > 0.5) * X0g / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
 
 
         for (unsigned j = 0; j < dim; j++) { // second index j in each equation
-          aResZ +=  mu * gradPhi[i * dim + j] * gradZg[j]; // diffusion
-          aResX +=  mu * gradPhi[i * dim + j] * gradXg[j]; // diffusion
-          aResY +=  mu * gradPhi[i * dim + j] * gradYg[j]; // diffusion
+          aResZ0 +=  mu * gradPhi[i * dim + j] * gradZ0g[j]; // diffusion
+          aResX0 +=  mu * gradPhi[i * dim + j] * gradX0g[j]; // diffusion
+          aResY0 +=  mu * gradPhi[i * dim + j] * gradY0g[j]; // diffusion
         }
 
-        aRes[0 * nDofs + i] += aResZ * weight;
-        aRes[1 * nDofs + i] += aResX * weight;
-        aRes[2 * nDofs + i] += aResY * weight;
+        aRes[0 * nDofs + i] += aResZ0 * weight;
+        aRes[1 * nDofs + i] += aResX0 * weight;
+        aRes[2 * nDofs + i] += aResY0 * weight;
 
       } // end phiA_i loop
     }
@@ -603,9 +639,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
     // define the dependent variables
     s.dependent(aRes.data(), nDofsAll);
-    s.independent(solZ.data(), nDofs);
-    s.independent(solX.data(), nDofs);
-    s.independent(solY.data(), nDofs);
+    s.independent(solZ0.data(), nDofs);
+    s.independent(solX0.data(), nDofs);
+    s.independent(solY0.data(), nDofs);
 
     Jac.assign(nDofsAll * nDofsAll, 0.);
     // get the jacobian matrix (ordered by column)
@@ -627,6 +663,102 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   // std::cin>>a;
 
 }
+
+
+
+
+
+void AssembleResP(MultiLevelProblem& ml_prob) {
+  LinearImplicitSystem* mlPdeSys = &ml_prob.get_system<LinearImplicitSystem>("LP");
+  const unsigned level = mlPdeSys->GetLevelToAssemble();
+
+  Mesh* msh = ml_prob._ml_msh->GetLevel(level);
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;
+  Solution* sol = ml_prob._ml_sol->GetSolutionLevel(level);
+
+  LinearEquationSolver* pdeSys = mlPdeSys->_LinSolver[level];
+  SparseMatrix* KK = pdeSys->_KK;
+  NumericVector* RES = pdeSys->_RES;
+
+  RES->zero();
+  KK->zero();
+
+  // ------------------------------------------------
+  // Implement the weak form for P here later
+  // ------------------------------------------------
+
+  RES->close();
+  KK->close();
+}
+
+
+
+
+
+
+
+std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol) {
+  Mesh* msh = sol->GetMesh();
+  const unsigned dim = msh->GetDimension();
+  unsigned iproc = msh->processor_id();
+
+  unsigned pIndex = sol->GetIndex("P");
+  unsigned pType  = sol->GetSolutionType(pIndex);
+  unsigned coordXType = 2;  // quadratic coordinates
+
+  // global scalar integral ∫Ω P dx
+  double localIntegral = 0.0;
+
+  // nodal weights W_i = ∫Ω P φ_i dx
+  std::vector<double> nodeWeights(sol->_Sol[pIndex]->size(), 0.0);
+
+  // element loop (each process owns its range)
+  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+    short unsigned ielGeom = msh->GetElementType(iel);
+    unsigned nDofs = msh->GetElementDofNumber(iel, pType);
+
+    std::vector<std::vector<double>> coordX(dim, std::vector<double>(nDofs));
+    for (unsigned i = 0; i < nDofs; i++) {
+      unsigned coordXDof = msh->GetSolutionDof(i, iel, coordXType);
+      for (unsigned k = 0; k < dim; k++)
+        coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
+    }
+
+    std::vector<double> pVal(nDofs);
+    for (unsigned i = 0; i < nDofs; i++) {
+      unsigned pDof = msh->GetSolutionDof(i, iel, pType);
+      pVal[i] = (*sol->_Sol[pIndex])(pDof);
+    }
+
+    // Gauss integration
+    for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][pType]->GetGaussPointNumber(); ig++) {
+      double weight;
+      std::vector<double> phi, gradPhi;
+      msh->_finiteElement[ielGeom][pType]->Jacobian(coordX, ig, weight, phi, gradPhi);
+
+      double Pg = 0.;
+      for (unsigned i = 0; i < nDofs; i++) Pg += pVal[i] * phi[i];
+
+      localIntegral += Pg * weight;
+
+      for (unsigned i = 0; i < nDofs; i++) {
+        unsigned pDof = msh->GetSolutionDof(i, iel, pType);
+        nodeWeights[pDof] += Pg * phi[i] * weight;
+      }
+    }
+  }
+
+  // MPI reductions
+  double globalIntegral = 0.0;
+  MPI_Allreduce(&localIntegral, &globalIntegral, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  std::vector<double> globalNodeWeights(nodeWeights.size());
+  MPI_Allreduce(nodeWeights.data(), globalNodeWeights.data(),
+                nodeWeights.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  return {globalIntegral, globalNodeWeights};
+}
+
 
 
 
@@ -691,6 +823,73 @@ std::vector<double> ComputeL2NormCascadeOverC(Solution* sol, unsigned cascadeIte
   for (double& val : global_integral) val = std::sqrt(val);
   return global_integral;
 }
+
+
+unsigned FindClosestNode(const Mesh* msh, const std::vector<double>& x0) {
+  const unsigned dim = msh->GetDimension();
+  unsigned coordXType = 2;  // coordinates always quadratic
+
+  double minDist2 = std::numeric_limits<double>::max();
+  unsigned closestDof = static_cast<unsigned>(-1);
+
+  unsigned nNodes = msh->_topology->_Sol[0]->size();  // total number of coordinate dofs
+
+  for (unsigned i = 0; i < nNodes; ++i) {
+    std::vector<double> xv(dim);
+    for (unsigned k = 0; k < dim; ++k)
+      xv[k] = (*msh->_topology->_Sol[k])(i);
+
+    double dist2 = 0.0;
+    for (unsigned k = 0; k < dim; ++k) {
+      double diff = xv[k] - x0[k];
+      dist2 += diff * diff;
+    }
+
+    if (dist2 < minDist2) {
+      minDist2 = dist2;
+      closestDof = i;
+    }
+  }
+
+  return closestDof;
+}
+
+
+std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vector<double>>& points) {
+  const unsigned dim = msh->GetDimension();
+  unsigned nNodes = msh->_topology->_Sol[0]->size();
+
+  std::vector<double> controlFlag(nNodes, 0.0);
+
+  // helper lambda to compute squared distance
+  auto dist2 = [&](unsigned node, const std::vector<double>& x0) {
+    double d2 = 0.0;
+    for (unsigned k = 0; k < dim; ++k) {
+      double diff = (*msh->_topology->_Sol[k])(node) - x0[k];
+      d2 += diff * diff;
+    }
+    return d2;
+  };
+
+  // loop over all input points
+  for (const auto& x0 : points) {
+    double minD2 = std::numeric_limits<double>::max();
+    unsigned closest = 0;
+
+    for (unsigned i = 0; i < nNodes; ++i) {
+      double d2 = dist2(i, x0);
+      if (d2 < minD2) {
+        minD2 = d2;
+        closest = i;
+      }
+    }
+
+    controlFlag[closest] = 1.0;
+  }
+
+  return controlFlag;
+}
+
 
 
 
