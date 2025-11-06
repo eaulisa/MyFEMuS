@@ -732,8 +732,8 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
-    // if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
-    // else //TODO (check Samuele New Advection Functions)
+    if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
+    else //TODO (check Samuele New Advection Functions)
     fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
 
     ot1.reset(false, false);
