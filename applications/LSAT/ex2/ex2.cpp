@@ -28,6 +28,7 @@ bool withDisturbance = false;
 
 static double PStar = 0.0;
 static std::vector<double> PStarNodes;
+std::vector<unsigned> g_controlNodeDofs;
 
 double SetVariableTimeStep(const double time) {
   return dt;
@@ -77,6 +78,7 @@ std::vector<double> ComputeL2NormCascadeOverC(Solution* sol, unsigned cascadeIte
 
 unsigned FindClosestNode(const Mesh* msh, const std::vector<double>& x0);
 std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vector<double>>& points);
+std::vector<unsigned> GetControlNodeIndices(const Mesh* msh, const std::vector<std::vector<double>>& points);
 
 int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -164,7 +166,8 @@ int main(int argc, char** args) {
   {2.9, 0.5}
   };
 
-  std::vector<double> controlNodes = MarkControlNodes(msh, controlPoints);
+  g_controlNodeDofs = GetControlNodeIndices(msh, controlPoints);
+
 
   RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
   RegionBox boxC{M_PI/3., 2*M_PI/3., 0., 1};
@@ -174,6 +177,8 @@ int main(int argc, char** args) {
   }
   else SetRegions(sol, boxB, boxC);
 
+  sol->_Sol[mlSol.GetIndex("P")]->zero();
+
   std::vector<std::string> variablesToBePrinted;
   variablesToBePrinted.push_back("All");
 
@@ -181,14 +186,14 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(false);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  sol->_Sol[mlSol.GetIndex("P")]->zero();
 
-  // systemP.MGsolve(); //TODO
+  systemP.MGsolve();
 
   auto [IntegralP, WeightsP] = PrecomputePstarIntegrals(sol);
 
   PStar = IntegralP;
   PStarNodes = std::move(WeightsP);
+
 
   // ****here we solve the system for P****
 
@@ -665,11 +670,10 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 }
 
 
-
-
-
 void AssembleResP(MultiLevelProblem& ml_prob) {
-  LinearImplicitSystem* mlPdeSys = &ml_prob.get_system<LinearImplicitSystem>("LP");
+  adept::Stack& s = FemusInit::_adeptStack;
+
+  auto* mlPdeSys = &ml_prob.get_system<LinearImplicitSystem>("LP");
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh* msh = ml_prob._ml_msh->GetLevel(level);
@@ -683,9 +687,86 @@ void AssembleResP(MultiLevelProblem& ml_prob) {
   RES->zero();
   KK->zero();
 
-  // ------------------------------------------------
-  // Implement the weak form for P here later
-  // ------------------------------------------------
+  const unsigned pIndex    = mlSol->GetIndex("P");
+  const unsigned pType     = mlSol->GetSolutionType(pIndex);
+  const unsigned pPdeIndex = mlPdeSys->GetSolPdeIndex("P");
+
+  const unsigned dim        = msh->GetDimension();
+  const unsigned coordXType = 2;
+  const unsigned iproc      = msh->processor_id();
+
+  // ------------- element loop -------------
+  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+
+    const short unsigned ielGeom = msh->GetElementType(iel);
+    const unsigned nDofs = msh->GetElementDofNumber(iel, pType);
+
+    // coordinates at element nodes
+    std::vector<std::vector<double>> X(dim, std::vector<double>(nDofs));
+    for (unsigned i = 0; i < nDofs; ++i) {
+      const unsigned xd = msh->GetSolutionDof(i, iel, coordXType);
+      for (unsigned k = 0; k < dim; ++k) X[k][i] = (*msh->_topology->_Sol[k])(xd);
+    }
+
+    // global dof map
+    std::vector<unsigned> sysDof(nDofs);
+    for (unsigned i = 0; i < nDofs; ++i) {
+      sysDof[i] = pdeSys->GetSystemDof(pIndex, pPdeIndex, i, iel);
+    }
+
+    // local unknowns as adoubles
+    std::vector<adept::adouble> p(nDofs);
+    for (unsigned i = 0; i < nDofs; ++i) {
+      const unsigned gd = msh->GetSolutionDof(i, iel, pType);
+      p[i] = (*sol->_Sol[pIndex])(gd);
+    }
+
+    s.new_recording();
+
+    // local residual
+    std::vector<adept::adouble> aRes(nDofs, 0.0);
+
+    // Gauss integration: a(u,v) = ∫ grad p · grad v
+    for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][pType]->GetGaussPointNumber(); ++ig) {
+      double w;
+      std::vector<double> phi, dphi;
+      msh->_finiteElement[ielGeom][pType]->Jacobian(X, ig, w, phi, dphi);
+
+      // grad p at GP
+      std::vector<adept::adouble> gradPg(dim, 0.0);
+      for (unsigned a = 0; a < nDofs; ++a)
+        for (unsigned k = 0; k < dim; ++k)
+          gradPg[k] += p[a] * dphi[a*dim + k];
+
+      // test with grad v_i
+      for (unsigned i = 0; i < nDofs; ++i) {
+        adept::adouble gi = 0.0;
+        for (unsigned k = 0; k < dim; ++k) gi += dphi[i*dim + k] * gradPg[k];
+        aRes[i] += gi * w;
+      }
+    }
+
+    // assemble local residual and Jacobian
+    std::vector<double> Re(nDofs);
+    for (unsigned i = 0; i < nDofs; ++i) Re[i] = -aRes[i].value();   // move to RHS
+
+    s.dependent(aRes.data(), nDofs);
+    s.independent(p.data(),  nDofs);
+
+    std::vector<double> Je(nDofs * nDofs, 0.0);
+    s.jacobian(Je.data(), true);
+
+    RES->add_vector_blocked(Re, sysDof);
+    KK->add_matrix_blocked(Je, sysDof, sysDof);
+
+    s.clear_independents();
+    s.clear_dependents();
+  }
+
+  // point-loads: δ at selected nodes (B = Σ_i δ_{x_i})
+  for (unsigned gdof : g_controlNodeDofs) {
+    RES->add(gdof, 1.0);
+  }
 
   RES->close();
   KK->close();
@@ -891,5 +972,39 @@ std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vec
 }
 
 
+std::vector<unsigned> GetControlNodeIndices(const Mesh* msh,
+                                            const std::vector<std::vector<double>>& points) {
+  const unsigned dim = msh->GetDimension();
+  unsigned nNodes = msh->_topology->_Sol[0]->size();
+
+  std::vector<unsigned> controlIndices;
+  controlIndices.reserve(points.size());
+
+  auto dist2 = [&](unsigned node, const std::vector<double>& x0) {
+    double d2 = 0.0;
+    for (unsigned k = 0; k < dim; ++k) {
+      double diff = (*msh->_topology->_Sol[k])(node) - x0[k];
+      d2 += diff * diff;
+    }
+    return d2;
+  };
+
+  for (const auto& x0 : points) {
+    double minD2 = std::numeric_limits<double>::max();
+    unsigned closest = 0;
+
+    for (unsigned i = 0; i < nNodes; ++i) {
+      double d2 = dist2(i, x0);
+      if (d2 < minD2) {
+        minD2 = d2;
+        closest = i;
+      }
+    }
+
+    controlIndices.push_back(closest);
+  }
+
+  return controlIndices;
+}
 
 
