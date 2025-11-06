@@ -46,12 +46,15 @@ namespace fem {
         
         if constexpr (DIM == 2)
         {
-            cell_intersections->reserve(2); 
+            cell_intersections->reserve(4); 
 
-            static const int E[4][3]   = { {0,4,1}, {1,5,2}, {3,6,2}, {0,7,3} };
-            static const int varDim[4]  =   { 0,    1,   0,    1 };
-            static const double XiC[4]  = { 0.0,     +1.0,    0.0,     -1.0    };
-            static const double EtaC[4]  = { -1.0,    0.0,     +1.0,    0.0     };
+            static const int E[4][3]      = { {0,4,1}, {1,5,2}, {2,6,3}, {3,7,0} };
+            static const int varDim[4]    = { 0,    1,   0,    1 };
+            static const int varVersus[4] = { 1,    1,   -1,    -1 };
+            static const double XiC[4]    = { 0.0,     +1.0,    0.0,     -1.0    };
+            static const double EtaC[4]   = { -1.0,    0.0,     +1.0,    0.0     };
+
+            std::map<int,std::vector<Point<DIM>>> edge_intersections_map;
 
             for (int e = 0; e < 4; ++e) 
             {
@@ -61,12 +64,69 @@ namespace fem {
                 auto roots = edge_roots(vL, vM, vR); 
                 for (double s : roots) 
                 {
-                    double xi  = (varDim[e] == 0) ? s : XiC[e];
-                    double eta = (varDim[e] == 1) ? s : EtaC[e];
+                    double xi  = (varDim[e] == 0) ? s*varVersus[e] : XiC[e];
+                    double eta = (varDim[e] == 1) ? s*varVersus[e] : EtaC[e];
 
                     Point<DIM> P = {xi, eta};
                     cell_intersections->push_back(P);
                 }
+            }
+
+            if (cell_intersections->size() == 4) { // TODO CHECK
+                const double epsb = 1e-12;
+
+                auto edge_and_t = [&](const Point<2>& P){
+                    const double xi = P[0], eta = P[1];
+                    int e = -1; double t = 0.0;
+                    if (std::abs(eta + 1.0) <= epsb)       { e = 0; t = 0.5*(xi  + 1.0); } 
+                    else if (std::abs(xi  - 1.0) <= epsb)  { e = 1; t = 0.5*(eta + 1.0); } 
+                    else if (std::abs(eta - 1.0) <= epsb)  { e = 2; t = 0.5*(-xi + 1.0);} 
+                    else if (std::abs(xi  + 1.0) <= epsb)  { e = 3; t = 0.5*(-eta+ 1.0);} 
+                    return std::pair<int,double>(e,t);
+                };
+
+                struct Node { Point<2> p; int e; double t; };
+                std::array<Node,4> Q;
+                for (int i=0; i<4; ++i) {
+                    auto [e,t] = edge_and_t((*cell_intersections)[i]);
+                    Q[i] = { (*cell_intersections)[i], e, t };
+                }
+
+                std::sort(Q.begin(), Q.end(), [](const Node& a, const Node& b){
+                    if (a.e != b.e) return a.e < b.e;
+                    return a.t < b.t;
+                });
+
+                const double f00 = local_values[0];
+                const double f10 = local_values[1]; 
+                const double f11 = local_values[2]; 
+                const double f01 = local_values[3]; 
+                const double S   = f00*f11 - f10*f01;
+
+                std::array<Point<2>,4> ordered;
+
+                if (S > 0.0) {
+                    ordered[0] = Q[0].p; ordered[1] = Q[1].p;
+                    ordered[2] = Q[2].p; ordered[3] = Q[3].p;
+                } else if (S < 0.0) {
+                    ordered[0] = Q[1].p; ordered[1] = Q[2].p;
+                    ordered[2] = Q[3].p; ordered[3] = Q[0].p;
+                } else {
+                    const double fcc = local_values[8];
+                    const bool like0011 = (fcc*f00 >= 0.0) && (fcc*f11 >= 0.0);
+                    if (like0011) {
+                        ordered[0] = Q[0].p; ordered[1] = Q[1].p;
+                        ordered[2] = Q[2].p; ordered[3] = Q[3].p;
+                    } else {
+                        ordered[0] = Q[1].p; ordered[1] = Q[2].p;
+                        ordered[2] = Q[3].p; ordered[3] = Q[0].p;
+                    }
+                }
+
+                (*cell_intersections)[0] = ordered[0];
+                (*cell_intersections)[1] = ordered[1];
+                (*cell_intersections)[2] = ordered[2];
+                (*cell_intersections)[3] = ordered[3];
             }
         }
         else 
@@ -108,6 +168,8 @@ namespace fem {
                     cell_intersections->push_back(P);
                 }
             }
+
+            // TODO gestire doppie intersezioni
         }
 
 
@@ -117,27 +179,40 @@ namespace fem {
     template <std::size_t DIM>
     void Reinitializer<DIM>::compute_cell_markers(std::vector<Point<DIM>> cell_intersections)
     {
-        // only cutcell with two (for DIM==2) and up to 5 (DIM==3) intersections are accepted
-
         const int cell_density = marker_density * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
         const int cell_min_segments = min_segments * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
         std::vector<Point<DIM>> cell_markers;
         if constexpr (DIM==2)
         {
-            assert(cell_intersections.size() == 2 && "More than 2 intersections in cut cell");
+            if (cell_intersections.size() == 2) {
+                const auto& A = cell_intersections[0];
+                const auto& B = cell_intersections[1];
 
-            const auto& A = cell_intersections[0];
-            const auto& B = cell_intersections[1];
+                int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
+                n_segments = std::max(cell_min_segments, n_segments);
 
-            int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
-            n_segments = std::max(cell_min_segments, n_segments);
+                Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
 
-            Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
+                for (int k = 0; k < n_segments; ++k) 
+                    cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
+                cell_markers.push_back(B);
+            }
+            else if (cell_intersections.size() == 4) {
+                for (int i = 0; i < 2; i++) {
+                    const auto& A = cell_intersections[0+i*2];
+                    const auto& B = cell_intersections[1+i*2];
 
-            cell_markers.reserve(n_segments + 1);
-            for (int k = 0; k < n_segments; ++k) 
-                cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
-            cell_markers.push_back(B);
+                    int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
+                    n_segments = std::max(cell_min_segments, n_segments);
+
+                    Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
+
+                    for (int k = 0; k < n_segments; ++k) 
+                        cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
+                    cell_markers.push_back(B);
+                }
+            }
+            
 
         }
         else if constexpr (DIM==3)
@@ -336,9 +411,10 @@ namespace fem {
         BasisRegistry<DIM> basis_registry = tree->_basisReg[(int)Basis];
 
         markers.clear();
-        markers.reserve(L.size()*3); 
+        markers.reserve(L.size()*marker_density); 
 
         cut_cells.clear();
+        cut_cells.reserve(L.size());
 
         for (int k = 0; k < static_cast<int>(numCells); k++) 
         {
@@ -364,6 +440,9 @@ namespace fem {
                 cut_cells.push_back(leaf_pos);
 
                 compute_cell_markers(cell_intersections);
+            }
+            else if (tree->_tree_nodes[leaf_id].level == tree->max_depth()) {
+                cut_cells.push_back(leaf_pos);
             }
         }
 

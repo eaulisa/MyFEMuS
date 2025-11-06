@@ -763,7 +763,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     using std::swap; swap(ot, ot1);
 
     if (reinit) {
-      int marker_density = (k % reinit == 0) ? 20. : 0.;
+      int marker_density = (k % reinit == 0) ? 10. : 0.;
       markers.clear();
       markers = reinitializer.collect_markers(marker_density, 3 /*min segments*/);
     }

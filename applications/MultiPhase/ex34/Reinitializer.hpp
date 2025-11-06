@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <numeric>
 #include <functional>
+#include <map>
 
 #include <cstddef>
 #include <cassert>
@@ -65,6 +66,12 @@ struct Geom_op {
 
   static inline double norm(const Vector& v) {
     return std::sqrt(norm2(v));
+  }
+
+  static inline double dot(const Vector& v, const Vector& w) {
+    double d = 0.0;
+    for (std::size_t d = 0; d < DIM; ++d) d += v[d]*w[d];
+    return d;
   }
 };
 
