@@ -2412,7 +2412,7 @@ namespace fem {
         return {_level_offset[L], _level_offset[L + 1]};
       }
 
-      // ---- Two-phase: enlarge around the (implicit) Lmax set, mark-then-refine ----
+// ---- Two-phase: enlarge around the (implicit) Lmax set, mark-then-refine ----
       inline std::size_t enlarge_top_layer() {
         if (_leaves.empty()) return 0;
 
@@ -2529,76 +2529,6 @@ namespace fem {
         return nref_total;
       }
 
-
-
-
-// // ---- One-sweep: scan all leaves level by level (DIM independent) ----
-//       inline std::size_t enlarge_top_layer() {
-//         if (_leaves.empty()) return 0;
-//
-//         const u32 Lmax = max_depth();
-//         if (Lmax == 0) return 0;
-//
-//         // If min_depth() >= Lmax there is no slice to process.
-//         if (min_depth() >= Lmax) return 0;
-//
-//         std::size_t nref = 0;
-//
-//         // Ascend: Lchk = min_depth, ..., Lmax-1.
-//         // Note: Lmax set cannot change until Lchk == Lmax-1 (final iteration).
-//         for (u32 Lchk = min_depth(); Lchk < Lmax; ++Lchk) {
-//
-//           // Keep neighbor search consistent/fast
-//           sort_leaves_by_level_then_morton();
-//           compute_level_offsets();
-//
-//           auto [ibeg, iend] = leaf_level_range(Lchk);
-//           if (ibeg >= iend) continue; // no leaves at this level
-//
-//           std::vector<u32> to_refine;
-//           to_refine.reserve(iend - ibeg);
-//           std::vector<char> mark(_tree_nodes.size(), 0); // dedup within this pass
-//
-//           // Sweep ONLY the leaves at level Lchk
-//           for (u32 i = ibeg; i < iend; ++i) {
-//             const u32 leaf = _leaves[i];
-//             if (leaf == npos32 || leaf >= _tree_nodes.size()) continue;
-//
-//             const auto& n = _tree_nodes[leaf];
-//             if (!n.is_leaf) continue; // could have been refined earlier
-//             // n.level == Lchk by construction
-//
-//             bool touches_max = false;
-//             for (int dir = 0; dir < int(2 * DIM); ++dir) {
-//               const u32 nb = neighbor_leaf_by_face_any(leaf, dir);
-//               if (nb == npos32 || nb >= _tree_nodes.size()) continue;
-//
-//               const auto& nn = _tree_nodes[nb];
-//               if (!nn.is_leaf) continue;
-//
-//               // Adjacency checked against the (unchanged) Lmax set until the very last iteration
-//               if (nn.level == Lmax) {
-//                 touches_max = true;
-//                 break;
-//               }
-//             }
-//
-//             if (touches_max && !mark[leaf]) {
-//               mark[leaf] = 1;
-//               to_refine.push_back(leaf);
-//             }
-//           }
-//
-//           // Refine all marked leaves once
-//           for (u32 idx : to_refine) {
-//             if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
-//               nref += refine_leaf_once(idx) ? 1u : 0u;
-//             }
-//           }
-//         }
-//
-//         return nref;
-//       }
 
 
 // ---- Enforces 2:1 balance (1-irregularity): adjacent leaves may differ by at most one level (DIM-independent) ----
