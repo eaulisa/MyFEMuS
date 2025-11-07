@@ -2422,6 +2422,15 @@ namespace fem {
 
         std::size_t nref_total = 0;
 
+        sort_leaves_by_level_then_morton();
+        compute_level_offsets();
+
+        auto [ib, ie] = leaf_level_range(Lmax);
+        if (ib >= ie) return 0; // no Lmax leaves (degenerate)
+        std::vector<u32> to_refine;
+        to_refine.reserve((ie - ib) * (2 * DIM));           // heuristic
+
+        std::vector<char> mark;
         // ----------------
         // Phase 1: repeatedly lift ONLY neighbors of Lmax with level <= Lmax-2 to Lmax-1
         // ----------------
@@ -2430,16 +2439,12 @@ namespace fem {
           changed = false;
 
           // Keep neighbor search consistent/fast
-          sort_leaves_by_level_then_morton();
-          compute_level_offsets();
+
+          to_refine.clear();
+          mark.resize(_tree_nodes.size(), 0);
 
           auto [ib, ie] = leaf_level_range(Lmax);
           if (ib >= ie) break; // no Lmax leaves (degenerate)
-
-          std::vector<u32> to_refine;
-          to_refine.reserve((ie - ib) * (2 * DIM));           // heuristic
-          std::vector<char> mark(_tree_nodes.size(), 0);
-
           // Sweep ONLY current Lmax leaves
           for (u32 i = ib; i < ie; ++i) {
             const u32 lmax_id = _leaves[i];
@@ -2469,28 +2474,26 @@ namespace fem {
           if (!to_refine.empty()) {
             std::size_t nref = 0;
             for (u32 idx : to_refine) {
-              if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
-                nref += refine_leaf_once(idx) ? 1u : 0u;
-              }
+              nref += refine_leaf_once(idx) ? 1u : 0u;
+              mark[idx] = 0;
             }
             nref_total += nref;
-            //if (nref > 0) changed = true;
           }
+          sort_leaves_by_level_then_morton();
+          compute_level_offsets();
         }
 
         // ----------------
         // Phase 2: lift remaining neighbors of Lmax at level == Lmax-1 to Lmax
         // ----------------
         // Keep neighbor search consistent/fast
-        sort_leaves_by_level_then_morton();
-        compute_level_offsets();
 
         {
           auto [ib, ie] = leaf_level_range(Lmax);
           if (ib < ie) {
-            std::vector<u32> to_refine;
-            to_refine.reserve((ie - ib) * 2);
-            std::vector<char> mark(_tree_nodes.size(), 0);
+
+            to_refine.clear();
+            mark.resize(_tree_nodes.size(), 0);
 
             // Sweep ONLY current Lmax leaves
             for (u32 i = ib; i < ie; ++i) {
@@ -2513,15 +2516,15 @@ namespace fem {
                     to_refine.push_back(nb);
                   }
                 }
-                else if (nn.level < Lmax - 1)  {std::cout<<"We missed somthing! ";}
+                else if (nn.level < Lmax - 1)  {
+                  std::cout << "We missed somthing! ";
+                }
               }
             }
 
             // Refine all marked Lmax-1 neighbors to Lmax
             for (u32 idx : to_refine) {
-              if (idx < _tree_nodes.size() && _tree_nodes[idx].is_leaf) {
-                nref_total += refine_leaf_once(idx) ? 1u : 0u;
-              }
+              nref_total += refine_leaf_once(idx) ? 1u : 0u;
             }
           }
         }

@@ -10,6 +10,9 @@
 #include <variant>
 #include <vector>
 #include <gperftools/profiler.h>
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
 
 
 #include "Mollifier.hpp"
@@ -583,13 +586,24 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
   const auto& nodes = ot.basis_nodes(bs);
   for (size_t d = 0; d < DIM; ++d) f[d]->nodal.resize(nodes.size());
 
-  for (size_t gid = 0; gid < nodes.size(); ++gid) {
+#ifdef USE_OPENMP
+  #pragma omp parallel for schedule(static)
+#endif
+  for (std::ptrdiff_t gid = 0; gid < static_cast<std::ptrdiff_t>(nodes.size()); ++gid) {
     const auto& p = nodes[gid].physical;
     std::array<double, DIM> v{};
     if constexpr(DIM == 2) v = evalVelocity(p[0], p[1], time);
-    else                    v = evalVelocity(p[0], p[1], p[2], time);
+    else                   v = evalVelocity(p[0], p[1], p[2], time);
     for (size_t d = 0; d < DIM; ++d) f[d]->nodal[gid] = v[d];
   }
+
+  // for (size_t gid = 0; gid < nodes.size(); ++gid) {
+  //   const auto& p = nodes[gid].physical;
+  //   std::array<double, DIM> v{};
+  //   if constexpr(DIM == 2) v = evalVelocity(p[0], p[1], time);
+  //   else                   v = evalVelocity(p[0], p[1], p[2], time);
+  //   for (size_t d = 0; d < DIM; ++d) f[d]->nodal[gid] = v[d];
+  // }
 
   std::vector<std::variant<u32, std::vector<u32>>> groups;
   groups.emplace_back(0u); // phi
@@ -723,18 +737,18 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   OctTree<DIM> ot1(maxDepth, minDepth);
 
   std::vector<Pt<DIM>> markers;
-  if (reinit){
+  if (reinit) {
     markers.clear();
     markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
   }
-  
+
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
     std::vector<Pt<DIM>> leftOld, stayedNew;
     if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
     else //TODO (check Samuele New Advection Functions)
-    fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
+      fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
 
     ot1.reset(false, false);
     ot1.set_allow_coarsen_below_min(allowDrop);
@@ -889,6 +903,12 @@ int main(int argc, char** argv) {
   bool box_domain = true;
   unsigned reinit = 0; //(default false)
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
+
+
+#ifdef USE_OPENMP
+  std::cout << "we are runnig with OPENMP\n";
+#endif
+
 
   unsigned max_depth = 8;
   unsigned delta_depth = 1;
