@@ -239,6 +239,7 @@ namespace fem {
         const int max_iters = 30;   
 
         std::vector<size_t> unmatched(cell_markers.size());
+        std::vector<bool> converged(cell_markers.size(), false);
         std::iota(unmatched.begin(), unmatched.end(), 0);
 
         for (int it = 0; it < max_iters && !unmatched.empty(); ++it) 
@@ -250,28 +251,67 @@ namespace fem {
             {
                 auto& p = cell_markers[idx]; 
 
-                double value = evaluate_field_on_leaf(p);
+                const double value0 = evaluate_field_on_leaf(p);
 
-                if (std::abs(value) <= tol) continue; 
+                if (std::abs(value0) <= tol) {
+                    converged[idx] = true;
+                    continue; 
+                }
 
-                Vector<DIM> grad =  evaluate_gradient_on_leaf(p);
+                Vector<DIM> grad = evaluate_gradient_on_leaf(p);
+                const double gnorm2 = Geom_op<DIM>::norm2(grad);
 
-                p = Geom_op<DIM>::sub(p , Geom_op<DIM>::div(Geom_op<DIM>::mul(value , grad) , Geom_op<DIM>::norm2(grad)));
+                if (gnorm2 <= 1e-30) {
+                    continue; 
+                }
+            
+                Vector<DIM> step = Geom_op<DIM>::mul( (value0 / (gnorm2 + 1.e-12)), grad );
 
-                next.push_back(idx);
+                bool accepted = false;
+                Point<DIM> p_try;
+                double value_new = std::numeric_limits<double>::infinity();
+
+                double alpha = 1.0;         
+                const int    max_bt = 8;
+
+                for (int bt = 0; bt < max_bt; ++bt) 
+                {
+                    p_try = Geom_op<DIM>::sub(p, Geom_op<DIM>::mul(alpha, step));
+                    value_new = evaluate_field_on_leaf(p_try);
+
+                    if ( (std::abs(value_new) < std::abs(value0) && value0*value_new >= 0) || 
+                        std::abs(value_new) < std::abs(value0)*0.5 ) {
+                        accepted = true;
+
+                        break;
+                    }
+
+                    alpha *= 0.5;
+                }
+
+                if (accepted) {
+                    p = p_try;
+                    if (std::abs(value_new) > tol) {
+                        next.push_back(idx);  
+                    }
+                    else {
+                        converged[idx] = true;
+                    }
+                }
             }
-
-            unmatched.swap(next);
         }
 
-        std::vector<Point<DIM>> accepted_markers;
-        for (unsigned int i = 0; i < cell_markers.size(); i++){
-            double value = evaluate_field_on_leaf(cell_markers[i]);
-            if (std::abs(value) <= tol){
-                accepted_markers.push_back(cell_markers[i]);
-            }
+        for (unsigned int i = 0; i < converged.size(); i++) {
+            if (!converged[i])
+                abort(); 
         }
-        cell_markers.swap(accepted_markers);
+
+        cell_markers.erase(
+            std::remove_if(cell_markers.begin(), cell_markers.end(),
+                        [&, i = size_t(0)](const auto&) mutable {
+                            return !converged[i++];  
+                        }),
+            cell_markers.end());
         
         for (unsigned int i = 0; i < cell_markers.size(); i++)
         {
@@ -358,6 +398,26 @@ namespace fem {
         return grad;
     }
 
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::apply_inverse_metric(const double invJ[DIM][DIM],
+                                        const Vector<DIM>& grad_parent,
+                                        Vector<DIM>&       inv_metric_grad     /* = invJ * (invJ^T * grad_parent)          */,
+                                        double&            grad_physical_norm2 /* = g_xi^T * invJ * (invJ^T * grad_parent) */)
+    {
+        Vector<DIM> physical_grad; // = invJ^T * grad_parent
+        for (int a=0; a<DIM; ++a) {         
+            double s = 0.0;
+            for (int b=0; b<DIM; ++b) s += invJ[b][a] * grad_parent[b];
+            physical_grad[a] = s;
+        }
+        for (int a=0; a<DIM; ++a) {          
+            double s = 0.0;
+            for (int b=0; b<DIM; ++b) s += invJ[a][b] * physical_grad[b];
+            inv_metric_grad[a] = s;
+        }
+        grad_physical_norm2 = 0.0;                      
+        for (int i=0; i<DIM; ++i) grad_physical_norm2 += grad_parent[i]*inv_metric_grad[i];
+    }
 
     template <std::size_t DIM>
     std::vector<double> Reinitializer<DIM>::edge_roots(double v0, double v1, double v2)
@@ -393,8 +453,6 @@ namespace fem {
         }
         return r;
     }
-
-    
 
     template <std::size_t DIM>
     std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers(int density, int min_segments_)
@@ -474,11 +532,8 @@ namespace fem {
             double h = Geom_op<DIM>::norm(Geom_op<DIM>::sub(P0,P1));
 
             cut_cells_nodes_dist[i_cell].resize(parent_coords.size());
-
-            const double lam0    = 1e-12;  
-            const double eps_g2  = 1e-12;  
-            const int    max_bt  = 8;       
-            const double smax    = h;  
+ 
+            const int max_bt  = 8;       
 
             for (size_t i_node = 0; i_node < parent_coords.size(); ++i_node)
             {
@@ -490,11 +545,12 @@ namespace fem {
             
                 for (int it = 0; it < max_iter; ++it)
                 {
-                    double value = 0.0;
-                    if (!tree->evaluate_field_on_parent(fid, p, value)) {
+                    double value0 = 0.0;
+                    if (!tree->evaluate_field_on_parent(fid, p, value0)) {
                         break;
                     }
-                    if (std::abs(value) <= tol) {
+
+                    if (std::abs(value0) <= tol) {
                         converged = true;
                         break;
                     }
@@ -504,51 +560,49 @@ namespace fem {
                         break;
                     }
 
-                    const double g2   = Geom_op<DIM>::norm2(grad_parent);
-                    const double denom = g2 + lam0;
-
-                    Vector<DIM> step = Geom_op<DIM>::mul(value / denom, grad_parent);
-
-                    double step_norm = Geom_op<DIM>::norm(step);
-                    if (step_norm > smax && step_norm > 0.0) {
-                        step = Geom_op<DIM>::mul(smax / step_norm, step);
-                        step_norm = smax;
+                    double J[DIM][DIM], invJ[DIM][DIM], detJ;
+                    if (!tree->evaluate_jacobian_on_parent(fid, p, J, detJ, invJ)) {
+                        break; 
                     }
+
+                    Vector<DIM> inv_metric_grad;
+                    double grad_physical_norm2 = 0;
+                    apply_inverse_metric(invJ, grad_parent, inv_metric_grad, grad_physical_norm2); 
+
+                    Vector<DIM> step = Geom_op<DIM>::mul(value0 / (grad_physical_norm2 + 1e-12), inv_metric_grad);
 
                     bool accepted = false;
                     Point<DIM> p_try;
                     double value_new = std::numeric_limits<double>::infinity();
 
                     double alpha = 1.0;
-                    const double f0 = std::abs(value);
 
                     for (int bt = 0; bt < max_bt; ++bt) 
                     {
                         p_try = Geom_op<DIM>::sub(p, Geom_op<DIM>::mul(alpha, step));
 
-                        if (tree->evaluate_field_on_parent(fid, p_try, value_new)) 
-                        {
-                            if ((std::abs(value_new) < f0 && value*value_new >= 0) || std::abs(value_new) < f0*0.5) 
+                        if (tree->evaluate_field_on_parent(fid, p_try, value_new)) {
+                            if ((std::abs(value_new) < std::abs(value0) && value0*value_new >= 0) ||
+                                std::abs(value_new) < std::abs(value0)*0.5) 
                             { 
                                 accepted = true;
                                 break;
-                            }
-                        }
+                            } 
+                        } 
 
                         alpha *= 0.5; 
                     }
 
-                    if (accepted) 
-                    {
+                    if (accepted) {
                         p = p_try;
-
                         if (std::abs(value_new) <= tol) {
                             converged = true;
                             break;
                         }
                     }
-                    else 
+                    else {
                         break; // TODO add something
+                    }
                 }
 
                 Point<DIM> p_physical = tree->parent_to_physical(p);

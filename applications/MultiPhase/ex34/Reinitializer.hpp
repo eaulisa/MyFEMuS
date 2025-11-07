@@ -9,6 +9,8 @@
 #include <numeric>
 #include <functional>
 #include <map>
+#include <iostream>
+#include <iomanip>
 
 #include <cstddef>
 #include <cassert>
@@ -113,6 +115,13 @@ namespace fem {
 
         // this routine project the cut cells nodes on to the interface
         void project_cut_cells_nodes();
+
+        // this routine applies the inverse pullback metric to the gradient in parent coordinates 
+        // and computes the norm2 of the physical gradient
+        void apply_inverse_metric(const double invJ[DIM][DIM],
+                                        const Vector<DIM>& grad_parent,
+                                        Vector<DIM>&       inv_metric_grad,
+                                        double&            grad_physical_norm2);
 
         // this routine find the root on a intersected edge
         std::vector<double> edge_roots(double v0, double v1, double v2);
