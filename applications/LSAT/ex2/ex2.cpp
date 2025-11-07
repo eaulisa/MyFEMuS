@@ -29,7 +29,15 @@ bool withDisturbance = false;
 static double PStar = 0.0;
 static std::vector<double> PStarNodes;
 std::vector<unsigned> g_controlNodeDofs;
-std::vector<unsigned> g_specialWnodes;
+
+
+struct WNodeIDs {
+  unsigned W0;  // node for W-equation #1
+  unsigned X1;  // node for W-equation #2
+  unsigned Y1;  // node for W-equation #3
+};
+WNodeIDs g_specialWnodes;
+
 
 double SetVariableTimeStep(const double time) {
   return dt;
@@ -44,7 +52,8 @@ struct RegionBox {
   double yMin, yMax;
 };
 
-void SetRegions(Solution *sol, const RegionBox& boxB, const RegionBox& boxC, const RegionBox* boxBd = nullptr);
+
+void SetRegions(Solution *sol, /*const RegionBox& boxB,*/ const RegionBox& boxC, const RegionBox* boxBd = nullptr);
 
 void SetPrescribedFields(Solution* sol, const double& time, const std::string& R, const std::string& D = "");
 
@@ -87,7 +96,8 @@ unsigned FindClosestNode(const Mesh* msh, const std::vector<double>& x0);
 std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vector<double>>& points);
 std::vector<unsigned> GetControlNodeIndices(const Mesh* msh, const std::vector<std::vector<double>>& points);
 
-std::vector<unsigned> GetGlobalNodeIDsForW(const Mesh* msh, unsigned elemID, const std::vector<unsigned>& localNodeIDs);
+// std::vector<unsigned> GetGlobalNodeIDsForW(const Mesh* msh, unsigned elemID, const std::vector<unsigned>& localNodeIDs);
+WNodeIDs GetGlobalNodeIDsForW(const Mesh* msh, unsigned elemID);
 
 int main(int argc, char** args) {
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -137,7 +147,7 @@ int main(int argc, char** args) {
   }
 
   mlSol.AddSolution("R", LAGRANGE, SECOND, false);
-  mlSol.AddSolution("B", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  // mlSol.AddSolution("B", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   if(withDisturbance) {
     mlSol.AddSolution("d", LAGRANGE, SECOND, false);
@@ -181,13 +191,15 @@ int main(int argc, char** args) {
   g_controlNodeDofs = GetControlNodeIndices(msh, controlPoints);
 
 
-  RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
+  // RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
   RegionBox boxC{M_PI/3., 2*M_PI/3., 0., 1};
   if(withDisturbance) {
     RegionBox boxBd{2*M_PI/3., M_PI, 0., 1};
-    SetRegions(sol, boxB, boxC, &boxBd);
+    // SetRegions(sol, boxB, boxC, &boxBd);
+    SetRegions(sol, boxC, &boxBd);
   }
-  else SetRegions(sol, boxB, boxC);
+  else SetRegions(sol, boxC);
+  // else SetRegions(sol, boxB, boxC);
 
   sol->_Sol[mlSol.GetIndex("P")]->zero();
 
@@ -208,9 +220,7 @@ int main(int argc, char** args) {
 
   // Find and number 3 nodes for W solution
   const unsigned targetElem = 0;
-  std::vector<unsigned> localNodesW = {0, 1, 2};   // the three nodes you want
-  g_specialWnodes = GetGlobalNodeIDsForW(msh, targetElem, localNodesW);
-
+  g_specialWnodes = GetGlobalNodeIDsForW(msh, targetElem);
 
   // ****here we solve the system for P****
 
@@ -400,7 +410,7 @@ bool CheckIfInside(const std::vector<double>& xv, const RegionBox& box) {
 // }
 
 void SetRegions(Solution* sol,
-                  const RegionBox& boxB,
+                  // const RegionBox& boxB,
                   const RegionBox& boxC,
                   const RegionBox* boxBd) {
 
@@ -408,7 +418,7 @@ void SetRegions(Solution* sol,
   const unsigned dim = msh->GetDimension();
   unsigned iproc = msh->processor_id();
 
-  unsigned IndexB = sol->GetIndex("B");
+  // unsigned IndexB = sol->GetIndex("B");
   unsigned IndexC = sol->GetIndex("C");
   unsigned IndexBd = 0;
   bool hasBd = (boxBd != nullptr);
@@ -421,7 +431,7 @@ void SetRegions(Solution* sol,
        iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, 1);
-    bool elementInB = true;
+    // bool elementInB = true;
     bool elementInC = true;
     bool elementInBd = true;
 
@@ -430,17 +440,17 @@ void SetRegions(Solution* sol,
       for (unsigned k = 0; k < dim; ++k)
         xv[k] = (*msh->_topology->_Sol[k])(xDof);
 
-      elementInB  = elementInB  && CheckIfInside(xv, boxB);
+      // elementInB  = elementInB  && CheckIfInside(xv, boxB);
       elementInC  = elementInC  && CheckIfInside(xv, boxC);
       if (hasBd) elementInBd = elementInBd && CheckIfInside(xv, *boxBd);
     }
 
-    sol->_Sol[IndexB]->set(iel, elementInB ? 1.0 : 0.0);
+    // sol->_Sol[IndexB]->set(iel, elementInB ? 1.0 : 0.0);
     sol->_Sol[IndexC]->set(iel, elementInC ? 1.0 : 0.0);
     if (hasBd) sol->_Sol[IndexBd]->set(iel, elementInBd ? 1.0 : 0.0);
   }
 
-  sol->_Sol[IndexB]->close();
+  // sol->_Sol[IndexB]->close();
   sol->_Sol[IndexC]->close();
   if (hasBd) sol->_Sol[IndexBd]->close();
 
@@ -492,7 +502,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
   unsigned solIndexE = mlSol->GetIndex("Ei");
 
-  unsigned solIndexB = mlSol->GetIndex("B");
+  // unsigned solIndexB = mlSol->GetIndex("B");
   unsigned solIndexC = mlSol->GetIndex("C");
   unsigned solIndexBd;
   unsigned solIndexd;
@@ -544,7 +554,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
 
-    double BBs = (*sol->_Sol[solIndexB])(iel);
+    // double BBs = (*sol->_Sol[solIndexB])(iel);
     double CsC = (*sol->_Sol[solIndexC])(iel);
     double Bds = 0;
     if(withDisturbance) Bds = (*sol->_Sol[solIndexBd])(iel);;
@@ -646,9 +656,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       // *** phiA_i loop ***
       for (unsigned i = 0; i < nDofs; i++) {
 
-        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] - (BBs > 0.5) * Xg / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
+        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] /*- (BBs > 0.5) * Xg / alpha * phi[i]*/ - (Bds > 0.5) * d * phi[i];
         adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * Zg - beta * Yg) * phi[i];
-        adept::adouble aResY = - (BBs > 0.5) * Xg / alpha * phi[i] - (Bds > 0.5) * d * phi[i];
+        adept::adouble aResY = /*- (BBs > 0.5) * Xg / alpha * phi[i]*/ - (Bds > 0.5) * d * phi[i];
         adept::adouble aResW = 0.0;
 
 
@@ -661,16 +671,22 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
         // Looking for special 3 nodes to assemble the W solution
         unsigned iDof = msh->GetSolutionDof(i, iel, solType);
-        bool isSpecialWnode = std::find(g_specialWnodes.begin(),
-                                g_specialWnodes.end(),
-                                iDof) != g_specialWnodes.end();
 
-        if (isSpecialWnode) {
-          // TODO
-          aResW = solW[i] * phi[i] - 1.0 * phi[i]; // for now, RHS = 1
+        bool isW0node = (iDof == g_specialWnodes.W0);
+        bool isX1node = (iDof == g_specialWnodes.X1);
+        bool isY1node = (iDof == g_specialWnodes.Y1);
+
+        if (isW0node) {
+          aResW = solW[i] * phi[i] - 1.0 * phi[i]; // TODO equation for W
+        }
+        else if (isX1node) {
+          aResW = solW[i] * phi[i] - 2.0 * phi[i]; // TODO equation for X1
+        }
+        else if (isY1node) {
+          aResW = solW[i] * phi[i] - 3.0 * phi[i]; // TODO equation for Y1
         }
         else {
-          aResW = solW[i] * phi[i];
+          aResW = solW[i] * phi[i]; // identity
         }
 
         aRes[0 * nDofs + i] += aResZ * weight;
@@ -1056,16 +1072,15 @@ std::vector<unsigned> GetControlNodeIndices(const Mesh* msh,
   return controlIndices;
 }
 
-std::vector<unsigned> GetGlobalNodeIDsForW(const Mesh* msh,
-                                           unsigned elemID,
-                                           const std::vector<unsigned>& localNodeIDs) {
-  std::vector<unsigned> globalIDs;
+WNodeIDs GetGlobalNodeIDsForW(const Mesh* msh, unsigned elemID) {
   const unsigned solType = 2; // quadratic coordinates
-  for (unsigned local : localNodeIDs) {
-    unsigned gdof = msh->GetSolutionDof(local, elemID, solType);
-    globalIDs.push_back(gdof);
-  }
-  return globalIDs;
+
+  WNodeIDs ids;
+  ids.W0 = msh->GetSolutionDof(0, elemID, solType);
+  ids.X1 = msh->GetSolutionDof(1, elemID, solType);
+  ids.Y1 = msh->GetSolutionDof(2, elemID, solType);
+
+  return ids;
 }
 
 
