@@ -567,7 +567,7 @@ namespace fem {
 
                     Vector<DIM> inv_metric_grad;
                     double grad_physical_norm2 = 0;
-                    apply_inverse_metric<DIM>(invJ, grad_parent, inv_metric_grad, grad_physical_norm2); 
+                    apply_inverse_metric(invJ, grad_parent, inv_metric_grad, grad_physical_norm2); 
 
                     Vector<DIM> step = Geom_op<DIM>::mul(value0 / (grad_physical_norm2 + 1e-12), inv_metric_grad);
 

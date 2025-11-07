@@ -121,7 +121,7 @@ namespace fem {
         void apply_inverse_metric(const double invJ[DIM][DIM],
                                         const Vector<DIM>& grad_parent,
                                         Vector<DIM>&       inv_metric_grad,
-                                        double&            grad_physical_norm2 )
+                                        double&            grad_physical_norm2);
 
         // this routine find the root on a intersected edge
         std::vector<double> edge_roots(double v0, double v1, double v2);
