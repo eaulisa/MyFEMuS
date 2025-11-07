@@ -906,7 +906,7 @@ int main(int argc, char** argv) {
 
 
 #ifdef USE_OPENMP
-  std::cout << "we are runnig with OPENMP\n";
+  std::cout << "We are runnig with OPENMP\n";
 #endif
 
 

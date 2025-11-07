@@ -13,19 +13,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Builds the target ${EXEC_FILE}
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
-find_package(OpenMP)
-if (OpenMP_CXX_FOUND)
-  # keep plain here to avoid mixing with your macro's plain usage
-  target_link_libraries(${EXEC_FILE} OpenMP::OpenMP_CXX)
-
-  # this command ONLY supports the keyword signature
-  target_compile_definitions(${EXEC_FILE} PRIVATE USE_OPENMP)
-
-  message(STATUS "OpenMP found: linking OpenMP::OpenMP_CXX")
-else()
-  message(WARNING "OpenMP not found; building without OpenMP")
-endif()
-
+# find_package(OpenMP)
+# if (OpenMP_CXX_FOUND)
+#   # keep plain here to avoid mixing with your macro's plain usage
+#   target_link_libraries(${EXEC_FILE} OpenMP::OpenMP_CXX)
+#
+#   # this command ONLY supports the keyword signature
+#   target_compile_definitions(${EXEC_FILE} PRIVATE USE_OPENMP)
+#
+#   message(STATUS "OpenMP found: linking OpenMP::OpenMP_CXX")
+# else()
+#   message(WARNING "OpenMP not found; building without OpenMP")
+# endif()
+#
 
 
 # --- gperftools (unchanged) ---
