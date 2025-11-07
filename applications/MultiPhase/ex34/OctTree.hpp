@@ -2212,6 +2212,185 @@ namespace fem {
       }
 
 
+// ---- evaluate jacobian at parent coords for quad/octant bases (DIM-independent) ----
+      bool evaluate_jacobian_on_parent(u32 fid, const Point<DIM>& s,
+                                      double J[DIM][DIM],
+                                      double& detJ,
+                                      double invJ[DIM][DIM]) const {
+
+        if (fid >= _fields.size()) return false;
+
+        u32        leaf_node_idx = npos32;
+        Point<DIM> shat; // local reference coords in [-1,1]^DIM
+
+        // 1) locate leaf and local reference coords in [-1,1]^DIM
+        if (!locate_leaf_on_parent_and_ref(s, leaf_node_idx, shat)) return false;
+
+        // 2) leaf node index -> position in coefficient storage
+
+        const u32 leaf_pos = (leaf_node_idx < _tree_nodes.size()) ? _tree_nodes[leaf_node_idx].node2leafIdx : npos32;
+        if (leaf_pos == npos32) return false;
+
+        // 3) access field + connectivity
+        const Field&              f = _fields[fid];
+        const BasisRegistry<DIM>& R = _basisReg[(int)f.basis_id];
+        const auto&               conn = R.elem2glob[leaf_pos];
+
+        std::vector<Point<DIM>> parent_coords;
+        leaf_physical_nodes(to_basis<DIM>(f.basis_id), leaf_pos, parent_coords);
+
+        for (int a=0; a<DIM; ++a)
+          for (int b=0; b<DIM; ++b)
+            J[a][b] = 0.0;
+
+        if constexpr (DIM == 2) {
+          Point2 s2{ shat[0], shat[1] };
+
+          switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
+          case Basis2D::Q4: {
+            std::array<std::array<double, 4>, 2> dN{}; // dN[b][i]
+            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+            for (int i = 0; i < 4; ++i) {
+              const int gi = conn[i]; // global geom node (isop.)
+              for (int b = 0; b < 2; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+              }
+            }
+          } break;
+
+          case Basis2D::Q8: {
+            std::array<std::array<double, 8>, 2> dN{};
+            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+            for (int i = 0; i < 8; ++i) {
+              const int gi = conn[i];
+              for (int b = 0; b < 2; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+              }
+            }
+          } break;
+
+          case Basis2D::Q9: {
+            std::array<std::array<double, 9>, 2> dN{};
+            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+            for (int i = 0; i < 9; ++i) {
+              const int gi = conn[i];
+              for (int b = 0; b < 2; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+              }
+            }
+          } break;
+
+          default:
+
+            std::cout << "  -> ERROR: unsupported 2D basis\n";
+
+            return false;
+          }
+
+        } else { // DIM == 3
+          Point3 s3{ shat[0], shat[1], shat[2] };
+
+          switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
+          case Basis3D::H8: {
+            std::array<std::array<double, 8>, 3> dN{};
+            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int i = 0; i < 8; ++i) {
+              const int gi = conn[i];
+              for (int b = 0; b < 3; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+                J[2][b] += parent_coords[i][2] * dN[b][i];
+              }
+            }
+          } break;
+
+          case Basis3D::H20: {
+            std::array<std::array<double, 20>, 3> dN{};
+            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int i = 0; i < 20; ++i) {
+              const int gi = conn[i];
+              for (int b = 0; b < 3; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+                J[2][b] += parent_coords[i][2] * dN[b][i];
+              }
+            }
+          } break;
+
+          case Basis3D::H27: {
+            std::array<std::array<double, 27>, 3> dN{};
+            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+            for (int i = 0; i < 27; ++i) {
+              const int gi = conn[i];
+              for (int b = 0; b < 3; ++b) {
+                J[0][b] += parent_coords[i][0] * dN[b][i];
+                J[1][b] += parent_coords[i][1] * dN[b][i];
+                J[2][b] += parent_coords[i][2] * dN[b][i];
+              }
+            }
+          } break;
+
+          default:
+
+            std::cout << "  -> ERROR: unsupported 3D basis\n";
+
+            return false;
+          }
+        }
+
+        const u32   L     = _tree_nodes[leaf_pos].level;
+        const double scale = std::ldexp(1.0, int(L)); // 2^L
+        for (int a=0; a<DIM; ++a)
+          for (int b=0; b<DIM; ++b)
+            J[a][b] *= scale;
+
+        if constexpr (DIM == 2) {
+          detJ = J[0][0]*J[1][1] - J[0][1]*J[1][0];
+          if (std::abs(detJ) <= 1e-18) {
+
+            std::cout << "  -> ERROR: detJ too small (2D), detJ=" << detJ << "\n";
+
+            return false;
+          }
+          const double id = 1.0/detJ;
+          invJ[0][0] =  J[1][1]*id; invJ[0][1] = -J[0][1]*id;
+          invJ[1][0] = -J[1][0]*id; invJ[1][1] =  J[0][0]*id;
+        } else {
+          const double a00=J[0][0], a01=J[0][1], a02=J[0][2];
+          const double a10=J[1][0], a11=J[1][1], a12=J[1][2];
+          const double a20=J[2][0], a21=J[2][1], a22=J[2][2];
+
+          const double c00 =  (a11*a22 - a12*a21);
+          const double c01 = -(a10*a22 - a12*a20);
+          const double c02 =  (a10*a21 - a11*a20);
+
+          detJ = a00*c00 + a01*c01 + a02*c02;
+          if (std::abs(detJ) <= 1e-20) {
+
+            std::cout << "  -> ERROR: detJ too small (3D), detJ=" << detJ << "\n";
+
+            return false;
+          }
+          const double id = 1.0/detJ;
+
+          invJ[0][0] =  c00*id;
+          invJ[0][1] = (-(a01*a22 - a02*a21))*id;
+          invJ[0][2] = ( (a01*a12 - a02*a11))*id;
+
+          invJ[1][0] =  c01*id;
+          invJ[1][1] = ( (a00*a22 - a02*a20))*id;
+          invJ[1][2] = (-(a00*a12 - a02*a10))*id;
+
+          invJ[2][0] =  c02*id;
+          invJ[2][1] = (-(a00*a21 - a01*a20))*id;
+          invJ[2][2] = ( (a00*a11 - a01*a10))*id;
+        }
+
+        return true;
+      }
 
 // ---- Locates the leaf for parent-space point s and maps it to that leaf’s local [-1,1]^DIM (DIM-independent) ----
       inline bool locate_leaf_on_parent_and_ref(const Point<DIM>& s,
