@@ -71,63 +71,6 @@ namespace fem {
                     cell_intersections->push_back(P);
                 }
             }
-
-            if (cell_intersections->size() == 4) { // TODO CHECK
-                const double epsb = 1e-12;
-
-                auto edge_and_t = [&](const Point<2>& P){
-                    const double xi = P[0], eta = P[1];
-                    int e = -1; double t = 0.0;
-                    if (std::abs(eta + 1.0) <= epsb)       { e = 0; t = 0.5*(xi  + 1.0); } 
-                    else if (std::abs(xi  - 1.0) <= epsb)  { e = 1; t = 0.5*(eta + 1.0); } 
-                    else if (std::abs(eta - 1.0) <= epsb)  { e = 2; t = 0.5*(-xi + 1.0);} 
-                    else if (std::abs(xi  + 1.0) <= epsb)  { e = 3; t = 0.5*(-eta+ 1.0);} 
-                    return std::pair<int,double>(e,t);
-                };
-
-                struct Node { Point<2> p; int e; double t; };
-                std::array<Node,4> Q;
-                for (int i=0; i<4; ++i) {
-                    auto [e,t] = edge_and_t((*cell_intersections)[i]);
-                    Q[i] = { (*cell_intersections)[i], e, t };
-                }
-
-                std::sort(Q.begin(), Q.end(), [](const Node& a, const Node& b){
-                    if (a.e != b.e) return a.e < b.e;
-                    return a.t < b.t;
-                });
-
-                const double f00 = local_values[0];
-                const double f10 = local_values[1]; 
-                const double f11 = local_values[2]; 
-                const double f01 = local_values[3]; 
-                const double S   = f00*f11 - f10*f01;
-
-                std::array<Point<2>,4> ordered;
-
-                if (S > 0.0) {
-                    ordered[0] = Q[0].p; ordered[1] = Q[1].p;
-                    ordered[2] = Q[2].p; ordered[3] = Q[3].p;
-                } else if (S < 0.0) {
-                    ordered[0] = Q[1].p; ordered[1] = Q[2].p;
-                    ordered[2] = Q[3].p; ordered[3] = Q[0].p;
-                } else {
-                    const double fcc = local_values[8];
-                    const bool like0011 = (fcc*f00 >= 0.0) && (fcc*f11 >= 0.0);
-                    if (like0011) {
-                        ordered[0] = Q[0].p; ordered[1] = Q[1].p;
-                        ordered[2] = Q[2].p; ordered[3] = Q[3].p;
-                    } else {
-                        ordered[0] = Q[1].p; ordered[1] = Q[2].p;
-                        ordered[2] = Q[3].p; ordered[3] = Q[0].p;
-                    }
-                }
-
-                (*cell_intersections)[0] = ordered[0];
-                (*cell_intersections)[1] = ordered[1];
-                (*cell_intersections)[2] = ordered[2];
-                (*cell_intersections)[3] = ordered[3];
-            }
         }
         else 
         {
@@ -168,8 +111,6 @@ namespace fem {
                     cell_intersections->push_back(P);
                 }
             }
-
-            // TODO gestire doppie intersezioni
         }
 
 
@@ -197,41 +138,90 @@ namespace fem {
                     cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
                 cell_markers.push_back(B);
             }
-            else if (cell_intersections.size() == 4) {
-                for (int i = 0; i < 2; i++) {
-                    const auto& A = cell_intersections[0+i*2];
-                    const auto& B = cell_intersections[1+i*2];
-
-                    int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
-                    n_segments = std::max(cell_min_segments, n_segments);
-
-                    Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
-
-                    for (int k = 0; k < n_segments; ++k) 
-                        cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
-                    cell_markers.push_back(B);
+            else if (cell_intersections.size() >= 4) {
+                for (int i = 0; i < 4; i++) {
+                    cell_markers.push_back(cell_intersections[i]);
                 }
-            }
-            
 
+                double mx = local_values[0];
+                double mn = local_values[0];
+                for (std::size_t i = 1; i < local_values.size(); ++i) {
+                    mx = std::max(mx, local_values[i]);
+                    mn = std::min(mn, local_values[i]);
+                }
+
+                const double delta = std::abs(mx - mn);
+                const int n_samples = std::max(10,cell_density);
+                const double tol = 1.0 * delta / static_cast<double>(n_samples);
+                const double h = 2.0 / static_cast<double>(n_samples - 1); 
+
+                for (int i = 1; i < n_samples; ++i) {
+                    const double s = static_cast<double>(i) / static_cast<double>(n_samples - 1);
+                    for (int j = 1; j < n_samples; ++j) {
+                        const double t = static_cast<double>(j) / static_cast<double>(n_samples - 1);
+
+                        Point<DIM> P;
+                        P[0] = -1.0 + 2.0 * s;
+                        P[1] = -1.0 + 2.0 * t;
+
+                        const double value = evaluate_field_on_leaf(P);
+                        if (std::abs(value) <= tol) {
+                            cell_markers.push_back(P);
+                        }
+                    }
+                }
+            }      
         }
         else if constexpr (DIM==3)
         {
-            // we create a marker grid per cell along this "plane"
-            
-            assert(cell_intersections.size() <= 5 && "More than 5 intersections in cut cell");
+            if (cell_intersections.size() <= 5) {
+                // we create a polygon with the cell intersections
+                auto poly = Tri_ord::order_polygon_3d(cell_intersections);
+                if (poly.size() < 3) return;
 
-            // we create a polygon with the cell intersections
-            auto poly = Tri_ord::order_polygon_3d(cell_intersections);
-            if (poly.size() < 3) return;
+                // 1 / 2 / 3 triangles are created from the polygon 
+                auto tris = Tri_ord::triangulate_poly(poly);
+                    
+                // finally we place markers on each triangles
+                for (const auto& tr : tris)
+                    Tri_ord::sample_triangle_with_density(tr, cell_density, cell_min_segments, cell_markers);
+            }
+            else if (cell_intersections.size() > 5) {
+                for (unsigned int i = 0; i < cell_intersections.size(); i++) {
+                    cell_markers.push_back(cell_intersections[i]);
+                }
 
-            // 1 / 2 / 3 triangles are created from the polygon 
-            auto tris = Tri_ord::triangulate_poly(poly);
-                
-            // finally we place markers on each triangles
-            for (const auto& tr : tris)
-                Tri_ord::sample_triangle_with_density(tr, cell_density, cell_min_segments, cell_markers);
+                double mx = local_values[0];
+                double mn = local_values[0];
+                for (std::size_t i = 1; i < local_values.size(); ++i) {
+                    mx = std::max(mx, local_values[i]);
+                    mn = std::min(mn, local_values[i]);
+                }
 
+                const double delta = std::abs(mx - mn);
+                const int n_samples = std::max(10,cell_density);
+                const double tol = 1.0 * delta / static_cast<double>(n_samples);
+                const double h = 2.0 / static_cast<double>(n_samples - 1); 
+
+                for (int i = 1; i < n_samples-1; ++i) {
+                    const double s = static_cast<double>(i) / static_cast<double>(n_samples - 1);
+                    for (int j = 1; j < n_samples-1; ++j) {
+                        const double t = static_cast<double>(j) / static_cast<double>(n_samples - 1);
+                        for (int k = 1; k < n_samples-1; ++k) {
+                            const double r = static_cast<double>(k) / static_cast<double>(n_samples - 1);
+                            Point<DIM> P;
+                            P[0] = -1.0 + 2.0 * s;
+                            P[1] = -1.0 + 2.0 * t;
+                            P[2] = -1.0 + 2.0 * r;
+
+                            const double value = evaluate_field_on_leaf(P);
+                            if (std::abs(value) <= tol) {
+                                cell_markers.push_back(P);
+                            }
+                        }
+                    }
+                }
+            }          
         }
         
         // and finally each marker is projected on the interface using leaf coordinates
@@ -299,11 +289,8 @@ namespace fem {
                     }
                 }
             }
-        }
 
-        for (unsigned int i = 0; i < converged.size(); i++) {
-            if (!converged[i])
-                abort(); 
+            unmatched.swap(next);
         }
 
         cell_markers.erase(
