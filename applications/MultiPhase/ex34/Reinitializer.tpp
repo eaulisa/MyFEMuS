@@ -2,8 +2,8 @@
 namespace fem {
 
     template<std::size_t DIM>
-    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_, bool flag) 
-        : tree(tree_ptr), fid(fid_phi), mollifier(std::move(mollifier_)), proj_flag(flag) {}
+    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, Mollifier m, bool flag) 
+        : tree(tree_ptr), fid(fid_phi), mollifier(m), proj_flag(flag) {}
 
     template <std::size_t DIM>
     void Reinitializer<DIM>::write_markers_csv(const std::string& filename) const
@@ -361,6 +361,33 @@ namespace fem {
     }
 
     template <std::size_t DIM>
+    std::array<double,DIM> Reinitializer<DIM>::evaluate_velocity_on_leaf(const Point<DIM> P)
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+        std::array<double, Nn> N{};   
+
+        if constexpr (DIM == 2) {
+            Shapes2D::Q9(P, N.data());
+        } 
+        else 
+        {
+            Shapes3D::H27(P, N.data());
+        }
+        
+        std::array<double,DIM> velocity {};
+        for (int idim = 0; idim<DIM; idim++)
+            velocity[idim] = 0;
+        for (unsigned int i = 0; i<local_values.size(); i++)
+        {   
+            for (int idim = 0; idim<DIM; idim++) {
+                velocity[idim] += local_velocity[i][idim] * N[i];
+            }
+        }
+
+        return velocity;
+    }
+
+    template <std::size_t DIM>
     Vector<DIM> Reinitializer<DIM>::evaluate_gradient_on_leaf(const Point<DIM> P)
     {
         constexpr int Nn = (DIM == 2 ? 9 : 27);
@@ -442,6 +469,150 @@ namespace fem {
     }
 
     template <std::size_t DIM>
+    std::array<double,2> Reinitializer<DIM>::compute_cell_criteria()
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+
+        std::array<Point<DIM>, Nn> gauss_coord{};
+        std::array<double, Nn> gauss_weight{};
+
+        std::array<double,3> gauss_coord_1D{-0.77459667, 0, 0.77459667};
+        std::array<double,3> gauss_weight_1D{0.55555555, 0.88888889 , 0.55555555};
+
+        if constexpr (DIM == 2) {
+            for (int iq = 0; iq < 3; iq++) 
+            {
+                for (int jq = 0; jq < 3; jq ++)
+                {
+                    gauss_coord[jq + 3*iq]  = {gauss_coord_1D[jq], gauss_coord_1D[iq]};
+                    gauss_weight[jq + 3*iq] = gauss_weight_1D[jq] * gauss_weight_1D[iq];
+                }
+
+            }
+        } 
+        else 
+        {
+            for (int iq = 0; iq < 3; iq++) 
+            {
+                for (int jq = 0; jq < 3; jq++)
+                {
+                    for (int kq = 0; kq < 3; kq++)
+                    {
+                        gauss_coord[kq + 3*(jq + 3*iq)]  = {gauss_coord_1D[kq], gauss_coord_1D[jq], gauss_coord_1D[iq]};
+                        gauss_weight[kq + 3*(jq + 3*iq)] = gauss_weight_1D[kq] * gauss_weight_1D[jq] * gauss_weight_1D[iq];
+                    }
+
+                }
+
+            }
+        }
+
+        std::array<double, Nn> N{};   
+        std::array<std::array<double, Nn> , DIM> dN{};
+
+        int n_gauss = Nn;
+        int n_nodes = Nn;
+
+        double I = 0;
+        double W = 0;
+        double area = 0;
+        double grad = 0;
+
+        for (int i_g = 0; i_g < n_gauss; i_g ++)
+        {
+            Point<DIM> p_g = gauss_coord[i_g];
+            double w_g     = gauss_weight[i_g];
+
+            if constexpr (DIM == 2) {
+                Shapes2D::Q9(p_g, N.data());
+                Shapes2D::Q9_dN(p_g, dN[0].data(), dN[1].data());
+            }
+            else {
+                Shapes3D::H27(p_g, N.data());
+                Shapes3D::H27_dN(p_g, dN[0].data(), dN[1].data(), dN[2].data());
+            }
+
+            std::array<std::array<double,DIM>,DIM> J{};
+
+            for (int i_n = 0; i_n < n_nodes; i_n ++) 
+            {
+                for (int idim = 0; idim < DIM; idim++) 
+                {
+                    for (int jdim = 0; jdim < DIM; jdim++)
+                    {
+                        J[idim][jdim] += local_coord[i_n][idim] * dN[jdim][i_n];
+                    }
+                }
+            }
+
+            double detJ;
+
+            if constexpr (DIM==2) {
+                detJ = J[0][0]*J[1][1] - J[0][1]*J[1][0];
+            } else { 
+                detJ = J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
+                    - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
+                    + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+            }
+
+            std::array<double,DIM> grad_ref{}; 
+            for (int i_n = 0; i_n < n_nodes; ++i_n) {
+                for (int idim = 0; idim < DIM; ++idim) {
+                    grad_ref[idim] += dN[idim][i_n] * local_values[i_n]; 
+                }
+            }
+
+            std::array<double,DIM> grad_x{};
+            std::array<std::array<double,DIM>,DIM> C{};
+            if constexpr (DIM==2) {
+                // 2D: J^{-T} = (1/detJ) * [[ J[1][1], -J[1][0] ],
+                //                          [ -J[0][1], J[0][0] ]]
+                C[0][0] =  J[1][1];
+                C[0][1] = -J[1][0];
+                C[1][0] = -J[0][1];
+                C[1][1] =  J[0][0];
+            } else { 
+                // 3D: J^{-T} = (1/detJ) * [[ (J11*J22 - J12*J21),  -(J10*J22 - J12*J20), (J10*J21 - J11*J20)  ],
+                //                          [ -(J01*J22 - J02*J21), (J00*J22 - J02*J20),  -(J00*J21 - J01*J20) ],
+                //                          [ (J01*J12 - J02*J11),  -(J00*J12 - J02*J10), (J00*J11 - J01*J10)  ]]
+                C[0][0] =  (J[1][1]*J[2][2] - J[1][2]*J[2][1]);
+                C[0][1] = -(J[1][0]*J[2][2] - J[1][2]*J[2][0]);
+                C[0][2] =  (J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+                C[1][0] = -(J[0][1]*J[2][2] - J[0][2]*J[2][1]);
+                C[1][1] =  (J[0][0]*J[2][2] - J[0][2]*J[2][0]);
+                C[1][2] = -(J[0][0]*J[2][1] - J[0][1]*J[2][0]);
+                C[2][0] =  (J[0][1]*J[1][2] - J[0][2]*J[1][1]);
+                C[2][1] = -(J[0][0]*J[1][2] - J[0][2]*J[1][0]);
+                C[2][2] =  (J[0][0]*J[1][1] - J[0][1]*J[1][0]);
+            }
+
+            for (int idim = 0; idim < DIM; idim++)
+            {
+                for (int jdim = 0; jdim < DIM; jdim++)
+                {
+                    grad_x[idim] += C[idim][jdim] * grad_ref[jdim] / detJ;
+                }
+            }
+
+            double grad_norm = Geom_op<DIM>::norm(grad_x);
+
+            double target = 3./2. / mollifier.eps();
+            double e = std::abs(std::log(std::min(std::max(grad_norm / target , 1e-12) , 10.))); // far from 1 evaluation
+                 
+            const std::array<double,DIM> vel_g = evaluate_velocity_on_leaf(p_g);
+            double norm_prod = Geom_op<DIM>::norm(vel_g) * Geom_op<DIM>::norm(grad_x);
+            double w_dot = fabs(Geom_op<DIM>::dot(vel_g, grad_x) / norm_prod);
+
+            I += w_g * std::abs(detJ) * (e * w_dot) ;
+            W += w_g * std::abs(detJ) * w_dot ;
+
+            area += w_g * std::abs(detJ);
+        }
+
+        return {I , W } ;
+    }
+
+    template <std::size_t DIM>
     std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers(int density, int min_segments_)
     {
         marker_density = density;
@@ -460,6 +631,9 @@ namespace fem {
 
         cut_cells.clear();
         cut_cells.reserve(L.size());
+        cut_cells_only.clear();
+        cut_cells_only.reserve(L.size());
+        cut_cells_map.clear();
 
         for (int k = 0; k < static_cast<int>(numCells); k++) 
         {
@@ -483,15 +657,82 @@ namespace fem {
             if (leaf_is_cut(leaf_pos, &cell_intersections)) 
             {
                 cut_cells.push_back(leaf_pos);
+                cut_cells_only.push_back(leaf_pos);
+                cut_cells_map[leaf_pos] = k;
 
                 compute_cell_markers(cell_intersections);
             }
             else if (tree->_tree_nodes[leaf_id].level == tree->max_depth()) {
                 cut_cells.push_back(leaf_pos);
+                cut_cells_map[leaf_pos] = k;
             }
         }
 
         return markers;
+    }
+
+    template <std::size_t DIM>
+    bool Reinitializer<DIM>::compute_criteria(Vel<DIM> eval_velocity, double reinit_tau)
+    {
+        const auto& L = tree->leaves();
+        const size_t numCells = L.size();
+
+        auto& Field      = tree->field(fid);
+        auto  Basis      = to_basis<DIM>(Field.basis_id);
+        const auto& nodes = tree->basis_nodes(Basis);
+        BasisRegistry<DIM> basis_registry = tree->_basisReg[(int)Basis];
+
+        std::vector<double> cell_criteria_values;
+        cell_criteria_values.reserve(cut_cells.size());
+        std::vector<double> cell_weight_values;
+        cell_weight_values.reserve(cut_cells.size());
+        std::vector<double> cell_criteria(numCells,0);
+        std::vector<double> cell_weight(numCells,0);
+
+        for (const int leaf_pos : cut_cells_only) 
+        {
+            const auto &conn = basis_registry.elem2glob[leaf_pos];
+            
+            local_coord.assign(conn.size(), Point<DIM>{}); 
+            local_values.assign(conn.size(), 0.0);
+            local_velocity.assign(conn.size(), std::array<double,DIM> {});
+
+            for (u32 a = 0; a < conn.size(); ++a) {
+                u32 gid          = conn[a];                  
+                local_coord[a]   = nodes[gid].physical;                     
+                local_values[a]  = Field.nodal[gid];
+                if constexpr (DIM==2) {
+                    local_velocity[a] = eval_velocity(local_coord[a][0], local_coord[a][1], 0.);
+                }
+                else {
+                    local_velocity[a] = eval_velocity(local_coord[a][0], local_coord[a][1], local_coord[a][2], 0.);
+                }
+            } 
+
+            const auto [I, W] = compute_cell_criteria();
+            cell_criteria_values.push_back(I);
+            cell_weight_values.push_back(W);
+            cell_criteria[cut_cells_map.at(leaf_pos)] = I ;
+            cell_weight[cut_cells_map.at(leaf_pos)] = W ;
+        }
+
+        tree->_reinit_criteria = cell_criteria;
+        tree->_reinit_weight = cell_weight;
+
+        double sum_crit = 0;
+        double sum_weight = 0;
+        for (unsigned int i = 0; i < cell_criteria_values.size(); i++) 
+        {
+            sum_crit   += cell_criteria_values[i];
+            sum_weight += cell_weight_values[i];
+        }
+        
+        double scaled_norm = sum_crit / sum_weight;   
+
+        if (scaled_norm > reinit_tau)
+            return true;
+
+        return false;
     }
 
     template <std::size_t DIM>
@@ -656,10 +897,9 @@ namespace fem {
                 }
             }
 
-        if (mollifier)
-            for (size_t i = 0; i < nodes.size(); ++i) {
-                Field.nodal[i] = mollifier(Field.nodal[i]);
-            }
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            Field.nodal[i] = mollifier.SigmoidC1(Field.nodal[i]);
+        }
     }
 
     
