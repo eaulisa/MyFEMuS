@@ -17,6 +17,7 @@
 
 #include "OctTree.hpp"
 #include "nanoflann.hpp"
+#include "Mollifier.hpp"
 
 template <std::size_t DIM>
 struct Geom_op {
@@ -72,7 +73,7 @@ struct Geom_op {
 
   static inline double dot(const Vector& v, const Vector& w) {
     double d = 0.0;
-    for (std::size_t d = 0; d < DIM; ++d) d += v[d]*w[d];
+    for (std::size_t idim = 0; idim < DIM; ++idim) d += v[idim]*w[idim];
     return d;
   }
 };
@@ -82,6 +83,10 @@ using Point  = typename Geom_op<DIM>::Point;
 
 template <std::size_t DIM>
 using Vector = typename Geom_op<DIM>::Vector;
+
+template<std::size_t DIM> struct VelT;
+
+template<std::size_t DIM> using Vel = typename VelT<DIM>::type;
 
 
 namespace fem {
@@ -95,7 +100,7 @@ namespace fem {
     class Reinitializer
     {
     public:
-        explicit Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, std::function<double(double)> mollifier_ = {}, bool flag = true);
+        explicit Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, Mollifier m, bool flag = true);
 
         // this routine reinitializes the level set field fid
         void compute_signed_distance();
@@ -105,6 +110,9 @@ namespace fem {
 
         // this routine collect and returns markers on the level set interface
         std::vector<Point<DIM>> collect_markers(int density, int min_segments_);
+
+        // this routine computes a global criteria for refinement
+        bool compute_criteria(Vel<DIM> eval_velocity, double tau);
 
     private:
         // this routine identifies cut cells and compute cell intersections with the interface
@@ -126,26 +134,33 @@ namespace fem {
         // this routine find the root on a intersected edge
         std::vector<double> edge_roots(double v0, double v1, double v2);
 
+        // this routine computes the criteria for refinement on a cell
+        std::array<double,2> compute_cell_criteria();
+
         // this routines compute leaf quantities
         Point<DIM>  evaluate_coord_on_leaf(const Point<DIM> P_local);
         double      evaluate_field_on_leaf(const Point<DIM> P_local);
         Vector<DIM> evaluate_gradient_on_leaf(const Point<DIM> P);
+        std::array<double,DIM> evaluate_velocity_on_leaf(const Point<DIM> P);
 
         OctTree<DIM> * tree = nullptr;
         std::vector<Point<DIM>> markers;
         std::vector<u32> cut_cells;
+        std::vector<u32> cut_cells_only;
+        std::map<int,int> cut_cells_map;
         std::vector<std::vector<double>> cut_cells_nodes_dist;
         u32 leaf_id;
         u32 fid;
 
         std::vector<Point<DIM>> local_coord;
         std::vector<double> local_values;
+        std::vector<std::array<double,DIM>> local_velocity;
 
         bool proj_flag;
         int marker_density;
         int min_segments;
 
-        std::function<double(double)> mollifier;
+        Mollifier mollifier;
     };
 }
 
@@ -217,7 +232,7 @@ public:
         nanoflann::KNNResultSet<double> rs(k);
         rs.init(idx.data(), dist2.data());
         index_.findNeighbors(rs, q.data(), nanoflann::SearchParameters());
-        return {idx, dist2}; // distanze al quadrato
+        return {idx, dist2}; 
     }
 
     std::vector<std::pair<size_t,double>>
@@ -240,7 +255,7 @@ public:
         std::vector<std::pair<size_t,double>> out;
         out.reserve(hits.size());
         for (const auto& h : hits)
-            out.emplace_back(static_cast<size_t>(h.first), static_cast<double>(h.second)); // dist²
+            out.emplace_back(static_cast<size_t>(h.first), static_cast<double>(h.second));
         return out;
     }
 

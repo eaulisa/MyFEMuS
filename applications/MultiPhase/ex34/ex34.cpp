@@ -616,7 +616,7 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
 
 // ======================== Unified run<DIM> (exact signatures) ========================
 template<std::size_t DIM>
-std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit) {
+std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit, const bool reinit_criteria, const double reinit_tau) {
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
   const u32 maxDepth = max_depth;
@@ -711,9 +711,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
   Mollifier m(eps);
 
-  Reinitializer<DIM> reinitializer(&ot, fid, [&m](double x) noexcept {
-    return m.SigmoidC1(x);
-  }, true /*projection flag*/);
+  Reinitializer<DIM> reinitializer(&ot, fid, m, true /*projection flag*/);
 
   // if (reinit) {
   //   reinitializer.compute_signed_distance();
@@ -741,7 +739,8 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     markers.clear();
     markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
   }
-
+  
+  int cnt = 0;
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
 
@@ -777,9 +776,14 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     using std::swap; swap(ot, ot1);
 
     if (reinit) {
-      int marker_density = (k % reinit == 0) ? 10. : 0.;
       markers.clear();
-      markers = reinitializer.collect_markers(marker_density, 3 /*min segments*/);
+      markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
+      bool reinit_flag = (reinit_criteria) ? reinitializer.compute_criteria(evalVelocity, reinit_tau) : (k % reinit == 0);
+      if (reinit_flag) {
+        cnt++;
+        reinitializer.collect_markers(10. /*marker density*/, 3 /*min segments*/);
+        reinitializer.compute_signed_distance();
+      }
     }
 
     // --- Statistiche sulle celle ---
@@ -787,11 +791,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     N_cells_sum += n_cells;
     N_cells_max = std::max(N_cells_max, n_cells);
     n_samples++;
-
-
-    if (reinit && (k % reinit == 0)) {
-      reinitializer.compute_signed_distance();
-    }
 
     if (vtu) {
       const char* stem = (DIM == 2 ? "element_adaptive2d" : "element_adaptive3d");
@@ -801,6 +800,8 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
       //   std::to_string(max_depth) + "." + std::to_string(k) + ".csv");
     }
   }
+
+  std::cout<<"Numero di reinit: "<<cnt<<std::endl;
 
   // --- Calcolo di h_min ---
   const double domain_length = maxCorner[0] - minCorner[0];  // vale 1.0 per te
@@ -902,6 +903,8 @@ int main(int argc, char** argv) {
   bool vtu = true;
   bool box_domain = true;
   unsigned reinit = 0; //(default false)
+  bool reinit_criteria = false;
+  double reinit_tau = 0.2;
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
 
 
@@ -983,6 +986,36 @@ int main(int argc, char** argv) {
       }
       reinit = std::atoi(argv[++i]);
     }
+    if (a == "--reinit_criteria") {
+      reinit = 1;
+      reinit_criteria = true;
+
+      if (i + 1 < argc) {
+        std::string next = argv[i + 1];
+
+        bool looks_flag = (next.rfind("--", 0) == 0) ||
+                          (next.size() >= 2 && next[0] == '-' && !std::isdigit(static_cast<unsigned char>(next[1])));
+
+        if (!looks_flag) {
+          try {
+            size_t pos = 0;
+            double tmp = std::stod(next, &pos);
+            if (pos == next.size()) {
+              reinit_tau = tmp;   
+              ++i;                
+            } else {
+              std::cerr << "Valore non valido per --reinit_criteria (atteso double, es. 0.1 o 1e-3)\n";
+              return 1;
+            }
+          } catch (...) {
+            std::cerr << "Valore non valido per --reinit_criteria (atteso double, es. 0.1 o 1e-3)\n";
+            return 1;
+          }
+        }
+      }
+
+    }
+
   }
 
   std::vector<std::pair<double, double>> Er(delta_depth);
@@ -993,12 +1026,12 @@ int main(int argc, char** argv) {
     switch (dim) {
     case 2:
       start_time = clock();
-      Er[i] = run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit);
+      Er[i] = run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
       Time[i] = clock() - start_time;
       break;
     case 3:
       start_time = clock();
-      Er[i] = run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit);
+      Er[i] = run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
       Time[i] = clock() - start_time;
       break;
     default:

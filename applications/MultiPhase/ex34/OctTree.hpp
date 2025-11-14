@@ -3297,6 +3297,10 @@ namespace fem {
           // --- CellData: just the per-cell "level" ---
           os << "      <CellData Scalars=\"level\">\n";
           write_binary_array(os, "Int32", "level", 1, cellLevel);
+          if (_reinit_criteria.size() == cellLevel.size()) 
+            write_binary_array(os, "Float64", "reinit_criteria", 1, _reinit_criteria);
+          if (_reinit_weight.size() == cellLevel.size()) 
+            write_binary_array(os, "Float64", "reinit_weight", 1, _reinit_weight);
           os << "      </CellData>\n";
         }
         else {
@@ -3921,6 +3925,8 @@ namespace fem {
 
 // fields (per-leaf coefficients for API compatibility)
       std::vector<Field> _fields;
+      std::vector<double> _reinit_criteria;
+      std::vector<double> _reinit_weight;
 
 // per-basis global node registries + connectivity
       std::vector<TreeNode<DIM>> _tree_nodes;        // full tree hierarchy
