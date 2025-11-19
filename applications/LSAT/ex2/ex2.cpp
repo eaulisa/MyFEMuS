@@ -20,7 +20,6 @@
 #include "adept.h"
 
 const unsigned DIM = 2;
-const double BETA = 0.25;
 const double GAMMA = 0.5;
 bool UseNewmarkUpdateWithD = true;
 double dt = 0.025;
@@ -29,6 +28,16 @@ bool withDisturbance = false;
 static double PStar = 0.0;
 static std::vector<double> PStarNodes;
 std::vector<unsigned> g_controlNodeDofs;
+double wOld = 0.;
+double wOldTMP = 0.;
+
+double alpha = 1.0e-10;
+double beta = 0.125;
+double h = 1.;
+double a = -5.;
+double b = 5.;
+
+double mu = 1.;
 
 
 struct WNodeIDs {
@@ -132,8 +141,6 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Ei", LAGRANGE, SECOND, false);
   mlSol.AddSolution("Z", LAGRANGE, SECOND, false);
 
-  mlSol.AddSolution("Wi", LAGRANGE, SECOND, 2);
-
   mlSol.AddSolution("P", LAGRANGE, SECOND, false);
 
   unsigned cascadeIterations = 3;
@@ -172,7 +179,7 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("Zi");
   system.AddSolutionToSystemPDE("Xi");
   system.AddSolutionToSystemPDE("Yi");
-  system.AddSolutionToSystemPDE("Wi");
+  // system.AddSolutionToSystemPDE("Wi");
   system.SetAssembleFunction(AssembleResAD);
   system.AttachGetTimeIntervalFunction(SetVariableTimeStep);
   system.init();
@@ -185,7 +192,10 @@ int main(int argc, char** args) {
   std::vector<std::vector<double>> controlPoints = {
   {0.3, 0.3},
   {1.4, 0.7},
-  {2.9, 0.5}
+  {2.9, 0.5},
+  {2.*M_PI/3,0.5},
+  {M_PI/3,0.5},
+  {M_PI/2,0.5}
   };
 
   g_controlNodeDofs = GetControlNodeIndices(msh, controlPoints);
@@ -277,6 +287,8 @@ int main(int argc, char** args) {
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) -= *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
       *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex(Ej.c_str()))]);
     }
+
+    wOld = wOldTMP;
 
     // restore prescribed disturbance before visualization output
     if (withDisturbance) *(sol->_Sol[mlSol.GetIndex("d")]) = *dOriginal;
@@ -500,8 +512,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   unsigned solIndexX = mlSol->GetIndex("Xi");
   unsigned solIndexY = mlSol->GetIndex("Yi");
 
-  unsigned solIndexW = mlSol->GetIndex("Wi");
-
   unsigned solIndexE = mlSol->GetIndex("Ei");
 
   unsigned solIndexP = mlSol->GetIndex("P");
@@ -524,27 +534,26 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   unsigned solPdeIndexX = mlPdeSys->GetSolPdeIndex("Xi");
   unsigned solPdeIndexY = mlPdeSys->GetSolPdeIndex("Yi");
 
-  unsigned solPdeIndexW = mlPdeSys->GetSolPdeIndex("Wi");
-
-
   std::vector < double > solZOld;    // local solution
+
+  std::vector < double > solZdouble;    // local solution
+  std::vector < double > solXdouble;
+  std::vector < double > solYdouble;
 
   std::vector < adept::adouble > solZ;    // local solution
   std::vector < adept::adouble > solX;
   std::vector < adept::adouble > solY;
 
-  std::vector < adept::adouble > solW;
-
-  adept::adouble PstarZ = 0;
-  adept::adouble PstarX = 0;
-  adept::adouble PstarY = 0;
-  adept::adouble CstarCPstarZ = 0;
-  adept::adouble CstarCPstarY = 0;
+  double PstarZ = 0;
+  double PstarX = 0;
+  double PstarY = 0;
+  double CstarCPstarZ = 0;
+  double CstarCPstarY = 0;
   double CstarCPstarP = 0;
   double CstarCPstarE = 0.;
-  adept::adouble w = 0;
-  adept::adouble x1 = 0;
-  adept::adouble y1 = 0;
+  double w = 0;
+  double x1 = 0;
+  double y1 = 0;
 
   std::vector < double > solE;
   std::vector < double > solP;
@@ -565,17 +574,14 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   RES->zero(); // Set to zero all the entries of the Global Residual std::vector
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
-  double wOld = 0.;
-
   for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
     double CsC = (*sol->_Sol[solIndexC])(iel);
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);
 
-    solZ.resize(nDofs);
-    solX.resize(nDofs);
-    solY.resize(nDofs);
-    solW.resize(nDofs);
+    solZdouble.resize(nDofs);
+    solXdouble.resize(nDofs);
+    solYdouble.resize(nDofs);
     solP.resize(nDofs);
     solE.resize(nDofs);
 
@@ -584,27 +590,43 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       solP[i] = (*sol->_Sol[solIndexP])(iDof);
       solE[i] = (*sol->_Sol[solIndexE])(iDof);
 
-      bool isX1node = (iDof == g_specialWnodes.X1);
-      if(isX1node) x1 += solW[i];
+      solZdouble[i] = (*sol->_Sol[solIndexZ])(iDof);
+      solXdouble[i] = (*sol->_Sol[solIndexX])(iDof);
+      solYdouble[i] = (*sol->_Sol[solIndexY])(iDof);
 
-      bool isW0node = (iDof == g_specialWnodes.W0);
-      if(isW0node){
-        w += solW[i];
-        wOld = (*sol->_SolOld[solIndexW])(iDof);
-      }
+      // bool isX1node = (iDof == g_specialWnodes.X1);
+      // if(isX1node) x1 += solW[i];
+      //
+      // bool isW0node = (iDof == g_specialWnodes.W0);
+      // if(isW0node){
+      //   w += solW[i];
+      // }
+      //
+      // bool isY1node = (iDof == g_specialWnodes.Y1);
+      // if(isY1node) y1 += solW[i];
 
-      bool isY1node = (iDof == g_specialWnodes.Y1);
-      if(isY1node) y1 += solW[i];
-
-      PstarZ += PStarNodes[iDof] * solZ[i];
-      CstarCPstarZ += (CsC > 0.5) * PStarNodes[iDof] * solZ[i];
-      PstarX += PStarNodes[iDof] * solX[i];
-      PstarY += PStarNodes[iDof] * solY[i];
-      CstarCPstarY += (CsC > 0.5) * PStarNodes[iDof] * solY[i];
+      PstarZ += PStarNodes[iDof] * solZdouble[i];
+      CstarCPstarZ += (CsC > 0.5) * PStarNodes[iDof] * solZdouble[i];
+      PstarX += PStarNodes[iDof] * solXdouble[i];
+      PstarY += PStarNodes[iDof] * solYdouble[i];
+      CstarCPstarY += (CsC > 0.5) * PStarNodes[iDof] * solYdouble[i];
       CstarCPstarP += (CsC > 0.5) * PStarNodes[iDof] * solP[i];
       CstarCPstarE += (CsC > 0.5) * PStarNodes[iDof] * solE[i];
     }
   }
+
+
+  // Precomputation of w,x1,y1 with analytic relations
+  double lhs = - a + h * h * b * b * CstarCPstarP / alpha * ( (dt * (1 - beta) / (1 - a * dt)) - beta / a );
+
+  double rhs1 = - h * h *CstarCPstarP * ( (1 - beta) * (wOld / (1 - a * dt)) + h * b * b / alpha * (- (1 - beta) * dt / (1 - a * dt) + beta / a) * PstarX);
+  double rhs2 = - h * a * PstarX + h * ( CstarCPstarE - (1 - beta) * CstarCPstarZ - beta * CstarCPstarY );
+
+  double rhs = rhs1 + rhs2;
+
+  x1 = rhs / lhs;
+  w = dt / (1 - a * dt) * (wOld / dt + b * b / alpha *(x1 - h * PstarX));
+  y1 = - b * b / (a * alpha) * (- h * PstarX + x1);
 
   // element loop: each process loops only on the elements that owns
   for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -618,7 +640,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
 
-    unsigned nUnkn = 4;
+    unsigned nUnkn = 3;
     unsigned nDofsAll = nUnkn * nDofs;
 
     sysDof.resize(nDofsAll);
@@ -628,7 +650,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     solZ.resize(nDofs);
     solX.resize(nDofs);
     solY.resize(nDofs);
-    solW.resize(nDofs);
     solE.resize(nDofs);
     solP.resize(nDofs);
     if(withDisturbance) solBd.resize(nDofs);
@@ -646,8 +667,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       solX[i] = (*sol->_Sol[solIndexX])(iDof);
       solY[i] = (*sol->_Sol[solIndexY])(iDof);
 
-      solW[i] = (*sol->_Sol[solIndexW])(iDof);
-
       solP[i] = (*sol->_Sol[solIndexP])(iDof);
 
       solE[i] = (*sol->_Sol[solIndexE])(iDof);
@@ -655,11 +674,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
       for (unsigned k = 0; k < nUnkn; k++) {
         unsigned solIndex = (k == 0) ? solIndexZ :
-                             (k == 1) ? solIndexX :
-                             (k == 2) ? solIndexY : solIndexW;
+                             (k == 1) ? solIndexX : solIndexY;
         unsigned solPdeIndex = (k == 0) ? solPdeIndexZ :
-                                (k == 1) ? solPdeIndexX :
-                                (k == 2) ? solPdeIndexY : solPdeIndexW;
+                                (k == 1) ? solPdeIndexX : solPdeIndexY;
         sysDof[k * nDofs + i] = pdeSys->GetSystemDof(solIndex, solPdeIndex, i, iel);
       }
 
@@ -710,24 +727,14 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         }
       }
 
-      double alpha = 1.0e-12;
-      double beta = 0.125;
-      double h = 1.;
-      double a = -5.;
-      double b = 5.;
-
-      double mu = 1.;
-
-      double TODOSolW = 0.;
 
       // *** phiA_i loop ***
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
 
-        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] + h * a * solP[i] * w * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i];
+        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] - h * a * solP[i] * w * phi[i] - h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i]; //TODO: I've changed two signs!
         adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * (Zg + h * solP[i] * w) - beta * (Yg + h * solP[i] * y1)) * phi[i];
         adept::adouble aResY =  + h * a * solP[i] * y1 * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i];
-        adept::adouble aResW = 0.0;
 
 
         for (unsigned j = 0; j < dim; j++) { // second index j in each equation
@@ -740,9 +747,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         // Looking for special 3 nodes to assemble the W solution
         unsigned iDof = msh->GetSolutionDof(i, iel, solType);
 
-        bool isW0node = (iDof == g_specialWnodes.W0);
-        bool isX1node = (iDof == g_specialWnodes.X1);
-        bool isY1node = (iDof == g_specialWnodes.Y1);
+        // bool isW0node = (iDof == g_specialWnodes.W0);
+        // bool isX1node = (iDof == g_specialWnodes.X1);
+        // bool isY1node = (iDof == g_specialWnodes.Y1);
 
         // b * TODOSolX1 / alpha //TODO
 /*
@@ -756,13 +763,13 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
           aResW = ( - a * y1 - b * b / alpha * (- h * PstarX + x1)) * phi[i]; // TODO equation for Y1
         }
         else {*/
-          aResW = solW[i] * phi[i]; // identity
+          // aResW = solW[i] * phi[i]; // identity
         // }
 
         aRes[0 * nDofs + i] += aResZ * weight;
         aRes[1 * nDofs + i] += aResX * weight;
         aRes[2 * nDofs + i] += aResY * weight;
-        aRes[3 * nDofs + i] += aResW * weight;
+        // aRes[3 * nDofs + i] += aResW * weight;
 
       } // end phiA_i loop
     }
@@ -781,7 +788,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     s.independent(solZ.data(), nDofs);
     s.independent(solX.data(), nDofs);
     s.independent(solY.data(), nDofs);
-    s.independent(solW.data(), nDofs);
 
     Jac.assign(nDofsAll * nDofsAll, 0.);
     // get the jacobian matrix (ordered by column)
@@ -794,6 +800,8 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     s.clear_dependents();
 
   } //end element loop for each process
+
+  wOldTMP = w; //TODO
 
   RES->close();
   KK->close();
