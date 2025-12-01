@@ -16,22 +16,32 @@
 #include "VTKWriter.hpp"
 #include "GMVWriter.hpp"
 #include "LinearImplicitSystem.hpp"
+#include "NonLinearImplicitSystem.hpp"
 #include "TransientSystem.hpp"
 #include "adept.h"
 
 const unsigned DIM = 2;
 const double GAMMA = 0.5;
 bool UseNewmarkUpdateWithD = true;
+
 double dt = 0.025;
+const unsigned n_timesteps = 400;
+unsigned cascadeIterations = 2;
+
+unsigned jTMP = 0;
+
 bool withDisturbance = false;
 
 static double PStar = 0.0;
 static std::vector<double> PStarNodes;
 std::vector<unsigned> g_controlNodeDofs;
-double wOld = 0.;
-double wOldTMP = 0.;
 
-double alpha = 1.0e-10;
+
+double x1 = 0.;
+std::vector<double> w(cascadeIterations,0.);
+std::vector<double> wOld(cascadeIterations,0.);
+
+double alpha = 1.0e-7;
 double beta = 0.125;
 double h = 1.;
 double a = -5.;
@@ -127,7 +137,7 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, 0., lengthx, 0., length, 0., length, HEX27, "seventh");
   }
 
-  unsigned numberOfUniformLevels = 4;
+  unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -143,7 +153,6 @@ int main(int argc, char** args) {
 
   mlSol.AddSolution("P", LAGRANGE, SECOND, false);
 
-  unsigned cascadeIterations = 3;
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string Zj = "Z" + std::to_string(j);
     std::string ZjOld = "Z" + std::to_string(j) + "Old";
@@ -174,7 +183,7 @@ int main(int argc, char** args) {
 
 
 
-  TransientLinearImplicitSystem& system = mlProb.add_system<TransientLinearImplicitSystem>("LSAT");
+  TransientNonlinearImplicitSystem& system = mlProb.add_system<TransientNonlinearImplicitSystem>("LSAT");
 
   system.AddSolutionToSystemPDE("Zi");
   system.AddSolutionToSystemPDE("Xi");
@@ -190,19 +199,14 @@ int main(int argc, char** args) {
   Mesh* msh = sol->GetMesh();
 
   std::vector<std::vector<double>> controlPoints = {
-  {0.3, 0.3},
-  {1.4, 0.7},
-  {2.9, 0.5},
-  {2.*M_PI/3,0.5},
-  {M_PI/3,0.5},
-  {M_PI/2,0.5}
+    {M_PI/2.,0.5}
   };
 
   g_controlNodeDofs = GetControlNodeIndices(msh, controlPoints);
 
 
   // RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
-  RegionBox boxC{M_PI/3., 2*M_PI/3., 0., 1};
+  RegionBox boxC{(M_PI/4.)-0.001, (3.*M_PI/4.)+0.001, 0.249, 0.751};
   if(withDisturbance) {
     RegionBox boxBd{2*M_PI/3., M_PI, 0., 1};
     // SetRegions(sol, boxB, boxC, &boxBd);
@@ -234,8 +238,6 @@ int main(int argc, char** args) {
 
   // ****here we solve the system for P****
 
-  const unsigned n_timesteps = 150;
-
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string ZjOld = "Z" + std::to_string(j) + "Old";
     sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]->zero();
@@ -258,6 +260,20 @@ int main(int argc, char** args) {
     errorFile << std::setprecision(8);
   }
 
+  std::ofstream wFile;
+  if (world_rank == 0) {
+    wFile.open("w.dat", std::ios::out | std::ios::trunc);
+    if (!wFile.is_open()) {
+      std::cerr << "ERROR: could not open error.dat for writing\n";
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    wFile.setf(std::ios::scientific);
+    wFile << "# time";
+    for (unsigned j = 0; j < cascadeIterations; ++j) wFile << "   w" << j;
+    wFile << "\n";
+    wFile << std::setprecision(8);
+  }
+
   // Time loop
   for (unsigned t = 1; t <= n_timesteps; t++) {
     if(withDisturbance) SetPrescribedFields(sol, t * dt, "R", "d");
@@ -269,7 +285,12 @@ int main(int argc, char** args) {
     sol->_Sol[mlSol.GetIndex("Z")]->zero();
     *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex("R"))]);
 
+    if(world_rank == 0) wFile << std::setw(14) << t * dt;
+
     for (unsigned j = 0; j < cascadeIterations; j++) {
+
+      jTMP = j;
+
       std::string Zj = "Z" + std::to_string(j);
       std::string ZjOld = "Z" + std::to_string(j) + "Old";
       std::string Ej = "E" + std::to_string(j);
@@ -279,16 +300,30 @@ int main(int argc, char** args) {
 
       *(sol->_Sol[mlSol.GetIndex("Zi")]) = *(sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]);
       *(sol->_SolOld[mlSol.GetIndex("Zi")]) = *(sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]);
+
       system.MGsolve();
+
+      wOld[j] = w[j];
 
       *(sol->_Sol[mlSol.GetIndex("Z")]) += *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
       *(sol->_Sol[mlSol.GetIndex(Zj.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Ei"))]);
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) -= *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
       *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex(Ej.c_str()))]);
+
+      if (world_rank == 0) {
+        wFile << " " << std::setw(14) << w[j];
+      }
     }
 
-    wOld = wOldTMP;
+    if (world_rank == 0) {
+      wFile << "\n";
+      wFile.flush();
+    }
+
+
+
+
 
     // restore prescribed disturbance before visualization output
     if (withDisturbance) *(sol->_Sol[mlSol.GetIndex("d")]) = *dOriginal;
@@ -343,9 +378,8 @@ double flc4hs(double const & x, double const & eps) {
 }*/
 
 double GetTargetSolution(const std::vector<double> &xv, const double &time) {
-
-  // return cos(xv[0] * xv[1]) * flc4hs(time - .5, 0.5) ;
-  return xv[0] * (M_PI - xv[0]) * xv[1] * (1. - xv[1]) * sin(time) * flc4hs(time - .5, 0.5) ;
+  // return sin(M_PI * xv[1]) * sin(xv[0] - time) * flc4hs(time - 2., 2.) ;
+  return flc4hs(time - 2., 2.)*1.;
 }
 
 
@@ -483,7 +517,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   adept::Stack& s = FemusInit::_adeptStack;
 
   //  extract pointers to the several objects that we are going to use
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("LSAT");   // pointer to the linear implicit system named "Beam"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("LSAT");   // pointer to the linear implicit system named "Beam"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -551,9 +585,10 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   double CstarCPstarY = 0;
   double CstarCPstarP = 0;
   double CstarCPstarE = 0.;
-  double w = 0;
-  double x1 = 0;
+  x1 = 0;
   double y1 = 0;
+
+  w[jTMP] = 0.;
 
   std::vector < double > solE;
   std::vector < double > solP;
@@ -587,45 +622,51 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned iDof = msh->GetSolutionDof(i, iel, coordXType);
-      solP[i] = (*sol->_Sol[solIndexP])(iDof);
-      solE[i] = (*sol->_Sol[solIndexE])(iDof);
 
+      solP[i]       = (*sol->_Sol[solIndexP])(iDof);
+      solE[i]       = (*sol->_Sol[solIndexE])(iDof);
       solZdouble[i] = (*sol->_Sol[solIndexZ])(iDof);
       solXdouble[i] = (*sol->_Sol[solIndexX])(iDof);
       solYdouble[i] = (*sol->_Sol[solIndexY])(iDof);
 
-      // bool isX1node = (iDof == g_specialWnodes.X1);
-      // if(isX1node) x1 += solW[i];
-      //
-      // bool isW0node = (iDof == g_specialWnodes.W0);
-      // if(isW0node){
-      //   w += solW[i];
-      // }
-      //
-      // bool isY1node = (iDof == g_specialWnodes.Y1);
-      // if(isY1node) y1 += solW[i];
-
-      PstarZ += PStarNodes[iDof] * solZdouble[i];
+      PstarZ       += PStarNodes[iDof] * solZdouble[i];
       CstarCPstarZ += (CsC > 0.5) * PStarNodes[iDof] * solZdouble[i];
-      PstarX += PStarNodes[iDof] * solXdouble[i];
-      PstarY += PStarNodes[iDof] * solYdouble[i];
+
+      PstarX       += PStarNodes[iDof] * solXdouble[i];
+      PstarY       += PStarNodes[iDof] * solYdouble[i];
       CstarCPstarY += (CsC > 0.5) * PStarNodes[iDof] * solYdouble[i];
+
       CstarCPstarP += (CsC > 0.5) * PStarNodes[iDof] * solP[i];
       CstarCPstarE += (CsC > 0.5) * PStarNodes[iDof] * solE[i];
     }
   }
 
+  // ---- global reduction so all ranks see the same scalars ----
+  double local_vec[7]  = {PstarZ, CstarCPstarZ, PstarX, PstarY,
+                          CstarCPstarY, CstarCPstarP, CstarCPstarE};
+  double global_vec[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+  MPI_Allreduce(local_vec, global_vec, 7, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  PstarZ        = global_vec[0];
+  CstarCPstarZ  = global_vec[1];
+  PstarX        = global_vec[2];
+  PstarY        = global_vec[3];
+  CstarCPstarY  = global_vec[4];
+  CstarCPstarP  = global_vec[5];
+  CstarCPstarE  = global_vec[6];
+
 
   // Precomputation of w,x1,y1 with analytic relations
   double lhs = - a + h * h * b * b * CstarCPstarP / alpha * ( (dt * (1 - beta) / (1 - a * dt)) - beta / a );
 
-  double rhs1 = - h * h *CstarCPstarP * ( (1 - beta) * (wOld / (1 - a * dt)) + h * b * b / alpha * (- (1 - beta) * dt / (1 - a * dt) + beta / a) * PstarX);
+  double rhs1 = - h * h *CstarCPstarP * ( (1 - beta) * (wOld[jTMP] / (1 - a * dt)) + h * b * b / alpha * (- (1 - beta) * dt / (1 - a * dt) + beta / a) * PstarX);
   double rhs2 = - h * a * PstarX + h * ( CstarCPstarE - (1 - beta) * CstarCPstarZ - beta * CstarCPstarY );
 
   double rhs = rhs1 + rhs2;
 
   x1 = rhs / lhs;
-  w = dt / (1 - a * dt) * (wOld / dt + b * b / alpha *(x1 - h * PstarX));
+  w[jTMP] = dt / (1 - a * dt) * (wOld[jTMP] / dt + b * b / alpha *(x1 - h * PstarX));
   y1 = - b * b / (a * alpha) * (- h * PstarX + x1);
 
   // element loop: each process loops only on the elements that owns
@@ -732,8 +773,8 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
 
-        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] - h * a * solP[i] * w * phi[i] - h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i]; //TODO: I've changed two signs!
-        adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * (Zg + h * solP[i] * w) - beta * (Yg + h * solP[i] * y1)) * phi[i];
+        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] + h * a * solP[i] * w[jTMP] * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i]; //TODO: I've changed two signs!
+        adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * (Zg + h * solP[i] * w[jTMP]) - beta * (Yg + h * solP[i] * y1)) * phi[i];
         adept::adouble aResY =  + h * a * solP[i] * y1 * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i];
 
 
@@ -744,8 +785,8 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         }
 
 
-        // Looking for special 3 nodes to assemble the W solution
-        unsigned iDof = msh->GetSolutionDof(i, iel, solType);
+        // // Looking for special 3 nodes to assemble the W solution
+        // unsigned iDof = msh->GetSolutionDof(i, iel, solType);
 
         // bool isW0node = (iDof == g_specialWnodes.W0);
         // bool isX1node = (iDof == g_specialWnodes.X1);
@@ -800,8 +841,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
     s.clear_dependents();
 
   } //end element loop for each process
-
-  wOldTMP = w; //TODO
 
   RES->close();
   KK->close();
