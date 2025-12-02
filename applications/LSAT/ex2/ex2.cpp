@@ -33,7 +33,6 @@ unsigned jTMP = 0;
 bool withDisturbance = false;
 
 static double PStar = 0.0;
-static std::vector<double> PStarNodes;
 std::vector<unsigned> g_controlNodeDofs;
 
 
@@ -105,7 +104,7 @@ void NewmarkUpdateWithD(MultiLevelSolution *mlSol);
 void AssembleResAD(MultiLevelProblem& ml_prob);
 void AssembleResP(MultiLevelProblem& ml_prob);
 
-std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol);
+double PrecomputePstarIntegrals(Solution* sol);
 
 
 std::vector<double> ComputeL2NormCascadeOverC(Solution* sol, unsigned cascadeIterations);
@@ -123,8 +122,9 @@ int main(int argc, char** args) {
 
   MultiLevelMesh mlMsh;
 
-  unsigned nx = 10;
-  unsigned ny = 2;
+  // unsigned nx = 10;
+  unsigned nx = 4;
+  unsigned ny = 4;
   unsigned nz = 1;
 
   double length = 1;
@@ -137,7 +137,7 @@ int main(int argc, char** args) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, 0., lengthx, 0., length, 0., length, HEX27, "seventh");
   }
 
-  unsigned numberOfUniformLevels = 3;
+  unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
   mlMsh.EraseCoarseLevels(numberOfUniformLevels - 1);
@@ -152,6 +152,9 @@ int main(int argc, char** args) {
   mlSol.AddSolution("Z", LAGRANGE, SECOND, false);
 
   mlSol.AddSolution("P", LAGRANGE, SECOND, false);
+
+  mlSol.AddSolution("PStar",       LAGRANGE, SECOND, false);
+  mlSol.AddSolution("CStarCPStar", LAGRANGE, SECOND, false);
 
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string Zj = "Z" + std::to_string(j);
@@ -227,10 +230,9 @@ int main(int argc, char** args) {
 
   systemP.MGsolve();
 
-  auto [IntegralP, WeightsP] = PrecomputePstarIntegrals(sol);
+  double IntegralP = PrecomputePstarIntegrals(sol);
 
   PStar = IntegralP;
-  PStarNodes = std::move(WeightsP);
 
   // Find and number 3 nodes for W solution
   const unsigned targetElem = 0;
@@ -269,7 +271,7 @@ int main(int argc, char** args) {
     }
     wFile.setf(std::ios::scientific);
     wFile << "# time";
-    for (unsigned j = 0; j < cascadeIterations; ++j) wFile << "   w" << j;
+    for (unsigned j = 0; j < cascadeIterations; ++j) wFile << "   w" << j << "   x1" << j << "   y1" << j;
     wFile << "\n";
     wFile << std::setprecision(8);
   }
@@ -312,7 +314,7 @@ int main(int argc, char** args) {
       *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex(Ej.c_str()))]);
 
       if (world_rank == 0) {
-        wFile << " " << std::setw(14) << w[j];
+        wFile << "  " << std::setw(14) << w[j] << " " << std::setw(14) << x1 << " " << std::setw(14) << y1;
       }
     }
 
@@ -379,7 +381,7 @@ double flc4hs(double const & x, double const & eps) {
 
 double GetTargetSolution(const std::vector<double> &xv, const double &time) {
   // return sin(M_PI * xv[1]) * sin(xv[0] - time) * flc4hs(time - 2., 2.) ;
-  return flc4hs(time - 2., 2.)*1.;
+  return /* flc4hs(time - 2., 2.)**/1.;
 }
 
 
@@ -550,6 +552,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
   unsigned solIndexP = mlSol->GetIndex("P");
 
+  unsigned solIndexPStar   = mlSol->GetIndex("PStar");
+  unsigned solIndexPCStar  = mlSol->GetIndex("CStarCPStar");
+
   // unsigned solIndexB = mlSol->GetIndex("B");
   unsigned solIndexC = mlSol->GetIndex("C");
   unsigned solIndexBd;
@@ -578,17 +583,17 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   std::vector < adept::adouble > solX;
   std::vector < adept::adouble > solY;
 
-  double PstarZ = 0;
-  double PstarX = 0;
-  double PstarY = 0;
-  double CstarCPstarZ = 0;
-  double CstarCPstarY = 0;
-  double CstarCPstarP = 0;
-  double CstarCPstarE = 0.;
-  x1 = 0;
-  double y1 = 0;
-
-  w[jTMP] = 0.;
+  // double PstarZ = 0;
+  // double PstarX = 0;
+  // double PstarY = 0;
+  // double CstarCPstarZ = 0;
+  // double CstarCPstarY = 0;
+  // double CstarCPstarP = 0;
+  // double CstarCPstarE = 0.;
+  // x1 = 0;
+  // double y1 = 0;
+  //
+  // w[jTMP] = 0.;
 
   std::vector < double > solE;
   std::vector < double > solP;
@@ -609,36 +614,54 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   RES->zero(); // Set to zero all the entries of the Global Residual std::vector
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
-  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-    double CsC = (*sol->_Sol[solIndexC])(iel);
+    // global scalars
+  double PstarZ = 0.0;
+  double PstarX = 0.0;
+  double PstarY = 0.0;
+  double CstarCPstarZ = 0.0;
+  double CstarCPstarY = 0.0;
+  double CstarCPstarP = 0.0;
+  double CstarCPstarE = 0.0;
 
-    unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+  x1 = 0.0;
+  double y1 = 0.0;
+  w[jTMP] = 0.0;
 
-    solZdouble.resize(nDofs);
-    solXdouble.resize(nDofs);
-    solYdouble.resize(nDofs);
-    solP.resize(nDofs);
-    solE.resize(nDofs);
+  // node-based loop: use PStar(i) = ∫Ω P φ_i, CStarCPStar(i) = ∫Ω_C P φ_i
+  const NumericVector* PStarVec      = sol->_Sol[solIndexPStar];
+  const NumericVector* CStarCPStarVec= sol->_Sol[solIndexPCStar];
 
-    for (unsigned i = 0; i < nDofs; i++) {
-      unsigned iDof = msh->GetSolutionDof(i, iel, coordXType);
+  const NumericVector* ZVec = sol->_Sol[solIndexZ];
+  const NumericVector* XVec = sol->_Sol[solIndexX];
+  const NumericVector* YVec = sol->_Sol[solIndexY];
+  const NumericVector* PVec = sol->_Sol[solIndexP];
+  const NumericVector* EVec = sol->_Sol[solIndexE];
 
-      solP[i]       = (*sol->_Sol[solIndexP])(iDof);
-      solE[i]       = (*sol->_Sol[solIndexE])(iDof);
-      solZdouble[i] = (*sol->_Sol[solIndexZ])(iDof);
-      solXdouble[i] = (*sol->_Sol[solIndexX])(iDof);
-      solYdouble[i] = (*sol->_Sol[solIndexY])(iDof);
+  // local ownership range for DOFs
+  const unsigned first_dof = PStarVec->first_local_index();
+  const unsigned last_dof  = PStarVec->last_local_index();
 
-      PstarZ       += PStarNodes[iDof] * solZdouble[i];
-      CstarCPstarZ += (CsC > 0.5) * PStarNodes[iDof] * solZdouble[i];
+  for (unsigned gdof = first_dof; gdof < last_dof; ++gdof) {
+    const double wP  = (*PStarVec)(gdof);       // ∫Ω    P φ_i
+    const double wPC = (*CStarCPStarVec)(gdof); // ∫Ω_C  P φ_i
 
-      PstarX       += PStarNodes[iDof] * solXdouble[i];
-      PstarY       += PStarNodes[iDof] * solYdouble[i];
-      CstarCPstarY += (CsC > 0.5) * PStarNodes[iDof] * solYdouble[i];
+    const double Zi = (*ZVec)(gdof);
+    const double Xi = (*XVec)(gdof);
+    const double Yi = (*YVec)(gdof);
+    const double Pi = (*PVec)(gdof);
+    const double Ei = (*EVec)(gdof);
 
-      CstarCPstarP += (CsC > 0.5) * PStarNodes[iDof] * solP[i];
-      CstarCPstarE += (CsC > 0.5) * PStarNodes[iDof] * solE[i];
-    }
+    // ∫Ω P Z ≈ Σ_i wP_i * Z_i
+    PstarZ       += wP  * Zi;
+    // ∫Ω_C P Z ≈ Σ_i wPC_i * Z_i
+    CstarCPstarZ += wPC * Zi;
+
+    PstarX       += wP  * Xi;
+    PstarY       += wP  * Yi;
+    CstarCPstarY += wPC * Yi;
+
+    CstarCPstarP += wPC * Pi;
+    CstarCPstarE += wPC * Ei;
   }
 
   // ---- global reduction so all ranks see the same scalars ----
@@ -720,8 +743,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
                                 (k == 1) ? solPdeIndexX : solPdeIndexY;
         sysDof[k * nDofs + i] = pdeSys->GetSystemDof(solIndex, solPdeIndex, i, iel);
       }
-
-
     }
 
     // local storage of coordinates
@@ -731,6 +752,8 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
+
+    double u1 = (- h * b * PstarX + b * x1 ) / alpha;
 
     s.new_recording();
 
@@ -773,9 +796,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
 
-        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] + h * a * solP[i] * w[jTMP] * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i]; //TODO: I've changed two signs!
+        adept::adouble aResZ = (Zg - ZOldg) / dt * phi[i] + h * a * solP[i] * w[jTMP] * phi[i] + h * b * solP[i] * u1 * phi[i];
         adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * (Zg + h * solP[i] * w[jTMP]) - beta * (Yg + h * solP[i] * y1)) * phi[i];
-        adept::adouble aResY =  + h * a * solP[i] * y1 * phi[i] + h * b * solP[i] * (- h * b * PstarX + b * x1) / alpha * phi[i];
+        adept::adouble aResY =  + h * a * solP[i] * y1 * phi[i] + h * b * solP[i] * u1 * phi[i];
 
 
         for (unsigned j = 0; j < dim; j++) { // second index j in each equation
@@ -785,32 +808,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         }
 
 
-        // // Looking for special 3 nodes to assemble the W solution
-        // unsigned iDof = msh->GetSolutionDof(i, iel, solType);
-
-        // bool isW0node = (iDof == g_specialWnodes.W0);
-        // bool isX1node = (iDof == g_specialWnodes.X1);
-        // bool isY1node = (iDof == g_specialWnodes.Y1);
-
-        // b * TODOSolX1 / alpha //TODO
-/*
-        if (isW0node) {
-          aResW = ( (1 / dt - a) * w - wOld / dt - b * b / alpha * (- h * PstarX + x1)) * phi[i]; // TODO equation for W
-        }
-        else if (isX1node) {
-          aResW = ( h * a * PstarX - a * x1 - h * (CstarCPstarE - (1 - beta) * (CstarCPstarZ + h * CstarCPstarP * w) - beta * ( CstarCPstarY + h * CstarCPstarP * y1)) ) * phi[i]; // TODO equation for X1
-        }
-        else if (isY1node) {
-          aResW = ( - a * y1 - b * b / alpha * (- h * PstarX + x1)) * phi[i]; // TODO equation for Y1
-        }
-        else {*/
-          // aResW = solW[i] * phi[i]; // identity
-        // }
-
         aRes[0 * nDofs + i] += aResZ * weight;
         aRes[1 * nDofs + i] += aResX * weight;
         aRes[2 * nDofs + i] += aResY * weight;
-        // aRes[3 * nDofs + i] += aResW * weight;
 
       } // end phiA_i loop
     }
@@ -958,28 +958,40 @@ void AssembleResP(MultiLevelProblem& ml_prob) {
 
 
 
-
-
-std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol) {
+double PrecomputePstarIntegrals(Solution* sol) {
   Mesh* msh = sol->GetMesh();
   const unsigned dim = msh->GetDimension();
   unsigned iproc = msh->processor_id();
 
-  unsigned pIndex = sol->GetIndex("P");
-  unsigned pType  = sol->GetSolutionType(pIndex);
-  unsigned coordXType = 2;  // quadratic coordinates
+  const unsigned pIndex    = sol->GetIndex("P");
+  const unsigned pType     = sol->GetSolutionType(pIndex);
+  const unsigned coordXType = 2;  // quadratic coordinates
 
-  // global scalar integral ∫Ω P dx
+  const unsigned pStarIndex       = sol->GetIndex("PStar");
+  const unsigned cStarCPStarIndex = sol->GetIndex("CStarCPStar");
+
+  const unsigned cIndex = sol->GetIndex("C");  // element-wise indicator CsC
+
+  // global scalar integral ∫Ω P dx (for PStar scalar)
   double localIntegral = 0.0;
 
-  // nodal weights W_i = ∫Ω P φ_i dx
-  std::vector<double> nodeWeights(sol->_Sol[pIndex]->size(), 0.0);
+  // nodal weights:
+  //   PStar(i)       = ∫Ω       P φ_i dx
+  //   CStarCPStar(i) = ∫Ω_C     P φ_i dx   with Ω_C selected by CsC > 0.5
+  const std::size_t nDofsGlobal = sol->_Sol[pIndex]->size();
+  std::vector<double> nodeWeightsP(nDofsGlobal, 0.0);
+  std::vector<double> nodeWeightsC(nDofsGlobal, 0.0);
 
   // element loop (each process owns its range)
   for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
     short unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDofs = msh->GetElementDofNumber(iel, pType);
 
+    // element-wise indicator CsC (discontinuous 0/1 on elements)
+    double CsC = (*sol->_Sol[cIndex])(iel);
+    const double inC = (CsC > 0.5) ? 1.0 : 0.0;
+
+    // coordinates at element nodes
     std::vector<std::vector<double>> coordX(dim, std::vector<double>(nDofs));
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned coordXDof = msh->GetSolutionDof(i, iel, coordXType);
@@ -987,6 +999,7 @@ std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
     }
 
+    // nodal P values on this element
     std::vector<double> pVal(nDofs);
     for (unsigned i = 0; i < nDofs; i++) {
       unsigned pDof = msh->GetSolutionDof(i, iel, pType);
@@ -999,14 +1012,20 @@ std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol) {
       std::vector<double> phi, gradPhi;
       msh->_finiteElement[ielGeom][pType]->Jacobian(coordX, ig, weight, phi, gradPhi);
 
-      double Pg = 0.;
+      double Pg = 0.0;
       for (unsigned i = 0; i < nDofs; i++) Pg += pVal[i] * phi[i];
 
+      // global integral ∫Ω P dx
       localIntegral += Pg * weight;
 
+      // nodal weights
       for (unsigned i = 0; i < nDofs; i++) {
         unsigned pDof = msh->GetSolutionDof(i, iel, pType);
-        nodeWeights[pDof] += Pg * phi[i] * weight;
+
+        const double contrib = Pg * phi[i] * weight;
+
+        nodeWeightsP[pDof] += contrib;              // full domain Ω
+        nodeWeightsC[pDof] += inC * contrib;        // restricted to C
       }
     }
   }
@@ -1015,12 +1034,25 @@ std::pair<double, std::vector<double>> PrecomputePstarIntegrals(Solution* sol) {
   double globalIntegral = 0.0;
   MPI_Allreduce(&localIntegral, &globalIntegral, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  std::vector<double> globalNodeWeights(nodeWeights.size());
-  MPI_Allreduce(nodeWeights.data(), globalNodeWeights.data(),
-                nodeWeights.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  // Reduce nodal weights in-place
+  MPI_Allreduce(MPI_IN_PLACE, nodeWeightsP.data(),
+                static_cast<int>(nodeWeightsP.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  return {globalIntegral, globalNodeWeights};
+  MPI_Allreduce(MPI_IN_PLACE, nodeWeightsC.data(),
+                static_cast<int>(nodeWeightsC.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  // Scatter to FEMuS solution fields PStar and CStarCPStar
+  for (std::size_t gdof = 0; gdof < nDofsGlobal; ++gdof) {
+    sol->_Sol[pStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsP[gdof]);
+    sol->_Sol[cStarCPStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsC[gdof]);
+  }
+
+  sol->_Sol[pStarIndex]->close();
+  sol->_Sol[cStarCPStarIndex]->close();
+
+  return globalIntegral;
 }
+
 
 
 
