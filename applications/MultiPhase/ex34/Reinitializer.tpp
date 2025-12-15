@@ -469,7 +469,7 @@ namespace fem {
     }
 
     template <std::size_t DIM>
-    std::array<double,2> Reinitializer<DIM>::compute_cell_criteria()
+    std::array<double,3> Reinitializer<DIM>::compute_cell_criteria()
     {
         constexpr int Nn = (DIM == 2 ? 9 : 27);
 
@@ -515,6 +515,7 @@ namespace fem {
 
         double I = 0;
         double W = 0;
+        double I_sign = 0;
         double area = 0;
         double grad = 0;
 
@@ -597,19 +598,21 @@ namespace fem {
             double grad_norm = Geom_op<DIM>::norm(grad_x);
 
             double target = 3./2. / mollifier.eps();
-            double e = std::abs(std::log(std::min(std::max(grad_norm / target , 1e-12) , 10.))); // far from 1 evaluation
+            double e = std::min(std::abs(std::log(std::max(grad_norm / target , 1e-12))) , 3.); // far from 1 evaluation
+            double e_sign = std::log(std::max(grad_norm / target , 1e-12));
                  
             const std::array<double,DIM> vel_g = evaluate_velocity_on_leaf(p_g);
             double norm_prod = Geom_op<DIM>::norm(vel_g) * Geom_op<DIM>::norm(grad_x);
             double w_dot = fabs(Geom_op<DIM>::dot(vel_g, grad_x) / norm_prod);
 
-            I += w_g * std::abs(detJ) * (e * w_dot) ;
+            I += w_g * std::abs(detJ) * (e * e * w_dot) ;
+            I_sign += w_g * std::abs(detJ) * (e_sign) ;
             W += w_g * std::abs(detJ) * w_dot ;
 
             area += w_g * std::abs(detJ);
         }
 
-        return {I , W } ;
+        return {I , W , I_sign} ;
     }
 
     template <std::size_t DIM>
@@ -684,9 +687,12 @@ namespace fem {
 
         std::vector<double> cell_criteria_values;
         cell_criteria_values.reserve(cut_cells.size());
+        std::vector<double> cell_criteria_signed_values;
+        cell_criteria_signed_values.reserve(cut_cells.size());
         std::vector<double> cell_weight_values;
         cell_weight_values.reserve(cut_cells.size());
         std::vector<double> cell_criteria(numCells,0);
+        std::vector<double> cell_criteria_signed(numCells,0);
         std::vector<double> cell_weight(numCells,0);
 
         for (const int leaf_pos : cut_cells_only) 
@@ -709,15 +715,18 @@ namespace fem {
                 }
             } 
 
-            const auto [I, W] = compute_cell_criteria();
+            const auto [I, W, I_sign] = compute_cell_criteria();
             cell_criteria_values.push_back(I);
             cell_weight_values.push_back(W);
+            cell_criteria_signed_values.push_back(I_sign);
             cell_criteria[cut_cells_map.at(leaf_pos)] = I ;
+            cell_criteria_signed[cut_cells_map.at(leaf_pos)] = I_sign ;
             cell_weight[cut_cells_map.at(leaf_pos)] = W ;
         }
 
         tree->_reinit_criteria = cell_criteria;
         tree->_reinit_weight = cell_weight;
+        tree->_reinit_sign_criteria = cell_criteria_signed;
 
         double sum_crit = 0;
         double sum_weight = 0;
@@ -727,7 +736,7 @@ namespace fem {
             sum_weight += cell_weight_values[i];
         }
         
-        double scaled_norm = sum_crit / sum_weight;   
+        double scaled_norm = sqrt(sum_crit / sum_weight) ;   
 
         if (scaled_norm > reinit_tau)
             return true;
@@ -768,7 +777,6 @@ namespace fem {
                 bool converged = false;
 
                 Point<DIM> p = parent_coords[i_node];
-                p = Geom_op<DIM>::add(p , Geom_op<DIM>::mul(1.e-4 , Geom_op<DIM>::sub(parent_coords[parent_coords.size()-1] , p)));
                 Vector<DIM> grad_parent;
             
                 for (int it = 0; it < max_iter; ++it)

@@ -135,7 +135,7 @@ namespace fem {
         std::vector<double> edge_roots(double v0, double v1, double v2);
 
         // this routine computes the criteria for refinement on a cell
-        std::array<double,2> compute_cell_criteria();
+        std::array<double,3> compute_cell_criteria();
 
         // this routines compute leaf quantities
         Point<DIM>  evaluate_coord_on_leaf(const Point<DIM> P_local);

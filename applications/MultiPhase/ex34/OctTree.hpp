@@ -3296,6 +3296,8 @@ namespace fem {
           write_binary_array(os, "Int32", "level", 1, cellLevel);
           if (_reinit_criteria.size() == cellLevel.size()) 
             write_binary_array(os, "Float64", "reinit_criteria", 1, _reinit_criteria);
+          if (_reinit_sign_criteria.size() == cellLevel.size()) 
+            write_binary_array(os, "Float64", "reinit_sign_criteria", 1, _reinit_sign_criteria);
           if (_reinit_weight.size() == cellLevel.size()) 
             write_binary_array(os, "Float64", "reinit_weight", 1, _reinit_weight);
           os << "      </CellData>\n";
@@ -3923,6 +3925,7 @@ namespace fem {
 // fields (per-leaf coefficients for API compatibility)
       std::vector<Field> _fields;
       std::vector<double> _reinit_criteria;
+      std::vector<double> _reinit_sign_criteria;
       std::vector<double> _reinit_weight;
 
 // per-basis global node registries + connectivity
