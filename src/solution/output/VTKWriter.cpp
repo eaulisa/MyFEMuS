@@ -49,6 +49,8 @@ namespace femus {
 
    void VTKWriter::Write(const std::string output_path, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
        
+    _gridn = _ml_mesh->GetNumberOfLevels();
+
     std::string filename_prefix;
     if( _ml_sol != NULL ) filename_prefix = "sol";
     else filename_prefix = "mesh";
