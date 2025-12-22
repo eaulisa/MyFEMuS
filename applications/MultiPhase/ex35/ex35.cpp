@@ -3,9 +3,13 @@
 #include <cmath>
 #include <memory>
 #include "Mesh.hpp"
+#include "Field.hpp"
 #include "FemProjection.hpp"   // FemProjection, Quad9Projection, Tri7Projection
 #include "RefineMesh.hpp"
 #include "VtkOutput.hpp"
+#include "Mollifier.hpp"
+#include "Psi.hpp"
+#include "RungeKutta.hpp"
 
 int main() {
 
@@ -23,11 +27,8 @@ int main() {
 
   unsigned dim = 2;
 
-  unsigned levelN = 5;
+  unsigned levelN = 10;
   std::vector<std::vector<std::vector<double>>> X(levelN);
-  // for (unsigned l = 0; l < levelN; l++) {
-  //   X[l].resize(dim);
-  // }
   std::vector<std::vector<unsigned>> elType(levelN);
   std::vector<std::vector<std::vector<unsigned>>> elTplgy(levelN);
   std::vector<std::vector<unsigned>> elLevel(levelN);
@@ -35,12 +36,18 @@ int main() {
   std::vector<std::vector<unsigned>> elFather(levelN);
   std::vector<std::vector<std::vector<unsigned>>> elChildern(levelN);
   std::vector<std::vector<std::vector<unsigned>>> nodeElements(levelN);
+  std::vector<std::vector<std::vector<unsigned>>> neighbors(levelN);
 
-  std::vector<Mesh> mesh;;
+
+
+  std::vector<Mesh> mesh;
+  std::vector<Field> field;
   mesh.reserve(levelN);
+  field.reserve(levelN);
 
   for (unsigned l = 0; l < levelN; l++) {
-    mesh.emplace_back(elTplgy[l], elType[l], elLevel[l], X[l], AMR[l], elFather[l], elChildern[l], nodeElements[l]);
+    mesh.emplace_back(elTplgy[l], elType[l], elLevel[l], X[l], AMR[l], elFather[l], elChildern[l], nodeElements[l], neighbors[l]);
+    field.emplace_back(mesh[l]);
   }
 
 
@@ -56,20 +63,58 @@ int main() {
   };
   mesh[0].resetAllFathersToNoFather();
   mesh[0].buildNodeToElementAdjacency();
+  mesh[0].buildFaceNeighborsFromNodeToElement();
+
+  field[0].addField("Psi", Field::Location::Nodal, 1.);
+
+  PsiBall psi2D(std::vector<double> {1., 0.5}, 0.125, 0.001);
+  unsigned psiId = field[0].id("Psi");
+  auto& Psi = field[0].getById(psiId);
+  for (std::size_t k = 0; k < Psi.size(); ++k) {
+    const std::vector<double> x = field[0].dofCoordById(psiId, k); // nodal => mesh node coord
+    Psi[k] = psi2D(x);
+  }
+
 
   std::string filename = "./output/refined_mesh2D.";
-  writeMeshVTK(filename + "0.vtk", mesh[0]);
+  writeMeshFieldVTK(filename + "0.vtk", field[0]);
 
-  AMR[0] = {1, 0};
-  refineAndProjectMesh(elProj, mesh[0], mesh[1]);
-  writeMeshVTK(filename + "1.vtk", mesh[1]);
+  unsigned neighMode = 3; // 0=no-ring, 1=vertices, 2=faces, 3=hybrid
 
-  for (unsigned l = 2; l < levelN; l++) {
-    mesh[l - 1].setRefineEvenElements();
+  for (unsigned l = 1; l < levelN; l++) {
+    mesh[l - 1].setRefinementFromBallLevelSetCrossing_OneRing({1., 0.5}, 0.125, neighMode);
     mesh[l - 1].adjustAMRForOneLevelDiscontinuity();
     refineAndProjectMesh(elProj, mesh[l - 1], mesh[l]);
-    writeMeshVTK(filename + std::to_string(l) + ".vtk", mesh[l]);
+    field[l].addField("Psi", Field::Location::Nodal, 1.);
+
+    const unsigned psiId = field[l].id("Psi");
+    auto& Psi = field[l].getById(psiId);
+    for (std::size_t k = 0; k < Psi.size(); ++k) {
+      const std::vector<double> x = field[l].dofCoordById(psiId, k); // nodal => mesh node coord
+      Psi[k] = psi2D(x);
+    }
+
+    writeMeshFieldVTK(filename + std::to_string(l) + ".vtk", field[l]);
   }
+
+  std::vector<std::vector<double>> Xp;
+  field[levelN - 1].extractInterfaceVerticesAndCentersByName("Psi", Xp, levelN - 1, levelN);
+
+  writePointsVTK("./output/points2D.0.vtk", Xp);
+
+  double time = 0, dt = 0.1;
+
+  RungeKutta::rkForward(Xp, time, dt, RungeKutta::VelKind::Vortex);
+
+  writePointsVTK("./output/points2D.1.vtk", Xp);
+
+  RungeKutta::rkBackward(Xp, time, dt, RungeKutta::VelKind::Vortex);
+
+  writePointsVTK("./output/points2D.2.vtk", Xp);
+
+
+  mesh[0].clearAllData();
+
 
   elType[0] = {0, 2, 1};
   elLevel[0] = {0, 0, 0};
@@ -139,21 +184,35 @@ int main() {
   std::cout << "Number of nodes after deduplication = " << mesh[0].numNodes() << std::endl;
   mesh[0].resetAllFathersToNoFather();
   mesh[0].buildNodeToElementAdjacency();
+  mesh[0].buildFaceNeighborsFromNodeToElement();
 
+  field[0].rebindMeshAndResize(mesh[0]);
 
+  PsiBall psi3D(std::vector<double> {1., 0, 1.}, 0.125, 0.001);
+  psiId = field[0].id("Psi");
+  Psi = field[0].getById(psiId);
+  for (std::size_t k = 0; k < Psi.size(); ++k) {
+    const std::vector<double> x = field[0].dofCoordById(psiId, k); // nodal => mesh node coord
+    Psi[k] = psi3D(x);
+  }
 
   filename = "./output/refined_mesh3D.";
-  writeMeshVTK(filename + "0.vtk", mesh[0]);
+  writeMeshFieldVTK(filename + "0.vtk", field[0]);
 
-  AMR[0] = {1, 0, 1};
-  refineAndProjectMesh(elProj, mesh[0], mesh[1]);
-  writeMeshVTK(filename + "1.vtk", mesh[1]);
 
-  for (unsigned l = 2; l < levelN; l++) {
-    mesh[l - 1].setRefineEvenElements();
+  for (unsigned l = 1; l < levelN; l++) {
+    mesh[l - 1].setRefinementFromBallLevelSetCrossing_OneRing({1., 0., 1.}, 0.125, neighMode);
     mesh[l - 1].adjustAMRForOneLevelDiscontinuity();
     refineAndProjectMesh(elProj, mesh[l - 1], mesh[l]);
-    writeMeshVTK(filename + std::to_string(l) + ".vtk", mesh[l]);
+
+    field[l].rebindMeshAndResize(mesh[l]);
+    const unsigned psiId = field[l].id("Psi");
+    auto& Psi = field[l].getById(psiId);
+    for (std::size_t k = 0; k < Psi.size(); ++k) {
+      const std::vector<double> x = field[l].dofCoordById(psiId, k); // nodal => mesh node coord
+      Psi[k] = psi3D(x);
+    }
+    writeMeshFieldVTK(filename + std::to_string(l) + ".vtk", field[l]);
   }
 
   return 0;
@@ -287,4 +346,5 @@ int main(int argc, char** args) {
   return 0;
 }
 */
+
 
