@@ -8,6 +8,8 @@
 #include <algorithm>
 #include "Mesh.hpp"
 
+#include "FemProjection.hpp"
+
 
 class Field {
   public:
@@ -88,6 +90,80 @@ class Field {
 
       _nextId = 0;
     }
+
+
+
+    void evalNodalAtLocatedPointsById(
+      unsigned id_,
+      const std::vector<PointLocatorResult>& results,
+      const std::array<std::unique_ptr<FemProjection>, 6>& elProj,
+      std::vector<double>& out,
+      double outsideVal = -1.0) const {
+      requireLocation(id_, Location::Nodal, "Field::evalNodalAtLocatedPointsById");
+
+      const Mesh& m = mesh();
+      const std::size_t nEl = m.numElements();
+      const std::size_t nN  = m.numNodes();
+
+      const auto& elTplgy = m.elTplgy();
+      const auto& elType  = m.elType();
+      const Vec&  U       = getNodalById(id_);
+
+      if (elTplgy.size() != nEl) throw std::runtime_error("Field::eval...: elTplgy size mismatch");
+      if (elType.size()  != nEl) throw std::runtime_error("Field::eval...: elType size mismatch");
+      if (U.size()       != nN)  throw std::runtime_error("Field::eval...: nodal field size mismatch");
+
+      out.assign(results.size(), outsideVal);
+
+      std::vector<double> phi;
+
+      for (std::size_t i = 0; i < results.size(); ++i) {
+        const PointLocatorResult& r = results[i];
+
+        // Outside / invalid -> keep outsideVal, but DO NOT skip copying logic because out is already set
+        if (!r.ok || r.elem == UMAX) {
+          continue;
+        }
+
+        const std::size_t e = static_cast<std::size_t>(r.elem);
+        if (e >= nEl) {
+          throw std::runtime_error("Field::eval...: results contains elem out of range");
+        }
+
+        const unsigned et = elType[e];
+        if (et >= elProj.size()) throw std::runtime_error("Field::eval...: element type out of [0,5]");
+        if (!elProj[et])         throw std::runtime_error("Field::eval...: elProj[et] is null");
+
+        // Get basis at xi (fem() returns reference)
+        phi.clear();
+        elProj[et]->fem().GetPhi(phi, r.xi);
+
+        const auto& conn = elTplgy[e];
+        if (conn.empty()) {
+          throw std::runtime_error("Field::eval...: empty element connectivity");
+        }
+
+        if (phi.size() != conn.size()) {
+          throw std::runtime_error("Field::eval...: phi.size() != conn.size()");
+        }
+
+        double val = 0.0;
+        for (std::size_t j = 0; j < conn.size(); ++j) {
+          const unsigned node = conn[j];
+          if (node >= nN) {
+            throw std::runtime_error("Field::eval...: connectivity node out of range");
+          }
+          val += U[node] * phi[j];
+        }
+
+        out[i] = val;
+      }
+    }
+
+
+
+
+
 
     // ------------------------------------------------------------
     // Queries / Iteration support
@@ -380,6 +456,25 @@ class Field {
       unsigned max_level = std::numeric_limits<unsigned>::max()) const {
       return extractInterfaceVerticesAndCentersById(id(name_), Xuniq, min_level, max_level);
     }
+// Put inside class Field (public:)
+    friend void swap(Field& a, Field& b) noexcept {
+      using std::swap;
+      //mesh::swap(*a._mesh, *b._mesh);
+
+      swap(a._field,     b._field);
+      swap(a._fieldName, b._fieldName);
+      swap(a._fieldIndex, b._fieldIndex);
+      swap(a._fieldLoc,  b._fieldLoc);
+
+      swap(a._nameToId,  b._nameToId);
+      swap(a._idToPos,   b._idToPos);
+
+      swap(a._nextId,    b._nextId);
+    }
+
+    // void swap(Field& other) noexcept {
+    //   ::swap(*this, other);
+    // }
 
 
 

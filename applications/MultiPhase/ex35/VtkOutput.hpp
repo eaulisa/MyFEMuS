@@ -293,8 +293,7 @@ void writeMeshVTK(const std::string& filename, Mesh& mesh) {
 
 
 static void writePointsVTK(const std::string& filename,
-                           const std::vector<std::vector<double>>& Xp)
-{
+                           const std::vector<std::vector<double>>& Xp) {
   const std::size_t dim = Xp.size();
   if (dim == 0) throw std::runtime_error("writePointsVTK: Xp.size()==0");
 
@@ -326,5 +325,4 @@ static void writePointsVTK(const std::string& filename,
     out << "1 " << i << "\n";
   }
 }
-
 

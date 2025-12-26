@@ -106,7 +106,7 @@ void dedupNodesHash(Mesh &mesh,
   }
 
   // optional: comment out for fair timing
-  std::cout << "characteristic size (hash) = " << h_snap << std::endl;
+  //std::cout << "characteristic size (hash) = " << h_snap << std::endl;
 
   // snap[d][i] = snapped integer coord of node i in dimension d
   std::vector<std::vector<long long>> snap(dim, std::vector<long long>(N));
@@ -361,8 +361,8 @@ void refineAndProjectMesh(
   dedupNodesHash(meshF, dupLocIndicesF);
 
   const unsigned N_after = static_cast<unsigned>(XF[0].size());
-  std::cout << "Node Final Number = "        << N_after              << std::endl;
-  std::cout << "Node Deduplicated Number = " << (N_before_dedup - N_after) << std::endl;
+  //std::cout << "Node Final Number = "        << N_after              << std::endl;
+  //std::cout << "Node Deduplicated Number = " << (N_before_dedup - N_after) << std::endl;
 
   // On the new fine mesh, next step default = uniform refinement
   meshF.setUniformRefinement();

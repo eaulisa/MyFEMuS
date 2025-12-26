@@ -121,6 +121,8 @@ class FemProjection {
       n_nodes += _fineSize;
     }
 
+    virtual const femus::elem_type& fem() = 0;
+
   protected:
     // Only derived classes can construct.
 
@@ -149,6 +151,11 @@ class FemProjection {
 // =============================
 
 class Q2RefinementProjection : public FemProjection {
+  public:
+    const femus::elem_type& fem() {
+      if (!_fem) throw std::runtime_error("Field::fem(): _fem is null");
+      return *_fem;
+    }
   protected:
     using Node     = std::array<double, 3>;
     using ChildConn = std::vector<std::vector<unsigned>>;
