@@ -768,10 +768,27 @@ class Mesh {
         return (t >= -1.0 - eps) && (t <= 1.0 + eps);
       };
 
-      auto pick_child_by_contains = [&](unsigned et, const std::vector<double>& xi0,
-      unsigned & childIndex, std::vector<double>& xi1) {
-        // Returns: sets childIndex and xi1 (child reference coords)
+      // small helpers: avoid xi = {..} (which tends to show up as vector::operator=)
+      auto set1 = [&](std::vector<double>& xi, double a) {
+        xi.resize(1);
+        xi[0] = a;
+      };
+      auto set2 = [&](std::vector<double>& xi, double a, double b) {
+        xi.resize(2);
+        xi[0] = a; xi[1] = b;
+      };
+      auto set3 = [&](std::vector<double>& xi, double a, double b, double c) {
+        xi.resize(3);
+        xi[0] = a; xi[1] = b; xi[2] = c;
+      };
+
+      auto pick_child_by_contains = [&](unsigned et,
+                                        const std::vector<double>& xi0,
+                                        unsigned & childIndex,
+      std::vector<double>& xi1) {
+        // Sets childIndex and xi1 (child reference coords)
         // Child ordering MUST match your verts tables.
+
         if (et == static_cast<unsigned>(Line3)) {
           if (xi0.size() != 1) throw std::runtime_error("project: Line3 expects xi size 1");
           const double x = xi0[0];
@@ -779,11 +796,11 @@ class Mesh {
           // order: c0 = left (x<=0), c1 = right (x>0); tie goes to c0
           if (x <= 0.0) {
             childIndex = 0;
-            xi1 = { 2.0 * x + 1.0 };
+            set1(xi1, 2.0 * x + 1.0);
           }
           else          {
             childIndex = 1;
-            xi1 = { 2.0 * x - 1.0 };
+            set1(xi1, 2.0 * x - 1.0);
           }
 
           if (!inside_line(xi1[0])) throw std::runtime_error("project: Line3 mapped xi out of [-1,1]");
@@ -798,14 +815,13 @@ class Mesh {
           const bool right = (x > 0.0);
           const bool top   = (y > 0.0);
 
-          // IMPORTANT: your order (from verts):
-          // c0 BL, c1 BR, c2 TR, c3 TL  (top row swapped vs lexicographic)
+          // c0 BL, c1 BR, c2 TR, c3 TL (top row swapped)
           if (!top) childIndex = right ? 1u : 0u;
           else      childIndex = right ? 2u : 3u;
 
           const double x1 = right ? (2.0 * x - 1.0) : (2.0 * x + 1.0);
           const double y1 = top   ? (2.0 * y - 1.0) : (2.0 * y + 1.0);
-          xi1 = {x1, y1};
+          set2(xi1, x1, y1);
 
           if (!inside_line(xi1[0]) || !inside_line(xi1[1])) {
             throw std::runtime_error("project: Quad9 mapped xi out of [-1,1]^2");
@@ -824,7 +840,7 @@ class Mesh {
           const bool up    = (z > 0.0);
 
           unsigned c2d;
-          // Same swapped top row as Quad9:
+          // same swapped top row as Quad9
           if (!top) c2d = right ? 1u : 0u;
           else      c2d = right ? 2u : 3u;
 
@@ -833,7 +849,7 @@ class Mesh {
           const double x1 = right ? (2.0 * x - 1.0) : (2.0 * x + 1.0);
           const double y1 = top   ? (2.0 * y - 1.0) : (2.0 * y + 1.0);
           const double z1 = up    ? (2.0 * z - 1.0) : (2.0 * z + 1.0);
-          xi1 = {x1, y1, z1};
+          set3(xi1, x1, y1, z1);
 
           if (!inside_line(xi1[0]) || !inside_line(xi1[1]) || !inside_line(xi1[2])) {
             throw std::runtime_error("project: Hex27 mapped xi out of [-1,1]^3");
@@ -841,43 +857,76 @@ class Mesh {
           return;
         }
 
+
         if (et == static_cast<unsigned>(Tri7)) {
-          // Reference triangle: (r,s) with r>=0,s>=0,r+s<=1
+          // Reference triangle: (r,s) with r>=0, s>=0, r+s<=1
           if (xi0.size() != 2) throw std::runtime_error("project: Tri7 expects xi size 2");
-          const double r = xi0[0];
-          const double s = xi0[1];
+          const double r  = xi0[0];
+          const double s  = xi0[1];
+          const double rs = r + s;
 
           if (!inside_tri(r, s)) {
             throw std::runtime_error("project: Tri7 input xi not inside reference triangle");
           }
 
-          // Child order from verts:
-          // c0 near V0, c1 near V1, c2 near V2, c3 central (inverted)
-          // Partition by r=0.5, s=0.5, r+s=0.5; ties go to "first that satisfies"
-          if (r <= 0.5 + eps && s <= 0.5 + eps) {
-            if (r + s <= 0.5 + eps) {
+          // Precompute mapped coordinates (cheap, avoids repeated ops)
+          const double r2  = 2.0 * r;
+          const double s2  = 2.0 * s;
+          const double r2m = r2 - 1.0;   // 2r - 1
+          const double s2m = s2 - 1.0;   // 2s - 1
+          const double r1  = 1.0 - r2;   // 1 - 2r
+          const double s1  = 1.0 - s2;   // 1 - 2s
+
+          // Robust, consistent classification near split lines r=0.5, s=0.5, r+s=0.5
+          const double a = r  - 0.5;
+          const double b = s  - 0.5;
+          const double c = rs - 0.5;
+
+          // Child order: c0 near V0, c1 near V1, c2 near V2, c3 central (inverted)
+          if (a <= eps && b <= eps) {
+            if (c <= eps) {
               childIndex = 0;
-              xi1 = { 2.0 * r, 2.0 * s };
+              set2(xi1, r2, s2);
             }
             else {
               childIndex = 3;
-              xi1 = { 1.0 - 2.0 * r, 1.0 - 2.0 * s }; // inverted axes
+              set2(xi1, r1, s1);
             }
           }
-          else if (r > 0.5) {
+          else if (a > eps) {
             childIndex = 1;
-            xi1 = { 2.0 * r - 1.0, 2.0 * s };
+            set2(xi1, r2m, s2);
           }
           else {
             childIndex = 2;
-            xi1 = { 2.0 * r, 2.0 * s - 1.0 };
+            set2(xi1, r2, s2m);
           }
 
+          // Optional: snap tiny negatives/overshoot due to roundoff (always on)
+          if (xi1[0] < 0.0 && xi1[0] > -8.0 * eps) xi1[0] = 0.0;
+          if (xi1[1] < 0.0 && xi1[1] > -8.0 * eps) xi1[1] = 0.0;
+          const double sum = xi1[0] + xi1[1];
+          if (sum > 1.0 && sum < 1.0 + 8.0 * eps) {
+            xi1[0] /= sum;
+            xi1[1] /= sum;
+          }
+
+#if DEBUG
           if (!inside_tri(xi1[0], xi1[1])) {
+            std::cout << r << " " << s << std::endl;
+            std::cout << xi1[0] << " " << xi1[1] << std::endl;
             throw std::runtime_error("project: Tri7 mapped xi not inside child reference triangle");
           }
+#endif
           return;
         }
+
+
+
+
+
+
+
 
         if (et == static_cast<unsigned>(Wedge21)) {
           // Wedge: (r,s) triangle, z in [-1,1]
@@ -890,12 +939,10 @@ class Mesh {
             throw std::runtime_error("project: Wedge21 input xi not inside reference wedge");
           }
 
-          // z slab: bottom first if z<=0
           const bool up = (z > 0.0);
           const unsigned cz = up ? 1u : 0u;
           const double z1 = up ? (2.0 * z - 1.0) : (2.0 * z + 1.0);
 
-          // tri child (same as Tri7)
           unsigned ctri = 0;
           double r1 = 0.0, s1 = 0.0;
 
@@ -904,7 +951,7 @@ class Mesh {
               ctri = 0; r1 = 2.0 * r;       s1 = 2.0 * s;
             }
             else {
-              ctri = 3; r1 = 1.0 - 2.0 * r; s1 = 1.0 - 2.0 * s; // inverted
+              ctri = 3; r1 = 1.0 - 2.0 * r; s1 = 1.0 - 2.0 * s;
             }
           }
           else if (r > 0.5) {
@@ -915,7 +962,7 @@ class Mesh {
           }
 
           childIndex = ctri + 4u * cz;
-          xi1 = { r1, s1, z1 };
+          set3(xi1, r1, s1, z1);
 
           if (!inside_tri(xi1[0], xi1[1]) || !inside_line(xi1[2])) {
             throw std::runtime_error("project: Wedge21 mapped xi not inside child reference wedge");
@@ -934,35 +981,32 @@ class Mesh {
             throw std::runtime_error("project: Tet15 input xi not inside reference tet");
           }
 
-          // Candidate maps for children 0..7 in YOUR verts order.
-          // We select the first child whose (u,v,w) lies inside the standard reference tet.
           auto map_child = [&](unsigned c, double & u, double & v, double & w) {
             switch (c) {
-            case 0: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z;          return; // {0,4,6,7}
-            case 1: u = 2.0 * x - 1.0;    v = 2.0 * y;          w = 2.0 * z;          return; // {4,1,5,8}
-            case 2: u = 2.0 * x;          v = 2.0 * y - 1.0;    w = 2.0 * z;          return; // {6,5,2,9}
-            case 3: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z - 1.0;    return; // {7,8,9,3}
+            case 0: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z;          return;
+            case 1: u = 2.0 * x - 1.0;    v = 2.0 * y;          w = 2.0 * z;          return;
+            case 2: u = 2.0 * x;          v = 2.0 * y - 1.0;    w = 2.0 * z;          return;
+            case 3: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z - 1.0;    return;
 
-            // Central 4 derived from your verts ordering (child local V0..V3):
             case 4: u = 1.0 - 2.0 * x - 2.0 * z;
               v = 1.0 - 2.0 * y - 2.0 * z;
               w = 2.0 * z;
-              return; // {5,6,4,7}
+              return;
 
             case 5: u = 1.0 - 2.0 * x;
               v = 2.0 * y;
               w = 1.0 - 2.0 * y - 2.0 * z;
-              return; // {8,7,5,4}
+              return;
 
             case 6: u = 2.0 * y + 2.0 * z - 1.0;
               v = 2.0 * x + 2.0 * z - 1.0;
               w = 1.0 - 2.0 * z;
-              return; // {7,9,8,5}
+              return;
 
             case 7: u = 2.0 * x;
               v = 1.0 - 2.0 * y;
               w = 1.0 - 2.0 * x - 2.0 * z;
-              return; // {9,5,7,6}
+              return;
 
             default: throw std::runtime_error("project: Tet15 child index out of range");
             }
@@ -973,12 +1017,11 @@ class Mesh {
             map_child(c, u, v, w);
             if (inside_tet(u, v, w)) {
               childIndex = c;
-              xi1 = {u, v, w};
+              set3(xi1, u, v, w);
               return;
             }
           }
 
-          // If we get here, something is inconsistent (eps too small, xi0 slightly out, etc.)
           throw std::runtime_error("project: Tet15 could not select a child (no candidate contained)");
         }
 
@@ -988,11 +1031,14 @@ class Mesh {
       // ------------------------------------------------------------
       // Main loop: map each PointLocatorResult
       // ------------------------------------------------------------
+      out1.resize(in0.size());
 
-      out1 = in0; // start with copy (keeps ok/UMAX cases unchanged)
       for (std::size_t i = 0; i < in0.size(); ++i) {
         const PointLocatorResult& r0 = in0[i];
         PointLocatorResult&       r1 = out1[i];
+
+        // Start by copying "status fields" (and xi) so we preserve semantics
+        r1 = r0;
 
         // Keep invalid / not-found untouched
         if (!r0.ok || r0.elem == UMAX) {
@@ -1004,37 +1050,31 @@ class Mesh {
           throw std::runtime_error("projectPointLocator: input elem out of range on mesh0");
         }
 
-        // Children on mesh1 (must exist per your invariant: unrefined still has a unique child)
         const auto& ch = _children[e0];
         if (ch.empty()) {
           throw std::runtime_error("projectPointLocator: _children[e0] is empty");
         }
 
-        // If parent not refined: identity in xi, but elem becomes its unique child id
-        // (supports your “unique child even when unrefined” rule)
         const unsigned et = _elType[e0];
 
-        auto expected_nChild = [&](unsigned etU) -> std::size_t {
-          if (etU == static_cast<unsigned>(Line3))   return 2;
-          if (etU == static_cast<unsigned>(Quad9))   return 4;
-          if (etU == static_cast<unsigned>(Tri7))    return 4;
-          if (etU == static_cast<unsigned>(Hex27))   return 8;
-          if (etU == static_cast<unsigned>(Wedge21)) return 8;
-          if (etU == static_cast<unsigned>(Tet15))   return 8;
-          return 0;
-        };
-
-        const std::size_t nChild = expected_nChild(et);
-
-        if (nChild == 0) {
+        std::size_t nChild = 0;
+        switch (static_cast<ElType>(et)) {
+        case Line3:   nChild = 2; break;
+        case Quad9:   nChild = 4; break;
+        case Tri7:    nChild = 4; break;
+        case Hex27:   nChild = 8; break;
+        case Wedge21: nChild = 8; break;
+        case Tet15:   nChild = 8; break;
+        default:
           throw std::runtime_error("projectPointLocator: unsupported element type");
         }
 
         if (ch.size() == 1) {
           const std::size_t e1 = static_cast<std::size_t>(ch[0]);
           if (e1 >= nEl1) throw std::runtime_error("projectPointLocator: child elem out of range on mesh1");
+
           r1.elem = static_cast<unsigned>(e1);
-          r1.xi   = r0.xi;   // identity in reference coords
+          // r1.xi already equals r0.xi due to r1=r0 above (identity mapping)
           r1.ok   = true;
           continue;
         }
@@ -1043,30 +1083,17 @@ class Mesh {
           throw std::runtime_error("projectPointLocator: children size does not match element refinement arity");
         }
 
-        // Refined: pick child and map xi
+        // Refined: pick child and map xi (WRITE DIRECTLY INTO r1.xi)
         unsigned childIndex = 0;
-        std::vector<double> xi1;
-        pick_child_by_contains(et, r0.xi, childIndex, xi1);
+        pick_child_by_contains(et, r0.xi, childIndex, r1.xi);
 
         const std::size_t e1 = static_cast<std::size_t>(ch[childIndex]);
         if (e1 >= nEl1) throw std::runtime_error("projectPointLocator: child elem out of range on mesh1");
 
         r1.elem = static_cast<unsigned>(e1);
-        r1.xi   = xi1;
         r1.ok   = true;
       }
     }
-
-
-
-
-
-
-
-
-
-
-
 
 
   private:

@@ -2244,6 +2244,35 @@ namespace femus {
     return convergence;
   }
 
+
+
+  bool GetInverseMapping(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
+                         const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
+                         std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi,
+                         std::vector<double> &F, std::vector<std::vector<double>> &J) {
+    bool convergence;
+    for (short unsigned jtype = 0; jtype < solType + 1; jtype++) {
+      convergence = false;
+
+      unsigned counter = 0;
+      while (!convergence && counter < MaxNumberOfIteration) {
+        GetPolynomialShapeFunctionGradient(phi, gradPhi, xi, ielType, jtype);
+        convergence = GetNewLocalCoordinates(xi, xl, phi, gradPhi, aP[jtype], F, J);
+        counter++;
+      }
+    }
+    return convergence;
+  }
+
+
+
+
+
+
+
+
+
+
   const double XI[6][27][3] = {{
       { -1, -1, -1}, {1, -1, -1}, {1, 1, -1}, { -1, 1, -1}, { -1, -1, 1}, {1, -1, 1}, {1, 1, 1}, { -1, 1, 1}, {0, -1, -1},
       {1, 0, -1}, {0, 1, -1}, { -1, 0, -1}, {0, -1, 1}, {1, 0, 1}, {0, 1, 1}, { -1, 0, 1}, { -1, -1, 0},

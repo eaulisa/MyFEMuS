@@ -20,11 +20,48 @@ class Field {
       Elemental = 1
     };
 
-    explicit Field(Mesh& mesh) : _mesh(&mesh) {}
+    Field() = delete;                 // must be bound
+    explicit Field(Mesh& m) noexcept
+      : _mesh(m) {}
+
+    ~Field() = default;
+
+    // Copy construction still not allowed (no implicit binding target)
+    //Field(const Field&) = delete;
+
+    // Deep-copy into my already-bound mesh + containers
+    Field& operator=(const Field& other) {
+      if (this == &other) return *this;
+
+      _mesh = other._mesh;            // copies mesh CONTENTS (does not rebind)
+
+      _field      = other._field;
+      _fieldName  = other._fieldName;
+      _fieldIndex = other._fieldIndex;
+      _fieldLoc   = other._fieldLoc;
+      _nameToId   = other._nameToId;
+      _idToPos    = other._idToPos;
+      _nextId     = other._nextId;
+
+      return *this;
+    }
+
+    // Swap everything, keeping bindings (swap mesh contents, not attachments)
+    friend void swap(Field& a, Field& b) {
+      using std::swap;
+      swap(a._mesh,      b._mesh);       // swaps mesh CONTENTS
+      swap(a._field,     b._field);
+      swap(a._fieldName, b._fieldName);
+      swap(a._fieldIndex, b._fieldIndex);
+      swap(a._fieldLoc,  b._fieldLoc);
+      swap(a._nameToId,  b._nameToId);
+      swap(a._idToPos,   b._idToPos);
+      swap(a._nextId,    b._nextId);
+    }
 
     const Mesh& mesh() const {
-      if (_mesh == nullptr) throw std::runtime_error("Field::mesh: _mesh is null");
-      return *_mesh;
+      // if (_mesh == nullptr) throw std::runtime_error("Field::mesh: _mesh is null");
+      return _mesh;
     }
 
     // ------------------------------------------------------------
@@ -296,10 +333,10 @@ class Field {
       }
     }
 
-    void rebindMeshAndResize(Mesh& newMesh, double fillVal = 0.0) {
-      _mesh = &newMesh;
-      resizeToMesh(fillVal);
-    }
+    // void rebindMeshAndResize(Mesh& newMesh, double fillVal = 0.0) {
+    //   _mesh = &newMesh;
+    //   resizeToMesh(fillVal);
+    // }
 
 
 
@@ -309,17 +346,17 @@ class Field {
     // - Elemental: returns coordinate of the "center node" = last connectivity entry of element k
     // ------------------------------------------------------------
     std::vector<double> dofCoordById(unsigned id_, std::size_t k) const {
-      if (_mesh == nullptr) throw std::runtime_error("Field::dofCoordById: _mesh is null");
+      //if (_mesh == nullptr) throw std::runtime_error("Field::dofCoordById: _mesh is null");
 
       const Location loc = location(id_);
-      const std::size_t d = _mesh->dim();
+      const std::size_t d = _mesh.dim();
       if (d == 0) throw std::runtime_error("Field::dofCoordById: mesh.dim()==0");
 
       std::vector<double> x(d, 0.0);
 
       if (loc == Location::Nodal) {
-        if (k >= _mesh->numNodes()) throw std::runtime_error("Field::dofCoordById: nodal k out of range");
-        const auto& X = _mesh->X();
+        if (k >= _mesh.numNodes()) throw std::runtime_error("Field::dofCoordById: nodal k out of range");
+        const auto& X = _mesh.X();
         if (X.size() != d) throw std::runtime_error("Field::dofCoordById: mesh.X().size() != dim()");
         for (std::size_t a = 0; a < d; ++a) {
           if (X[a].size() <= k) throw std::runtime_error("Field::dofCoordById: mesh.X()[a] size mismatch");
@@ -329,15 +366,15 @@ class Field {
       }
 
       if (loc == Location::Elemental) {
-        if (k >= _mesh->numElements()) throw std::runtime_error("Field::dofCoordById: elemental k out of range");
-        const auto& elTplgy = _mesh->elTplgy();
+        if (k >= _mesh.numElements()) throw std::runtime_error("Field::dofCoordById: elemental k out of range");
+        const auto& elTplgy = _mesh.elTplgy();
         if (elTplgy.size() <= k) throw std::runtime_error("Field::dofCoordById: mesh.elTplgy() size mismatch");
         const auto& conn = elTplgy[k];
         if (conn.empty()) throw std::runtime_error("Field::dofCoordById: empty element connectivity");
         const unsigned centerNode = conn.back();
-        if (centerNode >= _mesh->numNodes()) throw std::runtime_error("Field::dofCoordById: center node out of range");
+        if (centerNode >= _mesh.numNodes()) throw std::runtime_error("Field::dofCoordById: center node out of range");
 
-        const auto& X = _mesh->X();
+        const auto& X = _mesh.X();
         if (X.size() != d) throw std::runtime_error("Field::dofCoordById: mesh.X().size() != dim()");
         for (std::size_t a = 0; a < d; ++a) {
           if (X[a].size() <= centerNode) throw std::runtime_error("Field::dofCoordById: mesh.X()[a] size mismatch");
@@ -456,30 +493,11 @@ class Field {
       unsigned max_level = std::numeric_limits<unsigned>::max()) const {
       return extractInterfaceVerticesAndCentersById(id(name_), Xuniq, min_level, max_level);
     }
-// Put inside class Field (public:)
-    friend void swap(Field& a, Field& b) noexcept {
-      using std::swap;
-      //mesh::swap(*a._mesh, *b._mesh);
-
-      swap(a._field,     b._field);
-      swap(a._fieldName, b._fieldName);
-      swap(a._fieldIndex, b._fieldIndex);
-      swap(a._fieldLoc,  b._fieldLoc);
-
-      swap(a._nameToId,  b._nameToId);
-      swap(a._idToPos,   b._idToPos);
-
-      swap(a._nextId,    b._nextId);
-    }
-
-    // void swap(Field& other) noexcept {
-    //   ::swap(*this, other);
-    // }
-
 
 
   private:
-    Mesh* _mesh = nullptr;
+    //  Mesh* _mesh = nullptr;
+    Mesh& _mesh; // bound, non-owning
 
     std::vector<Vec>         _field;
     std::vector<std::string> _fieldName;
@@ -492,9 +510,9 @@ class Field {
     unsigned _nextId = 0;
 
     std::size_t sizeFromMesh(Location loc) const {
-      if (_mesh == nullptr) throw std::runtime_error("Field::sizeFromMesh: _mesh is null");
-      if (loc == Location::Nodal)     return _mesh->numNodes();
-      if (loc == Location::Elemental) return _mesh->numElements();
+      //if (_mesh == nullptr) throw std::runtime_error("Field::sizeFromMesh: _mesh is null");
+      if (loc == Location::Nodal)     return _mesh.numNodes();
+      if (loc == Location::Elemental) return _mesh.numElements();
       throw std::runtime_error("Field::sizeFromMesh: unknown Location");
     }
 
@@ -509,3 +527,4 @@ class Field {
       if (have != want) throw std::runtime_error(std::string(where) + ": wrong field location");
     }
 };
+

@@ -101,6 +101,12 @@ namespace femus {
                          const std::vector <double > &xl, std::vector <double > &xi);
   bool GetInverseMapping(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
                          const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration);
+
+  bool GetInverseMapping(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
+                         const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
+                         std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi,
+                         std::vector<double> &F, std::vector<std::vector<double>> &J);
+
   void GetClosestPointInReferenceElement(const std::vector< std::vector < double > > &xv, const std::vector <double> &x,
                                          const short unsigned &ieltype, std::vector < double > &xi);
 

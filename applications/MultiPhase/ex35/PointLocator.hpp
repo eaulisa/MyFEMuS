@@ -234,7 +234,7 @@ class PointLocator {
           femus::GetClosestPointInReferenceElement(_Xall[e], xc, et_su, xi);
 
 
-          const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xc, xi, 100u);
+          const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xc, xi, 100u, _phi, _gradPhi, _F, _J);
 
           // If inverse fails, we still keep the element in the bin list,
           // but mark "no precomputed seed" by storing an EMPTY xi.
@@ -340,6 +340,11 @@ class PointLocator {
     std::vector<double> _binH;              // [dim]
     std::vector<std::vector<unsigned>> _binElems;                 // [binId] -> list of element ids
     std::vector<std::vector<std::vector<double>>> _binXi;         // [binId] -> list of xi vectors parallel to _binElems
+
+    std::vector < double > _phi;
+    std::vector < std::vector < double > > _gradPhi;
+    std::vector<double> _F;
+    std::vector<std::vector<double>> _J;
 
     // ------------------------------
     // bbox utilities
@@ -454,7 +459,7 @@ class PointLocator {
     // ------------------------------
     // per-point locate using (bin -> elements) and (bin,element)->xiSeed
     // ------------------------------
-    PointLocatorResult locateOne(const std::vector<double>& xp) const {
+    PointLocatorResult locateOne(const std::vector<double>& xp) {
       PointLocatorResult out;
 
       const unsigned nEl = static_cast<unsigned>(_mesh.numElements());
@@ -489,7 +494,7 @@ class PointLocator {
           femus::GetClosestPointInReferenceElement(_Xall[e], xp, et_su, xi);
         }
 
-        const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xp, xi, 50u);
+        const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xp, xi, 50u, _phi, _gradPhi, _F, _J);
         if (!ok) continue;
         if (!isInsideReference(et_u, xi)) continue;
 

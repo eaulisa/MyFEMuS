@@ -467,7 +467,7 @@ class Hex27Projection : public BoxQ2RefinementProjection {
           _childVerts[c][v] = verts[c][v];
         }
       }
-      _fem = std::make_unique<femus::elem_type_3D>("hex", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_3D>("hex", "biquadratic", "eleventh");
 
       build();
     }
@@ -536,7 +536,7 @@ class Quad9Projection : public BoxQ2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_2D>("quad", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_2D>("quad", "biquadratic", "eleventh");
 
       build();
     }
@@ -593,7 +593,7 @@ class Line3Projection : public BoxQ2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_1D>("line", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_1D>("line", "biquadratic", "eleventh");
 
       build();
     }
@@ -652,7 +652,7 @@ class Tri7Projection : public Q2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_2D>("tri", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_2D>("tri", "biquadratic", "eleventh");
 
       build();
     }
@@ -755,7 +755,7 @@ class Tet15Projection : public Q2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_3D>("tet", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_3D>("tet", "biquadratic", "eleventh");
 
       build();
     }
@@ -869,7 +869,7 @@ class Wedge21Projection : public Q2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_3D>("wedge", "biquadratic", "zero");
+      _fem = std::make_unique<femus::elem_type_3D>("wedge", "biquadratic", "eleventh");
 
       build();
     }
