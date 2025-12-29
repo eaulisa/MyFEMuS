@@ -51,11 +51,13 @@ int main() {
 
   //std::vector<double> xc = {0, 0.25};
   //double r = 0.15;
+  // const double period = 8.;
 
   MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeHex27;
 
   std::vector<double> xc = {0, 0, 0.25};
   double r = 0.15;
+  const double period = 4.;
 
   for (unsigned levelN = levelNstart; levelN < levelNstart + delta_depth; levelN++) {
 
@@ -231,7 +233,6 @@ int main() {
     std::vector<PointLocatorResult> out, in;
 
     const unsigned nIter = 320;
-    const double period = 8.;
     const double dt = period / static_cast<double>(nIter);
 
     mesh1[0] = mesh0[0];
@@ -387,110 +388,110 @@ int main() {
   return 1;
 }
 
-  // mesh0[0].clearAllData();
-  //
-  //
-  // elType0[0] = {0, 2, 1};
-  // elLevel0[0] = {0, 0, 0};
-  // elTplgy0[0] = {
-  //   {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26},
-  //   {27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
-  //   {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62}
-  // };
-  //
-  // X0[0] = {{
-  //     //hex
-  //     0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-  //     0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0,
-  //     0.5, 1.0, 0.5, 0.0, 0.5, 0.5,
-  //     0.5,
-  //     //wedge
-  //     1.0, 2.0, 1.0, 1.0, 2.0, 1.0,
-  //     1.5, 1.5, 1.0, 1.5, 1.5, 1.0, 1.0, 2.0, 1.0,
-  //     1.5, 1.5, 1.0, 1.3333333333333333, 1.3333333333333333,
-  //     1.3333333333333333,
-  //     //tet
-  //     1.0, 2.0, 1.0, 1.0,
-  //     1.5, 1.5, 1.0, 1.0, 1.5, 1.0,
-  //     1.3333333333333333, 1.3333333333333333,
-  //     1.3333333333333333, 1.0,
-  //     1.25
-  //   }, {
-  //     //hex
-  //     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-  //     0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0,
-  //     0.0, 0.5, 1.0, 0.5, 0.5, 0.5,
-  //     0.5,
-  //     //wedge
-  //     0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
-  //     0.0, 0.5, 0.5, 0.0, 0.5, 0.5, 0.0, 0.0, 1.0,
-  //     0.0, 0.5, 0.5, 1.0 / 3.0, 1.0 / 3.0,
-  //     1.0 / 3.0,
-  //     //tet
-  //     0.0, 0.0, 1.0, 0.0,
-  //     0.0, 0.5, 0.5, 0.0, 0.0, 0.5,
-  //     0.3333333333333333, 0.0,
-  //     0.3333333333333333, 0.3333333333333333,
-  //     0.25
-  //   }, {
-  //     //hex
-  //     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
-  //     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5,
-  //     0.5, 0.5, 0.5, 0.5, 0.0, 1.0,
-  //     0.5,
-  //     //wedge
-  //     0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-  //     0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5,
-  //     0.5, 0.5, 0.5, 0.0, 1.0,
-  //     0.5,
-  //     //tet
-  //     1.0, 1.0, 1.0, 2.0,
-  //     1.0, 1.0, 1.0, 1.5, 1.5, 1.5,
-  //     1.0, 1.3333333333333333,
-  //     1.3333333333333333, 1.3333333333333333,
-  //     1.25
-  //   }
-  // };
-  //
-  // candidateIndices.resize(mesh0[0].numNodes());
-  // std::iota(candidateIndices.begin(), candidateIndices.end(), 0u);
-  // dedupNodesHash(mesh0[0], candidateIndices);
-  //
-  // std::cout << "Number of nodes after deduplication = " << mesh0[0].numNodes() << std::endl;
-  // mesh0[0].resetAllFathersToNoFather();
-  // mesh0[0].buildNodeToElementAdjacency();
-  // mesh0[0].buildFaceNeighborsFromNodeToElement();
-  //
-  // //field0[0].rebindMeshAndResize(mesh0[0]);
-  //
-  // PsiBall psi3D(std::vector<double> {1., 0, 1.}, 0.125, 0.001);
-  // auto psiId = field0[0].id("Psi");
-  // auto Psi = field0[0].getById(psiId);
-  // for (std::size_t k = 0; k < Psi.size(); ++k) {
-  //   const std::vector<double> x = field0[0].dofCoordById(psiId, k); // nodal => mesh node coord
-  //   Psi[k] = psi3D(x);
-  // }
-  //
-  // filename = "./output/refined_mesh3D.";
-  // writeMeshFieldVTK(filename + "0.vtk", field0[0]);
-  //
-  //
-  // for (unsigned l = 1; l < levelN; l++) {
-  //   mesh0[l - 1].setRefinementFromBallLevelSetCrossing_OneRing({1., 0., 1.}, 0.125, neighMode);
-  //   mesh0[l - 1].adjustAMRForOneLevelDiscontinuity();
-  //   refineAndProjectMesh(elProj, mesh0[l - 1], mesh0[l]);
-  //
-  //   //field0[l].rebindMeshAndResize(mesh0[l]);
-  //   const unsigned psiId = field0[l].id("Psi");
-  //   auto& Psi = field0[l].getById(psiId);
-  //   for (std::size_t k = 0; k < Psi.size(); ++k) {
-  //     const std::vector<double> x = field0[l].dofCoordById(psiId, k); // nodal => mesh node coord
-  //     Psi[k] = psi3D(x);
-  //   }
-  //   writeMeshFieldVTK(filename + std::to_string(l) + ".vtk", field0[l]);
-  // }
-  //
-  // return 0;
+// mesh0[0].clearAllData();
+//
+//
+// elType0[0] = {0, 2, 1};
+// elLevel0[0] = {0, 0, 0};
+// elTplgy0[0] = {
+//   {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26},
+//   {27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+//   {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62}
+// };
+//
+// X0[0] = {{
+//     //hex
+//     0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+//     0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0,
+//     0.5, 1.0, 0.5, 0.0, 0.5, 0.5,
+//     0.5,
+//     //wedge
+//     1.0, 2.0, 1.0, 1.0, 2.0, 1.0,
+//     1.5, 1.5, 1.0, 1.5, 1.5, 1.0, 1.0, 2.0, 1.0,
+//     1.5, 1.5, 1.0, 1.3333333333333333, 1.3333333333333333,
+//     1.3333333333333333,
+//     //tet
+//     1.0, 2.0, 1.0, 1.0,
+//     1.5, 1.5, 1.0, 1.0, 1.5, 1.0,
+//     1.3333333333333333, 1.3333333333333333,
+//     1.3333333333333333, 1.0,
+//     1.25
+//   }, {
+//     //hex
+//     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+//     0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0,
+//     0.0, 0.5, 1.0, 0.5, 0.5, 0.5,
+//     0.5,
+//     //wedge
+//     0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+//     0.0, 0.5, 0.5, 0.0, 0.5, 0.5, 0.0, 0.0, 1.0,
+//     0.0, 0.5, 0.5, 1.0 / 3.0, 1.0 / 3.0,
+//     1.0 / 3.0,
+//     //tet
+//     0.0, 0.0, 1.0, 0.0,
+//     0.0, 0.5, 0.5, 0.0, 0.0, 0.5,
+//     0.3333333333333333, 0.0,
+//     0.3333333333333333, 0.3333333333333333,
+//     0.25
+//   }, {
+//     //hex
+//     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
+//     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5,
+//     0.5, 0.5, 0.5, 0.5, 0.0, 1.0,
+//     0.5,
+//     //wedge
+//     0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+//     0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5,
+//     0.5, 0.5, 0.5, 0.0, 1.0,
+//     0.5,
+//     //tet
+//     1.0, 1.0, 1.0, 2.0,
+//     1.0, 1.0, 1.0, 1.5, 1.5, 1.5,
+//     1.0, 1.3333333333333333,
+//     1.3333333333333333, 1.3333333333333333,
+//     1.25
+//   }
+// };
+//
+// candidateIndices.resize(mesh0[0].numNodes());
+// std::iota(candidateIndices.begin(), candidateIndices.end(), 0u);
+// dedupNodesHash(mesh0[0], candidateIndices);
+//
+// std::cout << "Number of nodes after deduplication = " << mesh0[0].numNodes() << std::endl;
+// mesh0[0].resetAllFathersToNoFather();
+// mesh0[0].buildNodeToElementAdjacency();
+// mesh0[0].buildFaceNeighborsFromNodeToElement();
+//
+// //field0[0].rebindMeshAndResize(mesh0[0]);
+//
+// PsiBall psi3D(std::vector<double> {1., 0, 1.}, 0.125, 0.001);
+// auto psiId = field0[0].id("Psi");
+// auto Psi = field0[0].getById(psiId);
+// for (std::size_t k = 0; k < Psi.size(); ++k) {
+//   const std::vector<double> x = field0[0].dofCoordById(psiId, k); // nodal => mesh node coord
+//   Psi[k] = psi3D(x);
+// }
+//
+// filename = "./output/refined_mesh3D.";
+// writeMeshFieldVTK(filename + "0.vtk", field0[0]);
+//
+//
+// for (unsigned l = 1; l < levelN; l++) {
+//   mesh0[l - 1].setRefinementFromBallLevelSetCrossing_OneRing({1., 0., 1.}, 0.125, neighMode);
+//   mesh0[l - 1].adjustAMRForOneLevelDiscontinuity();
+//   refineAndProjectMesh(elProj, mesh0[l - 1], mesh0[l]);
+//
+//   //field0[l].rebindMeshAndResize(mesh0[l]);
+//   const unsigned psiId = field0[l].id("Psi");
+//   auto& Psi = field0[l].getById(psiId);
+//   for (std::size_t k = 0; k < Psi.size(); ++k) {
+//     const std::vector<double> x = field0[l].dofCoordById(psiId, k); // nodal => mesh node coord
+//     Psi[k] = psi3D(x);
+//   }
+//   writeMeshFieldVTK(filename + std::to_string(l) + ".vtk", field0[l]);
+// }
+//
+// return 0;
 //}
 
 

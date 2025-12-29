@@ -143,7 +143,8 @@ public:
     sz = std::sin(M_PI * z); cz = std::cos(M_PI * z);
   #endif
 
-    const double cosT = std::cos(M_PI * (time * 0.25));
+    const double T = 4.0;
+    const double cosT = std::cos(M_PI * (time / T));
     const double s2x = sx * sx, s2y = sy * sy, s2z = sz * sz;
     const double sxcx = sx * cx, sycy = sy * cy, szcz = sz * cz;
     const double k = 2.0 * cosT;
