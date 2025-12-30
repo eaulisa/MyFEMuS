@@ -745,6 +745,44 @@ class Mesh {
       while (changedGlobal);
     }
 
+
+
+    // Push-back for reference triangle: r>=0, s>=0, r+s<=1
+    static inline void pushback_tri(double &r, double &s, const double eps) {
+      if (r < 0.0 && r > -8.0 * eps) r = 0.0;
+      if (s < 0.0 && s > -8.0 * eps) s = 0.0;
+
+      const double rs = r + s;
+      if (rs > 1.0 && rs < 1.0 + 8.0 * eps) {
+        // scale back to the boundary r+s=1
+        r /= rs;
+        s /= rs;
+      }
+    }
+
+// Push-back for line z in [-1,1]
+    static inline void pushback_line(double &z, const double eps) {
+      if (z < -1.0 && z > -1.0 - 8.0 * eps) z = -1.0;
+      if (z >  1.0 && z <  1.0 + 8.0 * eps) z =  1.0;
+    }
+
+// Push-back for reference tet: x>=0,y>=0,z>=0,x+y+z<=1
+    static inline void pushback_tet(double &x, double &y, double &z, const double eps) {
+      if (x < 0.0 && x > -8.0 * eps) x = 0.0;
+      if (y < 0.0 && y > -8.0 * eps) y = 0.0;
+      if (z < 0.0 && z > -8.0 * eps) z = 0.0;
+
+      const double s = x + y + z;
+      if (s > 1.0 && s < 1.0 + 8.0 * eps) {
+        // scale back to the boundary x+y+z=1
+        x /= s;
+        y /= s;
+        z /= s;
+      }
+    }
+
+
+
 // ------------------------------------------------------------
 // Project PointLocatorResult from this mesh to mesh1
 // ------------------------------------------------------------
@@ -911,7 +949,7 @@ class Mesh {
             xi1[1] /= sum;
           }
 
-#if DEBUG
+#ifndef NDEBUG
           if (!inside_tri(xi1[0], xi1[1])) {
             std::cout << r << " " << s << std::endl;
             std::cout << xi1[0] << " " << xi1[1] << std::endl;
@@ -920,12 +958,6 @@ class Mesh {
 #endif
           return;
         }
-
-
-
-
-
-
 
 
         if (et == static_cast<unsigned>(Wedge21)) {
@@ -962,7 +994,25 @@ class Mesh {
           }
 
           childIndex = ctri + 4u * cz;
+
+
           set3(xi1, r1, s1, z1);
+
+          // Push back to boundaries if tiny overshoot due to roundoff
+          pushback_tri(xi1[0], xi1[1], eps);
+          pushback_line(xi1[2], eps);
+
+#ifndef NDEBUG
+          if (!inside_tri(xi1[0], xi1[1]) || !inside_line(xi1[2])) {
+            std::cout << "Wedge21 input  : " << r << " " << s << " " << z << "\n";
+            std::cout << "Wedge21 mapped : " << xi1[0] << " " << xi1[1] << " " << xi1[2] << "\n";
+            throw std::runtime_error("project: Wedge21 mapped xi not inside child reference wedge");
+          }
+#endif
+
+          return;
+
+
 
           if (!inside_tri(xi1[0], xi1[1]) || !inside_line(xi1[2])) {
             throw std::runtime_error("project: Wedge21 mapped xi not inside child reference wedge");
@@ -1012,19 +1062,30 @@ class Mesh {
             }
           };
 
+
           for (unsigned c = 0; c < 8u; ++c) {
             double u, v, w;
             map_child(c, u, v, w);
+
+            // Push back to boundaries if tiny overshoot due to roundoff
+            pushback_tet(u, v, w, eps);
+
             if (inside_tet(u, v, w)) {
               childIndex = c;
               set3(xi1, u, v, w);
+#ifndef NDEBUG
+              if (!inside_tet(xi1[0], xi1[1], xi1[2])) {
+                std::cout << "Tet15 input  : " << x << " " << y << " " << z << "\n";
+                std::cout << "Tet15 mapped : " << xi1[0] << " " << xi1[1] << " " << xi1[2] << "\n";
+                throw std::runtime_error("project: Tet15 mapped xi not inside child reference tet");
+              }
+#endif
               return;
             }
           }
 
           throw std::runtime_error("project: Tet15 could not select a child (no candidate contained)");
         }
-
         throw std::runtime_error("project: unsupported element type for projection");
       };
 
@@ -2077,6 +2138,8 @@ class Mesh {
 //       }
 //     }
 // };
+
+
 
 
 

@@ -30,7 +30,7 @@ static inline double Hpos(const double psi) { return (psi > 0.0) ? 1.0 : 0.0; }
  * - PsiS and PsiE must be NODAL fields stored in Field with names "PsiS" and "PsiE"
  * - 'weight' returned by fem().Jacobian(...) is assumed to be (gauss_weight * detJ) for that qp.
  */
-inline std::pair<double,double>
+inline std::tuple<double, double, double>
 computeMassAndGeometricError(
     const std::string Psi0,
     const std::string Psi1,
@@ -151,9 +151,9 @@ computeMassAndGeometricError(
 
   const double denom = std::abs(M0);
   const double Em = (denom > 0.0) ? (std::abs(M1 - M0) / denom) : 0.0;
-  Eg = (denom > 0.0) ? (Eg / denom) : 0.0;
+  const double Egs = (denom > 0.0) ? (Eg / denom) : 0.0;
 
-  std::cout << "mass = " << M1 << " " << "Em = " << Em << " " << " Eg = " <<Eg << std::endl;
+  std::cout << "mass = " << M1 << " " << "Em = " << Em << " " << " Eg = " << Eg << " Egs = " << Egs << std::endl;
 
-  return {Em, Eg};
+  return {Em, Eg, Egs};
 }

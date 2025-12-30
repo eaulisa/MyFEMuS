@@ -39,7 +39,7 @@ int main() {
   const unsigned levelNstart = 6;
   unsigned delta_depth = 4;
 
-  std::vector<std::pair<double, double>> Er;
+  std::vector<std::tuple<double, double, double >> Er;
   Er.reserve(delta_depth);
 
   std::vector<clock_t> Time;
@@ -53,12 +53,17 @@ int main() {
   //double r = 0.15;
   // const double period = 8.;
 
-  MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeHex27;
+  //MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeHex27;
+
+  MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeWedge21;
+
 
   std::vector<double> xc = {0, 0, 0.25};
   double r = 0.15;
   const double period = 4.;
+  const unsigned print_step = 10;
 
+  //BEGIN LEVEL LOOP
   for (unsigned levelN = levelNstart; levelN < levelNstart + delta_depth; levelN++) {
 
     clock_t start_time =  clock();
@@ -121,23 +126,7 @@ int main() {
     }
 
 
-
     //BEGIN MESH AND FIELD INITIALIZATION
-
-
-    /* elLevel0[0] = elLevel1[0] = {0, 0};
-     elType0[0] = elType1[0] = {3, 4};
-     elTplgy0[0] = elTplgy1[0] = {
-       {0, 1, 2, 3, 5, 6, 7, 8, 11},
-       {1, 4, 2, 9, 10, 6, 12}
-     };
-     X0[0] = X1[0] = {
-       { -0.5,  0.5,  0.5, -0.5,  1.5,  0.0,  0.5,  0.0, -0.5,  1.0,  1.0,  0.0,  0.8333333333333333 },
-       { -0.5, -0.5,  0.5,  0.5, -0.5, -0.5,  0.0,  0.5,  0.0, -0.5,  0.0,  0.0, -0.16666666666666669 }
-     };
-    */
-
-
     auto seed = MeshSeedFactory::make(meshSeed);
 
     elLevel0[0] = seed.elLevel;
@@ -145,41 +134,6 @@ int main() {
     elTplgy0[0] = seed.elTplgy;
     X0[0]       = seed.X;
     unsigned dim = X0[0].size();
-
-
-    // //square box
-    // elLevel0[0] = {0};
-    // elType0[0] = {3};
-    // elTplgy0[0] = {
-    //   {0, 1, 2, 3, 4, 5, 6, 7, 8}
-    // };
-    //
-    // X0[0] = {
-    //   { -0.5,  0.5,  0.5, -0.5,  0.0,  0.5,  0.0, -0.5,  0.0},
-    //   { -0.5, -0.5,  0.5,  0.5, -0.5,  0.0,  0.5,  0.0,  0.0}
-    // };
-    //
-    //
-    //
-    // //triangle box
-    // elLevel0[0] = {0, 0};
-    // elType0[0] = {4, 4};
-    // elTplgy0[0] = {
-    //   {0, 1, 3, 4, 8, 7, 9},
-    //   {1, 2, 3, 5, 6, 8, 10}
-    // };
-    //
-    // X0[0] = {
-    //   { -0.5,  0.5,  0.5, -0.5,  0.0,  0.5,  0.0, -0.5,  0.0,  -1. / 6., 1. / 6. },
-    //   { -0.5, -0.5,  0.5,  0.5, -0.5,  0.0,  0.5,  0.0,  0.0,  -1. / 6., 1. / 6. }
-    // };
-
-
-
-// X0[0] = X1[0] = {
-//    {0, 1, 1, 0., 2., 0.5, 1., 0.5, 0, 1.5, 1.5, 0.5, 1 + 1. / 3.},
-//    {0, 0, 1, 1, 0, 0, 0.5, 1, 0.5, 0, 0.5, 0.5, 1. / 3}
-//  };
 
     std::vector<unsigned> candidateIndices(mesh0[0].numNodes());
     std::iota(candidateIndices.begin(), candidateIndices.end(), 0u);
@@ -223,7 +177,6 @@ int main() {
     writeMeshFieldVTU(filename + std::to_string(0) + ".vtu", field0[topLevel]);
 
     for (unsigned l = 0; l <= levelN; l++) field2[l] = field0[l];
-
     //END MESH AND FIELD INITIALIZATION
 
 
@@ -277,12 +230,12 @@ int main() {
       const unsigned psiId0 = field0[topLevel].id("Psi");
       field0[topLevel].evalNodalAtLocatedPointsById(psiId0, out, elProj, Psi1, -1.0);
 
-      std::cout << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
-                << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
-                << "\r"        // return to column 1
+      if (k % print_step == 0) std::cout << "\x1b[1A" << "\x1b[2K";   // cursor up 1, and erase entire line
+      std::cout << "\x1b[1A" << "\x1b[2K"                        // cursor up 1, and erase entire line
+                << "\r"                                          // return to column 1
                 << std::flush;
       std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
-      writeMeshFieldVTU(filename + std::to_string(k) + ".vtu", field1[topLevel]);
+      if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k/print_step) + ".vtu", field1[topLevel]);
 
       //swap for the next iteration
       for (unsigned l = 0; l <= levelN; l++) swap(field0[l], field1[l]);
@@ -362,23 +315,30 @@ int main() {
     }
     //END MERGE INITIAL AND FINAL SOLUTIONS
   }
+  //END LEVEL LOOP
 
 
-
-  std::cout << "Max_Depth\tMass_Error\tGeometric_Error\tCompt_Time(s)" << std::endl;
+  std::cout << "Max_Depth\tMass_Error\tGeom_Error\tScaled_Geom_Error\tCompt_Time(s)" << std::endl;
   for (unsigned i = 0; i < delta_depth; i++) {
-    std::cout << levelNstart + i << "\t\t" << Er[i].first << "\t" << Er[i].second << "\t"
-              /*      */ << static_cast<double>(Time[i]) / CLOCKS_PER_SEC << std::endl;
+    std::cout << levelNstart + i << "\t\t"
+              << std::get<0>(Er[i]) << "\t"
+              << std::get<1>(Er[i]) << "\t"
+              << std::get<2>(Er[i]) << "\t"
+              << static_cast<double>(Time[i]) / CLOCKS_PER_SEC << std::endl;
     if (i + 1 < delta_depth) {
-      std::cout << "conv.\t\t" << log(Er[i].first / Er[i + 1].first) / log(2.) << "\t\t"
-                /*      */ << log(Er[i].second / Er[i + 1].second) / log(2.) << "\t\t"
-                /*      */ << log((double)Time[i + 1] / (double)Time[i]) / log(2.) << std::endl;
+      std::cout << "conv.\t\t"
+                << log(std::get<0>(Er[i]) / std::get<0>(Er[i + 1])) / log(2.) << "\t\t"
+                << log(std::get<1>(Er[i]) / std::get<1>(Er[i + 1])) / log(2.) << "\t\t"
+                << log(std::get<2>(Er[i]) / std::get<2>(Er[i + 1])) / log(2.) << "\t\t"
+                << log((double)Time[i + 1] / (double)Time[i]) / log(2.) << std::endl;
     }
   }
   if (delta_depth > 1) {
-    std::cout << "\naver. conv. \t" << log(Er[0].first / Er[delta_depth - 1].first) / ((delta_depth - 1) * log(2.))
-              << "\t\t" << log(Er[0].second / Er[delta_depth - 1].second) / ((delta_depth - 1) * log(2.))
-              << "\t\t" << log((double)Time[delta_depth - 1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
+    std::cout << "\naver. conv. \t"
+              << log(std::get<0>(Er[0]) / std::get<0>(Er[delta_depth - 1])) / ((delta_depth - 1) * log(2.)) << "\t\t"
+              << log(std::get<1>(Er[0]) / std::get<1>(Er[delta_depth - 1])) / ((delta_depth - 1) * log(2.)) << "\t\t"
+              << log(std::get<2>(Er[0]) / std::get<2>(Er[delta_depth - 1])) / ((delta_depth - 1) * log(2.)) << "\t\t"
+              << log((double)Time[delta_depth - 1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
   }
   return 0;
 
