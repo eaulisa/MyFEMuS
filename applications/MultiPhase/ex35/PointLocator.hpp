@@ -20,6 +20,21 @@ class PointLocator {
       const unsigned d = static_cast<unsigned>(_mesh.dim());
       if (d < 1 || d > 3) throw std::runtime_error("PointLocator: dim must be 1..3");
       if (_binScale <= 0.0) throw std::runtime_error("PointLocator: binScale must be > 0");
+      if (d == 1) {
+        _phi.reserve(3);
+        _gradPhi.reserve(3);
+      }
+      else if (d == 2) {
+        _phi.reserve(9);
+        _gradPhi.reserve(9);
+      }
+      else if (d == 3) {
+        _phi.reserve(27);
+        _gradPhi.reserve(27);
+      }
+
+
+
     }
 
     void setBinScale(double binScale) {
@@ -234,7 +249,7 @@ class PointLocator {
           femus::GetClosestPointInReferenceElement(_Xall[e], xc, et_su, xi);
 
 
-          const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xc, xi, 100u, _phi, _gradPhi, _F, _J);
+          const bool ok = femus::GetInverseMapping_fast(2u, et_su, _aPall[e], xc, xi, 100u, _phi, _gradPhi);
 
           // If inverse fails, we still keep the element in the bin list,
           // but mark "no precomputed seed" by storing an EMPTY xi.
@@ -343,8 +358,6 @@ class PointLocator {
 
     std::vector < double > _phi;
     std::vector < std::vector < double > > _gradPhi;
-    std::vector<double> _F;
-    std::vector<std::vector<double>> _J;
 
     // ------------------------------
     // bbox utilities
@@ -494,7 +507,7 @@ class PointLocator {
           femus::GetClosestPointInReferenceElement(_Xall[e], xp, et_su, xi);
         }
 
-        const bool ok = femus::GetInverseMapping(2u, et_su, _aPall[e], xp, xi, 50u, _phi, _gradPhi, _F, _J);
+        const bool ok = femus::GetInverseMapping_fast(2u, et_su, _aPall[e], xp, xi, 50u, _phi, _gradPhi);
         if (!ok) continue;
         if (!isInsideReference(et_u, xi)) continue;
 

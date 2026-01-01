@@ -337,7 +337,7 @@ class Q2RefinementProjection : public FemProjection {
         }
       }
 
-      std::cout << "Number of refined nodes = " << nodes << std::endl;
+      //std::cout << "Number of refined nodes = " << nodes << std::endl;
 
       _boundaryNodes.clear();
       for (unsigned i = 0; i < nodes; ++i) {

@@ -18,10 +18,35 @@
 #include "Errors.hpp"
 #include "MeshSeed.hpp"
 
-int main() {
+
+#include "FemusInit.hpp"
+#include "MultiLevelSolution.hpp"
+#include "MultiLevelProblem.hpp"
+#include "NumericVector.hpp"
+#include "VTKWriter.hpp"
+#include "GMVWriter.hpp"
+
+#include "SimConfig.hpp"
+
+
+
+int main(int argc, char** args) {
 
 
   ProfilerStart("profiling.prof");
+
+
+  SimConfig cfg = parseArgs(argc, args);
+
+  std::cout << "dim=" << cfg.dim
+            << " vel=" << (int)cfg.velocityType
+            << " meshSeed=" << (int)cfg.meshSeed
+            << " shape=" << (int)cfg.meshShape
+            << " period=" << cfg.period
+            << " steps=" << cfg.nSteps
+            << " uniformRefinementLevel=" <<cfg.uniformRefinementLevel
+            << "\n";
+
 
   std::array<std::unique_ptr<FemProjection>, 6> elProj;
   elProj[0].reset(new Hex27Projection());
@@ -31,13 +56,16 @@ int main() {
   elProj[4].reset(new Tri7Projection());
   elProj[5].reset(new Line3Projection());
 
-  //std::cout<<elProj[0]->GetProjection()<<std::endl;
-  //std::cout << elProj[1]->GetProjection() << std::endl;
-  //std::cout << elProj[2]->GetProjection() << std::endl;
+  RungeKutta::VelKind velocityType = cfg.velocityType;
+  unsigned uniformRefinementLevel = cfg.uniformRefinementLevel;
+  std::vector<double> xc = cfg.xc;
+  double r = cfg.r;
+  const double period = cfg.period;
+  const unsigned print_step = cfg.print_step;
+  const unsigned levelNstart = cfg.levelNstart;
+  unsigned delta_depth = cfg.delta_depth;
+  unsigned nSteps = cfg.nSteps;
 
-
-  const unsigned levelNstart = 6;
-  unsigned delta_depth = 4;
 
   std::vector<std::tuple<double, double, double >> Er;
   Er.reserve(delta_depth);
@@ -46,22 +74,6 @@ int main() {
   Time.reserve(delta_depth);
 
 
-  //MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::SquareTri7;
-  //MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::SquareQuad9;
-
-  //std::vector<double> xc = {0, 0.25};
-  //double r = 0.15;
-  // const double period = 8.;
-
-  //MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeHex27;
-
-  MeshSeedFactory::Type meshSeed = MeshSeedFactory::Type::CubeWedge21;
-
-
-  std::vector<double> xc = {0, 0, 0.25};
-  double r = 0.15;
-  const double period = 4.;
-  const unsigned print_step = 10;
 
   //BEGIN LEVEL LOOP
   for (unsigned levelN = levelNstart; levelN < levelNstart + delta_depth; levelN++) {
@@ -127,7 +139,9 @@ int main() {
 
 
     //BEGIN MESH AND FIELD INITIALIZATION
-    auto seed = MeshSeedFactory::make(meshSeed);
+    MeshSeed seed = MeshSeedFactory::make(cfg.meshSeed, cfg.meshShape, cfg.shift);
+
+//    auto seed = MeshSeedFactory::make(meshSeed, meshShape, shift);
 
     elLevel0[0] = seed.elLevel;
     elType0[0]  = seed.elType;
@@ -144,14 +158,14 @@ int main() {
     mesh0[0].buildFaceNeighborsFromNodeToElement();
     field0[0].clear();
 
-    std::string filename = "./output/refined_mesh2D_level" + std::to_string(levelN) + ".";
+    std::string filename = "./output/refined_mesh" + std::to_string(dim) + "D_level" + std::to_string(levelN) + ".";
 
     double eps = (dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u)) : 1. / pow(2, std::max(levelN - 4u, 1u));
 
     //init multilevel mesh
     unsigned neighMode = 3; // 0=no-ring, 1=vertices, 2=faces, 3=hybrid
     for (unsigned l = 1; l <= levelN; l++) {
-      if (l == 1) {
+      if (l <= uniformRefinementLevel) {
         mesh0[l - 1].setUniformRefinement();
       }
       else {
@@ -189,12 +203,12 @@ int main() {
     const double dt = period / static_cast<double>(nIter);
 
     mesh1[0] = mesh0[0];
-    for (unsigned k = 1; k <= nIter; ++k) {
+    for (unsigned k = 1; k <= nSteps; ++k) {
       const double time = k * dt;
 
       //move the old topLevel mesh0 nodes forward and use them to build the new multilevel mesh1 recursively
       field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
-      RungeKutta::rkForward(Xp, time, dt, RungeKutta::VelKind::Vortex);
+      RungeKutta::rkForward(Xp, time, dt, velocityType);
 
       out.clear();
       pl.locateAll(out, Xp);
@@ -216,7 +230,7 @@ int main() {
 
       //move new multilevel mesh1 nodes backward to get the new topLevel field1 from the old filed0
       Xp = mesh1[topLevel].X();
-      RungeKutta::rkBackward(Xp, time, dt, RungeKutta::VelKind::Vortex);
+      RungeKutta::rkBackward(Xp, time, dt, velocityType);
       out.clear();
       pl.locateAll(out, Xp);
       for (unsigned l = 1; l <= levelN; l++) {
@@ -235,7 +249,7 @@ int main() {
                 << "\r"                                          // return to column 1
                 << std::flush;
       std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
-      if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k/print_step) + ".vtu", field1[topLevel]);
+      if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k / print_step) + ".vtu", field1[topLevel]);
 
       //swap for the next iteration
       for (unsigned l = 0; l <= levelN; l++) swap(field0[l], field1[l]);
@@ -347,241 +361,3 @@ int main() {
 
   return 1;
 }
-
-// mesh0[0].clearAllData();
-//
-//
-// elType0[0] = {0, 2, 1};
-// elLevel0[0] = {0, 0, 0};
-// elTplgy0[0] = {
-//   {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26},
-//   {27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
-//   {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62}
-// };
-//
-// X0[0] = {{
-//     //hex
-//     0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-//     0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0,
-//     0.5, 1.0, 0.5, 0.0, 0.5, 0.5,
-//     0.5,
-//     //wedge
-//     1.0, 2.0, 1.0, 1.0, 2.0, 1.0,
-//     1.5, 1.5, 1.0, 1.5, 1.5, 1.0, 1.0, 2.0, 1.0,
-//     1.5, 1.5, 1.0, 1.3333333333333333, 1.3333333333333333,
-//     1.3333333333333333,
-//     //tet
-//     1.0, 2.0, 1.0, 1.0,
-//     1.5, 1.5, 1.0, 1.0, 1.5, 1.0,
-//     1.3333333333333333, 1.3333333333333333,
-//     1.3333333333333333, 1.0,
-//     1.25
-//   }, {
-//     //hex
-//     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-//     0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0,
-//     0.0, 0.5, 1.0, 0.5, 0.5, 0.5,
-//     0.5,
-//     //wedge
-//     0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
-//     0.0, 0.5, 0.5, 0.0, 0.5, 0.5, 0.0, 0.0, 1.0,
-//     0.0, 0.5, 0.5, 1.0 / 3.0, 1.0 / 3.0,
-//     1.0 / 3.0,
-//     //tet
-//     0.0, 0.0, 1.0, 0.0,
-//     0.0, 0.5, 0.5, 0.0, 0.0, 0.5,
-//     0.3333333333333333, 0.0,
-//     0.3333333333333333, 0.3333333333333333,
-//     0.25
-//   }, {
-//     //hex
-//     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
-//     0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5,
-//     0.5, 0.5, 0.5, 0.5, 0.0, 1.0,
-//     0.5,
-//     //wedge
-//     0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-//     0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5,
-//     0.5, 0.5, 0.5, 0.0, 1.0,
-//     0.5,
-//     //tet
-//     1.0, 1.0, 1.0, 2.0,
-//     1.0, 1.0, 1.0, 1.5, 1.5, 1.5,
-//     1.0, 1.3333333333333333,
-//     1.3333333333333333, 1.3333333333333333,
-//     1.25
-//   }
-// };
-//
-// candidateIndices.resize(mesh0[0].numNodes());
-// std::iota(candidateIndices.begin(), candidateIndices.end(), 0u);
-// dedupNodesHash(mesh0[0], candidateIndices);
-//
-// std::cout << "Number of nodes after deduplication = " << mesh0[0].numNodes() << std::endl;
-// mesh0[0].resetAllFathersToNoFather();
-// mesh0[0].buildNodeToElementAdjacency();
-// mesh0[0].buildFaceNeighborsFromNodeToElement();
-//
-// //field0[0].rebindMeshAndResize(mesh0[0]);
-//
-// PsiBall psi3D(std::vector<double> {1., 0, 1.}, 0.125, 0.001);
-// auto psiId = field0[0].id("Psi");
-// auto Psi = field0[0].getById(psiId);
-// for (std::size_t k = 0; k < Psi.size(); ++k) {
-//   const std::vector<double> x = field0[0].dofCoordById(psiId, k); // nodal => mesh node coord
-//   Psi[k] = psi3D(x);
-// }
-//
-// filename = "./output/refined_mesh3D.";
-// writeMeshFieldVTK(filename + "0.vtk", field0[0]);
-//
-//
-// for (unsigned l = 1; l < levelN; l++) {
-//   mesh0[l - 1].setRefinementFromBallLevelSetCrossing_OneRing({1., 0., 1.}, 0.125, neighMode);
-//   mesh0[l - 1].adjustAMRForOneLevelDiscontinuity();
-//   refineAndProjectMesh(elProj, mesh0[l - 1], mesh0[l]);
-//
-//   //field0[l].rebindMeshAndResize(mesh0[l]);
-//   const unsigned psiId = field0[l].id("Psi");
-//   auto& Psi = field0[l].getById(psiId);
-//   for (std::size_t k = 0; k < Psi.size(); ++k) {
-//     const std::vector<double> x = field0[l].dofCoordById(psiId, k); // nodal => mesh node coord
-//     Psi[k] = psi3D(x);
-//   }
-//   writeMeshFieldVTK(filename + std::to_string(l) + ".vtk", field0[l]);
-// }
-//
-// return 0;
-//}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-#include "FemusInit.hpp"
-#include "MultiLevelSolution.hpp"
-#include "MultiLevelProblem.hpp"
-#include "NumericVector.hpp"
-#include "VTKWriter.hpp"
-#include "GMVWriter.hpp"
-#include "NonLinearImplicitSystem.hpp"
-#include "adept.h"
-#include "MeshRefinement.hpp"
-
-#include "projection.hpp"
-
-using namespace femus;
-
-bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
-  bool dirichlet = true; //dirichlet
-  value = 0.;
-  return dirichlet;
-}
-
-
-bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumber, const int& level) {
-
-  bool refine = 0;
-
-  if (elemgroupnumber == 6 && level < 4) refine = 1;
-
-  if (elemgroupnumber == 7 && level < 5) refine = 1;
-
-  if (elemgroupnumber == 8 && level < 6) refine = 1;
-
-//   if (elemgroupnumber==6 && level<1) refine=1;
-//   if (elemgroupnumber==7 && level<2) refine=1;
-//   if (elemgroupnumber==8 && level<3) refine=1;
-
-  return refine;
-
-}
-
-
-
-void AssemblePoisson_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
-
-
-int main(int argc, char** args) {
-
-  // init Petsc-MPI communicator
-  FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
-  // define multilevel mesh
-  MultiLevelMesh mlMsh;
-  // read coarse level mesh and generate finers level meshes
-  double scalingFactor = 1.;
-  //mlMsh.ReadCoarseMesh("./input/cube_hex.neu","seventh",scalingFactor);
-  //mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
-  mlMsh.GenerateCoarseBoxMesh(2, 1, 0, 0., 1., 0, 1, 0., 0., QUAD9, "seventh");
-  //mlMsh.ReadCoarseMesh("./input/quadAMR.neu", "seventh", scalingFactor);
-
-  unsigned dim = mlMsh.GetDimension();
-
-  unsigned numberOfUniformLevels = 1;
-  unsigned numberOfSelectiveLevels = 0;
-  mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
-
-  // unsigned numberOfUniformLevels = 4;
-  // unsigned numberOfSelectiveLevels = 3;
-  // mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
-
-  // erase all the coarse mesh levels
-  //mlMsh.EraseCoarseLevels(numberOfUniformLevels - 3);
-
-  // print mesh info
-  mlMsh.PrintInfo();
-  MultiLevelSolution mlSol(&mlMsh);
-  mlSol.AddSolution("PHI", LAGRANGE, SECOND);
-  mlSol.Initialize("All");
-  // attach the boundary condition function and generate boundary data
-  mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-  mlSol.GenerateBdc("All");
-
-  // print solutions
-  std::vector < std::string > variablesToBePrinted;
-  variablesToBePrinted.push_back("All");
-
-  VTKWriter vtkIO(&mlSol);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
-  for (unsigned k = 0; k < 2; k++) {
-
-    MeshRefinement meshcoarser(*(mlMsh.GetLevel(mlMsh.GetNumberOfLevels() - 1)));
-    if (k == 0) meshcoarser.FlagOnlyEvenElementsToBeRefined();
-    else meshcoarser.FlagAllElementsToBeRefined();
-
-    mlMsh.AddAMRMeshLevel();
-    mlSol.AddSolutionLevel();
-
-    vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
-
-  }
-
-
-  return 0;
-}
-*/
-
-
-

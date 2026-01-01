@@ -81,12 +81,20 @@ namespace femus {
                               const std::vector < std::vector <double > > &a);
 
   bool GetNewLocalCoordinates(std::vector<double>& xi,
-                                   const std::vector<double>& x,
-                                   const std::vector<double>& phi,
-                                   const std::vector<std::vector<double>>& gradPhi,
-                                   const std::vector<std::vector<double>>& a,
-                                   std::vector<double> &F,
-                                   std::vector<std::vector<double>> &J);
+                              const std::vector<double>& x,
+                              const std::vector<double>& phi,
+                              const std::vector<std::vector<double>>& gradPhi,
+                              const std::vector<std::vector<double>>& a,
+                              std::vector<double> &F,
+                              std::vector<std::vector<double>> &J);
+
+  bool GetNewLocalCoordinates(std::vector<double>& xi,
+                              const std::vector<double>& x,
+                              const std::vector<double>& phi,
+                              const std::vector<std::vector<double>>& gradPhi,
+                              const std::vector<std::vector<double>>& a,
+                              std::vector<double> &F,
+                              std::vector<std::vector<double>> &J);
 
   bool GetNewLocalCoordinatesHess(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
                                   const std::vector < std::vector <double > > &gradPhi, const std::vector < std::vector < std::vector <double> > > hessPhi,
@@ -106,6 +114,11 @@ namespace femus {
                          const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
                          std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi,
                          std::vector<double> &F, std::vector<std::vector<double>> &J);
+
+
+  bool GetInverseMapping_fast(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
+                              const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
+                              std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi);
 
   void GetClosestPointInReferenceElement(const std::vector< std::vector < double > > &xv, const std::vector <double> &x,
                                          const short unsigned &ieltype, std::vector < double > &xi);

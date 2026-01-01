@@ -16,6 +16,11 @@
 #include "Mesh.hpp"
 #include "FemProjection.hpp"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+
 double computeHSnapElementBased(const Mesh& mesh, double rel = 1e-2) {
 
   const std::vector<std::vector<double>>& X = mesh.X();
@@ -109,14 +114,16 @@ void dedupNodesHash(Mesh &mesh,
   //std::cout << "characteristic size (hash) = " << h_snap << std::endl;
 
   // snap[d][i] = snapped integer coord of node i in dimension d
-  std::vector<std::vector<long long>> snap(dim, std::vector<long long>(N));
-  for (unsigned d = 0; d < dim; ++d) {
-    const double inv_h = 1.0 / h_snap;
-    for (unsigned i = 0; i < N; ++i) {
-      snap[d][i] = static_cast<long long>(std::llround(X[d][i] * inv_h));
-    }
-  }
+  // std::vector<std::vector<long long>> snap(dim, std::vector<long long>(N));
+  // for (unsigned d = 0; d < dim; ++d) {
+  //   const double inv_h = 1.0 / h_snap;
+  //   for (unsigned i = 0; i < N; ++i) {
+  //     snap[d][i] = static_cast<long long>(std::llround(X[d][i] * inv_h));
+  //   }
+  // }
 
+
+  const double inv_h = 1.0 / h_snap;
   // Key for hash map
   struct Key {
     long long s0, s1, s2;
@@ -151,9 +158,9 @@ void dedupNodesHash(Mesh &mesh,
 
   for (unsigned idx : candidateIndices) {
     Key key;
-    key.s0 = snap[0][idx];
-    key.s1 = (dim > 1 ? snap[1][idx] : 0);
-    key.s2 = (dim > 2 ? snap[2][idx] : 0);
+    key.s0 = static_cast<long long>(std::llround(X[0][idx] * inv_h)); //snap[0][idx];
+    key.s1 = (dim > 1 ? static_cast<long long>(std::llround(X[1][idx] * inv_h))/*snap[1][idx]*/ : 0);
+    key.s2 = (dim > 2 ? static_cast<long long>(std::llround(X[2][idx] * inv_h))/*;snap[2][idx]*/ : 0);
 
     auto it = cellRep.find(key);
     if (it == cellRep.end()) {
@@ -176,34 +183,82 @@ void dedupNodesHash(Mesh &mesh,
       old2new[i] = numUnique++;
     }
   }
-  for (unsigned i = 0; i < N; ++i) {
-    if (rep[i] != i) {
-      old2new[i] = old2new[rep[i]];
+
+
+  #pragma omp parallel for schedule(static)
+  for (long long i = 0; i < (long long)N; ++i) {
+    unsigned ui = (unsigned)i;
+    if (rep[ui] != ui) {
+      old2new[ui] = old2new[ rep[ui] ];
     }
   }
+
+  // for (unsigned i = 0; i < N; ++i) {
+  //   if (rep[i] != i) {
+  //     old2new[i] = old2new[rep[i]];
+  //   }
+  // }
 
   if (numUnique == N) {
     return;
   }
 
-  // 5) Update connectivity
-  for (auto& conn : elTplgy) {
-    for (auto& v : conn) {
-      v = old2new[v];
+
+
+  const unsigned* map = old2new.data();
+
+  #pragma omp parallel for schedule(static)
+  for (long long e = 0; e < (long long)elTplgy.size(); ++e) {
+    auto& conn = elTplgy[(size_t)e];
+    for (unsigned& v : conn) {
+      v = map[v];
     }
   }
 
-  // 6) Compact XF to size numUnique
+
+
+
+  // // 5) Update connectivity
+  // for (auto& conn : elTplgy) {
+  //   for (auto& v : conn) {
+  //     v = old2new[v];
+  //   }
+  // }
+
+
+  // 6) Compact X to size numUnique (faster + OpenMP)
+  std::vector<unsigned> reps;
+  reps.reserve(numUnique);
+  for (unsigned i = 0; i < N; ++i) {
+    if (rep[i] == i) reps.push_back(i);
+  }
+
   for (unsigned d = 0; d < dim; ++d) {
     std::vector<double> Xnew(numUnique);
-    for (unsigned i = 0; i < N; ++i) {
-      if (rep[i] == i) {
-        unsigned j = old2new[i];
-        Xnew[j] = X[d][i];
-      }
+    const double* Xd = X[d].data();
+
+    #pragma omp parallel for schedule(static)
+    for (long long j = 0; j < (long long)numUnique; ++j) {
+      unsigned i = reps[(size_t)j];
+      Xnew[(size_t)j] = Xd[i];
     }
     X[d].swap(Xnew);
   }
+
+
+
+  /*
+    // 6) Compact XF to size numUnique
+    for (unsigned d = 0; d < dim; ++d) {
+      std::vector<double> Xnew(numUnique);
+      for (unsigned i = 0; i < N; ++i) {
+        if (rep[i] == i) {
+          unsigned j = old2new[i];
+          Xnew[j] = X[d][i];
+        }
+      }
+      X[d].swap(Xnew);
+    }*/
 }
 
 
