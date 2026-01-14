@@ -37,8 +37,8 @@ std::vector<unsigned> g_controlNodeDofs;
 
 
 double x1 = 0.;
-std::vector<double> w(cascadeIterations,0.);
-std::vector<double> wOld(cascadeIterations,0.);
+std::vector<double> w(cascadeIterations, 0.);
+std::vector<double> wOld(cascadeIterations, 0.);
 
 double alpha = 1.0e-7;
 double beta = 0.125;
@@ -78,7 +78,7 @@ void SetPrescribedFields(Solution* sol, const double& time, const std::string& R
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true;
   if(!strcmp(SolName, "Wi")) dirichlet = false;
-  else{
+  else {
     dirichlet = true;
     value = 0.;
   }
@@ -123,8 +123,8 @@ int main(int argc, char** args) {
   MultiLevelMesh mlMsh;
 
   // unsigned nx = 10;
-  unsigned nx = 4;
-  unsigned ny = 4;
+  unsigned nx = 8;
+  unsigned ny = 8;
   unsigned nz = 1;
 
   double length = 1;
@@ -132,7 +132,8 @@ int main(int argc, char** args) {
 
   if (DIM == 2) {
     mlMsh.GenerateCoarseBoxMesh(nx, ny, 0, 0., lengthx, 0., length, 0., 0., QUAD9, "seventh");
-  } else if (DIM == 3) {
+  }
+  else if (DIM == 3) {
     nz = ny;
     mlMsh.GenerateCoarseBoxMesh(nx, ny, nz, 0., lengthx, 0., length, 0., length, HEX27, "seventh");
   }
@@ -202,16 +203,16 @@ int main(int argc, char** args) {
   Mesh* msh = sol->GetMesh();
 
   std::vector<std::vector<double>> controlPoints = {
-    {M_PI/2.,0.5}
+    {M_PI / 2., 0.5}
   };
 
   g_controlNodeDofs = GetControlNodeIndices(msh, controlPoints);
 
 
   // RegionBox boxB{M_PI/3., 2*M_PI/3., 0., 1};
-  RegionBox boxC{(M_PI/4.)-0.001, (3.*M_PI/4.)+0.001, 0.249, 0.751};
+  RegionBox boxC{(M_PI / 4.) - 0.001, (3.*M_PI / 4.) + 0.001, 0.249, 0.751};
   if(withDisturbance) {
-    RegionBox boxBd{2*M_PI/3., M_PI, 0., 1};
+    RegionBox boxBd{2 * M_PI / 3., M_PI, 0., 1};
     // SetRegions(sol, boxB, boxC, &boxBd);
     SetRegions(sol, boxC, &boxBd);
   }
@@ -305,12 +306,18 @@ int main(int argc, char** args) {
 
       system.MGsolve();
 
+      std::cout<<"j = " << j << " w = " << w[j] <<std::endl;
+
       wOld[j] = w[j];
 
       *(sol->_Sol[mlSol.GetIndex("Z")]) += *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
+      sol->_Sol[mlSol.GetIndex("Z")]->add(w[j], *(sol->_Sol[(mlSol.GetIndex("P"))]));
+
+
       *(sol->_Sol[mlSol.GetIndex(Zj.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) = *(sol->_Sol[(mlSol.GetIndex("Ei"))]);
       *(sol->_Sol[mlSol.GetIndex(Ej.c_str())]) -= *(sol->_Sol[(mlSol.GetIndex("Zi"))]);
+      sol->_Sol[mlSol.GetIndex(Ej.c_str())]->add(-w[j], *(sol->_Sol[(mlSol.GetIndex("P"))]));
       *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex(Ej.c_str()))]);
 
       if (world_rank == 0) {
@@ -390,7 +397,7 @@ double GetTargetSolution(const std::vector<double> &xv, const double &time) {
 }*/
 
 double GetDisturbanceSolution(const std::vector<double>& xv, const double& time) {
-    return (xv[0] - 2*M_PI/3.0)*(M_PI - xv[0]) * xv[1]*(1 - xv[1]) * sin(2*time) * flc4hs(time - 0.5, 0.5);
+  return (xv[0] - 2 * M_PI / 3.0) * (M_PI - xv[0]) * xv[1] * (1 - xv[1]) * sin(2 * time) * flc4hs(time - 0.5, 0.5);
 }
 
 void SetPrescribedFields(Solution* sol, const double& time, const std::string& R, const std::string& D) {
@@ -458,9 +465,9 @@ bool CheckIfInside(const std::vector<double>& xv, const RegionBox& box) {
 // }
 
 void SetRegions(Solution* sol,
-                  // const RegionBox& boxB,
-                  const RegionBox& boxC,
-                  const RegionBox* boxBd) {
+                // const RegionBox& boxB,
+                const RegionBox& boxC,
+                const RegionBox* boxBd) {
 
   Mesh* msh = sol->GetMesh();
   const unsigned dim = msh->GetDimension();
@@ -614,7 +621,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   RES->zero(); // Set to zero all the entries of the Global Residual std::vector
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
-    // global scalars
+  // global scalars
   double PstarZ = 0.0;
   double PstarX = 0.0;
   double PstarY = 0.0;
@@ -629,7 +636,7 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
   // node-based loop: use PStar(i) = ∫Ω P φ_i, CStarCPStar(i) = ∫Ω_C P φ_i
   const NumericVector* PStarVec      = sol->_Sol[solIndexPStar];
-  const NumericVector* CStarCPStarVec= sol->_Sol[solIndexPCStar];
+  const NumericVector* CStarCPStarVec = sol->_Sol[solIndexPCStar];
 
   const NumericVector* ZVec = sol->_Sol[solIndexZ];
   const NumericVector* XVec = sol->_Sol[solIndexX];
@@ -666,7 +673,8 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
   // ---- global reduction so all ranks see the same scalars ----
   double local_vec[7]  = {PstarZ, CstarCPstarZ, PstarX, PstarY,
-                          CstarCPstarY, CstarCPstarP, CstarCPstarE};
+                          CstarCPstarY, CstarCPstarP, CstarCPstarE
+                         };
   double global_vec[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
   MPI_Allreduce(local_vec, global_vec, 7, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -683,14 +691,17 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   // Precomputation of w,x1,y1 with analytic relations
   double lhs = - a + h * h * b * b * CstarCPstarP / alpha * ( (dt * (1 - beta) / (1 - a * dt)) - beta / a );
 
-  double rhs1 = - h * h *CstarCPstarP * ( (1 - beta) * (wOld[jTMP] / (1 - a * dt)) + h * b * b / alpha * (- (1 - beta) * dt / (1 - a * dt) + beta / a) * PstarX);
+  double rhs1 = - h * h * CstarCPstarP * ( (1 - beta) * (wOld[jTMP] / (1 - a * dt)) + h * b * b / alpha * (- (1 - beta) * dt / (1 - a * dt) + beta / a) * PstarX);
   double rhs2 = - h * a * PstarX + h * ( CstarCPstarE - (1 - beta) * CstarCPstarZ - beta * CstarCPstarY );
 
   double rhs = rhs1 + rhs2;
 
   x1 = rhs / lhs;
-  w[jTMP] = dt / (1 - a * dt) * (wOld[jTMP] / dt + b * b / alpha *(x1 - h * PstarX));
+  w[jTMP] = dt / (1 - a * dt) * (wOld[jTMP] / dt + b * b / alpha * (x1 - h * PstarX));
   y1 = - b * b / (a * alpha) * (- h * PstarX + x1);
+
+
+  double u1 = (- h * b * PstarX + b * x1 ) / alpha;
 
   // element loop: each process loops only on the elements that owns
   for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -738,9 +749,9 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
 
       for (unsigned k = 0; k < nUnkn; k++) {
         unsigned solIndex = (k == 0) ? solIndexZ :
-                             (k == 1) ? solIndexX : solIndexY;
+                            (k == 1) ? solIndexX : solIndexY;
         unsigned solPdeIndex = (k == 0) ? solPdeIndexZ :
-                                (k == 1) ? solPdeIndexX : solPdeIndexY;
+                               (k == 1) ? solPdeIndexX : solPdeIndexY;
         sysDof[k * nDofs + i] = pdeSys->GetSystemDof(solIndex, solPdeIndex, i, iel);
       }
     }
@@ -753,7 +764,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
       }
     }
 
-    double u1 = (- h * b * PstarX + b * x1 ) / alpha;
 
     s.new_recording();
 
@@ -918,12 +928,12 @@ void AssembleResP(MultiLevelProblem& ml_prob) {
       std::vector<adept::adouble> gradPg(dim, 0.0);
       for (unsigned a = 0; a < nDofs; ++a)
         for (unsigned k = 0; k < dim; ++k)
-          gradPg[k] += p[a] * dphi[a*dim + k];
+          gradPg[k] += p[a] * dphi[a * dim + k];
 
       // test with grad v_i
       for (unsigned i = 0; i < nDofs; ++i) {
         adept::adouble gi = 0.0;
-        for (unsigned k = 0; k < dim; ++k) gi += dphi[i*dim + k] * gradPg[k];
+        for (unsigned k = 0; k < dim; ++k) gi += dphi[i * dim + k] * gradPg[k];
         aRes[i] += gi * w;
       }
     }
@@ -1187,7 +1197,7 @@ std::vector<double> MarkControlNodes(const Mesh* msh, const std::vector<std::vec
 
 
 std::vector<unsigned> GetControlNodeIndices(const Mesh* msh,
-                                            const std::vector<std::vector<double>>& points) {
+    const std::vector<std::vector<double>>& points) {
   const unsigned dim = msh->GetDimension();
   unsigned nNodes = msh->_topology->_Sol[0]->size();
 
