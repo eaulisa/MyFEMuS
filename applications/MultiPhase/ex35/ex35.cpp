@@ -208,6 +208,9 @@ int main(int argc, char** args) {
 
       //move the old topLevel mesh0 nodes forward and use them to build the new multilevel mesh1 recursively
       field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
+
+       // TODO extract points on the inteface
+
       RungeKutta::rkForward(Xp, time, dt, velocityType);
 
       out.clear();
@@ -243,6 +246,9 @@ int main(int argc, char** args) {
       auto& Psi1 = field1[topLevel].getById(psiId1);
       const unsigned psiId0 = field0[topLevel].id("Psi");
       field0[topLevel].evalNodalAtLocatedPointsById(psiId0, out, elProj, Psi1, -1.0);
+
+      // TODO PSI reinit
+
 
       if (k % print_step == 0) std::cout << "\x1b[1A" << "\x1b[2K";   // cursor up 1, and erase entire line
       std::cout << "\x1b[1A" << "\x1b[2K"                        // cursor up 1, and erase entire line
