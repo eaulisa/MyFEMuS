@@ -306,7 +306,7 @@ int main(int argc, char** args) {
 
       system.MGsolve();
 
-      std::cout<<"j = " << j << " w = " << w[j] <<std::endl;
+      //std::cout<<"j = " << j << " w = " << w[j] <<std::endl;
 
       wOld[j] = w[j];
 
