@@ -989,8 +989,11 @@ double PrecomputePstarIntegrals(Solution* sol) {
   //   PStar(i)       = ∫Ω       P φ_i dx
   //   CStarCPStar(i) = ∫Ω_C     P φ_i dx   with Ω_C selected by CsC > 0.5
   const std::size_t nDofsGlobal = sol->_Sol[pIndex]->size();
-  std::vector<double> nodeWeightsP(nDofsGlobal, 0.0);
-  std::vector<double> nodeWeightsC(nDofsGlobal, 0.0);
+  // std::vector<double> nodeWeightsP(nDofsGlobal, 0.0);
+  // std::vector<double> nodeWeightsC(nDofsGlobal, 0.0);
+
+  sol->_Sol[pStarIndex]->zero();
+  sol->_Sol[cStarCPStarIndex]->zero();
 
   // element loop (each process owns its range)
   for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
@@ -1034,28 +1037,32 @@ double PrecomputePstarIntegrals(Solution* sol) {
 
         const double contrib = Pg * phi[i] * weight;
 
-        nodeWeightsP[pDof] += contrib;              // full domain Ω
-        nodeWeightsC[pDof] += inC * contrib;        // restricted to C
+        // nodeWeightsP[pDof] += contrib;              // full domain Ω
+        // nodeWeightsC[pDof] += inC * contrib;        // restricted to C
+
+        sol->_Sol[pStarIndex]->add(pDof,contrib);
+        sol->_Sol[cStarCPStarIndex]->add(pDof,inC*contrib);
       }
     }
   }
 
-  // MPI reductions
+
+  // MPI reductions TODO
   double globalIntegral = 0.0;
   MPI_Allreduce(&localIntegral, &globalIntegral, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  // Reduce nodal weights in-place
-  MPI_Allreduce(MPI_IN_PLACE, nodeWeightsP.data(),
-                static_cast<int>(nodeWeightsP.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  // // Reduce nodal weights in-place
+  // MPI_Allreduce(MPI_IN_PLACE, nodeWeightsP.data(),
+  //               static_cast<int>(nodeWeightsP.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  //
+  // MPI_Allreduce(MPI_IN_PLACE, nodeWeightsC.data(),
+  //               static_cast<int>(nodeWeightsC.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce(MPI_IN_PLACE, nodeWeightsC.data(),
-                static_cast<int>(nodeWeightsC.size()), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  // Scatter to FEMuS solution fields PStar and CStarCPStar
-  for (std::size_t gdof = 0; gdof < nDofsGlobal; ++gdof) {
-    sol->_Sol[pStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsP[gdof]);
-    sol->_Sol[cStarCPStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsC[gdof]);
-  }
+  // // Scatter to FEMuS solution fields PStar and CStarCPStar
+  // for (std::size_t gdof = 0; gdof < nDofsGlobal; ++gdof) {
+  //   sol->_Sol[pStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsP[gdof]);
+  //   sol->_Sol[cStarCPStarIndex]->set(static_cast<unsigned>(gdof), nodeWeightsC[gdof]);
+  // }
 
   sol->_Sol[pStarIndex]->close();
   sol->_Sol[cStarCPStarIndex]->close();
