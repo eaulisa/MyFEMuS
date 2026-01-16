@@ -10,6 +10,9 @@
 #include <variant>
 #include <vector>
 #include <gperftools/profiler.h>
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
 
 
 #include "Mollifier.hpp"
@@ -583,13 +586,24 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
   const auto& nodes = ot.basis_nodes(bs);
   for (size_t d = 0; d < DIM; ++d) f[d]->nodal.resize(nodes.size());
 
-  for (size_t gid = 0; gid < nodes.size(); ++gid) {
+#ifdef USE_OPENMP
+  #pragma omp parallel for schedule(static)
+#endif
+  for (std::ptrdiff_t gid = 0; gid < static_cast<std::ptrdiff_t>(nodes.size()); ++gid) {
     const auto& p = nodes[gid].physical;
     std::array<double, DIM> v{};
     if constexpr(DIM == 2) v = evalVelocity(p[0], p[1], time);
-    else                    v = evalVelocity(p[0], p[1], p[2], time);
+    else                   v = evalVelocity(p[0], p[1], p[2], time);
     for (size_t d = 0; d < DIM; ++d) f[d]->nodal[gid] = v[d];
   }
+
+  // for (size_t gid = 0; gid < nodes.size(); ++gid) {
+  //   const auto& p = nodes[gid].physical;
+  //   std::array<double, DIM> v{};
+  //   if constexpr(DIM == 2) v = evalVelocity(p[0], p[1], time);
+  //   else                   v = evalVelocity(p[0], p[1], p[2], time);
+  //   for (size_t d = 0; d < DIM; ++d) f[d]->nodal[gid] = v[d];
+  // }
 
   std::vector<std::variant<u32, std::vector<u32>>> groups;
   groups.emplace_back(0u); // phi
@@ -603,11 +617,12 @@ static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
 // ======================== Unified run<DIM> (exact signatures) ========================
 template<std::size_t DIM>
 std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Scenario scenario, bool vtu, bool pprof, const u32 max_depth, const bool box_domain, const unsigned reinit, const bool reinit_criteria, const double reinit_tau) {
+  const bool uniform = false;  // NEW
   if (pprof) ProfilerStart((DIM == 3) ? "profiling_3d.prof" : "profiling_2d.prof");
 
   const u32 maxDepth = max_depth;
   const u32 minDepth = (DIM == 3 ? 2u : 3u);
-  const bool allowDrop = true;
+  const bool allowDrop = !uniform;  //NEW
 
   std::cout << (DIM == 3 ? "Octree 3D" : "Octree 2D")
             << " config: maxDepth=" << maxDepth
@@ -676,9 +691,48 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     return (mn > +tau_coarse) || (mx < -tau_coarse);
   };
 
-  std::size_t changed = ot.adapt_cycle(coarsen1, refine1, /*max_passes=*/10);
-  std::cout << "Adapt-cycle changed " << changed << " cells\n";
-  std::cout << "Leaves after cycle: " << ot.leaf_count() << "\n";
+  if (uniform) {  //NEW
+      // Costruisci una griglia uniforme fino a maxDepth usando refine_to_contain_points
+      std::vector<Pt<DIM>> pts;
+
+      const int n_per_dim = 1 << maxDepth; // 2^maxDepth
+      pts.reserve(std::pow(n_per_dim, (int)DIM));
+
+      // punti ai centri delle celle uniformi
+      if constexpr (DIM == 2) {
+        for (int i = 0; i < n_per_dim; ++i) {
+          for (int j = 0; j < n_per_dim; ++j) {
+            double x = minCorner[0] + ( (i + 0.5) / n_per_dim ) * (maxCorner[0] - minCorner[0]);
+            double y = minCorner[1] + ( (j + 0.5) / n_per_dim ) * (maxCorner[1] - minCorner[1]);
+            Pt<2> p; p[0] = x; p[1] = y;
+            pts.push_back(p);
+          }
+        }
+      } else if constexpr (DIM == 3) {
+        for (int i = 0; i < n_per_dim; ++i) {
+          for (int j = 0; j < n_per_dim; ++j) {
+            for (int k = 0; k < n_per_dim; ++k) {
+              double x = minCorner[0] + ( (i + 0.5) / n_per_dim ) * (maxCorner[0] - minCorner[0]);
+              double y = minCorner[1] + ( (j + 0.5) / n_per_dim ) * (maxCorner[1] - minCorner[1]);
+              double z = minCorner[2] + ( (k + 0.5) / n_per_dim ) * (maxCorner[2] - minCorner[2]);
+              Pt<3> p; p[0] = x; p[1] = y; p[2] = z;
+              pts.push_back(p);
+            }
+          }
+        }
+      }
+
+      ot.refine_to_contain_points(pts, ot.max_depth());
+      ot.enlarge_top_layer_and_enforce_balance(); // se disponibile anche su ot
+
+      std::cout << "[UNIFORM] Leaves after full refinement: "
+                << ot.leaf_count() << "\n";
+    } else {
+      std::size_t changed = ot.adapt_cycle(coarsen1, refine1, /*max_passes=*/10);
+      std::cout << "Adapt-cycle changed " << changed << " cells\n";
+      std::cout << "Leaves after cycle: " << ot.leaf_count() << "\n";
+    }
+
 
   // Scalar field "phi"
   const u32 fid = ot.add_field(bHi, "phi");
@@ -721,7 +775,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   OctTree<DIM> ot1(maxDepth, minDepth);
 
   std::vector<Pt<DIM>> markers;
-  if (reinit){
+  if (reinit) {
     markers.clear();
     markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
   }
@@ -733,31 +787,56 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     std::vector<Pt<DIM>> leftOld, stayedNew;
     if (reinit) fem::advect_physical_markers_forward_analytic(ot, time, dt, evalVelocity, markers, leftOld, stayedNew);
     else //TODO (check Samuele New Advection Functions)
-    fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
-
-    ot1.reset(false, false);
-    ot1.set_allow_coarsen_below_min(allowDrop);
-    ot1.set_physical_coordinates(X);
-    ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
-    ot1.enlarge_top_layer_and_enforce_balance();
+      fem::advect_interface_markers_forward_analytic(ot, fid, time, dt, evalVelocity, leftOld, stayedNew);
 
     const u32 fid0 = fid;
-    const u32 fid1 = ot1.add_field(bHi, "phi");
-
-    fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
-
+    u32 fid1 = 0;
     u32 num_coarsened = 0;
-    if (reinit) {
-      //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
+
+    if (uniform) {
+      // --------- RAMO UNIFORME: topologia fissa, nessun refine/coarsen ---------
+      // ot1 viene riallineato a ot (stessa griglia uniforme e stessi campi)
+      ot1 = ot;  // copia struttura + campi da ot
+
+      ot1.set_allow_coarsen_below_min(false);
+      ot1.set_physical_coordinates(X);
+
+      // NON creiamo un nuovo campo: usiamo sempre lo stesso id 'fid'
+      fid1 = fid;  // sovrascriviamo lo stesso campo phi
+
+      fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
+
+      num_coarsened = 0; // nessun coarsening in uniforme
     }
     else {
-      //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse}, ot);
+      // --------- RAMO AMR ORIGINALE (IDENTICO AL TUO) ---------
+      ot1.reset(false, false);
+      ot1.set_allow_coarsen_below_min(allowDrop);
+      ot1.set_physical_coordinates(X);
+      ot1.refine_to_contain_points(stayedNew, ot1.max_depth());
+      ot1.enlarge_top_layer_and_enforce_balance();
+
+      fid1 = ot1.add_field(bHi, "phi");
+
+      fem::advect_nodes_backward_and_transport_field_analytic(ot, fid0, time, dt, evalVelocity, ot1, fid1);
+
+      if (reinit) {
+        //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse, 1.0e-6}, ot);
+      }
+      else {
+        //num_coarsened = ot1.coarsen_only_cycle_safe(fid0, {tau_coarse}, ot);
+      }
     }
     std::cout << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
               << "\x1b[1A" << "\x1b[2K"   // cursor up 1, and erase entire line
               << "\r"        // return to column 1
               << std::flush;
     std::cout << "Coarsened " << num_coarsened << " leaves.\n";
+    if (k % 10 == 0) {
+      std::cout << "Step " << k << "/" << nSteps
+                << ", leaves = " << ot.leaf_count()
+                << std::endl;
+    }
 
     using std::swap; swap(ot, ot1);
 
@@ -892,6 +971,12 @@ int main(int argc, char** argv) {
   bool reinit_criteria = false;
   double reinit_tau = 0.2;
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
+
+
+#ifdef USE_OPENMP
+  std::cout << "We are runnig with OPENMP\n";
+#endif
+
 
   unsigned max_depth = 8;
   unsigned delta_depth = 1;

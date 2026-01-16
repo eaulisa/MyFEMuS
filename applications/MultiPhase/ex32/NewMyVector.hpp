@@ -1,0 +1,661 @@
+#pragma once
+
+/*=========================================================================
+
+ Program: FEMuS
+ Module: MyVector
+ Authors: Eugenio Aulisa
+
+ Copyright (c) FEMuS
+ All rights reserved.
+
+ This software is distributed WITHOUT ANY WARRANTY; without even
+ the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ PURPOSE.  See the above copyright notice for more information.
+
+=========================================================================*/
+
+#include <string>
+
+#include <iostream>
+#include <vector>
+#include <stdlib.h>
+
+#include <mpi.h>
+#include <boost/mpi/datatype.hpp>
+
+
+
+namespace newfemus {
+
+  template <class Type> class MyVector {
+
+    public:
+      // ******************
+      MyVector();
+
+      // ******************
+      MyVector(const unsigned &size, const Type value = 0);
+
+      // ******************
+      MyVector(const std::vector < unsigned > &offset, const Type value = 0);
+
+      // ******************
+      ~MyVector();
+
+      // ******************
+      void init();
+
+      //*******************
+      void resize(const unsigned &size, const Type value = 0);
+
+      // ******************
+      void resize(const std::vector < unsigned > &offset, const Type value = 0);
+
+      // ******************
+      void clear();
+
+      // ******************
+      unsigned size();
+
+      // ******************
+      unsigned begin();
+
+      // ******************
+      unsigned end();
+
+      // ******************
+      void scatter(const std::vector < unsigned > &offset);
+
+      // ******************
+      void scatter();
+
+      // ******************
+      void stack();
+
+      // ******************
+      void buildOffset();
+
+      // ******************
+      std::vector<unsigned> getOffset();
+
+      // ******************
+      void broadcast(const unsigned &lproc);
+
+      // ******************
+      void clearBroadcast();
+
+      // ****************
+      const std::string &status();
+
+      void localize(std::vector<Type> &v_local) const ;
+
+      // ******************
+      Type& operator[](const unsigned &i);
+
+      // *****************
+      friend std::ostream& operator<<(std::ostream& os, MyVector<Type>& vec) {
+
+        os << vec.status() << std::endl;
+
+        if (vec._vecIsAllocated) {
+          if (vec._serial) {
+            for (unsigned i = vec.begin(); i < vec.end(); i++) {
+              os << i << " " << vec[i] << std::endl;
+            }
+          }
+          else {
+            for (int j = 0; j < vec._nprocs; j++) {
+              vec.broadcast(j);
+              for (unsigned i = vec.begin(); i < vec.end(); i++) {
+                os << i << " " << vec[i] << std::endl;
+              }
+              os << std::endl;
+              vec.clearBroadcast();
+            }
+          }
+        }
+        return os;
+      }
+
+    private:
+
+      std::string _status;
+      bool _serial;
+      bool _vecIsAllocated;
+
+      unsigned _iproc;
+      unsigned _nprocs;
+      MPI_Datatype _MY_MPI_DATATYPE;
+
+      unsigned _begin;
+      unsigned _end;
+      unsigned _size;
+
+      std::vector< Type > _vec;
+      std::vector< Type > _vec2;
+      std::vector < unsigned > _offset;
+
+      unsigned _lproc;
+  };
+
+} //end namespace newfemus
+/*=========================================================================
+
+ Program: FEMuS
+ Module: MyVector
+ Authors: Eugenio Aulisa
+
+ Copyright (c) FEMuS
+ All rights reserved.
+
+ This software is distributed WITHOUT ANY WARRANTY; without even
+ the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ PURPOSE.  See the above copyright notice for more information.
+
+=========================================================================*/
+
+#include <string>
+
+#include <iostream>
+#include <vector>
+#include <stdlib.h>
+
+#include <mpi.h>
+#include <boost/mpi/datatype.hpp>
+
+#include "MyVector.hpp"
+
+namespace newfemus {
+
+  // ******************
+  template <class Type> MyVector<Type>::MyVector() {
+    init();
+  }
+
+  // ******************
+  template <class Type> MyVector<Type>::MyVector(const unsigned &size, const Type value) {
+    init();
+    resize(size, value);
+  }
+
+  // ******************
+  template <class Type> MyVector<Type>::MyVector(const std::vector < unsigned > &offset, const Type value) {
+    init();
+    resize(offset, value);
+  }
+
+  // ******************
+  template <class Type> MyVector<Type>::~MyVector() {
+    clear();
+  }
+
+  // ******************
+  template <class Type> void MyVector<Type>::init() {
+
+    int iproc, nprocs;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+    _iproc = static_cast < unsigned >(iproc);
+    _nprocs = static_cast < unsigned >(nprocs);
+
+    Type dummy = 0;
+    _MY_MPI_DATATYPE = boost::mpi::get_mpi_datatype(dummy);
+
+    _vecIsAllocated = false;
+    _serial = true;
+
+    _begin = 0;
+    _end = 0;
+    _size = 0;
+  }
+
+
+  // ******************
+  template <class Type> void MyVector<Type>::resize(const unsigned &size, const Type value) {
+
+    _vec.resize(size, value);
+
+    _vecIsAllocated = true;
+    _serial = true;
+
+    _begin = 0;
+    _end = size;
+    _size = size;
+
+  }
+
+  // ******************
+  template <class Type> void MyVector<Type>::resize(const std::vector < unsigned > &offset, const Type value) {
+
+    _offset = offset;
+    if (_nprocs != _offset.size() - 1) {
+      std::cout << "Error in MyVector.Resize(...), offset.size() != from nprocs" << std::endl;
+      abort();
+    }
+
+    _vec.resize(_offset[_iproc + 1] - offset[_iproc], value);
+
+    _vecIsAllocated = true;
+    _serial = false;
+
+    _begin = _offset[_iproc];
+    _end = _offset[_iproc + 1];
+    _size = _end - _begin;
+
+  }
+
+  // ******************
+  template <class Type> void MyVector<Type>::clear() {
+    std::vector<Type>().swap(_vec);
+    std::vector<Type>().swap(_vec2);
+    _vecIsAllocated = false;
+    _serial = true;
+  }
+
+
+  // ******************
+  template <class Type> unsigned MyVector<Type>::size() {
+    return _size;
+  }
+
+  // ******************
+  template <class Type> unsigned MyVector<Type>::begin() {
+    return _begin;
+  }
+
+  // ******************
+  template <class Type> unsigned MyVector<Type>::end() {
+    return _end;
+  }
+
+
+  template <class Type> void MyVector<Type>::stack() {
+
+    if (!_serial) {
+      std::cout << "Error in MyVector.stack(), vector is in "
+                << status() << " status" << std::endl;
+      abort();
+    }
+
+    // Gather local sizes (currently _size on each rank) to all processes
+    std::vector<unsigned> sizes(_nprocs, 0);
+    MPI_Allgather(&_size,        // send buffer: this rank's local size
+                  1,
+                  MPI_UNSIGNED,
+                  sizes.data(),  // receive buffer: all ranks' sizes
+                  1,
+                  MPI_UNSIGNED,
+                  MPI_COMM_WORLD);
+
+    // Build prefix sums into _offset
+    _offset.resize(_nprocs + 1);
+    _offset[0] = 0;
+    for (unsigned p = 0; p < _nprocs; ++p) {
+      _offset[p + 1] = _offset[p] + sizes[p];
+    }
+
+#ifndef NDEBUG
+    // Sanity check: this rank's size must match what offset says
+    if (_offset[_iproc + 1] - _offset[_iproc] != _size) {
+      std::cout << "Error in MyVector::stack: size mismatch on rank " << _iproc
+                << " (sizes[iproc] = " << sizes[_iproc]
+                << ", offset[iproc+1] - offset[iproc] = "
+                << (_offset[_iproc + 1] - _offset[_iproc])
+                << ", _size = " << _size << ")" << std::endl;
+      abort();
+    }
+#endif
+
+    // After stack, interpret the vector as distributed according to _offset
+    _serial = false;
+
+    _begin = _offset[_iproc];
+    _end   = _offset[_iproc + 1];
+    _size  = _end - _begin;
+  }
+
+  /*
+
+    // ******************
+    template <class Type> void MyVector<Type>::stack() {
+
+      if (!_serial) {
+        std::cout << "Error in MyVector.stack(), vector is in " << status() << " status" << std::endl;
+        abort();
+      }
+
+      _offset.resize(_nprocs + 1);
+      _offset[0] = 0;
+
+      for (unsigned jproc = 0; jproc < _nprocs; jproc++) {
+        if (jproc != _iproc) {
+          MPI_Send(&_size, 1, MPI_UNSIGNED, jproc, 1, MPI_COMM_WORLD);
+          MPI_Recv(&_offset[jproc + 1], 1, MPI_UNSIGNED, jproc, 1, MPI_COMM_WORLD, NULL);
+        }
+        else {
+          _offset[_iproc + 1] = _size;
+        }
+      }
+
+      for (unsigned i = 0; i < _nprocs; i++) {
+        _offset[i + 1] += _offset[i];
+      }
+
+      _serial = false;
+
+      _begin = _offset[_iproc];
+      _end = _offset[_iproc + 1];
+      _size = _end - _begin;
+
+    }*/
+
+
+  // ******************
+  template <class Type> void MyVector<Type>::scatter() {
+    buildOffset();
+    scatter(_offset);
+  }
+
+  // ******************
+  template <class Type> void MyVector<Type>::buildOffset() {
+#ifndef NDEBUG
+    // This routine assumes _size is the GLOBAL size,
+    // which is only true in SERIAL mode in your design.
+    if (!_serial) {
+      std::cout << "Error in MyVector::buildOffset: vector is in "
+                << status() << " status, expected SERIAL (global size in _size)"
+                << std::endl;
+      abort();
+    }
+    if (_nprocs == 0u) {
+      std::cout << "Error in MyVector::buildOffset: _nprocs == 0" << std::endl;
+      abort();
+    }
+#endif
+
+    const unsigned global_size = _size;
+    const unsigned locsize   = global_size / _nprocs;
+    const unsigned reminder  = global_size % _nprocs;
+
+    _offset.resize(_nprocs + 1);
+    _offset[0] = 0;
+
+    for (unsigned i = 1; i < _nprocs; ++i) {
+      _offset[i] = _offset[i - 1] + locsize;
+      if (i <= reminder) {
+        _offset[i] += 1;
+      }
+    }
+
+    _offset[_nprocs] = global_size;
+  }
+
+
+
+  // template <class Type> void MyVector<Type>::buildOffset() {
+  //   unsigned locsize = _size / _nprocs;
+  //   unsigned reminder = _size % _nprocs;
+  //   _offset.resize(_nprocs + 1);
+  //   _offset[0] = 0;
+  //   for (unsigned i = 1; i < _nprocs; i++) {
+  //     _offset[i] = _offset[i - 1] + locsize;
+  //     if (i <= reminder) _offset[i] += 1;
+  //   }
+  //   _offset[_nprocs] = _size;
+  // }
+
+  // ******************
+  template <class Type> void MyVector<Type>::scatter(const std::vector < unsigned > &offset) {
+
+    _offset = offset;
+
+    if (!_serial) {
+      std::cout << "Error in MyVector.scatter(), vector is in "
+                << status() << " status" << std::endl;
+      abort();
+    }
+
+#ifndef NDEBUG
+    // offset must be consistent with nprocs
+    if (_nprocs != _offset.size() - 1) {
+      std::cout << "Error in MyVector::scatter(offset): offset.size() = "
+                << _offset.size() << " != nprocs + 1 (" << _nprocs + 1
+                << ")" << std::endl;
+      abort();
+    }
+
+    // Global size implied by offset must match current serial size
+    unsigned global_size = _offset[_nprocs];
+    if (global_size != _size) {
+      std::cout << "Error in MyVector::scatter(offset): global_size from offset = "
+                << global_size << " != current serial size _size = "
+                << _size << std::endl;
+      abort();
+    }
+#endif
+
+    // Save old serial vector into _vec2
+    _vec.swap(_vec2);
+
+    const unsigned b = _offset[_iproc];
+    const unsigned e = _offset[_iproc + 1];
+    const unsigned locsize = e - b;
+
+    _vec.resize(locsize);
+
+    // Copy this process's subrange from the old serial vector
+    if (locsize > 0) {
+      std::copy(_vec2.begin() + b,
+                _vec2.begin() + e,
+                _vec.begin());
+    }
+
+    // Free auxiliary storage
+    std::vector<Type>().swap(_vec2);
+
+    _serial = false;
+
+    _begin = b;
+    _end   = e;
+    _size  = locsize;
+  }
+
+
+
+  // ******************
+  template <class Type> std::vector<unsigned>  MyVector<Type>::getOffset() {
+    return _offset;
+  }
+
+  template <class Type> void MyVector<Type>::broadcast(const unsigned &lproc) {
+
+    if (_serial) {
+      std::cout << "Error in MyVector.broadcast(), vector is in "
+                << status() << " status" << std::endl;
+      abort();
+    }
+
+#ifndef NDEBUG
+    // Sanity check: offset must be consistent with nprocs
+    if (_offset.size() != _nprocs + 1) {
+      std::cout << "Error in MyVector::broadcast: offset size "
+                << _offset.size() << " != nprocs + 1 ("
+                << _nprocs + 1 << ")" << std::endl;
+      abort();
+    }
+    if (lproc >= _nprocs) {
+      std::cout << "Error in MyVector::broadcast: lproc = "
+                << lproc << " >= nprocs = " << _nprocs << std::endl;
+      abort();
+    }
+#endif
+
+    // Length of the segment owned by lproc
+    const unsigned len = _offset[lproc + 1] - _offset[lproc];
+
+    // Non-root ranks: save local data and resize buffer to match root segment
+    if (_iproc != lproc) {
+      _vec.swap(_vec2);
+      _vec.resize(len);
+    }
+
+    // Broadcast only if there is something to send
+    if (len > 0) {
+      MPI_Bcast(_vec.data(),              // safe even if we just resized
+                static_cast<int>(len),
+                _MY_MPI_DATATYPE,
+                lproc,
+                MPI_COMM_WORLD);
+    }
+
+    // After broadcast, all ranks see the lproc segment
+    _begin = _offset[lproc];
+    _end   = _offset[lproc + 1];
+    _size  = len;
+    _lproc = lproc;
+  }
+
+
+  // // ******************
+  // template <class Type> void MyVector<Type>::broadcast(const unsigned &lproc) {
+  //
+  //   if (_serial) {
+  //     std::cout << "Error in MyVector.LocalizeToAll(), vector is in " << status() << " status" << std::endl;
+  //     abort();
+  //   }
+  //
+  //   if (_iproc != lproc) {
+  //     _vec.swap(_vec2);
+  //     _vec.resize(_offset[lproc + 1] - _offset[lproc]);
+  //   }
+  //
+  //   MPI_Bcast(&_vec[0], _vec.size(), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
+  //
+  //   _begin = _offset[lproc];
+  //   _end = _offset[lproc + 1];
+  //   _lproc = lproc;
+  // }
+
+  // ******************
+  template <class Type> void MyVector<Type>::clearBroadcast() {
+
+    if (_lproc != _iproc) {
+      _vec.swap(_vec2);
+      std::vector<Type>().swap(_vec2);
+      _begin = _offset[_iproc];
+      _end = _offset[_iproc + 1];
+      _size = _end - _begin;
+    }
+
+  }
+
+  template <class Type> void MyVector<Type>::localize(std::vector<Type> &v_local) const {
+    if (_serial) {
+      // In serial mode, the local vector is already the full global vector
+      v_local = _vec;
+    }
+    else {
+#ifndef NDEBUG
+      // In parallel mode, the offset vector must be consistent with nprocs
+      if (_offset.size() != _nprocs + 1) {
+        std::cout << "Error in MyVector::localize: offset size "
+                  << _offset.size() << " != nprocs + 1 ("
+                  << _nprocs + 1 << ")" << std::endl;
+        abort();
+      }
+      // Local size must match what offset says for this process
+      if (_offset[_iproc + 1] - _offset[_iproc] != _size) {
+        std::cout << "Error in MyVector::localize: local size _size = "
+                  << _size << " != offset[iproc+1] - offset[iproc] = "
+                  << (_offset[_iproc + 1] - _offset[_iproc]) << std::endl;
+        abort();
+      }
+#endif
+
+      // Global size is the last entry of the offset array
+      v_local.resize(_offset[_nprocs]);
+
+      std::copy(_vec.begin(), _vec.begin() + _size, v_local.begin() + _offset[_iproc]);
+
+      // Complete the global vector by broadcasting each process's chunk
+      for (unsigned kp = 0; kp < _nprocs; kp++) {
+        unsigned size_kp = _offset[kp + 1] - _offset[kp];
+        MPI_Bcast(&v_local[_offset[kp]],
+                  size_kp,
+                  _MY_MPI_DATATYPE,
+                  kp,
+                  MPI_COMM_WORLD);
+      }
+    }
+  }
+
+
+
+  /*
+
+    template <class Type> void MyVector<Type>::localize(std::vector<Type> &v_local) const {
+      if (_serial) {
+        v_local = _vec;
+      }
+      else {
+        v_local.resize(_offset[_nprocs]);
+        for (unsigned i = 0; i < _size; i++) {
+          v_local[_offset[_iproc] + i] = _vec[i];
+        }
+        for (unsigned kp = 0; kp < _nprocs; kp++) {
+          unsigned size_kp = _offset[kp + 1] - _offset[kp];
+          MPI_Bcast(&v_local[_offset[kp]], size_kp, _MY_MPI_DATATYPE, kp, MPI_COMM_WORLD);
+        }
+      }
+    }*/
+
+
+  // ****************
+  template <class Type> const std::string & MyVector<Type>::status() {
+
+    if (!_vecIsAllocated)
+      _status = "UNINITIALIZED";
+    else if (_serial)
+      _status = "SERIAL";
+    else
+      _status = "PARALLEL";
+
+    return _status;
+  }
+
+  // ******************
+  template <class Type> Type& MyVector<Type>::operator[](const unsigned &i) {
+#ifndef NDEBUG
+    if (i < _begin || i >= _end) {
+      std::cout << "Error in MyVector::operator[]: global index "
+                << i << " is outside local range ["
+                << _begin << ", " << _end << ")" << std::endl;
+      abort();
+    }
+#endif
+    return _vec[i - _begin];
+  }
+
+
+  // Explicit template instantiation
+  template class MyVector<float>;
+  template class MyVector<double>;
+  template class MyVector<long double>;
+  template class MyVector<int>;
+  template class MyVector<short int>;
+  template class MyVector<long int>;
+  template class MyVector<short unsigned int>;
+  template class MyVector<unsigned int>;
+  template class MyVector<long unsigned int>;
+  template class MyVector<char>;
+
+} //end namespace newfemus
+
+
+
+
+
+

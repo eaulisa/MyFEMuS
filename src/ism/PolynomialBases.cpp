@@ -369,14 +369,13 @@ namespace femus {
 
     GetQuadPolynomialShapeFunction(phi,  xi, solType);
 
-    const unsigned dim = 2;
-
+    const unsigned dim   = 2;
     const unsigned nDofs = quadNumberOfDofs[solType];
 
     gradPhi.resize(nDofs);
-
-    for (int i = 0; i < nDofs; i++) {
-      gradPhi[i].assign(dim, 0.);
+    for (unsigned i = 0; i < nDofs; ++i) {
+      auto& g = gradPhi[i];
+      if (g.size() != dim) g.resize(dim);
     }
 
     //phi_x
@@ -1892,66 +1891,364 @@ namespace femus {
   }
 
 
+  // bool GetNewLocalCoordinates(std::vector<double>& xi,
+  //                             const std::vector<double>& x,
+  //                             const std::vector<double>& phi,
+  //                             const std::vector<std::vector<double>>& gradPhi,
+  //                             const std::vector<std::vector<double>>& a,
+  //                             std::vector<double> &F,
+  //                             std::vector<std::vector<double>> &J) {
+  //   // Dimensions
+  //   const int dim   = static_cast<int>(gradPhi[0].size()); // number of spatial dims
+  //   const int nDofs = static_cast<int>(phi.size());        // number of shape functions
+  //
+  //   F.assign(dim, 0.0);
+  //
+  //   J.resize(dim);
+  //   for (unsigned k = 0; k < dim; k++) J[k].assign(dim, 0.0);
+  //
+  //   // ------------------------------------------------------------
+  //   // Fast build: i-outer loops (rank-1 updates)
+  //   //   F += a_col(i) * phi[i]
+  //   //   J += a_col(i) * gradPhi_row(i)^T
+  //   // where a_col(i) has length dim and gradPhi_row(i) has length dim.
+  //   // ------------------------------------------------------------
+  //   for (int i = 0; i < nDofs; ++i) {
+  //     const double phi_i = phi[i];
+  //     const double* __restrict__ g = gradPhi[i].data(); // length dim
+  //
+  //     // Access a[k][i] as "column i" across k
+  //     for (int k = 0; k < dim; ++k) {
+  //       const double a_ki = a[k][i];
+  //       F[k] += a_ki * phi_i;
+  //
+  //       double* __restrict__ Jk = J[k].data();
+  //       // rank-1 update to row k of J
+  //       // J[k][j] += a_ki * g[j] for j=0..dim-1
+  //       #pragma omp simd
+  //       for (int j = 0; j < dim; ++j) {
+  //         Jk[j] += a_ki * g[j];
+  //       }
+  //     }
+  //   }
+  //
+  //   // Finish F -= x
+  //   for (int k = 0; k < dim; ++k) F[k] -= x[k];
+  //
+  //   // ------------------------------------------------------------
+  //   // Solve J * delta = -F  (avoid forming inverse)
+  //   // ------------------------------------------------------------
+  //   //std::vector<double> rhs = F;                // rhs := -F
+  //   for (double& v : F) v = -v;
+  //   solve_small(J, F);                        // rhs becomes delta
+  //
+  //   // Update xi and compute ||delta||^2
+  //   double delta2 = 0.0;
+  //   for (int i = 0; i < dim; ++i) {
+  //     xi[i] += F[i];
+  //     delta2 += F[i] * F[i];
+  //   }
+  //
+  //   return (delta2 < 1.0e-9);
+  // }
+
+
+
+  // Optimized: no per-call allocations for F/J, no omp inside (parallelize outside),
+// manual unroll for dim=2/3, stack locals for hot math.
   bool GetNewLocalCoordinates(std::vector<double>& xi,
                               const std::vector<double>& x,
                               const std::vector<double>& phi,
                               const std::vector<std::vector<double>>& gradPhi,
                               const std::vector<std::vector<double>>& a,
-                              std::vector<double> &F,
-                              std::vector<std::vector<double>> &J) {
+                              std::vector<double>& F,
+                              std::vector<std::vector<double>>& J) {
     // Dimensions
-    const int dim   = static_cast<int>(gradPhi[0].size()); // number of spatial dims
-    const int nDofs = static_cast<int>(phi.size());        // number of shape functions
+    const int dim   = static_cast<int>(gradPhi[0].size()); // 2 or 3
+    const int nDofs = static_cast<int>(phi.size());
 
-    F.assign(dim, 0.0);
+    // Ensure output containers are sized, but avoid repeated assign()/resize() in hot path.
+    if ((int)F.size() != dim) F.resize(dim);
+    if ((int)J.size() != dim) J.resize(dim);
+    for (int k = 0; k < dim; ++k) {
+      if ((int)J[k].size() != dim) J[k].resize(dim);
+    }
 
-    J.resize(dim);
-    for (unsigned k = 0; k < dim; k++) J[k].assign(dim, 0.0);
+    // Stack locals (fast, no heap traffic)
+    double Floc[3]   = {0.0, 0.0, 0.0};
+    double Jloc[3][3] = {
+      {0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0}
+    };
 
-    // ------------------------------------------------------------
-    // Fast build: i-outer loops (rank-1 updates)
-    //   F += a_col(i) * phi[i]
-    //   J += a_col(i) * gradPhi_row(i)^T
-    // where a_col(i) has length dim and gradPhi_row(i) has length dim.
-    // ------------------------------------------------------------
-    for (int i = 0; i < nDofs; ++i) {
-      const double phi_i = phi[i];
-      const double* __restrict__ g = gradPhi[i].data(); // length dim
+    // Build F and J:
+    // F += a_col(i) * phi[i]
+    // J += a_col(i) * gradPhi_row(i)^T
+    if (dim == 2) {
+      for (int i = 0; i < nDofs; ++i) {
+        const double  phi_i = phi[i];
+        const double* g     = gradPhi[i].data(); // g[0], g[1]
 
-      // Access a[k][i] as "column i" across k
-      for (int k = 0; k < dim; ++k) {
-        const double a_ki = a[k][i];
-        F[k] += a_ki * phi_i;
+        const double a0i = a[0][i];
+        const double a1i = a[1][i];
 
-        double* __restrict__ Jk = J[k].data();
-        // rank-1 update to row k of J
-        // J[k][j] += a_ki * g[j] for j=0..dim-1
-        #pragma omp simd
-        for (int j = 0; j < dim; ++j) {
-          Jk[j] += a_ki * g[j];
-        }
+        Floc[0] += a0i * phi_i;
+        Floc[1] += a1i * phi_i;
+
+        Jloc[0][0] += a0i * g[0];
+        Jloc[0][1] += a0i * g[1];
+
+        Jloc[1][0] += a1i * g[0];
+        Jloc[1][1] += a1i * g[1];
+      }
+
+      // F = F - x
+      Floc[0] -= x[0];
+      Floc[1] -= x[1];
+    }
+    else { // dim == 3
+      for (int i = 0; i < nDofs; ++i) {
+        const double  phi_i = phi[i];
+        const double* g     = gradPhi[i].data(); // g[0], g[1], g[2]
+
+        const double a0i = a[0][i];
+        const double a1i = a[1][i];
+        const double a2i = a[2][i];
+
+        Floc[0] += a0i * phi_i;
+        Floc[1] += a1i * phi_i;
+        Floc[2] += a2i * phi_i;
+
+        Jloc[0][0] += a0i * g[0];
+        Jloc[0][1] += a0i * g[1];
+        Jloc[0][2] += a0i * g[2];
+
+        Jloc[1][0] += a1i * g[0];
+        Jloc[1][1] += a1i * g[1];
+        Jloc[1][2] += a1i * g[2];
+
+        Jloc[2][0] += a2i * g[0];
+        Jloc[2][1] += a2i * g[1];
+        Jloc[2][2] += a2i * g[2];
+      }
+
+      // F = F - x
+      Floc[0] -= x[0];
+      Floc[1] -= x[1];
+      Floc[2] -= x[2];
+    }
+
+    // Copy locals into outputs (small, fixed cost)
+    for (int k = 0; k < dim; ++k) {
+      F[k] = -Floc[k]; // rhs := -F
+      for (int j = 0; j < dim; ++j) {
+        J[k][j] = Jloc[k][j];
       }
     }
 
-    // Finish F -= x
-    for (int k = 0; k < dim; ++k) F[k] -= x[k];
-
-    // ------------------------------------------------------------
-    // Solve J * delta = -F  (avoid forming inverse)
-    // ------------------------------------------------------------
-    //std::vector<double> rhs = F;                // rhs := -F
-    for (double& v : F) v = -v;
-    solve_small(J, F);                        // rhs becomes delta
+    // Solve J * delta = rhs  (rhs becomes delta)
+    solve_small(J, F);
 
     // Update xi and compute ||delta||^2
     double delta2 = 0.0;
-    for (int i = 0; i < dim; ++i) {
-      xi[i] += F[i];
-      delta2 += F[i] * F[i];
+    for (int k = 0; k < dim; ++k) {
+      xi[k] += F[k];
+      delta2 += F[k] * F[k];
     }
 
     return (delta2 < 1.0e-9);
   }
+
+
+
+
+
+
+
+
+
+
+
+
+#include <cmath>
+#include <stdexcept>
+#include <algorithm>
+
+// Solve J * x = b for dim=1..3 using partial pivoting Gaussian elimination.
+// J is overwritten; b becomes x on return.
+  static inline void solve_small_inplace(const int dim, double J[3][3], double b[3]) {
+    // Forward elimination with partial pivoting
+    for (int k = 0; k < dim; ++k) {
+      // pivot row selection
+      int p = k;
+      double amax = std::fabs(J[k][k]);
+      for (int r = k + 1; r < dim; ++r) {
+        const double v = std::fabs(J[r][k]);
+        if (v > amax) {
+          amax = v;
+          p = r;
+        }
+      }
+
+      // swap rows if needed (only up to dim entries)
+      if (p != k) {
+        for (int j = 0; j < dim; ++j) std::swap(J[p][j], J[k][j]);
+        std::swap(b[p], b[k]);
+      }
+
+      const double piv = J[k][k];
+      // Optional guard (commented): if piv is near zero, you'd handle singularity.
+      // if (std::fabs(piv) < 1e-30) return;
+
+      // eliminate below
+      for (int i = k + 1; i < dim; ++i) {
+        const double m = J[i][k] / piv;
+        if (m == 0.0) {
+          J[i][k] = 0.0;
+          continue;
+        }
+
+        b[i] -= m * b[k];
+        // update remaining columns
+        for (int j = k + 1; j < dim; ++j) {
+          J[i][j] -= m * J[k][j];
+        }
+        J[i][k] = 0.0;
+      }
+    }
+
+    // Back substitution
+    for (int i = dim - 1; i >= 0; --i) {
+      double s = b[i];
+      for (int j = i + 1; j < dim; ++j) s -= J[i][j] * b[j];
+      b[i] = s / J[i][i];
+    }
+  }
+
+
+// Fast version: no returning F/J, no allocations.
+// xi is updated in-place. Returns true if ||delta||^2 < tol2.
+  static inline bool GetNewLocalCoordinates_fast(std::vector<double>& xi,
+                                                 const std::vector<double>& x,
+                                                 const std::vector<double>& phi,
+                                                 const std::vector<std::vector<double>>& gradPhi,
+                                                 const std::vector<std::vector<double>>& a) {
+    const int dim   = static_cast<int>(gradPhi[0].size()); // 2 or 3
+    const int nDofs = static_cast<int>(phi.size());
+
+    if (dim != 2 && dim != 3) {
+      throw std::runtime_error("GetNewLocalCoordinates_fast: dim must be 2 or 3");
+    }
+    if ((int)x.size() < dim) {
+      throw std::runtime_error("GetNewLocalCoordinates_fast: x.size() < dim");
+    }
+    if ((int)xi.size() < dim) {
+      xi.resize(dim, 0.0); // if caller didn't size it once
+    }
+    // Expect a[k][i], k=0..dim-1, i=0..nDofs-1
+    if ((int)a.size() < dim) {
+      throw std::runtime_error("GetNewLocalCoordinates_fast: a.size() < dim");
+    }
+    for (int k = 0; k < dim; ++k) {
+      if ((int)a[k].size() < nDofs) {
+        throw std::runtime_error("GetNewLocalCoordinates_fast: a[k].size() < nDofs");
+      }
+    }
+    if ((int)gradPhi.size() < nDofs) {
+      throw std::runtime_error("GetNewLocalCoordinates_fast: gradPhi.size() < nDofs");
+    }
+
+    // Stack locals: fast, no heap traffic
+    double F[3] = {0.0, 0.0, 0.0};          // this will become rhs then delta
+    double J[3][3] = { {0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0}
+    };
+
+    // Build F and J
+    if (dim == 2) {
+      for (int i = 0; i < nDofs; ++i) {
+        const double  phi_i = phi[i];
+        const double* g     = gradPhi[i].data(); // g[0], g[1]
+
+        const double a0i = a[0][i];
+        const double a1i = a[1][i];
+
+        F[0] += a0i * phi_i;
+        F[1] += a1i * phi_i;
+
+        J[0][0] += a0i * g[0];
+        J[0][1] += a0i * g[1];
+        J[1][0] += a1i * g[0];
+        J[1][1] += a1i * g[1];
+      }
+
+      // rhs = -(F - x) = x - F
+      F[0] = x[0] - F[0];
+      F[1] = x[1] - F[1];
+    }
+    else { // dim == 3
+      for (int i = 0; i < nDofs; ++i) {
+        const double  phi_i = phi[i];
+        const double* g     = gradPhi[i].data(); // g[0], g[1], g[2]
+
+        const double a0i = a[0][i];
+        const double a1i = a[1][i];
+        const double a2i = a[2][i];
+
+        F[0] += a0i * phi_i;
+        F[1] += a1i * phi_i;
+        F[2] += a2i * phi_i;
+
+        J[0][0] += a0i * g[0];
+        J[0][1] += a0i * g[1];
+        J[0][2] += a0i * g[2];
+
+        J[1][0] += a1i * g[0];
+        J[1][1] += a1i * g[1];
+        J[1][2] += a1i * g[2];
+
+        J[2][0] += a2i * g[0];
+        J[2][1] += a2i * g[1];
+        J[2][2] += a2i * g[2];
+      }
+
+      // rhs = x - F
+      F[0] = x[0] - F[0];
+      F[1] = x[1] - F[1];
+      F[2] = x[2] - F[2];
+    }
+
+    // Solve J * delta = rhs, delta stored in F
+    solve_small_inplace(dim, J, F);
+
+    // Update xi and compute ||delta||^2
+    double delta2 = 0.0;
+    for (int k = 0; k < dim; ++k) {
+      xi[k] += F[k];
+      delta2 += F[k] * F[k];
+    }
+
+    return (delta2 < 1.0e-9);
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // bool GetNewLocalCoordinates(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
   //                             const std::vector < std::vector <double > > &gradPhi,
@@ -2243,6 +2540,45 @@ namespace femus {
     }
     return convergence;
   }
+
+
+
+  bool GetInverseMapping_fast(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
+                              const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
+                              std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi) {
+
+
+    bool convergence = false;
+
+    unsigned counter = 0;
+    while (!convergence && counter < MaxNumberOfIteration) {
+      GetPolynomialShapeFunctionGradient(phi, gradPhi, xi, ielType, 0);
+      convergence = GetNewLocalCoordinates_fast(xi, xl, phi, gradPhi, aP[0]);
+      counter++;
+    }
+
+    if (solType != 0) {
+      convergence = false;
+
+      unsigned counter = 0;
+      while (!convergence && counter < MaxNumberOfIteration) {
+        GetPolynomialShapeFunctionGradient(phi, gradPhi, xi, ielType, solType);
+        convergence = GetNewLocalCoordinates_fast(xi, xl, phi, gradPhi, aP[solType]);
+        counter++;
+      }
+    }
+
+    return convergence;
+  }
+
+
+
+
+
+
+
+
+
 
   const double XI[6][27][3] = {{
       { -1, -1, -1}, {1, -1, -1}, {1, 1, -1}, { -1, 1, -1}, { -1, -1, 1}, {1, -1, 1}, {1, 1, 1}, { -1, 1, 1}, {0, -1, -1},

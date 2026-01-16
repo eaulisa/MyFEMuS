@@ -16,6 +16,7 @@
 #include "VTKWriter.hpp"
 #include "GMVWriter.hpp"
 #include "LinearImplicitSystem.hpp"
+#include "NonLinearImplicitSystem.hpp"
 #include "TransientSystem.hpp"
 #include "adept.h"
 #include <fstream>
@@ -59,21 +60,21 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   double Td2 = 2. + sin(.5 * time) * flc4hs(time - t0, t0);
   double Tc = Td1 + (x[0] - 0.25) * (0.75 - x[0]) * 3. * sin(2.* time) * flc4hs(time - t0, t0);
 
-  if(facename == 4 ||  facename == 2) {
-    if(subName == "T" || subName == "z") {
+  if (facename == 4 ||  facename == 2) {
+    if (subName == "T" || subName == "z") {
       value =  Td1;
     }
   }
-  else if(facename == 3) {
-    if(subName == "T" || subName == "z") {
+  else if (facename == 3) {
+    if (subName == "T" || subName == "z") {
       value = Td2;
     }
   }
-  else if(facename == 1) {
-    if(name == "Tc") {
+  else if (facename == 1) {
+    if (name == "Tc") {
       value = Tc;
     }
-    else if(subName == "T" || subName == "z") {
+    else if (subName == "T" || subName == "z") {
       dirichlet = false;
     }
   }
@@ -117,19 +118,24 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
 
   char zName[10];
+  char muName[10];
   const unsigned level = 0;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
   mlSol.AddSolution("Tc", LAGRANGE, SECOND, 2); // manifactured solution
   // add variables to mlSol
-  for(unsigned i = 0; i < numberOfIterations; i++) {
+  for (unsigned i = 0; i < numberOfIterations; i++) {
     sprintf(zName, "z%d", i); //cascade solution
-    mlSol.AddSolution(zName, LAGRANGE, SECOND, 2); //
+    mlSol.AddSolution(zName, LAGRANGE, SECOND, 2);
+    sprintf(muName, "mu%d", i); //cascade solution
+    mlSol.AddSolution(muName, LAGRANGE, SECOND, false);//
   }
   //support variables
   mlSol.AddSolution("Ti", LAGRANGE, SECOND);
   mlSol.AddSolution("li", LAGRANGE, SECOND);
   mlSol.AddSolution("zi", LAGRANGE, SECOND, 2);
+
+  mlSol.AddSolution("muicopy", LAGRANGE, SECOND, false);
   mlSol.AddSolution("z0Older", LAGRANGE, SECOND, false);
 
   mlSol.Initialize("All");
@@ -138,7 +144,7 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
   mlSol.GenerateBdc("Tc", "Time_dependent");
-  for(unsigned i = 0; i < numberOfIterations; i++) {
+  for (unsigned i = 0; i < numberOfIterations; i++) {
     sprintf(zName, "z%d", i);
     mlSol.GenerateBdc(zName, "Time_dependent");
   }
@@ -158,7 +164,7 @@ int main(int argc, char** args) {
   systemTc->SetOuterSolver(PREONLY);
 
 
-  TransientLinearImplicitSystem *system = &(mlProb.add_system<TransientLinearImplicitSystem> ("TmOptCtr"));
+  TransientNonlinearImplicitSystem *system = &(mlProb.add_system<TransientNonlinearImplicitSystem> ("TmOptCtr"));
 
   system->AddSolutionToSystemPDE("Ti");
   system->AddSolutionToSystemPDE("li");
@@ -171,11 +177,11 @@ int main(int argc, char** args) {
   // initilaize and solve the system
   system->init();
   system->SetOuterSolver(PREONLY);
+  system->SetMaxNumberOfNonLinearIterations(20);
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
-
 
   //Get Initial Data
   steady = true;
@@ -184,7 +190,7 @@ int main(int argc, char** args) {
     systemTc->SetTime(-dt);
     systemTc->MGsolve(); //solve for A, using DOld, VOld, and AOld
   }
-  for(iext = 0; iext < numberOfIterations; iext++) {
+  for (iext = 0; iext < numberOfIterations; iext++) {
     sprintf(zName, "z%d", iext);
     double dt =  system->GetIntervalTime();
     system->SetTime(-dt);
@@ -192,25 +198,21 @@ int main(int argc, char** args) {
     *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
     system->MGsolve(); //solve for A, using DOld, VOld, and AOld
     *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]);
-
   }
   //Old and Older solution: inizialization
   *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex("z0")]);
   *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
   steady = false;
 
-
-
-
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(false);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-  for(iext = 0; iext < numberOfIterations; iext++) {
+  for (iext = 0; iext < numberOfIterations; iext++) {
     GetError(mlProb);
   }
 
-  for(unsigned t = 0; t < 200; t++) {
+  for (unsigned t = 0; t < 200; t++) {
 
     //store Older solution
     *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
@@ -219,9 +221,9 @@ int main(int argc, char** args) {
 
     double time =  system->GetTime();
 
-    for(iext = 0; iext < numberOfIterations; iext++) {
+    for (iext = 0; iext < numberOfIterations; iext++) {
 
-     
+
       sprintf(zName, "z%d", iext);
 
       *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
@@ -235,7 +237,30 @@ int main(int argc, char** args) {
 
       GetError(mlProb);
     }
+    std::cout<<"\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n\n";
+
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t + 1);
+
+    std::cout<<"\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n\n";
   }
   return 0;
 }
@@ -243,10 +268,10 @@ int main(int argc, char** args) {
 double flc4hs(double const &x, double const &eps) {
 
   double r = x / eps;
-  if(r < -1) {
+  if (r < -1) {
     return 0.;
   }
-  else if(r < 1.) {
+  else if (r < 1.) {
     double r2 = r * r;
     double r3 = r * r2;
     double r5 = r3 * r2;
@@ -271,14 +296,14 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
 
   char zNameM1[10];
-  if(iext > 0) sprintf(zNameM1, "z%d", iext - 1);
+  if (iext > 0) sprintf(zNameM1, "z%d", iext - 1);
   else sprintf(zNameM1, "z%d", 0);
 
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
 
 
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit
 
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
@@ -308,6 +333,12 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   unsigned ziIndex = mlSol->GetIndex("zi");
   unsigned ziOlderIndex = mlSol->GetIndex("z0Older");
 
+  char muName[10];
+  sprintf(muName, "mu%d", iext); //cascade solution
+
+  unsigned muiIndex = mlSol->GetIndex(muName);
+  unsigned muCopyIndex = mlSol->GetIndex("muicopy");
+
   unsigned ziM1Index = mlSol->GetIndex(zNameM1);
 
   unsigned solType = mlSol->GetSolutionType(TiIndex);
@@ -322,6 +353,8 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   std::vector < adept::adouble > solli;
   std::vector < adept::adouble > solzi;
   std::vector < double > solziOld;
+
+  std::vector < double > solmu0i;
 
   std::vector < double > solTc;
   std::vector < double > solziOlder;
@@ -347,8 +380,35 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   RES->zero(); // Set to zero all the entries of the Global Residual std::vector
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
+  if(steady)  sol->_Sol[muiIndex]->zero();
+  else {
+    sol->_Sol[muCopyIndex]->zero();
+    double T0 = 1.;
+    double gamma = 1;
+    for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+      unsigned group = msh->GetElementGroup(iel);
+
+      if (group == 5) {
+        unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+
+        for (unsigned i = 0; i < nDofs; i++) {
+          unsigned solDof = msh->GetSolutionDof(i, iel, solType);
+
+          double solTi = (*sol->_Sol[TiIndex])(solDof);
+          double solmu0i = (*sol->_Sol[muiIndex])(solDof);
+
+          //std::cout<<solzi<< " "<<solmu0i<<" "<<solmu0i - gamma * (solzi - T0)<<"\t\t\t";
+
+          if (solmu0i - gamma * (solTi - T0) > 0) sol->_Sol[muCopyIndex]->set(solDof, solmu0i - gamma * (solTi - T0));
+        }
+      }
+    }
+    sol->_Sol[muCopyIndex]->close();
+    (*sol->_Sol[muiIndex]) = (*sol->_Sol[muCopyIndex]);
+  }
+
   // element loop: each process loops only on the elements that owns
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
 
@@ -358,7 +418,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     unsigned nDofsAll = 3 * nDofs;
     sysDof.resize(nDofsAll);
 
-    for(unsigned  k = 0; k < dim; k++) {
+    for (unsigned  k = 0; k < dim; k++) {
       x[k].resize(nDofs);
     }
     solTc.resize(nDofs);
@@ -368,6 +428,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     solTi.resize(nDofs);
     solli.resize(nDofs);
     solzi.resize(nDofs);
+    solmu0i.resize(nDofs);
     solziOld.resize(nDofs);
     solziOlder.resize(nDofs);
 
@@ -379,10 +440,11 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     mReszi.assign(nDofs, 0.);
 
     // local storage of global mapping and solution
-    for(unsigned i = 0; i < nDofs; i++) {
+    for (unsigned i = 0; i < nDofs; i++) {
       unsigned solDof = msh->GetSolutionDof(i, iel, solType);
 
       solTc[i] = (*sol->_Sol[TcIndex])(solDof);
+      solmu0i[i] = (*sol->_Sol[muiIndex])(solDof);
 
       solTi[i] = (*sol->_Sol[TiIndex])(solDof);
       solli[i] = (*sol->_Sol[liIndex])(solDof);
@@ -400,21 +462,21 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     }
 
     // local storage of coordinates
-    for(unsigned i = 0; i < nDofs; i++) {
+    for (unsigned i = 0; i < nDofs; i++) {
       unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
-      for(unsigned k = 0; k < dim; k++) {
+      for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);
       }
     }
 
     std::vector<bool> nodeIsControlBoundary(nDofs, false);
 
-    for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+    for (unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
       unsigned int facename = -(msh->el->GetFaceElementIndex(iel, jface) + 1);
-      if(facename == 1) {
+      if (facename == 1) {
         unsigned nve = msh->GetElementFaceDofNumber(iel, jface, solType);
         const unsigned felt = msh->GetElementFaceType(iel, jface);
-        for(unsigned i = 0; i < nve; i++) {
+        for (unsigned i = 0; i < nve; i++) {
           nodeIsControlBoundary[ msh->GetLocalFaceVertexIndex(iel, jface, i)] = true;
         }
       }
@@ -425,7 +487,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     s.new_recording();
 
     // *** Gauss point loop ***
-    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
+    for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
       msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
 
 
@@ -438,12 +500,14 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
       double ziM1Oldg = 0;
       double Tc = 0;
 
+      double mu0g = 0.;
+
       std::vector < adept::adouble > gradTig(dim, 0);
       std::vector < adept::adouble > gradlig(dim, 0);
       std::vector < adept::adouble > gradzig(dim, 0);
       std::vector < double > gradziOldg(dim, 0);
 
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
 
         Tig += solTi[i] * phi[i];
         lig += solli[i] * phi[i];
@@ -453,8 +517,9 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         ziM1g += solziM1[i] * phi[i];
         ziM1Oldg += solziM1Old[i] * phi[i];
         Tc += solTc[i] * phi[i];
+        mu0g += solmu0i[i] * phi[i];
 
-        for(unsigned  j = 0; j < dim; j++) {
+        for (unsigned  j = 0; j < dim; j++) {
           gradTig[j] += solTi[i] * gradPhi[i * dim + j];
           gradlig[j] += solli[i] * gradPhi[i * dim + j];
           gradzig[j] += solzi[i] * gradPhi[i * dim + j];
@@ -462,7 +527,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         }
       }
 
-      if(!manifacturedSolution) Tc = GetTargetSolution(time);
+      if (!manifacturedSolution) Tc = GetTargetSolution(time);
 
       // std::cout.precision(14);
       // std::cout << ziOldg <<" ";
@@ -470,7 +535,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
       double nu = 1. / Pe;
 
       // *** phiV_i loop ***
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
 
         // T is \bar{z}
         // l is the lagrange multiplier
@@ -480,7 +545,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         adept::adouble dlieq = 0.; // state equation with atificial time derivative, in the interior, since dli = 0 on Gamma
         adept::adouble dzieq = 0.; // state equation with real time derivative, in the interior, and on Gamma z = T
 
-        for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
+        for (unsigned j = 0; j < dim; j++) { // second index j in each equation
 
           dTieq   +=  gradPhi[i * dim + j] * (nu * gradlig[j] + beta * gradTig[j]); // laplace adjoint in labbda + H1 penalty term in T
           dTieq   +=  gradPhi[i * dim + j] * v[j] * lig; // convection adjoint
@@ -493,10 +558,10 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         }
 
         dTieq += alpha * phi[i] * Tig; // l2 penalty term in T
-        if(group == 5) dTieq += phi[i] * (Tig - Tc); // target
+        if (group == 5) dTieq += phi[i] * ( (Tig - Tc) - mu0g); // target
 
-        if(!steady) {
-          if(iext == 0) dlieq += 0.9 * phi[i] * (ziOldg - ziOlderg) / dt;  // artificial time derivative at the zero step
+        if (!steady) {
+          if (iext == 0) dlieq += 0.9 * phi[i] * (ziOldg - ziOlderg) / dt; // artificial time derivative at the zero step
           else dlieq += phi[i] * (ziM1g - ziM1Oldg) / dt; // artificial time derivative for all other steps
           dzieq += phi[i] * (zig - ziOldg) / dt; // real time derivative in the state equation
         }
@@ -504,7 +569,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
         mResTi[i] += dTieq * weight;
         mResli[i] += dlieq * weight;
 
-        if(!nodeIsControlBoundary[i])  mReszi[i] += dzieq * weight; //on the interior
+        if (!nodeIsControlBoundary[i])  mReszi[i] += dzieq * weight; //on the interior
         else mReszi[i] += solzi[i] - solTi[i]; // on Gamma
 
       } // end phiV_i loop
@@ -516,7 +581,7 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     //copy the value of the adept::adoube mRes in double Res and store them in RES
     Res.resize(nDofsAll);    //resize
 
-    for(int i = 0; i < nDofs; i++) {
+    for (int i = 0; i < nDofs; i++) {
       Res[ i ] = -mResTi[i].value();
       Res[ nDofs + i ] = -mResli[i].value();
       Res[ 2 * nDofs + i ] = -mReszi[i].value();
@@ -610,7 +675,7 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
   KK->zero(); // Set to zero all the entries of the Global Matrix
 
   // element loop: each process loops only on the elements that owns
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
 
@@ -618,7 +683,7 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
 
     sysDof.resize(nDofs);
 
-    for(unsigned  k = 0; k < dim; k++) {
+    for (unsigned  k = 0; k < dim; k++) {
       x[k].resize(nDofs);
     }
     solTc.resize(nDofs);
@@ -626,7 +691,7 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
     mResTc.assign(nDofs, 0.);
 
     // local storage of global mapping and solution
-    for(unsigned i = 0; i < nDofs; i++) {
+    for (unsigned i = 0; i < nDofs; i++) {
       unsigned solDof = msh->GetSolutionDof(i, iel, solType);
       solTc[i] = (*sol->_Sol[TcIndex])(solDof);
       solTcOld[i] = (*sol->_SolOld[TcIndex])(solDof);
@@ -634,9 +699,9 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
     }
 
     // local storage of coordinates
-    for(unsigned i = 0; i < nDofs; i++) {
+    for (unsigned i = 0; i < nDofs; i++) {
       unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
-      for(unsigned k = 0; k < dim; k++) {
+      for (unsigned k = 0; k < dim; k++) {
         x[k][i] = (*msh->_topology->_Sol[k])(xDof);
       }
     }
@@ -645,7 +710,7 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
     s.new_recording();
 
     // *** Gauss point loop ***
-    for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
+    for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
       msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
 
 
@@ -655,10 +720,10 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
       std::vector < adept::adouble > gradTcg(dim, 0);
       std::vector < double > gradTcOldg(dim, 0);
 
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
         Tcg += solTc[i] * phi[i];
         TcOldg += solTcOld[i] * phi[i];
-        for(unsigned  j = 0; j < dim; j++) {
+        for (unsigned  j = 0; j < dim; j++) {
           gradTcg[j] += solTc[i] * gradPhi[i * dim + j];
           gradTcOldg[j] += solTcOld[i] * gradPhi[i * dim + j];
         }
@@ -670,16 +735,16 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
       double nu = 1. / Pe;
 
       // *** phiV_i loop ***
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
 
         adept::adouble Tceq = 0.;
 
-        for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
+        for (unsigned j = 0; j < dim; j++) { // second index j in each equation
           Tceq   +=  gradPhi[i * dim + j] * nu * (gradTcg[j] + 0. * gradTcOldg[j]);  // weak laplace
           Tceq   +=  phi[i] * v[j] * gradTcg[j]; // strong convection
         }
 
-        if(!steady) {
+        if (!steady) {
           Tceq += phi[i] * (Tcg - TcOldg) / dt;
         }
 
@@ -693,7 +758,7 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
 
     //copy the value of the adept::adoube mRes in double Res and store them in RES
     Res.resize(nDofs);    //resize
-    for(int i = 0; i < nDofs; i++) {
+    for (int i = 0; i < nDofs; i++) {
       Res[ i ] = -mResTc[i].value();
     }
 
@@ -738,7 +803,7 @@ void GetError(MultiLevelProblem& ml_prob) {
 
   //  extract pointers to the several objects that we are going to use
   //TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> (sName);   // pointer to the linear implicit system named "Poisson"
-  TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit system named "Poisson"
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit system named "Poisson"
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
   Mesh*          msh          = ml_prob._ml_msh->GetLevel(level);    // pointer to the mesh (level) object
@@ -772,30 +837,30 @@ void GetError(MultiLevelProblem& ml_prob) {
   double  localIntegral[3] = {0, 0, 0};
 
   // element loop: each process loops only on the elements that owns
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+  for (unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     unsigned group = msh->GetElementGroup(iel);
-    if(group == 5) {
+    if (group == 5) {
 
       short unsigned ielGeom = msh->GetElementType(iel);
       unsigned nDofs = msh->GetElementDofNumber(iel, solType);    // number of solution element dofs
-      for(unsigned  k = 0; k < dim; k++) {
+      for (unsigned  k = 0; k < dim; k++) {
         x[k].resize(nDofs);
       }
       solzi.resize(nDofs);
       solTc.resize(nDofs);
 
       // local storage of global mapping and solution
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
         unsigned solDof = msh->GetSolutionDof(i, iel, solType);
         solTc[i] = (*sol->_Sol[TcIndex])(solDof);
         solzi[i] = (*sol->_Sol[ziIndex])(solDof);
       }
 
       // local storage of coordinates
-      for(unsigned i = 0; i < nDofs; i++) {
+      for (unsigned i = 0; i < nDofs; i++) {
         unsigned xDof  = msh->GetSolutionDof(i, iel, xType);
-        for(unsigned k = 0; k < dim; k++) {
+        for (unsigned k = 0; k < dim; k++) {
           x[k][i] = (*msh->_topology->_Sol[k])(xDof);
         }
       }
@@ -803,17 +868,17 @@ void GetError(MultiLevelProblem& ml_prob) {
 
 
       // *** Gauss point loop ***
-      for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
+      for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
         msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
 
         double zig = 0;
         double Tc = 0;
 
-        for(unsigned i = 0; i < nDofs; i++) {
+        for (unsigned i = 0; i < nDofs; i++) {
           zig += solzi[i] * phi[i];
           Tc += solTc[i] * phi[i];
         }
-        if(!manifacturedSolution)Tc = GetTargetSolution(time);
+        if (!manifacturedSolution)Tc = GetTargetSolution(time);
 
         localIntegral[0] += Tc * weight;
         localIntegral[1] += zig * weight;
@@ -829,11 +894,11 @@ void GetError(MultiLevelProblem& ml_prob) {
   MPI_Reduce(localIntegral, globalIntegral, 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 
-  if(iproc == 0) {
+  if (iproc == 0) {
 
     std::string filename = "SolutionIntegral" + std::to_string(iext) + ".txt";
     std::ofstream fout;
-    if(fabs(time) < 1.0e-10) {
+    if (fabs(time) < 1.0e-10) {
       fout.open(filename.c_str(), std::ios::out);
     }
     else {

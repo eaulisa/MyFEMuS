@@ -202,8 +202,6 @@ namespace fem {
     std::vector<Point<DIM>>& coordsLeftOld,
     std::vector<Point<DIM>>& coordsStayedNew) {
     assert(dt > 0.0 && "Forward advection expects dt > 0");
-    coordsLeftOld.clear();
-    coordsStayedNew.clear();
 
     //sample nodes at finest level using highest-order geometry basis (id==0 ⇒ Q4/H8)
     std::vector<Point<DIM>> s0_all;
@@ -213,8 +211,13 @@ namespace fem {
                                                               static_cast<BasisT<DIM>>(2), fid0,
                                                               s0_all);
 
-
     const double t0_abs = time - dt;
+
+    coordsLeftOld.reserve(s0_all.size());
+    coordsStayedNew.reserve(s0_all.size());
+
+    coordsLeftOld.clear();
+    coordsStayedNew.clear();
 
     for (const auto& s0 : s0_all) {
       auto vel_eval = make_parent_vel_eval(tree0, t0_abs, vfun);
@@ -230,6 +233,12 @@ namespace fem {
     }
   }
 
+
+
+
+
+
+
 // ======================================================================
 // 2) Forward advection of markers (analytic velocity, DIM=2/3)
 //    Integrates from (time - dt) to (time).
@@ -244,6 +253,11 @@ namespace fem {
     std::vector<Point<DIM>>& coordsLeftOld,
     std::vector<Point<DIM>>& coordsStayedNew) {
     assert(dt > 0.0 && "Forward advection expects dt > 0");
+
+
+    coordsLeftOld.reserve(markers.size());
+    coordsStayedNew.reserve(markers.size());
+
     coordsLeftOld.clear();
     coordsStayedNew.clear();
 
@@ -299,5 +313,118 @@ namespace fem {
       dst.nodal[gid] = val;
     }
   }
+
+
+// start new functions
+
+  template<std::size_t DIM>
+  inline u32 locate_tree_for_point(
+    const std::vector<OctTree<DIM>>& trees,
+    const std::vector<std::vector<u32>>& neighbor_tree,
+    const Point<DIM>& x,
+    u32 preferred_itree) {
+    const u32 nTrees = static_cast<u32>(trees.size());
+
+    // 1) Try the preferred tree first (where the marker started)
+    if (preferred_itree < nTrees) {
+      const u32 leaf = trees[preferred_itree].locate_leaf_on_parent(x);
+      if (leaf != npos32) return preferred_itree;
+    }
+
+    // 2) Try the neighbors of the preferred tree
+    const std::vector<u32>* neigh_list = nullptr;
+    if (preferred_itree < neighbor_tree.size()) {
+      neigh_list = &neighbor_tree[preferred_itree];
+
+      for (u32 nb : *neigh_list) {
+        if (nb == npos32 || nb >= nTrees || nb == preferred_itree) continue;
+        const u32 leaf_nb = trees[nb].locate_leaf_on_parent(x);
+        if (leaf_nb != npos32) return nb;
+      }
+    }
+
+    // 3) Global fallback: search all remaining trees
+    //    (skip the preferred tree and neighbors already checked)
+    for (u32 itree = 0; itree < nTrees; ++itree) {
+      if (itree == preferred_itree) continue;
+
+      bool is_neighbor = false;
+      if (neigh_list) {
+        for (u32 nb : *neigh_list) {
+          if (nb == itree) {
+            is_neighbor = true;
+            break;
+          }
+        }
+      }
+      if (is_neighbor) continue;
+
+      const u32 leaf = trees[itree].locate_leaf_on_parent(x);
+      if (leaf != npos32) return itree;
+    }
+
+    // Not found in any tree
+    return npos32;
+  }
+
+  template<class AnalyticVel, std::size_t DIM>
+  inline void advect_physical_markers_forward_analytic_multi(
+    const std::vector<OctTree<DIM>>& trees,
+    const std::vector<std::vector<u32>>& neighbor_tree,
+    double time,                 // absolute END time t^{n+1}
+    double dt,                   // dt > 0
+    AnalyticVel&& vfun,
+    const std::vector<std::vector<Point<DIM>>>& markers_in, // per tree at t^n
+    std::vector<std::vector<Point<DIM>>>& coordsLeftOld,    // per tree: left domain
+    std::vector<std::vector<Point<DIM>>>& coordsStayedNew,  // per tree: ended here
+    std::vector<Point<DIM>>* coordsOutsideAll = nullptr) {  // optional: new positions outside
+    assert(dt > 0.0 && "Forward advection expects dt > 0");
+
+    const u32 nTrees = static_cast<u32>(trees.size());
+    assert(markers_in.size() == nTrees);
+    // neighbor_tree.size() can be == 0 if you don't want to use neighbors;
+    // otherwise ideally neighbor_tree.size() == nTrees.
+
+    coordsLeftOld.resize(nTrees);
+    coordsStayedNew.resize(nTrees);
+
+    for (u32 itree = 0; itree < nTrees; ++itree) {
+      coordsLeftOld[itree].clear();
+      coordsStayedNew[itree].clear();
+      coordsLeftOld[itree].reserve(markers_in[itree].size());
+      coordsStayedNew[itree].reserve(markers_in[itree].size());
+    }
+    if (coordsOutsideAll) coordsOutsideAll->clear();
+
+    const double t0_abs = time - dt;
+
+    // Velocity evaluator at t^n (same for all markers in this step)
+    auto vel_eval = make_physical_vel_eval<decltype(vfun), DIM>(t0_abs, vfun);
+
+    for (u32 itree = 0; itree < nTrees; ++itree) {
+      const auto& markers = markers_in[itree];
+
+      for (const auto& s0 : markers) {
+        const Point<DIM> s1 = rk4_advect_parent<DIM>(s0, dt, vel_eval);
+
+        // Prefer current tree, then its neighbors, then global search
+        const u32 ownerTree =
+          locate_tree_for_point<DIM>(trees, neighbor_tree, s1, itree);
+
+        if (ownerTree == npos32) {
+          // Ended outside all trees: record in "left domain" only
+          coordsLeftOld[itree].push_back(s0);      // old position at t^n
+          if (coordsOutsideAll) coordsOutsideAll->push_back(s1); // optional new pos
+        }
+        else {
+          // Ended inside tree `ownerTree` (might be same as itree or different)
+          coordsStayedNew[ownerTree].push_back(s1); // new position at t^{n+1}
+          // Not added to coordsLeftOld: it did not leave the global domain.
+        }
+      }
+    }
+  }
+
+
 
 } // namespace fem
