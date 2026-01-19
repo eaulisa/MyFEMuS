@@ -177,123 +177,88 @@ class Field {
 
 
         const auto& conn = elTplgy[e];
+        if (conn.empty()) {
+          throw std::runtime_error("Field::eval...: empty element connectivity");
+        }
 
-//         elProj[et]->fem().Jacobian(const vector < vector < adouble > >& vt, //nodi dell'elemento biquadratico' vt[jdim][inode]
-//                                    const vector <double >& xi, // coordinata nel parent element del punto
-//                                    double& Weight, // non serve a niente
-//                                    vector < double >& phi,
-//                                    vector < double >& gradphi);   // gradphi[node][dim] = gradphi[dim * idof + jdim];
-//
+        if (phi.size() != conn.size()) {
+          throw std::runtime_error("Field::eval...: phi.size() != conn.size()");
+        }
 
+        double val = 0.0;
+        for (std::size_t j = 0; j < conn.size(); ++j) {
+          const unsigned node = conn[j];
+          if (node >= nN) {
+            throw std::runtime_error("Field::eval...: connectivity node out of range");
+          }
+          val += U[node] * phi[j];
+        }
 
-        // std::vector<std::vector<double> > &X = _mesh.X(); // global coordinates
-        //
-        // std::vector<std::vector<double> > xv(_mesh.dim()); // local coordinates
-        // for(unsigned d = 0; d < _mesh.dim(); d++) xv[d].resize(conn.size());
-        //
-        // for (std::size_t j = 0; j < conn.size(); ++j) {
-        //   const unsigned node = conn[j];
-        //   for(unsigned d = 0; d<_mesh.dim();++d){
-        //     xv[d][j] =  X[d][node];
-        //   }
-        // }
+        out[i] = val;
+      }
+    }
 
+    void evalNodalAtLocatedPointsById(
+      unsigned id_,
+      const std::vector<PointLocatorResult>& results,
+      const std::array<std::unique_ptr<FemProjection>, 6>& elProj,
+      std::vector<double>& out_val,
+      std::vector<std::vector<double>>& out_grad,
+      double outsideVal) const {
+        requireLocation(id_, Location::Nodal, "Field::evalNodalAtLocatedPointsById");
 
+        const Mesh& m = mesh();
+        const std::size_t nEl = m.numElements();
+        const std::size_t nN  = m.numNodes();
+        const std::vector<std::vector<double> > &X = m.X(); // global coordinates
 
-        // std::vector < double > gradphi;
-        // double weight;
-        //
-        // elProj[et]->fem().Jacobian(xv, r.xi, weight, phi, gradphi);
-        //
-/**
-   * Number of FACES(3D), edges(2D) or point-extrema(1D) for each considered element
-   * The 1st number is the quadrilaterals
-   * The 2nd number is such that the different "2nd - 1st" is the number of triangular faces
-   **/
-  // const unsigned NFC[6][2] = {
-  //   {6, 6},
-  //   {0, 4},
-  //   {3, 5},
-  //   {0, 4},
-  //   {0, 3},
-  //   {0, 2}
-  // };
+        const auto& elTplgy = m.elTplgy();
+        const auto& elType  = m.elType();
+        const Vec&  U       = getNodalById(id_);
 
-  /**
-   * Node ordering for each element face(3D), edge(2D) or point-extrema(1D) position for each considered element
-   **/
+        if (elTplgy.size() != nEl) throw std::runtime_error("Field::eval...: elTplgy size mismatch");
+        if (elType.size()  != nEl) throw std::runtime_error("Field::eval...: elType size mismatch");
+        if (U.size()       != nN)  throw std::runtime_error("Field::eval...: nodal field size mismatch");
 
+        out_val.assign(results.size(), outsideVal);
+        for(unsigned d = 0; d < m.dim(); ++d)
+          out_grad[d].assign(results.size(), outsideVal);
 
-        // const unsigned ig[6][6][9] = {
-        //   { {0, 1, 5, 4, 8, 17, 12, 16, 20},
-        //     {1, 2, 6, 5, 9, 18, 13, 17, 21},
-        //     {2, 3, 7, 6, 10, 19, 14, 18, 22},
-        //     {3, 0, 4, 7, 11, 16, 15, 19, 23},
-        //     {0, 3, 2, 1, 11, 10, 9, 8, 24},
-        //     {4, 5, 6, 7, 12, 13, 14, 15, 25}
-        //   },
-        //   { {0, 2, 1, 6, 5, 4, 10},
-        //     {0, 1, 3, 4, 8, 7, 11},
-        //     {1, 2, 3, 5, 9, 8, 12},
-        //     {2, 0, 3, 6, 7, 9, 13}
-        //   },
-        //   { {0, 1, 4, 3, 6, 13, 9, 12, 15},
-        //     {1, 2, 5, 4, 7, 14, 10, 13, 16},
-        //     {2, 0, 3, 5, 8, 12, 11, 14, 17},
-        //     {0, 2, 1, 8, 7, 6, 18},
-        //     {3, 4, 5, 9, 10, 11, 19}
-        //   },
-        //   { {0, 1, 4},
-        //     {1, 2, 5},
-        //     {2, 3, 6},
-        //     {3, 0, 7}
-        //   },
-        //   { {0, 1, 3},
-        //     {1, 2, 4},
-        //     {2, 0, 5}
-        //   },
-        //   { {0},
-        //     {1}
-        //   }
-        // };
+        std::vector<double> phi;
 
+        for (std::size_t i = 0; i < results.size(); ++i) {
+          const PointLocatorResult& r = results[i];
 
-  //        const unsigned NFACENODES[6][6][3] = {
-  //   { {4, 8, 9}, // Hex
-  //     {4, 8, 9},
-  //     {4, 8, 9},
-  //     {4, 8, 9},
-  //     {4, 8, 9},
-  //     {4, 8, 9}
-  //   },
-  //   { {3, 6, 7}, // Tet
-  //     {3, 6, 7},
-  //     {3, 6, 7},
-  //     {3, 6, 7}
-  //   },
-  //   { {4, 8, 9}, // Wedge
-  //     {4, 8, 9},
-  //     {4, 8, 9},
-  //     {3, 6, 7},
-  //     {3, 6, 7}
-  //   },
-  //   { {2, 3, 3},
-  //     {2, 3, 3}, // Quad
-  //     {2, 3, 3},
-  //     {2, 3, 3}
-  //   },
-  //   { {2, 3, 3}, // Tri
-  //     {2, 3, 3},
-  //     {2, 3, 3}
-  //   },
-  //   { {1, 1, 1}, // Line
-  //     {1, 1, 1}
-  //   }
-  // };
+          // Outside / invalid -> keep outsideVal, but DO NOT skip copying logic because out is already set
+          if (!r.ok || r.elem == UMAX) {
+            continue;
+          }
 
+          const std::size_t e = static_cast<std::size_t>(r.elem);
+          if (e >= nEl) {
+            throw std::runtime_error("Field::eval...: results contains elem out of range");
+          }
 
+          const unsigned et = elType[e];
+          if (et >= elProj.size()) throw std::runtime_error("Field::eval...: element type out of [0,5]");
+          if (!elProj[et])         throw std::runtime_error("Field::eval...: elProj[et] is null");
 
+          const auto& conn = elTplgy[e];
+          
+          std::vector<std::vector<double> > xv(m.dim()); // local coordinates
+          for(unsigned d = 0; d < m.dim(); d++) xv[d].resize(conn.size());
+          
+          for (std::size_t j = 0; j < conn.size(); ++j) {
+            const unsigned node = conn[j];
+            for(unsigned d = 0; d<m.dim();++d){
+              xv[d][j] =  X[d][node];
+            }
+          }
 
+          std::vector < double > gradphi;
+          double weight;
+          
+          elProj[et]->fem().Jacobian(xv, r.xi, weight, phi, gradphi);
 
           if (conn.empty()) {
             throw std::runtime_error("Field::eval...: empty element connectivity");
@@ -303,19 +268,28 @@ class Field {
             throw std::runtime_error("Field::eval...: phi.size() != conn.size()");
           }
 
+          if (gradphi.size() != conn.size() * m.dim()) {
+            throw std::runtime_error("Field::eval...: gradphi.size() != conn.size() * mesh.dim()");
+          }
+
           double val = 0.0;
+          std::vector<double> grad(m.dim());
+
           for (std::size_t j = 0; j < conn.size(); ++j) {
             const unsigned node = conn[j];
             if (node >= nN) {
               throw std::runtime_error("Field::eval...: connectivity node out of range");
             }
+            for(unsigned d = 0; d < m.dim(); d++)
+              grad[d] += U[node] * gradphi[m.dim() * j + d];
             val += U[node] * phi[j];
           }
 
-          out[i] = val;
+          for(unsigned d = 0; d < m.dim(); d++)
+            out_grad[d][i] = grad[d];
+          out_val[i] = val;
         }
       }
-
 
 
 

@@ -23,6 +23,7 @@ struct SimConfig {
   unsigned uniformRefinementLevel = 1;
 
   unsigned print_step = 10;
+  unsigned reinit_step = std::numeric_limits<unsigned>::max();
   unsigned levelNstart = 8;  // default 2D=8, 3D=6
   unsigned delta_depth = 5;  // default 2D=5, 3D=4
 
@@ -212,6 +213,10 @@ static inline void printHelp(const char* prog) {
   << "        - rotation: 2*pi\n"
   << "        - vortex or rising bubble: 8 (2D) or 4 (3D)\n"
   << "\n"
+  << "  --reinit <n>\n"
+  << "      Enable field reinitialization each <n> iterations.\n"
+  << "      Default rule: off"
+  << "\n"
   << "Defaults summary (if you do not set anything):\n"
   << "  --vel vortex\n"
   << "  --mesh quad9  (=> 2D)\n"
@@ -319,6 +324,10 @@ static inline SimConfig parseArgs(int argc, char** argv) {
     else if (key == "--uniformRef") {
       const std::string v = readValue(i);
       c.uniformRefinementLevel = (unsigned)std::stoul(v);
+    }
+    else if (key == "--reinitFixed") {
+      const std::string v = readValue(i);
+      c.reinit_step = (unsigned)std::stoul(v);
     }
     else {
       throw std::runtime_error("Unknown option: " + a);

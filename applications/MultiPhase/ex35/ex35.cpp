@@ -28,6 +28,8 @@
 
 #include "SimConfig.hpp"
 
+#include "Reinit.hpp"
+
 
 
 int main(int argc, char** args) {
@@ -62,6 +64,7 @@ int main(int argc, char** args) {
   double r = cfg.r;
   const double period = cfg.period;
   const unsigned print_step = cfg.print_step;
+  const unsigned reinit_step = cfg.reinit_step;
   const unsigned levelNstart = cfg.levelNstart;
   unsigned delta_depth = cfg.delta_depth;
   unsigned nSteps = cfg.nSteps;
@@ -203,18 +206,29 @@ int main(int argc, char** args) {
     const double dt = period / static_cast<double>(nIter);
 
     mesh1[0] = mesh0[0];
+
+    //BEGIN MARKERS PLACEMENT
+    std::vector<std::vector<double>> markers;
+    const int marker_density = 10;
+    {
+      Reinit reinit(elProj, field0, psiId0, psi2D._m);
+      reinit.computeInterfaceMarkers(markers, marker_density /*reference linear density*/);
+    }
+    //END MARKERS PLACEMENT
+    
     for (unsigned k = 1; k <= nSteps; ++k) {
       const double time = k * dt;
+      bool reinit_flag = (k % reinit_step == 0);
 
       //move the old topLevel mesh0 nodes forward and use them to build the new multilevel mesh1 recursively
-      field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
+      // field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
 
-       // TODO extract points on the inteface
-
-      RungeKutta::rkForward(Xp, time, dt, velocityType);
+      // RungeKutta::rkForward(Xp, time, dt, velocityType);
+      RungeKutta::rkForward(markers, time, dt, velocityType);
 
       out.clear();
-      pl.locateAll(out, Xp);
+      // pl.locateAll(out, Xp);
+      pl.locateAll(out, markers);
       mesh1[0].setRefinementFromLocatedPoints_OneRing(out, neighMode);
       mesh1[0].adjustAMRForOneLevelDiscontinuity();
       field1[0].clear();
@@ -247,18 +261,28 @@ int main(int argc, char** args) {
       const unsigned psiId0 = field0[topLevel].id("Psi");
       field0[topLevel].evalNodalAtLocatedPointsById(psiId0, out, elProj, Psi1, -1.0);
 
-      // TODO PSI reinit
-
+      //swap for the next iteration
+      for (unsigned l = 0; l <= levelN; l++) swap(field0[l], field1[l]);
 
       if (k % print_step == 0) std::cout << "\x1b[1A" << "\x1b[2K";   // cursor up 1, and erase entire line
       std::cout << "\x1b[1A" << "\x1b[2K"                        // cursor up 1, and erase entire line
                 << "\r"                                          // return to column 1
                 << std::flush;
-      std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
-      if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k / print_step) + ".vtu", field1[topLevel]);
 
-      //swap for the next iteration
-      for (unsigned l = 0; l <= levelN; l++) swap(field0[l], field1[l]);
+      // BEGIN PSI reinit
+      {
+        Reinit reinit(elProj, field0, psiId0, psi2D._m);
+        reinit.computeInterfaceMarkers(markers, marker_density /*reference linear density*/);
+        if (reinit_flag) {
+          reinit.reinitializeSignedDistance(markers);
+        }
+      }
+      // END PSI reinit
+
+      std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
+      if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k / print_step) + ".vtu", field0[topLevel]);
+
+      
     }
     //END TIME LOOP
 
