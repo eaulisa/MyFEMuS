@@ -28,6 +28,10 @@ struct SimConfig {
   unsigned delta_depth = 5;  // default 2D=5, 3D=4
 
   unsigned nSteps = 320;     // default, user can shorten
+
+  bool advect_markers = false;
+  bool reinit_adaptive = false;
+  double reinit_tol = 0.0;
 };
 
 static inline unsigned dimFromSeed(MeshSeedFactory::Type t) {
@@ -217,6 +221,14 @@ static inline void printHelp(const char* prog) {
   << "      Enable field reinitialization each <n> iterations.\n"
   << "      Default rule: off"
   << "\n"
+  << "  --reinitAd <t>\n"
+  << "      Enable field reinitialization with adaptive frequence based on the tolerance <t>.\n"
+  << "      Default rule: off"
+  << "\n"
+  << "  --advectMarkers\n"
+  << "      Enable advection of markers.\n"
+  << "      Default rule: off"
+  << "\n"
   << "Defaults summary (if you do not set anything):\n"
   << "  --vel vortex\n"
   << "  --mesh quad9  (=> 2D)\n"
@@ -328,6 +340,14 @@ static inline SimConfig parseArgs(int argc, char** argv) {
     else if (key == "--reinitFixed") {
       const std::string v = readValue(i);
       c.reinit_step = (unsigned)std::stoul(v);
+    }
+    else if (key == "--advectMarkers") {
+      c.advect_markers = true;
+    }
+    else if (key == "--reinitAd") {
+      c.reinit_adaptive = true;
+      const std::string v = readValue(i);
+      c.reinit_tol = std::stod(v);
     }
     else {
       throw std::runtime_error("Unknown option: " + a);

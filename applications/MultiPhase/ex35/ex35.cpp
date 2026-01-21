@@ -68,6 +68,9 @@ int main(int argc, char** args) {
   const unsigned levelNstart = cfg.levelNstart;
   unsigned delta_depth = cfg.delta_depth;
   unsigned nSteps = cfg.nSteps;
+  const bool advect_markers = cfg.advect_markers;
+  const bool reinit_adaptive = cfg.reinit_adaptive;
+  const double reinit_tol = cfg.reinit_tol;
 
 
   std::vector<std::tuple<double, double, double >> Er;
@@ -76,6 +79,7 @@ int main(int argc, char** args) {
   std::vector<clock_t> Time;
   Time.reserve(delta_depth);
 
+  unsigned reinit_cnt[delta_depth];
 
 
   //BEGIN LEVEL LOOP
@@ -204,31 +208,31 @@ int main(int argc, char** args) {
 
     const unsigned nIter = 320;
     const double dt = period / static_cast<double>(nIter);
+    reinit_cnt[levelN-levelNstart] = 0;
 
     mesh1[0] = mesh0[0];
 
-    //BEGIN MARKERS PLACEMENT
+    // BEGIN MARKERS PLACEMENT
     std::vector<std::vector<double>> markers;
-    const int marker_density = 10;
-    {
-      Reinit reinit(elProj, field0, psiId0, psi2D._m);
-      reinit.computeInterfaceMarkers(markers, marker_density /*reference linear density*/);
-    }
-    //END MARKERS PLACEMENT
+    Reinit reinit(elProj, field0, psiId0, psi2D._m);
+    reinit.computeMarkersAdvection(markers);
+    // END MARKERS PLACEMENT
     
     for (unsigned k = 1; k <= nSteps; ++k) {
       const double time = k * dt;
       bool reinit_flag = (k % reinit_step == 0);
 
-      //move the old topLevel mesh0 nodes forward and use them to build the new multilevel mesh1 recursively
-      // field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
-
-      // RungeKutta::rkForward(Xp, time, dt, velocityType);
-      RungeKutta::rkForward(markers, time, dt, velocityType);
-
       out.clear();
-      // pl.locateAll(out, Xp);
-      pl.locateAll(out, markers);
+
+      if (advect_markers) { 
+        RungeKutta::rkForward(markers, time, dt, velocityType);
+        pl.locateAll(out, markers);
+      } else {
+        field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
+        RungeKutta::rkForward(Xp, time, dt, velocityType);
+        pl.locateAll(out, Xp);
+      }
+
       mesh1[0].setRefinementFromLocatedPoints_OneRing(out, neighMode);
       mesh1[0].adjustAMRForOneLevelDiscontinuity();
       field1[0].clear();
@@ -264,20 +268,32 @@ int main(int argc, char** args) {
       //swap for the next iteration
       for (unsigned l = 0; l <= levelN; l++) swap(field0[l], field1[l]);
 
+      // BEGIN PSI reinit
+      {
+        Reinit reinit(elProj, field0, psiId0, psi2D._m);
+
+        // markers for advection and/or field distorsion evaluation
+        if (advect_markers || reinit_adaptive)
+          reinit.computeMarkersAdvection(markers);
+
+        // reinitialization step
+        if (reinit_flag) {
+          reinit.reinitializeSignedDistance();
+          reinit_cnt[levelN-levelNstart]++;
+        } else if (reinit_adaptive) {
+          double error = reinit.fieldDistortion(markers, false);
+          if (error > reinit_tol) {
+            reinit.reinitializeSignedDistance();
+            reinit_cnt[levelN-levelNstart]++;
+          }
+        }
+      }
+      // END PSI reinit
+
       if (k % print_step == 0) std::cout << "\x1b[1A" << "\x1b[2K";   // cursor up 1, and erase entire line
       std::cout << "\x1b[1A" << "\x1b[2K"                        // cursor up 1, and erase entire line
                 << "\r"                                          // return to column 1
                 << std::flush;
-
-      // BEGIN PSI reinit
-      {
-        Reinit reinit(elProj, field0, psiId0, psi2D._m);
-        reinit.computeInterfaceMarkers(markers, marker_density /*reference linear density*/);
-        if (reinit_flag) {
-          reinit.reinitializeSignedDistance(markers);
-        }
-      }
-      // END PSI reinit
 
       std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
       if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k / print_step) + ".vtu", field0[topLevel]);
@@ -362,13 +378,14 @@ int main(int argc, char** args) {
   //END LEVEL LOOP
 
 
-  std::cout << "Max_Depth\tMass_Error\tGeom_Error\tScaled_Geom_Error\tCompt_Time(s)" << std::endl;
+  std::cout << "Max_Depth\tMass_Error\tGeom_Error\tScaled_Geom_Error\tCompt_Time(s)\tReinit_Counter" << std::endl;
   for (unsigned i = 0; i < delta_depth; i++) {
     std::cout << levelNstart + i << "\t\t"
               << std::get<0>(Er[i]) << "\t"
               << std::get<1>(Er[i]) << "\t"
-              << std::get<2>(Er[i]) << "\t"
-              << static_cast<double>(Time[i]) / CLOCKS_PER_SEC << std::endl;
+              << std::get<2>(Er[i]) << "\t\t"
+              << static_cast<double>(Time[i]) / CLOCKS_PER_SEC << "\t\t"
+              << reinit_cnt[i] << std::endl;
     if (i + 1 < delta_depth) {
       std::cout << "conv.\t\t"
                 << log(std::get<0>(Er[i]) / std::get<0>(Er[i + 1])) / log(2.) << "\t\t"

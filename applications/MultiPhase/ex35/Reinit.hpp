@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <stdexcept>
@@ -18,6 +19,7 @@
 #include "ElementTopology.hpp"
 #include "KDTree.hpp"
 #include "Mollifier.hpp"
+#include "MarkerUtils.hpp"
 
 
 
@@ -47,6 +49,7 @@ class Reinit {
             _m(m)
             {
                 _cut_region_nodes_cnt.resize(_nN);
+                _n_int = (_d <= 2) ? 10 : 5;
             }
 
         ~Reinit() = default;
@@ -55,9 +58,7 @@ class Reinit {
         // ===============================         MAIN FUNCTIONS          ===============================
         //=================================================================================================
 
-        void computeInterfaceMarkers(std::vector<std::vector<double>>& global_markers, unsigned n_int) {
-
-            _n_int = n_int;
+        void computeMarkersAdvection(std::vector<std::vector<double>>& global_markers) {
 
             if (_d == 0) throw std::runtime_error("Reinit::computeInterfaceMarkers: mesh.dim()==0");
 
@@ -72,30 +73,110 @@ class Reinit {
                 std::vector<std::vector<double>> edge_roots;
                 if (cellIsCut(e, edge_roots)) {
 
+                    std::vector<std::vector<double>> markers(_d);
+                    for (std::size_t a = 0; a < _d; a++) {
+                        markers[a].resize(edge_roots[0].size()+1);
+                        for (std::size_t i = 0; i < edge_roots[0].size(); i++){
+                            markers[a][0] += edge_roots[a][i] / edge_roots[0].size();
+                        }
+                        for (std::size_t i = 0; i < edge_roots[0].size(); i++){
+                            markers[a][i+1] = edge_roots[a][i] - (edge_roots[a][i] - markers[a][0]) / 3;
+                        }
+                    }
+
+                    for (std::size_t a = 0; a < _d; a++)
+                        global_markers[a].insert(global_markers[a].end(), markers[a].begin(), markers[a].end());
+
+                }
+            }
+
+        }
+
+        void reinitializeSignedDistance() {
+
+            computeMarkersReinit();
+
+            for (unsigned e = 0; e < _nEl; e++) {
+                if (_elLevel[e] == _field.size()-1) {
                     const auto& conn = _elTplgy[e];
                     for (unsigned i = 0; i < conn.size(); ++i) {
                         const unsigned gnode = conn[i];                      
                         _cut_region_nodes_cnt[gnode]++;
                     }
-
-                    const auto local_markers = createLocalMarkers(edge_roots);
-
-                    for (std::size_t a = 0; a < _d; a++)
-                        global_markers[a].insert(global_markers[a].end(), local_markers[a].begin(), local_markers[a].end());
-
                 }
             }
-        }
-
-        void reinitializeSignedDistance(const std::vector<std::vector<double>>& markers_soa) {
 
             collectCutRegionNodes();
             const auto converged_flag = projectPointsOnInterface(_cut_region_nodes);
 
-            reinitFarField(markers_soa);
+            reinitFarField(_global_markers);
             reinitCutField(converged_flag);
+
         }
 
+        double fieldDistortion(const std::vector<std::vector<double>>& global_markers, bool projection_flag) {
+            auto tmp_global_markers(global_markers);
+
+            if (projection_flag) {
+                const auto converged_flag = projectPointsOnInterface(tmp_global_markers);
+
+                const std::size_t nPts = tmp_global_markers.empty() ? 0 : tmp_global_markers[0].size();
+
+                if (converged_flag.size() != nPts) {
+                    throw std::runtime_error("converged_flag size != number of points");
+                }
+
+                std::vector<std::vector<double>> filtered(_d);
+                for (std::size_t a = 0; a < _d; ++a) {
+                    filtered[a].reserve(nPts); 
+                }
+
+                for (std::size_t i = 0; i < nPts; ++i) {
+                    if (!converged_flag[i]) continue;
+                    for (std::size_t a = 0; a < _d; ++a) {
+                        filtered[a].push_back(tmp_global_markers[a][i]);
+                    }
+                }
+
+                tmp_global_markers.swap(filtered);
+            }
+
+            PointLocator pl = PointLocator(_field[0].mesh(), .1);
+            std::vector<PointLocatorResult> out, in;
+
+            std::vector<double> p_values;       
+            p_values.reserve(tmp_global_markers[0].size());                
+            std::vector<std::vector<double>> p_gradients(_d);
+            for (int a = 0; a < _d; ++a)
+                p_gradients[a].reserve(tmp_global_markers[0].size());
+
+            pl.locateAll(out, tmp_global_markers);
+            for (unsigned l = 1; l <= _field.size()-1; l++) {
+                std::swap(in, out);
+                _field[l - 1].mesh().projectPointLocatorResultsToNextLevel(_field[l].mesh(), in, out);
+            }
+            if (out.size() != tmp_global_markers[0].size()) throw std::runtime_error("Reinit::fieldDistortion: plr size != #marker points");
+
+            _field.back().evalNodalAtLocatedPointsById(_id, out, _el_proj, p_values, p_gradients, /*outsideVal=*/0.0);
+
+            if (p_values.size() != tmp_global_markers[0].size()) throw std::runtime_error("Reinit::fieldDistortion: phi size mismatch");
+            for (std::size_t a = 0; a < _d; ++a)
+                if (p_gradients[a].size() != tmp_global_markers[0].size()) throw std::runtime_error("Reinit::fieldDistortion: grad size mismatch");
+
+            std::vector<double> grad2(p_gradients[0].size());
+            for (std::size_t a = 0; a < _d; a ++) 
+                for (std::size_t i = 0; i < p_gradients[0].size(); i ++)
+                    grad2[i] += p_gradients[a][i]*p_gradients[a][i];
+            
+            double sum = 0;
+            for (std::size_t i = 0; i < grad2.size(); i++) {
+                sum += std::abs(std::log(sqrt(grad2[i]) / (2*_m.c1())));
+            }
+
+            return sum / grad2.size();
+        }
+
+    private:
         //=================================================================================================
         // ============================         AUXILIARY FUNCTIONS          =============================
         //=================================================================================================
@@ -265,16 +346,79 @@ class Reinit {
                             local_markers[a].push_back(edge_roots[a][0] + dist[a]*imarker);
                 }
                 else {
-                    std::runtime_error("Reinit::createLocalMarkers: multiple cuts not implemented yet");
+                    for (std::size_t i = 0; i < edge_roots[0].size()-1; i++) {
+                        for (std::size_t j = i+1; j < edge_roots[0].size(); j++) {
+                            double len = 0;
+                            for (int a = 0; a < 2; a ++) 
+                                len += (edge_roots[a][j] - edge_roots[a][i]) * (edge_roots[a][j] - edge_roots[a][i]);
+                            len = std::sqrt(len);
+
+                            int n_int_eff = static_cast<int>(std::ceil(len / _h_eff * _n_int )); 
+                            n_int_eff = std::max(2, n_int_eff);
+
+                            std::array<double,2> dist = {0,0};
+                            for (int a = 0; a < 2; a ++)
+                                dist[a] = (edge_roots[a][j] - edge_roots[a][i]) / static_cast<double>(n_int_eff);
+
+                            for (int imarker = 0; imarker < n_int_eff + 1; imarker++) 
+                                for (int a = 0; a < 2; a ++) 
+                                    local_markers[a].push_back(edge_roots[a][i] + dist[a]*imarker);
+                        }
+                    }
                 }
                 
                 return local_markers;
             }
             else if (_d == 3) {
-                std::runtime_error("Reinit::createLocalMarkers: 3d not implemented yet");
+                local_markers.clear();
+                local_markers.resize(3);
+
+                if (edge_roots[0].size() < 3)
+                    return local_markers;
+                else if (edge_roots[0].size() < 6) {
+                    const auto cell_intersections = soaToAos(edge_roots);
+                
+                    auto poly = Tri_ord::order_polygon_3d(cell_intersections);
+
+                    auto tris = Tri_ord::triangulate_poly(poly);
+
+                    std::vector<std::array<double,3>> tmp_local_markers;
+
+                    for (const auto& tr : tris)
+                        Tri_ord::sample_triangle_with_density(tr, _n_int, 2, tmp_local_markers);
+
+                    local_markers = aosToSoa(tmp_local_markers);
+
+                }
+                else {
+                    for (std::size_t i = 0; i < edge_roots[0].size()-1; i++) {
+                        for (std::size_t j = i+1; j < edge_roots[0].size(); j++) {
+                            double len = 0;
+                            for (int a = 0; a < 3; a ++) 
+                                len += (edge_roots[a][j] - edge_roots[a][i]) * (edge_roots[a][j] - edge_roots[a][i]);
+                            len = std::sqrt(len);
+
+                            int n_int_eff = static_cast<int>(std::ceil(len / _h_eff * _n_int )); 
+                            n_int_eff = std::max(2, n_int_eff);
+
+                            std::array<double,3> dist = {0,0, 0};
+                            for (int a = 0; a < 3; a ++)
+                                dist[a] = (edge_roots[a][j] - edge_roots[a][i]) / static_cast<double>(n_int_eff);
+
+                            for (int imarker = 0; imarker < n_int_eff + 1; imarker++) 
+                                for (int a = 0; a < 3; a ++) 
+                                    local_markers[a].push_back(edge_roots[a][i] + dist[a]*imarker);
+                        }
+                    }
+                }
+
+                return local_markers;
+                        
             }
-            else 
-                std::runtime_error("Reinit::createLocalMarkers: unexpected dimension");
+            else {
+                throw std::runtime_error("Reinit::createLocalMarkers: unexpected dimension");
+            }
+
         }
 
         void collectCutRegionNodes() {
@@ -299,6 +443,46 @@ class Reinit {
                     _cut_region_nodes[a].push_back(_X[a][gid]);
                 }
             }
+
+        }
+
+        void computeMarkersReinit() {
+
+            if (_d == 0) throw std::runtime_error("Reinit::computeInterfaceMarkers: mesh.dim()==0");
+
+            _global_markers.clear();
+            _global_markers.resize(_d);
+            for (std::size_t a = 0; a < _d; ++a) {
+                _global_markers[a].clear();
+            }
+
+            for (std::size_t e = 0; e < _nEl; ++e) {
+
+                std::vector<std::vector<double>> edge_roots;
+                if (cellIsCut(e, edge_roots)) {
+
+                    const auto local_markers = createLocalMarkers(edge_roots);
+
+                    for (std::size_t a = 0; a < _d; a++)
+                        _global_markers[a].insert(_global_markers[a].end(), local_markers[a].begin(), local_markers[a].end());
+
+                }
+            }
+
+            const auto converged_flag = projectPointsOnInterface(_global_markers);
+            std::vector<std::vector<double>> converged_global_markers(_d);
+            for (std::size_t a = 0; a < _d; a++)
+                converged_global_markers[a].reserve(converged_flag.size());
+
+            for (std::size_t a = 0; a < _d; a++)
+                for (std::size_t i = 0; i < converged_flag.size(); i++) {
+                    uint8_t conv_flag = converged_flag[i];
+                    if(conv_flag == 1)
+                                converged_global_markers[a].push_back(_global_markers[a][i]);
+                }
+            
+            _global_markers.swap(converged_global_markers);
+            
         }
 
         std::vector<uint8_t> projectPointsOnInterface(std::vector<std::vector<double>>& points) {
@@ -390,10 +574,6 @@ class Reinit {
                 }
             }
 
-            cnt += n_active;
-            if (cnt > 0)
-                std::cout<<"REINIT::projectPointsOnInterface : "<<cnt<<" points not converged."<<std::endl;
-
             return converged_flag;
         }
 
@@ -409,9 +589,15 @@ class Reinit {
                 if (converged_flag[i] == 1) {
                     double sign = (_U[_cut_region_nodes_idx[i]] > 0) ? 1.0 : -1.0;
                     double dist = sqrt(dist2[i]);
-                    _U[_cut_region_nodes_idx[i]] = sign * _m.SigmoidC1(dist);
+
+                    double u_old = _U[_cut_region_nodes_idx[i]];
+                    double u_new = sign * _m.SigmoidC1(dist);
+
+                    if(std::abs(u_new) < std::abs(u_old))
+                        _U[_cut_region_nodes_idx[i]] = u_new;
                 }
             } 
+
         }
 
         void reinitFarField(const std::vector<std::vector<double>>& markers_soa) {
@@ -443,6 +629,7 @@ class Reinit {
 
                 _U[i] = sign * _m.SigmoidC1(dist);
             }
+
         }
 
         std::vector<std::array<double,3>> soaToAos(const std::vector<std::vector<double>>& points_soa) {
@@ -454,6 +641,19 @@ class Reinit {
                     points_aos[i][a] = points_soa[a][i];
             
             return points_aos;
+        }
+
+        std::vector<std::vector<double>> aosToSoa(const std::vector<std::array<double,3>>& points_aos) {
+            std::size_t n_points = points_aos.size();
+            std::vector<std::vector<double>> points_soa(_d);
+
+            for (std::size_t a = 0; a < _d; a++) {
+                points_soa[a].resize(n_points);
+                for (std::size_t i = 0; i < n_points; i++)
+                    points_soa[a][i] = points_aos[i][a];
+            }
+                
+            return points_soa;
         }
 
     private:
@@ -477,5 +677,6 @@ class Reinit {
         std::vector<int> _cut_region_nodes_cnt;
         std::vector<int> _cut_region_nodes_idx;
         std::vector<std::vector<double>> _cut_region_nodes;
+        std::vector<std::vector<double>> _global_markers;
         
 };
