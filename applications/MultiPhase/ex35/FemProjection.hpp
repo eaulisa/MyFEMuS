@@ -755,7 +755,7 @@ class Tet15Projection : public Q2RefinementProjection {
         }
       }
 
-      _fem = std::make_unique<femus::elem_type_3D>("tet", "biquadratic", "eleventh");
+      _fem = std::make_unique<femus::elem_type_3D>("tet", "biquadratic", "twenty first");
 
       build();
     }

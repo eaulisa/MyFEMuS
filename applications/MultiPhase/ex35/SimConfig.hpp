@@ -40,7 +40,8 @@ static inline unsigned dimFromSeed(MeshSeedFactory::Type t) {
     case MeshSeedFactory::Type::SquareTri7:  return 2;
     case MeshSeedFactory::Type::CubeHex27:
     case MeshSeedFactory::Type::CubeWedge21:
-    case MeshSeedFactory::Type::CubeTet15:   return 3;
+    case MeshSeedFactory::Type::CubeTet15:
+    case MeshSeedFactory::Type::SphereTet15:   return 3;
   }
   throw std::runtime_error("Unknown mesh seed type");
 }
@@ -64,7 +65,7 @@ static inline void applyDefaults(SimConfig& c) {
 
   // period rules
   if (c.velocityType == RungeKutta::VelKind::Rotation) {
-    c.period = 2.0 * M_PI;
+    c.period = (c.dim == 2) ? 2.0 * M_PI :  2. * M_PI / sqrt(3.);
   } else {
     c.period = (c.dim == 2 ? 8.0 : 4.0);
   }
@@ -123,12 +124,14 @@ static inline MeshSeedFactory::Reshape parseShape(const std::string& v) {
 
 static inline MeshSeedFactory::Type parseSeed(const std::string& v) {
   const std::string s = toLower(v);
+  std::cout<<s<<std::endl;
   if (s == "tri7")  return MeshSeedFactory::Type::SquareTri7;
   if (s == "quad9") return MeshSeedFactory::Type::SquareQuad9;
   if (s == "hex27") return MeshSeedFactory::Type::CubeHex27;
   if (s == "wedge21") return MeshSeedFactory::Type::CubeWedge21;
   if (s == "tet15") return MeshSeedFactory::Type::CubeTet15;
-  throw std::runtime_error("Unknown --mesh");
+  if (s == "spheretet15") return MeshSeedFactory::Type::SphereTet15;
+  throw std::runtime_error("Unknown --mesh sss");
 }
 
 static inline void parseVec(std::vector<double>& out, const char* s) {

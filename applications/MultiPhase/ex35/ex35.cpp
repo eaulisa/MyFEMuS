@@ -35,6 +35,83 @@
 int main(int argc, char** args) {
 
 
+//   femus::FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+//
+// // define multilevel mesh
+//   femus::MultiLevelMesh mlMsh;
+//   double scalingFactor = 1.;
+// //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "fifth", scalingFactor);
+//   mlMsh.ReadCoarseMesh("./input/sphereTet.neu", "fifth", scalingFactor);
+//   unsigned dim = mlMsh.GetDimension();
+//
+//   unsigned numberOfUniformLevels = 1;
+//   unsigned numberOfSelectiveLevels = 0;
+//   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
+//
+//   femus::MultiLevelSolution mlSol(&mlMsh);
+//   mlSol.Initialize("All");
+//
+//
+//   femus::Mesh* msh = mlMsh.GetLevel(0);
+//
+//   std::cout << "s.X = {";
+//   for (unsigned d = 0; d < 3; ++d) {
+//     std::cout << " {";
+//     for (unsigned i = msh->_dofOffset[2][0]; i < msh->_dofOffset[2][1]; i++) {
+//       std::cout << (*msh->_topology->_Sol[d])(i) << ", ";
+//     }
+//     std::cout << "\b\b},\n";
+//   }
+//   std::cout << "\b\b};\n\n";
+//
+//   std::cout << "s.elTplgy = {";
+//   for (unsigned iel = msh->_elementOffset[0]; iel < msh->_elementOffset[1]; iel++) {
+//     short unsigned ielGeom = msh->GetElementType(iel);
+//     unsigned nDofs = msh->GetElementDofNumber(iel, 2);
+//     std::cout << " {";
+//     for (unsigned i = 0; i < nDofs; i++) {
+//       std::cout << msh->GetSolutionDof(i, iel, 2) << ", ";
+//     }
+//     std::cout << "\b\b},\n";
+//   }
+//   std::cout << "\b\b};\n\n";
+//
+//
+//
+//   std::vector < std::string > variablesToBePrinted;
+//   variablesToBePrinted.push_back("All");
+//   femus::VTKWriter vtkIO(&mlSol);
+//   vtkIO.SetDebugOutput(true);
+//   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+//
+//
+//   return 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   ProfilerStart("profiling.prof");
 
 
