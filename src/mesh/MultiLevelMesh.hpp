@@ -75,7 +75,7 @@ public:
                             const int &ElemGroupNumber,const int &level));
 
     /** Add a partially refined mesh level in the AMR alghorithm **/
-    void AddAMRMeshLevel();
+    void AddAMRMeshLevel(const bool AMR_ALREADY_FLAGGED = false);
     
     
     /** Get the mesh pointer to level i */

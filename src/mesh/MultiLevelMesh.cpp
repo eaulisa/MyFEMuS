@@ -293,14 +293,14 @@ void MultiLevelMesh::RefineMesh( const unsigned short &igridn, const unsigned sh
 
 }
 
-void MultiLevelMesh::AddAMRMeshLevel()
+void MultiLevelMesh::AddAMRMeshLevel(const bool AMR_ALREADY_FLAGGED)
 {
 
   //AMR refine mesh
    _level0.resize(_gridn0+1u);
 
   MeshRefinement meshcoarser(*_level0[_gridn0-1u]);
-  meshcoarser.FlagElementsToBeRefined();
+  if(!AMR_ALREADY_FLAGGED) meshcoarser.FlagElementsToBeRefined();
 
   _level0[_gridn0] = new Mesh();
   MeshRefinement meshfiner(*_level0[_gridn0]);
