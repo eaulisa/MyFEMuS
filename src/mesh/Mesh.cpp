@@ -102,17 +102,17 @@ namespace femus {
   const double Mesh::_baricentricWeight[6][5][18] = {
     {},
     {
-      { -1. / 9., -1. / 9., -1. / 9.,  0    , 4. / 9., 4. / 9., 4. / 9., 0.   , 0.   , 0.   },
-      { -1. / 9., -1. / 9.,  0.   , -1. / 9., 4. / 9., 0.   , 0.   , 4. / 9., 4. / 9., 0.   },
-      {  0.   , -1. / 9., -1. / 9., -1. / 9., 0.   , 4. / 9., 0.   , 0.   , 4. / 9., 4. / 9.},
-      { -1. / 9.,  0.    , -1. / 9., -1. / 9., 0.   , 0.   , 4. / 9., 4. / 9., 0.   , 4. / 9.},
+      { -1. / 9., -1. / 9., -1. / 9.,  0, 4. / 9., 4. / 9., 4. / 9., 0., 0., 0.   },
+      { -1. / 9., -1. / 9.,  0., -1. / 9., 4. / 9., 0., 0., 4. / 9., 4. / 9., 0.   },
+      {  0., -1. / 9., -1. / 9., -1. / 9., 0., 4. / 9., 0., 0., 4. / 9., 4. / 9.},
+      { -1. / 9.,  0., -1. / 9., -1. / 9., 0., 0., 4. / 9., 4. / 9., 0., 4. / 9.},
       { -1. / 8., -1. / 8., -1. / 8., -1. / 8., 1. / 4., 1. / 4., 1. / 4., 1. / 4., 1. / 4., 1. / 4.}
     },
     {
-      { -1. / 9., -1. / 9., -1. / 9., 0.   ,  0.   ,  0.   , 4. / 9., 4. / 9., 4. / 9.},
-      {  0.   ,  0.   ,  0.   , -1. / 9., -1. / 9., -1. / 9., 0.   , 0.   , 0.   , 4. / 9., 4. / 9., 4. / 9.},
+      { -1. / 9., -1. / 9., -1. / 9., 0.,  0.,  0., 4. / 9., 4. / 9., 4. / 9.},
+      {  0.,  0.,  0., -1. / 9., -1. / 9., -1. / 9., 0., 0., 0., 4. / 9., 4. / 9., 4. / 9.},
       {
-        0.   ,  0.   ,  0.   , 0.   ,  0.   ,  0.   , 0.   , 0.   , 0.   , 0.   , 0.   , 0.   ,
+        0.,  0.,  0., 0.,  0.,  0., 0., 0., 0., 0., 0., 0.,
         -1. / 9., -1. / 9., -1. / 9., 4. / 9.,  4. / 9.,  4. / 9.
       },
     },
@@ -706,7 +706,7 @@ namespace femus {
 
     for(unsigned k = 0; k < 2; k++) {
 
-      std::vector < unsigned > ownedGhostCounter(_nprocs , 0);
+      std::vector < unsigned > ownedGhostCounter(_nprocs, 0);
       unsigned counter = 0;
 
       _originalOwnSize[k].resize(_nprocs);
@@ -1253,5 +1253,88 @@ namespace femus {
   basis* Mesh::GetBasis(const short unsigned& ielType, const short unsigned& solType) {
     return _finiteElement[ielType][solType]->GetBasis();
   }
+
+
+  void Mesh::EnforceOneLevelAMR(std::vector<double> &localAmrFlag, bool localAmrFlagIsSynchronized) {
+
+    const MyVector< short unsigned> & elementLevel = el->GetElementLevel();
+    std::vector<short unsigned> localElementLevel;
+    elementLevel.localize(localElementLevel);
+
+    const unsigned amrIndex = GetAmrIndex();
+    auto* amrFlag = _topology->_Sol[amrIndex];
+    if(!localAmrFlagIsSynchronized) {
+      amrFlag->localize_to_all(localAmrFlag);
+    }
+
+    const unsigned iproc    = processor_id();
+    const unsigned offset = _elementOffset[iproc];
+    const unsigned offsetp1 = _elementOffset[iproc + 1];
+
+    unsigned globalChanged = 0u;
+    unsigned localRefined = 0u;
+    bool localRefinedChanged = false;
+    do {
+      unsigned localChanged = 0u;
+      for (unsigned iel = offset; iel < offsetp1; ++iel) {
+
+        const unsigned ielLevel = localElementLevel[iel] + static_cast<unsigned>(std::round(localAmrFlag[iel]));
+
+        for(unsigned j = 1; j < el->GetElementNearElementSize(iel, 1); j++) { // j = 0 corresponds to jel = iel, so it is not needed
+          const unsigned jel = el->GetElementNearElement(iel, j);
+          const unsigned jelLevel = localElementLevel[jel] + static_cast<unsigned>(std::round(localAmrFlag[jel]));
+
+          if(ielLevel + 1u < jelLevel) {
+            if(localAmrFlag[iel] > 0.5 || ielLevel + 2u < jelLevel) {
+              throw std::runtime_error(
+                "EnforceOneLevelAMR: inconsistent input. "
+                "An element would require more than one additional refinement step "
+                "to restore the 1-level AMR constraint."
+              );
+            }
+            amrFlag->add(iel, 1.);
+            ++localChanged;
+          }
+          else if(jelLevel + 1u < ielLevel) {
+            if(localAmrFlag[jel] > 0.5 || jelLevel + 2u < ielLevel) {
+              throw std::runtime_error(
+                "EnforceOneLevelAMR: inconsistent input. "
+                "An element would require more than one additional refinement step "
+                "to restore the 1-level AMR constraint."
+              );
+            }
+            amrFlag->add(jel, 1.);
+            ++localChanged;
+          }
+        }
+      }
+
+      globalChanged = 0u;
+      MPI_Allreduce(&localChanged, &globalChanged, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+      if(globalChanged != 0) {
+        amrFlag->close();
+        localRefinedChanged = true;
+        localRefined = 0u;
+        for (unsigned iel = offset; iel < offsetp1; ++iel) {
+          if( (*amrFlag)(iel) > 0.5) {
+            amrFlag->set(iel, 1.);
+            ++localRefined;
+          }
+        }
+        amrFlag->close();
+        amrFlag->localize_to_all(localAmrFlag);
+      }
+    }
+    while (globalChanged);
+
+    if(localRefinedChanged) {
+      unsigned globalRefined = 0u;
+      MPI_Allreduce(&localRefined, &globalRefined, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+      el->SetRefinedElementNumber(globalRefined);
+    }
+  }
+
+
 
 } //end namespace femus

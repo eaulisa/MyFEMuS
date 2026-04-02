@@ -208,6 +208,8 @@ namespace femus {
     vector < double > coarseLocalizedAmrVector;
     mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
 
+    mshc->EnforceOneLevelAMR(coarseLocalizedAmrVector, true);
+
     mshc->el->AllocateChildrenElement(_mesh.GetRefIndex(), mshc);
 
     _mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector);

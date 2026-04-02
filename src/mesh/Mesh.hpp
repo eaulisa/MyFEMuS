@@ -255,6 +255,8 @@ public:
     const unsigned GetAmrIndex()        const { return _amrIndex; };
     const unsigned GetSolidMarkIndex()  const { return _solidMarkIndex; };
 
+    void EnforceOneLevelAMR(std::vector<double> &localizedAmrVector, bool vectorIsInitialized = false);
+
 private:
     /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
     Mesh* _coarseMsh;

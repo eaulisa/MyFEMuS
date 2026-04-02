@@ -183,6 +183,11 @@ namespace femus {
       short unsigned GetElementLevel(const unsigned &jel) {
         return _elementLevel[jel];
       }
+
+      const MyVector< short unsigned>& GetElementLevel() {
+        return _elementLevel;
+      }
+
       void ScatterElementQuantities() {
         _elementLevel.scatter(_elementOffset);
         _elementType.scatter(_elementOffset);

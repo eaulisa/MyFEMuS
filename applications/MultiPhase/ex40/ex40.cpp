@@ -1,102 +1,58 @@
-/** tutorial/Ex1
- * This example shows how to:
- * initialize a femus application;
- * define the multilevel-mesh object mlMsh;
- * read from the file ./input/square.neu the coarse-level mesh and associate it to mlMsh;
- * add in mlMsh uniform refined level-meshes;
- * define the multilevel-solution object mlSol associated to mlMsh;
- * add in mlSol different types of finite element solution variables; +
- * initialize the solution variables;
- * define vtk and gmv writer objects associated to mlSol;
- * print vtk and gmv binary-format files in ./output directory.
- **/
 
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
-#include "MultiLevelProblem.hpp"
 #include "VTKWriter.hpp"
-#include "GMVWriter.hpp"
+
+#include "include/Mollifier.hpp"
+#include "include/Psi.hpp"
 
 using namespace femus;
 
-double InitalValueU(const std::vector < double >& x) {
-  return x[0] + x[1];
-}
-
-double InitalValueP(const std::vector < double >& x) {
-  return x[0];
-}
-
-double InitalValueT(const std::vector < double >& x) {
-  return x[1];
-}
-
-
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r, const std::vector<double> &xc);
+void Init(MultiLevelSolution &mlSol, const std::string &name, const PsiBall &psi2D);
 
-int main(int argc, char** args) {
+int main(int argc, char** argv) {
 
-  // init Petsc-MPI communicator
-  FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+  // Initialize PETSc/MPI
+  FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
-  // define multilevel mesh
-  MultiLevelMesh mlMsh; // Consider the "mlMsh" object of "MultiLevel" class.
-  double scalingFactor = 1.;
-  // read coarse level mesh and generate finers level meshes
-  mlMsh.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor); // Let mlMsh read the coarse mesh.
-  /* "seventh" is the order of accuracy that is used in the gauss integration scheme
-      probably in the furure it is not going to be an argument of this function   */
-  unsigned numberOfUniformLevels = 2; // We apply uniform refinement.
-  unsigned numberOfSelectiveLevels = 0; // we may want to see solutions on different level of meshes.
-  mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);  // Add those refined meshed in mlMsh object.
+  MultiLevelMesh mlMsh;
 
-  double r = 0.125;
+  const double scalingFactor = 1.0;
+  const unsigned numberOfUniformLevels   = 2u;
+  const unsigned numberOfSelectiveLevels = 4u;
+
+  // Load coarse mesh and build uniform refinement levels
+  mlMsh.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
+  mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
+
+  // Parameters for selective AMR (ball centered at xc with radius r)
+  const double r = 0.125;
   std::vector<double> xc = {0.0, 0.25};
+  double eps = 0.01;//(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
 
-  for(unsigned k = 0; k < 5; k++) {
+  // Iteratively flag and create new AMR levels
+  for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
     FlagFinestMeshLevel(mlMsh, r, xc);
-    mlMsh.AddAMRMeshLevel(false);
+    mlMsh.AddAMRMeshLevel(false); // false -> it does not re-evaluate the AMR flag vector
   }
+
   mlMsh.PrintInfo();
 
+  // Define solution on the multilevel mesh
+  MultiLevelSolution mlSol(&mlMsh);
+  mlSol.AddSolution("Psi", LAGRANGE, SECOND);
+  mlSol.Initialize("All");
 
-  // define the multilevel solution and attach the mlMsh object to it
-  MultiLevelSolution mlSol(&mlMsh); // Define "mlSol" object with argument mlMsh of "MultiLevelSolution" class.
-  // add variables to mlSol
-  mlSol.AddSolution("U", LAGRANGE, FIRST);
-  mlSol.AddSolution("V", LAGRANGE, SERENDIPITY);
-  mlSol.AddSolution("W", LAGRANGE, SECOND);
-  mlSol.AddSolution("P", DISCONTINUOUS_POLYNOMIAL, ZERO);
-  mlSol.AddSolution("T", DISCONTINUOUS_POLYNOMIAL, FIRST);
+  PsiBall psi2D(xc, r, eps);
+  Init(mlSol, "Psi", psi2D);
 
-  mlSol.Initialize("All");    // initialize all varaibles to zero
 
-  mlSol.Initialize("U", InitalValueU);
-  mlSol.Initialize("V", InitalValueP);
-  mlSol.Initialize("W", InitalValueT);
-
-  mlSol.Initialize("P", InitalValueP);
-  mlSol.Initialize("T", InitalValueT);  // note that this initialization is the same as piecewise constant element
-
-  // print solutions
-  std::vector < std::string > variablesToBePrinted;
-  variablesToBePrinted.push_back("All");
-//   variablesToBePrinted.push_back("U");
-//   variablesToBePrinted.push_back("P");
-//   variablesToBePrinted.push_back("T");
-//   variablesToBePrinted.push_back("V");
-//   variablesToBePrinted.push_back("W");
-
+  // Export solution to VTK (selected levels)
+  std::vector<std::string> variablesToBePrinted = {"All"};
   VTKWriter vtkIO(&mlSol);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
-
-//   GMVWriter gmvIO(&mlSol);
-//   variablesToBePrinted.push_back("all");
-//   gmvIO.SetDebugOutput(false);
-//   gmvIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
-
-  //   From what I understand, you define the type of mesh and how to refine it and what integration scheme to use,
-  //then you associate the mesh and integration scheme to a specific type of problem, with specifed order, then solve and print.
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
   return 0;
 }
@@ -111,14 +67,16 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r, const std::vect
   const unsigned amrIndex = msh.GetAmrIndex();
 
   const double r2 = r * r;
-  unsigned localRefined = 0;
 
   auto& xv = msh._topology->_Sol;
   auto* amrFlag = msh._topology->_Sol[amrIndex];
 
   amrFlag->zero();
 
-  for (unsigned iel = msh._elementOffset[iproc]; iel < msh._elementOffset[iproc + 1]; ++iel) {
+  unsigned offset = msh._elementOffset[iproc];
+  unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
 
     const unsigned nDof = msh.GetElementDofNumber(iel, xType);
 
@@ -148,17 +106,87 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r, const std::vect
     }
 
     if (signChange) {
-      amrFlag->set(iel, 1.);
+      amrFlag->set(iel, 2);
+    }
+  }
+  amrFlag->close();
+
+
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+    if( (*amrFlag)(iel) == 2) {
+      for(unsigned j = 0; j < msh.el->GetElementNearElementSize(iel, 1); j++) {
+        unsigned jel = msh.el->GetElementNearElement(iel, j);
+        if(offset <= jel && jel < offsetp1) {
+          if((*amrFlag)(jel) < 0.5) amrFlag->set(jel, 1); //this is on spot since jel belongs to iproc
+        }
+        else {
+          amrFlag->add(jel, 1); // this is buffered since jel does not belong to iproc
+        }
+      }
+    }
+  }
+  amrFlag->close();
+
+  unsigned localRefined = 0;
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+    if( (*amrFlag)(iel) > 0.5) {
+      amrFlag->set(iel, 1);
       ++localRefined;
     }
   }
-
   amrFlag->close();
 
   unsigned globalRefined = 0;
   MPI_Allreduce(&localRefined, &globalRefined, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
   msh.el->SetRefinedElementNumber(globalRefined);
+
 }
 
+
+void Init(MultiLevelSolution &mlSol, const std::string &name, const PsiBall &psi2D) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level  = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh &msh             = *mlMsh.GetLevel(level);
+  Solution &sol         = *mlSol.GetLevel(level);
+  const unsigned iproc  = msh.processor_id();
+  const unsigned dim    = msh.GetDimension();
+
+  unsigned solIndex = mlSol.GetIndex(name.c_str());
+  unsigned solType  = mlSol.GetSolutionType(name.c_str());
+
+  const unsigned xType = 2u; // coordinate field type
+
+  auto& xv = msh._topology->_Sol;
+  std::vector<double> x(dim);
+
+  const unsigned offset   = msh._elementOffset[iproc];
+  const unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  auto& solVec = sol._Sol[solIndex];
+
+  solVec->zero();
+
+  // Loop over local elements and interpolate psi2D at solution DoFs
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    const unsigned nDof = msh.GetElementDofNumber(iel, solType);
+
+    for (unsigned i = 0; i < nDof; ++i) {
+
+      // Get physical coordinates of the current DoF
+      const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
+      for (unsigned k = 0; k < dim; ++k) {
+        x[k] = (*xv[k])(xDof);
+      }
+
+      // Evaluate and assign field value
+      const unsigned solDof = msh.GetSolutionDof(i, iel, solType);
+      solVec->set(solDof, psi2D(x));
+    }
+  }
+
+  solVec->close();
+}
 
