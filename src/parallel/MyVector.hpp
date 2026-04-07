@@ -44,6 +44,9 @@ namespace femus {
       MyVector(const std::vector < unsigned > &offset, const Type value = 0);
 
       // ******************
+      void buildFromLocal(const std::vector<Type>& v_local);
+
+      // ******************
       ~MyVector();
 
       // ******************
@@ -72,7 +75,7 @@ namespace femus {
 
       // ******************
       void scatter();
-      
+
       // ******************
       void stack();
 
@@ -90,7 +93,7 @@ namespace femus {
 
       // ****************
       const std::string &status();
-      
+
       void localize(std::vector<Type> &v_local) const ;
 
       // ******************

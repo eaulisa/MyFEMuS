@@ -5,11 +5,14 @@
 
 #include "include/Mollifier.hpp"
 #include "include/Psi.hpp"
+#include "include/GradientApproximation.hpp"
 
 using namespace femus;
 
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r, const std::vector<double> &xc);
 void Init(MultiLevelSolution &mlSol, const std::string &name, const PsiBall &psi2D);
+void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name, std::vector<MyVector<double>> &X, MyVector<unsigned> &Xiel);
+static void WritePointsVTK(const std::string& filename, const std::vector<MyVector<double>>& X);
 
 int main(int argc, char** argv) {
 
@@ -47,6 +50,12 @@ int main(int argc, char** argv) {
   PsiBall psi2D(xc, r, eps);
   Init(mlSol, "Psi", psi2D);
 
+  std::vector<MyVector<double>> X;
+  MyVector<unsigned> Xiel;
+  GetCutElementPoints(mlSol, "Psi", X, Xiel);
+
+  WritePointsVTK("./output/points.0.vtk", X);
+  WritePointsVTK("./output/points.1.vtk", X);
 
   // Export solution to VTK (selected levels)
   std::vector<std::string> variablesToBePrinted = {"All"};
@@ -189,4 +198,196 @@ void Init(MultiLevelSolution &mlSol, const std::string &name, const PsiBall &psi
 
   solVec->close();
 }
+
+
+void GetCutElementPoints(MultiLevelSolution &mlSol,
+                         const std::string &name,
+                         std::vector<MyVector<double>> &X,
+                         MyVector<unsigned> &Xiel) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level  = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh &msh             = *mlMsh.GetLevel(level);
+  Solution &sol         = *mlSol.GetLevel(level);
+  const unsigned iproc  = msh.processor_id();
+  const unsigned dim    = msh.GetDimension();
+
+  const unsigned solIndex = mlSol.GetIndex(name.c_str());
+  const unsigned solType  = mlSol.GetSolutionType(name.c_str());
+  const unsigned xType    = 2u;
+
+  const double c1 = 2. / 3., c2 = 1. / 3.;
+
+  auto& xv     = msh._topology->_Sol;
+  auto& solVec = sol._Sol[solIndex];
+
+  const unsigned offset   = msh._elementOffset[iproc];
+  const unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  unsigned maxPtsPerEl = 1u;
+  for(unsigned d = 0; d < dim; ++d) maxPtsPerEl *= 2u;
+  ++maxPtsPerEl;
+
+  std::vector<std::vector<double>> x(dim);
+  for(unsigned k = 0; k < dim; ++k) x[k].reserve(maxPtsPerEl);
+
+  std::vector<double> phi;
+  std::vector<double> gradPhi(dim);
+
+  std::vector<std::vector<double>> Y(dim);
+  std::vector<unsigned> Yiel;
+
+  for(unsigned k = 0; k < dim; ++k) {
+    Y[k].reserve((offsetp1 - offset) * maxPtsPerEl);
+  }
+  Yiel.reserve((offsetp1 - offset) * maxPtsPerEl);
+
+  // Loop over local elements and collect interior points associated with cut elements
+  for(unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    const unsigned nDof = msh.GetElementDofNumber(iel, solType);
+
+    const unsigned solDof0 = msh.GetSolutionDof(0, iel, solType);
+    const double val0 = (*solVec)(solDof0);
+    const int sign0 = (val0 > 0.) - (val0 < 0.);
+
+    for(unsigned i = 1; i < nDof; ++i) {
+      const unsigned solDofi = msh.GetSolutionDof(i, iel, solType);
+      const double vali = (*solVec)(solDofi);
+      const int signi = (vali > 0.) - (vali < 0.);
+
+      if(signi != sign0) {
+
+        const unsigned nDof0 = msh.GetElementDofNumber(iel, 0);
+        phi.resize(nDof0 + 1u);
+        for(unsigned k = 0; k < dim; ++k) {
+          x[k].resize(nDof0 + 1u);
+        }
+        for(unsigned j = 0; j < nDof0; ++j) {
+          const unsigned solDofj = msh.GetSolutionDof(j, iel, solType);
+          phi[j] = (*solVec)(solDofj);
+          const unsigned xDof = msh.GetSolutionDof(j, iel, xType);
+          for(unsigned k = 0; k < dim; ++k) {
+            x[k][j] = (*xv[k])(xDof);
+          }
+        }
+        const unsigned nDof2 = msh.GetElementDofNumber(iel, 2);
+        const unsigned xDofc = msh.GetSolutionDof(nDof2 - 1u, iel, xType);
+        if(solType == xType) {
+          phi[nDof0] = (*solVec)(xDofc);
+
+        }
+        else {
+          phi[nDof0] = 0.;
+          for(unsigned  j = 0; j < nDof0; ++j) {
+            phi[nDof0] += phi[j];
+          }
+          phi[nDof0] /= nDof0;
+        }
+        for(unsigned k = 0; k < dim; ++k) {
+          x[k][nDof0] = (*xv[k])(xDofc);
+        }
+
+        computeElementGradientFromLocalData(x, phi, gradPhi);
+
+        //shift points
+        for(unsigned j = 0; j < nDof0; ++j) {
+          phi[j] = c1 * phi[j] + c2 * phi[nDof0];
+          for(unsigned k = 0; k < dim; ++k) {
+            x[k][j] = c1 * x[k][j] + c2 * x[k][nDof0];
+          }
+        }
+
+        double gradNorm2 = 0.;
+        for(unsigned k = 0; k < dim; ++k) {
+          gradNorm2 += gradPhi[k] * gradPhi[k];
+        }
+
+
+        if(gradNorm2 < 1.e-20) {
+          for(unsigned j = 0; j <= nDof0; ++j) {
+            for(unsigned k = 0; k < dim; ++k) {
+              Y[k].push_back(x[k][j]);
+            }
+            Yiel.push_back(iel);
+          }
+          break; //use current points
+        }
+
+
+        const double invGradNorm2 = 1. / gradNorm2;
+        for(unsigned j = 0; j <= nDof0; ++j) {
+          for(unsigned k = 0; k < dim; ++k) {
+            Y[k].push_back(x[k][j] - phi[j] * gradPhi[k] * invGradNorm2);
+          }
+          Yiel.push_back(iel);
+        }
+        break;
+      }
+    }
+  }
+
+  X.resize(dim);
+  for(unsigned k = 0; k < dim; ++k) {
+    X[k].buildFromLocal(Y[k]);
+  }
+  Xiel.buildFromLocal(Yiel);
+}
+
+
+static void WritePointsVTK(const std::string& filename,
+                           const std::vector<MyVector<double>>& X) {
+
+  const unsigned dim = X.size();
+  if (dim == 0) {
+    throw std::runtime_error("writePointsVTK: X.size()==0");
+  }
+  if (dim > 3) {
+    throw std::runtime_error("writePointsVTK: dim > 3 not supported");
+  }
+
+  // Localize all components
+  std::vector<std::vector<double>> Xp(dim);
+  for (unsigned k = 0; k < dim; ++k) {
+    X[k].localize(Xp[k]);
+  }
+
+  const std::size_t nPts = Xp[0].size();
+  for (unsigned k = 1; k < dim; ++k) {
+    if (Xp[k].size() != nPts) {
+      throw std::runtime_error("writePointsVTK: inconsistent sizes across components");
+    }
+  }
+
+  int iproc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
+
+  // Only rank 0 writes
+  if (iproc != 0) return;
+
+  std::ofstream out(filename);
+  if (!out) {
+    throw std::runtime_error("writePointsVTK: cannot open file");
+  }
+
+  out << "# vtk DataFile Version 3.0\n";
+  out << "Point cloud\n";
+  out << "ASCII\n";
+  out << "DATASET POLYDATA\n";
+  out << "POINTS " << nPts << " double\n";
+
+  for (std::size_t i = 0; i < nPts; ++i) {
+    const double x = (dim >= 1) ? Xp[0][i] : 0.0;
+    const double y = (dim >= 2) ? Xp[1][i] : 0.0;
+    const double z = (dim >= 3) ? Xp[2][i] : 0.0;
+    out << x << " " << y << " " << z << "\n";
+  }
+
+  out << "VERTICES " << nPts << " " << (2 * nPts) << "\n";
+  for (std::size_t i = 0; i < nPts; ++i) {
+    out << "1 " << i << "\n";
+  }
+}
+
+
 
