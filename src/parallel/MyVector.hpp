@@ -63,12 +63,15 @@ namespace femus {
 
       // ******************
       unsigned size();
+      unsigned size() const { return _size;};
 
       // ******************
       unsigned begin();
+      unsigned begin() const {return _begin;};
 
       // ******************
       unsigned end();
+      unsigned end() const {return _end;};
 
       // ******************
       void scatter(const std::vector < unsigned > &offset);
@@ -98,6 +101,9 @@ namespace femus {
 
       // ******************
       Type& operator[](const unsigned &i);
+      Type operator[](const unsigned &i) const {
+        return _vec[i - _begin];
+      }
 
       // *****************
       friend std::ostream& operator<<(std::ostream& os, MyVector<Type>& vec) {
