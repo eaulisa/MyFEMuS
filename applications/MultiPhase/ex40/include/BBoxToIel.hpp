@@ -521,7 +521,7 @@ class BBoxToIel {
 
 void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, LevelMarkers &lY) {
 
-  std::vector<MyVector<double>>&Y = lY.GetPoints();
+  std::vector<MyVector<double>>&Y = lY.GetFields();
   std::vector<MyVector<double>>&Yi = lY.GetLocalCoordinates();
   MyVector<unsigned>&YIel = lY.GetElements();
   lY.SetLevel(_level);
@@ -689,24 +689,28 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
 
 void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
 
-  std::vector<MyVector<double>>&X = lX.GetPoints();
+  std::vector<MyVector<double>>&Xfield = lX.GetFields();
   std::vector<MyVector<double>>&Xi = lX.GetLocalCoordinates();
   MyVector<unsigned>&XIel = lX.GetElements();
 
   const unsigned levelX = lX.GetLevel();
 
+  unsigned nFields = Xfield.size();
 
-  if (X.size() != _dim || Xi.size() != _dim) {
-    throw std::runtime_error("Project: inconsistent coordinate dimension");
+  const unsigned nPoints = Xfield[0].size();
+
+  for (unsigned k = 0; k < nFields; ++k) {
+    if (Xfield[k].size() != nPoints) {
+      throw std::runtime_error("Project: inconsistent field array sizes");
+    }
   }
 
-  const unsigned nPoints = X[0].size();
-
   for (unsigned k = 0; k < _dim; ++k) {
-    if (X[k].size() != nPoints || Xi[k].size() != nPoints) {
+    if (Xi[k].size() != nPoints) {
       throw std::runtime_error("Project: inconsistent point array sizes");
     }
   }
+
   if (XIel.size() != nPoints) {
     throw std::runtime_error("Project: inconsistent element index array size");
   }
@@ -719,7 +723,7 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
 
   const Mesh* mshY = _mlMsh.GetLevel(levelX + 1);
 
-  std::vector<std::vector<double>> Y_s(_nprocs);
+  std::vector<std::vector<double>> Yfield_s(_nprocs);
   std::vector<std::vector<double>> Yi_s(_nprocs);
   std::vector<std::vector<unsigned>> YIel_s(_nprocs);
 
@@ -727,8 +731,11 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
   map.resize(_nprocs);
 
   for(unsigned j = 0; j < _nprocs; ++j) {
-    Y_s[j].clear();
-    Y_s[j].reserve(2 * _dim * nPoints / _nprocs);
+    Yfield_s[j].clear();
+    Yfield_s[j].reserve(2 * nFields * nPoints / _nprocs);
+
+    map[j].clear();
+    map[j].reserve(2 * nFields * nPoints / _nprocs);
 
     Yi_s[j].clear();
     Yi_s[j].reserve(2 * _dim * nPoints / _nprocs);
@@ -736,8 +743,6 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     YIel_s[j].clear();
     YIel_s[j].reserve(2 * nPoints / _nprocs);
 
-    map[j].clear();
-    map[j].reserve(2 * _dim * nPoints / _nprocs);
   }
 
   const unsigned PWCtype = 3u; // PieceWiseConstant fem type enumerator
@@ -754,31 +759,17 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     GetChildIndexAndLocalXi(ielType, xi, childIndex, yi);
     unsigned yiel = mshX->el->GetChildElement(xiel, childIndex);
     unsigned kproc = mshY->IsdomBisectionSearch(yiel, PWCtype);
-    for(unsigned k = 0; k < _dim; k++) {
-      Y_s[kproc].push_back(X[k][i]);
+    for(unsigned k = 0; k < nFields; k++) {
+      Yfield_s[kproc].push_back(Xfield[k][i]);
       map[kproc].push_back(i - XIel.begin());
+    }
+
+    for(unsigned k = 0; k < _dim; k++) {
       Yi_s[kproc].push_back(yi[k]);
     }
+
     YIel_s[kproc].push_back(yiel);
   }
-
-  LevelMarkers lZ;
-
-  lZ = lX;
-  lX.RebuildFieldFromSender(Y_s, _dim);
-
-  X = lX.GetPoints();
-  std::vector<MyVector<double>>& z = lZ.GetPoints();
-  for(unsigned i = XIel.begin(); i < XIel.end(); i++) {
-    for(unsigned k = 0; k < _dim; k++) {
-      if(fabs(X[k][i] - z[k][i])>1.0e-12) std::cerr << "error ";
-    }
-  }
-
-  lX = lZ;
-
-
-
 
   std::vector<unsigned> YIel_size_s(_nprocs);
   std::vector<unsigned> YIel_size_r(_nprocs);
@@ -792,18 +783,16 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
                MPI_COMM_WORLD);
 
 
-  std::vector<std::vector<double>> Y_r(_nprocs);
+  std::vector<std::vector<double>> Yfield_r(_nprocs);
   std::vector<std::vector<double>> Yi_r(_nprocs);
   std::vector<std::vector<unsigned>> YIel_r(_nprocs);
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
-    Y_r[kproc].resize(YIel_size_r[kproc] * _dim);
+    Yfield_r[kproc].resize(YIel_size_r[kproc] * nFields);
     Yi_r[kproc].resize(YIel_size_r[kproc] * _dim);
     YIel_r[kproc].resize(YIel_size_r[kproc]);
   }
 
-
-
-  const int tagY    = 100;
+  const int tagF    = 100;
   const int tagYi   = 101;
   const int tagYIel = 102;
 
@@ -812,7 +801,7 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
 
 // Self-copy first, no MPI needed
   if (YIel_size_s[_iproc] > 0) {
-    Y_r[_iproc]   = Y_s[_iproc];
+    Yfield_r[_iproc]   = Yfield_s[_iproc];
     Yi_r[_iproc]  = Yi_s[_iproc];
     YIel_r[_iproc] = YIel_s[_iproc];
   }
@@ -821,18 +810,19 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
   for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
     if (kproc == _iproc) continue;
 
-    if (Y_r[kproc].size() > 0) {
+    if (Yfield_r[kproc].size() > 0) {
       MPI_Request req1;
 
-      MPI_Irecv(Y_r[kproc].data(),
-                static_cast<int>(Y_r[kproc].size()),
+      MPI_Irecv(Yfield_r[kproc].data(),
+                static_cast<int>(Yfield_r[kproc].size()),
                 MPI_DOUBLE,
                 static_cast<int>(kproc),
-                tagY,
+                tagF,
                 MPI_COMM_WORLD,
                 &req1);
       requests.push_back(req1);
-
+    }
+    if (YIel_r[kproc].size() > 0) {
       MPI_Request req2;
       MPI_Irecv(Yi_r[kproc].data(),
                 static_cast<int>(Yi_r[kproc].size()),
@@ -859,17 +849,18 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
   for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
     if (kproc == _iproc) continue;
 
-    if (Y_s[kproc].size() > 0) {
+    if (Yfield_s[kproc].size() > 0) {
       MPI_Request req1;
-      MPI_Isend(const_cast<double*>(Y_s[kproc].data()),
-                static_cast<int>(Y_s[kproc].size()),
+      MPI_Isend(const_cast<double*>(Yfield_s[kproc].data()),
+                static_cast<int>(Yfield_s[kproc].size()),
                 MPI_DOUBLE,
                 static_cast<int>(kproc),
-                tagY,
+                tagF,
                 MPI_COMM_WORLD,
                 &req1);
       requests.push_back(req1);
-
+    }
+    if(YIel_s[kproc].size() > 0) {
       MPI_Request req2;
       MPI_Isend(const_cast<double*>(Yi_s[kproc].data()),
                 static_cast<int>(Yi_s[kproc].size()),
@@ -896,13 +887,13 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
   }
 
-  std::vector<MyVector<double>>&Y = lY.GetPoints();
+  std::vector<MyVector<double>>&Yfield = lY.GetFields();
   std::vector<MyVector<double>>&Yi = lY.GetLocalCoordinates();
   MyVector<unsigned>&YIel = lY.GetElements();
   std::vector<unsigned>& offset = lY.GetOffset();
   lY.SetLevel(levelX + 1);
 
-  Y.resize(_dim);
+  Yfield.resize(nFields);
   Yi.resize(_dim);
 
   offset.resize(_nprocs + 1);
@@ -914,49 +905,133 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     offset[kproc + 1] = offset[kproc] + YIel_r[kproc].size();
   }
 
-  std::vector<std::vector<double>> Z(_dim);
+  std::vector<std::vector<double>> Zfield(nFields);
   std::vector<std::vector<double>> Zi(_dim);
   std::vector<unsigned> ZIel;
 
+  for(unsigned k = 0; k < nFields; k++) {
+    Zfield[k].reserve(Zsize);
+  }
+
   for(unsigned k = 0; k < _dim; k++) {
-    Z[k].reserve(Zsize);
     Zi[k].reserve(Zsize);
   }
+
   ZIel.reserve(Zsize);
 
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     for(unsigned i = 0; i < YIel_r[kproc].size(); i++) {
+      for(unsigned k = 0; k < nFields; k++) {
+        Zfield[k].push_back(Yfield_r[kproc][i * nFields + k]);
+      }
       for(unsigned k = 0; k < _dim; k++) {
-        Z[k].push_back(Y_r[kproc][i * _dim + k]);
         Zi[k].push_back(Yi_r[kproc][i * _dim + k]);
       }
       ZIel.push_back(YIel_r[kproc][i]);
     }
   }
 
+  for(unsigned k = 0; k < nFields; k++) {
+    Yfield[k].buildFromLocal(Zfield[k]);
+  }
   for(unsigned k = 0; k < _dim; k++) {
-    Y[k].buildFromLocal(Z[k]);
     Yi[k].buildFromLocal(Zi[k]);
   }
   YIel.buildFromLocal(ZIel);
 
-  std::vector<std::vector<double>> W_r;
-  std::vector<std::vector<double>> Wi_r;
-  std::vector<std::vector<unsigned>> WIel_r;
-  lY.RebuildLocalReceivers(W_r, Wi_r, WIel_r);
+
+
+
+  //BEGIN TEST
+
+
+  std::vector<std::vector<double>> Wfield_r;
+  lY.RebuildReceiverFromField(Wfield_r, nFields);
 
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
-    for(unsigned i = 0; i < YIel_r[kproc].size(); i++) {
-      if(WIel_r[kproc][i] != YIel_r[kproc][i]) std::cerr << "error\n";
+    for(unsigned i = 0; i < Yfield_r[kproc].size(); i++) {
+      if(fabs(Wfield_r[kproc][i] - Yfield_r[kproc][i]) > 1.0e-12) std::cerr << "error\n";
     }
-    for(unsigned i = 0; i < Yi_r[kproc].size(); i++) {
-      if(Wi_r[kproc][i] != Yi_r[kproc][i]) std::cerr << "error\n";
-    }
-    for(unsigned i = 0; i < Y_r[kproc].size(); i++) {
-      if(fabs(W_r[kproc][i] - Y_r[kproc][i]) > 1.0e-12) std::cerr << "error\n";
-    }
-
   }
+
+  std::vector<unsigned> Yfield_size_s(_nprocs);
+  std::vector<unsigned> Yfield_size_r(_nprocs);
+  for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+    Yfield_size_r[kproc] = Yfield_r[kproc].size();
+  }
+
+  MPI_Alltoall(Yfield_size_r.data(), 1, MPI_UNSIGNED,
+               Yfield_size_s.data(), 1, MPI_UNSIGNED,
+               MPI_COMM_WORLD);
+
+  for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
+    Yfield_s[kproc].resize(Yfield_size_s[kproc]);
+  }
+
+  requests.clear();
+
+// Self-copy first, no MPI needed
+  if (Yfield_r[_iproc].size() > 0) {
+    Yfield_s[_iproc]   = Yfield_r[_iproc];
+  }
+
+// Post receives
+  for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
+    if (kproc == _iproc) continue;
+
+    if (Yfield_s[kproc].size() > 0) {
+      MPI_Request req1;
+
+      MPI_Irecv(Yfield_s[kproc].data(),
+                static_cast<int>(Yfield_s[kproc].size()),
+                MPI_DOUBLE,
+                static_cast<int>(kproc),
+                tagF,
+                MPI_COMM_WORLD,
+                &req1);
+      requests.push_back(req1);
+    }
+  }
+
+// Post sends
+  for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
+    if (kproc == _iproc) continue;
+
+    if (Yfield_r[kproc].size() > 0) {
+      MPI_Request req1;
+      MPI_Isend(const_cast<double*>(Yfield_r[kproc].data()),
+                static_cast<int>(Yfield_r[kproc].size()),
+                MPI_DOUBLE,
+                static_cast<int>(kproc),
+                tagF,
+                MPI_COMM_WORLD,
+                &req1);
+      requests.push_back(req1);
+    }
+  }
+
+  if (!requests.empty()) {
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  }
+
+  LevelMarkers lZ;
+
+  lZ = lX;
+  lX.RebuildFieldFromSender(Yfield_s, nFields);
+
+  Xfield = lX.GetFields();
+  std::vector<MyVector<double>>& zfield = lZ.GetFields();
+  for(unsigned i = XIel.begin(); i < XIel.end(); i++) {
+    for(unsigned k = 0; k < nFields; k++) {
+      if(fabs(Xfield[k][i] - zfield[k][i]) > 1.0e-12) std::cerr << "error ";
+    }
+  }
+
+  lX = lZ;
+
+  //END TEST
+
+
 
 }
 
