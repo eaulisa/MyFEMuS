@@ -292,7 +292,7 @@ class BBoxToIel {
       return _bboxToIel;
     }
 
-    void GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, LevelMarkers &lY);
+    void GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, std::vector<MyVector<double>>&field, LevelMarkers &lY);
     void Project(LevelMarkers &lX, LevelMarkers &lY);
 
     bool inside_tet(double u, double v, double w, double eps) const {
@@ -519,34 +519,51 @@ class BBoxToIel {
 
 };
 
-void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, LevelMarkers &lY) {
+void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, std::vector<MyVector<double>>&field, LevelMarkers &lY) {
 
-  std::vector<MyVector<double>>&Y = lY.GetFields();
-  std::vector<MyVector<double>>&Yi = lY.GetLocalCoordinates();
-  MyVector<unsigned>&YIel = lY.GetElements();
-  lY.SetLevel(_level);
 
   if(X.size() != _dim) {
     throw std::runtime_error("GetInverseMappingOnCoarseLevel: X has wrong dimension");
   }
 
-  const unsigned nx0 = X[0].size();
+  const unsigned nFields = field.size();
+  const unsigned nPoints = X[0].size();
+
   for(unsigned k = 1; k < _dim; ++k) {
-    if(X[k].size() != nx0) {
-      throw std::runtime_error("GetInverseMappingOnCoarseLevel: X[k] sizes are inconsistent");
+    if(X[k].size() != nPoints || X[k].begin() != X[0].begin() || X[k].end() != X[0].end()) {
+      throw std::runtime_error("GetInverseMappingOnCoarseLevel: X[k] indexing is inconsistent");
     }
   }
 
-  std::vector<std::vector<double>> Z_s(_nprocs);
-  std::vector<std::vector<double>> Z_r(_nprocs);
+  for(unsigned k = 0; k < nFields; ++k) {
+    if(field[k].size() != nPoints || field[k].begin() != X[0].begin() || field[k].end() != X[0].end()) {
+      throw std::runtime_error("GetInverseMappingOnCoarseLevel: field[k] indexing is inconsistent");
+    }
+  }
 
-  std::vector<int> size_s(_nprocs, 0);
-  std::vector<int> size_r(_nprocs, 0);
+
+  std::vector<std::vector<double>> Z_s(_nprocs);
+  std::vector<std::vector<unsigned>> map_s(_nprocs);
+  std::vector<std::vector<unsigned>> ZisInside_s(_nprocs);
+  std::vector<std::vector<double>> Z_r(_nprocs);
+  std::vector<std::vector<unsigned>> ZisInside_r(_nprocs);
+  std::vector<std::vector<unsigned>> map_r(_nprocs);
+
+  std::vector<std::vector<double>> field_s(_nprocs);
+  std::vector<std::vector<double>> field_r(_nprocs);
+
+  std::vector<unsigned> size_s(_nprocs, 0);
+  std::vector<unsigned> size_r(_nprocs, 0);
 
 // Build packed send buffers:
 // Z_s[j] = [x0,y0,(z0), x1,y1,(z1), ...] for points sent to process j
   for(unsigned j = 0; j < _nprocs; ++j) {
-    Z_s[j].reserve(2 * _dim * X[0].size() / _nprocs);
+    Z_s[j].reserve(2 * _dim * nPoints / _nprocs);
+  }
+
+  for(unsigned j = 0; j < _nprocs; ++j) {
+    field_s[j].reserve(2 * nFields * nPoints / _nprocs);
+    map_s[j].reserve(2 * nPoints / _nprocs);
   }
 
   for(unsigned i = X[0].begin(); i < X[0].end(); i++) {
@@ -562,48 +579,81 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
         for(unsigned k = 0; k < _dim; k++) {
           Z_s[j].push_back(X[k][i]);
         }
+        for(unsigned k = 0; k < nFields; k++) {
+          field_s[j].push_back(field[k][i]);
+        }
+        map_s[j].push_back(i - X[0].begin());
       }
     }
+  }
+  for(unsigned j = 0; j < _nprocs; j++) ZisInside_s[j].resize(map_s[j].size());
+
+
+
+  for(unsigned j = 0; j < _nprocs; ++j) {
+    assert(Z_s[j].size() % _dim == 0);
+    assert(field_s[j].size() == (Z_s[j].size() / _dim) * nFields);
+    assert(map_s[j].size() * nFields == field_s[j].size());
   }
 
 // Number of doubles sent to each process
   for(unsigned j = 0; j < _nprocs; ++j) {
-    size_s[j] = static_cast<int>(Z_s[j].size());
+    size_s[j] = Z_s[j].size() / _dim;
   }
 
 // Exchange sizes
-  MPI_Alltoall(size_s.data(), 1, MPI_INT,
-               size_r.data(), 1, MPI_INT,
+  MPI_Alltoall(size_s.data(), 1, MPI_UNSIGNED,
+               size_r.data(), 1, MPI_UNSIGNED,
                MPI_COMM_WORLD);
 
 // Resize receive buffers
   for(unsigned j = 0; j < _nprocs; ++j) {
-    Z_r[j].resize(size_r[j]);
+    Z_r[j].resize(size_r[j] * _dim);
+    ZisInside_r[j].assign(size_r[j], 0u);
+    map_r[j].assign(size_r[j], 0u);
+    field_r[j].resize(size_r[j] * nFields);
   }
 
 // Nonblocking receives first
   std::vector<MPI_Request> reqs;
-  reqs.reserve(2 * _nprocs);
+  reqs.reserve(4 * _nprocs);
 
   for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
     if(j == static_cast<int>(_iproc)) {
       Z_r[_iproc] = Z_s[_iproc];
+      field_r[_iproc] = field_s[_iproc];
     }
-    else if(size_r[j] > 0) {
-      MPI_Request req;
-      MPI_Irecv(Z_r[j].data(), size_r[j], MPI_DOUBLE,
-                j, 100, MPI_COMM_WORLD, &req);
-      reqs.push_back(req);
+    else {
+      if(Z_r[j].size() > 0) {
+        MPI_Request req;
+        MPI_Irecv(Z_r[j].data(), static_cast<int>(Z_r[j].size()), MPI_DOUBLE,
+                  j, 100, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
+      if(field_r[j].size() > 0) {
+        MPI_Request req;
+        MPI_Irecv(field_r[j].data(), static_cast<int>(field_r[j].size()), MPI_DOUBLE,
+                  j, 101, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
     }
   }
 
 // Then nonblocking sends
   for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
-    if(size_s[j] > 0 && j != _iproc) {
-      MPI_Request req;
-      MPI_Isend(Z_s[j].data(), size_s[j], MPI_DOUBLE,
-                j, 100, MPI_COMM_WORLD, &req);
-      reqs.push_back(req);
+    if(j != _iproc) {
+      if(Z_s[j].size() > 0) {
+        MPI_Request req;
+        MPI_Isend(Z_s[j].data(), static_cast<int>(Z_s[j].size()), MPI_DOUBLE,
+                  j, 100, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
+      if(field_s[j].size() > 0) {
+        MPI_Request req;
+        MPI_Isend(field_s[j].data(), static_cast<int>(field_s[j].size()), MPI_DOUBLE,
+                  j, 101, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
     }
   }
 
@@ -612,24 +662,22 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
     MPI_Waitall(static_cast<int>(reqs.size()), reqs.data(), MPI_STATUSES_IGNORE);
   }
 
-
-
   unsigned YLocalSize = 0;
   for(unsigned j = 0; j < _nprocs; ++j) {
-    if(size_r[j] % _dim != 0) {
-      throw std::runtime_error("GetInverseMappingOnCoarseLevel: invalid packed receive size");
-    }
-    YLocalSize += size_r[j] / _dim;
+    YLocalSize += size_r[j];
   }
 
 
-  std::vector < std::vector<double >> YLocal(_dim);
+  std::vector < std::vector<double >> YFieldLocal(nFields);
   std::vector < std::vector<double >> YiLocal(_dim);
   std::vector<unsigned > YIelLocal;
   for( unsigned k = 0; k < _dim; k++) {
-    YLocal[k].reserve(YLocalSize);
     YiLocal[k].reserve(YLocalSize);
   }
+  for( unsigned k = 0; k < nFields; k++) {
+    YFieldLocal[k].reserve(YLocalSize);
+  }
+
   YIelLocal.reserve(YLocalSize);
 
   const unsigned offset   = _msh._elementOffset[_iproc];
@@ -667,10 +715,14 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
           ok = isInsideReference(elType, xi);
           if(ok) {
             for( unsigned k = 0; k < _dim; k++) {
-              YLocal[k].push_back(x[k]);
               YiLocal[k].push_back(xi[k]);
             }
+            for( unsigned k = 0; k < nFields; k++) {
+              YFieldLocal[k].push_back(x[k]); // only for testing
+            }
             YIelLocal.push_back(jel);
+            ZisInside_r[jproc][i] = 1;
+            map_r[jproc][i] = YiLocal[0].size() - 1;
             break;
           }
         }
@@ -678,13 +730,88 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
     }
   }
 
-  Y.resize(_dim);
+
+  reqs.clear();
+  for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
+    if(j == static_cast<int>(_iproc)) {
+      ZisInside_s[_iproc] = ZisInside_r[_iproc];
+    }
+    else {
+      if(ZisInside_s[j].size() > 0) {
+        MPI_Request req;
+        MPI_Irecv(ZisInside_s[j].data(), static_cast<int>(ZisInside_s[j].size()), MPI_UNSIGNED,
+                  j, 100, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
+    }
+  }
+
+// Then nonblocking sends
+  for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
+    if(j != _iproc && ZisInside_r[j].size() > 0) {
+      MPI_Request req;
+      MPI_Isend(ZisInside_r[j].data(), static_cast<int>(ZisInside_r[j].size()), MPI_UNSIGNED,
+                j, 100, MPI_COMM_WORLD, &req);
+      reqs.push_back(req);
+    }
+  }
+// Complete communication
+  if(!reqs.empty()) {
+    MPI_Waitall(static_cast<int>(reqs.size()), reqs.data(), MPI_STATUSES_IGNORE);
+  }
+
+
+  std::vector <bool> ZisInside;
+  ZisInside.assign(nPoints, false);
+  for(unsigned kproc = 0; kproc < _nprocs; ++kproc) {
+    for(unsigned i = 0; i < ZisInside_s[kproc].size(); ++i) {
+      unsigned idx = map_s[kproc][i];
+      ZisInside[idx] = ZisInside[idx] || static_cast<bool>(ZisInside_s[kproc][i]);
+    }
+  }
+
+  std::vector<MyVector<double>>&YField = lY.GetFields();
+  std::vector<MyVector<double>>&Yi = lY.GetLocalCoordinates();
+  MyVector<unsigned>&YIel = lY.GetElements();
+  lY.SetLevel(_level);
+
+
+  YField.resize(nFields);
   Yi.resize(_dim);
+
   for( unsigned k = 0; k < _dim; k++) {
-    Y[k].buildFromLocal(YLocal[k]);
     Yi[k].buildFromLocal(YiLocal[k]);
   }
+  for( unsigned k = 0; k < nFields; k++) {
+    YField[k].buildFromLocal(YFieldLocal[k]);
+  }
   YIel.buildFromLocal(YIelLocal);
+
+  //BEGIN TEST
+  const unsigned offset1 = YField[0].begin();
+  std::vector<std::vector<double>> Wfield_r(_nprocs);
+
+  for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
+    Wfield_r[kproc].resize(map_r[kproc].size() * nFields);
+
+    for (unsigned i = 0; i < map_r[kproc].size(); ++i) {
+      if (ZisInside_r[kproc][i] == 1) {
+        for (unsigned j = 0; j < nFields; ++j) {
+          Wfield_r[kproc][i * nFields + j] =
+            YField[j][offset1 + map_r[kproc][i]];
+        }
+      }
+    }
+  }
+
+
+
+
+  std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa\n\n\n\n\n\n\n\n\n\n\n" << std::flush;
+
+//END TEST
+
+
 }
 
 void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {

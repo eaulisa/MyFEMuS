@@ -254,8 +254,13 @@ int main(int argc, char** argv) {
 
   BBoxToIel bbox1(mlMsh1, 3, 0);
 
+
+  std::vector<MyVector<double>> field = X0;
+  field.resize(1);
+  //field.clear();
+
   std::vector<LevelMarkers> lX(nLevels);
-  bbox1.GetInverseMappingOnCoarseLevel(X0, lX[0]);
+  bbox1.GetInverseMappingOnCoarseLevel(X0,field, lX[0]);
 
   for(unsigned k = 1; k < numberOfUniformLevels; k++ ) {
     bbox1.Project(lX[k - 1], lX[k]);
