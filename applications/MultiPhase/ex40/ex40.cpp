@@ -35,13 +35,6 @@ class LevelMarkers {
       return _XIel;
     }
 
-    std::vector<unsigned> & GetOffset() {
-      return _offset;
-    }
-
-    const std::vector<unsigned> & GetOffset() const {
-      return _offset;
-    }
 
     unsigned& GetLevel() {
       return _level;
@@ -51,12 +44,20 @@ class LevelMarkers {
       return _level;
     }
 
-    std::vector<std::vector<unsigned>> & GetMap() {
-      return _map;
+    std::vector<std::vector<unsigned>> & GetMap_s() {
+      return _map_s;
     }
 
-    const std::vector<std::vector<unsigned>> & GetMap() const {
-      return _map;
+    const std::vector<std::vector<unsigned>> & GetMap_s() const {
+      return _map_s;
+    }
+
+    std::vector<std::vector<unsigned>> & GetMap_r() {
+      return _map_r;
+    }
+
+    const std::vector<std::vector<unsigned>> & GetMap_r() const {
+      return _map_r;
     }
 
 
@@ -65,83 +66,74 @@ class LevelMarkers {
       _level = level;
     }
 
-    void RebuildLocalReceivers(std::vector<std::vector<double>> &W_r,
-                               std::vector<std::vector<double>> &Wi_r,
-                               std::vector<std::vector<unsigned>> &WIel_r) {
-      const unsigned nprocs = _offset.size() - 1u;
-      const unsigned dim    = _Xi.size();
-      const unsigned nFields  = _field.size();
+    // void RebuildLocalReceivers(std::vector<std::vector<double>> &W_r,
+    //                            std::vector<std::vector<double>> &Wi_r,
+    //                            std::vector<std::vector<unsigned>> &WIel_r) {
+    //   const unsigned nprocs = _offset.size() - 1u;
+    //   const unsigned dim    = _Xi.size();
+    //   const unsigned nFields  = _field.size();
+    //
+    //   assert(_X.size() == _Xi.size());
+    //   assert(_offset.back() == _XIel.end() - _XIel.begin());
+    //
+    //   W_r.resize(nprocs);
+    //   Wi_r.resize(nprocs);
+    //   WIel_r.resize(nprocs);
+    //
+    //   for (unsigned p = 0; p < nprocs; ++p) {
+    //     assert(_offset[p] <= _offset[p + 1]);
+    //     const unsigned nloc = _offset[p + 1] - _offset[p];
+    //     WIel_r[p].resize(nloc);
+    //     W_r[p].resize(nloc * dim);
+    //     Wi_r[p].resize(nloc * dim);
+    //   }
+    //
+    //   unsigned kproc = 0u;
+    //
+    //   for (unsigned i = _XIel.begin(); i < _XIel.end(); ++i) {
+    //     const unsigned i0 = i - _XIel.begin();
+    //
+    //     while (kproc + 1 < nprocs && i0 >= _offset[kproc + 1]) {
+    //       ++kproc;
+    //     }
+    //
+    //     const unsigned jloc = i0 - _offset[kproc];
+    //     const unsigned base = jloc * dim;
+    //
+    //     // point-major packing: [x0,y0,(z0), x1,y1,(z1), ...]
+    //     for (unsigned k = 0; k < dim; ++k) {
+    //       W_r[kproc][base + k]  = _field[k][i];
+    //       Wi_r[kproc][base + k] = _Xi[k][i];
+    //     }
+    //
+    //     WIel_r[kproc][jloc] = _XIel[i];
+    //   }
+    // }
 
-      assert(_X.size() == _Xi.size());
-      assert(_offset.back() == _XIel.end() - _XIel.begin());
-
-      W_r.resize(nprocs);
-      Wi_r.resize(nprocs);
-      WIel_r.resize(nprocs);
-
-      for (unsigned p = 0; p < nprocs; ++p) {
-        assert(_offset[p] <= _offset[p + 1]);
-        const unsigned nloc = _offset[p + 1] - _offset[p];
-        WIel_r[p].resize(nloc);
-        W_r[p].resize(nloc * dim);
-        Wi_r[p].resize(nloc * dim);
-      }
-
-      unsigned kproc = 0u;
-
-      for (unsigned i = _XIel.begin(); i < _XIel.end(); ++i) {
-        const unsigned i0 = i - _XIel.begin();
-
-        while (kproc + 1 < nprocs && i0 >= _offset[kproc + 1]) {
-          ++kproc;
-        }
-
-        const unsigned jloc = i0 - _offset[kproc];
-        const unsigned base = jloc * dim;
-
-        // point-major packing: [x0,y0,(z0), x1,y1,(z1), ...]
-        for (unsigned k = 0; k < dim; ++k) {
-          W_r[kproc][base + k]  = _field[k][i];
-          Wi_r[kproc][base + k] = _Xi[k][i];
-        }
-
-        WIel_r[kproc][jloc] = _XIel[i];
-      }
-    }
 
     void RebuildReceiverFromField(std::vector<std::vector<double>> &field_r, const unsigned nFields) {
 
-      const unsigned nprocs = _offset.size() - 1u;
-
-      assert(nFields  == _field.size());
-
+      const unsigned nprocs = _map_r.size();
       field_r.resize(nprocs);
 
-      for (unsigned p = 0; p < nprocs; ++p) {
-        assert(_offset[p] <= _offset[p + 1]);
-        const unsigned nloc = _offset[p + 1] - _offset[p];
-        field_r[p].resize(nloc * nFields);
-      }
-
+      assert(nFields  == _field.size());
       if(nFields > 0) {
-        unsigned kproc = 0u;
-        for (unsigned i = _field[0].begin(); i < _field[0].end(); ++i) {
-          const unsigned i0 = i - _field[0].begin();
 
-          while (kproc + 1 < nprocs && i0 >= _offset[kproc + 1]) {
-            ++kproc;
-          }
+        const unsigned offset1 = (nFields == 0) ? 0 : _field[0].begin();
 
-          const unsigned jloc = i0 - _offset[kproc];
-          const unsigned base = jloc * nFields;
+        for (unsigned kproc = 0; kproc < nprocs; ++kproc) {
+          field_r[kproc].resize(_map_r[kproc].size() * nFields);
 
-          // point-major packing: [x0,y0,(z0), x1,y1,(z1), ...]
-          for (unsigned k = 0; k < nFields; ++k) {
-            field_r[kproc][base + k]  = _field[k][i];
+
+          for (unsigned i = 0; i < _map_r[kproc].size(); ++i) {
+            for (unsigned j = 0; j < nFields; ++j) {
+              field_r[kproc][i * nFields + j] = _field[j][offset1 + _map_r[kproc][i]];
+            }
           }
         }
       }
     }
+
 
 
     void RebuildFieldFromSender(const std::vector<std::vector<double>> &field_s, const unsigned nFields) {
@@ -160,7 +152,7 @@ class LevelMarkers {
       for(unsigned k = 0; k < nFields; k++) locField[k].resize(sizeAll / nFields);
       for(unsigned p = 0; p < nprocs; p++) {
         for(unsigned i = 0; i < field_s[p].size(); i++ ) {
-          locField[i % nFields][_map[p][i]] = field_s[p][i];
+          locField[i % nFields][_map_s[p][i / nFields]] = field_s[p][i];
         }
       }
       _field.resize(nFields);
@@ -171,8 +163,9 @@ class LevelMarkers {
     std::vector<MyVector<double>> _field;
     std::vector<MyVector<double>> _Xi;
     MyVector<unsigned> _XIel;
-    std::vector<unsigned> _offset;
-    std::vector<std::vector<unsigned>> _map;
+
+    std::vector<std::vector<unsigned>> _map_s;
+    std::vector<std::vector<unsigned>> _map_r;
 
     unsigned _level = 0;
 };
@@ -260,7 +253,7 @@ int main(int argc, char** argv) {
   //field.clear();
 
   std::vector<LevelMarkers> lX(nLevels);
-  bbox1.GetInverseMappingOnCoarseLevel(X0,field, lX[0]);
+  bbox1.GetInverseMappingOnCoarseLevel(X0, field, lX[0]);
 
   for(unsigned k = 1; k < numberOfUniformLevels; k++ ) {
     bbox1.Project(lX[k - 1], lX[k]);

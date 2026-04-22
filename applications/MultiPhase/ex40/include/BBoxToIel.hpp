@@ -722,7 +722,7 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
             }
             YIelLocal.push_back(jel);
             ZisInside_r[jproc][i] = 1;
-            map_r[jproc][i] = YiLocal[0].size() - 1;
+            map_r[jproc][i] = YIelLocal.size() - 1u;
             break;
           }
         }
@@ -788,26 +788,76 @@ void BBoxToIel::GetInverseMappingOnCoarseLevel(std::vector<MyVector<double>>&X, 
   YIel.buildFromLocal(YIelLocal);
 
   //BEGIN TEST
-  const unsigned offset1 = YField[0].begin();
+  const unsigned offset1 = (nFields == 0) ? 0 : YField[0].begin();
   std::vector<std::vector<double>> Wfield_r(_nprocs);
+  std::vector<std::vector<double>> Wfield_s(_nprocs);
 
   for (unsigned kproc = 0; kproc < _nprocs; ++kproc) {
     Wfield_r[kproc].resize(map_r[kproc].size() * nFields);
+    Wfield_s[kproc].resize(map_s[kproc].size() * nFields);
 
     for (unsigned i = 0; i < map_r[kproc].size(); ++i) {
       if (ZisInside_r[kproc][i] == 1) {
         for (unsigned j = 0; j < nFields; ++j) {
-          Wfield_r[kproc][i * nFields + j] =
-            YField[j][offset1 + map_r[kproc][i]];
+          Wfield_r[kproc][i * nFields + j] = YField[j][offset1 + map_r[kproc][i]];
         }
       }
     }
   }
 
+  reqs.clear();
+  for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
+    if(j == static_cast<int>(_iproc)) {
+      Wfield_s[_iproc] = Wfield_r[_iproc];
+    }
+    else {
+      if(Wfield_s[j].size() > 0) {
+        MPI_Request req;
+        MPI_Irecv(Wfield_s[j].data(), static_cast<int>(Wfield_s[j].size()), MPI_DOUBLE,
+                  j, 100, MPI_COMM_WORLD, &req);
+        reqs.push_back(req);
+      }
+    }
+  }
 
+// Then nonblocking sends
+  for(int j = 0; j < static_cast<int>(_nprocs); ++j) {
+    if(j != _iproc && Wfield_r[j].size() > 0) {
+      MPI_Request req;
+      MPI_Isend(Wfield_r[j].data(), static_cast<int>(Wfield_r[j].size()), MPI_DOUBLE,
+                j, 100, MPI_COMM_WORLD, &req);
+      reqs.push_back(req);
+    }
+  }
+// Complete communication
+  if(!reqs.empty()) {
+    MPI_Waitall(static_cast<int>(reqs.size()), reqs.data(), MPI_STATUSES_IGNORE);
+  }
 
+  std::vector<std::vector <double>> WfieldLocal(nFields);
+  std::vector<MyVector<double>> Wfield(nFields);
 
-  std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa\n\n\n\n\n\n\n\n\n\n\n" << std::flush;
+  for(unsigned i = 0; i < nFields; i++) WfieldLocal[i].resize(nPoints);
+
+  for(unsigned kproc = 0; kproc < _nprocs; ++kproc) {
+    for(unsigned i = 0; i < map_s[kproc].size(); ++i) {
+      unsigned idx = map_s[kproc][i];
+
+      for(unsigned j = 0; j < nFields; j++) {
+        if(ZisInside_s[kproc][i] == 1) WfieldLocal[j][idx] = Wfield_s[kproc][i * nFields + j];
+
+        else if(ZisInside[idx] == false) WfieldLocal[j][idx] = 0.; //TODO here the appropiate boundary condition function should be added
+      }
+    }
+  }
+
+  for(unsigned j = 0; j < nFields; j++) Wfield[j].buildFromLocal(WfieldLocal[j]);
+
+  for(unsigned k = 0; k < nFields; k++) {
+    for(unsigned i = Wfield[k].begin(); i < Wfield[k].end(); i++) {
+      if(fabs(Wfield[k][i] - X[k][i]) > 1.0e-12) std::cerr << "error ";
+    }
+  }
 
 //END TEST
 
@@ -824,7 +874,7 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
 
   unsigned nFields = Xfield.size();
 
-  const unsigned nPoints = Xfield[0].size();
+  const unsigned nPoints = XIel.size();
 
   for (unsigned k = 0; k < nFields; ++k) {
     if (Xfield[k].size() != nPoints) {
@@ -854,15 +904,15 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
   std::vector<std::vector<double>> Yi_s(_nprocs);
   std::vector<std::vector<unsigned>> YIel_s(_nprocs);
 
-  std::vector<std::vector<unsigned>> &map = lX.GetMap();
-  map.resize(_nprocs);
+  std::vector<std::vector<unsigned>> &map_s = lX.GetMap_s();
+  map_s.resize(_nprocs);
 
   for(unsigned j = 0; j < _nprocs; ++j) {
     Yfield_s[j].clear();
     Yfield_s[j].reserve(2 * nFields * nPoints / _nprocs);
 
-    map[j].clear();
-    map[j].reserve(2 * nFields * nPoints / _nprocs);
+    map_s[j].clear();
+    map_s[j].reserve(2 * nFields * nPoints / _nprocs);
 
     Yi_s[j].clear();
     Yi_s[j].reserve(2 * _dim * nPoints / _nprocs);
@@ -888,7 +938,6 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     unsigned kproc = mshY->IsdomBisectionSearch(yiel, PWCtype);
     for(unsigned k = 0; k < nFields; k++) {
       Yfield_s[kproc].push_back(Xfield[k][i]);
-      map[kproc].push_back(i - XIel.begin());
     }
 
     for(unsigned k = 0; k < _dim; k++) {
@@ -896,6 +945,7 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
     }
 
     YIel_s[kproc].push_back(yiel);
+    map_s[kproc].push_back(i - XIel.begin());
   }
 
   std::vector<unsigned> YIel_size_s(_nprocs);
@@ -1017,19 +1067,21 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
   std::vector<MyVector<double>>&Yfield = lY.GetFields();
   std::vector<MyVector<double>>&Yi = lY.GetLocalCoordinates();
   MyVector<unsigned>&YIel = lY.GetElements();
-  std::vector<unsigned>& offset = lY.GetOffset();
   lY.SetLevel(levelX + 1);
+
+  std::vector<std::vector<unsigned>> &map_r = lY.GetMap_r();
+  map_r.resize(_nprocs);
+  for(unsigned j = 0; j < _nprocs; ++j) {
+    map_r[j].resize(YIel_size_r[j]);
+  }
+
 
   Yfield.resize(nFields);
   Yi.resize(_dim);
 
-  offset.resize(_nprocs + 1);
-
   unsigned Zsize = 0;
-  offset[0] = 0;
   for(unsigned kproc = 0; kproc < _nprocs; kproc++) {
     Zsize += YIel_r[kproc].size();
-    offset[kproc + 1] = offset[kproc] + YIel_r[kproc].size();
   }
 
   std::vector<std::vector<double>> Zfield(nFields);
@@ -1055,6 +1107,7 @@ void BBoxToIel::Project(LevelMarkers &lX, LevelMarkers &lY) {
         Zi[k].push_back(Yi_r[kproc][i * _dim + k]);
       }
       ZIel.push_back(YIel_r[kproc][i]);
+      map_r[kproc][i] = ZIel.size() - 1u;
     }
   }
 
@@ -1461,6 +1514,7 @@ void BBoxToIel::GetChildIndexAndLocalXi(const unsigned et,
   }
   throw std::runtime_error("project: unsupported element type for projection");
 };
+
 
 
 
