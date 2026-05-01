@@ -7,171 +7,8 @@
 
 using namespace femus;
 
-class LevelMarkers {
-  public:
-    LevelMarkers() = default;
 
-    std::vector<MyVector<double>>& GetFields() {
-      return _field;
-    }
-
-    const std::vector<MyVector<double>>& GetFields() const {
-      return _field;
-    }
-
-    std::vector<MyVector<double>>& GetLocalCoordinates() {
-      return _Xi;
-    }
-
-    const std::vector<MyVector<double>>& GetLocalCoordinates() const {
-      return _Xi;
-    }
-
-    MyVector<unsigned>& GetElements() {
-      return _XIel;
-    }
-
-    const MyVector<unsigned>& GetElements() const {
-      return _XIel;
-    }
-
-
-    unsigned& GetLevel() {
-      return _level;
-    }
-
-    unsigned GetLevel() const {
-      return _level;
-    }
-
-    std::vector<std::vector<unsigned>> & GetMap_s() {
-      return _map_s;
-    }
-
-    const std::vector<std::vector<unsigned>> & GetMap_s() const {
-      return _map_s;
-    }
-
-    std::vector<std::vector<unsigned>> & GetMap_r() {
-      return _map_r;
-    }
-
-    const std::vector<std::vector<unsigned>> & GetMap_r() const {
-      return _map_r;
-    }
-
-
-
-    void SetLevel(unsigned level) {
-      _level = level;
-    }
-
-    // void RebuildLocalReceivers(std::vector<std::vector<double>> &W_r,
-    //                            std::vector<std::vector<double>> &Wi_r,
-    //                            std::vector<std::vector<unsigned>> &WIel_r) {
-    //   const unsigned nprocs = _offset.size() - 1u;
-    //   const unsigned dim    = _Xi.size();
-    //   const unsigned nFields  = _field.size();
-    //
-    //   assert(_X.size() == _Xi.size());
-    //   assert(_offset.back() == _XIel.end() - _XIel.begin());
-    //
-    //   W_r.resize(nprocs);
-    //   Wi_r.resize(nprocs);
-    //   WIel_r.resize(nprocs);
-    //
-    //   for (unsigned p = 0; p < nprocs; ++p) {
-    //     assert(_offset[p] <= _offset[p + 1]);
-    //     const unsigned nloc = _offset[p + 1] - _offset[p];
-    //     WIel_r[p].resize(nloc);
-    //     W_r[p].resize(nloc * dim);
-    //     Wi_r[p].resize(nloc * dim);
-    //   }
-    //
-    //   unsigned kproc = 0u;
-    //
-    //   for (unsigned i = _XIel.begin(); i < _XIel.end(); ++i) {
-    //     const unsigned i0 = i - _XIel.begin();
-    //
-    //     while (kproc + 1 < nprocs && i0 >= _offset[kproc + 1]) {
-    //       ++kproc;
-    //     }
-    //
-    //     const unsigned jloc = i0 - _offset[kproc];
-    //     const unsigned base = jloc * dim;
-    //
-    //     // point-major packing: [x0,y0,(z0), x1,y1,(z1), ...]
-    //     for (unsigned k = 0; k < dim; ++k) {
-    //       W_r[kproc][base + k]  = _field[k][i];
-    //       Wi_r[kproc][base + k] = _Xi[k][i];
-    //     }
-    //
-    //     WIel_r[kproc][jloc] = _XIel[i];
-    //   }
-    // }
-
-
-    void RebuildReceiverFromField(std::vector<std::vector<double>> &field_r, const unsigned nFields) {
-
-      const unsigned nprocs = _map_r.size();
-      field_r.resize(nprocs);
-
-      assert(nFields  == _field.size());
-      if(nFields > 0) {
-
-        const unsigned offset1 = (nFields == 0) ? 0 : _field[0].begin();
-
-        for (unsigned kproc = 0; kproc < nprocs; ++kproc) {
-          field_r[kproc].resize(_map_r[kproc].size() * nFields);
-
-
-          for (unsigned i = 0; i < _map_r[kproc].size(); ++i) {
-            for (unsigned j = 0; j < nFields; ++j) {
-              field_r[kproc][i * nFields + j] = _field[j][offset1 + _map_r[kproc][i]];
-            }
-          }
-        }
-      }
-    }
-
-
-
-    void RebuildFieldFromSender(const std::vector<std::vector<double>> &field_s, const unsigned nFields) {
-      unsigned nprocs = field_s.size();
-      for (unsigned p = 0; p < nprocs; ++p) {
-        assert(field_s[p].size() % nFields == 0);
-        assert(_map[p].size() == field_s[p].size());
-      }
-      assert(nFields == _field.size());
-
-      unsigned sizeAll = 0u;
-      for(unsigned p = 0; p < nprocs; p++) {
-        sizeAll += field_s[p].size();
-      }
-      std::vector<std::vector<double>> locField(nFields);
-      for(unsigned k = 0; k < nFields; k++) locField[k].resize(sizeAll / nFields);
-      for(unsigned p = 0; p < nprocs; p++) {
-        for(unsigned i = 0; i < field_s[p].size(); i++ ) {
-          locField[i % nFields][_map_s[p][i / nFields]] = field_s[p][i];
-        }
-      }
-      _field.resize(nFields);
-      for(unsigned k = 0; k < nFields; k++) _field[k].buildFromLocal(locField[k]);
-    }
-
-  private:
-    std::vector<MyVector<double>> _field;
-    std::vector<MyVector<double>> _Xi;
-    MyVector<unsigned> _XIel;
-
-    std::vector<std::vector<unsigned>> _map_s;
-    std::vector<std::vector<unsigned>> _map_r;
-
-    unsigned _level = 0;
-};
-
-
-
+#include "include/LevelMarkers.hpp"
 #include "include/Mollifier.hpp"
 #include "include/Psi.hpp"
 #include "include/GradientApproximation.hpp"
@@ -184,6 +21,8 @@ void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name, std
 static void WritePointsVTK(const std::string& filename, const std::vector<MyVector<double>>& X);
 void Shift( std::vector<MyVector<double>> &X, const std::vector<double>&dx);
 
+void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1, BBoxToIel &bbox);
+void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
 int main(int argc, char** argv) {
 
@@ -193,8 +32,8 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh0;
 
   const double scalingFactor = 1.0;
-  const unsigned numberOfUniformLevels   = 3u;
-  const unsigned numberOfSelectiveLevels = 3u;
+  const unsigned numberOfUniformLevels   = 2u;
+  const unsigned numberOfSelectiveLevels = 5u;
 
   // Load coarse mesh and build uniform refinement levels
   mlMsh0.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
@@ -212,7 +51,7 @@ int main(int argc, char** argv) {
   }
 
   mlMsh0.PrintInfo();
-  BBoxToIel bbox0(mlMsh0, 3, 0);
+  BBoxToIel bbox(mlMsh0, 0, 3);
 
 
   // Define solution on the multilevel mesh
@@ -228,52 +67,67 @@ int main(int argc, char** argv) {
   VTKWriter vtkIO(&mlSol0);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-
-  std::vector<MyVector<double>> X0;
-  MyVector<unsigned> X0Iel;
-  GetCutElementPoints(mlSol0, "Psi", X0, X0Iel);
-  WritePointsVTK("./output/points.0.vtk", X0);
-  Shift(X0, {0.1, 0});
-  WritePointsVTK("./output/points.1.vtk", X0);
-
   MultiLevelMesh mlMsh1;
+  MultiLevelSolution mlSol1;
+
+  MultiLevelMesh* mlmsh0 = &mlMsh0;
+  MultiLevelMesh* mlmsh1 = &mlMsh1;
+
+  MultiLevelSolution* mlsol0 = &mlSol0;
+  MultiLevelSolution* mlsol1 = &mlSol1;
+
+  for(unsigned t = 1; t <= 4; t++) {
+    // Load coarse mesh and build uniform refinement levels
+    mlmsh1->ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
+    mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
+
+    unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
 
 
-  // Load coarse mesh and build uniform refinement levels
-  mlMsh1.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
-  mlMsh1.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
+    std::vector<MyVector<double>> X0;
+    MyVector<unsigned> X0Iel;
+    GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
+    if(t == 1)WritePointsVTK("./output/points.0.vtk", X0);
+    Shift(X0, {0.1, 0});
+    WritePointsVTK("./output/points." + std::to_string(t) + ".vtk", X0);
 
-  unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
+    std::vector<MyVector<double>> field = X0;
+    LevelMarkers l0;
+    std::vector<LevelMarkers> lX(nLevels);
 
-  BBoxToIel bbox1(mlMsh1, 3, 0);
+    bbox.SetMesh(mlmsh0->GetLevel(0));
+    bbox.GetInverseMappingOnCoarseLevel(X0, l0, lX[0]);
+
+    for(unsigned k = 1; k < numberOfUniformLevels; k++ ) {
+      bbox.Project(*mlmsh1, lX[k - 1], lX[k]);
+    }
 
 
-  std::vector<MyVector<double>> field = X0;
-  field.resize(1);
-  //field.clear();
+    for (unsigned k = numberOfUniformLevels; k < nLevels; ++k) {
+      FlagFinestMeshLevel(*mlmsh1, lX[k - 1].GetElements());
+      mlmsh1->AddAMRMeshLevel(false); // false -> it does not re-evaluate the AMR flag vector
+      bbox.Project(*mlmsh1, lX[k - 1], lX[k]);
+    }
 
-  std::vector<LevelMarkers> lX(nLevels);
-  bbox1.GetInverseMappingOnCoarseLevel(X0, field, lX[0]);
+    TestProjections(l0, lX);
 
-  for(unsigned k = 1; k < numberOfUniformLevels; k++ ) {
-    bbox1.Project(lX[k - 1], lX[k]);
+    mlsol1->Build(mlmsh1);
+    mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
+    mlsol1->Initialize("All");
+
+
+    ProjectSolution(*mlsol0, *mlsol1, bbox);
+
+    // Export solution to VTK (selected levels)
+
+    std::swap(mlsol0, mlsol1);
+    std::swap(mlmsh0, mlmsh1);
+    mlsol1->clear();
+    mlmsh1->clear();
+
+    VTKWriter vtkIO1(mlsol0);
+    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
   }
-
-  for (unsigned k = numberOfUniformLevels; k < nLevels; ++k) {
-    FlagFinestMeshLevel(mlMsh1, lX[k - 1].GetElements());
-    mlMsh1.AddAMRMeshLevel(false); // false -> it does not re-evaluate the AMR flag vector
-    bbox1.Project(lX[k - 1], lX[k]);
-  }
-
-  MultiLevelSolution mlSol1(&mlMsh1);
-  mlSol1.AddSolution("Psi", LAGRANGE, SECOND);
-  mlSol1.Initialize("All");
-
-  // Export solution to VTK (selected levels)
-
-  VTKWriter vtkIO1(&mlSol1);
-  //vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
-  vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 1);
 
   return 0;
 }
@@ -664,3 +518,232 @@ static void WritePointsVTK(const std::string& filename,
   }
 }
 
+void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX) {
+
+  std::vector<MyVector<double>> field0Copy = l0.GetFields();
+  std::vector<MyVector<double>> &field0 = l0.GetFields(); // assume we have a valid field in lX
+
+  const unsigned nFields = field0.size();
+  if(nFields > 0) {
+
+    std::vector<std::vector<double>> Wfield_r, Wfield_s;
+
+    const bool backward = true;
+    const bool forward = !backward;
+    const bool checkIfInsideProcDomain = true;
+
+    l0.RebuildLocalFromField(Wfield_s, nFields, forward);
+    l0.SendLocalField(Wfield_s, Wfield_r);
+    lX[0].RebuildFieldFromLocal(Wfield_r, nFields, forward);
+
+    for(unsigned l = 0; l < lX.size() - 1u; l++) {
+      lX[l].RebuildLocalFromField(Wfield_s, nFields, forward);
+      lX[l].SendLocalField(Wfield_s, Wfield_r);
+      lX[l + 1].RebuildFieldFromLocal(Wfield_r, nFields, forward);
+
+      lX[l + 1].RebuildLocalFromField(Wfield_r, nFields, backward);
+      lX[l].SendLocalField(Wfield_r, Wfield_s);
+      lX[l].RebuildFieldFromLocal(Wfield_s, nFields, backward);
+    }
+
+    lX[0].RebuildLocalFromField(Wfield_r, nFields, backward); // Probably okay
+    l0.SendLocalField(Wfield_r, Wfield_s);
+    l0.RebuildFieldFromLocal(Wfield_s, nFields, backward);
+
+    const std::vector<bool> &ZisInside = l0.GetPointInsideDomain();
+
+    unsigned offset0 = field0[0].begin();
+    unsigned offset1 = field0[0].end();
+
+    for(unsigned i = offset0; i < offset1; i++) {
+      if(ZisInside[i - offset0] == false) {
+        for(unsigned k = 0; k < nFields; k++) {
+          field0[k][i] = 0.;//TODO add BC
+        }
+      }
+    }
+
+    for(unsigned i = offset0; i < offset1; i++) {
+      if(ZisInside[i - offset0] == true) {
+        for(unsigned k = 0; k < nFields; k++) {
+          if(fabs(field0Copy[k][i] - field0[k][i]) > 1.0e-12) std::cerr << "error ";
+        }
+      }
+    }
+  }
+}
+
+void GetAllSolutionPoints(MultiLevelSolution &mlSol,
+                          const std::string &name,
+                          std::vector<MyVector<double>> &X) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level  = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh &msh             = *mlMsh.GetLevel(level);
+  const unsigned dim    = msh.GetDimension();
+
+  const unsigned solType = mlSol.GetSolutionType(name.c_str());
+  const unsigned xType   = 2u;
+
+  if(solType > xType) {
+    throw std::runtime_error("GetAllSolutionPoints: coordinate FE space is too low-order for solType");
+  }
+
+  const unsigned iproc = msh.processor_id();
+
+  auto& xv = msh._topology->_Sol;
+
+  const unsigned solOffset   = msh._dofOffset[solType][iproc];
+  const unsigned solOffsetp1 = msh._dofOffset[solType][iproc + 1];
+
+  std::vector<std::vector<double>> Xloc(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    Xloc[k].resize(solOffsetp1 - solOffset);
+  }
+
+  const unsigned elOffset   = msh._elementOffset[iproc];
+  const unsigned elOffsetp1 = msh._elementOffset[iproc + 1];
+
+  for(unsigned iel = elOffset; iel < elOffsetp1; ++iel) {
+    const unsigned nDofSol = msh.GetElementDofNumber(iel, solType);
+    for(unsigned i = 0; i < nDofSol; ++i) {
+      const unsigned sdof = msh.GetSolutionDof(i, iel, solType);
+      if(solOffset <= sdof && sdof < solOffsetp1) {
+        const unsigned xdof = msh.GetSolutionDof(i, iel, xType);
+        for(unsigned k = 0; k < dim; k++) {
+          Xloc[k][sdof - solOffset] = (*xv[k])(xdof);
+        }
+      }
+    }
+  }
+
+  X.resize(dim);
+  for(unsigned k = 0; k < dim; ++k) {
+    X[k].buildFromLocal(Xloc[k]);
+  }
+}
+
+
+void ProjectSolution(MultiLevelSolution &mlSol0,
+                     MultiLevelSolution &mlSol1,
+                     BBoxToIel &bbox) {
+
+  const std::string name = "Psi";
+
+  MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
+
+  const unsigned nLevels = mlMsh0.GetNumberOfLevels();
+
+  // Extract all Psi grid points on the finest level of mlSol1
+  std::vector<MyVector<double>> X1;
+  GetAllSolutionPoints(mlSol1, name, X1);
+
+  // Advect the points backward in time
+  Shift(X1, {-0.1, 0.0});
+
+  //const unsigned bbxLevel = bbox.GetLevel();
+  const unsigned bboxLevels = nLevels - bbox.GetLevel();
+  // Build l0 and lX forward projection using the advected points
+  LevelMarkers l0;
+  std::vector<LevelMarkers> lX(bboxLevels);
+
+  bbox.GetInverseMappingOnCoarseLevel(X1, l0, lX[0]);
+
+  for(unsigned k = 1; k < bboxLevels; ++k) {
+    bbox.Project(mlMsh0, lX[k - 1], lX[k]);
+  }
+
+  // Evaluate Psi field on finest level of mlSol0 using top-level iel and xi
+  const unsigned level0 = nLevels - 1u;
+
+  Mesh &msh0 = *mlMsh0.GetLevel(level0);
+  Solution &sol0 = *mlSol0.GetLevel(level0);
+
+  const unsigned solIndex0 = mlSol0.GetIndex(name.c_str());
+  const unsigned solType0  = mlSol0.GetSolutionType(name.c_str());
+
+  auto &solVec0 = sol0._Sol[solIndex0];
+
+  LevelMarkers &lTop = lX.back();
+
+  std::vector<MyVector<double>> &Xi = lTop.GetLocalCoordinates();
+  MyVector<unsigned> &Iel = lTop.GetElements();
+
+  const unsigned dim = Xi.size();
+
+  std::vector<double> psiLocal;
+  psiLocal.resize(Iel.end() - Iel.begin(), 0.0);
+
+  std::vector<double> xi(dim);
+  std::vector<double> phi;
+
+  for(unsigned ip = Iel.begin(); ip < Iel.end(); ++ip) {
+
+    const unsigned iel = Iel[ip];
+    short unsigned ielType = msh0.GetElementType(iel);
+
+    for(unsigned k = 0; k < dim; ++k) {
+      xi[k] = Xi[k][ip];
+    }
+
+    const unsigned nDof = msh0.GetElementDofNumber(iel, solType0);
+
+    phi.resize(nDof);
+
+    msh0._finiteElement[ielType][solType0]->GetPhi(phi, xi);
+
+    double value = 0.0;
+    for(unsigned j = 0; j < nDof; ++j) {
+      const unsigned solDof = msh0.GetSolutionDof(j, iel, solType0);
+      value += phi[j] * (*solVec0)(solDof);
+    }
+
+    psiLocal[ip - Iel.begin()] = value;
+  }
+
+  lTop.GetFields().resize(1);
+  lTop.GetFields()[0].buildFromLocal(psiLocal);
+
+  // Project Psi backward through the marker hierarchy
+  std::vector<std::vector<double>> Wfield_r;
+  std::vector<std::vector<double>> Wfield_s;
+
+  const unsigned nFields = 1u;
+  const bool backward = true;
+
+  for(int l = static_cast<int>(bboxLevels) - 1; l >= 1; --l) {
+    lX[l].RebuildLocalFromField(Wfield_r, nFields, backward);
+    lX[l - 1].SendLocalField(Wfield_r, Wfield_s);
+    lX[l - 1].RebuildFieldFromLocal(Wfield_s, nFields, backward);
+  }
+
+  lX[0].RebuildLocalFromField(Wfield_r, nFields, backward);
+  l0.SendLocalField(Wfield_r, Wfield_s);
+  l0.RebuildFieldFromLocal(Wfield_s, nFields, backward);
+
+  // Update Psi on mlSol1 with the backward-projected values
+
+  MultiLevelMesh &mlMsh1 = *mlSol1.GetMultilevelMesh();
+  const unsigned level1 = mlMsh1.GetNumberOfLevels() - 1u;
+
+  Solution &sol1 = *mlSol1.GetLevel(level1);
+  const unsigned solIndex1 = mlSol1.GetIndex(name.c_str());
+
+  auto &solVec1 = sol1._Sol[solIndex1];
+
+  const MyVector<double> &psiProjected = l0.GetFields()[0];
+  const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
+
+  solVec1->zero();
+  unsigned offset = psiProjected.begin();
+  for(unsigned i = psiProjected.begin(); i < psiProjected.end(); ++i) {
+    if(isInsideDomain[i - offset]) {
+      solVec1->set(i, psiProjected[i]);
+    }
+    else { //TODO add boundarycondition for psi
+      solVec1->set(i, -1.);
+    }
+  }
+
+  solVec1->close();
+}

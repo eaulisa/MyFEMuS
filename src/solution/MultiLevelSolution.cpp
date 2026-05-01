@@ -65,6 +65,26 @@ namespace femus {
 
   }
 
+  void MultiLevelSolution::Build(MultiLevelMesh* ml_msh) {
+    _gridn = ml_msh->GetNumberOfLevels();
+    _mlMesh = ml_msh;
+    _solution.resize(_gridn);
+
+    for(unsigned i = 0; i < _gridn; i++) {
+      _solution[i] = new Solution(_mlMesh->GetLevel(i));
+    }
+
+    _bdcFuncSet = false;
+    _bdcFuncSetMLProb = false;
+    _useParsedBCFunction = false;
+
+    _mlBCProblem = NULL;
+
+    _FSI = false;
+
+    _writer = NULL;
+
+  }
 
 //---------------------------------------------------------------------------------------------------
 // this is the destructor that can be called explicitly, instead of the automatic destructor
@@ -74,15 +94,38 @@ namespace femus {
       _solution[i]->FreeSolutionVectors();
       delete _solution[i];
     }
+    _gridn = 0;
+    _solution.clear();
 
     for(unsigned i = 0; i < _solName.size(); i++) delete [] _solName[i];
+    for(unsigned i = 0; i < _bdcType.size(); i++) delete [] _bdcType[i];
 
-    for(unsigned i = 0; i < _solName.size(); i++) delete [] _bdcType[i];
+    _solType.clear();
+    _family.clear();
+    _order.clear();
+    _solName.clear();
+    _bdcType.clear();
+    _solTimeOrder.clear();
+    _pdeType.clear();
+    _testIfPressure.clear();
+    _addAMRPressureStability.clear();
+    _fixSolutionAtOnePoint.clear();
+    _solPairIndex.clear();
+    _solPairInverseIndex.clear();
+
 
     if(_writer != NULL) delete _writer;
+    _writer = NULL;
 
+    _mlMesh = NULL;
 
+    _bdcFuncSet = false;
+    _bdcFuncSetMLProb = false;
+    _useParsedBCFunction = false;
 
+    _mlBCProblem = NULL;
+
+    _FSI = false;
   }
 
 
@@ -107,7 +150,7 @@ namespace femus {
       _solution[_gridn]->_Sol[k]->close();
       if(_solTimeOrder[k] == 2) {
         _solution[_gridn]->_SolOld[k]->matrix_mult(*_solution[_gridn - 1]->_SolOld[k],
-                                                   *_mlMesh->GetLevel(_gridn)->GetCoarseToFineProjection(_solType[k]));
+            *_mlMesh->GetLevel(_gridn)->GetCoarseToFineProjection(_solType[k]));
         _solution[_gridn]->_SolOld[k]->close();
       }
     }
@@ -193,7 +236,7 @@ namespace femus {
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::AssociatePropertyToSolution(const char solution_name[], const char solution_property[],
-                                                       const bool& bool_property) {
+      const bool& bool_property) {
     unsigned index = GetIndex(solution_name);
 
     if(!strcmp(solution_property, "pressure") || !strcmp(solution_property, "Pressure")) {
@@ -433,7 +476,7 @@ namespace femus {
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::SetBoundaryCondition_new(const std::string name, const std::string facename,
-                                                    const BDCType bdctype, const bool istimedependent, FunctionBase* func) {
+      const BDCType bdctype, const bool istimedependent, FunctionBase* func) {
 
 
 
@@ -1062,6 +1105,7 @@ namespace femus {
 
 
 } //end namespace femus
+
 
 
 

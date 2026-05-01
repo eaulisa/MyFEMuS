@@ -56,7 +56,20 @@ namespace femus {
       typedef bool (*BoundaryFuncMLProb) (const MultiLevelProblem * ml_prob, const std::vector < double >& x, const char name[], double &value, const int FaceName, const double time);
 
       /** Constructor */
+      MultiLevelSolution() {
+        _gridn = 0u;
+        _writer = NULL;
+        _mlMesh = NULL;
+        _bdcFuncSet = false;
+        _bdcFuncSetMLProb = false;
+        _useParsedBCFunction = false;
+        _mlBCProblem = NULL;
+        _FSI = false;
+      };
+
       MultiLevelSolution(MultiLevelMesh *ml_msh);
+
+      void Build(MultiLevelMesh* ml_msh);
 
       /** Destructor */
       ~MultiLevelSolution();
