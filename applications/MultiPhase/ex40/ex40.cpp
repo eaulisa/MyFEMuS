@@ -5,6 +5,8 @@
 #include "MyMatrix.hpp"
 
 
+#include <gperftools/profiler.h>
+
 using namespace femus;
 
 
@@ -26,14 +28,18 @@ void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
 int main(int argc, char** argv) {
 
+
+
+  ProfilerStart("profiling.prof");
+
   // Initialize PETSc/MPI
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
 
   MultiLevelMesh mlMsh0;
 
   const double scalingFactor = 1.0;
-  const unsigned numberOfUniformLevels   = 2u;
-  const unsigned numberOfSelectiveLevels = 5u;
+  const unsigned numberOfUniformLevels   = 1u;
+  const unsigned numberOfSelectiveLevels = 3u;
 
   // Load coarse mesh and build uniform refinement levels
   mlMsh0.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
@@ -49,6 +55,8 @@ int main(int argc, char** argv) {
     FlagFinestMeshLevel(mlMsh0, r, xc);
     mlMsh0.AddAMRMeshLevel(false); // false -> it does not re-evaluate the AMR flag vector
   }
+
+  return 0;
 
   mlMsh0.PrintInfo();
   BBoxToIel bbox(mlMsh0, 0, 3);
@@ -76,18 +84,17 @@ int main(int argc, char** argv) {
   MultiLevelSolution* mlsol0 = &mlSol0;
   MultiLevelSolution* mlsol1 = &mlSol1;
 
-  for(unsigned t = 1; t <= 4; t++) {
-    // Load coarse mesh and build uniform refinement levels
-    mlmsh1->ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
-    mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
+  // Load coarse mesh and build uniform refinement levels
+  mlmsh1->ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
+  mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
+
+  for(unsigned t = 1; t <= 1; t++) {
 
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
-
-
     std::vector<MyVector<double>> X0;
     MyVector<unsigned> X0Iel;
     GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
-    if(t == 1)WritePointsVTK("./output/points.0.vtk", X0);
+    if(t == 1) WritePointsVTK("./output/points.0.vtk", X0);
     Shift(X0, {0.1, 0});
     WritePointsVTK("./output/points." + std::to_string(t) + ".vtk", X0);
 
@@ -115,7 +122,6 @@ int main(int argc, char** argv) {
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
     mlsol1->Initialize("All");
 
-
     ProjectSolution(*mlsol0, *mlsol1, bbox);
 
     // Export solution to VTK (selected levels)
@@ -123,12 +129,14 @@ int main(int argc, char** argv) {
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
     mlsol1->clear();
-    mlmsh1->clear();
+    mlmsh1->resize(numberOfUniformLevels);
 
     VTKWriter vtkIO1(mlsol0);
     vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
   }
 
+
+  ProfilerStop();
   return 0;
 }
 

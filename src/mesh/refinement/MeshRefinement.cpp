@@ -196,6 +196,14 @@ namespace femus {
 
     _mesh.SetLevel(igrid);
 
+
+
+    vector < double > coarseLocalizedAmrVector;
+    mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
+
+    mshc->EnforceOneLevelAMR(coarseLocalizedAmrVector, true);
+    mshc->el->AllocateChildrenElement(_mesh.GetRefIndex(), mshc);
+
     // total number of elements on the fine level
     int nelem = elc->GetRefinedElementNumber() * _mesh.GetRefIndex(); // refined
     nelem += elc->GetElementNumber() - elc->GetRefinedElementNumber(); // not-refined
@@ -205,12 +213,6 @@ namespace femus {
 
     _mesh.SetNumberOfElements(nelem);
 
-    vector < double > coarseLocalizedAmrVector;
-    mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
-
-    mshc->EnforceOneLevelAMR(coarseLocalizedAmrVector, true);
-
-    mshc->el->AllocateChildrenElement(_mesh.GetRefIndex(), mshc);
 
     _mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector);
 

@@ -52,6 +52,7 @@ public:
     /** Destructor */
     ~MultiLevelMesh();
     void clear();
+    void resize(const unsigned Nlevels);
 
     /** Read the coarse-mesh from an input file (call the right reader from the extension) */
     void ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref);

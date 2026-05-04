@@ -287,7 +287,7 @@ int main(int argc, char** args) {
 
   system.PrintSolverInfo(false);
 
-  //system.MGsolve();
+  system.MGsolve();
 
 
   // print solutions

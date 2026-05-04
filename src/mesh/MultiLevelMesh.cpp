@@ -69,6 +69,30 @@ namespace femus {
 
   }
 
+  void MultiLevelMesh::resize(const unsigned Nlevels) {
+
+    if(Nlevels == 0){
+      clear();
+    }
+
+    for (unsigned i = Nlevels; i < _level0.size(); i++) {
+      delete _level0[i];
+    }
+    _level0.resize(Nlevels);
+    _level.resize(Nlevels);
+
+    _gridn0 = _gridn = Nlevels;
+
+    Mesh* msh = _level0[_gridn0 - 1u];
+    msh->_topology->_Sol[msh->GetAmrIndex()]->zero();
+    msh->el->ClearChilderElements();
+
+  }
+
+
+
+
+
 //---------------------------------------------------------------------------------------------------
   MultiLevelMesh::MultiLevelMesh(): _gridn0(0) {
 
@@ -309,8 +333,13 @@ namespace femus {
     //AMR refine mesh
     _level0.resize(_gridn0 + 1u);
 
-    MeshRefinement meshcoarser(*_level0[_gridn0 - 1u]);
+    Mesh * mshc = _level0[_gridn0 - 1u];
+    MeshRefinement meshcoarser(*mshc);
     if(!AMR_ALREADY_FLAGGED) meshcoarser.FlagElementsToBeRefined();
+
+    vector < double > coarseLocalizedAmrVector;
+    mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
+    mshc->EnforceOneLevelAMR(coarseLocalizedAmrVector, true);
 
     _level0[_gridn0] = new Mesh();
     MeshRefinement meshfiner(*_level0[_gridn0]);

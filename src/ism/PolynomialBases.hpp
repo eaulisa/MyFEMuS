@@ -104,6 +104,7 @@ namespace femus {
   void InverseMatrix(const std::vector< std::vector <double> > &A, std::vector< std::vector <double> > &invA);
 
   void GetConvexHullSphere(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r, const double tolerance = 1.0e-10);
+  void GetConvexHullSphereRadiousSquare(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r2, const double tolerance = 1.0e-10);
   void GetBoundingBox(const std::vector< std::vector < double > > &xv, std::vector< std::vector < double > > &xe, const double tolerance = 1.0e-10);
   void GetInverseMapping(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
                          const std::vector <double > &xl, std::vector <double > &xi);

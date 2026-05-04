@@ -54,7 +54,7 @@ namespace femus {
         faceNumber[2] = faceNumber2;
       };
 
-      virtual ~basis(){};
+      virtual ~basis() {};
 
       virtual void PrintType() const = 0 ;
 
@@ -80,20 +80,20 @@ namespace femus {
 
         assert(dim < 3); //0, 1, 2
 
-        switch(dim) {
-          case(0): {
-            return eval_dphidx(j, x);
-          }
-          case(1): {
-            return eval_dphidy(j, x);
-          }
-          case(2): {
-            return eval_dphidz(j, x);
-          }
-          default: {
-            std::cout << "Only up to dim 3" << std::endl;
-            abort();
-          }
+        switch (dim) {
+        case (0): {
+          return eval_dphidx(j, x);
+        }
+        case (1): {
+          return eval_dphidy(j, x);
+        }
+        case (2): {
+          return eval_dphidz(j, x);
+        }
+        default: {
+          std::cout << "Only up to dim 3" << std::endl;
+          abort();
+        }
         }
 
       };
@@ -192,44 +192,93 @@ namespace femus {
 
     protected:
 
+      // //1D basis
+      // // linear lagrangian
+      // inline double lagLinear(const double& x, const int& i) const {
+      //   return (!i) * 0.5 * (1. - x) + !(i - 2) * 0.5 * (1. + x);
+      // }
+      // inline double dlagLinear(const double& x, const int& i) const {
+      //   return (!i) * (-0.5) + !(i - 2) * 0.5;
+      // }
+      //
+      // //quadratic lagrangian
+      // inline double lagQuadratic(const double& x, const int& i) const {
+      //   if(!i)
+      //     return (0.5) * (1. - x);
+      //   else if(!(i - 1))
+      //     return (1. - x) * (1. + x);
+      //   else
+      //     return (0.5) * (1. + x);
+      // }
+      //
+      // inline double dlagQuadratic(const double& x, const int& i) const {
+      //   return (!i) * (-0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (0.5);
+      // }
+      //
+      // inline double d2lagQuadratic(const double& x, const int& i) const {
+      //   return !(i - 1) * (-2.);
+      // }
+      //
+      // //bi-quadratic lagrangian
+      // inline double lagBiquadratic(const double& x, const int& i) const {
+      //   return !i * 0.5 * x * (x - 1.) + !(i - 1) * (1. - x) * (1. + x) + !(i - 2) * 0.5 * x * (1. + x);
+      // }
+      //
+      // inline double dlagBiquadratic(const double& x, const int& i) const {
+      //   return !i * (x - 0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (x + 0.5);
+      // }
+      //
+      // inline double d2lagBiquadratic(const double& x, const int& i) const {
+      //   return !i + !(i - 1) * (-2.) + !(i - 2);
+      // }
+
       //1D basis
-      // linear lagrangian
+// linear lagrangian
       inline double lagLinear(const double& x, const int& i) const {
-        return (!i) * 0.5 * (1. - x) + !(i - 2) * 0.5 * (1. + x);
-      }
-      inline double dlagLinear(const double& x, const int& i) const {
-        return (!i) * (-0.5) + !(i - 2) * 0.5;
+        if (!i) return 0.5 * (1. - x); // i = 0
+        else return 0.5 * (1. + x);   // i = 1
       }
 
-      //quadratic lagrangian
+      inline double dlagLinear(const double& x, const int& i) const {
+        if (!i) return -0.5; // i = 0
+        else return 0.5;    // i = 1
+      }
+
+// quadratic lagrangian
       inline double lagQuadratic(const double& x, const int& i) const {
-        if(!i)
-          return (0.5) * (1. - x);
-        else if(!(i - 1))
-          return (1. - x) * (1. + x);
-        else
-          return (0.5) * (1. + x);
+        if (!i) return 0.5 * (1. - x);    // i = 0
+        else if (i == 1) return 1. - x * x; // i = 1
+        else return 0.5 * (1. + x);       // i = 2
       }
 
       inline double dlagQuadratic(const double& x, const int& i) const {
-        return (!i) * (-0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (0.5);
+        if (!i) return -0.5;       // i = 0
+        else if (i == 1) return -2.*x; // i = 1
+        else return 0.5;           // i = 2
       }
 
       inline double d2lagQuadratic(const double& x, const int& i) const {
-        return !(i - 1) * (-2.);
+        if (i == 1) return -2.; // i = 1
+        else return 0.;        // i = 0, 2
       }
 
-      //bi-quadratic lagrangian
+// bi-quadratic lagrangian
       inline double lagBiquadratic(const double& x, const int& i) const {
-        return !i * 0.5 * x * (x - 1.) + !(i - 1) * (1. - x) * (1. + x) + !(i - 2) * 0.5 * x * (1. + x);
+        if (!i) return 0.5 * x * (x - 1.);   // i = 0
+        else if (i == 1) return 1. - x * x;  // i = 1
+        else return 0.5 * x * (1. + x);      // i = 2
       }
 
       inline double dlagBiquadratic(const double& x, const int& i) const {
-        return !i * (x - 0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (x + 0.5);
+        if (!i) return x - 0.5;  // i = 0
+        else if (i == 1) return -2.*x; // i = 1
+        else return x + 0.5;     // i = 2
       }
 
       inline double d2lagBiquadratic(const double& x, const int& i) const {
-        return !i + !(i - 1) * (-2.) + !(i - 2);
+        if (!i) return 1.;   // i = 0
+        else if (i == 1) return -2.; // i = 1
+        else return 1.;      // i = 2
       }
 
       //2D basis

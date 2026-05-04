@@ -255,6 +255,14 @@ namespace femus {
       unsigned GetFaceRangeEnd(const unsigned &ielt) const;
       
       const MyVector< short unsigned> GetElementMaterial(){return _elementMaterial;}
+
+      void ClearChilderElements(){
+        _childElem.clear();
+        _childElemDof.clear();
+        _nelr = 0;
+      }
+
+      unsigned GetTopLevel(){return _level;}
       
     private:
 

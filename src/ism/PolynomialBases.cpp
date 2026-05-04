@@ -2467,8 +2467,9 @@ namespace femus {
   void GetConvexHullSphere(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r, const double tolerance) {
     unsigned dim = xv.size();
     unsigned ndofs = xv[0].size();
-    xc.resize(dim, 0.);
+    xc.resize(dim);
     for (int d = 0; d < dim; d++) {
+      xc[d] = 0.;
       for (int i = 0; i < ndofs; i++) {
         xc[d] += xv[d][i];
       }
@@ -2484,6 +2485,28 @@ namespace femus {
     }
 
     r = (1. + tolerance) * sqrt(r2);
+  }
+
+
+  void GetConvexHullSphereRadiousSquare(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r2, const double tolerance) {
+    unsigned dim = xv.size();
+    unsigned ndofs = xv[0].size();
+    xc.resize(dim);
+    for (int d = 0; d < dim; d++) {
+      xc[d] = 0.;
+      for (int i = 0; i < ndofs; i++) {
+        xc[d] += xv[d][i];
+      }
+      xc[d] /= ndofs;
+    }
+    r2 = 0.;
+    for (unsigned j = 0; j < ndofs; j++) {
+      double d2 = 0.;
+      for (int d = 0; d < dim; d++) {
+        d2 += (xv[d][j] - xc[d]) * (xv[d][j] - xc[d]);
+      }
+      r2 = (r2 > d2) ? r2 : d2;
+    }
   }
 
   void GetBoundingBox(const std::vector< std::vector < double > > &xv, std::vector< std::vector < double > > &xe, const double tolerance) {
