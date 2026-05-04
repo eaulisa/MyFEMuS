@@ -22,6 +22,7 @@
 #include <cstring>
 #include <iostream>
 #include <assert.h>
+#include <cfloat>
 
 #include "Elem.hpp"
 #include "GeomElTypeEnum.hpp"
@@ -539,11 +540,11 @@ namespace femus {
     std::vector < std::map < unsigned, bool > > &interfaceSolidMark = msh->GetAmrSolidMark();
     interfaceSolidMark.resize(3);
 
-    std::vector < MyVector<unsigned> > interfaceElement;
-    std::vector < MyMatrix<unsigned> > interfaceLocalDof;
-    std::vector < std::vector < MyMatrix<unsigned> > > interfaceDof;
-    std::vector < std::vector < MyMatrix<unsigned> > > levelInterfaceSolidMark;
-    std::vector < std::vector < MyMatrix< double > > > interfaceNodeCoordinates;
+    std::vector < MyVector<unsigned> > interfaceElement; // iel = interfaceElement[ilevel][i]
+    std::vector < MyMatrix<unsigned> > interfaceLocalDof; // ldof = interfaceElement[ilevel][i][j]
+    std::vector < std::vector < MyMatrix<unsigned> > > interfaceDof; // gdof = interfaceDof[solType][ilevel][i][j]
+    std::vector < std::vector < MyMatrix<unsigned> > > levelInterfaceSolidMark; // FSIdof = levelInterfaceSolidMark[solType][ilevel][i][j]
+    std::vector < std::vector < MyMatrix< double > > > interfaceNodeCoordinates; // x[dim] = interfaceNodeCoordinates[ilevel][dim][i][j]
 
     interfaceElement.resize(_level + 1);
     interfaceLocalDof.resize(_level + 1);
@@ -643,10 +644,94 @@ namespace femus {
       //END interface node coordinates search
     }
 
+
+    const unsigned nLevels = _level + 1u;
+
+    std::vector<double> xMinLocal(nLevels * dim, DBL_MAX);
+    std::vector<double> xMaxLocal(nLevels * dim, -DBL_MAX);
+
+    // pointer view: local [level][d]
+    std::vector<double*> xMinL(nLevels);
+    std::vector<double*> xMaxL(nLevels);
+
+    for (unsigned level = 0; level < nLevels; level++) {
+      xMinL[level] = xMinLocal.data() + level * dim;
+      xMaxL[level] = xMaxLocal.data() + level * dim;
+    }
+
+    for (int ilevel = 0; ilevel < nLevels; ilevel++) {
+      for (unsigned i = interfaceElement[ilevel].begin(); i < interfaceElement[ilevel].end(); i++) { //i-level element loop
+        unsigned iel = interfaceElement[ilevel][i];
+        for (unsigned j = 0; j < GetElementDofNumber(iel, 2u); j++) { // i-level i-elem node loop
+          unsigned xdof  = msh->GetSolutionDof(j, iel, 2u);
+          for (unsigned d = 0; d < dim; d++) {
+            double x = (*msh->_topology->_Sol[d])(xdof);
+            if(x < xMinL[ilevel][d]) xMinL[ilevel][d] = x;
+            if(x > xMaxL[ilevel][d]) xMaxL[ilevel][d] = x;
+          }
+        }
+      }
+    }
+
+    // Enlarge each valid local level bounding box by 1% on both sides.
+    // Skip levels with no points, which still have DBL_MAX / -DBL_MAX.
+    for (unsigned level = 0; level < nLevels; level++) {
+      bool hasPoints = true;
+
+      for (unsigned d = 0; d < dim; d++) {
+        if (xMinL[level][d] == DBL_MAX || xMaxL[level][d] == -DBL_MAX) {
+          hasPoints = false;
+          break;
+        }
+      }
+
+      if (!hasPoints) continue;
+
+      for (unsigned d = 0; d < dim; d++) {
+        const double length = xMaxL[level][d] - xMinL[level][d];
+        const double delta = 0.01 * length;
+
+        xMinL[level][d] -= delta;
+        xMaxL[level][d] += delta;
+      }
+    }
+
+    std::vector<double> xMinMemory(_nprocs * nLevels * dim);
+    std::vector<double> xMaxMemory(_nprocs * nLevels * dim);
+
+    MPI_Allgather(xMinLocal.data(), nLevels * dim, MPI_DOUBLE,
+                  xMinMemory.data(), nLevels * dim, MPI_DOUBLE,
+                  MPI_COMM_WORLD);
+
+    MPI_Allgather(xMaxLocal.data(), nLevels * dim, MPI_DOUBLE,
+                  xMaxMemory.data(), nLevels * dim, MPI_DOUBLE,
+                  MPI_COMM_WORLD);
+
+// pointer view: global [proc][level][d]
+    std::vector<std::vector<double*> > xMin(_nprocs);
+    std::vector<std::vector<double*> > xMax(_nprocs);
+
+    for (unsigned proc = 0; proc < _nprocs; proc++) {
+      xMin[proc].resize(nLevels);
+      xMax[proc].resize(nLevels);
+
+      for (unsigned level = 0; level < nLevels; level++) {
+        xMin[proc][level] =
+          xMinMemory.data() + (proc * nLevels + level) * dim;
+
+        xMax[proc][level] =
+          xMaxMemory.data() + (proc * nLevels + level) * dim;
+      }
+    }
+
+
     for (unsigned soltype = 0; soltype < 3; soltype++) {
 
-      //std::unordered_map<unsigned, bool> candidateNodes;
-      //std::unordered_set<unsigned> elementNodes;
+
+
+      std::vector<unsigned> jMinLevel(nLevels, UINT_MAX);
+      std::vector<unsigned> jMaxLevel(nLevels, 0);
+      std::vector<unsigned> jSizeLevel(nLevels, 0);
 
       std::vector<bool> jlevelNodes;
       std::vector<bool> ilevelNodes;
@@ -660,9 +745,84 @@ namespace femus {
       std::vector <double> xi(dim);
       std::vector < std::vector < std::vector <double > > > aP(3);
 
+      std::vector<std::vector<unsigned>> lDof_s(_nprocs);
+
+
+      for (unsigned level = 0; level < nLevels; level++) {
+        for (unsigned k = interfaceDof[soltype][level].begin(); k < interfaceDof[soltype][level].end(); k++) {
+          for (unsigned l = interfaceDof[soltype][level].begin(k); l < interfaceDof[soltype][level].end(k); l++) {
+            const unsigned ldof = interfaceDof[soltype][level][k][l];
+
+            if (ldof < jMinLevel[level]) jMinLevel[level] = ldof;
+            if (ldof > jMaxLevel[level]) jMaxLevel[level] = ldof;
+          }
+        }
+
+        if (jMaxLevel[level] >= jMinLevel[level]) {
+          jSizeLevel[level] = jMaxLevel[level] - jMinLevel[level] + 1u;
+        }
+      }
+
 
       for (int ilevel = 0; ilevel < _level; ilevel++) {
         for (int jlevel = ilevel + 1; jlevel <= _level; jlevel++) {
+
+          const unsigned jMin  = jMinLevel[jlevel];
+          const unsigned jSize = jSizeLevel[jlevel];
+
+          for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
+
+            lDof_s[lproc].reserve(jSize);
+            lDof_s[lproc].clear();
+
+            if(jSize == 0) continue;
+
+            // Skip processors with no valid ilevel bounding box.
+            bool validBox = true;
+            for (unsigned d = 0; d < dim; d++) {
+              if (xMin[lproc][ilevel][d] == DBL_MAX || xMax[lproc][ilevel][d] == -DBL_MAX) {
+                validBox = false;
+                break;
+              }
+            }
+
+            if (!validBox) continue;
+
+            // One visited array per lproc, so each ldof is added at most once for this lproc.
+            std::vector<char> visited(jSize, 0);
+
+            for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) {
+              for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) {
+                const unsigned ldof = interfaceDof[soltype][jlevel][k][l];
+                const unsigned idx = ldof - jMin;
+                if (visited[idx]) continue;
+                bool insideLproc = true;
+                for (unsigned d = 0; d < dim; d++) {
+                  const double x = interfaceNodeCoordinates[jlevel][d][k][l];
+                  if (x < xMin[lproc][ilevel][d] || x > xMax[lproc][ilevel][d]) {
+                    insideLproc = false;
+                    break;
+                  }
+                }
+
+                if (insideLproc) {
+
+                  visited[idx] = 1;
+                  lDof_s[lproc].push_back(ldof);
+
+                }
+              }
+            }
+          }
+
+
+//////////////////////////
+
+
+
+
+
+
           for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
             interfaceDof[soltype][jlevel].broadcast(lproc);
             levelInterfaceSolidMark[soltype][jlevel].broadcast(lproc);
