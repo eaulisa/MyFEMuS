@@ -645,8 +645,11 @@ namespace femus {
 
     for (unsigned soltype = 0; soltype < 3; soltype++) {
 
-      std::unordered_map<unsigned, bool> candidateNodes;
-      std::unordered_set<unsigned> elementNodes;
+      //std::unordered_map<unsigned, bool> candidateNodes;
+      //std::unordered_set<unsigned> elementNodes;
+
+      std::vector<bool> jlevelNodes;
+      std::vector<bool> ilevelNodes;
 
       std::vector<double> xl(dim);
       std::vector<double> phi;
@@ -668,10 +671,38 @@ namespace femus {
             }
 
 
-            for (unsigned i = interfaceDof[soltype][ilevel].begin(); i < interfaceDof[soltype][ilevel].end(); i++) {
+            unsigned ilevelMinDof = UINT_MAX;
+            unsigned ilevelMaxDof = 0;
+            for (unsigned i = interfaceDof[soltype][ilevel].begin(); i < interfaceDof[soltype][ilevel].end(); i++) { //i-level element loop
+              unsigned iel = interfaceElement[ilevel][i];
+              for (unsigned j = 0; j < GetElementDofNumber(iel, soltype); j++) { // i-level i-elem node loop
+                unsigned jdof  = msh->GetSolutionDof(j, iel, soltype);
+                if (jdof < ilevelMinDof) ilevelMinDof = jdof;
+                if (jdof > ilevelMaxDof) ilevelMaxDof = jdof;
+              }
+            }
+            if (ilevelMaxDof > ilevelMinDof) ilevelNodes.resize(ilevelMaxDof - ilevelMinDof + 1u);
+            else ilevelNodes.clear();
 
-              candidateNodes.clear();
-              elementNodes.clear();
+            unsigned jlevelMinDof = UINT_MAX;
+            unsigned jlevelMaxDof = 0;
+            for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) { //j-level element loop
+              for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) { // j-level k-elem node loop
+                unsigned ldof = interfaceDof[soltype][jlevel][k][l];
+                if (ldof < jlevelMinDof) jlevelMinDof = ldof;
+                if (ldof > jlevelMaxDof) jlevelMaxDof = ldof;
+              }
+            }
+            if (jlevelMaxDof > jlevelMinDof) jlevelNodes.resize(jlevelMaxDof - jlevelMinDof + 1u);
+            else jlevelNodes.clear();
+
+            for (unsigned i = interfaceDof[soltype][ilevel].begin(); i < interfaceDof[soltype][ilevel].end(); i++) { //i-level element loop
+
+              //candidateNodes.clear();
+              std::fill(ilevelNodes.begin(), ilevelNodes.end(), false);
+              std::fill(jlevelNodes.begin(), jlevelNodes.end(), true);
+
+              //elementNodes.clear();
 
               bool aPIsInitialized = false;
 
@@ -679,10 +710,9 @@ namespace femus {
               short unsigned ielType = _elementType[iel];
               basis* base = msh->GetBasis(ielType, soltype);
 
-              for (unsigned j = 0; j < GetElementDofNumber(iel, soltype); j++) {
+              for (unsigned j = 0; j < GetElementDofNumber(iel, soltype); j++) { // i-level i-elem node loop
                 unsigned jdof  = msh->GetSolutionDof(j, iel, soltype);
-                //elementNodes[jdof] = true;
-                elementNodes.insert(jdof);
+                ilevelNodes[jdof - ilevelMinDof] = true;
               }
 
               msh->GetElementNodeCoordinates(xv, iel);
@@ -690,33 +720,33 @@ namespace femus {
               double r2;
               GetConvexHullSphereRadiousSquare(xv, xc, r2, 0.01);
 
-
               GetBoundingBox(xv, xe, 0.01);
 
-              for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) {
-                for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) {
+              for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) { //j-level element loop
+                for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) { // j-level k-elem node loop
                   unsigned ldof = interfaceDof[soltype][jlevel][k][l];
 
-                  auto itCand = candidateNodes.find(ldof);
-                  if (itCand == candidateNodes.end() || itCand->second != false) {
-                    double d2 = 0.;
-                    for (int d = 0; d < dim; d++) {
-                      xl[d] = interfaceNodeCoordinates[jlevel][d][k][l];
-                      d2 += (xl[d] - xc[d]) * (xl[d] - xc[d]);
-                    }
-                    bool insideHull = true;
-                    if (d2 > r2) {
-                      insideHull = false;
-                      continue;
-                    }
-                    for (unsigned d = 0; d < dim; d++) {
-                      if (xl[d] < xe[d][0] || xl[d] > xe[d][1]) {
-                        insideHull = false;
-                        break;
+                  if (ldof < ilevelMinDof || ldof > ilevelMaxDof || ilevelNodes[ldof - ilevelMinDof] == false) {
+
+                    if (jlevelNodes[ldof - jlevelMinDof] == true) {
+                      double d2 = 0.;
+                      for (int d = 0; d < dim; d++) {
+                        xl[d] = interfaceNodeCoordinates[jlevel][d][k][l];
+                        d2 += (xl[d] - xc[d]) * (xl[d] - xc[d]);
                       }
-                    }
-                    if (insideHull) {
-                      if (elementNodes.find(ldof) == elementNodes.end()) {
+                      bool insideHull = true;
+                      if (d2 > r2) {
+                        insideHull = false;
+                        jlevelNodes[ldof - jlevelMinDof] = false;
+                        continue;
+                      }
+                      for (unsigned d = 0; d < dim; d++) {
+                        if (xl[d] < xe[d][0] || xl[d] > xe[d][1]) {
+                          insideHull = false;
+                          break;
+                        }
+                      }
+                      if (insideHull) {
 
                         if (!aPIsInitialized) {
                           aPIsInitialized = true;
@@ -725,12 +755,39 @@ namespace femus {
                           }
                         }
 
-
                         GetClosestPointInReferenceElement(xv, xl, ielType, xi);
-                        //GetInverseMapping(2, ielType, aP, xl, xi);
                         GetInverseMapping_fast(2u, ielType, aP, xl, xi, 100u, phi, gradPhi);
 
                         bool insideDomain = CheckIfPointIsInsideReferenceDomain(xi, ielType, 0.0001);
+                        // if (insideDomain) {
+                        //   for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
+                        //     unsigned jloc = interfaceLocalDof[ilevel][i][j];
+                        //
+                        //     double value = base->eval_phi(jloc, xi);
+                        //
+                        //     if (fabs(value) >= 1.0e-10) {
+                        //       unsigned jdof = interfaceDof[soltype][ilevel][i][j];
+                        //
+                        //       auto& rowJ = restriction[soltype][jdof];
+                        //
+                        //       auto it = rowJ.find(jdof);
+                        //       if (it == rowJ.end()) {
+                        //         rowJ.emplace(jdof, 1.);
+                        //         interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
+                        //       }
+                        //
+                        //       rowJ[ldof] = value;
+                        //
+                        //       auto& rowL = restriction[soltype][ldof];
+                        //       rowL[ldof] = 10.;
+                        //
+                        //       interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
+                        //       jlevelNodes[ldof - jlevelMinDof] = true;
+                        //     }
+                        //   }
+                        // }
+
+
                         if (insideDomain) {
                           for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
                             unsigned jloc = interfaceLocalDof[ilevel][i][j];
@@ -740,35 +797,29 @@ namespace femus {
                             if (fabs(value) >= 1.0e-10) {
                               unsigned jdof = interfaceDof[soltype][ilevel][i][j];
 
-                              std::map<unsigned, double>& rowJ = restriction[soltype][jdof];
+                              auto& rowJ = restriction[soltype][jdof];
 
-                              if (rowJ.find(jdof) == rowJ.end()) {
-                                rowJ[jdof] = 1.;
+                              auto it = rowJ.find(jdof);
+                              if (it == rowJ.end()) {
+                                rowJ.emplace(jdof, 1.);
                                 interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
                               }
 
                               rowJ[ldof] = value;
-                              restriction[soltype][ldof][ldof] = 10.;
 
-                              // if (restriction[soltype][jdof].find(jdof) == restriction[soltype][jdof].end()) {
-                              //   restriction[soltype][jdof][jdof] = 1.;
-                              //   unsigned jdof2  = msh->GetSolutionDof(jloc, iel, 2);
-                              //   interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
-                              // }
-                              // restriction[soltype][jdof][ldof] = value;
-                              // restriction[soltype][ldof][ldof] = 10.;
+                              auto& rowL = restriction[soltype][ldof];
+                              rowL[ldof] = 10.;
+
                               interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
-                              candidateNodes[ldof] = true;
                             }
                           }
                         }
-                        else {
-                          candidateNodes[ldof] = false;
-                        }
+
+                        jlevelNodes[ldof - jlevelMinDof] = false;
                       }
-                      else {
-                        candidateNodes[ldof] = false;
-                      }
+                    }
+                    else {
+                      jlevelNodes[ldof - jlevelMinDof] = false;
                     }
                   }
                 }
@@ -1027,6 +1078,8 @@ namespace femus {
 
 
 } //end namespace femus
+
+
 
 
 
