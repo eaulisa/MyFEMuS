@@ -15,6 +15,8 @@ using namespace femus;
 #include "include/Psi.hpp"
 #include "include/GradientApproximation.hpp"
 #include "include/BBoxToIel.hpp"
+#include "include/RungeKutta.hpp"
+
 
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r, const std::vector<double> &xc);
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel);
@@ -23,14 +25,14 @@ void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name, std
 static void WritePointsVTK(const std::string& filename, const std::vector<MyVector<double>>& X);
 void Shift( std::vector<MyVector<double>> &X, const std::vector<double>&dx);
 
-void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1, BBoxToIel &bbox);
+void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1, BBoxToIel &bbox, RungeKutta &rk);
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
 int main(int argc, char** argv) {
 
 
 
-  ProfilerStart("profiling.prof");
+  //ProfilerStart("profiling.prof");
 
   // Initialize PETSc/MPI
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
@@ -38,11 +40,13 @@ int main(int argc, char** argv) {
   MultiLevelMesh mlMsh0;
 
   const double scalingFactor = 1.0;
-  const unsigned numberOfUniformLevels   = 1u;
-  const unsigned numberOfSelectiveLevels = 3u;
+  const unsigned numberOfUniformLevels   = 2u;
+  const unsigned numberOfSelectiveLevels = 7u;
+
+  std::string meshName = "./input/tri.neu";
 
   // Load coarse mesh and build uniform refinement levels
-  mlMsh0.ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
+  mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   // Parameters for selective AMR (ball centered at xc with radius r)
@@ -55,8 +59,6 @@ int main(int argc, char** argv) {
     FlagFinestMeshLevel(mlMsh0, r, xc);
     mlMsh0.AddAMRMeshLevel(false); // false -> it does not re-evaluate the AMR flag vector
   }
-
-  return 0;
 
   mlMsh0.PrintInfo();
   BBoxToIel bbox(mlMsh0, 0, 3);
@@ -85,18 +87,34 @@ int main(int argc, char** argv) {
   MultiLevelSolution* mlsol1 = &mlSol1;
 
   // Load coarse mesh and build uniform refinement levels
-  mlmsh1->ReadCoarseMesh("./input/square.neu", "seventh", scalingFactor);
+  mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
-  for(unsigned t = 1; t <= 1; t++) {
+
+
+  //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
+  RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
+  //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
+
+  double period = (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
+  unsigned nSteps = 320;
+  double dt = period / nSteps;
+  for(unsigned t = 1; t <= nSteps; t++) {
+
+    double time = t * dt;
+
+
+    RungeKutta rk(time, dt, period, velocityType);
 
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
     std::vector<MyVector<double>> X0;
     MyVector<unsigned> X0Iel;
     GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
     if(t == 1) WritePointsVTK("./output/points.0.vtk", X0);
-    Shift(X0, {0.1, 0});
-    WritePointsVTK("./output/points." + std::to_string(t) + ".vtk", X0);
+
+    rk.rkForward(X0);
+
+    if(t % 10 == 0) WritePointsVTK("./output/points." + std::to_string(t / 10) + ".vtk", X0);
 
     std::vector<MyVector<double>> field = X0;
     LevelMarkers l0;
@@ -122,7 +140,7 @@ int main(int argc, char** argv) {
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
     mlsol1->Initialize("All");
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk);
 
     // Export solution to VTK (selected levels)
 
@@ -132,11 +150,11 @@ int main(int argc, char** argv) {
     mlmsh1->resize(numberOfUniformLevels);
 
     VTKWriter vtkIO1(mlsol0);
-    vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
+    if(t % 10 == 0) vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 10);
   }
 
 
-  ProfilerStop();
+// ProfilerStop();
   return 0;
 }
 
@@ -634,7 +652,7 @@ void GetAllSolutionPoints(MultiLevelSolution &mlSol,
 
 void ProjectSolution(MultiLevelSolution &mlSol0,
                      MultiLevelSolution &mlSol1,
-                     BBoxToIel &bbox) {
+                     BBoxToIel &bbox, RungeKutta &rk) {
 
   const std::string name = "Psi";
 
@@ -647,7 +665,7 @@ void ProjectSolution(MultiLevelSolution &mlSol0,
   GetAllSolutionPoints(mlSol1, name, X1);
 
   // Advect the points backward in time
-  Shift(X1, {-0.1, 0.0});
+  rk.rkBackward(X1);
 
   //const unsigned bbxLevel = bbox.GetLevel();
   const unsigned bboxLevels = nLevels - bbox.GetLevel();

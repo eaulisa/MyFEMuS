@@ -33,6 +33,8 @@
 
 #include "MeshRefinement.hpp"
 
+#include <gperftools/profiler.h>
+
 
 using namespace femus;
 
@@ -69,8 +71,12 @@ void GetError(MultiLevelSolution* mlSol);
 
 int main(int argc, char** args) {
 
+
+
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
+
+  ProfilerStart("profiling.prof");
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -85,8 +91,8 @@ int main(int argc, char** args) {
 
   unsigned numberOfUniformLevels = 3;
   unsigned numberOfSelectiveLevels = 0;
-  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
-   
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
+
   // erase all the coarse mesh levels
   //mlMsh.EraseCoarseLevels(numberOfUniformLevels - 3);
 
@@ -108,8 +114,8 @@ int main(int argc, char** args) {
 
   mlSol.GenerateBdc("All");
 
-     
-  unsigned maxNumberOfMeshes = 6;  
+
+  unsigned maxNumberOfMeshes = 6;
   for(unsigned i = 0; i < maxNumberOfMeshes; i++) {
     // define the multilevel problem attach the mlSol object to it
     MultiLevelProblem mlProb(&mlSol);
@@ -142,11 +148,11 @@ int main(int argc, char** args) {
 
     system.SetNumberOfSchurVariables(1);
     system.SetElementBlockNumber(4);
-   
+
     system.MGsolve();
-    
+
     GetError(&mlSol);
-    
+
     // print solutions
     std::vector < std::string > variablesToBePrinted;
     variablesToBePrinted.push_back("All");
@@ -155,18 +161,18 @@ int main(int argc, char** args) {
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted);
 
     //refine the mesh
-    MeshRefinement meshcoarser(*mlMsh.GetLevel(numberOfUniformLevels-1));
-    meshcoarser.FlagElementsToBeRefined(5.1e-3, mlSol.GetSolutionLevel(numberOfUniformLevels-1)->GetSolutionName("Error"));
+    MeshRefinement meshcoarser(*mlMsh.GetLevel(numberOfUniformLevels - 1));
+    meshcoarser.FlagElementsToBeRefined(5.1e-3, mlSol.GetSolutionLevel(numberOfUniformLevels - 1)->GetSolutionName("Error"));
     mlMsh.AddAMRMeshLevel();
     mlSol.AddSolutionLevel();
     mlSol.RefineSolution(numberOfUniformLevels);
     numberOfUniformLevels += 1;
-    
-    
+
+
 
   }
 
-
+  ProfilerStop();
   return 0;
 }
 
@@ -363,7 +369,7 @@ void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
     s.independent(&solU[0], nDofsU);
 
     // get the and store jacobian matrix (row-major)
-    s.jacobian(&Jac[0] , true);
+    s.jacobian(&Jac[0], true);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
     s.clear_independents();

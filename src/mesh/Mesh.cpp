@@ -445,68 +445,93 @@ namespace femus {
 
     el->ReorderMeshElements(mapping);
 
-//     for(int isdom = 0; isdom < _nprocs; isdom++) {
-//       for(unsigned iel = _elementOffset[isdom]; iel < _elementOffset[isdom + 1]; iel++) {
-//         std::cout << el->GetElementMaterial(iel) << " ";
-//       }
-//       std::cout << std::endl;
-//     }
-//     std::cout << std::endl;
-//
-//     std::cout << GetNumberOfElements()<<std::endl;
-
     std::vector < unsigned > imapping(GetNumberOfElements());
 
     for (unsigned iel = 0; iel < GetNumberOfElements(); iel++) {
       imapping[iel] = iel;
     }
-    // std::cout << "AAAAAAAAAAAAAAAAAAAA\n";
+
+    //AAAAAAAAAAAAAAAAAAA
+
+
+    // Preallocate once outside the loop (reuse across calls if possible)
+    std::vector<unsigned> tmp_iel;
+    std::vector<unsigned> tmp_key;
+
+    tmp_iel.reserve(imapping.size());
+    tmp_key.reserve(imapping.size());
+
     for (int isdom = 0; isdom < _nprocs; isdom++) {
 
-// Old, much slower (while below is better) **********
-//       for (unsigned i = _elementOffset[isdom]; i < _elementOffset[isdom + 1] - 1; i++) {
-//         unsigned iel = imapping[i];
-//         unsigned ielMat = el->GetElementMaterial (iel);
-//         unsigned ielGroup = el->GetElementGroup (iel);
-//         for (unsigned j = i + 1; j < _elementOffset[isdom + 1]; j++) {
-//           unsigned jel = imapping[j];
-//           unsigned jelMat = el->GetElementMaterial (jel);
-//           unsigned jelGroup = el->GetElementGroup (jel);
-//           if (jelMat < ielMat || (jelMat == ielMat && jelGroup < ielGroup || (jelGroup == ielGroup && iel > jel))) {
-//             imapping[i] = jel;
-//             imapping[j] = iel;
-//             iel = jel;
-//             ielMat = jelMat;
-//             ielGroup = jelGroup;
-//           }
-//         }
-//       }
+      const unsigned begin = _elementOffset[isdom];
+      const unsigned end   = _elementOffset[isdom + 1u];
+      const unsigned nloc  = end - begin;
 
-      unsigned jel, iel;
-      short unsigned jelMat, jelGroup, ielMat, ielGroup;
+      tmp_iel.resize(nloc);
+      tmp_key.resize(nloc);
 
-      unsigned n = _elementOffset[isdom + 1u] - _elementOffset[isdom];
-      while (n > 1) {
-        unsigned newN = 0u;
-        for (unsigned j = _elementOffset[isdom] + 1u; j < _elementOffset[isdom] + n ; j++) {
-          jel = imapping[j];
-          jelMat = el->GetElementMaterial(jel);
-          jelGroup = el->GetElementGroup(jel);
+      // Build compact sortable representation
+      for (unsigned k = 0; k < nloc; k++) {
+        const unsigned iel = imapping[begin + k];
 
-          iel = imapping[j - 1];
-          ielMat = el->GetElementMaterial(iel);
-          ielGroup = el->GetElementGroup(iel);
+        const unsigned short mat   = el->GetElementMaterial(iel);
+        const unsigned short group = el->GetElementGroup(iel);
 
-          if (jelMat < ielMat || (jelMat == ielMat && (jelGroup < ielGroup || (jelGroup == ielGroup && jel < iel)))) {
-            imapping[j - 1] = jel;
-            imapping[j] = iel;
-            newN = j - _elementOffset[isdom];
-          }
-        }
-        n = newN;
+        tmp_iel[k] = iel;
+
+        // pack (mat, group) into one integer key
+        tmp_key[k] = (static_cast<unsigned>(mat) << 16)
+                     | static_cast<unsigned>(group);
       }
 
+      // Sort indices instead of structs (less copying)
+      std::vector<unsigned> idx(nloc);
+      for (unsigned i = 0; i < nloc; i++) idx[i] = i;
+
+      std::sort(idx.begin(), idx.end(),
+      [&](unsigned a, unsigned b) {
+        if (tmp_key[a] != tmp_key[b]) return tmp_key[a] < tmp_key[b];
+        return tmp_iel[a] < tmp_iel[b];
+      });
+
+      // Write back
+      for (unsigned k = 0; k < nloc; k++) {
+        imapping[begin + k] = tmp_iel[idx[k]];
+      }
     }
+
+
+    // BBBBBBBBBBBBBBBBBBBBBBBB
+
+    // for (int isdom = 0; isdom < _nprocs; isdom++) {
+    //
+    //   unsigned jel, iel;
+    //   short unsigned jelMat, jelGroup, ielMat, ielGroup;
+    //
+    //   unsigned n = _elementOffset[isdom + 1u] - _elementOffset[isdom];
+    //   while (n > 1) {
+    //     unsigned newN = 0u;
+    //     for (unsigned j = _elementOffset[isdom] + 1u; j < _elementOffset[isdom] + n ; j++) {
+    //       jel = imapping[j];
+    //       jelMat = el->GetElementMaterial(jel);
+    //       jelGroup = el->GetElementGroup(jel);
+    //
+    //       iel = imapping[j - 1];
+    //       ielMat = el->GetElementMaterial(iel);
+    //       ielGroup = el->GetElementGroup(iel);
+    //
+    //       if (jelMat < ielMat || (jelMat == ielMat && (jelGroup < ielGroup || (jelGroup == ielGroup && jel < iel)))) {
+    //         imapping[j - 1] = jel;
+    //         imapping[j] = iel;
+    //         newN = j - _elementOffset[isdom];
+    //       }
+    //     }
+    //     n = newN;
+    //   }
+    //
+    // }
+
+    // CCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
     for (unsigned i = 0; i < GetNumberOfElements(); i++) {
       mapping[imapping[i]] = i;
@@ -514,22 +539,7 @@ namespace femus {
 
     std::vector < unsigned > ().swap(imapping);
 
-
-//     for(unsigned i = 0; i < GetNumberOfElements(); i++) {
-//       std::cout << mapping[i] << " ";
-//     }
-//     std::cout << std::endl;
-
     el->ReorderMeshElements(mapping);
-//     for(int isdom = 0; isdom < _nprocs; isdom++) {
-//       for(unsigned iel = _elementOffset[isdom]; iel < _elementOffset[isdom + 1]; iel++) {
-//         std::cout << "("<<el->GetElementMaterial(iel) << ", "<< el->GetElementGroup(iel)<<") ";
-//       }
-//       std::cout << std::endl;
-//     }
-//     std::cout << std::endl;
-
-
 
     // ghost vs owned nodes: 3 and 4 have no ghost nodes
     for (unsigned k = 3; k < 5; k++) {
@@ -701,7 +711,6 @@ namespace femus {
 
     //END ghost nodes search k = 0, 1, 2
 
-
     //BEGIN completing k = 0, 1
 
     for (unsigned k = 0; k < 2; k++) {
@@ -753,7 +762,6 @@ namespace femus {
 
     //END completing for k = 0, 1
 
-
     SetNumberOfNodes(_dofOffset[2][_nprocs]);
     el->SetNodeNumber(_dofOffset[2][_nprocs]);
 
@@ -794,50 +802,50 @@ namespace femus {
     unsigned dof;
 
     switch (solType) {
-    case 0: { // linear Lagrange
-      unsigned iNode = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
-      unsigned isdom = IsdomBisectionSearch(iNode, 2);
+      case 0: { // linear Lagrange
+        unsigned iNode = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
+        unsigned isdom = IsdomBisectionSearch(iNode, 2);
 
-      if (iNode < _dofOffset[2][isdom] + _originalOwnSize[0][isdom]) {
-        dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[0][isdom];
+        if (iNode < _dofOffset[2][isdom] + _originalOwnSize[0][isdom]) {
+          dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[0][isdom];
+        }
+        else {
+          dof = _ownedGhostMap[0].find(iNode)->second;
+        }
       }
-      else {
-        dof = _ownedGhostMap[0].find(iNode)->second;
-      }
-    }
-    break;
-
-    case 1: { // quadratic Lagrange
-      unsigned iNode = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
-      unsigned isdom = IsdomBisectionSearch(iNode, 2);
-
-      if (iNode < _dofOffset[2][isdom] + _originalOwnSize[1][isdom]) {
-        dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[1][isdom];
-      }
-      else {
-        dof = _ownedGhostMap[1].find(iNode)->second;
-      }
-    }
-    break;
-
-    case 2: // bi-quadratic Lagrange
-      dof = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
       break;
 
-    case 3: // piecewise constant
-      // in this case use i=0
-      dof = iel;
+      case 1: { // quadratic Lagrange
+        unsigned iNode = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
+        unsigned isdom = IsdomBisectionSearch(iNode, 2);
+
+        if (iNode < _dofOffset[2][isdom] + _originalOwnSize[1][isdom]) {
+          dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[1][isdom];
+        }
+        else {
+          dof = _ownedGhostMap[1].find(iNode)->second;
+        }
+      }
       break;
 
-    case 4: // piecewise linear discontinuous
-      unsigned isdom = IsdomBisectionSearch(iel, 3);
-      unsigned offset = _elementOffset[isdom];
-      unsigned offsetp1 = _elementOffset[isdom + 1];
-      unsigned ownSize = offsetp1 - offset;
-      unsigned offsetPWLD = offset * (_dimension + 1);
-      unsigned locIel = iel - offset;
-      dof = offsetPWLD + (i * ownSize) + locIel;
-      break;
+      case 2: // bi-quadratic Lagrange
+        dof = el->GetElementDofIndex(iel, i);  //GetMeshDof(iel, i, solType);
+        break;
+
+      case 3: // piecewise constant
+        // in this case use i=0
+        dof = iel;
+        break;
+
+      case 4: // piecewise linear discontinuous
+        unsigned isdom = IsdomBisectionSearch(iel, 3);
+        unsigned offset = _elementOffset[isdom];
+        unsigned offsetp1 = _elementOffset[isdom + 1];
+        unsigned ownSize = offsetp1 - offset;
+        unsigned offsetPWLD = offset * (_dimension + 1);
+        unsigned locIel = iel - offset;
+        dof = offsetPWLD + (i * ownSize) + locIel;
+        break;
     }
 
     return dof;
@@ -850,51 +858,51 @@ namespace femus {
     unsigned dof;
 
     switch (solType) {
-    case 0: { // linear Lagrange
-      unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);
-      unsigned isdom = IsdomBisectionSearch(iNode, 2);
+      case 0: { // linear Lagrange
+        unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);
+        unsigned isdom = IsdomBisectionSearch(iNode, 2);
 
-      if (iNode < _dofOffset[2][isdom] + _originalOwnSize[0][isdom]) {
-        dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[0][isdom];
+        if (iNode < _dofOffset[2][isdom] + _originalOwnSize[0][isdom]) {
+          dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[0][isdom];
+        }
+        else {
+          dof = _ownedGhostMap[0].find(iNode)->second;
+        }
       }
-      else {
-        dof = _ownedGhostMap[0].find(iNode)->second;
-      }
-    }
-    break;
-
-    case 1: { // quadratic Lagrange
-      unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);
-      unsigned isdom = IsdomBisectionSearch(iNode, 2);
-
-      if (iNode < _dofOffset[2][isdom] + _originalOwnSize[1][isdom]) {
-        dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[1][isdom];
-      }
-      else {
-        dof = _ownedGhostMap[1].find(iNode)->second;
-      }
-    }
-    break;
-
-    case 2: // bi-quadratic Lagrange
-      dof = mshc->el->GetChildElementDof(ielc, i0, i1);
       break;
 
-    case 3: // piecewise constant
-      // in this case use i=0
-      dof = mshc->el->GetChildElement(ielc, i0);
+      case 1: { // quadratic Lagrange
+        unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);
+        unsigned isdom = IsdomBisectionSearch(iNode, 2);
+
+        if (iNode < _dofOffset[2][isdom] + _originalOwnSize[1][isdom]) {
+          dof = (iNode - _dofOffset[2][isdom]) + _dofOffset[1][isdom];
+        }
+        else {
+          dof = _ownedGhostMap[1].find(iNode)->second;
+        }
+      }
       break;
 
-    case 4: // piecewise linear discontinuous
-      unsigned iel = mshc->el->GetChildElement(ielc, i0);
-      unsigned isdom = IsdomBisectionSearch(iel, 3);
-      unsigned offset = _elementOffset[isdom];
-      unsigned offsetp1 = _elementOffset[isdom + 1];
-      unsigned ownSize = offsetp1 - offset;
-      unsigned offsetPWLD = offset * (_dimension + 1);
-      unsigned locIel = iel - offset;
-      dof = offsetPWLD + (i1 * ownSize) + locIel;
-      break;
+      case 2: // bi-quadratic Lagrange
+        dof = mshc->el->GetChildElementDof(ielc, i0, i1);
+        break;
+
+      case 3: // piecewise constant
+        // in this case use i=0
+        dof = mshc->el->GetChildElement(ielc, i0);
+        break;
+
+      case 4: // piecewise linear discontinuous
+        unsigned iel = mshc->el->GetChildElement(ielc, i0);
+        unsigned isdom = IsdomBisectionSearch(iel, 3);
+        unsigned offset = _elementOffset[isdom];
+        unsigned offsetp1 = _elementOffset[isdom + 1];
+        unsigned ownSize = offsetp1 - offset;
+        unsigned offsetPWLD = offset * (_dimension + 1);
+        unsigned locIel = iel - offset;
+        dof = offsetPWLD + (i1 * ownSize) + locIel;
+        break;
     }
 
     return dof;
@@ -1352,3 +1360,4 @@ namespace femus {
   }
 
 } //end namespace femus
+

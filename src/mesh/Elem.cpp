@@ -727,13 +727,7 @@ namespace femus {
 
     for (unsigned soltype = 0; soltype < 3; soltype++) {
 
-
-
-      std::vector<unsigned> jMinLevel(nLevels, UINT_MAX);
-      std::vector<unsigned> jMaxLevel(nLevels, 0);
-      std::vector<unsigned> jSizeLevel(nLevels, 0);
-
-      std::vector<bool> jlevelNodes;
+      //std::vector<bool> jlevelNodes;
       std::vector<bool> ilevelNodes;
 
       std::vector<double> xl(dim);
@@ -745,8 +739,26 @@ namespace femus {
       std::vector <double> xi(dim);
       std::vector < std::vector < std::vector <double > > > aP(3);
 
-      std::vector<std::vector<unsigned>> lDof_s(_nprocs);
+/////////////////////////////
 
+      std::vector<unsigned> jMinLevel(nLevels, UINT_MAX);
+      std::vector<unsigned> jMaxLevel(nLevels, 0);
+      std::vector<unsigned> jSizeLevel(nLevels, 0);
+      std::vector<std::vector<unsigned>> jDof_s(_nprocs);
+      std::vector<std::vector<unsigned>> jSolidMark_s(_nprocs);
+      std::vector<std::vector<std::vector<double>>> jCoordinate_s(_nprocs);
+
+      std::vector<std::vector<unsigned>> jDof_r(_nprocs);
+      std::vector<std::vector<unsigned>> jSolidMark_r(_nprocs);
+      std::vector<std::vector<std::vector<double>>> jCoordinate_r(_nprocs);
+
+      std::vector<unsigned> size_s(_nprocs, 0);
+      std::vector<unsigned> size_r(_nprocs, 0);
+
+      for(unsigned lproc = 0u; lproc < _nprocs; lproc++) {
+        jCoordinate_s[lproc].resize(dim);
+        jCoordinate_r[lproc].resize(dim);
+      }
 
       for (unsigned level = 0; level < nLevels; level++) {
         for (unsigned k = interfaceDof[soltype][level].begin(); k < interfaceDof[soltype][level].end(); k++) {
@@ -772,8 +784,16 @@ namespace femus {
 
           for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
 
-            lDof_s[lproc].reserve(jSize);
-            lDof_s[lproc].clear();
+            jDof_s[lproc].reserve(jSize);
+            jSolidMark_s[lproc].reserve(jSize);
+            jDof_s[lproc].clear();
+            jSolidMark_s[lproc].clear();
+            for(unsigned d = 0; d < dim; d++) {
+              jCoordinate_s[lproc][d].reserve(jSize);
+              jCoordinate_s[lproc][d].clear();
+            }
+
+            size_s[lproc] = 0u;
 
             if(jSize == 0) continue;
 
@@ -808,27 +828,152 @@ namespace femus {
                 if (insideLproc) {
 
                   visited[idx] = 1;
-                  lDof_s[lproc].push_back(ldof);
+
+                  size_s[lproc]++;
+
+                  jDof_s[lproc].push_back(ldof);
+                  jSolidMark_s[lproc].push_back(levelInterfaceSolidMark[soltype][jlevel][k][l]);
+
+                  for(unsigned d = 0u; d < dim; d++) {
+                    jCoordinate_s[lproc][d].push_back(interfaceNodeCoordinates[jlevel][d][k][l]);
+                  }
 
                 }
               }
             }
           }
 
+          MPI_Alltoall(size_s.data(), 1, MPI_UNSIGNED,
+                       size_r.data(), 1, MPI_UNSIGNED,
+                       MPI_COMM_WORLD);
+
+
+          // Resize receive buffers
+          for(unsigned lproc = 0; lproc < _nprocs; ++lproc) {
+            jDof_r[lproc].resize(size_r[lproc]);
+            jSolidMark_r[lproc].resize(size_r[lproc]);
+            for(unsigned d = 0u; d < dim; d++) {
+              jCoordinate_r[lproc][d].resize(size_r[lproc]);
+            }
+          }
+
+          // Nonblocking communication for jDof, jSolidMark, and jCoordinate.
+// Tags:
+//   200 = jDof
+//   201 = jSolidMark
+//   300 + d = jCoordinate[d]
+
+          std::vector<MPI_Request> reqs;
+          reqs.reserve((2u + dim) * 2u * _nprocs);
+
+// -----------------------------
+// Nonblocking receives first
+// -----------------------------
+          for (int p = 0; p < static_cast<int>(_nprocs); ++p) {
+
+            if (p == static_cast<int>(_iproc)) {
+              jDof_r[_iproc]       = jDof_s[_iproc];
+              jSolidMark_r[_iproc] = jSolidMark_s[_iproc];
+
+              for (unsigned d = 0u; d < dim; d++) {
+                jCoordinate_r[_iproc][d] = jCoordinate_s[_iproc][d];
+              }
+            }
+            else {
+              if (size_r[p] > 0u) {
+                MPI_Request req;
+
+                MPI_Irecv(jDof_r[p].data(),
+                          static_cast<int>(size_r[p]),
+                          MPI_UNSIGNED,
+                          p,
+                          200,
+                          MPI_COMM_WORLD,
+                          &req);
+                reqs.push_back(req);
+
+                MPI_Irecv(jSolidMark_r[p].data(),
+                          static_cast<int>(size_r[p]),
+                          MPI_UNSIGNED,
+                          p,
+                          201,
+                          MPI_COMM_WORLD,
+                          &req);
+                reqs.push_back(req);
+
+                for (unsigned d = 0u; d < dim; d++) {
+                  MPI_Irecv(jCoordinate_r[p][d].data(),
+                            static_cast<int>(size_r[p]),
+                            MPI_DOUBLE,
+                            p,
+                            300 + static_cast<int>(d),
+                            MPI_COMM_WORLD,
+                            &req);
+                  reqs.push_back(req);
+                }
+              }
+            }
+          }
+
+// -----------------------------
+// Nonblocking sends
+// -----------------------------
+          for (int p = 0; p < static_cast<int>(_nprocs); ++p) {
+
+            if (p != static_cast<int>(_iproc)) {
+              if (size_s[p] > 0u) {
+                MPI_Request req;
+
+                MPI_Isend(jDof_s[p].data(),
+                          static_cast<int>(size_s[p]),
+                          MPI_UNSIGNED,
+                          p,
+                          200,
+                          MPI_COMM_WORLD,
+                          &req);
+                reqs.push_back(req);
+
+                MPI_Isend(jSolidMark_s[p].data(),
+                          static_cast<int>(size_s[p]),
+                          MPI_UNSIGNED,
+                          p,
+                          201,
+                          MPI_COMM_WORLD,
+                          &req);
+                reqs.push_back(req);
+
+                for (unsigned d = 0u; d < dim; d++) {
+                  MPI_Isend(jCoordinate_s[p][d].data(),
+                            static_cast<int>(size_s[p]),
+                            MPI_DOUBLE,
+                            p,
+                            300 + static_cast<int>(d),
+                            MPI_COMM_WORLD,
+                            &req);
+                  reqs.push_back(req);
+                }
+              }
+            }
+          }
+
+// -----------------------------
+// Complete communication
+// -----------------------------
+          if (!reqs.empty()) {
+            MPI_Waitall(static_cast<int>(reqs.size()),
+                        reqs.data(),
+                        MPI_STATUSES_IGNORE);
+          }
+
 
 //////////////////////////
 
-
-
-
-
-
           for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
-            interfaceDof[soltype][jlevel].broadcast(lproc);
-            levelInterfaceSolidMark[soltype][jlevel].broadcast(lproc);
-            for (unsigned d = 0; d < dim; d++) {
-              interfaceNodeCoordinates[jlevel][d].broadcast(lproc);
-            }
+            // interfaceDof[soltype][jlevel].broadcast(lproc);
+            // levelInterfaceSolidMark[soltype][jlevel].broadcast(lproc);
+            // for (unsigned d = 0; d < dim; d++) {
+            //   interfaceNodeCoordinates[jlevel][d].broadcast(lproc);
+            // }
 
 
             unsigned ilevelMinDof = UINT_MAX;
@@ -853,14 +998,14 @@ namespace femus {
                 if (ldof > jlevelMaxDof) jlevelMaxDof = ldof;
               }
             }
-            if (jlevelMaxDof > jlevelMinDof) jlevelNodes.resize(jlevelMaxDof - jlevelMinDof + 1u);
-            else jlevelNodes.clear();
+            // if (jlevelMaxDof > jlevelMinDof) jlevelNodes.resize(jlevelMaxDof - jlevelMinDof + 1u);
+            // else jlevelNodes.clear();
 
             for (unsigned i = interfaceDof[soltype][ilevel].begin(); i < interfaceDof[soltype][ilevel].end(); i++) { //i-level element loop
 
               //candidateNodes.clear();
               std::fill(ilevelNodes.begin(), ilevelNodes.end(), false);
-              std::fill(jlevelNodes.begin(), jlevelNodes.end(), true);
+              // std::fill(jlevelNodes.begin(), jlevelNodes.end(), true);
 
               //elementNodes.clear();
 
@@ -882,114 +1027,119 @@ namespace femus {
 
               GetBoundingBox(xv, xe, 0.01);
 
-              for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) { //j-level element loop
-                for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) { // j-level k-elem node loop
-                  unsigned ldof = interfaceDof[soltype][jlevel][k][l];
+              // for (unsigned k = interfaceDof[soltype][jlevel].begin(); k < interfaceDof[soltype][jlevel].end(); k++) { //j-level element loop
+              //   for (unsigned l = interfaceDof[soltype][jlevel].begin(k); l < interfaceDof[soltype][jlevel].end(k); l++) { // j-level k-elem node loop
 
-                  if (ldof < ilevelMinDof || ldof > ilevelMaxDof || ilevelNodes[ldof - ilevelMinDof] == false) {
+              for(unsigned kl = 0; kl < jDof_r[lproc].size(); kl++ ) {
+                //unsigned ldof = interfaceDof[soltype][jlevel][k][l];
+                unsigned ldof = jDof_r[lproc][kl];
 
-                    if (jlevelNodes[ldof - jlevelMinDof] == true) {
-                      double d2 = 0.;
-                      for (int d = 0; d < dim; d++) {
-                        xl[d] = interfaceNodeCoordinates[jlevel][d][k][l];
-                        d2 += (xl[d] - xc[d]) * (xl[d] - xc[d]);
-                      }
-                      bool insideHull = true;
-                      if (d2 > r2) {
+                if (ldof < ilevelMinDof || ldof > ilevelMaxDof || ilevelNodes[ldof - ilevelMinDof] == false) {
+
+                  //if (jlevelNodes[ldof - jlevelMinDof] == true) {
+                    double d2 = 0.;
+                    for (int d = 0; d < dim; d++) {
+                      //xl[d] = interfaceNodeCoordinates[jlevel][d][k][l];
+                      xl[d] = jCoordinate_r[lproc][d][kl];
+                      d2 += (xl[d] - xc[d]) * (xl[d] - xc[d]);
+                    }
+                    bool insideHull = true;
+                    if (d2 > r2) {
+                      insideHull = false;
+                      //jlevelNodes[ldof - jlevelMinDof] = false;
+                      continue;
+                    }
+                    for (unsigned d = 0; d < dim; d++) {
+                      if (xl[d] < xe[d][0] || xl[d] > xe[d][1]) {
                         insideHull = false;
-                        jlevelNodes[ldof - jlevelMinDof] = false;
-                        continue;
+                        break;
                       }
-                      for (unsigned d = 0; d < dim; d++) {
-                        if (xl[d] < xe[d][0] || xl[d] > xe[d][1]) {
-                          insideHull = false;
-                          break;
+                    }
+                    if (insideHull) {
+
+                      if (!aPIsInitialized) {
+                        aPIsInitialized = true;
+                        for (unsigned jtype = 0; jtype < 3; jtype++) {
+                          ProjectNodalToPolynomialCoefficients(aP[jtype], xv, ielType, jtype) ;
                         }
                       }
-                      if (insideHull) {
 
-                        if (!aPIsInitialized) {
-                          aPIsInitialized = true;
-                          for (unsigned jtype = 0; jtype < 3; jtype++) {
-                            ProjectNodalToPolynomialCoefficients(aP[jtype], xv, ielType, jtype) ;
-                          }
-                        }
+                      GetClosestPointInReferenceElement(xv, xl, ielType, xi);
+                      GetInverseMapping_fast(2u, ielType, aP, xl, xi, 100u, phi, gradPhi);
 
-                        GetClosestPointInReferenceElement(xv, xl, ielType, xi);
-                        GetInverseMapping_fast(2u, ielType, aP, xl, xi, 100u, phi, gradPhi);
-
-                        bool insideDomain = CheckIfPointIsInsideReferenceDomain(xi, ielType, 0.0001);
-                        // if (insideDomain) {
-                        //   for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
-                        //     unsigned jloc = interfaceLocalDof[ilevel][i][j];
-                        //
-                        //     double value = base->eval_phi(jloc, xi);
-                        //
-                        //     if (fabs(value) >= 1.0e-10) {
-                        //       unsigned jdof = interfaceDof[soltype][ilevel][i][j];
-                        //
-                        //       auto& rowJ = restriction[soltype][jdof];
-                        //
-                        //       auto it = rowJ.find(jdof);
-                        //       if (it == rowJ.end()) {
-                        //         rowJ.emplace(jdof, 1.);
-                        //         interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
-                        //       }
-                        //
-                        //       rowJ[ldof] = value;
-                        //
-                        //       auto& rowL = restriction[soltype][ldof];
-                        //       rowL[ldof] = 10.;
-                        //
-                        //       interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
-                        //       jlevelNodes[ldof - jlevelMinDof] = true;
-                        //     }
-                        //   }
-                        // }
+                      bool insideDomain = CheckIfPointIsInsideReferenceDomain(xi, ielType, 0.0001);
+                      // if (insideDomain) {
+                      //   for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
+                      //     unsigned jloc = interfaceLocalDof[ilevel][i][j];
+                      //
+                      //     double value = base->eval_phi(jloc, xi);
+                      //
+                      //     if (fabs(value) >= 1.0e-10) {
+                      //       unsigned jdof = interfaceDof[soltype][ilevel][i][j];
+                      //
+                      //       auto& rowJ = restriction[soltype][jdof];
+                      //
+                      //       auto it = rowJ.find(jdof);
+                      //       if (it == rowJ.end()) {
+                      //         rowJ.emplace(jdof, 1.);
+                      //         interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
+                      //       }
+                      //
+                      //       rowJ[ldof] = value;
+                      //
+                      //       auto& rowL = restriction[soltype][ldof];
+                      //       rowL[ldof] = 10.;
+                      //
+                      //       interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
+                      //       jlevelNodes[ldof - jlevelMinDof] = true;
+                      //     }
+                      //   }
+                      // }
 
 
-                        if (insideDomain) {
-                          for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
-                            unsigned jloc = interfaceLocalDof[ilevel][i][j];
+                      if (insideDomain) {
+                        for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
+                          unsigned jloc = interfaceLocalDof[ilevel][i][j];
 
-                            double value = base->eval_phi(jloc, xi);
+                          double value = base->eval_phi(jloc, xi);
 
-                            if (fabs(value) >= 1.0e-10) {
-                              unsigned jdof = interfaceDof[soltype][ilevel][i][j];
+                          if (fabs(value) >= 1.0e-10) {
+                            unsigned jdof = interfaceDof[soltype][ilevel][i][j];
 
-                              auto& rowJ = restriction[soltype][jdof];
+                            auto& rowJ = restriction[soltype][jdof];
 
-                              auto it = rowJ.find(jdof);
-                              if (it == rowJ.end()) {
-                                rowJ.emplace(jdof, 1.);
-                                interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
-                              }
-
-                              rowJ[ldof] = value;
-
-                              auto& rowL = restriction[soltype][ldof];
-                              rowL[ldof] = 10.;
-
-                              interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
+                            auto it = rowJ.find(jdof);
+                            if (it == rowJ.end()) {
+                              rowJ.emplace(jdof, 1.);
+                              interfaceSolidMark[soltype][jdof] = levelInterfaceSolidMark[soltype][ilevel][i][j];
                             }
+
+                            rowJ[ldof] = value;
+
+                            auto& rowL = restriction[soltype][ldof];
+                            rowL[ldof] = 10.;
+
+                            // interfaceSolidMark[soltype][ldof] = levelInterfaceSolidMark[soltype][jlevel][k][l];
+                            interfaceSolidMark[soltype][ldof] = jSolidMark_r[lproc][kl];
                           }
                         }
-
-                        jlevelNodes[ldof - jlevelMinDof] = false;
                       }
+
+                      //jlevelNodes[ldof - jlevelMinDof] = false;
                     }
-                    else {
-                      jlevelNodes[ldof - jlevelMinDof] = false;
-                    }
-                  }
+                  // }
+                  // else {
+                  //   jlevelNodes[ldof - jlevelMinDof] = false;
+                  // }
                 }
               }
+              // }//end j-level element loop
             }
-            interfaceDof[soltype][jlevel].clearBroadcast();
-            levelInterfaceSolidMark[soltype][jlevel].clearBroadcast();
-            for (unsigned d = 0; d < dim; d++) {
-              interfaceNodeCoordinates[jlevel][d].clearBroadcast();
-            }
+            // interfaceDof[soltype][jlevel].clearBroadcast();
+            // levelInterfaceSolidMark[soltype][jlevel].clearBroadcast();
+            // for (unsigned d = 0; d < dim; d++) {
+            //   interfaceNodeCoordinates[jlevel][d].clearBroadcast();
+            // }
           }
         }
       }
