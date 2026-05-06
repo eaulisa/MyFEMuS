@@ -30,9 +30,9 @@
 namespace femus {
 
   class basis;
-  
+
   class Mesh;
-  
+
   class NumericVector;
   /**
    * The elem class
@@ -83,10 +83,14 @@ namespace femus {
       short unsigned GetElementType(const unsigned& iel);
 
       /** To be Added */
-      MyVector< short unsigned > & GetElementTypeArray() { return _elementType; }
-      
-      MyMatrix <int> &  GetElementNearFaceArray() { return _elementNearFace; } 
-    
+      MyVector< short unsigned > & GetElementTypeArray() {
+        return _elementType;
+      }
+
+      MyMatrix <int> &  GetElementNearFaceArray() {
+        return _elementNearFace;
+      }
+
       /** To be Added */
       void SetElementType(const unsigned& iel, const short unsigned& value);
 
@@ -109,7 +113,7 @@ namespace femus {
       void SetElementGroupNumber(const unsigned& value);
 
       unsigned GetFaceType(const unsigned& ielt, const unsigned& jface);
-      
+
       /** To be Added */
       int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
@@ -117,7 +121,7 @@ namespace femus {
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
-      
+
       /** To be Added */
       unsigned GetIndex(const char name[]) const;
 
@@ -241,33 +245,77 @@ namespace femus {
       }
 
       void GetAMRRestriction(Mesh *msh);
-      
-      void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter){
+
+      inline bool GetAMRBBoxIndex(
+        const unsigned ilevel,
+        const unsigned dim,
+        const std::vector<double>& xl,
+        const std::vector<std::vector<double*>>& xMin,
+        const std::vector<std::vector<double*>>& xMax,
+        const std::vector<std::vector<unsigned>>& bbxN,
+        unsigned& bbxIdx
+      ) const;
+
+      void GetAMRRestrictionOld(Mesh *msh);
+
+      void GetAMRInterfaceBoundingBoxes(
+        Mesh* msh,
+        const std::vector<MyVector<unsigned>>& interfaceElement,
+        std::vector<std::vector<double*>>& xMin,
+        std::vector<std::vector<double*>>& xMax,
+        std::vector<double>& xMinMemory,
+        std::vector<double>& xMaxMemory,
+        std::vector<std::vector<std::vector<unsigned>>>& bbx_to_elements,
+        std::vector<std::vector<unsigned>>& bbxN
+      );
+
+      void GetAMRRestrictionCandidateDataForLevelPair(
+        const unsigned ilevel,
+        const unsigned dim,
+        const unsigned jMin,
+        const unsigned jSize,
+        MyMatrix<unsigned>& interfaceDofJ,
+        MyMatrix<unsigned>& levelInterfaceSolidMarkJ,
+        std::vector<MyMatrix<double>>& interfaceNodeCoordinatesJ,
+        const std::vector<std::vector<double*>>& xMin,
+        const std::vector<std::vector<double*>>& xMax,
+        std::vector<std::vector<unsigned>>& jDof_r,
+        std::vector<std::vector<unsigned>>& jSolidMark_r,
+        std::vector<std::vector<std::vector<double>>>& jCoordinate_r
+      ) ;
+
+
+
+      void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter) {
         _materialElementCounter = materialElementCounter;
       }
-      
-      std::vector<unsigned> GetMaterialElementCounter(){
+
+      std::vector<unsigned> GetMaterialElementCounter() {
         return _materialElementCounter;
       }
-      
-      unsigned GetFaceRangeStart(const unsigned &ielt) const;
-      
-      unsigned GetFaceRangeEnd(const unsigned &ielt) const;
-      
-      const MyVector< short unsigned> GetElementMaterial(){return _elementMaterial;}
 
-      void ClearChilderElements(){
+      unsigned GetFaceRangeStart(const unsigned & ielt) const;
+
+      unsigned GetFaceRangeEnd(const unsigned & ielt) const;
+
+      const MyVector< short unsigned> GetElementMaterial() {
+        return _elementMaterial;
+      }
+
+      void ClearChilderElements() {
         _childElem.clear();
         _childElemDof.clear();
         _nelr = 0;
       }
 
-      unsigned GetTopLevel(){return _level;}
-      
+      unsigned GetTopLevel() {
+        return _level;
+      }
+
     private:
 
       elem* _coarseElem;
-            
+
       unsigned _iproc;
       unsigned _nprocs;
 
@@ -306,14 +354,14 @@ namespace femus {
     {3, 6, 7, 1, 3}, //tri
     {2, 3, 3, 1, 2}  //line
   };
-  
+
   const unsigned FACERANGE[6][2] = {
-    {20,26},
-    {10,14},
-    {15,20},
-    {4,8},
-    {3,6},
-    {2,3}
+    {20, 26},
+    {10, 14},
+    {15, 20},
+    {4, 8},
+    {3, 6},
+    {2, 3}
   };
 
   /**
@@ -515,6 +563,7 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 
 
 //
-//	0-----2-----1
+//  0-----2-----1
 //
 */
+

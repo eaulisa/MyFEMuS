@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
 
 
-  //ProfilerStart("profiling.prof");
+  ProfilerStart("profiling.prof");
 
   // Initialize PETSc/MPI
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
@@ -90,8 +90,6 @@ int main(int argc, char** argv) {
   mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
-
-
   //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
   RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
   //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
@@ -99,7 +97,7 @@ int main(int argc, char** argv) {
   double period = (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
-  for(unsigned t = 1; t <= nSteps; t++) {
+  for(unsigned t = 1; t <= 2+0*nSteps; t++) {
 
     double time = t * dt;
 
@@ -154,7 +152,7 @@ int main(int argc, char** argv) {
   }
 
 
-// ProfilerStop();
+  ProfilerStop();
   return 0;
 }
 
