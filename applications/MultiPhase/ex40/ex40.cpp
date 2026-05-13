@@ -32,10 +32,14 @@ int main(int argc, char** argv) {
 
 
 
-  ProfilerStart("profiling.prof");
+
 
   // Initialize PETSc/MPI
   FemusInit mpinit(argc, argv, MPI_COMM_WORLD);
+
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs == 1) ProfilerStart("profiling.prof");
 
   MultiLevelMesh mlMsh0;
 
@@ -97,7 +101,7 @@ int main(int argc, char** argv) {
   double period = (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
-  for(unsigned t = 1; t <= 2+0*nSteps; t++) {
+  for(unsigned t = 1; t <= 4 +0* nSteps; t++) {
 
     double time = t * dt;
 
@@ -152,7 +156,7 @@ int main(int argc, char** argv) {
   }
 
 
-  ProfilerStop();
+  if(nprocs == 1) ProfilerStop();
   return 0;
 }
 

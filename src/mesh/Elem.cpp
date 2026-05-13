@@ -998,76 +998,230 @@ namespace femus {
 
 
 
-      __amr_t0 = MPI_Wtime();
-
+      // __amr_t0 = MPI_Wtime();
+      //
+      // unsigned counter = 1;
+      // while (counter != 0) {
+      //   counter = 0;
+      //
+      //   //BEGIN  saving the restriction object in parallel vectors and matrices
+      //
+      //   MyVector <unsigned> rowSize(restriction[soltype].size(), 0);
+      //   unsigned cnt1 = 0;
+      //   for (std::map<unsigned, std::map<unsigned, double> >::iterator it1 = restriction[soltype].begin(); it1 != restriction[soltype].end(); it1++) {
+      //     rowSize[cnt1] = restriction[soltype][it1->first].size();
+      //     cnt1++;
+      //   }
+      //   rowSize.stack();
+      //
+      //   std::vector< unsigned > offset = rowSize.getOffset();
+      //
+      //   MyVector <unsigned> masterNode(offset);
+      //   MyMatrix <unsigned> slaveNodes(rowSize);
+      //   MyMatrix <double> slaveNodesValues(rowSize);
+      //
+      //   cnt1 = 0;
+      //   for (std::map<unsigned, std::map<unsigned, double> >::iterator it1 = restriction[soltype].begin(); it1 != restriction[soltype].end(); it1++) {
+      //     masterNode[offset[_iproc] + cnt1] = it1->first;
+      //     unsigned cnt2 = 0;
+      //     for (std::map<unsigned, double> ::iterator it2 = restriction[soltype][it1->first].begin(); it2 != restriction[soltype][it1->first].end(); it2++) {
+      //       slaveNodes[offset[_iproc] + cnt1][cnt2] = it2->first;
+      //       slaveNodesValues[offset[_iproc] + cnt1][cnt2] = it2->second;
+      //       cnt2++;
+      //     }
+      //     cnt1++;
+      //   }
+      //   //END  saving the restriction object in parallel vectors and matrices
+      //
+      //
+      //   //BEGIN filling the restriction object with infos coming form the parallel vectors and matrices
+      //   unsigned solutionOffset = msh->_dofOffset[soltype][_iproc];
+      //   unsigned solutionOffsetp1 = msh->_dofOffset[soltype][_iproc + 1];
+      //   for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
+      //     masterNode.broadcast(lproc);
+      //     slaveNodes.broadcast(lproc);
+      //     slaveNodesValues.broadcast(lproc);
+      //     for (unsigned i = slaveNodes.begin(); i < slaveNodes.end(); i++) {
+      //       unsigned inode = masterNode[i];
+      //       if (inode >= solutionOffset && inode < solutionOffsetp1 && // inode belongs to _iproc
+      //           restriction[soltype].find(inode) == restriction[soltype].end()) { // but inode is not set as master node of _iproc
+      //         counter++;
+      //         for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) { //copy information for lproc to _iproc
+      //           unsigned jnode = slaveNodes[i][j];
+      //           restriction[soltype][inode][jnode] = slaveNodesValues[i][j];
+      //         }
+      //       }
+      //       else { // either inode does not belong to _iproc or it was already defined as a master for _iproc
+      //         if (restriction[soltype].find(inode) != restriction[soltype].end()) { // inode is already defined as master node in _iproc (either it does or does not belong to _iproc)
+      //           for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) { // loop on all the columns of restriction[lproc][inode]
+      //             unsigned jnode = slaveNodes[i][j];
+      //             double value = slaveNodesValues[i][j];
+      //             if (inode != jnode || value > 5.) { // if off-diagonal or hanging node for lproc
+      //               restriction[soltype][inode][jnode] =  value;
+      //             }
+      //             if (restriction[soltype].find(jnode) == restriction[soltype].end()) { // if jnode is not yet a master node for _iproc
+      //               counter++;
+      //               for (unsigned k = masterNode.begin(); k < masterNode.end(); k++) {
+      //                 if (masterNode[k] == jnode) { // and if jnode is also a master node for lproc
+      //                   for (unsigned l = slaveNodes.begin(k); l < slaveNodes.end(k); l++) {
+      //                     unsigned lnode = slaveNodes[k][l];
+      //                     restriction[soltype][jnode][lnode] = slaveNodesValues[k][l]; //copy the rule of lptoc into _iproc
+      //                   }
+      //                   break;
+      //                 }
+      //               }
+      //             }
+      //           }
+      //         }
+      //       }
+      //     }
+      //     masterNode.clearBroadcast();
+      //     slaveNodes.clearBroadcast();
+      //     slaveNodesValues.clearBroadcast();
+      //   }
+      //   //END filling the restriction object with infos coming form the parallel vectors and matrices
+      //
+      //
+      //   unsigned globalCounter = 0u;
+      //
+      //   MPI_Allreduce(&counter,
+      //                 &globalCounter,
+      //                 1,
+      //                 MPI_UNSIGNED,
+      //                 MPI_SUM,
+      //                 MPI_COMM_WORLD);
+      //
+      //   counter = globalCounter;
+      // }
       unsigned counter = 1;
+
       while (counter != 0) {
         counter = 0;
 
-        //BEGIN  saving the restriction object in parallel vectors and matrices
+        // ------------------------------------------------------------
+        // Save restriction object into parallel vectors/matrices
+        // ------------------------------------------------------------
 
-        MyVector <unsigned> rowSize(restriction[soltype].size(), 0);
+        MyVector<unsigned> rowSize(restriction[soltype].size(), 0);
+
         unsigned cnt1 = 0;
-        for (std::map<unsigned, std::map<unsigned, double> >::iterator it1 = restriction[soltype].begin(); it1 != restriction[soltype].end(); it1++) {
-          rowSize[cnt1] = restriction[soltype][it1->first].size();
+        for (std::map<unsigned, std::map<unsigned, double>>::iterator it1 =
+               restriction[soltype].begin();
+             it1 != restriction[soltype].end();
+             ++it1) {
+
+          rowSize[cnt1] = it1->second.size();
           cnt1++;
         }
+
         rowSize.stack();
 
-        std::vector< unsigned > offset = rowSize.getOffset();
+        std::vector<unsigned> offset = rowSize.getOffset();
 
-        MyVector <unsigned> masterNode(offset);
-        MyMatrix <unsigned> slaveNodes(rowSize);
-        MyMatrix <double> slaveNodesValues(rowSize);
+        MyVector<unsigned> masterNode(offset);
+        MyMatrix<unsigned> slaveNodes(rowSize);
+        MyMatrix<double> slaveNodesValues(rowSize);
 
         cnt1 = 0;
-        for (std::map<unsigned, std::map<unsigned, double> >::iterator it1 = restriction[soltype].begin(); it1 != restriction[soltype].end(); it1++) {
-          masterNode[offset[_iproc] + cnt1] = it1->first;
+        for (std::map<unsigned, std::map<unsigned, double>>::iterator it1 =
+               restriction[soltype].begin();
+             it1 != restriction[soltype].end();
+             ++it1) {
+
+          const unsigned inode = it1->first;
+          const std::map<unsigned, double>& row = it1->second;
+
+          const unsigned rowIndex = offset[_iproc] + cnt1;
+
+          masterNode[rowIndex] = inode;
+
           unsigned cnt2 = 0;
-          for (std::map<unsigned, double> ::iterator it2 = restriction[soltype][it1->first].begin(); it2 != restriction[soltype][it1->first].end(); it2++) {
-            slaveNodes[offset[_iproc] + cnt1][cnt2] = it2->first;
-            slaveNodesValues[offset[_iproc] + cnt1][cnt2] = it2->second;
+          for (std::map<unsigned, double>::const_iterator it2 = row.begin();
+               it2 != row.end();
+               ++it2) {
+
+            slaveNodes[rowIndex][cnt2]       = it2->first;
+            slaveNodesValues[rowIndex][cnt2] = it2->second;
             cnt2++;
           }
+
           cnt1++;
         }
-        //END  saving the restriction object in parallel vectors and matrices
 
+        // ------------------------------------------------------------
+        // Fill restriction object with information from broadcast data
+        // ------------------------------------------------------------
 
-        //BEGIN filling the restriction object with infos coming form the parallel vectors and matrices
-        unsigned solutionOffset = msh->_dofOffset[soltype][_iproc];
-        unsigned solutionOffsetp1 = msh->_dofOffset[soltype][_iproc + 1];
+        const unsigned solutionOffset   = msh->_dofOffset[soltype][_iproc];
+        const unsigned solutionOffsetp1 = msh->_dofOffset[soltype][_iproc + 1];
+
         for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
+
           masterNode.broadcast(lproc);
           slaveNodes.broadcast(lproc);
           slaveNodesValues.broadcast(lproc);
+
+          // Build lookup: master node id -> row index in received data
+          std::unordered_map<unsigned, unsigned> masterIndex;
+
+          for (unsigned k = masterNode.begin(); k < masterNode.end(); k++) {
+            masterIndex[masterNode[k]] = k;
+          }
+
           for (unsigned i = slaveNodes.begin(); i < slaveNodes.end(); i++) {
-            unsigned inode = masterNode[i];
-            if (inode >= solutionOffset && inode < solutionOffsetp1 && // inode belongs to _iproc
-                restriction[soltype].find(inode) == restriction[soltype].end()) { // but inode is not set as master node of _iproc
+
+            const unsigned inode = masterNode[i];
+
+            std::map<unsigned, std::map<unsigned, double>>::iterator inodeIt =
+                  restriction[soltype].find(inode);
+
+            if (inode >= solutionOffset &&
+                inode < solutionOffsetp1 &&
+                inodeIt == restriction[soltype].end()) {
+
               counter++;
-              for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) { //copy information for lproc to _iproc
-                unsigned jnode = slaveNodes[i][j];
-                restriction[soltype][inode][jnode] = slaveNodesValues[i][j];
+
+              std::map<unsigned, double>& rowInode = restriction[soltype][inode];
+
+              for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) {
+                const unsigned jnode = slaveNodes[i][j];
+                rowInode[jnode] = slaveNodesValues[i][j];
               }
             }
-            else { // either inode does not belong to _iproc or it was already defined as a master for _iproc
-              if (restriction[soltype].find(inode) != restriction[soltype].end()) { // inode is already defined as master node in _iproc (either it does or does not belong to _iproc)
-                for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) { // loop on all the columns of restriction[lproc][inode]
-                  unsigned jnode = slaveNodes[i][j];
-                  double value = slaveNodesValues[i][j];
-                  if (inode != jnode || value > 5.) { // if off-diagonal or hanging node for lproc
-                    restriction[soltype][inode][jnode] =  value;
+            else {
+
+              if (inodeIt != restriction[soltype].end()) {
+
+                std::map<unsigned, double>& rowInode = inodeIt->second;
+
+                for (unsigned j = slaveNodes.begin(i); j < slaveNodes.end(i); j++) {
+
+                  const unsigned jnode = slaveNodes[i][j];
+                  const double value   = slaveNodesValues[i][j];
+
+                  if (inode != jnode || value > 5.0) {
+                    rowInode[jnode] = value;
                   }
-                  if (restriction[soltype].find(jnode) == restriction[soltype].end()) { // if jnode is not yet a master node for _iproc
-                    counter++;
-                    for (unsigned k = masterNode.begin(); k < masterNode.end(); k++) {
-                      if (masterNode[k] == jnode) { // and if jnode is also a master node for lproc
-                        for (unsigned l = slaveNodes.begin(k); l < slaveNodes.end(k); l++) {
-                          unsigned lnode = slaveNodes[k][l];
-                          restriction[soltype][jnode][lnode] = slaveNodesValues[k][l]; //copy the rule of lptoc into _iproc
-                        }
-                        break;
+
+                  if (restriction[soltype].find(jnode) == restriction[soltype].end()) {
+
+                    auto mit = masterIndex.find(jnode);
+
+                    if (mit != masterIndex.end()) {
+
+                      counter++;
+
+                      const unsigned k = mit->second;
+
+                      std::map<unsigned, double>& rowJnode =
+                        restriction[soltype][jnode];
+
+                      for (unsigned l = slaveNodes.begin(k);
+                           l < slaveNodes.end(k);
+                           l++) {
+
+                        const unsigned lnode = slaveNodes[k][l];
+                        rowJnode[lnode] = slaveNodesValues[k][l];
                       }
                     }
                   }
@@ -1075,12 +1229,11 @@ namespace femus {
               }
             }
           }
+
           masterNode.clearBroadcast();
           slaveNodes.clearBroadcast();
           slaveNodesValues.clearBroadcast();
         }
-        //END filling the restriction object with infos coming form the parallel vectors and matrices
-
 
         unsigned globalCounter = 0u;
 
@@ -3458,6 +3611,8 @@ namespace femus {
 
 
 } //end namespace femus
+
+
 
 
 
