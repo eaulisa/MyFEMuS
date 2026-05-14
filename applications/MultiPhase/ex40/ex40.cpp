@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
 
   const double scalingFactor = 1.0;
   const unsigned numberOfUniformLevels   = 2u;
-  const unsigned numberOfSelectiveLevels = 7u;
+  const unsigned numberOfSelectiveLevels = 6u;
 
   std::string meshName = "./input/tri.neu";
 
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
   double period = (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
-  for(unsigned t = 1; t <= 4 +0* nSteps; t++) {
+  for(unsigned t = 1; t <= 0 +1* nSteps; t++) {
 
     double time = t * dt;
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 
     if(t % 10 == 0) WritePointsVTK("./output/points." + std::to_string(t / 10) + ".vtk", X0);
 
-    std::vector<MyVector<double>> field = X0;
+    //std::vector<MyVector<double>> field = X0;
     LevelMarkers l0;
     std::vector<LevelMarkers> lX(nLevels);
 
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
       bbox.Project(*mlmsh1, lX[k - 1], lX[k]);
     }
 
-    TestProjections(l0, lX);
+    //TestProjections(l0, lX);
 
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);

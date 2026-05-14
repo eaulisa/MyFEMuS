@@ -1376,7 +1376,7 @@ namespace femus {
 
     const double __amr_total = MPI_Wtime() - __amr_total_start;
 
-    if (_iproc == 0u) {
+    if (false && _iproc == 0u) {
       std::cout << "\n========== GetAMRRestriction timing ==========" << std::endl;
       std::cout << "total                              : " << __amr_total << std::endl;
       std::cout << "interface build                    : " << __amr_t_interface_build << std::endl;
