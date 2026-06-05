@@ -14,6 +14,7 @@ using namespace femus;
 #include "include/LevelSetMarkers.hpp"
 #include "include/Mollifier.hpp"
 #include "include/Psi.hpp"
+#include "include/Reinit.hpp"
 #include "include/RungeKutta.hpp"
 
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
   // Parameters for selective AMR (ball centered at xc with radius r)
   const double r = 0.125;
   std::vector<double> xc = {0.0, 0.25};
-  double eps = 0.1; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
+  double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
   MultiLevelSolution *mlsol1 = &mlSol1;
 
   // Initialize markers object
-  LevelSetMarkers markers("Psi",2);
+  LevelSetMarkers markers("Psi", 2);
 
   // Load coarse mesh and build uniform refinement levels
   mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
@@ -106,9 +107,12 @@ int main(int argc, char **argv) {
       (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
+
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
     double time = t * dt;
+
+    bbox.SetMesh(mlmsh0->GetLevel(0));
 
     RungeKutta rk(time, dt, period, velocityType);
 
@@ -117,6 +121,14 @@ int main(int argc, char **argv) {
     MyVector<unsigned> X0Iel;
     // GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
     markers.GetCutElementPoints(*mlsol0, X0, X0Iel);
+
+    if (t % 10 == 0) {
+      Reinit reinit("Psi", *mlsol0, eps);
+
+      reinit.farFieldReinit(X0);
+      reinit.interfaceFieldReinit(bbox);
+      reinit.updateSolution();
+    }
 
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
@@ -130,7 +142,6 @@ int main(int argc, char **argv) {
     LevelMarkers l0;
     std::vector<LevelMarkers> lX(nLevels);
 
-    bbox.SetMesh(mlmsh0->GetLevel(0));
     bbox.GetInverseMappingOnCoarseLevel(X0, l0, lX[0]);
 
     for (unsigned k = 1; k < numberOfUniformLevels; k++) {
