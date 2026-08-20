@@ -17,6 +17,18 @@ using namespace femus;
 #include "include/Reinit.hpp"
 #include "include/RungeKutta.hpp"
 
+void rkStep(MultiLevelSolution &mlSol0 /* marker receive */,
+            MultiLevelSolution &mlSol1 /* marker send */,
+            BBoxToIel &bbox,
+            const std::vector<MyVector<double>> &X1,
+            std::vector<std::vector<MyVector<double>>> &K,
+            const unsigned rkStep,
+            const std::vector<std::string> &velName,
+            const double dt,
+            const double c,
+            const std::vector<double> &a);
+
+
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
                          const std::vector<double> &xc);
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel);
@@ -29,8 +41,9 @@ static void WritePointsVTK(const std::string &filename,
                            const std::vector<MyVector<double>> &X);
 void Shift(std::vector<MyVector<double>> &X, const std::vector<double> &dx);
 
-void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1,
-                     BBoxToIel &bbox, RungeKutta &rk);
+void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
+                     BBoxToIel &bbox, RungeKutta &rk, const std::vector<std::string> solName);
+
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
 
@@ -45,6 +58,12 @@ double InitV (const std::vector < double >& x) {
 double InitW (const std::vector < double >& x) {
   return 0.;
 }
+
+double (*Initvel[3])(const std::vector<double>&) = {
+  InitU,
+  InitV,
+  InitW
+};
 
 int main(int argc, char **argv) {
 
@@ -89,14 +108,12 @@ int main(int argc, char **argv) {
   MultiLevelSolution mlSol0(&mlMsh0);
   mlSol0.AddSolution("Psi", LAGRANGE, SECOND);
 
-  mlSol0.AddSolution("U", LAGRANGE, SECOND);
-  if(dim > 1) mlSol0.AddSolution("V", LAGRANGE, SECOND);
-  if(dim > 2) mlSol0.AddSolution("W", LAGRANGE, SECOND);
+  std::vector<std::string> vName = {"U", "V", "W"};
+  vName.resize(dim);
 
+  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
   mlSol0.Initialize("All");
-  mlSol0.Initialize("U", InitU);
-  if(dim > 1) mlSol0.Initialize("V", InitV);
-  if(dim > 2) mlSol0.Initialize("W", InitW);
+  for(unsigned d = 0; d < dim; d++) mlSol0.Initialize(vName[d].c_str(), Initvel[d]);
 
   PsiBall psi2D(xc, r, eps);
   Init(mlSol0, "Psi", psi2D);
@@ -158,13 +175,26 @@ int main(int argc, char **argv) {
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
-    unsigned rk_nsteps = 4;
-    std::vector<std::vector<MyVector<double>>> K(rk_nsteps);
+    const unsigned rk_nsteps = 4;
+    const std::vector <double> c = {0., 0.5, 0.5, 1.} ;
+    const std::vector<std::vector <double> > a = {{}, {0.5}, {0, 0.5}, {0., 0., 1.}};
+    const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
+    std::vector<std::vector<MyVector<double>>> K;
     for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-      // rk.rkForwardStep(X0, K, rk, bbox);
+      rkStep(*mlsol0 /* marker receive */,
+             *mlsol0 /* marker send */,
+             bbox, X0, K, rk,
+             vName,
+             dt,
+             c[rk],
+             a[rk]);
     }
     for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-      //X0 += dt * K[rk] * b[rk];
+      for(unsigned d = 0; d < dim; d++) {
+        for(unsigned i = X0[d].begin(); i < X0[d].end(); i++) {
+          //X0[d][i] += dt * K[rk][d][i] * b[rk];
+        }
+      }
     }
     rk.rkForward(X0);
 
@@ -193,17 +223,13 @@ int main(int argc, char **argv) {
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
 
-
-    mlsol1->AddSolution("U", LAGRANGE, SECOND);
-    if(dim > 1) mlsol1->AddSolution("V", LAGRANGE, SECOND);
-    if(dim > 2) mlsol1->AddSolution("W", LAGRANGE, SECOND);
+    for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
 
     mlsol1->Initialize("All");
-    mlsol1->Initialize("U", InitU);
-    if(dim > 1) mlsol1->Initialize("V", InitV);
-    if(dim > 2) mlsol1->Initialize("W", InitW);
+    for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk);
+
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"});
 
     // Export solution to VTK (selected levels)
 
@@ -717,10 +743,30 @@ void GetAllSolutionPoints(MultiLevelSolution &mlSol, const std::string &name,
   }
 }
 
-void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
-                     BBoxToIel &bbox, RungeKutta &rk) {
+void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
+                     MultiLevelSolution &mlSol1 /* marker send */,
+                     BBoxToIel &bbox, RungeKutta &rk,
+                     const std::vector<std::string> solName) {
 
-  const std::string name = "Psi";
+  assert(!solName.empty());
+  const unsigned nFields = solName.size();
+
+  const unsigned solType =
+    mlSol0.GetSolutionType(solName[0].c_str());
+
+  assert(solType <= 2);
+
+  for (unsigned k = 0; k < solName.size(); ++k) {
+
+    const unsigned solType0 =
+      mlSol0.GetSolutionType(solName[k].c_str());
+
+    const unsigned solType1 =
+      mlSol1.GetSolutionType(solName[k].c_str());
+
+    assert(solType0 == solType);
+    assert(solType1 == solType);
+  }
 
   MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
 
@@ -728,12 +774,12 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
 
   // Extract all Psi grid points on the finest level of mlSol1
   std::vector<MyVector<double>> X1;
-  GetAllSolutionPoints(mlSol1, name, X1);
+  GetAllSolutionPoints(mlSol1, solName[0], X1);
 
   // Advect the points backward in time
   rk.rkBackward(X1);
 
-  // const unsigned bbxLevel = bbox.GetLevel();
+  assert(bbox.GetLevel() < nLevels);
   const unsigned bboxLevels = nLevels - bbox.GetLevel();
   // Build l0 and lX forward projection using the advected points
   LevelMarkers l0;
@@ -751,56 +797,58 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
   Mesh &msh0 = *mlMsh0.GetLevel(level0);
   Solution &sol0 = *mlSol0.GetLevel(level0);
 
-  const unsigned solIndex0 = mlSol0.GetIndex(name.c_str());
-  const unsigned solType0 = mlSol0.GetSolutionType(name.c_str());
-
-  auto &solVec0 = sol0._Sol[solIndex0];
-
   LevelMarkers &lTop = lX.back();
+  lTop.GetFields().resize(nFields);
 
-  std::vector<MyVector<double>> &Xi = lTop.GetLocalCoordinates();
-  MyVector<unsigned> &Iel = lTop.GetElements();
+  for(unsigned k = 0; k < nFields; k++) {
+    unsigned solIndex0 = mlSol0.GetIndex(solName[k].c_str());
+    const unsigned solType0 = mlSol0.GetSolutionType(solName[k].c_str());
 
-  const unsigned dim = Xi.size();
+    auto &solVec0 = sol0._Sol[solIndex0];
 
-  std::vector<double> psiLocal;
-  psiLocal.resize(Iel.end() - Iel.begin(), 0.0);
+    std::vector<MyVector<double>> &Xi = lTop.GetLocalCoordinates();
+    MyVector<unsigned> &Iel = lTop.GetElements();
 
-  std::vector<double> xi(dim);
-  std::vector<double> phi;
+    const unsigned dim = Xi.size();
 
-  for (unsigned ip = Iel.begin(); ip < Iel.end(); ++ip) {
+    std::vector<double> psiLocal;
+    psiLocal.resize(Iel.end() - Iel.begin(), 0.0);
 
-    const unsigned iel = Iel[ip];
-    short unsigned ielType = msh0.GetElementType(iel);
 
-    for (unsigned k = 0; k < dim; ++k) {
-      xi[k] = Xi[k][ip];
+    std::vector<double> xi(dim);
+    std::vector<double> phi;
+
+    for (unsigned ip = Iel.begin(); ip < Iel.end(); ++ip) {
+
+      const unsigned iel = Iel[ip];
+      short unsigned ielType = msh0.GetElementType(iel);
+
+      for (unsigned k = 0; k < dim; ++k) {
+        xi[k] = Xi[k][ip];
+      }
+
+      const unsigned nDof = msh0.GetElementDofNumber(iel, solType0);
+
+      phi.resize(nDof);
+
+      msh0._finiteElement[ielType][solType0]->GetPhi(phi, xi);
+
+      double value = 0.0;
+      for (unsigned j = 0; j < nDof; ++j) {
+        const unsigned solDof = msh0.GetSolutionDof(j, iel, solType0);
+        value += phi[j] * (*solVec0)(solDof);
+      }
+
+      psiLocal[ip - Iel.begin()] = value;
     }
-
-    const unsigned nDof = msh0.GetElementDofNumber(iel, solType0);
-
-    phi.resize(nDof);
-
-    msh0._finiteElement[ielType][solType0]->GetPhi(phi, xi);
-
-    double value = 0.0;
-    for (unsigned j = 0; j < nDof; ++j) {
-      const unsigned solDof = msh0.GetSolutionDof(j, iel, solType0);
-      value += phi[j] * (*solVec0)(solDof);
-    }
-
-    psiLocal[ip - Iel.begin()] = value;
+    lTop.GetFields()[k].buildFromLocal(psiLocal);
   }
-
-  lTop.GetFields().resize(1);
-  lTop.GetFields()[0].buildFromLocal(psiLocal);
 
   // Project Psi backward through the marker hierarchy
   std::vector<std::vector<double>> Wfield_r;
   std::vector<std::vector<double>> Wfield_s;
 
-  const unsigned nFields = 1u;
+
   const bool backward = true;
 
   for (int l = static_cast<int>(bboxLevels) - 1; l >= 1; --l) {
@@ -819,23 +867,205 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
   const unsigned level1 = mlMsh1.GetNumberOfLevels() - 1u;
 
   Solution &sol1 = *mlSol1.GetLevel(level1);
-  const unsigned solIndex1 = mlSol1.GetIndex(name.c_str());
 
-  auto &solVec1 = sol1._Sol[solIndex1];
+  for(unsigned k = 0; k < nFields; k++) {
+    const unsigned solIndex1 = mlSol1.GetIndex(solName[k].c_str());
 
-  const MyVector<double> &psiProjected = l0.GetFields()[0];
-  const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
+    auto &solVec1 = sol1._Sol[solIndex1];
 
-  solVec1->zero();
-  unsigned offset = psiProjected.begin();
-  for (unsigned i = psiProjected.begin(); i < psiProjected.end(); ++i) {
-    if (isInsideDomain[i - offset]) {
-      solVec1->set(i, psiProjected[i]);
+    const MyVector<double> &psiProjected = l0.GetFields()[k];
+    const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
+
+    solVec1->zero();
+    unsigned offset = psiProjected.begin();
+    for (unsigned i = psiProjected.begin(); i < psiProjected.end(); ++i) {
+      if (isInsideDomain[i - offset]) {
+        solVec1->set(i, psiProjected[i]);
+      }
+      else {   // TODO add boundarycondition for psi
+        solVec1->set(i, -1.);
+      }
     }
-    else {   // TODO add boundarycondition for psi
-      solVec1->set(i, -1.);
+    solVec1->close();
+  }
+}
+
+
+
+void rkStep(MultiLevelSolution &mlSol0 /* marker receive */,
+            MultiLevelSolution &mlSol1 /* marker send */,
+            BBoxToIel &bbox,
+            const std::vector<MyVector<double>> &X1,
+            std::vector<std::vector<MyVector<double>>> &K,
+            const unsigned rkStep,
+            const std::vector<std::string> &velName,
+            const double dt,
+            const double c,
+            const std::vector<double> &a) {
+
+  assert (a.size() == rkStep);
+  assert(!velName.empty());
+  const unsigned nFields = velName.size();
+
+  assert(X1.size() == nFields);
+
+  assert(K.size() == rkStep);
+  for (unsigned j = 0; j < rkStep; ++j) {
+    assert(K[j].size() == nFields);
+    for (unsigned d = 0; d < nFields; ++d) {
+      assert(K[j][d].begin() == X1[d].begin());
+      assert(K[j][d].end()   == X1[d].end());
     }
   }
 
-  solVec1->close();
+
+  const unsigned solType =
+    mlSol0.GetSolutionType(velName[0].c_str());
+
+  assert(solType <= 2);
+
+  for (unsigned k = 0; k < velName.size(); ++k) {
+
+    const unsigned solType0 =
+      mlSol0.GetSolutionType(velName[k].c_str());
+
+    const unsigned solType1 =
+      mlSol1.GetSolutionType(velName[k].c_str());
+
+    assert(solType0 == solType);
+    assert(solType1 == solType);
+  }
+
+  MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
+
+  const unsigned nLevels = mlMsh0.GetNumberOfLevels();
+
+  // Extract all Psi grid points on the finest level of mlSol1
+  std::vector<MyVector<double>> Xk = X1;
+  for(unsigned d = 0; d < nFields; d++) {
+    for (unsigned i = Xk[d].begin(); i < Xk[d].end(); ++i) {
+      for(unsigned j = 0; j < a.size(); j++) {
+        Xk[d][i] += a[j] * K[j][d][i] * dt;
+      }
+    }
+  }
+
+
+  // Advect the points backward in time
+  //rk.rkBackward(X1);
+
+  assert(bbox.GetLevel() < nLevels);
+  const unsigned bboxLevels = nLevels - bbox.GetLevel();
+  // Build l0 and lX forward projection using the advected points
+  LevelMarkers l0;
+  std::vector<LevelMarkers> lX(bboxLevels);
+
+  bbox.GetInverseMappingOnCoarseLevel(Xk, l0, lX[0]);
+
+  for (unsigned k = 1; k < bboxLevels; ++k) {
+    bbox.Project(mlMsh0, lX[k - 1], lX[k]);
+  }
+
+  // Evaluate Psi field on finest level of mlSol0 using top-level iel and xi
+  const unsigned level0 = nLevels - 1u;
+
+  Mesh &msh0 = *mlMsh0.GetLevel(level0);
+  Solution &sol0 = *mlSol0.GetLevel(level0);
+
+  LevelMarkers &lTop = lX.back();
+  lTop.GetFields().resize(nFields);
+
+  std::vector<MyVector<double>> &Xi = lTop.GetLocalCoordinates();
+  MyVector<unsigned> &Iel = lTop.GetElements();
+
+  const unsigned dim = Xi.size();
+  assert(dim == nFields);
+
+  for(unsigned d = 0; d < nFields; d++) {
+    unsigned solIndex0 = mlSol0.GetIndex(velName[d].c_str());
+
+    auto &solNew = sol0._Sol[solIndex0];
+    auto &solOld = sol0._SolOld[solIndex0];
+
+    std::vector<double> psiLocal;
+    psiLocal.resize(Iel.end() - Iel.begin(), 0.0);
+
+
+    std::vector<double> xi(dim);
+    std::vector<double> phi;
+
+    for (unsigned ip = Iel.begin(); ip < Iel.end(); ++ip) {
+
+      const unsigned iel = Iel[ip];
+      short unsigned ielType = msh0.GetElementType(iel);
+
+      for (unsigned k = 0; k < dim; ++k) {
+        xi[k] = Xi[k][ip];
+      }
+
+      const unsigned nDof = msh0.GetElementDofNumber(iel, solType);
+
+      phi.resize(nDof);
+
+      msh0._finiteElement[ielType][solType]->GetPhi(phi, xi);
+
+      double value = 0.0;
+      for (unsigned j = 0; j < nDof; ++j) {
+        const unsigned solDof = msh0.GetSolutionDof(j, iel, solType);
+        value += phi[j] * ((1. - c) * (*solOld)(solDof) + c * (*solNew)(solDof));
+      }
+
+      psiLocal[ip - Iel.begin()] = value;
+    }
+    lTop.GetFields()[d].buildFromLocal(psiLocal);
+  }
+
+  // Project Psi backward through the marker hierarchy
+  std::vector<std::vector<double>> Wfield_r;
+  std::vector<std::vector<double>> Wfield_s;
+
+
+  const bool backward = true;
+
+  for (int l = static_cast<int>(bboxLevels) - 1; l >= 1; --l) {
+    lX[l].RebuildLocalFromField(Wfield_r, nFields, backward);
+    lX[l - 1].SendLocalField(Wfield_r, Wfield_s);
+    lX[l - 1].RebuildFieldFromLocal(Wfield_s, nFields, backward);
+  }
+
+  lX[0].RebuildLocalFromField(Wfield_r, nFields, backward);
+  l0.SendLocalField(Wfield_r, Wfield_s);
+  l0.RebuildFieldFromLocal(Wfield_s, nFields, backward);
+
+  // Update Psi on mlSol1 with the backward-projected values
+
+  K.resize(rkStep + 1);
+  K[rkStep].resize(nFields);
+  for(unsigned d = 0; d < nFields; d++) {
+    K[rkStep][d] = l0.GetFields()[d];
+  }
+  if(rkStep > 0) { // to check if marker went out the domain
+    const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
+    const unsigned offset = K[rkStep][0].begin();
+    const unsigned offsetp1 = K[rkStep][0].end();
+    for (unsigned i = offset; i < offsetp1; ++i) {
+      if (!isInsideDomain[i - offset]) {
+        for(unsigned d = 0; d < nFields; d++) {
+          K[rkStep][d][i] = K[rkStep - 1][d][i];
+        }
+      }
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
