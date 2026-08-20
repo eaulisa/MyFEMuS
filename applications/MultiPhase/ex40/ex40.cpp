@@ -33,6 +33,19 @@ void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1,
                      BBoxToIel &bbox, RungeKutta &rk);
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
+
+double InitU (const std::vector < double >& x) {
+  return -x[1];
+}
+
+double InitV (const std::vector < double >& x) {
+  return -x[0];
+}
+
+double InitW (const std::vector < double >& x) {
+  return 0.;
+}
+
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -55,6 +68,8 @@ int main(int argc, char **argv) {
   mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
+  unsigned dim = mlMsh0.GetDimension();
+
   // Parameters for selective AMR (ball centered at xc with radius r)
   const double r = 0.125;
   std::vector<double> xc = {0.0, 0.25};
@@ -64,7 +79,7 @@ int main(int argc, char **argv) {
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
     FlagFinestMeshLevel(mlMsh0, r, xc);
     mlMsh0.AddAMRMeshLevel(
-        false); // false -> it does not re-evaluate the AMR flag vector
+      false); // false -> it does not re-evaluate the AMR flag vector
   }
 
   mlMsh0.PrintInfo();
@@ -73,7 +88,15 @@ int main(int argc, char **argv) {
   // Define solution on the multilevel mesh
   MultiLevelSolution mlSol0(&mlMsh0);
   mlSol0.AddSolution("Psi", LAGRANGE, SECOND);
+
+  mlSol0.AddSolution("U", LAGRANGE, SECOND);
+  if(dim > 1) mlSol0.AddSolution("V", LAGRANGE, SECOND);
+  if(dim > 2) mlSol0.AddSolution("W", LAGRANGE, SECOND);
+
   mlSol0.Initialize("All");
+  mlSol0.Initialize("U", InitU);
+  if(dim > 1) mlSol0.Initialize("V", InitV);
+  if(dim > 2) mlSol0.Initialize("W", InitW);
 
   PsiBall psi2D(xc, r, eps);
   Init(mlSol0, "Psi", psi2D);
@@ -93,7 +116,7 @@ int main(int argc, char **argv) {
   MultiLevelSolution *mlsol1 = &mlSol1;
 
   // Initialize markers object
-  LevelSetMarkers markers("Psi", 2);
+  LevelSetMarkers markers("Psi", dim);
 
   // Load coarse mesh and build uniform refinement levels
   mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
@@ -104,7 +127,7 @@ int main(int argc, char **argv) {
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 
   double period =
-      (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
+    (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
 
@@ -115,6 +138,8 @@ int main(int argc, char **argv) {
     bbox.SetMesh(mlmsh0->GetLevel(0));
 
     RungeKutta rk(time, dt, period, velocityType);
+
+    //RungeKuttaN rk(time, dt, mlmsh0, bbox);
 
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
     std::vector<MyVector<double>> X0;
@@ -133,6 +158,14 @@ int main(int argc, char **argv) {
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
+    unsigned rk_nsteps = 4;
+    std::vector<std::vector<MyVector<double>>> K(rk_nsteps);
+    for(unsigned rk = 0; rk < rk_nsteps; rk++) {
+      // rk.rkForwardStep(X0, K, rk, bbox);
+    }
+    for(unsigned rk = 0; rk < rk_nsteps; rk++) {
+      //X0 += dt * K[rk] * b[rk];
+    }
     rk.rkForward(X0);
 
     if (t % 10 == 0)
@@ -151,7 +184,7 @@ int main(int argc, char **argv) {
     for (unsigned k = numberOfUniformLevels; k < nLevels; ++k) {
       FlagFinestMeshLevel(*mlmsh1, lX[k - 1].GetElements());
       mlmsh1->AddAMRMeshLevel(
-          false); // false -> it does not re-evaluate the AMR flag vector
+        false); // false -> it does not re-evaluate the AMR flag vector
       bbox.Project(*mlmsh1, lX[k - 1], lX[k]);
     }
 
@@ -159,7 +192,16 @@ int main(int argc, char **argv) {
 
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
+
+
+    mlsol1->AddSolution("U", LAGRANGE, SECOND);
+    if(dim > 1) mlsol1->AddSolution("V", LAGRANGE, SECOND);
+    if(dim > 2) mlsol1->AddSolution("W", LAGRANGE, SECOND);
+
     mlsol1->Initialize("All");
+    mlsol1->Initialize("U", InitU);
+    if(dim > 1) mlsol1->Initialize("V", InitV);
+    if(dim > 2) mlsol1->Initialize("W", InitW);
 
     ProjectSolution(*mlsol0, *mlsol1, bbox, rk);
 
@@ -216,7 +258,7 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
     const unsigned xDof0 = msh.GetSolutionDof(0, iel, xType);
     double d2_0 = r2;
     for (unsigned k = 0; k < dim; ++k) {
-      const double d = (*xv[k])(xDof0)-xc[k];
+      const double d = (*xv[k])(xDof0) - xc[k];
       d2_0 -= d * d;
     }
     const int sign0 = (d2_0 > 0.) ? 1 : -1;
@@ -227,7 +269,7 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
       double d2 = r2;
 
       for (unsigned k = 0; k < dim; ++k) {
-        const double d = (*xv[k])(xDof)-xc[k];
+        const double d = (*xv[k])(xDof) - xc[k];
         d2 -= d * d;
       }
 
@@ -251,9 +293,10 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
         if (offset <= jel && jel < offsetp1) {
           if ((*amrFlag)(jel) < 0.5)
             amrFlag->set(jel, 1); // this is on spot since jel belongs to iproc
-        } else {
+        }
+        else {
           amrFlag->add(
-              jel, 1); // this is buffered since jel does not belong to iproc
+            jel, 1); // this is buffered since jel does not belong to iproc
         }
       }
     }
@@ -304,9 +347,10 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel) {
         if (offset <= jel && jel < offsetp1) {
           if ((*amrFlag)(jel) < 0.5)
             amrFlag->set(jel, 1); // this is on spot since jel belongs to iproc
-        } else {
+        }
+        else {
           amrFlag->add(
-              jel, 1); // this is buffered since jel does not belong to iproc
+            jel, 1); // this is buffered since jel does not belong to iproc
         }
       }
     }
@@ -454,7 +498,8 @@ void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name,
         if (solType == xType) {
           phi[nDof0] = (*solVec)(xDofc);
 
-        } else {
+        }
+        else {
           phi[nDof0] = 0.;
           for (unsigned j = 0; j < nDof0; ++j) {
             phi[nDof0] += phi[j];
@@ -530,7 +575,7 @@ static void WritePointsVTK(const std::string &filename,
   for (unsigned k = 1; k < dim; ++k) {
     if (Xp[k].size() != nPts) {
       throw std::runtime_error(
-          "writePointsVTK: inconsistent sizes across components");
+        "writePointsVTK: inconsistent sizes across components");
     }
   }
 
@@ -569,7 +614,7 @@ void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX) {
 
   std::vector<MyVector<double>> field0Copy = l0.GetFields();
   std::vector<MyVector<double>> &field0 =
-      l0.GetFields(); // assume we have a valid field in lX
+                               l0.GetFields(); // assume we have a valid field in lX
 
   const unsigned nFields = field0.size();
   if (nFields > 0) {
@@ -672,7 +717,7 @@ void GetAllSolutionPoints(MultiLevelSolution &mlSol, const std::string &name,
   }
 }
 
-void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1,
+void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
                      BBoxToIel &bbox, RungeKutta &rk) {
 
   const std::string name = "Psi";
@@ -786,7 +831,8 @@ void ProjectSolution(MultiLevelSolution &mlSol0, MultiLevelSolution &mlSol1,
   for (unsigned i = psiProjected.begin(); i < psiProjected.end(); ++i) {
     if (isInsideDomain[i - offset]) {
       solVec1->set(i, psiProjected[i]);
-    } else { // TODO add boundarycondition for psi
+    }
+    else {   // TODO add boundarycondition for psi
       solVec1->set(i, -1.);
     }
   }
