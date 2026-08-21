@@ -17,10 +17,15 @@ using namespace femus;
 #include "include/Reinit.hpp"
 #include "include/RungeKutta.hpp"
 
-void rkStep(MultiLevelSolution &mlSol0 /* marker receive */,
-            MultiLevelSolution &mlSol1 /* marker send */,
-            BBoxToIel &bbox,
-            const std::vector<MyVector<double>> &X1,
+void RungeKutta4(std::vector<MyVector<double>> &X,
+                 MultiLevelSolution & mlSol,
+                 BBoxToIel & bbox,
+                 const std::vector<std::string> &velName,
+                 const double dt);
+
+void rkStep(MultiLevelSolution & mlSol,
+            BBoxToIel & bbox,
+            const std::vector<MyVector<double>> &X,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
             const std::vector<std::string> &velName,
@@ -50,7 +55,10 @@ static void WritePointsVTK(const std::string &filename,
 void Shift(std::vector<MyVector<double>> &X, const std::vector<double> &dx);
 
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
-                     BBoxToIel &bbox, RungeKutta &rk, const std::vector<std::string> solName);
+                     BBoxToIel &bbox, RungeKutta &rk,
+                     const std::vector<std::string> solName,
+                     const std::vector<std::string> vName = {},
+                     const double dt = 0.);
 
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
@@ -181,12 +189,13 @@ int main(int argc, char **argv) {
   unsigned nSteps = 320;
   double dt = period / nSteps;
 
+
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
     double time = t * dt;
 
     mlsol0->CopySolutionToOldSolution();
-    InitSol(*mlsol0, vName, time, period);
+    InitSol(*mlsol0, vName, time, period);// TODO with Navier-Stokes solve
 
     bbox.SetMesh(mlmsh0->GetLevel(0));
 
@@ -211,27 +220,7 @@ int main(int argc, char **argv) {
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
-    const unsigned rk_nsteps = 4;
-    const std::vector <double> c = {0., 0.5, 0.5, 1.} ;
-    const std::vector<std::vector <double> > a = {{}, {0.5}, {0, 0.5}, {0., 0., 1.}};
-    const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
-    std::vector<std::vector<MyVector<double>>> K;
-    for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-      rkStep(*mlsol0 /* marker receive */,
-             *mlsol0 /* marker send */,
-             bbox, X0, K, rk,
-             vName,
-             dt,
-             c[rk],
-             a[rk]);
-    }
-    for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-      for(unsigned d = 0; d < dim; d++) {
-        for(unsigned i = X0[d].begin(); i < X0[d].end(); i++) {
-          X0[d][i] += dt * K[rk][d][i] * b[rk];
-        }
-      }
-    }
+    RungeKutta4(X0, *mlsol0, bbox, vName, dt);
     //rk.rkForward(X0);
 
     if (t % 10 == 0)
@@ -262,11 +251,12 @@ int main(int argc, char **argv) {
     for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
 
     mlsol1->Initialize("All");
-    InitSol(*mlsol1, vName, time, period);
+    //InitSol(*mlsol1, vName, time, period);
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"});
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, -dt);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName);
 
     // Export solution to VTK (selected levels)
 
@@ -843,7 +833,9 @@ void GetAllSolutionPoints(MultiLevelSolution &mlSol, const std::string &name,
 void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
                      MultiLevelSolution &mlSol1 /* marker send */,
                      BBoxToIel &bbox, RungeKutta &rk,
-                     const std::vector<std::string> solName) {
+                     const std::vector<std::string> solName,
+                     const std::vector<std::string> vName,
+                     const double dt) {
 
   assert(!solName.empty());
   const unsigned nFields = solName.size();
@@ -873,9 +865,11 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
   std::vector<MyVector<double>> X1;
   GetAllSolutionPoints(mlSol1, solName[0], X1);
 
-  // Advect the points backward in time
-  rk.rkBackward(X1);
+  unsigned dim = X1.size();
 
+  if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, vName, dt);
+
+  // rk.rkBackward(X1);
 
   LevelMarkers l0;
   InterpolateSolution(l0, mlSol0, bbox, X1, solName);
@@ -909,10 +903,34 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
 
 
 
-void rkStep(MultiLevelSolution & mlSol0 /* marker receive */,
-            MultiLevelSolution & mlSol1 /* marker send */,
+void RungeKutta4(std::vector<MyVector<double>> &X,
+                 MultiLevelSolution & mlSol,
+                 BBoxToIel & bbox,
+                 const std::vector<std::string> &velName,
+                 const double dt) {
+  const unsigned &dim = X.size();
+  const unsigned rk_nsteps = 4;
+  const std::vector <double> c_forward = {0., 0.5, 0.5, 1.};
+  const std::vector <double> c_backward = {1., 0.5, 0.5, 0.};
+  const std::vector <double> c = (dt > 0) ? c_forward : c_backward;
+  const std::vector<std::vector <double> > a = {{}, {0.5}, {0, 0.5}, {0., 0., 1.}};
+  const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
+  std::vector<std::vector<MyVector<double>>> K;
+  for(unsigned rk = 0; rk < rk_nsteps; rk++) {
+    rkStep(mlSol, bbox, X, K, rk, velName,  dt, c[rk], a[rk]);
+  }
+  for(unsigned rk = 0; rk < rk_nsteps; rk++) {
+    for(unsigned d = 0; d < dim; d++) {
+      for(unsigned i = X[d].begin(); i < X[d].end(); i++) {
+        X[d][i] += dt * K[rk][d][i] * b[rk];
+      }
+    }
+  }
+}
+
+void rkStep(MultiLevelSolution & mlSol,
             BBoxToIel & bbox,
-            const std::vector<MyVector<double>> &X1,
+            const std::vector<MyVector<double>> &X,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
             const std::vector<std::string> &velName,
@@ -924,41 +942,35 @@ void rkStep(MultiLevelSolution & mlSol0 /* marker receive */,
   assert(!velName.empty());
   const unsigned nFields = velName.size();
 
-  assert(X1.size() == nFields);
+  assert(X.size() == nFields);
 
   assert(K.size() == rkStep);
   for (unsigned j = 0; j < rkStep; ++j) {
     assert(K[j].size() == nFields);
     for (unsigned d = 0; d < nFields; ++d) {
-      assert(K[j][d].begin() == X1[d].begin());
-      assert(K[j][d].end()   == X1[d].end());
+      assert(K[j][d].begin() == X[d].begin());
+      assert(K[j][d].end()   == X[d].end());
     }
   }
 
 
-  const unsigned solType =
-    mlSol0.GetSolutionType(velName[0].c_str());
+  const unsigned velType =
+    mlSol.GetSolutionType(velName[0].c_str());
 
-  assert(solType <= 2);
+  assert(velType <= 2);
 
   for (unsigned k = 0; k < velName.size(); ++k) {
-
-    const unsigned solType0 =
-      mlSol0.GetSolutionType(velName[k].c_str());
-
-    const unsigned solType1 =
-      mlSol1.GetSolutionType(velName[k].c_str());
-
-    assert(solType0 == solType);
-    assert(solType1 == solType);
+    const unsigned velTypek =
+      mlSol.GetSolutionType(velName[k].c_str());
+    assert(velTypek == velType);
   }
 
-  MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
 
-  const unsigned nLevels = mlMsh0.GetNumberOfLevels();
+  const unsigned nLevels = mlMsh.GetNumberOfLevels();
 
   // Extract all Psi grid points on the finest level of mlSol1
-  std::vector<MyVector<double>> Xk = X1;
+  std::vector<MyVector<double>> Xk = X;
   for(unsigned d = 0; d < nFields; d++) {
     for (unsigned i = Xk[d].begin(); i < Xk[d].end(); ++i) {
       for(unsigned j = 0; j < a.size(); j++) {
@@ -967,14 +979,9 @@ void rkStep(MultiLevelSolution & mlSol0 /* marker receive */,
     }
   }
 
-
-  // Advect the points backward in time
-  //rk.rkBackward(X1);
-
-
   LevelMarkers l0;
 
-  InterpolateSolution(l0, mlSol0, bbox, Xk, velName, c);
+  InterpolateSolution(l0, mlSol, bbox, Xk, velName, c);
 
   K.resize(rkStep + 1);
   K[rkStep].resize(nFields);
