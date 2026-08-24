@@ -47,6 +47,10 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
 void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel);
 void Init(MultiLevelSolution &mlSol, const std::string &name,
           const PsiBall &psi2D);
+
+
+void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, std::vector<std::string> &gradSolName);
+
 void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name,
                          std::vector<MyVector<double>> &X,
                          MyVector<unsigned> &Xiel);
@@ -143,7 +147,13 @@ int main(int argc, char **argv) {
 
   // Define solution on the multilevel mesh
   MultiLevelSolution mlSol0(&mlMsh0);
-  mlSol0.AddSolution("Psi", LAGRANGE, SECOND);
+  std::string psiName = "Psi";
+  std::vector<std::string> dPsiName = {"Psi_x", "Psi_y", "Psi_z"};
+  dPsiName.resize(dim);
+
+  mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND);
+  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(dPsiName[d].c_str(), LAGRANGE, SECOND, 2);
+  mlSol0.AddSolution("Gamma", LAGRANGE, SECOND);
 
   std::vector<std::string> vName = {"U", "V", "W"};
   vName.resize(dim);
@@ -158,6 +168,8 @@ int main(int argc, char **argv) {
 
   PsiBall psi2D(xc, r, eps);
   Init(mlSol0, "Psi", psi2D);
+
+  GetSolutionGradient(mlSol0, psiName, dPsiName);
 
   // Export solution to VTK (selected levels)
   std::vector<std::string> variablesToBePrinted = {"All"};
@@ -893,7 +905,7 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
       if (isInsideDomain[i - offset]) {
         solVec1->set(i, psiProjected[i]);
       }
-      else {   // TODO add boundarycondition for psi
+      else { // TODO add boundarycondition for psi
         solVec1->set(i, -1.);
       }
     }
@@ -1096,8 +1108,114 @@ void InterpolateSolution(LevelMarkers & l0,
   l0.RebuildFieldFromLocal(Wfield_s, nFields, backward);
 }
 
+void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, std::vector<std::string> &gradSolName) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh &msh = *mlMsh.GetLevel(level);
+  Solution &sol = *mlSol.GetLevel(level);
+  const unsigned iproc = msh.processor_id();
+  const unsigned dim = msh.GetDimension();
+
+  unsigned solIndex = mlSol.GetIndex(solName.c_str());
+  unsigned gammaIndex = mlSol.GetIndex("Gamma");
+
+  std::vector<unsigned> gradSolIndex(dim);
+  for(unsigned d = 0; d < dim; d++) gradSolIndex[d] = mlSol.GetIndex(gradSolName[d].c_str());
+
+  unsigned solType = mlSol.GetSolutionType(solName.c_str());
+
+  const unsigned xType = 2u; // coordinate field type
+
+  auto &xv = msh._topology->_Sol;
+  std::vector<std::vector<double>> x(dim);
+  std::vector<double> isol;
+  std::vector<double> phi;
+  std::vector<double> phi_x;
+  double weight;
+  std::vector<unsigned> idof;
 
 
+  auto &gammaVec = sol._Sol[gammaIndex];
+  auto &solVec = sol._Sol[solIndex];
+
+  std::vector<NumericVector*> gradSolVec(dim);
 
 
+  gammaVec->zero();
+  for(unsigned d = 0; d < dim; d++)  {
+    gradSolVec[d] = sol._Sol[gradSolIndex[d]];
+    gradSolVec[d]->zero();
+  }
+
+
+  unsigned offset = msh._elementOffset[iproc];
+  unsigned offsetp1 = msh._elementOffset[iproc + 1];
+  // Loop over local elements and interpolate psi2D at solution DoFs
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    unsigned ielType = msh.GetElementType(iel);
+
+    const unsigned nDof = msh.GetElementDofNumber(iel, solType);
+
+    isol.resize(nDof);
+    idof.resize(nDof);
+    for(unsigned d = 0; d < dim; d++)  {
+      x[d].resize(nDof);
+    }
+
+    for (unsigned i = 0; i < nDof; ++i) {
+
+      const unsigned iDof = msh.GetSolutionDof(i, iel, solType);
+      idof[i] = iDof;
+      isol[i] = (*solVec)(iDof);
+      // Get physical coordinates of the current DoF
+      const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
+      for (unsigned d = 0; d < dim; ++d) {
+        x[d][i] = (*xv[d])(xDof);
+      }
+    }
+
+    for(unsigned ig = 0; ig < msh._finiteElement[ielType][solType]->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      msh._finiteElement[ielType][solType]->Jacobian(x, ig, weight, phi, phi_x);
+
+      std::vector<double> grad(dim,0.);
+
+      for(unsigned i = 0; i < nDof; i++) {
+        for(unsigned d = 0; d < dim; d++) {
+          grad[d] += isol[i] * phi_x[d + i * dim];
+        }
+      }
+
+      for(unsigned i = 0; i < nDof; i++) {
+        for(unsigned d = 0; d < dim; d++) {
+          (*gradSolVec[d]).add(idof[i], grad[d] * phi[i] * weight);
+        }
+        (*gammaVec).add(idof[i], phi[i] * weight);
+      }
+
+
+    }
+  }
+
+  gammaVec->close();
+  for(unsigned d = 0; d < dim; d++)  {
+    gradSolVec[d]->close();
+  }
+
+  offset = msh._dofOffset[solType][iproc];
+  offsetp1 = msh._dofOffset[solType][iproc + 1];
+
+  for(unsigned i=offset;i<offsetp1;i++){
+    for(unsigned d = 0; d < dim; d++) {
+      double value = (*gradSolVec[d])(i);
+       (*gradSolVec[d]).set(i, value / (*gammaVec)(i) );
+    }
+  }
+  for(unsigned d = 0; d < dim; d++)  {
+    gradSolVec[d]->close();
+  }
+
+}
 
