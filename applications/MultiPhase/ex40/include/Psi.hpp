@@ -15,14 +15,11 @@ struct PsiBall {
   Mollifier           _m;
 
 
-  PsiBall(const std::vector<double>& center, double radius, double eps)
-    : _c(center), _r(radius),
-    _eps(eps)
+  PsiBall(const std::vector<double>& center, const double radius, const Mollifier &m)
+    : _c(center), _r(radius), _m(m)
   {
-    _m = Mollifier(_eps);
     if (_c.empty())   throw std::runtime_error("PsiBall: center is empty");
     if (!(_r > 0.0))  throw std::runtime_error("PsiBall: r must be > 0");
-    if (!(_eps > 0.0)) throw std::runtime_error("PsiBall: eps must be > 0");
   }
 
   double operator()(const std::vector<double>& x) const {
@@ -37,6 +34,6 @@ struct PsiBall {
     }
 
     const double d = _r - std::sqrt(s2);
-    return _m.SigmoidC1(d);
+    return _m.Sigmoid(d);
   }
 };

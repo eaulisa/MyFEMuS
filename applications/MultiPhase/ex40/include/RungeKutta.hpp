@@ -23,7 +23,8 @@ public:
   enum class VelKind : unsigned {
     RisingBubble = 0,
     Rotation     = 1,
-    Vortex       = 2
+    Vortex       = 2,
+    Translation
   };
 
 private:

@@ -24,8 +24,8 @@ using namespace femus;
 
 class Reinit {
 public:
-  Reinit(std::string name, MultiLevelSolution &mlSol, double eps)
-      : _name(name), _mlSol(mlSol), _m(eps) {
+  Reinit(std::string name, MultiLevelSolution &mlSol, const Mollifier &m)
+      : _name(name), _mlSol(mlSol), _m(m) {
     _el_proj[0].reset(new Hex27Projection());
     _el_proj[1].reset(new Tet15Projection());
     _el_proj[2].reset(new Wedge21Projection());

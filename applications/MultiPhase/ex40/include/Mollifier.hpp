@@ -5,12 +5,13 @@
 class Mollifier {
 public:
   Mollifier() = default;
-  explicit Mollifier(double eps) {
+  explicit Mollifier(double eps, unsigned SigmoidType) {
     // Initialize all families to the same epsilon so they're ready to use
     SetConstantsC1(eps);
     SetConstantsC2(eps);
     SetConstantsC3(eps);
     SetConstantsC4(eps);
+    _sigmoidType = SigmoidType;
   }
 
   // ---------------- C^4 (nonic) : zero value + first 4 derivatives at ±eps
@@ -130,6 +131,27 @@ public:
 
   // ---------------- Symmetric sigmoids in [-1,1] from the step variants
   // ----------------
+
+  inline double Sigmoid(double dg1) const noexcept {
+    switch (_sigmoidType){
+      case 0:
+        return SigmoidC0(dg1);
+        break;
+      case 1:
+        return SigmoidC1(dg1);
+        break;
+      case 2:
+        return SigmoidC2(dg1);
+        break;
+      case 3:
+        return SigmoidC3(dg1);
+        break;
+      case 4:
+        return SigmoidC4(dg1);
+        break;
+    }
+  }
+
   inline double SigmoidC4(double dg1) const noexcept {
     if (dg1 < -_eps)
       return -1.0;
@@ -158,6 +180,9 @@ public:
       return 1.0;
     return -1. + 2. * GetSmoothStepFunctionC1(dg1);
   }
+  inline double SigmoidC0(double dg1) const noexcept {
+    return dg1;
+  }
 
   inline double eps() const noexcept { return _eps; }
 
@@ -178,4 +203,6 @@ private:
 
   // C^3 coefficients
   double _d0{0.5}, _d1{0.0}, _d3{0.0}, _d5{0.0}, _d7{0.0};
+
+  unsigned _sigmoidType{1};
 };

@@ -62,7 +62,9 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
                      const std::vector<std::string> vName = {},
-                     const double dt = 0.);
+                     const Mollifier m = Mollifier(0,0),
+                     const double dt = 0.,
+                     const double time = 0.);
 
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
@@ -79,20 +81,48 @@ double InitW (const std::vector < double >& x) {
   return 0.;
 }
 
+const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
+//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
+//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
+
+
 inline std::vector<double>
 VortexVel2D(std::vector<double> &xp, const double time, double period) noexcept {
-  const double T = period;
-  const double x = xp[0] + 0.5;
-  const double y = xp[1] + 0.5;
+  double u = 0.0, v = 0.0;
 
-  const double sx = std::sin(M_PI * x);
-  const double cx = std::cos(M_PI * x);
-  const double sy = std::sin(M_PI * y);
-  const double cy = std::cos(M_PI * y);
-  const double cosT = std::cos(M_PI * time / T);
+  switch(velocityType) {
+    case RungeKutta::VelKind::Vortex: {
+      const double T = period;
+      const double x = xp[0] + 0.5;
+      const double y = xp[1] + 0.5;
 
-  const double u = -2.0 * (sx * sx) * (sy * cy) * cosT;
-  const double v =  2.0 * (sx * cx) * (sy * sy) * cosT;
+      const double sx = std::sin(M_PI * x);
+      const double cx = std::cos(M_PI * x);
+      const double sy = std::sin(M_PI * y);
+      const double cy = std::cos(M_PI * y);
+      const double cosT = std::cos(M_PI * time / T);
+
+      u = -2.0 * sx * sx * sy * cy * cosT;
+      v =  2.0 * sx * cx * sy * sy * cosT;
+
+      break;
+    }
+    case RungeKutta::VelKind::Rotation: {
+
+      u = xp[1];
+      v = -xp[0];
+
+      break;
+    }
+    case RungeKutta::VelKind::Translation: {
+
+      u = 0;
+      v = -0.3 * 4 * (0.5 - xp[0]) * (0.5 + xp[0]);
+
+      break;
+    }
+
+  }
 
   return {u, v};
 }
@@ -132,8 +162,8 @@ int main(int argc, char **argv) {
 
   // Parameters for selective AMR (ball centered at xc with radius r)
   const double r = 0.125;
-  std::vector<double> xc = {0.0, 0.25};
-  double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
+  std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.75 : 0.25};
+
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
@@ -148,11 +178,11 @@ int main(int argc, char **argv) {
   // Define solution on the multilevel mesh
   MultiLevelSolution mlSol0(&mlMsh0);
   std::string psiName = "Psi";
-  std::vector<std::string> dPsiName = {"Psi_x", "Psi_y", "Psi_z"};
-  dPsiName.resize(dim);
+  //std::vector<std::string> dPsiName = {"Psi_x", "Psi_y", "Psi_z"};
+  //dPsiName.resize(dim);
 
   mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND);
-  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(dPsiName[d].c_str(), LAGRANGE, SECOND, 2);
+  //for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(dPsiName[d].c_str(), LAGRANGE, SECOND, 2);
   mlSol0.AddSolution("Gamma", LAGRANGE, SECOND);
 
   std::vector<std::string> vName = {"U", "V", "W"};
@@ -166,10 +196,14 @@ int main(int argc, char **argv) {
 
   //for(unsigned d = 0; d < dim; d++) mlSol0.Initialize(vName[d].c_str(), Initvel[d]);
 
-  PsiBall psi2D(xc, r, eps);
+  unsigned sigmoidType = 1;
+  double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
+  Mollifier m = Mollifier(eps, sigmoidType);
+
+  PsiBall psi2D(xc, r, m);
   Init(mlSol0, "Psi", psi2D);
 
-  GetSolutionGradient(mlSol0, psiName, dPsiName);
+  //GetSolutionGradient(mlSol0, psiName, dPsiName);
 
   // Export solution to VTK (selected levels)
   std::vector<std::string> variablesToBePrinted = {"All"};
@@ -193,7 +227,7 @@ int main(int argc, char **argv) {
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
-  RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
+  //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 
   double period =
@@ -218,16 +252,16 @@ int main(int argc, char **argv) {
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
     std::vector<MyVector<double>> X0;
     MyVector<unsigned> X0Iel;
-    // GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
-    markers.GetCutElementPoints(*mlsol0, X0, X0Iel);
-
-    if (t % 10 == 0) {
-      Reinit reinit("Psi", *mlsol0, eps);
-
-      reinit.farFieldReinit(X0);
-      reinit.interfaceFieldReinit(bbox);
-      reinit.updateSolution();
-    }
+    GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
+    // markers.GetCutElementPoints(*mlsol0, X0, X0Iel);
+    //
+    // if (t % 10 == 0) {
+    //   Reinit reinit("Psi", *mlsol0, eps);
+    //
+    //   reinit.farFieldReinit(X0);
+    //   reinit.interfaceFieldReinit(bbox);
+    //   reinit.updateSolution();
+    // }
 
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
@@ -267,7 +301,7 @@ int main(int argc, char **argv) {
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, -dt);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, m, -dt, time);
     ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName);
 
     // Export solution to VTK (selected levels)
@@ -847,7 +881,9 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
                      const std::vector<std::string> vName,
-                     const double dt) {
+                     const Mollifier m,
+                     const double dt,
+                     const double time) {
 
   assert(!solName.empty());
   const unsigned nFields = solName.size();
@@ -906,7 +942,14 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
         solVec1->set(i, psiProjected[i]);
       }
       else { // TODO add boundarycondition for psi
-        solVec1->set(i, -1.);
+        std::vector<double> xc_input = {0, 0.75 - 0.3 * (time - dt) };
+        double dist_to_input = 0.;
+        for(unsigned d = 0; d < dim; d++) dist_to_input += (X1[d][i] - xc_input[d]) * (X1[d][i] - xc_input[d]);
+        dist_to_input = m.Sigmoid(0.125 - sqrt(dist_to_input));
+
+
+
+        solVec1->set(i, dist_to_input);
       }
     }
     solVec1->close();
@@ -1180,11 +1223,11 @@ void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, 
       // *** get gauss point weight, test function and test function partial derivatives ***
       msh._finiteElement[ielType][solType]->Jacobian(x, ig, weight, phi, phi_x);
 
-      std::vector<double> grad(dim,0.);
+      std::vector<double> grad(dim, 0.);
 
       for(unsigned i = 0; i < nDof; i++) {
         for(unsigned d = 0; d < dim; d++) {
-          grad[d] += isol[i] * phi_x[d + i * dim];
+          grad[d] += isol[i] * phi_x[d + i * dim] * weight;
         }
       }
 
@@ -1207,10 +1250,10 @@ void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, 
   offset = msh._dofOffset[solType][iproc];
   offsetp1 = msh._dofOffset[solType][iproc + 1];
 
-  for(unsigned i=offset;i<offsetp1;i++){
+  for(unsigned i = offset; i < offsetp1; i++) {
     for(unsigned d = 0; d < dim; d++) {
       double value = (*gradSolVec[d])(i);
-       (*gradSolVec[d]).set(i, value / (*gammaVec)(i) );
+      (*gradSolVec[d]).set(i, value / (*gammaVec)(i) );
     }
   }
   for(unsigned d = 0; d < dim; d++)  {
