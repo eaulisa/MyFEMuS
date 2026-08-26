@@ -46,7 +46,7 @@ class Boundary {
     Boundary() = default;
     virtual ~Boundary() = default;
 
-    virtual double getValue(std::vector<double>& x, const double time, const double period) const {
+    virtual double getValue(std::vector<double>& x, const double time, const double period, const double dt) const {
       return -1.;
     };
 };
@@ -65,30 +65,120 @@ class Inflow : public Boundary {
         _m(m) {
     }
 
-    double getValue(std::vector<double>& x, const double time, const double period) const override {
+  double getValue(std::vector<double>& x,
+                  const double time,
+                  const double period,
+                  const double dt) const override {
 
-      auto vel = _velocity(x, time, period);
+    double min_distance = 1.e10;
+    double value = -1.;
 
-      double min_distance = 1.e10;
-      double value = -1.;
+    for (unsigned s = 0; s < _shape.size(); ++s) {
 
-      for (unsigned s = 0; s < _shape.size(); s++) {
-        for (unsigned t  = 0 ; t <= floor(time / _timeOffset[s]); t++) {
-          std::vector<double> x0 (x.size(), 0.);
-          for (int d = 0; d < x.size(); d++)
-            x0[d] = x[d] - vel[d] * (time - t * _timeOffset[s]);
+      const unsigned nEmissions =
+        static_cast<unsigned>(std::floor(time / _timeOffset[s]));
 
-          double distance = _shape[s]->GetDistance(x0);
+      for (unsigned t = 0; t <= nEmissions; ++t) {
 
-          if (fabs(distance) < fabs(min_distance)) {
-            min_distance = distance;
-            value = _m.Sigmoid(distance);
-          }
+        // Time at which this copy of the shape entered the domain
+        const double injectionTime = static_cast<double>(t) * _timeOffset[s];
+
+        // Backward integration interval: current time -> injection time
+        const double integrationTime = time - injectionTime;
+
+        // Always start from the ORIGINAL spatial point
+        std::vector<double> xBack = x;
+
+        const unsigned nSteps = std::max(1u, static_cast<unsigned>(std::ceil(std::abs(integrationTime) / std::abs(dt))));
+
+        rk4(xBack, time, -integrationTime, period, nSteps);
+
+        const double distance =
+          _shape[s]->GetDistance(xBack);
+
+        if (std::abs(distance) < std::abs(min_distance)) {
+          min_distance = distance;
+          value = _m.Sigmoid(distance);
         }
       }
-      // upgrade backward integratio
-      return value;
     }
+
+    return value;
+  }
+
+inline void rk4(std::vector<double>& Xp,
+                const double t0,
+                const double dt,
+                const double period,
+                const unsigned nSteps) const {
+
+  const std::size_t dim = Xp.size();
+
+  if (dim != 2u && dim != 3u) {
+    throw std::runtime_error("RungeKutta::rk4: Xp.size() must be 2 or 3");
+  }
+
+  if (!_velocity) {
+    throw std::runtime_error("RungeKutta::rk4: velocity function is not set");
+  }
+
+  if (nSteps == 0u) {
+    throw std::runtime_error("RungeKutta::rk4: nSteps must be greater than zero");
+  }
+
+  const double h      = dt / static_cast<double>(nSteps);
+  const double halfh  = 0.5 * h;
+  const double sixthh = h / 6.0;
+
+  double t = t0;
+
+  std::vector<double> X2(dim);
+  std::vector<double> X3(dim);
+  std::vector<double> X4(dim);
+
+  for (unsigned step = 0; step < nSteps; ++step) {
+
+    auto vel1 = _velocity(Xp, t, period);
+
+    for (std::size_t d = 0; d < dim; ++d) {
+      X2[d] = Xp[d] + halfh * vel1[d];
+    }
+
+    auto vel2 = _velocity(X2, t + halfh, period);
+
+    for (std::size_t d = 0; d < dim; ++d) {
+      X3[d] = Xp[d] + halfh * vel2[d];
+    }
+
+    auto vel3 = _velocity(X3, t + halfh, period);
+
+    for (std::size_t d = 0; d < dim; ++d) {
+      X4[d] = Xp[d] + h * vel3[d];
+    }
+
+    auto vel4 = _velocity(X4, t + h, period);
+
+    if (vel1.size() != dim ||
+        vel2.size() != dim ||
+        vel3.size() != dim ||
+        vel4.size() != dim) {
+      throw std::runtime_error(
+        "RungeKutta::rk4: velocity dimension does not match Xp dimension"
+      );
+    }
+
+    for (std::size_t d = 0; d < dim; ++d) {
+      Xp[d] += sixthh *
+               (vel1[d]
+              + 2.0 * vel2[d]
+              + 2.0 * vel3[d]
+              + vel4[d]);
+    }
+
+    t += h;
+  }
+}
+
 
   private:
     VelocityFunction _velocity;

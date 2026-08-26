@@ -1004,7 +1004,7 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
         : (dim == 2) ? std::vector<double>({X1[0][i], X1[1][i]}) 
         : std::vector<double>({X1[0][i], X1[1][i], X1[2][i]});
 
-        double value = bd.getValue(x1, time - dt, period);
+        double value = bd.getValue(x1, time - dt, period, dt);
         solVec1->set(i, value);
 
       }
