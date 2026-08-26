@@ -51,6 +51,8 @@ void Init(MultiLevelSolution &mlSol, const std::string &name,
 
 void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, std::vector<std::string> &gradSolName);
 
+double computeArea(MultiLevelSolution &mlSol, const std::string &solName);
+
 void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name,
                          std::vector<MyVector<double>> &X,
                          MyVector<unsigned> &Xiel);
@@ -64,7 +66,8 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      const std::vector<std::string> vName = {},
                      const Mollifier m = Mollifier(0,0),
                      const double dt = 0.,
-                     const double time = 0.);
+                     const double time = 0.,
+                     const double period = 0.);
 
 void TestProjections(LevelMarkers &l0, std::vector<LevelMarkers> &lX);
 
@@ -118,6 +121,7 @@ VortexVel2D(std::vector<double> &xp, const double time, double period) noexcept 
 
       u = 0;
       v = -0.3 * 4 * (0.5 - xp[0]) * (0.5 + xp[0]);
+      // v = -0.3;
 
       break;
     }
@@ -146,6 +150,9 @@ int main(int argc, char **argv) {
   if (nprocs == 1)
     ProfilerStart("profiling.prof");
 
+  int iproc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
+
   MultiLevelMesh mlMsh0;
 
   const double scalingFactor = 1.0;
@@ -161,15 +168,14 @@ int main(int argc, char **argv) {
   unsigned dim = mlMsh0.GetDimension();
 
   // Parameters for selective AMR (ball centered at xc with radius r)
-  const double r = 0.125;
-  std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.75 : 0.25};
+  const double r = 0.25;
+  std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.751 : 0.25};
 
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
     FlagFinestMeshLevel(mlMsh0, r, xc);
-    mlMsh0.AddAMRMeshLevel(
-      false); // false -> it does not re-evaluate the AMR flag vector
+    mlMsh0.AddAMRMeshLevel(false); 
   }
 
   mlMsh0.PrintInfo();
@@ -234,6 +240,22 @@ int main(int argc, char **argv) {
     (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
+
+  if (iproc == 0) {
+
+    std::ofstream out("area.dat", std::ios::app);
+
+    if (!out) {
+      throw std::runtime_error(
+          "computeArea: cannot open output file area.dat");
+    }
+
+    out << "#" << std::setw(20) << "Time"
+        << std::setw(25) << "Area"
+        << "\n";
+
+    out.close();
+  }
 
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
@@ -301,7 +323,7 @@ int main(int argc, char **argv) {
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, m, -dt, time);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, m, -dt, time, period);
     ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName);
 
     // Export solution to VTK (selected levels)
@@ -315,6 +337,25 @@ int main(int argc, char **argv) {
     if (t % 10 == 0)
       vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
                    t / 10);
+
+    double area = computeArea(*mlsol0, psiName);
+
+    if (iproc == 0) {
+
+      std::ofstream out("area.dat", std::ios::app);
+
+      if (!out) {
+        throw std::runtime_error(
+            "computeArea: cannot open output file area.dat");
+      }
+
+      out << std::setprecision(16)
+          <<std::setw(20) << time
+          << std::setw(25) << area
+          << "\n";
+
+      out.close();
+    }
   }
 
   if (nprocs == 1)
@@ -883,7 +924,8 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
                      const std::vector<std::string> vName,
                      const Mollifier m,
                      const double dt,
-                     const double time) {
+                     const double time,
+                     const double period) {
 
   assert(!solName.empty());
   const unsigned nFields = solName.size();
@@ -942,12 +984,20 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
         solVec1->set(i, psiProjected[i]);
       }
       else { // TODO add boundarycondition for psi
-        std::vector<double> xc_input = {0, 0.75 - 0.3 * (time - dt) };
+        std::vector<double> x1 = (dim == 1) ? std::vector<double>({X1[0][i]}) 
+        : (dim == 2) ? std::vector<double>({X1[0][i], X1[1][i]}) 
+        : std::vector<double>({X1[0][i], X1[1][i], X1[2][i]});
+
+        auto vel = VortexVel2D(x1, time, period);
+
+        std::vector<double> x0 (dim, 0.);
+        for (int d = 0; d < dim; d++)
+          x0[d] = x1[d] - vel[d] * (time - dt);
+
+        std::vector<double> xc_0 = {0, 0.75};
         double dist_to_input = 0.;
-        for(unsigned d = 0; d < dim; d++) dist_to_input += (X1[d][i] - xc_input[d]) * (X1[d][i] - xc_input[d]);
-        dist_to_input = m.Sigmoid(0.125 - sqrt(dist_to_input));
-
-
+        for(unsigned d = 0; d < dim; d++) dist_to_input += (x0[d] - xc_0[d]) * (x0[d] - xc_0[d]);
+        dist_to_input = m.Sigmoid(0.25 - sqrt(dist_to_input));
 
         solVec1->set(i, dist_to_input);
       }
@@ -1260,5 +1310,117 @@ void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, 
     gradSolVec[d]->close();
   }
 
+}
+
+double computeArea(MultiLevelSolution &mlSol,
+                 const std::string &solName) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+
+  Mesh &msh = *mlMsh.GetLevel(level);
+  Solution &sol = *mlSol.GetLevel(level);
+
+  const unsigned iproc = msh.processor_id();
+  const unsigned dim   = msh.GetDimension();
+
+  const unsigned solIndex = mlSol.GetIndex(solName.c_str());
+
+  const unsigned solType = mlSol.GetSolutionType(solName.c_str());
+
+  const unsigned xType = 2u; // coordinate field type
+
+  auto &xv = msh._topology->_Sol;
+  auto &solVec = sol._Sol[solIndex];
+
+  std::vector<std::vector<double>> x(dim);
+  std::vector<double> isol;
+
+  std::vector<double> phi;
+  std::vector<double> phi_x;
+
+  double weight = 0.0;
+
+  auto Hpos = [](const double psi) -> double {
+    return (psi > 0.0) ? 1.0 : 0.0;
+  };
+
+  double localArea = 0.0;
+
+  const unsigned offset = msh._elementOffset[iproc];
+
+  const unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    const unsigned ielType = msh.GetElementType(iel);
+
+    const unsigned nDof = msh.GetElementDofNumber(iel, solType);
+
+    isol.resize(nDof);
+
+    for (unsigned d = 0; d < dim; ++d) {
+      x[d].resize(nDof);
+    }
+
+    for (unsigned i = 0; i < nDof; ++i) {
+
+      const unsigned iDof = msh.GetSolutionDof(i, iel, solType);
+
+      isol[i] = (*solVec)(iDof);
+
+      const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
+
+      for (unsigned d = 0; d < dim; ++d) {
+        x[d][i] = (*xv[d])(xDof);
+      }
+    }
+
+    double A = 0.0;
+    double Ap = 0.0;
+
+    const unsigned nGauss = msh._finiteElement[ielType][solType]->GetGaussPointNumber();
+
+    for (unsigned ig = 0; ig < nGauss; ++ig) {
+
+      phi.clear();
+      phi_x.clear();
+
+      msh._finiteElement[ielType][solType]->Jacobian(x, ig, weight, phi, phi_x);
+
+      A += weight;
+
+      double psi_q = 0.0;
+
+      for (unsigned i = 0; i < nDof; ++i) {
+        psi_q += isol[i] * phi[i];
+      }
+
+      Ap += weight * Hpos(psi_q);
+    }
+
+    if (A > 0.0) {
+      localArea += Ap;
+    }
+  }
+
+  double area = 0.0;
+
+  MPI_Allreduce(&localArea,
+                &area,
+                1,
+                MPI_DOUBLE,
+                MPI_SUM,
+                MPI_COMM_WORLD);
+
+  if (iproc == 0) {
+    std::cout<<"======================================="<<std::endl;
+    std::cout
+        << "Internal area(" << solName << ") = " << area
+        << std::endl;
+    std::cout<<"======================================="<<std::endl;
+  }
+
+  return area;
 }
 
