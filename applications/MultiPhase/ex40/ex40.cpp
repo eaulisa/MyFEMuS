@@ -7,7 +7,8 @@
 #include <gperftools/profiler.h>
 
 using namespace femus;
-
+#include "include/Shape.hpp"
+#include "include/Boundary.hpp"
 #include "include/BBoxToIel.hpp"
 #include "include/ElementTopology.hpp"
 #include "include/GradientApproximation.hpp"
@@ -64,7 +65,7 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
                      const std::vector<std::string> vName = {},
-                     const Mollifier m = Mollifier(0,0),
+                     const Boundary& bd_inflow = Boundary(),
                      const double dt = 0.,
                      const double time = 0.,
                      const double period = 0.);
@@ -90,7 +91,7 @@ const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
 
 
 inline std::vector<double>
-VortexVel2D(std::vector<double> &xp, const double time, double period) noexcept {
+Velocity(std::vector<double> &xp, const double time, double period) noexcept {
   double u = 0.0, v = 0.0;
 
   switch(velocityType) {
@@ -168,9 +169,8 @@ int main(int argc, char **argv) {
   unsigned dim = mlMsh0.GetDimension();
 
   // Parameters for selective AMR (ball centered at xc with radius r)
-  const double r = 0.25;
+  const double r = 0.125;
   std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.751 : 0.25};
-
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
@@ -205,6 +205,22 @@ int main(int argc, char **argv) {
   unsigned sigmoidType = 1;
   double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
   Mollifier m = Mollifier(eps, sigmoidType);
+
+  std::vector<double> xc_1 = xc;
+  std::vector<double> xc_2 = (dim == 2) ? std::vector<double>({xc[0]-0.35, xc[1] + 0.5}) : std::vector<double>({xc_1[0], xc_1[1], xc_1[2] + 0.5});
+  std::vector<double> xc_3 = (dim == 2) ? std::vector<double>({xc[0]+0.35, xc[1] + 0.25}) : std::vector<double>({xc_2[0], xc_2[1], xc_2[2] + 0.5});
+  double r_0 = r;
+  Circle c1(xc_1,r_0);
+  Circle c2(xc_2, r_0);
+  Circle c3(xc_3, r_0);
+  // Shape* shape = &c1;
+
+  std::vector<Shape*> shape = {&c1, &c2, &c3};
+  std::vector<double> timeOffset = {0.5/0.3, 5./0.3, 5./0.3};
+
+  Inflow inflow(InflowVelocity, shape, timeOffset, m);
+
+  Boundary* inflow_bd = &inflow;
 
   PsiBall psi2D(xc, r, m);
   Init(mlSol0, "Psi", psi2D);
@@ -323,7 +339,7 @@ int main(int argc, char **argv) {
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, m, -dt, time, period);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, vName, *inflow_bd, -dt, time, period);
     ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName);
 
     // Export solution to VTK (selected levels)
@@ -608,7 +624,7 @@ void InitSol(MultiLevelSolution &mlSol, const std::vector<std::string> &solName,
       // Evaluate and assign field value
       const unsigned solDof = msh.GetSolutionDof(i, iel, solType);
 
-      auto vel = VortexVel2D(x, time, period);
+      auto vel = Velocity(x, time, period);
       for(unsigned d = 0; d < dim; d++) solVec[d]->set(solDof, vel[d]);
     }
   }
@@ -922,7 +938,7 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
                      const std::vector<std::string> vName,
-                     const Mollifier m,
+                     const Boundary& bd,
                      const double dt,
                      const double time,
                      const double period) {
@@ -988,18 +1004,9 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
         : (dim == 2) ? std::vector<double>({X1[0][i], X1[1][i]}) 
         : std::vector<double>({X1[0][i], X1[1][i], X1[2][i]});
 
-        auto vel = VortexVel2D(x1, time, period);
+        double value = bd.getValue(x1, time - dt, period);
+        solVec1->set(i, value);
 
-        std::vector<double> x0 (dim, 0.);
-        for (int d = 0; d < dim; d++)
-          x0[d] = x1[d] - vel[d] * (time - dt);
-
-        std::vector<double> xc_0 = {0, 0.75};
-        double dist_to_input = 0.;
-        for(unsigned d = 0; d < dim; d++) dist_to_input += (x0[d] - xc_0[d]) * (x0[d] - xc_0[d]);
-        dist_to_input = m.Sigmoid(0.25 - sqrt(dist_to_input));
-
-        solVec1->set(i, dist_to_input);
       }
     }
     solVec1->close();
