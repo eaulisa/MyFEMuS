@@ -24,7 +24,6 @@ const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
 
 #include "../includeLS/Utils.hpp"
 
-
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -211,8 +210,6 @@ int main(int argc, char **argv) {
       bbox.Project(*mlmsh1, lX[k - 1], lX[k]);
     }
 
-    // TestProjections(l0, lX);
-
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution("Psi", LAGRANGE, SECOND);
 
@@ -262,3 +259,4 @@ int main(int argc, char **argv) {
     ProfilerStop();
   return 0;
 }
+
