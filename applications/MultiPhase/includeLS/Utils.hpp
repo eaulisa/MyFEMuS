@@ -69,14 +69,19 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
 
       break;
     }
+    case RungeKutta::VelKind::Zero: {
+
+      u = 0;
+      v = 0;
+
+
+      break;
+    }
 
   }
 
   return {u, v};
 }
-
-void InitSol(MultiLevelSolution &mlSol, const std::vector<std::string> &solName, const double time, const double period);
-
 
 
 
@@ -276,6 +281,49 @@ void InitLevelSet(MultiLevelSolution &mlSol, const std::string &name,
   }
 
   solVec->close();
+}
+
+
+void UpdateColorFunction(MultiLevelSolution &mlSol, const std::string &psiName, const std::string &cName) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh &msh = *mlMsh.GetLevel(level);
+  Solution &sol = *mlSol.GetLevel(level);
+  const unsigned iproc = msh.processor_id();
+  const unsigned dim = msh.GetDimension();
+
+  unsigned psiIndex = mlSol.GetIndex(psiName.c_str());
+  unsigned psiType = mlSol.GetSolutionType(psiName.c_str());
+
+  unsigned cIndex = mlSol.GetIndex(cName.c_str());
+
+  const unsigned offset = msh._elementOffset[iproc];
+  const unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  auto &psiVec = sol._Sol[psiIndex];
+  auto &cVec = sol._Sol[cIndex];
+
+  cVec->zero();
+
+  // Loop over local elements and interpolate psi2D at solution DoFs
+  for (unsigned iel = offset; iel < offsetp1; ++iel) {
+    const unsigned nDof = msh.GetElementDofNumber(iel, psiType);
+    double value0 = (*psiVec)(msh.GetSolutionDof(0, iel, psiType));
+    bool signChanged = false;
+    for (unsigned i = 1; i < nDof; ++i) {
+      double value = (*psiVec)(msh.GetSolutionDof(i, iel, psiType));
+      if(value0 * value <= 0.) {
+        cVec->set(iel, 0.5);
+        signChanged = true;
+        break;
+      }
+    }
+    if(!signChanged && value0 > 0.) {
+      cVec->set(iel, 1.);
+    }
+  }
+  cVec->close();
 }
 
 

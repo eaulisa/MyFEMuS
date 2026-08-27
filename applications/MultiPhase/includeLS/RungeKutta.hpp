@@ -21,9 +21,10 @@
 class RungeKutta {
 public:
   enum class VelKind : unsigned {
-    RisingBubble = 0,
-    Rotation     = 1,
-    Vortex       = 2,
+    Zero         = 0,
+    RisingBubble = 1,
+    Rotation     = 2,
+    Vortex       = 3,
     Translation
   };
 
