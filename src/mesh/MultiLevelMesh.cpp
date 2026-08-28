@@ -35,14 +35,42 @@ namespace femus {
   using std::cout;
   using std::endl;
 
-    MultiLevelMesh::~MultiLevelMesh() {
-      this->clear();
+  MultiLevelMesh::~MultiLevelMesh() {
+    this->clear();
+  }
+
+  MultiLevelMesh::MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned int level, const char GaussOrder[]) {
+
+    _level0IsOwned = false;
+    _level0.resize(1);
+    _level0[0] = mlmsh0.GetLevel(level);
+    _level.resize(1);
+    _level[0] = _level0[0];
+
+    _gridn = 1;
+    _gridn0 = 1;
+
+    _finiteElementGeometryFlag.resize(6, true);
+
+    for(int i = 0; i < 6; i++) {
+      for(int j = 0; j < 5; j++) {
+        _finiteElement[i][j] = NULL;
+      }
     }
+    _writer = NULL;
+
+    BuildElemType(GaussOrder);
+
+    //_domain = mlmsh0.GetDomain();
+  }
+
 
   void MultiLevelMesh::clear() {
 
-    for (unsigned i = 0; i < _level0.size(); i++) {
-      delete _level0[i];
+    if(_level0IsOwned) {
+      for (unsigned i = 0; i < _level0.size(); i++) {
+        delete _level0[i];
+      }
     }
     _level0.clear();
     _level.clear();
@@ -71,7 +99,7 @@ namespace femus {
 
   void MultiLevelMesh::resize(const unsigned Nlevels) {
 
-    if(Nlevels == 0){
+    if(Nlevels == 0) {
       clear();
     }
 
@@ -150,7 +178,7 @@ namespace femus {
     _finiteElement[5][2] = new const elem_type_1D("line", "biquadratic", GaussOrder);
     _finiteElement[5][3] = new const elem_type_1D("line", "constant", GaussOrder);
     _finiteElement[5][4] = new const elem_type_1D("line", "disc_linear", GaussOrder);
-    _level0[0]->SetFiniteElementPtr(_finiteElement);
+    if(_level0IsOwned) _level0[0]->SetFiniteElementPtr(_finiteElement);
   }
 
 

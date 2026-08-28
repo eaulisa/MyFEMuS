@@ -44,6 +44,8 @@ public:
     /** Constructor */
     MultiLevelMesh();
 
+    MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level, const char GaussOrder[]);
+
     MultiLevelMesh(const unsigned short &igridn,const unsigned short &igridr,
                    const char mesh_file[], const char GaussOrder[], const double Lref,
                    bool (* SetRefinementFlag)(const std::vector < double > &x,
@@ -134,6 +136,7 @@ private:
     unsigned short _gridn;
 
     /** Array of mesh */
+    bool _level0IsOwned = true;
     std::vector <Mesh*> _level0;
     std::vector <Mesh*> _level;
 

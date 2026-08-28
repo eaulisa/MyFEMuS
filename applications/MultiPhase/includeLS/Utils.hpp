@@ -336,7 +336,7 @@ void InitSol(MultiLevelSolution &mlSol, const std::vector<std::string> &solName,
   const unsigned iproc = msh.processor_id();
   const unsigned dim = msh.GetDimension();
 
-  assert(dim == velName.size());
+  assert(dim == solName.size());
 
 
   std::vector<unsigned> solIndex(dim);

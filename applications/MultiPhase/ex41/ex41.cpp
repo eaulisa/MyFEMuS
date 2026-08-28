@@ -37,7 +37,7 @@ const double mu2 = 10.;
 const double rho1 = 1.;
 const double rho2 = 1000;
 const double sigma = 1.96;
-const double gravity = -0.98;
+const double gravity = 0.;//-0.98;
 
 // //Parasitic Test
 // const double mu1 = 0.1; // TODO Sandro put mu_1 = mu_2 = 0.005
@@ -83,7 +83,7 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   bool dirichlet = true; //dirichlet
 
   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-    // if(facename == 1 || facename == 3) dirichlet = false;
+    //if(facename == 1 || facename == 3) dirichlet = false;
     value = 0.;
   }
   else if(!strcmp(SolName, "V")) {
@@ -133,8 +133,6 @@ int main(int argc, char **argv) {
   mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
-  mlMsh0.EraseCoarseLevels(numberOfUniformLevels - 1);
-
   unsigned dim = mlMsh0.GetDimension();
 
   // Parameters for selective AMR (ball centered at xc with radius r)
@@ -183,8 +181,8 @@ int main(int argc, char **argv) {
 
   mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
-  mlSol0.FixSolutionAtOnePoint("P1");
-  mlSol0.FixSolutionAtOnePoint("P2");
+  //mlSol0.FixSolutionAtOnePoint("P1");
+  //mlSol0.FixSolutionAtOnePoint("P2");
   mlSol0.GenerateBdc("All");
 
   unsigned sigmoidType = 1;
@@ -224,8 +222,6 @@ int main(int argc, char **argv) {
   mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
-  mlmsh1->EraseCoarseLevels(numberOfUniformLevels - 1);
-
   double period =
     (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
@@ -251,14 +247,51 @@ int main(int argc, char **argv) {
 
     double time = t * dt;
 
-
-
-
     mlsol0->CopySolutionToOldSolution();
 
-    MultiLevelProblem mlProb(mlsol0);
 
-    // add system Poisson in mlProb as a Linear Implicit System
+
+    unsigned level = numberOfUniformLevels + numberOfSelectiveLevels - 1u;
+
+    MultiLevelMesh mlMsh2(*mlmsh0, level, "seventh");
+
+    auto msh = mlMsh2.GetLevel(0);
+    level = msh->GetLevel();
+    msh->SetLevel(0);
+
+    //mlMsh2.EraseCoarseLevels(numberOfUniformLevels + numberOfSelectiveLevels - 1);
+    MultiLevelSolution mlSol2(&mlMsh2);
+
+    mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, false);
+    for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
+    mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+    mlSol2.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+    mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+
+    mlSol2.Initialize("All");
+
+    mlSol2.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+
+    mlSol2.FixSolutionAtOnePoint("P1");
+    mlSol2.FixSolutionAtOnePoint("P2");
+    mlSol2.GenerateBdc("All");
+
+    auto &Sol0 = (mlsol0->GetSolutionLevel(level))->_Sol;
+    auto &Sol2 = (mlSol2.GetSolutionLevel(0))->_Sol;
+    auto &Sol0Old = (mlsol0->GetSolutionLevel(level))->_SolOld;
+    auto &Sol2Old = (mlSol2.GetSolutionLevel(0))->_SolOld;
+
+
+    for(unsigned i = 0; i < Sol0.size(); i++) {
+      *(Sol2[i]) = *(Sol0[i]);
+      if((mlsol0->GetSolutionLevel(level))->GetSolutionTimeOrder(i) == 2) {
+        *(Sol2Old[i]) = *(Sol0Old[i]);
+      }
+    }
+
+    MultiLevelProblem mlProb(&mlSol2);
+
+    // add system Navier-Stokes in mlProb as a Linear Implicit System
     TransientNonlinearImplicitSystem& system = mlProb.add_system < TransientNonlinearImplicitSystem > ("NS");
 
     // add velocity to system
@@ -273,19 +306,25 @@ int main(int argc, char **argv) {
     // attach the assembling function to system
     system.SetAssembleFunction(AssembleMultiphase);
     system.AttachGetTimeIntervalFunction(TimeStepMultiphase);
-
+    //
     // initilaize and solve the system
     system.init();
     system.SetOuterSolver(PREONLY);
-
+    //
     system.MGsolve();
 
-    VTKWriter vtkIO1(mlsol0);
+    VTKWriter vtkIO1(&mlSol2);
     vtkIO1.SetDebugOutput(true);
     if (t % 1 == 0)
-      vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,t / 1);
+      vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
 
-
+    for(unsigned i = 0; i < Sol0.size(); i++) {
+      *(Sol0[i]) = *(Sol2[i]);
+      if((mlsol0->GetSolutionLevel(level))->GetSolutionTimeOrder(i) == 2) {
+        *(Sol0Old[i]) = *(Sol2Old[i]);
+      }
+    }
+    msh->SetLevel(level);
 
 
     //InitSol(*mlsol0, vName, time, period);// TODO with Navier-Stokes solve
@@ -310,6 +349,8 @@ int main(int argc, char **argv) {
     //   reinit.updateSolution();
     // }
 
+
+
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
@@ -318,6 +359,7 @@ int main(int argc, char **argv) {
 
     if (t % 1 == 0)
       WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
+
 
     // std::vector<MyVector<double>> field = X0;
     LevelMarkers l0;
@@ -338,12 +380,9 @@ int main(int argc, char **argv) {
 
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, false);
-
     for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
-
-    mlsol1->AddSolution("P1", LAGRANGE, FIRST);
-    mlsol1->AddSolution("P2", LAGRANGE, FIRST);
-
+    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO);
+    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO);
     mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, false);
 
     mlsol1->Initialize("All");
@@ -360,9 +399,9 @@ int main(int argc, char **argv) {
     //   vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
     //                t / 10);
 
-
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
+
     mlsol1->clear();
     mlmsh1->resize(numberOfUniformLevels);
 
@@ -577,7 +616,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
       unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
       psi.resize(nDofsPsi);
-      for(unsigned i = 0; i < nDofsP; i++) {
+      for(unsigned i = 0; i < nDofsPsi; i++) {
         unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
         psi[i] = (*sol->_Sol[psiIndex])(psiDof);
       }
@@ -606,11 +645,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
     if(cut == 1) {
-      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
       for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
       d = -d;
       cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
-      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
     }
     else {
       for(unsigned i = 0; i < weightCFInt.size(); i++) {
@@ -1434,4 +1473,6 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
   }
 
 }
+
+
 
