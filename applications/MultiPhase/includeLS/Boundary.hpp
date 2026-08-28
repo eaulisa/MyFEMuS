@@ -49,6 +49,10 @@ class Boundary {
     virtual double getValue(std::vector<double>& x, const double time, const double period, const double dt) const {
       return -1.;
     };
+
+    virtual void updateMarkers(std::vector<std::vector<std::vector<double>>>& X0, std::vector<std::vector<double>>& X, const double time, const double period, const double dt) const {
+      return;
+    }
 };
 
 class Inflow : public Boundary {
@@ -65,7 +69,7 @@ class Inflow : public Boundary {
         _m(m) {
     }
 
-  double getValue(std::vector<double>& x,
+  inline double getValue(std::vector<double>& x,
                   const double time,
                   const double period,
                   const double dt) const override {
@@ -105,6 +109,43 @@ class Inflow : public Boundary {
 
     return value;
   }
+
+  void updateMarkers(std::vector<std::vector<std::vector<double>>>& X0, std::vector<std::vector<double>>& X, const double time, const double period, const double dt) const override {
+
+    
+    for (unsigned s = 0; s < _shape.size(); ++s) {
+
+      for (unsigned m = 0; m < X0[s][0].size(); m++) {
+        std::vector<double> x (X0[s].size());
+        for (unsigned d = 0; d < X0[s].size(); d++)
+          x[d] = X0[s][d][m];
+
+        const unsigned nEmissions =
+          static_cast<unsigned>(std::floor(time / _timeOffset[s]));
+
+        for (unsigned t = (nEmissions >= 1) ? nEmissions - 1 : 0; t <= nEmissions; ++t) {
+
+          // Time at which this copy of the shape entered the domain
+          const double injectionTime = static_cast<double>(t) * _timeOffset[s];
+
+          // Backward integration interval: current time -> injection time
+          const double integrationTime = time - injectionTime;
+
+          // Always start from the ORIGINAL spatial point
+          std::vector<double> xForward = x;
+
+          const unsigned nSteps = std::max(1u, static_cast<unsigned>(std::ceil(std::abs(integrationTime) / std::abs(dt))));
+
+          rk4(xForward, injectionTime, integrationTime, period, nSteps);
+
+          for (unsigned d = 0; d < X.size(); d++)
+            X[d].push_back(xForward[d]);
+        }
+      }
+    }
+  }
+
+
 
 inline void rk4(std::vector<double>& Xp,
                 const double t0,

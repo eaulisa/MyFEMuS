@@ -99,10 +99,19 @@ int main(int argc, char **argv) {
   Circle c3(xc_3, r_0);
   // Shape* shape = &c1;
 
-  std::vector<Shape*> shape = {&c1, &c2, &c3};
-  std::vector<double> timeOffset = {0.5/0.3, 5./0.3, 5./0.3};
+  std::vector<Shape*> shape = {&c1};
+  std::vector<double> timeOffset = {1.};
 
   Inflow inflow(InflowVelocity, shape, timeOffset, m);
+
+  std::vector<std::vector<std::vector<double>>> inflow_markers0(shape.size());
+  
+  for (unsigned s = 0; s < shape.size(); s++) {
+    inflow_markers0[s].resize(dim);
+    if (iproc == 0) {
+      shape[s]->GetMarkers(inflow_markers0[s], 1000);
+    }
+  }
 
   Boundary* inflow_bd = &inflow;
 
@@ -173,17 +182,49 @@ int main(int argc, char **argv) {
 
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
     std::vector<MyVector<double>> X0;
-    MyVector<unsigned> X0Iel;
-    GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
-    // markers.GetCutElementPoints(*mlsol0, X0, X0Iel);
-    //
-    // if (t % 10 == 0) {
-    //   Reinit reinit("Psi", *mlsol0, eps);
-    //
-    //   reinit.farFieldReinit(X0);
-    //   reinit.interfaceFieldReinit(bbox);
-    //   reinit.updateSolution();
-    // }
+    MyVector<int> X0Iel;
+    // GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
+
+    std::vector<std::vector<double>> inflow_markers(dim);
+    inflow_bd->updateMarkers(inflow_markers0, inflow_markers, time-dt, period, dt);
+
+    std::vector<MyVector<double>> IX(dim);
+    for (unsigned k = 0; k < dim; ++k) {
+      IX[k].buildFromLocal(inflow_markers[k]);
+    }
+
+    {
+      LevelMarkers l0;
+      const unsigned bboxLevels = nLevels - bbox.GetLevel();
+
+      std::vector<LevelMarkers> lX(bboxLevels);
+
+      bbox.GetInverseMappingOnCoarseLevel(IX, l0, lX[0]);
+
+      const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
+
+      for (unsigned d = 0; d < dim; d++)
+        inflow_markers[d].clear();
+
+      for (unsigned d = 0; d < dim; d++) {
+        unsigned offset = IX[d].begin();
+        for (unsigned i = IX[d].begin(); i < IX[d].end(); ++i) {
+          if (!isInsideDomain[i - offset]) {
+              inflow_markers[d].push_back(IX[d][i]);
+          }
+        }
+      }
+    }
+    
+    markers.GetCutElementPoints(*mlsol0, X0, X0Iel, inflow_markers);
+    
+    if (t % 10 == 0) {
+      Reinit reinit("Psi", *mlsol0, m);
+    
+      reinit.farFieldReinit(X0);
+      reinit.interfaceFieldReinit(bbox);
+      reinit.updateSolution();
+    }
 
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);

@@ -302,7 +302,7 @@ namespace Tri_ord{
         return std::sqrt(w[0]*w[0]+w[1]*w[1]+w[2]*w[2]);
     };
 
-    auto triangulate_poly = [&](const std::vector<Point<3>>& poly) {
+    auto triangulate_poly = [](const std::vector<Point<3>>& poly) {
         std::vector<Tri3> tris;
         const std::size_t m = poly.size();
         if (m < 3) return tris;

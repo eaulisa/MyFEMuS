@@ -41,7 +41,8 @@ public:
         }
       };
 
-  inline void GetCutElementPoints(MultiLevelSolution &mlSol, std::vector<MyVector<double>> &X, MyVector<unsigned> &Xiel) {
+  inline void GetCutElementPoints(MultiLevelSolution &mlSol, std::vector<MyVector<double>> &X, 
+      MyVector<int> &Xiel, const std::vector<std::vector<double>>& inflow_markers) {
 
     MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
     const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -69,7 +70,16 @@ public:
     std::vector<double> gradPhi(dim);
 
     std::vector<std::vector<double>> Y(dim);
-    std::vector<unsigned> Yiel;
+    std::vector<int> Yiel;  
+
+    for (int d = 0; d < dim; ++d)
+      Y[d].insert(Y[d].end(),
+                  inflow_markers[d].begin(),
+                  inflow_markers[d].end());
+
+    const unsigned n_inflow = inflow_markers[0].size();
+
+    Yiel.insert(Yiel.end(), n_inflow, -1);
 
     // TODO Add reservation to std::vector
 
@@ -263,9 +273,15 @@ public:
         deduplicatePoints(element_roots, &old_to_new, 1e-12);
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    bool simple = (dim == 2 && unique_element_roots[0].size() <= 2) ||
-                  (dim == 3 && (unique_element_roots[0].size() >= 3 &&
-                                unique_element_roots[0].size() <= 5));
+    // bool simple = (dim == 2 && unique_element_roots[0].size() <= 2) ||
+    //               (dim == 3 && (unique_element_roots[0].size() >= 3 &&
+    //                             unique_element_roots[0].size() <= 5));
+
+    if (unique_element_roots.size() == 0)
+      throw std::runtime_error("LevelSetMarker::computeElementMarkers: no intersections found in cut cell");
+
+    bool simple = (dim == 2 && unique_element_roots[0].size() == 2) 
+      || (dim == 3 && unique_element_roots[0].size() >= 3 && unique_element_roots[0].size() <= 5);
 
     // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     // simple configuration
@@ -319,16 +335,23 @@ public:
           std::vector<std::size_t> old_to_new_child;
           auto unique_child_roots = deduplicatePoints(child_roots, &old_to_new_child, 1e-12);
 
-          bool child_simple =
-              (dim == 2 && unique_child_roots[0].size() <= 2) ||
-              (dim == 3 && unique_child_roots[0].size() >= 3 && unique_child_roots[0].size() <= 5);
+          // bool child_simple =
+          //     (dim == 2 && unique_child_roots[0].size() <= 2) ||
+          //     (dim == 3 && unique_child_roots[0].size() >= 3 && unique_child_roots[0].size() <= 5);
+
+          if (unique_child_roots.size() == 0)
+            continue;
+
+          bool child_simple = (dim == 2 && unique_child_roots[0].size() == 2) 
+            || (dim == 3 && unique_child_roots[0].size() >= 3 && unique_child_roots[0].size() <= 5);
 
           if (child_simple) {
             simple_leaves.push_back({x_children[i], phi_children[i], parent.level + 1});
           } else if (parent.level + 1 < _lmax) {
             frontier.push_back({x_children[i], phi_children[i], parent.level + 1});
           } else {
-            throw std::runtime_error("levelSetMarkers::computeElementMarkers: COMPLEX CUT ARRIVED AT MAX LEVEL");
+            continue;
+            // throw std::runtime_error("levelSetMarkers::computeElementMarkers: COMPLEX CUT ARRIVED AT MAX LEVEL");
           }
         }
       }
