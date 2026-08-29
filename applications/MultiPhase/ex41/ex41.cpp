@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
   //std::vector<std::string> dPsiName = {"Psi_x", "Psi_y", "Psi_z"};
   //dPsiName.resize(dim);
 
-  mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND, false);
+  mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
   //for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(dPsiName[d].c_str(), LAGRANGE, SECOND, 2);
   //mlSol0.AddSolution("Gamma", LAGRANGE, SECOND);
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
   //mlSol0.AddSolution("P2", LAGRANGE, FIRST);
 
   std::string cName = "C";
-  mlSol0.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol0.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
   mlSol0.Initialize("All");
 
@@ -262,11 +262,11 @@ int main(int argc, char **argv) {
     //mlMsh2.EraseCoarseLevels(numberOfUniformLevels + numberOfSelectiveLevels - 1);
     MultiLevelSolution mlSol2(&mlMsh2);
 
-    mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, false);
+    mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
     for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
     mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
     mlSol2.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-    mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+    mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
     mlSol2.Initialize("All");
 
@@ -379,11 +379,11 @@ int main(int argc, char **argv) {
     }
 
     mlsol1->Build(mlmsh1);
-    mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, false);
+    mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
     for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
     mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO);
     mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO);
-    mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+    mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
     mlsol1->Initialize("All");
 
@@ -394,13 +394,15 @@ int main(int argc, char **argv) {
 
     // Export solution to VTK (selected levels)
 
-    // VTKWriter vtkIO1(mlsol0);
-    // if (t % 10 == 0)
-    //   vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
-    //                t / 10);
+
 
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
+
+     VTKWriter vtkIO2(mlsol0);
+    if (t % 1 == 0)
+      vtkIO2.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
+                   t / 1);
 
     mlsol1->clear();
     mlmsh1->resize(numberOfUniformLevels);
