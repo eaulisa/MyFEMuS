@@ -1,4 +1,4 @@
-
+#pragma once
 void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
@@ -33,8 +33,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   //quantities for iel will have index1
   //quantities for jel will have index2
 
-  vector< vector< double > > sol1Old(dim);
-  vector< vector< double > > sol2Old(dim);
+  // vector< vector< double > > sol1Old(dim);
+  // vector< vector< double > > sol2Old(dim);
 
   vector< vector< adept::adouble > > sol1(dim);
   vector< vector< adept::adouble > > sol2(dim);
@@ -65,6 +65,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   std::vector < double> nablaPhi2;
 
 
+  unsigned cIndex = mlSol->GetIndex("C");
+
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
 
@@ -85,7 +87,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
     indexPde[k] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[k][0]);
   }
   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
-
+  unsigned solTypeX = 2;
 
   start_time = clock();
 
@@ -96,7 +98,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-    unsigned eFlag1 = 0;//cld->GetNumberOfMarker(iel); //TODO
+    double Ciel = (*mysolution->_Sol[cIndex])(iel);
+    unsigned eFlag1 = (fabs(Ciel - 0.5) < 0.1 ) ? 1 : 0;
+
     if(eFlag1 > 0) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
@@ -109,7 +113,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
       for(unsigned  k = 0; k < dim; k++) {
         sol1[k].resize(nDofs1);
-        sol1Old[k].resize(nDofs1);
+        // sol1Old[k].resize(nDofs1);
         vx1[k].resize(nDofs1);
       }
 
@@ -118,7 +122,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {
           sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-          sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+          // sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
           sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
         }
       }
@@ -130,6 +134,27 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
         }
       }
 
+      unsigned nDofsLin_i = msh->GetElementDofNumber(iel, 0);
+
+      double hmean_i = 0;
+      int cnt_i = 0;
+
+      for (unsigned i = 0; i < nDofsLin_i; i++) {
+        unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+        for (unsigned j = i + 1; j < nDofsLin_i; j++) {
+          unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+          double dist = 0;
+          for (unsigned d = 0; d < dim; d++)
+            dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                    ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+          dist = sqrt(dist);
+          hmean_i += dist;
+          cnt_i ++;
+        }
+      }
+      hmean_i /= cnt_i;
+
       bool aP1IsInitialized = false;
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
@@ -138,7 +163,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
 
-            unsigned eFlag2 = 0;//TODO cld->GetNumberOfMarker(jel);
+            double Cjel = (*mysolution->_Sol[cIndex])(jel);
+            unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;
 
             if(eFlag2 == 0 || jel > iel) {
 
@@ -152,7 +178,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
               for(unsigned  k = 0; k < dim; k++) {
                 sol2[k].resize(nDofs2);
-                sol2Old[k].resize(nDofs2);
+                // sol2Old[k].resize(nDofs2);
                 vx2[k].resize(nDofs2);
               }
 
@@ -160,7 +186,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 unsigned idof = msh->GetSolutionDof(i, jel, solType);
                 for(unsigned  k = 0; k < dim; k++) {
                   sol2[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                  sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                  // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                   sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                 }
               }
@@ -192,11 +218,32 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 }
               }
 
-              double h11 = (vx1[0][2] - vx1[0][0]);
-              double h12 = (vx1[1][2] - vx1[1][0]);
+              unsigned nDofsLin_j = msh->GetElementDofNumber(jel, 0);
 
-              double h21 = (vx2[0][2] - vx2[0][0]);
-              double h22 = (vx2[1][2] - vx2[1][0]);
+              double hmean_j = 0;
+              int cnt_j = 0;
+
+              for (unsigned i = 0; i < nDofsLin_j; i++) {
+                unsigned idofXi = msh->GetSolutionDof(i, jel, solTypeX);
+                for (unsigned j = i + 1; j < nDofsLin_j; j++) {
+                  unsigned idofXj = msh->GetSolutionDof(j, jel, solTypeX);
+                  double dist = 0;
+                  for (unsigned d = 0; d < dim; d++)
+                    dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                            ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                  dist = sqrt(dist);
+                  hmean_j += dist;
+                  cnt_j ++;
+                }
+              }
+              hmean_j /= cnt_j;
+
+              // double h11 = (vx1[0][2] - vx1[0][0]);
+              // double h12 = (vx1[1][2] - vx1[1][0]);
+              //
+              // double h21 = (vx2[0][2] - vx2[0][0]);
+              // double h22 = (vx2[1][2] - vx2[1][0]);
 
               if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
                 aP1IsInitialized = true;
@@ -209,12 +256,15 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
               }
 
+              double h = 0.5 * (hmean_j + hmean_i);
+
               for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solType]->GetGaussPointNumber(); ig++) {
 
                 std::vector < double> normal;
                 msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-                double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+                // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+
                 double h2 = h * h;
                 double h3 = h2 * h;
                 double h5 = h2 * h3;
@@ -442,10 +492,10 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
       for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
 
-        unsigned eFlag1;
-
+        unsigned eFlag1 = 0;
         if(iproc == kproc) {
-          eFlag1 = 0;//TODO cld->GetNumberOfMarker(iel);
+          double Ciel = (*mysolution->_Sol[cIndex])(iel);
+          eFlag1 = (fabs(Ciel - 0.5) < 0.1 ) ? 1 : 0;
         }
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
@@ -470,7 +520,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                 unsigned eFlag2;
                 if(iproc == jproc) {
-                  eFlag2 = 0;//TODO cld->GetNumberOfMarker(jel);
+                  double Cjel = (*mysolution->_Sol[cIndex])(jel);
+                  eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;
                   MPI_Send(&eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
                 }
                 else if(iproc == kproc) {
@@ -501,10 +552,11 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                   sysDofs2.resize(nDofsAll2);
                   for(unsigned  k = 0; k < dim; k++) {
                     sol2d[k].resize(nDofs2);
-                    sol2Old[k].resize(nDofs2);
+                    // sol2Old[k].resize(nDofs2);
                     vx2[k].resize(nDofs2);
                   }
-                  std::vector < MPI_Request > reqs(3 * dim + 1);
+                  std::vector < MPI_Request > reqs(2 * dim + 2);
+                  double hmean_j;
                   if(iproc == kproc) {
 
                     nDofs1 = el->GetNVE(ielt1, solType);
@@ -514,7 +566,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                     for(unsigned  k = 0; k < dim; k++) {
                       sol1[k].resize(nDofs1);
-                      sol1Old[k].resize(nDofs1);
+                      // sol1Old[k].resize(nDofs1);
                       vx1[k].resize(nDofs1);
                     }
                     for(unsigned i = 0; i < nDofs1; i++) {
@@ -522,7 +574,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        // sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                         sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
                       }
                     }
@@ -533,12 +585,14 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
                       }
                     }
+
                     for(unsigned k = 0; k < dim; k++) {
                       MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
-                      MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                      // MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + 1 * dim, PETSC_COMM_WORLD, &reqs[k + 1 * dim]);
                     }
-                    MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 3 * dim, PETSC_COMM_WORLD,  &reqs[3 * dim]);
+                    MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 2 * dim, PETSC_COMM_WORLD,  &reqs[2 * dim]);
+                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 2 * dim + 1, PETSC_COMM_WORLD,  &reqs[2 * dim + 1]);
                   }
                   else if(iproc == jproc) {
                     for(unsigned i = 0; i < nDofs2; i++) {
@@ -546,7 +600,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol2d[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
                         sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                       }
                     }
@@ -558,16 +612,38 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       }
                     }
 
+                    unsigned nDofsLin_j = msh->GetElementDofNumber(jel, 0);
+
+                    hmean_j = 0;
+                    int cnt_j = 0;
+
+                    for (unsigned i = 0; i < nDofsLin_j; i++) {
+                      unsigned idofXi = msh->GetSolutionDof(i, jel, solTypeX);
+                      for (unsigned j = i + 1; j < nDofsLin_j; j++) {
+                        unsigned idofXj = msh->GetSolutionDof(j, jel, solTypeX);
+                        double dist = 0;
+                        for (unsigned d = 0; d < dim; d++)
+                          dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                                  ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                        dist = sqrt(dist);
+                        hmean_j += dist;
+                        cnt_j ++;
+                      }
+                    }
+                    hmean_j /= cnt_j;
+
                     for(unsigned k = 0; k < dim; k++) {
                       MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
-                      MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
-                      MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                      // MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + 1 * dim, PETSC_COMM_WORLD, &reqs[k + 1 * dim]);
                     }
-                    MPI_Isend(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                    MPI_Isend(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, kproc, 2 * dim, PETSC_COMM_WORLD, &reqs[2 * dim]);
+                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 2*dim+1, PETSC_COMM_WORLD, &reqs[2 * dim + 1]);
                   }
 
                   MPI_Status status;
-                  for(unsigned m = 0; m < 3 * dim + 1; m++) {
+                  for(unsigned m = 0; m < 2 * dim + 2; m++) {
                     MPI_Wait(&reqs[m], &status);
                   }
 
@@ -584,7 +660,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       aRes2[k].assign(nDofs2, 0.);
                     }
 
-                    s.new_recording();
+                    // s.new_recording();
                     s.new_recording();
 
                     const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
@@ -600,11 +676,34 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       }
                     }
 
-                    double h11 = (vx1[0][2] - vx1[0][0]);
-                    double h12 = (vx1[1][2] - vx1[1][0]);
+                    unsigned nDofsLin_k = msh->GetElementDofNumber(iel, 0);
 
-                    double h21 = (vx2[0][2] - vx2[0][0]);
-                    double h22 = (vx2[1][2] - vx2[1][0]);
+                    double hmean_k = 0;
+                    int cnt_k = 0;
+
+                    for (unsigned i = 0; i < nDofsLin_k; i++) {
+                      unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+                      for (unsigned j = i + 1; j < nDofsLin_k; j++) {
+                        unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+                        double dist = 0;
+                        for (unsigned d = 0; d < dim; d++)
+                          dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                                  ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                        dist = sqrt(dist);
+                        hmean_k += dist;
+                        cnt_k ++;
+                      }
+                    }
+                    hmean_k /= cnt_k;
+
+                    // double h11 = (vx1[0][2] - vx1[0][0]);
+                    // double h12 = (vx1[1][2] - vx1[1][0]);
+                    //
+                    // double h21 = (vx2[0][2] - vx2[0][0]);
+                    // double h22 = (vx2[1][2] - vx2[1][0]);
+
+                    double h = 0.5 * (hmean_j + hmean_k);
 
                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                       ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
@@ -616,7 +715,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       std::vector < double> normal;
                       msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-                      double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+                      // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
                       double h2 = h * h;
                       double h3 = h2 * h;
                       double h5 = h2 * h3;

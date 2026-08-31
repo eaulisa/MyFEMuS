@@ -260,8 +260,8 @@ int main(int argc, char **argv) {
 
     mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
     for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
-    mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-    mlSol2.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+    mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+    mlSol2.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
     mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
     mlSol2.Initialize("All");
 
@@ -375,8 +375,8 @@ int main(int argc, char **argv) {
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
     for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2, false);
-    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
-    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
     mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
     mlsol1->Initialize("All");
@@ -481,9 +481,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   if(dim == 2) g = {0, gravity};
   else g = {0, 0, gravity};
 
-  //AssembleGhostPenalty(ml_prob);
-  //AssembleGhostPenaltyDGP(ml_prob, true);
-  //AssembleGhostPenaltyDGP(ml_prob, false);
+  AssembleGhostPenalty(ml_prob);
+  AssembleGhostPenaltyDGP(ml_prob, true);
+  AssembleGhostPenaltyDGP(ml_prob, false);
   AssembleStabilizationTerms(ml_prob);
 
   double dt =  mlPdeSys->GetIntervalTime();
@@ -527,8 +527,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::vector <double> phiV;  // local test function for velocity
   std::vector <double> phiV_x; // local test function first order partial derivatives
 
+  std::vector <double> phiPsi;
+  std::vector <double>  phiPsi_x;
+  std::vector <double> phiPsi_xx;
+
+  unsigned dim2 = 3*(dim-1);
+
   double* phiP; // local test function for the pressure
   double weight; // gauss point weight
+  double weightPsi;
 
   std::vector< unsigned > sysDof; // local to global pdeSys dofs
   std::vector< double > Res; // local redidual std::vector
@@ -601,22 +608,24 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
 
     const elem_type *femV = msh->_finiteElement[ielGeom][solVType];
     const elem_type *femP = msh->_finiteElement[ielGeom][solPType];
-
+    const elem_type *femPsi = msh->_finiteElement[ielGeom][psiType];
     //unsigned cnt =
+
+    unsigned nDofsPsi;
 
     cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
 
     if(cut == 1) {
       femV = fem.GetFiniteElement(ielGeom, solVType);
       femP = fem.GetFiniteElement(ielGeom, solPType);
+      femPsi = fem.GetFiniteElement(ielGeom, psiType);
 
-      unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
+      nDofsPsi = msh->GetElementDofNumber(iel, psiType);
       psi.resize(nDofsPsi);
       for(unsigned i = 0; i < nDofsPsi; i++) {
         unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
         psi[i] = (*sol->_Sol[psiIndex])(psiDof);
       }
-      const elem_type *femPsi = fem.GetFiniteElement(ielGeom, psiType);
 
       unsigned ng = femPsi->GetGaussPointNumber();
       std::vector<double> psig(ng, 0.);
@@ -662,6 +671,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
     for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
+      femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x, phiPsi_xx);
       phiP = femP->GetPhi(ig);
 
       double dsN = 0.;
@@ -691,13 +701,52 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           }
         }
 
-        double det = 0.;
-        for(unsigned k = 0; k < dim; k++) det += xg[k] * xg[k];
-        det = std::sqrt(det);
-        for(unsigned k = 0; k < dim; k++) NN[k] = xg[k] / det;
+        double NN_exact[2];
+        double det_exact = 0.;
+        for(unsigned k = 0; k < dim; k++) det_exact += xg[k] * xg[k];
+        det_exact = std::sqrt(det_exact);
+        for(unsigned k = 0; k < dim; k++) NN_exact[k] = xg[k] / det_exact;
 
         kk = 1. / RADIUS;
 
+        for(unsigned d = 0; d < dim; d++)
+          NN[d] = 0;
+        std::vector<double> hess(dim2);
+        for (unsigned i = 0; i < nDofsPsi; i++) {
+          for(unsigned d = 0; d < dim; d++) {
+              NN[d] -= psi[i] * phiPsi_x[i * dim + d];
+          }
+          for (unsigned d = 0; d < dim2; d++) {
+            hess[d] += psi[i] * phiPsi_xx[i * dim2 + d];
+          }
+        }
+        double det = 0;
+        for (unsigned j = 0; j < dim; j++) {
+          det += NN[j] * NN[j];
+        }
+        det = sqrt(det);
+        for (unsigned j = 0; j < dim; j++) {
+          NN[j] /= det;
+        }
+        double H = 0;
+        for(unsigned J = 0; J < dim; J++) {
+          for(unsigned K = 0; K < dim; K++) {
+            //2D xx, yy, xy
+            //3D xx, yy, zz, xy, yz ,zx
+            unsigned L;
+            if(J == K) L = J;
+            else if(1 == J + K) L = dim;     // xy
+            else if(2 == J + K) L = dim + 2; // xz
+            else if(3 == J + K) L = dim + 1; // yz
+            H += NN[J] * hess[L] * NN[K];
+          }
+          H -= hess[J];
+        }
+        H /= (dim - 1)*det;
+
+        kk = H;
+
+        // std::cerr<<"H "<<H<<" NN "<<NN[0]<<" "<<NN[1] <<" vs kk "<<kk<<" n "<<NN_exact[0]<<" "<<NN_exact[1]<<std::endl;
 
       }
 
@@ -731,7 +780,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           solVOld_gss[k] += solVOld[k][i] * phiV[i];
         }
         for(unsigned j = 0; j < dim; j++) {
-          for(unsigned  k = 0; k < dim; k++) {
+          for(unsigned k = 0; k < dim; k++) {
             gradSolV_gss[k][j] += solV[k][i] * phiV_x[i * dim + j];
           }
         }
@@ -744,11 +793,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
         solP2_gss += phiP[i] * solP2[i];
       }
 
-//       double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
-//       double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+      double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
+      double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
 
-      double rho = rho1 * C + rho2 * (1. - C);
-      double mu = mu1 * C + mu2 * (1. - C);
+      //double rho = rho1 * C + rho2 * (1. - C);
+      //double mu = mu1 * C + mu2 * (1. - C);
 
       double rhoC = rho1 * C + rho2 * (1. - C);
 
@@ -762,7 +811,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           }
           NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
           NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
-          NSV += - rhoC * phiV[i] * g[I]; // gravity term
+          NSV += - rho * phiV[i] * g[I]; // gravity term
           Res[I * nDofsV + i] -=  NSV * weight;
           if(cut == 1) {
             //std::cout << - sigma * phiV[i] * NN[I] * weight * weightCF[ig] * kk * dsN << " ";

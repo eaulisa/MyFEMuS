@@ -72,7 +72,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
     double Ciel = (*mysolution->_Sol[indexSolC])(iel);
 
 //     if(Ciel > 0 && Ciel < 1) {
-    if(true){
+    if(true) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
       unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -83,6 +83,26 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
       solP1 = (*mysolution->_Sol[indexSol])(iel);
       sysDofsP1[0] = myLinEqSolver->GetSystemDof(indexSol, indexPde, 0, iel);
 
+      unsigned nDofsLin_i = msh->GetElementDofNumber(iel, 0);
+
+      double hmean_i = 0;
+      int cnt_i = 0;
+
+      for (unsigned i = 0; i < nDofsLin_i; i++) {
+        unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+        for (unsigned j = i + 1; j < nDofsLin_i; j++) {
+          unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+          double dist = 0;
+          for (unsigned d = 0; d < dim; d++)
+            dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                    ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+          dist = sqrt(dist);
+          hmean_i += dist;
+          cnt_i ++;
+        }
+      }
+      hmean_i /= cnt_i;
 
       for(unsigned i = 0; i < nDofsX; i++) {
         unsigned idofX = msh->GetSolutionDof(i, iel, solTypeX);
@@ -90,8 +110,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
           vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
         }
       }
-      double h11 = (vx[0][2] - vx[0][0]);
-      double h12 = (vx[1][2] - vx[1][0]);
+      // double h11 = (vx[0][2] - vx[0][0]);
+      // double h12 = (vx[1][2] - vx[1][0]);
 
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
@@ -104,14 +124,38 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
             double Cjel = (*mysolution->_Sol[indexSolC])(jel);
 
 //             if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
-            if(jel > iel){
+            if(jel > iel) {
 
               solP2 = (*mysolution->_Sol[indexSol])(jel);
 
-              unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
-              unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);
-              double h21 = (*msh->_topology->_Sol[0])(idofX2) - (*msh->_topology->_Sol[0])(idofX0);
-              double h22 = (*msh->_topology->_Sol[1])(idofX2) - (*msh->_topology->_Sol[1])(idofX0);
+              // unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
+              // unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);
+
+              unsigned nDofsLin_j = msh->GetElementDofNumber(jel, 0);
+
+              double hmean_j = 0;
+              int cnt_j = 0;
+
+              for (unsigned i = 0; i < nDofsLin_j; i++) {
+                unsigned idofXi = msh->GetSolutionDof(i, jel, solTypeX);
+                for (unsigned j = i + 1; j < nDofsLin_j; j++) {
+                  unsigned idofXj = msh->GetSolutionDof(j, jel, solTypeX);
+                  double dist = 0;
+                  for (unsigned d = 0; d < dim; d++)
+                    dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                            ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                  dist = sqrt(dist);
+                  hmean_j += dist;
+                  cnt_j ++;
+                }
+              }
+              hmean_j /= cnt_j;
+
+              double h = 0.5 * (hmean_i + hmean_j);
+
+              // double h21 = (*msh->_topology->_Sol[0])(idofX2) - (*msh->_topology->_Sol[0])(idofX0);
+              // double h22 = (*msh->_topology->_Sol[1])(idofX2) - (*msh->_topology->_Sol[1])(idofX0);
 
               sysDofsP2[0] = myLinEqSolver->GetSystemDof(indexSol, indexPde, 0, jel);
               aResP1 = 0;
@@ -137,7 +181,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 std::vector < double> normal;
                 msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-                double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+
+                // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
                 double C1 = /*100 **/ 0.05 * h;// / mu; // h * h / (sigma * dt); dt /(rho * h);
                 aResP1 +=  C1 * (solP1 - solP2) * weight;
@@ -186,9 +231,9 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
 
 //         if(Ckel > 0 && Ckel < 1) {
-        if(true){
-          double h11;
-          double h12;
+        if(true) {
+          // double h11;
+          // double h12;
           unsigned nFaces;
           if(iproc == kp) {
             short unsigned kelt1 = msh->GetElementType(kel);
@@ -206,8 +251,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
               }
             }
-            h11 = (vx[0][2] - vx[0][0]);
-            h12 = (vx[1][2] - vx[1][0]);
+            // h11 = (vx[0][2] - vx[0][0]);
+            // h12 = (vx[1][2] - vx[1][0]);
 
             nFaces = msh->GetElementFaceNumber(kel);
           }
@@ -223,20 +268,43 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
               unsigned jp = msh->IsdomBisectionSearch(jel, 3);
               if(jp != kp) {
                 double Cjel;
-                double h21, h22;
+                // double h21, h22;
                 if(iproc == jp) {
                   Cjel = (*mysolution->_Sol[indexSolC])(jel);
                   MPI_Send(&Cjel, 1, MPI_DOUBLE, kp, 0, MPI_COMM_WORLD);
 //                   if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
-                  if(jel > kel){    
+                  if(jel > kel) {
                     double solP2d = (*mysolution->_Sol[indexSol])(jel);
-                    unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
-                    unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);
-                    h21 = (*msh->_topology->_Sol[0])(idofX2) - (*msh->_topology->_Sol[0])(idofX0);
-                    h22 = (*msh->_topology->_Sol[1])(idofX2) - (*msh->_topology->_Sol[1])(idofX0);
+                    // unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
+                    // unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);
+                    // h21 = (*msh->_topology->_Sol[0])(idofX2) - (*msh->_topology->_Sol[0])(idofX0);
+                    // h22 = (*msh->_topology->_Sol[1])(idofX2) - (*msh->_topology->_Sol[1])(idofX0);
+
+                    unsigned nDofsLin_j = msh->GetElementDofNumber(jel, 0);
+
+                    double hmean_j = 0;
+                    int cnt_j = 0;
+
+                    for (unsigned i = 0; i < nDofsLin_j; i++) {
+                      unsigned idofXi = msh->GetSolutionDof(i, jel, solTypeX);
+                      for (unsigned j = i + 1; j < nDofsLin_j; j++) {
+                        unsigned idofXj = msh->GetSolutionDof(j, jel, solTypeX);
+                        double dist = 0;
+                        for (unsigned d = 0; d < dim; d++)
+                          dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                                  ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                        dist = sqrt(dist);
+                        hmean_j += dist;
+                        cnt_j ++;
+                      }
+                    }
+                    hmean_j /= cnt_j;
+
                     MPI_Send(&solP2d, 1, MPI_DOUBLE, kp, 1, MPI_COMM_WORLD);
-                    MPI_Send(&h21, 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD);
-                    MPI_Send(&h22, 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD);
+                    // MPI_Send(&h21, 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD);
+                    // MPI_Send(&h22, 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD);
+                    MPI_Send(&hmean_j, 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD);
                   }
                 }
                 if(iproc == kp) {
@@ -244,9 +312,11 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 //                   if( (Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
                   if(jel > kel) {
                     double solP2d;
+                    double hmean_j;
                     MPI_Recv(&solP2d, 1, MPI_DOUBLE, jp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(&h21, 1, MPI_DOUBLE, jp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(&h22, 1, MPI_DOUBLE, jp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    // MPI_Recv(&h21, 1, MPI_DOUBLE, jp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    // MPI_Recv(&h22, 1, MPI_DOUBLE, jp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(&hmean_j, 1, MPI_DOUBLE, jp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
                     solP2 = solP2d;
 
@@ -269,14 +339,37 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                       }
                     }
 
-                    double h11 = (vx[0][2] - vx[0][0]);
-                    double h12 = (vx[1][2] - vx[1][0]);
+                    // double h11 = (vx[0][2] - vx[0][0]);
+                    // double h12 = (vx[1][2] - vx[1][0]);
+
+                    unsigned nDofsLin_k = msh->GetElementDofNumber(kel, 0);
+
+                    double hmean_k = 0;
+                    int cnt_k = 0;
+
+                    for (unsigned i = 0; i < nDofsLin_k; i++) {
+                      unsigned idofXi = msh->GetSolutionDof(i, kel, solTypeX);
+                      for (unsigned j = i + 1; j < nDofsLin_k; j++) {
+                        unsigned idofXj = msh->GetSolutionDof(j, kel, solTypeX);
+                        double dist = 0;
+                        for (unsigned d = 0; d < dim; d++)
+                          dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) *
+                                  ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+
+                        dist = sqrt(dist);
+                        hmean_k += dist;
+                        cnt_k ++;
+                      }
+                    }
+                    hmean_k /= cnt_k;
+
+                    double h = 0.5 * (hmean_j + hmean_k);
 
                     for(unsigned ig = 0; ig  <  msh->_finiteElement[faceGeom][solTypeX]->GetGaussPointNumber(); ig++) {
 
                       std::vector < double> normal;
                       msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
-                      double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
+                      // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
                       double C1 = /*100 **/ 0.05 * h;//0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
                       aResP1 +=  C1 * (solP1 - solP2) * weight;
