@@ -60,8 +60,6 @@ namespace femus {
     _writer = NULL;
 
     BuildElemType(GaussOrder);
-
-    //_domain = mlmsh0.GetDomain();
   }
 
 
@@ -106,10 +104,14 @@ namespace femus {
     for (unsigned i = Nlevels; i < _level0.size(); i++) {
       delete _level0[i];
     }
-    _level0.resize(Nlevels);
-    _level.resize(Nlevels);
 
-    _gridn0 = _gridn = Nlevels;
+    unsigned levels_to_be_erased =  _level0.size() - Nlevels;
+
+    _gridn0 -= levels_to_be_erased;
+    _gridn -= levels_to_be_erased;
+
+    _level0.resize(_gridn0);
+    _level.resize(_gridn);
 
     Mesh* msh = _level0[_gridn0 - 1u];
     msh->_topology->_Sol[msh->GetAmrIndex()]->zero();
@@ -191,7 +193,7 @@ namespace femus {
 
 
     _level0.resize(_gridn0);
-    _finiteElementGeometryFlag.resize(5, false);
+    _finiteElementGeometryFlag.resize(6, false);
 
     //coarse mesh
     _level0[0] = new Mesh();
@@ -259,7 +261,7 @@ namespace femus {
     _gridn0 = 1;
 
     _level0.resize(_gridn0);
-    _finiteElementGeometryFlag.resize(5, false);
+    _finiteElementGeometryFlag.resize(6, false);
 
     //coarse mesh
     _level0[0] = new Mesh();
@@ -285,7 +287,7 @@ namespace femus {
     _gridn0 = 1;
 
     _level0.resize(_gridn0);
-    _finiteElementGeometryFlag.resize(5, false);
+    _finiteElementGeometryFlag.resize(6, false);
 
     //coarse mesh
     _level0[0] = new Mesh();

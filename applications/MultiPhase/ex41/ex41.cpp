@@ -124,8 +124,8 @@ int main(int argc, char **argv) {
   MultiLevelMesh mlMsh0;
 
   const double scalingFactor = 1.0;
-  const unsigned numberOfUniformLevels = 3u;
-  const unsigned numberOfSelectiveLevels = 0u;
+  const unsigned numberOfUniformLevels = 2u;
+  const unsigned numberOfSelectiveLevels = 4u;
 
   std::string meshName = "./input/tri.neu";
 
@@ -162,11 +162,11 @@ int main(int argc, char **argv) {
   std::vector<std::string> vName = {"U", "V", "W"};
   vName.resize(dim);
 
-  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
+  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2, false);
 
 
-  mlSol0.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
-  mlSol0.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
+  mlSol0.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  mlSol0.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
   //mlSol0.AddSolution("P1", LAGRANGE, FIRST);
   //mlSol0.AddSolution("P2", LAGRANGE, FIRST);
@@ -179,11 +179,11 @@ int main(int argc, char **argv) {
   InitSol(mlSol0, vName, 0, 1.);
 
 
-  mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-
-  //mlSol0.FixSolutionAtOnePoint("P1");
-  //mlSol0.FixSolutionAtOnePoint("P2");
-  mlSol0.GenerateBdc("All");
+  // mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+  //
+  // //mlSol0.FixSolutionAtOnePoint("P1");
+  // //mlSol0.FixSolutionAtOnePoint("P2");
+  // mlSol0.GenerateBdc("All");
 
   unsigned sigmoidType = 1;
   double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
@@ -249,17 +249,13 @@ int main(int argc, char **argv) {
 
     mlsol0->CopySolutionToOldSolution();
 
-
-
     unsigned level = numberOfUniformLevels + numberOfSelectiveLevels - 1u;
 
     MultiLevelMesh mlMsh2(*mlmsh0, level, "seventh");
-
     auto msh = mlMsh2.GetLevel(0);
     level = msh->GetLevel();
     msh->SetLevel(0);
 
-    //mlMsh2.EraseCoarseLevels(numberOfUniformLevels + numberOfSelectiveLevels - 1);
     MultiLevelSolution mlSol2(&mlMsh2);
 
     mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
@@ -267,11 +263,9 @@ int main(int argc, char **argv) {
     mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO);
     mlSol2.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO);
     mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-
     mlSol2.Initialize("All");
 
     mlSol2.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-
     mlSol2.FixSolutionAtOnePoint("P1");
     mlSol2.FixSolutionAtOnePoint("P2");
     mlSol2.GenerateBdc("All");
@@ -380,9 +374,9 @@ int main(int argc, char **argv) {
 
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-    for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
-    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO);
-    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO);
+    for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2, false);
+    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
     mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
     mlsol1->Initialize("All");
@@ -408,10 +402,10 @@ int main(int argc, char **argv) {
     mlmsh1->resize(numberOfUniformLevels);
 
 
-    mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-    mlsol0->FixSolutionAtOnePoint("P1");
-    mlsol0->FixSolutionAtOnePoint("P2");
-    mlsol0->GenerateBdc("All");
+    // mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+    // mlsol0->FixSolutionAtOnePoint("P1");
+    // mlsol0->FixSolutionAtOnePoint("P2");
+    // mlsol0->GenerateBdc("All");
 
 
     double area = ComputeArea(*mlsol0, psiName);
