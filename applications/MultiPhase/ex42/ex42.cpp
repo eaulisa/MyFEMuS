@@ -66,7 +66,7 @@ const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &
 
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
-#include "../includeLS/Stabilization.hpp"
+#include "include/Stabilization.hpp"
 #include "../includeLS/GhostPenalty.hpp"
 #include "../includeLS/GhostPenaltyDGP.hpp"
 
