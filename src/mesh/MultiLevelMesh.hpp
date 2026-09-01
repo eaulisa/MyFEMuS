@@ -44,7 +44,7 @@ public:
     /** Constructor */
     MultiLevelMesh();
 
-    MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level, const char GaussOrder[]);
+    MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level0, const unsigned levelN, const char GaussOrder[]);
 
     MultiLevelMesh(const unsigned short &igridn,const unsigned short &igridr,
                    const char mesh_file[], const char GaussOrder[], const double Lref,

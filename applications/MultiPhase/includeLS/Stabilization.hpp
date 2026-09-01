@@ -8,7 +8,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   //pointers and references
 
   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
-  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
+  const unsigned  level = level0;//my_nnlin_impl_sys.GetLevelToAssemble();
   MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
 
@@ -153,8 +153,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         vector < adept::adouble > solVg(dim, 0.);
         vector < vector < adept::adouble > > gradSolVg(dim, vector<adept::adouble>(dim,0.));
         vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2,0.));
-        
-        
+
         vector < double > solVgOld(dim, 0.);
         for(unsigned i = 0; i < nDofsV; i++) {
           for(unsigned j = 0; j < dim; j++) {
@@ -163,14 +162,12 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
             for(unsigned  k = 0; k < dim; k++) {
               gradSolVg[k][j] += gradPhi[i * dim + j] * solV[k][i]; // gradient of the new velocity with respect to the theta domain
             }
-
           }
           for(unsigned j = 0; j < dim2; j++) {
             for(unsigned  k = 0; k < dim; k++) {
               DeltaSolVg[k][j] += nablaPhi[i * dim2 + j] * solV[k][i]; // laplace of the theta velocity with respect to the theta domain
             }
           }
-
         }
 
 

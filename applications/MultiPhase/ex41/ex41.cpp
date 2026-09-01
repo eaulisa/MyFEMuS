@@ -66,9 +66,7 @@ const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &
 
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
-#include "../includeLS/Stabilization.hpp"
-#include "../includeLS/GhostPenalty.hpp"
-#include "../includeLS/GhostPenaltyDGP.hpp"
+
 
 const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
@@ -103,6 +101,14 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 }
 
 
+//Global object to be used in the assembly as an external ml_problem
+MultiLevelProblem* ml_prob0;
+unsigned level0 = 0;
+
+
+#include "../includeLS/Stabilization.hpp"
+#include "../includeLS/GhostPenalty.hpp"
+#include "../includeLS/GhostPenaltyDGP.hpp"
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob);
 double TimeStepMultiphase(const double time);
@@ -162,11 +168,9 @@ int main(int argc, char **argv) {
   std::vector<std::string> vName = {"U", "V", "W"};
   vName.resize(dim);
 
-  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2, false);
-
-
-  mlSol0.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-  mlSol0.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+  for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
+  mlSol0.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+  mlSol0.AddSolution("P2",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
 
   //mlSol0.AddSolution("P1", LAGRANGE, FIRST);
   //mlSol0.AddSolution("P2", LAGRANGE, FIRST);
@@ -179,11 +183,11 @@ int main(int argc, char **argv) {
   InitSol(mlSol0, vName, 0, 1.);
 
 
-  // mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-  //
-  // //mlSol0.FixSolutionAtOnePoint("P1");
-  // //mlSol0.FixSolutionAtOnePoint("P2");
-  // mlSol0.GenerateBdc("All");
+  mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+
+  //mlSol0.FixSolutionAtOnePoint("P1");
+  //mlSol0.FixSolutionAtOnePoint("P2");
+  mlSol0.GenerateBdc("All");
 
   unsigned sigmoidType = 1;
   double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
@@ -249,15 +253,15 @@ int main(int argc, char **argv) {
 
     mlsol0->CopySolutionToOldSolution();
 
-    unsigned level = numberOfUniformLevels + numberOfSelectiveLevels - 1u;
+    unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
+    level0 = numberOfUniformLevels + numberOfSelectiveLevels - 1u;
 
-    MultiLevelMesh mlMsh2(*mlmsh0, level, "seventh");
+    MultiLevelMesh mlMsh2(*mlmsh0, level0, level0 + 1, "seventh");
+
     auto msh = mlMsh2.GetLevel(0);
-    level = msh->GetLevel();
     msh->SetLevel(0);
 
     MultiLevelSolution mlSol2(&mlMsh2);
-
     mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
     for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
     mlSol2.AddSolution("P1",  DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
@@ -270,58 +274,105 @@ int main(int argc, char **argv) {
     mlSol2.FixSolutionAtOnePoint("P2");
     mlSol2.GenerateBdc("All");
 
-    auto &Sol0 = (mlsol0->GetSolutionLevel(level))->_Sol;
+
+    auto &Sol0_lnm1 = (mlsol0->GetSolutionLevel(levelN - 1))->_Sol;
+    auto &Sol0Old_lnm1 = (mlsol0->GetSolutionLevel(levelN - 1))->_SolOld;
+
+    auto &Sol0_l0 = (mlsol0->GetSolutionLevel(level0))->_Sol;
+    auto &Sol0Old_l0 = (mlsol0->GetSolutionLevel(level0))->_SolOld;
+
+    //TODO Restrict Sol0_lnm1 to Sol0_l0 (only for C)
+
     auto &Sol2 = (mlSol2.GetSolutionLevel(0))->_Sol;
-    auto &Sol0Old = (mlsol0->GetSolutionLevel(level))->_SolOld;
     auto &Sol2Old = (mlSol2.GetSolutionLevel(0))->_SolOld;
 
 
-    for(unsigned i = 0; i < Sol0.size(); i++) {
-      *(Sol2[i]) = *(Sol0[i]);
-      if((mlsol0->GetSolutionLevel(level))->GetSolutionTimeOrder(i) == 2) {
-        *(Sol2Old[i]) = *(Sol0Old[i]);
+    for(unsigned i = 0; i < Sol0_l0.size(); i++) {
+      *(Sol2[i]) = *(Sol0_l0[i]); // TODO Be carful the velocity and pressure were available on mlMsh0, so they need to be interpolated on mlmeh0
+      if((mlsol0->GetSolutionLevel(level0))->GetSolutionTimeOrder(i) == 2) {
+        *(Sol2Old[i]) = *(Sol0Old_l0[i]);
       }
     }
 
-    MultiLevelProblem mlProb(&mlSol2);
+
+
+    MultiLevelProblem mlProb2(&mlSol2);
+
+//     LinearImplicitSystem& systemK = mlProb2.add_system < LinearImplicitSystem > ("K");
+//     systemK.AddSolutionToSystemPDE("K");
+//
+//     // attach the assembling function to system
+//     systemK.SetAssembleFunction(AssembleK);
+//
+//     // initilaize and solve the system
+//     systemK.init();
+//     systemK.SetOuterSolver(PREONLY);
+//     systemK.MGsolve();
+
+
+
+
 
     // add system Navier-Stokes in mlProb as a Linear Implicit System
-    TransientNonlinearImplicitSystem& system = mlProb.add_system < TransientNonlinearImplicitSystem > ("NS");
-
+    TransientNonlinearImplicitSystem& system2 = mlProb2.add_system < TransientNonlinearImplicitSystem > ("NS");
     // add velocity to system
-    for(unsigned d = 0; d < dim; d++) system.AddSolutionToSystemPDE(vName[d].c_str());
-
+    for(unsigned d = 0; d < dim; d++) system2.AddSolutionToSystemPDE(vName[d].c_str());
     //add pressure
-    system.AddSolutionToSystemPDE("P1");
-    system.AddSolutionToSystemPDE("P2");
-
-    system.SetSparsityPatternMinimumSize(250);
-
+    system2.AddSolutionToSystemPDE("P1");
+    system2.AddSolutionToSystemPDE("P2");
+    system2.SetSparsityPatternMinimumSize(250);
     // attach the assembling function to system
-    system.SetAssembleFunction(AssembleMultiphase);
-    system.AttachGetTimeIntervalFunction(TimeStepMultiphase);
-    //
+    system2.SetAssembleFunction(AssembleMultiphase);
+    system2.AttachGetTimeIntervalFunction(TimeStepMultiphase);
     // initilaize and solve the system
-    system.init();
-    system.SetOuterSolver(PREONLY);
-    //
-    system.MGsolve();
+    system2.init();
+    system2.SetOuterSolver(PREONLY);
+
+    // This mlProblem is used to assemble the Navier-Stokes block but it is never solved
+    MultiLevelProblem mlProb0(mlsol0);
+    // add system Navier-Stokes in mlProb as a Linear Implicit System
+    TransientNonlinearImplicitSystem& system0 = mlProb0.add_system < TransientNonlinearImplicitSystem > ("NS");
+    // add velocity to system
+    for(unsigned d = 0; d < dim; d++) system0.AddSolutionToSystemPDE(vName[d].c_str());
+    //add pressure
+    system0.AddSolutionToSystemPDE("P1");
+    system0.AddSolutionToSystemPDE("P2");
+    system0.SetSparsityPatternMinimumSize(250);
+    // attach the assembling function to system
+    system0.SetAssembleFunction(AssembleMultiphase);
+    system0.AttachGetTimeIntervalFunction(TimeStepMultiphase);
+    // initilaize and solve the system
+    system0.init();
+    system0.SetOuterSolver(PREONLY);
+
+    ml_prob0 = &mlProb0;
+
+    system2.MGsolve();
+
 
     VTKWriter vtkIO1(&mlSol2);
     vtkIO1.SetDebugOutput(true);
     if (t % 1 == 0)
       vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
 
-    for(unsigned i = 0; i < Sol0.size(); i++) {
-      *(Sol0[i]) = *(Sol2[i]);
-      if((mlsol0->GetSolutionLevel(level))->GetSolutionTimeOrder(i) == 2) {
-        *(Sol0Old[i]) = *(Sol2Old[i]);
+
+    // //here we need a prolongation of sol2 into sol3 //TODO
+    // for(unsigned i = 0; i < Sol3.size(); i++) {
+    //   *(Sol3[i]) = *(Sol2[i]);
+    //   if((mlSol2.GetSolutionLevel(0))->GetSolutionTimeOrder(i) == 2) {
+    //     *(Sol3Old[i]) = *(Sol2Old[i]);
+    //   }
+    // }
+
+
+
+    for(unsigned i = 0; i < Sol0_l0.size(); i++) {
+      *(Sol0_l0[i]) = *(Sol2[i]);
+      if((mlsol0->GetSolutionLevel(levelN - 1))->GetSolutionTimeOrder(i) == 2) {
+        *(Sol0Old_l0[i]) = *(Sol2Old[i]);
       }
     }
-    msh->SetLevel(level);
-
-
-    //InitSol(*mlsol0, vName, time, period);// TODO with Navier-Stokes solve
+    msh->SetLevel(level0);
 
     bbox.SetMesh(mlmsh0->GetLevel(0));
 
@@ -374,9 +425,9 @@ int main(int argc, char **argv) {
 
     mlsol1->Build(mlmsh1);
     mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-    for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2, false);
-    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
+    for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
+    mlsol1->AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
+    mlsol1->AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
     mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
     mlsol1->Initialize("All");
@@ -386,6 +437,7 @@ int main(int argc, char **argv) {
 
     UpdateColorFunction(*mlsol1, psiName, cName);
 
+
     // Export solution to VTK (selected levels)
 
 
@@ -393,10 +445,15 @@ int main(int argc, char **argv) {
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
 
-     VTKWriter vtkIO2(mlsol0);
-    if (t % 1 == 0)
-      vtkIO2.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
+    RestrictPWDCField(*mlsol0, cName, levelN-2, levelN-1);
+
+    VTKWriter vtkIO2(mlsol0);
+    if (t % 1 == 0){
+      vtkIO2.Write(levelN-1, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
                    t / 1);
+      vtkIO2.Write(levelN-2, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
+                   t / 1);
+    }
 
     mlsol1->clear();
     mlmsh1->resize(numberOfUniformLevels);
@@ -447,13 +504,691 @@ double TimeStepMultiphase(const double time) {
   return dt;
 }
 
-//Attempting to create J by hand
-void AssembleMultiphase(MultiLevelProblem& ml_prob) {
-  //  ml_prob is the global object from/to where get/set all the data
-  //  level is the level of the PDE system to be assembled
-  //  levelMax is the Maximum level of the MultiLevelProblem
-  //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
+
+
+//Attempting to create J by hand
+void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
+
+  //  extract pointers to the several objects that we are going to use
+  TransientNonlinearImplicitSystem* mlPdeSys2   = &ml_prob2.get_system<TransientNonlinearImplicitSystem> ("NS");
+  const unsigned level2 = mlPdeSys2->GetLevelToAssemble();
+
+  Mesh* msh2 = ml_prob2._ml_msh->GetLevel(level2);    // pointer to the mesh (level) object
+  elem* el2 = msh2->el;  // pointer to the elem object in msh (level)
+
+  MultiLevelSolution*  mlSol2        = ml_prob2._ml_sol;  // pointer to the multilevel solution object
+  Solution* sol2 = ml_prob2._ml_sol->GetSolutionLevel(level2);    // pointer to the solution (level) object
+
+
+  LinearEquationSolver* pdeSys2        = mlPdeSys2->_LinSolver[level2]; // pointer to the equation (level) object
+  SparseMatrix* KK2 = pdeSys2->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  NumericVector* RES2 = pdeSys2->_RES; // pointer to the global residual std::vector object in pdeSys (level)
+
+  //MatResetPreallocation((static_cast< PetscMatrix* >(KK2))->mat());
+  MatSetOption((static_cast< PetscMatrix* >(KK2))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+
+  KK2->zero();
+  RES2->zero();
+
+  AssembleGhostPenalty(ml_prob2);
+  AssembleGhostPenaltyDGP(ml_prob2, true);
+  AssembleGhostPenaltyDGP(ml_prob2, false);
+
+  RES2->close();
+  KK2->close();
+
+
+  //  extract pointers to the several objects that we are going to use
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob0->get_system<TransientNonlinearImplicitSystem> ("NS");
+
+  const unsigned level = level0;
+
+  Mesh*          msh          = ml_prob0->_ml_msh->GetLevel(level);    // pointer to the mesh (level) object
+  elem*          el         = msh->el;  // pointer to the elem object in msh (level)
+
+  MultiLevelSolution*  mlSol        = ml_prob0->_ml_sol;  // pointer to the multilevel solution object
+  Solution*    sol        = ml_prob0->_ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
+
+
+  LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
+  SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
+  NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
+
+
+  //MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
+  MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+
+
+
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+
+  if(dim == 2) g = {0, gravity};
+  else g = {0, 0, gravity};
+
+  double dt =  mlPdeSys->GetIntervalTime();
+
+  unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
+
+  //solution variable
+  std::vector < unsigned > solVIndex(dim);
+  solVIndex[0] = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
+  solVIndex[1] = mlSol->GetIndex("V");    // get the position of "V" in the ml_sol object
+  if(dim == 3) solVIndex[2] = mlSol->GetIndex("W");       // get the position of "V" in the ml_sol object
+
+  unsigned solVType = mlSol->GetSolutionType(solVIndex[0]);    // get the finite element type for "u"
+
+  unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
+  unsigned solP2Index = mlSol->GetIndex("P2");    // get the position of "P2" in the ml_sol object
+  unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
+
+  unsigned psiIndex = mlSol->GetIndex("Psi");
+  unsigned psiType = mlSol->GetSolutionType("Psi");
+  unsigned cIndex = mlSol->GetIndex("C");
+
+  std::vector < unsigned > solVPdeIndex(dim);
+  solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
+  solVPdeIndex[1] = mlPdeSys->GetSolPdeIndex("V");    // get the position of "V" in the pdeSys object
+  if(dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
+
+  unsigned solP1PdeIndex = mlPdeSys->GetSolPdeIndex("P1");    // get the position of "P" in the pdeSys object
+  unsigned solP2PdeIndex = mlPdeSys->GetSolPdeIndex("P2");    // get the position of "P" in the pdeSys object
+
+  std::vector < std::vector < double > >  solV(dim);    // local solution
+  std::vector < std::vector < double > >  solVOld(dim);    // local solution
+  std::vector < double >  solP1; // local solution
+  std::vector < double >  solP2; // local solution
+
+  std::vector < double >  psi; // local solution
+
+  std::vector < std::vector < double > > coordX(dim);    // local coordinates
+  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+
+  std::vector <double> phiV;  // local test function for velocity
+  std::vector <double> phiV_x; // local test function first order partial derivatives
+
+  std::vector <double> phiPsi;
+  std::vector <double>  phiPsi_x;
+  std::vector <double> phiPsi_xx;
+
+  unsigned dim2 = 3 * (dim - 1);
+
+  double* phiP; // local test function for the pressure
+  double weight; // gauss point weight
+  double weightPsi;
+
+  std::vector< unsigned > sysDof; // local to global pdeSys dofs
+  std::vector< double > Res; // local redidual std::vector
+  std::vector < double > Jac;
+
+  double eps = 0.00000001;
+
+  for(unsigned d = 0; d < dim; d++) {
+    *(sol->_Sol[solVIndex[d]]) = *(sol2->_Sol[solVIndex[d]]); //TODO prolongation of sol2 into sol3
+  }
+  *(sol->_Sol[solP1Index]) = *(sol2->_Sol[solP1Index]); //TODO prolongation of sol2 into sol3
+  *(sol->_Sol[solP2Index]) = *(sol2->_Sol[solP2Index]); //TODO prolongation of sol2 into sol3
+
+
+  KK->zero();
+  RES->zero();
+
+  AssembleStabilizationTerms(*ml_prob0);
+
+
+  // element loop: each process loops only on the elements that owns
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    double C = (*sol->_Sol[cIndex])(iel);
+
+    short unsigned ielGeom = msh->GetElementType(iel);
+
+    unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
+    unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
+
+
+
+    unsigned nDofsVP = dim * nDofsV + 2 * nDofsP;
+
+    // resize local arrays
+    sysDof.resize(nDofsVP);
+    Res.assign(nDofsVP, 0.);
+    Jac.assign(nDofsVP * nDofsVP, 0.);
+
+    for(unsigned  k = 0; k < dim; k++) {
+      solV[k].resize(nDofsV);
+      solVOld[k].resize(nDofsV);
+      coordX[k].resize(nDofsV);
+    }
+    solP1.resize(nDofsP);
+    solP2.resize(nDofsP);
+
+
+    // local storage of global mapping and solution
+    for(unsigned i = 0; i < nDofsV; i++) {
+      unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);
+
+      for(unsigned  k = 0; k < dim; k++) {
+        solV[k][i] = (*sol->_Sol[solVIndex[k]])(solVDof);
+        solVOld[k][i] = (*sol->_SolOld[solVIndex[k]])(solVDof);
+        sysDof[k * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[k], solVPdeIndex[k], i, iel);
+      }
+    }
+
+    for(unsigned i = 0; i < nDofsP; i++) {
+      unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
+      solP1[i] = (*sol->_Sol[solP1Index])(solPDof);
+      solP2[i] = (*sol->_Sol[solP2Index])(solPDof);
+      sysDof[dim * nDofsV + i ] = pdeSys->GetSystemDof(solP1Index, solP1PdeIndex, i, iel);
+      sysDof[dim * nDofsV + nDofsP + i ] = pdeSys->GetSystemDof(solP2Index, solP2PdeIndex, i, iel);
+    }
+
+    // local storage of coordinates
+    for(unsigned i = 0; i < nDofsV; i++) {
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+      for(unsigned k = 0; k < dim; k++) {
+        coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
+      }
+    }
+
+    std::vector<double> a;
+    std::vector<double> xm;
+    double d;
+    unsigned cut = 0;
+    double vol;
+
+    std::vector<std::vector<double>> Jacob, JacI;
+
+    const elem_type *femV = msh->_finiteElement[ielGeom][solVType];
+    const elem_type *femP = msh->_finiteElement[ielGeom][solPType];
+    const elem_type *femPsi = msh->_finiteElement[ielGeom][psiType];
+    //unsigned cnt =
+
+    unsigned nDofsPsi;
+
+    cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
+
+    if(cut == 1) {
+      femV = fem.GetFiniteElement(ielGeom, solVType);
+      femP = fem.GetFiniteElement(ielGeom, solPType);
+      femPsi = fem.GetFiniteElement(ielGeom, psiType);
+
+      nDofsPsi = msh->GetElementDofNumber(iel, psiType);
+      psi.resize(nDofsPsi);
+      for(unsigned i = 0; i < nDofsPsi; i++) {
+        unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
+        psi[i] = (*sol->_Sol[psiIndex])(psiDof);
+      }
+
+      unsigned ng = femPsi->GetGaussPointNumber();
+      std::vector<double> psig(ng, 0.);
+      for(unsigned ig = 0; ig < ng; ig++) {
+        double *phi = femPsi->GetPhi(ig);
+        for(unsigned i = 0; i < nDofsPsi; i++) {
+          psig[ig] += psi[i] * phi[i];
+        }
+      }
+      std::vector<const double *> xg(dim);
+      for(unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
+
+      // femV->GetJacobianMatrix(coordX, {0., 0.}/*cld->GetCloudBaricenterInParentElement(iel) //TODO*/, weight, Jacob, JacI);
+      //cld->GetLinearFit(iel, Jacob, a, d); //TODO
+      BestFitLinearInterpolation(xg, psig, a);
+      d = a[dim];
+      a.resize(dim);
+    }
+
+    std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+
+    if(cut == 1) {
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
+      d = -d;
+      cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
+    }
+    else {
+      for(unsigned i = 0; i < weightCFInt.size(); i++) {
+        weightCFInt[i] = C;
+        weightCFExt[i] = 1. - C;
+      }
+    }
+
+    std::vector<double> xg(dim);
+    std::vector<double> NN(dim, 0.);
+    double kk = 0.;
+
+    // *** Gauss point loop ***
+    for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
+      femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x, phiPsi_xx);
+      phiP = femP->GetPhi(ig);
+
+      double dsN = 0.;
+      std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
+
+      if(cut == 1) {
+
+        femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+
+        for(unsigned k = 0; k < dim; k++) {
+          for(unsigned j = 0; j < dim; j++) {
+            Nf[k] += JacI[j][k] * a[j];
+          }
+          dsN += Nf[k] * Nf[k];
+        }
+        dsN = sqrt(dsN);
+        for(unsigned k = 0; k < dim; k++) {
+          Nf[k] /= dsN;
+        }
+
+
+        xg.assign(dim, 0);
+
+        for(unsigned i = 0; i < nDofsV; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            xg[k] += coordX[k][i] * phiV[i];
+          }
+        }
+
+        double NN_exact[2];
+        double det_exact = 0.;
+        for(unsigned k = 0; k < dim; k++) det_exact += xg[k] * xg[k];
+        det_exact = std::sqrt(det_exact);
+        for(unsigned k = 0; k < dim; k++) NN_exact[k] = xg[k] / det_exact;
+
+        kk = 1. / RADIUS;
+
+        for(unsigned d = 0; d < dim; d++)
+          NN[d] = 0;
+        std::vector<double> hess(dim2);
+        for (unsigned i = 0; i < nDofsPsi; i++) {
+          for(unsigned d = 0; d < dim; d++) {
+            NN[d] -= psi[i] * phiPsi_x[i * dim + d];
+          }
+          for (unsigned d = 0; d < dim2; d++) {
+            hess[d] += psi[i] * phiPsi_xx[i * dim2 + d];
+          }
+        }
+        double det = 0;
+        for (unsigned j = 0; j < dim; j++) {
+          det += NN[j] * NN[j];
+        }
+        det = sqrt(det);
+        for (unsigned j = 0; j < dim; j++) {
+          NN[j] /= det;
+        }
+        double H = 0;
+        for(unsigned J = 0; J < dim; J++) {
+          for(unsigned K = 0; K < dim; K++) {
+            //2D xx, yy, xy
+            //3D xx, yy, zz, xy, yz ,zx
+            unsigned L;
+            if(J == K) L = J;
+            else if(1 == J + K) L = dim;     // xy
+            else if(2 == J + K) L = dim + 2; // xz
+            else if(3 == J + K) L = dim + 1; // yz
+            H += NN[J] * hess[L] * NN[K];
+          }
+          H -= hess[J];
+        }
+        H /= (dim - 1) * det;
+
+        kk = H;
+
+        // std::cerr<<"H "<<H<<" NN "<<NN[0]<<" "<<NN[1] <<" vs kk "<<kk<<" n "<<NN_exact[0]<<" "<<NN_exact[1]<<std::endl;
+
+      }
+
+
+
+
+
+//       if(true ) { // TODO cld->GetNumberOfMarker(iel) > 0) {
+//         double magN2 = 0.;
+// //         kk = cld->getCurvature(iel, xqp);
+//         //kk = cld->GetAverageCurvature(iel); // TODO get curvature
+//         //NN = cld->GetNormal(iel, xqp); //TODO get normal
+// //       kk = CurvatureQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp);
+// //       kk = 1. / RADIUS;
+// //       NormalQuadric({1., 1., 0., - 2 * XG, - 2 * YG, XG * XG + YG * YG - RADIUS * RADIUS}, xqp, NN); //TODO
+// //       for(unsigned k = 0; k < dim; k++) magN2 += NN[k] * NN[k];
+// //       for(unsigned k = 0; k < dim; k++) NN[k] /= sqrt(magN2);
+//       }
+
+      std::vector < double > solV_gss(dim, 0);
+      std::vector < double > solVOld_gss(dim, 0);
+      std::vector < std::vector < double > > gradSolV_gss(dim);
+
+      for(unsigned  k = 0; k < dim; k++) {
+        gradSolV_gss[k].assign(dim, 0.);
+      }
+
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned  k = 0; k < dim; k++) {
+          solV_gss[k] += solV[k][i] * phiV[i];
+          solVOld_gss[k] += solVOld[k][i] * phiV[i];
+        }
+        for(unsigned j = 0; j < dim; j++) {
+          for(unsigned k = 0; k < dim; k++) {
+            gradSolV_gss[k][j] += solV[k][i] * phiV_x[i * dim + j];
+          }
+        }
+      }
+
+      double solP1_gss = 0;
+      double solP2_gss = 0;
+      for(unsigned i = 0; i < nDofsP; i++) {
+        solP1_gss += phiP[i] * solP1[i];
+        solP2_gss += phiP[i] * solP2[i];
+      }
+
+      double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
+      double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+
+      //double rho = rho1 * C + rho2 * (1. - C);
+      //double mu = mu1 * C + mu2 * (1. - C);
+
+      double rhoC = rho1 * C + rho2 * (1. - C);
+
+      // *** phiV_i loop ***
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
+          double NSV = 0.;
+          for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
+            NSV   +=  mu * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
+            NSV   +=  rho * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
+          }
+          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
+          NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
+          NSV += - rho * phiV[i] * g[I]; // gravity term
+          Res[I * nDofsV + i] -=  NSV * weight;
+          if(cut == 1) {
+            //std::cout << - sigma * phiV[i] * NN[I] * weight * weightCF[ig] * kk * dsN << " ";
+            Res[I * nDofsV + i] += - sigma * phiV[i] * NN[I] * weight * weightCF[ig] * kk * dsN;
+          }
+        }
+      } // end phiV_i loop
+
+      // *** phiP_i loop ***
+      for(unsigned i = 0; i < nDofsP; i++) {
+        for(int I = 0; I < dim; I++) {
+          Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
+          Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
+        }
+        if(C == 0)
+          Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+        if(C == 1)
+          Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+
+      } // end phiP_i loop
+      // end gauss point loop
+
+
+      //--------------------------------------------------------------------------------------------------------
+      // Add the local Matrix/Vector into the global Matrix/Vector
+
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+          unsigned VIrow = I * nDofsV + i;
+          for(unsigned j = 0; j < nDofsV; j++) {
+            unsigned VIcolumn = I * nDofsV + j;
+
+            Jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / dt; // inertia
+
+            for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+              unsigned VJcolumn = J * nDofsV + j;
+              Jac[ VIrow * nDofsVP + VIcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
+              Jac[ VIrow * nDofsVP + VJcolumn ] += mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
+
+              Jac[ VIrow * nDofsVP + VIcolumn ] += rho * phiV[i] * solV_gss[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
+              Jac[ VIrow * nDofsVP + VJcolumn ] += rho * phiV[i] * phiV[j] * gradSolV_gss[I][J] * weight; //off-diagonal nonlinear
+            }
+          }
+
+          for(unsigned j = 0; j < nDofsP; j++) {
+            unsigned P1column = dim * nDofsV + j;
+            unsigned P2column = dim * nDofsV + nDofsP + j;
+            Jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
+            Jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
+            Jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
+            Jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
+          }
+        }
+      }
+      for(unsigned i = 0; i < nDofsP; i++) {
+        unsigned P1row = dim * nDofsV + i;
+        unsigned P2row = dim * nDofsV + nDofsP + i;
+        for(unsigned j = 0; j < nDofsP; j++) {
+          unsigned P1column = dim * nDofsV + j;
+          unsigned P2column = dim * nDofsV + nDofsP + j;
+          if(C == 0)
+            Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          if(C == 1)
+            Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
+        }
+      }
+
+
+    }
+
+    RES->add_vector_blocked(Res, sysDof);
+    KK->add_matrix_blocked(Jac, sysDof, sysDof);
+
+
+  } //end element loop for each process
+
+
+  RES->close();
+  KK->close();
+
+
+  //TODO restrict KK into KK2 space
+  KK2->matrix_add (1., *KK, "different_nonzero_pattern");
+  *RES2 += *RES;
+
+
+  // Mat A = (static_cast<PetscMatrix*>(KK2))->mat();
+  // Mat B = (static_cast<PetscMatrix*>(KK))->mat();
+  //
+  // PetscInt AM, AN, BM, BN;
+  // PetscInt Am, An, Bm, Bn;
+  // PetscInt ars, are, brs, bre;
+  // PetscInt acs, ace, bcs, bce;
+  //
+  // MatGetSize(A, &AM, &AN);
+  // MatGetSize(B, &BM, &BN);
+  //
+  // MatGetLocalSize(A, &Am, &An);
+  // MatGetLocalSize(B, &Bm, &Bn);
+  //
+  // MatGetOwnershipRange(A, &ars, &are);
+  // MatGetOwnershipRange(B, &brs, &bre);
+  //
+  // MatGetOwnershipRangeColumn(A, &acs, &ace);
+  // MatGetOwnershipRangeColumn(B, &bcs, &bce);
+  //
+  // PetscPrintf(PETSC_COMM_WORLD,
+  //             "KK2 global %d x %d, local %d x %d\n",
+  //             AM, AN, Am, An);
+  //
+  // PetscPrintf(PETSC_COMM_WORLD,
+  //             "KK  global %d x %d, local %d x %d\n",
+  //             BM, BN, Bm, Bn);
+  //
+  // PetscSynchronizedPrintf(PETSC_COMM_WORLD,
+  //                         "KK2 rows [%d,%d), cols [%d,%d)\n",
+  //                         ars, are, acs, ace);
+  //
+  // PetscSynchronizedPrintf(PETSC_COMM_WORLD,
+  //                         "KK  rows [%d,%d), cols [%d,%d)\n",
+  //                         brs, bre, bcs, bce);
+  //
+  // PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
+
+
+
+
+
+
+
+
+//  VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
+//MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
+
+//   PetscViewer    viewer;
+//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
+//   PetscObjectSetName((PetscObject) viewer, "PWilmore matrix");
+//   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
+//   MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
+//   double a;
+//   std::cin >> a;
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Attempting to create J by hand
+void AssembleMultiphaseOld(MultiLevelProblem& ml_prob) {
 
   //  extract pointers to the several objects that we are going to use
   TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
@@ -531,7 +1266,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
   std::vector <double>  phiPsi_x;
   std::vector <double> phiPsi_xx;
 
-  unsigned dim2 = 3*(dim-1);
+  unsigned dim2 = 3 * (dim - 1);
 
   double* phiP; // local test function for the pressure
   double weight; // gauss point weight
@@ -714,7 +1449,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
         std::vector<double> hess(dim2);
         for (unsigned i = 0; i < nDofsPsi; i++) {
           for(unsigned d = 0; d < dim; d++) {
-              NN[d] -= psi[i] * phiPsi_x[i * dim + d];
+            NN[d] -= psi[i] * phiPsi_x[i * dim + d];
           }
           for (unsigned d = 0; d < dim2; d++) {
             hess[d] += psi[i] * phiPsi_xx[i * dim2 + d];
@@ -742,7 +1477,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob) {
           }
           H -= hess[J];
         }
-        H /= (dim - 1)*det;
+        H /= (dim - 1) * det;
 
         kk = H;
 

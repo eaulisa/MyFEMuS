@@ -39,16 +39,18 @@ namespace femus {
     this->clear();
   }
 
-  MultiLevelMesh::MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned int level, const char GaussOrder[]) {
+  MultiLevelMesh::MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level0, const unsigned levelN, const char GaussOrder[]) {
+
+    _gridn0 = levelN - level0;
+    _gridn = _gridn0;
 
     _level0IsOwned = false;
-    _level0.resize(1);
-    _level0[0] = mlmsh0.GetLevel(level);
-    _level.resize(1);
-    _level[0] = _level0[0];
-
-    _gridn = 1;
-    _gridn0 = 1;
+    _level0.resize(_gridn0);
+    _level.resize(_gridn0);
+    for(unsigned i = 0; i <_level0.size(); i++ ){
+      _level0[i] = mlmsh0.GetLevel(level0 + i);
+      _level[i] = _level0[i];
+    }
 
     _finiteElementGeometryFlag.resize(6, true);
 

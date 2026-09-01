@@ -24,6 +24,8 @@ void InterpolateSolution(LevelMarkers &l0,
                          const double c = 1.
                         );
 
+
+
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
@@ -32,6 +34,101 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      const double dt = 0.,
                      const double time = 0.,
                      const double period = 0.);
+
+
+
+
+void RestrictPWDCField(MultiLevelSolution &mlSol,
+                       const std::string &CName,
+                       const unsigned level0,
+                       const unsigned level1) {
+
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+
+  const unsigned solIndex = mlSol.GetIndex(CName.c_str());
+  const unsigned solType = mlSol.GetSolutionType(CName.c_str());
+
+  if(solType != 3) {
+    std::cout << "Error! The C Field is not PWC\n" << std::endl;
+    abort();
+  }
+
+  for(int l = level1; l > level0; l--) {
+
+    Mesh &msh_l = *mlMsh.GetLevel(l);
+    Mesh &msh_lm1 = *mlMsh.GetLevel(l - 1);
+
+    const unsigned iproc = msh_l.processor_id();
+    const unsigned dim = msh_l.GetDimension();
+    const unsigned maxNumberOfChildren = 1u << dim;
+
+    auto &solC_l = (mlSol.GetSolutionLevel(l))->_Sol[solIndex];
+    auto &solC_lm1 = (mlSol.GetSolutionLevel(l - 1))->_Sol[solIndex];
+
+    NumericVector *father = NumericVector::build().release();
+    father->init(*solC_l);
+    father->zero();
+
+    for(unsigned iel_lm1 = msh_lm1._elementOffset[iproc];
+        iel_lm1 < msh_lm1._elementOffset[iproc + 1];
+        iel_lm1++) {
+
+      const unsigned numberOfChildren =
+          msh_lm1.GetRefinedElementIndex(iel_lm1) ?
+          maxNumberOfChildren : 1;
+
+      for(unsigned j = 0; j < numberOfChildren; j++) {
+        const unsigned iel_l =
+            msh_lm1.el->GetChildElement(iel_lm1, j);
+
+        father->set(iel_l, iel_lm1);
+      }
+    }
+
+    father->close();
+
+    solC_lm1->zero();
+
+    for(unsigned iel_l = msh_l._elementOffset[iproc];
+        iel_l < msh_l._elementOffset[iproc + 1];
+        iel_l++) {
+
+      const unsigned iel_lm1 =
+          static_cast<unsigned>((*father)(iel_l));
+
+      solC_lm1->add(iel_lm1, (*solC_l)(iel_l));
+    }
+
+    solC_lm1->close();
+
+    const double tol = 1.e-10;
+
+    for(unsigned iel_lm1 = msh_lm1._elementOffset[iproc];
+        iel_lm1 < msh_lm1._elementOffset[iproc + 1];
+        iel_lm1++) {
+
+      if(msh_lm1.GetRefinedElementIndex(iel_lm1)) {
+
+        const double value = (*solC_lm1)(iel_lm1);
+
+        if(value <= tol) {
+          solC_lm1->set(iel_lm1, 0.);
+        }
+        else if(value >= maxNumberOfChildren - tol) {
+          solC_lm1->set(iel_lm1, 1.);
+        }
+        else {
+          solC_lm1->set(iel_lm1, 0.5);
+        }
+      }
+    }
+
+    solC_lm1->close();
+
+    delete father;
+  }
+}
+
 
 inline std::vector<double>
 Velocity(std::vector<double> &xp, const double time, double period) noexcept {
@@ -94,7 +191,7 @@ void Shift(std::vector<MyVector<double>> &X, const std::vector<double> &dx) {
   }
 }
 
-void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
+void FlagFinestMeshLevel(MultiLevelMesh & mlMsh, const double & r,
                          const std::vector<double> &xc) {
 
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
@@ -182,7 +279,7 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, const double &r,
   msh.el->SetRefinedElementNumber(globalRefined);
 }
 
-void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel) {
+void FlagFinestMeshLevel(MultiLevelMesh & mlMsh, MyVector<unsigned> &XIel) {
 
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Mesh &msh = *mlMsh.GetLevel(level);
@@ -236,8 +333,8 @@ void FlagFinestMeshLevel(MultiLevelMesh &mlMsh, MyVector<unsigned> &XIel) {
   msh.el->SetRefinedElementNumber(globalRefined);
 }
 
-void InitLevelSet(MultiLevelSolution &mlSol, const std::string &name,
-                  const PsiBall &psi2D) {
+void InitLevelSet(MultiLevelSolution & mlSol, const std::string & name,
+                  const PsiBall & psi2D) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -284,7 +381,7 @@ void InitLevelSet(MultiLevelSolution &mlSol, const std::string &name,
 }
 
 
-void UpdateColorFunction(MultiLevelSolution &mlSol, const std::string &psiName, const std::string &cName) {
+void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName, const std::string & cName) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -327,7 +424,7 @@ void UpdateColorFunction(MultiLevelSolution &mlSol, const std::string &psiName, 
 }
 
 
-void InitSol(MultiLevelSolution &mlSol, const std::vector<std::string> &solName, const double time, const double period) {
+void InitSol(MultiLevelSolution & mlSol, const std::vector<std::string> &solName, const double time, const double period) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -386,7 +483,7 @@ void InitSol(MultiLevelSolution &mlSol, const std::vector<std::string> &solName,
 
 
 
-void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name,
+void GetCutElementPoints(MultiLevelSolution & mlSol, const std::string & name,
                          std::vector<MyVector<double>> &X,
                          MyVector<unsigned> &Xiel) {
 
@@ -520,7 +617,7 @@ void GetCutElementPoints(MultiLevelSolution &mlSol, const std::string &name,
   Xiel.buildFromLocal(Yiel);
 }
 
-static void WritePointsVTK(const std::string &filename,
+static void WritePointsVTK(const std::string & filename,
                            const std::vector<MyVector<double>> &X) {
 
   const unsigned dim = X.size();
@@ -576,7 +673,7 @@ static void WritePointsVTK(const std::string &filename,
   }
 }
 
-void GetAllSolutionPoints(MultiLevelSolution &mlSol, const std::string &name,
+void GetAllSolutionPoints(MultiLevelSolution & mlSol, const std::string & name,
                           std::vector<MyVector<double>> &X) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
@@ -626,12 +723,12 @@ void GetAllSolutionPoints(MultiLevelSolution &mlSol, const std::string &name,
   }
 }
 
-void ProjectSolution(MultiLevelSolution &mlSol0 /* marker receive */,
-                     MultiLevelSolution &mlSol1 /* marker send */,
-                     BBoxToIel &bbox, RungeKutta &rk,
+void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
+                     MultiLevelSolution & mlSol1 /* marker send */,
+                     BBoxToIel & bbox, RungeKutta & rk,
                      const std::vector<std::string> solName,
                      const std::vector<std::string> vName,
-                     const Boundary& bd,
+                     const Boundary & bd,
                      const double dt,
                      const double time,
                      const double period) {
@@ -901,7 +998,7 @@ void InterpolateSolution(LevelMarkers & l0,
   l0.RebuildFieldFromLocal(Wfield_s, nFields, backward);
 }
 
-void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, std::vector<std::string> &gradSolName) {
+void GetSolutionGradient(MultiLevelSolution & mlSol, const std::string & solName, std::vector<std::string> &gradSolName) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -1012,8 +1109,8 @@ void GetSolutionGradient(MultiLevelSolution &mlSol, const std::string &solName, 
 
 }
 
-double ComputeArea(MultiLevelSolution &mlSol,
-                   const std::string &solName) {
+double ComputeArea(MultiLevelSolution & mlSol,
+                   const std::string & solName) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
