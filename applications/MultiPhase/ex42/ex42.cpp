@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
 
     unsigned level = numberOfUniformLevels + numberOfSelectiveLevels - 1u;
 
-    MultiLevelMesh mlMsh2(*mlmsh0, level, "seventh");
+    MultiLevelMesh mlMsh2(*mlmsh0, level, level+1, "seventh");
     auto msh = mlMsh2.GetLevel(0);
     level = msh->GetLevel();
     msh->SetLevel(0);
