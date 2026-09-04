@@ -8,7 +8,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   //pointers and references
 
   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
-  const unsigned  level = levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
+  const unsigned  level = ml_prob.GetMultiphaseParams().levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
   MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
 
@@ -79,6 +79,17 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
   start_time = clock();
 
+
+  MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
+
+  double mu1 = properties.mu1;
+  double mu2 = properties.mu2;
+  double rho1 = properties.rho1;
+  double rho2 = properties.rho2;
+  double gravity = properties.gravity;
+  std::vector <double> g;
+  if(dim == 2) g = {0, gravity};
+  else g = {0, 0, gravity};
 
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {

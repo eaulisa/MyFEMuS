@@ -51,6 +51,13 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
   vector <vector < double> > vx(dim);
 
+  MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
+
+  double mu1 = properties.mu1;
+  double mu2 = properties.mu2;
+  double rho1 = properties.rho1;
+  double rho2 = properties.rho2;
+
   double mu = 2. * mu1 * mu2 / (mu1 + mu2);
   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
   double dt =  my_nnlin_impl_sys.GetIntervalTime();

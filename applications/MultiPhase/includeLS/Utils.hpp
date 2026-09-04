@@ -30,7 +30,7 @@ void InterpolateSolution(LevelMarkers &l0,
 
 
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
-                     BBoxToIel &bbox, RungeKutta &rk,
+                     BBoxToIel &bbox,
                      const std::vector<std::string> solName,
                      const unsigned s0Level,
                      const unsigned s1Level,
@@ -731,7 +731,7 @@ void GetAllSolutionPoints(MultiLevelSolution & mlSol, const std::string & name, 
 
 void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
                      MultiLevelSolution & mlSol1 /* marker send */,
-                     BBoxToIel & bbox, RungeKutta & rk,
+                     BBoxToIel & bbox,
                      const std::vector<std::string> solName,
                      const unsigned s0Level,
                      const unsigned s1Level,
@@ -764,8 +764,6 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
 
   MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
 
-  //const unsigned nLevels = mlMsh0.GetNumberOfLevels();
-
   // Extract all Psi grid points on the finest level of mlSol1
   std::vector<MyVector<double>> X1;
   GetAllSolutionPoints(mlSol1, solName[0], s1Level, X1);
@@ -773,8 +771,6 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
   unsigned dim = X1.size();
 
   if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, vName, vLevel, dt);
-
-  // rk.rkBackward(X1);
 
   LevelMarkers l0;
   double useSol = 1.; // rather than solOld = 0.

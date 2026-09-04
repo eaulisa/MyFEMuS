@@ -48,8 +48,25 @@ class QuantityMap;
 /**
 * This class is a black box container to handle multilevel problems.
 */
+struct MultiphasePhysicalProperties {
+    double mu1 = 0.;
+    double mu2 = 0.;
+    double rho1 = 0.;
+    double rho2 = 0.;
+    double sigma = 0.;
+    double gravity = 0.;
+};
+
+struct MultiphaseParams {
+    MultiLevelProblem* mlProbF = nullptr;
+    unsigned levelF = 0;
+    unsigned levelC = 0;
+    MultiphasePhysicalProperties properties;
+};
 
 class MultiLevelProblem {
+
+  
 
 public:
 
@@ -258,6 +275,21 @@ public:
 
    
    }
+
+
+    void SetMultiphaseParams(MultiLevelProblem* mlProbF,
+                             const unsigned levelF,
+                             const unsigned levelC, MultiphasePhysicalProperties properties) {
+        _multiphaseParams.mlProbF = mlProbF;
+        _multiphaseParams.levelF = levelF;
+        _multiphaseParams.levelC = levelC;
+        _multiphaseParams.properties = properties;
+
+    }
+
+        const MultiphaseParams& GetMultiphaseParams() const {
+        return _multiphaseParams;
+    }
    
    
 private:
@@ -284,7 +316,7 @@ private:
     std::vector< std::vector< /*const*/ elem_type_templ_base< adept::adouble, double > * > >  _elem_all_ad;
     std::vector< std::vector< /*const*/ elem_type_templ_base< adept::adouble, adept::adouble > * > >  _elem_all_aa;
     
-    
+    MultiphaseParams _multiphaseParams;
     
 };
 

@@ -264,8 +264,8 @@ int main(int argc, char **argv) {
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName, nLevels - 1, nLevels - 1);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, vName, nLevels - 1, nLevels - 1);
 
     // Export solution to VTK (selected levels)
 

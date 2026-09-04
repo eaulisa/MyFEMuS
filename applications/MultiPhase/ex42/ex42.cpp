@@ -381,8 +381,8 @@ int main(int argc, char **argv) {
 
     mlsol1->Initialize("All");
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {psiName}, nLevels - 1, nLevels - 1, vName, nLevels-1, zero_bd, -dt, time, period);
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName, nLevels - 1, nLevels - 1);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, {psiName}, nLevels - 1, nLevels - 1, vName, nLevels-1, zero_bd, -dt, time, period);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, vName, nLevels - 1, nLevels - 1);
 
     UpdateColorFunction(*mlsol1, psiName, cName);
 
