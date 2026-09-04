@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
-    RungeKutta4(X0, *mlsol0, bbox, vName, dt);
+    RungeKutta4(X0, *mlsol0, bbox, vName, nLevels - 1, dt);
     //rk.rkForward(X0);
 
     if (t % 1 == 0)
@@ -381,8 +381,8 @@ int main(int argc, char **argv) {
 
     mlsol1->Initialize("All");
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {psiName}, vName, zero_bd, -dt, time, period);
-    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, {psiName}, nLevels - 1, nLevels - 1, vName, nLevels-1, zero_bd, -dt, time, period);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, rk, vName, nLevels - 1, nLevels - 1);
 
     UpdateColorFunction(*mlsol1, psiName, cName);
 

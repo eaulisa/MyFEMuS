@@ -436,7 +436,7 @@ namespace femus {
 
     unsigned solType = 2;
 
-    _mesh._topology->_Sol[0]->matrix_mult(*mshc->_topology->_Sol[0], *_mesh.GetCoarseToFineProjection(solType));
+    _mesh._topology->_Sol[0]->matrix_mult(*mshc->_topology->_Sol[0], *(_mesh.GetCoarseToFineProjection(solType)));
     _mesh._topology->_Sol[1]->matrix_mult(*mshc->_topology->_Sol[1], *_mesh.GetCoarseToFineProjection(solType));
     _mesh._topology->_Sol[2]->matrix_mult(*mshc->_topology->_Sol[2], *_mesh.GetCoarseToFineProjection(solType));
     _mesh._topology->_Sol[0]->close();

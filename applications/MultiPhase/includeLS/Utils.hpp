@@ -4,6 +4,7 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
                  BBoxToIel & bbox,
                  const std::vector<std::string> &velName,
+                 const unsigned vlevel,
                  const double dt);
 
 void rkStep(MultiLevelSolution & mlSol,
@@ -12,6 +13,7 @@ void rkStep(MultiLevelSolution & mlSol,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
             const std::vector<std::string> &velName,
+            const unsigned vlevel,
             const double dt,
             const double c,
             const std::vector<double> &a);
@@ -21,7 +23,8 @@ void InterpolateSolution(LevelMarkers &l0,
                          BBoxToIel &bbox,
                          std::vector<MyVector<double>> &X,
                          const std::vector< std::string >solName,
-                         const double c = 1.
+                         const unsigned level,
+                         const double c
                         );
 
 
@@ -29,7 +32,10 @@ void InterpolateSolution(LevelMarkers &l0,
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
                      BBoxToIel &bbox, RungeKutta &rk,
                      const std::vector<std::string> solName,
+                     const unsigned s0Level,
+                     const unsigned s1Level,
                      const std::vector<std::string> vName = {},
+                     const unsigned vLevel = UINT_MAX,
                      const Boundary& bd_inflow = Boundary(),
                      const double dt = 0.,
                      const double time = 0.,
@@ -673,11 +679,11 @@ static void WritePointsVTK(const std::string & filename,
   }
 }
 
-void GetAllSolutionPoints(MultiLevelSolution & mlSol, const std::string & name,
+void GetAllSolutionPoints(MultiLevelSolution & mlSol, const std::string & name, const unsigned s0Level,
                           std::vector<MyVector<double>> &X) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
-  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  const unsigned level = s0Level;//mlMsh.GetNumberOfLevels() - 1u;
   Mesh &msh = *mlMsh.GetLevel(level);
   const unsigned dim = msh.GetDimension();
 
@@ -727,7 +733,10 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
                      MultiLevelSolution & mlSol1 /* marker send */,
                      BBoxToIel & bbox, RungeKutta & rk,
                      const std::vector<std::string> solName,
+                     const unsigned s0Level,
+                     const unsigned s1Level,
                      const std::vector<std::string> vName,
+                     const unsigned vLevel,
                      const Boundary & bd,
                      const double dt,
                      const double time,
@@ -755,23 +764,24 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
 
   MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
 
-  const unsigned nLevels = mlMsh0.GetNumberOfLevels();
+  //const unsigned nLevels = mlMsh0.GetNumberOfLevels();
 
   // Extract all Psi grid points on the finest level of mlSol1
   std::vector<MyVector<double>> X1;
-  GetAllSolutionPoints(mlSol1, solName[0], X1);
+  GetAllSolutionPoints(mlSol1, solName[0], s1Level, X1);
 
   unsigned dim = X1.size();
 
-  if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, vName, dt);
+  if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, vName, vLevel, dt);
 
   // rk.rkBackward(X1);
 
   LevelMarkers l0;
-  InterpolateSolution(l0, mlSol0, bbox, X1, solName);
+  double useSol = 1.; // rather than solOld = 0.
+  InterpolateSolution(l0, mlSol0, bbox, X1, solName, s0Level, useSol);
 
   MultiLevelMesh &mlMsh1 = *mlSol1.GetMultilevelMesh();
-  const unsigned level1 = mlMsh1.GetNumberOfLevels() - 1u;
+  const unsigned level1 = s1Level;
 
   Solution &sol1 = *mlSol1.GetLevel(level1);
 
@@ -809,6 +819,7 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
                  BBoxToIel & bbox,
                  const std::vector<std::string> &velName,
+                 const unsigned vLevel,
                  const double dt) {
   const unsigned &dim = X.size();
   const unsigned rk_nsteps = 4;
@@ -819,7 +830,7 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
   const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
   std::vector<std::vector<MyVector<double>>> K;
   for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-    rkStep(mlSol, bbox, X, K, rk, velName,  dt, c[rk], a[rk]);
+    rkStep(mlSol, bbox, X, K, rk, velName, vLevel, dt, c[rk], a[rk]);
   }
   for(unsigned rk = 0; rk < rk_nsteps; rk++) {
     for(unsigned d = 0; d < dim; d++) {
@@ -835,14 +846,15 @@ void rkStep(MultiLevelSolution & mlSol,
             const std::vector<MyVector<double>> &X,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
-            const std::vector<std::string> &velName,
+            const std::vector<std::string> &vName,
+            const unsigned vLevel,
             const double dt,
             const double c,
             const std::vector<double> &a) {
 
   assert (a.size() == rkStep);
   assert(!velName.empty());
-  const unsigned nFields = velName.size();
+  const unsigned nFields = vName.size();
 
   assert(X.size() == nFields);
 
@@ -857,19 +869,19 @@ void rkStep(MultiLevelSolution & mlSol,
 
 
   const unsigned velType =
-    mlSol.GetSolutionType(velName[0].c_str());
+    mlSol.GetSolutionType(vName[0].c_str());
 
   assert(velType <= 2);
 
-  for (unsigned k = 0; k < velName.size(); ++k) {
+  for (unsigned k = 0; k < vName.size(); ++k) {
     const unsigned velTypek =
-      mlSol.GetSolutionType(velName[k].c_str());
+      mlSol.GetSolutionType(vName[k].c_str());
     assert(velTypek == velType);
   }
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
 
-  const unsigned nLevels = mlMsh.GetNumberOfLevels();
+  //const unsigned nLevels = mlMsh.GetNumberOfLevels();
 
   // Extract all Psi grid points on the finest level of mlSol1
   std::vector<MyVector<double>> Xk = X;
@@ -883,7 +895,7 @@ void rkStep(MultiLevelSolution & mlSol,
 
   LevelMarkers l0;
 
-  InterpolateSolution(l0, mlSol, bbox, Xk, velName, c);
+  InterpolateSolution(l0, mlSol, bbox, Xk, vName, vLevel,  c);
 
   K.resize(rkStep + 1);
   K[rkStep].resize(nFields);
@@ -910,11 +922,12 @@ void InterpolateSolution(LevelMarkers & l0,
                          BBoxToIel & bbox,
                          std::vector<MyVector<double>> &X,
                          const std::vector< std::string >solName,
+                         const unsigned level,
                          const double c) {
 
   const unsigned &nFields = solName.size();
   MultiLevelMesh &mlMsh0 = *mlSol0.GetMultilevelMesh();
-  const unsigned nLevels = mlMsh0.GetNumberOfLevels();
+  const unsigned nLevels = level + 1u; //mlMsh0.GetNumberOfLevels();
   assert(bbox.GetLevel() < nLevels);
   const unsigned bboxLevels = nLevels - bbox.GetLevel();
 

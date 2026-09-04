@@ -8,7 +8,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   //pointers and references
 
   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
-  const unsigned  level = level0;//my_nnlin_impl_sys.GetLevelToAssemble();
+  const unsigned  level = levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
   MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
 
