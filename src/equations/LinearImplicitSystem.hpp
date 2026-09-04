@@ -79,6 +79,10 @@ namespace femus {
       */
       vector < LinearEquationSolver*> _LinSolver;
 
+      vector < LinearEquationSolver*> GetLinearSolver() {
+        return _LinSolver;
+      };
+
       void SetNumberOfGlobalVariables (const unsigned &numberOfGlobalVariables) {
         _numberOfGlobalVariables = numberOfGlobalVariables;
       }
@@ -94,7 +98,7 @@ namespace femus {
       };
 
       /** Flag to print fields to file after each linear iteration */
-      void SetDebugLinear(const bool my_value); 
+      void SetDebugLinear(const bool my_value);
 
       /** Get the absolute convergence tolerance for the linear problem Ax=b*/
       double GetAbsoluteConvergenceTolerance() const {
@@ -192,7 +196,7 @@ namespace femus {
       void SetAMRSetOptions (const std::string& AMR, const unsigned &AMRlevels,
                              const std::string& AMRnorm, const double &AMRthreshold,
                              bool (* SetRefinementFlag) (const std::vector < double > &x,
-                                                         const int &ElemGroupNumber, const int &level) = NULL);
+                                 const int &ElemGroupNumber, const int &level) = NULL);
 
       void SetAMRghborThresholdValue (const double &neighborThresholdValue) {
         _AMReighborThresholdValue = neighborThresholdValue;
@@ -207,7 +211,7 @@ namespace femus {
       void SetNumberPreSmoothingStep (const unsigned &npre) {
         _npre = npre;
       };
-      
+
       void SetNumberSmoothingStepCoarseGrid (const unsigned &npre0) {
         _npre0 = npre0;
       };
@@ -216,7 +220,7 @@ namespace femus {
       void SetNumberPostSmoothingStep (const unsigned &npost) {
         _npost = npost;
       };
-      
+
       void GetSystemInfo();
 
       /** enforce sparcity pattern for setting uncoupled variables and save on memory allocation **/
@@ -235,7 +239,16 @@ namespace femus {
       vector < SparseMatrix* > &GetRestrictionMatrix() {
         return _RR;
       }
-     
+
+      vector < SparseMatrix* > &GetAMRProjectionMatrix() {
+        return _PPamr;
+      }
+
+      vector < SparseMatrix* > &GetAMRRestrictionMatrix() {
+        return _RRamr;
+      }
+
+
       /** Solves the system. */
       virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE);
     protected:
@@ -332,7 +345,7 @@ namespace femus {
       unsigned _bitFlipCounter;
 
       unsigned _numberOfGlobalVariables;
-      
+
       std::vector< std::string > _sparsityPatternSolName;
       std::vector < unsigned > _sparsityPatternMinimumSize;
 

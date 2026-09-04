@@ -70,7 +70,7 @@ namespace femus {
     
       const std::string suffix_pre_extension = "";
     
-       Write(my_level, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
+       Write(my_level + 1, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
        
    }
    

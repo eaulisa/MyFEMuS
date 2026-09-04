@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
 
   const double scalingFactor = 1.0;
   const unsigned numberOfUniformLevels = 2u;
-  const unsigned numberOfSelectiveLevels = 4u;
+  const unsigned numberOfSelectiveLevels = 6u;
 
   std::string meshName = "./input/tri.neu";
 
@@ -180,14 +180,24 @@ int main(int argc, char **argv) {
 
   PsiBall psi2D(xc, r, m);
   InitLevelSet(mlSol0, psiName, psi2D);
-  UpdateColorFunction(mlSol0, psiName, cName);
+  // UpdateColorFunction(mlSol0, psiName, cName);
 
 
   // Export solution to VTK (selected levels)
   std::vector<std::string> variablesToBePrinted = {"All"};
-  VTKWriter vtkIO(&mlSol0);
-  vtkIO.SetDebugOutput(true);
-  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  std::vector<std::string> variablesToBePrintedF = {psiName, cName, kName};
+  variablesToBePrintedF.insert(
+    variablesToBePrintedF.end(),
+    nName.begin(),
+    nName.end()
+  );
+  std::vector<std::string> variablesToBePrintedC = {cName};
+  variablesToBePrintedC.insert(variablesToBePrintedC.end(), vName.begin(), vName.end());
+  variablesToBePrintedC.insert(variablesToBePrintedC.end(), pName.begin(), pName.end());
+
+  // VTKWriter vtkIO(&mlSol0);
+  // vtkIO.SetDebugOutput(true);
+  // vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
   MultiLevelMesh mlMsh1;
   MultiLevelSolution mlSol1;
@@ -228,25 +238,21 @@ int main(int argc, char **argv) {
 
   unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
   const unsigned levelF = levelN - 1u; //fine level associated for mlmsh0 and mlmsh1
-  const unsigned levelC = levelN - 1u; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
+  const unsigned levelC = levelN - 4u; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
 
   MultiphasePhysicalProperties properties;
-  properties.mu1= 0.1;
+  properties.mu1 = 0.1;
   properties.mu2 = 10.;
   properties.rho1 = 1.;
   properties.rho2 = 1000;
   properties.sigma = 1.96;
   properties.gravity = 0.;//-0.98;
 
-  for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
-    double time = t * dt;
+  UpdateColorFunction(*mlsol0, psiName, cName);
+  if(levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
 
-    mlsol0->CopySolutionToOldSolution();
-
-    UpdateColorFunction(*mlsol0, psiName, cName);
-    if(levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
-
+  {
     // mlProb0 is used to assemble and solve for N and K and assemble only the Navier-Stokes block and its stabilization terms
     mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
     mlsol0->GenerateBdc("All");
@@ -270,6 +276,18 @@ int main(int argc, char **argv) {
     system0_K.init();
     // system0_K.SetOuterSolver(PREONLY);
     system0_K.MGsolve();
+  }
+
+  VTKWriter vtkIO(&mlSol0);
+  //vtkIO.SetDebugOutput(true);
+  vtkIO.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+  for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
+
+    double time = t * dt;
+
+    mlsol0->CopySolutionToOldSolution();
 
     // mlProb2 is used to assemble the Ghost Penalty and solve the full Navier-Stokes + Ghost penalty
 
@@ -281,8 +299,8 @@ int main(int argc, char **argv) {
     for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), LAGRANGE, SECOND, 2);
     for(unsigned d = 0; d < pName.size(); d++) mlSol2.AddSolution(pName[d].c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0);
     mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-    for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(nName[d].c_str(), LAGRANGE, SECOND, 0);
-    mlSol2.AddSolution(kName.c_str(), LAGRANGE, SECOND, 0);
+    //for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(nName[d].c_str(), LAGRANGE, SECOND, 0);
+    //mlSol2.AddSolution(kName.c_str(), LAGRANGE, SECOND, 0);
 
     mlSol2.Initialize("All");
 
@@ -335,6 +353,7 @@ int main(int argc, char **argv) {
     system2.init();
     system2.SetOuterSolver(PREONLY);
 
+    MultiLevelProblem mlProb0(mlsol0);
     // add system Navier-Stokes in mlProb as a Linear Implicit System
     TransientNonlinearImplicitSystem& system0 = mlProb0.add_system < TransientNonlinearImplicitSystem > ("NS");
     // add velocity to system
@@ -356,13 +375,12 @@ int main(int argc, char **argv) {
 
     msh->SetLevel(0);
     system2.MGsolve();
-
-    VTKWriter vtkIO1(&mlSol2);
-    vtkIO1.SetDebugOutput(true);
-    if (t % 1 == 0)
-      vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
-
     msh->SetLevel(levelC);
+
+    VTKWriter vtkIO2(&mlSol2);
+    //vtkIO2.SetDebugOutput(true);
+    if (t % 1 == 0)
+      vtkIO2.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
 
 
     for(unsigned i = 0; i < Sol0_C.size(); i++) {
@@ -438,32 +456,53 @@ int main(int argc, char **argv) {
 
 
     mlsol1->Initialize("All");
+    mlsol1->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
+    mlsol1->GenerateBdc("All");
 
     ProjectSolution(*mlsol0, *mlsol1, bbox, {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
     ProjectSolution(*mlsol0, *mlsol1, bbox, vName, levelC, levelC);
+
+    UpdateColorFunction(*mlsol1, psiName, cName);
+    if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
+
+
+
+    MultiLevelProblem mlProb1(mlsol1);
+
+    // add system Normal in mlProb as a Linear Implicit System
+    LinearImplicitSystem& system1_N = mlProb1.add_system < LinearImplicitSystem > ("N");
+    for(unsigned d = 0; d < dim; d++) system1_N.AddSolutionToSystemPDE(nName[d].c_str());
+    system1_N.SetAssembleFunction(AssembleNormal);
+    // initilaize and solve the system
+    system1_N.SetMgType(V_CYCLE);
+    system1_N.init();
+    // system0_N.SetOuterSolver(PREONLY);
+    system1_N.MGsolve();
+
+    LinearImplicitSystem& system1_K = mlProb1.add_system < LinearImplicitSystem > ("K");
+    system1_K.AddSolutionToSystemPDE(kName.c_str());
+    system1_K.SetAssembleFunction(AssembleCurvature);
+    // initilaize and solve the system
+    system1_K.SetMgType(V_CYCLE);
+    system1_K.init();
+    // system0_K.SetOuterSolver(PREONLY);
+    system1_K.MGsolve();
+
+    // Export solution to VTK (selected levels)
+    VTKWriter vtkIO1(mlsol1);
+    if (t % 1 == 0) {
+      vtkIO1.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
+                   t / 1);
+      vtkIO1.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
+                   t / 1);
+    }
 
 
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
 
-    // Export solution to VTK (selected levels)
-    VTKWriter vtkIO2(mlsol0);
-    if (t % 1 == 0) {
-      vtkIO2.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
-                   t / 1);
-      vtkIO2.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
-                   t / 1);
-    }
-
     mlsol1->clear();
     mlmsh1->resize(numberOfUniformLevels);
-
-
-    // mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
-    // mlsol0->FixSolutionAtOnePoint("P1");
-    // mlsol0->FixSolutionAtOnePoint("P2");
-    // mlsol0->GenerateBdc("All");
-
 
     double area = ComputeArea(*mlsol0, psiName);
 
@@ -910,6 +949,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   Solution* sol2 = ml_prob2._ml_sol->GetSolutionLevel(level2);    // pointer to the solution (level) object
 
 
+  const unsigned  dim = msh2->GetDimension(); // get the domain dimension of the problem
+  std::vector < unsigned > sol2VIndex(dim);
+  sol2VIndex[0] = mlSol2->GetIndex("U");    // get the position of "U" in the ml_sol object
+  sol2VIndex[1] = mlSol2->GetIndex("V");    // get the position of "V" in the ml_sol object
+  if(dim == 3) sol2VIndex[2] = mlSol2->GetIndex("W");
+
+  unsigned sol2P1Index = mlSol2->GetIndex("P1");    // get the position of "P1" in the ml_sol object
+  unsigned sol2P2Index = mlSol2->GetIndex("P2");    // get the position of "P2" in the ml_sol object
+
+
   LinearEquationSolver* pdeSys2        = mlPdeSys2->_LinSolver[level2]; // pointer to the equation (level) object
   SparseMatrix* KK2 = pdeSys2->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* RES2 = pdeSys2->_RES; // pointer to the global residual std::vector object in pdeSys (level)
@@ -951,8 +1000,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   //MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
   MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-
-  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
   double mu1 = properties.mu1;
   double mu2 = properties.mu2;
@@ -1044,7 +1091,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     Solution*    solC        = ml_prob0->_ml_sol->GetSolutionLevel(levelC);
 
     for(unsigned d = 0; d < dim; d++) {
-      *(solC->_Sol[solVIndex[d]]) = *(sol2->_Sol[solVIndex[d]]); //TODO prolongation of sol2 into sol0^ln
+      *(solC->_Sol[solVIndex[d]]) = *(sol2->_Sol[sol2VIndex[d]]); //TODO prolongation of sol2 into sol0^ln
     }
     *(solC->_Sol[solP1Index]) = *(sol2->_Sol[solP1Index]); //TODO prolongation of sol2 into sol0^ln
     *(solC->_Sol[solP2Index]) = *(sol2->_Sol[solP2Index]); //TODO prolongation of sol2 into sol0^ln
@@ -1463,68 +1510,49 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->close();
   KK->close();
 
+  vector < SparseMatrix* > PP, RR, PPamr, RRamr;
+  PP = mlPdeSys->GetProjectionMatrix();
+  RR = mlPdeSys->GetRestrictionMatrix();
+  PPamr = mlPdeSys->GetAMRProjectionMatrix();
+  RRamr = mlPdeSys->GetAMRRestrictionMatrix();
+
+  vector < LinearEquationSolver*> LinSolver = mlPdeSys->GetLinearSolver();
+
+  MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
+  for(unsigned level = levelF; level > levelC; level--) {
+    if(!mlmsh0->GetLevel(level)->GetIfHomogeneous()) { //AMR RESTRICTION
+      if(!RRamr[level]) {
+        (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
+        *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
+        LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, false);
+      }
+      else {
+        (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
+        *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
+        LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false);
+      }
+    }
+
+    if(!RR[level]) { //Multilevel Restriction
+      (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
+      LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, false); // Kc = Pt Kf P
+    }
+    else {
+      (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
+      LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], false); // Kc = R Kf P
+    }
+  }
+
+  // LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
+  // SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
+  // NumericVector*   RES          = pdeSys->_RES;
+
 
   //TODO restrict KK into KK2 space
-  KK2->matrix_add (1., *KK, "different_nonzero_pattern");
-  *RES2 += *RES;
-
-
-  // Mat A = (static_cast<PetscMatrix*>(KK2))->mat();
-  // Mat B = (static_cast<PetscMatrix*>(KK))->mat();
-  //
-  // PetscInt AM, AN, BM, BN;
-  // PetscInt Am, An, Bm, Bn;
-  // PetscInt ars, are, brs, bre;
-  // PetscInt acs, ace, bcs, bce;
-  //
-  // MatGetSize(A, &AM, &AN);
-  // MatGetSize(B, &BM, &BN);
-  //
-  // MatGetLocalSize(A, &Am, &An);
-  // MatGetLocalSize(B, &Bm, &Bn);
-  //
-  // MatGetOwnershipRange(A, &ars, &are);
-  // MatGetOwnershipRange(B, &brs, &bre);
-  //
-  // MatGetOwnershipRangeColumn(A, &acs, &ace);
-  // MatGetOwnershipRangeColumn(B, &bcs, &bce);
-  //
-  // PetscPrintf(PETSC_COMM_WORLD,
-  //             "KK2 global %d x %d, local %d x %d\n",
-  //             AM, AN, Am, An);
-  //
-  // PetscPrintf(PETSC_COMM_WORLD,
-  //             "KK  global %d x %d, local %d x %d\n",
-  //             BM, BN, Bm, Bn);
-  //
-  // PetscSynchronizedPrintf(PETSC_COMM_WORLD,
-  //                         "KK2 rows [%d,%d), cols [%d,%d)\n",
-  //                         ars, are, acs, ace);
-  //
-  // PetscSynchronizedPrintf(PETSC_COMM_WORLD,
-  //                         "KK  rows [%d,%d), cols [%d,%d)\n",
-  //                         brs, bre, bcs, bce);
-  //
-  // PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
-
-
-
-
-
-
-
-
-//  VecView ( (static_cast<PetscVector*> (RES))->vec(),  PETSC_VIEWER_STDOUT_SELF);
-//MatView ( (static_cast<PetscMatrix*> (KK))->mat(), PETSC_VIEWER_STDOUT_SELF);
-
-//   PetscViewer    viewer;
-//   PetscViewerDrawOpen(PETSC_COMM_WORLD, NULL, NULL, 0, 0, 900, 900, &viewer);
-//   PetscObjectSetName((PetscObject) viewer, "PWilmore matrix");
-//   PetscViewerPushFormat(viewer, PETSC_VIEWER_DRAW_LG);
-//   MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
-//   double a;
-//   std::cin >> a;
-
+  KK2->matrix_add (1., *LinSolver[levelC]->_KK, "different_nonzero_pattern");
+  *RES2 += *LinSolver[levelC]->_RES;
 
 }
 
@@ -1684,3 +1712,4 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
   }
 
 }
+
