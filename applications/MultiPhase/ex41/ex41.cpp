@@ -829,6 +829,26 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
     const elem_type *femK = msh->_finiteElement[ielGeom][solKType];
     const elem_type *femN = msh->_finiteElement[ielGeom][solNType];
+    // const elem_type* femX = msh->_finiteElement[ielGeom][coordXType];
+
+    // double cellMeasure = 0.;
+
+    // std::vector<double> phiX;
+    // std::vector<double> phiX_x;
+    // double weightX = 0.;
+
+    // for (unsigned ig = 0; ig < femX->GetGaussPointNumber(); ig++) {
+
+    //   femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
+
+    //   cellMeasure += weightX;
+    // }
+
+    // const double h = std::pow(cellMeasure, 1.0 / static_cast<double>(dim));
+
+    // const double alpha = 1.e1;
+
+    const double epsilon = /*alpha * h * h*/ 1.e-6;
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < femN->GetGaussPointNumber(); ig++) {
@@ -837,8 +857,14 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
       femN->Jacobian(coordX, ig, weightN, phiN, phiN_x);
 
       double K_g = 0.;
+      std::vector<double> gradK_g(dim, 0.);
+
       for (unsigned j = 0; j < nDofs; j++) {
         K_g += K[j] * phi[j];
+
+        for (unsigned d = 0; d < dim; d++) {
+          gradK_g[d] += K[j] * phi_x[j * dim + d];
+        }
       }
 
       std::vector<double> normal_g(dim, 0.);
@@ -853,6 +879,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
         double rhs = 0.;
         for(unsigned  d = 0; d < dim; d++) {  //momentum equation in k
           rhs -= phi_x[i * dim + d] * normal_g[d];
+          rhs -= epsilon * phi_x[i * dim + d] * gradK_g[d];
         }
         rhs -= K_g * phi[i];
         Res[i] += rhs * weight;
@@ -868,7 +895,14 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
         for(unsigned j = 0; j < nDofs; j++) {
           unsigned VIcolumn = j;
 
-          Jac[ VIrow + VIcolumn] += phi[i] * phi[j] * weight ; // inertia
+          double helmotz_filter = 0.;
+
+          for(unsigned d = 0; d < dim; d++) {
+            helmotz_filter += phi_x[i * dim + d] *
+                      phi_x[j * dim + d];
+          }
+
+          Jac[ VIrow + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
 
 
         }
@@ -981,6 +1015,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   const unsigned levelF = mParam.levelF;
   const unsigned levelC = mParam.levelC;
   MultiphasePhysicalProperties properties = mParam.properties;
+
+  const bool firstNonlinearIt = (mlPdeSys2->GetNonlinearIt() == 0);
 
   //  extract pointers to the several objects that we are going to use
   TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob0->get_system<TransientNonlinearImplicitSystem> ("NS");
@@ -1114,6 +1150,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   AssembleStabilizationTerms(*ml_prob0);
 
+  clock_t start_time = clock();
 
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -1363,8 +1400,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           Kg += k[i] * phiK[i];
         }
 
-        // std::cerr<<"H "<<H<<" NN "<<NN[0]<<" "<<NN[1] <<" vs kk "<<kk<<" n "<<NN_exact[0]<<" "<<NN_exact[1]<<std::endl;
-
       }
 
 
@@ -1510,6 +1545,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->close();
   KK->close();
 
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+  start_time = clock();
+
   vector < SparseMatrix* > PP, RR, PPamr, RRamr;
   PP = mlPdeSys->GetProjectionMatrix();
   RR = mlPdeSys->GetRestrictionMatrix();
@@ -1520,30 +1558,32 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
   for(unsigned level = levelF; level > levelC; level--) {
-    if(!mlmsh0->GetLevel(level)->GetIfHomogeneous()) { //AMR RESTRICTION
+    if(!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
       if(!RRamr[level]) {
         (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
         *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
         LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, false);
+        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, false); // cannot use !firstNonlinearIt here
       }
       else {
         (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
         *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
         LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false);
+        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false); // cannot use !firstNonlinearIt here
       }
     }
 
     if(!RR[level]) { //Multilevel Restriction
       (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
-      LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, false); // Kc = Pt Kf P
+      LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, !firstNonlinearIt); // Kc = Pt Kf P // mat_reuse works only with level == levelF above
     }
     else {
       (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
-      LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], false); // Kc = R Kf P
+      LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], !firstNonlinearIt); // Kc = R Kf P // mat_reuse works only with level == levelF above
     }
   }
+
+  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 
   // LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
   // SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
@@ -1591,7 +1631,7 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
 
     const double f = psi[i];
 
-    const double w = std::exp(- 10 * f * f / s2);
+    const double w = std::exp(- 100 * f * f / s2);
 
     for (unsigned d = 0; d < dim; d++) {
 
