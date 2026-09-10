@@ -122,6 +122,9 @@ int main(int argc, char **argv) {
   std::string meshName = "./input/tri.neu";
 
   // Load coarse mesh and build uniform refinement levels
+
+  //mlMsh0.GenerateCoarseBoxMesh(40*4+1, 80*4+1, 0, 0., 1., 0., 2., 0., 0., QUAD9, "fifth"); // Turek 1&2
+
   mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
