@@ -263,25 +263,34 @@ int main(int argc, char **argv) {
     for(unsigned d = 0; d < dim; d++) system0_N.AddSolutionToSystemPDE(nName[d].c_str());
     system0_N.SetAssembleFunction(AssembleNormal);
     // initilaize and solve the system
-    system0_N.SetMgType(V_CYCLE);
+    // system0_N.SetMgType(V_CYCLE);
     system0_N.init();
+    // system0_N.SetTolerances(1.e-16, 1.e-16, 1.e+50, 50, 30);
+    // system0_N.SetSolverFineGrids(PREONLY);
     // system0_N.SetOuterSolver(PREONLY);
-    system0_N.MGsolve();
+    // system0_N.MGsolve();
+    system0_N.MGsolveLumped();
 
     LinearImplicitSystem& system0_K = mlProb0.add_system < LinearImplicitSystem > ("K");
     system0_K.AddSolutionToSystemPDE(kName.c_str());
     system0_K.SetAssembleFunction(AssembleCurvature);
     // initilaize and solve the system
-    system0_K.SetMgType(V_CYCLE);
+    // system0_K.SetMgType(V_CYCLE);
     system0_K.init();
+    // system0_K.SetTolerances(1.e-16, 1.e-16, 1.e+50, 50, 30);
+    // system0_K.SetSolverFineGrids(PREONLY);
     // system0_K.SetOuterSolver(PREONLY);
-    system0_K.MGsolve();
+    // system0_K.MGsolve();
+    system0_K.MGsolveLumped();
   }
 
-  VTKWriter vtkIO(&mlSol0);
+  VTKWriter vtkIO(mlsol0);
   //vtkIO.SetDebugOutput(true);
   vtkIO.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
-  vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  // vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+
+  abort();
+
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
@@ -476,7 +485,8 @@ int main(int argc, char **argv) {
     // initilaize and solve the system
     system1_N.SetMgType(V_CYCLE);
     system1_N.init();
-    // system0_N.SetOuterSolver(PREONLY);
+    system1_N.SetTolerances(1.e-16, 1.e-16, 1.e+50, 50, 30);
+    system1_N.SetSolverFineGrids(PREONLY);
     system1_N.MGsolve();
 
     LinearImplicitSystem& system1_K = mlProb1.add_system < LinearImplicitSystem > ("K");
@@ -485,6 +495,8 @@ int main(int argc, char **argv) {
     // initilaize and solve the system
     system1_K.SetMgType(V_CYCLE);
     system1_K.init();
+    system1_K.SetTolerances(1.e-16, 1.e-16, 1.e+50, 50, 30);
+    system1_K.SetSolverFineGrids(PREONLY);
     // system0_K.SetOuterSolver(PREONLY);
     system1_K.MGsolve();
 
@@ -544,6 +556,7 @@ double TimeStepMultiphase(const double time) {
 }
 
 void AssembleNormal(MultiLevelProblem& ml_prob) {
+
   LinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<LinearImplicitSystem> ("N");
   const unsigned level = mlPdeSys->GetLevelToAssemble();
 
@@ -554,11 +567,11 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
   Solution* sol = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
+
   SparseMatrix* KK = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector* RES = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
 
   MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
@@ -682,7 +695,7 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDofsN; i++) {
         for(unsigned  d = 0; d < dim; d++) {  //momentum equation in k
           double rhs = 0.;
-          rhs += phiN[i] * (NN[d] - N_g[d]);
+          rhs += phiN[i] * (NN[d] - /*N_g[d]*/N[d][i]);
           Res[d * nDofsN + i] +=  rhs * weight;
         }
       } // end phiV_i loop
@@ -697,6 +710,7 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
           for(unsigned j = 0; j < nDofsN; j++) {
             unsigned VIcolumn = d * nDofsN + j;
 
+            VIcolumn = VIrow;
             Jac[ VIrow * nDofs + VIcolumn] += phiN[i] * phiN[j] * weight ; // inertia
 
 
@@ -713,6 +727,27 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
 
   RES->close();
   KK->close();
+
+
+
+  int sol_offset = msh->_dofOffset[solNType][iproc];
+
+  for(unsigned k = 0; k < solNPdeIndex.size(); k++) {
+
+    unsigned indexSol = solNIndex[k];
+    int sys_offset = mlPdeSys->_LinSolver[level]->KKoffset[k][iproc];
+
+    for(int i = 0; i < msh->_ownSize[solNType][iproc]; i++) {
+
+      int sol_dof = sol_offset + i;
+      int sys_dof = sys_offset + i;
+
+      sol->_Sol[indexSol]->set( sol_dof, (*RES)(sys_dof) / (*KK)(sys_dof, sys_dof)
+      );
+    }
+
+    sol->_Sol[indexSol]->close();
+  }
 
 }
 
@@ -829,26 +864,26 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
     const elem_type *femK = msh->_finiteElement[ielGeom][solKType];
     const elem_type *femN = msh->_finiteElement[ielGeom][solNType];
-    // const elem_type* femX = msh->_finiteElement[ielGeom][coordXType];
+    const elem_type* femX = msh->_finiteElement[ielGeom][coordXType];
 
-    // double cellMeasure = 0.;
+    double cellMeasure = 0.;
 
-    // std::vector<double> phiX;
-    // std::vector<double> phiX_x;
-    // double weightX = 0.;
+    std::vector<double> phiX;
+    std::vector<double> phiX_x;
+    double weightX = 0.;
 
-    // for (unsigned ig = 0; ig < femX->GetGaussPointNumber(); ig++) {
+    for (unsigned ig = 0; ig < femX->GetGaussPointNumber(); ig++) {
 
-    //   femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
+      femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
 
-    //   cellMeasure += weightX;
-    // }
+      cellMeasure += weightX;
+    }
 
-    // const double h = std::pow(cellMeasure, 1.0 / static_cast<double>(dim));
+    const double h = std::pow(cellMeasure, 1.0 / static_cast<double>(dim));
 
-    // const double alpha = 1.e1;
+    const double alpha = 0.;
 
-    const double epsilon = /*alpha * h * h*/ 1.e-6;
+    const double epsilon = alpha * h * h ;// */ 1.e-6;
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < femN->GetGaussPointNumber(); ig++) {
@@ -881,7 +916,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
           rhs -= phi_x[i * dim + d] * normal_g[d];
           rhs -= epsilon * phi_x[i * dim + d] * gradK_g[d];
         }
-        rhs -= K_g * phi[i];
+        rhs -= /*K_g*/K[i] * phi[i];
         Res[i] += rhs * weight;
       } // end phiV_i loop
 
@@ -891,7 +926,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
       for(unsigned i = 0; i < nDofs; i++) {
         // for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
-        unsigned VIrow = i * nDofs;
+        unsigned VIrow = i;
         for(unsigned j = 0; j < nDofs; j++) {
           unsigned VIcolumn = j;
 
@@ -902,7 +937,8 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
                       phi_x[j * dim + d];
           }
 
-          Jac[ VIrow + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
+          VIcolumn = VIrow;
+          Jac[ VIrow * nDofs + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
 
 
         }
@@ -965,6 +1001,20 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
   RES->close();
   KK->close();
+
+  int glob_offset_dof = msh->_dofOffset[solKType][iproc];
+
+  // for(unsigned k = 0; k < solNPdeIndex.size(); k++) {
+    // unsigned indexSol = solNIndex[k];
+    // int local_offset_dof = mlPdeSys->_LinSolver[level]->KKoffset[0][iproc];
+
+    for(int i = 0; i < msh->_ownSize[solKType][iproc]; i++) {
+      int global_dof = i + glob_offset_dof;
+      sol->_Sol[solKIndex]->set(global_dof, (*RES)(global_dof) / (*KK)(global_dof, global_dof));
+    }
+
+    sol->_Sol[solKIndex]->close();
+  // }
 
 }
 
@@ -1148,6 +1198,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK->zero();
   RES->zero();
 
+
+  // AssembleGhostPenalty(*ml_prob0);
+  // AssembleGhostPenaltyDGP(*ml_prob0, true);
+  // AssembleGhostPenaltyDGP(*ml_prob0, false);
   AssembleStabilizationTerms(*ml_prob0);
 
   clock_t start_time = clock();

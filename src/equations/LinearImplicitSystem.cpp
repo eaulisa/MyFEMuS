@@ -233,6 +233,16 @@ namespace femus {
 
   // ********************************************
 
+  void LinearImplicitSystem::MGsolveLumped() {
+    _levelToAssemble = _gridn - 1; //Be carefull!!!! this is needed in the _assemble_function
+    _LinSolver[_gridn - 1]->SetResZero();
+    _assembleMatrix = true;
+    clock_t start_assembly_time = clock();
+    _assemble_system_function(_equation_systems);
+    std::cout << std::endl << " ****** Level Max " << _gridn - 1 << " ASSEMBLY TIME:\t" << static_cast<double>((clock() - start_assembly_time)) / CLOCKS_PER_SEC << std::endl;
+
+  }
+
   void LinearImplicitSystem::MGsolve(const MgSmootherType & mgSmootherType) {
 
     _bitFlipCounter = 0;

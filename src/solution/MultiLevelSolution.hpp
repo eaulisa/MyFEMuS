@@ -138,10 +138,12 @@ namespace femus {
 
       void AttachSetBoundaryConditionFunction( BoundaryFuncMLProb SetBoundaryConditionFunction );
 
-      void FixSolutionAtOnePoint( const char sol[] ) {
+      void FixSolutionAtOnePoint( const char sol[], const bool allLevel = false ) {
         _fixSolutionAtOnePoint[GetIndex(sol)] = true ;
-        for(unsigned ig = 1; ig < _gridn; ig++) {
-          _solution[ig]->RemoveNullSpace(GetIndex(sol));
+        if(!allLevel) {
+          for(unsigned ig = 1; ig < _gridn; ig++) {
+            _solution[ig]->RemoveNullSpace(GetIndex(sol));
+          }
         }
       };
 

@@ -358,6 +358,22 @@ namespace femus {
       std::vector < Vec > nullspBase;
       GetNullSpaceBase (nullspBase);
       if (nullspBase.size() != 0) {
+
+        if (_mergeNullSpaceBases){
+          for(unsigned i = 1; i < nullspBase.size(); i++){
+            VecAXPY(nullspBase[0], 1, nullspBase[i]);
+          }
+        }
+
+        MatMult((static_cast< PetscMatrix* > (_KK))->mat(), nullspBase[0], nullspBase[1]);
+        PetscReal max_abs_val;
+        // Calcola la norma infinito (il max in valore assoluto)
+        VecNorm(nullspBase[1], NORM_INFINITY, &max_abs_val);
+
+        std::cout<<"Test NullSpace at level = "<<_msh->GetLevel() << ":\t KK * NullSpaceBase = "<<max_abs_val<<std::endl;
+        nullspBase.resize(1);
+
+
         MatNullSpace   nullsp;
         MatNullSpaceCreate (PETSC_COMM_WORLD, PETSC_FALSE, nullspBase.size(), &nullspBase[0], &nullsp);
 
@@ -374,7 +390,6 @@ namespace femus {
         }
       }
     }
-
   }
 
   // ================================================
@@ -389,13 +404,23 @@ namespace femus {
         nullspBase.resize (nullspSize + 1);
         VecDuplicate (EPS, &nullspBase[nullspSize]);
         unsigned soltype = _SolType[indexSol];
-        unsigned owndofs = _msh->_dofOffset[soltype][processor_id() + 1] - _msh->_dofOffset[soltype][processor_id()];
+        unsigned offset0 = _msh->_dofOffset[soltype][processor_id()];
+        unsigned offset1 = _msh->_dofOffset[soltype][processor_id() + 1];
+        unsigned owndofs = offset1 - offset0;
         if (soltype == 4) owndofs /= (_msh->GetDimension() + 1);
+        //std::cout<<"AA "<<owndofs<<std::flush<<std::endl;
         for (unsigned i = 0; i < owndofs; i++) {
-          int idof_kk = KKoffset[k][processor_id()] + i;
-          unsigned inode_mts = _msh->_dofOffset[soltype][processor_id()] + i;
-          if ( (* (*_Bdc) [indexSol]) (inode_mts) > 1.9) {
-            VecSetValue (nullspBase[nullspSize], idof_kk, 1., INSERT_VALUES);
+          int idof_KK = KKoffset[k][processor_id()] + i;
+          unsigned idof_sol = offset0 + i;
+          // if (indexSol == 3) {
+          //   VecSetValue(nullspBase[nullspSize], idof_KK, /*(*(*_Sol)[6])(idof_sol)*/ 1., INSERT_VALUES);
+          //   //std::cout<<(int)(*(*_Sol)[6])(i)<<std::flush<<" ";
+          // } else if (indexSol == 4) {
+          //   VecSetValue(nullspBase[nullspSize], idof_KK, /*(*(*_Sol)[7])(idof_sol)*/ 1., INSERT_VALUES);
+          //   //std::cout<<(int)(*(*_Sol)[7])(i)<<std::flush<<" ";
+          // }
+          if ( (* (*_Bdc) [indexSol]) (idof_sol) > 1.9) {
+            VecSetValue (nullspBase[nullspSize], idof_KK, 1., INSERT_VALUES);
           }
         }
 

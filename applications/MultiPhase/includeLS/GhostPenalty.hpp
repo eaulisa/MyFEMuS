@@ -3,6 +3,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
 
+  double test0 = 1.;
+  double test1 = 0.;
+
   clock_t start_time;
 
   //pointers and references
@@ -375,8 +378,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
+                      aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
                       aRes1[I][i] +=  D1 * h2 * absSolDotN * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                       for(unsigned K = 0; K < dim; K++) {
@@ -385,16 +388,16 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         else if(1 == J + K) L = dim;     // xy
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
-                        aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                        aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+                        aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
+                        aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
                       }
                     }
                   }
 
                   for(unsigned i = 0; i < nDofs2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
+                      aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight *test0;
                       aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                       for(unsigned K = 0; K < dim; K++) {
@@ -405,8 +408,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         else if(2 == J + K) L = dim + 2; // xz
                         else if(3 == J + K) L = dim + 1; // yz
 
-                        aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                        aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+                        aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
+                        aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
 
                       }
                     }
@@ -823,8 +826,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                            aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                            aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
+                            aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
                             aRes1[I][i] +=  D1 * h2 * absSolDotN * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                             for(unsigned K = 0; K < dim; K++) {
@@ -833,16 +836,16 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                               else if(1 == J + K) L = dim;     // xy
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
-                              aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                              aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+                              aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
+                              aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
                             }
                           }
                         }
 
                         for(unsigned i = 0; i < nDofs2; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                            aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                            aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
+                            aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight * test0;
                             aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                             for(unsigned K = 0; K < dim; K++) {
@@ -853,8 +856,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                               else if(2 == J + K) L = dim + 2; // xz
                               else if(3 == J + K) L = dim + 1; // yz
 
-                              aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
-                              aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+                              aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
+                              aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight * test1;
 
                             }
                           }

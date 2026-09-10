@@ -315,6 +315,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   }
 
   // *************************************
-  std::cout << "Stabilization Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "Stabilization Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush<<std::endl;
 
 }

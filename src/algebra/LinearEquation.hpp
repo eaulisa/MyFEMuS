@@ -115,17 +115,26 @@ public:
   vector < int > o_nnz;
   
   void SetSparsityPatternMinimumSize (const std::vector < unsigned> &minimumSize, const std::vector < unsigned > &variableIndex);
+  inline void SetSolution(const vector <NumericVector*> * Sol) {
+    _Sol = Sol;
+  }
+  void MergeNullSpaceBases(bool merge){
+    _mergeNullSpaceBases = merge;
+  }
 
 protected:
 
   /** To be Added */
   unsigned GetIndex(const char name[]);
 
+  bool _mergeNullSpaceBases = false;
+
   // member data
   vector <unsigned> _SolPdeIndex;
   vector <int> _SolType;
   vector <char*> _SolName;
   const vector <NumericVector*> *_Bdc;
+  const vector <NumericVector*> *_Sol;
   vector <bool> _SparsityPattern;
   std::vector < unsigned > _sparsityPatternMinimumSize; 
   std::vector <unsigned> _sparsityPatternVariableIndex;

@@ -80,12 +80,12 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
         iel_lm1++) {
 
       const unsigned numberOfChildren =
-          msh_lm1.GetRefinedElementIndex(iel_lm1) ?
-          maxNumberOfChildren : 1;
+        msh_lm1.GetRefinedElementIndex(iel_lm1) ?
+        maxNumberOfChildren : 1;
 
       for(unsigned j = 0; j < numberOfChildren; j++) {
         const unsigned iel_l =
-            msh_lm1.el->GetChildElement(iel_lm1, j);
+          msh_lm1.el->GetChildElement(iel_lm1, j);
 
         father->set(iel_l, iel_lm1);
       }
@@ -100,7 +100,7 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
         iel_l++) {
 
       const unsigned iel_lm1 =
-          static_cast<unsigned>((*father)(iel_l));
+        static_cast<unsigned>((*father)(iel_l));
 
       solC_lm1->add(iel_lm1, (*solC_l)(iel_l));
     }
@@ -133,6 +133,111 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
 
     delete father;
   }
+}
+
+// void BuildNullspace(MultiLevelSolution& mlSol, const std::string CName, const std::vector<std::string>& NPName,
+//                     const unsigned level0, const unsigned level1) {
+//   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+//
+//   const unsigned solCIndex = mlSol.GetIndex(CName.c_str());
+//   const unsigned solType = mlSol.GetSolutionType(CName.c_str());
+//
+//   std::vector<unsigned> solNPIndex(NPName.size());
+//   for (unsigned n = 0; n < NPName.size(); n ++) {
+//     solNPIndex[n] = mlSol.GetIndex(NPName[n].c_str());
+//     if (mlSol.GetSolutionType(NPName[n].c_str()) != solType || solType != 3) {
+//       std::cout << "Error! The C Field is not PWC\n" << std::endl;
+//       abort();
+//     }
+//   }
+//
+//   for(int l = level0; l <= level1; l++) {
+//
+//     Mesh &msh = *mlMsh.GetLevel(l);
+//
+//     const unsigned iproc = msh.processor_id();
+//     const unsigned dim = msh.GetDimension();
+//
+//     auto &solC = (mlSol.GetSolutionLevel(l))->_Sol[solCIndex];
+//     auto &solNP1 = (mlSol.GetSolutionLevel(l))->_Sol[solNPIndex[0]];
+//     auto &solNP2 = (mlSol.GetSolutionLevel(l))->_Sol[solNPIndex[1]];
+//
+//     solNP1->zero();
+//     solNP2->zero();
+//
+//     for(unsigned iel = msh._elementOffset[iproc];
+//         iel < msh._elementOffset[iproc + 1];
+//         iel++) {
+//
+//       if ((*solC)(iel) > 0.1 ) {
+//         solNP1->set(iel, 1.);
+//       }
+//
+//       if ((*solC)(iel) < 0.9) {
+//         solNP2->set(iel, 1.);
+//       }
+//     }
+//
+//     solNP1->close();
+//     solNP2->close();
+//   }
+// }
+
+
+
+void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CName, const std::vector<std::string>& PName,
+                    const unsigned level0, const unsigned level1) {
+  MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
+
+  const unsigned solCIndex = mlSol.GetIndex(CName.c_str());
+  const unsigned solType = mlSol.GetSolutionType(CName.c_str());
+
+  std::vector<unsigned> solPIndex(PName.size());
+  for (unsigned n = 0; n < PName.size(); n ++) {
+    solPIndex[n] = mlSol.GetIndex(PName[n].c_str());
+    if (mlSol.GetSolutionType(PName[n].c_str()) != solType || solType != 3) {
+      std::cout << "Error! The C Field is not PWC\n" << std::endl;
+      abort();
+    }
+  }
+
+  for(int l = level0; l <= level1; l++) {
+
+    Mesh &msh = *mlMsh.GetLevel(l);
+
+    const unsigned iproc = msh.processor_id();
+    const unsigned dim = msh.GetDimension();
+
+    auto &solC = (mlSol.GetSolutionLevel(l))->_Sol[solCIndex];
+
+    auto &solP1 = (mlSol.GetSolutionLevel(l))->_Sol[solPIndex[0]];
+    auto &solP2 = (mlSol.GetSolutionLevel(l))->_Sol[solPIndex[1]];
+
+    auto &solP1Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[0]];
+    auto &solP2Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[1]];
+
+    for(unsigned iel = msh._elementOffset[iproc];
+        iel < msh._elementOffset[iproc + 1];
+        iel++) {
+
+      if ((*solC)(iel) < 0.1 ) {
+        solP1->set(iel, 0.);
+        solP1Bdc->set(iel, 0.);
+      }
+
+      if ((*solC)(iel) > 0.9) {
+        solP2->set(iel, 0.);
+        solP2Bdc->set(iel, 0.);
+      }
+    }
+
+    solP1->close();
+    solP2->close();
+
+    solP1Bdc->close();
+    solP2Bdc->close();
+  }
+
 }
 
 

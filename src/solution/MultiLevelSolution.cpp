@@ -692,7 +692,7 @@ namespace femus {
         }  //end Lagrangian
 
 
-        if(_fixSolutionAtOnePoint[k] == true  && igridn == 0 && _iproc == 0) {
+        if(_fixSolutionAtOnePoint[k] == true  && !(_solution[igridn]->GetIfRemoveNullSpace(k)) /*igridn == 0*/ && _iproc == 0) {
           _solution[igridn]->_Bdc[k]->set(0, 0.);
           _solution[igridn]->_Sol[k]->set(0, 0.);
 
@@ -897,7 +897,7 @@ namespace femus {
             }
           }
         }
-        if(_fixSolutionAtOnePoint[solIndex] == true  && igridn == 0 && _iproc == 0) {
+        if(_fixSolutionAtOnePoint[solIndex] == true  && !(_solution[igridn]->GetIfRemoveNullSpace(solIndex))/* igridn == 0*/ && _iproc == 0) {
           for(unsigned k = 0; k < solKiIndex.size(); k++) {
 
             _solution[igridn]->_Bdc[solKiIndex[k]]->set(0, 0.);
