@@ -216,11 +216,21 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CNam
     auto &solP1Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[0]];
     auto &solP2Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[1]];
 
+    if (iproc == 0) {
+      if ((*solC)(0) > 0.1) {
+        solP1->set(0, 0.);
+        solP1Bdc->set(0, 0.);
+      } else {
+        solP2->set(0, 0.);
+        solP2Bdc->set(0, 0.);
+      }
+    }
+
     for(unsigned iel = msh._elementOffset[iproc];
         iel < msh._elementOffset[iproc + 1];
         iel++) {
 
-      if ((*solC)(iel) < 0.1 ) {
+      if ((*solC)(iel) < 0.1) {
         solP1->set(iel, 0.);
         solP1Bdc->set(iel, 0.);
       }

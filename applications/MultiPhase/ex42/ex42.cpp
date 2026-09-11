@@ -317,7 +317,7 @@ int main(int argc, char **argv) {
 
     mlSol2.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
     bool allLevel = true;
-    for(unsigned d = 0; d < pName.size(); d++) mlSol2.FixSolutionAtOnePoint(pName[d].c_str(), allLevel);
+    // for(unsigned d = 0; d < pName.size(); d++) mlSol2.FixSolutionAtOnePoint(pName[d].c_str(), allLevel);
     mlSol2.GenerateBdc("All");
 
 
