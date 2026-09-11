@@ -233,7 +233,7 @@ namespace femus {
 
   // ********************************************
 
-  void LinearImplicitSystem::MGsolveLumped() {
+  void LinearImplicitSystem::MGsolveExplicit() {
     _levelToAssemble = _gridn - 1; //Be carefull!!!! this is needed in the _assemble_function
     _LinSolver[_gridn - 1]->SetResZero();
     _assembleMatrix = true;

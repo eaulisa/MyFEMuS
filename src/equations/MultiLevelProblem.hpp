@@ -61,6 +61,7 @@ struct MultiphaseParams {
     MultiLevelProblem* mlProbF = nullptr;
     unsigned levelF = 0;
     unsigned levelC = 0;
+    unsigned level0 = 0;
     MultiphasePhysicalProperties properties;
 };
 
@@ -278,11 +279,12 @@ public:
 
 
     void SetMultiphaseParams(MultiLevelProblem* mlProbF,
-                             const unsigned levelF,
-                             const unsigned levelC, MultiphasePhysicalProperties properties) {
+                             const unsigned levelF, const unsigned levelC,
+                             const unsigned level0, MultiphasePhysicalProperties properties) {
         _multiphaseParams.mlProbF = mlProbF;
         _multiphaseParams.levelF = levelF;
         _multiphaseParams.levelC = levelC;
+        _multiphaseParams.level0 = level0;
         _multiphaseParams.properties = properties;
 
     }

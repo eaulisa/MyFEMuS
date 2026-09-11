@@ -269,7 +269,7 @@ int main(int argc, char **argv) {
     // system0_N.SetSolverFineGrids(PREONLY);
     // system0_N.SetOuterSolver(PREONLY);
     // system0_N.MGsolve();
-    system0_N.MGsolveLumped();
+    system0_N.MGsolveExplicit();
 
     LinearImplicitSystem& system0_K = mlProb0.add_system < LinearImplicitSystem > ("K");
     system0_K.AddSolutionToSystemPDE(kName.c_str());
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
     // system0_K.SetSolverFineGrids(PREONLY);
     // system0_K.SetOuterSolver(PREONLY);
     // system0_K.MGsolve();
-    system0_K.MGsolveLumped();
+    system0_K.MGsolveExplicit();
   }
 
   VTKWriter vtkIO(mlsol0);
