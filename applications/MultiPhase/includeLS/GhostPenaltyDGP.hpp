@@ -51,6 +51,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
   vector <vector < double> > vx(dim);
 
+  const unsigned  levelC = ml_prob.GetMultiphaseParams().levelC;
+
   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
 
   double mu1 = properties.mu1;
@@ -61,6 +63,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
   double mu = 2. * mu1 * mu2 / (mu1 + mu2);
   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
+
+  double C0 = 100;
 
   std::cout.precision(10);
 
@@ -74,12 +78,26 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
   unsigned solTypeX = 2;
   start_time = clock();
 
+  auto flag = [&](unsigned iellevel, double Ciel) -> bool {
+    if (iellevel != levelC) return false;
+
+    if (P1) {
+      return (Ciel > 0.1 /*&& Ciel < 0.9*/);
+    } else {
+      return (Ciel < 0.9 /*&& Ciel > 0.1*/);
+    }
+
+  };
+
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    unsigned iel_level = msh->el->GetElementLevel(iel);
 
     double Ciel = (*mysolution->_Sol[indexSolC])(iel);
 
-     if(Ciel > 0 && Ciel < 1) {
+     // if(Ciel > 0 && Ciel < 1) {
 //    if(true) {
+    if (flag(iel_level, Ciel)) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
       unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -124,13 +142,16 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
 
-        if(jel >= 0) { // iface is not a boundary of the domain
+        // if(jel >= 0) { // iface is not a boundary of the domain
+        if (jel >= 0 && jel > iel) {
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+          unsigned jel_level = msh->el->GetElementLevel(jel);
           if(jproc == iproc) {
 
             double Cjel = (*mysolution->_Sol[indexSolC])(jel);
 
-            if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
+            // if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
+            if ((flag(jel_level, Cjel) /*&& jel > iel*/) /*|| Cjel == P1*/) {
 
               //std::cout<<((P1)?"a":"b");
  //           if(jel > iel) {
@@ -193,7 +214,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
                 // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
-                double C1 = /*100 **/ 0.05 * h;// / mu; // h * h / (sigma * dt); dt /(rho * h);
+                double C1 = C0 * /*10 **/ 0.05 * h;// / mu; // h * h / (sigma * dt); dt /(rho * h);
                 aResP1 +=  C1 * (solP1 - solP2) * weight;
                 aResP2 -=  C1 * (solP1 - solP2) * weight;
 
@@ -232,14 +253,18 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
     for(unsigned kp = 0; kp < nprocs; kp++) {
       for(unsigned kel = msh->_elementOffset[kp]; kel < msh->_elementOffset[kp + 1]; kel++) {
 
+        unsigned kel_level;
         double Ckel;
         if(iproc == kp) {
+          kel_level = msh->el->GetElementLevel(kel);
           Ckel = (*mysolution->_Sol[indexSolC])(kel);
         }
+        MPI_Bcast(&kel_level, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
         MPI_Bcast(&Ckel, 1, MPI_DOUBLE, kp, MPI_COMM_WORLD);
 
 
-        if(Ckel > 0 && Ckel < 1) {
+        if (flag(kel_level, Ckel)) {
+        // if(Ckel > 0 && Ckel < 1) {
 //        if(true) {
           // double h11;
           // double h12;
@@ -273,15 +298,19 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
               jel = el->GetFaceElementIndex(kel, iface) - 1;
             }
             MPI_Bcast(&jel, 1, MPI_INT, kp, MPI_COMM_WORLD);
-            if(jel >= 0) { // iface is not a boundary of the domain
+            if(jel >= 0 && jel > kel) { // iface is not a boundary of the domain
+              unsigned jel_level;
               unsigned jp = msh->IsdomBisectionSearch(jel, 3);
               if(jp != kp) {
                 double Cjel;
                 // double h21, h22;
                 if(iproc == jp) {
                   Cjel = (*mysolution->_Sol[indexSolC])(jel);
+                  jel_level = msh->el->GetElementLevel(jel);
                   MPI_Send(&Cjel, 1, MPI_DOUBLE, kp, 0, MPI_COMM_WORLD);
-                  if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  MPI_Send(&jel_level, 1, MPI_UNSIGNED, kp, 1, MPI_COMM_WORLD);
+                  // if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  if (flag(jel_level, Cjel)) {
 //                  if(jel > kel) {
                     double solP2d = (*mysolution->_Sol[indexSol])(jel);
                     // unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
@@ -310,7 +339,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                     }
                     hmean_j /= cnt_j;
 
-                    MPI_Send(&solP2d, 1, MPI_DOUBLE, kp, 1, MPI_COMM_WORLD);
+                    MPI_Send(&solP2d, 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD);
                     // MPI_Send(&h21, 1, MPI_DOUBLE, kp, 2, MPI_COMM_WORLD);
                     // MPI_Send(&h22, 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD);
                     MPI_Send(&hmean_j, 1, MPI_DOUBLE, kp, 3, MPI_COMM_WORLD);
@@ -318,11 +347,13 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 }
                 if(iproc == kp) {
                   MPI_Recv(&Cjel, 1, MPI_DOUBLE, jp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                  if( (Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  MPI_Recv(&jel_level, 1, MPI_UNSIGNED, jp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                  // if( (Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
+                  if (flag(jel_level, Cjel)) {
 //                  if(jel > kel) {
                     double solP2d;
                     double hmean_j;
-                    MPI_Recv(&solP2d, 1, MPI_DOUBLE, jp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(&solP2d, 1, MPI_DOUBLE, jp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     // MPI_Recv(&h21, 1, MPI_DOUBLE, jp, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     // MPI_Recv(&h22, 1, MPI_DOUBLE, jp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(&hmean_j, 1, MPI_DOUBLE, jp, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -380,7 +411,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                       msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
                       // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
-                      double C1 = /*100 **/ 0.05 * h;//0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
+                      double C1 = C0 */*10 **/ 0.05 * h;//0.05 * h / mu; // h * h / (sigma * dt); dt /(rho * h);
                       aResP1 +=  C1 * (solP1 - solP2) * weight;
                       aResP2 -=  C1 * (solP1 - solP2) * weight;
                     }

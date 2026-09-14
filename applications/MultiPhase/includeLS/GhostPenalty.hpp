@@ -4,7 +4,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
 
   double test0 = 1.;
-  double test1 = 0.;
+  double test1 = 0;
+
+  double C0 = 100.;
 
   clock_t start_time;
 
@@ -85,6 +87,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
+  const unsigned  levelC = ml_prob.GetMultiphaseParams().levelC;
+
   std::cout.precision(10);
 
   //variable-name handling
@@ -104,6 +108,11 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   std::vector < std::vector < std::vector <double > > > aP1(3);
   std::vector < std::vector < std::vector <double > > > aP2(3);
 
+  auto flag = [&](unsigned iellevel) -> bool {
+    if (iellevel == levelC) return true;
+    else return false;
+  };
+
 
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -111,7 +120,10 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
     double Ciel = (*mysolution->_Sol[cIndex])(iel);
     unsigned eFlag1 = (fabs(Ciel - 0.5) < 0.1 ) ? 1 : 0;
 
-    if(eFlag1 > 0) {
+    unsigned iel_level = msh->el->GetElementLevel(iel);
+
+    // if(eFlag1 > 0) {
+    if (flag(iel_level)) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
 
@@ -169,14 +181,16 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
-        if(jel >= 0) { // iface is not a boundary of the domain
+        if(jel >= 0 && jel > iel) { // iface is not a boundary of the domain
+          unsigned jel_level = msh->el->GetElementLevel(jel);
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
           if(jproc == iproc) {
 
             double Cjel = (*mysolution->_Sol[cIndex])(jel);
             unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;
 
-            if(eFlag2 == 0 || jel > iel) {
+            // if(eFlag2 == 0 || jel > iel) {
+            if (flag(jel_level)) {
 
               short unsigned ielt2 = msh->GetElementType(jel);
 
@@ -365,8 +379,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                   }
                 }
 
-                double C1 =  100. * 0.05 * mu;
-                double D1 =  100. * 0.05 * rho;
+                double C1 =  C0 * 0.05 * mu;
+                double D1 =  C0 * 0.05 * rho;
 
                 adept::adouble absSolDotN = 0.;
                 for(unsigned I = 0; I < dim; I++) {
@@ -505,7 +519,9 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
         unsigned eFlag1 = 0;
         if(iproc == kproc) {
           double Ciel = (*mysolution->_Sol[cIndex])(iel);
-          eFlag1 = (fabs(Ciel - 0.5) < 0.1 ) ? 1 : 0;
+          unsigned iel_level = msh->el->GetElementLevel(iel);
+          // eFlag1 = (fabs(Ciel - 0.5) < 0.1 ) ? 1 : 0;
+          eFlag1 = static_cast<unsigned>(flag(iel_level));
         }
         MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
@@ -524,21 +540,23 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
             }
             MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
 
-            if(jel >= 0) { // iface is not a boundary of the domain
+            if(jel >= 0 && jel > iel) { // iface is not a boundary of the domain
               unsigned jproc = msh->IsdomBisectionSearch(jel, 3);  // return  jproc for piece-wise constant discontinuous type (3)
               if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
 
                 unsigned eFlag2;
                 if(iproc == jproc) {
                   double Cjel = (*mysolution->_Sol[cIndex])(jel);
-                  eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;
+                  unsigned jel_level = msh->el->GetElementLevel(jel);
+                  // eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;
+                  eFlag2 = static_cast<unsigned>(flag(jel_level));
                   MPI_Send(&eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
                 }
                 else if(iproc == kproc) {
                   MPI_Recv(&eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
 
-                if(eFlag2 == 0 || jel > iel) {
+                if(eFlag2 == 0 /*|| jel > iel*/) {
                   //std::cout << "I am " << iel << " on " << kproc << " talking with " << jel << " on " << jproc << std::endl;
 
                   short unsigned ielt1;
@@ -813,8 +831,8 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
                         }
                       }
 
-                      double C1 = 100. * 0.05 * mu;
-                      double D1 = 100. * 0.05 * rho;
+                      double C1 = C0 * 0.05 * mu;
+                      double D1 = C0 * 0.05 * rho;
 
                       adept::adouble absSolDotN = 0.;
                       for(unsigned I = 0; I < dim; I++) {

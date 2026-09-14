@@ -379,8 +379,8 @@ int main(int argc, char **argv) {
 
     // ml_prob0 = &mlProb0;
 
-    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, properties);
-    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, properties);
+    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, properties);
+    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, properties);
 
     msh->SetLevel(0);
     system2.MGsolve();

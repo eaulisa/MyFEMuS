@@ -707,7 +707,7 @@ public:
     const unsigned solOffsetp1 = msh._dofOffset[solType][my_rank + 1];
 
     for (unsigned i = solOffset; i < solOffsetp1; i++) {
-      solVecR->set(i, _m.SigmoidC1((*solVecW)(i)));
+      solVecR->set(i, _m.Sigmoid((*solVecW)(i)));
     }
 
     solVecR->close();

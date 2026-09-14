@@ -95,6 +95,9 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
 
     solC_lm1->zero();
 
+    auto el_lm1 = msh_lm1.el;
+    auto el_l = msh_l.el;
+
     for(unsigned iel_l = msh_l._elementOffset[iproc];
         iel_l < msh_l._elementOffset[iproc + 1];
         iel_l++) {
@@ -102,7 +105,16 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
       const unsigned iel_lm1 =
         static_cast<unsigned>((*father)(iel_l));
 
-      solC_lm1->add(iel_lm1, (*solC_l)(iel_l));
+      double value_l = (*solC_l)(iel_l);
+
+      solC_lm1->add(iel_lm1, value_l);
+
+      // if (value_l == 0.) {
+      //   el_l->SetElementMaterial(iel_l, 4);
+      // }
+      // else if (value_l < 0.9) {
+      //   el_l->SetElementMaterial(iel_l, 3);
+      // }
     }
 
     solC_lm1->close();
@@ -119,12 +131,14 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
 
         if(value <= tol) {
           solC_lm1->set(iel_lm1, 0.);
+          // el_lm1->SetElementMaterial(iel_lm1, 4);
         }
         else if(value >= maxNumberOfChildren - tol) {
           solC_lm1->set(iel_lm1, 1.);
         }
         else {
           solC_lm1->set(iel_lm1, 0.5);
+          // el_lm1->SetElementMaterial(iel_lm1, 3);
         }
       }
     }
@@ -216,19 +230,77 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CNam
     auto &solP1Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[0]];
     auto &solP2Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[1]];
 
-    if (iproc == 0) {
-      if ((*solC)(0) > 0.1) {
-        solP1->set(0, 0.);
-        solP1Bdc->set(0, 0.);
-      } else {
-        solP2->set(0, 0.);
-        solP2Bdc->set(0, 0.);
+    std::vector<double> x1 (dim);
+
+    std::vector<double> xtarget(3,0);
+    xtarget.resize(dim);
+
+    double min_distance2 = std::numeric_limits<double>::max();
+    int min_iel = -1;
+
+    for (unsigned iel = msh._elementOffset[iproc];
+        iel < msh._elementOffset[iproc + 1]; iel++) {
+
+      unsigned nDof = msh.GetElementDofNumber(iel, 2);
+
+      for (unsigned k = 0; k < dim; k++) {
+        unsigned xDof = msh.GetSolutionDof(nDof - 1, iel, 2);
+        x1[k] = (*msh._topology->_Sol[k])(xDof);
+      }
+
+      double distance2 = 0.;
+
+      for (unsigned d = 0; d < dim; d++) {
+        distance2 += (x1[d] - xtarget[d]) * (x1[d] - xtarget[d]);
+      }
+
+      if (distance2 < min_distance2) {
+        min_distance2 = distance2;
+        min_iel = static_cast<int>(iel);
       }
     }
+
+    struct {
+      double value;
+      int index;
+    } local_min, global_min;
+
+    local_min.value = min_distance2;
+    local_min.index = min_iel;
+
+    MPI_Allreduce(&local_min,
+                  &global_min,
+                  1,
+                  MPI_DOUBLE_INT,
+                  MPI_MINLOC,
+                  MPI_COMM_WORLD);
+
+    unsigned iel_target = static_cast<unsigned>(global_min.index);
+    double global_min_distance2 = global_min.value;
+
+    // if (iproc == 0) {
+    //   if ((*solC)(0) > 0.1) {
+    //     solP1->set(0, 0.);
+    //     solP1Bdc->set(0, 0.);
+    //   } else {
+    //     solP2->set(0, 0.);
+    //     solP2Bdc->set(0, 0.);
+    //   }
+    // }
 
     for(unsigned iel = msh._elementOffset[iproc];
         iel < msh._elementOffset[iproc + 1];
         iel++) {
+
+      if (iel == iel_target) {
+        if ((*solC)(iel) > 0.1) {
+          solP1->set(iel, 0.);
+          solP1Bdc->set(iel, 0.);
+        } else {
+          solP2->set(iel, 0.);
+          solP2Bdc->set(iel, 0.);
+        }
+      }
 
       if ((*solC)(iel) < 0.1) {
         solP1->set(iel, 0.);

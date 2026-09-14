@@ -8,7 +8,8 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   //pointers and references
 
   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
-  const unsigned  level = ml_prob.GetMultiphaseParams().levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
+  // const unsigned  level = ml_prob.GetMultiphaseParams().levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
+  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
   MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
 
@@ -261,7 +262,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
             }
 
-            double f = - rho * phi[i] * g[k];
+            double f = - rho * g[k];
             adept::adouble pressureGradient = 0.;
             adept::adouble rM = rho * (solVg[k] - solVgOld[k]) / dt + advection + diffusion + pressureGradient - f;   
             

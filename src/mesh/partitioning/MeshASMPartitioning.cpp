@@ -111,6 +111,8 @@ void MeshASMPartitioning::DoPartition( const unsigned *block_size, vector < vect
 
     block_type_range.resize(3);
 
+    std::cout<<counter[0]<<" "<<counter[1]<<" "<<counter[2]<<std::endl;
+
   
 
     unsigned block_start = 0;
