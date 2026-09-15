@@ -106,8 +106,8 @@ int main(int argc, char **argv) {
 
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  if (nprocs == 1)
-    ProfilerStart("profiling.prof");
+  //if (nprocs == 1)
+    //ProfilerStart("profiling.prof");
 
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
@@ -633,8 +633,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (nprocs == 1)
-    ProfilerStop();
+  // if (nprocs == 1)
+  //   ProfilerStop();
   return 0;
 }
 
@@ -690,7 +690,7 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
   std::vector < double >  psi; // local solution
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
-  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   std::vector <double> phiN;  // local test function for velocity
   std::vector <double> phiN_x; // local test function first order partial derivatives
@@ -720,7 +720,7 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
     short unsigned ielGeom = msh->GetElementType(iel);
 
     unsigned nDofsN = msh->GetElementDofNumber(iel, solNType);
-    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
 
     unsigned nDofs =  dim * nDofsN;
 
@@ -745,7 +745,7 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
 
     // local storage of coordinates
     for(unsigned i = 0; i < nDofsX; i++) {
-      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
       }
@@ -871,7 +871,7 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
   std::vector < double >  psi; // local solution
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
-  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   std::vector <double> phiN;  // local test function for velocity
   std::vector <double> phiN_x; // local test function first order partial derivatives
@@ -901,7 +901,7 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
     short unsigned ielGeom = msh->GetElementType(iel);
 
     unsigned nDofsN = msh->GetElementDofNumber(iel, solNType);
-    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
 
     unsigned nDofs =  dim * nDofsN;
 
@@ -926,7 +926,7 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
 
     // local storage of coordinates
     for(unsigned i = 0; i < nDofsX; i++) {
-      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
       }
@@ -1070,7 +1070,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
   // std::vector < double >  psi; // local solution
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
-  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   std::vector < std::vector < double > > normal(dim);
   std::vector < double >  K;
@@ -1108,7 +1108,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solKType);
     unsigned nDofsN = msh->GetElementDofNumber(iel, solNType);
-    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
 
     // resize local arrays
     sysDof.resize(nDofs);
@@ -1136,7 +1136,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned i = 0; i < nDofsX; i++) {
-      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
       }
@@ -1144,7 +1144,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
     const elem_type *femK = msh->_finiteElement[ielGeom][solKType];
     const elem_type *femN = msh->_finiteElement[ielGeom][solNType];
-    const elem_type* femX = msh->_finiteElement[ielGeom][coordXType];
+    const elem_type* femX = msh->_finiteElement[ielGeom][solXType];
 
     double cellMeasure = 0.;
 
@@ -1236,7 +1236,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
         const unsigned faceGeom = msh->GetElementFaceType ( iel, jface );
         unsigned faceDofs = msh->GetElementFaceDofNumber (iel, jface, solKType);
         unsigned faceDofsN = msh->GetElementFaceDofNumber (iel, jface, solNType);
-        unsigned faceDofsX = msh->GetElementFaceDofNumber (iel, jface, coordXType);
+        unsigned faceDofsX = msh->GetElementFaceDofNumber (iel, jface, solXType);
         std::vector  < std::vector  <  double> > faceCoordinates ( dim ); // A matrix holding the face coordinates rowwise.
         for ( int k = 0; k < dim; k++ ) {
           faceCoordinates[k].resize (faceDofsX);
@@ -1325,7 +1325,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
   // std::vector < double >  psi; // local solution
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
-  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   std::vector < std::vector < double > > normal(dim);
   std::vector < double >  K;
@@ -1481,7 +1481,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
     unsigned nDofs = msh->GetElementDofNumber(iel, solKType);
     unsigned nDofsN = msh->GetElementDofNumber(iel, solNType);
-    unsigned nDofsX = msh->GetElementDofNumber(iel, coordXType);
+    unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
 
     // resize local arrays
     sysDof.resize(nDofs);
@@ -1509,7 +1509,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
     }
 
     for(unsigned i = 0; i < nDofsX; i++) {
-      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
       }
@@ -1517,7 +1517,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
     const elem_type *femK = msh->_finiteElement[ielGeom][solKType];
     const elem_type *femN = msh->_finiteElement[ielGeom][solNType];
-    const elem_type* femX = msh->_finiteElement[ielGeom][coordXType];
+    const elem_type* femX = msh->_finiteElement[ielGeom][solXType];
 
     double cellMeasure = 0.;
 
@@ -1610,7 +1610,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
         const unsigned faceGeom = msh->GetElementFaceType ( iel, jface );
         unsigned faceDofs = msh->GetElementFaceDofNumber (iel, jface, solKType);
         unsigned faceDofsN = msh->GetElementFaceDofNumber (iel, jface, solNType);
-        unsigned faceDofsX = msh->GetElementFaceDofNumber (iel, jface, coordXType);
+        unsigned faceDofsX = msh->GetElementFaceDofNumber (iel, jface, solXType);
         std::vector  < std::vector  <  double> > faceCoordinates ( dim ); // A matrix holding the face coordinates rowwise.
         for ( int k = 0; k < dim; k++ ) {
           faceCoordinates[k].resize (faceDofsX);
@@ -1807,7 +1807,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::vector < std::vector < double > >  n(dim);
 
   std::vector < std::vector < double > > coordX(dim);    // local coordinates
-  unsigned coordXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   std::vector <double> phiV;  // local test function for velocity
   std::vector <double> phiV_x; // local test function first order partial derivatives
@@ -1874,6 +1874,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
 
+    unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
     unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
 
@@ -1889,7 +1890,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     for(unsigned  k = 0; k < dim; k++) {
       solV[k].resize(nDofsV);
       solVOld[k].resize(nDofsV);
-      coordX[k].resize(nDofsV);
+      coordX[k].resize(nDofsX);
     }
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
@@ -1915,8 +1916,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
 
     // local storage of coordinates
-    for(unsigned i = 0; i < nDofsV; i++) {
-      unsigned coordXDof  = msh->GetSolutionDof(i, iel, coordXType);
+    for(unsigned i = 0; i < nDofsX; i++) {
+      unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
       for(unsigned k = 0; k < dim; k++) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);
       }

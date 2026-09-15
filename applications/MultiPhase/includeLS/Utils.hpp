@@ -1036,7 +1036,7 @@ void rkStep(MultiLevelSolution & mlSol,
             const std::vector<double> &a) {
 
   assert (a.size() == rkStep);
-  assert(!velName.empty());
+  assert(!vName.empty());
   const unsigned nFields = vName.size();
 
   assert(X.size() == nFields);
