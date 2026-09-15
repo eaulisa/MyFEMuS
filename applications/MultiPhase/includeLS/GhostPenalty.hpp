@@ -4,7 +4,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
 
   double test0 = 1.;
-  double test1 = 0;
+  double test1 = 1;
 
   double C0 = 100.;
 

@@ -1999,11 +1999,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
     if(cut == 1) {
-      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      (*cfw[ielGeom])(0, a, d, weightCFInt);
       for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
       d = -d;
-      cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
-      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
+      //cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+      //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
+
+      (*cfw[ielGeom])(-1, a, d, weightCF);
+      (*cfw[ielGeom])(0, a, d, weightCFExt);
+
     }
     else {
       for(unsigned i = 0; i < weightCFInt.size(); i++) {
