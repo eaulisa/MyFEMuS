@@ -10,15 +10,15 @@ class HCImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
   public:
     HCImap(const unsigned &dim, const unsigned &mMax, const unsigned &sMax = 0) : LSImap <TypeA> (mMax + dim - 1, sMax, mMax + dim - 1) {
 
-      _HCImapA.resize(dim);
-      _HCImapA1.resize(dim);
+      //_HCImapA.resize(dim);
+      //_HCImapA1.resize(dim);
 
-      _cnt.assign(dim, 0);
+      //_cnt.assign(dim, 0);
 
-      for(unsigned d = 0; d < _HCImapA.size(); d++) {
-        _HCImapA[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
-        _HCImapA1[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
-      }
+      // for(unsigned d = 0; d < _HCImapA.size(); d++) {
+      //   _HCImapA[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
+      //   _HCImapA1[d].resize(2u + sMax + (d + 1 != dim) * (mMax + dim - d - 1));
+      // }
       
       _fast = false;
     };
@@ -29,20 +29,20 @@ class HCImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
 
     void printCounter() {
       LSImap<TypeA>::printCounter();
-      for(unsigned d = 0; d < _cnt.size(); d++) {
-        std::cout << "HCI_" << d + 1 << " counters = " << _cnt[d] << std::endl;
-      }
+      // for(unsigned d = 0; d < _cnt.size(); d++) {
+      //   std::cout << "HCI_" << d + 1 << " counters = " << _cnt[d] << std::endl;
+      // }
     }
 
     void clear() {
       LSImap<TypeA>::clear();
-      for(unsigned d = 0; d < _HCImapA.size(); d++) {
-        for(unsigned s = 0; s < _HCImapA[d].size(); s++) {
-          _HCImapA[d][s].clear();
-          _HCImapA1[d][s].clear();
-        }
-        _cnt[d] = 0;
-      }
+      // for(unsigned d = 0; d < _HCImapA.size(); d++) {
+      //   for(unsigned s = 0; s < _HCImapA[d].size(); s++) {
+      //     _HCImapA[d][s].clear();
+      //     _HCImapA1[d][s].clear();
+      //   }
+      //   _cnt[d] = 0;
+      // }
     };
 
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
@@ -100,14 +100,14 @@ class HCImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
 
     typedef std::tuple< std::vector <unsigned>, std::vector<TypeA>, TypeA> keydef;
 
-    std::vector<std::vector< std::map < keydef, TypeA > > > _HCImapA;
-    std::vector<std::vector< std::map < keydef, TypeA > > > _HCImapA1;
+    // std::vector<std::vector< std::map < keydef, TypeA > > > _HCImapA;
+    // std::vector<std::vector< std::map < keydef, TypeA > > > _HCImapA1;
 
-    typename std::map < keydef, TypeA >::iterator _it;
-    keydef _key;
+    //typename std::map < keydef, TypeA >::iterator _it;
+    //keydef _key;
 
-    TypeA _IA,_sum;
-    std::vector <unsigned> _cnt;
+    TypeA /*_IA,*/_sum;
+    //std::vector <unsigned> _cnt;
     std::vector <unsigned> _m;
     std::vector <TypeA> _a;
     std::vector <TypeA> _ma;

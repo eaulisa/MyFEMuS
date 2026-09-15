@@ -39,6 +39,8 @@ using namespace femus;
 #define YG 0.5
 #define ZG 0.
 
+bool printdb = false;
+
 typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 typedef cpp_bin_float_oct oct;
@@ -298,6 +300,8 @@ int main(int argc, char **argv) {
 
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
+
+    if(t >= 259) printdb = true;
 
     double time = t * dt;
 
@@ -614,6 +618,9 @@ int main(int argc, char **argv) {
     mlmsh1->resize(numberOfUniformLevels);
 
     double area = ComputeArea(*mlsol0, psiName);
+
+    quad.clear();
+    tri.clear();
 
     if (iproc == 0) {
 
@@ -1720,7 +1727,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   const unsigned levelC = mParam.levelC;
   const unsigned level0 = mParam.level0;
 
-  Solution* sol2C = ml_prob2._ml_sol->GetSolutionLevel(levelC - level0);    // pointer to the solution (level) object
+
 
 
   std::cout << level2 << " " << levelC << " " << levelF << std::endl;
@@ -1834,32 +1841,39 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   double eps = 0.;//1.e-14;
 
+  if(printdb) std::cout<< "Before Solution Projection\n"<<std::flush;
 
   {
-    Solution*    solC        = ml_prob0->_ml_sol->GetSolutionLevel(levelC);
+
+    Solution* sol2_l  = ml_prob2._ml_sol->GetSolutionLevel(level2);    // pointer to the solution (level) object
+    Solution* sol0_l  = ml_prob0->_ml_sol->GetSolutionLevel(level0 + level2);
 
     for(unsigned d = 0; d < dim; d++) {
-      *(solC->_Sol[solVIndex[d]]) = *(sol2C->_Sol[sol2VIndex[d]]); //TODO prolongation of sol2 into sol0^ln
-      *(solC->_SolOld[solVIndex[d]]) = *(sol2C->_SolOld[sol2VIndex[d]]);
+      *(sol0_l->_Sol[solVIndex[d]]) = *(sol2_l->_Sol[sol2VIndex[d]]); //TODO prolongation of sol2 into sol0^ln
+      *(sol0_l->_SolOld[solVIndex[d]]) = *(sol2_l->_SolOld[sol2VIndex[d]]);
     }
-    *(solC->_Sol[solP1Index]) = *(sol2C->_Sol[solP1Index]); //TODO prolongation of sol2 into sol0^ln
-    *(solC->_Sol[solP2Index]) = *(sol2C->_Sol[solP2Index]); //TODO prolongation of sol2 into sol0^ln
+    *(sol0_l->_Sol[solP1Index]) = *(sol2_l->_Sol[solP1Index]); //TODO prolongation of sol2 into sol0^ln
+    *(sol0_l->_Sol[solP2Index]) = *(sol2_l->_Sol[solP2Index]); //TODO prolongation of sol2 into sol0^ln
 
-    for(unsigned level = levelC; level < levelF; level++) {
-      solC = ml_prob0->_ml_sol->GetSolutionLevel(level);
-      Solution*    solF = ml_prob0->_ml_sol->GetSolutionLevel(level + 1);
-      Mesh*        mshF = ml_prob0->_ml_msh->GetLevel(level + 1);
+    for(unsigned level = level0 + level2; level < levelF; level++) {
+      sol0_l = ml_prob0->_ml_sol->GetSolutionLevel(level);
+      Solution*  sol0_lp1 = ml_prob0->_ml_sol->GetSolutionLevel(level + 1);
+      Mesh*      msh0_lp1 = ml_prob0->_ml_msh->GetLevel(level + 1);
       for(unsigned d = 0; d < dim; d++) {
-        solF->_Sol[solVIndex[d]]->matrix_mult(*(solC->_Sol[solVIndex[d]]), *(mshF->GetCoarseToFineProjection(solVType)));
-        solF->_SolOld[solVIndex[d]]->matrix_mult(*(solC->_SolOld[solVIndex[d]]), *(mshF->GetCoarseToFineProjection(solVType)));
+        sol0_lp1->_Sol[solVIndex[d]]->matrix_mult(*(sol0_l->_Sol[solVIndex[d]]), *(msh0_lp1->GetCoarseToFineProjection(solVType)));
+        sol0_lp1->_SolOld[solVIndex[d]]->matrix_mult(*(sol0_l->_SolOld[solVIndex[d]]), *(msh0_lp1->GetCoarseToFineProjection(solVType)));
       }
-      solF->_Sol[solP1Index]->matrix_mult(*(solC->_Sol[solP1Index]), *(mshF->GetCoarseToFineProjection(solPType)));
-      solF->_Sol[solP2Index]->matrix_mult(*(solC->_Sol[solP2Index]), *(mshF->GetCoarseToFineProjection(solPType)));
+      sol0_lp1->_Sol[solP1Index]->matrix_mult(*(sol0_l->_Sol[solP1Index]), *(msh0_lp1->GetCoarseToFineProjection(solPType)));
+      sol0_lp1->_Sol[solP2Index]->matrix_mult(*(sol0_l->_Sol[solP2Index]), *(msh0_lp1->GetCoarseToFineProjection(solPType)));
     }
   }
 
   KK->zero();
   RES->zero();
+
+
+  if(printdb) std::cout<< "After Solution Projection\n"<<std::flush;
+
 
   // AssembleStabilizationTerms(*ml_prob0);
 
@@ -1868,6 +1882,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   clock_t start_time = clock();
 
   // element loop: each process loops only on the elements that owns
+
+  if(printdb) std::cout<< "Before KK assembly\n"<<std::flush;
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     double C = (*sol->_Sol[cIndex])(iel);
@@ -2277,8 +2293,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->close();
   KK->close();
 
-  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+  if(printdb) std::cout<< "After KK assembly\n"<<std::flush;
+
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC <<std::flush<< std::endl;
   start_time = clock();
+
+
 
   vector < SparseMatrix* > PP, RR, PPamr, RRamr;
   PP = mlPdeSys->GetProjectionMatrix();
@@ -2289,8 +2309,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   vector < LinearEquationSolver*> LinSolver = mlPdeSys->GetLinearSolver();
 
   MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
-  for(unsigned level = levelF; level > level2; level--) {
+  for(unsigned level = levelF; level > level0 + level2; level--) {
     if(!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
+      if(printdb) std::cout<< "Before KK amr restriction\n"<<std::flush;
+
       if(!RRamr[level]) {
         (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
         *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
@@ -2303,8 +2325,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         LinSolver[level]->SwapMatrices();
         LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false); // cannot use !firstNonlinearIt here
       }
+      if(printdb) std::cout<< "After KK amr restriction\n"<<std::flush;
     }
 
+
+    if(printdb) std::cout<< "Before KK level" <<level<<" restriction\n"<<std::flush;
     if(!RR[level]) { //Multilevel Restriction
       (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
       LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, !firstNonlinearIt); // Kc = Pt Kf P // mat_reuse works only with level == levelF above
@@ -2313,9 +2338,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
       LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], !firstNonlinearIt); // Kc = R Kf P // mat_reuse works only with level == levelF above
     }
+    if(printdb) std::cout<< "After KK level" <<level<<" restriction\n"<<std::flush;
   }
 
-  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl<<std::flush;
 
   // LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
   // SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
@@ -2323,8 +2349,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
   //TODO restrict KK into KK2 space
-  KK2->matrix_add (1., *LinSolver[level2 + level0]->_KK, "different_nonzero_pattern");
-  *RES2 += *LinSolver[level2 + level0]->_RES;
+
+  if(printdb) std::cout<< "Before KK sum \n"<<std::flush;
+  KK2->matrix_add (1., *LinSolver[level0 + level2]->_KK, "different_nonzero_pattern");
+  *RES2 += *LinSolver[level0 + level2]->_RES;
+  if(printdb) std::cout<< "After KK sum \n"<<std::flush;
 
 }
 

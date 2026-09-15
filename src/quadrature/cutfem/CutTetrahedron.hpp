@@ -11,19 +11,19 @@ class TTImap : public TRImap <TypeA, TypeA> {
 
       _baseType = 0;
 
-      _TTImap.resize(2u + sMax + ds);
-      unsigned max = 2u + mMax + sMax;
-
-      for(unsigned s = 0; s < _TTImap.size(); s++) {
-        _TTImap[s].resize(max);
-        for(unsigned i = 0; i < _TTImap[s].size(); i++) {
-          _TTImap[s][i].resize(max - i);
-          for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
-            _TTImap[s][i][j].resize(max - i - j);
-          }
-        }
-      }
-      _cnt = 0;
+      // _TTImap.resize(2u + sMax + ds);
+      // unsigned max = 2u + mMax + sMax;
+      //
+      // for(unsigned s = 0; s < _TTImap.size(); s++) {
+      //   _TTImap[s].resize(max);
+      //   for(unsigned i = 0; i < _TTImap[s].size(); i++) {
+      //     _TTImap[s][i].resize(max - i);
+      //     for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
+      //       _TTImap[s][i][j].resize(max - i - j);
+      //     }
+      //   }
+      // }
+      // _cnt = 0;
     };
 
     ~TTImap() {
@@ -32,21 +32,21 @@ class TTImap : public TRImap <TypeA, TypeA> {
 
     void clear() {
       TRImap<TypeA, TypeA>::clear();
-      for(unsigned s = 0; s < _TTImap.size(); s++) {
-        for(unsigned i = 0; i < _TTImap[s].size(); i++) {
-          for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
-            for(unsigned k = 0; k < _TTImap[s][i][j].size(); k++) {
-              _TTImap[s][i][j][k].clear();
-            }
-          }
-        }
-      }
-      _cnt = 0;
+      // for(unsigned s = 0; s < _TTImap.size(); s++) {
+      //   for(unsigned i = 0; i < _TTImap[s].size(); i++) {
+      //     for(unsigned j = 0; j < _TTImap[s][i].size(); j++) {
+      //       for(unsigned k = 0; k < _TTImap[s][i][j].size(); k++) {
+      //         _TTImap[s][i][j][k].clear();
+      //       }
+      //     }
+      //   }
+      // }
+      // _cnt = 0;
     };
 
     void printCounter() {
-      TRImap<TypeIO, TypeA>::printCounter();
-      std::cout << "TTI counter = " << _cnt << std::endl;
+      // TRImap<TypeIO, TypeA>::printCounter();
+      // std::cout << "TTI counter = " << _cnt << std::endl;
     }
 
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d);
@@ -57,6 +57,9 @@ class TTImap : public TRImap <TypeA, TypeA> {
 
   protected:
     TypeA ttia(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
+
+      return TetrahedronA(s, m, a, d);
+      /*
       _key = std::make_pair(a, d);
       _it = _TTImap[s + 1][m[0]][m[1]][m[2]].find(_key);
       if(_it == _TTImap[s + 1][m[0]][m[1]][m[2]].end()) {
@@ -67,7 +70,7 @@ class TTImap : public TRImap <TypeA, TypeA> {
       }
       else {
         return _it->second;
-      }
+      }*/
     }
 
   private:
@@ -75,14 +78,14 @@ class TTImap : public TRImap <TypeA, TypeA> {
     TypeA TetrahedronB(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
     TypeA TetrahedronC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
 
-    std::vector<std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > >_TTImap;
-    typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    std::pair<std::vector<TypeA>, TypeA> _key;
+    // std::vector<std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > >_TTImap;
+    // typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    //std::pair<std::vector<TypeA>, TypeA> _key;
 
     unsigned _baseType;
 
-    TypeA _I1;
-    unsigned _cnt;
+    //TypeA _I1;
+    //unsigned _cnt;
 };
 
 template <class TypeIO, class TypeA>

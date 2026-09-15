@@ -14,47 +14,47 @@ class LimLimap {
 
   protected:
     LimLimap(const unsigned &sMax) {
-      _LimLimap.resize(2u + sMax);
+      //_LimLimap.resize(2u + sMax);
     };
     ~LimLimap() {
-      _cnt = _cntB = 0;
+      //_cnt = _cntB = 0;
     };
 
     void clear() {
-      for(unsigned s = 0; s < _LimLimap.size(); s++) {
-        _LimLimap[s].clear();
-        _cnt = _cntB = 0;
-      }
+      // for(unsigned s = 0; s < _LimLimap.size(); s++) {
+      //   _LimLimap[s].clear();
+      //   _cnt = _cntB = 0;
+      // }
     };
     void printCounter() {
-      std::cout << "limLi counter = " << _cnt << " " << _cntB << std::endl;
+      //std::cout << "limLi counter = " << _cnt << " " << _cntB << std::endl;
     }
 
     Type limLi(const int &s, const Type &d) {
 
-      //return this->LimLi(s, d);
+      return this->LimLi(s, d);
 
-      _it = _LimLimap[s + 1].find(d);
-      if(_it == _LimLimap[s + 1].end()) {
-        _cnt++;
-        _I1 = this->LimLi(s, d);
-        _LimLimap[s + 1][d] = _I1;
-        return _I1;
-      }
-      else {
-        _cntB++;
-        return _it->second;
-      }
+      // _it = _LimLimap[s + 1].find(d);
+      // if(_it == _LimLimap[s + 1].end()) {
+      //   _cnt++;
+      //   _I1 = this->LimLi(s, d);
+      //   _LimLimap[s + 1][d] = _I1;
+      //   return _I1;
+      // }
+      // else {
+      //   _cntB++;
+      //   return _it->second;
+      // }
     }
 
   private:
     Type LimLi(const int &s, const Type &x);
 
-    std::vector< std::map < Type, Type > > _LimLimap;
-    typename std::map< Type, Type >::iterator _it;
+    //std::vector< std::map < Type, Type > > _LimLimap;
+    //typename std::map< Type, Type >::iterator _it;
 
-    Type _I1;
-    unsigned _cnt, _cntB;
+    //Type _I1;
+    //unsigned _cnt, _cntB;
 };
 
 
@@ -80,27 +80,27 @@ class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {
 
-      _LSImap.resize(2u + sMax + ds);
+     // _LSImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
-      for(unsigned s = 0; s < _LSImap.size(); s++) _LSImap[s].resize(max);
-      _cnt = _cntB = 0;
+      //for(unsigned s = 0; s < _LSImap.size(); s++) _LSImap[s].resize(max);
+      //_cnt = _cntB = 0;
     };
     ~LSImap() {};
 
     void clear() {
       LimLimap<Type>::clear();
-      for(unsigned s = 0; s < _LSImap.size(); s++) {
-        for(unsigned i = 0; i < _LSImap[s].size(); i++) {
-          _LSImap[s][i].clear();
-        }
-      }
-      _cnt = _cntB = 0;
+      // for(unsigned s = 0; s < _LSImap.size(); s++) {
+      //   for(unsigned i = 0; i < _LSImap[s].size(); i++) {
+      //     _LSImap[s][i].clear();
+      //   }
+      // }
+      //_cnt = _cntB = 0;
     };
 
     void printCounter() {
-      LimLimap<Type>::printCounter();
-      std::cout << "LSI counter = " << _cnt << " " << _cntB << std::endl;
+      //LimLimap<Type>::printCounter();
+      //std::cout << "LSI counter = " << _cnt << " " << _cntB << std::endl;
     }
 
     Type LSIm1(const int &m, const Type &a, Type d);
@@ -108,43 +108,47 @@ class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
 
     Type lsi(const int &s, const unsigned &m, const Type &a, const Type &d) {
 
-      _key = std::make_pair(a, d);
-      _it = _LSImap[s + 1][m].find(_key);
-      if(_it == _LSImap[s + 1][m].end()) {
-        _cnt++;
-        _I1 = this->LSI(s, m, a, d);
-        _LSImap[s + 1][m][_key] = _I1;
-        return _I1;
-      }
-      else {
-        _cntB++;
-        return _it->second;
-      }
+      return this->LSI(s, m, a, d);
+
+      // _key = std::make_pair(a, d);
+      // _it = _LSImap[s + 1][m].find(_key);
+      // if(_it == _LSImap[s + 1][m].end()) {
+      //   _cnt++;
+      //   _I1 = this->LSI(s, m, a, d);
+      //   _LSImap[s + 1][m][_key] = _I1;
+      //   return _I1;
+      // }
+      // else {
+      //   _cntB++;
+      //   return _it->second;
+      // }
     }
 
     Type lsi(const int &s, const unsigned &m, const std::pair<Type, Type> &key) {
 
-      _it = _LSImap[s + 1][m].find(key);
-      if(_it == _LSImap[s + 1][m].end()) {
-        _cnt++;
-        _I1 = this->LSI(s, m, key.first, key.second);
-        _LSImap[s + 1][m][key] = _I1;
-        return _I1;
-      }
-      else {
-        _cntB++;
-        return _it->second;
-      }
+      return this->LSI(s, m, key.first, key.second);
+
+      // _it = _LSImap[s + 1][m].find(key);
+      // if(_it == _LSImap[s + 1][m].end()) {
+      //   _cnt++;
+      //   _I1 = this->LSI(s, m, key.first, key.second);
+      //   _LSImap[s + 1][m][key] = _I1;
+      //   return _I1;
+      // }
+      // else {
+      //   _cntB++;
+      //   return _it->second;
+      // }
     }
 
 
   private:
-    std::vector<std::vector<std::map < std::pair<Type, Type>, Type > > > _LSImap;
-    typename std::map< std::pair<Type, Type>, Type >::iterator _it;
-    std::pair<Type, Type> _key;
+    //std::vector<std::vector<std::map < std::pair<Type, Type>, Type > > > _LSImap;
+    //typename std::map< std::pair<Type, Type>, Type >::iterator _it;
+    //std::pair<Type, Type> _key;
 
-    Type _I1;
-    unsigned _cnt, _cntB;
+    //Type _I1;
+    //unsigned _cnt, _cntB;
 };
 
 
