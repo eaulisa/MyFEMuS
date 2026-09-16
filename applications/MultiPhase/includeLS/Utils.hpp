@@ -325,7 +325,7 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CNam
 
 inline std::vector<double>
 Velocity(std::vector<double> &xp, const double time, double period) noexcept {
-  double u = 0.0, v = 0.0;
+  double u = 0.0, v = 0.0, w = 0.0;
 
   switch(velocityType) {
     case RungeKutta::VelKind::Vortex: {
@@ -341,6 +341,7 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
 
       u = -2.0 * sx * sx * sy * cy * cosT;
       v =  2.0 * sx * cx * sy * sy * cosT;
+      w = 0.;
 
       break;
     }
@@ -348,6 +349,7 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
 
       u = xp[1];
       v = -xp[0];
+      w = 0.;
 
       break;
     }
@@ -356,6 +358,7 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
       u = 0;
       v = -0.3 * 4 * (0.5 - xp[0]) * (0.5 + xp[0]);
       // v = -0.3;
+      w = 0.;
 
       break;
     }
@@ -363,14 +366,15 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
 
       u = 0;
       v = 0;
-
+      w = 0.;
 
       break;
     }
 
   }
 
-  return {u, v};
+  if (xp.size() == 2) return {u, v};
+  else if (xp.size() == 3) return {u, v, w};
 }
 
 

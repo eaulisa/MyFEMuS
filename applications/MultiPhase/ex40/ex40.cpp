@@ -19,8 +19,8 @@ using namespace femus;
 #include "../includeLS/RungeKutta.hpp"
 
 const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
-//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
-//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
+// const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
+// const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
 
 #include "../includeLS/Utils.hpp"
 
@@ -47,14 +47,15 @@ int main(int argc, char **argv) {
   std::string meshName = "./input/tri.neu";
 
   // Load coarse mesh and build uniform refinement levels
-  mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+  // mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+  mlMsh0.GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh"); 
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   unsigned dim = mlMsh0.GetDimension();
 
   // Parameters for selective AMR (ball centered at xc with radius r)
   const double r = 0.125;
-  std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.751 : 0.25};
+  std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.751 : 0.25, 0.};
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
@@ -95,8 +96,8 @@ int main(int argc, char **argv) {
   std::vector<double> xc_3 = (dim == 2) ? std::vector<double>({xc[0]+0.35, xc[1] + 0.25}) : std::vector<double>({xc_2[0], xc_2[1], xc_2[2] + 0.5});
   double r_0 = r;
   Circle c1(xc_1,r_0);
-  Circle c2(xc_2, r_0);
-  Circle c3(xc_3, r_0);
+  // Circle c2(xc_2, r_0);
+  // Circle c3(xc_3, r_0);
   // Shape* shape = &c1;
 
   std::vector<Shape*> shape = {&c1};
@@ -114,6 +115,7 @@ int main(int argc, char **argv) {
   }
 
   Boundary* inflow_bd = &inflow;
+  // Boundary zero_bd;
 
   PsiBall psi2D(xc, r, m);
   InitLevelSet(mlSol0, "Psi", psi2D);
@@ -138,15 +140,15 @@ int main(int argc, char **argv) {
   LevelSetMarkers markers("Psi", dim);
 
   // Load coarse mesh and build uniform refinement levels
-  mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+  // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+  mlmsh1->GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh"); 
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
   //RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 
-  double period =
-    (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
+  double period = (velocityType == RungeKutta::VelKind::Rotation) ? 2 : 2.0 * M_PI;
   unsigned nSteps = 320;
   double dt = period / nSteps;
 
@@ -179,15 +181,13 @@ int main(int argc, char **argv) {
     RungeKutta rk(time, dt, period, velocityType);
 
     //RungeKuttaN rk(time, dt, mlmsh0, bbox);
-
     unsigned nLevels = numberOfUniformLevels + numberOfSelectiveLevels;
     std::vector<MyVector<double>> X0;
-    MyVector<int> X0Iel;
+    // MyVector<unsigned> X0Iel;
     // GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
 
     std::vector<std::vector<double>> inflow_markers(dim);
     inflow_bd->updateMarkers(inflow_markers0, inflow_markers, time-dt, period, dt);
-
     std::vector<MyVector<double>> IX(dim);
     for (unsigned k = 0; k < dim; ++k) {
       IX[k].buildFromLocal(inflow_markers[k]);
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
         }
       }
     }
-    
+    MyVector<int> X0Iel;
     markers.GetCutElementPoints(*mlsol0, X0, X0Iel, inflow_markers);
     
     if (t % 10 == 0) {
@@ -232,8 +232,8 @@ int main(int argc, char **argv) {
     RungeKutta4(X0, *mlsol0, bbox, vName, nLevels - 1, dt);
     //rk.rkForward(X0);
 
-    if (t % 10 == 0)
-      WritePointsVTK("./output/points." + std::to_string(t / 10) + ".vtk", X0);
+    if (t % 1 == 0)
+      WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
 
     // std::vector<MyVector<double>> field = X0;
     LevelMarkers l0;
@@ -265,6 +265,7 @@ int main(int argc, char **argv) {
 
 
     ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
+    // ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, zero_bd, -dt, time, period);
     ProjectSolution(*mlsol0, *mlsol1, bbox, vName, nLevels - 1, nLevels - 1);
 
     // Export solution to VTK (selected levels)
@@ -275,9 +276,8 @@ int main(int argc, char **argv) {
     mlmsh1->resize(numberOfUniformLevels);
 
     VTKWriter vtkIO1(mlsol0);
-    if (t % 10 == 0)
-      vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,
-                   t / 10);
+    if (t % 1 == 0)
+      vtkIO1.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
 
     double area = ComputeArea(*mlsol0, psiName);
 

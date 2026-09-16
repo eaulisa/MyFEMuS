@@ -21,7 +21,7 @@ class Shape {
 class Circle : public Shape {
   public:
     Circle(const std::vector<double>& xc, const double r)
-      : _xc(xc), _r(r) {
+      : _xc(xc), _r(r) , _dim(xc.size()){
       assert(_xc.size() == _dim);
       assert(_r > 0.);
     }
@@ -156,5 +156,5 @@ class Circle : public Shape {
     std::vector<double> _xc;
     double _r;
 
-    static constexpr unsigned _dim = 2;
+    const unsigned _dim;
 };

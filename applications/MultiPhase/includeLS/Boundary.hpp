@@ -22,23 +22,27 @@ InflowVelocity(std::vector<double>& xp,
 
   double u = 0.0;
   double v = 0.0;
+  double w = 0.0;
 
   switch(inflowVelocityType) {
 
     case InflowVelKind::Uniform: {
       u = 0.0;
       v = -0.3;
+      w = 0.;
       break;
     }
 
     case InflowVelKind::Poiseuille: {
       u = 0.0;
       v = -0.3 * 4.0 * (0.5 - xp[0]) * (0.5 + xp[0]);
+      w = 0.;
       break;
     }
   }
 
-  return {u, v};
+  if (xp.size() == 2) return {u, v};
+  else if (xp.size() == 3) return {u, v, w};
 }
 
 class Boundary {
