@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   //if (nprocs == 1)
-    //ProfilerStart("profiling.prof");
+  //ProfilerStart("profiling.prof");
 
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
 
   // Load coarse mesh and build uniform refinement levels
   mlmsh1->GenerateCoarseBoxMesh(10, 20, 0, 0., 1., 0., 2., 0., 0., QUAD9, "seventh"); // Turek 1&2
- // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+// mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   double period =
@@ -294,14 +294,14 @@ int main(int argc, char **argv) {
 
   VTKWriter vtkIO(&mlSol0);
   //vtkIO.SetDebugOutput(true);
-  //for (unsigned l = 0; l <= levelF; l++)
-  vtkIO.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
+  for (unsigned l = levelF; l <= levelF; l++)
+    vtkIO.Write(l, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   //vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
-    if(t >= 259) printdb = true;
+    if(t >= 260) printdb = true;
 
     double time = t * dt;
 
@@ -606,8 +606,9 @@ int main(int argc, char **argv) {
     // Export solution to VTK (selected levels)
     VTKWriter vtkIO1(mlsol1);
     if (t % 1 == 0) {
-      vtkIO1.Write(levelF, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
-      //vtkIO1.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted,t / 1);
+      for(unsigned level = levelF; level <= levelF; level++) {
+        vtkIO1.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
+      }
     }
 
 
@@ -1222,7 +1223,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
           for(unsigned d = 0; d < dim; d++) {
             helmotz_filter += phi_x[i * dim + d] *
-                      phi_x[j * dim + d];
+                              phi_x[j * dim + d];
           }
 
           // VIcolumn = VIrow;
@@ -1379,99 +1380,99 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
   for(unsigned iel = firstElem; iel < lastElem; ++iel) {
 
-      const unsigned localIel = iel - firstElem;
+    const unsigned localIel = iel - firstElem;
 
-      const int iel_level = msh->el->GetElementLevel(iel);
+    const int iel_level = msh->el->GetElementLevel(iel);
 
-      if(iel_level != static_cast<int>(level)) {
-          continue;
+    if(iel_level != static_cast<int>(level)) {
+      continue;
+    }
+
+    const unsigned nFaces = msh->GetElementFaceNumber(iel);
+
+    neighElem[localIel].assign(nFaces, -1);
+    neighLevel[localIel].assign(nFaces, -2);
+
+    for(unsigned jface = 0; jface < nFaces; ++jface) {
+
+      const int jel = el->GetFaceElementIndex(iel, jface) - 1;
+
+      neighElem[localIel][jface] = jel;
+
+      if(jel < 0) {
+        neighLevel[localIel][jface] = -1;
+        continue;
       }
 
-      const unsigned nFaces = msh->GetElementFaceNumber(iel);
+      const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
 
-      neighElem[localIel].assign(nFaces, -1);
-      neighLevel[localIel].assign(nFaces, -2);
-
-      for(unsigned jface = 0; jface < nFaces; ++jface) {
-
-          const int jel = el->GetFaceElementIndex(iel, jface) - 1;
-
-          neighElem[localIel][jface] = jel;
-
-          if(jel < 0) {
-              neighLevel[localIel][jface] = -1;
-              continue;
-          }
-
-          const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-
-          if(jproc == iproc) {
-              neighLevel[localIel][jface] = msh->el->GetElementLevel(jel);
-          }
-          else {
-              requestedElem[jproc].push_back(jel);
-              remoteSlot[jproc].push_back(std::make_pair(localIel, jface));
-          }
+      if(jproc == iproc) {
+        neighLevel[localIel][jface] = msh->el->GetElementLevel(jel);
       }
+      else {
+        requestedElem[jproc].push_back(jel);
+        remoteSlot[jproc].push_back(std::make_pair(localIel, jface));
+      }
+    }
   }
 
   std::vector<int> sendCounts(nprocs, 0);
   std::vector<int> recvCounts(nprocs, 0);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      sendCounts[p] = static_cast<int>(requestedElem[p].size());
+    sendCounts[p] = static_cast<int>(requestedElem[p].size());
   }
 
-  MPI_Alltoall(sendCounts.data(),1,MPI_INT,recvCounts.data(),1,MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoall(sendCounts.data(), 1, MPI_INT, recvCounts.data(), 1, MPI_INT, PETSC_COMM_WORLD);
 
   std::vector<int> sendDispls(nprocs, 0);
   std::vector<int> recvDispls(nprocs, 0);
 
   for(unsigned p = 1; p < nprocs; ++p) {
-      sendDispls[p] = sendDispls[p - 1] + sendCounts[p - 1];
-      recvDispls[p] = recvDispls[p - 1] + recvCounts[p - 1];
+    sendDispls[p] = sendDispls[p - 1] + sendCounts[p - 1];
+    recvDispls[p] = recvDispls[p - 1] + recvCounts[p - 1];
   }
 
   int totalSend = 0;
   int totalRecv = 0;
 
   if(nprocs > 0) {
-      totalSend = sendDispls[nprocs - 1] + sendCounts[nprocs - 1];
-      totalRecv = recvDispls[nprocs - 1] + recvCounts[nprocs - 1];
+    totalSend = sendDispls[nprocs - 1] + sendCounts[nprocs - 1];
+    totalRecv = recvDispls[nprocs - 1] + recvCounts[nprocs - 1];
   }
 
   std::vector<int> sendElem(totalSend);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      for(unsigned q = 0; q < requestedElem[p].size(); ++q) {
-          sendElem[sendDispls[p] + static_cast<int>(q)] = requestedElem[p][q];
-      }
+    for(unsigned q = 0; q < requestedElem[p].size(); ++q) {
+      sendElem[sendDispls[p] + static_cast<int>(q)] = requestedElem[p][q];
+    }
   }
 
   std::vector<int> recvElem(totalRecv);
 
-  MPI_Alltoallv(sendElem.data(),sendCounts.data(),sendDispls.data(),MPI_INT,
-      recvElem.data(),recvCounts.data(),recvDispls.data(),MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoallv(sendElem.data(), sendCounts.data(), sendDispls.data(), MPI_INT,
+                recvElem.data(), recvCounts.data(), recvDispls.data(), MPI_INT, PETSC_COMM_WORLD);
 
   std::vector<int> sendLevelBack(totalRecv, -1);
 
   for(int q = 0; q < totalRecv; ++q) {
-      const int jel = recvElem[q];
-      sendLevelBack[q] =msh->el->GetElementLevel(jel);
+    const int jel = recvElem[q];
+    sendLevelBack[q] = msh->el->GetElementLevel(jel);
   }
 
   std::vector<int> recvLevelBack(totalSend, -1);
 
-  MPI_Alltoallv(sendLevelBack.data(),recvCounts.data(),recvDispls.data(),MPI_INT,
-      recvLevelBack.data(),sendCounts.data(),sendDispls.data(),MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoallv(sendLevelBack.data(), recvCounts.data(), recvDispls.data(), MPI_INT,
+                recvLevelBack.data(), sendCounts.data(), sendDispls.data(), MPI_INT, PETSC_COMM_WORLD);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      for(unsigned q = 0; q < remoteSlot[p].size(); ++q) {
-          const unsigned localIel = remoteSlot[p][q].first;
-          const unsigned jface = remoteSlot[p][q].second;
-          const int position = sendDispls[p] + static_cast<int>(q);
-          neighLevel[localIel][jface] = recvLevelBack[position];
-      }
+    for(unsigned q = 0; q < remoteSlot[p].size(); ++q) {
+      const unsigned localIel = remoteSlot[p][q].first;
+      const unsigned jface = remoteSlot[p][q].second;
+      const int position = sendDispls[p] + static_cast<int>(q);
+      neighLevel[localIel][jface] = recvLevelBack[position];
+    }
   }
 
   // END GATHER
@@ -1594,7 +1595,7 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
           for(unsigned d = 0; d < dim; d++) {
             helmotz_filter += phi_x[i * dim + d] *
-                      phi_x[j * dim + d];
+                              phi_x[j * dim + d];
           }
 
           VIcolumn = VIrow;
@@ -1729,8 +1730,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
 
+  std::cout<<"levelC = "<<levelC << " levelF = "<<levelF << std::endl;
+  std::cout <<"level to assemble = "<<level2  << " mapping level to assemble to levelC = "<<level0 + level2<<std::endl;
 
-  std::cout << level2 << " " << levelC << " " << levelF << std::endl;
 
 
   MultiphasePhysicalProperties properties = mParam.properties;
@@ -1841,7 +1843,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   double eps = 0.;//1.e-14;
 
-  if(printdb) std::cout<< "Before Solution Projection\n"<<std::flush;
+  if(printdb) std::cout << "Before Solution Projection\n" << std::flush;
+
+
 
   {
 
@@ -1856,6 +1860,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     *(sol0_l->_Sol[solP2Index]) = *(sol2_l->_Sol[solP2Index]); //TODO prolongation of sol2 into sol0^ln
 
     for(unsigned level = level0 + level2; level < levelF; level++) {
+      if(printdb) std::cout << "\t Before Velocity Solution Projection " << level << std::endl << std::flush;
       sol0_l = ml_prob0->_ml_sol->GetSolutionLevel(level);
       Solution*  sol0_lp1 = ml_prob0->_ml_sol->GetSolutionLevel(level + 1);
       Mesh*      msh0_lp1 = ml_prob0->_ml_msh->GetLevel(level + 1);
@@ -1863,8 +1868,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         sol0_lp1->_Sol[solVIndex[d]]->matrix_mult(*(sol0_l->_Sol[solVIndex[d]]), *(msh0_lp1->GetCoarseToFineProjection(solVType)));
         sol0_lp1->_SolOld[solVIndex[d]]->matrix_mult(*(sol0_l->_SolOld[solVIndex[d]]), *(msh0_lp1->GetCoarseToFineProjection(solVType)));
       }
+      if(printdb) std::cout << "\t Afer Velocity Solution Projection " << level << std::endl << std::flush;
+      if(printdb) std::cout << "\t Before Pressure Solution Projection " << level << std::endl << std::flush;
       sol0_lp1->_Sol[solP1Index]->matrix_mult(*(sol0_l->_Sol[solP1Index]), *(msh0_lp1->GetCoarseToFineProjection(solPType)));
       sol0_lp1->_Sol[solP2Index]->matrix_mult(*(sol0_l->_Sol[solP2Index]), *(msh0_lp1->GetCoarseToFineProjection(solPType)));
+      if(printdb) std::cout << "\t After Pressure Solution Projection " << level << std::endl << std::flush;
     }
   }
 
@@ -1872,7 +1880,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->zero();
 
 
-  if(printdb) std::cout<< "After Solution Projection\n"<<std::flush;
+  if(printdb) std::cout << "After Solution Projection\n" << std::flush;
 
 
   // AssembleStabilizationTerms(*ml_prob0);
@@ -1883,7 +1891,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   // element loop: each process loops only on the elements that owns
 
-  if(printdb) std::cout<< "Before KK assembly\n"<<std::flush;
+  if(printdb) std::cout << "Before KK assembly\n" << std::flush;
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     double C = (*sol->_Sol[cIndex])(iel);
@@ -2293,9 +2301,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->close();
   KK->close();
 
-  if(printdb) std::cout<< "After KK assembly\n"<<std::flush;
+  if(printdb) std::cout << "After KK assembly\n" << std::flush;
 
-  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC <<std::flush<< std::endl;
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
   start_time = clock();
 
 
@@ -2311,7 +2319,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
   for(unsigned level = levelF; level > level0 + level2; level--) {
     if(!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
-      if(printdb) std::cout<< "Before KK amr restriction\n"<<std::flush;
+      if(printdb) std::cout << "Before KK amr restriction\n" << std::flush;
 
       if(!RRamr[level]) {
         (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
@@ -2325,11 +2333,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         LinSolver[level]->SwapMatrices();
         LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false); // cannot use !firstNonlinearIt here
       }
-      if(printdb) std::cout<< "After KK amr restriction\n"<<std::flush;
+      if(printdb) std::cout << "After KK amr restriction\n" << std::flush;
     }
 
 
-    if(printdb) std::cout<< "Before KK level" <<level<<" restriction\n"<<std::flush;
+    if(printdb) std::cout << "Before KK level" << level << " restriction\n" << std::flush;
     if(!RR[level]) { //Multilevel Restriction
       (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
       LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, !firstNonlinearIt); // Kc = Pt Kf P // mat_reuse works only with level == levelF above
@@ -2338,10 +2346,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
       LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], !firstNonlinearIt); // Kc = R Kf P // mat_reuse works only with level == levelF above
     }
-    if(printdb) std::cout<< "After KK level" <<level<<" restriction\n"<<std::flush;
+    if(printdb) std::cout << "After KK level" << level << " restriction\n" << std::flush;
   }
 
-  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl<<std::flush;
+  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
   // LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
   // SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
@@ -2350,10 +2358,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   //TODO restrict KK into KK2 space
 
-  if(printdb) std::cout<< "Before KK sum \n"<<std::flush;
+  if(printdb) std::cout << "Before KK sum \n" << std::flush;
   KK2->matrix_add (1., *LinSolver[level0 + level2]->_KK, "different_nonzero_pattern");
   *RES2 += *LinSolver[level0 + level2]->_RES;
-  if(printdb) std::cout<< "After KK sum \n"<<std::flush;
+  if(printdb) std::cout << "After KK sum \n" << std::flush;
 
 }
 

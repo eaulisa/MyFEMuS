@@ -685,7 +685,7 @@ namespace femus {
     _PP[gridf] = SparseMatrix::build().release();
     _PP[gridf]->init(nf, nc, nf_loc, nc_loc, nnz_d, nnz_o);
 
-    MatSetOption((static_cast< PetscMatrix* >(_PP[gridf]))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    //MatSetOption((static_cast< PetscMatrix* >(_PP[gridf]))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
 
     for(unsigned k = 0; k < _SolSystemPdeIndex.size(); k++) {
       unsigned SolIndex = _SolSystemPdeIndex[k];

@@ -451,9 +451,6 @@ namespace femus {
       imapping[iel] = iel;
     }
 
-    //AAAAAAAAAAAAAAAAAAA
-
-
     // Preallocate once outside the loop (reuse across calls if possible)
     std::vector<unsigned> tmp_iel;
     std::vector<unsigned> tmp_key;
@@ -732,7 +729,7 @@ namespace femus {
 
           unsigned ksdom = IsdomBisectionSearch(ghostNode, 2);
 
-          int upperBound = _dofOffset[2][ksdom] + _ownSize[k][ksdom];
+          int upperBound = _dofOffset[2][ksdom] + _originalOwnSize[k][ksdom];//_ownSize[k][ksdom]; //TODO CODEX fix (mmmmmmm)
 
           if (ghostNode < upperBound) {
             _ghostDofs[k][isdom][inode] =  ghostNode  - _dofOffset[2][ksdom] + _dofOffset[k][ksdom];
@@ -859,7 +856,7 @@ namespace femus {
 
     switch (solType) {
       case 0: { // linear Lagrange
-        unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);
+        unsigned iNode = mshc->el->GetChildElementDof(ielc, i0, i1);// the father mshc has stored the fine nodes
         unsigned isdom = IsdomBisectionSearch(iNode, 2);
 
         if (iNode < _dofOffset[2][isdom] + _originalOwnSize[0][isdom]) {
