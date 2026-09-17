@@ -388,6 +388,112 @@ void Shift(std::vector<MyVector<double>> &X, const std::vector<double> &dx) {
   }
 }
 
+template <class PsiType>
+void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
+
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1;
+  Mesh& msh = *mlMsh.GetLevel(level);
+
+  const unsigned iproc = msh.processor_id();
+  const unsigned dim = msh.GetDimension();
+  const unsigned xType = 2;
+  const unsigned amrIndex = msh.GetAmrIndex();
+
+  auto& xv = msh._topology->_Sol;
+  auto* amrFlag = msh._topology->_Sol[amrIndex];
+
+  amrFlag->zero();
+
+  const unsigned offset = msh._elementOffset[iproc];
+  const unsigned offsetp1 = msh._elementOffset[iproc + 1];
+
+  std::vector<double> x(dim);
+
+  for(unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    const unsigned nDof = msh.GetElementDofNumber(iel, xType);
+
+    const unsigned xDof0 = msh.GetSolutionDof(0, iel, xType);
+
+    for(unsigned k = 0; k < dim; ++k)
+      x[k] = (*xv[k])(xDof0);
+
+    const double psi0 = psi.SignedDistance(x);
+    const int sign0 = (psi0 > 0.) ? 1 : -1;
+
+    bool signChange = false;
+
+    for(unsigned i = 1; i < nDof; ++i) {
+
+      const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
+
+      for(unsigned k = 0; k < dim; ++k)
+        x[k] = (*xv[k])(xDof);
+
+      const double psii = psi.SignedDistance(x);
+      const int signi = (psii > 0.) ? 1 : -1;
+
+      if(signi != sign0) {
+        signChange = true;
+        break;
+      }
+    }
+
+    if(signChange)
+      amrFlag->set(iel, 2);
+  }
+
+  amrFlag->close();
+
+  for(unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    if((*amrFlag)(iel) == 2) {
+
+      for(unsigned j = 0; j < msh.el->GetElementNearElementSize(iel, 1); ++j) {
+
+        const unsigned jel = msh.el->GetElementNearElement(iel, j);
+
+        if(offset <= jel && jel < offsetp1) {
+
+          if((*amrFlag)(jel) < 0.5)
+            amrFlag->set(jel, 1);
+        }
+        else {
+          amrFlag->add(jel, 1);
+        }
+      }
+    }
+  }
+
+  amrFlag->close();
+
+  unsigned localRefined = 0;
+
+  for(unsigned iel = offset; iel < offsetp1; ++iel) {
+
+    if((*amrFlag)(iel) > 0.5) {
+
+      amrFlag->set(iel, 1);
+
+      ++localRefined;
+    }
+  }
+
+  amrFlag->close();
+
+  unsigned globalRefined = 0;
+
+  MPI_Allreduce(
+      &localRefined,
+      &globalRefined,
+      1,
+      MPI_UNSIGNED,
+      MPI_SUM,
+      MPI_COMM_WORLD);
+
+  msh.el->SetRefinedElementNumber(globalRefined);
+}
+
 void FlagFinestMeshLevel(MultiLevelMesh & mlMsh, const double & r,
                          const std::vector<double> &xc) {
 
@@ -530,8 +636,9 @@ void FlagFinestMeshLevel(MultiLevelMesh & mlMsh, MyVector<unsigned> &XIel) {
   msh.el->SetRefinedElementNumber(globalRefined);
 }
 
+template <class PsiType>
 void InitLevelSet(MultiLevelSolution & mlSol, const std::string & name,
-                  const PsiBall & psi2D) {
+                  const PsiType & psi2D) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -1421,5 +1528,526 @@ double ComputeArea(MultiLevelSolution & mlSol,
   return area;
 }
 
+double GetMaxElementH(Mesh* msh, const unsigned level) {
+  const unsigned dim = msh->GetDimension();
+  const unsigned iproc = msh->processor_id();
+  const unsigned solXType = 2;
+
+  double hLocalMax = 0.;
+
+  std::vector<std::vector<double>> coordX(dim);
+  std::vector<double> phiX;
+  std::vector<double> phiX_x;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+    if(msh->el->GetElementLevel(iel) != static_cast<int>(level)) continue;
+
+    const unsigned ielGeom = msh->GetElementType(iel);
+    const unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
+
+    for(unsigned d = 0; d < dim; ++d) coordX[d].resize(nDofsX);
+
+    for(unsigned i = 0; i < nDofsX; ++i) {
+      const unsigned xDof = msh->GetSolutionDof(i, iel, solXType);
+
+      for(unsigned d = 0; d < dim; ++d) coordX[d][i] = (*msh->_topology->_Sol[d])(xDof);
+    }
+
+    const elem_type* femX = msh->_finiteElement[ielGeom][solXType];
+
+    double cellMeasure = 0.;
+
+    for(unsigned ig = 0; ig < femX->GetGaussPointNumber(); ++ig) {
+      double weightX = 0.;
+
+      femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
+
+      cellMeasure += weightX;
+    }
+
+    const double h = std::pow(cellMeasure, 1.0 / static_cast<double>(dim));
+
+    hLocalMax = std::max(hLocalMax, h);
+  }
+
+  double hGlobalMax = 0.;
+
+  MPI_Allreduce(&hLocalMax, &hGlobalMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  return hGlobalMax;
+}
+
+
+void BestFitLinearInterpolation(std::vector<const double*>& xg,
+                                std::vector<double>& psi,
+                                std::vector<double>& B) {
+
+  const unsigned n = psi.size();
+  const unsigned dim = xg.size();
+  const unsigned m = dim + 1;
+
+  double s2 = 0.0;
+
+  for (unsigned i = 0; i < n; i++) {
+    s2 += psi[i] * psi[i];
+  }
+
+  s2 /= n;
+
+  if (s2 < 1.e-14) {
+    throw std::runtime_error("uniform  zero level-set in cutcell");
+    return;
+  }
+
+  std::vector<std::vector<double>> M(m, std::vector<double>(m, 0.0));
+  std::vector<double> F(m, 0.0);
+
+  for (unsigned i = 0; i < n; i++) {
+
+    const double f = psi[i];
+
+    const double w = std::exp(- 100 * f * f / s2);
+
+    for (unsigned d = 0; d < dim; d++) {
+
+      F[d] += w * xg[d][i] * f;
+
+      for (unsigned e = 0; e < dim; e++) {
+        M[d][e] += w * xg[d][i] * xg[e][i];
+      }
+
+      M[d][dim] += w * xg[d][i];
+      M[dim][d] += w * xg[d][i];
+    }
+
+    M[dim][dim] += w;
+    F[dim] += w * f;
+  }
+
+  B = F;
+
+  for (unsigned k = 0; k < m; k++) {
+
+    unsigned pivot = k;
+
+    for (unsigned i = k + 1; i < m; i++) {
+      if (std::fabs(M[i][k]) > std::fabs(M[pivot][k])) {
+        pivot = i;
+      }
+    }
+
+    if (std::fabs(M[pivot][k]) < 1.e-14) {
+      B.assign(m, 0.0);
+      return;
+    }
+
+    if (pivot != k) {
+      std::swap(M[k], M[pivot]);
+      std::swap(B[k], B[pivot]);
+    }
+
+    for (unsigned i = k + 1; i < m; i++) {
+
+      const double factor = M[i][k] / M[k][k];
+
+      for (unsigned j = k; j < m; j++) {
+        M[i][j] -= factor * M[k][j];
+      }
+
+      B[i] -= factor * B[k];
+    }
+  }
+
+  for (int i = static_cast<int>(m) - 1; i >= 0; i--) {
+
+    for (unsigned j = i + 1; j < m; j++) {
+      B[i] -= M[i][j] * B[j];
+    }
+
+    B[i] /= M[i][i];
+  }
+
+  double norm = 0.0;
+
+  for (unsigned d = 0; d < dim; d++) {
+    norm += B[d] * B[d];
+  }
+
+  norm = std::sqrt(norm);
+
+  if (norm < 1.e-14) {
+    B.assign(m, 0.0);
+    return;
+  }
+
+  for (unsigned d = 0; d < m; d++) {
+    B[d] /= norm;
+  }
+
+  double min_psi = psi[0];
+  double max_psi = psi[0];
+
+  unsigned i_min = 0;
+  unsigned i_max = 0;
+
+  for (unsigned i = 1; i < n; i++) {
+
+    if (psi[i] > max_psi) {
+      max_psi = psi[i];
+      i_max = i;
+    }
+
+    if (psi[i] < min_psi) {
+      min_psi = psi[i];
+      i_min = i;
+    }
+  }
+
+  double test_value_max = B[dim];
+  double test_value_min = B[dim];
+
+  for (unsigned d = 0; d < dim; d++) {
+    test_value_max += B[d] * xg[d][i_max];
+    test_value_min += B[d] * xg[d][i_min];
+  }
+
+  const bool maxWrong = (max_psi * test_value_max < 0.0);
+  const bool minWrong = (min_psi * test_value_min < 0.0);
+
+  if (maxWrong && minWrong) {
+
+    for (unsigned d = 0; d < dim + 1; d++) {
+      B[d] *= -1.0;
+    }
+
+  }
+  else if (maxWrong || minWrong) {
+
+    std::cout << "Warning: incoherent linear approximation" << std::endl;
+  }
+
+}
+
+
+struct LevelSetDiagnostics {
+  double innerArea;
+  double outerArea;
+  double totalArea;
+  double interfaceLength;
+  double interfaceErrorL2;
+  double interfaceErrorMax;
+  double normalErrorL2;
+  double normalErrorMax;
+  double curvatureErrorL2;
+  double curvatureErrorMax;
+};
+
+template <class PsiType>
+LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::string& psiAuxName, const std::vector<std::string>& nName, const std::string& kName, const PsiType& exactPsi) {
+
+  MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh* msh = mlMsh.GetLevel(level);
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  const unsigned dim = msh->GetDimension();
+  const unsigned iproc = msh->processor_id();
+  const unsigned psiIndex = mlSol.GetIndex(psiName.c_str());
+  const unsigned psiType = mlSol.GetSolutionType(psiIndex);
+  const unsigned psiAuxIndex = mlSol.GetIndex(psiAuxName.c_str());
+  const unsigned psiAuxType = mlSol.GetSolutionType(psiAuxIndex);
+  const unsigned kIndex = mlSol.GetIndex(kName.c_str());
+  const unsigned kType = mlSol.GetSolutionType(kIndex);
+  const unsigned xType = 2;
+
+  std::vector<unsigned> nIndex(dim);
+
+  for(unsigned d = 0; d < dim; ++d) nIndex[d] = mlSol.GetIndex(nName[d].c_str());
+
+  const unsigned nType = mlSol.GetSolutionType(nIndex[0]);
+
+  double innerAreaLocal = 0.;
+  double outerAreaLocal = 0.;
+  double totalAreaLocal = 0.;
+  double interfaceLengthLocal = 0.;
+  double interfaceError2Local = 0.;
+  double interfaceErrorMaxLocal = 0.;
+  double normalError2Local = 0.;
+  double normalErrorMaxLocal = 0.;
+  double curvatureError2Local = 0.;
+  double curvatureErrorMaxLocal = 0.;
+
+  std::vector<std::vector<double>> coordX(dim);
+  std::vector<double> psi;
+  std::vector<double> psiAux;
+  std::vector<std::vector<double>> normal(dim);
+  std::vector<double> curvature;
+
+  std::vector<double> phiPsi;
+  std::vector<double> phiPsi_x;
+  std::vector<double> phiAux;
+  std::vector<double> phiAux_x;
+  std::vector<double> phiN;
+  std::vector<double> phiN_x;
+  std::vector<double> phiK;
+  std::vector<double> phiK_x;
+  std::vector<double> phiX;
+  std::vector<double> phiX_x;
+
+  std::vector<std::vector<double>> Jacob;
+  std::vector<std::vector<double>> JacI;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+
+    const unsigned ielGeom = msh->GetElementType(iel);
+    const unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
+    const unsigned nDofsAux = msh->GetElementDofNumber(iel, psiAuxType);
+    const unsigned nDofsN = msh->GetElementDofNumber(iel, nType);
+    const unsigned nDofsK = msh->GetElementDofNumber(iel, kType);
+    const unsigned nDofsX = msh->GetElementDofNumber(iel, xType);
+
+    psi.resize(nDofsPsi);
+    psiAux.resize(nDofsAux);
+    curvature.resize(nDofsK);
+
+    for(unsigned d = 0; d < dim; ++d) {
+      coordX[d].resize(nDofsX);
+      normal[d].resize(nDofsN);
+    }
+
+    for(unsigned i = 0; i < nDofsPsi; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, psiType);
+      psi[i] = (*sol->_Sol[psiIndex])(dof);
+    }
+
+    for(unsigned i = 0; i < nDofsAux; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, psiAuxType);
+      psiAux[i] = (*sol->_Sol[psiAuxIndex])(dof);
+    }
+
+    for(unsigned i = 0; i < nDofsN; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, nType);
+      for(unsigned d = 0; d < dim; ++d) normal[d][i] = (*sol->_Sol[nIndex[d]])(dof);
+    }
+
+    for(unsigned i = 0; i < nDofsK; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, kType);
+      curvature[i] = (*sol->_Sol[kIndex])(dof);
+    }
+
+    for(unsigned i = 0; i < nDofsX; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, xType);
+      for(unsigned d = 0; d < dim; ++d) coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+    }
+
+    const elem_type* femPsi = fem.GetFiniteElement(ielGeom, psiType);
+    const elem_type* femAux = fem.GetFiniteElement(ielGeom, psiAuxType);
+    const elem_type* femN = fem.GetFiniteElement(ielGeom, nType);
+    const elem_type* femK = fem.GetFiniteElement(ielGeom, kType);
+    const elem_type* femX = fem.GetFiniteElement(ielGeom, xType);
+
+    const unsigned nGauss = femPsi->GetGaussPointNumber();
+
+    if(nGauss != cfw[ielGeom]->GetGaussQuadraturePointNumber()) throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible quadrature");
+
+    std::vector<double> psiG(nGauss, 0.);
+
+    double psiMin = std::numeric_limits<double>::max();
+    double psiMax = -std::numeric_limits<double>::max();
+
+    for(unsigned i = 0; i < nDofsPsi; ++i) {
+      psiMin = std::min(psiMin, psi[i]);
+      psiMax = std::max(psiMax, psi[i]);
+    }
+
+    for(unsigned ig = 0; ig < nGauss; ++ig) {
+      double* phi = femPsi->GetPhi(ig);
+      for(unsigned i = 0; i < nDofsPsi; ++i) psiG[ig] += psi[i] * phi[i];
+      psiMin = std::min(psiMin, psiG[ig]);
+      psiMax = std::max(psiMax, psiG[ig]);
+    }
+
+    const bool cut = (psiMin <= 0.) && (psiMax >= 0.) && (psiMax - psiMin > 1.e-14);
+
+    if(!cut) {
+
+      double elementArea = 0.;
+
+      for(unsigned ig = 0; ig < nGauss; ++ig) {
+        double weight = 0.;
+        femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
+        elementArea += weight;
+      }
+
+      totalAreaLocal += elementArea;
+
+      if(psiMax > 0.) innerAreaLocal += elementArea;
+      else outerAreaLocal += elementArea;
+
+      continue;
+    }
+
+    std::vector<const double*> xg(dim);
+
+    for(unsigned d = 0; d < dim; ++d) xg[d] = femPsi->GetGaussRule().GetGaussCoordinatePointer(d);
+
+    std::vector<double> a;
+
+    BestFitLinearInterpolation(xg, psiG, a);
+
+    double d = a[dim];
+
+    a.resize(dim);
+
+    std::vector<TypeIO> weightInner(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+
+    (*cfw[ielGeom])(0, a, d, weightInner);
+
+    for(unsigned k = 0; k < dim; ++k) a[k] = -a[k];
+
+    d = -d;
+
+    (*cfw[ielGeom])(-1, a, d, weightInterface);
+    (*cfw[ielGeom])(0, a, d, weightOuter);
+
+    for(unsigned ig = 0; ig < nGauss; ++ig) {
+
+      double weight = 0.;
+      double weightAux = 0.;
+      double weightN = 0.;
+      double weightK = 0.;
+      double weightX = 0.;
+
+      femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
+      femAux->Jacobian(coordX, ig, weightAux, phiAux, phiAux_x);
+      femN->Jacobian(coordX, ig, weightN, phiN, phiN_x);
+      femK->Jacobian(coordX, ig, weightK, phiK, phiK_x);
+      femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
+
+      totalAreaLocal += weight;
+      innerAreaLocal += weight * static_cast<double>(weightInner[ig]);
+      outerAreaLocal += weight * static_cast<double>(weightOuter[ig]);
+
+      femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+
+      std::vector<double> Nref(dim, 0.);
+
+      double dsN2 = 0.;
+
+      for(unsigned k = 0; k < dim; ++k) {
+        for(unsigned j = 0; j < dim; ++j) Nref[k] += JacI[j][k] * a[j];
+        dsN2 += Nref[k] * Nref[k];
+      }
+
+      const double dsN = std::sqrt(dsN2);
+      const double dGamma = weight * static_cast<double>(weightInterface[ig]) * dsN;
+
+      interfaceLengthLocal += dGamma;
+
+      double psiAuxG = 0.;
+
+      std::vector<double> gradPsiAuxG(dim, 0.);
+
+      for(unsigned j = 0; j < nDofsAux; ++j) {
+        psiAuxG += psiAux[j] * phiAux[j];
+        for(unsigned k = 0; k < dim; ++k) gradPsiAuxG[k] += psiAux[j] * phiAux_x[j * dim + k];
+      }
+
+      double gradNorm2 = 0.;
+
+      for(unsigned k = 0; k < dim; ++k) gradNorm2 += gradPsiAuxG[k] * gradPsiAuxG[k];
+
+      const double gradNorm = std::sqrt(gradNorm2);
+      const double interfaceError = std::abs(psiAuxG) / std::max(gradNorm, 1.e-14);
+
+      interfaceError2Local += interfaceError * interfaceError * dGamma;
+      interfaceErrorMaxLocal = std::max(interfaceErrorMaxLocal, interfaceError);
+
+      std::vector<double> x(dim, 0.);
+
+      for(unsigned i = 0; i < nDofsX; ++i) {
+        for(unsigned k = 0; k < dim; ++k) x[k] += coordX[k][i] * phiX[i];
+      }
+
+      std::vector<double> normalG(dim, 0.);
+
+      for(unsigned i = 0; i < nDofsN; ++i) {
+        for(unsigned k = 0; k < dim; ++k) normalG[k] += normal[k][i] * phiN[i];
+      }
+
+      double normalNorm2 = 0.;
+
+      for(unsigned k = 0; k < dim; ++k) normalNorm2 += normalG[k] * normalG[k];
+
+      const double normalNorm = std::sqrt(normalNorm2);
+
+      if(normalNorm > 1.e-14) {
+        for(unsigned k = 0; k < dim; ++k) normalG[k] /= normalNorm;
+      }
+
+      const std::vector<double> normalExact = exactPsi.Normal(x);
+
+      double normalError2 = 0.;
+
+      for(unsigned k = 0; k < dim; ++k) {
+        const double error = normalG[k] - normalExact[k];
+        normalError2 += error * error;
+      }
+
+      const double normalError = std::sqrt(normalError2);
+
+      normalError2Local += normalError2 * dGamma;
+      normalErrorMaxLocal = std::max(normalErrorMaxLocal, normalError);
+
+      double curvatureG = 0.;
+
+      for(unsigned i = 0; i < nDofsK; ++i) curvatureG += curvature[i] * phiK[i];
+
+      const double curvatureExact = exactPsi.Curvature(x);
+      const double curvatureError = std::abs(curvatureG - curvatureExact);
+
+      curvatureError2Local += curvatureError * curvatureError * dGamma;
+      curvatureErrorMaxLocal = std::max(curvatureErrorMaxLocal, curvatureError);
+    }
+  }
+
+  double localSum[7] = {innerAreaLocal, outerAreaLocal, totalAreaLocal, interfaceLengthLocal, interfaceError2Local, normalError2Local, curvatureError2Local};
+  double globalSum[7] = {0., 0., 0., 0., 0., 0., 0.};
+
+  MPI_Allreduce(localSum, globalSum, 7, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  double interfaceErrorMaxGlobal = 0.;
+  double normalErrorMaxGlobal = 0.;
+  double curvatureErrorMaxGlobal = 0.;
+
+  MPI_Allreduce(&interfaceErrorMaxLocal, &interfaceErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&normalErrorMaxLocal, &normalErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&curvatureErrorMaxLocal, &curvatureErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  LevelSetDiagnostics result;
+
+  result.innerArea = globalSum[0];
+  result.outerArea = globalSum[1];
+  result.totalArea = globalSum[2];
+  result.interfaceLength = globalSum[3];
+
+  if(result.interfaceLength > 1.e-14) {
+    result.interfaceErrorL2 = std::sqrt(globalSum[4] / result.interfaceLength);
+    result.normalErrorL2 = std::sqrt(globalSum[5] / result.interfaceLength);
+    result.curvatureErrorL2 = std::sqrt(globalSum[6] / result.interfaceLength);
+  }
+  else {
+    result.interfaceErrorL2 = 0.;
+    result.normalErrorL2 = 0.;
+    result.curvatureErrorL2 = 0.;
+  }
+
+  result.interfaceErrorMax = interfaceErrorMaxGlobal;
+  result.normalErrorMax = normalErrorMaxGlobal;
+  result.curvatureErrorMax = curvatureErrorMaxGlobal;
+
+  return result;
+}
 
 
