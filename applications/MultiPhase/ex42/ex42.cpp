@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
 
   VTKWriter vtkIO(&mlSol0);
   //vtkIO.SetDebugOutput(true);
-  for (unsigned l = 0*levelF; l <= levelF; l++)
+  for (unsigned l = 0 * levelF; l <= levelF; l++)
     vtkIO.Write(l, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   //vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
@@ -622,7 +622,7 @@ int main(int argc, char **argv) {
     // Export solution to VTK (selected levels)
     VTKWriter vtkIO1(mlsol1);
     if (t % 1 == 0) {
-      for(unsigned level = 0*levelF; level <= levelF; level++) {
+      for(unsigned level = 0 * levelF; level <= levelF; level++) {
         vtkIO1.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
       }
     }
@@ -1041,7 +1041,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
       }
       double abs = 0;
       for (unsigned d = 0; d < dim; d ++) {
-        abs += normal_g[d]*normal_g[d];
+        abs += normal_g[d] * normal_g[d];
       }
       abs = sqrt(abs);
       for (unsigned d = 0; d < dim; d ++) {
@@ -1289,7 +1289,7 @@ void AssembleSmoothLevelSet(MultiLevelProblem& ml_prob) {
             laplacian += phiAux_x[i * dim + d] * phiAux_x[j * dim + d];
 
           Jac[i * nDofsAux + j] +=
-              (phiAux[i] * phiAux[j] + epsilon * laplacian) * weightAux;
+            (phiAux[i] * phiAux[j] + epsilon * laplacian) * weightAux;
         }
       }
     }
@@ -1352,8 +1352,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
 
-  std::cout<<"levelC = "<<levelC << " levelF = "<<levelF << std::endl;
-  std::cout <<"level to assemble = "<<level2  << " mapping level to assemble to levelC = "<<level0 + level2<<std::endl;
+  std::cout << "levelC = " << levelC << " levelF = " << levelF << std::endl;
+  std::cout << "level to assemble = " << level2  << " mapping level to assemble to levelC = " << level0 + level2 << std::endl;
 
 
 
@@ -1604,36 +1604,29 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
       nDofsN = msh->GetElementDofNumber(iel, solNType);
 
-      for(unsigned d = 0; d < dim; d++)
-      {
+      for(unsigned d = 0; d < dim; d++) {
         n[d].resize(nDofsN);
       }
 
-      for(unsigned d = 0; d < dim; d++)
-      {
-        for(unsigned i = 0; i < nDofsN; i++)
-        {
+      for(unsigned d = 0; d < dim; d++) {
+        for(unsigned i = 0; i < nDofsN; i++) {
           unsigned solNDof = msh->GetSolutionDof(i, iel, solNType);
 
           n[d][i] = (*sol->_Sol[solNIndex[d]])(solNDof);
         }
       }
 
-      for(unsigned i = 0; i < nDofsN; i++)
-      {
+      for(unsigned i = 0; i < nDofsN; i++) {
         double abs_n = 0.;
 
-        for(unsigned d = 0; d < dim; d++)
-        {
+        for(unsigned d = 0; d < dim; d++) {
           abs_n += n[d][i] * n[d][i];
         }
 
         abs_n = std::sqrt(abs_n);
 
-        if(abs_n > 1.e-14)
-        {
-          for(unsigned d = 0; d < dim; d++)
-          {
+        if(abs_n > 1.e-14) {
+          for(unsigned d = 0; d < dim; d++) {
             n[d][i] /= abs_n;
           }
         }
@@ -1853,9 +1846,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (int d = 0; d < dim; d ++)
               P[d].resize(dim);
 
-            for(int i = 0; i < dim; i++){
-              for(int j = 0; j < dim; j++){
-                if(i==j) P[i][j] += 1.;
+            for(int i = 0; i < dim; i++) {
+              for(int j = 0; j < dim; j++) {
+                if(i == j) P[i][j] += 1.;
                 P[i][j] -= Ng[i] * Ng[j];
               }
             }

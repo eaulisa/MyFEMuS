@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ASTYLE_CONFIG="$SCRIPT_DIR/../.astylerc"
+
+echo "Running AStyle on staged C/C++ files..."
+
+if ! command -v astyle >/dev/null 2>&1; then
+  echo "ERROR: astyle is not installed or not available in PATH."
+  exit 1
+fi
+
+if [[ ! -f "$ASTYLE_CONFIG" ]]; then
+  echo "ERROR: AStyle config not found:"
+  echo "  $ASTYLE_CONFIG"
+  exit 1
+fi
+
+cd "$REPO_ROOT"
+
+FOUND=0
+
+while IFS= read -r -d '' file; do
+
+  [[ "$file" =~ \.(c|cc|cpp|cxx|h|hh|hpp|hxx)$ ]] || continue
+  [[ -f "$file" ]] || continue
+
+  FOUND=1
+
+  echo "Formatting $file"
+
+  if ! astyle \
+    --options="$ASTYLE_CONFIG" \
+    --project=none \
+    "$file"; then
+
+    echo
+    echo "ERROR: AStyle failed on $file"
+    exit 1
+  fi
+
+  git add -- "$file"
+
+done < <(
+  git diff \
+    --cached \
+    --name-only \
+    --diff-filter=ACMR \
+    -z
+)
+
+if [[ "$FOUND" -eq 0 ]]; then
+  echo "No staged C/C++ files to format."
+  exit 0
+fi
+
+echo "AStyle formatting complete."
+exit 0

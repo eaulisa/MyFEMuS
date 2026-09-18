@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ASTYLE_CONFIG="$SCRIPT_DIR/../.astylerc"
+
+echo "Checking AStyle formatting on files being pushed..."
+
+if ! command -v astyle >/dev/null 2>&1; then
+  echo "ERROR: astyle is not installed or not available in PATH."
+  exit 1
+fi
+
+if [[ ! -f "$ASTYLE_CONFIG" ]]; then
+  echo "ERROR: AStyle config not found:"
+  echo "  $ASTYLE_CONFIG"
+  exit 1
+fi
+
+cd "$REPO_ROOT"
+
+check_range() {
+  local base="$1"
+  local head="$2"
+  local failed=0
+
+  while IFS= read -r -d '' file; do
+
+    [[ "$file" =~ \.(c|cc|cpp|cxx|h|hh|hpp|hxx)$ ]] || continue
+    [[ -f "$file" ]] || continue
+
+    OUTPUT=$(astyle \
+      --options="$ASTYLE_CONFIG" \
+      --project=none \
+      --dry-run \
+      --formatted \
+      "$file" 2>&1)
+
+    if [[ -n "$OUTPUT" ]]; then
+      echo "Not formatted: $file"
+      failed=1
+    fi
+
+  done < <(
+    git diff \
+      --name-only \
+      --diff-filter=ACMR \
+      -z \
+      "$base" \
+      "$head"
+  )
+
+  return "$failed"
+}
+
+FAILED=0
+
+#
+# Manual execution:
+#
+#   ./.githooks/pre-push
+#
+if [[ -t 0 ]]; then
+
+  UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
+
+  if [[ -z "$UPSTREAM" ]]; then
+    echo "No upstream branch configured."
+    exit 0
+  fi
+
+  LOCAL_SHA=$(git rev-parse HEAD)
+  REMOTE_SHA=$(git rev-parse "$UPSTREAM")
+
+  # Local HEAD is already contained in remote:
+  # there is nothing local to push.
+  if git merge-base --is-ancestor "$LOCAL_SHA" "$REMOTE_SHA"; then
+    echo "No local commits to push."
+    exit 0
+  fi
+
+  BASE=$(git merge-base "$LOCAL_SHA" "$REMOTE_SHA")
+
+  echo "Manual check:"
+  echo "  upstream: $UPSTREAM"
+  echo "  range:    $BASE..$LOCAL_SHA"
+
+  if ! check_range "$BASE" "$LOCAL_SHA"; then
+    FAILED=1
+  fi
+
+else
+
+  #
+  # Real execution from:
+  #
+  #   git push
+  #
+  while read -r local_ref local_sha remote_ref remote_sha; do
+
+    # Deleted branch
+    if [[ "$local_sha" =~ ^0+$ ]]; then
+      continue
+    fi
+
+    # New remote branch
+    if [[ "$remote_sha" =~ ^0+$ ]]; then
+      BASE=$(git rev-list --max-parents=0 "$local_sha" | head -1)
+    else
+      BASE=$(git merge-base "$local_sha" "$remote_sha")
+    fi
+
+    if ! check_range "$BASE" "$local_sha"; then
+      FAILED=1
+    fi
+
+  done
+
+fi
+
+if [[ "$FAILED" -ne 0 ]]; then
+  echo
+  echo "ERROR: some files being pushed are not correctly formatted."
+  echo "Format and commit them before pushing."
+  exit 1
+fi
+
+echo "Formatting OK."
+exit 0

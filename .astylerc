@@ -1,0 +1,14 @@
+--style=attach
+--indent=spaces=2
+--indent-classes
+--indent-switches
+--indent-namespaces
+--indent-labels
+--indent-preproc-define
+--indent-continuation=1
+--max-continuation-indent=40
+--pad-oper
+--convert-tabs
+--break-closing-braces
+--suffix=none
+
