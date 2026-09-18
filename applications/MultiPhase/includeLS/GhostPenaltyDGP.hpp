@@ -64,7 +64,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
 
-  double C0 = 100;
+  double C0 = 1.;
 
   std::cout.precision(10);
 

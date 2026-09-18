@@ -6,7 +6,7 @@ void AssembleGhostPenalty(MultiLevelProblem& ml_prob) {
   double test0 = 1.;
   double test1 = 1;
 
-  double C0 = 100.;
+  double C0 = 1.;
 
   clock_t start_time;
 

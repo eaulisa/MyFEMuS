@@ -418,7 +418,7 @@ void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
     for(unsigned k = 0; k < dim; ++k)
       x[k] = (*xv[k])(xDof0);
 
-    const double psi0 = psi.SignedDistance(x);
+    const double psi0 = psi(x);
     const int sign0 = (psi0 > 0.) ? 1 : -1;
 
     bool signChange = false;
@@ -430,7 +430,7 @@ void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
       for(unsigned k = 0; k < dim; ++k)
         x[k] = (*xv[k])(xDof);
 
-      const double psii = psi.SignedDistance(x);
+      const double psii = psi(x);
       const int signi = (psii > 0.) ? 1 : -1;
 
       if(signi != sign0) {
@@ -1728,59 +1728,135 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
 
 }
 
-
-struct LevelSetDiagnostics {
-  double innerArea;
-  double outerArea;
-  double totalArea;
-  double interfaceLength;
-  double interfaceErrorL2;
-  double interfaceErrorMax;
-  double normalErrorL2;
-  double normalErrorMax;
-  double curvatureErrorL2;
-  double curvatureErrorMax;
+enum class simulation_type {
+  generic,
+  exact,
+  rising_bubble
 };
 
-template <class PsiType>
-LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::string& psiAuxName, const std::vector<std::string>& nName, const std::string& kName, const PsiType& exactPsi) {
+struct LevelSetDiagnostics {
 
+  double innerArea = 0.;
+  double outerArea = 0.;
+  double totalArea = 0.;
+  double interfaceLength = 0.;
+
+  bool hasExactPsi = false;
+  double interfaceErrorL2 = 0.;
+  double interfaceErrorMax = 0.;
+  double normalErrorL2 = 0.;
+  double normalErrorMax = 0.;
+  double curvatureErrorL2 = 0.;
+  double curvatureErrorMax = 0.;
+
+  bool hasRisingBubbleMetrics = false;
+  std::vector<double> barycenter;
+  std::vector<double> meanVelocity;
+  double riseVelocity = 0.;
+  double circularity = 0.;
+};
+
+
+
+template <class PsiType = std::nullptr_t>
+LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::string& psiAuxName, const simulation_type simulationType, const std::vector<std::string>& velocityName, const std::vector<std::string>& nName, const std::string& kName, const PsiType& exactPsi)
+{
   MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
   Mesh* msh = mlMsh.GetLevel(level);
   Solution* sol = mlSol.GetSolutionLevel(level);
   const unsigned dim = msh->GetDimension();
   const unsigned iproc = msh->processor_id();
+  const bool computeExactErrors = simulationType == simulation_type::exact;
+  const bool computeRisingBubble = simulationType == simulation_type::rising_bubble;
   const unsigned psiIndex = mlSol.GetIndex(psiName.c_str());
   const unsigned psiType = mlSol.GetSolutionType(psiIndex);
   const unsigned psiAuxIndex = mlSol.GetIndex(psiAuxName.c_str());
   const unsigned psiAuxType = mlSol.GetSolutionType(psiAuxIndex);
-  const unsigned kIndex = mlSol.GetIndex(kName.c_str());
-  const unsigned kType = mlSol.GetSolutionType(kIndex);
   const unsigned xType = 2;
 
-  std::vector<unsigned> nIndex(dim);
+  std::vector<unsigned> nIndex;
+  unsigned nType = 0;
+  unsigned kIndex = 0;
+  unsigned kType = 0;
 
-  for(unsigned d = 0; d < dim; ++d) nIndex[d] = mlSol.GetIndex(nName[d].c_str());
+  if(computeExactErrors)
+  {
+    if(nName.size() != dim)
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: nName must contain dim components");
+    }
 
-  const unsigned nType = mlSol.GetSolutionType(nIndex[0]);
+    if(kName.empty())
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: kName must be provided");
+    }
 
-  double innerAreaLocal = 0.;
-  double outerAreaLocal = 0.;
-  double totalAreaLocal = 0.;
-  double interfaceLengthLocal = 0.;
-  double interfaceError2Local = 0.;
-  double interfaceErrorMaxLocal = 0.;
-  double normalError2Local = 0.;
-  double normalErrorMaxLocal = 0.;
-  double curvatureError2Local = 0.;
-  double curvatureErrorMaxLocal = 0.;
+    nIndex.resize(dim);
+
+    for(unsigned d = 0; d < dim; ++d)
+    {
+      nIndex[d] = mlSol.GetIndex(nName[d].c_str());
+    }
+
+    nType = mlSol.GetSolutionType(nIndex[0]);
+    kIndex = mlSol.GetIndex(kName.c_str());
+    kType = mlSol.GetSolutionType(kIndex);
+  }
+
+  std::vector<unsigned> velocityIndex;
+  unsigned velocityType = 0;
+
+  if(computeRisingBubble)
+  {
+    if(dim != 2 && dim != 3)
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: rising_bubble requires dim = 2 or 3");
+    }
+
+    if(velocityName.size() != dim)
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: velocityName must contain dim components");
+    }
+
+    velocityIndex.resize(dim);
+
+    for(unsigned d = 0; d < dim; ++d)
+    {
+      velocityIndex[d] = mlSol.GetIndex(velocityName[d].c_str());
+    }
+
+    velocityType = mlSol.GetSolutionType(velocityIndex[0]);
+
+    for(unsigned d = 1; d < dim; ++d)
+    {
+      if(mlSol.GetSolutionType(velocityIndex[d]) != velocityType)
+      {
+        throw std::runtime_error("ComputeLevelSetDiagnostics: velocity components must have the same solution type");
+      }
+    }
+  }
+
+  double innerAreaLocal = 0.0;
+  double outerAreaLocal = 0.0;
+  double totalAreaLocal = 0.0;
+  double interfaceLengthLocal = 0.0;
+  double interfaceError2Local = 0.0;
+  double interfaceErrorMaxLocal = 0.0;
+  double normalError2Local = 0.0;
+  double normalErrorMaxLocal = 0.0;
+  double curvatureError2Local = 0.0;
+  double curvatureErrorMaxLocal = 0.0;
+
+  std::vector<double> barycenterIntegralLocal(dim, 0.0);
+  std::vector<double> velocityIntegralLocal(dim, 0.0);
 
   std::vector<std::vector<double>> coordX(dim);
   std::vector<double> psi;
   std::vector<double> psiAux;
   std::vector<std::vector<double>> normal(dim);
   std::vector<double> curvature;
+  std::vector<std::vector<double>> velocity(dim);
 
   std::vector<double> phiPsi;
   std::vector<double> phiPsi_x;
@@ -1792,151 +1868,324 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   std::vector<double> phiK_x;
   std::vector<double> phiX;
   std::vector<double> phiX_x;
+  std::vector<double> phiVelocity;
+  std::vector<double> phiVelocity_x;
 
   std::vector<std::vector<double>> Jacob;
   std::vector<std::vector<double>> JacI;
 
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
-
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel)
+  {
     const unsigned ielGeom = msh->GetElementType(iel);
     const unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
     const unsigned nDofsAux = msh->GetElementDofNumber(iel, psiAuxType);
-    const unsigned nDofsN = msh->GetElementDofNumber(iel, nType);
-    const unsigned nDofsK = msh->GetElementDofNumber(iel, kType);
     const unsigned nDofsX = msh->GetElementDofNumber(iel, xType);
+
+    unsigned nDofsN = 0;
+    unsigned nDofsK = 0;
+    unsigned nDofsVelocity = 0;
+
+    if(computeExactErrors)
+    {
+      nDofsN = msh->GetElementDofNumber(iel, nType);
+      nDofsK = msh->GetElementDofNumber(iel, kType);
+    }
+
+    if(computeRisingBubble)
+    {
+      nDofsVelocity = msh->GetElementDofNumber(iel, velocityType);
+    }
 
     psi.resize(nDofsPsi);
     psiAux.resize(nDofsAux);
-    curvature.resize(nDofsK);
 
-    for(unsigned d = 0; d < dim; ++d) {
+    for(unsigned d = 0; d < dim; ++d)
+    {
       coordX[d].resize(nDofsX);
-      normal[d].resize(nDofsN);
     }
 
-    for(unsigned i = 0; i < nDofsPsi; ++i) {
+    if(computeExactErrors)
+    {
+      curvature.resize(nDofsK);
+
+      for(unsigned d = 0; d < dim; ++d)
+      {
+        normal[d].resize(nDofsN);
+      }
+    }
+
+    if(computeRisingBubble)
+    {
+      for(unsigned d = 0; d < dim; ++d)
+      {
+        velocity[d].resize(nDofsVelocity);
+      }
+    }
+
+    for(unsigned i = 0; i < nDofsPsi; ++i)
+    {
       const unsigned dof = msh->GetSolutionDof(i, iel, psiType);
       psi[i] = (*sol->_Sol[psiIndex])(dof);
     }
 
-    for(unsigned i = 0; i < nDofsAux; ++i) {
+    for(unsigned i = 0; i < nDofsAux; ++i)
+    {
       const unsigned dof = msh->GetSolutionDof(i, iel, psiAuxType);
       psiAux[i] = (*sol->_Sol[psiAuxIndex])(dof);
     }
 
-    for(unsigned i = 0; i < nDofsN; ++i) {
-      const unsigned dof = msh->GetSolutionDof(i, iel, nType);
-      for(unsigned d = 0; d < dim; ++d) normal[d][i] = (*sol->_Sol[nIndex[d]])(dof);
+    if(computeExactErrors)
+    {
+      for(unsigned i = 0; i < nDofsN; ++i)
+      {
+        const unsigned dof = msh->GetSolutionDof(i, iel, nType);
+
+        for(unsigned d = 0; d < dim; ++d)
+        {
+          normal[d][i] = (*sol->_Sol[nIndex[d]])(dof);
+        }
+      }
+
+      for(unsigned i = 0; i < nDofsK; ++i)
+      {
+        const unsigned dof = msh->GetSolutionDof(i, iel, kType);
+        curvature[i] = (*sol->_Sol[kIndex])(dof);
+      }
     }
 
-    for(unsigned i = 0; i < nDofsK; ++i) {
-      const unsigned dof = msh->GetSolutionDof(i, iel, kType);
-      curvature[i] = (*sol->_Sol[kIndex])(dof);
+    if(computeRisingBubble)
+    {
+      for(unsigned i = 0; i < nDofsVelocity; ++i)
+      {
+        const unsigned dof = msh->GetSolutionDof(i, iel, velocityType);
+
+        for(unsigned d = 0; d < dim; ++d)
+        {
+          velocity[d][i] = (*sol->_Sol[velocityIndex[d]])(dof);
+        }
+      }
     }
 
-    for(unsigned i = 0; i < nDofsX; ++i) {
+    for(unsigned i = 0; i < nDofsX; ++i)
+    {
       const unsigned dof = msh->GetSolutionDof(i, iel, xType);
-      for(unsigned d = 0; d < dim; ++d) coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+
+      for(unsigned d = 0; d < dim; ++d)
+      {
+        coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+      }
     }
 
     const elem_type* femPsi = fem.GetFiniteElement(ielGeom, psiType);
     const elem_type* femAux = fem.GetFiniteElement(ielGeom, psiAuxType);
-    const elem_type* femN = fem.GetFiniteElement(ielGeom, nType);
-    const elem_type* femK = fem.GetFiniteElement(ielGeom, kType);
     const elem_type* femX = fem.GetFiniteElement(ielGeom, xType);
+    const elem_type* femN = nullptr;
+    const elem_type* femK = nullptr;
+    const elem_type* femVelocity = nullptr;
+
+    if(computeExactErrors)
+    {
+      femN = fem.GetFiniteElement(ielGeom, nType);
+      femK = fem.GetFiniteElement(ielGeom, kType);
+    }
+
+    if(computeRisingBubble)
+    {
+      femVelocity = fem.GetFiniteElement(ielGeom, velocityType);
+    }
 
     const unsigned nGauss = femPsi->GetGaussPointNumber();
 
-    if(nGauss != cfw[ielGeom]->GetGaussQuadraturePointNumber()) throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible quadrature");
+    if(nGauss != cfw[ielGeom]->GetGaussQuadraturePointNumber())
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible quadrature");
+    }
 
-    std::vector<double> psiG(nGauss, 0.);
+    if(computeRisingBubble && femVelocity->GetGaussPointNumber() != nGauss)
+    {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible velocity quadrature");
+    }
+
+    std::vector<double> psiG(nGauss, 0.0);
 
     double psiMin = std::numeric_limits<double>::max();
     double psiMax = -std::numeric_limits<double>::max();
 
-    for(unsigned i = 0; i < nDofsPsi; ++i) {
+    for(unsigned i = 0; i < nDofsPsi; ++i)
+    {
       psiMin = std::min(psiMin, psi[i]);
       psiMax = std::max(psiMax, psi[i]);
     }
 
-    for(unsigned ig = 0; ig < nGauss; ++ig) {
+    for(unsigned ig = 0; ig < nGauss; ++ig)
+    {
       double* phi = femPsi->GetPhi(ig);
-      for(unsigned i = 0; i < nDofsPsi; ++i) psiG[ig] += psi[i] * phi[i];
+
+      for(unsigned i = 0; i < nDofsPsi; ++i)
+      {
+        psiG[ig] += psi[i] * phi[i];
+      }
+
       psiMin = std::min(psiMin, psiG[ig]);
       psiMax = std::max(psiMax, psiG[ig]);
     }
 
-    const bool cut = (psiMin <= 0.) && (psiMax >= 0.) && (psiMax - psiMin > 1.e-14);
+    const bool cut = psiMin <= 0.0 && psiMax >= 0.0 && psiMax - psiMin > 1.e-14;
 
-    if(!cut) {
+    if(!cut)
+    {
+      double elementArea = 0.0;
 
-      double elementArea = 0.;
+      for(unsigned ig = 0; ig < nGauss; ++ig)
+      {
+        double weight = 0.0;
 
-      for(unsigned ig = 0; ig < nGauss; ++ig) {
-        double weight = 0.;
         femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
+
         elementArea += weight;
+
+        if(computeRisingBubble && psiMax > 0.0)
+        {
+          double weightX = 0.0;
+          double weightVelocity = 0.0;
+
+          femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
+          femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
+
+          std::vector<double> x(dim, 0.0);
+          std::vector<double> u(dim, 0.0);
+
+          for(unsigned i = 0; i < nDofsX; ++i)
+          {
+            for(unsigned d = 0; d < dim; ++d)
+            {
+              x[d] += coordX[d][i] * phiX[i];
+            }
+          }
+
+          for(unsigned i = 0; i < nDofsVelocity; ++i)
+          {
+            for(unsigned d = 0; d < dim; ++d)
+            {
+              u[d] += velocity[d][i] * phiVelocity[i];
+            }
+          }
+
+          for(unsigned d = 0; d < dim; ++d)
+          {
+            barycenterIntegralLocal[d] += x[d] * weight;
+            velocityIntegralLocal[d] += u[d] * weight;
+          }
+        }
       }
 
       totalAreaLocal += elementArea;
 
-      if(psiMax > 0.) innerAreaLocal += elementArea;
-      else outerAreaLocal += elementArea;
+      if(psiMax > 0.0)
+      {
+        innerAreaLocal += elementArea;
+      }
+      else
+      {
+        outerAreaLocal += elementArea;
+      }
 
       continue;
     }
 
     std::vector<const double*> xg(dim);
 
-    for(unsigned d = 0; d < dim; ++d) xg[d] = femPsi->GetGaussRule().GetGaussCoordinatePointer(d);
+    for(unsigned d = 0; d < dim; ++d)
+    {
+      xg[d] = femPsi->GetGaussRule().GetGaussCoordinatePointer(d);
+    }
 
     std::vector<double> a;
 
     BestFitLinearInterpolation(xg, psiG, a);
 
-    double d = a[dim];
+    double interfaceConstant = a[dim];
 
     a.resize(dim);
 
-    std::vector<TypeIO> weightInner(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-    std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-    std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector<TypeIO> weightInner(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
+    std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
+    std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
 
-    (*cfw[ielGeom])(0, a, d, weightInner);
+    (*cfw[ielGeom])(0, a, interfaceConstant, weightInner);
 
-    for(unsigned k = 0; k < dim; ++k) a[k] = -a[k];
+    for(unsigned k = 0; k < dim; ++k)
+    {
+      a[k] = -a[k];
+    }
 
-    d = -d;
+    interfaceConstant = -interfaceConstant;
 
-    (*cfw[ielGeom])(-1, a, d, weightInterface);
-    (*cfw[ielGeom])(0, a, d, weightOuter);
+    (*cfw[ielGeom])(-1, a, interfaceConstant, weightInterface);
+    (*cfw[ielGeom])(0, a, interfaceConstant, weightOuter);
 
-    for(unsigned ig = 0; ig < nGauss; ++ig) {
-
-      double weight = 0.;
-      double weightAux = 0.;
-      double weightN = 0.;
-      double weightK = 0.;
-      double weightX = 0.;
+    for(unsigned ig = 0; ig < nGauss; ++ig)
+    {
+      double weight = 0.0;
+      double weightAux = 0.0;
+      double weightX = 0.0;
 
       femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
       femAux->Jacobian(coordX, ig, weightAux, phiAux, phiAux_x);
-      femN->Jacobian(coordX, ig, weightN, phiN, phiN_x);
-      femK->Jacobian(coordX, ig, weightK, phiK, phiK_x);
       femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
 
+      const double innerWeight = weight * static_cast<double>(weightInner[ig]);
+      const double outerWeight = weight * static_cast<double>(weightOuter[ig]);
+
       totalAreaLocal += weight;
-      innerAreaLocal += weight * static_cast<double>(weightInner[ig]);
-      outerAreaLocal += weight * static_cast<double>(weightOuter[ig]);
+      innerAreaLocal += innerWeight;
+      outerAreaLocal += outerWeight;
+
+      if(computeRisingBubble)
+      {
+        double weightVelocity = 0.0;
+
+        femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
+
+        std::vector<double> x(dim, 0.0);
+        std::vector<double> u(dim, 0.0);
+
+        for(unsigned i = 0; i < nDofsX; ++i)
+        {
+          for(unsigned d = 0; d < dim; ++d)
+          {
+            x[d] += coordX[d][i] * phiX[i];
+          }
+        }
+
+        for(unsigned i = 0; i < nDofsVelocity; ++i)
+        {
+          for(unsigned d = 0; d < dim; ++d)
+          {
+            u[d] += velocity[d][i] * phiVelocity[i];
+          }
+        }
+
+        for(unsigned d = 0; d < dim; ++d)
+        {
+          barycenterIntegralLocal[d] += x[d] * innerWeight;
+          velocityIntegralLocal[d] += u[d] * innerWeight;
+        }
+      }
 
       femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
 
-      std::vector<double> Nref(dim, 0.);
+      std::vector<double> Nref(dim, 0.0);
 
-      double dsN2 = 0.;
+      double dsN2 = 0.0;
 
-      for(unsigned k = 0; k < dim; ++k) {
-        for(unsigned j = 0; j < dim; ++j) Nref[k] += JacI[j][k] * a[j];
+      for(unsigned k = 0; k < dim; ++k)
+      {
+        for(unsigned j = 0; j < dim; ++j)
+        {
+          Nref[k] += JacI[j][k] * a[j];
+        }
+
         dsN2 += Nref[k] * Nref[k];
       }
 
@@ -1945,18 +2194,26 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
       interfaceLengthLocal += dGamma;
 
-      double psiAuxG = 0.;
+      double psiAuxG = 0.0;
 
-      std::vector<double> gradPsiAuxG(dim, 0.);
+      std::vector<double> gradPsiAuxG(dim, 0.0);
 
-      for(unsigned j = 0; j < nDofsAux; ++j) {
+      for(unsigned j = 0; j < nDofsAux; ++j)
+      {
         psiAuxG += psiAux[j] * phiAux[j];
-        for(unsigned k = 0; k < dim; ++k) gradPsiAuxG[k] += psiAux[j] * phiAux_x[j * dim + k];
+
+        for(unsigned k = 0; k < dim; ++k)
+        {
+          gradPsiAuxG[k] += psiAux[j] * phiAux_x[j * dim + k];
+        }
       }
 
-      double gradNorm2 = 0.;
+      double gradNorm2 = 0.0;
 
-      for(unsigned k = 0; k < dim; ++k) gradNorm2 += gradPsiAuxG[k] * gradPsiAuxG[k];
+      for(unsigned k = 0; k < dim; ++k)
+      {
+        gradNorm2 += gradPsiAuxG[k] * gradPsiAuxG[k];
+      }
 
       const double gradNorm = std::sqrt(gradNorm2);
       const double interfaceError = std::abs(psiAuxG) / std::max(gradNorm, 1.e-14);
@@ -1964,66 +2221,121 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       interfaceError2Local += interfaceError * interfaceError * dGamma;
       interfaceErrorMaxLocal = std::max(interfaceErrorMaxLocal, interfaceError);
 
-      std::vector<double> x(dim, 0.);
+      if(computeExactErrors)
+      {
+        double weightN = 0.0;
+        double weightK = 0.0;
 
-      for(unsigned i = 0; i < nDofsX; ++i) {
-        for(unsigned k = 0; k < dim; ++k) x[k] += coordX[k][i] * phiX[i];
+        femN->Jacobian(coordX, ig, weightN, phiN, phiN_x);
+        femK->Jacobian(coordX, ig, weightK, phiK, phiK_x);
+
+        std::vector<double> x(dim, 0.0);
+
+        for(unsigned i = 0; i < nDofsX; ++i)
+        {
+          for(unsigned k = 0; k < dim; ++k)
+          {
+            x[k] += coordX[k][i] * phiX[i];
+          }
+        }
+
+        std::vector<double> normalG(dim, 0.0);
+
+        for(unsigned i = 0; i < nDofsN; ++i)
+        {
+          for(unsigned k = 0; k < dim; ++k)
+          {
+            normalG[k] += normal[k][i] * phiN[i];
+          }
+        }
+
+        double normalNorm2 = 0.0;
+
+        for(unsigned k = 0; k < dim; ++k)
+        {
+          normalNorm2 += normalG[k] * normalG[k];
+        }
+
+        const double normalNorm = std::sqrt(normalNorm2);
+
+        if(normalNorm > 1.e-14)
+        {
+          for(unsigned k = 0; k < dim; ++k)
+          {
+            normalG[k] /= normalNorm;
+          }
+        }
+
+        if (simulationType == simulation_type::exact)
+        {
+          const std::vector<double> normalExact = exactPsi.Normal(x);
+
+          double normalError2 = 0.0;
+
+          for(unsigned k = 0; k < dim; ++k)
+          {
+            const double error = normalG[k] - normalExact[k];
+
+            normalError2 += error * error;
+          }
+
+          const double normalError = std::sqrt(normalError2);
+
+          normalError2Local += normalError2 * dGamma;
+          normalErrorMaxLocal = std::max(normalErrorMaxLocal, normalError);
+
+          double curvatureG = 0.0;
+
+          for(unsigned i = 0; i < nDofsK; ++i)
+          {
+            curvatureG += curvature[i] * phiK[i];
+          }
+
+          const double curvatureExact = exactPsi.Curvature(x);
+          const double curvatureError = std::abs(curvatureG - curvatureExact);
+
+          curvatureError2Local += curvatureError * curvatureError * dGamma;
+          curvatureErrorMaxLocal = std::max(curvatureErrorMaxLocal, curvatureError);
+        }
       }
-
-      std::vector<double> normalG(dim, 0.);
-
-      for(unsigned i = 0; i < nDofsN; ++i) {
-        for(unsigned k = 0; k < dim; ++k) normalG[k] += normal[k][i] * phiN[i];
-      }
-
-      double normalNorm2 = 0.;
-
-      for(unsigned k = 0; k < dim; ++k) normalNorm2 += normalG[k] * normalG[k];
-
-      const double normalNorm = std::sqrt(normalNorm2);
-
-      if(normalNorm > 1.e-14) {
-        for(unsigned k = 0; k < dim; ++k) normalG[k] /= normalNorm;
-      }
-
-      const std::vector<double> normalExact = exactPsi.Normal(x);
-
-      double normalError2 = 0.;
-
-      for(unsigned k = 0; k < dim; ++k) {
-        const double error = normalG[k] - normalExact[k];
-        normalError2 += error * error;
-      }
-
-      const double normalError = std::sqrt(normalError2);
-
-      normalError2Local += normalError2 * dGamma;
-      normalErrorMaxLocal = std::max(normalErrorMaxLocal, normalError);
-
-      double curvatureG = 0.;
-
-      for(unsigned i = 0; i < nDofsK; ++i) curvatureG += curvature[i] * phiK[i];
-
-      const double curvatureExact = exactPsi.Curvature(x);
-      const double curvatureError = std::abs(curvatureG - curvatureExact);
-
-      curvatureError2Local += curvatureError * curvatureError * dGamma;
-      curvatureErrorMaxLocal = std::max(curvatureErrorMaxLocal, curvatureError);
     }
   }
 
-  double localSum[7] = {innerAreaLocal, outerAreaLocal, totalAreaLocal, interfaceLengthLocal, interfaceError2Local, normalError2Local, curvatureError2Local};
-  double globalSum[7] = {0., 0., 0., 0., 0., 0., 0.};
+  const unsigned nGlobalQuantities = 7u + 2u * dim;
 
-  MPI_Allreduce(localSum, globalSum, 7, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  std::vector<double> localSum(nGlobalQuantities, 0.0);
+  std::vector<double> globalSum(nGlobalQuantities, 0.0);
 
-  double interfaceErrorMaxGlobal = 0.;
-  double normalErrorMaxGlobal = 0.;
-  double curvatureErrorMaxGlobal = 0.;
+  localSum[0] = innerAreaLocal;
+  localSum[1] = outerAreaLocal;
+  localSum[2] = totalAreaLocal;
+  localSum[3] = interfaceLengthLocal;
+  localSum[4] = interfaceError2Local;
+  localSum[5] = normalError2Local;
+  localSum[6] = curvatureError2Local;
+
+  if(computeRisingBubble)
+  {
+    for(unsigned d = 0; d < dim; ++d)
+    {
+      localSum[7 + d] = barycenterIntegralLocal[d];
+      localSum[7 + dim + d] = velocityIntegralLocal[d];
+    }
+  }
+
+  MPI_Allreduce(localSum.data(), globalSum.data(), static_cast<int>(nGlobalQuantities), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  double interfaceErrorMaxGlobal = 0.0;
+  double normalErrorMaxGlobal = 0.0;
+  double curvatureErrorMaxGlobal = 0.0;
 
   MPI_Allreduce(&interfaceErrorMaxLocal, &interfaceErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&normalErrorMaxLocal, &normalErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&curvatureErrorMaxLocal, &curvatureErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  if(computeExactErrors)
+  {
+    MPI_Allreduce(&normalErrorMaxLocal, &normalErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&curvatureErrorMaxLocal, &curvatureErrorMaxGlobal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  }
 
   LevelSetDiagnostics result;
 
@@ -2032,22 +2344,97 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   result.totalArea = globalSum[2];
   result.interfaceLength = globalSum[3];
 
-  if(result.interfaceLength > 1.e-14) {
+  if(result.interfaceLength > 1.e-14)
+  {
     result.interfaceErrorL2 = std::sqrt(globalSum[4] / result.interfaceLength);
-    result.normalErrorL2 = std::sqrt(globalSum[5] / result.interfaceLength);
-    result.curvatureErrorL2 = std::sqrt(globalSum[6] / result.interfaceLength);
-  }
-  else {
-    result.interfaceErrorL2 = 0.;
-    result.normalErrorL2 = 0.;
-    result.curvatureErrorL2 = 0.;
   }
 
   result.interfaceErrorMax = interfaceErrorMaxGlobal;
-  result.normalErrorMax = normalErrorMaxGlobal;
-  result.curvatureErrorMax = curvatureErrorMaxGlobal;
+
+  if(computeExactErrors)
+  {
+    if(result.interfaceLength > 1.e-14)
+    {
+      result.normalErrorL2 = std::sqrt(globalSum[5] / result.interfaceLength);
+      result.curvatureErrorL2 = std::sqrt(globalSum[6] / result.interfaceLength);
+    }
+
+    result.normalErrorMax = normalErrorMaxGlobal;
+    result.curvatureErrorMax = curvatureErrorMaxGlobal;
+
+    result.hasExactPsi = true;
+  }
+
+  if(computeRisingBubble)
+  {
+    result.barycenter.assign(dim, 0.0);
+    result.meanVelocity.assign(dim, 0.0);
+
+    if(result.innerArea > 1.e-14)
+    {
+      for(unsigned d = 0; d < dim; ++d)
+      {
+        result.barycenter[d] = globalSum[7 + d] / result.innerArea;
+        result.meanVelocity[d] = globalSum[7 + dim + d] / result.innerArea;
+      }
+
+      const double pi = std::acos(-1.0);
+
+      if(dim == 2 && result.interfaceLength > 1.e-14)
+      {
+        result.circularity = 2.0 * std::sqrt(pi * result.innerArea) / result.interfaceLength;
+      }
+
+      if(dim == 3 && result.interfaceLength > 1.e-14)
+      {
+        result.circularity = std::cbrt(36.0 * pi * result.innerArea * result.innerArea) / result.interfaceLength;
+      }
+    }
+
+    result.hasRisingBubbleMetrics = true;
+  }
 
   return result;
 }
 
+void PrintLevelSetDiagnostics(const LevelSetDiagnostics& diagnostics, const unsigned iproc)
+{
+  if(iproc != 0)
+  {
+    return;
+  }
+
+  std::cout << std::setprecision(16);
+
+  std::cout << "Inner area          = " << diagnostics.innerArea << std::endl;
+  std::cout << "Outer area          = " << diagnostics.outerArea << std::endl;
+  std::cout << "Total area          = " << diagnostics.totalArea << std::endl;
+  std::cout << "Interface length    = " << diagnostics.interfaceLength << std::endl;
+
+  if(diagnostics.hasExactPsi)
+  {
+    std::cout << "Interface L2 error  = " << diagnostics.interfaceErrorL2 << std::endl;
+    std::cout << "Interface max error = " << diagnostics.interfaceErrorMax << std::endl;
+    std::cout << "Normal L2 error     = " << diagnostics.normalErrorL2 << std::endl;
+    std::cout << "Normal max error    = " << diagnostics.normalErrorMax << std::endl;
+    std::cout << "Curvature L2 error  = " << diagnostics.curvatureErrorL2 << std::endl;
+    std::cout << "Curvature max error = " << diagnostics.curvatureErrorMax << std::endl;
+  }
+
+  if(diagnostics.hasRisingBubbleMetrics)
+  {
+    for(unsigned d = 0; d < diagnostics.barycenter.size(); ++d)
+    {
+      std::cout << "Barycenter[" << d << "]      = " << diagnostics.barycenter[d] << std::endl;
+    }
+
+    for(unsigned d = 0; d < diagnostics.meanVelocity.size(); ++d)
+    {
+      std::cout << "Mean velocity[" << d << "]   = " << diagnostics.meanVelocity[d] << std::endl;
+    }
+
+    std::cout << "Rise velocity       = " << diagnostics.riseVelocity << std::endl;
+    std::cout << "Circularity         = " << diagnostics.circularity << std::endl;
+  }
+}
 
