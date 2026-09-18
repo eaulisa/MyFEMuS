@@ -39,17 +39,17 @@ using namespace femus;
 #define YG 0.
 #define ZG 0.
 
-typedef double TypeIO;
-typedef cpp_bin_float_oct TypeA;
-typedef cpp_bin_float_oct oct;
-
-// CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
-
-const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &quad, &tri};
-
-Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+// typedef double TypeIO;
+// typedef cpp_bin_float_oct TypeA;
+// typedef cpp_bin_float_oct oct;
+//
+// // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
+// CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
+// CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
+//
+// const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &quad, &tri};
+//
+// Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
@@ -379,8 +379,8 @@ int main(int argc, char **argv) {
 
     // ml_prob0 = &mlProb0;
 
-    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, properties);
-    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, properties);
+    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, 0, properties);
+    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, 0, properties);
 
     msh->SetLevel(0);
     system2.MGsolve();
@@ -1652,158 +1652,4 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
 
-
-
-
-
-
-void BestFitLinearInterpolation(std::vector<const double*>& xg,
-                                std::vector<double>& psi,
-                                std::vector<double>& B) {
-
-  const unsigned n = psi.size();
-  const unsigned dim = xg.size();
-  const unsigned m = dim + 1;
-
-  double s2 = 0.0;
-
-  for (unsigned i = 0; i < n; i++) {
-    s2 += psi[i] * psi[i];
-  }
-
-  s2 /= n;
-
-  if (s2 < 1.e-14) {
-    throw std::runtime_error("uniform  zero level-set in cutcell");
-    return;
-  }
-
-  std::vector<std::vector<double>> M(m, std::vector<double>(m, 0.0));
-  std::vector<double> F(m, 0.0);
-
-  for (unsigned i = 0; i < n; i++) {
-
-    const double f = psi[i];
-
-    const double w = std::exp(- 100 * f * f / s2);
-
-    for (unsigned d = 0; d < dim; d++) {
-
-      F[d] += w * xg[d][i] * f;
-
-      for (unsigned e = 0; e < dim; e++) {
-        M[d][e] += w * xg[d][i] * xg[e][i];
-      }
-
-      M[d][dim] += w * xg[d][i];
-      M[dim][d] += w * xg[d][i];
-    }
-
-    M[dim][dim] += w;
-    F[dim] += w * f;
-  }
-
-  B = F;
-
-  for (unsigned k = 0; k < m; k++) {
-
-    unsigned pivot = k;
-
-    for (unsigned i = k + 1; i < m; i++) {
-      if (std::fabs(M[i][k]) > std::fabs(M[pivot][k])) {
-        pivot = i;
-      }
-    }
-
-    if (std::fabs(M[pivot][k]) < 1.e-14) {
-      B.assign(m, 0.0);
-      return;
-    }
-
-    if (pivot != k) {
-      std::swap(M[k], M[pivot]);
-      std::swap(B[k], B[pivot]);
-    }
-
-    for (unsigned i = k + 1; i < m; i++) {
-
-      const double factor = M[i][k] / M[k][k];
-
-      for (unsigned j = k; j < m; j++) {
-        M[i][j] -= factor * M[k][j];
-      }
-
-      B[i] -= factor * B[k];
-    }
-  }
-
-  for (int i = static_cast<int>(m) - 1; i >= 0; i--) {
-
-    for (unsigned j = i + 1; j < m; j++) {
-      B[i] -= M[i][j] * B[j];
-    }
-
-    B[i] /= M[i][i];
-  }
-
-  double norm = 0.0;
-
-  for (unsigned d = 0; d < dim; d++) {
-    norm += B[d] * B[d];
-  }
-
-  norm = std::sqrt(norm);
-
-  if (norm < 1.e-14) {
-    B.assign(m, 0.0);
-    return;
-  }
-
-  for (unsigned d = 0; d < m; d++) {
-    B[d] /= norm;
-  }
-
-  double min_psi = psi[0];
-  double max_psi = psi[0];
-
-  unsigned i_min = 0;
-  unsigned i_max = 0;
-
-  for (unsigned i = 1; i < n; i++) {
-
-    if (psi[i] > max_psi) {
-      max_psi = psi[i];
-      i_max = i;
-    }
-
-    if (psi[i] < min_psi) {
-      min_psi = psi[i];
-      i_min = i;
-    }
-  }
-
-  double test_value_max = B[dim];
-  double test_value_min = B[dim];
-
-  for (unsigned d = 0; d < dim; d++) {
-    test_value_max += B[d] * xg[d][i_max];
-    test_value_min += B[d] * xg[d][i_min];
-  }
-
-  const bool maxWrong = (max_psi * test_value_max < 0.0);
-  const bool minWrong = (min_psi * test_value_min < 0.0);
-
-  if (maxWrong && minWrong) {
-
-    for (unsigned d = 0; d < dim + 1; d++) {
-      B[d] *= -1.0;
-    }
-
-  }
-  else if (maxWrong || minWrong) {
-
-    std::cout << "Warning: incoherent linear approximation" << std::endl;
-  }
-
-}
 
