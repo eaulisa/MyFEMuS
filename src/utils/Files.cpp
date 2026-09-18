@@ -384,7 +384,7 @@ out_char = new char[outchar_size +1]; //for the null
 MPI_Bcast(out_char,outchar_size,MPI_CHAR,0,MPI_COMM_WORLD);
 #endif
 
- out_char[outchar_size] = NULL; //HEY MAYBE NOT 100% ORTHODOX BUT OTHERWISE IT DOESN'T WORK!!!
+ out_char[outchar_size] = '\0'; //HEY MAYBE NOT 100% ORTHODOX BUT OTHERWISE IT DOESN'T WORK!!!
 
 // printf("^^^^^^^^^^^^^^^^^^^ %s\n",out_char);
 //ok at this point the error already comes out: one processor has one more char. when do they stop printing?
