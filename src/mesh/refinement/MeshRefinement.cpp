@@ -227,6 +227,11 @@ namespace femus {
 
     std::vector < unsigned > materialElementCounter(3,0);
     
+
+    std::vector < unsigned > partition;
+    partition.reserve(nelem * 2);
+    partition.resize(nelem);
+
     for(unsigned isdom = 0; isdom < _nprocs; isdom++) {
       elc->LocalizeElementDof(isdom);
       elc->LocalizeElementNearFace(isdom);
@@ -238,14 +243,15 @@ namespace femus {
           for(unsigned j = 0; j < _mesh.GetRefIndex(); j++) {
             _mesh.el->SetElementType(jel + j, elc->GetElementType(iel));
             _mesh.el->SetElementGroup(jel + j, elc->GetElementGroup(iel));
-            
-	    unsigned gr_mat = elc->GetElementMaterial(iel);
-	    _mesh.el->SetElementMaterial(jel + j, gr_mat);
-	    if( gr_mat == 2) materialElementCounter[0] += 1;
-	    else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-	    else materialElementCounter[2] += 1;
-	        
+
+            unsigned gr_mat = elc->GetElementMaterial(iel);
+            _mesh.el->SetElementMaterial(jel + j, gr_mat);
+            if( gr_mat == 2) materialElementCounter[0] += 1;
+            else if(gr_mat == 3 ) materialElementCounter[1] += 1;
+            else materialElementCounter[2] += 1;
+
             _mesh.el->SetElementLevel(jel + j, elc->GetElementLevel(iel) + 1);
+            partition[jel + j] = isdom;
             if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
               elc->SetChildElement(iel, j, jel + j);
             }
@@ -276,16 +282,17 @@ namespace femus {
           AMR = true;
           unsigned elt = elc->GetElementType(iel);
           _mesh.el->SetElementType(jel, elc->GetElementType(iel));
-          _mesh.el->SetElementGroup(jel , elc->GetElementGroup(iel));
+          _mesh.el->SetElementGroup(jel, elc->GetElementGroup(iel));
           _mesh.el->SetElementMaterial(jel, elc->GetElementMaterial(iel));
-	  
-	  unsigned gr_mat = elc->GetElementMaterial(iel);
-	  _mesh.el->SetElementMaterial(jel, gr_mat);
-	  if( gr_mat == 2) materialElementCounter[0] += 1;
-	  else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-	  else materialElementCounter[2] += 1;
-	  
+
+          unsigned gr_mat = elc->GetElementMaterial(iel);
+          _mesh.el->SetElementMaterial(jel, gr_mat);
+          if( gr_mat == 2) materialElementCounter[0] += 1;
+          else if(gr_mat == 3 ) materialElementCounter[1] += 1;
+          else materialElementCounter[2] += 1;
+
           _mesh.el->SetElementLevel(jel, elc->GetElementLevel(iel));
+          partition[jel] = isdom;
           if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
             elc->SetChildElement(iel, 0, jel);
           }
@@ -398,16 +405,18 @@ namespace femus {
 
     Buildkmid();
 
-    std::vector < unsigned > partition;
-    partition.reserve(_mesh.GetNumberOfNodes());
-    partition.resize(_mesh.GetNumberOfElements());
+
 
     MeshMetisPartitioning meshMetisPartitioning(_mesh);
 
     if(AMR == true) {
+      partition.reserve(_mesh.GetNumberOfNodes());
+      partition.resize(0);
       meshMetisPartitioning.DoPartition(partition, AMR);
     }
     else {
+      partition.reserve(_mesh.GetNumberOfNodes());
+      partition.resize(_mesh.GetNumberOfElements());
       meshMetisPartitioning.DoPartition(partition, *mshc);
     }
 

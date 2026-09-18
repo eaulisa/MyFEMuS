@@ -129,7 +129,7 @@ namespace femus {
 
     std::vector < unsigned > partition;
     partition.reserve(GetNumberOfNodes());
-    partition.resize(GetNumberOfElements());
+    partition.resize(0);
     MeshMetisPartitioning meshMetisPartitioning(*this);
     meshMetisPartitioning.DoPartition(partition, flag_for_ncommon_in_metis);
     FillISvector(partition);

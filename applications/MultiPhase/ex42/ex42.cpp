@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
   double period =
     (velocityType == RungeKutta::VelKind::Vortex) ? 2 : 2.0 * M_PI;
   period = 3.;
-  unsigned nSteps = 3000;
+  unsigned nSteps = 1200;
   double dt = period / nSteps;
 
   if (iproc == 0) {
@@ -294,14 +294,14 @@ int main(int argc, char **argv) {
 
   VTKWriter vtkIO(&mlSol0);
   //vtkIO.SetDebugOutput(true);
-  for (unsigned l = levelF; l <= levelF; l++)
+  for (unsigned l = 0*levelF; l <= levelF; l++)
     vtkIO.Write(l, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
   //vtkIO.Write(levelC, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
-    if(t >= 260) printdb = true;
+    // if(t >= 260) printdb = true;
 
     double time = t * dt;
 
@@ -457,7 +457,7 @@ int main(int argc, char **argv) {
     vtkIO2.SetDebugOutput(true);
     if (t % 1 == 0) {
       for(unsigned level = 0; level <= levelC - level0; level++) {
-        vtkIO2.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
+        //vtkIO2.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
       }
     }
 
@@ -606,7 +606,7 @@ int main(int argc, char **argv) {
     // Export solution to VTK (selected levels)
     VTKWriter vtkIO1(mlsol1);
     if (t % 1 == 0) {
-      for(unsigned level = levelF; level <= levelF; level++) {
+      for(unsigned level = 0*levelF; level <= levelF; level++) {
         vtkIO1.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
       }
     }
@@ -649,7 +649,7 @@ int main(int argc, char **argv) {
 double TimeStepMultiphase(const double time) {
   // double dt =  0.005; //RT
   // double dt =  0.001; //RT
-  double dt =  0.015; //Turek
+  double dt =  0.0025; //Turek
   // double sigma = 3;
   // double rho = 100.;
   // // double totalT = sqrt(rho*0.4*0.4*0.4) / sqrt(sigma);
@@ -2198,22 +2198,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           if(cut == 1) {
             //std::cout << - sigma * phiV[i] * NN[I] * weight * weightCF[ig] * kk * dsN << " ";
             //Res[I * nDofsV + i] += - sigma * phiV[i] * NN[I] * weight * weightCF[ig] * kk * dsN;
-            Res[I * nDofsV + i] += - sigma * phiV[i] * Ng[I] * weight * weightCF[ig] * Kg * dsN;
+            // Res[I * nDofsV + i] += - sigma * phiV[i] * Ng[I] * weight * weightCF[ig] * Kg * dsN;
 
-            // std::vector<std::vector<double>> P (dim);
-            // for (int d = 0; d < dim; d ++)
-            //   P[d].resize(dim);
-            //
-            // for(int i = 0; i < dim; i++){
-            //   for(int j = 0; j < dim; j++){
-            //     if(i==j) P[i][j] += 1.;
-            //     P[i][j] -= Ng[i] * Ng[j];
-            //   }
-            // }
-            //
-            // for (int d = 0; d < dim; d++) {
-            //   Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
-            // }
+            std::vector<std::vector<double>> P (dim);
+            for (int d = 0; d < dim; d ++)
+              P[d].resize(dim);
+
+            for(int i = 0; i < dim; i++){
+              for(int j = 0; j < dim; j++){
+                if(i==j) P[i][j] += 1.;
+                P[i][j] -= Ng[i] * Ng[j];
+              }
+            }
+
+            for (int d = 0; d < dim; d++) {
+              Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+            }
           }
         }
       } // end phiV_i loop

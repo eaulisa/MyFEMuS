@@ -133,11 +133,24 @@ target_include_directories(${PROJECT_NAME}
   PUBLIC
     ${HDF5_INCLUDE_DIRS}
 )
+
+IF(PARMETIS_FOUND)
+
+
+  target_compile_definitions(${PROJECT_NAME}
+    PUBLIC
+      HAVE_PARMETIS=1
+  )
+ENDIF()
+
+
 target_link_libraries(${PROJECT_NAME}
   PUBLIC
     Eigen3::Eigen
     ${HDF5_LIBRARIES}
+    ${PARMETIS_LIBRARY}
 )
+
 
 # This is a cheap hack to fix linker errors during compilation
 IF(APPLE)

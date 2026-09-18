@@ -115,6 +115,23 @@ IF(METIS_FOUND)
   SET(HAVE_METIS 1)
 ENDIF(METIS_FOUND)
 
+
+
+find_package(ParMETIS REQUIRED)
+
+MESSAGE(STATUS "PARMETIS_FOUND = ${PARMETIS_FOUND}")
+
+SET(HAVE_PARMETIS 0)
+
+IF(PARMETIS_FOUND)
+  SET(HAVE_PARMETIS 1)
+ENDIF()
+
+
+# Link it directly to your executable or library
+
+
+
 # Find Slepc Library (optional)
 IF(APPLE)
   FIND_PACKAGE(SLEPcApple)
