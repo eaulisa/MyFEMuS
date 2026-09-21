@@ -11,4 +11,4 @@
 --convert-tabs
 --break-closing-braces
 --suffix=none
-
+--squeeze-lines=1

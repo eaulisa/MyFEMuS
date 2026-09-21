@@ -83,7 +83,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
   start_time = clock();
 
-
   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
 
   double mu1 = properties.mu1;
@@ -134,7 +133,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         }
       }
 
-
       for(unsigned i = 0; i < nDofsP; i++) {
         unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
 
@@ -142,7 +140,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         sysDofsAll[dim * nDofsV + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
 
       }
-
 
       for(unsigned i = 0; i < nDofsV; i++) {
         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
@@ -159,14 +156,12 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       // *** Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solTypeV]->GetGaussPointNumber(); ig++) {
 
-
         msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, ig, weight, phiP, gradPhiP);
         msh->_finiteElement[ielt][solTypeV]->Jacobian(vx, ig, weight, phi, gradPhi, nablaPhi);
 
         std::vector <std::vector <double> > Jac;
         std::vector <std::vector <double> > JacI;
         msh->_finiteElement[ielt][solTypeV]->GetJacobianMatrix(vx, ig, weight, Jac, JacI); //centered at theta
-
 
         vector < adept::adouble > solVg(dim, 0.);
         vector < vector < adept::adouble > > gradSolVg(dim, vector<adept::adouble>(dim, 0.));
@@ -188,9 +183,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           }
         }
 
-
-
-
 //         if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases centered at theta
 //           for(unsigned j = 0; j < dim; j++) {
 //             gradPhiP[0 * dim + j]  = 0.;
@@ -208,7 +200,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
             gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
           }
         }
-
 
         std::vector <std::vector <double> > G(dim); // J^(-T) . J^(-1) //centered at theta
         for(unsigned i = 0; i < dim; i++) {
@@ -269,7 +260,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
             diffusion += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
           }
 
-
           rM[k] =
             rho * (solVg[k] - solVgOld[k]) / dt
             + advection
@@ -277,7 +267,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
             + gradSolPg[k]
             - rho * g[k];
         }
-
 
         // SUPG + tauC stabilization of momentum equations
         for(unsigned i = 0; i < nDofsV; i++) {
@@ -292,7 +281,6 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           }
         }
 
-
         // PSPG stabilization of pressure equation
         for(unsigned i = 0; i < nDofsP; i++) {
 
@@ -305,11 +293,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           aResP[i] += pspg * weight;
         }
 
-
       }
-
-
-
 
       //copy the value of the adept::adoube aRes in double Res and store them in RES
       rhs.resize(nDofsAll);   //resize
@@ -323,15 +307,12 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       }
       myRES->add_vector_blocked(rhs, sysDofsAll);
 
-
       // define the dependent variables J11 and J12
       for(unsigned  k = 0; k < dim; k++) {
         s.dependent(&aResV[k][0], nDofsV);
 
-
       }
       s.dependent(&aResP[0], nDofsP);
-
 
 // define the independent variables J11
       for(unsigned  k = 0; k < dim; k++) {

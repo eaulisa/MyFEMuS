@@ -7,7 +7,6 @@
 #include "adept.h"
 #include "PolynomialBases.hpp"
 
-
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
@@ -128,7 +127,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob);
 void AssembleSmoothLevelSet(MultiLevelProblem& ml_prob);
 double TimeStepMultiphase(const double time);
 
-
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -224,7 +222,6 @@ int main(int argc, char **argv) {
 
   Mesh* mshC = mlMsh0.GetLevel(levelC);
   const double hC = GetMaxElementH(mshC, levelC);
-
 
   std::vector<double> xc_1 = xc;
   double r_0 = r;
@@ -352,7 +349,6 @@ int main(int argc, char **argv) {
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
-
     // if(t >= 260) printdb = true;
     double time = t * dt;
 
@@ -378,7 +374,6 @@ int main(int argc, char **argv) {
     bool allLevel = true;
     // for(unsigned d = 0; d < pName.size(); d++) mlSol2.FixSolutionAtOnePoint(pName[d].c_str(), allLevel);
     mlSol2.GenerateBdc("All");
-
 
     auto &Sol0_C = (mlsol0->GetSolutionLevel(levelC))->_Sol;
     auto &Sol0Old_C = (mlsol0->GetSolutionLevel(levelC))->_SolOld;
@@ -467,7 +462,6 @@ int main(int argc, char **argv) {
 
     system2.init();
 
-
     for (unsigned l = 0; l < levelC + 1 - level0; l++) {
       LinearEquationSolver* pdeSys2_l  = system2._LinSolver[l];
       // const  std::vector<NumericVector*> *
@@ -478,18 +472,14 @@ int main(int argc, char **argv) {
 
     // ******* Set Smoother *******
 
-
-
     // system2.SetSolverFineGrids(GMRES);
 
     system2.SetSolverFineGrids(RICHARDSON);
     system2.SetRichardsonScaleFactor(.8);
 
-
     system2.SetNumberPreSmoothingStep(4);
     system2.SetNumberPostSmoothingStep(4);
     // system2.SetTolerances(1.e-20, 1.e-20, 1.e+50, 50, 30);
-
 
     system2.SetPreconditionerFineGrids(MLU_PRECOND);
     system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
@@ -580,8 +570,6 @@ int main(int argc, char **argv) {
       reinit.updateSolution();
     }
 
-
-
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
@@ -589,7 +577,6 @@ int main(int argc, char **argv) {
 
     if (t % 1 == 0)
       WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
-
 
     // std::vector<MyVector<double>> field = X0;
     LevelMarkers l0;
@@ -618,7 +605,6 @@ int main(int argc, char **argv) {
     mlsol1->AddSolution(kName.c_str(), LAGRANGE, SECOND, 0);
     mlsol1->AddSolution(psiAuxName.c_str(), LAGRANGE, SECOND, 0);
 
-
     mlsol1->Initialize("All");
     mlsol1->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
     mlsol1->GenerateBdc("All");
@@ -628,8 +614,6 @@ int main(int argc, char **argv) {
 
     UpdateColorFunction(*mlsol1, psiName, cName);
     if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
-
-
 
     // MultiLevelProblem mlProb1(mlsol1);
 
@@ -676,7 +660,6 @@ int main(int argc, char **argv) {
         vtkIO1.Write(level, DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t / 1);
       }
     }
-
 
     std::swap(mlsol0, mlsol1);
     std::swap(mlmsh0, mlmsh1);
@@ -850,7 +833,6 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
       femN->Jacobian(coordX, ig, weight, phiN, phiN_x);
       femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x);
 
-
       std::vector<double> NN(dim, 0.);
       for (unsigned i = 0; i < nDofsPsi; i++) {
         for(unsigned d = 0; d < dim; d++) {
@@ -893,7 +875,6 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
         }
       } // end phiV_i loop
 
-
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -911,7 +892,6 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
             // VIcolumn = VIrow;
             Jac[ VIrow * nDofs + VIcolumn] += (phiN[i] * phiN[j] + epsilon * laplacian) * weight ; // inertia
 
-
           }
         }
       }
@@ -920,13 +900,10 @@ void AssembleNormal(MultiLevelProblem& ml_prob) {
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
 
   RES->close();
   KK->close();
-
-
 
 }
 
@@ -965,7 +942,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
   unsigned  solKPdeIndex;
   solKPdeIndex = mlPdeSys->GetSolPdeIndex("K");    // get the position of "U" in the pdeSys object
 
-
   unsigned solKType = mlSol->GetSolutionType(solKIndex);
 
   // std::vector < double >  psi; // local solution
@@ -990,7 +966,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
   std::vector < double> normal_faceN;
   double weight_face = 0.;
   double weight_faceN = 0.;
-
 
   double weight; // gauss point weight
   double weightN;
@@ -1025,7 +1000,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
       normal[d].resize(nDofsN);
       coordX[d].resize(nDofsX);
     }
-
 
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned KDof  = msh->GetSolutionDof(i, iel, solKType);
@@ -1109,7 +1083,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
         Res[i] += rhs * weight;
       } // end phiV_i loop
 
-
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -1128,7 +1101,6 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
 
           // VIcolumn = VIrow;
           Jac[ VIrow * nDofs + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
-
 
         }
         // }
@@ -1185,12 +1157,10 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
 
   RES->close();
   KK->close();
-
 
 }
 
@@ -1358,13 +1328,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   TransientNonlinearImplicitSystem* mlPdeSys2   = &ml_prob2.get_system<TransientNonlinearImplicitSystem> ("NS");
   const unsigned level2 = mlPdeSys2->GetLevelToAssemble();
 
-
   Mesh* msh2 = ml_prob2._ml_msh->GetLevel(level2);    // pointer to the mesh (level) object
   elem* el2 = msh2->el;  // pointer to the elem object in msh (level)
 
   MultiLevelSolution*  mlSol2        = ml_prob2._ml_sol;  // pointer to the multilevel solution object
   Solution* sol2 = ml_prob2._ml_sol->GetSolutionLevel(level2);    // pointer to the solution (level) object
-
 
   const unsigned  dim = msh2->GetDimension(); // get the domain dimension of the problem
   std::vector < unsigned > sol2VIndex(dim);
@@ -1375,7 +1343,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   unsigned sol2P1Index = mlSol2->GetIndex("P1");    // get the position of "P1" in the ml_sol object
   unsigned sol2P2Index = mlSol2->GetIndex("P2");    // get the position of "P2" in the ml_sol object
   unsigned sol2PType = mlSol2->GetSolutionType(sol2P1Index);
-
 
   LinearEquationSolver* pdeSys2        = mlPdeSys2->_LinSolver[level2]; // pointer to the equation (level) object
   SparseMatrix* KK2 = pdeSys2->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -1419,8 +1386,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "levelC = " << levelC << " levelF = " << levelF << std::endl;
   std::cout << "level to assemble = " << level2  << " mapping level to assemble to levelC = " << level0 + level2 << std::endl;
 
-
-
   MultiphasePhysicalProperties properties = mParam.properties;
 
   const bool firstNonlinearIt = (mlPdeSys2->GetNonlinearIt() == 0);
@@ -1428,18 +1393,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   //  extract pointers to the several objects that we are going to use
   TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob0->get_system<TransientNonlinearImplicitSystem> ("NS");
 
-
   Mesh*          msh          = ml_prob0->_ml_msh->GetLevel(levelF);    // pointer to the mesh (levelF) object
   elem*          el         = msh->el;  // pointer to the elem object in msh (levelF)
 
   MultiLevelSolution*  mlSol        = ml_prob0->_ml_sol;  // pointer to the multilevelF solution object
   Solution*    sol        = ml_prob0->_ml_sol->GetSolutionLevel(levelF);    // pointer to the solution (levelF) object
 
-
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (levelF)
-
 
   //MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
   MatSetOption((static_cast< PetscMatrix* >(KK))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
@@ -1468,8 +1430,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
   unsigned solP2Index = mlSol->GetIndex("P2");    // get the position of "P2" in the ml_sol object
   unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
-
-
 
   unsigned cIndex = mlSol->GetIndex("C");
 
@@ -1532,8 +1492,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   if(printdb) std::cout << "Before Solution Projection\n" << std::flush;
 
-
-
   {
 
     Solution* sol2_l  = ml_prob2._ml_sol->GetSolutionLevel(level2);    // pointer to the solution (level) object
@@ -1566,9 +1524,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK->zero();
   RES->zero();
 
-
   if(printdb) std::cout << "After Solution Projection\n" << std::flush;
-
 
   // AssembleStabilizationTerms(*ml_prob0);
 
@@ -1603,7 +1559,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
     solP1.resize(nDofsP);
     solP2.resize(nDofsP);
-
 
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofsV; i++) {
@@ -1704,7 +1659,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       //   k[i] = (*sol->_Sol[solKIndex])(solKDof);
       // }
 
-
       unsigned ng = femPsi->GetGaussPointNumber();
       std::vector<double> psig(ng, 0.);
       for(unsigned ig = 0; ig < ng; ig++) {
@@ -1753,8 +1707,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     double NN_exact[2];
     double kk = 0.;
 
-
-
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -1785,7 +1737,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           Nf[k] /= dsN;
         }
 
-
         xg.assign(dim, 0);
 
         for(unsigned i = 0; i < nDofsV; i++) {
@@ -1793,7 +1744,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             xg[k] += coordX[k][i] * phiV[i];
           }
         }
-
 
         // double det_exact = 0.;
         // for(unsigned k = 0; k < dim; k++) det_exact += xg[k] * xg[k];
@@ -1839,7 +1789,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         // kk = H;
 
-
         // //===========================================================================================
 
         // for (unsigned i = 0; i < nDofsN; i++) {
@@ -1853,7 +1802,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         // }
 
       }
-
 
       std::vector < double > solV_gss(dim, 0);
       std::vector < double > solVOld_gss(dim, 0);
@@ -1944,7 +1892,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       } // end phiP_i loop
       // end gauss point loop
 
-
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -1995,15 +1942,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         }
       }
 
-
     }
 
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
-
 
   RES->close();
   KK->close();
@@ -2012,8 +1956,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
   start_time = clock();
-
-
 
   vector < SparseMatrix* > PP, RR, PPamr, RRamr;
   PP = mlPdeSys->GetProjectionMatrix();
@@ -2043,7 +1985,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       if(printdb) std::cout << "After KK amr restriction\n" << std::flush;
     }
 
-
     if(printdb) std::cout << "Before KK level" << level << " restriction\n" << std::flush;
     if(!RR[level]) { //Multilevel Restriction
       (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
@@ -2062,7 +2003,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   // SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
   // NumericVector*   RES          = pdeSys->_RES;
 
-
   //TODO restrict KK into KK2 space
 
   if(printdb) std::cout << "Before KK sum \n" << std::flush;
@@ -2071,13 +2011,3 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   if(printdb) std::cout << "After KK sum \n" << std::flush;
 
 }
-
-
-
-
-
-
-
-
-
-

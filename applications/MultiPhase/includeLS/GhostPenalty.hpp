@@ -66,7 +66,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
   std::vector < double> gradPhi2;
   std::vector < double> nablaPhi2;
 
-
   unsigned cIndex = mlSol->GetIndex("C");
 
   vector <vector < double> > vx1(dim);
@@ -110,7 +109,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
     if (iellevel == levelC) return true;
     else return false;
   };
-
 
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -261,7 +259,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               }
               hmean_j /= cnt_j;
 
-
               if(!aP1IsInitialized) { //build the basis 1,x,y,z... corresponding to the solution type
                 aP1IsInitialized = true;
                 for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
@@ -311,9 +308,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                 msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
                 msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
-
-
-
 
                 adept::adouble divSol1g = 0.;
                 adept::adouble divSol2g = 0.;
@@ -381,7 +375,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 }
                 absSolDotN = fabs(absSolDotN);
 
-
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
@@ -437,7 +430,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               }
               myRES->add_vector_blocked(rhs1, sysDofs1);
 
-
               rhs2.resize(nDofsAll2);   //resize
               for(int i = 0; i < nDofs2; i++) {
                 for(unsigned  k = 0; k < dim; k++) {
@@ -445,7 +437,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 }
               }
               myRES->add_vector_blocked(rhs2, sysDofs2);
-
 
               // define the dependent variables J11 and J12
               for(unsigned  k = 0; k < dim; k++) {
@@ -460,7 +451,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
               s.clear_independents();
-
 
               // define the independent variables J12
               for(unsigned  k = 0; k < dim; k++) {
@@ -478,7 +468,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 s.dependent(&aRes2[k][0], nDofs2);
               }
 
-
               // define the independent variables J21
               for(unsigned  k = 0; k < dim; k++) {
                 s.independent(&sol1[k][0], nDofs1);
@@ -488,7 +477,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
               s.clear_independents();
-
 
               // define the independent variables J22
               for(unsigned  k = 0; k < dim; k++) {
@@ -507,7 +495,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
       }
     }
   }
-
 
   if(nprocs > 1) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
@@ -734,7 +721,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       std::vector < double> normal;
                       msh->_finiteElement[faceGeom][solType]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-
                       double h2 = h * h;
                       double h3 = h2 * h;
                       double h5 = h2 * h3;
@@ -831,7 +817,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       }
                       absSolDotN = fabs(absSolDotN);
 
-
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
@@ -887,7 +872,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     }
                     myRES->add_vector_blocked(rhs1, sysDofs1);
 
-
                     rhs2.resize(nDofsAll2);   //resize
                     for(int i = 0; i < nDofs2; i++) {
                       for(unsigned  k = 0; k < dim; k++) {
@@ -895,7 +879,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       }
                     }
                     myRES->add_vector_blocked(rhs2, sysDofs2);
-
 
                     // define the dependent variables J11 and J12
                     for(unsigned  k = 0; k < dim; k++) {
@@ -910,7 +893,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
                     s.clear_independents();
-
 
                     // define the independent variables J12
                     for(unsigned  k = 0; k < dim; k++) {
@@ -928,7 +910,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       s.dependent(&aRes2[k][0], nDofs2);
                     }
 
-
                     // define the independent variables J21
                     for(unsigned  k = 0; k < dim; k++) {
                       s.independent(&sol1[k][0], nDofs1);
@@ -938,7 +919,6 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     s.jacobian(&Jac[0], true);
                     myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
                     s.clear_independents();
-
 
                     // define the independent variables J22
                     for(unsigned  k = 0; k < dim; k++) {
@@ -1261,7 +1241,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                 adept::adouble gradSol1DotN = 0.;
                 adept::adouble gradSol2DotN = 0.;
 
-
                 for(unsigned i = 0; i < nDofs1; i++) {
                   for(unsigned J = 0; J < dim; J++) {
                     gradSol1DotN += sol1[i] * gradPhi1[i * dim + J] * normal[J];//H.. gradient projected in normal direction.
@@ -1301,7 +1280,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
               }
               myRES->add_vector_blocked(rhs2, sysDofs2);
 
-
               // define the dependent variables J11 and J12
               s.dependent(&aRes1[0], nDofs1);
 
@@ -1313,7 +1291,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
               s.clear_independents();
-
 
               // define the independent variables J12
               s.independent(&sol2[0], nDofs2);
@@ -1328,7 +1305,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
               // define the dependent variables J21 and J22
               s.dependent(&aRes2[0], nDofs2);
 
-
               // define the independent variables J21
               s.independent(&sol1[0], nDofs1);
 
@@ -1337,7 +1313,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
               s.jacobian(&Jac[0], true);
               myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
               s.clear_independents();
-
 
               // define the independent variables J22
               s.independent(&sol2[0], nDofs2);
@@ -1355,7 +1330,6 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
       }
     }
   }
-
 
   if(nprocs > 1) {
     for(unsigned kproc = 0; kproc < nprocs; kproc++) {

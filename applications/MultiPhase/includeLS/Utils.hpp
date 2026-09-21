@@ -41,8 +41,6 @@ void InterpolateSolution(LevelMarkers &l0,
                          const double c
                         );
 
-
-
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
                      BBoxToIel &bbox,
                      const std::vector<std::string> solName,
@@ -54,9 +52,6 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      const double dt = 0.,
                      const double time = 0.,
                      const double period = 0.);
-
-
-
 
 void RestrictPWDCField(MultiLevelSolution &mlSol,
                        const std::string &CName,
@@ -210,8 +205,6 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
 //     solNP2->close();
 //   }
 // }
-
-
 
 // void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CName, const std::vector<std::string>& PName,
 //                     const unsigned level0, const unsigned level1) {
@@ -514,7 +507,6 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CNa
   }
 }
 
-
 inline std::vector<double>
 Velocity(std::vector<double> &xp, const double time, double period) noexcept {
   double u = 0.0, v = 0.0, w = 0.0;
@@ -568,9 +560,6 @@ Velocity(std::vector<double> &xp, const double time, double period) noexcept {
   if (xp.size() == 2) return {u, v};
   else if (xp.size() == 3) return {u, v, w};
 }
-
-
-
 
 void Shift(std::vector<MyVector<double>> &X, const std::vector<double> &dx) {
   for (unsigned k = 0; k < X.size(); k++) {
@@ -876,7 +865,6 @@ void InitLevelSet(MultiLevelSolution & mlSol, const std::string & name,
   solVec->close();
 }
 
-
 void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName, const std::string & cName) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
@@ -919,7 +907,6 @@ void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName
   cVec->close();
 }
 
-
 void InitSol(MultiLevelSolution & mlSol, const std::vector<std::string> &solName, const double time, const double period) {
 
   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
@@ -930,7 +917,6 @@ void InitSol(MultiLevelSolution & mlSol, const std::vector<std::string> &solName
   const unsigned dim = msh.GetDimension();
 
   assert(dim == solName.size());
-
 
   std::vector<unsigned> solIndex(dim);
   for (unsigned d = 0; d < dim; d++) solIndex[d] = mlSol.GetIndex(solName[d].c_str());
@@ -974,10 +960,6 @@ void InitSol(MultiLevelSolution & mlSol, const std::vector<std::string> &solName
 
   for(unsigned d = 0; d < dim; d++) solVec[d]->close();
 }
-
-
-
-
 
 void GetCutElementPoints(MultiLevelSolution & mlSol, const std::string & name,
                          std::vector<MyVector<double>> &X,
@@ -1299,8 +1281,6 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
   }
 }
 
-
-
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
                  BBoxToIel & bbox,
@@ -1353,7 +1333,6 @@ void rkStep(MultiLevelSolution & mlSol,
     }
   }
 
-
   const unsigned velType =
     mlSol.GetSolutionType(vName[0].c_str());
 
@@ -1402,7 +1381,6 @@ void rkStep(MultiLevelSolution & mlSol,
   }
 }
 
-
 void InterpolateSolution(LevelMarkers & l0,
                          MultiLevelSolution & mlSol0,
                          BBoxToIel & bbox,
@@ -1449,7 +1427,6 @@ void InterpolateSolution(LevelMarkers & l0,
     std::vector<double> psiLocal;
     psiLocal.resize(Iel.end() - Iel.begin(), 0.0);
 
-
     std::vector<double> xi(dim);
     std::vector<double> phi;
 
@@ -1482,7 +1459,6 @@ void InterpolateSolution(LevelMarkers & l0,
   // Project Psi backward through the marker hierarchy
   std::vector<std::vector<double>> Wfield_r;
   std::vector<std::vector<double>> Wfield_s;
-
 
   const bool backward = true;
 
@@ -1524,19 +1500,16 @@ void GetSolutionGradient(MultiLevelSolution & mlSol, const std::string & solName
   double weight;
   std::vector<unsigned> idof;
 
-
   auto &gammaVec = sol._Sol[gammaIndex];
   auto &solVec = sol._Sol[solIndex];
 
   std::vector<NumericVector*> gradSolVec(dim);
-
 
   gammaVec->zero();
   for(unsigned d = 0; d < dim; d++)  {
     gradSolVec[d] = sol._Sol[gradSolIndex[d]];
     gradSolVec[d]->zero();
   }
-
 
   unsigned offset = msh._elementOffset[iproc];
   unsigned offsetp1 = msh._elementOffset[iproc + 1];
@@ -1583,7 +1556,6 @@ void GetSolutionGradient(MultiLevelSolution & mlSol, const std::string & solName
         }
         (*gammaVec).add(idof[i], phi[i] * weight);
       }
-
 
     }
   }
@@ -1768,7 +1740,6 @@ double GetMaxElementH(Mesh* msh, const unsigned level) {
 
   return hGlobalMax;
 }
-
 
 // void BestFitLinearInterpolation(std::vector<const double*>& xg,
 //                                 std::vector<double>& psi,
@@ -2125,8 +2096,6 @@ struct LevelSetDiagnostics {
   double riseVelocity = 0.;
   double circularity = 0.;
 };
-
-
 
 template <class PsiType = std::nullptr_t>
 LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::string& psiAuxName, const simulation_type simulationType, const std::vector<std::string>& velocityName, const std::vector<std::string>& nName, const std::string& kName, const PsiType& exactPsi) {
@@ -2718,4 +2687,3 @@ void PrintLevelSetDiagnostics(const LevelSetDiagnostics& diagnostics, const unsi
     std::cout << "Circularity         = " << diagnostics.circularity << std::endl;
   }
 }
-
