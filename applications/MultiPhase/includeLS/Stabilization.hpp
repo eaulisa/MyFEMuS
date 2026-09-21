@@ -195,9 +195,11 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 //         }
 //
         vector<adept::adouble> gradSolPg(dim, 0.); //centered at theta
-        for(unsigned i = 0; i < nDofsP; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
+        if (solTypeP != 3) {
+          for(unsigned i = 0; i < nDofsP; i++) {
+            for(unsigned k = 0; k < dim; k++) {
+              gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
+            }
           }
         }
 
@@ -282,15 +284,17 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         }
 
         // PSPG stabilization of pressure equation
-        for(unsigned i = 0; i < nDofsP; i++) {
+        if (solTypeP != 3) {
+          for(unsigned i = 0; i < nDofsP; i++) {
 
-          adept::adouble pspg = 0.;
+            adept::adouble pspg = 0.;
 
-          for(unsigned k = 0; k < dim; k++) {
-            pspg += tauM * gradPhiP[i * dim + k] * rM[k];
+            for(unsigned k = 0; k < dim; k++) {
+              pspg += tauM * gradPhiP[i * dim + k] * rM[k];
+            }
+
+            aResP[i] += pspg * weight;
           }
-
-          aResP[i] += pspg * weight;
         }
 
       }
