@@ -1,3 +1,6 @@
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
@@ -337,9 +340,36 @@ int main(int argc, char **argv) {
   //   // system0_K.MGsolve();
   // }
 
-  LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, psiAuxName, simulation_type::rising_bubble, vName, nName, kName, psi2D);
+  LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, simulation_type::rising_bubble, vName, levelC);
 
-  PrintLevelSetDiagnostics(diagnostics, iproc);
+  const unsigned w = 24;
+
+  if(iproc == 0) mkdir("levelsetdiagnostic", 0755);
+
+  const std::string diagnosticsFile =
+    "levelsetdiagnostic/diagnostics_LC" + std::to_string(levelC) +
+    "_LF" + std::to_string(levelF) + ".dat";
+
+  if(iproc == 0) {
+    std::ofstream out(diagnosticsFile, std::ios::trunc);
+
+    out << std::setw(w) << "time"
+        << std::setw(w) << "innerArea"
+        << std::setw(w) << "outerArea"
+        << std::setw(w) << "totalArea"
+        << std::setw(w) << "interfaceLength";
+
+    for(unsigned d = 0; d < dim; ++d)
+      out << std::setw(w) << ("barycenter" + std::to_string(d));
+
+    for(unsigned d = 0; d < dim; ++d)
+      out << std::setw(w) << ("meanVelocity" + std::to_string(d));
+
+    out << std::setw(w) << "circularity"
+        << '\n';
+  }
+
+  PrintLevelSetDiagnostics(diagnostics, iproc, 0.0, diagnosticsFile);
 
   VTKWriter vtkIO(&mlSol0);
   //vtkIO.SetDebugOutput(true);
@@ -650,8 +680,8 @@ int main(int argc, char **argv) {
     // system1_K.SetSolverFineGrids(PREONLY);
     // // system1_K.MGsolve();
 
-    LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, psiAuxName, simulation_type::rising_bubble, vName, nName, kName, psi2D);
-    PrintLevelSetDiagnostics(diagnostics, iproc);
+    LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, simulation_type::rising_bubble, vName, levelC);
+    PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
     // Export solution to VTK (selected levels)
     VTKWriter vtkIO1(mlsol1);
@@ -667,27 +697,9 @@ int main(int argc, char **argv) {
     mlsol1->clear();
     mlmsh1->resize(numberOfUniformLevels);
 
-    double area = ComputeArea(*mlsol0, psiName);
-
     quad.clear();
     tri.clear();
 
-    if (iproc == 0) {
-
-      std::ofstream out("area.dat", std::ios::app);
-
-      if (!out) {
-        throw std::runtime_error(
-          "computeArea: cannot open output file area.dat");
-      }
-
-      out << std::setprecision(16)
-          << std::setw(20) << time
-          << std::setw(25) << area
-          << "\n";
-
-      out.close();
-    }
   }
 
   // if (nprocs == 1)
