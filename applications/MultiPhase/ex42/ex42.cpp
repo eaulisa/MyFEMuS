@@ -71,6 +71,20 @@ struct TaylorHood {
       p.family = LAGRANGE;
       p.order = FIRST;
     }
+    else if (type == 3) {
+      U.family = LAGRANGE;
+      U.order = FIRST;
+
+      p.family = LAGRANGE;
+      p.order = FIRST;
+    }
+    else if (type == 4) {
+      U.family = LAGRANGE;
+      U.order = SECOND;
+
+      p.family = LAGRANGE;
+      p.order = SECOND;
+    }
     else {
       throw std::runtime_error("TaylorHood: type must be 1 or 2");
     }
@@ -137,7 +151,7 @@ int main(int argc, char **argv) {
   unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
   const unsigned levelF = levelN - 1u; //fine level associated for mlmsh0 and mlmsh1
   const unsigned levelC = levelN - 3u; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
-  const unsigned level0 = levelC;
+  const unsigned level0 = 0;//levelC;
 
   std::string meshName = "./input/tri.neu";
 
@@ -400,7 +414,7 @@ int main(int argc, char **argv) {
 
     std::vector<double> xtarget = {xmin, ymin, zmin};
     xtarget.resize(dim);
-    SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget);
+    SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
 
     MultiLevelProblem mlProb2(&mlSol2);
 

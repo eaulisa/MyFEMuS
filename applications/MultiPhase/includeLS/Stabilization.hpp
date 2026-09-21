@@ -51,6 +51,9 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   std::vector < double> gradPhi;
   std::vector < double> nablaPhi;
 
+  std::vector < double > phiP;
+  std::vector < double> gradPhiP;
+
   vector <vector < double> > vx(dim);
 
   double dt =  my_nnlin_impl_sys.GetIntervalTime();
@@ -156,15 +159,18 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       // *** Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solTypeV]->GetGaussPointNumber(); ig++) {
 
+
+        msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, ig, weight, phiP, gradPhiP);
         msh->_finiteElement[ielt][solTypeV]->Jacobian(vx, ig, weight, phi, gradPhi, nablaPhi);
 
         std::vector <std::vector <double> > Jac;
         std::vector <std::vector <double> > JacI;
         msh->_finiteElement[ielt][solTypeV]->GetJacobianMatrix(vx, ig, weight, Jac, JacI); //centered at theta
 
+
         vector < adept::adouble > solVg(dim, 0.);
-        vector < vector < adept::adouble > > gradSolVg(dim, vector<adept::adouble>(dim,0.));
-        vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2,0.));
+        vector < vector < adept::adouble > > gradSolVg(dim, vector<adept::adouble>(dim, 0.));
+        vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2, 0.));
 
         vector < double > solVgOld(dim, 0.);
         for(unsigned i = 0; i < nDofsV; i++) {
@@ -196,12 +202,12 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 //           }
 //         }
 //
-//         vector<adept::adouble> gradSolPg(dim, 0.); //centered at theta
-//         for(unsigned i = 0; i < nDofsP; i++) {
-//           for(unsigned k = 0; k < dim; k++) {
-//             gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
-//           }
-//         }
+        vector<adept::adouble> gradSolPg(dim, 0.); //centered at theta
+        for(unsigned i = 0; i < nDofsP; i++) {
+          for(unsigned k = 0; k < dim; k++) {
+            gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
+          }
+        }
 
 
         std::vector <std::vector <double> > G(dim); // J^(-T) . J^(-1) //centered at theta
@@ -243,36 +249,66 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           divVg += gradSolVg[k][k];
         }
 
+        std::vector<adept::adouble> rM(dim, 0.);
+
+        for(unsigned k = 0; k < dim; k++) {
+
+          adept::adouble diffusion = 0.;
+          adept::adouble advection = 0.;
+
+          for(unsigned j = 0; j < dim; j++) {
+
+            advection += rho * solVg[j] * gradSolVg[k][j];
+
+            unsigned kdim;
+            if(k == j) kdim = j;
+            else if(1 == k + j) kdim = dim;        // xy
+            else if(2 == k + j) kdim = dim + 2;    // xz
+            else if(3 == k + j) kdim = dim + 1;    // yz
+
+            diffusion += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
+          }
+
+
+          rM[k] =
+            rho * (solVg[k] - solVgOld[k]) / dt
+            + advection
+            + diffusion
+            + gradSolPg[k]
+            - rho * g[k];
+        }
+
+
+        // SUPG + tauC stabilization of momentum equations
         for(unsigned i = 0; i < nDofsV; i++) {
-          
+
           for(unsigned k = 0; k < dim; k++) {
-            adept::adouble diffusion = 0.;
-            adept::adouble advection = 0.;
 
-            for(unsigned j = 0; j < dim; j++) {
-              advection +=  rho * solVg[j] * gradSolVg[k][j]; 
-              
-              unsigned kdim;
-              if(k == j) kdim = j;
-              else if(1 == k + j) kdim = dim;        // xy
-              else if(2 == k + j) kdim = dim + 2;    // xz
-              else if(3 == k + j) kdim = dim + 1;    // yz
-              diffusion += (-mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim])); 
-              
+            adept::adouble supgDiv =
+              tauC * divVg * gradPhi[i * dim + k];
 
-            }
-
-            double f = - rho * g[k];
-            adept::adouble pressureGradient = 0.;
-            adept::adouble rM = rho * (solVg[k] - solVgOld[k]) / dt + advection + diffusion + pressureGradient - f;   
-            
-            adept::adouble supgDiv = tauC * divVg * gradPhi[i * dim + k];
-            
-            
-            aResV[k][i] += ( rM * tauMsupgPhi[i] + supgDiv) * weight;
+            aResV[k][i] +=
+              (rM[k] * tauMsupgPhi[i] + supgDiv) * weight;
           }
         }
+
+
+        // PSPG stabilization of pressure equation
+        for(unsigned i = 0; i < nDofsP; i++) {
+
+          adept::adouble pspg = 0.;
+
+          for(unsigned k = 0; k < dim; k++) {
+            pspg += tauM * gradPhiP[i * dim + k] * rM[k];
+          }
+
+          aResP[i] += pspg * weight;
+        }
+
+
       }
+
+
 
 
       //copy the value of the adept::adoube aRes in double Res and store them in RES
@@ -297,7 +333,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       s.dependent(&aResP[0], nDofsP);
 
 
-      // define the independent variables J11
+// define the independent variables J11
       for(unsigned  k = 0; k < dim; k++) {
         s.independent(&solV[k][0], nDofsV);
       }
@@ -305,7 +341,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       s.independent(&solP[0], nDofsP);
 
       Jac.resize(nDofsAll * nDofsAll);
-      // get the and store jacobian matrix (row-major)
+// get the and store jacobian matrix (row-major)
       s.jacobian(&Jac[0], true);
       myKK->add_matrix_blocked(Jac, sysDofsAll, sysDofsAll);
 
@@ -315,7 +351,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
     }
   }
 
-  // *************************************
-  std::cout << "Stabilization Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush<<std::endl;
+// *************************************
+  std::cout << "Stabilization Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
 }

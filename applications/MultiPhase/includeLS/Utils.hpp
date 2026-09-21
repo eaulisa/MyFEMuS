@@ -337,7 +337,7 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
 // }
 
 void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CName, const std::vector<std::string>& PName,
-                               const unsigned level0, const unsigned level1, const std::vector<double>& xtarget) {
+                               const unsigned level0, const unsigned level1, const std::vector<double>& xtarget, const bool fixPressureAtOnePoint) {
   if (PName.size() != 2) {
     std::cout << "Error! Expected two pressure fields.\n";
     abort();
@@ -429,38 +429,21 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CNa
       }
     }
 
-    double minDistance = std::numeric_limits<double>::max();
-    int minDof = -1;
+    if(fixPressureAtOnePoint) {
 
-    for (unsigned iel = msh._elementOffset[iproc]; iel < msh._elementOffset[iproc + 1]; ++iel) {
-      const unsigned nDofP = msh.GetElementDofNumber(iel, solPType[0]);
+      double minDistance = std::numeric_limits<double>::max();
+      int minDof = -1;
 
-      if (solPType[0] == 3) {
-        const unsigned dof = msh.GetSolutionDof(0, iel, solPType[0]);
+      for (unsigned iel = msh._elementOffset[iproc]; iel < msh._elementOffset[iproc + 1]; ++iel) {
+        const unsigned nDofP = msh.GetElementDofNumber(iel, solPType[0]);
 
-        if (dof < firstDof || dof >= lastDof) continue;
-
-        const unsigned nDofX = msh.GetElementDofNumber(iel, 2);
-        const unsigned xDof = msh.GetSolutionDof(nDofX - 1, iel, 2);
-        double distance2 = 0.0;
-
-        for (unsigned k = 0; k < dim; ++k) {
-          const double dx = (*msh._topology->_Sol[k])(xDof) - xtarget[k];
-          distance2 += dx * dx;
-        }
-
-        if (((*supportP1)(dof) > 0.5 || (*supportP2)(dof) > 0.5) && distance2 < minDistance) {
-          minDistance = distance2;
-          minDof = static_cast<int>(dof);
-        }
-      }
-      else {
-        for (unsigned i = 0; i < nDofP; ++i) {
-          const unsigned dof = msh.GetSolutionDof(i, iel, solPType[0]);
+        if (solPType[0] == 3) {
+          const unsigned dof = msh.GetSolutionDof(0, iel, solPType[0]);
 
           if (dof < firstDof || dof >= lastDof) continue;
 
-          const unsigned xDof = msh.GetSolutionDof(i, iel, 2);
+          const unsigned nDofX = msh.GetElementDofNumber(iel, 2);
+          const unsigned xDof = msh.GetSolutionDof(nDofX - 1, iel, 2);
           double distance2 = 0.0;
 
           for (unsigned k = 0; k < dim; ++k) {
@@ -473,30 +456,50 @@ void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CNa
             minDof = static_cast<int>(dof);
           }
         }
-      }
-    }
-
-    struct {
-      double value;
-      int index;
-    } localMin, globalMin;
-
-    localMin.value = minDistance;
-    localMin.index = minDof;
-
-    MPI_Allreduce(&localMin, &globalMin, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
-
-    if (globalMin.index >= 0) {
-      const unsigned dof = static_cast<unsigned>(globalMin.index);
-
-      if (dof >= firstDof && dof < lastDof) {
-        if ((*supportP1)(dof) > 0.5) {
-          solP1->set(dof, 0.0);
-          solP1Bdc->set(dof, 0.0);
-        }
         else {
-          solP2->set(dof, 0.0);
-          solP2Bdc->set(dof, 0.0);
+          for (unsigned i = 0; i < nDofP; ++i) {
+            const unsigned dof = msh.GetSolutionDof(i, iel, solPType[0]);
+
+            if (dof < firstDof || dof >= lastDof) continue;
+
+            const unsigned xDof = msh.GetSolutionDof(i, iel, 2);
+            double distance2 = 0.0;
+
+            for (unsigned k = 0; k < dim; ++k) {
+              const double dx = (*msh._topology->_Sol[k])(xDof) - xtarget[k];
+              distance2 += dx * dx;
+            }
+
+            if (((*supportP1)(dof) > 0.5 || (*supportP2)(dof) > 0.5) && distance2 < minDistance) {
+              minDistance = distance2;
+              minDof = static_cast<int>(dof);
+            }
+          }
+        }
+      }
+
+      struct {
+        double value;
+        int index;
+      } localMin, globalMin;
+
+      localMin.value = minDistance;
+      localMin.index = minDof;
+
+      MPI_Allreduce(&localMin, &globalMin, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+
+      if (globalMin.index >= 0) {
+        const unsigned dof = static_cast<unsigned>(globalMin.index);
+
+        if (dof >= firstDof && dof < lastDof) {
+          if ((*supportP1)(dof) > 0.5) {
+            solP1->set(dof, 0.0);
+            solP1Bdc->set(dof, 0.0);
+          }
+          else {
+            solP2->set(dof, 0.0);
+            solP2Bdc->set(dof, 0.0);
+          }
         }
       }
     }

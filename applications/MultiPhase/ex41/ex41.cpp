@@ -1053,7 +1053,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK2->zero();
   RES2->zero();
 
-  AssembleGhostPenalty(ml_prob2);
+  AssembleGhostPenaltyVelocity(ml_prob2);
   AssembleGhostPenaltyDGP(ml_prob2, true);
   AssembleGhostPenaltyDGP(ml_prob2, false);
 

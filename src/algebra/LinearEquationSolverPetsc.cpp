@@ -312,6 +312,7 @@ namespace femus {
 
       KSPSetFromOptions (_ksp);
       KSPGMRESSetRestart (_ksp, _restart);
+      KSPGMRESSetCGSRefinementType(_ksp, KSP_GMRES_CGS_REFINE_IFNEEDED);
       KSPSetUp (_ksp);
 
 //       PetscViewer    viewer;
