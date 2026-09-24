@@ -12,6 +12,15 @@ CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legend
 
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &quad, &tri};
 
+unsigned qM = 5;
+double dx = .01;
+double dtetha = 1.;
+
+CDWeightQUAD <TypeA> quadCD0(qM, dx, dtetha);
+CDWeightTRI <TypeA> triCD0(qM, dx, dtetha);
+
+const std::vector< CDWeight <TypeA> *> cfCDw0 = {&quadCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
+
 Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
 void RungeKutta4(std::vector<MyVector<double>> &X,

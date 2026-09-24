@@ -137,8 +137,8 @@ int main(int argc, char **argv) {
 
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  //if (nprocs == 1)
-  //ProfilerStart("profiling.prof");
+  if (nprocs == 1)
+    ProfilerStart("profiling.prof");
 
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
@@ -702,8 +702,8 @@ int main(int argc, char **argv) {
 
   }
 
-  // if (nprocs == 1)
-  //   ProfilerStop();
+  if (nprocs == 1)
+    ProfilerStop();
   return 0;
 }
 
@@ -1695,15 +1695,19 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
     if(cut == 1) {
-      //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
-      (*cfw[ielGeom])(0, a, d, weightCFInt);
+
+      // (*cfw[ielGeom])(0, a, d, weightCFInt);
+      // for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
+      // d = -d;
+      // (*cfw[ielGeom])(-1, a, d, weightCF);
+      // (*cfw[ielGeom])(0, a, d, weightCFExt);
+
+      cfCDw0[ielGeom]->GetWeight(a, d, weightCFInt);
       for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
       d = -d;
-      //cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
-      //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
-
+      //cfCDwm1[ielGeom]->GetWeight(a, d, weightCF);
       (*cfw[ielGeom])(-1, a, d, weightCF);
-      (*cfw[ielGeom])(0, a, d, weightCFExt);
+      cfCDw0[ielGeom]->GetWeight(a, d, weightCFExt);
 
     }
     else {
