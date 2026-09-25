@@ -85,6 +85,10 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
 
+  const TimeDiscretization td = ml_prob.GetMultiphaseParams().td;
+  const double cold = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 0.;
+  const double cnew = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 1.;
+
   double mu1 = properties.mu1;
   double mu2 = properties.mu2;
   double rho1 = properties.rho1;
@@ -168,20 +172,29 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2, 0.));
 
         vector < double > solVgOld(dim, 0.);
+        vector<vector<double>> gradSolVgOld(dim, vector<double>(dim, 0.));
+        vector<vector<double>> DeltaSolVgOld(dim, vector<double>(dim2, 0.));
         for(unsigned i = 0; i < nDofsV; i++) {
           for(unsigned j = 0; j < dim; j++) {
             solVg[j] += phi[i] * solV[j][i]; // new velocity of background grid
             solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the undeformed reference configuration
             for(unsigned  k = 0; k < dim; k++) {
               gradSolVg[k][j] += gradPhi[i * dim + j] * solV[k][i]; // gradient of the new velocity with respect to the theta domain
+              gradSolVgOld[k][j] += gradPhi[i * dim + j] * solVOld[k][i];
             }
           }
           for(unsigned j = 0; j < dim2; j++) {
             for(unsigned  k = 0; k < dim; k++) {
               DeltaSolVg[k][j] += nablaPhi[i * dim2 + j] * solV[k][i]; // laplace of the theta velocity with respect to the theta domain
+              DeltaSolVgOld[k][j] += nablaPhi[i * dim2 + j] * solVOld[k][i];
             }
           }
         }
+
+        vector<adept::adouble> solVgMid(dim);
+
+        for(unsigned j = 0; j < dim; j++)
+          solVgMid[j] = cnew * solVg[j] + cold * solVgOld[j];
 
 //         if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases centered at theta
 //           for(unsigned j = 0; j < dim; j++) {
@@ -217,7 +230,8 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         adept::adouble denom = pow(2 * rho / dt, 2.);
         for(unsigned i = 0; i < dim; i++) {
           for(unsigned j = 0; j < dim; j++) {
-            denom += rho * rho * solVg[i] * G[i][j] * solVg[j] + CI * mu * mu * G[i][j] * G[i][j];
+            // denom += rho * rho * solVg[i] * G[i][j] * solVg[j] + CI * mu * mu * G[i][j] * G[i][j];
+            denom += rho * rho * solVgMid[i] * G[i][j] * solVgMid[j] + CI * mu * mu * G[i][j] * G[i][j];
           }
         }
         adept::adouble tauM = 1. / sqrt(denom);
@@ -233,13 +247,15 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         std::vector < adept::adouble > tauMsupgPhi(nDofsV, 0.);
         for(unsigned i = 0; i < nDofsV; i++) {
           for(unsigned j = 0; j < dim; j++) {
-            tauMsupgPhi[i] += tauM * rho * solVg[j] * gradPhi[i * dim + j];
+            // tauMsupgPhi[i] += tauM * rho * solVg[j] * gradPhi[i * dim + j];
+            tauMsupgPhi[i] += tauM * rho * solVgMid[j] * gradPhi[i * dim + j];
           }
         }
 
         adept::adouble divVg = 0.;
         for(unsigned k = 0; k < dim; k++) {
-          divVg += gradSolVg[k][k];
+          // divVg += gradSolVg[k][k];
+          divVg += gradSolVg[k][k] + 2 * cold * gradSolVgOld[k][k];
         }
 
         std::vector<adept::adouble> rM(dim, 0.);
@@ -249,23 +265,54 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           adept::adouble diffusion = 0.;
           adept::adouble advection = 0.;
 
+          adept::adouble advectionNew = 0.;
+          double advectionOld = 0.;
+
+          adept::adouble diffusionNew = 0.;
+          double diffusionOld = 0.;
+
+          // for(unsigned j = 0; j < dim; j++) {
+
+          //   advection += rho * solVg[j] * gradSolVg[k][j];
+
+          //   unsigned kdim;
+          //   if(k == j) kdim = j;
+          //   else if(1 == k + j) kdim = dim;        // xy
+          //   else if(2 == k + j) kdim = dim + 2;    // xz
+          //   else if(3 == k + j) kdim = dim + 1;    // yz
+
+          //   diffusion += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
+          // }
+
           for(unsigned j = 0; j < dim; j++) {
 
-            advection += rho * solVg[j] * gradSolVg[k][j];
+            advectionNew += rho * solVg[j] * gradSolVg[k][j];
+
+            advectionOld += rho * solVgOld[j] * gradSolVgOld[k][j];
 
             unsigned kdim;
-            if(k == j) kdim = j;
-            else if(1 == k + j) kdim = dim;        // xy
-            else if(2 == k + j) kdim = dim + 2;    // xz
-            else if(3 == k + j) kdim = dim + 1;    // yz
 
-            diffusion += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
+            if(k == j)          kdim = j;
+            else if(1 == k + j) kdim = dim;
+            else if(2 == k + j) kdim = dim + 2;
+            else if(3 == k + j) kdim = dim + 1;
+
+            diffusionNew += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
+
+            diffusionOld += -mu * (DeltaSolVgOld[k][j] + DeltaSolVgOld[j][kdim]);
           }
+
+          // rM[k] =
+          //   rho * (solVg[k] - solVgOld[k]) / dt
+          //   + advection
+          //   + diffusion
+          //   + gradSolPg[k]
+          //   - rho * g[k];
 
           rM[k] =
             rho * (solVg[k] - solVgOld[k]) / dt
-            + advection
-            + diffusion
+            + (cnew * advectionNew + cold * advectionOld)
+            + (cnew * diffusionNew + cold * diffusionOld)
             + gradSolPg[k]
             - rho * g[k];
         }

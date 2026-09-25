@@ -1,5 +1,3403 @@
+// #pragma once
+//
+//
+// static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, NumericVector* myRES, const unsigned iel, const unsigned jel, const unsigned iface, short unsigned ielt1, short unsigned ielt2, const unsigned solType, const bool hessian_flag, const unsigned nDofs1, const unsigned nDofs2, const double C0, const double mu, const double rho, const double dt, const double h, std::vector<std::vector<std::vector<double> > >& aP1, std::vector<std::vector<std::vector<double> > >& aP2, const std::vector<std::vector<double> >& sol1, const std::vector<std::vector<double> >& sol2, const std::vector<std::vector<double> >& vx1, const std::vector<std::vector<double> >& vx2, const std::vector<std::vector<unsigned> >& sysDofs1, const std::vector<std::vector<unsigned> >& sysDofs2) {
+//
+//   const unsigned dim = msh->GetDimension();
+//   const unsigned dim2 = 3 * (dim - 1);
+//   const unsigned nDofs12 = nDofs1 + nDofs2;
+//
+//   std::vector<std::vector<double> > aRes1(dim);
+//   std::vector<std::vector<double> > aRes2(dim);
+//   for(unsigned k = 0; k < dim; k++) {
+//     aRes1[k].assign(nDofs1, 0.);
+//     aRes2[k].assign(nDofs2, 0.);
+//   }
+//   std::vector<double> Jac(nDofs12 * nDofs12, 0.);
+//
+//   const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
+//   const unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
+//   std::vector<std::vector<double> > faceVx(dim);
+//   for(unsigned k = 0; k < dim; k++) {
+//     faceVx[k].resize(faceDofs);
+//   }
+//   for(unsigned i = 0; i < faceDofs; i++) {
+//     const unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);
+//     for(unsigned k = 0; k < dim; k++) {
+//       faceVx[k][i] = vx1[k][inode];
+//     }
+//   }
+//
+//   double weight;
+//   std::vector<double> phi;
+//   std::vector<double> gradPhi;
+//   std::vector<double> phi_f;
+//   std::vector<std::vector<double> > gradPhi_f;
+//   double weight1;
+//   std::vector<double> phi1;
+//   std::vector<double> gradPhi1;
+//   std::vector<double> nablaPhi1;
+//   double weight2;
+//   std::vector<double> phi2;
+//   std::vector<double> gradPhi2;
+//   std::vector<double> nablaPhi2;
+//
+//   std::vector<double> Sol1g(dim, 0.);
+//   std::vector<double> Sol2g(dim, 0.);
+//   double divSol1g = 0.;
+//   double divSol2g = 0.;
+//   std::vector<std::vector<double> > gradSol1g(dim, std::vector<double>(dim, 0.));
+//   std::vector<std::vector<double> > gradSol2g(dim, std::vector<double>(dim, 0.));
+//   std::vector<double> gradSol1DotN(dim, 0.);
+//   std::vector<double> gradSol2DotN(dim, 0.);
+//   std::vector<double> hessSol1DotN(dim, 0.);
+//   std::vector<double> hessSol2DotN(dim, 0.);
+//
+//   for(unsigned ig = 0; ig < msh->_finiteElement [faceGeom][solType] ->GetGaussPointNumber(); ig++) {
+//
+//     std::vector<double> normal;
+//
+//     msh->_finiteElement [faceGeom][solType] ->JacobianSur( faceVx, ig, weight, phi, gradPhi, normal);
+//
+//     double h2 = h * h;
+//     double h3 = h2 * h;
+//     double h5 = h2 * h3;
+//
+//     std::vector<double> xg(dim, 0.);
+//
+//     for(unsigned i = 0; i < faceDofs; i++) {
+//
+//       for(unsigned k = 0; k < dim; k++) {
+//
+//         xg[k] += phi[i] * faceVx[k][i];
+//       }
+//     }
+//
+//     std::vector<double> xi1;
+//
+//     GetClosestPointInReferenceElement( vx1, xg, ielt1, xi1);
+//
+//     bool inverseMapping = GetInverseMapping_fast( solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
+//
+//     if(!inverseMapping) {
+//       std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
+//     }
+//
+//     std::vector<double> xi2;
+//
+//     GetClosestPointInReferenceElement( vx2, xg, ielt2, xi2);
+//
+//     inverseMapping = GetInverseMapping_fast( solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
+//
+//     if(!inverseMapping) {
+//       std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
+//     }
+//
+//     if(hessian_flag) {
+//
+//       msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+//
+//       msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+//     }
+//     else {
+//
+//       msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1);
+//
+//       msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2);
+//     }
+//
+//     divSol1g = 0.;
+//
+//     for(unsigned I = 0; I < dim; I++) {
+//
+//       Sol1g[I] = 0.;
+//       gradSol1DotN[I] = 0.;
+//       hessSol1DotN[I] = 0.;
+//
+//       for(unsigned J = 0; J < dim; J++) {
+//
+//         gradSol1g[I][J] = 0.;
+//       }
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         Sol1g[I] += sol1[I][i] * phi1[i];
+//
+//         divSol1g += sol1[I][i] * gradPhi1[ i * dim + I];
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradSol1g[I][J] += sol1[I][i] * gradPhi1[ i * dim + J];
+//
+//           gradSol1DotN[I] += sol1[I][i] * gradPhi1[ i * dim + J] * normal[J];
+//
+//           if(hessian_flag) {
+//
+//             for(unsigned K = 0; K < dim; K++) {
+//
+//               unsigned L;
+//
+//               if(J == K) L = J;
+//               else if(1 == J + K) L = dim;
+//               else if(2 == J + K) L = dim + 2;
+//               else if(3 == J + K) L = dim + 1;
+//
+//               hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//             }
+//           }
+//         }
+//       }
+//     }
+//
+//     divSol2g = 0.;
+//
+//     for(unsigned I = 0; I < dim; I++) {
+//
+//       Sol2g[I] = 0.;
+//       gradSol2DotN[I] = 0.;
+//       hessSol2DotN[I] = 0.;
+//
+//       for(unsigned J = 0; J < dim; J++) {
+//
+//         gradSol2g[I][J] = 0.;
+//       }
+//
+//       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//         Sol2g[I] += sol2[I][i] * phi2[i];
+//
+//         divSol2g += sol2[I][i] * gradPhi2[ i * dim + I];
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradSol2g[I][J] += sol2[I][i] * gradPhi2[ i * dim + J];
+//
+//           gradSol2DotN[I] += sol2[I][i] * gradPhi2[ i * dim + J] * normal[J];
+//
+//           if(hessian_flag) {
+//
+//             for(unsigned K = 0; K < dim; K++) {
+//
+//               unsigned L;
+//
+//               if(J == K) L = J;
+//               else if(1 == J + K) L = dim;
+//               else if(2 == J + K) L = dim + 2;
+//               else if(3 == J + K) L = dim + 1;
+//
+//               hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//             }
+//           }
+//         }
+//       }
+//     }
+//
+//     double C1 = C0 * 0.05 * mu;
+//
+//     double D1 = C0 * 0.05 * rho;
+//
+//     double absSolDotN = 0.;
+//
+//     for(unsigned I = 0; I < dim; I++) {
+//
+//       absSolDotN += 0.5 * (Sol1g[I] + Sol2g[I]) * normal[I];
+//     }
+//
+//     absSolDotN = fabs(absSolDotN);
+//
+//     // -----------------------------
+//     // RESIDUAL
+//     // -----------------------------
+//
+//     for(unsigned I = 0; I < dim; I++) {
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           aRes1[I][i] += (C1 * h + D1 / dt * h3) * gradPhi1[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+//
+//           aRes1[I][i] += D1 * h2 * absSolDotN * gradPhi1[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+//
+//           if(hessian_flag) {
+//
+//             for(unsigned K = 0; K < dim; K++) {
+//
+//               unsigned L;
+//
+//               if(J == K) L = J;
+//               else if(1 == J + K) L = dim;
+//               else if(2 == J + K) L = dim + 2;
+//               else if(3 == J + K) L = dim + 1;
+//
+//               aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//
+//               aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//             }
+//           }
+//         }
+//       }
+//
+//       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+//
+//           aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+//
+//           if(hessian_flag) {
+//
+//             for(unsigned K = 0; K < dim; K++) {
+//
+//               unsigned L;
+//
+//               if(J == K) L = J;
+//               else if(1 == J + K) L = dim;
+//               else if(2 == J + K) L = dim + 2;
+//               else if(3 == J + K) L = dim + 1;
+//
+//               aRes2[I][i] += -C1 * h3 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//
+//               aRes2[I][i] += -D1 / dt * h5 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//             }
+//           }
+//         }
+//       }
+//     }
+//
+//     // -----------------------------
+//     // MANUAL TANGENT
+//     //
+//     // absSolDotN is FROZEN.
+//     // Its derivative is zero.
+//     // -----------------------------
+//
+//     const double alpha = C1 * h + D1 / dt * h3;
+//
+//     const double beta = D1 * h2 * absSolDotN;
+//
+//     const double gamma = C1 * h3 + D1 / dt * h5;
+//
+//     std::vector<double> dphi1dn(nDofs1, 0.);
+//
+//     std::vector<double> dphi2dn(nDofs2, 0.);
+//
+//     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//       for(unsigned J = 0; J < dim; J++) {
+//
+//         dphi1dn[i] += gradPhi1[ i * dim + J] * normal[J];
+//       }
+//     }
+//
+//     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//       for(unsigned J = 0; J < dim; J++) {
+//
+//         dphi2dn[i] += gradPhi2[ i * dim + J] * normal[J];
+//       }
+//     }
+//
+//     std::vector<double> d2phi1dnn(nDofs1, 0.);
+//
+//     std::vector<double> d2phi2dnn(nDofs2, 0.);
+//
+//     if(hessian_flag) {
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           for(unsigned K = 0; K < dim; K++) {
+//
+//             unsigned L;
+//
+//             if(J == K) L = J;
+//             else if(1 == J + K) L = dim;
+//             else if(2 == J + K) L = dim + 2;
+//             else if(3 == J + K) L = dim + 1;
+//
+//             d2phi1dnn[i] += normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//           }
+//         }
+//       }
+//
+//       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           for(unsigned K = 0; K < dim; K++) {
+//
+//             unsigned L;
+//
+//             if(J == K) L = J;
+//             else if(1 == J + K) L = dim;
+//             else if(2 == J + K) L = dim + 2;
+//             else if(3 == J + K) L = dim + 1;
+//
+//             d2phi2dnn[i] += normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//           }
+//         }
+//       }
+//     }
+//
+//     // J11
+//
+//     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//       for(unsigned j = 0; j < nDofs1; j++) {
+//
+//         double value = alpha * dphi1dn[i] * dphi1dn[j];
+//
+//         double gradDot = 0.;
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradDot += gradPhi1[ i * dim + J] * gradPhi1[ j * dim + J];
+//         }
+//
+//         value += beta * gradDot;
+//
+//         if(hessian_flag) {
+//
+//           value += gamma * d2phi1dnn[i] * d2phi1dnn[j];
+//         }
+//
+//         Jac[ i * nDofs12 + j] += value * weight;
+//       }
+//     }
+//
+//     // J12
+//
+//     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//       for(unsigned j = 0; j < nDofs2; j++) {
+//
+//         double value = -alpha * dphi1dn[i] * dphi2dn[j];
+//
+//         double gradDot = 0.;
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradDot += gradPhi1[ i * dim + J] * gradPhi2[ j * dim + J];
+//         }
+//
+//         value -= beta * gradDot;
+//
+//         if(hessian_flag) {
+//
+//           value -= gamma * d2phi1dnn[i] * d2phi2dnn[j];
+//         }
+//
+//         Jac[ i * nDofs12 + nDofs1 + j] += value * weight;
+//       }
+//     }
+//
+//     // J21
+//
+//     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//       for(unsigned j = 0; j < nDofs1; j++) {
+//
+//         double value = -alpha * dphi2dn[i] * dphi1dn[j];
+//
+//         double gradDot = 0.;
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradDot += gradPhi2[ i * dim + J] * gradPhi1[ j * dim + J];
+//         }
+//
+//         value -= beta * gradDot;
+//
+//         if(hessian_flag) {
+//
+//           value -= gamma * d2phi2dnn[i] * d2phi1dnn[j];
+//         }
+//
+//         Jac[ (nDofs1 + i) * nDofs12 + j] += value * weight;
+//       }
+//     }
+//
+//     // J22
+//
+//     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//       for(unsigned j = 0; j < nDofs2; j++) {
+//
+//         double value = alpha * dphi2dn[i] * dphi2dn[j];
+//
+//         double gradDot = 0.;
+//
+//         for(unsigned J = 0; J < dim; J++) {
+//
+//           gradDot += gradPhi2[ i * dim + J] * gradPhi2[ j * dim + J];
+//         }
+//
+//         value += beta * gradDot;
+//
+//         if(hessian_flag) {
+//
+//           value += gamma * d2phi2dnn[i] * d2phi2dnn[j];
+//         }
+//
+//         Jac[ (nDofs1 + i) * nDofs12 + nDofs1 + j] += value * weight;
+//       }
+//     }
+//   }
+//
+//   std::vector<unsigned> sysDofs12(nDofs12);
+//
+//   std::vector<double> rhs12(nDofs12);
+//
+//   for(unsigned I = 0; I < dim; I++) {
+//
+//     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//       sysDofs12[i] = sysDofs1[I][i];
+//
+//       rhs12[i] = -aRes1[I][i];
+//     }
+//
+//     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//       sysDofs12[ nDofs1 + i] = sysDofs2[I][i];
+//
+//       rhs12[ nDofs1 + i] = -aRes2[I][i];
+//     }
+//
+//     myRES->add_vector_blocked( rhs12, sysDofs12);
+//
+//     myKK->add_matrix_blocked( Jac, sysDofs12, sysDofs12);
+//   }
+// }
+//
+// void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
+//
+//   // this function works both for fluid and solid ghost penalty
+//
+//   double C0 = 1.;
+//
+//   clock_t start_time;
+//
+//   // pointers and references
+//
+//   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
+//
+//   const unsigned level = my_nnlin_impl_sys.GetLevelToAssemble();
+//
+//   MultiLevelSolution* mlSol = ml_prob._ml_sol;
+//   Solution* mysolution = mlSol->GetSolutionLevel(level);
+//
+//   LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];
+//
+//   Mesh* msh = ml_prob._ml_msh->GetLevel(level);
+//   elem* el = msh->el;
+//
+//   SparseMatrix* myKK = myLinEqSolver->_KK;
+//   NumericVector* myRES = myLinEqSolver->_RES;
+//
+//   const unsigned dim = msh->GetDimension();
+//   const unsigned dim2 = 3 * (dim - 1);
+//
+//   unsigned iproc = msh->processor_id();
+//   unsigned nprocs = msh->n_processors();
+//
+//   // quantities for iel will have index 1
+//   // quantities for jel will have index 2
+//
+//   vector< vector<double> > sol1(dim);
+//   vector< vector<double> > sol2(dim);
+//   vector< vector<double> > sol2d(dim);
+//
+//   vector< vector<double> > aRes1(dim);
+//   vector< vector<double> > aRes2(dim);
+//
+//   vector<double> Jac;
+//
+//   std::vector<std::vector<unsigned> > sysDofs1(dim);
+//   std::vector<std::vector<unsigned> > sysDofs2(dim);
+//
+//   double weight;
+//   std::vector<double> phi;
+//   std::vector<double> gradPhi;
+//
+//   std::vector<double> phi_f;
+//   std::vector<std::vector<double> > gradPhi_f;
+//
+//   double weight1;
+//   std::vector<double> phi1;
+//   std::vector<double> gradPhi1;
+//   std::vector<double> nablaPhi1;
+//
+//   double weight2;
+//   std::vector<double> phi2;
+//   std::vector<double> gradPhi2;
+//   std::vector<double> nablaPhi2;
+//
+//   unsigned cIndex = mlSol->GetIndex("C");
+//
+//   vector<vector<double> > vx1(dim);
+//   vector<vector<double> > vx2(dim);
+//
+//   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
+//
+//   double mu1 = properties.mu1;
+//   double mu2 = properties.mu2;
+//   double rho1 = properties.rho1;
+//   double rho2 = properties.rho2;
+//
+//   double mu = 2. * mu1 * mu2 / (mu1 + mu2);
+//   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
+//
+//   double dt = my_nnlin_impl_sys.GetIntervalTime();
+//
+//   const unsigned levelC = ml_prob.GetMultiphaseParams().levelC;
+//
+//   std::cout.precision(10);
+//
+//   // variable-name handling
+//
+//   const char varname[3][5] = {"U", "V", "W"};
+//
+//   vector<unsigned> indexSol(dim);
+//   vector<unsigned> indexPde(dim);
+//
+//   for(unsigned k = 0; k < dim; k++) {
+//     indexSol[k] = mlSol->GetIndex(&varname[k][0]);
+//     indexPde[k] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[k][0]);
+//   }
+//
+//   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+//
+//   const bool hessian_flag = (solType == 2) ? true : false;
+//
+//   unsigned solTypeX = 2;
+//
+//   start_time = clock();
+//
+//   std::vector<std::vector<std::vector<double> > > aP1(3);
+//   std::vector<std::vector<std::vector<double> > > aP2(3);
+//
+//   auto flag = [&](unsigned iellevel) -> bool {
+//     if(iellevel == levelC) return true;
+//     else return false;
+//   };
+//
+//   std::vector<double> Sol1g(dim, 0.);
+//   std::vector<double> Sol2g(dim, 0.);
+//
+//   double divSol1g = 0.;
+//   double divSol2g = 0.;
+//
+//   std::vector<std::vector<double> > gradSol1g(dim, std::vector<double>(dim, 0.));
+//
+//   std::vector<std::vector<double> > gradSol2g(dim, std::vector<double>(dim, 0.));
+//
+//   std::vector<double> gradSol1DotN(dim, 0.);
+//   std::vector<double> gradSol2DotN(dim, 0.);
+//
+//   std::vector<double> hessSol1DotN(dim, 0.);
+//   std::vector<double> hessSol2DotN(dim, 0.);
+//
+//   // ============================================================
+//   // SAME-PROCESS FACES
+//   // ============================================================
+//
+//   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+//
+//     double Ciel = (*mysolution->_Sol[cIndex])(iel);
+//     unsigned eFlag1 = (fabs(Ciel - 0.5) < 0.1) ? 1 : 0;
+//
+//     unsigned iel_level = msh->el->GetElementLevel(iel);
+//
+//     if(flag(iel_level)) {
+//
+//       short unsigned ielt1 = msh->GetElementType(iel);
+//
+//       unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);
+//
+//       unsigned nDofsAll1 = dim * nDofs1;
+//
+//       for(unsigned k = 0; k < dim; k++) {
+//         sysDofs1[k].resize(nDofs1);
+//         sol1[k].resize(nDofs1);
+//         vx1[k].resize(nDofs1);
+//       }
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         unsigned idof = msh->GetSolutionDof(i, iel, solType);
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//
+//           sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+//
+//           sysDofs1[k][i] = myLinEqSolver->GetSystemDof( indexSol[k], indexPde[k], i, iel);
+//
+//         }
+//       }
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//           vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
+//         }
+//       }
+//
+//       unsigned nDofsLin_i = msh->GetElementDofNumber(iel, 0);
+//
+//       double hmean_i = 0.;
+//       int cnt_i = 0;
+//
+//       for(unsigned i = 0; i < nDofsLin_i; i++) {
+//
+//         unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+//
+//         for(unsigned j = i + 1; j < nDofsLin_i; j++) {
+//
+//           unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+//
+//           double dist = 0.;
+//
+//           for(unsigned d = 0; d < dim; d++) {
+//
+//             dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) * ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+//           }
+//
+//           dist = sqrt(dist);
+//
+//           hmean_i += dist;
+//           cnt_i++;
+//         }
+//       }
+//
+//       hmean_i /= cnt_i;
+//
+//       bool aP1IsInitialized = false;
+//
+//       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+//
+//         int jel = el->GetFaceElementIndex(iel, iface) - 1;
+//
+//         if(jel >= 0 && jel > iel) {
+//
+//           unsigned jel_level = msh->el->GetElementLevel(jel);
+//
+//           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+//
+//           if(jproc == iproc) {
+//
+//             double Cjel = (*mysolution->_Sol[cIndex])(jel);
+//
+//             unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1) ? 1 : 0;
+//
+//             if(flag(jel_level)) {
+//
+//               short unsigned ielt2 = msh->GetElementType(jel);
+//
+//               unsigned nDofs2 = msh->GetElementDofNumber( jel, solType);
+//
+//               unsigned nDofsAll2 = dim * nDofs2;
+//
+//               for(unsigned k = 0; k < dim; k++) {
+//                 sysDofs2[k].resize(nDofs2);
+//                 sol2[k].resize(nDofs2);
+//                 vx2[k].resize(nDofs2);
+//               }
+//
+//               for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                 unsigned idof = msh->GetSolutionDof( i, jel, solType);
+//
+//                 for(unsigned k = 0; k < dim; k++) {
+//
+//                   sol2[k][i] = (*mysolution->_Sol[indexSol[k]])( idof);
+//
+//                   sysDofs2[k][i] = myLinEqSolver->GetSystemDof( indexSol[k], indexPde[k], i, jel);
+//                 }
+//               }
+//
+//               for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                 unsigned idofX = msh->GetSolutionDof( i, jel, 2);
+//
+//                 for(unsigned k = 0; k < dim; k++) {
+//                   vx2[k][i] = (*msh->_topology->_Sol[k])( idofX);
+//                 }
+//               }
+//
+//               unsigned nDofsLin_j = msh->GetElementDofNumber( jel, 0);
+//
+//               double hmean_j = 0.;
+//               int cnt_j = 0;
+//
+//               for(unsigned i = 0; i < nDofsLin_j; i++) {
+//
+//                 unsigned idofXi = msh->GetSolutionDof( i, jel, solTypeX);
+//
+//                 for(unsigned j = i + 1; j < nDofsLin_j; j++) {
+//
+//                   unsigned idofXj = msh->GetSolutionDof( j, jel, solTypeX);
+//
+//                   double dist = 0.;
+//
+//                   for(unsigned d = 0; d < dim; d++) {
+//
+//                     dist += ((*msh->_topology->_Sol[d])( idofXi) - (*msh->_topology->_Sol[d])( idofXj)) * ((*msh->_topology->_Sol[d])( idofXi) - (*msh->_topology->_Sol[d])( idofXj));
+//                   }
+//
+//                   dist = sqrt(dist);
+//
+//                   hmean_j += dist;
+//                   cnt_j++;
+//                 }
+//               }
+//
+//               hmean_j /= cnt_j;
+//
+//               if(!aP1IsInitialized) {
+//
+//                 aP1IsInitialized = true;
+//
+//                 for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                   ProjectNodalToPolynomialCoefficients( aP1[jtype], vx1, ielt1, jtype);
+//                 }
+//               }
+//
+//               for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                 ProjectNodalToPolynomialCoefficients( aP2[jtype], vx2, ielt2, jtype);
+//               }
+//
+//               double h = 0.5 * (hmean_j + hmean_i);
+//
+//               AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, h, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//
+//   // ============================================================
+//   // CROSS-PROCESS FACES
+//   // ============================================================
+//
+//   if(nprocs > 1) {
+//
+//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//
+//       for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+//
+//         unsigned eFlag1 = 0;
+//
+//         if(iproc == kproc) {
+//
+//           double Ciel = (*mysolution->_Sol[cIndex])(iel);
+//
+//           unsigned iel_level = msh->el->GetElementLevel(iel);
+//
+//           eFlag1 = static_cast<unsigned>( flag(iel_level));
+//         }
+//
+//         MPI_Bcast( &eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//
+//         if(eFlag1 > 0) {
+//
+//           unsigned nFaces;
+//
+//           if(iproc == kproc) {
+//             nFaces = msh->GetElementFaceNumber(iel);
+//           }
+//
+//           MPI_Bcast( &nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//
+//           for(unsigned iface = 0; iface < nFaces; iface++) {
+//
+//             int jel;
+//
+//             if(iproc == kproc) {
+//
+//               jel = el->GetFaceElementIndex( iel, iface) - 1;
+//             }
+//
+//             MPI_Bcast( &jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+//
+//             if(jel >= 0 && jel > iel) {
+//
+//               unsigned jproc = msh->IsdomBisectionSearch( jel, 3);
+//
+//               if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
+//
+//                 unsigned eFlag2;
+//
+//                 if(iproc == jproc) {
+//
+//                   double Cjel = (*mysolution->_Sol[ cIndex])(jel);
+//
+//                   unsigned jel_level = msh->el ->GetElementLevel(jel);
+//
+//                   eFlag2 = static_cast<unsigned>( flag(jel_level));
+//
+//                   MPI_Send( &eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+//                 }
+//                 else if(iproc == kproc) {
+//
+//                   MPI_Recv( &eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+//                 }
+//
+//                 if(eFlag2 > 0) {
+//
+//                   short unsigned ielt1;
+//                   short unsigned ielt2;
+//
+//                   if(iproc == kproc) {
+//
+//                     ielt1 = msh->GetElementType( iel);
+//
+//                     MPI_Recv( &ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+//                   }
+//                   else if(iproc == jproc) {
+//
+//                     ielt2 = msh->GetElementType( jel);
+//
+//                     MPI_Send( &ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
+//                   }
+//
+//                   unsigned nDofs1;
+//                   unsigned nDofsAll1;
+//
+//                   unsigned nDofs2 = el->GetNVE( ielt2, solType);
+//
+//                   unsigned nDofsAll2 = dim * nDofs2;
+//
+//                   for(unsigned k = 0; k < dim; k++) {
+//
+//                     sysDofs2[k].resize( nDofs2);
+//
+//                     sol2d[k].resize( nDofs2);
+//
+//                     vx2[k].resize( nDofs2);
+//                   }
+//
+//                   std::vector<MPI_Request> reqs(3 * dim + 1);
+//
+//                   double hmean_j;
+//
+//                   if(iproc == kproc) {
+//
+//                     nDofs1 = el->GetNVE( ielt1, solType);
+//
+//                     nDofsAll1 = dim * nDofs1;
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       sysDofs1[k].resize( nDofs1);
+//
+//                       sol1[k].resize( nDofs1);
+//
+//                       vx1[k].resize( nDofs1);
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                       unsigned idof = msh->GetSolutionDof( i, iel, solType);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         sol1[k][i] = (*mysolution ->_Sol[ indexSol[k]])( idof);
+//
+//                         sysDofs1[k][i] = myLinEqSolver ->GetSystemDof( indexSol[k], indexPde[k], i, iel);
+//                       }
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                       unsigned idofX = msh->GetSolutionDof( i, iel, 2);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         vx1[k][i] = (*msh->_topology ->_Sol[k])( idofX);
+//                       }
+//                     }
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       MPI_Irecv( sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
+//
+//                       MPI_Irecv( vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+//
+//                       MPI_Irecv( sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[ k + 2 * dim]);
+//                     }
+//
+//                     MPI_Irecv( &hmean_j, 1, MPI_DOUBLE, jproc, 3 * dim, PETSC_COMM_WORLD, &reqs[ 3 * dim]);
+//                   }
+//
+//                   else if(iproc == jproc) {
+//
+//                     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                       unsigned idof = msh->GetSolutionDof( i, jel, solType);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         sol2d[k][i] = (*mysolution ->_Sol[ indexSol[k]])( idof);
+//
+//                         sysDofs2[k][i] = myLinEqSolver ->GetSystemDof( indexSol[k], indexPde[k], i, jel);
+//
+//                       }
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                       unsigned idofX = msh->GetSolutionDof( i, jel, 2);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         vx2[k][i] = (*msh->_topology ->_Sol[k])( idofX);
+//                       }
+//                     }
+//
+//                     unsigned nDofsLin_j = msh ->GetElementDofNumber( jel, 0);
+//
+//                     hmean_j = 0.;
+//                     int cnt_j = 0;
+//
+//                     for(unsigned i = 0; i < nDofsLin_j; i++) {
+//
+//                       unsigned idofXi = msh->GetSolutionDof( i, jel, solTypeX);
+//
+//                       for(unsigned j = i + 1; j < nDofsLin_j; j++) {
+//
+//                         unsigned idofXj = msh ->GetSolutionDof( j, jel, solTypeX);
+//
+//                         double dist = 0.;
+//
+//                         for(unsigned d = 0; d < dim; d++) {
+//
+//                           dist += ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj)) * ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj));
+//                         }
+//
+//                         dist = sqrt(dist);
+//
+//                         hmean_j += dist;
+//                         cnt_j++;
+//                       }
+//                     }
+//
+//                     hmean_j /= cnt_j;
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       MPI_Isend( sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
+//
+//                       MPI_Isend( vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+//
+//                       MPI_Isend( sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[ k + 2 * dim]);
+//                     }
+//
+//                     MPI_Isend( &hmean_j, 1, MPI_DOUBLE, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[ 3 * dim]);
+//                   }
+//
+//                   MPI_Status status;
+//
+//                   for(unsigned m = 0; m < 3 * dim + 1; m++) {
+//
+//                     MPI_Wait( &reqs[m], &status);
+//                   }
+//
+//                   if(iproc == kproc) {
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       sol2[k].resize( nDofs2);
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         sol2[k][i] = sol2d[k][i];
+//                       }
+//                     }
+//
+//                     unsigned nDofsLin_k = msh ->GetElementDofNumber( iel, 0);
+//
+//                     double hmean_k = 0.;
+//                     int cnt_k = 0;
+//
+//                     for(unsigned i = 0; i < nDofsLin_k; i++) {
+//
+//                       unsigned idofXi = msh ->GetSolutionDof( i, iel, solTypeX);
+//
+//                       for(unsigned j = i + 1; j < nDofsLin_k; j++) {
+//
+//                         unsigned idofXj = msh ->GetSolutionDof( j, iel, solTypeX);
+//
+//                         double dist = 0.;
+//
+//                         for(unsigned d = 0; d < dim; d++) {
+//
+//                           dist += ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj)) * ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj));
+//                         }
+//
+//                         dist = sqrt(dist);
+//
+//                         hmean_k += dist;
+//                         cnt_k++;
+//                       }
+//                     }
+//
+//                     hmean_k /= cnt_k;
+//
+//                     double h = 0.5 * (hmean_j + hmean_k);
+//
+//                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                       ProjectNodalToPolynomialCoefficients( aP1[jtype], vx1, ielt1, jtype);
+//
+//                       ProjectNodalToPolynomialCoefficients( aP2[jtype], vx2, ielt2, jtype);
+//                     }
+//
+//                     AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, h, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//
+//   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>( clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+// }
+//
+//
+//
+//
+// void AssembleGhostPenaltyVelocity2(MultiLevelProblem& ml_prob) {
+//
+//   // this function works both for fluid and solid ghost penalty
+//
+//   double C0 = 1.;
+//
+//   clock_t start_time;
+//
+//   // pointers and references
+//
+//   TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
+//
+//   const unsigned level = my_nnlin_impl_sys.GetLevelToAssemble();
+//
+//   MultiLevelSolution* mlSol = ml_prob._ml_sol;
+//   Solution* mysolution = mlSol->GetSolutionLevel(level);
+//
+//   LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];
+//
+//   Mesh* msh = ml_prob._ml_msh->GetLevel(level);
+//   elem* el = msh->el;
+//
+//   SparseMatrix* myKK = myLinEqSolver->_KK;
+//   NumericVector* myRES = myLinEqSolver->_RES;
+//
+//   const unsigned dim = msh->GetDimension();
+//   const unsigned dim2 = 3 * (dim - 1);
+//
+//   unsigned iproc = msh->processor_id();
+//   unsigned nprocs = msh->n_processors();
+//
+//   // quantities for iel will have index 1
+//   // quantities for jel will have index 2
+//
+//   vector< vector<double> > sol1(dim);
+//   vector< vector<double> > sol2(dim);
+//   vector< vector<double> > sol2d(dim);
+//
+//   vector< vector<double> > aRes1(dim);
+//   vector< vector<double> > aRes2(dim);
+//
+//   vector<double> Jac;
+//
+//   std::vector<std::vector<unsigned> > sysDofs1(dim);
+//   std::vector<std::vector<unsigned> > sysDofs2(dim);
+//
+//   double weight;
+//   std::vector<double> phi;
+//   std::vector<double> gradPhi;
+//
+//   std::vector<double> phi_f;
+//   std::vector<std::vector<double> > gradPhi_f;
+//
+//   double weight1;
+//   std::vector<double> phi1;
+//   std::vector<double> gradPhi1;
+//   std::vector<double> nablaPhi1;
+//
+//   double weight2;
+//   std::vector<double> phi2;
+//   std::vector<double> gradPhi2;
+//   std::vector<double> nablaPhi2;
+//
+//   unsigned cIndex = mlSol->GetIndex("C");
+//
+//   vector<vector<double> > vx1(dim);
+//   vector<vector<double> > vx2(dim);
+//
+//   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
+//
+//   double mu1 = properties.mu1;
+//   double mu2 = properties.mu2;
+//   double rho1 = properties.rho1;
+//   double rho2 = properties.rho2;
+//
+//   double mu = 2. * mu1 * mu2 / (mu1 + mu2);
+//   double rho = 2. * rho1 * rho2 / (rho1 + rho2);
+//
+//   double dt = my_nnlin_impl_sys.GetIntervalTime();
+//
+//   const unsigned levelC = ml_prob.GetMultiphaseParams().levelC;
+//
+//   std::cout.precision(10);
+//
+//   // variable-name handling
+//
+//   const char varname[3][5] = {"U", "V", "W"};
+//
+//   vector<unsigned> indexSol(dim);
+//   vector<unsigned> indexPde(dim);
+//
+//   for(unsigned k = 0; k < dim; k++) {
+//     indexSol[k] = mlSol->GetIndex(&varname[k][0]);
+//     indexPde[k] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[k][0]);
+//   }
+//
+//   unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+//
+//   const bool hessian_flag = (solType == 2) ? true : false;
+//
+//   unsigned solTypeX = 2;
+//
+//   start_time = clock();
+//
+//   std::vector<std::vector<std::vector<double> > > aP1(3);
+//   std::vector<std::vector<std::vector<double> > > aP2(3);
+//
+//   auto flag = [&](unsigned iellevel) -> bool {
+//     if(iellevel == levelC) return true;
+//     else return false;
+//   };
+//
+//   std::vector<double> Sol1g(dim, 0.);
+//   std::vector<double> Sol2g(dim, 0.);
+//
+//   double divSol1g = 0.;
+//   double divSol2g = 0.;
+//
+//   std::vector<std::vector<double> > gradSol1g(dim, std::vector<double>(dim, 0.));
+//
+//   std::vector<std::vector<double> > gradSol2g(dim, std::vector<double>(dim, 0.));
+//
+//   std::vector<double> gradSol1DotN(dim, 0.);
+//   std::vector<double> gradSol2DotN(dim, 0.);
+//
+//   std::vector<double> hessSol1DotN(dim, 0.);
+//   std::vector<double> hessSol2DotN(dim, 0.);
+//
+//   // ============================================================
+//   // SAME-PROCESS FACES
+//   // ============================================================
+//
+//   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+//
+//     double Ciel = (*mysolution->_Sol[cIndex])(iel);
+//     unsigned eFlag1 = (fabs(Ciel - 0.5) < 0.1) ? 1 : 0;
+//
+//     unsigned iel_level = msh->el->GetElementLevel(iel);
+//
+//     if(flag(iel_level)) {
+//
+//       short unsigned ielt1 = msh->GetElementType(iel);
+//
+//       unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);
+//
+//       unsigned nDofsAll1 = dim * nDofs1;
+//
+//       for(unsigned k = 0; k < dim; k++) {
+//         sysDofs1[k].resize(nDofs1);
+//         sol1[k].resize(nDofs1);
+//         vx1[k].resize(nDofs1);
+//       }
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         unsigned idof = msh->GetSolutionDof(i, iel, solType);
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//
+//           sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+//
+//           sysDofs1[k][i] = myLinEqSolver->GetSystemDof( indexSol[k], indexPde[k], i, iel);
+//
+//         }
+//       }
+//
+//       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//         unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+//
+//         for(unsigned k = 0; k < dim; k++) {
+//           vx1[k][i] = (*msh->_topology->_Sol[k])(idofX);
+//         }
+//       }
+//
+//       unsigned nDofsLin_i = msh->GetElementDofNumber(iel, 0);
+//
+//       double hmean_i = 0.;
+//       int cnt_i = 0;
+//
+//       for(unsigned i = 0; i < nDofsLin_i; i++) {
+//
+//         unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+//
+//         for(unsigned j = i + 1; j < nDofsLin_i; j++) {
+//
+//           unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+//
+//           double dist = 0.;
+//
+//           for(unsigned d = 0; d < dim; d++) {
+//
+//             dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) * ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+//           }
+//
+//           dist = sqrt(dist);
+//
+//           hmean_i += dist;
+//           cnt_i++;
+//         }
+//       }
+//
+//       hmean_i /= cnt_i;
+//
+//       bool aP1IsInitialized = false;
+//
+//       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+//
+//         int jel = el->GetFaceElementIndex(iel, iface) - 1;
+//
+//         if(jel >= 0 && jel > iel) {
+//
+//           unsigned jel_level = msh->el->GetElementLevel(jel);
+//
+//           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+//
+//           if(jproc == iproc) {
+//
+//             double Cjel = (*mysolution->_Sol[cIndex])(jel);
+//
+//             unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1) ? 1 : 0;
+//
+//             if(flag(jel_level)) {
+//
+//               short unsigned ielt2 = msh->GetElementType(jel);
+//
+//               unsigned nDofs2 = msh->GetElementDofNumber( jel, solType);
+//
+//               unsigned nDofsAll2 = dim * nDofs2;
+//
+//               for(unsigned k = 0; k < dim; k++) {
+//                 sysDofs2[k].resize(nDofs2);
+//                 sol2[k].resize(nDofs2);
+//                 vx2[k].resize(nDofs2);
+//               }
+//
+//               for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                 unsigned idof = msh->GetSolutionDof( i, jel, solType);
+//
+//                 for(unsigned k = 0; k < dim; k++) {
+//
+//                   sol2[k][i] = (*mysolution->_Sol[indexSol[k]])( idof);
+//
+//                   sysDofs2[k][i] = myLinEqSolver->GetSystemDof( indexSol[k], indexPde[k], i, jel);
+//                 }
+//               }
+//
+//               for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                 unsigned idofX = msh->GetSolutionDof( i, jel, 2);
+//
+//                 for(unsigned k = 0; k < dim; k++) {
+//                   vx2[k][i] = (*msh->_topology->_Sol[k])( idofX);
+//                 }
+//               }
+//
+//               for(unsigned k = 0; k < dim; k++) {
+//                 aRes1[k].assign(nDofs1, 0.);
+//                 aRes2[k].assign(nDofs2, 0.);
+//               }
+//
+//               const unsigned nDofs12 = nDofs1 + nDofs2;
+//
+//               Jac.assign( nDofs12 * nDofs12, 0.);
+//
+//               const unsigned faceGeom = msh->GetElementFaceType( iel, iface);
+//
+//               unsigned faceDofs = msh->GetElementFaceDofNumber( iel, iface, solType);
+//
+//               std::vector<std::vector<double> > faceVx(dim);
+//
+//               for(int k = 0; k < dim; k++) {
+//                 faceVx[k].resize(faceDofs);
+//               }
+//
+//               for(unsigned i = 0; i < faceDofs; i++) {
+//
+//                 unsigned inode = msh->GetLocalFaceVertexIndex( iel, iface, i);
+//
+//                 for(unsigned k = 0; k < dim; k++) {
+//
+//                   faceVx[k][i] = vx1[k][inode];
+//                 }
+//               }
+//
+//               unsigned nDofsLin_j = msh->GetElementDofNumber( jel, 0);
+//
+//               double hmean_j = 0.;
+//               int cnt_j = 0;
+//
+//               for(unsigned i = 0; i < nDofsLin_j; i++) {
+//
+//                 unsigned idofXi = msh->GetSolutionDof( i, jel, solTypeX);
+//
+//                 for(unsigned j = i + 1; j < nDofsLin_j; j++) {
+//
+//                   unsigned idofXj = msh->GetSolutionDof( j, jel, solTypeX);
+//
+//                   double dist = 0.;
+//
+//                   for(unsigned d = 0; d < dim; d++) {
+//
+//                     dist += ((*msh->_topology->_Sol[d])( idofXi) - (*msh->_topology->_Sol[d])( idofXj)) * ((*msh->_topology->_Sol[d])( idofXi) - (*msh->_topology->_Sol[d])( idofXj));
+//                   }
+//
+//                   dist = sqrt(dist);
+//
+//                   hmean_j += dist;
+//                   cnt_j++;
+//                 }
+//               }
+//
+//               hmean_j /= cnt_j;
+//
+//               if(!aP1IsInitialized) {
+//
+//                 aP1IsInitialized = true;
+//
+//                 for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                   ProjectNodalToPolynomialCoefficients( aP1[jtype], vx1, ielt1, jtype);
+//                 }
+//               }
+//
+//               for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                 ProjectNodalToPolynomialCoefficients( aP2[jtype], vx2, ielt2, jtype);
+//               }
+//
+//               double h = 0.5 * (hmean_j + hmean_i);
+//
+//               for(unsigned ig = 0; ig < msh->_finiteElement [faceGeom][solType] ->GetGaussPointNumber(); ig++) {
+//
+//                 std::vector<double> normal;
+//
+//                 msh->_finiteElement [faceGeom][solType] ->JacobianSur( faceVx, ig, weight, phi, gradPhi, normal);
+//
+//                 double h2 = h * h;
+//                 double h3 = h2 * h;
+//                 double h5 = h2 * h3;
+//
+//                 std::vector<double> xg(dim, 0.);
+//
+//                 for(unsigned i = 0; i < faceDofs; i++) {
+//
+//                   for(unsigned k = 0; k < dim; k++) {
+//
+//                     xg[k] += phi[i] * faceVx[k][i];
+//                   }
+//                 }
+//
+//                 std::vector<double> xi1;
+//
+//                 GetClosestPointInReferenceElement( vx1, xg, ielt1, xi1);
+//
+//                 bool inverseMapping = GetInverseMapping_fast( solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
+//
+//                 if(!inverseMapping) {
+//                   std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
+//                 }
+//
+//                 std::vector<double> xi2;
+//
+//                 GetClosestPointInReferenceElement( vx2, xg, ielt2, xi2);
+//
+//                 inverseMapping = GetInverseMapping_fast( solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
+//
+//                 if(!inverseMapping) {
+//                   std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
+//                 }
+//
+//                 if(hessian_flag) {
+//
+//                   msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+//
+//                   msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+//                 }
+//                 else {
+//
+//                   msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1);
+//
+//                   msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2);
+//                 }
+//
+//                 divSol1g = 0.;
+//
+//                 for(unsigned I = 0; I < dim; I++) {
+//
+//                   Sol1g[I] = 0.;
+//                   gradSol1DotN[I] = 0.;
+//                   hessSol1DotN[I] = 0.;
+//
+//                   for(unsigned J = 0; J < dim; J++) {
+//
+//                     gradSol1g[I][J] = 0.;
+//                   }
+//
+//                   for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                     Sol1g[I] += sol1[I][i] * phi1[i];
+//
+//                     divSol1g += sol1[I][i] * gradPhi1[ i * dim + I];
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradSol1g[I][J] += sol1[I][i] * gradPhi1[ i * dim + J];
+//
+//                       gradSol1DotN[I] += sol1[I][i] * gradPhi1[ i * dim + J] * normal[J];
+//
+//                       if(hessian_flag) {
+//
+//                         for(unsigned K = 0; K < dim; K++) {
+//
+//                           unsigned L;
+//
+//                           if(J == K) L = J;
+//                           else if(1 == J + K) L = dim;
+//                           else if(2 == J + K) L = dim + 2;
+//                           else if(3 == J + K) L = dim + 1;
+//
+//                           hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//
+//                 divSol2g = 0.;
+//
+//                 for(unsigned I = 0; I < dim; I++) {
+//
+//                   Sol2g[I] = 0.;
+//                   gradSol2DotN[I] = 0.;
+//                   hessSol2DotN[I] = 0.;
+//
+//                   for(unsigned J = 0; J < dim; J++) {
+//
+//                     gradSol2g[I][J] = 0.;
+//                   }
+//
+//                   for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                     Sol2g[I] += sol2[I][i] * phi2[i];
+//
+//                     divSol2g += sol2[I][i] * gradPhi2[ i * dim + I];
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradSol2g[I][J] += sol2[I][i] * gradPhi2[ i * dim + J];
+//
+//                       gradSol2DotN[I] += sol2[I][i] * gradPhi2[ i * dim + J] * normal[J];
+//
+//                       if(hessian_flag) {
+//
+//                         for(unsigned K = 0; K < dim; K++) {
+//
+//                           unsigned L;
+//
+//                           if(J == K) L = J;
+//                           else if(1 == J + K) L = dim;
+//                           else if(2 == J + K) L = dim + 2;
+//                           else if(3 == J + K) L = dim + 1;
+//
+//                           hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//
+//                 double C1 = C0 * 0.05 * mu;
+//
+//                 double D1 = C0 * 0.05 * rho;
+//
+//                 double absSolDotN = 0.;
+//
+//                 for(unsigned I = 0; I < dim; I++) {
+//
+//                   absSolDotN += 0.5 * (Sol1g[I] + Sol2g[I]) * normal[I];
+//                 }
+//
+//                 absSolDotN = fabs(absSolDotN);
+//
+//                 // -----------------------------
+//                 // RESIDUAL
+//                 // -----------------------------
+//
+//                 for(unsigned I = 0; I < dim; I++) {
+//
+//                   for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       aRes1[I][i] += (C1 * h + D1 / dt * h3) * gradPhi1[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+//
+//                       aRes1[I][i] += D1 * h2 * absSolDotN * gradPhi1[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+//
+//                       if(hessian_flag) {
+//
+//                         for(unsigned K = 0; K < dim; K++) {
+//
+//                           unsigned L;
+//
+//                           if(J == K) L = J;
+//                           else if(1 == J + K) L = dim;
+//                           else if(2 == J + K) L = dim + 2;
+//                           else if(3 == J + K) L = dim + 1;
+//
+//                           aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//
+//                           aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//                         }
+//                       }
+//                     }
+//                   }
+//
+//                   for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+//
+//                       aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+//
+//                       if(hessian_flag) {
+//
+//                         for(unsigned K = 0; K < dim; K++) {
+//
+//                           unsigned L;
+//
+//                           if(J == K) L = J;
+//                           else if(1 == J + K) L = dim;
+//                           else if(2 == J + K) L = dim + 2;
+//                           else if(3 == J + K) L = dim + 1;
+//
+//                           aRes2[I][i] += -C1 * h3 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//
+//                           aRes2[I][i] += -D1 / dt * h5 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//
+//                 // -----------------------------
+//                 // MANUAL TANGENT
+//                 //
+//                 // absSolDotN is FROZEN.
+//                 // Its derivative is zero.
+//                 // -----------------------------
+//
+//                 const double alpha = C1 * h + D1 / dt * h3;
+//
+//                 const double beta = D1 * h2 * absSolDotN;
+//
+//                 const double gamma = C1 * h3 + D1 / dt * h5;
+//
+//                 std::vector<double> dphi1dn(nDofs1, 0.);
+//
+//                 std::vector<double> dphi2dn(nDofs2, 0.);
+//
+//                 for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                   for(unsigned J = 0; J < dim; J++) {
+//
+//                     dphi1dn[i] += gradPhi1[ i * dim + J] * normal[J];
+//                   }
+//                 }
+//
+//                 for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                   for(unsigned J = 0; J < dim; J++) {
+//
+//                     dphi2dn[i] += gradPhi2[ i * dim + J] * normal[J];
+//                   }
+//                 }
+//
+//                 std::vector<double> d2phi1dnn(nDofs1, 0.);
+//
+//                 std::vector<double> d2phi2dnn(nDofs2, 0.);
+//
+//                 if(hessian_flag) {
+//
+//                   for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       for(unsigned K = 0; K < dim; K++) {
+//
+//                         unsigned L;
+//
+//                         if(J == K) L = J;
+//                         else if(1 == J + K) L = dim;
+//                         else if(2 == J + K) L = dim + 2;
+//                         else if(3 == J + K) L = dim + 1;
+//
+//                         d2phi1dnn[i] += normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//                       }
+//                     }
+//                   }
+//
+//                   for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       for(unsigned K = 0; K < dim; K++) {
+//
+//                         unsigned L;
+//
+//                         if(J == K) L = J;
+//                         else if(1 == J + K) L = dim;
+//                         else if(2 == J + K) L = dim + 2;
+//                         else if(3 == J + K) L = dim + 1;
+//
+//                         d2phi2dnn[i] += normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//                       }
+//                     }
+//                   }
+//                 }
+//
+//                 // J11
+//
+//                 for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                   for(unsigned j = 0; j < nDofs1; j++) {
+//
+//                     double value = alpha * dphi1dn[i] * dphi1dn[j];
+//
+//                     double gradDot = 0.;
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradDot += gradPhi1[ i * dim + J] * gradPhi1[ j * dim + J];
+//                     }
+//
+//                     value += beta * gradDot;
+//
+//                     if(hessian_flag) {
+//
+//                       value += gamma * d2phi1dnn[i] * d2phi1dnn[j];
+//                     }
+//
+//                     Jac[ i * nDofs12 + j] += value * weight;
+//                   }
+//                 }
+//
+//                 // J12
+//
+//                 for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                   for(unsigned j = 0; j < nDofs2; j++) {
+//
+//                     double value = -alpha * dphi1dn[i] * dphi2dn[j];
+//
+//                     double gradDot = 0.;
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradDot += gradPhi1[ i * dim + J] * gradPhi2[ j * dim + J];
+//                     }
+//
+//                     value -= beta * gradDot;
+//
+//                     if(hessian_flag) {
+//
+//                       value -= gamma * d2phi1dnn[i] * d2phi2dnn[j];
+//                     }
+//
+//                     Jac[ i * nDofs12 + nDofs1 + j] += value * weight;
+//                   }
+//                 }
+//
+//                 // J21
+//
+//                 for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                   for(unsigned j = 0; j < nDofs1; j++) {
+//
+//                     double value = -alpha * dphi2dn[i] * dphi1dn[j];
+//
+//                     double gradDot = 0.;
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradDot += gradPhi2[ i * dim + J] * gradPhi1[ j * dim + J];
+//                     }
+//
+//                     value -= beta * gradDot;
+//
+//                     if(hessian_flag) {
+//
+//                       value -= gamma * d2phi2dnn[i] * d2phi1dnn[j];
+//                     }
+//
+//                     Jac[ (nDofs1 + i) * nDofs12 + j] += value * weight;
+//                   }
+//                 }
+//
+//                 // J22
+//
+//                 for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                   for(unsigned j = 0; j < nDofs2; j++) {
+//
+//                     double value = alpha * dphi2dn[i] * dphi2dn[j];
+//
+//                     double gradDot = 0.;
+//
+//                     for(unsigned J = 0; J < dim; J++) {
+//
+//                       gradDot += gradPhi2[ i * dim + J] * gradPhi2[ j * dim + J];
+//                     }
+//
+//                     value += beta * gradDot;
+//
+//                     if(hessian_flag) {
+//
+//                       value += gamma * d2phi2dnn[i] * d2phi2dnn[j];
+//                     }
+//
+//                     Jac[ (nDofs1 + i) * nDofs12 + nDofs1 + j] += value * weight;
+//                   }
+//                 }
+//               }
+//
+//               std::vector<unsigned> sysDofs12(nDofs12);
+//
+//               std::vector<double> rhs12(nDofs12);
+//
+//               for(unsigned I = 0; I < dim; I++) {
+//
+//                 for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                   sysDofs12[i] = sysDofs1[I][i];
+//
+//                   rhs12[i] = -aRes1[I][i];
+//                 }
+//
+//                 for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                   sysDofs12[ nDofs1 + i] = sysDofs2[I][i];
+//
+//                   rhs12[ nDofs1 + i] = -aRes2[I][i];
+//                 }
+//
+//                 myRES->add_vector_blocked( rhs12, sysDofs12);
+//
+//                 myKK->add_matrix_blocked( Jac, sysDofs12, sysDofs12);
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//
+//   // ============================================================
+//   // CROSS-PROCESS FACES
+//   // ============================================================
+//
+//   if(nprocs > 1) {
+//
+//     for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+//
+//       for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+//
+//         unsigned eFlag1 = 0;
+//
+//         if(iproc == kproc) {
+//
+//           double Ciel = (*mysolution->_Sol[cIndex])(iel);
+//
+//           unsigned iel_level = msh->el->GetElementLevel(iel);
+//
+//           eFlag1 = static_cast<unsigned>( flag(iel_level));
+//         }
+//
+//         MPI_Bcast( &eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//
+//         if(eFlag1 > 0) {
+//
+//           unsigned nFaces;
+//
+//           if(iproc == kproc) {
+//             nFaces = msh->GetElementFaceNumber(iel);
+//           }
+//
+//           MPI_Bcast( &nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+//
+//           for(unsigned iface = 0; iface < nFaces; iface++) {
+//
+//             int jel;
+//
+//             if(iproc == kproc) {
+//
+//               jel = el->GetFaceElementIndex( iel, iface) - 1;
+//             }
+//
+//             MPI_Bcast( &jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+//
+//             if(jel >= 0 && jel > iel) {
+//
+//               unsigned jproc = msh->IsdomBisectionSearch( jel, 3);
+//
+//               if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
+//
+//                 unsigned eFlag2;
+//
+//                 if(iproc == jproc) {
+//
+//                   double Cjel = (*mysolution->_Sol[ cIndex])(jel);
+//
+//                   unsigned jel_level = msh->el ->GetElementLevel(jel);
+//
+//                   eFlag2 = static_cast<unsigned>( flag(jel_level));
+//
+//                   MPI_Send( &eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+//                 }
+//                 else if(iproc == kproc) {
+//
+//                   MPI_Recv( &eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+//                 }
+//
+//                 if(eFlag2 > 0) {
+//
+//                   short unsigned ielt1;
+//                   short unsigned ielt2;
+//
+//                   if(iproc == kproc) {
+//
+//                     ielt1 = msh->GetElementType( iel);
+//
+//                     MPI_Recv( &ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+//                   }
+//                   else if(iproc == jproc) {
+//
+//                     ielt2 = msh->GetElementType( jel);
+//
+//                     MPI_Send( &ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
+//                   }
+//
+//                   unsigned nDofs1;
+//                   unsigned nDofsAll1;
+//
+//                   unsigned nDofs2 = el->GetNVE( ielt2, solType);
+//
+//                   unsigned nDofsAll2 = dim * nDofs2;
+//
+//                   for(unsigned k = 0; k < dim; k++) {
+//
+//                     sysDofs2[k].resize( nDofs2);
+//
+//                     sol2d[k].resize( nDofs2);
+//
+//                     vx2[k].resize( nDofs2);
+//                   }
+//
+//                   std::vector<MPI_Request> reqs(3 * dim + 1);
+//
+//                   double hmean_j;
+//
+//                   if(iproc == kproc) {
+//
+//                     nDofs1 = el->GetNVE( ielt1, solType);
+//
+//                     nDofsAll1 = dim * nDofs1;
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       sysDofs1[k].resize( nDofs1);
+//
+//                       sol1[k].resize( nDofs1);
+//
+//                       vx1[k].resize( nDofs1);
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                       unsigned idof = msh->GetSolutionDof( i, iel, solType);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         sol1[k][i] = (*mysolution ->_Sol[ indexSol[k]])( idof);
+//
+//                         sysDofs1[k][i] = myLinEqSolver ->GetSystemDof( indexSol[k], indexPde[k], i, iel);
+//                       }
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                       unsigned idofX = msh->GetSolutionDof( i, iel, 2);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         vx1[k][i] = (*msh->_topology ->_Sol[k])( idofX);
+//                       }
+//                     }
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       MPI_Irecv( sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
+//
+//                       MPI_Irecv( vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+//
+//                       MPI_Irecv( sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[ k + 2 * dim]);
+//                     }
+//
+//                     MPI_Irecv( &hmean_j, 1, MPI_DOUBLE, jproc, 3 * dim, PETSC_COMM_WORLD, &reqs[ 3 * dim]);
+//                   }
+//
+//                   else if(iproc == jproc) {
+//
+//                     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                       unsigned idof = msh->GetSolutionDof( i, jel, solType);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         sol2d[k][i] = (*mysolution ->_Sol[ indexSol[k]])( idof);
+//
+//                         sysDofs2[k][i] = myLinEqSolver ->GetSystemDof( indexSol[k], indexPde[k], i, jel);
+//
+//                       }
+//                     }
+//
+//                     for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                       unsigned idofX = msh->GetSolutionDof( i, jel, 2);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         vx2[k][i] = (*msh->_topology ->_Sol[k])( idofX);
+//                       }
+//                     }
+//
+//                     unsigned nDofsLin_j = msh ->GetElementDofNumber( jel, 0);
+//
+//                     hmean_j = 0.;
+//                     int cnt_j = 0;
+//
+//                     for(unsigned i = 0; i < nDofsLin_j; i++) {
+//
+//                       unsigned idofXi = msh->GetSolutionDof( i, jel, solTypeX);
+//
+//                       for(unsigned j = i + 1; j < nDofsLin_j; j++) {
+//
+//                         unsigned idofXj = msh ->GetSolutionDof( j, jel, solTypeX);
+//
+//                         double dist = 0.;
+//
+//                         for(unsigned d = 0; d < dim; d++) {
+//
+//                           dist += ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj)) * ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj));
+//                         }
+//
+//                         dist = sqrt(dist);
+//
+//                         hmean_j += dist;
+//                         cnt_j++;
+//                       }
+//                     }
+//
+//                     hmean_j /= cnt_j;
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       MPI_Isend( sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
+//
+//                       MPI_Isend( vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+//
+//                       MPI_Isend( sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[ k + 2 * dim]);
+//                     }
+//
+//                     MPI_Isend( &hmean_j, 1, MPI_DOUBLE, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[ 3 * dim]);
+//                   }
+//
+//                   MPI_Status status;
+//
+//                   for(unsigned m = 0; m < 3 * dim + 1; m++) {
+//
+//                     MPI_Wait( &reqs[m], &status);
+//                   }
+//
+//                   if(iproc == kproc) {
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       sol2[k].resize( nDofs2);
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         sol2[k][i] = sol2d[k][i];
+//                       }
+//                     }
+//
+//                     for(unsigned k = 0; k < dim; k++) {
+//
+//                       aRes1[k].assign( nDofs1, 0.);
+//
+//                       aRes2[k].assign( nDofs2, 0.);
+//                     }
+//
+//                     const unsigned nDofs12 = nDofs1 + nDofs2;
+//
+//                     Jac.assign( nDofs12 * nDofs12, 0.);
+//
+//                     const unsigned faceGeom = msh ->GetElementFaceType( iel, iface);
+//
+//                     unsigned faceDofs = msh ->GetElementFaceDofNumber( iel, iface, solType);
+//
+//                     std::vector < std::vector<double> > faceVx(dim);
+//
+//                     for(int k = 0; k < dim; k++) {
+//
+//                       faceVx[k].resize( faceDofs);
+//                     }
+//
+//                     for(unsigned i = 0; i < faceDofs; i++) {
+//
+//                       unsigned inode = msh ->GetLocalFaceVertexIndex( iel, iface, i);
+//
+//                       for(unsigned k = 0; k < dim; k++) {
+//
+//                         faceVx[k][i] = vx1[k][inode];
+//                       }
+//                     }
+//
+//                     unsigned nDofsLin_k = msh ->GetElementDofNumber( iel, 0);
+//
+//                     double hmean_k = 0.;
+//                     int cnt_k = 0;
+//
+//                     for(unsigned i = 0; i < nDofsLin_k; i++) {
+//
+//                       unsigned idofXi = msh ->GetSolutionDof( i, iel, solTypeX);
+//
+//                       for(unsigned j = i + 1; j < nDofsLin_k; j++) {
+//
+//                         unsigned idofXj = msh ->GetSolutionDof( j, iel, solTypeX);
+//
+//                         double dist = 0.;
+//
+//                         for(unsigned d = 0; d < dim; d++) {
+//
+//                           dist += ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj)) * ((*msh->_topology ->_Sol[d])( idofXi) - (*msh->_topology ->_Sol[d])( idofXj));
+//                         }
+//
+//                         dist = sqrt(dist);
+//
+//                         hmean_k += dist;
+//                         cnt_k++;
+//                       }
+//                     }
+//
+//                     hmean_k /= cnt_k;
+//
+//                     double h = 0.5 * (hmean_j + hmean_k);
+//
+//                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+//
+//                       ProjectNodalToPolynomialCoefficients( aP1[jtype], vx1, ielt1, jtype);
+//
+//                       ProjectNodalToPolynomialCoefficients( aP2[jtype], vx2, ielt2, jtype);
+//                     }
+//
+//                     for(unsigned ig = 0; ig < msh->_finiteElement [faceGeom][solType] ->GetGaussPointNumber(); ig++) {
+//
+//                       std::vector<double> normal;
+//
+//                       msh->_finiteElement [faceGeom][solType] ->JacobianSur( faceVx, ig, weight, phi, gradPhi, normal);
+//
+//                       double h2 = h * h;
+//                       double h3 = h2 * h;
+//                       double h5 = h2 * h3;
+//
+//                       std::vector<double> xg(dim, 0.);
+//
+//                       for(unsigned i = 0; i < faceDofs; i++) {
+//
+//                         for(unsigned k = 0; k < dim; k++) {
+//
+//                           xg[k] += phi[i] * faceVx[k][i];
+//                         }
+//                       }
+//
+//                       std::vector<double> xi1;
+//
+//                       GetClosestPointInReferenceElement( vx1, xg, ielt1, xi1);
+//
+//                       bool inverseMapping = GetInverseMapping_fast( solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
+//
+//                       if(!inverseMapping) {
+//
+//                         std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
+//                       }
+//
+//                       std::vector<double> xi2;
+//
+//                       GetClosestPointInReferenceElement( vx2, xg, ielt2, xi2);
+//
+//                       inverseMapping = GetInverseMapping_fast( solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
+//
+//                       if(!inverseMapping) {
+//
+//                         std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
+//                       }
+//
+//                       if(hessian_flag) {
+//
+//                         msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+//
+//                         msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+//                       }
+//                       else {
+//
+//                         msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1);
+//
+//                         msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2);
+//                       }
+//
+//                       std::vector<double> Sol1gLocal( dim, 0.);
+//
+//                       std::vector<double> Sol2gLocal( dim, 0.);
+//
+//                       std::vector < std::vector<double> > gradSol1gLocal( dim, std::vector<double>( dim, 0.));
+//
+//                       std::vector < std::vector<double> > gradSol2gLocal( dim, std::vector<double>( dim, 0.));
+//
+//                       std::vector<double> gradSol1DotNLocal( dim, 0.);
+//
+//                       std::vector<double> gradSol2DotNLocal( dim, 0.);
+//
+//                       std::vector<double> hessSol1DotNLocal( dim, 0.);
+//
+//                       std::vector<double> hessSol2DotNLocal( dim, 0.);
+//
+//                       for(unsigned I = 0; I < dim; I++) {
+//
+//                         for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                           Sol1gLocal[I] += sol1[I][i] * phi1[i];
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradSol1gLocal[I][J] += sol1[I][i] * gradPhi1[ i * dim + J];
+//
+//                             gradSol1DotNLocal[I] += sol1[I][i] * gradPhi1[ i * dim + J] * normal[J];
+//
+//                             if(hessian_flag) {
+//
+//                               for(unsigned K = 0; K < dim; K++) {
+//
+//                                 unsigned L;
+//
+//                                 if(J == K) L = J;
+//                                 else if( 1 == J + K) L = dim;
+//                                 else if( 2 == J + K) L = dim + 2;
+//                                 else if( 3 == J + K) L = dim + 1;
+//
+//                                 hessSol1DotNLocal[I] += sol1[I][i] * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//                               }
+//                             }
+//                           }
+//                         }
+//                       }
+//
+//                       for(unsigned I = 0; I < dim; I++) {
+//
+//                         for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                           Sol2gLocal[I] += sol2[I][i] * phi2[i];
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradSol2gLocal[I][J] += sol2[I][i] * gradPhi2[ i * dim + J];
+//
+//                             gradSol2DotNLocal[I] += sol2[I][i] * gradPhi2[ i * dim + J] * normal[J];
+//
+//                             if(hessian_flag) {
+//
+//                               for(unsigned K = 0; K < dim; K++) {
+//
+//                                 unsigned L;
+//
+//                                 if(J == K) L = J;
+//                                 else if( 1 == J + K) L = dim;
+//                                 else if( 2 == J + K) L = dim + 2;
+//                                 else if( 3 == J + K) L = dim + 1;
+//
+//                                 hessSol2DotNLocal[I] += sol2[I][i] * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//                               }
+//                             }
+//                           }
+//                         }
+//                       }
+//
+//                       double C1 = C0 * 0.05 * mu;
+//
+//                       double D1 = C0 * 0.05 * rho;
+//
+//                       double absSolDotN = 0.;
+//
+//                       for(unsigned I = 0; I < dim; I++) {
+//
+//                         absSolDotN += 0.5 * (Sol1gLocal[I] + Sol2gLocal[I]) * normal[I];
+//                       }
+//
+//                       absSolDotN = fabs(absSolDotN);
+//
+//                       // -------------------------
+//                       // RESIDUAL
+//                       // -------------------------
+//
+//                       for(unsigned I = 0; I < dim; I++) {
+//
+//                         for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             aRes1[I][i] += (C1 * h + D1 / dt * h3) * gradPhi1[ i * dim + J] * normal[J] * (gradSol1DotNLocal[I] - gradSol2DotNLocal[I]) * weight;
+//
+//                             aRes1[I][i] += D1 * h2 * absSolDotN * gradPhi1[ i * dim + J] * (gradSol1gLocal[I][J] - gradSol2gLocal[I][J]) * weight;
+//
+//                             if(hessian_flag) {
+//
+//                               for(unsigned K = 0; K < dim; K++) {
+//
+//                                 unsigned L;
+//
+//                                 if(J == K) L = J;
+//                                 else if( 1 == J + K) L = dim;
+//                                 else if( 2 == J + K) L = dim + 2;
+//                                 else if( 3 == J + K) L = dim + 1;
+//
+//                                 aRes1[I][i] += (C1 * h3 + D1 / dt * h5) * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotNLocal[I] - hessSol2DotNLocal[I]) * weight;
+//                               }
+//                             }
+//                           }
+//                         }
+//
+//                         for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[ i * dim + J] * normal[J] * (gradSol1DotNLocal[I] - gradSol2DotNLocal[I]) * weight;
+//
+//                             aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[ i * dim + J] * (gradSol1gLocal[I][J] - gradSol2gLocal[I][J]) * weight;
+//
+//                             if(hessian_flag) {
+//
+//                               for(unsigned K = 0; K < dim; K++) {
+//
+//                                 unsigned L;
+//
+//                                 if(J == K) L = J;
+//                                 else if( 1 == J + K) L = dim;
+//                                 else if( 2 == J + K) L = dim + 2;
+//                                 else if( 3 == J + K) L = dim + 1;
+//
+//                                 aRes2[I][i] += -(C1 * h3 + D1 / dt * h5) * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotNLocal[I] - hessSol2DotNLocal[I]) * weight;
+//                               }
+//                             }
+//                           }
+//                         }
+//                       }
+//
+//                       // -------------------------
+//                       // MANUAL TANGENT
+//                       //
+//                       // absSolDotN frozen
+//                       // -------------------------
+//
+//                       const double alpha = C1 * h + D1 / dt * h3;
+//
+//                       const double beta = D1 * h2 * absSolDotN;
+//
+//                       const double gamma = C1 * h3 + D1 / dt * h5;
+//
+//                       std::vector<double> dphi1dn( nDofs1, 0.);
+//
+//                       std::vector<double> dphi2dn( nDofs2, 0.);
+//
+//                       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                         for(unsigned J = 0; J < dim; J++) {
+//
+//                           dphi1dn[i] += gradPhi1[ i * dim + J] * normal[J];
+//                         }
+//                       }
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         for(unsigned J = 0; J < dim; J++) {
+//
+//                           dphi2dn[i] += gradPhi2[ i * dim + J] * normal[J];
+//                         }
+//                       }
+//
+//                       std::vector<double> d2phi1dnn( nDofs1, 0.);
+//
+//                       std::vector<double> d2phi2dnn( nDofs2, 0.);
+//
+//                       if(hessian_flag) {
+//
+//                         for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             for(unsigned K = 0; K < dim; K++) {
+//
+//                               unsigned L;
+//
+//                               if(J == K) L = J;
+//                               else if( 1 == J + K) L = dim;
+//                               else if( 2 == J + K) L = dim + 2;
+//                               else if( 3 == J + K) L = dim + 1;
+//
+//                               d2phi1dnn[i] += normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+//                             }
+//                           }
+//                         }
+//
+//                         for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             for(unsigned K = 0; K < dim; K++) {
+//
+//                               unsigned L;
+//
+//                               if(J == K) L = J;
+//                               else if( 1 == J + K) L = dim;
+//                               else if( 2 == J + K) L = dim + 2;
+//                               else if( 3 == J + K) L = dim + 1;
+//
+//                               d2phi2dnn[i] += normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+//                             }
+//                           }
+//                         }
+//                       }
+//
+//                       // J11
+//
+//                       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                         for(unsigned j = 0; j < nDofs1; j++) {
+//
+//                           double value = alpha * dphi1dn[i] * dphi1dn[j];
+//
+//                           double gradDot = 0.;
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradDot += gradPhi1[ i * dim + J] * gradPhi1[ j * dim + J];
+//                           }
+//
+//                           value += beta * gradDot;
+//
+//                           if(hessian_flag) {
+//
+//                             value += gamma * d2phi1dnn[i] * d2phi1dnn[j];
+//                           }
+//
+//                           Jac[ i * nDofs12 + j] += value * weight;
+//                         }
+//                       }
+//
+//                       // J12
+//
+//                       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                         for(unsigned j = 0; j < nDofs2; j++) {
+//
+//                           double value = -alpha * dphi1dn[i] * dphi2dn[j];
+//
+//                           double gradDot = 0.;
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradDot += gradPhi1[ i * dim + J] * gradPhi2[ j * dim + J];
+//                           }
+//
+//                           value -= beta * gradDot;
+//
+//                           if(hessian_flag) {
+//
+//                             value -= gamma * d2phi1dnn[i] * d2phi2dnn[j];
+//                           }
+//
+//                           Jac[ i * nDofs12 + nDofs1 + j] += value * weight;
+//                         }
+//                       }
+//
+//                       // J21
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         for(unsigned j = 0; j < nDofs1; j++) {
+//
+//                           double value = -alpha * dphi2dn[i] * dphi1dn[j];
+//
+//                           double gradDot = 0.;
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradDot += gradPhi2[ i * dim + J] * gradPhi1[ j * dim + J];
+//                           }
+//
+//                           value -= beta * gradDot;
+//
+//                           if(hessian_flag) {
+//
+//                             value -= gamma * d2phi2dnn[i] * d2phi1dnn[j];
+//                           }
+//
+//                           Jac[ (nDofs1 + i) * nDofs12 + j] += value * weight;
+//                         }
+//                       }
+//
+//                       // J22
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         for(unsigned j = 0; j < nDofs2; j++) {
+//
+//                           double value = alpha * dphi2dn[i] * dphi2dn[j];
+//
+//                           double gradDot = 0.;
+//
+//                           for(unsigned J = 0; J < dim; J++) {
+//
+//                             gradDot += gradPhi2[ i * dim + J] * gradPhi2[ j * dim + J];
+//                           }
+//
+//                           value += beta * gradDot;
+//
+//                           if(hessian_flag) {
+//
+//                             value += gamma * d2phi2dnn[i] * d2phi2dnn[j];
+//                           }
+//
+//                           Jac[ (nDofs1 + i) * nDofs12 + nDofs1 + j] += value * weight;
+//                         }
+//                       }
+//                     }
+//
+//                     std::vector<unsigned> sysDofs12( nDofs12);
+//
+//                     std::vector<double> rhs12( nDofs12);
+//
+//                     for(unsigned I = 0; I < dim; I++) {
+//
+//                       for(unsigned i = 0; i < nDofs1; i++) {
+//
+//                         sysDofs12[i] = sysDofs1[I][i];
+//
+//                         rhs12[i] = -aRes1[I][i];
+//                       }
+//
+//                       for(unsigned i = 0; i < nDofs2; i++) {
+//
+//                         sysDofs12[ nDofs1 + i] = sysDofs2[I][i];
+//
+//                         rhs12[ nDofs1 + i] = -aRes2[I][i];
+//                       }
+//
+//                       myRES ->add_vector_blocked( rhs12, sysDofs12);
+//
+//                       myKK ->add_matrix_blocked( Jac, sysDofs12, sysDofs12);
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//
+//   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>( clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+// }
+
 #pragma once
+
+static void GetGhostPenaltyVelocityElementData(Mesh* msh, Solution* mysolution, LinearEquationSolver* myLinEqSolver, const unsigned iel, const unsigned solType, const unsigned solTypeX, const unsigned nDofs, const std::vector<unsigned>& indexSol, const std::vector<unsigned>& indexPde, std::vector<std::vector<double> >& sol, std::vector<std::vector<double> >& vx, std::vector<std::vector<unsigned> >& sysDofs, double& hmean) {
+
+  const unsigned dim = msh->GetDimension();
+
+  for(unsigned k = 0; k < dim; k++) {
+    sysDofs[k].resize(nDofs);
+    sol[k].resize(nDofs);
+    vx[k].resize(nDofs);
+  }
+
+  for(unsigned i = 0; i < nDofs; i++) {
+    unsigned idof = msh->GetSolutionDof(i, iel, solType);
+    for(unsigned k = 0; k < dim; k++) {
+      sol[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+      sysDofs[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
+    }
+  }
+
+  for(unsigned i = 0; i < nDofs; i++) {
+    unsigned idofX = msh->GetSolutionDof(i, iel, 2);
+    for(unsigned k = 0; k < dim; k++) {
+      vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
+    }
+  }
+
+  unsigned nDofsLin = msh->GetElementDofNumber(iel, 0);
+
+  hmean = 0.;
+  int cnt = 0;
+
+  for(unsigned i = 0; i < nDofsLin; i++) {
+    unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+    for(unsigned j = i + 1; j < nDofsLin; j++) {
+      unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+      double dist = 0.;
+      for(unsigned d = 0; d < dim; d++) {
+        dist += ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj)) * ((*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj));
+      }
+      dist = sqrt(dist);
+      hmean += dist;
+      cnt++;
+    }
+  }
+
+  hmean /= cnt;
+}
+
+static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, NumericVector* myRES, const unsigned iel, const unsigned jel, const unsigned iface, short unsigned ielt1, short unsigned ielt2, const unsigned solType, const bool hessian_flag, const unsigned nDofs1, const unsigned nDofs2, const double C0, const double mu, const double rho, const double dt, const double hmean1, const double hmean2, std::vector<std::vector<std::vector<double> > >& aP1, std::vector<std::vector<std::vector<double> > >& aP2, const std::vector<std::vector<double> >& sol1, const std::vector<std::vector<double> >& sol2, const std::vector<std::vector<double> >& vx1, const std::vector<std::vector<double> >& vx2, const std::vector<std::vector<unsigned> >& sysDofs1, const std::vector<std::vector<unsigned> >& sysDofs2) {
+
+  const unsigned dim = msh->GetDimension();
+  const unsigned dim2 = 3 * (dim - 1);
+  const unsigned nDofs12 = nDofs1 + nDofs2;
+
+  for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+    ProjectNodalToPolynomialCoefficients(aP2[jtype], vx2, ielt2, jtype);
+  }
+
+  const double h = 0.5 * (hmean1 + hmean2);
+
+  std::vector<std::vector<double> > aRes1(dim);
+  std::vector<std::vector<double> > aRes2(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    aRes1[k].assign(nDofs1, 0.);
+    aRes2[k].assign(nDofs2, 0.);
+  }
+  std::vector<double> Jac(nDofs12 * nDofs12, 0.);
+
+  const unsigned faceGeom = msh->GetElementFaceType(iel, iface);
+  const unsigned faceDofs = msh->GetElementFaceDofNumber(iel, iface, solType);
+  std::vector<std::vector<double> > faceVx(dim);
+  for(unsigned k = 0; k < dim; k++) {
+    faceVx[k].resize(faceDofs);
+  }
+  for(unsigned i = 0; i < faceDofs; i++) {
+    const unsigned inode = msh->GetLocalFaceVertexIndex(iel, iface, i);
+    for(unsigned k = 0; k < dim; k++) {
+      faceVx[k][i] = vx1[k][inode];
+    }
+  }
+
+  double weight;
+  std::vector<double> phi;
+  std::vector<double> gradPhi;
+  std::vector<double> phi_f;
+  std::vector<std::vector<double> > gradPhi_f;
+  double weight1;
+  std::vector<double> phi1;
+  std::vector<double> gradPhi1;
+  std::vector<double> nablaPhi1;
+  double weight2;
+  std::vector<double> phi2;
+  std::vector<double> gradPhi2;
+  std::vector<double> nablaPhi2;
+
+  std::vector<double> Sol1g(dim, 0.);
+  std::vector<double> Sol2g(dim, 0.);
+  double divSol1g = 0.;
+  double divSol2g = 0.;
+  std::vector<std::vector<double> > gradSol1g(dim, std::vector<double>(dim, 0.));
+  std::vector<std::vector<double> > gradSol2g(dim, std::vector<double>(dim, 0.));
+  std::vector<double> gradSol1DotN(dim, 0.);
+  std::vector<double> gradSol2DotN(dim, 0.);
+  std::vector<double> hessSol1DotN(dim, 0.);
+  std::vector<double> hessSol2DotN(dim, 0.);
+
+  for(unsigned ig = 0; ig < msh->_finiteElement [faceGeom][solType] ->GetGaussPointNumber(); ig++) {
+
+    std::vector<double> normal;
+
+    msh->_finiteElement [faceGeom][solType] ->JacobianSur( faceVx, ig, weight, phi, gradPhi, normal);
+
+    double h2 = h * h;
+    double h3 = h2 * h;
+    double h5 = h2 * h3;
+
+    std::vector<double> xg(dim, 0.);
+
+    for(unsigned i = 0; i < faceDofs; i++) {
+
+      for(unsigned k = 0; k < dim; k++) {
+
+        xg[k] += phi[i] * faceVx[k][i];
+      }
+    }
+
+    std::vector<double> xi1;
+
+    GetClosestPointInReferenceElement( vx1, xg, ielt1, xi1);
+
+    bool inverseMapping = GetInverseMapping_fast( solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
+
+    if(!inverseMapping) {
+      std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
+    }
+
+    std::vector<double> xi2;
+
+    GetClosestPointInReferenceElement( vx2, xg, ielt2, xi2);
+
+    inverseMapping = GetInverseMapping_fast( solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
+
+    if(!inverseMapping) {
+      std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
+    }
+
+    if(hessian_flag) {
+
+      msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+
+      msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+    }
+    else {
+
+      msh->_finiteElement [ielt1][solType] ->Jacobian( vx1, xi1, weight1, phi1, gradPhi1);
+
+      msh->_finiteElement [ielt2][solType] ->Jacobian( vx2, xi2, weight2, phi2, gradPhi2);
+    }
+
+    divSol1g = 0.;
+
+    for(unsigned I = 0; I < dim; I++) {
+
+      Sol1g[I] = 0.;
+      gradSol1DotN[I] = 0.;
+      hessSol1DotN[I] = 0.;
+
+      for(unsigned J = 0; J < dim; J++) {
+
+        gradSol1g[I][J] = 0.;
+      }
+
+      for(unsigned i = 0; i < nDofs1; i++) {
+
+        Sol1g[I] += sol1[I][i] * phi1[i];
+
+        divSol1g += sol1[I][i] * gradPhi1[ i * dim + I];
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradSol1g[I][J] += sol1[I][i] * gradPhi1[ i * dim + J];
+
+          gradSol1DotN[I] += sol1[I][i] * gradPhi1[ i * dim + J] * normal[J];
+
+          if(hessian_flag) {
+
+            for(unsigned K = 0; K < dim; K++) {
+
+              unsigned L;
+
+              if(J == K) L = J;
+              else if(1 == J + K) L = dim;
+              else if(2 == J + K) L = dim + 2;
+              else if(3 == J + K) L = dim + 1;
+
+              hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+            }
+          }
+        }
+      }
+    }
+
+    divSol2g = 0.;
+
+    for(unsigned I = 0; I < dim; I++) {
+
+      Sol2g[I] = 0.;
+      gradSol2DotN[I] = 0.;
+      hessSol2DotN[I] = 0.;
+
+      for(unsigned J = 0; J < dim; J++) {
+
+        gradSol2g[I][J] = 0.;
+      }
+
+      for(unsigned i = 0; i < nDofs2; i++) {
+
+        Sol2g[I] += sol2[I][i] * phi2[i];
+
+        divSol2g += sol2[I][i] * gradPhi2[ i * dim + I];
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradSol2g[I][J] += sol2[I][i] * gradPhi2[ i * dim + J];
+
+          gradSol2DotN[I] += sol2[I][i] * gradPhi2[ i * dim + J] * normal[J];
+
+          if(hessian_flag) {
+
+            for(unsigned K = 0; K < dim; K++) {
+
+              unsigned L;
+
+              if(J == K) L = J;
+              else if(1 == J + K) L = dim;
+              else if(2 == J + K) L = dim + 2;
+              else if(3 == J + K) L = dim + 1;
+
+              hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+            }
+          }
+        }
+      }
+    }
+
+    double C1 = C0 * 0.05 * mu;
+
+    double D1 = C0 * 0.05 * rho;
+
+    double absSolDotN = 0.;
+
+    for(unsigned I = 0; I < dim; I++) {
+
+      absSolDotN += 0.5 * (Sol1g[I] + Sol2g[I]) * normal[I];
+    }
+
+    absSolDotN = fabs(absSolDotN);
+
+    // -----------------------------
+    // RESIDUAL
+    // -----------------------------
+
+    for(unsigned I = 0; I < dim; I++) {
+
+      for(unsigned i = 0; i < nDofs1; i++) {
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          aRes1[I][i] += (C1 * h + D1 / dt * h3) * gradPhi1[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+
+          aRes1[I][i] += D1 * h2 * absSolDotN * gradPhi1[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+
+          if(hessian_flag) {
+
+            for(unsigned K = 0; K < dim; K++) {
+
+              unsigned L;
+
+              if(J == K) L = J;
+              else if(1 == J + K) L = dim;
+              else if(2 == J + K) L = dim + 2;
+              else if(3 == J + K) L = dim + 1;
+
+              aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+
+              aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+            }
+          }
+        }
+      }
+
+      for(unsigned i = 0; i < nDofs2; i++) {
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[ i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+
+          aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[ i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+
+          if(hessian_flag) {
+
+            for(unsigned K = 0; K < dim; K++) {
+
+              unsigned L;
+
+              if(J == K) L = J;
+              else if(1 == J + K) L = dim;
+              else if(2 == J + K) L = dim + 2;
+              else if(3 == J + K) L = dim + 1;
+
+              aRes2[I][i] += -C1 * h3 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+
+              aRes2[I][i] += -D1 / dt * h5 * normal[J] * nablaPhi2[ i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight;
+            }
+          }
+        }
+      }
+    }
+
+    // -----------------------------
+    // MANUAL TANGENT
+    //
+    // absSolDotN is FROZEN.
+    // Its derivative is zero.
+    // -----------------------------
+
+    const double alpha = C1 * h + D1 / dt * h3;
+
+    const double beta = D1 * h2 * absSolDotN;
+
+    const double gamma = C1 * h3 + D1 / dt * h5;
+
+    std::vector<double> dphi1dn(nDofs1, 0.);
+
+    std::vector<double> dphi2dn(nDofs2, 0.);
+
+    for(unsigned i = 0; i < nDofs1; i++) {
+
+      for(unsigned J = 0; J < dim; J++) {
+
+        dphi1dn[i] += gradPhi1[ i * dim + J] * normal[J];
+      }
+    }
+
+    for(unsigned i = 0; i < nDofs2; i++) {
+
+      for(unsigned J = 0; J < dim; J++) {
+
+        dphi2dn[i] += gradPhi2[ i * dim + J] * normal[J];
+      }
+    }
+
+    std::vector<double> d2phi1dnn(nDofs1, 0.);
+
+    std::vector<double> d2phi2dnn(nDofs2, 0.);
+
+    if(hessian_flag) {
+
+      for(unsigned i = 0; i < nDofs1; i++) {
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          for(unsigned K = 0; K < dim; K++) {
+
+            unsigned L;
+
+            if(J == K) L = J;
+            else if(1 == J + K) L = dim;
+            else if(2 == J + K) L = dim + 2;
+            else if(3 == J + K) L = dim + 1;
+
+            d2phi1dnn[i] += normal[J] * nablaPhi1[ i * dim2 + L] * normal[K];
+          }
+        }
+      }
+
+      for(unsigned i = 0; i < nDofs2; i++) {
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          for(unsigned K = 0; K < dim; K++) {
+
+            unsigned L;
+
+            if(J == K) L = J;
+            else if(1 == J + K) L = dim;
+            else if(2 == J + K) L = dim + 2;
+            else if(3 == J + K) L = dim + 1;
+
+            d2phi2dnn[i] += normal[J] * nablaPhi2[ i * dim2 + L] * normal[K];
+          }
+        }
+      }
+    }
+
+    // J11
+
+    for(unsigned i = 0; i < nDofs1; i++) {
+
+      for(unsigned j = 0; j < nDofs1; j++) {
+
+        double value = alpha * dphi1dn[i] * dphi1dn[j];
+
+        double gradDot = 0.;
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradDot += gradPhi1[ i * dim + J] * gradPhi1[ j * dim + J];
+        }
+
+        value += beta * gradDot;
+
+        if(hessian_flag) {
+
+          value += gamma * d2phi1dnn[i] * d2phi1dnn[j];
+        }
+
+        Jac[ i * nDofs12 + j] += value * weight;
+      }
+    }
+
+    // J12
+
+    for(unsigned i = 0; i < nDofs1; i++) {
+
+      for(unsigned j = 0; j < nDofs2; j++) {
+
+        double value = -alpha * dphi1dn[i] * dphi2dn[j];
+
+        double gradDot = 0.;
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradDot += gradPhi1[ i * dim + J] * gradPhi2[ j * dim + J];
+        }
+
+        value -= beta * gradDot;
+
+        if(hessian_flag) {
+
+          value -= gamma * d2phi1dnn[i] * d2phi2dnn[j];
+        }
+
+        Jac[ i * nDofs12 + nDofs1 + j] += value * weight;
+      }
+    }
+
+    // J21
+
+    for(unsigned i = 0; i < nDofs2; i++) {
+
+      for(unsigned j = 0; j < nDofs1; j++) {
+
+        double value = -alpha * dphi2dn[i] * dphi1dn[j];
+
+        double gradDot = 0.;
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradDot += gradPhi2[ i * dim + J] * gradPhi1[ j * dim + J];
+        }
+
+        value -= beta * gradDot;
+
+        if(hessian_flag) {
+
+          value -= gamma * d2phi2dnn[i] * d2phi1dnn[j];
+        }
+
+        Jac[ (nDofs1 + i) * nDofs12 + j] += value * weight;
+      }
+    }
+
+    // J22
+
+    for(unsigned i = 0; i < nDofs2; i++) {
+
+      for(unsigned j = 0; j < nDofs2; j++) {
+
+        double value = alpha * dphi2dn[i] * dphi2dn[j];
+
+        double gradDot = 0.;
+
+        for(unsigned J = 0; J < dim; J++) {
+
+          gradDot += gradPhi2[ i * dim + J] * gradPhi2[ j * dim + J];
+        }
+
+        value += beta * gradDot;
+
+        if(hessian_flag) {
+
+          value += gamma * d2phi2dnn[i] * d2phi2dnn[j];
+        }
+
+        Jac[ (nDofs1 + i) * nDofs12 + nDofs1 + j] += value * weight;
+      }
+    }
+  }
+
+  std::vector<unsigned> sysDofs12(nDofs12);
+
+  std::vector<double> rhs12(nDofs12);
+
+  for(unsigned I = 0; I < dim; I++) {
+
+    for(unsigned i = 0; i < nDofs1; i++) {
+
+      sysDofs12[i] = sysDofs1[I][i];
+
+      rhs12[i] = -aRes1[I][i];
+    }
+
+    for(unsigned i = 0; i < nDofs2; i++) {
+
+      sysDofs12[ nDofs1 + i] = sysDofs2[I][i];
+
+      rhs12[ nDofs1 + i] = -aRes2[I][i];
+    }
+
+    myRES->add_vector_blocked( rhs12, sysDofs12);
+
+    myKK->add_matrix_blocked( Jac, sysDofs12, sysDofs12);
+  }
+}
+
 void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
+
+  // this function works both for fluid and solid ghost penalty
+
+  double C0 = 1.;
+
+  clock_t start_time;
+
+  // pointers and references
+
+  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
+
+  const unsigned level = my_nnlin_impl_sys.GetLevelToAssemble();
+
+  MultiLevelSolution* mlSol = ml_prob._ml_sol;
+  Solution* mysolution = mlSol->GetSolutionLevel(level);
+
+  LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];
+
+  Mesh* msh = ml_prob._ml_msh->GetLevel(level);
+  elem* el = msh->el;
+
+  SparseMatrix* myKK = myLinEqSolver->_KK;
+  NumericVector* myRES = myLinEqSolver->_RES;
+
+  const unsigned dim = msh->GetDimension();
+
+  unsigned iproc = msh->processor_id();
+  unsigned nprocs = msh->n_processors();
+
+  // quantities for iel will have index 1
+  // quantities for jel will have index 2
+
+  vector< vector<double> > sol1(dim);
+  vector< vector<double> > sol2(dim);
+  vector< vector<double> > sol2d(dim);
+
+  std::vector<std::vector<unsigned> > sysDofs1(dim);
+  std::vector<std::vector<unsigned> > sysDofs2(dim);
+
+  unsigned cIndex = mlSol->GetIndex("C");
+
+  vector<vector<double> > vx1(dim);
+  vector<vector<double> > vx2(dim);
+
+  MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
+
+  double mu1 = properties.mu1;
+  double mu2 = properties.mu2;
+  double rho1 = properties.rho1;
+  double rho2 = properties.rho2;
+
+  double mu = 2. * mu1 * mu2 / (mu1 + mu2);
+  double rho = 2. * rho1 * rho2 / (rho1 + rho2);
+
+  double dt = my_nnlin_impl_sys.GetIntervalTime();
+
+  const unsigned levelC = ml_prob.GetMultiphaseParams().levelC;
+
+  std::cout.precision(10);
+
+  // variable-name handling
+
+  const char varname[3][5] = {"U", "V", "W"};
+
+  vector<unsigned> indexSol(dim);
+  vector<unsigned> indexPde(dim);
+
+  for(unsigned k = 0; k < dim; k++) {
+    indexSol[k] = mlSol->GetIndex(&varname[k][0]);
+    indexPde[k] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[k][0]);
+  }
+
+  unsigned solType = mlSol->GetSolutionType(&varname[0][0]);
+
+  const bool hessian_flag = (solType == 2) ? true : false;
+
+  unsigned solTypeX = 2;
+
+  start_time = clock();
+
+  std::vector<std::vector<std::vector<double> > > aP1(3);
+  std::vector<std::vector<std::vector<double> > > aP2(3);
+
+  auto flag = [&](unsigned iellevel) -> bool {
+    if(iellevel == levelC) return true;
+    else return false;
+  };
+
+  // ============================================================
+  // SAME-PROCESS FACES
+  // ============================================================
+
+  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
+
+    double Ciel = (*mysolution->_Sol[cIndex])(iel);
+    unsigned eFlag1 = (fabs(Ciel - 0.5) < 0.1) ? 1 : 0;
+
+    unsigned iel_level = msh->el->GetElementLevel(iel);
+
+    if(flag(iel_level)) {
+
+      short unsigned ielt1 = msh->GetElementType(iel);
+      unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);
+      double hmean_i;
+
+      GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, vx1, sysDofs1, hmean_i);
+
+      bool aP1IsInitialized = false;
+
+      for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
+
+        int jel = el->GetFaceElementIndex(iel, iface) - 1;
+
+        if(jel >= 0 && jel > iel) {
+
+          unsigned jel_level = msh->el->GetElementLevel(jel);
+
+          unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+
+          if(jproc == iproc) {
+
+            double Cjel = (*mysolution->_Sol[cIndex])(jel);
+
+            unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1) ? 1 : 0;
+
+            if(flag(jel_level)) {
+
+              short unsigned ielt2 = msh->GetElementType(jel);
+              unsigned nDofs2 = msh->GetElementDofNumber(jel, solType);
+              double hmean_j;
+
+              GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2, vx2, sysDofs2, hmean_j);
+
+              if(!aP1IsInitialized) {
+
+                aP1IsInitialized = true;
+
+                for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+                  ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
+                }
+              }
+
+              AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_i, hmean_j, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ============================================================
+  // CROSS-PROCESS FACES
+  // ============================================================
+
+  if(nprocs > 1) {
+
+    for(unsigned kproc = 0; kproc < nprocs; kproc++) {
+
+      for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; iel++) {
+
+        unsigned eFlag1 = 0;
+
+        if(iproc == kproc) {
+
+          double Ciel = (*mysolution->_Sol[cIndex])(iel);
+
+          unsigned iel_level = msh->el->GetElementLevel(iel);
+
+          eFlag1 = static_cast<unsigned>(flag(iel_level));
+        }
+
+        MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        if(eFlag1 > 0) {
+
+          unsigned nFaces;
+
+          if(iproc == kproc) {
+            nFaces = msh->GetElementFaceNumber(iel);
+          }
+
+          MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+          for(unsigned iface = 0; iface < nFaces; iface++) {
+
+            int jel;
+
+            if(iproc == kproc) {
+              jel = el->GetFaceElementIndex(iel, iface) - 1;
+            }
+
+            MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+
+            if(jel >= 0 && jel > iel) {
+
+              unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+
+              if(jproc != kproc && (iproc == kproc || iproc == jproc)) {
+
+                unsigned eFlag2;
+
+                if(iproc == jproc) {
+
+                  double Cjel = (*mysolution->_Sol[cIndex])(jel);
+
+                  unsigned jel_level = msh->el->GetElementLevel(jel);
+
+                  eFlag2 = static_cast<unsigned>(flag(jel_level));
+
+                  MPI_Send(&eFlag2, 1, MPI_UNSIGNED, kproc, 0, PETSC_COMM_WORLD);
+                }
+                else if(iproc == kproc) {
+                  MPI_Recv(&eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+
+                if(eFlag2 > 0) {
+
+                  short unsigned ielt1;
+                  short unsigned ielt2;
+                  unsigned nDofs1;
+                  unsigned nDofs2;
+                  double hmean_k;
+                  double hmean_j;
+
+                  if(iproc == kproc) {
+
+                    ielt1 = msh->GetElementType(iel);
+                    nDofs1 = el->GetNVE(ielt1, solType);
+
+                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, vx1, sysDofs1, hmean_k);
+
+                    MPI_Recv(&ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                    nDofs2 = el->GetNVE(ielt2, solType);
+
+                    for(unsigned k = 0; k < dim; k++) {
+                      sysDofs2[k].resize(nDofs2);
+                      sol2d[k].resize(nDofs2);
+                      vx2[k].resize(nDofs2);
+                    }
+                  }
+                  else if(iproc == jproc) {
+
+                    ielt2 = msh->GetElementType(jel);
+                    nDofs2 = el->GetNVE(ielt2, solType);
+
+                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2d, vx2, sysDofs2, hmean_j);
+
+                    MPI_Send(&ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
+                  }
+
+                  std::vector<MPI_Request> reqs(3 * dim + 1);
+
+                  if(iproc == kproc) {
+
+                    for(unsigned k = 0; k < dim; k++) {
+                      MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Irecv(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                    }
+
+                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                  }
+                  else if(iproc == jproc) {
+
+                    for(unsigned k = 0; k < dim; k++) {
+                      MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
+                      MPI_Isend(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                    }
+
+                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                  }
+
+                  MPI_Status status;
+
+                  for(unsigned m = 0; m < 3 * dim + 1; m++) {
+                    MPI_Wait(&reqs[m], &status);
+                  }
+
+                  if(iproc == kproc) {
+
+                    for(unsigned k = 0; k < dim; k++) {
+                      sol2[k].resize(nDofs2);
+                      for(unsigned i = 0; i < nDofs2; i++) {
+                        sol2[k][i] = sol2d[k][i];
+                      }
+                    }
+
+                    for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
+                      ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
+                    }
+
+                    AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_k, hmean_j, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  std::cout << "Ghost Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
+}
+
+void AssembleGhostPenaltyVelocityold(MultiLevelProblem& ml_prob) {
 
   //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
 
@@ -52,9 +3450,15 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
   std::vector <unsigned> sysDofs1;
   std::vector <unsigned> sysDofs2;
 
+  std::vector<std::vector <unsigned>> sys1Dofs1(dim);
+  std::vector<std::vector <unsigned>> sys1Dofs2(dim);
+
   double weight;
   std::vector < double > phi;
   std::vector < double> gradPhi;
+
+  std::vector<double> phi_f;
+  std::vector<std::vector<double>> gradPhi_f;
 
   double weight1;
   std::vector < double > phi1;
@@ -110,6 +3514,21 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
     else return false;
   };
 
+  std::vector < adept::adouble > Sol1g(dim, 0.);
+  std::vector < adept::adouble > Sol2g(dim, 0.);
+
+  adept::adouble divSol1g = 0.;
+  adept::adouble divSol2g = 0.;
+
+  std::vector < std::vector < adept::adouble > > gradSol1g(dim, std::vector < adept::adouble >(dim, 0.));
+  std::vector < std::vector < adept::adouble > > gradSol2g(dim, std::vector < adept::adouble >(dim, 0.));
+
+  std::vector < adept::adouble > gradSol1DotN(dim, 0.);
+  std::vector < adept::adouble > gradSol2DotN(dim, 0.);
+
+  std::vector < adept::adouble >  hessSol1DotN(dim, 0.);
+  std::vector < adept::adouble >  hessSol2DotN(dim, 0.);
+
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -130,8 +3549,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
       sysDofs1.resize(nDofsAll1);
 
       for(unsigned  k = 0; k < dim; k++) {
+        sys1Dofs1[k].resize(nDofs1);
         sol1[k].resize(nDofs1);
-        // sol1Old[k].resize(nDofs1);
         vx1[k].resize(nDofs1);
       }
 
@@ -140,7 +3559,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
         for(unsigned  k = 0; k < dim; k++) {
           sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-          // sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+          sys1Dofs1[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
           sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
         }
       }
@@ -197,8 +3616,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               sysDofs2.resize(nDofsAll2);
 
               for(unsigned  k = 0; k < dim; k++) {
+                sys1Dofs2[k].resize(nDofs2);
                 sol2[k].resize(nDofs2);
-                // sol2Old[k].resize(nDofs2);
                 vx2[k].resize(nDofs2);
               }
 
@@ -206,7 +3625,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 unsigned idof = msh->GetSolutionDof(i, jel, solType);
                 for(unsigned  k = 0; k < dim; k++) {
                   sol2[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                  // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                  sys1Dofs2[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                   sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                 }
               }
@@ -293,7 +3712,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                 GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
+                bool inverseMapping = GetInverseMapping_fast(solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
@@ -301,66 +3720,75 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                 GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
 
-                inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
+                inverseMapping = GetInverseMapping_fast(solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
 
-                msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                if(hessian_flag) {
+                  msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+                  msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                }
+                else {
+                  msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1);
+                  msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2);
+                }
 
-                adept::adouble divSol1g = 0.;
-                adept::adouble divSol2g = 0.;
-
-                std::vector < adept::adouble > Sol1g(dim, 0.);
-                std::vector < adept::adouble > Sol2g(dim, 0.);
-
-                std::vector < std::vector < adept::adouble > > gradSol1g(dim, std::vector < adept::adouble >(dim, 0.));
-                std::vector < std::vector < adept::adouble > > gradSol2g(dim, std::vector < adept::adouble >(dim, 0.));
-
-                std::vector < adept::adouble > gradSol1DotN(dim, 0.);
-                std::vector < adept::adouble > gradSol2DotN(dim, 0.);
-
-                std::vector < adept::adouble >  hessSol1DotN(dim, 0.);
-                std::vector < adept::adouble >  hessSol2DotN(dim, 0.);
-
+                divSol1g = 0.;
                 for(unsigned I = 0; I < dim; I++) {
+                  Sol1g[I] = 0.;
+                  gradSol1DotN[I] = 0.;
+                  hessSol1DotN[I] = 0.;
+                  for(unsigned J = 0; J < dim; J++) {
+                    gradSol1g[I][J] = 0.;
+                  }
                   for(unsigned i = 0; i < nDofs1; i++) {
                     Sol1g[I] += sol1[I][i] * phi1[i];
                     divSol1g += sol1[I][i] * gradPhi1[i * dim + I];
                     for(unsigned J = 0; J < dim; J++) {
                       gradSol1g[I][J] += sol1[I][i] * gradPhi1[i * dim + J];
                       gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];//H.. gradient projected in normal direction.
-                      for(unsigned K = 0; K < dim; K++) {
-                        //2D xx, yy, xy
-                        //3D xx, yy, zz, xy, yz ,zx
-                        unsigned L;
-                        if(J == K) L = J;
-                        else if(1 == J + K) L = dim;     // xy
-                        else if(2 == J + K) L = dim + 2; // xz
-                        else if(3 == J + K) L = dim + 1; // yz
-                        hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                      if(hessian_flag) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          //2D xx, yy, xy
+                          //3D xx, yy, zz, xy, yz ,zx
+                          unsigned L;
+                          if(J == K) L = J;
+                          else if(1 == J + K) L = dim;     // xy
+                          else if(2 == J + K) L = dim + 2; // xz
+                          else if(3 == J + K) L = dim + 1; // yz
+                          hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                        }
                       }
                     }
                   }
                 }
 
+                divSol2g = 0.;
                 for(unsigned I = 0; I < dim; I++) {
+                  Sol2g[I] = 0.;
+                  gradSol2DotN[I] = 0.;
+                  hessSol2DotN[I] = 0.;
+                  for(unsigned J = 0; J < dim; J++) {
+                    gradSol2g[I][J] = 0.;
+                  }
                   for(unsigned i = 0; i < nDofs2; i++) {
                     Sol2g[I] += sol2[I][i] * phi2[i];
                     divSol2g += sol2[I][i] * gradPhi2[i * dim + I];
                     for(unsigned J = 0; J < dim; J++) {
                       gradSol2g[I][J] += sol2[I][i] * gradPhi2[i * dim + J];
                       gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
-                      for(unsigned K = 0; K < dim; K++) {
-                        //2D xx, yy, xy
-                        //3D xx, yy, zz, xy, yz ,zx
-                        unsigned L;
-                        if(J == K) L = J;
-                        else if(1 == J + K) L = dim;     // xy
-                        else if(2 == J + K) L = dim + 2; // xz
-                        else if(3 == J + K) L = dim + 1; // yz
-                        hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                      if(hessian_flag) {
+                        for(unsigned K = 0; K < dim; K++) {
+                          //2D xx, yy, xy
+                          //3D xx, yy, zz, xy, yz ,zx
+                          unsigned L;
+                          if(J == K) L = J;
+                          else if(1 == J + K) L = dim;     // xy
+                          else if(2 == J + K) L = dim + 2; // xz
+                          else if(3 == J + K) L = dim + 1; // yz
+                          hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                        }
                       }
                     }
                   }
@@ -378,10 +3806,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 for(unsigned I = 0; I < dim; I++) {
                   for(unsigned i = 0; i < nDofs1; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
-                      aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
+                      aRes1[I][i] +=  (C1 * h + D1 / dt * h3) * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight;
                       aRes1[I][i] +=  D1 * h2 * absSolDotN * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
-
                       if (hessian_flag) {
                         for(unsigned K = 0; K < dim; K++) {
                           unsigned L;
@@ -398,8 +3824,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                   for(unsigned i = 0; i < nDofs2; i++) {
                     for(unsigned J = 0; J < dim; J++) {
-                      aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
-                      aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
+                      aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
                       aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                       if (hessian_flag) {
@@ -421,74 +3846,42 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 }
               }
 
-              //copy the value of the adept::adoube aRes in double Res and store them in RES
-              rhs1.resize(nDofsAll1);   //resize
-              for(int i = 0; i < nDofs1; i++) {
-                for(unsigned  k = 0; k < dim; k++) {
-                  rhs1[ k * nDofs1 + i ] = -aRes1[k][i].value();
+              unsigned nDofs12 = nDofs1 + nDofs2;
+              std::vector<unsigned> sys1Dofs12(nDofs12);
+              std::vector<double> rhs12(nDofs12);
+
+              for(unsigned I = 0; I < dim; I++) {
+
+                for(unsigned i = 0; i < nDofs1; i++) {
+                  sys1Dofs12[i] = sys1Dofs1[I][i];
+                  rhs12[i] = -aRes1[I][i].value();
                 }
-              }
-              myRES->add_vector_blocked(rhs1, sysDofs1);
-
-              rhs2.resize(nDofsAll2);   //resize
-              for(int i = 0; i < nDofs2; i++) {
-                for(unsigned  k = 0; k < dim; k++) {
-                  rhs2[ k * nDofs2 + i ] = -aRes2[k][i].value();
+                for(unsigned i = 0; i < nDofs2; i++) {
+                  sys1Dofs12[nDofs1 + i] = sys1Dofs2[I][i];
+                  rhs12[nDofs1 + i] = -aRes2[I][i].value();
                 }
-              }
-              myRES->add_vector_blocked(rhs2, sysDofs2);
 
-              // define the dependent variables J11 and J12
-              for(unsigned  k = 0; k < dim; k++) {
-                s.dependent(&aRes1[k][0], nDofs1);
+                myRES->add_vector_blocked(rhs12, sys1Dofs12);
+
+                // define the dependent variables J11 and J12
+                s.clear_dependents();
+                s.dependent(&aRes1[I][0], nDofs1);
+                s.dependent(&aRes2[I][0], nDofs2);
+
+                // define the independent variables J11
+                s.clear_independents();
+                s.independent(&sol1[I][0], nDofs1);
+                s.independent(&sol2[I][0], nDofs2);
+
+                // get the and store jacobian matrix (row-major)
+                Jac.resize(nDofs12 * nDofs12);
+                s.jacobian(&Jac[0], true);
+                myKK->add_matrix_blocked(Jac, sys1Dofs12, sys1Dofs12);
               }
-              // define the independent variables J11
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&sol1[k][0], nDofs1);
-              }
-              Jac.resize(nDofsAll1 * nDofsAll1);
-              // get the and store jacobian matrix (row-major)
-              s.jacobian(&Jac[0], true);
-              myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
+
+              s.clear_dependents();
               s.clear_independents();
 
-              // define the independent variables J12
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&sol2[k][0], nDofs2);
-              }
-              Jac.resize(nDofsAll1 * nDofsAll2);
-              // get the and store jacobian matrix (row-major)
-              s.jacobian(&Jac[0], true);
-              myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs2);
-              s.clear_independents();
-
-              s.clear_dependents(); // for J11 and J12
-              // define the dependent variables J21 and J22
-              for(unsigned  k = 0; k < dim; k++) {
-                s.dependent(&aRes2[k][0], nDofs2);
-              }
-
-              // define the independent variables J21
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&sol1[k][0], nDofs1);
-              }
-              Jac.resize(nDofsAll2 * nDofsAll1);
-              // get the and store jacobian matrix (row-major)
-              s.jacobian(&Jac[0], true);
-              myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
-              s.clear_independents();
-
-              // define the independent variables J22
-              for(unsigned  k = 0; k < dim; k++) {
-                s.independent(&sol2[k][0], nDofs2);
-              }
-              Jac.resize(nDofsAll2 * nDofsAll2);
-              // get the and store jacobian matrix (row-major)
-              s.jacobian(&Jac[0], true);
-              myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs2);
-              s.clear_independents();
-
-              s.clear_dependents(); // for J21 and J22
             }
           }
         }
@@ -540,7 +3933,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                   MPI_Recv(&eFlag2, 1, MPI_UNSIGNED, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
 
-                if(eFlag2 == 0 /*|| jel > iel*/) {
+                if(eFlag2 > 0 /*|| jel > iel*/) {
                   //std::cout << "I am " << iel << " on " << kproc << " talking with " << jel << " on " << jproc << std::endl;
 
                   short unsigned ielt1;
@@ -563,11 +3956,12 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                   sysDofs2.resize(nDofsAll2);
                   for(unsigned  k = 0; k < dim; k++) {
+                    sys1Dofs2[k].resize(nDofs2);
                     sol2d[k].resize(nDofs2);
                     // sol2Old[k].resize(nDofs2);
                     vx2[k].resize(nDofs2);
                   }
-                  std::vector < MPI_Request > reqs(2 * dim + 2);
+                  std::vector < MPI_Request > reqs(3 * dim + 2);
                   double hmean_j;
                   if(iproc == kproc) {
 
@@ -577,8 +3971,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     sysDofs1.resize(nDofsAll1);
 
                     for(unsigned  k = 0; k < dim; k++) {
+                      sys1Dofs1[k].resize(nDofs1);
                       sol1[k].resize(nDofs1);
-                      // sol1Old[k].resize(nDofs1);
                       vx1[k].resize(nDofs1);
                     }
                     for(unsigned i = 0; i < nDofs1; i++) {
@@ -586,7 +3980,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol1[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        // sol1Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        sys1Dofs1[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
                         sysDofs1[k * nDofs1 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
                       }
                     }
@@ -602,9 +3996,10 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       // MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + 1 * dim, PETSC_COMM_WORLD, &reqs[k + 1 * dim]);
+                      MPI_Irecv(sys1Dofs2[k].data(), sys1Dofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
-                    MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 2 * dim, PETSC_COMM_WORLD,  &reqs[2 * dim]);
-                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 2 * dim + 1, PETSC_COMM_WORLD,  &reqs[2 * dim + 1]);
+                    MPI_Irecv(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, jproc, 3 * dim, PETSC_COMM_WORLD,  &reqs[3 * dim]);
+                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 3 * dim + 1, PETSC_COMM_WORLD,  &reqs[3 * dim + 1]);
                   }
                   else if(iproc == jproc) {
                     for(unsigned i = 0; i < nDofs2; i++) {
@@ -612,7 +4007,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                       for(unsigned  k = 0; k < dim; k++) {
                         sol2d[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
-                        // sol2Old[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
+                        sys1Dofs2[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                         sysDofs2[k * nDofs2 + i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, jel);
                       }
                     }
@@ -649,13 +4044,14 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       // MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + 1 * dim, PETSC_COMM_WORLD, &reqs[k + 1 * dim]);
+                      MPI_Isend(sys1Dofs2[k].data(), sys1Dofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
-                    MPI_Isend(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, kproc, 2 * dim, PETSC_COMM_WORLD, &reqs[2 * dim]);
-                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 2 * dim + 1, PETSC_COMM_WORLD, &reqs[2 * dim + 1]);
+                    MPI_Isend(sysDofs2.data(), sysDofs2.size(), MPI_UNSIGNED, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 3 * dim + 1, PETSC_COMM_WORLD, &reqs[3 * dim + 1]);
                   }
 
                   MPI_Status status;
-                  for(unsigned m = 0; m < 2 * dim + 2; m++) {
+                  for(unsigned m = 0; m < 3 * dim + 2; m++) {
                     MPI_Wait(&reqs[m], &status);
                   }
 
@@ -735,7 +4131,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                       GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                      bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
+                      bool inverseMapping = GetInverseMapping_fast(solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
@@ -743,13 +4139,19 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                       GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
 
-                      inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
+                      inverseMapping = GetInverseMapping_fast(solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
 
-                      msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                      msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                      if(hessian_flag) {
+                        msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
+                        msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                      }
+                      else {
+                        msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1);
+                        msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2);
+                      }
 
                       adept::adouble divSol1g = 0.;
                       adept::adouble divSol2g = 0.;
@@ -773,15 +4175,17 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                           for(unsigned J = 0; J < dim; J++) {
                             gradSol1g[I][J] += sol1[I][i] * gradPhi1[i * dim + J];
                             gradSol1DotN[I] += sol1[I][i] * gradPhi1[i * dim + J] * normal[J];//H.. gradient projected in normal direction.
-                            for(unsigned K = 0; K < dim; K++) {
-                              //2D xx, yy, xy
-                              //3D xx, yy, zz, xy, yz ,zx
-                              unsigned L;
-                              if(J == K) L = J;
-                              else if(1 == J + K) L = dim;     // xy
-                              else if(2 == J + K) L = dim + 2; // xz
-                              else if(3 == J + K) L = dim + 1; // yz
-                              hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                            if(hessian_flag) {
+                              for(unsigned K = 0; K < dim; K++) {
+                                //2D xx, yy, xy
+                                //3D xx, yy, zz, xy, yz ,zx
+                                unsigned L;
+                                if(J == K) L = J;
+                                else if(1 == J + K) L = dim;     // xy
+                                else if(2 == J + K) L = dim + 2; // xz
+                                else if(3 == J + K) L = dim + 1; // yz
+                                hessSol1DotN[I] += sol1[I][i] * normal[J] * nablaPhi1[i * dim2 + L] * normal[K];
+                              }
                             }
                           }
                         }
@@ -794,15 +4198,17 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                           for(unsigned J = 0; J < dim; J++) {
                             gradSol2g[I][J] += sol2[I][i] * gradPhi2[i * dim + J];
                             gradSol2DotN[I] += sol2[I][i] * gradPhi2[i * dim + J] * normal[J];
-                            for(unsigned K = 0; K < dim; K++) {
-                              //2D xx, yy, xy
-                              //3D xx, yy, zz, xy, yz ,zx
-                              unsigned L;
-                              if(J == K) L = J;
-                              else if(1 == J + K) L = dim;     // xy
-                              else if(2 == J + K) L = dim + 2; // xz
-                              else if(3 == J + K) L = dim + 1; // yz
-                              hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                            if(hessian_flag) {
+                              for(unsigned K = 0; K < dim; K++) {
+                                //2D xx, yy, xy
+                                //3D xx, yy, zz, xy, yz ,zx
+                                unsigned L;
+                                if(J == K) L = J;
+                                else if(1 == J + K) L = dim;     // xy
+                                else if(2 == J + K) L = dim + 2; // xz
+                                else if(3 == J + K) L = dim + 1; // yz
+                                hessSol2DotN[I] += sol2[I][i] * normal[J] * nablaPhi2[i * dim2 + L] * normal[K];
+                              }
                             }
                           }
                         }
@@ -820,9 +4226,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       for(unsigned I = 0; I < dim; I++) {
                         for(unsigned i = 0; i < nDofs1; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aRes1[I][i] +=  C1 * h * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
-                            aRes1[I][i] +=  D1 / dt * h3 * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
-                            aRes1[I][i] +=  D1 * h2 * absSolDotN * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+                            aRes1[I][i] +=  (C1 * h + D1 / dt * h3) * gradPhi1[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
+                            aRes1[I][i] +=  D1 * h2 * absSolDotN.value() * gradPhi1[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                             if (hessian_flag) {
                               for(unsigned K = 0; K < dim; K++) {
@@ -831,8 +4236,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                                 else if(1 == J + K) L = dim;     // xy
                                 else if(2 == J + K) L = dim + 2; // xz
                                 else if(3 == J + K) L = dim + 1; // yz
-                                aRes1[I][i] += C1 * h3 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
-                                aRes1[I][i] += D1 / dt * h5 * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
+                                aRes1[I][i] += (C1 * h3 + D1 / dt * h5) * normal[J] * nablaPhi1[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
                               }
                             }
                           }
@@ -840,9 +4244,8 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                         for(unsigned i = 0; i < nDofs2; i++) {
                           for(unsigned J = 0; J < dim; J++) {
-                            aRes2[I][i] +=  -C1 * h * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
-                            aRes2[I][i] += -D1 / dt * h3 * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
-                            aRes2[I][i] += -D1 * h2 * absSolDotN * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
+                            aRes2[I][i] += -(C1 * h + D1 / dt * h3) * gradPhi2[i * dim + J] * normal[J] * (gradSol1DotN[I] - gradSol2DotN[I]) * weight ;
+                            aRes2[I][i] += -D1 * h2 * absSolDotN.value() * gradPhi2[i * dim + J] * (gradSol1g[I][J] - gradSol2g[I][J]) * weight;
 
                             if (hessian_flag) {
                               for(unsigned K = 0; K < dim; K++) {
@@ -852,9 +4255,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                                 else if(1 == J + K) L = dim;     // xy
                                 else if(2 == J + K) L = dim + 2; // xz
                                 else if(3 == J + K) L = dim + 1; // yz
-
-                                aRes2[I][i] +=  -C1 * h3 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
-                                aRes2[I][i] +=  -D1 / dt * h5 * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
+                                aRes2[I][i] +=  -(C1 * h3 + D1 / dt * h5) * normal[J] * nablaPhi2[i * dim2 + L] * normal[K] * (hessSol1DotN[I] - hessSol2DotN[I]) * weight ;
 
                               }
                             }
@@ -863,74 +4264,41 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       }
                     }
 
-                    //copy the value of the adept::adoube aRes in double Res and store them in RES
-                    rhs1.resize(nDofsAll1);   //resize
-                    for(int i = 0; i < nDofs1; i++) {
-                      for(unsigned  k = 0; k < dim; k++) {
-                        rhs1[ k * nDofs1 + i ] = -aRes1[k][i].value();
+                    unsigned nDofs12 = nDofs1 + nDofs2;
+                    std::vector<unsigned> sys1Dofs12(nDofs12);
+                    std::vector<double> rhs12(nDofs12);
+
+                    for(unsigned I = 0; I < dim; I++) {
+
+                      for(unsigned i = 0; i < nDofs1; i++) {
+                        sys1Dofs12[i] = sys1Dofs1[I][i];
+                        rhs12[i] = -aRes1[I][i].value();
                       }
-                    }
-                    myRES->add_vector_blocked(rhs1, sysDofs1);
-
-                    rhs2.resize(nDofsAll2);   //resize
-                    for(int i = 0; i < nDofs2; i++) {
-                      for(unsigned  k = 0; k < dim; k++) {
-                        rhs2[ k * nDofs2 + i ] = -aRes2[k][i].value();
+                      for(unsigned i = 0; i < nDofs2; i++) {
+                        sys1Dofs12[nDofs1 + i] = sys1Dofs2[I][i];
+                        rhs12[nDofs1 + i] = -aRes2[I][i].value();
                       }
-                    }
-                    myRES->add_vector_blocked(rhs2, sysDofs2);
 
-                    // define the dependent variables J11 and J12
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aRes1[k][0], nDofs1);
+                      myRES->add_vector_blocked(rhs12, sys1Dofs12);
+
+                      // define the dependent variables J11 and J12
+                      s.clear_dependents();
+                      s.dependent(&aRes1[I][0], nDofs1);
+                      s.dependent(&aRes2[I][0], nDofs2);
+
+                      // define the independent variables J11
+                      s.clear_independents();
+                      s.independent(&sol1[I][0], nDofs1);
+                      s.independent(&sol2[I][0], nDofs2);
+
+                      // get the and store jacobian matrix (row-major)
+                      Jac.resize(nDofs12 * nDofs12);
+                      s.jacobian(&Jac[0], true);
+                      myKK->add_matrix_blocked(Jac, sys1Dofs12, sys1Dofs12);
                     }
-                    // define the independent variables J11
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&sol1[k][0], nDofs1);
-                    }
-                    Jac.resize(nDofsAll1 * nDofsAll1);
-                    // get the and store jacobian matrix (row-major)
-                    s.jacobian(&Jac[0], true);
-                    myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs1);
+
+                    s.clear_dependents();
                     s.clear_independents();
-
-                    // define the independent variables J12
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&sol2[k][0], nDofs2);
-                    }
-                    Jac.resize(nDofsAll1 * nDofsAll2);
-                    // get the and store jacobian matrix (row-major)
-                    s.jacobian(&Jac[0], true);
-                    myKK->add_matrix_blocked(Jac, sysDofs1, sysDofs2);
-                    s.clear_independents();
-
-                    s.clear_dependents(); // for J11 and J12
-                    // define the dependent variables J21 and J22
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.dependent(&aRes2[k][0], nDofs2);
-                    }
-
-                    // define the independent variables J21
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&sol1[k][0], nDofs1);
-                    }
-                    Jac.resize(nDofsAll2 * nDofsAll1);
-                    // get the and store jacobian matrix (row-major)
-                    s.jacobian(&Jac[0], true);
-                    myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs1);
-                    s.clear_independents();
-
-                    // define the independent variables J22
-                    for(unsigned  k = 0; k < dim; k++) {
-                      s.independent(&sol2[k][0], nDofs2);
-                    }
-                    Jac.resize(nDofsAll2 * nDofsAll2);
-                    // get the and store jacobian matrix (row-major)
-                    s.jacobian(&Jac[0], true);
-                    myKK->add_matrix_blocked(Jac, sysDofs2, sysDofs2);
-                    s.clear_independents();
-
-                    s.clear_dependents(); // for J21 and J22
                   }
                 }
               }
@@ -1001,12 +4369,12 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
   double weight1;
   std::vector < double > phi1;
   std::vector < double> gradPhi1;
-  std::vector < double> nablaPhi1;
+  //std::vector < double> nablaPhi1;
 
   double weight2;
   std::vector < double > phi2;
   std::vector < double> gradPhi2;
-  std::vector < double> nablaPhi2;
+  //std::vector < double> nablaPhi2;
 
   vector <vector < double> > vx1(dim);
   vector <vector < double> > vx2(dim);
@@ -1051,6 +4419,9 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
     }
 
   };
+
+  std::vector<double> phi_f;
+  std::vector<std::vector<double>> gradPhi_f;
 
   //flagmark
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
@@ -1222,7 +4593,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                 std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                 GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
+                bool inverseMapping = GetInverseMapping_fast(solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
@@ -1230,13 +4601,13 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                 std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                 GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
 
-                inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
+                inverseMapping = GetInverseMapping_fast(solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
                 if(!inverseMapping) {
                   std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                 }
 
-                msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1);//, nablaPhi1);
+                msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2);//, nablaPhi2);
 
                 adept::adouble gradSol1DotN = 0.;
                 adept::adouble gradSol2DotN = 0.;
@@ -1551,7 +4922,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                       std::vector <double> xi1;//local coordinates of the face gauss point with respect to iel
                       GetClosestPointInReferenceElement(vx1, xg, ielt1, xi1);
 
-                      bool inverseMapping = GetInverseMapping(solType, ielt1, aP1, xg, xi1, 100);
+                      bool inverseMapping = GetInverseMapping_fast(solType, ielt1, aP1, xg, xi1, 100, phi_f, gradPhi_f);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping1 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
@@ -1559,13 +4930,13 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                       std::vector <double> xi2;//local coordinates of the face gauss point with respect to jel
                       GetClosestPointInReferenceElement(vx2, xg, ielt2, xi2);
 
-                      inverseMapping = GetInverseMapping(solType, ielt2, aP2, xg, xi2, 100);
+                      inverseMapping = GetInverseMapping_fast(solType, ielt2, aP2, xg, xi2, 100, phi_f, gradPhi_f);
                       if(!inverseMapping) {
                         std::cout << "InverseMapping2 failed at " << iel << " " << jel << " " << iface << std::endl;
                       }
 
-                      msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1, nablaPhi1);
-                      msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2, nablaPhi2);
+                      msh->_finiteElement[ielt1][solType]->Jacobian(vx1, xi1, weight1, phi1, gradPhi1);//, nablaPhi1);
+                      msh->_finiteElement[ielt2][solType]->Jacobian(vx2, xi2, weight2, phi2, gradPhi2);//, nablaPhi2);
 
                       adept::adouble  gradSol1DotN = 0.;
                       adept::adouble  gradSol2DotN = 0.;

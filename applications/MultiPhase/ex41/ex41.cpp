@@ -373,8 +373,8 @@ int main(int argc, char **argv) {
 
     // ml_prob0 = &mlProb0;
 
-    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, 0, properties);
-    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, 0, properties);
+    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler);
+    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler);
 
     msh->SetLevel(0);
     system2.MGsolve();

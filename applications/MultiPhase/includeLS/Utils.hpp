@@ -6,22 +6,24 @@ typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 typedef cpp_bin_float_oct oct;
 
-// CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
-CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> hex  = CutFemWeight<TypeIO, TypeA >(HEX, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> wedge = CutFemWeight<TypeIO, TypeA >(WEDGE, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> quad = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> tri = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
 
-const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&quad, &quad, &quad, &quad, &tri};
+const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri};
 
 unsigned qM = 5;
-double dx = .01;
-double dtetha = 1.;
+double dx = .005;
+double dtetha = .5;
 
 CDWeightQUAD <TypeA> quadCD0(qM, dx, dtetha);
 CDWeightTRI <TypeA> triCD0(qM, dx, dtetha);
 
 const std::vector< CDWeight <TypeA> *> cfCDw0 = {&quadCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
 
-Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
+Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
 
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
@@ -1298,9 +1300,10 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
                  const double dt) {
   const unsigned &dim = X.size();
   const unsigned rk_nsteps = 4;
-  const std::vector <double> c_forward = {0., 0.5, 0.5, 1.};
-  const std::vector <double> c_backward = {1., 0.5, 0.5, 0.};
-  const std::vector <double> c = (dt > 0) ? c_forward : c_backward;
+  // const std::vector <double> c_forward = {0., 0.5, 0.5, 1.};
+  // const std::vector <double> c_backward = {1., 0.5, 0.5, 0.};
+  // const std::vector <double> c = (dt > 0) ? c_forward : c_backward;
+  const std::vector <double> c = {1., 1., 1., 1.};
   const std::vector<std::vector <double> > a = {{}, {0.5}, {0, 0.5}, {0., 0., 1.}};
   const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
   std::vector<std::vector<MyVector<double>>> K;
@@ -2340,16 +2343,20 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
     std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
 
-    (*cfw[ielGeom])(0, a, interfaceConstant, weightInner);
+    cfCDw0[ielGeom]->GetWeight(a, interfaceConstant, weightInner);
+    for(unsigned i = 0; i < weightInner.size(); i++) weightOuter[i] = 1. - weightInner[i];
+    //(*cfw[ielGeom])(-1, a, interfaceConstant, weightInterface);
 
-    for(unsigned k = 0; k < dim; ++k) {
-      a[k] = -a[k];
-    }
+    cfw[ielGeom]->GetWeightWithMap(-1, a, interfaceConstant, weightInterface);
 
-    interfaceConstant = -interfaceConstant;
-
-    (*cfw[ielGeom])(-1, a, interfaceConstant, weightInterface);
-    (*cfw[ielGeom])(0, a, interfaceConstant, weightOuter);
+    //(*cfw[ielGeom])(0, a, interfaceConstant, weightInner);
+    // for(unsigned k = 0; k < dim; ++k) {
+    //   a[k] = -a[k];
+    // }
+    // interfaceConstant = -interfaceConstant;
+    // (*cfw[ielGeom])(-1, a, interfaceConstant, weightInterface);
+    //
+    // (*cfw[ielGeom])(0, a, interfaceConstant, weightOuter);
 
     for(unsigned ig = 0; ig < nGauss; ++ig) {
       double weight = 0.0;
@@ -2572,4 +2579,344 @@ void PrintLevelSetDiagnostics(
   }
 
   out << '\n';
+}
+
+struct SimulationArgs {
+  unsigned uniformLevels = 0u;
+  unsigned levelOffset   = 2u;
+
+  std::vector<unsigned> adaptiveLevels;
+  std::vector<unsigned> nSteps;
+  double period = 3.;
+};
+
+SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
+
+  SimulationArgs args;
+
+  for (int i = 1; i < argc; ++i) {
+
+    const std::string option = argv[i];
+
+    if (option == "--uniform-levels") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --uniform-levels"
+        );
+      }
+
+      args.uniformLevels = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--adaptive-levels") {
+
+      while (i + 1 < argc) {
+
+        const std::string next = argv[i + 1];
+
+        if (next.rfind("--", 0) == 0)
+          break;
+
+        args.adaptiveLevels.push_back(
+          std::stoul(argv[++i])
+        );
+      }
+    }
+
+    else if (option == "--nsteps") {
+
+      while (i + 1 < argc) {
+
+        const std::string next = argv[i + 1];
+
+        if (next.rfind("--", 0) == 0)
+          break;
+
+        args.nSteps.push_back(
+          std::stoul(argv[++i])
+        );
+      }
+    }
+
+    else if (option == "--level-offset") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --level-offset"
+        );
+      }
+
+      args.levelOffset = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--period") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --period"
+        );
+      }
+
+      args.period = std::stod(argv[++i]);
+    }
+
+    else if (option == "--help" || option == "-h") {
+
+      std::cout
+          << "Usage:\n"
+          << "  " << argv[0]
+          << " --uniform-levels N"
+          << " --adaptive-levels A1 [A2 ...]"
+          << " --nsteps N1 [N2 ...]"
+          << " [--level-offset K]\n\n"
+
+          << "Example:\n"
+          << "  " << argv[0]
+          << " --uniform-levels 2"
+          << " --adaptive-levels 4 5 6"
+          << " --nsteps 600 1200 2400"
+          << " --level-offset 2\n";
+
+      std::exit(0);
+    }
+
+    // else {
+
+    //   throw std::runtime_error(
+    //     "Unknown command-line option: " + option
+    //   );
+    // }
+  }
+
+  if (args.uniformLevels == 0u) {
+    throw std::runtime_error(
+      "--uniform-levels must be specified and > 0"
+    );
+  }
+
+  if (args.adaptiveLevels.empty()) {
+    throw std::runtime_error(
+      "--adaptive-levels must contain at least one value"
+    );
+  }
+
+  if (args.nSteps.empty()) {
+    throw std::runtime_error(
+      "--nsteps must contain at least one value"
+    );
+  }
+
+  for (const unsigned n : args.nSteps) {
+    if (n == 0u) {
+      throw std::runtime_error(
+        "All --nsteps values must be > 0"
+      );
+    }
+  }
+
+  return args;
+}
+
+double ComputeL2Error(MultiLevelSolution& solA, MultiLevelSolution& solB, const std::vector<std::string>& fieldNames, const unsigned level) {
+  MultiLevelMesh* mlMsh = solA.GetMultilevelMesh();
+  Mesh* msh = mlMsh->GetLevel(level);
+  Solution* A = solA.GetSolutionLevel(level);
+  Solution* B = solB.GetSolutionLevel(level);
+  const unsigned dim = msh->GetDimension();
+  const unsigned iproc = msh->processor_id();
+  const unsigned nFields = fieldNames.size();
+
+  std::vector<unsigned> indexA(nFields);
+  std::vector<unsigned> indexB(nFields);
+
+  for(unsigned k = 0; k < nFields; ++k) {
+    indexA[k] = solA.GetIndex(fieldNames[k].c_str());
+    indexB[k] = solB.GetIndex(fieldNames[k].c_str());
+  }
+
+  const unsigned solType = solA.GetSolutionType(fieldNames[0].c_str());
+
+  for(unsigned k = 0; k < nFields; ++k) {
+    if(solA.GetSolutionType(fieldNames[k].c_str()) != solType) abort();
+    if(solB.GetSolutionType(fieldNames[k].c_str()) != solType) abort();
+  }
+
+  double localError2 = 0.0;
+
+  std::vector<std::vector<double>> vx(dim);
+  std::vector<double> phi;
+  std::vector<double> gradPhi;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+    const unsigned ielt = msh->GetElementType(iel);
+    const unsigned nDofs = msh->GetElementDofNumber(iel, solType);
+    const unsigned nDofsX = msh->GetElementDofNumber(iel, 2);
+
+    for(unsigned d = 0; d < dim; ++d) {
+      vx[d].resize(nDofsX);
+
+      for(unsigned i = 0; i < nDofsX; ++i) {
+        const unsigned xDof = msh->GetSolutionDof(i, iel, 2);
+        vx[d][i] = (*msh->_topology->_Sol[d])(xDof);
+      }
+    }
+
+    std::vector<std::vector<double>> a(nFields, std::vector<double>(nDofs, 0.0));
+    std::vector<std::vector<double>> b(nFields, std::vector<double>(nDofs, 0.0));
+
+    for(unsigned k = 0; k < nFields; ++k) {
+      for(unsigned i = 0; i < nDofs; ++i) {
+        const unsigned dof = msh->GetSolutionDof(i, iel, solType);
+        a[k][i] = (*A->_Sol[indexA[k]])(dof);
+        b[k][i] = (*B->_Sol[indexB[k]])(dof);
+      }
+    }
+
+    const unsigned nGauss = msh->_finiteElement[ielt][solType]->GetGaussPointNumber();
+
+    for(unsigned ig = 0; ig < nGauss; ++ig) {
+      double weight = 0.0;
+
+      msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weight, phi, gradPhi);
+
+      double pointError2 = 0.0;
+
+      for(unsigned k = 0; k < nFields; ++k) {
+        double diff = 0.0;
+
+        for(unsigned i = 0; i < nDofs; ++i) {
+          diff += phi[i] * (a[k][i] - b[k][i]);
+        }
+
+        pointError2 += diff * diff;
+      }
+
+      localError2 += pointError2 * weight;
+    }
+  }
+
+  double globalError2 = 0.0;
+
+  MPI_Allreduce(&localError2, &globalError2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  return std::sqrt(globalError2);
+}
+
+struct TemporalSnapshot {
+  unsigned nSteps;
+  double dt;
+  LevelSetDiagnostics diagnostics;
+  std::unique_ptr<MultiLevelSolution> solution;
+};
+
+void PrintTemporalConvergence(std::vector<TemporalSnapshot>& snapshots,
+                              const std::string& psiName,
+                              const std::vector<std::string>& vName,
+                              const unsigned levelF,
+                              const unsigned iproc) {
+  const unsigned nSnapshots = snapshots.size();
+
+  if(nSnapshots < 3) {
+    if(iproc == 0) std::cerr << "Need at least three temporal solutions for convergence analysis." << std::endl;
+    return;
+  }
+
+  const unsigned verticalDirection = snapshots[0].diagnostics.barycenter.size() - 1;
+
+  std::vector<double> errorPsi(nSnapshots - 1, 0.);
+  std::vector<double> errorVel(nSnapshots - 1, 0.);
+  std::vector<double> errorBarycenter(nSnapshots - 1, 0.);
+  std::vector<double> errorRisingVelocity(nSnapshots - 1, 0.);
+  std::vector<double> errorCircularity(nSnapshots - 1, 0.);
+
+  std::vector<double> orderPsi(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+  std::vector<double> orderVel(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+  std::vector<double> orderBarycenter(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+  std::vector<double> orderRisingVelocity(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+  std::vector<double> orderCircularity(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+
+  for(unsigned k = 0; k + 1 < nSnapshots; ++k) {
+    errorPsi[k] = ComputeL2Error(*snapshots[k].solution, *snapshots[k + 1].solution, {psiName}, levelF);
+    errorVel[k] = ComputeL2Error(*snapshots[k].solution, *snapshots[k + 1].solution, vName, levelF);
+
+    const double barycenterA = snapshots[k].diagnostics.barycenter[verticalDirection];
+    const double barycenterB = snapshots[k + 1].diagnostics.barycenter[verticalDirection];
+
+    const double risingVelocityA = snapshots[k].diagnostics.meanVelocity[verticalDirection];
+    const double risingVelocityB = snapshots[k + 1].diagnostics.meanVelocity[verticalDirection];
+
+    const double circularityA = snapshots[k].diagnostics.circularity;
+    const double circularityB = snapshots[k + 1].diagnostics.circularity;
+
+    errorBarycenter[k] = std::abs(barycenterA - barycenterB);
+    errorRisingVelocity[k] = std::abs(risingVelocityA - risingVelocityB);
+    errorCircularity[k] = std::abs(circularityA - circularityB);
+  }
+
+  for(unsigned k = 0; k + 1 < nSnapshots - 1; ++k) {
+    const double dtRatio = snapshots[k].dt / snapshots[k + 1].dt;
+
+    orderPsi[k] = std::log(errorPsi[k] / errorPsi[k + 1]) / std::log(dtRatio);
+    orderVel[k] = std::log(errorVel[k] / errorVel[k + 1]) / std::log(dtRatio);
+    orderBarycenter[k] = std::log(errorBarycenter[k] / errorBarycenter[k + 1]) / std::log(dtRatio);
+    orderRisingVelocity[k] = std::log(errorRisingVelocity[k] / errorRisingVelocity[k + 1]) / std::log(dtRatio);
+    orderCircularity[k] = std::log(errorCircularity[k] / errorCircularity[k + 1]) / std::log(dtRatio);
+  }
+
+  if(iproc != 0) return;
+
+  std::cout << std::endl;
+  std::cout << "==========================================================================================================================================================================" << std::endl;
+  std::cout << "                                                               TEMPORAL SELF-CONVERGENCE" << std::endl;
+  std::cout << "==========================================================================================================================================================================" << std::endl;
+  std::cout << std::setw(12) << "NS pair";
+  std::cout << std::setw(14) << "dt";
+  std::cout << std::setw(18) << "L2(Psi)";
+  std::cout << std::setw(10) << "p(Psi)";
+  std::cout << std::setw(18) << "L2(V)";
+  std::cout << std::setw(10) << "p(V)";
+  std::cout << std::setw(18) << "dBarycenter";
+  std::cout << std::setw(10) << "p(B)";
+  std::cout << std::setw(18) << "dRisingVel";
+  std::cout << std::setw(10) << "p(RV)";
+  std::cout << std::setw(18) << "dCircularity";
+  std::cout << std::setw(10) << "p(C)";
+  std::cout << std::endl;
+  std::cout << "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------" << std::endl;
+
+  for(unsigned k = 0; k + 1 < nSnapshots; ++k) {
+    const std::string pair = std::to_string(snapshots[k].nSteps) + "-" + std::to_string(snapshots[k + 1].nSteps);
+
+    std::cout << std::setw(12) << pair;
+    std::cout << std::setw(14) << std::scientific << std::setprecision(5) << snapshots[k].dt;
+    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorPsi[k];
+
+    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderPsi[k];
+    else std::cout << std::setw(10) << "-";
+
+    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorVel[k];
+
+    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderVel[k];
+    else std::cout << std::setw(10) << "-";
+
+    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorBarycenter[k];
+
+    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderBarycenter[k];
+    else std::cout << std::setw(10) << "-";
+
+    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorRisingVelocity[k];
+
+    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderRisingVelocity[k];
+    else std::cout << std::setw(10) << "-";
+
+    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorCircularity[k];
+
+    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderCircularity[k];
+    else std::cout << std::setw(10) << "-";
+
+    std::cout << std::endl;
+  }
+
+  std::cout << "==========================================================================================================================================================================" << std::endl;
 }
