@@ -24,7 +24,6 @@ const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
 
 #include "../includeLS/Utils.hpp"
 
-
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -48,7 +47,7 @@ int main(int argc, char **argv) {
 
   // Load coarse mesh and build uniform refinement levels
   // mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-  mlMsh0.GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh"); 
+  mlMsh0.GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh");
   mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   unsigned dim = mlMsh0.GetDimension();
@@ -56,11 +55,12 @@ int main(int argc, char **argv) {
   // Parameters for selective AMR (ball centered at xc with radius r)
   const double r = 0.125;
   std::vector<double> xc = {0.0, (velocityType == RungeKutta::VelKind::Translation) ? 0.751 : 0.25, 0.};
+  // std::vector<double> xc = {0.0, 0.5 + r + 1.e-3, 0.};
 
   // Iteratively flag and create new AMR levels
   for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
     FlagFinestMeshLevel(mlMsh0, r, xc);
-    mlMsh0.AddAMRMeshLevel(false); 
+    mlMsh0.AddAMRMeshLevel(false);
   }
 
   mlMsh0.PrintInfo();
@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
 
   InitSol(mlSol0, vName, 0, 1.);
 
-
   //for(unsigned d = 0; d < dim; d++) mlSol0.Initialize(vName[d].c_str(), Initvel[d]);
 
   unsigned sigmoidType = 1;
@@ -92,21 +91,35 @@ int main(int argc, char **argv) {
   Mollifier m = Mollifier(eps, sigmoidType);
 
   std::vector<double> xc_1 = xc;
-  std::vector<double> xc_2 = (dim == 2) ? std::vector<double>({xc[0]-0.35, xc[1] + 0.5}) : std::vector<double>({xc_1[0], xc_1[1], xc_1[2] + 0.5});
-  std::vector<double> xc_3 = (dim == 2) ? std::vector<double>({xc[0]+0.35, xc[1] + 0.25}) : std::vector<double>({xc_2[0], xc_2[1], xc_2[2] + 0.5});
+  std::vector<double> xc_2 = (dim == 2) ? std::vector<double>({xc[0] - 0.35, xc[1] + 0.5}) : std::vector<double>({xc_1[0], xc_1[1], xc_1[2] + 0.5});
+  std::vector<double> xc_3 = (dim == 2) ? std::vector<double>({xc[0] + 0.35, xc[1] + 0.25}) : std::vector<double>({xc_2[0], xc_2[1], xc_2[2] + 0.5});
   double r_0 = r;
-  Circle c1(xc_1,r_0);
+  Circle c1(xc_1, r_0);
   // Circle c2(xc_2, r_0);
   // Circle c3(xc_3, r_0);
   // Shape* shape = &c1;
 
   std::vector<Shape*> shape = {&c1};
-  std::vector<double> timeOffset = {1.};
+  // std::vector<double> timeOffset = {1.};
+  const unsigned N = 3;   // bolle contemporanee
+  const unsigned M = 20;  // frame per periodo (multiplo di 10, per il reinit ogni 10 step)
+
+// tempo di attraversamento: primo punto dentro -> ultimo punto fuori
+  double tIn  = (xc[1] - r - 0.5) / inflowVmax;
+  double tOut = 0.;
+  for (unsigned i = 0; i <= 1000; i++) {
+    double rho = r * i / 1000.;
+    double vel = inflowVmax * (1. - rho * rho / inflowR2);
+    tOut = std::max(tOut, (xc[1] + std::sqrt(r * r - rho * rho) + 0.5) / vel);
+  }
+  const double T = (tOut - tIn) / N;
+
+  std::vector<double> timeOffset = {T};
 
   Inflow inflow(InflowVelocity, shape, timeOffset, m);
 
   std::vector<std::vector<std::vector<double>>> inflow_markers0(shape.size());
-  
+
   for (unsigned s = 0; s < shape.size(); s++) {
     inflow_markers0[s].resize(dim);
     if (iproc == 0) {
@@ -141,7 +154,7 @@ int main(int argc, char **argv) {
 
   // Load coarse mesh and build uniform refinement levels
   // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-  mlmsh1->GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh"); 
+  mlmsh1->GenerateCoarseBoxMesh(10, 10, 10, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, HEX27, "seventh");
   mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
@@ -149,8 +162,10 @@ int main(int argc, char **argv) {
   // RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 
   double period = (velocityType == RungeKutta::VelKind::Rotation) ? 2 : 2.0 * M_PI;
-  unsigned nSteps = 320;
-  double dt = period / nSteps;
+  // unsigned nSteps = 320;
+  // double dt = period / nSteps;
+  unsigned nSteps = (N + 2) * M;
+  double dt = T / M;
 
   if (iproc == 0) {
 
@@ -158,7 +173,7 @@ int main(int argc, char **argv) {
 
     if (!out) {
       throw std::runtime_error(
-          "computeArea: cannot open output file area.dat");
+        "computeArea: cannot open output file area.dat");
     }
 
     out << "#" << std::setw(20) << "Time"
@@ -167,7 +182,6 @@ int main(int argc, char **argv) {
 
     out.close();
   }
-
 
   for (unsigned t = 1; t <= 0 + 1 * nSteps; t++) {
 
@@ -187,7 +201,7 @@ int main(int argc, char **argv) {
     // GetCutElementPoints(*mlsol0, "Psi", X0, X0Iel);
 
     std::vector<std::vector<double>> inflow_markers(dim);
-    inflow_bd->updateMarkers(inflow_markers0, inflow_markers, time-dt, period, dt);
+    inflow_bd->updateMarkers(inflow_markers0, inflow_markers, time - dt, period, dt);
     std::vector<MyVector<double>> IX(dim);
     for (unsigned k = 0; k < dim; ++k) {
       IX[k].buildFromLocal(inflow_markers[k]);
@@ -210,17 +224,17 @@ int main(int argc, char **argv) {
         unsigned offset = IX[d].begin();
         for (unsigned i = IX[d].begin(); i < IX[d].end(); ++i) {
           if (!isInsideDomain[i - offset]) {
-              inflow_markers[d].push_back(IX[d][i]);
+            inflow_markers[d].push_back(IX[d][i]);
           }
         }
       }
     }
     MyVector<int> X0Iel;
     markers.GetCutElementPoints(*mlsol0, X0, X0Iel, inflow_markers);
-    
+
     if (t % 10 == 0) {
       Reinit reinit("Psi", *mlsol0, m);
-    
+
       reinit.farFieldReinit(X0);
       reinit.interfaceFieldReinit(bbox);
       reinit.updateSolution();
@@ -263,7 +277,6 @@ int main(int argc, char **argv) {
     //InitSol(*mlsol1, vName, time, period);
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
-
     ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
     // ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, zero_bd, -dt, time, period);
     ProjectSolution(*mlsol0, *mlsol1, bbox, vName, nLevels - 1, nLevels - 1);
@@ -287,11 +300,11 @@ int main(int argc, char **argv) {
 
       if (!out) {
         throw std::runtime_error(
-            "computeArea: cannot open output file area.dat");
+          "computeArea: cannot open output file area.dat");
       }
 
       out << std::setprecision(16)
-          <<std::setw(20) << time
+          << std::setw(20) << time
           << std::setw(25) << area
           << "\n";
 

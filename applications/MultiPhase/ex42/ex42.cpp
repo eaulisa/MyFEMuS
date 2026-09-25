@@ -104,9 +104,9 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
   else if(!strcmp(SolName, "V")) {
     // if(facename == 2 || facename == 4) dirichlet = false;
-    if ((x[0] < 1.e-10 || x[0] > 1. - 1.e-10) && (x[1] > 1.e-10 && x[1] < 2 - 1.e-10)) {
-      dirichlet = false;
-    }
+    // if ((x[0] < 1.e-10 || x[0] > 1. - 1.e-10) && (x[1] > 1.e-10 && x[1] < 2 - 1.e-10)) {
+    // dirichlet = false;
+    // }
     value = 0.;
   }
   else if(!strcmp(SolName, "W")) {
@@ -170,13 +170,15 @@ int main(int argc, char **argv) {
   //domain settings
   double xmin, xmax, ymin, ymax, zmin, zmax = 0.;
   xmax = 1.;
-  ymax = 2.;
+  ymax = 1.;
+  zmax = 1.;
   int nx, ny, nz = 0;
-  nx = 8;
-  ny = 16;
+  nx = 6;
+  ny = 6;
+  nz = 6;
 
   // time settings
-  double period = 0.5;
+  double period = 0.01;
   static double dt = 0.0;
 
   // interface settings
@@ -196,11 +198,11 @@ int main(int argc, char **argv) {
     unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
     const unsigned levelF = levelN - 1u; //fine level associated for mlmsh0 and mlmsh1
     const unsigned levelC = levelF - levelOffset; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
-    const unsigned level0 = 0;//levelC;
+    const unsigned level0 = levelC;
 
     // create uniform fine mesh for storing solutions to compare
     MultiLevelMesh mlMshReference;
-    mlMshReference.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh");
+    mlMshReference.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, HEX27, "seventh");
     mlMshReference.RefineMesh(levelF + 1, levelF + 1, nullptr);
 
     // prepare uniform solution vector
@@ -212,7 +214,7 @@ int main(int argc, char **argv) {
       MultiLevelMesh mlMsh0;
       // std::string meshName = "./input/tri.neu";
       // mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh"); // Turek 1&2
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, HEX27, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -305,7 +307,7 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh"); // Turek 1&2
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, HEX27, "seventh"); // Turek 1&2
       // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -330,7 +332,7 @@ int main(int argc, char **argv) {
       properties.mu2 = 10.;
       properties.rho1 = 1.;
       properties.rho2 = 1000;
-      properties.sigma = 0.0;//1.96;
+      properties.sigma = 0 * 1.96;
       properties.gravity = -0.98;
 
       UpdateColorFunction(*mlsol0, psiName, cName);
@@ -339,7 +341,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, simulation_type::rising_bubble, vName, levelC);
+      // LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, simulation_type::generic, vName, levelC);
 
       const unsigned w = 24;
 
@@ -368,7 +370,7 @@ int main(int argc, char **argv) {
             << '\n';
       }
 
-      PrintLevelSetDiagnostics(diagnostics, iproc, 0.0, diagnosticsFile);
+      // PrintLevelSetDiagnostics(diagnostics, iproc, 0.0, diagnosticsFile);
 
       const std::string ls_outputdir = "output_ls";
       const std::string vel_outputdir = "output_vel";
@@ -515,7 +517,7 @@ int main(int argc, char **argv) {
         system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
 
         system2.SetNumberOfSchurVariables(2);
-        system2.SetElementBlockNumber(3);
+        system2.SetElementBlockNumber(4);
 
         //system2.SetPreconditionerFineGrids(ILU_PRECOND);
         system2.MGsolve();
@@ -569,7 +571,7 @@ int main(int argc, char **argv) {
           bbox.SetMesh(mlmsh0->GetLevel(0));
           ProjectSolution(*mlsol0, *mlSolReference, bbox, vName, levelC, levelF);
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlSolReference, psiName, simulation_type::rising_bubble, vName, levelF);
+          // final_diagnostics = ComputeLevelSetDiagnostics(*mlSolReference, psiName, simulation_type::generic, vName, levelF);
 
           break;
         }
@@ -667,8 +669,8 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, simulation_type::rising_bubble, vName, levelC);
-        PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
+        // LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, simulation_type::generic, vName, levelC);
+        // PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)
         VTKWriter vtkIO1(mlsol1);
@@ -1066,7 +1068,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
 
     std::vector<double> xg(dim);
-
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -1301,8 +1302,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
 
     RES->add_vector_blocked(Res, sysDof);
-    KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
+    KK->add_matrix_blocked(Jac, sysDof, sysDof);
   } //end element loop for each process
 
   RES->close();
