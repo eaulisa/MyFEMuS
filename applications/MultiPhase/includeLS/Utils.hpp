@@ -169,177 +169,6 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
   }
 }
 
-// void BuildNullspace(MultiLevelSolution& mlSol, const std::string CName, const std::vector<std::string>& NPName,
-//                     const unsigned level0, const unsigned level1) {
-//   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
-//
-//   const unsigned solCIndex = mlSol.GetIndex(CName.c_str());
-//   const unsigned solType = mlSol.GetSolutionType(CName.c_str());
-//
-//   std::vector<unsigned> solNPIndex(NPName.size());
-//   for (unsigned n = 0; n < NPName.size(); n ++) {
-//     solNPIndex[n] = mlSol.GetIndex(NPName[n].c_str());
-//     if (mlSol.GetSolutionType(NPName[n].c_str()) != solType || solType != 3) {
-//       std::cout << "Error! The C Field is not PWC\n" << std::endl;
-//       abort();
-//     }
-//   }
-//
-//   for(int l = level0; l <= level1; l++) {
-//
-//     Mesh &msh = *mlMsh.GetLevel(l);
-//
-//     const unsigned iproc = msh.processor_id();
-//     const unsigned dim = msh.GetDimension();
-//
-//     auto &solC = (mlSol.GetSolutionLevel(l))->_Sol[solCIndex];
-//     auto &solNP1 = (mlSol.GetSolutionLevel(l))->_Sol[solNPIndex[0]];
-//     auto &solNP2 = (mlSol.GetSolutionLevel(l))->_Sol[solNPIndex[1]];
-//
-//     solNP1->zero();
-//     solNP2->zero();
-//
-//     for(unsigned iel = msh._elementOffset[iproc];
-//         iel < msh._elementOffset[iproc + 1];
-//         iel++) {
-//
-//       if ((*solC)(iel) > 0.1 ) {
-//         solNP1->set(iel, 1.);
-//       }
-//
-//       if ((*solC)(iel) < 0.9) {
-//         solNP2->set(iel, 1.);
-//       }
-//     }
-//
-//     solNP1->close();
-//     solNP2->close();
-//   }
-// }
-
-// void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string CName, const std::vector<std::string>& PName,
-//                     const unsigned level0, const unsigned level1) {
-//   MultiLevelMesh &mlMsh = *mlSol.GetMultilevelMesh();
-
-//   const unsigned solCIndex = mlSol.GetIndex(CName.c_str());
-//   const unsigned solType = mlSol.GetSolutionType(CName.c_str());
-
-//   std::vector<unsigned> solPIndex(PName.size());
-//   for (unsigned n = 0; n < PName.size(); n ++) {
-//     solPIndex[n] = mlSol.GetIndex(PName[n].c_str());
-//     if (mlSol.GetSolutionType(PName[n].c_str()) != solType || solType != 3) {
-//       std::cout << "Error! The C Field is not PWC\n" << std::endl;
-//       abort();
-//     }
-//   }
-
-//   for(int l = level0; l <= level1; l++) {
-
-//     Mesh &msh = *mlMsh.GetLevel(l);
-
-//     const unsigned iproc = msh.processor_id();
-//     const unsigned dim = msh.GetDimension();
-
-//     auto &solC = (mlSol.GetSolutionLevel(l))->_Sol[solCIndex];
-
-//     auto &solP1 = (mlSol.GetSolutionLevel(l))->_Sol[solPIndex[0]];
-//     auto &solP2 = (mlSol.GetSolutionLevel(l))->_Sol[solPIndex[1]];
-
-//     auto &solP1Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[0]];
-//     auto &solP2Bdc = (mlSol.GetSolutionLevel(l))->_Bdc[solPIndex[1]];
-
-//     std::vector<double> x1 (dim);
-
-//     std::vector<double> xtarget(3,0);
-//     xtarget.resize(dim);
-
-//     double min_distance2 = std::numeric_limits<double>::max();
-//     int min_iel = -1;
-
-//     for (unsigned iel = msh._elementOffset[iproc];
-//         iel < msh._elementOffset[iproc + 1]; iel++) {
-
-//       unsigned nDof = msh.GetElementDofNumber(iel, 2);
-
-//       for (unsigned k = 0; k < dim; k++) {
-//         unsigned xDof = msh.GetSolutionDof(nDof - 1, iel, 2);
-//         x1[k] = (*msh._topology->_Sol[k])(xDof);
-//       }
-
-//       double distance2 = 0.;
-
-//       for (unsigned d = 0; d < dim; d++) {
-//         distance2 += (x1[d] - xtarget[d]) * (x1[d] - xtarget[d]);
-//       }
-
-//       if (distance2 < min_distance2) {
-//         min_distance2 = distance2;
-//         min_iel = static_cast<int>(iel);
-//       }
-//     }
-
-//     struct {
-//       double value;
-//       int index;
-//     } local_min, global_min;
-
-//     local_min.value = min_distance2;
-//     local_min.index = min_iel;
-
-//     MPI_Allreduce(&local_min,
-//                   &global_min,
-//                   1,
-//                   MPI_DOUBLE_INT,
-//                   MPI_MINLOC,
-//                   MPI_COMM_WORLD);
-
-//     unsigned iel_target = static_cast<unsigned>(global_min.index);
-//     double global_min_distance2 = global_min.value;
-
-//     // if (iproc == 0) {
-//     //   if ((*solC)(0) > 0.1) {
-//     //     solP1->set(0, 0.);
-//     //     solP1Bdc->set(0, 0.);
-//     //   } else {
-//     //     solP2->set(0, 0.);
-//     //     solP2Bdc->set(0, 0.);
-//     //   }
-//     // }
-
-//     for(unsigned iel = msh._elementOffset[iproc];
-//         iel < msh._elementOffset[iproc + 1];
-//         iel++) {
-
-//       if (iel == iel_target) {
-//         if ((*solC)(iel) > 0.1) {
-//           solP1->set(iel, 0.);
-//           solP1Bdc->set(iel, 0.);
-//         } else {
-//           solP2->set(iel, 0.);
-//           solP2Bdc->set(iel, 0.);
-//         }
-//       }
-
-//       if ((*solC)(iel) < 0.1) {
-//         solP1->set(iel, 0.);
-//         solP1Bdc->set(iel, 0.);
-//       }
-
-//       if ((*solC)(iel) > 0.9) {
-//         solP2->set(iel, 0.);
-//         solP2Bdc->set(iel, 0.);
-//       }
-//     }
-
-//     solP1->close();
-//     solP2->close();
-
-//     solP1Bdc->close();
-//     solP2Bdc->close();
-//   }
-
-// }
-
 void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CName, const std::vector<std::string>& PName,
                                const unsigned level0, const unsigned level1, const std::vector<double>& xtarget, const bool fixPressureAtOnePoint) {
   if (PName.size() != 2) {
@@ -1279,6 +1108,7 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
         solVec1->set(i, psiProjected[i]);
       }
       else { // TODO add boundarycondition for psi
+        throw std::runtime_error("POINT OUTSIDE THE DOMAIN");
         std::vector<double> x1 = (dim == 1) ? std::vector<double>({X1[0][i]})
                                  : (dim == 2) ? std::vector<double>({X1[0][i], X1[1][i]})
                                  : std::vector<double>({X1[0][i], X1[1][i], X1[2][i]});
@@ -1753,156 +1583,6 @@ double GetMaxElementH(Mesh* msh, const unsigned level) {
   return hGlobalMax;
 }
 
-// void BestFitLinearInterpolation(std::vector<const double*>& xg,
-//                                 std::vector<double>& psi,
-//                                 std::vector<double>& B) {
-
-//   const unsigned n = psi.size();
-//   const unsigned dim = xg.size();
-//   const unsigned m = dim + 1;
-
-//   double s2 = 0.0;
-
-//   for (unsigned i = 0; i < n; i++) {
-//     s2 += psi[i] * psi[i];
-//   }
-
-//   s2 /= n;
-
-//   if (s2 < 1.e-14) {
-//     throw std::runtime_error("uniform  zero level-set in cutcell");
-//     return;
-//   }
-
-//   std::vector<std::vector<double>> M(m, std::vector<double>(m, 0.0));
-//   std::vector<double> F(m, 0.0);
-
-//   for (unsigned i = 0; i < n; i++) {
-
-//     const double f = psi[i];
-
-//     const double w = std::exp(- 10 * f * f / s2);
-
-//     for (unsigned d = 0; d < dim; d++) {
-
-//       F[d] += w * xg[d][i] * f;
-
-//       for (unsigned e = 0; e < dim; e++) {
-//         M[d][e] += w * xg[d][i] * xg[e][i];
-//       }
-
-//       M[d][dim] += w * xg[d][i];
-//       M[dim][d] += w * xg[d][i];
-//     }
-
-//     M[dim][dim] += w;
-//     F[dim] += w * f;
-//   }
-
-//   B = F;
-
-//   for (unsigned k = 0; k < m; k++) {
-
-//     unsigned pivot = k;
-
-//     for (unsigned i = k + 1; i < m; i++) {
-//       if (std::fabs(M[i][k]) > std::fabs(M[pivot][k])) {
-//         pivot = i;
-//       }
-//     }
-
-//     if (std::fabs(M[pivot][k]) < 1.e-14) {
-//       B.assign(m, 0.0);
-//       return;
-//     }
-
-//     if (pivot != k) {
-//       std::swap(M[k], M[pivot]);
-//       std::swap(B[k], B[pivot]);
-//     }
-
-//     for (unsigned i = k + 1; i < m; i++) {
-
-//       const double factor = M[i][k] / M[k][k];
-
-//       for (unsigned j = k; j < m; j++) {
-//         M[i][j] -= factor * M[k][j];
-//       }
-
-//       B[i] -= factor * B[k];
-//     }
-//   }
-
-//   for (int i = static_cast<int>(m) - 1; i >= 0; i--) {
-
-//     for (unsigned j = i + 1; j < m; j++) {
-//       B[i] -= M[i][j] * B[j];
-//     }
-
-//     B[i] /= M[i][i];
-//   }
-
-//   double norm = 0.0;
-
-//   for (unsigned d = 0; d < dim; d++) {
-//     norm += B[d] * B[d];
-//   }
-
-//   norm = std::sqrt(norm);
-
-//   if (norm < 1.e-14) {
-//     B.assign(m, 0.0);
-//     return;
-//   }
-
-//   for (unsigned d = 0; d < m; d++) {
-//     B[d] /= norm;
-//   }
-
-//   double min_psi = psi[0];
-//   double max_psi = psi[0];
-
-//   unsigned i_min = 0;
-//   unsigned i_max = 0;
-
-//   for (unsigned i = 1; i < n; i++) {
-
-//     if (psi[i] > max_psi) {
-//       max_psi = psi[i];
-//       i_max = i;
-//     }
-
-//     if (psi[i] < min_psi) {
-//       min_psi = psi[i];
-//       i_min = i;
-//     }
-//   }
-
-//   double test_value_max = B[dim];
-//   double test_value_min = B[dim];
-
-//   for (unsigned d = 0; d < dim; d++) {
-//     test_value_max += B[d] * xg[d][i_max];
-//     test_value_min += B[d] * xg[d][i_min];
-//   }
-
-//   const bool maxWrong = (max_psi * test_value_max < 0.0);
-//   const bool minWrong = (min_psi * test_value_min < 0.0);
-
-//   if (maxWrong && minWrong) {
-
-//     for (unsigned d = 0; d < dim + 1; d++) {
-//       B[d] *= -1.0;
-//     }
-
-//   }
-//   else if (maxWrong || minWrong) {
-
-//     std::cout << "Warning: incoherent linear approximation" << std::endl;
-//   }
-
-// }
-
 void BestFitLinearInterpolation(std::vector<const double*>& xg,
                                 std::vector<double>& psi,
                                 std::vector<double>& B) {
@@ -2081,32 +1761,63 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
   }
 }
 
-enum class simulation_type {
-  generic,
-  rising_bubble
+enum class SimulationCase {
+  PAR,
+  RB1,
+  RB2,
+  SAYE1,
+  SAYE2
 };
 
-struct LevelSetDiagnostics {
+std::string SimulationCaseName(const SimulationCase s) {
+  switch(s) {
+    case SimulationCase::PAR:
+      return "par";
+    case SimulationCase::RB1:
+      return "rb1";
+    case SimulationCase::RB2:
+      return "rb2";
+    case SimulationCase::SAYE1:
+      return "saye1";
+    case SimulationCase::SAYE2:
+      return "saye2";
+  }
 
+  throw std::runtime_error("Invalid SimulationCase");
+}
+
+SimulationCase ParseSimulationCase(const std::string& s) {
+
+  if(s == "par")  return SimulationCase::PAR;
+  if(s == "rb1")  return SimulationCase::RB1;
+  if(s == "rb2")  return SimulationCase::RB2;
+  if(s == "saye1") return SimulationCase::SAYE1;
+  if(s == "saye2") return SimulationCase::SAYE2;
+
+  throw std::runtime_error(
+    "Unknown simulation '" + s +
+    "'. Valid values are: par, rb1, rb2, saye"
+  );
+}
+
+struct LevelSetDiagnostics {
   double innerArea = 0.;
   double outerArea = 0.;
   double totalArea = 0.;
   double interfaceLength = 0.;
-
-  bool hasRisingBubbleMetrics = false;
   std::vector<double> barycenter;
   std::vector<double> meanVelocity;
   double circularity = 0.;
 };
 
-LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const simulation_type simulationType, const std::vector<std::string>& velocityName, const unsigned velocityLevel) {
+LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName,
+    const std::vector<std::string>& velocityName, const std::vector<std::string>& pressureName, const unsigned velocityLevel) {
   MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
   Mesh* msh = mlMsh.GetLevel(level);
   Solution* sol = mlSol.GetSolutionLevel(level);
   const unsigned dim = msh->GetDimension();
   const unsigned iproc = msh->processor_id();
-  const bool computeRisingBubble = simulationType == simulation_type::rising_bubble;
   const unsigned psiIndex = mlSol.GetIndex(psiName.c_str());
   const unsigned psiType = mlSol.GetSolutionType(psiIndex);
   const unsigned xType = 2;
@@ -2114,55 +1825,76 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   std::vector<unsigned> velocityIndex;
   unsigned velocityType = 0;
 
-  if(computeRisingBubble) {
-    if(dim != 2 && dim != 3) {
-      throw std::runtime_error("ComputeLevelSetDiagnostics: rising_bubble requires dim = 2 or 3");
-    }
+  std::vector<unsigned> pressureIndex;
+  unsigned pressureType = 0;
 
-    if(velocityName.size() != dim) {
-      throw std::runtime_error("ComputeLevelSetDiagnostics: velocityName must contain dim components");
-    }
+  if(dim != 2 && dim != 3) {
+    throw std::runtime_error("ComputeLevelSetDiagnostics: rising_bubble requires dim = 2 or 3");
+  }
 
-    velocityIndex.resize(dim);
+  if(velocityName.size() != dim) {
+    throw std::runtime_error("ComputeLevelSetDiagnostics: velocityName must contain dim components");
+  }
+
+  velocityIndex.resize(dim);
+
+  for(unsigned d = 0; d < dim; ++d) {
+    velocityIndex[d] = mlSol.GetIndex(velocityName[d].c_str());
+  }
+
+  velocityType = mlSol.GetSolutionType(velocityIndex[0]);
+
+  for(unsigned d = 1; d < dim; ++d) {
+    if(mlSol.GetSolutionType(velocityIndex[d]) != velocityType) {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: velocity components must have the same solution type");
+    }
+  }
+
+  if(pressureName.size() != 2) {
+    throw std::runtime_error(
+      "ComputeLevelSetDiagnostics: pressureName must contain P1 and P2"
+    );
+  }
+
+  pressureIndex.resize(2);
+
+  for(unsigned p = 0; p < 2; ++p) {
+    pressureIndex[p] = mlSol.GetIndex(pressureName[p].c_str());
+  }
+
+  pressureType = mlSol.GetSolutionType(pressureIndex[0]);
+
+  if(mlSol.GetSolutionType(pressureIndex[1]) != pressureType) {
+    throw std::runtime_error(
+      "ComputeLevelSetDiagnostics: pressure fields must have the same solution type"
+    );
+  }
+
+  if(velocityLevel > level) {
+    throw std::runtime_error(
+      "ComputeLevelSetDiagnostics: velocityLevel cannot be finer than diagnostics level");
+  }
+
+  for(unsigned l = velocityLevel; l < level; ++l) {
+
+    Solution* sol_l = mlSol.GetSolutionLevel(l);
+    Solution* sol_lp1 = mlSol.GetSolutionLevel(l + 1u);
+    Mesh* msh_lp1 = mlMsh.GetLevel(l + 1u);
+    SparseMatrix* Pv = msh_lp1->GetCoarseToFineProjection(velocityType);
+    SparseMatrix* Pp = msh_lp1->GetCoarseToFineProjection(pressureType);
 
     for(unsigned d = 0; d < dim; ++d) {
-      velocityIndex[d] = mlSol.GetIndex(velocityName[d].c_str());
+      sol_lp1->_Sol[velocityIndex[d]]->matrix_mult(
+        *(sol_l->_Sol[velocityIndex[d]]),
+        *Pv);
     }
 
-    velocityType = mlSol.GetSolutionType(velocityIndex[0]);
-
-    for(unsigned d = 1; d < dim; ++d) {
-      if(mlSol.GetSolutionType(velocityIndex[d]) != velocityType) {
-        throw std::runtime_error("ComputeLevelSetDiagnostics: velocity components must have the same solution type");
-      }
+    for(unsigned p = 0; p < 2; ++p) {
+      sol_lp1->_Sol[pressureIndex[p]]->matrix_mult(
+        *(sol_l->_Sol[pressureIndex[p]]),
+        *Pp);
     }
 
-    if(velocityLevel > level) {
-      throw std::runtime_error(
-        "ComputeLevelSetDiagnostics: velocityLevel cannot be finer than diagnostics level");
-    }
-
-    for(unsigned l = velocityLevel; l < level; ++l) {
-
-      Solution* sol_l =
-        mlSol.GetSolutionLevel(l);
-
-      Solution* sol_lp1 =
-        mlSol.GetSolutionLevel(l + 1u);
-
-      Mesh* msh_lp1 =
-        mlMsh.GetLevel(l + 1u);
-
-      SparseMatrix* P =
-        msh_lp1->GetCoarseToFineProjection(velocityType);
-
-      for(unsigned d = 0; d < dim; ++d) {
-
-        sol_lp1->_Sol[velocityIndex[d]]->matrix_mult(
-          *(sol_l->_Sol[velocityIndex[d]]),
-          *P);
-      }
-    }
   }
 
   double innerAreaLocal = 0.0;
@@ -2194,9 +1926,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
     unsigned nDofsVelocity = 0;
 
-    if(computeRisingBubble) {
-      nDofsVelocity = msh->GetElementDofNumber(iel, velocityType);
-    }
+    nDofsVelocity = msh->GetElementDofNumber(iel, velocityType);
 
     psi.resize(nDofsPsi);
 
@@ -2204,10 +1934,8 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       coordX[d].resize(nDofsX);
     }
 
-    if(computeRisingBubble) {
-      for(unsigned d = 0; d < dim; ++d) {
-        velocity[d].resize(nDofsVelocity);
-      }
+    for(unsigned d = 0; d < dim; ++d) {
+      velocity[d].resize(nDofsVelocity);
     }
 
     for(unsigned i = 0; i < nDofsPsi; ++i) {
@@ -2215,13 +1943,11 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       psi[i] = (*sol->_Sol[psiIndex])(dof);
     }
 
-    if(computeRisingBubble) {
-      for(unsigned i = 0; i < nDofsVelocity; ++i) {
-        const unsigned dof = msh->GetSolutionDof(i, iel, velocityType);
+    for(unsigned i = 0; i < nDofsVelocity; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, velocityType);
 
-        for(unsigned d = 0; d < dim; ++d) {
-          velocity[d][i] = (*sol->_Sol[velocityIndex[d]])(dof);
-        }
+      for(unsigned d = 0; d < dim; ++d) {
+        velocity[d][i] = (*sol->_Sol[velocityIndex[d]])(dof);
       }
     }
 
@@ -2237,9 +1963,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     const elem_type* femX = fem.GetFiniteElement(ielGeom, xType);
     const elem_type* femVelocity = nullptr;
 
-    if(computeRisingBubble) {
-      femVelocity = fem.GetFiniteElement(ielGeom, velocityType);
-    }
+    femVelocity = fem.GetFiniteElement(ielGeom, velocityType);
 
     const unsigned nGauss = femPsi->GetGaussPointNumber();
 
@@ -2247,7 +1971,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible quadrature");
     }
 
-    if(computeRisingBubble && femVelocity->GetGaussPointNumber() != nGauss) {
+    if(femVelocity->GetGaussPointNumber() != nGauss) {
       throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible velocity quadrature");
     }
 
@@ -2284,7 +2008,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
         elementArea += weight;
 
-        if(computeRisingBubble && psiMax > 0.0) {
+        if(psiMax > 0.0) {
           double weightX = 0.0;
           double weightVelocity = 0.0;
 
@@ -2374,30 +2098,28 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       innerAreaLocal += innerWeight;
       outerAreaLocal += outerWeight;
 
-      if(computeRisingBubble) {
-        double weightVelocity = 0.0;
+      double weightVelocity = 0.0;
 
-        femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
+      femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
 
-        std::vector<double> x(dim, 0.0);
-        std::vector<double> u(dim, 0.0);
+      std::vector<double> x(dim, 0.0);
+      std::vector<double> u(dim, 0.0);
 
-        for(unsigned i = 0; i < nDofsX; ++i) {
-          for(unsigned d = 0; d < dim; ++d) {
-            x[d] += coordX[d][i] * phiX[i];
-          }
-        }
-
-        for(unsigned i = 0; i < nDofsVelocity; ++i) {
-          for(unsigned d = 0; d < dim; ++d) {
-            u[d] += velocity[d][i] * phiVelocity[i];
-          }
-        }
-
+      for(unsigned i = 0; i < nDofsX; ++i) {
         for(unsigned d = 0; d < dim; ++d) {
-          barycenterIntegralLocal[d] += x[d] * innerWeight;
-          velocityIntegralLocal[d] += u[d] * innerWeight;
+          x[d] += coordX[d][i] * phiX[i];
         }
+      }
+
+      for(unsigned i = 0; i < nDofsVelocity; ++i) {
+        for(unsigned d = 0; d < dim; ++d) {
+          u[d] += velocity[d][i] * phiVelocity[i];
+        }
+      }
+
+      for(unsigned d = 0; d < dim; ++d) {
+        barycenterIntegralLocal[d] += x[d] * innerWeight;
+        velocityIntegralLocal[d] += u[d] * innerWeight;
       }
 
       femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
@@ -2432,11 +2154,9 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   localSum[2] = totalAreaLocal;
   localSum[3] = interfaceLengthLocal;
 
-  if(computeRisingBubble) {
-    for(unsigned d = 0; d < dim; ++d) {
-      localSum[4 + d] = barycenterIntegralLocal[d];
-      localSum[4 + dim + d] = velocityIntegralLocal[d];
-    }
+  for(unsigned d = 0; d < dim; ++d) {
+    localSum[4 + d] = barycenterIntegralLocal[d];
+    localSum[4 + dim + d] = velocityIntegralLocal[d];
   }
 
   MPI_Allreduce(localSum.data(), globalSum.data(), static_cast<int>(nGlobalQuantities), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -2448,28 +2168,24 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   result.totalArea = globalSum[2];
   result.interfaceLength = globalSum[3];
 
-  if(computeRisingBubble) {
-    result.barycenter.assign(dim, 0.0);
-    result.meanVelocity.assign(dim, 0.0);
+  result.barycenter.assign(dim, 0.0);
+  result.meanVelocity.assign(dim, 0.0);
 
-    if(result.innerArea > 1.e-14) {
-      for(unsigned d = 0; d < dim; ++d) {
-        result.barycenter[d] = globalSum[4 + d] / result.innerArea;
-        result.meanVelocity[d] = globalSum[4 + dim + d] / result.innerArea;
-      }
-
-      const double pi = std::acos(-1.0);
-
-      if(dim == 2 && result.interfaceLength > 1.e-14) {
-        result.circularity = 2.0 * std::sqrt(pi * result.innerArea) / result.interfaceLength;
-      }
-
-      if(dim == 3 && result.interfaceLength > 1.e-14) {
-        result.circularity = std::cbrt(36.0 * pi * result.innerArea * result.innerArea) / result.interfaceLength;
-      }
+  if(result.innerArea > 1.e-14) {
+    for(unsigned d = 0; d < dim; ++d) {
+      result.barycenter[d] = globalSum[4 + d] / result.innerArea;
+      result.meanVelocity[d] = globalSum[4 + dim + d] / result.innerArea;
     }
 
-    result.hasRisingBubbleMetrics = true;
+    const double pi = std::acos(-1.0);
+
+    if(dim == 2 && result.interfaceLength > 1.e-14) {
+      result.circularity = 2.0 * std::sqrt(pi * result.innerArea) / result.interfaceLength;
+    }
+
+    if(dim == 3 && result.interfaceLength > 1.e-14) {
+      result.circularity = std::cbrt(36.0 * pi * result.innerArea * result.innerArea) / result.interfaceLength;
+    }
   }
 
   return result;
@@ -2507,30 +2223,27 @@ void PrintLevelSetDiagnostics(
     std::cout << "Interface length    = "
               << diagnostics.interfaceLength << std::endl;
 
-    if(diagnostics.hasRisingBubbleMetrics) {
+    for(unsigned d = 0;
+        d < diagnostics.barycenter.size();
+        ++d) {
 
-      for(unsigned d = 0;
-          d < diagnostics.barycenter.size();
-          ++d) {
-
-        std::cout << "Barycenter[" << d << "]      = "
-                  << diagnostics.barycenter[d]
-                  << std::endl;
-      }
-
-      for(unsigned d = 0;
-          d < diagnostics.meanVelocity.size();
-          ++d) {
-
-        std::cout << "Mean velocity[" << d << "]   = "
-                  << diagnostics.meanVelocity[d]
-                  << std::endl;
-      }
-
-      std::cout << "Circularity         = "
-                << diagnostics.circularity
+      std::cout << "Barycenter[" << d << "]      = "
+                << diagnostics.barycenter[d]
                 << std::endl;
     }
+
+    for(unsigned d = 0;
+        d < diagnostics.meanVelocity.size();
+        ++d) {
+
+      std::cout << "Mean velocity[" << d << "]   = "
+                << diagnostics.meanVelocity[d]
+                << std::endl;
+    }
+
+    std::cout << "Circularity         = "
+              << diagnostics.circularity
+              << std::endl;
 
     return;
   }
@@ -2557,27 +2270,24 @@ void PrintLevelSetDiagnostics(
       << std::setw(w) << diagnostics.totalArea
       << std::setw(w) << diagnostics.interfaceLength;
 
-  if(diagnostics.hasRisingBubbleMetrics) {
-
-    for(unsigned d = 0;
-        d < diagnostics.barycenter.size();
-        ++d) {
-
-      out << std::setw(w)
-          << diagnostics.barycenter[d];
-    }
-
-    for(unsigned d = 0;
-        d < diagnostics.meanVelocity.size();
-        ++d) {
-
-      out << std::setw(w)
-          << diagnostics.meanVelocity[d];
-    }
+  for(unsigned d = 0;
+      d < diagnostics.barycenter.size();
+      ++d) {
 
     out << std::setw(w)
-        << diagnostics.circularity;
+        << diagnostics.barycenter[d];
   }
+
+  for(unsigned d = 0;
+      d < diagnostics.meanVelocity.size();
+      ++d) {
+
+    out << std::setw(w)
+        << diagnostics.meanVelocity[d];
+  }
+
+  out << std::setw(w)
+      << diagnostics.circularity;
 
   out << '\n';
 }
@@ -2585,6 +2295,10 @@ void PrintLevelSetDiagnostics(
 struct SimulationArgs {
   unsigned uniformLevels = 0u;
   unsigned levelOffset   = 2u;
+
+  unsigned dim = 2u;
+
+  SimulationCase simulation = SimulationCase::RB2;
 
   std::vector<unsigned> adaptiveLevels;
   std::vector<unsigned> nSteps;
@@ -2651,15 +2365,33 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
       args.levelOffset = std::stoul(argv[++i]);
     }
 
-    else if (option == "--period") {
+    else if(option == "--simulation") {
 
-      if (i + 1 >= argc) {
+      if(i + 1 >= argc) {
         throw std::runtime_error(
-          "Missing value after --period"
+          "Missing value after --simulation"
         );
       }
 
-      args.period = std::stod(argv[++i]);
+      args.simulation =
+        ParseSimulationCase(argv[++i]);
+    }
+
+    else if(option == "--dim") {
+
+      if(i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --dim"
+        );
+      }
+
+      args.dim = std::stoul(argv[++i]);
+
+      if(args.dim != 2u && args.dim != 3u) {
+        throw std::runtime_error(
+          "--dim must be 2 or 3"
+        );
+      }
     }
 
     else if (option == "--help" || option == "-h") {
@@ -2804,120 +2536,392 @@ double ComputeL2Error(MultiLevelSolution& solA, MultiLevelSolution& solB, const 
   return std::sqrt(globalError2);
 }
 
-struct TemporalSnapshot {
-  unsigned nSteps;
-  double dt;
+enum class ConvergenceType {
+  Temporal,
+  Spatial
+};
+
+struct ConvergenceSnapshot {
+  unsigned resolution;   // nSteps for temporal, levelC for spatial
+  double step;           // dt for temporal, h for spatial
+
   LevelSetDiagnostics diagnostics;
   std::unique_ptr<MultiLevelSolution> solution;
 };
 
-void PrintTemporalConvergence(std::vector<TemporalSnapshot>& snapshots,
-                              const std::string& psiName,
-                              const std::vector<std::string>& vName,
-                              const unsigned levelF,
-                              const unsigned iproc) {
+void PrintConvergence(
+  std::vector<ConvergenceSnapshot>& snapshots,
+  const std::string& psiName,
+  const std::vector<std::string>& vName,
+  const unsigned referenceLevel,
+  const unsigned iproc,
+  const ConvergenceType type,
+  const SimulationCase simulation) {
+
   const unsigned nSnapshots = snapshots.size();
 
   if(nSnapshots < 3) {
-    if(iproc == 0) std::cerr << "Need at least three temporal solutions for convergence analysis." << std::endl;
+    if(iproc == 0) {
+      std::cerr << "Need at least three solutions for convergence analysis." << std::endl;
+    }
     return;
   }
 
-  const unsigned verticalDirection = snapshots[0].diagnostics.barycenter.size() - 1;
+  std::vector<ConvergenceSnapshot*> ordered(nSnapshots);
 
-  std::vector<double> errorPsi(nSnapshots - 1, 0.);
-  std::vector<double> errorVel(nSnapshots - 1, 0.);
-  std::vector<double> errorBarycenter(nSnapshots - 1, 0.);
-  std::vector<double> errorRisingVelocity(nSnapshots - 1, 0.);
-  std::vector<double> errorCircularity(nSnapshots - 1, 0.);
+  for(unsigned k = 0; k < nSnapshots; ++k) ordered[k] = &snapshots[k];
 
-  std::vector<double> orderPsi(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
-  std::vector<double> orderVel(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
-  std::vector<double> orderBarycenter(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
-  std::vector<double> orderRisingVelocity(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
-  std::vector<double> orderCircularity(nSnapshots - 1, std::numeric_limits<double>::quiet_NaN());
+  std::sort(ordered.begin(), ordered.end(), [](const ConvergenceSnapshot * a, const ConvergenceSnapshot * b) {
+    return a->step > b->step;
+  });
 
-  for(unsigned k = 0; k + 1 < nSnapshots; ++k) {
-    errorPsi[k] = ComputeL2Error(*snapshots[k].solution, *snapshots[k + 1].solution, {psiName}, levelF);
-    errorVel[k] = ComputeL2Error(*snapshots[k].solution, *snapshots[k + 1].solution, vName, levelF);
+  const bool hasRisingBubbleMetrics = (simulation == SimulationCase::RB1) || (simulation == SimulationCase::RB2);
 
-    const double barycenterA = snapshots[k].diagnostics.barycenter[verticalDirection];
-    const double barycenterB = snapshots[k + 1].diagnostics.barycenter[verticalDirection];
+  unsigned verticalDirection = 0;
 
-    const double risingVelocityA = snapshots[k].diagnostics.meanVelocity[verticalDirection];
-    const double risingVelocityB = snapshots[k + 1].diagnostics.meanVelocity[verticalDirection];
-
-    const double circularityA = snapshots[k].diagnostics.circularity;
-    const double circularityB = snapshots[k + 1].diagnostics.circularity;
-
-    errorBarycenter[k] = std::abs(barycenterA - barycenterB);
-    errorRisingVelocity[k] = std::abs(risingVelocityA - risingVelocityB);
-    errorCircularity[k] = std::abs(circularityA - circularityB);
+  if(hasRisingBubbleMetrics) {
+    if(ordered[0]->diagnostics.barycenter.empty()) throw std::runtime_error("PrintConvergence: empty barycenter");
+    verticalDirection = ordered[0]->diagnostics.barycenter.size() - 1u;
   }
 
-  for(unsigned k = 0; k + 1 < nSnapshots - 1; ++k) {
-    const double dtRatio = snapshots[k].dt / snapshots[k + 1].dt;
+  // -------------------------------------------------------
+  // Errors
+  // -------------------------------------------------------
 
-    orderPsi[k] = std::log(errorPsi[k] / errorPsi[k + 1]) / std::log(dtRatio);
-    orderVel[k] = std::log(errorVel[k] / errorVel[k + 1]) / std::log(dtRatio);
-    orderBarycenter[k] = std::log(errorBarycenter[k] / errorBarycenter[k + 1]) / std::log(dtRatio);
-    orderRisingVelocity[k] = std::log(errorRisingVelocity[k] / errorRisingVelocity[k + 1]) / std::log(dtRatio);
-    orderCircularity[k] = std::log(errorCircularity[k] / errorCircularity[k + 1]) / std::log(dtRatio);
+  std::vector<double> errorPsi(nSnapshots - 1u, 0.);
+  std::vector<double> errorVel(nSnapshots - 1u, 0.);
+
+  std::vector<double> errorBarycenter;
+  std::vector<double> errorRisingVelocity;
+  std::vector<double> errorCircularity;
+
+  if(hasRisingBubbleMetrics) {
+    errorBarycenter.resize(nSnapshots - 1u, 0.);
+    errorRisingVelocity.resize(nSnapshots - 1u, 0.);
+    errorCircularity.resize(nSnapshots - 1u, 0.);
+  }
+
+  // -------------------------------------------------------
+  // Orders
+  // -------------------------------------------------------
+
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+
+  std::vector<double> orderPsi(nSnapshots - 1u, nan);
+  std::vector<double> orderVel(nSnapshots - 1u, nan);
+
+  std::vector<double> orderBarycenter;
+  std::vector<double> orderRisingVelocity;
+  std::vector<double> orderCircularity;
+
+  if(hasRisingBubbleMetrics) {
+    orderBarycenter.resize(nSnapshots - 1u, nan);
+    orderRisingVelocity.resize(nSnapshots - 1u, nan);
+    orderCircularity.resize(nSnapshots - 1u, nan);
+  }
+
+  // -------------------------------------------------------
+  // Compute differences between consecutive resolutions
+  // -------------------------------------------------------
+
+  for(unsigned k = 0; k + 1u < nSnapshots; ++k) {
+
+    errorPsi[k] = ComputeL2Error(*ordered[k]->solution, *ordered[k + 1u]->solution, {psiName}, referenceLevel);
+
+    errorVel[k] = ComputeL2Error(*ordered[k]->solution, *ordered[k + 1u]->solution, vName, referenceLevel);
+
+    if(hasRisingBubbleMetrics) {
+
+      const double barycenterA = ordered[k]->diagnostics.barycenter[verticalDirection];
+      const double barycenterB = ordered[k + 1u]->diagnostics.barycenter[verticalDirection];
+
+      const double risingVelocityA = ordered[k]->diagnostics.meanVelocity[verticalDirection];
+      const double risingVelocityB = ordered[k + 1u]->diagnostics.meanVelocity[verticalDirection];
+
+      const double circularityA = ordered[k]->diagnostics.circularity;
+      const double circularityB = ordered[k + 1u]->diagnostics.circularity;
+
+      errorBarycenter[k] = std::abs(barycenterA - barycenterB);
+      errorRisingVelocity[k] = std::abs(risingVelocityA - risingVelocityB);
+      errorCircularity[k] = std::abs(circularityA - circularityB);
+    }
+  }
+
+  // -------------------------------------------------------
+  // Orders
+  // -------------------------------------------------------
+
+  auto ComputeOrder = [](const double e0, const double e1, const double ratio) {
+    if(e0 <= 0. || e1 <= 0. || ratio <= 0. || std::abs(std::log(ratio)) < 1.e-14) return std::numeric_limits<double>::quiet_NaN();
+    return std::log(e0 / e1) / std::log(ratio);
+  };
+
+  for(unsigned k = 0; k + 2u < nSnapshots; ++k) {
+
+    const double ratio = ordered[k]->step / ordered[k + 1u]->step;
+
+    orderPsi[k] = ComputeOrder(errorPsi[k], errorPsi[k + 1u], ratio);
+    orderVel[k] = ComputeOrder(errorVel[k], errorVel[k + 1u], ratio);
+
+    if(hasRisingBubbleMetrics) {
+      orderBarycenter[k] = ComputeOrder(errorBarycenter[k], errorBarycenter[k + 1u], ratio);
+      orderRisingVelocity[k] = ComputeOrder(errorRisingVelocity[k], errorRisingVelocity[k + 1u], ratio);
+      orderCircularity[k] = ComputeOrder(errorCircularity[k], errorCircularity[k + 1u], ratio);
+    }
   }
 
   if(iproc != 0) return;
 
-  std::cout << std::endl;
-  std::cout << "==========================================================================================================================================================================" << std::endl;
-  std::cout << "                                                               TEMPORAL SELF-CONVERGENCE" << std::endl;
-  std::cout << "==========================================================================================================================================================================" << std::endl;
-  std::cout << std::setw(12) << "NS pair";
-  std::cout << std::setw(14) << "dt";
-  std::cout << std::setw(18) << "L2(Psi)";
-  std::cout << std::setw(10) << "p(Psi)";
-  std::cout << std::setw(18) << "L2(V)";
-  std::cout << std::setw(10) << "p(V)";
-  std::cout << std::setw(18) << "dBarycenter";
-  std::cout << std::setw(10) << "p(B)";
-  std::cout << std::setw(18) << "dRisingVel";
-  std::cout << std::setw(10) << "p(RV)";
-  std::cout << std::setw(18) << "dCircularity";
-  std::cout << std::setw(10) << "p(C)";
-  std::cout << std::endl;
-  std::cout << "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------" << std::endl;
+  // -------------------------------------------------------
+  // Print
+  // -------------------------------------------------------
 
-  for(unsigned k = 0; k + 1 < nSnapshots; ++k) {
-    const std::string pair = std::to_string(snapshots[k].nSteps) + "-" + std::to_string(snapshots[k + 1].nSteps);
+  const std::string title = (type == ConvergenceType::Temporal) ? "TEMPORAL SELF-CONVERGENCE" : "SPATIAL SELF-CONVERGENCE";
 
-    std::cout << std::setw(12) << pair;
-    std::cout << std::setw(14) << std::scientific << std::setprecision(5) << snapshots[k].dt;
-    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorPsi[k];
+  const std::string pairName = (type == ConvergenceType::Temporal) ? "NS pair" : "LC pair";
 
-    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderPsi[k];
-    else std::cout << std::setw(10) << "-";
+  const std::string stepName = (type == ConvergenceType::Temporal) ? "dt" : "h";
 
-    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorVel[k];
+  const unsigned wPair = 14;
+  const unsigned wStep = 14;
+  const unsigned wError = 18;
+  const unsigned wOrder = 10;
 
-    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderVel[k];
-    else std::cout << std::setw(10) << "-";
+  std::cout << '\n';
 
-    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorBarycenter[k];
+  std::cout << "========================================================================================";
 
-    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderBarycenter[k];
-    else std::cout << std::setw(10) << "-";
+  if(hasRisingBubbleMetrics) std::cout << "==============================================================";
 
-    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorRisingVelocity[k];
+  std::cout << '\n';
 
-    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderRisingVelocity[k];
-    else std::cout << std::setw(10) << "-";
+  std::cout << std::setw(60) << title << '\n';
 
-    std::cout << std::setw(18) << std::scientific << std::setprecision(8) << errorCircularity[k];
+  std::cout << "========================================================================================";
 
-    if(k + 1 < nSnapshots - 1) std::cout << std::setw(10) << std::fixed << std::setprecision(4) << orderCircularity[k];
-    else std::cout << std::setw(10) << "-";
+  if(hasRisingBubbleMetrics) std::cout << "==============================================================";
 
-    std::cout << std::endl;
+  std::cout << '\n';
+
+  std::cout << std::setw(wPair) << pairName
+            << std::setw(wStep) << stepName
+            << std::setw(wError) << "L2(Psi)"
+            << std::setw(wOrder) << "p(Psi)"
+            << std::setw(wError) << "L2(V)"
+            << std::setw(wOrder) << "p(V)";
+
+  if(hasRisingBubbleMetrics) {
+    std::cout << std::setw(wError) << "dBarycenter"
+              << std::setw(wOrder) << "p(B)"
+              << std::setw(wError) << "dRisingVel"
+              << std::setw(wOrder) << "p(RV)"
+              << std::setw(wError) << "dCircularity"
+              << std::setw(wOrder) << "p(C)";
   }
 
-  std::cout << "==========================================================================================================================================================================" << std::endl;
+  std::cout << '\n';
+
+  for(unsigned k = 0; k + 1u < nSnapshots; ++k) {
+
+    const std::string pair = std::to_string(ordered[k]->resolution) + "-" + std::to_string(ordered[k + 1u]->resolution);
+
+    std::cout << std::setw(wPair) << pair;
+
+    std::cout << std::setw(wStep) << std::scientific << std::setprecision(5) << ordered[k]->step;
+
+    auto PrintErrorAndOrder = [&](const double error, const double order) {
+      std::cout << std::setw(wError) << std::scientific << std::setprecision(8) << error;
+
+      if(std::isfinite(order)) {
+        std::cout << std::setw(wOrder) << std::fixed << std::setprecision(4) << order;
+      }
+      else {
+        std::cout << std::setw(wOrder) << "-";
+      }
+    };
+
+    PrintErrorAndOrder(errorPsi[k], orderPsi[k]);
+    PrintErrorAndOrder(errorVel[k], orderVel[k]);
+
+    if(hasRisingBubbleMetrics) {
+      PrintErrorAndOrder(errorBarycenter[k], orderBarycenter[k]);
+      PrintErrorAndOrder(errorRisingVelocity[k], orderRisingVelocity[k]);
+      PrintErrorAndOrder(errorCircularity[k], orderCircularity[k]);
+    }
+
+    std::cout << '\n';
+  }
+
+  std::cout << "========================================================================================";
+
+  if(hasRisingBubbleMetrics) std::cout << "==============================================================";
+
+  std::cout << '\n';
+}
+
+struct SimulationConfig {
+
+  std::vector<double> x_min;
+  std::vector<double> x_max;
+  std::vector<unsigned> n;
+
+  double period = 0.;
+
+  std::vector<double> center;
+  double radius = 0.;
+
+  MultiphasePhysicalProperties properties;
+};
+
+SimulationConfig GetSimulationConfig(
+  const SimulationCase simulation,
+  const unsigned dim) {
+
+  SimulationConfig cfg;
+
+  cfg.x_min.resize(3);
+  cfg.x_max.resize(3);
+  cfg.n.resize(3);
+
+  switch(simulation) {
+
+    case SimulationCase::PAR: {
+
+      cfg.x_min[0] = -0.5;
+      cfg.x_max[0] =  0.5;
+      cfg.x_min[1] = -0.5;
+      cfg.x_max[1] =  0.5;
+      cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
+      cfg.x_max[2] = (dim == 3) ? 0.5 : 0.;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = 8;
+      cfg.n[2] = (dim == 3) ? 8 : 0;
+
+      cfg.period = 10.;
+
+      cfg.center = {0.0, 0.0, 0.0};
+      cfg.center.resize(dim);
+      cfg.radius = 0.25;
+
+      cfg.properties.rho1 = 1000.;
+      cfg.properties.rho2 = 1.;
+      cfg.properties.mu1  = 10.;
+      cfg.properties.mu2  = 0.1;
+      cfg.properties.sigma = 1.;
+      cfg.properties.gravity = 0.;
+
+      break;
+    }
+
+    case SimulationCase::SAYE1: {
+
+      cfg.x_min[0] = -0.5;
+      cfg.x_max[0] =  0.5;
+      cfg.x_min[1] = -0.5;
+      cfg.x_max[1] =  0.5;
+      cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
+      cfg.x_max[2] = (dim == 3) ? 0.5 : 0.;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = 8;
+      cfg.n[2] = (dim == 3) ? 8 : 0;
+
+      cfg.period = 0.01;
+
+      cfg.properties.mu1 = 1.;
+      cfg.properties.mu2 = 1.;
+      cfg.properties.rho1 = 1.;
+      cfg.properties.rho2 = 1.;
+      cfg.properties.sigma = 10.;
+      cfg.properties.gravity = 0.;
+
+      break;
+    }
+
+    case SimulationCase::SAYE2: {
+
+      cfg.x_min[0] = -0.5;
+      cfg.x_max[0] =  0.5;
+      cfg.x_min[1] = -0.5;
+      cfg.x_max[1] =  0.5;
+      cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
+      cfg.x_max[2] = (dim == 3) ?  0.5 : 0.;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = 8;
+      cfg.n[2] = (dim == 3) ? 8 : 0;
+
+      cfg.period = 0.01;
+
+      cfg.properties.mu1 = 1.;
+      cfg.properties.mu2 = 1.;
+      cfg.properties.rho1 = 1.;
+      cfg.properties.rho2 = 1.;
+      cfg.properties.sigma = 10.;
+      cfg.properties.gravity = 0.;
+
+      break;
+    }
+
+    case SimulationCase::RB1: {
+
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = 1.;
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = (dim == 3) ? 1. : 2.;
+      cfg.x_min[2] = 0.0;
+      cfg.x_max[2] = (dim == 3) ? 2. : 0.;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = (dim == 3) ? 8 : 16;
+      cfg.n[2] = (dim == 3) ? 16 : 0;
+
+      cfg.period = 3.;
+
+      cfg.center = {0.5, 0.5, 0.5};
+      cfg.center.resize(dim);
+      cfg.radius = 0.25;
+
+      cfg.properties.rho2 = 1000.;
+      cfg.properties.rho1 = 100.;
+      cfg.properties.mu2  = 10.;
+      cfg.properties.mu1  = 1.;
+      cfg.properties.sigma = 24.5;
+      cfg.properties.gravity = -0.98;
+
+      break;
+    }
+
+    case SimulationCase::RB2: {
+
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = 1.;
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = (dim == 3) ? 1. : 2.;
+      cfg.x_min[2] = 0.0;
+      cfg.x_max[2] = (dim == 3) ? 2. : 0.;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = (dim == 3) ? 8 : 16;
+      cfg.n[2] = (dim == 3) ? 16 : 0;
+
+      cfg.period = 3.;
+
+      cfg.center = {0.5, 0.5, 0.5};
+      cfg.center.resize(dim);
+      cfg.radius = 0.25;
+
+      cfg.properties.rho2 = 1000.;
+      cfg.properties.rho1 = 1.;
+      cfg.properties.mu2  = 10.;
+      cfg.properties.mu1  = 0.1;
+      cfg.properties.sigma = 1.96;
+      cfg.properties.gravity = -0.98;
+
+      break;
+    }
+  }
+
+  return cfg;
 }
