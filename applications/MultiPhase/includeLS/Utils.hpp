@@ -14,14 +14,14 @@ CutFemWeight <TypeIO, TypeA> tri = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendr
 
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri};
 
-unsigned qM = 5;
-double dx = .005;
-double dtetha = .5;
-
-CDWeightQUAD <TypeA> quadCD0(qM, dx, dtetha);
-CDWeightTRI <TypeA> triCD0(qM, dx, dtetha);
-
-const std::vector< CDWeight <TypeA> *> cfCDw0 = {&quadCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
+// unsigned qM = 5;
+// double dx = .5;
+// double dtetha = 30.;
+// CDWeightHEX <TypeA> hexCD0(qM, dx, dtetha);
+// CDWeightQUAD <TypeA> quadCD0(qM, dx, dtetha);
+// CDWeightTRI <TypeA> triCD0(qM, dx, dtetha);
+//
+// const std::vector< CDWeight <TypeA> *> cfCDw0 = {&hexCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
 
 Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
 
@@ -2343,7 +2343,8 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
     std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
 
-    cfCDw0[ielGeom]->GetWeight(a, interfaceConstant, weightInner);
+    cfw[ielGeom]->GetWeightWithMap(0, a, interfaceConstant, weightInner);
+    //cfCDw0[ielGeom]->GetWeight(a, interfaceConstant, weightInner);
     for(unsigned i = 0; i < weightInner.size(); i++) weightOuter[i] = 1. - weightInner[i];
     //(*cfw[ielGeom])(-1, a, interfaceConstant, weightInterface);
 

@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
     unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
     const unsigned levelF = levelN - 1u; //fine level associated for mlmsh0 and mlmsh1
     const unsigned levelC = levelF - levelOffset; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
-    const unsigned level0 = levelC;
+    const unsigned level0 = 0;//levelC;
 
     // create uniform fine mesh for storing solutions to compare
     MultiLevelMesh mlMshReference;
@@ -508,6 +508,7 @@ int main(int argc, char **argv) {
 
         system2.SetSolverFineGrids(RICHARDSON);
         system2.SetRichardsonScaleFactor(.8);
+        if(dim == 3) system2.SetRichardsonScaleFactor(.4);
 
         system2.SetNumberPreSmoothingStep(4);
         system2.SetNumberPostSmoothingStep(4);
@@ -517,7 +518,7 @@ int main(int argc, char **argv) {
         system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
 
         system2.SetNumberOfSchurVariables(2);
-        system2.SetElementBlockNumber(4);
+        system2.SetElementBlockNumber(3);
 
         //system2.SetPreconditionerFineGrids(ILU_PRECOND);
         system2.MGsolve();
@@ -1048,7 +1049,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       // (*cfw[ielGeom])(-1, a, d, weightCF);
       // (*cfw[ielGeom])(0, a, d, weightCFExt);
 
-      cfCDw0[ielGeom]->GetWeight(a, d, weightCFInt);
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      //cfCDw0[ielGeom]->GetWeight(a, d, weightCFInt);
       for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
       //(*cfw[ielGeom])(-1, a, d, weightCF);
       cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
