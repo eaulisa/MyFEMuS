@@ -2,6 +2,7 @@
 
 #include "CutFemWeight.hpp"
 #include "CDWeights.hpp"
+#include "MultiLevelProblem.hpp"
 typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
 typedef cpp_bin_float_oct oct;
