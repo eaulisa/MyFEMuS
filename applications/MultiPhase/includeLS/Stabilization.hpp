@@ -254,8 +254,7 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
 
         adept::adouble divVg = 0.;
         for(unsigned k = 0; k < dim; k++) {
-          // divVg += gradSolVg[k][k];
-          divVg += gradSolVg[k][k] + 2 * cold * gradSolVgOld[k][k];
+          divVg += gradSolVg[k][k];
         }
 
         std::vector<adept::adouble> rM(dim, 0.);

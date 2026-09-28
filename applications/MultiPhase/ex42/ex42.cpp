@@ -95,34 +95,30 @@ struct TaylorHood {
   }
 };
 
-bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
-  bool dirichlet = true; //dirichlet
+// bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
+//   bool dirichlet = true; //dirichlet
 
-  if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-    //if(facename == 1 || facename == 3) dirichlet = false;
-    value = 0.;
-  }
-  else if(!strcmp(SolName, "V")) {
-    // if(facename == 2 || facename == 4) dirichlet = false;
-    if ((x[0] < 1.e-10 || x[0] > 1. - 1.e-10) && (x[1] > 1.e-10 && x[1] < 2 - 1.e-10)) {
-      dirichlet = false;
-    }
-    value = 0.;
-  }
-  else if(!strcmp(SolName, "W")) {
-    value = 0.;
-  }
-  else if(!strcmp(SolName, "P1") || !strcmp(SolName, "P2") ) {
-    dirichlet = false;
-    value = 0.;
-  }
-  else if(!strcmp(SolName, "NX") || !strcmp(SolName, "NY") || !strcmp(SolName, "NZ") || !strcmp(SolName, "K") || !strcmp(SolName, "AuxPsi")) {
-    dirichlet = false;
-    value = 0.;
-  }
+//   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
+//     //if(facename == 1 || facename == 3) dirichlet = false;
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "V")) {
+//     // if(facename == 2 || facename == 4) dirichlet = false;
+//     if ((x[0] < -0.5 + 1.e-10 || x[0] > 0.5 - 1.e-10) && (x[1] < 0.5 - 1.e-10 && x[1] > -0.5 + 1.e-10)) {
+//       dirichlet = false;
+//     }
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "W")) {
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "P1") || !strcmp(SolName, "P2") ) {
+//     dirichlet = false;
+//     value = 0.;
+//   }
 
-  return dirichlet;
-}
+//   return dirichlet;
+// }
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob);
 void AssembleNormalLumped(MultiLevelProblem& ml_prob);
@@ -167,21 +163,158 @@ int main(int argc, char **argv) {
   const std::vector<unsigned>& nStepsList = args.nSteps;
   const unsigned levelOffset = args.levelOffset;
 
-  //domain settings
-  double xmin, xmax, ymin, ymax, zmin, zmax = 0.;
-  xmax = 1.;
-  ymax = 2.;
-  int nx, ny, nz = 0;
-  nx = 8;
-  ny = 16;
+  //simulation setting
+  static const SimulationCase simulation = args.simulation;
+  static const unsigned requestedDim = args.dim;
 
-  // time settings
-  double period = 0.5;
+  const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
+
+  const SimulationConfig cfg =
+    GetSimulationConfig(simulation, requestedDim);
+
+  MultiphasePhysicalProperties properties = cfg.properties;
+
+  static std::vector<double> x_min;
+  static std::vector<double> x_max;
+
+  x_min = cfg.x_min;
+  x_max = cfg.x_max;
+
+  const double xmin = x_min[0];
+  const double xmax = x_max[0];
+  const double ymin = x_min[1];
+  const double ymax = x_max[1];
+  const double zmin = x_min[2];
+  const double zmax = x_max[2];
+
+  const unsigned nx = cfg.n[0];
+  const unsigned ny = cfg.n[1];
+  const unsigned nz = cfg.n[2];
+
+  auto SetBoundaryCondition =
+    [](const std::vector<double>& x,
+       const char SolName[],
+       double& value,
+       const int facename,
+  const double time) -> bool {
+
+    const double tol = 1.e-10;
+    const unsigned dim = requestedDim;
+
+    value = 0.;
+
+    // Spurious current: homogeneous Neumann everywhere
+    if(simulation == SimulationCase::PAR) {
+      return false;
+    }
+
+    const bool onX = x[0] < x_min[0] + tol || x[0] > x_max[0] - tol;
+    const bool onY = x[1] < x_min[1] + tol || x[1] > x_max[1] - tol;
+    const bool onZ = dim == 3 && (x[2] < x_min[2] + tol || x[2] > x_max[2] - tol);
+
+    // -------------------------
+    // U
+    // -------------------------
+    if(!strcmp(SolName, "U")) {
+
+      if(dim == 2) {
+
+        // Top/bottom no-slip wall wins at corners
+        if(onY)
+          return true;
+
+        // Vertical side wall: U normal
+        if(onX)
+          return true;
+      }
+      else if(dim == 3) {
+
+        // Top/bottom no-slip wall wins at edges/corners
+        if(onZ)
+          return true;
+
+        // x-side wall: U normal
+        if(onX)
+          return true;
+
+        // y-side wall: U tangential
+        if(onY)
+          return false;
+      }
+
+      return true;
+    }
+
+    // -------------------------
+    // V
+    // -------------------------
+    else if(!strcmp(SolName, "V")) {
+
+      if(dim == 2) {
+
+        // Top/bottom no-slip wall wins at corners
+        if(onY)
+          return true;
+
+        // Vertical side wall: V tangential
+        if(onX)
+          return false;
+      }
+      else if(dim == 3) {
+
+        // Top/bottom no-slip wall wins at edges/corners
+        if(onZ)
+          return true;
+
+        // y-side wall: V normal
+        if(onY)
+          return true;
+
+        // x-side wall: V tangential
+        if(onX)
+          return false;
+      }
+
+      return true;
+    }
+
+    // -------------------------
+    // W
+    // -------------------------
+    else if(!strcmp(SolName, "W")) {
+
+      if(dim == 3) {
+
+        // Top/bottom no-slip wall wins
+        if(onZ)
+          return true;
+
+        // W tangential to all vertical side walls
+        if(onX || onY)
+          return false;
+      }
+
+      return true;
+    }
+
+    // -------------------------
+    // Pressure
+    // -------------------------
+    else if(!strcmp(SolName, "P1") ||
+            !strcmp(SolName, "P2")) {
+
+      return false;
+    }
+
+    return true;
+  };
+
+  const double period = cfg.period;
   static double dt = 0.0;
 
   // interface settings
-  const double r = 0.25;
-  std::vector<double> xc = {0.5, 0.5, 0.5};
+  const double r = cfg.radius;
+  std::vector<double> xc = cfg.center;
 
   // variables name
   std::string psiName = "Psi";
@@ -200,11 +333,11 @@ int main(int argc, char **argv) {
 
     // create uniform fine mesh for storing solutions to compare
     MultiLevelMesh mlMshReference;
-    mlMshReference.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh");
+    mlMshReference.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh");
     mlMshReference.RefineMesh(levelF + 1, levelF + 1, nullptr);
 
     // prepare uniform solution vector
-    std::vector<TemporalSnapshot> temporalSnapshots;
+    std::vector<ConvergenceSnapshot> temporalSnapshots;
     temporalSnapshots.reserve(nStepsList.size());
 
     for (const unsigned nSteps : nStepsList) {
@@ -212,7 +345,7 @@ int main(int argc, char **argv) {
       MultiLevelMesh mlMsh0;
       // std::string meshName = "./input/tri.neu";
       // mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh"); // Turek 1&2
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -239,6 +372,7 @@ int main(int argc, char **argv) {
       double eps = 0.25; //(dim == 2) ? 1. / pow(2, std::max(levelN - 7u, 1u))
       Mollifier m = Mollifier(eps, sigmoidType);
 
+      //PsiSaye psi2D(m);
       PsiBall psi2D(xc, r, m);
 
       // Iteratively flag and create new AMR levels
@@ -264,6 +398,7 @@ int main(int argc, char **argv) {
       auto mlSolReference = std::make_unique<MultiLevelSolution>(&mlMshReference);
       mlSolReference->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
       for(unsigned d = 0; d < dim; ++d) mlSolReference->AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 0, false);
+      for(unsigned d = 0; d < pName.size(); d++) mlSolReference->AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
 
       mlSolReference->Initialize("All");
 
@@ -305,7 +440,7 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, QUAD9, "seventh"); // Turek 1&2
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
       // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -325,21 +460,13 @@ int main(int argc, char **argv) {
         out.close();
       }
 
-      MultiphasePhysicalProperties properties;
-      properties.mu1 = 0.1;
-      properties.mu2 = 10.;
-      properties.rho1 = 1.;
-      properties.rho2 = 1000;
-      properties.sigma = 0.0;//1.96;
-      properties.gravity = -0.98;
-
       UpdateColorFunction(*mlsol0, psiName, cName);
       if(levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
 
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, simulation_type::rising_bubble, vName, levelC);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
 
       const unsigned w = 24;
 
@@ -503,7 +630,8 @@ int main(int argc, char **argv) {
         // system2.SetSolverFineGrids(GMRES);
 
         system2.SetSolverFineGrids(RICHARDSON);
-        system2.SetRichardsonScaleFactor(.8);
+        if (dim == 3) system2.SetRichardsonScaleFactor(.4);
+        else system2.SetRichardsonScaleFactor(.8);
 
         system2.SetNumberPreSmoothingStep(4);
         system2.SetNumberPostSmoothingStep(4);
@@ -566,8 +694,12 @@ int main(int argc, char **argv) {
 
           bbox.SetMesh(mlmsh0->GetLevel(0));
           ProjectSolution(*mlsol0, *mlSolReference, bbox, vName, levelC, levelF);
+          ProjectSolution(*mlsol0, *mlSolReference, bbox, pName, levelC, levelF);
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlSolReference, psiName, simulation_type::rising_bubble, vName, levelF);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
+
+          VTKWriter vtkIO(mlsol0);
+          vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / 1);
 
           break;
         }
@@ -663,7 +795,7 @@ int main(int argc, char **argv) {
         UpdateColorFunction(*mlsol1, psiName, cName);
         if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, simulation_type::rising_bubble, vName, levelC);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)
@@ -698,7 +830,15 @@ int main(int argc, char **argv) {
 
     }
 
-    PrintTemporalConvergence(temporalSnapshots, psiName, vName, levelF, iproc);
+    PrintConvergence(
+      temporalSnapshots,
+      psiName,
+      vName,
+      levelF,
+      iproc,
+      ConvergenceType::Temporal,
+      simulation
+    );
 
   }
 
@@ -706,20 +846,6 @@ int main(int argc, char **argv) {
   //   ProfilerStop();
   return 0;
 }
-
-// double TimeStepMultiphase(const double time) {
-//   // double dt =  0.005; //RT
-//   // double dt =  0.001; //RT
-//   double dt =  0.0025; //Turek
-//   // double sigma = 3;
-//   // double rho = 100.;
-//   // // double totalT = sqrt(rho*0.4*0.4*0.4) / sqrt(sigma);
-//   // // double dt =  totalT/800; //Parasitic Test
-//   //
-//   // double dt =   0.001 * sqrt(rho * 0.4 * 0.4 * 0.4 / sigma);
-//   // // double dt =  0.0001; //TODO if you use the 320x320 you have to change this
-//   return dt;
-// }
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
@@ -1036,15 +1162,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
     if(cut == 1) {
-      //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
-      (*cfw[ielGeom])(0, a, d, weightCFInt);
+      cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+      //(*cfw[ielGeom])(0, a, d, weightCFInt);
       for(unsigned k = 0; k < dim; k++) a[k] = - a[k];
       d = -d;
-      //cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+      cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+      for (unsigned ig = 0; ig < weightCFExt.size(); ig++)
+        weightCFExt[ig] = 1. - weightCFInt[ig];
       //cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFExt);
 
-      (*cfw[ielGeom])(-1, a, d, weightCF);
-      (*cfw[ielGeom])(0, a, d, weightCFExt);
+      // (*cfw[ielGeom])(-1, a, d, weightCF);
+      // (*cfw[ielGeom])(0, a, d, weightCFExt);
 
     }
     else {
@@ -1189,9 +1317,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         for(int I = 0; I < dim; I++) {
           Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
           Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
-
-          Res[dim * nDofsV + i] += - 2 * cold * gradSolVOld_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
-          Res[dim * nDofsV + nDofsP + i] += - 2 * cold * gradSolVOld_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
         }
         if(C == 0)
           Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty

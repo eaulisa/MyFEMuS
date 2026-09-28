@@ -1,4 +1,4 @@
- 
+
 #pragma once
 
 #include <vector>
@@ -13,7 +13,6 @@
 //   double              _r;
 //   double            _eps;
 //   Mollifier           _m;
-
 
 //   PsiBall(const std::vector<double>& center, const double radius, const Mollifier &m)
 //     : _c(center), _r(radius), _m(m)
@@ -54,8 +53,7 @@ struct PsiBall {
   PsiBall(const std::vector<double>& center,
           const double radius,
           const Mollifier& m)
-    : _c(center), _r(radius), _m(m)
-  {
+    : _c(center), _r(radius), _m(m) {
     if (_c.empty()) {
       throw std::runtime_error("PsiBall: center is empty");
     }
@@ -68,7 +66,7 @@ struct PsiBall {
   double LevelSet(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiBall::LevelSet(): x.size() != center.size()");
+        "PsiBall::LevelSet(): x.size() != center.size()");
     }
 
     double r2 = 0.0;
@@ -88,7 +86,7 @@ struct PsiBall {
   std::vector<double> Normal(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiBall::Normal(): x.size() != center.size()");
+        "PsiBall::Normal(): x.size() != center.size()");
     }
 
     std::vector<double> n(_c.size(), 0.0);
@@ -103,7 +101,7 @@ struct PsiBall {
 
     if (norm < 1.e-14) {
       throw std::runtime_error(
-          "PsiBall::Normal(): normal undefined at center");
+        "PsiBall::Normal(): normal undefined at center");
     }
 
     for (std::size_t k = 0; k < _c.size(); ++k) {
@@ -116,7 +114,7 @@ struct PsiBall {
   double Curvature(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiBall::Curvature(): x.size() != center.size()");
+        "PsiBall::Curvature(): x.size() != center.size()");
     }
 
     return 1.0 / _r;
@@ -141,11 +139,10 @@ struct PsiEllipse {
              const double a,
              const double b,
              const Mollifier& m)
-    : _c(center), _a(a), _b(b), _m(m)
-  {
+    : _c(center), _a(a), _b(b), _m(m) {
     if (_c.size() < 2) {
       throw std::runtime_error(
-          "PsiEllipse: center must have at least 2 components");
+        "PsiEllipse: center must have at least 2 components");
     }
 
     if (!(_a > 0.0)) {
@@ -160,15 +157,15 @@ struct PsiEllipse {
   double LevelSet(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiEllipse::LevelSet(): x.size() != center.size()");
+        "PsiEllipse::LevelSet(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
     const double dy = x[1] - _c[1];
 
     return 1.0
-         - (dx * dx) / (_a * _a)
-         - (dy * dy) / (_b * _b);
+           - (dx * dx) / (_a * _a)
+           - (dy * dy) / (_b * _b);
   }
 
   std::vector<double> Normal(const double theta) const {
@@ -176,7 +173,7 @@ struct PsiEllipse {
     const double st = std::sin(theta);
 
     const double den =
-        std::sqrt(_b * _b * ct * ct + _a * _a * st * st);
+      std::sqrt(_b * _b * ct * ct + _a * _a * st * st);
 
     return {_b * ct / den, _a * st / den};
   }
@@ -184,7 +181,7 @@ struct PsiEllipse {
   std::vector<double> Normal(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiEllipse::Normal(): x.size() != center.size()");
+        "PsiEllipse::Normal(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
@@ -200,8 +197,8 @@ struct PsiEllipse {
     const double st = std::sin(theta);
 
     const double den =
-        _a * _a * st * st +
-        _b * _b * ct * ct;
+      _a * _a * st * st +
+      _b * _b * ct * ct;
 
     return _a * _b / std::pow(den, 1.5);
   }
@@ -209,7 +206,7 @@ struct PsiEllipse {
   double Curvature(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiEllipse::Curvature(): x.size() != center.size()");
+        "PsiEllipse::Curvature(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
@@ -233,11 +230,10 @@ struct PsiStar {
   PsiStar(const std::vector<double>& center,
           const unsigned n,
           const Mollifier& m)
-    : _c(center), _n(n), _m(m)
-  {
+    : _c(center), _n(n), _m(m) {
     if (_c.size() < 2) {
       throw std::runtime_error(
-          "PsiStar: center must have at least 2 components");
+        "PsiStar: center must have at least 2 components");
     }
 
     if (_n == 0) {
@@ -247,13 +243,13 @@ struct PsiStar {
 
   double Radius(const double theta) const {
     return 0.25
-         + 0.1 * std::cos(static_cast<double>(_n) * theta + 2.0);
+           + 0.1 * std::cos(static_cast<double>(_n) * theta + 2.0);
   }
 
   double LevelSet(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiStar::LevelSet(): x.size() != center.size()");
+        "PsiStar::LevelSet(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
@@ -275,10 +271,10 @@ struct PsiStar {
     const double den = std::sqrt(r * r + rp * rp);
 
     const double nx =
-        (r * std::cos(theta) + rp * std::sin(theta)) / den;
+      (r * std::cos(theta) + rp * std::sin(theta)) / den;
 
     const double ny =
-        (r * std::sin(theta) - rp * std::cos(theta)) / den;
+      (r * std::sin(theta) - rp * std::cos(theta)) / den;
 
     return {nx, ny};
   }
@@ -286,7 +282,7 @@ struct PsiStar {
   std::vector<double> Normal(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiStar::Normal(): x.size() != center.size()");
+        "PsiStar::Normal(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
@@ -306,14 +302,14 @@ struct PsiStar {
     const double rpp = -0.1 * n * n * std::cos(alpha);
 
     return
-        (r * r + 2.0 * rp * rp - r * rpp) /
-        std::pow(r * r + rp * rp, 1.5);
+      (r * r + 2.0 * rp * rp - r * rpp) /
+      std::pow(r * r + rp * rp, 1.5);
   }
 
   double Curvature(const std::vector<double>& x) const {
     if (x.size() != _c.size()) {
       throw std::runtime_error(
-          "PsiStar::Curvature(): x.size() != center.size()");
+        "PsiStar::Curvature(): x.size() != center.size()");
     }
 
     const double dx = x[0] - _c[0];
@@ -326,5 +322,62 @@ struct PsiStar {
 
   double operator()(const std::vector<double>& x) const {
     return LevelSet(x);
+  }
+};
+
+struct PsiSaye {
+  Mollifier _m;
+
+  static constexpr double _a = 0.025;
+  static constexpr double _pi = 3.141592653589793238462643383279502884;
+  static constexpr double _k = 2.0 * _pi;
+
+  PsiSaye(const Mollifier& m)
+    : _m(m)
+  {}
+
+  double InterfaceHeight(const double x) const {
+    return _a * std::cos(_k * x);
+  }
+
+  double LevelSet(const std::vector<double>& x) const {
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiSaye::LevelSet(): Saye test is two-dimensional");
+    }
+
+    return x[1] - InterfaceHeight(x[0]);
+  }
+
+  std::vector<double> Normal(const std::vector<double>& x) const {
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiSaye::Normal(): Saye test is two-dimensional");
+    }
+
+    const double sx = _a * _k * std::sin(_k * x[0]);
+    const double norm = std::sqrt(1.0 + sx * sx);
+
+    return {sx / norm, 1.0 / norm};
+  }
+
+  double Curvature(const std::vector<double>& x) const {
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiSaye::Curvature(): Saye test is two-dimensional");
+    }
+
+    const double sx = _a * _k * std::sin(_k * x[0]);
+
+    return _a * _k * _k * std::cos(_k * x[0])
+           / std::pow(1.0 + sx * sx, 1.5);
+  }
+
+  double operator()(const std::vector<double>& x) const {
+    return LevelSet(x);
+  }
+
+  double Mollified(const std::vector<double>& x) const {
+    return _m.Sigmoid(LevelSet(x));
   }
 };
