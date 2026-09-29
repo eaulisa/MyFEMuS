@@ -331,15 +331,6 @@ int main(int argc, char **argv) {
     const unsigned levelC = levelF - levelOffset; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
     const unsigned level0 = 0;
 
-    // create uniform fine mesh for storing solutions to compare
-    MultiLevelMesh mlMshReference;
-    mlMshReference.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh");
-    mlMshReference.RefineMesh(levelF + 1, levelF + 1, nullptr);
-
-    // prepare uniform solution vector
-    std::vector<ConvergenceSnapshot> temporalSnapshots;
-    temporalSnapshots.reserve(nStepsList.size());
-
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
@@ -393,14 +384,6 @@ int main(int argc, char **argv) {
       std::cout << "Pressure discretization : " << TH.p.family << " " << TH.p.order << std::endl;
 
       vName.resize(dim);
-
-      // final uniform solutions
-      auto mlSolReference = std::make_unique<MultiLevelSolution>(&mlMshReference);
-      mlSolReference->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-      for(unsigned d = 0; d < dim; ++d) mlSolReference->AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 0, false);
-      for(unsigned d = 0; d < pName.size(); d++) mlSolReference->AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
-
-      mlSolReference->Initialize("All");
 
       // system solutions
       mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
@@ -586,7 +569,7 @@ int main(int argc, char **argv) {
         // initilaize and solve the system
 
         //system2.SetOuterSolver(PREONLY);
-        system2.SetMaxNumberOfNonLinearIterations(10);
+        //system2.SetMaxNumberOfNonLinearIterations(10);
 
         MultiLevelProblem mlProb0(mlsol0);
         // add system Navier-Stokes in mlProb as a Linear Implicit System
@@ -610,14 +593,76 @@ int main(int argc, char **argv) {
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l);
 
-        if (t == 1)
-          system2.SetMgType(V_CYCLE);
-        else
-          system2.SetMgType(V_CYCLE);
+        std::vector < unsigned > fieldV(dim);
+        for(unsigned d = 0; d < dim; d++) fieldV[d] = system2.GetSolPdeIndex(vName[d].c_str());
 
-        system2.SetLinearEquationSolverType(FEMuS_ASM);
+        std::vector < unsigned > solutionTypeV(dim);
+        for(unsigned d = 0; d < dim; d++) solutionTypeV[d] = mlSol2.GetSolutionType(vName[d].c_str());
 
+        //FieldSplitTree FS_V(PREONLY, MLU_PRECOND, fieldV, "Velocity");
+        FieldSplitTree FS_V(PREONLY, AMG_PRECOND, fieldV, "Velocity");
+
+        //FieldSplitTree FS_V(GMRES, ASM_PRECOND, fieldV, solutionTypeV, "Velocity");
+        //FS_V.SetAsmBlockSize(4);
+        FS_V.SetTolerances(1.e-30, 1.e-20, 1.e+50, 1);
+
+        std::vector < unsigned > fieldP(pName.size());
+        for(unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
+
+        std::vector < unsigned > solutionTypeP(pName.size());
+        for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
+
+        //FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
+        FieldSplitTree FS_P(PREONLY, AMG_PRECOND, fieldP, "Pressure");
+
+        //FS_P.SetFieldSplitSchurFactType{PC_FIELDSPLIT_SCHUR_FACT_LOWER};
+        //FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
+        //FS_P.SetAsmBlockSize(4);
+
+        FS_P.SetTolerances(1.e-30, 1.e-20, 1.e+50, 1);
+
+        std::vector < FieldSplitTree *> FS1;
+        FS1.reserve(2);
+        FS1.push_back(&FS_V);
+        FS1.push_back(&FS_P);
+
+        FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
+        FS_NS.SetSchurFactorizationType(SCHUR_FACT_UPPER); // SCHUR_FACT_UPPER, SCHUR_FACT_LOWER,SCHUR_FACT_FULL; how to use if FS_SCHUR_PRECOND? Guoyike
+        FS_NS.SetSchurPreType(SCHUR_PRE_SELFP);// SCHUR_PRE_SELF, SCHUR_PRE_SELFP, SCHUR_PRE_USER, SCHUR_PRE_A11,SCHUR_PRE_FULL;
+
+        FS_NS.SetTolerances(1.e-30, 1.e-20, 1.e+50, 10);
+
+        //system.SetLinearEquationSolverType(FEMuS_DEFAULT);
+        system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT); // Additive Swartz Method
+        //system.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
+
+        // attach the assembling function to system
+        system2.SetMaxNumberOfNonLinearIterations(20);
+        system2.SetMaxNumberOfLinearIterations(3);
+        system2.SetAbsoluteLinearConvergenceTolerance(1.e-12);
+        system2.SetNonLinearConvergenceTolerance(1.e-8);
+        system2.SetMgType(V_CYCLE);
+
+        system2.SetNumberPreSmoothingStep(2);
+        system2.SetNumberPostSmoothingStep(2);
+
+        // initilaize and solve the system
         system2.init();
+
+        system2.SetSolverFineGrids(GMRES);
+        //system.SetPreconditionerFineGrids(ILU_PRECOND);
+        system2.SetFieldSplitTree(&FS_NS);
+
+        system2.SetTolerances(1.e-30, 1.e-20, 1.e+50, 30);
+
+        // if (t == 1)
+        //   system2.SetMgType(V_CYCLE);
+        // else
+        //   system2.SetMgType(V_CYCLE);
+
+        //system2.SetLinearEquationSolverType(FEMuS_ASM);
+
+        //system2.init();
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
           LinearEquationSolver* pdeSys2_l  = system2._LinSolver[l];
@@ -631,21 +676,25 @@ int main(int argc, char **argv) {
 
         // system2.SetSolverFineGrids(GMRES);
 
-        system2.SetSolverFineGrids(RICHARDSON);
-        system2.SetRichardsonScaleFactor(.8);
-        if(dim == 3) system2.SetRichardsonScaleFactor(.4);
+        //system2.SetSolverFineGrids(RICHARDSON);
+        //system2.SetRichardsonScaleFactor(.8);
+        //if(dim == 3) system2.SetRichardsonScaleFactor(.4);
 
-        system2.SetNumberPreSmoothingStep(4);
-        system2.SetNumberPostSmoothingStep(4);
+        //system2.SetNumberPreSmoothingStep(4);
+        //system2.SetNumberPostSmoothingStep(4);
         // system2.SetTolerances(1.e-20, 1.e-20, 1.e+50, 50, 30);
 
-        system2.SetPreconditionerFineGrids(MLU_PRECOND);
-        system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
+        //system2.SetPreconditionerFineGrids(MLU_PRECOND);
+        //system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
 
-        system2.SetNumberOfSchurVariables(2);
-        system2.SetElementBlockNumber(3);
+        //system2.SetNumberOfSchurVariables(2);
+        //system2.SetElementBlockNumber(3);
 
         //system2.SetPreconditionerFineGrids(ILU_PRECOND);
+
+        //system2.ClearVariablesToBeSolved();
+        //system2.AddVariableToBeSolved("All");
+
         system2.MGsolve();
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
@@ -693,10 +742,6 @@ int main(int argc, char **argv) {
             }
             uNew->close();
           }
-
-          bbox.SetMesh(mlmsh0->GetLevel(0));
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, vName, levelC, levelF);
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, pName, levelC, levelF);
 
           final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
 
@@ -816,32 +861,9 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->clear();
 
-        if(t == nSteps) {
-          bbox.SetMesh(mlmsh0->GetLevel(0));
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, {psiName}, levelF, levelF);
-        }
-
       }
-
-      temporalSnapshots.push_back( {
-        nSteps,
-        dt,
-        final_diagnostics,
-        std::move(mlSolReference)
-      }
-                                 );
 
     }
-
-    PrintConvergence(
-      temporalSnapshots,
-      psiName,
-      vName,
-      levelF,
-      iproc,
-      ConvergenceType::Temporal,
-      simulation
-    );
 
   }
 

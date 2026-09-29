@@ -293,7 +293,7 @@ namespace femus {
     PetscLogDouble t1;
     PetscLogDouble t2;
     PetscTime (&t1);
-
+    std::cout << "AAAAAA\n";
     if (ksp_clean) {
       Mat KK = (static_cast< PetscMatrix* > (_KK))->mat();
 
@@ -308,11 +308,17 @@ namespace femus {
         KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE);
         KSPSetNormType (_ksp, KSP_NORM_NONE);
       }
-
+      std::cout << "AA1\n";
       KSPSetFromOptions (_ksp);
+      KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
+
+      std::cout << "AA11\n";
       KSPGMRESSetRestart (_ksp, _restart);
+      std::cout << "AA12\n";
       KSPGMRESSetCGSRefinementType(_ksp, KSP_GMRES_CGS_REFINE_IFNEEDED);
+      std::cout << "AA13\n";
       KSPSetUp (_ksp);
+      std::cout << "AA2\n";
 
 //       PetscViewer    viewer;
 //       PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,1800,1800,&viewer);
@@ -325,7 +331,10 @@ namespace femus {
 //       std::cin>>a;
     }
 
+    std::cout << "BBBBB\n";
+
     ZerosBoundaryResiduals();
+    std::cout << "BB1\n";
     KSPSolve (_ksp, (static_cast< PetscVector* > (_RES))->vec(), (static_cast< PetscVector* > (_EPSC))->vec());
 
     _RESC->matrix_mult (*_EPSC, *_KK);
@@ -365,13 +374,13 @@ namespace femus {
           }
         }
 
-        MatMult((static_cast< PetscMatrix* > (_KK))->mat(), nullspBase[0], nullspBase[1]);
-        PetscReal max_abs_val;
-        // Calcola la norma infinito (il max in valore assoluto)
-        VecNorm(nullspBase[1], NORM_INFINITY, &max_abs_val);
-
-        std::cout << "Test NullSpace at level = " << _msh->GetLevel() << ":\t KK * NullSpaceBase = " << max_abs_val << std::endl;
-        nullspBase.resize(1);
+        // MatMult((static_cast< PetscMatrix* > (_KK))->mat(), nullspBase[0], nullspBase[1]);
+        // PetscReal max_abs_val;
+        // // Calcola la norma infinito (il max in valore assoluto)
+        // VecNorm(nullspBase[1], NORM_INFINITY, &max_abs_val);
+        //
+        // std::cout << "Test NullSpace at level = " << _msh->GetLevel() << ":\t KK * NullSpaceBase = " << max_abs_val << std::endl;
+        // nullspBase.resize(1);
 
         MatNullSpace   nullsp;
         MatNullSpaceCreate (PETSC_COMM_WORLD, PETSC_FALSE, nullspBase.size(), &nullspBase[0], &nullsp);

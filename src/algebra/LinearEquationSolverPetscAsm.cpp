@@ -116,7 +116,7 @@ namespace femus {
 
     meshasmpartitioning.DoPartition(_elementBlockNumber, block_elements, _blockTypeRange);
 
-    std::cout << "AAAAAAAAAAAAAAAA " << block_elements.size() << std::endl;
+    //std::cout << "AAAAAAAAAAAAAAAA " << block_elements.size() << std::endl;
 
     vector <bool> ThisVaribaleIsNonSchur(_SolPdeIndex.size(), true);
 
