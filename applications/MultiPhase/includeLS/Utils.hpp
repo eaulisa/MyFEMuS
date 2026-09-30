@@ -170,6 +170,33 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
   }
 }
 
+void SetConstrainedVelocityDofsToZero(
+  MultiLevelSolution& mlSol,
+  const std::vector<std::string>& vName,
+  const unsigned level) {
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+
+  for(unsigned k = 0; k < vName.size(); ++k) {
+
+    const unsigned solVIndex = mlSol.GetIndex(vName[k].c_str());
+
+    auto& solV = sol->_Sol[solVIndex];
+    auto& solVBdc = sol->_Bdc[solVIndex];
+
+    const unsigned firstDof = solV->first_local_index();
+    const unsigned lastDof = solV->last_local_index();
+
+    for(unsigned dof = firstDof; dof < lastDof; ++dof) {
+      if((*solVBdc)(dof) < 1.5) {
+        solV->set(dof, 0.0);
+      }
+    }
+
+    solV->close();
+  }
+}
+
 void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CName, const std::vector<std::string>& PName,
                                const unsigned level0, const unsigned level1, const std::vector<double>& xtarget, const bool fixPressureAtOnePoint) {
   if (PName.size() != 2) {
@@ -1109,7 +1136,11 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
         solVec1->set(i, psiProjected[i]);
       }
       else { // TODO add boundarycondition for psi
-        throw std::runtime_error("POINT OUTSIDE THE DOMAIN");
+        // throw std::runtime_error("POINT OUTSIDE THE DOMAIN");
+        std::cerr << std::setprecision(17);
+        std::cerr << "POINT OUTSIDE THE DOMAIN" << std::endl;
+        std::cerr << X1[0][i] << " " << X1[1][i] << std::endl;
+        abort();
         std::vector<double> x1 = (dim == 1) ? std::vector<double>({X1[0][i]})
                                  : (dim == 2) ? std::vector<double>({X1[0][i], X1[1][i]})
                                  : std::vector<double>({X1[0][i], X1[1][i], X1[2][i]});
@@ -1762,12 +1793,171 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
   }
 }
 
+double FindLevelSetZeroOnNodalLine(
+  Mesh* msh,
+  Solution* sol,
+  const unsigned psiIndex,
+  const unsigned psiType,
+  const std::vector<double>& lineCoordinates,
+  const double coordTol = 1.e-12,
+  const double psiTol = 1.e-14) {
+
+  const unsigned dim = msh->GetDimension();
+  const unsigned iproc = msh->processor_id();
+  const unsigned xType = 2;
+
+  if(lineCoordinates.size() != dim - 1u) {
+    throw std::runtime_error("FindLevelSetZeroOnNodalLine: lineCoordinates must have dim - 1 entries");
+  }
+
+  struct LineNode {
+    unsigned dof;
+    double xVertical;
+    double psi;
+  };
+
+  std::vector<unsigned> localDof;
+  std::vector<double> localX;
+  std::vector<double> localPsi;
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1u]; ++iel) {
+
+    const unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
+    const unsigned nDofsX = msh->GetElementDofNumber(iel, xType);
+
+    if(nDofsPsi != nDofsX) {
+      throw std::runtime_error("FindLevelSetZeroOnNodalLine: psi and coordinate spaces must have the same nodal structure");
+    }
+
+    for(unsigned i = 0; i < nDofsPsi; ++i) {
+
+      const unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
+      const unsigned xDof = msh->GetSolutionDof(i, iel, xType);
+
+      bool onLine = true;
+
+      for(unsigned d = 0; d < dim - 1u; ++d) {
+
+        const double xd = (*msh->_topology->_Sol[d])(xDof);
+
+        if(std::abs(xd - lineCoordinates[d]) > coordTol) {
+          onLine = false;
+        }
+      }
+
+      if(!onLine) {
+        continue;
+      }
+
+      const double xVertical = (*msh->_topology->_Sol[dim - 1u])(xDof);
+      const double psiValue = (*sol->_Sol[psiIndex])(psiDof);
+
+      localDof.push_back(psiDof);
+      localX.push_back(xVertical);
+      localPsi.push_back(psiValue);
+    }
+  }
+
+  int nprocs = 1;
+
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  const int localSize = static_cast<int>(localDof.size());
+
+  std::vector<int> counts(nprocs, 0);
+  std::vector<int> displs(nprocs, 0);
+
+  MPI_Allgather(&localSize, 1, MPI_INT, counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+  int globalSize = 0;
+
+  for(int p = 0; p < nprocs; ++p) {
+    displs[p] = globalSize;
+    globalSize += counts[p];
+  }
+
+  std::vector<unsigned> globalDof(globalSize);
+  std::vector<double> globalX(globalSize);
+  std::vector<double> globalPsi(globalSize);
+
+  MPI_Allgatherv(localDof.data(), localSize, MPI_UNSIGNED, globalDof.data(), counts.data(), displs.data(), MPI_UNSIGNED, MPI_COMM_WORLD);
+
+  MPI_Allgatherv(localX.data(), localSize, MPI_DOUBLE, globalX.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+
+  MPI_Allgatherv(localPsi.data(), localSize, MPI_DOUBLE, globalPsi.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+
+  std::vector<LineNode> nodes(globalSize);
+
+  for(int i = 0; i < globalSize; ++i) {
+    nodes[i].dof = globalDof[i];
+    nodes[i].xVertical = globalX[i];
+    nodes[i].psi = globalPsi[i];
+  }
+
+  std::sort(nodes.begin(), nodes.end(), [](const LineNode & a, const LineNode & b) {
+    return a.dof < b.dof;
+  });
+
+  nodes.erase(std::unique(nodes.begin(), nodes.end(), [](const LineNode & a, const LineNode & b) {
+    return a.dof == b.dof;
+  }), nodes.end());
+
+  std::sort(nodes.begin(), nodes.end(), [](const LineNode & a, const LineNode & b) {
+    return a.xVertical < b.xVertical;
+  });
+
+  if(nodes.size() < 2u) {
+    throw std::runtime_error("FindLevelSetZeroOnNodalLine: fewer than two nodes found on line");
+  }
+
+  std::vector<double> roots;
+
+  for(const LineNode& node : nodes) {
+    if(std::abs(node.psi) <= psiTol) {
+      roots.push_back(node.xVertical);
+    }
+  }
+
+  for(unsigned i = 0; i + 1u < nodes.size(); ++i) {
+
+    const double psi0 = nodes[i].psi;
+    const double psi1 = nodes[i + 1u].psi;
+
+    if(psi0 * psi1 < 0.0) {
+
+      const double x0 = nodes[i].xVertical;
+      const double x1 = nodes[i + 1u].xVertical;
+
+      const double root = x0 - psi0 * (x1 - x0) / (psi1 - psi0);
+
+      roots.push_back(root);
+    }
+  }
+
+  std::sort(roots.begin(), roots.end());
+
+  roots.erase(std::unique(roots.begin(), roots.end(), [coordTol](const double a, const double b) {
+    return std::abs(a - b) <= coordTol;
+  }), roots.end());
+
+  if(roots.empty()) {
+    throw std::runtime_error("FindLevelSetZeroOnNodalLine: no zero crossing found");
+  }
+
+  if(roots.size() != 1u) {
+    throw std::runtime_error("FindLevelSetZeroOnNodalLine: multiple zero crossings found");
+  }
+
+  return roots[0];
+}
+
 enum class SimulationCase {
   PAR,
   RB1,
   RB2,
   SAYE1,
-  SAYE2
+  SAYE2,
+  RT
 };
 
 std::string SimulationCaseName(const SimulationCase s) {
@@ -1782,6 +1972,8 @@ std::string SimulationCaseName(const SimulationCase s) {
       return "saye1";
     case SimulationCase::SAYE2:
       return "saye2";
+    case SimulationCase::RT:
+      return "rt";
   }
 
   throw std::runtime_error("Invalid SimulationCase");
@@ -1794,6 +1986,7 @@ SimulationCase ParseSimulationCase(const std::string& s) {
   if(s == "rb2")  return SimulationCase::RB2;
   if(s == "saye1") return SimulationCase::SAYE1;
   if(s == "saye2") return SimulationCase::SAYE2;
+  if(s == "rt") return SimulationCase::RT;
 
   throw std::runtime_error(
     "Unknown simulation '" + s +
@@ -1802,17 +1995,38 @@ SimulationCase ParseSimulationCase(const std::string& s) {
 }
 
 struct LevelSetDiagnostics {
+
+  // ============================================================
+  // Common metrics
+  // ============================================================
+
   double innerArea = 0.;
   double outerArea = 0.;
   double totalArea = 0.;
   double interfaceLength = 0.;
+
+  // ============================================================
+  // Rising bubble
+  // ============================================================
+
+  bool hasRisingBubbleMetrics = false;
   std::vector<double> barycenter;
   std::vector<double> meanVelocity;
   double circularity = 0.;
+
+  // ============================================================
+  // Rayleigh-Taylor
+  // ============================================================
+
+  bool hasRayleighTaylorMetrics = false;
+  double pb = 0.0;
+  double ps = 0.0;
+  double psad = 0.0;
 };
 
 LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName,
-    const std::vector<std::string>& velocityName, const std::vector<std::string>& pressureName, const unsigned velocityLevel) {
+    const std::vector<std::string>& velocityName, const std::vector<std::string>& pressureName, const unsigned velocityLevel,
+    const SimulationCase simulation) {
   MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
   Mesh* msh = mlMsh.GetLevel(level);
@@ -1823,6 +2037,13 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   const unsigned psiType = mlSol.GetSolutionType(psiIndex);
   const unsigned xType = 2;
 
+  const bool computeRisingBubbleMetrics =
+    simulation == SimulationCase::RB1 ||
+    simulation == SimulationCase::RB2;
+
+  const bool computeRayleighTaylorMetrics =
+    simulation == SimulationCase::RT;
+
   std::vector<unsigned> velocityIndex;
   unsigned velocityType = 0;
 
@@ -1830,7 +2051,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   unsigned pressureType = 0;
 
   if(dim != 2 && dim != 3) {
-    throw std::runtime_error("ComputeLevelSetDiagnostics: rising_bubble requires dim = 2 or 3");
+    throw std::runtime_error("ComputeLevelSetDiagnostics: requires dim = 2 or 3");
   }
 
   if(velocityName.size() != dim) {
@@ -2009,7 +2230,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
         elementArea += weight;
 
-        if(psiMax > 0.0) {
+        if(psiMax > 0.0 && computeRisingBubbleMetrics) {
           double weightX = 0.0;
           double weightVelocity = 0.0;
 
@@ -2099,28 +2320,35 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       innerAreaLocal += innerWeight;
       outerAreaLocal += outerWeight;
 
-      double weightVelocity = 0.0;
+      if(computeRisingBubbleMetrics) {
 
-      femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
+        double weightVelocity = 0.0;
 
-      std::vector<double> x(dim, 0.0);
-      std::vector<double> u(dim, 0.0);
+        femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
 
-      for(unsigned i = 0; i < nDofsX; ++i) {
-        for(unsigned d = 0; d < dim; ++d) {
-          x[d] += coordX[d][i] * phiX[i];
+        std::vector<double> x(dim, 0.0);
+        std::vector<double> u(dim, 0.0);
+
+        for(unsigned i = 0; i < nDofsX; ++i) {
+          for(unsigned d = 0; d < dim; ++d) {
+            x[d] += coordX[d][i] * phiX[i];
+          }
         }
-      }
 
-      for(unsigned i = 0; i < nDofsVelocity; ++i) {
-        for(unsigned d = 0; d < dim; ++d) {
-          u[d] += velocity[d][i] * phiVelocity[i];
+        for(unsigned i = 0; i < nDofsVelocity; ++i) {
+          for(unsigned d = 0; d < dim; ++d) {
+            u[d] += velocity[d][i] * phiVelocity[i];
+          }
         }
-      }
 
-      for(unsigned d = 0; d < dim; ++d) {
-        barycenterIntegralLocal[d] += x[d] * innerWeight;
-        velocityIntegralLocal[d] += u[d] * innerWeight;
+        for(unsigned d = 0; d < dim; ++d) {
+
+          barycenterIntegralLocal[d] +=
+            x[d] * innerWeight;
+
+          velocityIntegralLocal[d] +=
+            u[d] * innerWeight;
+        }
       }
 
       femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
@@ -2164,28 +2392,106 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
   LevelSetDiagnostics result;
 
-  result.innerArea = globalSum[0];
-  result.outerArea = globalSum[1];
-  result.totalArea = globalSum[2];
+  // ============================================================
+  // Common metrics
+  // ============================================================
+
+  result.innerArea       = globalSum[0];
+  result.outerArea       = globalSum[1];
+  result.totalArea       = globalSum[2];
   result.interfaceLength = globalSum[3];
 
-  result.barycenter.assign(dim, 0.0);
-  result.meanVelocity.assign(dim, 0.0);
+  // ============================================================
+  // Rising bubble metrics
+  // ============================================================
 
-  if(result.innerArea > 1.e-14) {
-    for(unsigned d = 0; d < dim; ++d) {
-      result.barycenter[d] = globalSum[4 + d] / result.innerArea;
-      result.meanVelocity[d] = globalSum[4 + dim + d] / result.innerArea;
+  result.hasRisingBubbleMetrics =
+    computeRisingBubbleMetrics;
+
+  if(computeRisingBubbleMetrics) {
+
+    result.barycenter.assign(dim, 0.0);
+    result.meanVelocity.assign(dim, 0.0);
+
+    if(result.innerArea > 1.e-14) {
+
+      for(unsigned d = 0; d < dim; ++d) {
+
+        result.barycenter[d] =
+          globalSum[4 + d]
+          / result.innerArea;
+
+        result.meanVelocity[d] =
+          globalSum[4 + dim + d]
+          / result.innerArea;
+      }
+
+      const double pi =
+        std::acos(-1.0);
+
+      if(dim == 2 &&
+          result.interfaceLength > 1.e-14) {
+
+        result.circularity =
+          2.0
+          * std::sqrt(pi * result.innerArea)
+          / result.interfaceLength;
+      }
+
+      if(dim == 3 &&
+          result.interfaceLength > 1.e-14) {
+
+        result.circularity =
+          std::cbrt(
+            36.0
+            * pi
+            * result.innerArea
+            * result.innerArea
+          )
+          / result.interfaceLength;
+      }
+    }
+  }
+
+  // ============================================================
+  // Rayleigh-Taylor metrics
+  // ============================================================
+
+  result.hasRayleighTaylorMetrics =
+    computeRayleighTaylorMetrics;
+
+  if(computeRayleighTaylorMetrics) {
+
+    if(dim == 2) {
+
+      // Centered version of
+      // y = 2 + 0.1 cos(2 pi x)
+      //
+      // eta(x) = -0.1 cos(2 pi x)
+      //
+      // spike  : x = 0
+      // bubble : x = +/- 0.5
+
+      result.ps = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0});
+      result.pb = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5});
     }
 
-    const double pi = std::acos(-1.0);
+    else if(dim == 3) {
 
-    if(dim == 2 && result.interfaceLength > 1.e-14) {
-      result.circularity = 2.0 * std::sqrt(pi * result.innerArea) / result.interfaceLength;
-    }
+      // Centered version of Hamzehloo:
+      //
+      // eta(x,y) =
+      // -A [cos(2 pi x) + cos(2 pi y)]
+      //
+      // spike  : (0,0)
+      // bubble : (0.5,0.5)
+      // saddle : (0.5,0)
+      //
+      // Equivalent saddle: (0,0.5)
 
-    if(dim == 3 && result.interfaceLength > 1.e-14) {
-      result.circularity = std::cbrt(36.0 * pi * result.innerArea * result.innerArea) / result.interfaceLength;
+      result.ps = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.0});
+      result.pb = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.5});
+      result.psad = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.0});
     }
   }
 
@@ -2197,6 +2503,7 @@ void PrintLevelSetDiagnostics(
   const unsigned iproc,
   const double time,
   const std::string& fileName = "") {
+
   if(iproc != 0) {
     return;
   }
@@ -2210,41 +2517,69 @@ void PrintLevelSetDiagnostics(
     std::cout << std::setprecision(16);
 
     std::cout << "Time                = "
-              << time << std::endl;
+              << time
+              << std::endl;
 
     std::cout << "Inner area          = "
-              << diagnostics.innerArea << std::endl;
+              << diagnostics.innerArea
+              << std::endl;
 
     std::cout << "Outer area          = "
-              << diagnostics.outerArea << std::endl;
+              << diagnostics.outerArea
+              << std::endl;
 
     std::cout << "Total area          = "
-              << diagnostics.totalArea << std::endl;
+              << diagnostics.totalArea
+              << std::endl;
 
     std::cout << "Interface length    = "
-              << diagnostics.interfaceLength << std::endl;
-
-    for(unsigned d = 0;
-        d < diagnostics.barycenter.size();
-        ++d) {
-
-      std::cout << "Barycenter[" << d << "]      = "
-                << diagnostics.barycenter[d]
-                << std::endl;
-    }
-
-    for(unsigned d = 0;
-        d < diagnostics.meanVelocity.size();
-        ++d) {
-
-      std::cout << "Mean velocity[" << d << "]   = "
-                << diagnostics.meanVelocity[d]
-                << std::endl;
-    }
-
-    std::cout << "Circularity         = "
-              << diagnostics.circularity
+              << diagnostics.interfaceLength
               << std::endl;
+
+    // ==========================================================
+    // Rising bubble
+    // ==========================================================
+
+    if(diagnostics.hasRisingBubbleMetrics) {
+
+      for(unsigned d = 0; d < diagnostics.barycenter.size(); ++d) {
+
+        std::cout << "Barycenter[" << d << "]      = "
+                  << diagnostics.barycenter[d]
+                  << std::endl;
+      }
+
+      for(unsigned d = 0; d < diagnostics.meanVelocity.size(); ++d) {
+
+        std::cout << "Mean velocity[" << d << "]   = "
+                  << diagnostics.meanVelocity[d]
+                  << std::endl;
+      }
+
+      std::cout << "Circularity         = "
+                << diagnostics.circularity
+                << std::endl;
+    }
+
+    // ==========================================================
+    // Rayleigh-Taylor
+    // ==========================================================
+
+    if(diagnostics.hasRayleighTaylorMetrics) {
+
+      std::cout << "Bubble position     = "
+                << diagnostics.pb
+                << std::endl;
+
+      std::cout << "Spike position      = "
+                << diagnostics.ps
+                << std::endl;
+
+      std::cout << "Saddle position     = "
+                << diagnostics.psad
+                << std::endl;
+
+    }
 
     return;
   }
@@ -2256,39 +2591,73 @@ void PrintLevelSetDiagnostics(
   std::ofstream out(fileName, std::ios::app);
 
   if(!out) {
+
     throw std::runtime_error(
       "PrintLevelSetDiagnostics: cannot open file " + fileName);
   }
 
   const unsigned w = 24;
 
-  out << std::scientific
-      << std::setprecision(16);
+  out << std::scientific;
+  out << std::setprecision(16);
 
-  out << std::setw(w) << time
-      << std::setw(w) << diagnostics.innerArea
-      << std::setw(w) << diagnostics.outerArea
-      << std::setw(w) << diagnostics.totalArea
-      << std::setw(w) << diagnostics.interfaceLength;
-
-  for(unsigned d = 0;
-      d < diagnostics.barycenter.size();
-      ++d) {
-
-    out << std::setw(w)
-        << diagnostics.barycenter[d];
-  }
-
-  for(unsigned d = 0;
-      d < diagnostics.meanVelocity.size();
-      ++d) {
-
-    out << std::setw(w)
-        << diagnostics.meanVelocity[d];
-  }
+  // ============================================================
+  // Common quantities
+  // ============================================================
 
   out << std::setw(w)
-      << diagnostics.circularity;
+      << time;
+
+  out << std::setw(w)
+      << diagnostics.innerArea;
+
+  out << std::setw(w)
+      << diagnostics.outerArea;
+
+  out << std::setw(w)
+      << diagnostics.totalArea;
+
+  out << std::setw(w)
+      << diagnostics.interfaceLength;
+
+  // ============================================================
+  // Rising bubble
+  // ============================================================
+
+  if(diagnostics.hasRisingBubbleMetrics) {
+
+    for(unsigned d = 0; d < diagnostics.barycenter.size(); ++d) {
+
+      out << std::setw(w)
+          << diagnostics.barycenter[d];
+    }
+
+    for(unsigned d = 0; d < diagnostics.meanVelocity.size(); ++d) {
+
+      out << std::setw(w)
+          << diagnostics.meanVelocity[d];
+    }
+
+    out << std::setw(w)
+        << diagnostics.circularity;
+  }
+
+  // ============================================================
+  // Rayleigh-Taylor
+  // ============================================================
+
+  if(diagnostics.hasRayleighTaylorMetrics) {
+
+    out << std::setw(w)
+        << diagnostics.pb;
+
+    out << std::setw(w)
+        << diagnostics.ps;
+
+    out << std::setw(w)
+        << diagnostics.psad;
+
+  }
 
   out << '\n';
 }
@@ -2771,6 +3140,9 @@ struct SimulationConfig {
   std::vector<double> center;
   double radius = 0.;
 
+  double rtAmplitude = 0.;
+  double rtWaveNumber = 0.;
+
   MultiphasePhysicalProperties properties;
 };
 
@@ -2919,6 +3291,81 @@ SimulationConfig GetSimulationConfig(
       cfg.properties.mu1  = 0.1;
       cfg.properties.sigma = 1.96;
       cfg.properties.gravity = -0.98;
+
+      break;
+    }
+
+    case SimulationCase::RT: {
+
+      if(dim != 2) {
+        throw std::runtime_error(
+          "GetSimulationConfig: RT is currently implemented only in 2D"
+        );
+      }
+
+      const double pi = std::acos(-1.0);
+
+      // ------------------------------------------------------------
+      // Domain from the paper:
+      //
+      // Omega = [-L/2,L/2] x [-H/2,H/2]
+      // L = 1, H = 4
+      // ------------------------------------------------------------
+
+      cfg.x_min[0] = -0.5;
+      cfg.x_max[0] =  0.5;
+
+      cfg.x_min[1] = -2.0;
+      cfg.x_max[1] =  2.0;
+
+      cfg.x_min[2] = 0.0;
+      cfg.x_max[2] = 0.0;
+
+      // Base mesh.
+      //
+      // 8 x 32 refined three times gives 64 x 256,
+      // i.e. the reference grid used for the low-density-ratio study.
+      cfg.n[0] = 8;
+      cfg.n[1] = 32;
+      cfg.n[2] = 0;
+
+      // ------------------------------------------------------------
+      // Initial perturbation
+      //
+      // a0 cos(k x)
+      // ------------------------------------------------------------
+
+      cfg.rtAmplitude = 0.005;
+      cfg.rtWaveNumber = 2.0 * pi;
+
+      // ------------------------------------------------------------
+      // Simulation final time
+      //
+      // The paper shows the nonlinear evolution up to t = 3 s.
+      // ------------------------------------------------------------
+
+      cfg.period = 3.0;
+
+      // ------------------------------------------------------------
+      // Physical parameters
+      //
+      // rho1 / rho2 = 1.5
+      //
+      // The paper specifies the ratio rather than an absolute density
+      // normalization. We choose rho2 = 1, rho1 = 1.5.
+      // ------------------------------------------------------------
+
+      cfg.properties.rho1 = 1.5;
+      cfg.properties.rho2 = 1.0;
+
+      // Case k* = 0.1 used for Fig. 24 and grid-convergence study.
+      cfg.properties.mu1 = 0.009535;
+      cfg.properties.mu2 = 0.006349;
+
+      cfg.properties.sigma = 0.0;
+
+      // g = (0,-10)
+      cfg.properties.gravity = -10.0;
 
       break;
     }

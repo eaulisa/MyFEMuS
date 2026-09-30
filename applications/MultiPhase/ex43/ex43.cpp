@@ -449,7 +449,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
       const unsigned w = 24;
 
@@ -604,7 +604,7 @@ int main(int argc, char **argv) {
 
         //FieldSplitTree FS_V(GMRES, ASM_PRECOND, fieldV, solutionTypeV, "Velocity");
         //FS_V.SetAsmBlockSize(4);
-        FS_V.SetTolerances(1.e-30, 1.e-20, 1.e+50, 1);
+        FS_V.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
 
         std::vector < unsigned > fieldP(pName.size());
         for(unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
@@ -612,25 +612,31 @@ int main(int argc, char **argv) {
         std::vector < unsigned > solutionTypeP(pName.size());
         for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
-        //FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
+        // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
         FieldSplitTree FS_P(PREONLY, AMG_PRECOND, fieldP, "Pressure");
 
         //FS_P.SetFieldSplitSchurFactType{PC_FIELDSPLIT_SCHUR_FACT_LOWER};
-        //FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
-        //FS_P.SetAsmBlockSize(4);
+        // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
+        // FS_P.SetAsmBlockSize(3);
 
-        FS_P.SetTolerances(1.e-30, 1.e-20, 1.e+50, 1);
+        FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);
         FS1.push_back(&FS_V);
         FS1.push_back(&FS_P);
 
-        FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
+        // FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
+        FieldSplitTree FS_NS(
+          RICHARDSON,
+          FIELDSPLIT_SCHUR_PRECOND,
+          FS1,
+          "Navier-Stokes"
+        );
         FS_NS.SetSchurFactorizationType(SCHUR_FACT_UPPER); // SCHUR_FACT_UPPER, SCHUR_FACT_LOWER,SCHUR_FACT_FULL; how to use if FS_SCHUR_PRECOND? Guoyike
         FS_NS.SetSchurPreType(SCHUR_PRE_SELFP);// SCHUR_PRE_SELF, SCHUR_PRE_SELFP, SCHUR_PRE_USER, SCHUR_PRE_A11,SCHUR_PRE_FULL;
 
-        FS_NS.SetTolerances(1.e-30, 1.e-20, 1.e+50, 10);
+        FS_NS.SetTolerances(1.e-8, 1.e-12, 1.e+50, 2);
 
         //system.SetLinearEquationSolverType(FEMuS_DEFAULT);
         system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT); // Additive Swartz Method
@@ -638,7 +644,7 @@ int main(int argc, char **argv) {
 
         // attach the assembling function to system
         system2.SetMaxNumberOfNonLinearIterations(20);
-        system2.SetMaxNumberOfLinearIterations(3);
+        system2.SetMaxNumberOfLinearIterations(10);
         system2.SetAbsoluteLinearConvergenceTolerance(1.e-12);
         system2.SetNonLinearConvergenceTolerance(1.e-8);
         system2.SetMgType(V_CYCLE);
@@ -653,7 +659,7 @@ int main(int argc, char **argv) {
         //system.SetPreconditionerFineGrids(ILU_PRECOND);
         system2.SetFieldSplitTree(&FS_NS);
 
-        system2.SetTolerances(1.e-30, 1.e-20, 1.e+50, 30);
+        system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
 
         // if (t == 1)
         //   system2.SetMgType(V_CYCLE);
@@ -696,6 +702,11 @@ int main(int argc, char **argv) {
         //system2.AddVariableToBeSolved("All");
 
         system2.MGsolve();
+
+        abort();
+
+        SetConstrainedVelocityDofsToZero(mlSol2, vName, levelC - level0);
+
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
 
@@ -743,7 +754,7 @@ int main(int argc, char **argv) {
             uNew->close();
           }
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
           VTKWriter vtkIO(mlsol0);
           vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / 1);
@@ -844,7 +855,7 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)

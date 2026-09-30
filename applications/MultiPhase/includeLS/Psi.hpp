@@ -381,3 +381,90 @@ struct PsiSaye {
     return _m.Sigmoid(LevelSet(x));
   }
 };
+
+struct PsiRayleighTaylor {
+  Mollifier _m;
+
+  static constexpr double _a  = 0.005;
+  static constexpr double _pi = 3.141592653589793238462643383279502884;
+  static constexpr double _k  = 2.0 * _pi;
+
+  PsiRayleighTaylor(const Mollifier& m)
+    : _m(m) {
+
+  }
+
+  double InterfaceHeight(const double x) const {
+    return  _a * std::cos(_k * x);
+  }
+
+  double LevelSet(const std::vector<double>& x) const {
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiRayleighTaylor::LevelSet(): "
+        "Rayleigh-Taylor test is two-dimensional");
+    }
+
+    return x[1] - InterfaceHeight(x[0]);
+  }
+
+  std::vector<double> Normal(
+    const std::vector<double>& x) const {
+
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiRayleighTaylor::Normal(): "
+        "Rayleigh-Taylor test is two-dimensional");
+    }
+
+    // Interface:
+    //
+    // y = -h/2 + a cos(k x)
+    //
+    // f'(x) = -a k sin(k x)
+    //
+    // grad(phi) = (-f'(x), 1)
+    //           = (a k sin(k x), 1)
+
+    const double sx =
+      _a * _k * std::sin(_k * x[0]);
+
+    const double norm =
+      std::sqrt(1.0 + sx * sx);
+
+    return {
+      sx / norm,
+      1.0 / norm
+    };
+  }
+
+  double Curvature(
+    const std::vector<double>& x) const {
+
+    if (x.size() != 2) {
+      throw std::runtime_error(
+        "PsiRayleighTaylor::Curvature(): "
+        "Rayleigh-Taylor test is two-dimensional");
+    }
+
+    const double sx =
+      _a * _k * std::sin(_k * x[0]);
+
+    return
+      _a * _k * _k * std::cos(_k * x[0])
+      /
+      std::pow(1.0 + sx * sx, 1.5);
+  }
+
+  double operator()(
+    const std::vector<double>& x) const {
+
+    return LevelSet(x);
+  }
+
+  double Mollified(
+    const std::vector<double>& x) const {
+
+    return _m.Sigmoid(LevelSet(x));
+  }
+};

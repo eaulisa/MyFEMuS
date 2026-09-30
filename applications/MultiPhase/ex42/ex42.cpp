@@ -356,11 +356,8 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      // const unsigned nPrint  = std::max(1u, nSteps / 1u);
-      // const unsigned nReinit = std::max(1u, nSteps / 100u);
-
-      const unsigned nPrint = 1;
-      const unsigned nReinit = 100000;
+      const unsigned nPrint = (nSteps > 100) ? nSteps / 100 : 1;
+      const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -373,7 +370,8 @@ int main(int argc, char **argv) {
       Mollifier m = Mollifier(eps, sigmoidType);
 
       //PsiSaye psi2D(m);
-      PsiBall psi2D(xc, r, m);
+      // PsiBall psi2D(xc, r, m);
+      PsiRayleighTaylor psi2D(m);
 
       // Iteratively flag and create new AMR levels
       for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
@@ -466,7 +464,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
       const unsigned w = 24;
 
@@ -643,7 +641,7 @@ int main(int argc, char **argv) {
         system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
 
         system2.SetNumberOfSchurVariables(2);
-        system2.SetElementBlockNumber(3);
+        // system2.SetElementBlockNumber(3);
 
         //system2.SetPreconditionerFineGrids(ILU_PRECOND);
         system2.MGsolve();
@@ -698,7 +696,7 @@ int main(int argc, char **argv) {
           ProjectSolution(*mlsol0, *mlSolReference, bbox, vName, levelC, levelF);
           ProjectSolution(*mlsol0, *mlSolReference, bbox, pName, levelC, levelF);
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
           VTKWriter vtkIO(mlsol0);
           vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / 1);
@@ -748,21 +746,21 @@ int main(int argc, char **argv) {
 
         markers.GetCutElementPoints(*mlsol0, X0, X0Iel, inflow_markers);
 
-        // if (t % nReinit == 0) {
-        //   Reinit reinit(psiName, *mlsol0, m);
+        if (t % nReinit == 0) {
+          Reinit reinit(psiName, *mlsol0, m);
 
-        //   reinit.farFieldReinit(X0);
-        //   reinit.interfaceFieldReinit(bbox);
-        //   reinit.updateSolution();
-        // }
+          reinit.farFieldReinit(X0);
+          reinit.interfaceFieldReinit(bbox);
+          reinit.updateSolution();
+        }
 
         // if (t == 1)
         //   WritePointsVTK("./output/points.0.vtk", X0);
 
         RungeKutta4(X0, *mlsol0, bbox, vName, levelC, dt); // move the interface points forward in time using the velocity mls0(lC)
 
-        if (t % 1 == 0)
-          WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
+        // if (t % 1 == 0)
+        //   WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
 
         // std::vector<MyVector<double>> field = X0;
         LevelMarkers l0;
@@ -799,7 +797,7 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)
@@ -829,7 +827,7 @@ int main(int argc, char **argv) {
         final_diagnostics,
         std::move(mlSolReference)
       }
-                                 );
+      );
 
     }
 
