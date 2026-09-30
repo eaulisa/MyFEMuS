@@ -703,9 +703,9 @@ int main(int argc, char **argv) {
 
         system2.MGsolve();
 
-        abort();
+        //abort();
 
-        SetConstrainedVelocityDofsToZero(mlSol2, vName, levelC - level0);
+        //SetConstrainedVelocityDofsToZero(mlSol2, vName, levelC - level0);
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
@@ -1519,7 +1519,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   if(printdb) std::cout << "After KK sum \n" << std::flush;
 
   double tolerance = 0.;
-  KK2->RemoveZeroEntries(tolerance);
+  //KK2->RemoveZeroEntries(tolerance);
 
   std::cout << "Matrix Clean Entry time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 

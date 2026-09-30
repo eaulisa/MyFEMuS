@@ -26,7 +26,6 @@
 #include "ParalleltypeEnum.hpp"
 #include "NumericVector.hpp"
 
-
 namespace femus {
 
   using std::cout;
@@ -106,73 +105,67 @@ namespace femus {
 
   }
 
-
-  
   void Solution::AddSolution_par(const int n_sols, const char name[], const FEFamily fefamily, const FEOrder order,
-                             const unsigned& tmorder, const bool &Pde_type) {
+                                 const unsigned& tmorder, const bool &Pde_type) {
 
-   const unsigned old_size = _Sol.size();
-   const int      new_size = old_size + n_sols;
-    
+    const unsigned old_size = _Sol.size();
+    const int      new_size = old_size + n_sols;
+
     ResizeSolution_par(new_size);
-    
+
     //initialize
     if ( n_sols > 0 ) {
-        
-   for(int s = 0; s < n_sols; s++) {
-       
-       _Sol[old_size + s] = NULL;
-    _SolOld[old_size + s] = NULL;
-       _Res[old_size + s] = NULL;
-       _Eps[old_size + s] = NULL; 
-       _Bdc[old_size + s] = NULL;       
-       
-     _GradVec[old_size + s].resize(_msh->GetDimension());
-         for(int i = 0; i < _msh->GetDimension(); i++) {     _GradVec[old_size + s][i] = NULL; }  
-         
-  _ResEpsBdcFlag[old_size + s] = Pde_type;       
-         _family[old_size + s] = fefamily;
-          _order[old_size + s] = order;
+
+      for(int s = 0; s < n_sols; s++) {
+
+        _Sol[old_size + s] = NULL;
+        _SolOld[old_size + s] = NULL;
+        _Res[old_size + s] = NULL;
+        _Eps[old_size + s] = NULL;
+        _Bdc[old_size + s] = NULL;
+
+        _GradVec[old_size + s].resize(_msh->GetDimension());
+        for(int i = 0; i < _msh->GetDimension(); i++) {
+          _GradVec[old_size + s][i] = NULL;
+        }
+
+        _ResEpsBdcFlag[old_size + s] = Pde_type;
+        _family[old_size + s] = fefamily;
+        _order[old_size + s] = order;
         _SolType[old_size + s] = order - ((fefamily == LAGRANGE) ? 1 : 0) + fefamily * 3;
-     _SolTmOrder[old_size + s] = tmorder;
+        _SolTmOrder[old_size + s] = tmorder;
         _SolName[old_size + s] = new char [DEFAULT_SOL_NCHARS];
- strcpy(_SolName[old_size + s], name);
-_removeNullSpace[old_size + s] = false;
-    
+        strcpy(_SolName[old_size + s], name);
+        _removeNullSpace[old_size + s] = false;
+
       }
 
-    }   
-   
-   
-  }  
-  
+    }
 
+  }
 
   void Solution::ResizeSolution_par(const int new_size) {
-      
-// it seems that the destructors of the NumericVectors are not called after a shrink...      
-      
-         _SolType.resize(new_size);
-         _SolName.resize(new_size);
-      _SolTmOrder.resize(new_size);
-          _family.resize(new_size);
-           _order.resize(new_size);
-   _ResEpsBdcFlag.resize(new_size);        
- _removeNullSpace.resize(new_size);
-           
+
+// it seems that the destructors of the NumericVectors are not called after a shrink...
+
+    _SolType.resize(new_size);
+    _SolName.resize(new_size);
+    _SolTmOrder.resize(new_size);
+    _family.resize(new_size);
+    _order.resize(new_size);
+    _ResEpsBdcFlag.resize(new_size);
+    _removeNullSpace.resize(new_size);
+
 // NumericVector objects
-             _Sol.resize(new_size); 
-          _SolOld.resize(new_size); 
-         _GradVec.resize(new_size); 
-             _Res.resize(new_size); 
-             _Eps.resize(new_size); 
-             _Bdc.resize(new_size);
+    _Sol.resize(new_size);
+    _SolOld.resize(new_size);
+    _GradVec.resize(new_size);
+    _Res.resize(new_size);
+    _Eps.resize(new_size);
+    _Bdc.resize(new_size);
 
-      
   }
-  
 
-  
   /**
    * Get the solution index for the variable called name
    **/
@@ -254,7 +247,6 @@ _removeNullSpace[old_size + s] = false;
     }
   }
 
-
   /** Init and set to zero The AMR Eps vector */
   void Solution::InitAMREps() {
     _AMR_flag = 1;
@@ -267,8 +259,6 @@ _removeNullSpace[old_size + s] = false;
     }
 
   }
-
-
 
   /**
    * Deallocate memory for all variables
@@ -331,51 +321,51 @@ _removeNullSpace[old_size + s] = false;
 // //--------------------------------------------------------------------------------
 //   void Solution::UpdateSolAndRes(const vector <unsigned> &_SolPdeIndex,  NumericVector* _EPS,  NumericVector* _RES,
 //                                  const vector <vector <unsigned> > &KKoffset) {
-// 
+//
 //     PetscScalar zero = 0.;
-// 
+//
 //     for(unsigned k = 0; k < _SolPdeIndex.size(); k++) {
 //       unsigned indexSol = _SolPdeIndex[k];
 //       unsigned soltype =  _SolType[indexSol];
-// 
+//
 //       int loc_offset_EPS = KKoffset[k][processor_id()];
-// 
+//
 //       int glob_offset_eps = _msh->_dofOffset[soltype][processor_id()];
-// 
+//
 //       vector <int> index(_msh->_ownSize[soltype][processor_id()]);
-// 
+//
 //       for(int i = 0; i < _msh->_ownSize[soltype][processor_id()]; i++) {
 //         index[i] = loc_offset_EPS + i;
 //       }
-// 
+//
 //       vector <double> valueEPS(_msh->_ownSize[soltype][processor_id()]);
 //       _EPS->get(index, valueEPS);
 //       vector <double> valueRES(_msh->_ownSize[soltype][processor_id()]);
 //       _RES->get(index, valueRES);
-// 
+//
 //       for(int i = 0; i < _msh->_ownSize[soltype][processor_id()]; i++) {
 //         _Eps[indexSol]->set(i + glob_offset_eps, valueEPS[i]);
-// 
+//
 //         if((*_Bdc[indexSol])(i + glob_offset_eps) > 1.1) _Res[indexSol]->set(i + glob_offset_eps, valueRES[i]);
 //         else _Res[indexSol]->set(i + glob_offset_eps, zero);
 //       }
-// 
+//
 //       _Res[indexSol]->close();
 //       _Eps[indexSol]->close();
 //     }
-// 
+//
 //     for(unsigned k = 0; k < _SolPdeIndex.size(); k++) {
 //       unsigned indexSol = _SolPdeIndex[k];
 //       _Sol[indexSol]->add(*_Eps[indexSol]);
 //       _Sol[indexSol]->close();
-// 
+//
 //       if(_AMR_flag) {
 //         _AMREps[indexSol]->add(*_Eps[indexSol]);
 //         _AMREps[indexSol]->close();
 //       }
-// 
+//
 //     }
-// 
+//
 //   }
 
   /**
@@ -406,7 +396,11 @@ _removeNullSpace[old_size + s] = false;
       //_RES->get(index,valueRES);
 
       for(int i = 0; i < _msh->_ownSize[soltype][processor_id()]; i++) {
-        _Eps[indexSol]->set(i + glob_offset_eps, valueEPS[i]);
+
+        if ((*_Bdc[indexSol])(i + glob_offset_eps) > .5)
+          _Eps[indexSol]->set(i + glob_offset_eps, valueEPS[i]);
+        else
+          _Eps[indexSol]->set(i + glob_offset_eps, zero);
         //if ((*_Bdc[indexSol])(i+glob_offset_eps)>1.1) _Res[indexSol]->set(i+glob_offset_eps,valueRES[i]);
         //else _Res[indexSol]->set(i+glob_offset_eps,zero);
       }
@@ -428,7 +422,6 @@ _removeNullSpace[old_size + s] = false;
     }
 
   }
-
 
   /**
    * Update _Res
@@ -480,7 +473,7 @@ _removeNullSpace[old_size + s] = false;
 
     NumericVector *counter_vec;
     counter_vec = NumericVector::build().release();
-    counter_vec->init(_msh->n_processors(), 1 , false, AUTOMATIC);
+    counter_vec->init(_msh->n_processors(), 1, false, AUTOMATIC);
     counter_vec->zero();
 
     if(AMRthreshold.size() != solIndex.size()) {
@@ -577,7 +570,7 @@ _removeNullSpace[old_size + s] = false;
 
       NumericVector* parallelVec;
       parallelVec = NumericVector::build().release();
-      parallelVec->init(_msh->n_processors(), 1 , false, AUTOMATIC);
+      parallelVec->init(_msh->n_processors(), 1, false, AUTOMATIC);
 
       parallelVec->set(iproc, solNorm2);
       parallelVec->close();
@@ -651,18 +644,18 @@ _removeNullSpace[old_size + s] = false;
             AMR->_Sol[AMRIndex]->set(iel, 1.);
             counter_vec->add(_iproc, 1.);
 
-// 	    for(unsigned i = 0; i < _msh->GetElementDofNumber(iel, 0); i++) { //loop on the element vertices
-// 	      unsigned inode = _msh->el->GetElementDofIndex(iel, i);
-// 	      const std::vector < unsigned > & localElementNearVertexNumber = _msh->el->GetLocalElementNearVertex(inode);
-// 	      unsigned nve = localElementNearVertexNumber.size();
-// 	      for(unsigned j = 0; j < nve; j++) {
-// 		unsigned jel = localElementNearVertexNumber[j];
-// 		if(jel >= _msh->_elementOffset[iproc] && jel < _msh->_elementOffset[iproc + 1]) {
-// 		  if(_msh->el->GetIfElementCanBeRefined(jel) && (*AMR->_Sol[AMRIndex])(jel) == 0.) {
-// 		    AMR->_Sol[AMRIndex]->set(jel, 1.);
-// 		    counter_vec->add(_iproc, 1.);
-// 		  }
-// 		}
+//      for(unsigned i = 0; i < _msh->GetElementDofNumber(iel, 0); i++) { //loop on the element vertices
+//        unsigned inode = _msh->el->GetElementDofIndex(iel, i);
+//        const std::vector < unsigned > & localElementNearVertexNumber = _msh->el->GetLocalElementNearVertex(inode);
+//        unsigned nve = localElementNearVertexNumber.size();
+//        for(unsigned j = 0; j < nve; j++) {
+//    unsigned jel = localElementNearVertexNumber[j];
+//    if(jel >= _msh->_elementOffset[iproc] && jel < _msh->_elementOffset[iproc + 1]) {
+//      if(_msh->el->GetIfElementCanBeRefined(jel) && (*AMR->_Sol[AMRIndex])(jel) == 0.) {
+//        AMR->_Sol[AMRIndex]->set(jel, 1.);
+//        counter_vec->add(_iproc, 1.);
+//      }
+//    }
 //               }
 //             }
           }
@@ -680,14 +673,11 @@ _removeNullSpace[old_size + s] = false;
     return test;
   }
 
-
-
-  bool Solution::FlagAMRRegionBasedOnErroNormAdaptive(const vector <unsigned> &solIndex, std::vector <double> &AMRthreshold, 
-						      const unsigned& normType, const double &neighborThresholdValue) {
+  bool Solution::FlagAMRRegionBasedOnErroNormAdaptive(const vector <unsigned> &solIndex, std::vector <double> &AMRthreshold,
+      const unsigned& normType, const double &neighborThresholdValue) {
 
     const double scale2[3][2] = {{0.111111, 1.}, {0.0204081632653, 0.111111}, {0.0204081632653, 0.111111} };
     //const double scale2[3][2] = {{1., 1.}, {1., 1.}, {1., 1.} };
-
 
     unsigned    iproc = _msh->processor_id(); // get the process_id (for parallel computation)
     const unsigned  dim = _msh->GetDimension();
@@ -795,7 +785,7 @@ _removeNullSpace[old_size + s] = false;
 
       NumericVector* parallelVec;
       parallelVec = NumericVector::build().release();
-      parallelVec->init(_msh->n_processors(), 1 , false, AUTOMATIC);
+      parallelVec->init(_msh->n_processors(), 1, false, AUTOMATIC);
 
       parallelVec->set(iproc, solNorm2);
       parallelVec->close();
@@ -815,10 +805,9 @@ _removeNullSpace[old_size + s] = false;
       double eps2 = AMRthreshold[k] * AMRthreshold[k] * solNorm2  / volume;
 
       unsigned offset = _msh->_elementOffset[iproc];
-      std::vector < double > ielVolume(_msh->_elementOffset[iproc + 1] - _msh->_elementOffset[iproc],0);
-      std::vector < double > ielErrNorm2(_msh->_elementOffset[iproc + 1] - _msh->_elementOffset[iproc],0);
-      
-      
+      std::vector < double > ielVolume(_msh->_elementOffset[iproc + 1] - _msh->_elementOffset[iproc], 0);
+      std::vector < double > ielErrNorm2(_msh->_elementOffset[iproc + 1] - _msh->_elementOffset[iproc], 0);
+
       for(int iel = _msh->_elementOffset[iproc]; iel < _msh->_elementOffset[iproc + 1]; iel++) {
         if(_msh->el->GetIfElementCanBeRefined(iel)) {
 
@@ -868,35 +857,35 @@ _removeNullSpace[old_size + s] = false;
               }
             }
 
-            ielErrNorm2[iel-offset] += scale2[solType][normType] * errig * errig * weight;
+            ielErrNorm2[iel - offset] += scale2[solType][normType] * errig * errig * weight;
 
             if(normType > 0) {
               for(int j = 0; j < dim; j++) {
-                ielErrNorm2[iel-offset] += scale2[solType][normType] * errGradig[j] * errGradig[j] * weight;
+                ielErrNorm2[iel - offset] += scale2[solType][normType] * errGradig[j] * errGradig[j] * weight;
               }
             }
 
-            ielVolume[iel-offset] += weight;
+            ielVolume[iel - offset] += weight;
           }
 
-          if(ielErrNorm2[iel-offset] > eps2 * ielVolume[iel-offset]  || 
-	    ( (*AMR->_Sol[AMRIndex])(iel) == 2. && ielErrNorm2[iel-offset] > neighborThresholdValue * eps2 * ielVolume[iel-offset] ) ) {
+          if(ielErrNorm2[iel - offset] > eps2 * ielVolume[iel - offset]  ||
+              ( (*AMR->_Sol[AMRIndex])(iel) == 2. && ielErrNorm2[iel - offset] > neighborThresholdValue * eps2 * ielVolume[iel - offset] ) ) {
             AMR->_Sol[AMRIndex]->set(iel, 1.);
-            volumeTestFalse += ielVolume[iel-offset];
+            volumeTestFalse += ielVolume[iel - offset];
 
-            if( ielErrNorm2[iel-offset] > eps2 * ielVolume[iel-offset] ) {
-              for(unsigned j = 1; j < _msh->el->GetElementNearElementSize(iel,1);j++){
-		unsigned jel = _msh->el->GetElementNearElement(iel,j);
-		if(jel >= _msh->_elementOffset[iproc] && jel<_msh->_elementOffset[iproc + 1] ){
-		  if(_msh->el->GetIfElementCanBeRefined(jel)){
-		    if(jel > iel) {
+            if( ielErrNorm2[iel - offset] > eps2 * ielVolume[iel - offset] ) {
+              for(unsigned j = 1; j < _msh->el->GetElementNearElementSize(iel, 1); j++) {
+                unsigned jel = _msh->el->GetElementNearElement(iel, j);
+                if(jel >= _msh->_elementOffset[iproc] && jel < _msh->_elementOffset[iproc + 1] ) {
+                  if(_msh->el->GetIfElementCanBeRefined(jel)) {
+                    if(jel > iel) {
                       AMR->_Sol[AMRIndex]->set(jel, 2.);
                     }
-                    else if( (*AMR->_Sol[AMRIndex])(jel) == 0. &&  ielErrNorm2[jel-offset] > neighborThresholdValue * eps2 * ielVolume[jel-offset] ) {
-		      errTestTrue2 -= ielErrNorm2[jel-offset];
-		      AMR->_Sol[AMRIndex]->set(jel, 1.);
-		      volumeTestFalse += ielVolume[jel-offset];
-		    }
+                    else if( (*AMR->_Sol[AMRIndex])(jel) == 0. &&  ielErrNorm2[jel - offset] > neighborThresholdValue * eps2 * ielVolume[jel - offset] ) {
+                      errTestTrue2 -= ielErrNorm2[jel - offset];
+                      AMR->_Sol[AMRIndex]->set(jel, 1.);
+                      volumeTestFalse += ielVolume[jel - offset];
+                    }
                   }
                 }
               }
@@ -904,8 +893,8 @@ _removeNullSpace[old_size + s] = false;
 
           }
           else {
-	    AMR->_Sol[AMRIndex]->set(iel, 0.);
-            errTestTrue2 += ielErrNorm2[iel-offset];
+            AMR->_Sol[AMRIndex]->set(iel, 0.);
+            errTestTrue2 += ielErrNorm2[iel - offset];
           }
         }
       }
@@ -919,18 +908,18 @@ _removeNullSpace[old_size + s] = false;
       errTestTrue2 = parallelVec->l1_norm();
 
       if(volumeTestFalse != 0) {
-	cout.precision(24);
-	printf("%e %e %e %e %e \n",errTestTrue2, solNorm2, volume, volumeRefined, volumeTestFalse);
+        cout.precision(24);
+        printf("%e %e %e %e %e \n", errTestTrue2, solNorm2, volume, volumeRefined, volumeTestFalse);
         //std::cout  << errTestTrue2 << " " << solNorm2 << " " << volume << " " << volumeRefined << " " << volumeTestFalse << std::endl;
-	AMRthreshold[k] = sqrt(AMRthreshold[k] * AMRthreshold[k] * volumeRefined / volumeTestFalse - errTestTrue2 / solNorm2 * volume / volumeTestFalse);
-        std::cout << AMRthreshold[k] << std::endl;  
+        AMRthreshold[k] = sqrt(AMRthreshold[k] * AMRthreshold[k] * volumeRefined / volumeTestFalse - errTestTrue2 / solNorm2 * volume / volumeTestFalse);
+        std::cout << AMRthreshold[k] << std::endl;
       }
       else {
         AMRthreshold[k] = 1.;
       }
 
       std::cout << "\nNew AMR threshold value =" << AMRthreshold[k] << std::endl;
-      
+
       delete parallelVec;
     }
 
@@ -981,16 +970,16 @@ _removeNullSpace[old_size + s] = false;
 //     for (unsigned k=0; k<SolIndex.size(); k++) {
 //       if(SolType[k]<3){
 //         unsigned nve=_msh->GetElementDofNumber(kel,SolEndInd[k]);
-// 	for(unsigned i=0; i<nve; i++) {
-// 	  unsigned inode_metis=_msh->GetSolutionDof(i,kel,SolType[k]);
-// 	  double value = (*_AMREps[SolIndex[k]])(inode_metis);
-// 	  if(fabs(value)>SolMax[k]){
-// 	    counter_vec->add(_iproc,1.);
-// 	    AMR->_Sol[AMRIndex]->set(kel, 1.);
-// 	    k=SolIndex.size();
-// 	    i=nve;
-// 	  }
-// 	}
+//  for(unsigned i=0; i<nve; i++) {
+//    unsigned inode_metis=_msh->GetSolutionDof(i,kel,SolType[k]);
+//    double value = (*_AMREps[SolIndex[k]])(inode_metis);
+//    if(fabs(value)>SolMax[k]){
+//      counter_vec->add(_iproc,1.);
+//      AMR->_Sol[AMRIndex]->set(kel, 1.);
+//      k=SolIndex.size();
+//      i=nve;
+//    }
+//  }
 //       }
 //     }
 //   }
@@ -1004,8 +993,6 @@ _removeNullSpace[old_size + s] = false;
 //   return test;
 //
 // }
-
-
 
 //   bool Solution::FlagAMRRegionBasedOnSemiNorm(const vector <unsigned> &SolIndex, const double & AMRthreshold) {
 //
@@ -1100,7 +1087,6 @@ _removeNullSpace[old_size + s] = false;
 //     return test;
 //   }
 
-
   void Solution::BuildGradMatrixStructure(unsigned SolType) {
 
     if(SolType < 3 && _GradMat[SolType][0] == 0) {
@@ -1125,7 +1111,6 @@ _removeNullSpace[old_size + s] = false;
       vector <double> nablaphi;
       double weight;
       vector< vector< double> > B(dim);
-
 
       const unsigned max_size = static_cast< unsigned >(ceil(pow(3, dim)));
 
@@ -1186,7 +1171,6 @@ _removeNullSpace[old_size + s] = false;
 
         _msh->_finiteElement[ielt][SolType]->Jacobian(coordinates, 0, weight, phi, gradphi, nablaphi);
 
-
         for(int i = 0; i < nve; i++) {
           for(int j = 0; j < dim; j++) {
             B[j][i] = gradphi[i * dim + j];
@@ -1198,14 +1182,12 @@ _removeNullSpace[old_size + s] = false;
         }
       }
 
-
       // End build elem type structure
       for(int i = 0; i < dim; i++) {
         _GradMat[SolType][i]->close();
       }
     }
   }
-
 
 // ------------------------------------------------------------------
   void Solution::CopySolutionToOldSolution() {
@@ -1216,7 +1198,7 @@ _removeNullSpace[old_size + s] = false;
       }
     }
   }
-  
+
   void Solution::ResetSolutionToOldSolution() {
     for(unsigned i = 0; i < _Sol.size(); i++) {
       // Copy the old vector
@@ -1226,9 +1208,4 @@ _removeNullSpace[old_size + s] = false;
     }
   }
 
-
 } //end namespace femus
-
-
-
-
