@@ -170,33 +170,6 @@ void RestrictPWDCField(MultiLevelSolution &mlSol,
   }
 }
 
-void SetConstrainedVelocityDofsToZero(
-  MultiLevelSolution& mlSol,
-  const std::vector<std::string>& vName,
-  const unsigned level) {
-
-  Solution* sol = mlSol.GetSolutionLevel(level);
-
-  for(unsigned k = 0; k < vName.size(); ++k) {
-
-    const unsigned solVIndex = mlSol.GetIndex(vName[k].c_str());
-
-    auto& solV = sol->_Sol[solVIndex];
-    auto& solVBdc = sol->_Bdc[solVIndex];
-
-    const unsigned firstDof = solV->first_local_index();
-    const unsigned lastDof = solV->last_local_index();
-
-    for(unsigned dof = firstDof; dof < lastDof; ++dof) {
-      if((*solVBdc)(dof) < 1.5) {
-        solV->set(dof, 0.0);
-      }
-    }
-
-    solV->close();
-  }
-}
-
 void SetUnphysicalPressureDofs(MultiLevelSolution& mlSol, const std::string& CName, const std::vector<std::string>& PName,
                                const unsigned level0, const unsigned level1, const std::vector<double>& xtarget, const bool fixPressureAtOnePoint) {
   if (PName.size() != 2) {

@@ -220,19 +220,56 @@ namespace femus {
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;
 
-      case AMG_PRECOND:
+      case AMG_PRECOND: {
 
-        //  PetscCall(KSPGetPC(ksp, &pc));
         PCSetType(pc, PCHMG);
+
+        Mat A, P;
+        PetscInt bs;
+
+        PCGetOperators(pc, &A, &P);
+        MatGetBlockSize(P, &bs);
+
+        PetscPrintf(
+          PETSC_COMM_WORLD,
+          "HMG matrix block size = %" PetscInt_FMT "\n",
+          bs
+        );
+
+        // ============================================================
+        // HMG
+        // ============================================================
+
         PCHMGSetInnerPCType(pc, PCGAMG);
         PCHMGSetReuseInterpolation(pc, PETSC_TRUE);
         PCHMGSetUseSubspaceCoarsening(pc, PETSC_TRUE);
         PCHMGUseMatMAIJ(pc, PETSC_FALSE);
         PCHMGSetCoarseningComponent(pc, 0);
 
-        // ierr = PCSetType(pc, (char*) PCHYPRE);
-        // CHKERRABORT(MPI_COMM_WORLD, ierr);
+        // ============================================================
+        // Inner GAMG options
+        // ============================================================
+
+        const char* prefix = nullptr;
+
+        PetscObjectGetOptionsPrefix(
+          (PetscObject)pc,
+          &prefix
+        );
+
+        const std::string innerGamgOption =
+          "-" +
+          std::string(prefix ? prefix : "") +
+          "hmg_inner_pc_gamg_aggressive_square_graph";
+
+        PetscOptionsSetValue(
+          nullptr,
+          innerGamgOption.c_str(),
+          "false"
+        );
+
         break;
+      }
 
       case MG_PRECOND:
         ierr = PCSetType(pc, (char*) PCMG);
