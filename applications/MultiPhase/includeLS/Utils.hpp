@@ -3346,3 +3346,75 @@ SimulationConfig GetSimulationConfig(
 
   return cfg;
 }
+
+void PrintMemorySnapshot(const std::string& label) {
+
+  PetscLogDouble rss        = 0.;
+  PetscLogDouble petsc      = 0.;
+  PetscLogDouble rssPeak    = 0.;
+  PetscLogDouble petscPeak  = 0.;
+
+  PetscMemoryGetCurrentUsage(&rss);
+  PetscMallocGetCurrentUsage(&petsc);
+
+  PetscMemoryGetMaximumUsage(&rssPeak);
+  PetscMallocGetMaximumUsage(&petscPeak);
+
+  constexpr double MB = 1024.0 * 1024.0;
+
+  double local[4] = {
+    static_cast<double>(rss       / MB),
+    static_cast<double>(petsc     / MB),
+    static_cast<double>(rssPeak   / MB),
+    static_cast<double>(petscPeak / MB)
+  };
+
+  double sum[4] = {};
+  double maxv[4] = {};
+
+  MPI_Reduce(
+    local,
+    sum,
+    4,
+    MPI_DOUBLE,
+    MPI_SUM,
+    0,
+    MPI_COMM_WORLD
+  );
+
+  MPI_Reduce(
+    local,
+    maxv,
+    4,
+    MPI_DOUBLE,
+    MPI_MAX,
+    0,
+    MPI_COMM_WORLD
+  );
+
+  int rank, nproc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+
+  if(rank == 0) {
+
+    std::cout
+        << "\n[MEMORY] " << label << '\n'
+
+        << "  RSS current:"
+        << " total = " << sum[0] << " MB"
+        << ", avg = " << sum[0] / nproc << " MB"
+        << ", max/rank = " << maxv[0] << " MB\n"
+
+        << "  PETSc current:"
+        << " total = " << sum[1] << " MB"
+        << ", avg = " << sum[1] / nproc << " MB"
+        << ", max/rank = " << maxv[1] << " MB\n"
+
+        << "  RSS peak:"
+        << " max/rank = " << maxv[2] << " MB\n"
+
+        << "  PETSc peak:"
+        << " max/rank = " << maxv[3] << " MB\n";
+  }
+}
