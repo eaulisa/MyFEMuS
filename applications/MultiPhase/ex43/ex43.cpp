@@ -837,8 +837,6 @@ int main(int argc, char **argv) {
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
-  PrintMemorySnapshot("init assemble");
-
   //  extract pointers to the several objects that we are going to use
   TransientNonlinearImplicitSystem* mlPdeSys2   = &ml_prob2.get_system<TransientNonlinearImplicitSystem> ("NS");
   const unsigned level2 = mlPdeSys2->GetLevelToAssemble();
@@ -873,7 +871,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     throw std::runtime_error("Pressure type mismatch");
   }
 
-  PrintMemorySnapshot("before gp and stab");
   AssembleGhostPenaltyVelocity(ml_prob2);
 
   if (sol2PType == 3) {
@@ -889,7 +886,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   }
 
   AssembleStabilizationTerms(ml_prob2);
-  PrintMemorySnapshot("after gp and stab");
 
   RES2->close();
   KK2->close();
@@ -1001,7 +997,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::vector < double > Jac;
 
   double eps = 0.;//1.e-14;
-  PrintMemorySnapshot("before sol proj");
+
   if(printdb) std::cout << "Before Solution Projection\n" << std::flush;
 
   {
@@ -1032,7 +1028,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       if(printdb) std::cout << "\t After Pressure Solution Projection " << level << std::endl << std::flush;
     }
   }
-  PrintMemorySnapshot("after sol proj");
+
   KK->zero();
   RES->zero();
 
@@ -1045,7 +1041,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   clock_t start_time = clock();
 
   // element loop: each process loops only on the elements that owns
-  PrintMemorySnapshot("before assembly");
+
   if(printdb) std::cout << "Before KK assembly\n" << std::flush;
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -1421,7 +1417,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK->close();
 
   if(printdb) std::cout << "After KK assembly\n" << std::flush;
-  PrintMemorySnapshot("after assembly");
+
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
   start_time = clock();
 
@@ -1432,7 +1428,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RRamr = mlPdeSys->GetAMRRestrictionMatrix();
 
   vector < LinearEquationSolver*> LinSolver = mlPdeSys->GetLinearSolver();
-  PrintMemorySnapshot("before matrix restriction");
+
   MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
   for(unsigned level = levelF; level > level0 + level2; level--) {
     if(!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
@@ -1442,13 +1438,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
         *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
         LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, !firstNonlinearIt); // cannot use !firstNonlinearIt here
+        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, false); // cannot use !firstNonlinearIt here
       }
       else {
         (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
         *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
         LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], !firstNonlinearIt); // cannot use !firstNonlinearIt here
+        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false); // cannot use !firstNonlinearIt here
       }
       if(printdb) std::cout << "After KK amr restriction\n" << std::flush;
     }
@@ -1464,7 +1460,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
     if(printdb) std::cout << "After KK level" << level << " restriction\n" << std::flush;
   }
-  PrintMemorySnapshot("after matrix restriction");
+
   std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
   start_time = clock();
@@ -1476,7 +1472,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   double tolerance = 0.;
   //KK2->RemoveZeroEntries(tolerance);
-  PrintMemorySnapshot("end assemble");
+
   std::cout << "Matrix Clean Entry time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
 }
