@@ -36,7 +36,6 @@
 
 namespace femus {
 
-
   using std::vector;
 
 //------------------------------------------------------------------------------
@@ -93,11 +92,16 @@ namespace femus {
                               const vector <unsigned> &variable_to_be_solved,
                               SparseMatrix* PP, SparseMatrix* RR,
                               const unsigned &npre, const unsigned &npost
-                              ) = 0;
+                             ) = 0;
+
+      virtual void MGUpdateLevel(LinearEquationSolver* LinSolver, const unsigned& levelMax,
+                                 const vector<unsigned>& variable_to_be_solved,
+                                 const unsigned& npre, const unsigned& npost
+                                ) = 0;
 
       virtual void MGSolve(const bool ksp_clean) = 0;
-      
-      virtual void SetRichardsonScaleFactor(const double & richardsonScaleFactor) = 0; 
+
+      virtual void SetRichardsonScaleFactor(const double & richardsonScaleFactor) = 0;
 
       /** Sets the type of solver to use. */
       void set_solver_type (const SolverType st)  {
@@ -158,7 +162,6 @@ namespace femus {
       /** Call the smoother-solver using the PetscLibrary. */
       virtual void Solve(const vector <unsigned> &VariableTobeSolved, const bool &ksp_clean) = 0;
 
-
       /** @deprecated Old solver with algebra objects passed as arguments TODO think of removing */
       virtual std::pair<unsigned int, double> solve(SparseMatrix&,   // System Matrix
           SparseMatrix&,  // prec
@@ -216,9 +219,6 @@ namespace femus {
     this->Clear();
   }
 
-
 } //end namespace femus
-
-
 
 #endif

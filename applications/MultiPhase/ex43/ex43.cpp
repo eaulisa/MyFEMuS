@@ -347,11 +347,8 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      // const unsigned nPrint  = std::max(1u, nSteps / 1u);
-      // const unsigned nReinit = std::max(1u, nSteps / 100u);
-
-      const unsigned nPrint = 1;
-      const unsigned nReinit = 100000;
+      const unsigned nPrint = (nSteps > 100) ? nSteps / 100 : 1;
+      const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -627,20 +624,11 @@ int main(int argc, char **argv) {
         FS1.push_back(&FS_P);
 
         // FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
-        FieldSplitTree FS_NS(
-          RICHARDSON,
-          FIELDSPLIT_SCHUR_PRECOND,
-          FS1,
-          "Navier-Stokes"
-        );
-        FS_NS.SetSchurFactorizationType(SCHUR_FACT_UPPER); // SCHUR_FACT_UPPER, SCHUR_FACT_LOWER,SCHUR_FACT_FULL; how to use if FS_SCHUR_PRECOND? Guoyike
-        FS_NS.SetSchurPreType(SCHUR_PRE_SELFP);// SCHUR_PRE_SELF, SCHUR_PRE_SELFP, SCHUR_PRE_USER, SCHUR_PRE_A11,SCHUR_PRE_FULL;
+        FieldSplitTree FS_NS(RICHARDSON, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
 
-        FS_NS.SetTolerances(1.e-8, 1.e-12, 1.e+50, 2);
-
-        //system.SetLinearEquationSolverType(FEMuS_DEFAULT);
+        //system2.SetLinearEquationSolverType(FEMuS_DEFAULT);
         system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT); // Additive Swartz Method
-        //system.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
+        //system2.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
 
         // attach the assembling function to system
         system2.SetMaxNumberOfNonLinearIterations(20);
@@ -656,19 +644,8 @@ int main(int argc, char **argv) {
         system2.init();
 
         system2.SetSolverFineGrids(GMRES);
-        //system.SetPreconditionerFineGrids(ILU_PRECOND);
         system2.SetFieldSplitTree(&FS_NS);
-
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
-
-        // if (t == 1)
-        //   system2.SetMgType(V_CYCLE);
-        // else
-        //   system2.SetMgType(V_CYCLE);
-
-        //system2.SetLinearEquationSolverType(FEMuS_ASM);
-
-        //system2.init();
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
           LinearEquationSolver* pdeSys2_l  = system2._LinSolver[l];
@@ -677,29 +654,6 @@ int main(int argc, char **argv) {
           pdeSys2_l->MergeNullSpaceBases(true);
 
         }
-
-        // ******* Set Smoother *******
-
-        // system2.SetSolverFineGrids(GMRES);
-
-        //system2.SetSolverFineGrids(RICHARDSON);
-        //system2.SetRichardsonScaleFactor(.8);
-        //if(dim == 3) system2.SetRichardsonScaleFactor(.4);
-
-        //system2.SetNumberPreSmoothingStep(4);
-        //system2.SetNumberPostSmoothingStep(4);
-        // system2.SetTolerances(1.e-20, 1.e-20, 1.e+50, 50, 30);
-
-        //system2.SetPreconditionerFineGrids(MLU_PRECOND);
-        //system2.SetTolerances(1.e-10, 1.e-12, 1.e+50, 40, 40);
-
-        //system2.SetNumberOfSchurVariables(2);
-        //system2.SetElementBlockNumber(3);
-
-        //system2.SetPreconditionerFineGrids(ILU_PRECOND);
-
-        //system2.ClearVariablesToBeSolved();
-        //system2.AddVariableToBeSolved("All");
 
         system2.MGsolve();
 
@@ -802,13 +756,13 @@ int main(int argc, char **argv) {
 
         markers.GetCutElementPoints(*mlsol0, X0, X0Iel, inflow_markers);
 
-        // if (t % nReinit == 0) {
-        //   Reinit reinit(psiName, *mlsol0, m);
+        if (t % nReinit == 0) {
+          Reinit reinit(psiName, *mlsol0, m);
 
-        //   reinit.farFieldReinit(X0);
-        //   reinit.interfaceFieldReinit(bbox);
-        //   reinit.updateSolution();
-        // }
+          reinit.farFieldReinit(X0);
+          reinit.interfaceFieldReinit(bbox);
+          reinit.updateSolution();
+        }
 
         // if (t == 1)
         //   WritePointsVTK("./output/points.0.vtk", X0);

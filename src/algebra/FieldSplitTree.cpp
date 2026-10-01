@@ -32,7 +32,6 @@ namespace femus {
     FieldSplitTreeBuild (solver, preconditioner, fields, name);
   }
 
-
   void FieldSplitTree::FieldSplitTreeBuild (const SolverType& solver, const PreconditionerType& preconditioner, const std::vector < unsigned >& fields, std::string name) {
     _father = NULL;
     _name = name;
@@ -41,7 +40,6 @@ namespace femus {
     _preconditioner = preconditioner;
     _numberOfSplits = 1;
     _child.resize (0);
-
 
     _fieldsSplit.resize (1);
     _fieldsSplit[0] = fields;
@@ -163,12 +161,10 @@ namespace femus {
     _asmBlockPreconditioner[0] = ILU_PRECOND;
     _asmBlockPreconditioner[1] = ILU_PRECOND;
 
-
     _asmStandard = true;
     _asmOverlapping = 1;
     _asmSchurVariableNumber = 1;
   }
-
 
   FieldSplitTree::~FieldSplitTree() {
     if (_numberOfSplits > 1) {
@@ -185,7 +181,6 @@ namespace femus {
         ISDestroy (& _asmOverlappingIs[i][j]);
       }
     }
-
 
     for (unsigned i = 0; i < _isSplitIndexPt.size(); i++) {
       delete [] _isSplitIndexPt[i];
@@ -218,18 +213,12 @@ namespace femus {
 
   }
 
-
   void FieldSplitTree::BuildIndexSet (const std::vector< std::vector < unsigned > >& KKoffset, const unsigned& iproc,
                                       const unsigned& nprocs, const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
 
-
     if (_MatrixOffset.size() < level + 1) _MatrixOffset.resize (level + 1);
 
-
-
     _MatrixOffset[level] = KKoffset;
-
-
 
     if (GetNumberOfSplits() == 1) {
       if ( (_preconditioner == ASM_PRECOND ||
@@ -241,7 +230,6 @@ namespace femus {
 
       return;
     }
-
 
     if (_isSplit.size() < level + 1) _isSplit.resize (level + 1);
 
@@ -258,7 +246,6 @@ namespace femus {
         unsigned offsetp1 = KKoffset[index + 1][iproc];
         size += offsetp1 - offset;
       }
-
 
       PetscInt* isSplitIndex = new PetscInt [size];
       unsigned ptSize = _isSplitIndexPt.size();
@@ -324,7 +311,7 @@ namespace femus {
   }
 
   /*---------adjusted by Guoyi Ke-----------*/
-  void FieldSplitTree::SetTolerances(const double& rtol, const double& abstol, const double& dtol, 
+  void FieldSplitTree::SetTolerances(const double& rtol, const double& abstol, const double& dtol,
                                      const unsigned& maxits, const unsigned & restart) {
     _rtol = rtol;
     _abstol = abstol;
@@ -332,7 +319,7 @@ namespace femus {
     _maxits = maxits;
     _restart = restart;
   }
-  
+
   void FieldSplitTree::SetSchurFactorizationType (const SchurFactType& schurFactType) {
     _schurFactType = schurFactType;
   }
@@ -355,15 +342,15 @@ namespace femus {
       if (level != 0u && _father == NULL && _solver == PREONLY) {
         _solver = RICHARDSON;
         _richardsonScaleFactor = 1.;
-      }  
-        
+      }
+
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
-      KSPSetUp (ksp);
-        
+      // KSPSetUp (ksp);
+
       PetscPreconditioner::set_petsc_preconditioner_type (_preconditioner, pc);
       if (_preconditioner == FIELDSPLIT_SCHUR_PRECOND) {
         SetSchurFactorizationType (pc);
@@ -373,7 +360,10 @@ namespace femus {
       for (unsigned i = 0; i < _numberOfSplits; i++) {
         PCFieldSplitSetIS (pc, NULL, _isSplit[level][i]);
       }
-      PCSetUp (pc);
+      // PCSetUp (pc);
+
+      KSPSetFromOptions(ksp);
+      KSPSetUp(ksp);
 
       KSP* subksp;
       PetscInt nlocal = static_cast < PetscInt > (_numberOfSplits);
@@ -390,7 +380,7 @@ namespace femus {
              _preconditioner == ASM_ADDITIVE_PRECOND) {
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
 
@@ -402,7 +392,7 @@ namespace femus {
 
       PCASMSetOverlap (pc, _asmOverlapping);
 
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
       KSPSetUp (ksp);
@@ -454,19 +444,22 @@ namespace femus {
         }
       }
 
-      SetSolver(ksp,_solver);
+      SetSolver(ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
-      KSPSetFromOptions (ksp);
-      KSPSetUp (ksp);
+      // KSPSetFromOptions (ksp);
+      // KSPSetUp (ksp);
       PC pc;
       KSPGetPC (ksp, &pc);
       PetscReal epsilon = 1.e-16;
       PetscPreconditioner::set_petsc_preconditioner_type (_preconditioner, pc);
       PCFactorSetZeroPivot (pc, epsilon);
       PCFactorSetShiftType (pc, MAT_SHIFT_NONZERO);
+
+      KSPSetFromOptions (ksp);
+      KSPSetUp (ksp);
     }
   }
 
@@ -492,9 +485,9 @@ namespace femus {
   }
 
   void FieldSplitTree::SetSolver (KSP &ksp, const SolverType &solver) {
-    LinearEquationSolverPetsc::SetPetscSolverType(ksp, solver , &_richardsonScaleFactor);
+    LinearEquationSolverPetsc::SetPetscSolverType(ksp, solver, &_richardsonScaleFactor);
   }
-  
+
   void FieldSplitTree::SetSchurFactorizationType (PC &pc) {
 
     switch (_schurFactType) {
@@ -573,12 +566,7 @@ namespace femus {
     }
   }
 
-
-
-
-
   void FieldSplitTree::BuildASMIndexSet (const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
-
 
     Mesh* msh = solver->_msh;
 
@@ -615,7 +603,6 @@ namespace femus {
 
     elementBlockNumber[0] = (_asmBlockSize[0] == 100) ? msh->GetNumberOfElements() : pow (base, _asmBlockSize[0]);
     elementBlockNumber[1] = (_asmBlockSize[1] == 100) ? msh->GetNumberOfElements() : pow (base, _asmBlockSize[1]);
-
 
     //elementBlockNumber[0] = 16;
     //elementBlockNumber[1] = 16;
@@ -755,12 +742,10 @@ namespace femus {
 
       std::vector < PetscInt > (_asmOverlappingIsIndex[level ][vb_index]).swap (_asmOverlappingIsIndex[level ][vb_index]);
 
-
       mymap.clear();
 
       std::sort (_asmLocalIsIndex[level][vb_index].begin(), _asmLocalIsIndex[level][vb_index].end());
       std::sort (_asmOverlappingIsIndex[level][vb_index].begin(), _asmOverlappingIsIndex[level][vb_index].end());
-
 
     }
 
@@ -781,5 +766,3 @@ namespace femus {
   }
 
 }
-
-

@@ -44,10 +44,10 @@ namespace femus {
 
       /// Destructor.
       ~LinearEquationSolverPetsc();
-      
-      /// Set PETSC solver 
+
+      /// Set PETSC solver
       static void SetPetscSolverType (KSP &ksp, const SolverType &solver_type, const double *parameter);
-      
+
     protected:
 
       /// Release all memory and clear data structures.
@@ -66,6 +66,10 @@ namespace femus {
                        const vector <unsigned> &variable_to_be_solved,
                        SparseMatrix* PP, SparseMatrix* RR,
                        const unsigned &npre, const unsigned &npost);
+
+      void MGUpdateLevel(LinearEquationSolver* LinSolver, const unsigned& levelMax,
+                         const vector<unsigned>& variable_to_be_solved,
+                         const unsigned& npre, const unsigned& npost);
 
       void RemoveNullSpace();
       void GetNullSpaceBase (std::vector < Vec > &nullspBase);
@@ -90,9 +94,8 @@ namespace femus {
       };
 
       void SetSolver (KSP &ksp, const SolverType &solver_type) {
-        SetPetscSolverType (ksp, solver_type , &_richardsonScaleFactor);
+        SetPetscSolverType (ksp, solver_type, &_richardsonScaleFactor);
       };
-      
 
       /** @deprecated, remove soon */
       std::pair<unsigned int, double> solve (SparseMatrix&  matrix_in,
@@ -165,11 +168,9 @@ namespace femus {
       KSPDestroy (&_ksp);
     }
 
-
   }
 
 } //end namespace femus
-
 
 #endif
 #endif

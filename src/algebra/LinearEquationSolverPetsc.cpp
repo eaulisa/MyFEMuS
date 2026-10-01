@@ -286,6 +286,48 @@ namespace femus {
     }
   }
 
+  void LinearEquationSolverPetsc::MGUpdateLevel(
+    LinearEquationSolver* LinSolver,
+    const unsigned& levelMax,
+    const vector<unsigned>& variable_to_be_solved,
+    const unsigned& npre,
+    const unsigned& npost
+  ) {
+
+    const unsigned level = _msh->GetLevel();
+
+    if(_bdcIndexIsInitialized == 0) {
+      BuildBdcIndex(variable_to_be_solved);
+    }
+
+    KSP* kspMG = LinSolver->GetKSP();
+
+    PC pcMG;
+    KSPGetPC(*kspMG, &pcMG);
+
+    KSP subksp;
+
+    if(level == 0) {
+      PCMGGetCoarseSolve(pcMG, &subksp);
+    }
+    else {
+      PCMGGetSmoother(pcMG, level, &subksp);
+    }
+
+    SetPenalty();
+    RemoveNullSpace();
+
+    Mat KK = static_cast<PetscMatrix*>(_KK)->mat();
+
+    KSPSetOperators(subksp, KK, KK);
+
+    if(level > 0 && npre != npost) {
+      KSP subkspUp;
+      PCMGGetSmootherUp(pcMG, level, &subkspUp);
+      KSPSetOperators(subkspUp, KK, KK);
+    }
+  }
+
   // ================================================
 
   void LinearEquationSolverPetsc::MGSolve (const bool ksp_clean) {
