@@ -26,10 +26,7 @@
 #include "NumericVector.hpp"
 #include "SparseMatrix.hpp"
 
-
 namespace femus {
-
-
 
   using std::cout;
   using std::endl;
@@ -51,7 +48,6 @@ namespace femus {
 //--------------------------------------------------------------------------------
   LinearEquation::~LinearEquation() { }
 
-
 //--------------------------------------------------------------------------------
   unsigned LinearEquation::GetIndex(const char name[]) {
     unsigned index = 0;
@@ -64,7 +60,6 @@ namespace femus {
     }
     return index;
   }
-
 
   unsigned LinearEquation::GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
                                         const unsigned &i, const unsigned &iel) const {
@@ -86,7 +81,6 @@ namespace femus {
     return otherKKoffset[kkindex_sol][isubdom] + idof - _msh->_dofOffset[soltype][isubdom];
   }
 
-
   unsigned LinearEquation::GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
                                         const unsigned &ielc, const unsigned &i0, const unsigned &i1,
                                         const Mesh* mshc) const {
@@ -96,7 +90,6 @@ namespace femus {
     unsigned isubdom = _msh->IsdomBisectionSearch(idof, soltype);
     return KKoffset[kkindex_sol][isubdom] + idof - _msh->_dofOffset[soltype][isubdom];
   }
-
 
 //--------------------------------------------------------------------------------
   void LinearEquation::InitPde(const vector <unsigned> &SolPdeIndex_other, const  vector <int> &SolType_other,
@@ -152,7 +145,6 @@ namespace femus {
       KKghost_nd[i].resize(KKghostsize[i]);
     }
 
-
     for(int i = 0; i < _nprocs; i++) {
       unsigned counter = 0;
       for(int j = 0; j < _SolPdeIndex.size(); j++) {
@@ -187,7 +179,6 @@ namespace femus {
     _RESC = NumericVector::build().release();
     _RESC->init(*_EPS);
 
-
     GetSparsityPatternSize();
 
     const unsigned dim = _msh->GetDimension();
@@ -197,14 +188,14 @@ namespace femus {
 
     if(_sparsityPatternMinimumSize.size() > 0) {
       for(unsigned i = 0; i < _sparsityPatternVariableIndex.size(); i++) {
-                 
+
         unsigned maxDiagSize = (_sparsityPatternMinimumSize[i] < KK_local_size) ? _sparsityPatternMinimumSize[i] : KK_local_size;
-        unsigned maxOffDiagSize = (_sparsityPatternMinimumSize[i] < KK_size - KK_local_size) ? _sparsityPatternMinimumSize[i] : KK_size - KK_local_size;  
-          
-        unsigned idx = _sparsityPatternVariableIndex[i];   
+        unsigned maxOffDiagSize = (_sparsityPatternMinimumSize[i] < KK_size - KK_local_size) ? _sparsityPatternMinimumSize[i] : KK_size - KK_local_size;
+
+        unsigned idx = _sparsityPatternVariableIndex[i];
         unsigned jstart = KKoffset[idx][processor_id()] - KKoffset[0][processor_id()];
         unsigned jend = KKoffset[idx + 1][processor_id()] - KKoffset[0][processor_id()];
-        
+
         for(unsigned j = jstart; j < jend; j++) {
           d_nnz[j] = (d_nnz[j] > maxDiagSize) ? d_nnz[j] : maxDiagSize;
           o_nnz[j] = (o_nnz[j] > maxOffDiagSize) ? o_nnz[j] : maxOffDiagSize;;
@@ -224,6 +215,9 @@ namespace femus {
     _KK->init(KK_size, KK_size, KK_local_size, KK_local_size, d_nnz, o_nnz);
 
     _KKamr = SparseMatrix::build().release();
+    if(!_msh->GetIfHomogeneous()) {
+      _KKamr->init(KK_size, KK_size, KK_local_size, KK_local_size, d_nnz, o_nnz);
+    }
 
   }
 
@@ -397,7 +391,6 @@ namespace femus {
     }
     sizeDnBM_o->close();
 
-
     NumericVector  *sizeDnBM_d = NumericVector::build().release();
     sizeDnBM_d->init(*_EPS);
     sizeDnBM_d->zero();
@@ -405,7 +398,6 @@ namespace femus {
       sizeDnBM_d->add(it->first, it->second.size());
     }
     sizeDnBM_d->close();
-
 
     d_nnz.resize(owned_dofs);
     o_nnz.resize(owned_dofs);
@@ -424,9 +416,3 @@ namespace femus {
     delete sizeDnBM_d;
   }
 }
-
-
-
-
-
-

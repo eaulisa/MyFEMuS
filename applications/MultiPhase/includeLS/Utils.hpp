@@ -2636,15 +2636,15 @@ void PrintLevelSetDiagnostics(
 }
 
 struct SimulationArgs {
-  unsigned uniformLevels = 0u;
-  unsigned levelOffset   = 2u;
+  unsigned uniformLevels = 1u;
+  unsigned levelOffset   = 1u;
 
   unsigned dim = 2u;
 
   SimulationCase simulation = SimulationCase::RB2;
 
-  std::vector<unsigned> adaptiveLevels;
-  std::vector<unsigned> nSteps;
+  std::vector<unsigned> adaptiveLevels = {2};
+  std::vector<unsigned> nSteps = {1200};
   double period = 3.;
 };
 
@@ -2669,6 +2669,8 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
 
     else if (option == "--adaptive-levels") {
 
+      args.adaptiveLevels.clear();
+
       while (i + 1 < argc) {
 
         const std::string next = argv[i + 1];
@@ -2683,6 +2685,8 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
     }
 
     else if (option == "--nsteps") {
+
+      args.nSteps.clear();
 
       while (i + 1 < argc) {
 
@@ -2765,23 +2769,23 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
     // }
   }
 
-  if (args.uniformLevels == 0u) {
-    throw std::runtime_error(
-      "--uniform-levels must be specified and > 0"
-    );
-  }
+  // if (args.uniformLevels == 0u) {
+  //   throw std::runtime_error(
+  //     "--uniform-levels must be specified and > 0"
+  //   );
+  // }
+  //
+  // if (args.adaptiveLevels.empty()) {
+  //   throw std::runtime_error(
+  //     "--adaptive-levels must contain at least one value"
+  //   );
+  // }
 
-  if (args.adaptiveLevels.empty()) {
-    throw std::runtime_error(
-      "--adaptive-levels must contain at least one value"
-    );
-  }
-
-  if (args.nSteps.empty()) {
-    throw std::runtime_error(
-      "--nsteps must contain at least one value"
-    );
-  }
+  // if (args.nSteps.empty()) {
+  //   throw std::runtime_error(
+  //     "--nsteps must contain at least one value"
+  //   );
+  // }
 
   for (const unsigned n : args.nSteps) {
     if (n == 0u) {
@@ -3349,6 +3353,87 @@ SimulationConfig GetSimulationConfig(
 
 void PrintMemorySnapshot(const std::string& label) {
 
+  // Enable PETSc peak-memory tracking once per MPI process
+  static bool memoryTrackingInitialized = false;
+
+  if(!memoryTrackingInitialized) {
+    PetscMemorySetGetMaximumUsage();
+    memoryTrackingInitialized = true;
+  }
+
+  PetscLogDouble rss        = 0.;
+  PetscLogDouble petsc      = 0.;
+  PetscLogDouble rssPeak    = 0.;
+  PetscLogDouble petscPeak  = 0.;
+
+  PetscMemoryGetCurrentUsage(&rss);
+  PetscMallocGetCurrentUsage(&petsc);
+
+  PetscMemoryGetMaximumUsage(&rssPeak);
+  PetscMallocGetMaximumUsage(&petscPeak);
+
+  constexpr double MB = 1024.0 * 1024.0;
+
+  double local[4] = {
+    static_cast<double>(rss       / MB),
+    static_cast<double>(petsc     / MB),
+    static_cast<double>(rssPeak   / MB),
+    static_cast<double>(petscPeak / MB)
+  };
+
+  double sum[4]  = {};
+  double maxv[4] = {};
+
+  MPI_Reduce(
+    local,
+    sum,
+    4,
+    MPI_DOUBLE,
+    MPI_SUM,
+    0,
+    MPI_COMM_WORLD
+  );
+
+  MPI_Reduce(
+    local,
+    maxv,
+    4,
+    MPI_DOUBLE,
+    MPI_MAX,
+    0,
+    MPI_COMM_WORLD
+  );
+
+  int rank, nproc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+
+  if(rank == 0) {
+
+    std::cout
+        << "\n[MEMORY] " << label << '\n'
+
+        << "  RSS current:"
+        << " total = " << sum[0] << " MB"
+        << ", avg = " << sum[0] / nproc << " MB"
+        << ", max/rank = " << maxv[0] << " MB\n"
+
+        << "  PETSc current:"
+        << " total = " << sum[1] << " MB"
+        << ", avg = " << sum[1] / nproc << " MB"
+        << ", max/rank = " << maxv[1] << " MB\n"
+
+        << "  RSS peak:"
+        << " max/rank = " << maxv[2] << " MB\n"
+
+        << "  PETSc peak:"
+        << " max/rank = " << maxv[3] << " MB\n";
+  }
+}/*
+
+
+void PrintMemorySnapshot(const std::string& label) {
+
   PetscLogDouble rss        = 0.;
   PetscLogDouble petsc      = 0.;
   PetscLogDouble rssPeak    = 0.;
@@ -3417,4 +3502,4 @@ void PrintMemorySnapshot(const std::string& label) {
         << "  PETSc peak:"
         << " max/rank = " << maxv[3] << " MB\n";
   }
-}
+}*/

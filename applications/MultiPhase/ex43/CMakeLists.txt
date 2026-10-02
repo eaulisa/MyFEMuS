@@ -31,3 +31,8 @@ if (GPERFTOOLS_INCLUDE_DIR AND GPERFTOOLS_LIB)
 else()
   message(WARNING "gperftools not found, profiling disabled")
 endif()
+
+file(CREATE_LINK
+     "${PROJECT_SOURCE_DIR}/run_ex43.sh"
+     "${PROJECT_BINARY_DIR}/run_ex43.sh"
+     SYMBOLIC)

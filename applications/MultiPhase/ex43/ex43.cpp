@@ -135,8 +135,8 @@ int main(int argc, char **argv) {
 
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  if (nprocs == 1)
-    ProfilerStart("profiling.prof");
+  // if (nprocs == 1)
+  //   ProfilerStart("profiling.prof");
 
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
@@ -485,7 +485,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 0 + 1 * nSteps + 1; t++) {
+      for (unsigned t = 1; t <= 0 + 0 * nSteps + 1; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -601,7 +601,8 @@ int main(int argc, char **argv) {
 
         //FieldSplitTree FS_V(GMRES, ASM_PRECOND, fieldV, solutionTypeV, "Velocity");
         //FS_V.SetAsmBlockSize(4);
-        FS_V.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
+
+        // FS_V.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20); // it makes sense only if the kspsolver is diff from preonly
 
         std::vector < unsigned > fieldP(pName.size());
         for(unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
@@ -616,7 +617,7 @@ int main(int argc, char **argv) {
         // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
         // FS_P.SetAsmBlockSize(3);
 
-        FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
+        // FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);
@@ -633,12 +634,7 @@ int main(int argc, char **argv) {
         // attach the assembling function to system
         system2.SetMaxNumberOfNonLinearIterations(20);
         system2.SetMaxNumberOfLinearIterations(10);
-        system2.SetAbsoluteLinearConvergenceTolerance(1.e-12);
-        system2.SetNonLinearConvergenceTolerance(1.e-8);
         system2.SetMgType(V_CYCLE);
-
-        system2.SetNumberPreSmoothingStep(2);
-        system2.SetNumberPostSmoothingStep(2);
 
         // initilaize and solve the system
         system2.init();
@@ -654,10 +650,10 @@ int main(int argc, char **argv) {
           pdeSys2_l->MergeNullSpaceBases(true);
 
         }
-
+        PrintMemorySnapshot("presolve");
         system2.MGsolve();
-
-        return 0;
+        PrintMemorySnapshot("postsolve");
+        //return 0;
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
@@ -830,8 +826,8 @@ int main(int argc, char **argv) {
 
   }
 
-  if (nprocs == 1)
-    ProfilerStop();
+  // if (nprocs == 1)
+  //   ProfilerStop();
   return 0;
 }
 
@@ -917,7 +913,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   Solution*    sol        = ml_prob0->_ml_sol->GetSolutionLevel(levelF);    // pointer to the solution (levelF) object
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[levelF]; // pointer to the equation (levelF) object
-  SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (levelF)
+  SparseMatrix*    KK         = pdeSys->_KKamr;  // pointer to the global stifness matrix object in pdeSys (levelF)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (levelF)
 
   //MatResetPreallocation((static_cast< PetscMatrix* >(KK))->mat());
@@ -1421,6 +1417,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
   start_time = clock();
 
+  PrintMemorySnapshot("pre");
+
   vector < SparseMatrix* > PP, RR, PPamr, RRamr;
   PP = mlPdeSys->GetProjectionMatrix();
   RR = mlPdeSys->GetRestrictionMatrix();
@@ -1437,14 +1435,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       if(!RRamr[level]) {
         (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
         *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
-        LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, false); // cannot use !firstNonlinearIt here
+        //LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, !firstNonlinearIt); // cannot use !firstNonlinearIt here
       }
       else {
         (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
         *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
-        LinSolver[level]->SwapMatrices();
-        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], false); // cannot use !firstNonlinearIt here
+        //LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], !firstNonlinearIt); // cannot use !firstNonlinearIt here
       }
       if(printdb) std::cout << "After KK amr restriction\n" << std::flush;
     }
@@ -1463,6 +1461,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
+  PrintMemorySnapshot("post");
+
   start_time = clock();
 
   if(printdb) std::cout << "Before KK sum \n" << std::flush;
@@ -1470,9 +1470,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   *RES2 += *LinSolver[level0 + level2]->_RES;
   if(printdb) std::cout << "After KK sum \n" << std::flush;
 
-  double tolerance = 0.;
+  //double tolerance = 0.;
   //KK2->RemoveZeroEntries(tolerance);
-
-  std::cout << "Matrix Clean Entry time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
+  //std::cout << "Matrix Clean Entry time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
 }

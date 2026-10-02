@@ -28,7 +28,7 @@ class LevelSetMarkers {
       }
     }
 
-    LevelSetMarkers(std::string name, uint dim, uint lmax1 = 5)
+    LevelSetMarkers(std::string name, uint dim, uint lmax1 = 3)
       : _name(name), _lmax(lmax1) {
 
       for(int i = 0; i < 6; i++) {
@@ -36,7 +36,6 @@ class LevelSetMarkers {
           _refineElement[i][j] = NULL;
         }
       }
-
 
       if(dim == 3) {
         _refineElement[0][0] = new RefineElement(lmax1, "hex", "linear", "fifth", "fifth", "legendre");
@@ -422,7 +421,6 @@ class LevelSetMarkers {
 
         markers[idim].push_back(b[idim]);
       }
-
 
       for (int iroot = 0; iroot < (int)roots[0].size(); iroot++) {
         double root_2_b_dist = 0.;

@@ -141,6 +141,8 @@ namespace femus {
 
       for(unsigned nonLinearIterator = 0; nonLinearIterator < _n_max_nonlinear_iterations; nonLinearIterator++) {
 
+        std::cout << ((_buildSolver) ? "BuildSolver  = true\n" : "BuildSolver  = false\n");
+
         _nonliniteration = nonLinearIterator;
 
         if (_debug_nonlinear)  {
@@ -274,7 +276,8 @@ namespace femus {
           if(!_ml_msh->GetLevel(igridn)->GetIfHomogeneous()) {
             _LinSolver[igridn]->SwapMatrices();
           }
-          // _LinSolver[igridn]->MGClear();
+          // _LinSolver[igridn]->MGClear();  _kspBuilt = false;
+
         }
 
         double nonLinearEps;
@@ -307,6 +310,7 @@ namespace femus {
 
       if(_buildSolver) {
         _LinSolver[igridn]->MGClear();
+        _kspBuilt = false;
       }
 
       _last_nonliniteration = _nonliniteration;

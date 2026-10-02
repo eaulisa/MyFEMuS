@@ -346,6 +346,8 @@ namespace femus {
 
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
+      KSPSetFromOptions (ksp);
+
       if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
@@ -380,6 +382,7 @@ namespace femus {
              _preconditioner == ASM_ADDITIVE_PRECOND) {
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
+      KSPSetFromOptions (ksp);
       if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
@@ -446,6 +449,7 @@ namespace femus {
 
       SetSolver(ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
+      KSPSetFromOptions (ksp);
       if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
@@ -507,7 +511,7 @@ namespace femus {
         PCFieldSplitSetSchurFactType (pc, PC_FIELDSPLIT_SCHUR_FACT_DIAG);
         return;
 
-      case SCHUR_FACT_AUTOMATIC:
+      case SCHUR_FACT_AUTOMATIC: {
         PCFieldSplitSetSchurFactType (pc, PC_FIELDSPLIT_SCHUR_FACT_UPPER);
 
         for (int i = 0; i < _numberOfSplits; i++) {
@@ -516,7 +520,20 @@ namespace femus {
           }
         }
 
+        //std::cout << "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+
+        // KSP* subksps;
+        // int nsplits = static_cast<int> (_numberOfSplits);
+        // PCFieldSplitGetSubKSP (pc, &nsplits, &subksps);
+        //
+        //
+        //
+        // for (unsigned i = 0; i < _numberOfSplits; i++) {
+        //   KSPSetFromOptions (subksps[i]);
+        // }
+
         return;
+      }
 
       default:
         std::cerr << "ERROR:  Unsupported Schur Factorization Type: "

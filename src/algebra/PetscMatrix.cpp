@@ -29,9 +29,7 @@
 #include <hdf5.h>
 #include <sstream>
 
-
 namespace femus {
-
 
   using namespace std;
 
@@ -202,6 +200,7 @@ namespace femus {
       CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
     this->zero();
+    _destroy_mat_on_exit = true;
   }
 
 // =====================================0
@@ -501,9 +500,6 @@ namespace femus {
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
 
-
-
-
   void PetscMatrix::print_matlab(const std::string& name, const std::string& format) const {
 
     this->close();
@@ -588,9 +584,6 @@ namespace femus {
 // =====================================================
   void PetscMatrix::print_hdf5(const std::string /*name*/) const {
 
-
-
-
 //   hid_t status =0;
 //
 // //   std::ostringstream name;
@@ -638,12 +631,9 @@ namespace femus {
 //   //   clean
 //    H5Fclose(fileM);
 
-
-
 // std::cout << " PetscMatrix::print_hdf5 in file   " <<  name   <<   "\n";
 // #endif-
   }
-
 
 // =====================================================
 // void PetscMatrix::read_hdf5(const std::string namefile,const int mode,const int ml_init) {
@@ -758,7 +748,7 @@ namespace femus {
     }
     else {
       this->clear();
-      ierr = MatPtAP(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(P)->mat(), MAT_INITIAL_MATRIX , 1.0, &_mat);
+      ierr = MatPtAP(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(P)->mat(), MAT_INITIAL_MATRIX, 1.0, &_mat);
       this->_is_initialized = true;
       MatGetSize(_mat, &_m, &_n);
       MatGetLocalSize(_mat, &_m_l, &_n_l);
@@ -787,15 +777,14 @@ namespace femus {
     const double *vals;
 
     int nmax = 0;
-    
-    
+
     for(int i = 0; i < rowEnd - rowStart; i++) {
 
       int row = rowStart + i;
 
       int nDiag  = 0;
       int nOff = 0;
-      
+
       MatGetRow(_mat, row, &n, &cols, &vals);
 
       nCols[i].resize(n);
@@ -803,8 +792,8 @@ namespace femus {
 
       int k = 0;
       for(int j = 0; j < n; j++) {
-        if(colStart <= cols[j] && cols[j] < colEnd) {  
-          nDiag++; 
+        if(colStart <= cols[j] && cols[j] < colEnd) {
+          nDiag++;
           if(fabs(vals[j]) >= tolerance) {
             sizeDiag[i]++;
             nCols[i][k] = cols[j];
@@ -812,8 +801,8 @@ namespace femus {
             k++;
           }
         }
-        else{
-          nOff++;  
+        else {
+          nOff++;
           if(fabs(vals[j]) >= tolerance) {
             sizeOff[i]++;
             nCols[i][k] = cols[j];
@@ -822,14 +811,14 @@ namespace femus {
           }
         }
       }
-      
-      nmax = std::max(nmax, std::max(nDiag,nOff));
+
+      nmax = std::max(nmax, std::max(nDiag, nOff));
 
       MatRestoreRow(_mat, i, &n, &cols, &vals);
       nCols[i].resize(sizeDiag[i] + sizeOff[i]);
       nVals[i].resize(sizeDiag[i] + sizeOff[i]);
     }
-    
+
     std::cout << "original max number of zero entries = " << nmax << std::endl;
 
     MatDestroy(&_mat);
@@ -938,7 +927,6 @@ namespace femus {
 
   }
 
-
 // ===========================================================
 
   void PetscMatrix::matrix_get_diagonal_values(const std::vector< int > &index, std::vector<double> &value) const {
@@ -954,7 +942,6 @@ namespace femus {
   void PetscMatrix::matrix_set_diagonal_values(NumericVector& D) {
     MatDiagonalSet(_mat, (static_cast< PetscVector& >(D)).vec(), INSERT_VALUES);
   }
-
 
 // ===========================================================
 
@@ -993,7 +980,6 @@ namespace femus {
       CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
   }
-
 
 // ===========================================================
 /// This function either creates or re-initializes a matrix called "submatrix".
@@ -1112,17 +1098,12 @@ namespace femus {
     petsc_dest.close();
   }
 
-
   void PetscMatrix::mat_zero_rows(const std::vector <int> &index, const double &diagonal_value) const {
     MatSetOption(_mat, MAT_NO_OFF_PROC_ZERO_ROWS, PETSC_TRUE);
     MatSetOption(_mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
     MatZeroRows(_mat, index.size(), &index[0], diagonal_value, 0, 0);
   }
 
-
-
 } //end namespace femus
-
-
 
 #endif // #ifdef LIBMESH_HAVE_PETSC

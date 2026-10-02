@@ -23,6 +23,18 @@
 -level-1fieldsplit_0_mg_levels_ksp_norm_type none
 -level-1fieldsplit_0_mg_levels_pc_type jacobi
 
+-level-2fieldsplit_0_pc_hmg_reuse_interpolation true
+-level-2fieldsplit_0_pc_hmg_use_subspace_coarsening false
+-level-2fieldsplit_0_pc_hmg_use_matmaij false
+-level-2fieldsplit_0_pc_hmg_coarsening_component 0
+-level-2fieldsplit_0_hmg_inner_pc_type gamg
+-level-2fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
+
+-level-2fieldsplit_0_mg_levels_ksp_type chebyshev
+-level-2fieldsplit_0_mg_levels_ksp_max_it 1
+-level-2fieldsplit_0_mg_levels_ksp_norm_type none
+-level-2fieldsplit_0_mg_levels_pc_type jacobi
+
 
 # Pressure
 -level-1fieldsplit_1_pc_hmg_reuse_interpolation true

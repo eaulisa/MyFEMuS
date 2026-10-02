@@ -25,15 +25,13 @@
 
 #include "PetscMatrix.hpp"
 
-
-
 namespace femus {
 
   // ********************************************
 
   LinearImplicitSystem::LinearImplicitSystem(MultiLevelProblem& ml_probl,
-                                             const std::string& name_in,
-                                             const unsigned int number_in, const LinearEquationSolverType& smoother_type) :
+      const std::string& name_in,
+      const unsigned int number_in, const LinearEquationSolverType& smoother_type) :
     ImplicitSystem(ml_probl, name_in, number_in, smoother_type),
     _debug_linear(false),
     _n_max_linear_iterations(3),
@@ -59,7 +57,6 @@ namespace femus {
     _totalAssemblyTime = 0.;
     _totalSolverTime = 0.;
 
-
   }
 
   // ********************************************
@@ -80,10 +77,7 @@ namespace femus {
     _numblock_all_test = 0;
     _numberOfGlobalVariables = 0;
 
-
   }
-
-
 
   void LinearImplicitSystem::SetDebugLinear(const bool my_value) {
 
@@ -94,7 +88,6 @@ namespace femus {
     }
 
   }
-
 
   // ********************************************
 
@@ -114,12 +107,12 @@ namespace femus {
   // ********************************************
 
   void LinearImplicitSystem::SetSparsityPatternMinimumSize(const unsigned &minimumSize, const std::string variableName) {
-      
-    unsigned n = _sparsityPatternSolName.size();  
-    
+
+    unsigned n = _sparsityPatternSolName.size();
+
     _sparsityPatternSolName.resize(n + 1);
-    _sparsityPatternMinimumSize.resize(n + 1);  
-          
+    _sparsityPatternMinimumSize.resize(n + 1);
+
     _sparsityPatternMinimumSize[n] = (minimumSize < 2u) ? 1u : minimumSize;
     _sparsityPatternSolName[n] = variableName;
   }
@@ -129,7 +122,6 @@ namespace femus {
   void LinearImplicitSystem::init() {
 
     _LinSolver.resize(_gridn);
-
 
     if(_includeCoarseLevelSmoother == INCLUDE_COARSE_LEVEL_TRUE) {
       _LinSolver[0] = LinearEquationSolver::build(0, _solution[0], _smootherType).release();
@@ -146,11 +138,11 @@ namespace femus {
 
       for(unsigned i = 0; i < _sparsityPatternSolName.size(); i++) {
         if(_sparsityPatternSolName[i] == "All" || _sparsityPatternSolName[i] == "ALL"  || _sparsityPatternSolName[i] == "all") {
-          unsigned minimumSize = _sparsityPatternMinimumSize[i];  
-          
-          _sparsityPatternMinimumSize.assign(_SolSystemPdeIndex.size(), minimumSize);  
+          unsigned minimumSize = _sparsityPatternMinimumSize[i];
+
+          _sparsityPatternMinimumSize.assign(_SolSystemPdeIndex.size(), minimumSize);
           variableIndex.resize(_SolSystemPdeIndex.size());
-                   
+
           for(unsigned j = 0; j < _SolSystemPdeIndex.size(); j++) {
             variableIndex[j] = j;
           }
@@ -171,14 +163,14 @@ namespace femus {
               std::cout << "Warning! The variable " << _sparsityPatternSolName[i] << " cannot be be increased in sparsity pattern "
                         << "since it is not included in the solution variable set." << std::endl;
               variableIndex.resize(n);
-              
+
               _sparsityPatternMinimumSize.erase (_sparsityPatternMinimumSize.begin() + n);
-              
+
             }
           }
         }
       }
-      if ( variableIndex.size() > 0 ){
+      if ( variableIndex.size() > 0 ) {
         for(unsigned i = 0; i < _gridn; i++) {
           _LinSolver[i]->SetSparsityPatternMinimumSize(_sparsityPatternMinimumSize, variableIndex);
         }
@@ -222,7 +214,6 @@ namespace femus {
     for(unsigned ig = 1; ig < _gridn; ig++) {
       ZeroInterpolatorDirichletNodes(ig);
     }
-
 
     _NSchurVar_test = 0;
     _numblock_test = 0;
@@ -271,7 +262,6 @@ namespace femus {
     for(unsigned igridn = grid0; igridn < _gridn; igridn++) {     //_igridn
       std::cout << std::endl << " ****** Start Level Max " << igridn + 1 << " ******" << std::endl;
 
-
       bool ThisIsAMR = (_mg_type == F_CYCLE && _AMRtest &&  AMRCounter < _maxAMRlevels && igridn == _gridn - 1) ? 1 : 0;
     restart:
       if(ThisIsAMR) _solution[igridn]->InitAMREps();
@@ -284,7 +274,6 @@ namespace femus {
       clock_t start_assembly_time = clock();
       _assemble_system_function(_equation_systems);
       std::cout << std::endl << " ****** Level Max " << igridn + 1 << " ASSEMBLY TIME:\t" << static_cast<double>((clock() - start_assembly_time)) / CLOCKS_PER_SEC << std::endl;
-
 
       if(!_ml_msh->GetLevel(igridn)->GetIfHomogeneous()) {
         if(!_RRamr[igridn]) {
@@ -300,7 +289,6 @@ namespace femus {
           _LinSolver[igridn]->_KK->matrix_ABC(*_RRamr[igridn], *_LinSolver[igridn]->_KKamr, *_PPamr[igridn], false);
         }
       }
-
 
       _MGmatrixFineReuse = false;
       _MGmatrixCoarseReuse = (igridn - grid0 > 0) ?  true : _MGmatrixFineReuse;
@@ -345,7 +333,7 @@ namespace femus {
       Vcycle(igridn, mgSmootherType);
 
       _LinSolver[igridn]->MGClear();
-
+      _kspBuilt = false;
 
       if(!_ml_msh->GetLevel(igridn)->GetIfHomogeneous()) {
         _LinSolver[igridn]->SwapMatrices();
@@ -418,7 +406,7 @@ namespace femus {
       unsigned solType = _ml_sol->GetSolutionType(SolIndex);
 
       _solution[gridf]->_Sol[SolIndex]->matrix_mult(*_solution[gridf - 1]->_Sol[SolIndex],
-                                                    *_msh[gridf]->GetCoarseToFineProjection(solType));
+          *_msh[gridf]->GetCoarseToFineProjection(solType));
       _solution[gridf]->_Sol[SolIndex]->close();
     }
   }
@@ -436,8 +424,13 @@ namespace femus {
     for(unsigned linearIterator = 0; linearIterator < _n_max_linear_iterations; linearIterator++) {   //linear cycle
 
       std::cout << "       *************** Linear iteration " << linearIterator + 1 << " ***********" << std::endl;
-      bool ksp_clean = !linearIterator * _assembleMatrix;
-      _LinSolver[level]->MGSolve(ksp_clean);
+
+      //bool ksp_clean = !linearIterator * _assembleMatrix;
+      //_LinSolver[level]->MGSolve(ksp_clean);
+
+      _LinSolver[level]->MGSolve(!_kspBuilt);
+      _kspBuilt = true;
+
       _solution[level]->UpdateRes(_SolSystemPdeIndex, _LinSolver[level]->_RES, _LinSolver[level]->KKoffset);
       linearIsConverged = IsLinearConverged(level);
 
@@ -586,15 +579,14 @@ namespace femus {
 
   // ********************************************
 
-
 //---------------------------------------------------------------------------------------------
 // This is function sets the AMR options
 //---------------------------------------------------------------------------------------------
 
   void LinearImplicitSystem::SetAMRSetOptions(const std::string & AMR, const unsigned & AMRlevels,
-                                              const std::string & AMRnorm, const double & AMRthreshold,
-                                              bool (* SetRefinementFlag)(const std::vector < double >& x,
-                                                                         const int& ElemGroupNumber, const int& level)) {
+      const std::string & AMRnorm, const double & AMRthreshold,
+      bool (* SetRefinementFlag)(const std::vector < double >& x,
+                                 const int& ElemGroupNumber, const int& level)) {
     if(!strcmp("yes", AMR.c_str()) || !strcmp("YES", AMR.c_str()) || !strcmp("Yes", AMR.c_str())) {
       _AMRtest = 1;
     }
@@ -621,7 +613,6 @@ namespace femus {
       _msh[0]->Mesh::_IsUserRefinementFunctionDefined = true;
     }
   }
-
 
 //---------------------------------------------------------------------------------------------------
 // This routine generates the matrix for the projection of the FE matrix to finer grids.
@@ -702,7 +693,6 @@ namespace femus {
 
     _PP[gridf]->close();
   }
-
 
   void LinearImplicitSystem::BuildAmrProlongatorMatrix(unsigned level) {
 
@@ -958,7 +948,6 @@ namespace femus {
     _smootherType = LinearEquationSolverType;
   }
 
-
   void LinearImplicitSystem::PrintSolverInfo(const bool & printInfo) {
 
     _printSolverInfo = printInfo;
@@ -967,7 +956,6 @@ namespace femus {
       _LinSolver[i]->PrintSolverInfo(_printSolverInfo);
     }
   }
-
 
   // ********************************************
 
@@ -1000,7 +988,6 @@ namespace femus {
     _LinSolver[0]->set_solver_type(coarseGridSolver);
   }
 
-
   void LinearImplicitSystem::SetSolverFineGrids(const SolverType & fineGridSolver) {
     _finegridsolvertype = fineGridSolver;
 
@@ -1011,13 +998,9 @@ namespace femus {
 
   // ********************************************
 
-
-
-
   void LinearImplicitSystem::SetPreconditionerCoarseGrid(const PreconditionerType & coarseGridPreconditioner) {
     _LinSolver[0]->set_preconditioner_type(coarseGridPreconditioner);
   }
-
 
   void LinearImplicitSystem::SetPreconditionerFineGrids(const PreconditionerType & fineGridPreconditioner) {
     _finegridpreconditioner = fineGridPreconditioner;
@@ -1030,7 +1013,7 @@ namespace femus {
   // ********************************************
 
   void LinearImplicitSystem::SetTolerances(const double & rtol, const double & atol,
-                                           const double & divtol, const unsigned & maxits, const unsigned & restart) {
+      const double & divtol, const unsigned & maxits, const unsigned & restart) {
     _rtol = rtol;
     _atol = atol;
     _divtol = divtol;
@@ -1061,7 +1044,6 @@ namespace femus {
     }
   };
 
-
   /// @deprecated
 // this function is like init but it doesn't call InitPDE
   void LinearImplicitSystem::init_two() {
@@ -1078,7 +1060,6 @@ namespace femus {
 //       _LinSolver[i]->InitPde(_SolSystemPdeIndex,_ml_sol->GetSolType(),
 //                           _ml_sol->GetSolName(),&_solution[i]->_Bdc,_gridr,_gridn,_SparsityPattern);
 //     }
-
 
     _PP.resize(_gridn);
     _RR.resize(_gridn);
@@ -1102,16 +1083,12 @@ namespace femus {
     AddVariableToBeSolved("All");
   }
 
-
-
   void LinearImplicitSystem::GetSystemInfo() {
     std::cout << "Printing information for system " << _sys_name << std::endl;
     std::cout << "Number of Levels = " << _gridn << std::endl;
     std::cout << "Characteristic length = " << _msh[0]->GetCharacteristicLength() << std::endl;
     std::cout << "Total number of dofs = " << _LinSolver[_gridn - 1]->KKIndex[_LinSolver[_gridn - 1]->KKIndex.size() - 1u] << std::endl;
   }
-
-
 
 // =================================================================
 //   std::vector<NumericVector *> _b;   //// LinearEquation (each level)   _RESC
@@ -1217,7 +1194,6 @@ namespace femus {
 //notice that the A and b for the POST-smoothing are the same
 //as for the pre-smoothing
 
-
   double LinearImplicitSystem::MGStep(int Level,            // Level
                                       double Eps1,          // Tolerance
                                       int MaxIter,          // n iterations - number of mg cycles
@@ -1226,7 +1202,6 @@ namespace femus {
                                       const uint Nc_coarse, // n coarse smoother iterations
                                       const uint Nc_post    // n post-smoothing smoother iterations
                                      ) {
-
 
     std::pair<uint, double> rest;
 
@@ -1353,13 +1328,4 @@ namespace femus {
 
   }
 
-
-
-
 } //end namespace femus
-
-
-
-
-
-

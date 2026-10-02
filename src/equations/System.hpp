@@ -23,171 +23,175 @@
 #include "LinearEquationSolverEnum.hpp"
 #include "FieldSplitTree.hpp"
 
-
 namespace femus {
 
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
-class System;
-class MultiLevelProblem;
-class MultiLevelMesh;
-class String;
-class Unknown;
+  class System;
+  class MultiLevelProblem;
+  class MultiLevelMesh;
+  class String;
+  class Unknown;
 
-/**
- * The system abstract class
- */
+  /**
+   * The system abstract class
+   */
 
-class System {
+  class System {
 
-protected:
+    protected:
 
-    /** Function pointer type, easiest way to declare function pointer instantiations */
-    typedef void (* AssembleFunctionType) (MultiLevelProblem &ml_prob);//, unsigned level, const unsigned &gridn, const bool &assemble_matrix);
+      /** Function pointer type, easiest way to declare function pointer instantiations */
+      typedef void (* AssembleFunctionType) (MultiLevelProblem &ml_prob);//, unsigned level, const unsigned &gridn, const bool &assemble_matrix);
 
-public:
+    public:
 
-    /** Constructor.  Optionally initializes required data structures. */
-    System (MultiLevelProblem& ml_prob, const std::string& name, const unsigned int number, const LinearEquationSolverType & smoother_type);
+      /** Constructor.  Optionally initializes required data structures. */
+      System (MultiLevelProblem& ml_prob, const std::string& name, const unsigned int number, const LinearEquationSolverType & smoother_type);
 
-    /** destructor */
-    virtual ~System();
+      /** destructor */
+      virtual ~System();
 
-    /** To be Added */
-    unsigned int number() const;
+      /** To be Added */
+      unsigned int number() const;
 
-    /** To be Added */
-    const std::string & name() const;
+      /** To be Added */
+      const std::string & name() const;
 
-    /**
-     * @returns the type of system, helpful in identifying
-     * which system type to use when reading equation system
-     * data from file.  Should be overloaded in derived classes.
-    */
-    virtual std::string system_type () const {
+      /**
+       * @returns the type of system, helpful in identifying
+       * which system type to use when reading equation system
+       * data from file.  Should be overloaded in derived classes.
+      */
+      virtual std::string system_type () const {
         return "Basic";
-    }
+      }
 
-    /** Add a vector of solution variables to the system PDE */
-    void AddSolutionToSystemPDEVector(const unsigned n_components,  const std::string name);
+      /** Add a vector of solution variables to the system PDE */
+      void AddSolutionToSystemPDEVector(const unsigned n_components,  const std::string name);
 
-    /** Associate the solution variables to the system PDE */
-    virtual void AddSolutionToSystemPDE(const char solname[]);
+      /** Associate the solution variables to the system PDE */
+      virtual void AddSolutionToSystemPDE(const char solname[]);
 
-    /** Register a user function to use in assembling the system matrix and RHS. */
-    void SetAssembleFunction (AssembleFunctionType );
+      /** Register a user function to use in assembling the system matrix and RHS. */
+      void SetAssembleFunction (AssembleFunctionType );
 
-    AssembleFunctionType  GetAssembleFunction();
+      AssembleFunctionType  GetAssembleFunction();
 
-    virtual void SetOuterSolver (const SolverType & mgOuterSolver) {};
-    
-    virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE){
-      //solve(mgSmootherType);
-    };
+      virtual void SetOuterSolver (const SolverType & mgOuterSolver) {};
 
-    /** Init the system PDE structures */
-    virtual void init();
+      virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE) {
+        //solve(mgSmootherType);
+      };
 
-    /** @deprecated Init the system PDE structures */
-    virtual void init_two(){};
+      /** Init the system PDE structures */
+      virtual void init();
 
-    /** Get the index of the Solution "solname" for this system */
-    unsigned GetSolPdeIndex(const char solname[]);
-    
-    /** Get the index of the Solution "solname" for this system */
-    const unsigned GetSolPdeIndex(const char solname[]) const;
+      /** @deprecated Init the system PDE structures */
+      virtual void init_two() {};
 
-    vector <unsigned> & GetSolPdeIndex() {
-      return _SolSystemPdeIndex;
-    }
+      /** Get the index of the Solution "solname" for this system */
+      unsigned GetSolPdeIndex(const char solname[]);
 
-    const vector <unsigned> & GetSolPdeIndex() const {
-      return _SolSystemPdeIndex;
-    }
+      /** Get the index of the Solution "solname" for this system */
+      const unsigned GetSolPdeIndex(const char solname[]) const;
 
-    /** Get MultiLevelProblem */
-    const MultiLevelProblem &  GetMLProb() const { return _equation_systems; }
+      vector <unsigned> & GetSolPdeIndex() {
+        return _SolSystemPdeIndex;
+      }
 
-    /** Get MultiLevelProblem */
-    MultiLevelProblem &  GetMLProb() { return _equation_systems; }
+      const vector <unsigned> & GetSolPdeIndex() const {
+        return _SolSystemPdeIndex;
+      }
 
-    /** Get Number of Levels */
-    inline const unsigned GetGridn() const { return _gridn; }
+      /** Get MultiLevelProblem */
+      const MultiLevelProblem &  GetMLProb() const {
+        return _equation_systems;
+      }
 
-    inline unsigned GetLevelToAssemble() const { return _levelToAssemble; }
+      /** Get MultiLevelProblem */
+      MultiLevelProblem &  GetMLProb() {
+        return _equation_systems;
+      }
 
-    inline void SetLevelToAssemble(const unsigned &level){ _levelToAssemble = level; }
+      /** Get Number of Levels */
+      inline const unsigned GetGridn() const {
+        return _gridn;
+      }
 
-    /** Set Unknown list for the current System */
-    void set_unknown_list_for_assembly(const std::vector< Unknown > unknown_in );
-    
-    /** Get Unknown list for the current System */
-    const std::vector< Unknown > get_unknown_list_for_assembly() const;
-    
-    /** Only call assemble function */
-     void assemble_call(const unsigned int n_times) const;
+      inline unsigned GetLevelToAssemble() const {
+        return _levelToAssemble;
+      }
 
+      inline void SetLevelToAssemble(const unsigned &level) {
+        _levelToAssemble = level;
+      }
 
-protected:
+      /** Set Unknown list for the current System */
+      void set_unknown_list_for_assembly(const std::vector< Unknown > unknown_in );
 
-    /** Constant reference to the \p EquationSystems object used for the simulation. */
-    MultiLevelProblem& _equation_systems;
+      /** Get Unknown list for the current System */
+      const std::vector< Unknown > get_unknown_list_for_assembly() const;
 
-    /** Mesh vector, dimension _gridn */
-    vector<Mesh*> _msh;
+      /** Only call assemble function */
+      void assemble_call(const unsigned int n_times) const;
 
-    /** Solution vector, dimension _gridn */
-    vector<Solution*> _solution;
+    protected:
 
-    /** pointer */
-    MultiLevelSolution* _ml_sol;
+      /** Constant reference to the \p EquationSystems object used for the simulation. */
+      MultiLevelProblem& _equation_systems;
 
-    /** pointer */
-    MultiLevelMesh* _ml_msh;
+      /** Mesh vector, dimension _gridn */
+      vector<Mesh*> _msh;
 
-    /** indices of the solutions, dynamical dimension */
-    vector <unsigned> _SolSystemPdeIndex;
+      /** Solution vector, dimension _gridn */
+      vector<Solution*> _solution;
 
-    /** Number of Levels */
-    unsigned _gridn;
+      /** pointer */
+      MultiLevelSolution* _ml_sol;
 
-    unsigned _levelToAssemble;
+      /** pointer */
+      MultiLevelMesh* _ml_msh;
 
-    //virtual void solve( const MgSmootherType& mgSmootherType = MULTIPLICATIVE ){};
+      /** indices of the solutions, dynamical dimension */
+      vector <unsigned> _SolSystemPdeIndex;
 
-    /** Function that assembles the system. */
-    AssembleFunctionType _assemble_system_function;
+      /** Number of Levels */
+      unsigned _gridn;
 
-    /** The number associated with this system */
-    const unsigned int _sys_number;
+      unsigned _levelToAssemble;
 
-    /** A name associated with this system. */
-    const std::string _sys_name;
+      //virtual void solve( const MgSmootherType& mgSmootherType = MULTIPLICATIVE ){};
 
-    bool _buildSolver;
-    
-    /** List of unknowns for the assembly routine */
-    std::vector< Unknown > _unknown_list_for_assembly;
+      /** Function that assembles the system. */
+      AssembleFunctionType _assemble_system_function;
 
-};
+      /** The number associated with this system */
+      const unsigned int _sys_number;
+
+      /** A name associated with this system. */
+      const std::string _sys_name;
+
+      bool _buildSolver;
+      bool _kspBuilt;
+
+      /** List of unknowns for the assembly routine */
+      std::vector< Unknown > _unknown_list_for_assembly;
+
+  };
 
 // System inline methods
-inline
-const std::string & System::name() const
-{
+  inline
+  const std::string & System::name() const {
     return _sys_name;
-}
+  }
 
-inline
-unsigned int System::number() const
-{
+  inline
+  unsigned int System::number() const {
     return _sys_number;
-}
-
+  }
 
 } //end namespace femus
-
-
 
 #endif

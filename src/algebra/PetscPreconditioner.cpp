@@ -221,7 +221,9 @@ namespace femus {
         break;
 
       case AMG_PRECOND:
+        // PCSetType(pc, PCHYPRE);
         PCSetType(pc, PCHMG);
+
         break;
 
       case MG_PRECOND:
