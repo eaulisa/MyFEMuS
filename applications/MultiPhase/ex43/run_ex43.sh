@@ -1,264 +1,167 @@
-# #!/usr/bin/env bash
-#
-# set -e
-#
-# # ============================================================
-# # Default run parameters
-# # ============================================================
-# NPROC=8
-# UNIFORM_LEVELS=1
-# ADAPTIVE_LEVELS=2
-# LEVEL_OFFSET=1
-# NSTEPS=1200
-# DIM=3
-# SIMULATION="rb1"
-#
-# EXECUTABLE="./MultiPhase_ex43"
-# OPTIONS_FILE="./input/FS_solver.options"
-#
-# # ============================================================
-# # Optional command-line overrides
-# #
-# # Usage:
-# #   ./run_ex43.sh [uniform-levels] [adaptive-levels] [level-offset]
-# #
-# # Example:
-# #   ./run_ex43.sh 2 3 1
-# # ============================================================
-# if [ $# -ge 1 ]; then
-#   UNIFORM_LEVELS="$1"
-# fi
-#
-# if [ $# -ge 2 ]; then
-#   ADAPTIVE_LEVELS="$2"
-# fi
-#
-# if [ $# -ge 3 ]; then
-#   LEVEL_OFFSET="$3"
-# fi
-#
-# # ============================================================
-# # Number of solver levels
-# # ============================================================
-# N=$((UNIFORM_LEVELS + ADAPTIVE_LEVELS - LEVEL_OFFSET))
-#
-# # if [ "$N" -lt 1 ]; then
-# #   echo "ERROR: Number of solver levels must be >= 1."
-# #   echo "       N = uniform-levels + adaptive-levels - level-offset"
-# #   echo "       N = ${UNIFORM_LEVELS} + ${ADAPTIVE_LEVELS} - ${LEVEL_OFFSET} = ${N}"
-# #   exit 1
-# # fi
-#
-# echo "============================================================"
-# echo "ex43 run configuration"
-# echo "============================================================"
-# echo "MPI ranks       : ${NPROC}"
-# echo "Uniform levels  : ${UNIFORM_LEVELS}"
-# echo "Adaptive levels : ${ADAPTIVE_LEVELS}"
-# echo "Level offset    : ${LEVEL_OFFSET}"
-# echo "Solver levels N : ${N}"
-# echo "Options file    : ${OPTIONS_FILE}"
-# echo "============================================================"
-#
-# # ============================================================
-# # Generate FS_solver.options
-# # ============================================================
-# mkdir -p "$(dirname "${OPTIONS_FILE}")"
-#
-# : > "${OPTIONS_FILE}"
-#
-# for ((i=1; i<N; ++i)); do
-#
-#   cat >> "${OPTIONS_FILE}" <<EOF
-# # ============================================================
-# # Level ${i}
-# # ============================================================
-#
-# # Fieldsplit level solver/preconditioner
-# -level-${i}ksp_richardson_scale .4
-#
-# -level-${i}ksp_rtol 1.e-8
-# -level-${i}ksp_atol 1.e-12
-# -level-${i}ksp_divtol 1.e+50
-# -level-${i}ksp_max_it 2
-# -level-${i}ksp_norm_type none
-#
-# -level-${i}pc_fieldsplit_schur_fact_type upper
-# -level-${i}pc_fieldsplit_schur_precondition selfp
-#
-# # Velocity
-#
-# # -level-${i}fieldsplit_0_ksp_type preonly
-#
-# # -level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
-# # -level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
-# # -level-${i}fieldsplit_0_pc_hmg_use_matmaij false
-# # -level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
-# # -level-${i}fieldsplit_0_hmg_inner_pc_type gamg
-# # -level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
-# #
-# # -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
-# # -level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
-# # -level-${i}fieldsplit_0_mg_levels_ksp_norm_type none
-# # -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
-#
-# -level-${i}fieldsplit_0_ksp_type preonly
-#
-# -level-${i}fieldsplit_0_pc_type hypre
-# -level-${i}fieldsplit_0_pc_hypre_type boomeramg
-#
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_max_iter 1
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_tol 0.0
-#
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_down 1
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_up 1
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_coarse 1
-#
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_relax_type_all SOR/Jacobi
-#
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_coarsen_type HMIS
-# -level-${i}fieldsplit_0_pc_hypre_boomeramg_interp_type ext+i
-#
-# # Pressure
-# # -level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
-# # -level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
-# # -level-${i}fieldsplit_1_pc_hmg_use_matmaij false
-# # -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
-# # -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
-# #  -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
-#
-# # -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
-# # -level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
-# # -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
-# # -level-${i}fieldsplit_1_mg_levels_pc_type sor
-# # -level-${i}fieldsplit_1_mg_levels_pc_sor_local_symmetric
-#
-# -level-${i}fieldsplit_1_ksp_type preonly
-#
-# -level-${i}fieldsplit_1_pc_type hypre
-# -level-${i}fieldsplit_1_pc_hypre_type boomeramg
-#
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_max_iter 1
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_tol 0.0
-#
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_down 1
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_up 1
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_coarse 1
-#
-# -level-${i}fieldsplit_1_pc_hypre_boomeramg_relax_type_all SOR/Jacobi
-#
-# EOF
-#
-# done
-#
-# echo "Generated ${OPTIONS_FILE} for levels 1 through ${N}."
-# echo
-#
-# # ============================================================
-# # Run ex43
-# # ============================================================
-# mpirun -n "${NPROC}" "${EXECUTABLE}" \
-#   -matptap_via allatonce \
-#   -ksp_monitor_true_residual \
-#   -log_view_memory \
-#   -ksp_view \
-#   -options_left \
-#   -options_file "${OPTIONS_FILE}" \
-#   --uniform-levels "${UNIFORM_LEVELS}" \
-#   --adaptive-levels "${ADAPTIVE_LEVELS}" \
-#   --level-offset "${LEVEL_OFFSET}" \
-#   --nsteps "${NSTEPS}" \
-#   --dim "${DIM}" \
-#   --simulation "${SIMULATION}"
-
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 # ============================================================
 # Default run parameters
 # ============================================================
 NPROC=8
-UNIFORM_LEVELS=1
-ADAPTIVE_LEVELS=2
-LEVEL_OFFSET=1
-NSTEPS=1200
-DIM=3
-SIMULATION="rb1"
+DIM=2
+SIMULATION="rb2"
 
-# ============================================================
-# AMG backend
-#
-# Available:
-#   gamg   -> PETSc HMG with GAMG-generated hierarchy
-#   hypre  -> HYPRE BoomerAMG
-# ============================================================
-AMG_BACKEND="gamg"
+# Default run parameters
+UNIFORM_LEVELS=1
+LEVEL_OFFSET=1
+
+# Parameters that may contain multiple values
+ADAPTIVE_LEVELS=(2)
+NSTEPS=(1200)
 
 EXECUTABLE="./MultiPhase_ex43"
 OPTIONS_FILE="./input/FS_solver.options"
 
 # ============================================================
-# Optional command-line overrides
+# Usage
+# ============================================================
+usage() {
+  cat <<EOF_USAGE
+Usage:
+  $0 [--uniform-levels n] \
+     [--adaptive-levels n1 n2 ...] \
+     [--level-offset n] \
+     [--nsteps n1 n2 ...]
+
+Examples:
+  $0 --uniform-levels 2 --adaptive-levels 2 3 4
+  $0 --level-offset 0 --nsteps 600 1200 2400
+  $0 --uniform-levels 2 --adaptive-levels 2 3 4 --level-offset 1 --nsteps 600 1200
+
+Only --adaptive-levels and --nsteps accept multiple values.
+The script runs the Cartesian product of those two lists.
+
+--uniform-levels and --level-offset each accept exactly one value.
+If an option is omitted, its default value defined at the top of the
+script is used.
+EOF_USAGE
+}
+
+# ============================================================
+# Read a list of non-negative integers following an option.
 #
-# Usage:
-#   ./run_ex43.sh [uniform-levels] [adaptive-levels] [level-offset]
+# Arguments:
+#   $1 = option name (for error messages)
+#   $2 = minimum allowed value
+#   remaining arguments = command-line tokens
 #
-# Example:
-#   ./run_ex43.sh 2 3 1
+# Parsing is performed directly below to keep array assignment simple.
 # ============================================================
-if [ $# -ge 1 ]; then
-  UNIFORM_LEVELS="$1"
-fi
+while (( $# > 0 )); do
+  case "$1" in
+    --uniform-levels)
+      if (( $# < 2 )) || [[ "$2" == --* ]]; then
+        echo "ERROR: --uniform-levels requires exactly one value."
+        exit 1
+      fi
+      if [[ ! "$2" =~ ^[1-9][0-9]*$ ]]; then
+        echo "ERROR: uniform levels must be a positive integer."
+        echo "       Invalid value: $2"
+        exit 1
+      fi
+      UNIFORM_LEVELS="$2"
+      shift 2
+      ;;
 
-if [ $# -ge 2 ]; then
-  ADAPTIVE_LEVELS="$2"
-fi
+    --adaptive-levels)
+      shift
+      ADAPTIVE_LEVELS=()
 
-if [ $# -ge 3 ]; then
-  LEVEL_OFFSET="$3"
-fi
+      while (( $# > 0 )) && [[ "$1" != --* ]]; do
+        if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+          echo "ERROR: adaptive levels must be non-negative integers."
+          echo "       Invalid value: $1"
+          exit 1
+        fi
+        ADAPTIVE_LEVELS+=("$1")
+        shift
+      done
+
+      if (( ${#ADAPTIVE_LEVELS[@]} == 0 )); then
+        echo "ERROR: --adaptive-levels requires at least one value."
+        exit 1
+      fi
+      ;;
+
+    --level-offset)
+      if (( $# < 2 )) || [[ "$2" == --* ]]; then
+        echo "ERROR: --level-offset requires exactly one value."
+        exit 1
+      fi
+      if [[ ! "$2" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: level offset must be a non-negative integer."
+        echo "       Invalid value: $2"
+        exit 1
+      fi
+      LEVEL_OFFSET="$2"
+      shift 2
+      ;;
+
+    --nsteps)
+      shift
+      NSTEPS=()
+
+      while (( $# > 0 )) && [[ "$1" != --* ]]; do
+        if [[ ! "$1" =~ ^[1-9][0-9]*$ ]]; then
+          echo "ERROR: nsteps must be positive integers."
+          echo "       Invalid value: $1"
+          exit 1
+        fi
+        NSTEPS+=("$1")
+        shift
+      done
+
+      if (( ${#NSTEPS[@]} == 0 )); then
+        echo "ERROR: --nsteps requires at least one value."
+        exit 1
+      fi
+      ;;
+
+    -h|--help)
+      usage
+      exit 0
+      ;;
+
+    *)
+      echo "ERROR: unknown argument '$1'."
+      echo
+      usage
+      exit 1
+      ;;
+  esac
+done
 
 # ============================================================
-# Check AMG backend
+# Generate FS_solver.options for one grid configuration
 # ============================================================
-case "${AMG_BACKEND}" in
-  gamg|hypre)
-    ;;
-  *)
-    echo "ERROR: AMG_BACKEND must be either 'gamg' or 'hypre'."
-    echo "       Current value: ${AMG_BACKEND}"
-    exit 1
-    ;;
-esac
+generate_options_file() {
+  local uniform_levels="$1"
+  local adaptive_levels="$2"
+  local level_offset="$3"
+  local nlevels
 
-# ============================================================
-# Number of solver levels
-# ============================================================
-N=$((UNIFORM_LEVELS + ADAPTIVE_LEVELS - LEVEL_OFFSET))
+  nlevels=$((uniform_levels + adaptive_levels - level_offset))
 
-echo "============================================================"
-echo "ex43 run configuration"
-echo "============================================================"
-echo "MPI ranks       : ${NPROC}"
-echo "Uniform levels  : ${UNIFORM_LEVELS}"
-echo "Adaptive levels : ${ADAPTIVE_LEVELS}"
-echo "Level offset    : ${LEVEL_OFFSET}"
-echo "Solver levels N : ${N}"
-echo "AMG backend     : ${AMG_BACKEND}"
-echo "Options file    : ${OPTIONS_FILE}"
-echo "============================================================"
+  if (( nlevels < 1 )); then
+    echo "ERROR: Number of solver levels must be >= 1." >&2
+    echo "       N = uniform-levels + adaptive-levels - level-offset" >&2
+    echo "       N = ${uniform_levels} + ${adaptive_levels} - ${level_offset} = ${nlevels}" >&2
+    return 1
+  fi
 
-# ============================================================
-# Generate FS_solver.options
-# ============================================================
-mkdir -p "$(dirname "${OPTIONS_FILE}")"
+  mkdir -p "$(dirname "${OPTIONS_FILE}")"
+  : > "${OPTIONS_FILE}"
 
-: > "${OPTIONS_FILE}"
-
-for ((i=1; i<N; ++i)); do
-
-  cat >> "${OPTIONS_FILE}" <<EOF
+  for ((i=1; i<nlevels; ++i)); do
+    cat >> "${OPTIONS_FILE}" <<EOF_OPTIONS
 # ============================================================
 # Level ${i}
 # ============================================================
@@ -275,16 +178,8 @@ for ((i=1; i<N; ++i)); do
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
 
-EOF
-
-  # ==========================================================
-  # GAMG through PETSc HMG
-  # ==========================================================
-  if [ "${AMG_BACKEND}" = "gamg" ]; then
-
-    cat >> "${OPTIONS_FILE}" <<EOF
 # ------------------------------------------------------------
-# Velocity - PETSc HMG / GAMG
+# Velocity - PETSc HMG with GAMG hierarchy
 # ------------------------------------------------------------
 -level-${i}fieldsplit_0_ksp_type preonly
 
@@ -303,7 +198,7 @@ EOF
 -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
 
 # ------------------------------------------------------------
-# Pressure - PETSc HMG / GAMG
+# Pressure - PETSc HMG with GAMG hierarchy
 # ------------------------------------------------------------
 -level-${i}fieldsplit_1_ksp_type preonly
 
@@ -322,74 +217,55 @@ EOF
 -level-${i}fieldsplit_1_mg_levels_pc_type sor
 -level-${i}fieldsplit_1_mg_levels_pc_sor_local_symmetric
 
-EOF
+EOF_OPTIONS
+  done
 
-  # ==========================================================
-  # HYPRE BoomerAMG
-  # ==========================================================
-  elif [ "${AMG_BACKEND}" = "hypre" ]; then
+  printf '%s\n' "${nlevels}"
+}
 
-    cat >> "${OPTIONS_FILE}" <<EOF
-# ------------------------------------------------------------
-# Velocity - HYPRE BoomerAMG
-# ------------------------------------------------------------
--level-${i}fieldsplit_0_ksp_type preonly
+# ============================================================
+# Run all requested combinations
+# ============================================================
+TOTAL_RUNS=$(( ${#ADAPTIVE_LEVELS[@]} * ${#NSTEPS[@]} ))
+RUN_INDEX=0
 
--level-${i}fieldsplit_0_pc_type hypre
--level-${i}fieldsplit_0_pc_hypre_type boomeramg
+for adaptive_levels in "${ADAPTIVE_LEVELS[@]}"; do
 
--level-${i}fieldsplit_0_pc_hypre_boomeramg_max_iter 1
--level-${i}fieldsplit_0_pc_hypre_boomeramg_tol 0.0
+  N=$(generate_options_file \
+    "${UNIFORM_LEVELS}" \
+    "${adaptive_levels}" \
+    "${LEVEL_OFFSET}")
 
--level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_down 1
--level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_up 1
--level-${i}fieldsplit_0_pc_hypre_boomeramg_grid_sweeps_coarse 1
+  for nsteps in "${NSTEPS[@]}"; do
+    RUN_INDEX=$((RUN_INDEX + 1))
 
--level-${i}fieldsplit_0_pc_hypre_boomeramg_relax_type_all SOR/Jacobi
--level-${i}fieldsplit_0_pc_hypre_boomeramg_coarsen_type HMIS
--level-${i}fieldsplit_0_pc_hypre_boomeramg_interp_type ext+i
+    echo "============================================================"
+    echo "ex43 run ${RUN_INDEX}/${TOTAL_RUNS}"
+    echo "============================================================"
+    echo "MPI ranks       : ${NPROC}"
+    echo "Uniform levels  : ${UNIFORM_LEVELS}"
+    echo "Adaptive levels : ${adaptive_levels}"
+    echo "Level offset    : ${LEVEL_OFFSET}"
+    echo "Solver levels N : ${N}"
+    echo "Number of steps : ${nsteps}"
+    echo "Dimension       : ${DIM}"
+    echo "Simulation      : ${SIMULATION}"
+    echo "Options file    : ${OPTIONS_FILE}"
+    echo "============================================================"
 
-# ------------------------------------------------------------
-# Pressure - HYPRE BoomerAMG
-# ------------------------------------------------------------
--level-${i}fieldsplit_1_ksp_type preonly
+    mpirun -n "${NPROC}" "${EXECUTABLE}" \
+      -matptap_via allatonce \
+      -ksp_monitor_true_residual \
+      -log_view_memory \
+      -options_left \
+      -options_file "${OPTIONS_FILE}" \
+      --uniform-levels "${UNIFORM_LEVELS}" \
+      --adaptive-levels "${adaptive_levels}" \
+      --level-offset "${LEVEL_OFFSET}" \
+      --nsteps "${nsteps}" \
+      --dim "${DIM}" \
+      --simulation "${SIMULATION}"
 
--level-${i}fieldsplit_1_pc_type hypre
--level-${i}fieldsplit_1_pc_hypre_type boomeramg
-
--level-${i}fieldsplit_1_pc_hypre_boomeramg_max_iter 1
--level-${i}fieldsplit_1_pc_hypre_boomeramg_tol 0.0
-
--level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_down 1
--level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_up 1
--level-${i}fieldsplit_1_pc_hypre_boomeramg_grid_sweeps_coarse 1
-
--level-${i}fieldsplit_1_pc_hypre_boomeramg_relax_type_all SOR/Jacobi
-
-EOF
-
-  fi
-
+    echo
+  done
 done
-
-echo "Generated ${OPTIONS_FILE} for levels 1 through $((N - 1))."
-echo "AMG backend: ${AMG_BACKEND}"
-echo
-
-# ============================================================
-# Run ex43
-# ============================================================
-mpirun -n "${NPROC}" "${EXECUTABLE}" \
-  -matptap_via allatonce \
-  -ksp_monitor_true_residual \
-  -log_view_memory \
-  -ksp_view \
-  -options_left \
-  -options_file "${OPTIONS_FILE}" \
-  --uniform-levels "${UNIFORM_LEVELS}" \
-  --adaptive-levels "${ADAPTIVE_LEVELS}" \
-  --level-offset "${LEVEL_OFFSET}" \
-  --nsteps "${NSTEPS}" \
-  --dim "${DIM}" \
-  --simulation "${SIMULATION}"
-
