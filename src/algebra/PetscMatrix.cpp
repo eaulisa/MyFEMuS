@@ -229,7 +229,7 @@ namespace femus {
       assert((m_local == m_global) && (n_local == n_global));
       if(n_nz.empty())
         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
-                               PETSC_DEFAULT, (int*) PETSC_NULLPTR, &_mat);
+                               PETSC_DEFAULT, (int * ) PETSC_NULLPTR, &_mat);
       else
         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
                                PETSC_DEFAULT, (int*) &n_nz[0], &_mat);

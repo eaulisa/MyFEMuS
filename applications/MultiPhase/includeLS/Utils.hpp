@@ -29,12 +29,16 @@ Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
                  BBoxToIel & bbox,
+                 const std::vector<double> x_min,
+                 const std::vector<double> x_max,
                  const std::vector<std::string> &velName,
                  const unsigned vlevel,
                  const double dt);
 
 void rkStep(MultiLevelSolution & mlSol,
             BBoxToIel & bbox,
+            const std::vector<double> x_min,
+            const std::vector<double> x_max,
             const std::vector<MyVector<double>> &X,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
@@ -55,6 +59,8 @@ void InterpolateSolution(LevelMarkers &l0,
 
 void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution &mlSol1 /* source */,
                      BBoxToIel &bbox,
+                     const std::vector<double> x_min,
+                     const std::vector<double> x_max,
                      const std::vector<std::string> solName,
                      const unsigned s0Level,
                      const unsigned s1Level,
@@ -1045,6 +1051,8 @@ void GetAllSolutionPoints(MultiLevelSolution & mlSol, const std::string & name, 
 void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
                      MultiLevelSolution & mlSol1 /* marker send */,
                      BBoxToIel & bbox,
+                     const std::vector<double> x_min,
+                     const std::vector<double> x_max,
                      const std::vector<std::string> solName,
                      const unsigned s0Level,
                      const unsigned s1Level,
@@ -1083,7 +1091,7 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
 
   unsigned dim = X1.size();
 
-  if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, vName, vLevel, dt);
+  if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, x_min, x_max, vName, vLevel, dt);
 
   LevelMarkers l0;
   double useSol = 1.; // rather than solOld = 0.
@@ -1102,7 +1110,7 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
     const MyVector<double> &psiProjected = l0.GetFields()[k];
     const std::vector<bool> &isInsideDomain = l0.GetPointInsideDomain();
 
-    solVec1->zero();
+    // solVec1->zero();
     unsigned offset = psiProjected.begin();
     for (unsigned i = psiProjected.begin(); i < psiProjected.end(); ++i) {
       if (isInsideDomain[i - offset]) {
@@ -1130,6 +1138,8 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
                  BBoxToIel & bbox,
+                 const std::vector<double> x_min,
+                 const std::vector<double> x_max,
                  const std::vector<std::string> &velName,
                  const unsigned vLevel,
                  const double dt) {
@@ -1141,9 +1151,10 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
   const std::vector <double> c = {1., 1., 1., 1.};
   const std::vector<std::vector <double> > a = {{}, {0.5}, {0, 0.5}, {0., 0., 1.}};
   const std::vector <double> b = {1. / 6., 1. / 3., 1. / 3., 1. / 6.} ;
+  std::vector<MyVector<double>> Xold = X;
   std::vector<std::vector<MyVector<double>>> K;
   for(unsigned rk = 0; rk < rk_nsteps; rk++) {
-    rkStep(mlSol, bbox, X, K, rk, velName, vLevel, dt, c[rk], a[rk]);
+    rkStep(mlSol, bbox, x_min, x_max, X, K, rk, velName, vLevel, dt, c[rk], a[rk]);
   }
   for(unsigned rk = 0; rk < rk_nsteps; rk++) {
     for(unsigned d = 0; d < dim; d++) {
@@ -1152,10 +1163,33 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
       }
     }
   }
+  const double boundaryTol = 1.e-12;
+
+  for(unsigned i = X[0].begin();
+      i < X[0].end();
+      ++i) {
+
+    for(unsigned d = 0; d < dim; ++d) {
+      if(std::abs(Xold[d][i] - x_min[d]) < boundaryTol &&
+          std::abs(X[d][i]    - x_min[d]) < boundaryTol) {
+
+        X[d][i] = x_min[d];
+      }
+
+      else if(std::abs(Xold[d][i] - x_max[d]) < boundaryTol &&
+              std::abs(X[d][i]    - x_max[d]) < boundaryTol) {
+
+        X[d][i] = x_max[d];
+      }
+    }
+  }
+
 }
 
 void rkStep(MultiLevelSolution & mlSol,
             BBoxToIel & bbox,
+            const std::vector<double> x_min,
+            const std::vector<double> x_max,
             const std::vector<MyVector<double>> &X,
             std::vector<std::vector<MyVector<double>>> &K,
             const unsigned rkStep,
@@ -1201,6 +1235,23 @@ void rkStep(MultiLevelSolution & mlSol,
     for (unsigned i = Xk[d].begin(); i < Xk[d].end(); ++i) {
       for(unsigned j = 0; j < a.size(); j++) {
         Xk[d][i] += a[j] * K[j][d][i] * dt;
+      }
+
+      const double boundaryTol = 1.e-12;
+
+      for (unsigned k = 0; k < X.size(); ++k) {
+
+        if (std::abs(X[k][i] - x_min[k]) < boundaryTol &&
+            std::abs(Xk[k][i] - x_min[k]) < boundaryTol) {
+
+          Xk[k][i] = x_min[k];
+        }
+
+        else if (std::abs(X[k][i] - x_max[k]) < boundaryTol &&
+                 std::abs(Xk[k][i] - x_max[k]) < boundaryTol) {
+
+          Xk[k][i] = x_max[k];
+        }
       }
     }
   }

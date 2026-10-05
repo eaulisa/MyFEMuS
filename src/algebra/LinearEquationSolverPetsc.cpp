@@ -335,7 +335,7 @@ namespace femus {
     PetscLogDouble t1;
     PetscLogDouble t2;
     PetscTime (&t1);
-    std::cout << "AAAAAA\n";
+    // std::cout << "AAAAAA\n";
     if (ksp_clean) {
       Mat KK = (static_cast< PetscMatrix* > (_KK))->mat();
 
@@ -350,17 +350,17 @@ namespace femus {
         KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE);
         KSPSetNormType (_ksp, KSP_NORM_NONE);
       }
-      std::cout << "AA1\n";
+      // std::cout << "AA1\n";
       KSPSetFromOptions (_ksp);
       KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
 
-      std::cout << "AA11\n";
+      // std::cout << "AA11\n";
       KSPGMRESSetRestart (_ksp, _restart);
-      std::cout << "AA12\n";
+      // std::cout << "AA12\n";
       KSPGMRESSetCGSRefinementType(_ksp, KSP_GMRES_CGS_REFINE_IFNEEDED);
-      std::cout << "AA13\n";
+      // std::cout << "AA13\n";
       KSPSetUp (_ksp);
-      std::cout << "AA2\n";
+      // std::cout << "AA2\n";
 
 //       PetscViewer    viewer;
 //       PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,1800,1800,&viewer);
@@ -373,10 +373,10 @@ namespace femus {
 //       std::cin>>a;
     }
 
-    std::cout << "BBBBB\n";
+    // std::cout << "BBBBB\n";
 
     ZerosBoundaryResiduals();
-    std::cout << "BB1\n";
+    // std::cout << "BB1\n";
     KSPSolve (_ksp, (static_cast< PetscVector* > (_RES))->vec(), (static_cast< PetscVector* > (_EPSC))->vec());
 
     _RESC->matrix_mult (*_EPSC, *_KK);

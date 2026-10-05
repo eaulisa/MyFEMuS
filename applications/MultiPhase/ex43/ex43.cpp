@@ -334,9 +334,9 @@ int main(int argc, char **argv) {
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
-      // std::string meshName = "./input/tri.neu";
-      // mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      std::string meshName = "./input/unstructured_RB_tri_h8.neu";
+      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -420,8 +420,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       if (iproc == 0) {
@@ -485,7 +485,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 0 + 0 * nSteps + 1; t++) {
+      for (unsigned t = 1; t <= 0 + nSteps + 1; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -650,9 +650,9 @@ int main(int argc, char **argv) {
           pdeSys2_l->MergeNullSpaceBases(true);
 
         }
-        PrintMemorySnapshot("presolve");
+        // PrintMemorySnapshot("presolve");
         system2.MGsolve();
-        PrintMemorySnapshot("postsolve");
+        // PrintMemorySnapshot("postsolve");
         //return 0;
 
         for(unsigned l = 0; l < msh2.size(); l++)
@@ -763,10 +763,10 @@ int main(int argc, char **argv) {
         // if (t == 1)
         //   WritePointsVTK("./output/points.0.vtk", X0);
 
-        RungeKutta4(X0, *mlsol0, bbox, vName, levelC, dt); // move the interface points forward in time using the velocity mls0(lC)
+        RungeKutta4(X0, *mlsol0, bbox, x_min, x_max, vName, levelC, dt); // move the interface points forward in time using the velocity mls0(lC)
 
-        if (t % 1 == 0)
-          WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
+        // if (t % 1 == 0)
+        //   WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
 
         // std::vector<MyVector<double>> field = X0;
         LevelMarkers l0;
@@ -795,8 +795,8 @@ int main(int argc, char **argv) {
         mlsol1->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
         mlsol1->GenerateBdc("All");
 
-        ProjectSolution(*mlsol0, *mlsol1, bbox, {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
-        ProjectSolution(*mlsol0, *mlsol1, bbox, vName, levelC, levelC);
+        ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
+        ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, vName, levelC, levelC);
 
         UpdateColorFunction(*mlsol1, psiName, cName);
         if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
@@ -1417,7 +1417,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
   start_time = clock();
 
-  PrintMemorySnapshot("pre");
+  // PrintMemorySnapshot("pre");
 
   vector < SparseMatrix* > PP, RR, PPamr, RRamr;
   PP = mlPdeSys->GetProjectionMatrix();
@@ -1461,7 +1461,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
-  PrintMemorySnapshot("post");
+  // PrintMemorySnapshot("post");
 
   start_time = clock();
 
@@ -1469,6 +1469,116 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK2->matrix_add (1., *LinSolver[level0 + level2]->_KK, "different_nonzero_pattern");
   *RES2 += *LinSolver[level0 + level2]->_RES;
   if(printdb) std::cout << "After KK sum \n" << std::flush;
+
+// #include "PetscMatrix.hpp"
+
+// // ...
+
+// femus::PetscMatrix* petscKK2 =
+//     dynamic_cast<femus::PetscMatrix*>(KK2);
+
+// if (!petscKK2) {
+//     std::cerr << "ERROR: KK2 is not a femus::PetscMatrix!" << std::endl;
+//     abort();
+// }
+
+// // PETSc Mat contained inside FEMuS SparseMatrix
+// Mat A = petscKK2->mat();
+
+// // ============================================================
+// // Find zero diagonal rows
+// // ============================================================
+
+// IS zrows;
+
+// PetscErrorCode ierr = MatFindZeroDiagonals(A, &zrows);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// // ============================================================
+// // Matrix ownership
+// // ============================================================
+
+// PetscInt rstart, rend;
+
+// ierr = MatGetOwnershipRange(A, &rstart, &rend);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// // ============================================================
+// // MPI rank
+// // ============================================================
+
+// PetscMPIInt rank;
+
+// MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+// // ============================================================
+// // Print ownership and global row corresponding to local row 8
+// // ============================================================
+
+// PetscPrintf(
+//     PETSC_COMM_SELF,
+//     "[%d] KK2 ownership = [%d,%d), "
+//     "local row 8 -> global row %d\n",
+//     (int)rank,
+//     (int)rstart,
+//     (int)rend,
+//     (int)(rstart + 8)
+// );
+
+// // ============================================================
+// // Print all zero diagonal rows
+// // ============================================================
+
+// PetscPrintf(
+//     PETSC_COMM_SELF,
+//     "[%d] Zero diagonal rows:\n",
+//     (int)rank
+// );
+
+// ierr = ISView(zrows, PETSC_VIEWER_STDOUT_WORLD);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// // ============================================================
+// // More explicit: print global row and local matrix row
+// // ============================================================
+
+// PetscInt nz;
+// const PetscInt* indices;
+
+// ierr = ISGetLocalSize(zrows, &nz);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// ierr = ISGetIndices(zrows, &indices);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// for (PetscInt k = 0; k < nz; ++k) {
+
+//     const PetscInt global_row = indices[k];
+
+//     // Only meaningful if the row belongs to this MPI rank
+//     if (global_row >= rstart && global_row < rend) {
+
+//         const PetscInt local_row = global_row - rstart;
+
+//         PetscPrintf(
+//             PETSC_COMM_SELF,
+//             "[%d] zero diagonal: global row = %d, local row = %d\n",
+//             (int)rank,
+//             (int)global_row,
+//             (int)local_row
+//         );
+//     }
+// }
+
+// ierr = ISRestoreIndices(zrows, &indices);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
+
+// // ============================================================
+// // Destroy IS
+// // ============================================================
+
+// ierr = ISDestroy(&zrows);
+// CHKERRABORT(PETSC_COMM_WORLD, ierr);
 
   //double tolerance = 0.;
   //KK2->RemoveZeroEntries(tolerance);

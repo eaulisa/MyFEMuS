@@ -255,8 +255,6 @@ for adaptive_levels in "${ADAPTIVE_LEVELS[@]}"; do
 
     mpirun -n "${NPROC}" "${EXECUTABLE}" \
       -matptap_via allatonce \
-      -ksp_monitor_true_residual \
-      -log_view_memory \
       -options_left \
       -options_file "${OPTIONS_FILE}" \
       --uniform-levels "${UNIFORM_LEVELS}" \

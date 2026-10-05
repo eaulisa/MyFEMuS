@@ -184,9 +184,9 @@ class LevelSetMarkers {
     }
 
     inline std::vector<std::vector<double>>
-                                         computeEdgeIntersections(const std::vector<std::vector<double>> &x,
-                                             const std::vector<double> &phi,
-    const ex40_topo::EdgeInfo &E) {
+    computeEdgeIntersections(const std::vector<std::vector<double>> &x,
+                             const std::vector<double> &phi,
+                             const ex40_topo::EdgeInfo &E) {
       int dim = x.size();
       std::vector<std::vector<double>> edge_roots(dim);
 
@@ -198,7 +198,7 @@ class LevelSetMarkers {
 
       std::vector<double> edge_values(3);
       std::vector<std::vector<double>> edge_coords(dim,
-                                    std::vector<double>(3, 0));
+          std::vector<double>(3, 0));
 
       for (int idof = 0; idof < 3; idof++) {
         for (int idim = 0; idim < dim; idim++) {
@@ -271,10 +271,10 @@ class LevelSetMarkers {
     }
 
     inline std::vector<std::vector<double>>
-                                         computeElementMarkers(std::vector<std::vector<double>> element_roots,
-                                             const std::vector<std::vector<double>> &x,
-                                             const std::vector<double> &phi,
-    const ex40_topo::ElementTopology &topo) {
+    computeElementMarkers(std::vector<std::vector<double>> element_roots,
+                          const std::vector<std::vector<double>> &x,
+                          const std::vector<double> &phi,
+                          const ex40_topo::ElementTopology &topo) {
       int dim = element_roots.size();
       std::vector<std::vector<double>> element_markers(dim);
 
@@ -449,9 +449,9 @@ class LevelSetMarkers {
     // ================================================================
 
     std::vector<std::vector<double>>
-                                  deduplicatePoints(const std::vector<std::vector<double>> &pts,
-                                      std::vector<std::size_t> *old_to_new = nullptr,
-    double tol = 1e-12) {
+    deduplicatePoints(const std::vector<std::vector<double>> &pts,
+                      std::vector<std::size_t> *old_to_new = nullptr,
+                      double tol = 1e-12) {
       if (pts.empty() || pts[0].empty())
         return pts;
 
@@ -508,13 +508,13 @@ class LevelSetMarkers {
     // Returns phi_children[i][j] = value on node j of child i
     // ---------------------------------------------------------------
     static std::vector<std::vector<double>> prolongPhi(
-                                           const std::vector<double> &phi_parent,
-    const std::vector<std::vector<std::vector<std::pair<unsigned, double>>>> &PMatrix) {
+      const std::vector<double> &phi_parent,
+      const std::vector<std::vector<std::vector<std::pair<unsigned, double>>>> &PMatrix) {
 
       unsigned nChildren = PMatrix.size();
       unsigned nNodes    = PMatrix[0].size();
       std::vector<std::vector<double>> phi_children(nChildren,
-                                    std::vector<double>(nNodes, 0.));
+          std::vector<double>(nNodes, 0.));
       for (unsigned i = 0; i < nChildren; i++)
         for (unsigned j = 0; j < nNodes; j++)
           for (const auto &p : PMatrix[i][j])
