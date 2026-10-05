@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
     if (t == 1)
       WritePointsVTK("./output/points.0.vtk", X0);
 
-    RungeKutta4(X0, *mlsol0, bbox, vName, nLevels - 1, dt);
+    RungeKutta4(X0, *mlsol0, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), vName, nLevels - 1, dt);
     //rk.rkForward(X0);
 
     if (t % 1 == 0)
@@ -277,9 +277,9 @@ int main(int argc, char **argv) {
     //InitSol(*mlsol1, vName, time, period);
     //for(unsigned d = 0; d < dim; d++) mlsol1->Initialize(vName[d].c_str(), Initvel[d]);
 
-    ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, *inflow_bd, -dt, time, period);
     // ProjectSolution(*mlsol0, *mlsol1, bbox, {"Psi"}, nLevels - 1, nLevels - 1, vName, nLevels - 1, zero_bd, -dt, time, period);
-    ProjectSolution(*mlsol0, *mlsol1, bbox, vName, nLevels - 1, nLevels - 1);
+    ProjectSolution(*mlsol0, *mlsol1, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), vName, nLevels - 1, nLevels - 1);
 
     // Export solution to VTK (selected levels)
 

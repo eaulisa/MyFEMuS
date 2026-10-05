@@ -2,6 +2,8 @@
 #include <sys/types.h>
 
 #include "FemusInit.hpp"
+
+#include "LinearEquationSolverPetscFieldSplit.hpp"
 #include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
 
@@ -135,11 +137,11 @@ int main(int argc, char **argv) {
 
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  // if (nprocs == 1)
-  //   ProfilerStart("profiling.prof");
-
   int iproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
+
+  // if (nprocs == 1)
+  //   ProfilerStart("profiling.prof");
 
   SimulationArgs args;
 
@@ -335,8 +337,8 @@ int main(int argc, char **argv) {
 
       MultiLevelMesh mlMsh0;
       std::string meshName = "./input/unstructured_RB_tri_h8.neu";
-      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -420,8 +422,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      //mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       if (iproc == 0) {
@@ -644,10 +646,13 @@ int main(int argc, char **argv) {
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
-          LinearEquationSolver* pdeSys2_l  = system2._LinSolver[l];
+          LinearEquationSolver* pdeSys2_base  = system2._LinSolver[l];
           // const  std::vector<NumericVector*> *
-          pdeSys2_l->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
-          pdeSys2_l->MergeNullSpaceBases(true);
+          pdeSys2_base->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
+          pdeSys2_base->MergeNullSpaceBases(true);
+
+          LinearEquationSolverPetscFieldSplit* pdeSys2_FS = dynamic_cast<LinearEquationSolverPetscFieldSplit*>(pdeSys2_base);
+          FS_NS.BuildIndexSet(pdeSys2_base->GetOffset(), iproc, nprocs, l, pdeSys2_FS);
 
         }
         // PrintMemorySnapshot("presolve");

@@ -633,8 +633,8 @@ int main(int argc, char **argv) {
         system2.SetRichardsonScaleFactor(.8);
         if(dim == 3) system2.SetRichardsonScaleFactor(.4);
 
-        system2.SetNumberPreSmoothingStep(4);
-        system2.SetNumberPostSmoothingStep(4);
+        system2.SetNumberPreSmoothingStep(1);
+        system2.SetNumberPostSmoothingStep(1);
         // system2.SetTolerances(1.e-20, 1.e-20, 1.e+50, 50, 30);
 
         system2.SetPreconditionerFineGrids(MLU_PRECOND);
@@ -693,8 +693,8 @@ int main(int argc, char **argv) {
           }
 
           bbox.SetMesh(mlmsh0->GetLevel(0));
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, vName, levelC, levelF);
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, pName, levelC, levelF);
+          ProjectSolution(*mlsol0, *mlSolReference, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), vName, levelC, levelF);
+          ProjectSolution(*mlsol0, *mlSolReference, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), pName, levelC, levelF);
 
           final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
@@ -757,7 +757,7 @@ int main(int argc, char **argv) {
         // if (t == 1)
         //   WritePointsVTK("./output/points.0.vtk", X0);
 
-        RungeKutta4(X0, *mlsol0, bbox, vName, levelC, dt); // move the interface points forward in time using the velocity mls0(lC)
+        RungeKutta4(X0, *mlsol0, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), vName, levelC, dt); // move the interface points forward in time using the velocity mls0(lC)
 
         // if (t % 1 == 0)
         //   WritePointsVTK("./output/points." + std::to_string(t / 1) + ".vtk", X0);
@@ -789,8 +789,8 @@ int main(int argc, char **argv) {
         mlsol1->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
         mlsol1->GenerateBdc("All");
 
-        ProjectSolution(*mlsol0, *mlsol1, bbox, {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
-        ProjectSolution(*mlsol0, *mlsol1, bbox, vName, levelC, levelC);
+        ProjectSolution(*mlsol0, *mlsol1, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
+        ProjectSolution(*mlsol0, *mlsol1, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), vName, levelC, levelC);
 
         UpdateColorFunction(*mlsol1, psiName, cName);
         if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
@@ -816,7 +816,7 @@ int main(int argc, char **argv) {
 
         if(t == nSteps) {
           bbox.SetMesh(mlmsh0->GetLevel(0));
-          ProjectSolution(*mlsol0, *mlSolReference, bbox, {psiName}, levelF, levelF);
+          ProjectSolution(*mlsol0, *mlSolReference, bbox, std::vector<double>(dim, 0.), std::vector<double>(dim, 0.), {psiName}, levelF, levelF);
         }
 
       }
@@ -827,7 +827,7 @@ int main(int argc, char **argv) {
         final_diagnostics,
         std::move(mlSolReference)
       }
-      );
+                                 );
 
     }
 

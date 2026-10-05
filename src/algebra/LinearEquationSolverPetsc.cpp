@@ -357,7 +357,7 @@ namespace femus {
       // std::cout << "AA11\n";
       KSPGMRESSetRestart (_ksp, _restart);
       // std::cout << "AA12\n";
-      KSPGMRESSetCGSRefinementType(_ksp, KSP_GMRES_CGS_REFINE_IFNEEDED);
+      KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
       // std::cout << "AA13\n";
       KSPSetUp (_ksp);
       // std::cout << "AA2\n";

@@ -5,7 +5,7 @@ set -euo pipefail
 # ============================================================
 # Default run parameters
 # ============================================================
-NPROC=8
+NPROC=2
 DIM=2
 SIMULATION="rb2"
 
@@ -254,7 +254,6 @@ for adaptive_levels in "${ADAPTIVE_LEVELS[@]}"; do
     echo "============================================================"
 
     mpirun -n "${NPROC}" "${EXECUTABLE}" \
-      -matptap_via allatonce \
       -options_left \
       -options_file "${OPTIONS_FILE}" \
       --uniform-levels "${UNIFORM_LEVELS}" \
@@ -267,3 +266,6 @@ for adaptive_levels in "${ADAPTIVE_LEVELS[@]}"; do
     echo
   done
 done
+
+
+      #-matptap_via allatonce \

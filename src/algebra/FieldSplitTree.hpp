@@ -32,7 +32,7 @@
 #include "SchurPreType.hpp"
 
 #include "Mesh.hpp"
-
+#include "PetscMatrix.hpp"
 namespace femus {
 
   class LinearEquationSolverPetscFieldSplit;
@@ -59,10 +59,10 @@ namespace femus {
 
       void SetPC (KSP& ksp, const unsigned& level) ;
 
-      void SetSolver (KSP &ksp, const SolverType &solver);      
+      void SetSolver (KSP &ksp, const SolverType &solver);
 
-      void SetTolerances (const double& rtol, const double& abstol, const double& dtol, 
-                               const unsigned& maxits, const unsigned &restart = 30);
+      void SetTolerances (const double& rtol, const double& abstol, const double& dtol,
+                          const unsigned& maxits, const unsigned &restart = 30);
       void SetSchurFactorizationType (const SchurFactType& schurFactType);
       void SetSchurPreType (const SchurPreType& schurPreType);
 
@@ -109,27 +109,40 @@ namespace femus {
       unsigned _numberOfSplits;
       FieldSplitTree* _father;
       std::vector < FieldSplitTree* > _child;
-      std::vector < std::vector < unsigned > > _fieldsSplit;
+      std::vector < std::vector < unsigned > > _fieldsSplit; //_fieldsSplit[split][field];
       std::vector < unsigned > _fieldsAll;
       std::vector < unsigned > _solutionType;
       std::string _name;
-      std::vector < PetscInt* > _isSplitIndexPt;
-      std::vector < std::vector < IS > > _isSplit;
+      //std::vector < PetscInt* > _isSplitIndexPt;
+      std::vector < std::vector < IS > > _isSplit; //_isSplit[level][split]
       double _rtol;
       double _abstol;
       double _dtol;
       unsigned _maxits;
       unsigned _restart;
       double _richardsonScaleFactor;
-      
+
+      std::vector < std::vector<Mat>> _K, _P, _I, _R;
+
       SchurFactType _schurFactType;
       SchurPreType _schurPreType;
 
       std::vector < std::vector< std::vector < unsigned > > >_MatrixOffset;
 
-
       //for ASM pourposes
     public:
+      std::vector < std::vector < IS > > & GetISSplit() {
+        return _isSplit;
+      }
+      std::vector < std::vector<Mat>> & GetKSplit() {
+        return _K;
+      }
+      std::vector < std::vector<Mat>> & GetPSplit() {
+        return _P;
+      }
+      std::vector < std::vector<Mat>> & GetISplit() {
+        return _I;
+      }
 
       void SetAsmStandard (const bool &standard) {
         _asmStandard = standard;
@@ -189,14 +202,8 @@ namespace femus {
       bool _asmStandard;
       unsigned _asmOverlapping;
 
-
-
-
-
   };
 
-
 }
-
 
 #endif

@@ -174,6 +174,11 @@ namespace femus {
         }
       }
     }
+    for (unsigned level = 0; level < _I.size(); ++level) {
+      for (unsigned i = 0; i < _I[level].size(); ++i) {
+        if(_I[level][i] != NULL) MatDestroy(&_I[level][i]);
+      }
+    }
 
     for (unsigned i = 0; i < _asmLocalIs.size(); i++) {
       for (unsigned j = 0; j < _asmLocalIs[i].size(); j++) {
@@ -182,9 +187,9 @@ namespace femus {
       }
     }
 
-    for (unsigned i = 0; i < _isSplitIndexPt.size(); i++) {
-      delete [] _isSplitIndexPt[i];
-    }
+    // for (unsigned i = 0; i < _isSplitIndexPt.size(); i++) {
+    //   delete [] _isSplitIndexPt[i];
+    // }
   }
 
   void FieldSplitTree::PrintFieldSplitTree (const unsigned& counter) {
@@ -247,10 +252,8 @@ namespace femus {
         size += offsetp1 - offset;
       }
 
-      PetscInt* isSplitIndex = new PetscInt [size];
-      unsigned ptSize = _isSplitIndexPt.size();
-      _isSplitIndexPt.resize (ptSize + 1);
-      _isSplitIndexPt[ptSize] = isSplitIndex;
+      PetscInt *isSplitIndex = nullptr;
+      PetscMalloc1(size, &isSplitIndex);
 
       unsigned counter = 0;
 
@@ -265,9 +268,7 @@ namespace femus {
         }
       }
 
-      ISCreateGeneral (MPI_COMM_WORLD, size, isSplitIndex, PETSC_USE_POINTER, &_isSplit[level][i]);
-
-      // on the child branches
+      ISCreateGeneral (MPI_COMM_WORLD, size, isSplitIndex, PETSC_OWN_POINTER, &_isSplit[level][i]);
 
       std::vector < std::vector < unsigned > > tempFields = _child[i]->_fieldsSplit;
 
