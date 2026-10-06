@@ -83,7 +83,7 @@ namespace femus {
       virtual void BuildBdcIndex (const vector <unsigned> &variable_to_be_solved);
       virtual void SetPreconditioner (KSP& subksp, PC& subpc);
 
-      void MGSolve (const bool ksp_clean);
+      virtual void MGSolve (const bool ksp_clean);
 
       inline void MGClear() {
         KSPDestroy (&_ksp);

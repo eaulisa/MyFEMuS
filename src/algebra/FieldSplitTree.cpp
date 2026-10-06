@@ -174,10 +174,25 @@ namespace femus {
         }
       }
     }
-    for (unsigned level = 0; level < _I.size(); ++level) {
-      for (unsigned i = 0; i < _I[level].size(); ++i) {
-        if(_I[level][i] != NULL) MatDestroy(&_I[level][i]);
+
+    for (unsigned level = 0; level < _Pgmg.size(); ++level) {
+      if (_Pgmg[level] != NULL) {
+        MatDestroy(&_Pgmg[level]);
       }
+    }
+    for (unsigned level = 0; level < _Rgmg.size(); ++level) {
+      if (_Rgmg[level] != NULL) {
+        MatDestroy(&_Rgmg[level]);
+      }
+    }
+    for (unsigned level = 0; level < _Xgmg.size(); ++level) {
+      if (_Xgmg[level] != NULL)   VecDestroy(&_Xgmg[level]);
+    }
+    for (unsigned level = 0; level < _RESgmg.size(); ++level) {
+      if (_RESgmg[level] != NULL) VecDestroy(&_RESgmg[level]);
+    }
+    for (unsigned level = 0; level < _RHSgmg.size(); ++level) {
+      if (_RHSgmg[level] != NULL) VecDestroy(&_RHSgmg[level]);
     }
 
     for (unsigned i = 0; i < _asmLocalIs.size(); i++) {
@@ -220,6 +235,8 @@ namespace femus {
 
   void FieldSplitTree::BuildIndexSet (const std::vector< std::vector < unsigned > >& KKoffset, const unsigned& iproc,
                                       const unsigned& nprocs, const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
+
+    std::cout << "DDDDDDDDDDDDDDDDDDDD " << level << "\n";
 
     if (_MatrixOffset.size() < level + 1) _MatrixOffset.resize (level + 1);
 

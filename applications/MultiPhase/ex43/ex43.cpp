@@ -629,8 +629,10 @@ int main(int argc, char **argv) {
         // FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
         FieldSplitTree FS_NS(RICHARDSON, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
 
+        CoarseLevelInclude includeCoarseLevel = INCLUDE_COARSE_LEVEL_TRUE;
+
         //system2.SetLinearEquationSolverType(FEMuS_DEFAULT);
-        system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT); // Additive Swartz Method
+        system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT, includeCoarseLevel); // Additive Swartz Method
         //system2.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
 
         // attach the assembling function to system
@@ -651,8 +653,8 @@ int main(int argc, char **argv) {
           pdeSys2_base->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
           pdeSys2_base->MergeNullSpaceBases(true);
 
-          LinearEquationSolverPetscFieldSplit* pdeSys2_FS = dynamic_cast<LinearEquationSolverPetscFieldSplit*>(pdeSys2_base);
-          FS_NS.BuildIndexSet(pdeSys2_base->GetOffset(), iproc, nprocs, l, pdeSys2_FS);
+          // LinearEquationSolverPetscFieldSplit* pdeSys2_FS = dynamic_cast<LinearEquationSolverPetscFieldSplit*>(pdeSys2_base);
+          // FS_NS.BuildIndexSet(pdeSys2_base->GetOffset(), iproc, nprocs, l, pdeSys2_FS);
 
         }
         // PrintMemorySnapshot("presolve");

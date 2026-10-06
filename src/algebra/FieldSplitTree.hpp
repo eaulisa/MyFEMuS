@@ -122,7 +122,9 @@ namespace femus {
       unsigned _restart;
       double _richardsonScaleFactor;
 
-      std::vector < std::vector<Mat>> _K, _P, _I, _R;
+      //GMG objects to be use only if the PC_GMG is used
+      std::vector<Mat> _Kgmg, _Pgmg, _Rgmg;
+      std::vector<Vec> _RESgmg, _Xgmg, _RHSgmg;
 
       SchurFactType _schurFactType;
       SchurPreType _schurPreType;
@@ -131,17 +133,26 @@ namespace femus {
 
       //for ASM pourposes
     public:
-      std::vector < std::vector < IS > > & GetISSplit() {
+      std::vector<std::vector < IS > > & GetISSplit() {
         return _isSplit;
       }
-      std::vector < std::vector<Mat>> & GetKSplit() {
-        return _K;
+      std::vector<Mat> & GetKgmg() {
+        return _Kgmg;
       }
-      std::vector < std::vector<Mat>> & GetPSplit() {
-        return _P;
+      std::vector<Mat> & GetPgmg() {
+        return _Pgmg;
       }
-      std::vector < std::vector<Mat>> & GetISplit() {
-        return _I;
+      std::vector<Mat> & GetRgmg() {
+        return _Rgmg;
+      }
+      std::vector<Vec> & GetRESgmg() {
+        return _RESgmg;
+      }
+      std::vector<Vec> & GetXgmg() {
+        return _Xgmg;
+      }
+      std::vector<Vec> & GetRHSgmg() {
+        return _RHSgmg;
       }
 
       void SetAsmStandard (const bool &standard) {

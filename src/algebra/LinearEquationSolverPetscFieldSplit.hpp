@@ -44,6 +44,8 @@ namespace femus {
                        SparseMatrix* PP, SparseMatrix* RR,
                        const unsigned &npre, const unsigned &npost) override;
 
+      void MGSolve (const bool ksp_clean) override;
+
       /** Destructor */
       ~LinearEquationSolverPetscFieldSplit() {};
 

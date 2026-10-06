@@ -324,8 +324,9 @@ namespace femus {
       for(unsigned i = 0; i < igridn + 1; i++) {
         unsigned npre = (i == 0) ? _npre0 : _npre;
         unsigned npost = (i == 0) ? 0 : _npost;
-        if(_RR[i])
+        if(_RR[i]) {
           _LinSolver[i]->MGSetLevel(_LinSolver[igridn], igridn, _VariablesToBeSolvedIndex, _PP[i], _RR[i], npre, npost);
+        }
         else
           _LinSolver[i]->MGSetLevel(_LinSolver[igridn], igridn, _VariablesToBeSolvedIndex, _PP[i], _PP[i], npre, npost);
       }
