@@ -258,7 +258,7 @@ namespace femus {
     _isSplit[level].resize (GetNumberOfSplits());
 
     for (unsigned i = 0; i < GetNumberOfSplits(); i++) {
-
+      std::cout << "BBBBBB " << level << "\n";
       //on the actual structure
       unsigned size = 0;
 

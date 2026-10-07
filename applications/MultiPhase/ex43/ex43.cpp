@@ -487,7 +487,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 0 + nSteps + 1; t++) {
+      for (unsigned t = 1; t <= 0 + 0 * nSteps + 1; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -643,7 +643,8 @@ int main(int argc, char **argv) {
         // initilaize and solve the system
         system2.init();
 
-        system2.SetSolverFineGrids(GMRES);
+        system2.SetOuterSolver(FGMRES);
+        //system2.SetSolverFineGrids(GMRES);
         system2.SetFieldSplitTree(&FS_NS);
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
 

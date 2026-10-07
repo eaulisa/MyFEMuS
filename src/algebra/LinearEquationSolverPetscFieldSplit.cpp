@@ -269,7 +269,7 @@ namespace femus {
 
                       PCMGGetSmoother (pcMGSplit, l, &subksp);
 
-                      KSPSetType (subksp, KSPCHEBYSHEV);
+                      KSPSetType (subksp, KSPGMRES);
 
                       KSPSetTolerances (subksp,
                                         PETSC_DEFAULT,
@@ -365,7 +365,7 @@ namespace femus {
                     }
                     else {
 
-                      PCSetType (subpc, PCJACOBI);
+                      PCSetType (subpc, PCILU);
                     }
 
                     //SetPreconditioner (subksp, subpc);

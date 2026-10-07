@@ -167,18 +167,20 @@ generate_options_file() {
 # ============================================================
 
 # Fieldsplit level solver/preconditioner
--level-${i}ksp_richardson_scale .4
+#-level-${i}ksp_richardson_scale .6
+-level-${i}ksp_richardson_self_scale true
 
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 2
+-level-${i}ksp_max_it 4
 -level-${i}ksp_norm_type none
 
 -level-${i}pc_fieldsplit_schur_fact_type upper
--level-${i}pc_fieldsplit_schur_precondition full
--level-${i}fieldsplit_1_ksp_type preonly
--level-${i}fieldsplit_1_pc_type lu
+-level-${i}pc_fieldsplit_schur_precondition selfp
+# -level-${i}pc_fieldsplit_schur_scale -0.0
+# -level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_pc_type lu
 
 
 #-level-${i}pc_fieldsplit_schur_precondition selfp
@@ -186,41 +188,41 @@ generate_options_file() {
 # # ------------------------------------------------------------
 # # Velocity - PETSc HMG with GAMG hierarchy
 # # ------------------------------------------------------------
-# -level-${i}fieldsplit_0_ksp_type preonly
-#
-# -level-${i}fieldsplit_0_pc_type hmg
-# -level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
-# -level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
-# -level-${i}fieldsplit_0_pc_hmg_use_matmaij false
-# -level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
-#
-# -level-${i}fieldsplit_0_hmg_inner_pc_type gamg
-# -level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
-#
-# -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
-# -level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
-# -level-${i}fieldsplit_0_mg_levels_ksp_norm_type none
-# -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
+-level-${i}fieldsplit_0_ksp_type preonly
+
+-level-${i}fieldsplit_0_pc_type hmg
+-level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
+-level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
+-level-${i}fieldsplit_0_pc_hmg_use_matmaij false
+-level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
+
+-level-${i}fieldsplit_0_hmg_inner_pc_type gamg
+-level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
+
+-level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
+-level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
+-level-${i}fieldsplit_0_mg_levels_ksp_norm_type none
+-level-${i}fieldsplit_0_mg_levels_pc_type jacobi
 
 # ------------------------------------------------------------
 # Pressure - PETSc HMG with GAMG hierarchy
 # ------------------------------------------------------------
-# -level-${i}fieldsplit_1_ksp_type preonly
-#
-# -level-${i}fieldsplit_1_pc_type hmg
-# -level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
-# -level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
-# -level-${i}fieldsplit_1_pc_hmg_use_matmaij false
-# -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
+-level-${i}fieldsplit_1_ksp_type preonly
 
-# -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
-# -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
-#
-# -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
-# -level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
-# -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
-# -level-${i}fieldsplit_1_mg_levels_pc_type sor
-# -level-${i}fieldsplit_1_mg_levels_pc_sor_local_symmetric
+-level-${i}fieldsplit_1_pc_type hmg
+-level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
+-level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
+-level-${i}fieldsplit_1_pc_hmg_use_matmaij false
+-level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
+
+-level-${i}fieldsplit_1_hmg_inner_pc_type gamg
+-level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
+
+-level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
+-level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
+-level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
+-level-${i}fieldsplit_1_mg_levels_pc_type sor
+-level-${i}fieldsplit_1_mg_levels_pc_sor_local_symmetric
 
 EOF_OPTIONS
   done
@@ -258,8 +260,8 @@ for adaptive_levels in "${ADAPTIVE_LEVELS[@]}"; do
     echo "Options file    : ${OPTIONS_FILE}"
     echo "============================================================"
 
-    mpirun -n "${NPROC}" "${EXECUTABLE}" \
-      -ksp_view \
+    mpirun -n "${NPROC}" "${EXECUTABLE}" \ #-ksp_view \
+      -ksp_monitor_true_residual \
       -options_left \
       -options_file "${OPTIONS_FILE}" \
       --uniform-levels "${UNIFORM_LEVELS}" \
