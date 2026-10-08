@@ -457,6 +457,63 @@ namespace femus {
         }
       }
     }
+    else if (_preconditioner == AMG_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      PetscPreconditioner::set_petsc_preconditioner_type(AMG_PRECOND, pc);
+      KSPSetFromOptions(ksp);
+
+      PetscBool isAMG = PETSC_FALSE;
+      PetscObjectTypeCompare((PetscObject)pc, PCHMG, &isAMG);
+
+      if(!isAMG) {
+        throw std::runtime_error(
+          "AMG_PRECOND is incompatible with the selected pc_type");
+      }
+
+      KSPSetUp(ksp);
+    }
+    else if (_preconditioner == MG_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      PetscPreconditioner::set_petsc_preconditioner_type(MG_PRECOND, pc);
+      KSPSetFromOptions(ksp);
+
+      PetscBool isGMG = PETSC_FALSE;
+      PetscObjectTypeCompare((PetscObject)pc, PCMG, &isGMG);
+
+      if(!isGMG) {
+        throw std::runtime_error(
+          "MG_PRECOND is incompatible with the selected pc_type");
+      }
+
+    }
+    else if (_preconditioner == MULTIGRID_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      KSPSetFromOptions(ksp);
+
+      PC pc;
+      KSPGetPC(ksp, &pc);
+
+      PetscBool isAMG = PETSC_FALSE;
+      PetscBool isGMG = PETSC_FALSE;
+
+      PetscObjectTypeCompare((PetscObject)pc, PCHMG, &isAMG);
+      PetscObjectTypeCompare((PetscObject)pc, PCMG,  &isGMG);
+
+      if (!isAMG && !isGMG) {
+        throw std::runtime_error("MULTIGRID_PRECOND requires pc_type hmg or mg");
+      }
+
+      if (isAMG) {
+        KSPSetUp(ksp);
+      }
+
+    }
     else {
       if (_preconditioner == LSC_PRECOND) {
         if (_solver == PREONLY) {

@@ -599,7 +599,7 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < dim; d++) solutionTypeV[d] = mlSol2.GetSolutionType(vName[d].c_str());
 
         //FieldSplitTree FS_V(PREONLY, MLU_PRECOND, fieldV, "Velocity");
-        FieldSplitTree FS_V(PREONLY, AMG_PRECOND, fieldV, "Velocity");
+        FieldSplitTree FS_V(PREONLY, MULTIGRID_PRECOND, fieldV, "Velocity");
 
         //FieldSplitTree FS_V(GMRES, ASM_PRECOND, fieldV, solutionTypeV, "Velocity");
         //FS_V.SetAsmBlockSize(4);
@@ -614,6 +614,7 @@ int main(int argc, char **argv) {
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
         FieldSplitTree FS_P(PREONLY, AMG_PRECOND, fieldP, "Pressure");
+        // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
 
         //FS_P.SetFieldSplitSchurFactType{PC_FIELDSPLIT_SCHUR_FACT_LOWER};
         // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");

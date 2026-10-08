@@ -231,6 +231,10 @@ namespace femus {
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;
 
+      case MULTIGRID_PRECOND:
+        // The actual type (amg or gmg) will be selected from PETSc options
+        break;
+
       case LSC_PRECOND:
         ierr = PCSetType(pc, (char*) PCLSC);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
