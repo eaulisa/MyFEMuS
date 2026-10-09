@@ -19,6 +19,8 @@
 //----------------------------------------------------------------------------
 // includes :
 //----------------------------------------------------------------------------
+#include <functional>
+
 #include "Mesh.hpp"
 #include "petscmat.h"
 #include "ParallelObject.hpp"
@@ -41,6 +43,12 @@ namespace femus {
   class LinearEquation : public ParallelObject {
 
     public:
+
+      using ExtraSparsityFunction = std::function<void(LinearEquation&,
+                                    std::vector < std::map < int, bool > >&,
+                                    std::vector < std::map < int, bool > >&,
+                                    std::map < int, std::map <int, bool > >&,
+                                    std::map < int, std::map <int, bool > >&)>;
 
       /** costructor */
       LinearEquation(Solution *other_solution);
@@ -96,8 +104,16 @@ namespace femus {
         _numberOfGlobalVariables = numberOfGlobalVariables;
       }
 
-      std::vector <std::vector<unsigned>> & GetOffset() {
+      vector < vector<unsigned>> & GetOffset() {
         return KKoffset;
+      }
+
+      vector<int> & GetIndex() {
+        return KKIndex;
+      }
+
+      vector <bool> & GetSparsityPattern() {
+        return _SparsityPattern;
       }
 
       // member data
@@ -118,6 +134,9 @@ namespace femus {
       void SetSparsityPatternMinimumSize (const std::vector < unsigned> &minimumSize, const std::vector < unsigned > &variableIndex);
       inline void SetSolution(const vector <NumericVector*> * Sol) {
         _Sol = Sol;
+      }
+      void SetExtraSparsityFunction( const ExtraSparsityFunction& function) {
+        _extraSparsityFunction = function;
       }
       void MergeNullSpaceBases(bool merge) {
         _mergeNullSpaceBases = merge;
@@ -140,6 +159,8 @@ namespace femus {
       std::vector < unsigned > _sparsityPatternMinimumSize;
       std::vector <unsigned> _sparsityPatternVariableIndex;
       unsigned _numberOfGlobalVariables;
+
+      ExtraSparsityFunction _extraSparsityFunction;
 
   };
 

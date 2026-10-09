@@ -179,6 +179,9 @@ namespace femus {
 
     for(unsigned i = 0; i < _gridn; i++) {
       _LinSolver[i]->SetNumberOfGlobalVariables(_numberOfGlobalVariables);
+      if (_extraSparsityFunction) {
+        _LinSolver[i]->SetExtraSparsityFunction(_extraSparsityFunction);
+      }
       _LinSolver[i]->InitPde(_SolSystemPdeIndex, _ml_sol->GetSolType(),
                              _ml_sol->GetSolName(), &_solution[i]->_Bdc, _gridn, _SparsityPattern);
     }

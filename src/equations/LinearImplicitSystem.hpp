@@ -30,7 +30,6 @@
 
 namespace femus {
 
-
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
@@ -59,7 +58,6 @@ namespace femus {
 
       /** @deprecated Multigrid step routine */
       double MGStep (int Level, double Eps1, int MaxIter, const uint Gamma, const uint Nc_pre, const uint Nc_coarse, const uint Nc_post);
-
 
       /** Add a system level */
       void AddSystemLevel();
@@ -146,7 +144,6 @@ namespace femus {
       /** Set the preconditioner for the Ksp smoother solver on the fine grids */
       void SetPreconditionerCoarseGrid (const PreconditionerType &preconditioner_type);
 
-
       /** Set the Ksp smoother solver on the fine grids. At the coarse solver we always use the LU (Mumps) direct solver */
       void SetSolverFineGrids (const SolverType &solvertype);
 
@@ -206,7 +203,6 @@ namespace femus {
       //void SetVankaSchurOptions(bool Schur, short unsigned NSchurVar);
       void SetNumberOfSchurVariables (const unsigned short &NSchurVar);
 
-
       /** Set the number of pre-smoothing step of a Multigrid cycle */
       void SetNumberPreSmoothingStep (const unsigned &npre) {
         _npre = npre;
@@ -228,6 +224,10 @@ namespace femus {
 
       void SetSparsityPatternMinimumSize (const unsigned &minimumSize, const std::string variableName = "All");
 
+      void SetExtraSparsityFunction( const LinearEquation::ExtraSparsityFunction& function) {
+        _extraSparsityFunction = function;
+      }
+
       bool GetAssembleMatrix() {
         return _assembleMatrix;
       }
@@ -248,7 +248,6 @@ namespace femus {
         return _RRamr;
       }
 
-
       /** Solves the system. */
       virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE);
       void MGsolveExplicit();
@@ -262,7 +261,6 @@ namespace femus {
       void AddAMRLevel (unsigned &AMRCounter);
 
       bool Vcycle (const unsigned & gridn, const MgSmootherType& mgSmootherType);
-
 
       /** Create the Prolongator matrix for the Multigrid solver */
       void Prolongator (const unsigned &gridf);
@@ -349,6 +347,8 @@ namespace femus {
 
       std::vector< std::string > _sparsityPatternSolName;
       std::vector < unsigned > _sparsityPatternMinimumSize;
+
+      LinearEquation::ExtraSparsityFunction _extraSparsityFunction;
 
   };
 

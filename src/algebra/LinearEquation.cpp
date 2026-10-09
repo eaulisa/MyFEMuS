@@ -383,6 +383,10 @@ namespace femus {
       }
     }
 
+    if (_extraSparsityFunction) {
+      _extraSparsityFunction(*this, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
+    }
+
     NumericVector  *sizeDnBM_o = NumericVector::build().release();
     sizeDnBM_o->init(*_EPS);
     sizeDnBM_o->zero();
@@ -415,4 +419,5 @@ namespace femus {
     delete sizeDnBM_o;
     delete sizeDnBM_d;
   }
+
 }

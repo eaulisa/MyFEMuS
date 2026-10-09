@@ -15,17 +15,17 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
+DIM=3
 SIMULATION="rb2"
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(7)
+UNIFORM_LEVELS=(1)
+ADAPTIVE_LEVELS=(4)
 
-LEVEL_OFFSET=2
+LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
 # Time discretization
@@ -161,7 +161,7 @@ EOF_OPTIONS
 # Velocity multigrid smoother
 
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
+-level-${i}fieldsplit_0_mg_levels_ksp_max_it 2
 -level-${i}fieldsplit_0_mg_levels_ksp_norm_type none
 -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
 
@@ -196,7 +196,7 @@ EOF_OPTIONS
 # Pressure multigrid smoother
 
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
+-level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
 -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 
 # -level-${i}fieldsplit_1_mg_levels_pc_type sor
@@ -305,7 +305,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       mpirun -n "${NPROC}" \
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
-        -ksp_knoll false \
+        -ksp_knoll true \
         -options_file "${OPTIONS_FILE}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \

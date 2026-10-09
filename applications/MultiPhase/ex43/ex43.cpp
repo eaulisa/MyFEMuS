@@ -36,6 +36,7 @@ using namespace femus;
 #include "../includeLS/Stabilization.hpp"
 #include "../includeLS/GhostPenalty.hpp"
 #include "../includeLS/GhostPenaltyDGP.hpp"
+#include "../includeLS/GhostPenaltySparsityPattern.hpp"
 
 bool printdb = false;
 
@@ -558,8 +559,31 @@ int main(int argc, char **argv) {
         //add pressure
         for(unsigned d = 0; d < pName.size(); d++) system2.AddSolutionToSystemPDE(pName[d].c_str());
 
-        unsigned sparsity_pattern_size = dim * std::pow(5, dim) + 2 * std::pow(3, dim) + 4 * dim * std::pow(5, dim - 1); // only Q2-Q1
-        system2.SetSparsityPatternMinimumSize(sparsity_pattern_size);
+        // unsigned sparsity_pattern_size = dim * std::pow(5, dim) + 2 * std::pow(3, dim) + 4 * dim * std::pow(5, dim - 1); // only Q2-Q1
+        // system2.SetSparsityPatternMinimumSize(sparsity_pattern_size);
+
+        auto extraSparsityFunction = [&](
+                                       LinearEquation & linEq,
+                                       vector < std::map < int, bool > >& BlgToMe_d,
+                                       vector < std::map < int, bool > >& BlgToMe_o,
+                                       std::map < int, std::map <int, bool > >& DnBlgToMe_o,
+                                       std::map < int, std::map <int, bool > >& DnBlgToMe_d
+        ) {
+          if (linEq._msh->GetLevel() != levelC - level0) {
+            return;
+          }
+
+          for (unsigned idim = 0; idim < dim; idim++) {
+            GetGPSparsityPattern (mlProb2, cName, vName[idim], levelC - level0, levelC, 0, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
+          }
+          for (unsigned idim = 0; idim < pName.size(); idim++) {
+            GetGPSparsityPattern (mlProb2, cName, pName[idim], levelC - level0, levelC, idim + 1, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
+          }
+
+        };
+
+        system2.SetExtraSparsityFunction(extraSparsityFunction);
+
         // attach the assembling function to system
         system2.SetAssembleFunction(AssembleMultiphase);
         system2.AttachGetTimeIntervalFunction(
@@ -637,7 +661,7 @@ int main(int argc, char **argv) {
         //system2.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
 
         // attach the assembling function to system
-        system2.SetMaxNumberOfNonLinearIterations(20);
+        system2.SetMaxNumberOfNonLinearIterations(1);
         system2.SetMaxNumberOfLinearIterations(10);
         system2.SetMgType(V_CYCLE);
 
@@ -867,7 +891,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   NumericVector* RES2 = pdeSys2->_RES; // pointer to the global residual std::vector object in pdeSys (level)
 
   //MatResetPreallocation((static_cast< PetscMatrix* >(KK2))->mat());
-  MatSetOption((static_cast< PetscMatrix* >(KK2))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  // MatSetOption((static_cast< PetscMatrix* >(KK2))->mat(), MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
 
   KK2->zero();
   RES2->zero();
@@ -1034,6 +1058,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
   }
 
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  if (nprocs == 1)
+    ProfilerStart("profiling.prof");
+
   KK->zero();
   RES->zero();
 
@@ -1048,6 +1078,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   // element loop: each process loops only on the elements that owns
 
   if(printdb) std::cout << "Before KK assembly\n" << std::flush;
+
+  double P[3][3] = {};
+  double solV_gss[3] = {};
+  double solVOld_gss[3] = {};
+  double gradSolV_gss[3][3] = {};
+  double gradSolVOld_gss[3][3] = {};
+
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     double C = (*sol->_Sol[cIndex])(iel);
@@ -1182,8 +1219,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       }
     }
 
-    std::vector<double> xg(dim);
+    //std::vector<double> xg(dim);
     // *** Gauss point loop ***
+
+    std::vector <double> Nf(dim); // unit normal in the physical element from the fluid to the solid
     for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
@@ -1191,52 +1230,102 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       phiP = femP->GetPhi(ig);
 
       double dsN = 0.;
-      std::vector <double> Nf(dim, 0); // unit normal in the physical element from the fluid to the solid
 
-      if(cut == 1) {
+      //if(cut == 1) {
+
+      if (cut == 1) {
 
         femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
 
-        for(unsigned k = 0; k < dim; k++) {
-          for(unsigned j = 0; j < dim; j++) {
-            Nf[k] += JacI[j][k] * a[j];
-          }
-          dsN += Nf[k] * Nf[k];
+        dsN = 0.0;
+        for (unsigned k = 0; k < dim; ++k) {
+          double nk = 0.0;
+          for (unsigned j = 0; j < dim; ++j)
+            nk += JacI[j][k] * a[j];
+
+          Nf[k] = nk;
+          dsN += nk * nk;
         }
-        dsN = sqrt(dsN) + 1.e-20;
-        for(unsigned k = 0; k < dim; k++) {
+
+        dsN = std::sqrt(dsN) + 1.e-20;
+
+        for (unsigned k = 0; k < dim; ++k) {
           Nf[k] /= dsN;
         }
 
-        xg.assign(dim, 0);
+        for (unsigned i = 0; i < dim; ++i) {
+          const double ni = Nf[i];
+          auto& Pi = P[i];
 
-        for(unsigned i = 0; i < nDofsV; i++) {
-          for(unsigned k = 0; k < dim; k++) {
-            xg[k] += coordX[k][i] * phiV[i];
-          }
+          for (unsigned j = 0; j < dim; ++j)
+            Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
         }
-
       }
 
-      std::vector < double > solV_gss(dim, 0);
-      std::vector < double > solVOld_gss(dim, 0);
-      std::vector < std::vector < double > > gradSolV_gss(dim);
-      std::vector < std::vector < double > > gradSolVOld_gss(dim);
+      //   femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+      //
+      //   for(unsigned k = 0; k < dim; k++) {
+      //     for(unsigned j = 0; j < dim; j++) {
+      //       Nf[k] += JacI[j][k] * a[j];
+      //     }
+      //     dsN += Nf[k] * Nf[k];
+      //   }
+      //   dsN = std::sqrt(dsN) + 1.e-20;
+      //   for(unsigned k = 0; k < dim; k++) {
+      //     Nf[k] /= dsN;
+      //   }
+      //
+      //   // std::fill(xg.begin(), xg.end(), 0.0);
+      //   //
+      //   // for(unsigned i = 0; i < nDofsV; i++) {
+      //   //   for(unsigned k = 0; k < dim; k++) {
+      //   //     xg[k] += coordX[k][i] * phiV[i];
+      //   //   }
+      //   // }
+      //
+      //
+      //   for (auto& row : P) std::fill(row.begin(), row.end(), 0.0);
+      //
+      //   for(int i = 0; i < dim; i++) {
+      //     for(int j = 0; j < dim; j++) {
+      //       if(i == j) P[i][j] += 1.;
+      //       P[i][j] -= Nf[i] * Nf[j];
+      //     }
+      //   }
+      //
+      //
+      //
+      // }
 
-      for(unsigned  k = 0; k < dim; k++) {
-        gradSolV_gss[k].assign(dim, 0.);
-        gradSolVOld_gss[k].assign(dim, 0.);
+      for (unsigned k = 0; k < dim; ++k) {
+        solV_gss[k] = 0.0;
+        solVOld_gss[k] = 0.0;
+
+        for (unsigned j = 0; j < dim; ++j) {
+          gradSolV_gss[k][j] = 0.0;
+          gradSolVOld_gss[k][j] = 0.0;
+        }
       }
 
-      for(unsigned i = 0; i < nDofsV; i++) {
-        for(unsigned  k = 0; k < dim; k++) {
-          solV_gss[k] += solV[k][i] * phiV[i];
-          solVOld_gss[k] += solVOld[k][i] * phiV[i];
-        }
-        for(unsigned j = 0; j < dim; j++) {
-          for(unsigned k = 0; k < dim; k++) {
-            gradSolV_gss[k][j] += solV[k][i] * phiV_x[i * dim + j];
-            gradSolVOld_gss[k][j] += solVOld[k][i] * phiV_x[i * dim + j];
+      for (unsigned i = 0; i < nDofsV; ++i) {
+
+        const double phi = phiV[i];
+        const unsigned offset = i * dim;
+
+        for (unsigned k = 0; k < dim; ++k) {
+
+          const double u = solV[k][i];
+          const double uOld = solVOld[k][i];
+
+          solV_gss[k] += u * phi;
+          solVOld_gss[k] += uOld * phi;
+
+          for (unsigned j = 0; j < dim; ++j) {
+
+            const double dphi = phiV_x[offset + j];
+
+            gradSolV_gss[k][j] += u * dphi;
+            gradSolVOld_gss[k][j] += uOld * dphi;
           }
         }
       }
@@ -1273,16 +1362,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // surface tension stabilization -- rhs contribution
           if(cut == 1) {
 
-            std::vector<std::vector<double>> P (dim);
-            for (int d = 0; d < dim; d ++)
-              P[d].resize(dim);
-
-            for(int i = 0; i < dim; i++) {
-              for(int j = 0; j < dim; j++) {
-                if(i == j) P[i][j] += 1.;
-                P[i][j] -= Nf[i] * Nf[j];
-              }
-            }
+            // std::vector<std::vector<double>> P (dim);
+            // for (int d = 0; d < dim; d ++)
+            //   P[d].resize(dim);
+            //
+            // for(int i = 0; i < dim; i++) {
+            //   for(int j = 0; j < dim; j++) {
+            //     if(i == j) P[i][j] += 1.;
+            //     P[i][j] -= Nf[i] * Nf[j];
+            //   }
+            // }
 
             for (int d = 0; d < dim; d++) {
               Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
@@ -1355,16 +1444,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               double stabSFJac = 0.0;
 
-              std::vector<std::vector<double>> P (dim);
-              for (int d = 0; d < dim; d ++)
-                P[d].resize(dim);
-
-              for(int i = 0; i < dim; i++) {
-                for(int j = 0; j < dim; j++) {
-                  if(i == j) P[i][j] += 1.;
-                  P[i][j] -= Nf[i] * Nf[j];
-                }
-              }
+              // std::vector<std::vector<double>> P (dim);
+              // for (int d = 0; d < dim; d ++)
+              //   P[d].resize(dim);
+              //
+              // for(int i = 0; i < dim; i++) {
+              //   for(int j = 0; j < dim; j++) {
+              //     if(i == j) P[i][j] += 1.;
+              //     P[i][j] -= Nf[i] * Nf[j];
+              //   }
+              // }
 
               for(unsigned a = 0; a < dim; ++a) {
                 for(unsigned b = 0; b < dim; ++b) {
@@ -1420,6 +1509,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   RES->close();
   KK->close();
+
+  if (nprocs == 1)
+    ProfilerStop();
 
   if(printdb) std::cout << "After KK assembly\n" << std::flush;
 

@@ -5,6 +5,7 @@
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;
 typedef cpp_bin_float_oct TypeA;
+//typedef double TypeA;
 typedef cpp_bin_float_oct oct;
 
 CutFemWeight <TypeIO, TypeA> hex  = CutFemWeight<TypeIO, TypeA >(HEX, 5, "legendre");

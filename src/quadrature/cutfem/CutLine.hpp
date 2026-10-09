@@ -6,7 +6,6 @@
 #include <map>
 #include "CutFem.hpp"
 
-
 using boost::math::factorial;
 
 template <class Type>
@@ -57,14 +56,12 @@ class LimLimap {
     //unsigned _cnt, _cntB;
 };
 
-
 template <class Type>
 Type LimLimap<Type>::LimLi(const int &s, const Type &x) {
 
   if(x > 0) return -pow(x, s) / factorial<Type>(s);
   else if(x < 0) return Type(0);
   else return (s == 0) * Type(-0.5);
-
 
 //   if(x < 0) return Type(0);
 //   else if(s != 0) return -pow(x, s) / factorial<Type>(s);
@@ -80,7 +77,7 @@ class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
 
     LSImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LimLimap <Type> (sMax + mMax + 1u) {
 
-     // _LSImap.resize(2u + sMax + ds);
+      // _LSImap.resize(2u + sMax + ds);
       unsigned max = 2u + mMax + sMax;
 
       //for(unsigned s = 0; s < _LSImap.size(); s++) _LSImap[s].resize(max);
@@ -141,7 +138,6 @@ class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
       // }
     }
 
-
   private:
     //std::vector<std::vector<std::map < std::pair<Type, Type>, Type > > > _LSImap;
     //typename std::map< std::pair<Type, Type>, Type >::iterator _it;
@@ -150,7 +146,6 @@ class LSImap : public CutFEMmap<Type>, public LimLimap <Type> {
     //Type _I1;
     //unsigned _cnt, _cntB;
 };
-
 
 template <class Type>
 Type LSImap<Type>::LSIm1(const int &m, const Type &a, Type d) {
@@ -171,7 +166,6 @@ Type LSImap<Type>::LSIm1(const int &m, const Type &a, Type d) {
     return Type(0);
   }
 }
-
 
 template <class Type>
 Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Type &d) {
@@ -199,7 +193,7 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Typ
 //           }
 //           INT += c;
 //         }
-        
+
         if(x > 0) {
           Type g =  1 / (-a);
           for(unsigned i = 1; i <= m + 1; i++) {
@@ -207,7 +201,7 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Typ
             g *= (m + 1 - i) / (-a);
           }
         }
-        
+
         else if(d > 0) {
           INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
         }
@@ -226,6 +220,3 @@ Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Typ
 }
 
 #endif
-
-
-

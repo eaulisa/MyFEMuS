@@ -3205,12 +3205,11 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
         if(jel >= 0 && jel > iel) {
 
-          unsigned jel_level = msh->el->GetElementLevel(jel);
-
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
 
           if(jproc == iproc) {
 
+            unsigned jel_level = msh->el->GetElementLevel(jel);
             double Cjel = (*mysolution->_Sol[cIndex])(jel);
 
             unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1) ? 1 : 0;
@@ -4488,10 +4487,11 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
         if(jel >= 0 && jel > iel) { // iface is not a boundary of the domain
 
-          unsigned jel_level = msh->el->GetElementLevel(jel);
           unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
 
           if(jproc == iproc) {
+
+            unsigned jel_level = msh->el->GetElementLevel(jel);
 
             double Cjel = (*mysolution->_Sol[cIndex])(jel);
             unsigned eFlag2 = (fabs(Cjel - 0.5) < 0.1 ) ? 1 : 0;

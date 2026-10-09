@@ -124,7 +124,6 @@ namespace femus {
 
       //GMG objects to be use only if the PC_GMG is used
       std::vector<Mat> _Kgmg, _Pgmg, _Rgmg;
-      std::vector<Vec> _RESgmg, _Xgmg, _RHSgmg;
 
       SchurFactType _schurFactType;
       SchurPreType _schurPreType;
@@ -144,15 +143,6 @@ namespace femus {
       }
       std::vector<Mat> & GetRgmg() {
         return _Rgmg;
-      }
-      std::vector<Vec> & GetRESgmg() {
-        return _RESgmg;
-      }
-      std::vector<Vec> & GetXgmg() {
-        return _Xgmg;
-      }
-      std::vector<Vec> & GetRHSgmg() {
-        return _RHSgmg;
       }
 
       void SetAsmStandard (const bool &standard) {
