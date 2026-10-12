@@ -136,7 +136,8 @@ EOF_OPTIONS
 # FieldSplit level solver
 # ------------------------------------------------------------
 
--level-${i}ksp_richardson_self_scale true
+#-level-${i}ksp_richardson_self_scale true
+-level-${i}ksp_richardson_factor_scale 0.1
 
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12

@@ -144,18 +144,18 @@ namespace femus {
                   else {
                     PCMGGetSmoother(pcMGSplit, l, &subksp);
                     //DEFAULT
-                    KSPSetType(subksp, KSPCHEBYSHEV); // set in options file
-                    // KSPSetType(subksp, KSPRICHARDSON);
-                    // bool selfScale = false;  // true = automatic, false = fixed
-                    // double scale = 0.1;
-                    //
-                    // if (selfScale) {
-                    //   KSPRichardsonSetSelfScale(subksp, PETSC_TRUE);
-                    // }
-                    // else {
-                    //   KSPRichardsonSetSelfScale(subksp, PETSC_FALSE);
-                    //   KSPRichardsonSetScale(subksp, scale);
-                    // }
+                    // KSPSetType(subksp, KSPCHEBYSHEV); // set in options file
+                    KSPSetType(subksp, KSPRICHARDSON);
+                    bool selfScale = false;  // true = automatic, false = fixed
+                    double scale = 0.1;
+
+                    if (selfScale) {
+                      KSPRichardsonSetSelfScale(subksp, PETSC_TRUE);
+                    }
+                    else {
+                      KSPRichardsonSetSelfScale(subksp, PETSC_FALSE);
+                      KSPRichardsonSetScale(subksp, scale);
+                    }
 
                     KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 2);
                     KSPSetNormType(subksp, KSP_NORM_NONE);

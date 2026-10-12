@@ -89,7 +89,6 @@ class RefineElement {
 
 };
 
-
 RefineElement::RefineElement(unsigned const &lmax, const char* geom_elem, const char* fe_order,
                              const char* order_gauss_fem1, const char* order_gauss_fem2, const char* gauss_type) {
   if(!strcmp(geom_elem, "line")) {
@@ -169,7 +168,6 @@ void RefineElement::BuildPMat() {
       for(unsigned k = 0; k < _dim; k++)  xvLinearChild[k][j] = *(_basis->GetXcoarse(_basis->GetFine2CoarseVertexMapping(i, j)) + k);
     }
 
-
     for(unsigned j = 0; j < _numberOfNodes; j++) {
 
       std::vector<double> xij(_dim);
@@ -199,7 +197,6 @@ void RefineElement::BuildPMat() {
   _PMatrix = PMatrix;
 }
 
-
 void RefineElement::BuildElement1Prolongation(const unsigned &level, const unsigned &i) {
 
   std::vector< std::vector < std::vector <double> > >::iterator xCi;
@@ -224,7 +221,6 @@ void RefineElement::BuildElement1Prolongation(const unsigned &level, const unsig
   }
 }
 
-
 void RefineElement::SetConstants(const double &eps) {
   _eps = eps;
   _a0 = 0.5; // 128./256.;
@@ -235,5 +231,25 @@ void RefineElement::SetConstants(const double &eps) {
   _a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
+std::vector<std::vector<double>> ProlongateFieldToChildren(
+                                const std::vector<std::vector<std::vector<std::pair<unsigned, double>>>>& PMatrix,
+const std::vector<double>& coarseField) {
+
+  std::vector<std::vector<double>> fineField(PMatrix.size());
+
+  auto fineChild = fineField.begin();
+  for (auto child = PMatrix.cbegin(); child != PMatrix.cend(); ++child, ++fineChild) {
+    fineChild->resize(child->size());
+    auto fineValue = fineChild->begin();
+    for (auto row = child->cbegin(); row != child->cend(); ++row, ++fineValue) {
+      double value = 0.;
+      for (auto entry = row->cbegin(); entry != row->cend(); ++entry) {
+        value += entry->second * coarseField[entry->first];
+      }
+      *fineValue = value;
+    }
+  }
+  return fineField;
+}
 
 #endif

@@ -668,7 +668,7 @@ int main(int argc, char **argv) {
         // initilaize and solve the system
         system2.init();
 
-        system2.SetOuterSolver(FGMRES);
+        system2.SetOuterSolver(GMRES);
         //system2.SetSolverFineGrids(GMRES);
         system2.SetFieldSplitTree(&FS_NS);
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
@@ -1223,6 +1223,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     // *** Gauss point loop ***
 
     std::vector <double> Nf(dim); // unit normal in the physical element from the fluid to the solid
+    std::vector<double> normalDotGradPhi(nDofsV);
     for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
@@ -1330,6 +1331,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         }
       }
 
+      if (cut == 1) {
+        for (unsigned j = 0; j < nDofsV; j++) {
+          const unsigned jOffset = j * dim;
+          normalDotGradPhi[j] = 0.;
+          for (unsigned J = 0; J < dim; J++) {
+            const double gradPhiJ = phiV_x[jOffset + J];
+            normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+          }
+        }
+      }
+
       double solP1_gss = 0;
       double solP2_gss = 0;
       for(unsigned i = 0; i < nDofsP; i++) {
@@ -1342,36 +1354,33 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
       double rhoC = rho1 * C + rho2 * (1. - C);
 
+      const double massCoefficient = rho * weight / dt;
+      const double diffusionCoefficientNew = cnew * mu * weight;
+      const double convectionCoefficientNew = cnew * rho * weight;
+
+      const double diffusionCoefficientOld = cnew * mu * weight;
+      const double convectionCoefficientOld = cnew * rho * weight;
+
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsV; i++) {
         for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
           double NSV = 0.;
+          NSV += massCoefficient * phiV[i] * (solV_gss[I] - solVOld_gss[I]);
           for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
             // residual terms
-            NSV   +=  cnew * mu * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
-            NSV   +=  cnew * rho * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
+            NSV   +=  diffusionCoefficientNew * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
+            NSV   +=  convectionCoefficientNew * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
             // crank-nicholson old terms
-            NSV   +=  cold * mu * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
-            NSV   +=  cold * rho * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]); // nonlinear term
+            NSV   +=  diffusionCoefficientOld * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
+            NSV   +=  convectionCoefficientOld * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]); // nonlinear term
           }
-          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
-          NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
-          NSV += - rho * phiV[i] * g[I]; // gravity term
-          Res[I * nDofsV + i] -=  NSV * weight;
+          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]) * weight;  // pressure gradient
+          NSV += - rho * phiV[i] * g[I] * weight; // gravity term
+
+          Res[I * nDofsV + i] -=  NSV;
 
           // surface tension stabilization -- rhs contribution
           if(cut == 1) {
-
-            // std::vector<std::vector<double>> P (dim);
-            // for (int d = 0; d < dim; d ++)
-            //   P[d].resize(dim);
-            //
-            // for(int i = 0; i < dim; i++) {
-            //   for(int j = 0; j < dim; j++) {
-            //     if(i == j) P[i][j] += 1.;
-            //     P[i][j] -= Nf[i] * Nf[j];
-            //   }
-            // }
 
             for (int d = 0; d < dim; d++) {
               Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
@@ -1421,56 +1430,68 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
+      std::vector<double> solVdotGradphi_gss(nDofsV, 0.);
+      for(unsigned j = 0; j < nDofsV; j++) {
+        for(unsigned J = 0; J < dim ; J++) {
+          solVdotGradphi_gss[j] += solV_gss[J] * phiV_x[j * dim + J];
+        }
+      }
+
+      double sufaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN;
+
+      for(unsigned i = 0; i < nDofsV; i++) {
+        for(unsigned j = 0; j < nDofsV; j++) {
+
+          const double phiProduct = phiV[i] * phiV[j];
+
+          double gradPhi_dot_gradPhi = 0.0;
+          for(unsigned J = 0; J < dim ; J++) {
+            gradPhi_dot_gradPhi += phiV_x[i * dim + J] * phiV_x[j * dim + J]; //diagonal diffusion
+          }
+
+          double Phi_dot_solVGradPhi = solVdotGradphi_gss[j] * phiV[i];
+
+          double diagonalContribution = massCoefficient * phiProduct +
+                                        diffusionCoefficientNew * gradPhi_dot_gradPhi +
+                                        convectionCoefficientNew * Phi_dot_solVGradPhi;;
+          // if(cut == 1) {
+          //   for(unsigned I = 0; I < dim; ++I) {
+          //     for(unsigned J = 0; J < dim; ++J) {
+          //
+          //       diagonalContribution +=
+          //         sufaceTensionCoefficient *
+          //         phiV_x[j * dim + I] *
+          //         P[I][J] *
+          //         phiV_x[i * dim + J];
+          //     }
+          //   }
+          // }
+
+          if (cut == 1) {
+            const double tangentialGradDot =
+              gradPhi_dot_gradPhi
+              - normalDotGradPhi[i] * normalDotGradPhi[j];
+            diagonalContribution += sufaceTensionCoefficient * tangentialGradDot;
+          }
+
+          for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+            unsigned VIrow = (I * nDofsV + i) * nDofsVP;
+            unsigned VIcolumn = I * nDofsV + j;
+
+            Jac[ VIrow + VIcolumn] += diagonalContribution; //diagonal
+
+            for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+              unsigned VJcolumn = J * nDofsV + j;
+              Jac[ VIrow + VJcolumn ] += diffusionCoefficientNew * phiV_x[i * dim + J] * phiV_x[j * dim + I]; //off-diagonal diffusion
+              Jac[ VIrow + VJcolumn ] += convectionCoefficientNew * phiProduct * gradSolV_gss[I][J]; //off-diagonal nonlinear
+            }
+          }
+        }
+      }
 
       for(unsigned i = 0; i < nDofsV; i++) {
         for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
           unsigned VIrow = I * nDofsV + i;
-          for(unsigned j = 0; j < nDofsV; j++) {
-            unsigned VIcolumn = I * nDofsV + j;
-
-            Jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / dt; // inertia
-
-            for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
-              unsigned VJcolumn = J * nDofsV + j;
-              Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
-              Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
-
-              Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * rho * phiV[i] * solV_gss[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
-              Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * rho * phiV[i] * phiV[j] * gradSolV_gss[I][J] * weight; //off-diagonal nonlinear
-            }
-
-            // surface tension stabilization -- matrix contribution
-            if(cut == 1) {
-
-              double stabSFJac = 0.0;
-
-              // std::vector<std::vector<double>> P (dim);
-              // for (int d = 0; d < dim; d ++)
-              //   P[d].resize(dim);
-              //
-              // for(int i = 0; i < dim; i++) {
-              //   for(int j = 0; j < dim; j++) {
-              //     if(i == j) P[i][j] += 1.;
-              //     P[i][j] -= Nf[i] * Nf[j];
-              //   }
-              // }
-
-              for(unsigned a = 0; a < dim; ++a) {
-                for(unsigned b = 0; b < dim; ++b) {
-
-                  stabSFJac +=
-                    cnew
-                    * phiV_x[j * dim + a]
-                    * P[a][b]
-                    * phiV_x[i * dim + b];
-                }
-              }
-
-              Jac[VIrow * nDofsVP + VIcolumn] += cnew * sigma * dt * stabSFJac * weight * weightCF[ig] * dsN;
-
-            }
-          }
-
           for(unsigned j = 0; j < nDofsP; j++) {
             unsigned P1column = dim * nDofsV + j;
             unsigned P2column = dim * nDofsV + nDofsP + j;

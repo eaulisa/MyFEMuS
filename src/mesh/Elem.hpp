@@ -39,7 +39,6 @@ namespace femus {
   */
   class elem {
 
-
     public:
 
       /** constructors */
@@ -179,7 +178,6 @@ namespace femus {
         return _elementNearElement[iel][j];
       };
 
-
       //BEGIN _ElementLevel functions
       void SetElementLevel(const unsigned& iel, const short unsigned& level) {
         _elementLevel[iel] = level;
@@ -218,7 +216,6 @@ namespace femus {
         return GetIfElementCanBeRefined(iel);
       }
       //END _ElementLevel functions
-
 
       /** To be Added */
       void AllocateChildrenElement(const unsigned& ref_index, Mesh* msh);
@@ -284,8 +281,6 @@ namespace femus {
         std::vector<std::vector<std::vector<double>>>& jCoordinate_r
       ) ;
 
-
-
       void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter) {
         _materialElementCounter = materialElementCounter;
       }
@@ -310,6 +305,10 @@ namespace femus {
 
       unsigned GetTopLevel() {
         return _level;
+      }
+
+      unsigned GetChild(const unsigned iel, const unsigned j) {
+        return _childElem[iel][j];
       }
 
     private:
@@ -419,7 +418,6 @@ namespace femus {
     }
   };
 
-
   const unsigned NFACENODES[6][6][3] = {
     { {4, 8, 9}, // Hex
       {4, 8, 9},
@@ -453,9 +451,7 @@ namespace femus {
     }
   };
 
-
 } //end namespace femus
-
 
 const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rEED[elemem type][direction][0,1]
   {
@@ -481,7 +477,6 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 // const unsigned referenceElementPoint[6]={26,0,12,8,0,2};
 
 #endif
-
 
 // ********************  class solver**************************
 
@@ -566,4 +561,3 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 //  0-----2-----1
 //
 */
-

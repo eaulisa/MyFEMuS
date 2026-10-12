@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CutFemWeight.hpp"
+#include "CutFemWeightNew.hpp"
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;

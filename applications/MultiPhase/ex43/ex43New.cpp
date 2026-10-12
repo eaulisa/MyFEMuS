@@ -1199,7 +1199,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       // (*cfw[ielGeom])(-1, a, d, weightCF);
       // (*cfw[ielGeom])(0, a, d, weightCFExt);
 
-
       cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
       //cfCDw0[ielGeom]->GetWeight(a, d, weightCFInt);
       for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
@@ -1223,7 +1222,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     //std::vector<double> xg(dim);
     // *** Gauss point loop ***
 
-
     std::vector<double> velocityDotGradPhi(nDofsV);
     std::vector<double> normalDotGradPhi(nDofsV);
     std::vector<double> diagonalVelocityJacobian(nDofsV);
@@ -1233,956 +1231,949 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
     const unsigned numberOfGaussPoints = femV->GetGaussPointNumber();
 
-    for (unsigned ig = 0; ig < numberOfGaussPoints; ig++) {
-
-      femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
-      phiP = femP->GetPhi(ig);
-
-      double surfaceJacobian = 0.;
-      double normalNormSquared = 0.;
-
-      if (cut == 1) {
-
-        femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
-
-        for (unsigned physicalDirection = 0;
-             physicalDirection < dim;
-             physicalDirection++) {
-
-          double transformedNormalComponent = 0.;
-
-          for (unsigned referenceDirection = 0;
-               referenceDirection < dim;
-               referenceDirection++) {
-
-            transformedNormalComponent +=
-              JacI[referenceDirection][physicalDirection]
-              * a[referenceDirection];
-          }
-
-          normal[physicalDirection] = transformedNormalComponent;
-          surfaceJacobian +=
-            transformedNormalComponent * transformedNormalComponent;
-        }
-
-        surfaceJacobian = std::sqrt(surfaceJacobian) + 1.e-20;
-
-        for (unsigned direction = 0; direction < dim; direction++) {
-          normal[direction] /= surfaceJacobian;
-          normalNormSquared += normal[direction] * normal[direction];
-        }
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Velocity and velocity-gradient interpolation
-      // -------------------------------------------------------------------------
-
-      for (unsigned component = 0; component < dim; component++) {
-        solV_gss[component] = 0.;
-        solVOld_gss[component] = 0.;
-
-        for (unsigned direction = 0; direction < dim; direction++) {
-          gradSolV_gss[component][direction] = 0.;
-          gradSolVOld_gss[component][direction] = 0.;
-        }
-      }
-
-      for (unsigned i = 0; i < nDofsV; i++) {
-
-        const double testFunction = phiV[i];
-        const unsigned gradientOffset = i * dim;
-
-        for (unsigned component = 0; component < dim; component++) {
-
-          const double velocityValue = solV[component][i];
-          const double oldVelocityValue = solVOld[component][i];
-
-          solV_gss[component] += velocityValue * testFunction;
-          solVOld_gss[component] += oldVelocityValue * testFunction;
-
-          for (unsigned direction = 0; direction < dim; direction++) {
-
-            const double basisGradient =
-              phiV_x[gradientOffset + direction];
-
-            gradSolV_gss[component][direction] +=
-              velocityValue * basisGradient;
-
-            gradSolVOld_gss[component][direction] +=
-              oldVelocityValue * basisGradient;
-          }
-        }
-      }
-
-
-      // Quantities depending only on one velocity basis function.
-      for (unsigned j = 0; j < nDofsV; j++) {
-
-        const unsigned gradientOffset = j * dim;
-
-        velocityDotGradPhi[j] = 0.;
-        normalDotGradPhi[j] = 0.;
-
-        for (unsigned direction = 0; direction < dim; direction++) {
-
-          const double basisGradient =
-            phiV_x[gradientOffset + direction];
-
-          velocityDotGradPhi[j] +=
-            solV_gss[direction] * basisGradient;
-
-          if (cut == 1) {
-            normalDotGradPhi[j] +=
-              normal[direction] * basisGradient;
-          }
-        }
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Pressure interpolation and material properties
-      // -------------------------------------------------------------------------
-
-      double pressure1AtGaussPoint = 0.;
-      double pressure2AtGaussPoint = 0.;
-
-      for (unsigned i = 0; i < nDofsP; i++) {
-        pressure1AtGaussPoint += phiP[i] * solP1[i];
-        pressure2AtGaussPoint += phiP[i] * solP2[i];
-      }
-
-      const double phase1Weight = weightCFInt[ig];
-      const double phase2Weight = weightCFExt[ig];
-
-      const double density =
-        rho1 * phase1Weight
-        + rho2 * phase2Weight;
-
-      const double viscosity =
-        mu1 * phase1Weight
-        + mu2 * phase2Weight;
-
-      const double pressureAtGaussPoint =
-        pressure1AtGaussPoint * phase1Weight
-        + pressure2AtGaussPoint * phase2Weight;
-
-
-      // -------------------------------------------------------------------------
-      // Quantities shared by every velocity residual test function
-      // -------------------------------------------------------------------------
-
-      double stressTerm[3][3] = {};
-      double volumeTerm[3] = {};
-      double velocityIncrementGradient[3][3] = {};
-      double normalDotVelocityIncrementGradient[3] = {};
-
-      for (unsigned equationComponent = 0;
-           equationComponent < dim;
-           equationComponent++) {
-
-        double convection = 0.;
-        double oldConvection = 0.;
-
-        for (unsigned direction = 0; direction < dim; direction++) {
-
-          convection +=
-            solV_gss[direction]
-            * gradSolV_gss[equationComponent][direction];
-
-          oldConvection +=
-            solVOld_gss[direction]
-            * gradSolVOld_gss[equationComponent][direction];
-
-          stressTerm[equationComponent][direction] =
-            cnew * viscosity
-            * (gradSolV_gss[equationComponent][direction]
-               + gradSolV_gss[direction][equationComponent])
-            + cold * viscosity
-            * (gradSolVOld_gss[equationComponent][direction]
-               + gradSolVOld_gss[direction][equationComponent]);
-
-          if (cut == 1) {
-
-            velocityIncrementGradient[equationComponent][direction] =
-              cnew * gradSolV_gss[equationComponent][direction]
-              - cold * gradSolVOld_gss[equationComponent][direction];
-
-            normalDotVelocityIncrementGradient[equationComponent] +=
-              normal[direction]
-              * velocityIncrementGradient[equationComponent][direction];
-          }
-        }
-
-        volumeTerm[equationComponent] =
-          cnew * density * convection
-          + cold * density * oldConvection
-          + density
-          * (solV_gss[equationComponent]
-             - solVOld_gss[equationComponent]) / dt
-          - density * g[equationComponent];
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Velocity residual
-      // -------------------------------------------------------------------------
-
-      const double surfaceIntegrationWeight =
-        (cut == 1)
-        ? weight * weightCF[ig] * surfaceJacobian
-        : 0.;
-
-      for (unsigned i = 0; i < nDofsV; i++) {
-
-        const unsigned gradientOffset = i * dim;
-        const double testFunction = phiV[i];
-
-        for (unsigned equationComponent = 0;
-             equationComponent < dim;
-             equationComponent++) {
-
-          double momentumResidual =
-            testFunction * volumeTerm[equationComponent]
-            - phiV_x[gradientOffset + equationComponent]
-            * pressureAtGaussPoint;
-
-          for (unsigned direction = 0; direction < dim; direction++) {
-            momentumResidual +=
-              phiV_x[gradientOffset + direction]
-              * stressTerm[equationComponent][direction];
-          }
-
-          const unsigned velocityRow =
-            equationComponent * nDofsV + i;
-
-          Res[velocityRow] -= momentumResidual * weight;
-
-          if (cut == 1) {
-
-            // Component equationComponent of P * grad(phi_i), P = I - n n^T.
-            const double projectedGradientComponent =
-              phiV_x[gradientOffset + equationComponent]
-              - normal[equationComponent] * normalDotGradPhi[i];
-
-            Res[velocityRow] -=
-              sigma
-              * projectedGradientComponent
-              * surfaceIntegrationWeight;
-
-            double incrementGradientDotBasisGradient = 0.;
-
-            for (unsigned direction = 0; direction < dim; direction++) {
-              incrementGradientDotBasisGradient +=
-                velocityIncrementGradient[equationComponent][direction]
-                * phiV_x[gradientOffset + direction];
-            }
-
-            // This is exactly (P * deltaGrad) dot (P * grad(phi_i)).
-            // The normal is not assumed to have norm exactly one because it was
-            // divided by sqrt(...) + 1.e-20.
-            const double projectedGradientProduct =
-              incrementGradientDotBasisGradient
-              + (normalNormSquared - 2.)
-              * normalDotVelocityIncrementGradient[equationComponent]
-              * normalDotGradPhi[i];
-
-            Res[velocityRow] -=
-              cnew * sigma * dt
-              * projectedGradientProduct
-              * surfaceIntegrationWeight;
-          }
-        }
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Pressure residual
-      // -------------------------------------------------------------------------
-
-      double velocityDivergence = 0.;
-
-      for (unsigned component = 0; component < dim; component++) {
-        velocityDivergence += gradSolV_gss[component][component];
-      }
-
-      const double continuityResidual =
-        -velocityDivergence * weight;
-
-      const double phase1PenaltyCoefficient =
-        ((C == 0.) ? (1. - C) * eps : 0.)
-        + ((C > 0.1) ? epsilonp : 0.);
-
-      const double phase2PenaltyCoefficient =
-        ((C == 1.) ? C * eps : 0.)
-        + ((C < 0.9) ? epsilonp : 0.);
-
-      const unsigned pressure1Offset = dim * nDofsV;
-      const unsigned pressure2Offset = pressure1Offset + nDofsP;
-
-      for (unsigned i = 0; i < nDofsP; i++) {
-
-        const double pressureTestFunction = phiP[i];
-
-        Res[pressure1Offset + i] +=
-          continuityResidual
-          * pressureTestFunction
-          * phase1Weight;
-
-        Res[pressure2Offset + i] +=
-          continuityResidual
-          * pressureTestFunction
-          * phase2Weight;
-
-        Res[pressure1Offset + i] -=
-          pressure1AtGaussPoint
-          * pressureTestFunction
-          * weight
-          * phase1PenaltyCoefficient;
-
-        Res[pressure2Offset + i] -=
-          pressure2AtGaussPoint
-          * pressureTestFunction
-          * weight
-          * phase2PenaltyCoefficient;
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Velocity-velocity Jacobian blocks
-      // -------------------------------------------------------------------------
-
-      const double massCoefficient =
-        density * weight / dt;
-
-      const double diffusionCoefficient =
-        cnew * viscosity * weight;
-
-      const double convectionCoefficient =
-        cnew * density * weight;
-
-      const double surfaceCoefficient =
-        (cut == 1)
-        ? cnew * cnew * sigma * dt * surfaceIntegrationWeight
-        : 0.;
-
-      for (unsigned i = 0; i < nDofsV; i++) {
-
-        const unsigned testGradientOffset = i * dim;
-        const double testFunction = phiV[i];
-        const double nonlinearBase =
-          convectionCoefficient * testFunction;
-
-        // These terms depend on i and j, but not on the equation or trial
-        // velocity components.
-        for (unsigned j = 0; j < nDofsV; j++) {
-
-          const unsigned trialGradientOffset = j * dim;
-          const double trialFunction = phiV[j];
-
-          double gradientDotProduct = 0.;
-
-          for (unsigned direction = 0; direction < dim; direction++) {
-            gradientDotProduct +=
-              phiV_x[testGradientOffset + direction]
-              * phiV_x[trialGradientOffset + direction];
-          }
-
-          double diagonalContribution =
-            massCoefficient * testFunction * trialFunction
-            + diffusionCoefficient * gradientDotProduct
-            + nonlinearBase * velocityDotGradPhi[j];
-
-          if (cut == 1) {
-
-            const double tangentialGradientDotProduct =
-              gradientDotProduct
-              - normalDotGradPhi[i] * normalDotGradPhi[j];
-
-            diagonalContribution +=
-              surfaceCoefficient * tangentialGradientDotProduct;
-          }
-
-          diagonalVelocityJacobian[j] = diagonalContribution;
-          nonlinearVelocityFactor[j] = nonlinearBase * trialFunction;
-        }
-
-
-        // Assemble one complete Jacobian row at a time.
-        for (unsigned equationComponent = 0;
-             equationComponent < dim;
-             equationComponent++) {
-
-          const unsigned velocityRow =
-            equationComponent * nDofsV + i;
-
-          double *jacobianRow =
-            Jac.data() + velocityRow * nDofsVP;
-
-          const unsigned diagonalBlockOffset =
-            equationComponent * nDofsV;
-
-          for (unsigned j = 0; j < nDofsV; j++) {
-            jacobianRow[diagonalBlockOffset + j] +=
-              diagonalVelocityJacobian[j];
-          }
-
-          for (unsigned trialComponent = 0;
-               trialComponent < dim;
-               trialComponent++) {
-
-            const unsigned velocityBlockOffset =
-              trialComponent * nDofsV;
-
-            const double diffusionRowFactor =
-              diffusionCoefficient
-              * phiV_x[testGradientOffset + trialComponent];
-
-            const double solutionGradient =
-              gradSolV_gss[equationComponent][trialComponent];
-
-            for (unsigned j = 0; j < nDofsV; j++) {
-
-              const unsigned trialGradientOffset = j * dim;
-
-              jacobianRow[velocityBlockOffset + j] +=
-                diffusionRowFactor
-                * phiV_x[trialGradientOffset + equationComponent]
-                + nonlinearVelocityFactor[j]
-                * solutionGradient;
-            }
-          }
-        }
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Velocity-pressure and pressure-velocity Jacobian blocks
-      // -------------------------------------------------------------------------
-
-      for (unsigned i = 0; i < nDofsV; i++) {
-
-        const unsigned testGradientOffset = i * dim;
-
-        for (unsigned equationComponent = 0;
-             equationComponent < dim;
-             equationComponent++) {
-
-          const unsigned velocityDof =
-            equationComponent * nDofsV + i;
-
-          double *velocityRow =
-            Jac.data() + velocityDof * nDofsVP;
-
-          const double couplingBase =
-            -weight
-            * phiV_x[testGradientOffset + equationComponent];
-
-          for (unsigned j = 0; j < nDofsP; j++) {
-
-            const unsigned pressure1Dof = pressure1Offset + j;
-            const unsigned pressure2Dof = pressure2Offset + j;
-
-            const double coupling = couplingBase * phiP[j];
-            const double phase1Coupling = coupling * phase1Weight;
-            const double phase2Coupling = coupling * phase2Weight;
-
-            velocityRow[pressure1Dof] += phase1Coupling;
-            velocityRow[pressure2Dof] += phase2Coupling;
-
-            Jac[pressure1Dof * nDofsVP + velocityDof] -=
-              phase1Coupling;
-
-            Jac[pressure2Dof * nDofsVP + velocityDof] -=
-              phase2Coupling;
-          }
-        }
-      }
-
-
-      // -------------------------------------------------------------------------
-      // Pressure-pressure Jacobian blocks
-      // -------------------------------------------------------------------------
-
-      if (phase1PenaltyCoefficient != 0.) {
-
-        const double weightedPenalty =
-          weight * phase1PenaltyCoefficient;
-
-        for (unsigned i = 0; i < nDofsP; i++) {
-
-          double *pressureRow =
-            Jac.data()
-            + (pressure1Offset + i) * nDofsVP
-            + pressure1Offset;
-
-          const double testFactor =
-            weightedPenalty * phiP[i];
-
-          for (unsigned j = 0; j < nDofsP; j++) {
-            pressureRow[j] += testFactor * phiP[j];
-          }
-        }
-      }
-
-      if (phase2PenaltyCoefficient != 0.) {
-
-        const double weightedPenalty =
-          weight * phase2PenaltyCoefficient;
-
-        for (unsigned i = 0; i < nDofsP; i++) {
-
-          double *pressureRow =
-            Jac.data()
-            + (pressure2Offset + i) * nDofsVP
-            + pressure2Offset;
-
-          const double testFactor =
-            weightedPenalty * phiP[i];
-
-          for (unsigned j = 0; j < nDofsP; j++) {
-            pressureRow[j] += testFactor * phiP[j];
-          }
-        }
-      }
-    }
-
-
-
-
-    // std::vector<double> velocityDotGradPhi(nDofsV);
-    // std::vector<double> normalDotGradPhi(nDofsV);
-    // std::vector <double> Nf(dim); // unit normal in the physical element from the fluid to the solid
-    // for (unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
-    //   // *** get gauss point weight, test function and test function partial derivatives ***
+    // for (unsigned ig = 0; ig < numberOfGaussPoints; ig++) {
+    //
     //   femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
-    //   //femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x, phiPsi_xx);
     //   phiP = femP->GetPhi(ig);
     //
-    //   double dsN = 0.;
-    //
-    //   //if(cut == 1) {
+    //   double surfaceJacobian = 0.;
+    //   double normalNormSquared = 0.;
     //
     //   if (cut == 1) {
     //
     //     femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
     //
-    //     dsN = 0.0;
-    //     for (unsigned k = 0; k < dim; ++k) {
-    //       double nk = 0.0;
-    //       for (unsigned j = 0; j < dim; ++j)
-    //         nk += JacI[j][k] * a[j];
+    //     for (unsigned physicalDirection = 0;
+    //          physicalDirection < dim;
+    //          physicalDirection++) {
     //
-    //       Nf[k] = nk;
-    //       dsN += nk * nk;
+    //       double transformedNormalComponent = 0.;
+    //
+    //       for (unsigned referenceDirection = 0;
+    //            referenceDirection < dim;
+    //            referenceDirection++) {
+    //
+    //         transformedNormalComponent +=
+    //           JacI[referenceDirection][physicalDirection]
+    //           * a[referenceDirection];
+    //       }
+    //
+    //       normal[physicalDirection] = transformedNormalComponent;
+    //       surfaceJacobian +=
+    //         transformedNormalComponent * transformedNormalComponent;
     //     }
     //
-    //     dsN = std::sqrt(dsN) + 1.e-20;
+    //     surfaceJacobian = std::sqrt(surfaceJacobian) + 1.e-20;
     //
-    //     for (unsigned k = 0; k < dim; ++k) {
-    //       Nf[k] /= dsN;
-    //     }
-    //
-    //     for (unsigned i = 0; i < dim; ++i) {
-    //       const double ni = Nf[i];
-    //       auto& Pi = P[i];
-    //
-    //       for (unsigned j = 0; j < dim; ++j)
-    //         Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
-    //     }
-    //   }
-    //
-    //   //   femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
-    //   //
-    //   //   for(unsigned k = 0; k < dim; k++) {
-    //   //     for(unsigned j = 0; j < dim; j++) {
-    //   //       Nf[k] += JacI[j][k] * a[j];
-    //   //     }
-    //   //     dsN += Nf[k] * Nf[k];
-    //   //   }
-    //   //   dsN = std::sqrt(dsN) + 1.e-20;
-    //   //   for(unsigned k = 0; k < dim; k++) {
-    //   //     Nf[k] /= dsN;
-    //   //   }
-    //   //
-    //   //   // std::fill(xg.begin(), xg.end(), 0.0);
-    //   //   //
-    //   //   // for(unsigned i = 0; i < nDofsV; i++) {
-    //   //   //   for(unsigned k = 0; k < dim; k++) {
-    //   //   //     xg[k] += coordX[k][i] * phiV[i];
-    //   //   //   }
-    //   //   // }
-    //   //
-    //   //
-    //   //   for (auto& row : P) std::fill(row.begin(), row.end(), 0.0);
-    //   //
-    //   //   for(int i = 0; i < dim; i++) {
-    //   //     for(int j = 0; j < dim; j++) {
-    //   //       if(i == j) P[i][j] += 1.;
-    //   //       P[i][j] -= Nf[i] * Nf[j];
-    //   //     }
-    //   //   }
-    //   //
-    //   //
-    //   //
-    //   // }
-    //
-    //   for (unsigned k = 0; k < dim; ++k) {
-    //     solV_gss[k] = 0.0;
-    //     solVOld_gss[k] = 0.0;
-    //
-    //     for (unsigned j = 0; j < dim; ++j) {
-    //       gradSolV_gss[k][j] = 0.0;
-    //       gradSolVOld_gss[k][j] = 0.0;
+    //     for (unsigned direction = 0; direction < dim; direction++) {
+    //       normal[direction] /= surfaceJacobian;
+    //       normalNormSquared += normal[direction] * normal[direction];
     //     }
     //   }
     //
-    //   for (unsigned i = 0; i < nDofsV; ++i) {
     //
-    //     const double phi = phiV[i];
-    //     const unsigned offset = i * dim;
+    //   // -------------------------------------------------------------------------
+    //   // Velocity and velocity-gradient interpolation
+    //   // -------------------------------------------------------------------------
     //
-    //     for (unsigned k = 0; k < dim; ++k) {
+    //   for (unsigned component = 0; component < dim; component++) {
+    //     solV_gss[component] = 0.;
+    //     solVOld_gss[component] = 0.;
     //
-    //       const double u = solV[k][i];
-    //       const double uOld = solVOld[k][i];
+    //     for (unsigned direction = 0; direction < dim; direction++) {
+    //       gradSolV_gss[component][direction] = 0.;
+    //       gradSolVOld_gss[component][direction] = 0.;
+    //     }
+    //   }
     //
-    //       solV_gss[k] += u * phi;
-    //       solVOld_gss[k] += uOld * phi;
+    //   for (unsigned i = 0; i < nDofsV; i++) {
     //
-    //       for (unsigned j = 0; j < dim; ++j) {
+    //     const double testFunction = phiV[i];
+    //     const unsigned gradientOffset = i * dim;
     //
-    //         const double dphi = phiV_x[offset + j];
+    //     for (unsigned component = 0; component < dim; component++) {
     //
-    //         gradSolV_gss[k][j] += u * dphi;
-    //         gradSolVOld_gss[k][j] += uOld * dphi;
+    //       const double velocityValue = solV[component][i];
+    //       const double oldVelocityValue = solVOld[component][i];
+    //
+    //       solV_gss[component] += velocityValue * testFunction;
+    //       solVOld_gss[component] += oldVelocityValue * testFunction;
+    //
+    //       for (unsigned direction = 0; direction < dim; direction++) {
+    //
+    //         const double basisGradient =
+    //           phiV_x[gradientOffset + direction];
+    //
+    //         gradSolV_gss[component][direction] +=
+    //           velocityValue * basisGradient;
+    //
+    //         gradSolVOld_gss[component][direction] +=
+    //           oldVelocityValue * basisGradient;
     //       }
     //     }
     //   }
     //
+    //
+    //   // Quantities depending only on one velocity basis function.
     //   for (unsigned j = 0; j < nDofsV; j++) {
-    //     const unsigned jOffset = j * dim;
+    //
+    //     const unsigned gradientOffset = j * dim;
+    //
     //     velocityDotGradPhi[j] = 0.;
     //     normalDotGradPhi[j] = 0.;
-    //     for (unsigned J = 0; J < dim; J++) {
-    //       const double gradPhiJ = phiV_x[jOffset + J];
-    //       velocityDotGradPhi[j] += solV_gss[J] * gradPhiJ;
+    //
+    //     for (unsigned direction = 0; direction < dim; direction++) {
+    //
+    //       const double basisGradient =
+    //         phiV_x[gradientOffset + direction];
+    //
+    //       velocityDotGradPhi[j] +=
+    //         solV_gss[direction] * basisGradient;
+    //
     //       if (cut == 1) {
-    //         normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+    //         normalDotGradPhi[j] +=
+    //           normal[direction] * basisGradient;
     //       }
     //     }
     //   }
     //
     //
-    //   double solP1_gss = 0;
-    //   double solP2_gss = 0;
+    //   // -------------------------------------------------------------------------
+    //   // Pressure interpolation and material properties
+    //   // -------------------------------------------------------------------------
+    //
+    //   double pressure1AtGaussPoint = 0.;
+    //   double pressure2AtGaussPoint = 0.;
+    //
     //   for (unsigned i = 0; i < nDofsP; i++) {
-    //     solP1_gss += phiP[i] * solP1[i];
-    //     solP2_gss += phiP[i] * solP2[i];
+    //     pressure1AtGaussPoint += phiP[i] * solP1[i];
+    //     pressure2AtGaussPoint += phiP[i] * solP2[i];
     //   }
     //
-    //   double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
-    //   double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+    //   const double phase1Weight = weightCFInt[ig];
+    //   const double phase2Weight = weightCFExt[ig];
     //
-    //   double rhoC = rho1 * C + rho2 * (1. - C);
+    //   const double density =
+    //     rho1 * phase1Weight
+    //     + rho2 * phase2Weight;
     //
-    //   // *** phiV_i loop ***
+    //   const double viscosity =
+    //     mu1 * phase1Weight
+    //     + mu2 * phase2Weight;
+    //
+    //   const double pressureAtGaussPoint =
+    //     pressure1AtGaussPoint * phase1Weight
+    //     + pressure2AtGaussPoint * phase2Weight;
+    //
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Quantities shared by every velocity residual test function
+    //   // -------------------------------------------------------------------------
+    //
+    //   double stressTerm[3][3] = {};
+    //   double volumeTerm[3] = {};
+    //   double velocityIncrementGradient[3][3] = {};
+    //   double normalDotVelocityIncrementGradient[3] = {};
+    //
+    //   for (unsigned equationComponent = 0;
+    //        equationComponent < dim;
+    //        equationComponent++) {
+    //
+    //     double convection = 0.;
+    //     double oldConvection = 0.;
+    //
+    //     for (unsigned direction = 0; direction < dim; direction++) {
+    //
+    //       convection +=
+    //         solV_gss[direction]
+    //         * gradSolV_gss[equationComponent][direction];
+    //
+    //       oldConvection +=
+    //         solVOld_gss[direction]
+    //         * gradSolVOld_gss[equationComponent][direction];
+    //
+    //       stressTerm[equationComponent][direction] =
+    //         cnew * viscosity
+    //         * (gradSolV_gss[equationComponent][direction]
+    //            + gradSolV_gss[direction][equationComponent])
+    //         + cold * viscosity
+    //         * (gradSolVOld_gss[equationComponent][direction]
+    //            + gradSolVOld_gss[direction][equationComponent]);
+    //
+    //       if (cut == 1) {
+    //
+    //         velocityIncrementGradient[equationComponent][direction] =
+    //           cnew * gradSolV_gss[equationComponent][direction]
+    //           - cold * gradSolVOld_gss[equationComponent][direction];
+    //
+    //         normalDotVelocityIncrementGradient[equationComponent] +=
+    //           normal[direction]
+    //           * velocityIncrementGradient[equationComponent][direction];
+    //       }
+    //     }
+    //
+    //     volumeTerm[equationComponent] =
+    //       cnew * density * convection
+    //       + cold * density * oldConvection
+    //       + density
+    //       * (solV_gss[equationComponent]
+    //          - solVOld_gss[equationComponent]) / dt
+    //       - density * g[equationComponent];
+    //   }
+    //
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Velocity residual
+    //   // -------------------------------------------------------------------------
+    //
+    //   const double surfaceIntegrationWeight =
+    //     (cut == 1)
+    //     ? weight * weightCF[ig] * surfaceJacobian
+    //     : 0.;
+    //
     //   for (unsigned i = 0; i < nDofsV; i++) {
-    //     for (unsigned  I = 0; I < dim; I++) { //momentum equation in k
-    //       double NSV = 0.;
-    //       for (unsigned J = 0; J < dim; J++) { // second index j in each equation
-    //         // residual terms
-    //         NSV   +=  cnew * mu * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
-    //         NSV   +=  cnew * rho * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
-    //         // crank-nicholson old terms
-    //         NSV   +=  cold * mu * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
-    //         NSV   +=  cold * rho * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]); // nonlinear term
-    //       }
-    //       NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
-    //       NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
-    //       NSV += - rho * phiV[i] * g[I]; // gravity term
-    //       Res[I * nDofsV + i] -=  NSV * weight;
     //
-    //       // surface tension stabilization -- rhs contribution
+    //     const unsigned gradientOffset = i * dim;
+    //     const double testFunction = phiV[i];
+    //
+    //     for (unsigned equationComponent = 0;
+    //          equationComponent < dim;
+    //          equationComponent++) {
+    //
+    //       double momentumResidual =
+    //         testFunction * volumeTerm[equationComponent]
+    //         - phiV_x[gradientOffset + equationComponent]
+    //         * pressureAtGaussPoint;
+    //
+    //       for (unsigned direction = 0; direction < dim; direction++) {
+    //         momentumResidual +=
+    //           phiV_x[gradientOffset + direction]
+    //           * stressTerm[equationComponent][direction];
+    //       }
+    //
+    //       const unsigned velocityRow =
+    //         equationComponent * nDofsV + i;
+    //
+    //       Res[velocityRow] -= momentumResidual * weight;
+    //
     //       if (cut == 1) {
     //
-    //         // std::vector<std::vector<double>> P (dim);
-    //         // for (int d = 0; d < dim; d ++)
-    //         //   P[d].resize(dim);
-    //         //
-    //         // for(int i = 0; i < dim; i++) {
-    //         //   for(int j = 0; j < dim; j++) {
-    //         //     if(i == j) P[i][j] += 1.;
-    //         //     P[i][j] -= Nf[i] * Nf[j];
-    //         //   }
-    //         // }
+    //         // Component equationComponent of P * grad(phi_i), P = I - n n^T.
+    //         const double projectedGradientComponent =
+    //           phiV_x[gradientOffset + equationComponent]
+    //           - normal[equationComponent] * normalDotGradPhi[i];
     //
-    //         for (int d = 0; d < dim; d++) {
-    //           Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+    //         Res[velocityRow] -=
+    //           sigma
+    //           * projectedGradientComponent
+    //           * surfaceIntegrationWeight;
+    //
+    //         double incrementGradientDotBasisGradient = 0.;
+    //
+    //         for (unsigned direction = 0; direction < dim; direction++) {
+    //           incrementGradientDotBasisGradient +=
+    //             velocityIncrementGradient[equationComponent][direction]
+    //             * phiV_x[gradientOffset + direction];
     //         }
     //
-    //         double stabSF = 0.0;
+    //         // This is exactly (P * deltaGrad) dot (P * grad(phi_i)).
+    //         // The normal is not assumed to have norm exactly one because it was
+    //         // divided by sqrt(...) + 1.e-20.
+    //         const double projectedGradientProduct =
+    //           incrementGradientDotBasisGradient
+    //           + (normalNormSquared - 2.)
+    //           * normalDotVelocityIncrementGradient[equationComponent]
+    //           * normalDotGradPhi[i];
     //
-    //         for (unsigned a = 0; a < dim; ++a) {
-    //
-    //           double gradDeltaU_tg = 0.0;
-    //           double gradPhi_tg    = 0.0;
-    //
-    //           for (unsigned b = 0; b < dim; ++b) {
-    //
-    //             gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
-    //             gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
-    //
-    //           }
-    //
-    //           stabSF += gradDeltaU_tg * gradPhi_tg;
-    //         }
-    //
-    //         Res[I * nDofsV + i] += - cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN;
-    //
+    //         Res[velocityRow] -=
+    //           cnew * sigma * dt
+    //           * projectedGradientProduct
+    //           * surfaceIntegrationWeight;
     //       }
     //     }
-    //   } // end phiV_i loop
+    //   }
     //
-    //   // *** phiP_i loop ***
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Pressure residual
+    //   // -------------------------------------------------------------------------
+    //
+    //   double velocityDivergence = 0.;
+    //
+    //   for (unsigned component = 0; component < dim; component++) {
+    //     velocityDivergence += gradSolV_gss[component][component];
+    //   }
+    //
+    //   const double continuityResidual =
+    //     -velocityDivergence * weight;
+    //
+    //   const double phase1PenaltyCoefficient =
+    //     ((C == 0.) ? (1. - C) * eps : 0.)
+    //     + ((C > 0.1) ? epsilonp : 0.);
+    //
+    //   const double phase2PenaltyCoefficient =
+    //     ((C == 1.) ? C * eps : 0.)
+    //     + ((C < 0.9) ? epsilonp : 0.);
+    //
+    //   const unsigned pressure1Offset = dim * nDofsV;
+    //   const unsigned pressure2Offset = pressure1Offset + nDofsP;
+    //
     //   for (unsigned i = 0; i < nDofsP; i++) {
-    //     for (int I = 0; I < dim; I++) {
-    //       Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
-    //       Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
+    //
+    //     const double pressureTestFunction = phiP[i];
+    //
+    //     Res[pressure1Offset + i] +=
+    //       continuityResidual
+    //       * pressureTestFunction
+    //       * phase1Weight;
+    //
+    //     Res[pressure2Offset + i] +=
+    //       continuityResidual
+    //       * pressureTestFunction
+    //       * phase2Weight;
+    //
+    //     Res[pressure1Offset + i] -=
+    //       pressure1AtGaussPoint
+    //       * pressureTestFunction
+    //       * weight
+    //       * phase1PenaltyCoefficient;
+    //
+    //     Res[pressure2Offset + i] -=
+    //       pressure2AtGaussPoint
+    //       * pressureTestFunction
+    //       * weight
+    //       * phase2PenaltyCoefficient;
+    //   }
+    //
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Velocity-velocity Jacobian blocks
+    //   // -------------------------------------------------------------------------
+    //
+    //   const double massCoefficient =
+    //     density * weight / dt;
+    //
+    //   const double diffusionCoefficient =
+    //     cnew * viscosity * weight;
+    //
+    //   const double convectionCoefficient =
+    //     cnew * density * weight;
+    //
+    //   const double surfaceCoefficient =
+    //     (cut == 1)
+    //     ? cnew * cnew * sigma * dt * surfaceIntegrationWeight
+    //     : 0.;
+    //
+    //   for (unsigned i = 0; i < nDofsV; i++) {
+    //
+    //     const unsigned testGradientOffset = i * dim;
+    //     const double testFunction = phiV[i];
+    //     const double nonlinearBase =
+    //       convectionCoefficient * testFunction;
+    //
+    //     // These terms depend on i and j, but not on the equation or trial
+    //     // velocity components.
+    //     for (unsigned j = 0; j < nDofsV; j++) {
+    //
+    //       const unsigned trialGradientOffset = j * dim;
+    //       const double trialFunction = phiV[j];
+    //
+    //       double gradientDotProduct = 0.;
+    //
+    //       for (unsigned direction = 0; direction < dim; direction++) {
+    //         gradientDotProduct +=
+    //           phiV_x[testGradientOffset + direction]
+    //           * phiV_x[trialGradientOffset + direction];
+    //       }
+    //
+    //       double diagonalContribution =
+    //         massCoefficient * testFunction * trialFunction
+    //         + diffusionCoefficient * gradientDotProduct
+    //         + nonlinearBase * velocityDotGradPhi[j];
+    //
+    //       if (cut == 1) {
+    //
+    //         const double tangentialGradientDotProduct =
+    //           gradientDotProduct
+    //           - normalDotGradPhi[i] * normalDotGradPhi[j];
+    //
+    //         diagonalContribution +=
+    //           surfaceCoefficient * tangentialGradientDotProduct;
+    //       }
+    //
+    //       diagonalVelocityJacobian[j] = diagonalContribution;
+    //       nonlinearVelocityFactor[j] = nonlinearBase * trialFunction;
     //     }
-    //     if (C == 0)
-    //       Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
-    //     if (C == 1)
-    //       Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
     //
-    //     if (C > 0.1)
-    //       Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
-    //     if (C < 0.9)
-    //       Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
     //
-    //   } // end phiP_i loop
-    //   // end gauss point loop
+    //     // Assemble one complete Jacobian row at a time.
+    //     for (unsigned equationComponent = 0;
+    //          equationComponent < dim;
+    //          equationComponent++) {
     //
+    //       const unsigned velocityRow =
+    //         equationComponent * nDofsV + i;
+    //
+    //       double *jacobianRow =
+    //         Jac.data() + velocityRow * nDofsVP;
+    //
+    //       const unsigned diagonalBlockOffset =
+    //         equationComponent * nDofsV;
+    //
+    //       for (unsigned j = 0; j < nDofsV; j++) {
+    //         jacobianRow[diagonalBlockOffset + j] +=
+    //           diagonalVelocityJacobian[j];
+    //       }
+    //
+    //       for (unsigned trialComponent = 0;
+    //            trialComponent < dim;
+    //            trialComponent++) {
+    //
+    //         const unsigned velocityBlockOffset =
+    //           trialComponent * nDofsV;
+    //
+    //         const double diffusionRowFactor =
+    //           diffusionCoefficient
+    //           * phiV_x[testGradientOffset + trialComponent];
+    //
+    //         const double solutionGradient =
+    //           gradSolV_gss[equationComponent][trialComponent];
+    //
+    //         for (unsigned j = 0; j < nDofsV; j++) {
+    //
+    //           const unsigned trialGradientOffset = j * dim;
+    //
+    //           jacobianRow[velocityBlockOffset + j] +=
+    //             diffusionRowFactor
+    //             * phiV_x[trialGradientOffset + equationComponent]
+    //             + nonlinearVelocityFactor[j]
+    //             * solutionGradient;
+    //         }
+    //       }
+    //     }
+    //   }
+    //
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Velocity-pressure and pressure-velocity Jacobian blocks
+    //   // -------------------------------------------------------------------------
+    //
+    //   for (unsigned i = 0; i < nDofsV; i++) {
+    //
+    //     const unsigned testGradientOffset = i * dim;
+    //
+    //     for (unsigned equationComponent = 0;
+    //          equationComponent < dim;
+    //          equationComponent++) {
+    //
+    //       const unsigned velocityDof =
+    //         equationComponent * nDofsV + i;
+    //
+    //       double *velocityRow =
+    //         Jac.data() + velocityDof * nDofsVP;
+    //
+    //       const double couplingBase =
+    //         -weight
+    //         * phiV_x[testGradientOffset + equationComponent];
+    //
+    //       for (unsigned j = 0; j < nDofsP; j++) {
+    //
+    //         const unsigned pressure1Dof = pressure1Offset + j;
+    //         const unsigned pressure2Dof = pressure2Offset + j;
+    //
+    //         const double coupling = couplingBase * phiP[j];
+    //         const double phase1Coupling = coupling * phase1Weight;
+    //         const double phase2Coupling = coupling * phase2Weight;
+    //
+    //         velocityRow[pressure1Dof] += phase1Coupling;
+    //         velocityRow[pressure2Dof] += phase2Coupling;
+    //
+    //         Jac[pressure1Dof * nDofsVP + velocityDof] -=
+    //           phase1Coupling;
+    //
+    //         Jac[pressure2Dof * nDofsVP + velocityDof] -=
+    //           phase2Coupling;
+    //       }
+    //     }
+    //   }
+    //
+    //
+    //   // -------------------------------------------------------------------------
+    //   // Pressure-pressure Jacobian blocks
+    //   // -------------------------------------------------------------------------
+    //
+    //   if (phase1PenaltyCoefficient != 0.) {
+    //
+    //     const double weightedPenalty =
+    //       weight * phase1PenaltyCoefficient;
+    //
+    //     for (unsigned i = 0; i < nDofsP; i++) {
+    //
+    //       double *pressureRow =
+    //         Jac.data()
+    //         + (pressure1Offset + i) * nDofsVP
+    //         + pressure1Offset;
+    //
+    //       const double testFactor =
+    //         weightedPenalty * phiP[i];
+    //
+    //       for (unsigned j = 0; j < nDofsP; j++) {
+    //         pressureRow[j] += testFactor * phiP[j];
+    //       }
+    //     }
+    //   }
+    //
+    //   if (phase2PenaltyCoefficient != 0.) {
+    //
+    //     const double weightedPenalty =
+    //       weight * phase2PenaltyCoefficient;
+    //
+    //     for (unsigned i = 0; i < nDofsP; i++) {
+    //
+    //       double *pressureRow =
+    //         Jac.data()
+    //         + (pressure2Offset + i) * nDofsVP
+    //         + pressure2Offset;
+    //
+    //       const double testFactor =
+    //         weightedPenalty * phiP[i];
+    //
+    //       for (unsigned j = 0; j < nDofsP; j++) {
+    //         pressureRow[j] += testFactor * phiP[j];
+    //       }
+    //     }
+    //   }
+    // }
 
-    //--------------------------------------------------------------------------------------------------------
-    // Add the local Matrix/Vector into the global Matrix/Vector
+    std::vector<double> velocityDotGradPhi(nDofsV);
+    std::vector<double> normalDotGradPhi(nDofsV);
+    std::vector <double> Nf(dim); // unit normal in the physical element from the fluid to the solid
+    for (unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+      // *** get gauss point weight, test function and test function partial derivatives ***
+      femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
+      //femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x, phiPsi_xx);
+      phiP = femP->GetPhi(ig);
 
+      double dsN = 0.;
 
-  //   const double massCoefficient = rho * weight / dt;
-  //   const double diffusionCoefficient = cnew * mu * weight;
-  //   const double convectionCoefficient = cnew * rho * weight;
-  //
-  //   const double surfaceCoefficient =
-  //     (cut == 1)
-  //     ? cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN
-  //     : 0.;
-  //
-  //   for (unsigned i = 0; i < nDofsV; i++) {
-  //
-  //     const unsigned iOffset = i * dim;
-  //     const double phiI = phiV[i];
-  //
-  //     for (unsigned j = 0; j < nDofsV; j++) {
-  //
-  //       const unsigned jOffset = j * dim;
-  //       const double phiJ = phiV[j];
-  //       const double phiProduct = phiI * phiJ;
-  //
-  //       double gradDot = 0.;
-  //
-  //       for (unsigned J = 0; J < dim; J++) {
-  //         gradDot += phiV_x[iOffset + J] * phiV_x[jOffset + J];
-  //       }
-  //
-  //       double diagonalContribution =
-  //         massCoefficient * phiProduct
-  //         + diffusionCoefficient * gradDot
-  //         + convectionCoefficient * phiI * velocityDotGradPhi[j];
-  //
-  //       if (cut == 1) {
-  //         const double tangentialGradDot =
-  //           gradDot
-  //           - normalDotGradPhi[i] * normalDotGradPhi[j];
-  //
-  //         diagonalContribution +=
-  //           surfaceCoefficient * tangentialGradDot;
-  //       }
-  //
-  //       for (unsigned I = 0; I < dim; I++) {
-  //
-  //         const unsigned VIrow = I * nDofsV + i;
-  //         double *jacRow = Jac.data() + VIrow * nDofsVP;
-  //
-  //         const unsigned VIcolumn = I * nDofsV + j;
-  //         jacRow[VIcolumn] += diagonalContribution;
-  //
-  //         const double nonlinearFactor =
-  //           convectionCoefficient * phiProduct;
-  //
-  //         for (unsigned J = 0; J < dim; J++) {
-  //
-  //           const unsigned VJcolumn = J * nDofsV + j;
-  //
-  //           jacRow[VJcolumn] +=
-  //             diffusionCoefficient
-  //             * phiV_x[iOffset + J]
-  //             * phiV_x[jOffset + I]
-  //             + nonlinearFactor
-  //             * gradSolV_gss[I][J];
-  //         }
-  //       }
-  //     }
-  //   }
-  //
-  //
-  //   for (unsigned i = 0; i < nDofsV; i++) {
-  //     for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
-  //       unsigned VIrow = I * nDofsV + i;
-  //       // for (unsigned j = 0; j < nDofsV; j++) {
-  //       //   unsigned VIcolumn = I * nDofsV + j;
-  //       //
-  //       //   Jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / dt; // inertia
-  //       //
-  //       //   for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
-  //       //     unsigned VJcolumn = J * nDofsV + j;
-  //       //     Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
-  //       //     Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
-  //       //
-  //       //     Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * rho * phiV[i] * solV_gss[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
-  //       //     Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * rho * phiV[i] * phiV[j] * gradSolV_gss[I][J] * weight; //off-diagonal nonlinear
-  //       //   }
-  //       //
-  //       //   // surface tension stabilization -- matrix contribution
-  //       //   if (cut == 1) {
-  //       //
-  //       //     double stabSFJac = 0.0;
-  //       //
-  //       //     // std::vector<std::vector<double>> P (dim);
-  //       //     // for (int d = 0; d < dim; d ++)
-  //       //     //   P[d].resize(dim);
-  //       //     //
-  //       //     // for(int i = 0; i < dim; i++) {
-  //       //     //   for(int j = 0; j < dim; j++) {
-  //       //     //     if(i == j) P[i][j] += 1.;
-  //       //     //     P[i][j] -= Nf[i] * Nf[j];
-  //       //     //   }
-  //       //     // }
-  //       //
-  //       //     for (unsigned a = 0; a < dim; ++a) {
-  //       //       for (unsigned b = 0; b < dim; ++b) {
-  //       //
-  //       //         stabSFJac +=
-  //       //           cnew
-  //       //           * phiV_x[j * dim + a]
-  //       //           * P[a][b]
-  //       //           * phiV_x[i * dim + b];
-  //       //       }
-  //       //     }
-  //       //
-  //       //     Jac[VIrow * nDofsVP + VIcolumn] += cnew * sigma * dt * stabSFJac * weight * weightCF[ig] * dsN;
-  //       //
-  //       //   }
-  //       // }
-  //
-  //       for (unsigned j = 0; j < nDofsP; j++) {
-  //         unsigned P1column = dim * nDofsV + j;
-  //         unsigned P2column = dim * nDofsV + nDofsP + j;
-  //         Jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
-  //         Jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
-  //
-  //         Jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
-  //         Jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
-  //       }
-  //     }
-  //   }
-  //   for (unsigned i = 0; i < nDofsP; i++) {
-  //     unsigned P1row = dim * nDofsV + i;
-  //     unsigned P2row = dim * nDofsV + nDofsP + i;
-  //     for (unsigned j = 0; j < nDofsP; j++) {
-  //       unsigned P1column = dim * nDofsV + j;
-  //       unsigned P2column = dim * nDofsV + nDofsP + j;
-  //       if (C == 0)
-  //         Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
-  //       if (C == 1)
-  //         Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
-  //
-  //       if (C > 0.1)
-  //         Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-  //       if (C < 0.9)
-  //         Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-  //     }
-  //   }
-  //
-  // }
+      //if(cut == 1) {
 
-  RES->add_vector_blocked(Res, sysDof);
+      if (cut == 1) {
 
-  KK->add_matrix_blocked(Jac, sysDof, sysDof);
-} //end element loop for each process
+        femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
 
-RES->close();
-KK->close();
+        dsN = 0.0;
+        for (unsigned k = 0; k < dim; ++k) {
+          double nk = 0.0;
+          for (unsigned j = 0; j < dim; ++j)
+            nk += JacI[j][k] * a[j];
 
-if (nprocs == 1)
-  ProfilerStop();
+          Nf[k] = nk;
+          dsN += nk * nk;
+        }
 
-if (printdb) std::cout << "After KK assembly\n" << std::flush;
+        dsN = std::sqrt(dsN) + 1.e-20;
 
-std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
-start_time = clock();
+        for (unsigned k = 0; k < dim; ++k) {
+          Nf[k] /= dsN;
+        }
+
+        for (unsigned i = 0; i < dim; ++i) {
+          const double ni = Nf[i];
+          auto& Pi = P[i];
+
+          for (unsigned j = 0; j < dim; ++j)
+            Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
+        }
+      }
+
+      //   femV->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+      //
+      //   for(unsigned k = 0; k < dim; k++) {
+      //     for(unsigned j = 0; j < dim; j++) {
+      //       Nf[k] += JacI[j][k] * a[j];
+      //     }
+      //     dsN += Nf[k] * Nf[k];
+      //   }
+      //   dsN = std::sqrt(dsN) + 1.e-20;
+      //   for(unsigned k = 0; k < dim; k++) {
+      //     Nf[k] /= dsN;
+      //   }
+      //
+      //   // std::fill(xg.begin(), xg.end(), 0.0);
+      //   //
+      //   // for(unsigned i = 0; i < nDofsV; i++) {
+      //   //   for(unsigned k = 0; k < dim; k++) {
+      //   //     xg[k] += coordX[k][i] * phiV[i];
+      //   //   }
+      //   // }
+      //
+      //
+      //   for (auto& row : P) std::fill(row.begin(), row.end(), 0.0);
+      //
+      //   for(int i = 0; i < dim; i++) {
+      //     for(int j = 0; j < dim; j++) {
+      //       if(i == j) P[i][j] += 1.;
+      //       P[i][j] -= Nf[i] * Nf[j];
+      //     }
+      //   }
+      //
+      //
+      //
+      // }
+
+      for (unsigned k = 0; k < dim; ++k) {
+        solV_gss[k] = 0.0;
+        solVOld_gss[k] = 0.0;
+
+        for (unsigned j = 0; j < dim; ++j) {
+          gradSolV_gss[k][j] = 0.0;
+          gradSolVOld_gss[k][j] = 0.0;
+        }
+      }
+
+      for (unsigned i = 0; i < nDofsV; ++i) {
+
+        const double phi = phiV[i];
+        const unsigned offset = i * dim;
+
+        for (unsigned k = 0; k < dim; ++k) {
+
+          const double u = solV[k][i];
+          const double uOld = solVOld[k][i];
+
+          solV_gss[k] += u * phi;
+          solVOld_gss[k] += uOld * phi;
+
+          for (unsigned j = 0; j < dim; ++j) {
+
+            const double dphi = phiV_x[offset + j];
+
+            gradSolV_gss[k][j] += u * dphi;
+            gradSolVOld_gss[k][j] += uOld * dphi;
+          }
+        }
+      }
+
+      for (unsigned j = 0; j < nDofsV; j++) {
+        const unsigned jOffset = j * dim;
+        velocityDotGradPhi[j] = 0.;
+        normalDotGradPhi[j] = 0.;
+        for (unsigned J = 0; J < dim; J++) {
+          const double gradPhiJ = phiV_x[jOffset + J];
+          velocityDotGradPhi[j] += solV_gss[J] * gradPhiJ;
+          if (cut == 1) {
+            normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+          }
+        }
+      }
+
+      double solP1_gss = 0;
+      double solP2_gss = 0;
+      for (unsigned i = 0; i < nDofsP; i++) {
+        solP1_gss += phiP[i] * solP1[i];
+        solP2_gss += phiP[i] * solP2[i];
+      }
+
+      double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
+      double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+
+      double rhoC = rho1 * C + rho2 * (1. - C);
+
+      // *** phiV_i loop ***
+      for (unsigned i = 0; i < nDofsV; i++) {
+        for (unsigned  I = 0; I < dim; I++) { //momentum equation in k
+          double NSV = 0.;
+          for (unsigned J = 0; J < dim; J++) { // second index j in each equation
+            // residual terms
+            NSV   +=  cnew * mu * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
+            NSV   +=  cnew * rho * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
+            // crank-nicholson old terms
+            NSV   +=  cold * mu * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
+            NSV   +=  cold * rho * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]); // nonlinear term
+          }
+          NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]);  // pressure gradient
+          NSV += rho * phiV[i] * (solV_gss[I] - solVOld_gss[I]) / dt ;
+          NSV += - rho * phiV[i] * g[I]; // gravity term
+          Res[I * nDofsV + i] -=  NSV * weight;
+
+          // surface tension stabilization -- rhs contribution
+          if (cut == 1) {
+
+            // std::vector<std::vector<double>> P (dim);
+            // for (int d = 0; d < dim; d ++)
+            //   P[d].resize(dim);
+            //
+            // for(int i = 0; i < dim; i++) {
+            //   for(int j = 0; j < dim; j++) {
+            //     if(i == j) P[i][j] += 1.;
+            //     P[i][j] -= Nf[i] * Nf[j];
+            //   }
+            // }
+
+            for (int d = 0; d < dim; d++) {
+              Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+            }
+
+            double stabSF = 0.0;
+
+            for (unsigned a = 0; a < dim; ++a) {
+
+              double gradDeltaU_tg = 0.0;
+              double gradPhi_tg    = 0.0;
+
+              for (unsigned b = 0; b < dim; ++b) {
+
+                gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
+                gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
+
+              }
+
+              stabSF += gradDeltaU_tg * gradPhi_tg;
+            }
+
+            Res[I * nDofsV + i] += - cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN;
+
+          }
+        }
+      } // end phiV_i loop
+
+      // *** phiP_i loop ***
+      for (unsigned i = 0; i < nDofsP; i++) {
+        for (int I = 0; I < dim; I++) {
+          Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
+          Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
+        }
+        if (C == 0)
+          Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+        if (C == 1)
+          Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+
+        if (C > 0.1)
+          Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
+        if (C < 0.9)
+          Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
+
+      } // end phiP_i loop
+      // end gauss point loop
+
+      --------------------------------------------------------------------------------------------------------
+      Add the local Matrix / Vector into the global Matrix / Vector
+
+      const double massCoefficient = rho * weight / dt;
+      const double diffusionCoefficient = cnew * mu * weight;
+      const double convectionCoefficient = cnew * rho * weight;
+
+      const double surfaceCoefficient =
+        (cut == 1)
+        ? cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN
+        : 0.;
+
+      for (unsigned i = 0; i < nDofsV; i++) {
+
+        const unsigned iOffset = i * dim;
+        const double phiI = phiV[i];
+
+        for (unsigned j = 0; j < nDofsV; j++) {
+
+          const unsigned jOffset = j * dim;
+          const double phiJ = phiV[j];
+          const double phiProduct = phiI * phiJ;
+
+          double gradDot = 0.;
+
+          for (unsigned J = 0; J < dim; J++) {
+            gradDot += phiV_x[iOffset + J] * phiV_x[jOffset + J];
+          }
+
+          double diagonalContribution =
+            massCoefficient * phiProduct
+            + diffusionCoefficient * gradDot
+            + convectionCoefficient * phiI * velocityDotGradPhi[j];
+
+          if (cut == 1) {
+            const double tangentialGradDot =
+              gradDot
+              - normalDotGradPhi[i] * normalDotGradPhi[j];
+
+            diagonalContribution +=
+              surfaceCoefficient * tangentialGradDot;
+          }
+
+          for (unsigned I = 0; I < dim; I++) {
+
+            const unsigned VIrow = I * nDofsV + i;
+            double *jacRow = Jac.data() + VIrow * nDofsVP;
+
+            const unsigned VIcolumn = I * nDofsV + j;
+            jacRow[VIcolumn] += diagonalContribution;
+
+            const double nonlinearFactor =
+              convectionCoefficient * phiProduct;
+
+            for (unsigned J = 0; J < dim; J++) {
+
+              const unsigned VJcolumn = J * nDofsV + j;
+
+              jacRow[VJcolumn] +=
+                diffusionCoefficient
+                * phiV_x[iOffset + J]
+                * phiV_x[jOffset + I]
+                + nonlinearFactor
+                * gradSolV_gss[I][J];
+            }
+          }
+        }
+      }
+
+      for (unsigned i = 0; i < nDofsV; i++) {
+        for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+          unsigned VIrow = I * nDofsV + i;
+          // for (unsigned j = 0; j < nDofsV; j++) {
+          //   unsigned VIcolumn = I * nDofsV + j;
+          //
+          //   Jac[ VIrow * nDofsVP + VIcolumn] += rho * phiV[i] * phiV[j] * weight / dt; // inertia
+          //
+          //   for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+          //     unsigned VJcolumn = J * nDofsV + j;
+          //     Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + J] * weight; //diagonal diffusion
+          //     Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * mu * phiV_x[i * dim + J] * phiV_x[j * dim + I] * weight; //off-diagonal diffusion
+          //
+          //     Jac[ VIrow * nDofsVP + VIcolumn ] += cnew * rho * phiV[i] * solV_gss[J] * phiV_x[j * dim + J] * weight; //diagonal nonlinear
+          //     Jac[ VIrow * nDofsVP + VJcolumn ] += cnew * rho * phiV[i] * phiV[j] * gradSolV_gss[I][J] * weight; //off-diagonal nonlinear
+          //   }
+          //
+          //   // surface tension stabilization -- matrix contribution
+          //   if (cut == 1) {
+          //
+          //     double stabSFJac = 0.0;
+          //
+          //     // std::vector<std::vector<double>> P (dim);
+          //     // for (int d = 0; d < dim; d ++)
+          //     //   P[d].resize(dim);
+          //     //
+          //     // for(int i = 0; i < dim; i++) {
+          //     //   for(int j = 0; j < dim; j++) {
+          //     //     if(i == j) P[i][j] += 1.;
+          //     //     P[i][j] -= Nf[i] * Nf[j];
+          //     //   }
+          //     // }
+          //
+          //     for (unsigned a = 0; a < dim; ++a) {
+          //       for (unsigned b = 0; b < dim; ++b) {
+          //
+          //         stabSFJac +=
+          //           cnew
+          //           * phiV_x[j * dim + a]
+          //           * P[a][b]
+          //           * phiV_x[i * dim + b];
+          //       }
+          //     }
+          //
+          //     Jac[VIrow * nDofsVP + VIcolumn] += cnew * sigma * dt * stabSFJac * weight * weightCF[ig] * dsN;
+          //
+          //   }
+          // }
+
+          for (unsigned j = 0; j < nDofsP; j++) {
+            unsigned P1column = dim * nDofsV + j;
+            unsigned P2column = dim * nDofsV + nDofsP + j;
+            Jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
+            Jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
+
+            Jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
+            Jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
+          }
+        }
+      }
+      for (unsigned i = 0; i < nDofsP; i++) {
+        unsigned P1row = dim * nDofsV + i;
+        unsigned P2row = dim * nDofsV + nDofsP + i;
+        for (unsigned j = 0; j < nDofsP; j++) {
+          unsigned P1column = dim * nDofsV + j;
+          unsigned P2column = dim * nDofsV + nDofsP + j;
+          if (C == 0)
+            Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          if (C == 1)
+            Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
+
+          if (C > 0.1)
+            Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+          if (C < 0.9)
+            Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+        }
+      }
+
+    }
+
+    RES->add_vector_blocked(Res, sysDof);
+
+    KK->add_matrix_blocked(Jac, sysDof, sysDof);
+  } //end element loop for each process
+
+  RES->close();
+  KK->close();
+
+  if (nprocs == 1)
+    ProfilerStop();
+
+  if (printdb) std::cout << "After KK assembly\n" << std::flush;
+
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
+  start_time = clock();
 
 // PrintMemorySnapshot("pre");
 
-vector < SparseMatrix* > PP, RR, PPamr, RRamr;
-PP = mlPdeSys->GetProjectionMatrix();
-RR = mlPdeSys->GetRestrictionMatrix();
-PPamr = mlPdeSys->GetAMRProjectionMatrix();
-RRamr = mlPdeSys->GetAMRRestrictionMatrix();
+  vector < SparseMatrix* > PP, RR, PPamr, RRamr;
+  PP = mlPdeSys->GetProjectionMatrix();
+  RR = mlPdeSys->GetRestrictionMatrix();
+  PPamr = mlPdeSys->GetAMRProjectionMatrix();
+  RRamr = mlPdeSys->GetAMRRestrictionMatrix();
 
-vector < LinearEquationSolver*> LinSolver = mlPdeSys->GetLinearSolver();
+  vector < LinearEquationSolver*> LinSolver = mlPdeSys->GetLinearSolver();
 
-MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
-for (unsigned level = levelF; level > level0 + level2; level--) {
-  if (!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
-    if (printdb) std::cout << "Before KK amr restriction\n" << std::flush;
+  MultiLevelMesh * mlmsh0 = ml_prob0->_ml_msh;
+  for (unsigned level = levelF; level > level0 + level2; level--) {
+    if (!mlmsh0->GetLevel(level)->GetIfHomogeneous() && level == levelF) { //AMR RESTRICTION
+      if (printdb) std::cout << "Before KK amr restriction\n" << std::flush;
 
-    if (!RRamr[level]) {
-      (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
-      *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
-      //LinSolver[level]->SwapMatrices();
-      LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, !firstNonlinearIt); // cannot use !firstNonlinearIt here
+      if (!RRamr[level]) {
+        (LinSolver[level]->_RESC)->matrix_mult_transpose(*LinSolver[level]->_RES, *PPamr[level]);
+        *(LinSolver[level]->_RES) = *(LinSolver[level]->_RESC);
+        //LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_PtAP(*PPamr[level], *LinSolver[level]->_KKamr, !firstNonlinearIt); // cannot use !firstNonlinearIt here
+      }
+      else {
+        (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
+        *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
+        //LinSolver[level]->SwapMatrices();
+        LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], !firstNonlinearIt); // cannot use !firstNonlinearIt here
+      }
+      if (printdb) std::cout << "After KK amr restriction\n" << std::flush;
+    }
+
+    if (printdb) std::cout << "Before KK level" << level << " restriction\n" << std::flush;
+    if (!RR[level]) { //Multilevel Restriction
+      (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
+      LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, !firstNonlinearIt); // Kc = Pt Kf P // mat_reuse works only with level == levelF above
     }
     else {
-      (LinSolver[level]->_RESC)->matrix_mult(*LinSolver[level]->_RES, *RRamr[level]);
-      *(LinSolver[level]->_RES) = * (LinSolver[level]->_RESC);
-      //LinSolver[level]->SwapMatrices();
-      LinSolver[level]->_KK->matrix_ABC(*RRamr[level], *LinSolver[level]->_KKamr, *PPamr[level], !firstNonlinearIt); // cannot use !firstNonlinearIt here
+      (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
+      LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], !firstNonlinearIt); // Kc = R Kf P // mat_reuse works only with level == levelF above
     }
-    if (printdb) std::cout << "After KK amr restriction\n" << std::flush;
+    if (printdb) std::cout << "After KK level" << level << " restriction\n" << std::flush;
   }
 
-  if (printdb) std::cout << "Before KK level" << level << " restriction\n" << std::flush;
-  if (!RR[level]) { //Multilevel Restriction
-    (LinSolver[level - 1u]->_RES)->matrix_mult_transpose(*LinSolver[level]->_RES, *PP[level]); // Resc = Pt Resf
-    LinSolver[level - 1u]->_KK->matrix_PtAP(*PP[level], *LinSolver[level]->_KK, !firstNonlinearIt); // Kc = Pt Kf P // mat_reuse works only with level == levelF above
-  }
-  else {
-    (LinSolver[level - 1u]->_RES)->matrix_mult(*LinSolver[level]->_RES, *RR[level]); // Resc = R Resf
-    LinSolver[level - 1u]->_KK->matrix_ABC(*RR[level], *LinSolver[level]->_KK, *PP[level], !firstNonlinearIt); // Kc = R Kf P // mat_reuse works only with level == levelF above
-  }
-  if (printdb) std::cout << "After KK level" << level << " restriction\n" << std::flush;
-}
-
-std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
+  std::cout << "Matrix Restriction time     = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl << std::flush;
 
 // PrintMemorySnapshot("post");
 
-start_time = clock();
+  start_time = clock();
 
-if (printdb) std::cout << "Before KK sum \n" << std::flush;
-KK2->matrix_add(1., *LinSolver[level0 + level2]->_KK, "different_nonzero_pattern");
-*RES2 += *LinSolver[level0 + level2]->_RES;
-if (printdb) std::cout << "After KK sum \n" << std::flush;
+  if (printdb) std::cout << "Before KK sum \n" << std::flush;
+  KK2->matrix_add(1., *LinSolver[level0 + level2]->_KK, "different_nonzero_pattern");
+  *RES2 += *LinSolver[level0 + level2]->_RES;
+  if (printdb) std::cout << "After KK sum \n" << std::flush;
 
 // #include "PetscMatrix.hpp"
 
