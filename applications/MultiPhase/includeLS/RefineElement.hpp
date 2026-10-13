@@ -231,11 +231,11 @@ void RefineElement::SetConstants(const double &eps) {
   _a9 = pow(eps, -9.) * 0.13671875; // 35./256.;
 }
 
-std::vector<std::vector<double>> ProlongateFieldToChildren(
+void ProlongateFieldToChildren( std::vector<std::vector<double>> &fineField,
                                 const std::vector<std::vector<std::vector<std::pair<unsigned, double>>>>& PMatrix,
-const std::vector<double>& coarseField) {
+                                const std::vector<double>& coarseField) {
 
-  std::vector<std::vector<double>> fineField(PMatrix.size());
+  fineField.resize(PMatrix.size());
 
   auto fineChild = fineField.begin();
   for (auto child = PMatrix.cbegin(); child != PMatrix.cend(); ++child, ++fineChild) {
@@ -249,7 +249,7 @@ const std::vector<double>& coarseField) {
       *fineValue = value;
     }
   }
-  return fineField;
+  return;
 }
 
 #endif

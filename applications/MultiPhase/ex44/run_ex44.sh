@@ -15,17 +15,17 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
+DIM=2
 SIMULATION="rb2"
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(2)
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(6)
 
-LEVEL_OFFSET=1
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization

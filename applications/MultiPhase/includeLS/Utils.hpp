@@ -3318,7 +3318,7 @@ SimulationConfig GetSimulationConfig(
       cfg.properties.rho1 = 1.;
       cfg.properties.mu2  = 10.;
       cfg.properties.mu1  = 0.1;
-      cfg.properties.sigma = 1.96;
+      cfg.properties.sigma = 0;//1.96;
       cfg.properties.gravity = -0.98;
 
       break;
