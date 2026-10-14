@@ -341,7 +341,7 @@ int main(int argc, char **argv) {
       MultiLevelMesh mlMsh0;
       std::string meshName = "./input/unstructured_RB_tri_h8.neu";
       //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "ninth"); // Turek 1&2
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -448,7 +448,7 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "ninth"); // Turek 1&2
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
       //mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -513,7 +513,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 0 + 0 * nSteps + 1; t++) {
+      for (unsigned t = 1; t <= 0 + 0 * nSteps + 2; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -619,24 +619,8 @@ int main(int argc, char **argv) {
         //system2.SetOuterSolver(PREONLY);
         //system2.SetMaxNumberOfNonLinearIterations(10);
 
-        MultiLevelProblem mlProb0(mlsol0);
-        // add system Navier-Stokes in mlProb as a Linear Implicit System
-        TransientNonlinearImplicitSystem& system0 = mlProb0.add_system < TransientNonlinearImplicitSystem > ("NS");
-        // add velocity to system
-        for(unsigned d = 0; d < dim; d++) system0.AddSolutionToSystemPDE(vName[d].c_str());
-        //add pressure
-        for(unsigned d = 0; d < pName.size(); d++) system0.AddSolutionToSystemPDE(pName[d].c_str());
-        //system0.SetSparsityPatternMinimumSize(250);
-        // attach the assembling function to system
-        system0.SetAssembleFunction(AssembleMultiphase);
-        system0.AttachGetTimeIntervalFunction(
-          (t == 1) ? firstTimeStepMultiphase : TimeStepMultiphase
-        );
-        // initilaize and solve the system
-        system0.init();
-
-        mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, level0, hC, properties, td);
-        mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, level0, hC, properties, td);
+        bool linearScheme = true;
+        mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme);
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l);
@@ -662,14 +646,15 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
-        FieldSplitTree FS_P(PREONLY, AMG_PRECOND, fieldP, "Pressure");
+        FieldSplitTree FS_P(PREONLY, MULTIGRID_PRECOND, fieldP, "Pressure");
         // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
+        // FieldSplitTree FS_P(RICHARDSON, ILU_PRECOND, fieldP, "Pressure");
 
         //FS_P.SetFieldSplitSchurFactType{PC_FIELDSPLIT_SCHUR_FACT_LOWER};
         // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
-        // FS_P.SetAsmBlockSize(3);
+        // FS_P.SetAsmBlockSize(2);
 
-        // FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20);
+        // FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 2);
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);
@@ -686,17 +671,18 @@ int main(int argc, char **argv) {
         //system2.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
 
         // attach the assembling function to system
-        system2.SetMaxNumberOfNonLinearIterations(1);
+        system2.SetMaxNumberOfNonLinearIterations((linearScheme) ? 1 : 3);
         system2.SetMaxNumberOfLinearIterations(10);
         system2.SetMgType(V_CYCLE);
 
         // initilaize and solve the system
         system2.init();
 
-        system2.SetOuterSolver(GMRES);
+        system2.SetOuterSolver(FGMRES);
         //system2.SetSolverFineGrids(GMRES);
         system2.SetFieldSplitTree(&FS_NS);
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
+        system2.SetAbsoluteLinearConvergenceTolerance(1.e-5);
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
           LinearEquationSolver* pdeSys2_base  = system2._LinSolver[l];
@@ -967,11 +953,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   AssembleStabilizationTerms(ml_prob2);
 
-  //RES2->close();
-  // KK->flush();
+  //RES->close();
+  //KK->flush();
 
   MultiphaseParams mParam = ml_prob2.GetMultiphaseParams();
-  MultiLevelProblem *ml_prob0 = mParam.mlProbF;
   const unsigned levelF = mParam.levelF;
   const unsigned levelC = mParam.levelC;
   const unsigned level0 = mParam.level0;
@@ -991,14 +976,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double sigma = properties.sigma;
   double gravity = properties.gravity;
   std::vector <double> g;
-
   if(dim == 2) g = {0, gravity};
   else g = {0, 0, gravity};
   double dt =  mlPdeSys->GetIntervalTime();
+  bool linear = mParam.linear;
+
   const bool firstNonlinearIt = (mlPdeSys->GetNonlinearIt() == 0);
 
   // Stuff to be taken/used from levelC to levelF from mlsol0
-  MultiLevelSolution*  mlSol0        = ml_prob0->_ml_sol;  // pointer to the multilevelF solution object
+  MultiLevelSolution*  mlSol0  = static_cast<MultiLevelSolution*>(mParam.extProblem);  // pointer to the multilevelF solution object
   unsigned cIndex = mlSol0->GetIndex("C");
   unsigned psiIndex = mlSol0->GetIndex("Psi");
   unsigned psiType = mlSol0->GetSolutionType("Psi");
@@ -1074,15 +1060,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   const int tagXi = tagX + static_cast<int>(dim);
   const int tagElCounts = tagXi + static_cast<int>(dim);
   const int tagEl = tagElCounts + 1;
-  const int tagElGF = tagEl + 1;
-  const int tagSolV = tagElGF + 1;
+  // const int tagElGF = tagEl + 1;
+  const int tagSolV = tagEl + 1;
   const int tagSolVOld = tagSolV + static_cast<int>(dim);
   const int tagSolP1 = tagSolVOld + static_cast<int>(dim);
   const int tagSolP2 = tagSolP1 + 1;
 
   std::vector<MPI_Request> requests;
   std::vector<unsigned> el_recv;
-  std::vector<unsigned> el_gf_recv;
+  // std::vector<unsigned> el_gf_recv;
   std::vector<unsigned> dofV_recv;
   std::vector<unsigned> dofP_recv;
   std::vector<std::vector<double>> X_recv;
@@ -1098,6 +1084,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::vector<unsigned> offsetXi;
 
   Solution* sol = mlSol->GetLevel(levelToAssemble);
+
+  start_time = clock();
 
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
@@ -1138,7 +1126,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       }
 
       const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
-      const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
+      // const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
       const unsigned iel_type = msh->GetElementType(iel);
       const unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
       const unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
@@ -1181,7 +1169,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     }
 
     std::vector<std::vector<unsigned>> el_send(nprocs);
-    std::vector<std::vector<unsigned>> el_gf_send(nprocs);
+    // std::vector<std::vector<unsigned>> el_gf_send(nprocs);
     std::vector<std::vector<unsigned>> dofV_send(nprocs);
     std::vector<std::vector<unsigned>> dofP_send(nprocs);
     std::vector<std::vector<double>> X_send(dim * nprocs);
@@ -1193,7 +1181,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
     for (unsigned jproc = 0; jproc < nprocs; ++jproc) {
       el_send[jproc].resize(n_el_send[jproc]);
-      el_gf_send[jproc].resize(n_el_send[jproc]);
+      // el_gf_send[jproc].resize(n_el_send[jproc]);
       dofV_send[jproc].resize(n_dof_send[jproc][solVType]);
       dofP_send[jproc].resize(n_dof_send[jproc][solPType]);
       solP1_send[jproc].resize(n_dof_send[jproc][solPType]);
@@ -1216,7 +1204,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     for (unsigned k = 0; k < nElementsToLoop; ++k) {
 
       const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
-      const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
+      // const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
       const unsigned iel_type = msh->GetElementType(iel);
       const unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
       const unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
@@ -1368,7 +1356,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
         }
 
-// *** Gauss point loop ***
+        // *** Gauss point loop ***
         std::vector <double> Nf(dim); // unit normal in the physical element from the fluid to the solid
         std::vector<double> normalDotGradPhi(nDofsV);
         for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
@@ -1383,7 +1371,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               }
             }
             femV->Jacobian(coordXgf, xi_gf, weightFake, phiV, phiV_x);
-            femP->GetPhi(xi_gf, phiP);
+            femP->GetPhi(phiP, xi_gf);
           }
           else {
             femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
@@ -1461,10 +1449,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           double rhoC = rho1 * C + rho2 * (1. - C);
 
           const double massCoefficient = rho * weight / dt;
-          const double diffusionCoefficientNew = cnew * mu * weight;
-          const double convectionCoefficientNew = cnew * rho * weight;
 
+          const double diffusionCoefficientNew = cnew * mu * weight;
           const double diffusionCoefficientOld = cold * mu * weight;
+
+          const double convectionCoefficientNew = cnew * rho * weight;
           const double convectionCoefficientOld = cold * rho * weight;
 
           // *** phiV_i loop ***
@@ -1475,10 +1464,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
                 // residual terms
                 NSV   +=  diffusionCoefficientNew * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
-                NSV   +=  convectionCoefficientNew * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]); // nonlinear term
-                // crank-nicholson old terms
                 NSV   +=  diffusionCoefficientOld * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
-                NSV   +=  convectionCoefficientOld * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]); // nonlinear term
+                if(linear) { // Picard/Hasan linear convective term
+                  NSV   +=  phiV[i] * (convectionCoefficientNew * solVOld_gss[J] * gradSolV_gss[I][J] +
+                                       convectionCoefficientOld * solV_gss[J] * gradSolVOld_gss[I][J]);
+                }
+                else { // BackEuler/CrankNicholson nonlinear convective term
+                  NSV   +=  convectionCoefficientNew * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]);
+                  NSV   +=  convectionCoefficientOld * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]);
+                }
+
               }
               NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]) * weight;  // pressure gradient
               NSV += - rho * phiV[i] * g[I] * weight; // gravity term
@@ -1487,7 +1482,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
-
                 for (int d = 0; d < dim; d++) {
                   Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
                 }
@@ -1505,12 +1499,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                     gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
 
                   }
-
                   stabSF += gradDeltaU_tg * gradPhi_tg;
                 }
-
                 Res[I * nDofsV + i] += - cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN;
-
               }
             }
           } // end phiV_i loop
@@ -1537,9 +1528,18 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //--------------------------------------------------------------------------------------------------------
           // Add the local Matrix/Vector into the global Matrix/Vector
           std::vector<double> solVdotGradphi_gss(nDofsV, 0.);
-          for(unsigned j = 0; j < nDofsV; j++) {
-            for(unsigned J = 0; J < dim ; J++) {
-              solVdotGradphi_gss[j] += solV_gss[J] * phiV_x[j * dim + J];
+          if(linear) {
+            for(unsigned j = 0; j < nDofsV; j++) {
+              for(unsigned J = 0; J < dim ; J++) {
+                solVdotGradphi_gss[j] += solVOld_gss[J] * phiV_x[j * dim + J];
+              }
+            }
+          }
+          else {
+            for(unsigned j = 0; j < nDofsV; j++) {
+              for(unsigned J = 0; J < dim ; J++) {
+                solVdotGradphi_gss[j] += solV_gss[J] * phiV_x[j * dim + J];
+              }
             }
           }
 
@@ -1559,7 +1559,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               double diagonalContribution = massCoefficient * phiProduct +
                                             diffusionCoefficientNew * gradPhi_dot_gradPhi +
-                                            convectionCoefficientNew * Phi_dot_solVGradPhi;;
+                                            convectionCoefficientNew * Phi_dot_solVGradPhi ;
 
               if (cut == 1) {
                 const double tangentialGradDot =
@@ -1577,7 +1577,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
                   unsigned VJcolumn = J * nDofsV + j;
                   Jac[ VIrow + VJcolumn ] += diffusionCoefficientNew * phiV_x[i * dim + J] * phiV_x[j * dim + I]; //off-diagonal diffusion
-                  Jac[ VIrow + VJcolumn ] += convectionCoefficientNew * phiProduct * gradSolV_gss[I][J]; //off-diagonal nonlinear
+                  Jac[ VIrow + VJcolumn ] += (linear) ? convectionCoefficientOld * phiProduct * gradSolVOld_gss[I][J] //off-diagonal convection
+                                             : convectionCoefficientNew * phiProduct * gradSolV_gss[I][J]; //off-diagonal convection
                 }
               }
             }
@@ -1636,7 +1637,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           const unsigned jel = el->GetChild(iel, j);
           const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
           el_send[jproc][posEl_send[jproc]] = jel;
-          el_gf_send[jproc][posEl_send[jproc]] = iel_gf;
+          // el_gf_send[jproc][posEl_send[jproc]] = iel_gf;
           ++posEl_send[jproc];
 
           for (unsigned i = 0; i < nDofsV; ++i) {
@@ -1735,7 +1736,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       }
 
       el_recv.resize(offsetEl_recv[nprocs]);
-      el_gf_recv.resize(offsetEl_recv[nprocs]);
+      // el_gf_recv.resize(offsetEl_recv[nprocs]);
       dofV_recv.resize(offsetV_recv[nprocs]);
       dofP_recv.resize(offsetP_recv[nprocs]);
       solP1_recv.resize(offsetP_recv[nprocs]);
@@ -1747,7 +1748,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
       if (n_el_send[iproc] != 0) {
         std::copy(el_send[iproc].begin(), el_send[iproc].end(), el_recv.data() + offsetEl_recv[iproc]);
-        std::copy(el_gf_send[iproc].begin(), el_gf_send[iproc].end(), el_gf_recv.data() + offsetEl_recv[iproc]);
+        // std::copy(el_gf_send[iproc].begin(), el_gf_send[iproc].end(), el_gf_recv.data() + offsetEl_recv[iproc]);
       }
 
       if (n_dof_send[iproc][solVType] != 0) {
@@ -1785,7 +1786,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         if (n_el_recv[p] != 0) {
           postRecv(el_recv.data() + offsetEl_recv[p], n_el_recv[p], MPI_UNSIGNED, p, tagEl, requests);
-          postRecv(el_gf_recv.data() + offsetEl_recv[p], n_el_recv[p], MPI_UNSIGNED, p, tagElGF, requests);
+          // postRecv(el_gf_recv.data() + offsetEl_recv[p], n_el_recv[p], MPI_UNSIGNED, p, tagElGF, requests);
         }
         if (n_dof_recv[p][solVType] != 0) {
           postRecv(dofV_recv.data() + offsetV_recv[p], n_dof_recv[p][solVType], MPI_UNSIGNED, p, tagV, requests);
@@ -1816,7 +1817,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         }
 
         postSend(el_send[p].data(), n_el_send[p], MPI_UNSIGNED, p, tagEl, requests);
-        postSend(el_gf_send[p].data(), n_el_send[p], MPI_UNSIGNED, p, tagElGF, requests);
+        // postSend(el_gf_send[p].data(), n_el_send[p], MPI_UNSIGNED, p, tagElGF, requests);
         postSend(dofV_send[p].data(), n_dof_send[p][solVType], MPI_UNSIGNED, p, tagV, requests);
         postSend(dofP_send[p].data(), n_dof_send[p][solPType], MPI_UNSIGNED, p, tagP, requests);
         postSend(solP1_send[p].data(), n_dof_send[p][solPType], MPI_DOUBLE, p, tagSolP1, requests);
@@ -1833,13 +1834,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       waitAll(requests);
     }
 
-    //RES->flush();
-    // KK->flush();
+    RES->close();
+    KK->flush();
   }
 
   //END parallel exchange between levels
 
   RES->close();
   KK->close();
+
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
 }

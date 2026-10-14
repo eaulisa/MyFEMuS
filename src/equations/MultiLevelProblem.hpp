@@ -61,13 +61,14 @@ namespace femus {
   };
 
   struct MultiphaseParams {
-    MultiLevelProblem* mlProbF = nullptr;
+    void* extProblem = nullptr;
     unsigned levelF = 0;
     unsigned levelC = 0;
     unsigned level0 = 0;
     double hC = 0;
     MultiphasePhysicalProperties properties;
     TimeDiscretization td;
+    bool linear = false;
   };
 
   class MultiLevelProblem {
@@ -330,17 +331,18 @@ namespace femus {
 
       }
 
-      void SetMultiphaseParams(MultiLevelProblem* mlProbF,
+      void SetMultiphaseParams(void* extProblem,
                                const unsigned levelF, const unsigned levelC,
                                const unsigned level0, const double hC,
-                               MultiphasePhysicalProperties properties, TimeDiscretization td) {
-        _multiphaseParams.mlProbF = mlProbF;
+                               MultiphasePhysicalProperties properties, TimeDiscretization td, bool linear) {
+        _multiphaseParams.extProblem = extProblem;
         _multiphaseParams.levelF = levelF;
         _multiphaseParams.levelC = levelC;
         _multiphaseParams.level0 = level0;
         _multiphaseParams.hC = hC;
         _multiphaseParams.properties = properties;
         _multiphaseParams.td = td;
+        _multiphaseParams.linear = linear;
 
       }
 

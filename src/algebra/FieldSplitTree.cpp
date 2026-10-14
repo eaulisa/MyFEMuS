@@ -227,8 +227,6 @@ namespace femus {
   void FieldSplitTree::BuildIndexSet (const std::vector< std::vector < unsigned > >& KKoffset, const unsigned& iproc,
                                       const unsigned& nprocs, const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
 
-    std::cout << "DDDDDDDDDDDDDDDDDDDD " << level << "\n";
-
     if (_MatrixOffset.size() < level + 1) _MatrixOffset.resize (level + 1);
 
     _MatrixOffset[level] = KKoffset;
@@ -249,7 +247,6 @@ namespace femus {
     _isSplit[level].resize (GetNumberOfSplits());
 
     for (unsigned i = 0; i < GetNumberOfSplits(); i++) {
-      std::cout << "BBBBBB " << level << "\n";
       //on the actual structure
       unsigned size = 0;
 

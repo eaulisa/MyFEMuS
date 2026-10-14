@@ -2564,13 +2564,14 @@
 
 #pragma once
 
-static void GetGhostPenaltyVelocityElementData(Mesh* msh, Solution* mysolution, LinearEquationSolver* myLinEqSolver, const unsigned iel, const unsigned solType, const unsigned solTypeX, const unsigned nDofs, const std::vector<unsigned>& indexSol, const std::vector<unsigned>& indexPde, std::vector<std::vector<double> >& sol, std::vector<std::vector<double> >& vx, std::vector<std::vector<unsigned> >& sysDofs, double& hmean) {
+static void GetGhostPenaltyVelocityElementData(Mesh* msh, Solution* mysolution, LinearEquationSolver* myLinEqSolver, const unsigned iel, const unsigned solType, const unsigned solTypeX, const unsigned nDofs, const std::vector<unsigned>& indexSol, const std::vector<unsigned>& indexPde, std::vector<std::vector<double> >& sol, std::vector<std::vector<double> >& solOld, std::vector<std::vector<double> >& vx, std::vector<std::vector<unsigned> >& sysDofs, double& hmean) {
 
   const unsigned dim = msh->GetDimension();
 
   for(unsigned k = 0; k < dim; k++) {
     sysDofs[k].resize(nDofs);
     sol[k].resize(nDofs);
+    solOld[k].resize(nDofs);
     vx[k].resize(nDofs);
   }
 
@@ -2578,6 +2579,7 @@ static void GetGhostPenaltyVelocityElementData(Mesh* msh, Solution* mysolution, 
     unsigned idof = msh->GetSolutionDof(i, iel, solType);
     for(unsigned k = 0; k < dim; k++) {
       sol[k][i] = (*mysolution->_Sol[indexSol[k]])(idof);
+      solOld[k][i] = (*mysolution->_SolOld[indexSol[k]])(idof);
       sysDofs[k][i] = myLinEqSolver->GetSystemDof(indexSol[k], indexPde[k], i, iel);
     }
   }
@@ -2611,7 +2613,7 @@ static void GetGhostPenaltyVelocityElementData(Mesh* msh, Solution* mysolution, 
   hmean /= cnt;
 }
 
-static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, NumericVector* myRES, const unsigned iel, const unsigned jel, const unsigned iface, short unsigned ielt1, short unsigned ielt2, const unsigned solType, const bool hessian_flag, const unsigned nDofs1, const unsigned nDofs2, const double C0, const double mu, const double rho, const double dt, const double hmean1, const double hmean2, std::vector<std::vector<std::vector<double> > >& aP1, std::vector<std::vector<std::vector<double> > >& aP2, const std::vector<std::vector<double> >& sol1, const std::vector<std::vector<double> >& sol2, const std::vector<std::vector<double> >& vx1, const std::vector<std::vector<double> >& vx2, const std::vector<std::vector<unsigned> >& sysDofs1, const std::vector<std::vector<unsigned> >& sysDofs2) {
+static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, NumericVector* myRES, const unsigned iel, const unsigned jel, const unsigned iface, short unsigned ielt1, short unsigned ielt2, const unsigned solType, const bool hessian_flag, const unsigned nDofs1, const unsigned nDofs2, const double C0, const double mu, const double rho, const double dt, const double hmean1, const double hmean2, std::vector<std::vector<std::vector<double> > >& aP1, std::vector<std::vector<std::vector<double> > >& aP2, const std::vector<std::vector<double> >& sol1, const std::vector<std::vector<double> >& sol2, const std::vector<std::vector<double> >& sol1Old, const std::vector<std::vector<double> >& sol2Old, const std::vector<std::vector<double> >& vx1, const std::vector<std::vector<double> >& vx2, const std::vector<std::vector<unsigned> >& sysDofs1, const std::vector<std::vector<unsigned> >& sysDofs2) {
 
   const unsigned dim = msh->GetDimension();
   const unsigned dim2 = 3 * (dim - 1);
@@ -2660,6 +2662,9 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
 
   std::vector<double> Sol1g(dim, 0.);
   std::vector<double> Sol2g(dim, 0.);
+  std::vector<double> Sol1Oldg(dim, 0.);
+  std::vector<double> Sol2Oldg(dim, 0.);
+
   double divSol1g = 0.;
   double divSol2g = 0.;
   std::vector<std::vector<double> > gradSol1g(dim, std::vector<double>(dim, 0.));
@@ -2727,6 +2732,7 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
     for(unsigned I = 0; I < dim; I++) {
 
       Sol1g[I] = 0.;
+      Sol1Oldg[I] = 0.;
       gradSol1DotN[I] = 0.;
       hessSol1DotN[I] = 0.;
 
@@ -2738,7 +2744,7 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
       for(unsigned i = 0; i < nDofs1; i++) {
 
         Sol1g[I] += sol1[I][i] * phi1[i];
-
+        Sol1Oldg[I] += sol1Old[I][i] * phi1[i];
         divSol1g += sol1[I][i] * gradPhi1[ i * dim + I];
 
         for(unsigned J = 0; J < dim; J++) {
@@ -2770,6 +2776,7 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
     for(unsigned I = 0; I < dim; I++) {
 
       Sol2g[I] = 0.;
+      Sol2Oldg[I] = 0.;
       gradSol2DotN[I] = 0.;
       hessSol2DotN[I] = 0.;
 
@@ -2781,6 +2788,7 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
       for(unsigned i = 0; i < nDofs2; i++) {
 
         Sol2g[I] += sol2[I][i] * phi2[i];
+        Sol2Oldg[I] += sol2Old[I][i] * phi2[i];
 
         divSol2g += sol2[I][i] * gradPhi2[ i * dim + I];
 
@@ -2815,8 +2823,7 @@ static void AssembleGhostPenaltyVelocityFace(Mesh* msh, SparseMatrix* myKK, Nume
     double absSolDotN = 0.;
 
     for(unsigned I = 0; I < dim; I++) {
-
-      absSolDotN += 0.5 * (Sol1g[I] + Sol2g[I]) * normal[I];
+      absSolDotN += 0.5 * (Sol1Oldg[I] + Sol2Oldg[I]) * normal[I];
     }
 
     absSolDotN = fabs(absSolDotN);
@@ -3124,7 +3131,9 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
   vector< vector<double> > sol1(dim);
   vector< vector<double> > sol2(dim);
-  vector< vector<double> > sol2d(dim);
+
+  vector< vector<double> > sol1Old(dim);
+  vector< vector<double> > sol2Old(dim);
 
   std::vector<std::vector<unsigned> > sysDofs1(dim);
   std::vector<std::vector<unsigned> > sysDofs2(dim);
@@ -3195,7 +3204,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
       unsigned nDofs1 = msh->GetElementDofNumber(iel, solType);
       double hmean_i;
 
-      GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, vx1, sysDofs1, hmean_i);
+      GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, sol1Old, vx1, sysDofs1, hmean_i);
 
       bool aP1IsInitialized = false;
 
@@ -3220,7 +3229,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
               unsigned nDofs2 = msh->GetElementDofNumber(jel, solType);
               double hmean_j;
 
-              GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2, vx2, sysDofs2, hmean_j);
+              GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2, sol2Old, vx2, sysDofs2, hmean_j);
 
               if(!aP1IsInitialized) {
 
@@ -3231,7 +3240,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                 }
               }
 
-              AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_i, hmean_j, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+              AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_i, hmean_j, aP1, aP2, sol1, sol2, sol1Old, sol2Old, vx1, vx2, sysDofs1, sysDofs2);
             }
           }
         }
@@ -3318,7 +3327,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     ielt1 = msh->GetElementType(iel);
                     nDofs1 = el->GetNVE(ielt1, solType);
 
-                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, vx1, sysDofs1, hmean_k);
+                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, sol2, vx1, sysDofs1, hmean_k);
 
                     MPI_Recv(&ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -3326,7 +3335,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                     for(unsigned k = 0; k < dim; k++) {
                       sysDofs2[k].resize(nDofs2);
-                      sol2d[k].resize(nDofs2);
+                      sol2[k].resize(nDofs2);
                       vx2[k].resize(nDofs2);
                     }
                   }
@@ -3335,7 +3344,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     ielt2 = msh->GetElementType(jel);
                     nDofs2 = el->GetNVE(ielt2, solType);
 
-                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2d, vx2, sysDofs2, hmean_j);
+                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, jel, solType, solTypeX, nDofs2, indexSol, indexPde, sol2, sol2Old, vx2, sysDofs2, hmean_j);
 
                     MPI_Send(&ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
                   }
@@ -3345,7 +3354,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                   if(iproc == kproc) {
 
                     for(unsigned k = 0; k < dim; k++) {
-                      MPI_Irecv(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Irecv(sol2[k].data(), sol2[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Irecv(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
@@ -3355,7 +3364,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                   else if(iproc == jproc) {
 
                     for(unsigned k = 0; k < dim; k++) {
-                      MPI_Isend(sol2d[k].data(), sol2d[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
+                      MPI_Isend(sol2[k].data(), sol2[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Isend(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
                     }
@@ -3371,18 +3380,11 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
                   if(iproc == kproc) {
 
-                    for(unsigned k = 0; k < dim; k++) {
-                      sol2[k].resize(nDofs2);
-                      for(unsigned i = 0; i < nDofs2; i++) {
-                        sol2[k][i] = sol2d[k][i];
-                      }
-                    }
-
                     for(unsigned jtype = 0; jtype < solType + 1; jtype++) {
                       ProjectNodalToPolynomialCoefficients(aP1[jtype], vx1, ielt1, jtype);
                     }
 
-                    AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_k, hmean_j, aP1, aP2, sol1, sol2, vx1, vx2, sysDofs1, sysDofs2);
+                    AssembleGhostPenaltyVelocityFace(msh, myKK, myRES, iel, jel, iface, ielt1, ielt2, solType, hessian_flag, nDofs1, nDofs2, C0, mu, rho, dt, hmean_k, hmean_j, aP1, aP2, sol1, sol2, sol1Old, sol2Old, vx1, vx2, sysDofs1, sysDofs2);
                   }
                 }
               }

@@ -223,9 +223,9 @@ namespace femus {
     _KK->init(KK_size, KK_size, KK_local_size, KK_local_size, d_nnz, o_nnz);
 
     _KKamr = SparseMatrix::build().release();
-    if(!_msh->GetIfHomogeneous()) {
-      _KKamr->init(KK_size, KK_size, KK_local_size, KK_local_size, d_nnz, o_nnz);
-    }
+    // if(!_msh->GetIfHomogeneous()) {
+    //   _KKamr->init(KK_size, KK_size, KK_local_size, KK_local_size, d_nnz, o_nnz);
+    // }
 
   }
 

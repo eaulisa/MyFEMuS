@@ -15,7 +15,7 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
+DIM=3
 SIMULATION="rb2"
 
 # ------------------------------------------------------------
@@ -23,9 +23,9 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(6)
+ADAPTIVE_LEVELS=(4)
 
-LEVEL_OFFSET=2
+LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
 # Time discretization
@@ -116,8 +116,10 @@ generate_options_file() {
 # Velocity multigrid type:
 #   hmg -> AMG
 #   mg  -> GMG
+
 -level-0fieldsplit_0_pc_type ${VELOCITY_PC_TYPE}
 
+-level-0fieldsplit_1_pc_type ${VELOCITY_PC_TYPE}
 EOF_OPTIONS
 
 
@@ -136,13 +138,13 @@ EOF_OPTIONS
 # FieldSplit level solver
 # ------------------------------------------------------------
 
-#-level-${i}ksp_richardson_self_scale true
--level-${i}ksp_richardson_factor_scale 0.1
+-level-${i}ksp_richardson_self_scale true
+# -level-${i}ksp_richardson_scale 0.1
 
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 4
+-level-${i}ksp_max_it 2
 -level-${i}ksp_norm_type none
 
 -level-${i}pc_fieldsplit_schur_fact_type upper
@@ -181,8 +183,8 @@ EOF_OPTIONS
 # Pressure - PETSc HMG + GAMG
 # ------------------------------------------------------------
 
-# -level-${i}fieldsplit_1_ksp_type preonly
-# -level-${i}fieldsplit_1_pc_type lu
+-level-${i}fieldsplit_1_ksp_type preonly
+-level-${i}fieldsplit_1_pc_type lu
 
 -level-${i}fieldsplit_1_pc_type hmg
 
@@ -197,11 +199,8 @@ EOF_OPTIONS
 # Pressure multigrid smoother
 
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
+-level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
 -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
-
-# -level-${i}fieldsplit_1_mg_levels_pc_type sor
-# -level-${i}fieldsplit_1_mg_levels_pc_sor_local_symmetric
 
 -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 

@@ -144,25 +144,48 @@ namespace femus {
                   else {
                     PCMGGetSmoother(pcMGSplit, l, &subksp);
                     //DEFAULT
+                    KSPSetType(subksp, KSPPREONLY);
                     // KSPSetType(subksp, KSPCHEBYSHEV); // set in options file
                     KSPSetType(subksp, KSPRICHARDSON);
-                    bool selfScale = false;  // true = automatic, false = fixed
-                    double scale = 0.1;
+                    // bool selfScale = false;  // true = automatic, false = fixed
+                    // double scale = 0.1;
+                    //
+                    // if (selfScale) {
+                    //   KSPRichardsonSetSelfScale(subksp, PETSC_TRUE);
+                    // }
+                    // else {
+                    //   KSPRichardsonSetSelfScale(subksp, PETSC_FALSE);
+                    //   KSPRichardsonSetScale(subksp, scale);
+                    // }
 
-                    if (selfScale) {
-                      KSPRichardsonSetSelfScale(subksp, PETSC_TRUE);
-                    }
-                    else {
-                      KSPRichardsonSetSelfScale(subksp, PETSC_FALSE);
-                      KSPRichardsonSetScale(subksp, scale);
-                    }
-
-                    KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 2);
+                    KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 1);
                     KSPSetNormType(subksp, KSP_NORM_NONE);
                   }
 
-                  KSPSetOperators (subksp, _fieldSplitTree->GetChild(i)->GetKgmg()[l], _fieldSplitTree->GetChild(i)->GetKgmg()[l]);
-                  PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE);
+                  // if (i==0 || true) {
+                  //   KSPSetOperators (subksp, _fieldSplitTree->GetChild(i)->GetKgmg()[l], _fieldSplitTree->GetChild(i)->GetKgmg()[l]);
+                  //   PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE);
+                  // }
+                  // else {
+                  //     PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_BOTH);
+                  // }
+
+                  Mat levelMatrix = _fieldSplitTree->GetChild(i)->GetKgmg()[l];
+                  Mat explicitLevelMatrix = nullptr;
+                  PetscBool isSchurMatrix = PETSC_FALSE;
+
+                  PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)levelMatrix, MATSCHURCOMPLEMENT, &isSchurMatrix));
+
+                  if (isSchurMatrix) {
+                    PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(levelMatrix, MAT_INITIAL_MATRIX, &explicitLevelMatrix));
+                    PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, explicitLevelMatrix, explicitLevelMatrix));
+                    PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&explicitLevelMatrix));
+                  }
+                  else {
+                    PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, levelMatrix, levelMatrix));
+                  }
+
+                  PetscCallAbort(PETSC_COMM_WORLD, PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE));
 
                   if (l > 0) {
                     PCMGSetInterpolation (pcMGSplit, l, _fieldSplitTree->GetChild(i)->GetPgmg()[l]);
@@ -175,9 +198,9 @@ namespace femus {
                   int parallelOverlapping = 0;
 
                   if (l == 0) {
-                    PCSetType(subpc, PCBJACOBI);
-                    //PCSetType(subpc, PCLU);
-                    //PCFactorSetMatSolverType(subpc, MATSOLVERMUMPS);
+                    // PCSetType(subpc, PCBJACOBI);
+                    PCSetType(subpc, PCLU);
+                    PCFactorSetMatSolverType(subpc, MATSOLVERMUMPS);
                     // PCSetType(subpc, PCHMG);
                     // PCHMGSetInnerPCType(subpc, PCGAMG);
                     // PCHMGSetUseSubspaceCoarsening(subpc, PETSC_FALSE);
@@ -185,7 +208,7 @@ namespace femus {
                   }
                   else {
                     //DEFAULT
-                    PCSetType(subpc, PCBJACOBI); // set in options file
+                    PCSetType(subpc, PCJACOBI); // set in options file
                   }
 
                 }

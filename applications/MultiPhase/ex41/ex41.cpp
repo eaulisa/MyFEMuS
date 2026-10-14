@@ -373,8 +373,8 @@ int main(int argc, char **argv) {
 
     // ml_prob0 = &mlProb0;
 
-    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler);
-    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler);
+    mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler, false);
+    mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, levelC, 0, properties, TimeDiscretization::BackEuler, false);
 
     msh->SetLevel(0);
     system2.MGsolve();
@@ -1032,7 +1032,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK2->close();
 
   MultiphaseParams mParam = ml_prob2.GetMultiphaseParams();
-  MultiLevelProblem *ml_prob0 = mParam.mlProbF;
+  MultiLevelProblem *ml_prob0 = static_cast<MultiLevelProblem*>(mParam.extProblem);
   const unsigned levelF = mParam.levelF;
   const unsigned levelC = mParam.levelC;
   MultiphasePhysicalProperties properties = mParam.properties;

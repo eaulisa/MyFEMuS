@@ -602,8 +602,8 @@ int main(int argc, char **argv) {
         // initilaize and solve the system
         system0.init();
 
-        mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, level0, hC, properties, td);
-        mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, level0, hC, properties, td);
+        mlProb2.SetMultiphaseParams(&mlProb0, levelF, levelC, level0, hC, properties, td, false);
+        mlProb0.SetMultiphaseParams(nullptr, levelF, levelC, level0, hC, properties, td, false);
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l);
@@ -904,7 +904,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK2->close();
 
   MultiphaseParams mParam = ml_prob2.GetMultiphaseParams();
-  MultiLevelProblem *ml_prob0 = mParam.mlProbF;
+  MultiLevelProblem *ml_prob0 = static_cast<MultiLevelProblem*>(mParam.extProblem);
   const unsigned levelF = mParam.levelF;
   const unsigned levelC = mParam.levelC;
   const unsigned level0 = mParam.level0;

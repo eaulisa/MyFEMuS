@@ -3304,9 +3304,9 @@ SimulationConfig GetSimulationConfig(
       cfg.x_min[2] = 0.0;
       cfg.x_max[2] = (dim == 3) ? 2. : 0.;
 
-      cfg.n[0] = 8;
-      cfg.n[1] = (dim == 3) ? 8 : 16;
-      cfg.n[2] = (dim == 3) ? 16 : 0;
+      cfg.n[0] = (dim == 3) ? 4 : 8;
+      cfg.n[1] = (dim == 3) ? 4 : 16;
+      cfg.n[2] = (dim == 3) ? 8 : 0;
 
       cfg.period = 3.;
 
@@ -3318,7 +3318,7 @@ SimulationConfig GetSimulationConfig(
       cfg.properties.rho1 = 1.;
       cfg.properties.mu2  = 10.;
       cfg.properties.mu1  = 0.1;
-      cfg.properties.sigma = 0;//1.96;
+      cfg.properties.sigma = 1.96;
       cfg.properties.gravity = -0.98;
 
       break;
