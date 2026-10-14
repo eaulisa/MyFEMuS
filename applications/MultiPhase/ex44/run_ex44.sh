@@ -15,7 +15,7 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
+DIM=2
 SIMULATION="rb2"
 
 # ------------------------------------------------------------
@@ -23,15 +23,15 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4)
+ADAPTIVE_LEVELS=(4 5 6 7)
 
-LEVEL_OFFSET=1
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(1200)
+NSTEPS=(3000)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -118,7 +118,6 @@ generate_options_file() {
 #   mg  -> GMG
 
 -level-0fieldsplit_0_pc_type ${VELOCITY_PC_TYPE}
-
 -level-0fieldsplit_1_pc_type ${VELOCITY_PC_TYPE}
 EOF_OPTIONS
 
