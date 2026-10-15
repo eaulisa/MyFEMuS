@@ -58,7 +58,6 @@ namespace femus {
       void BuildASMIndexSet (const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver);
 
       void SetPC (KSP& ksp, const unsigned& level) ;
-
       void SetSolver (KSP &ksp, const SolverType &solver);
 
       void SetTolerances (const double& rtol, const double& abstol, const double& dtol,
@@ -97,6 +96,20 @@ namespace femus {
       FieldSplitTree* GetFather() const;
 
       FieldSplitTree* GetChild (const unsigned& i);
+
+      void MgSetSolverFineGrids (const SolverType &solvertype) {
+        _mgLevelSolver = solvertype;
+      }
+
+      void MgSetPreconditionerFineGrids (const PreconditionerType &preconditionerType) {
+        _mgLevelPreconditioner = preconditionerType;
+      }
+
+      void MgSetParameters (const unsigned npre, const unsigned npost, const double richardsonScaleFactor = 0.5) {
+        _mgLevelParameter[0] = npre;
+        _mgLevelParameter[1] = npost;
+        _mgLevelParameter[2] = richardsonScaleFactor;
+      }
 
     private:
 
@@ -189,6 +202,9 @@ namespace femus {
       void SetAsmOverlapping (const unsigned &overlapping) {
         _asmOverlapping = overlapping;
       }
+
+      void MGSolveSetup (KSP &kspLevel, const unsigned &level) ;
+      void MGSetLevel (KSP &kspLevel, const unsigned &level, SparseMatrix* PP, SparseMatrix* RR);
     private:
       std::vector< std::vector < std::vector <PetscInt> > > _asmOverlappingIsIndex;
       std::vector< std::vector < std::vector <PetscInt> > > _asmLocalIsIndex;
@@ -202,7 +218,11 @@ namespace femus {
       //std::vector< PetscInt >  _nlocal;
       bool _asmStandard;
       unsigned _asmOverlapping;
+    private:
 
+      SolverType _mgLevelSolver = CHEBYSHEV;
+      PreconditionerType _mgLevelPreconditioner = JACOBI_PRECOND;
+      double _mgLevelParameter[10] = {3, 3, 0.5}; // npe, npost, richardsonScaleFactor (if == 0 self, npre, npost);
   };
 
 }

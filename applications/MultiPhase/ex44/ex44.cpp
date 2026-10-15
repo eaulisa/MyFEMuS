@@ -513,7 +513,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 0 + nSteps; t++) {
+      for (unsigned t = 1; t <= 3 + 0 * nSteps; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -646,7 +646,10 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
-        FieldSplitTree FS_P(PREONLY, MULTIGRID_PRECOND, fieldP, "Pressure");
+        FieldSplitTree FS_P(PREONLY, MG_PRECOND, fieldP, "Pressure");
+        FS_P.MgSetSolverFineGrids(RICHARDSON);
+        FS_P.MgSetParameters (2, 2, 0);
+
         // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
         // FieldSplitTree FS_P(RICHARDSON, ILU_PRECOND, fieldP, "Pressure");
 

@@ -23,7 +23,7 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4 5 6 7)
+ADAPTIVE_LEVELS=(4)
 
 LEVEL_OFFSET=2
 
@@ -51,7 +51,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # ------------------------------------------------------------
 
 KSP_MONITOR=true
-KSP_VIEW=false
+KSP_VIEW=true
 OPTIONS_LEFT=true
 
 
@@ -182,10 +182,10 @@ EOF_OPTIONS
 # Pressure - PETSc HMG + GAMG
 # ------------------------------------------------------------
 
--level-${i}fieldsplit_1_ksp_type preonly
--level-${i}fieldsplit_1_pc_type lu
+#-level-${i}fieldsplit_1_ksp_type preonly
+#-level-${i}fieldsplit_1_pc_type lu
 
--level-${i}fieldsplit_1_pc_type hmg
+#-level-${i}fieldsplit_1_pc_type ${VELOCITY_PC_TYPE}
 
 -level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
 -level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
@@ -197,11 +197,11 @@ EOF_OPTIONS
 
 # Pressure multigrid smoother
 
--level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
--level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
+#-level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
+#-level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
+#-level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 
--level-${i}fieldsplit_1_mg_levels_pc_type jacobi
+#-level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 
 
 EOF_OPTIONS
