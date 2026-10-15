@@ -3327,7 +3327,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     ielt1 = msh->GetElementType(iel);
                     nDofs1 = el->GetNVE(ielt1, solType);
 
-                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, sol2, vx1, sysDofs1, hmean_k);
+                    GetGhostPenaltyVelocityElementData(msh, mysolution, myLinEqSolver, iel, solType, solTypeX, nDofs1, indexSol, indexPde, sol1, sol1Old, vx1, sysDofs1, hmean_k);
 
                     MPI_Recv(&ielt2, 1, MPI_UNSIGNED_SHORT, jproc, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -3336,6 +3336,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     for(unsigned k = 0; k < dim; k++) {
                       sysDofs2[k].resize(nDofs2);
                       sol2[k].resize(nDofs2);
+                      sol2Old[k].resize(nDofs2);
                       vx2[k].resize(nDofs2);
                     }
                   }
@@ -3349,7 +3350,7 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                     MPI_Send(&ielt2, 1, MPI_UNSIGNED_SHORT, kproc, 0, PETSC_COMM_WORLD);
                   }
 
-                  std::vector<MPI_Request> reqs(3 * dim + 1);
+                  std::vector<MPI_Request> reqs(4 * dim + 1);
 
                   if(iproc == kproc) {
 
@@ -3357,9 +3358,10 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       MPI_Irecv(sol2[k].data(), sol2[k].size(), MPI_DOUBLE, jproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       MPI_Irecv(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, jproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Irecv(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, jproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                      MPI_Irecv(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, jproc, k + 3 * dim, PETSC_COMM_WORLD, &reqs[k + 3 * dim]);
                     }
 
-                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                    MPI_Irecv(&hmean_j, 1, MPI_DOUBLE, jproc, 4 * dim, PETSC_COMM_WORLD, &reqs[4 * dim]);
                   }
                   else if(iproc == jproc) {
 
@@ -3367,14 +3369,15 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
                       MPI_Isend(sol2[k].data(), sol2[k].size(), MPI_DOUBLE, kproc, k, PETSC_COMM_WORLD, &reqs[k]);
                       MPI_Isend(vx2[k].data(), vx2[k].size(), MPI_DOUBLE, kproc, k + dim, PETSC_COMM_WORLD, &reqs[k + dim]);
                       MPI_Isend(sysDofs2[k].data(), sysDofs2[k].size(), MPI_UNSIGNED, kproc, k + 2 * dim, PETSC_COMM_WORLD, &reqs[k + 2 * dim]);
+                      MPI_Isend(sol2Old[k].data(), sol2Old[k].size(), MPI_DOUBLE, kproc, k + 3 * dim, PETSC_COMM_WORLD, &reqs[k + 3 * dim]);
                     }
 
-                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 3 * dim, PETSC_COMM_WORLD, &reqs[3 * dim]);
+                    MPI_Isend(&hmean_j, 1, MPI_DOUBLE, kproc, 4 * dim, PETSC_COMM_WORLD, &reqs[4 * dim]);
                   }
 
                   MPI_Status status;
 
-                  for(unsigned m = 0; m < 3 * dim + 1; m++) {
+                  for(unsigned m = 0; m < 4 * dim + 1; m++) {
                     MPI_Wait(&reqs[m], &status);
                   }
 
