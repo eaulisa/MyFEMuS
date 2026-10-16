@@ -23,7 +23,7 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4)
+ADAPTIVE_LEVELS=(6)
 
 LEVEL_OFFSET=2
 
@@ -37,7 +37,7 @@ NSTEPS=(3000)
 # Velocity multigrid
 # ------------------------------------------------------------
 
-VELOCITY_PC_TYPE="mg"
+MULTIGRID_TYPE="mg"
 
 # ------------------------------------------------------------
 # Executable / options
@@ -51,7 +51,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # ------------------------------------------------------------
 
 KSP_MONITOR=true
-KSP_VIEW=true
+KSP_VIEW=false
 OPTIONS_LEFT=true
 
 
@@ -59,9 +59,9 @@ OPTIONS_LEFT=true
 # Basic checks
 # ============================================================
 
-if [[ "${VELOCITY_PC_TYPE}" != "hmg" &&
-      "${VELOCITY_PC_TYPE}" != "mg" ]]; then
-  echo "ERROR: VELOCITY_PC_TYPE must be 'hmg' or 'mg'."
+if [[ "${MULTIGRID_TYPE}" != "hmg" &&
+      "${MULTIGRID_TYPE}" != "mg" ]]; then
+  echo "ERROR: MULTIGRID_TYPE must be 'hmg' or 'mg'."
   exit 1
 fi
 
@@ -117,8 +117,20 @@ generate_options_file() {
 #   hmg -> AMG
 #   mg  -> GMG
 
--level-0fieldsplit_0_pc_type ${VELOCITY_PC_TYPE}
--level-0fieldsplit_1_pc_type ${VELOCITY_PC_TYPE}
+-ksp_type fgmres
+-ksp_rtol 1.e-8
+-ksp_atol 1.e-12
+-ksp_divtol 1.e+50
+-ksp_max_it 50
+
+-level-0ksp_max_it 10
+-level-0fieldsplit_0_pc_type ${MULTIGRID_TYPE}
+
+# -level-0fieldsplit_1_pc_type ${MULTIGRID_TYPE}
+
+-level-0fieldsplit_1_ksp_type preonly
+-level-0fieldsplit_1_pc_type lu
+-level-0fieldsplit_1_pc_factor_mat_solver_type mumps
 EOF_OPTIONS
 
 
@@ -137,71 +149,77 @@ EOF_OPTIONS
 # FieldSplit level solver
 # ------------------------------------------------------------
 
--level-${i}ksp_richardson_self_scale true
-# -level-${i}ksp_richardson_scale 0.1
+-level-${i}ksp_norm_type unpreconditioned
 
+-level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 2
--level-${i}ksp_norm_type none
+-level-${i}ksp_max_it 10
 
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
 
-
 # ------------------------------------------------------------
 # Velocity
-#
-# hmg -> AMG
-# mg  -> GMG
 # ------------------------------------------------------------
 
--level-${i}fieldsplit_0_pc_type ${VELOCITY_PC_TYPE}
-
-
-# Velocity multigrid smoother
-
+-level-${i}fieldsplit_0_ksp_type preonly
+-level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_0_mg_levels_ksp_max_it 2
--level-${i}fieldsplit_0_mg_levels_ksp_norm_type none
+-level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
 -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
 
-# Velocity AMG-specific options
+# AMG-specific options
 
--level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
--level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
--level-${i}fieldsplit_0_pc_hmg_use_matmaij false
--level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
-
--level-${i}fieldsplit_0_hmg_inner_pc_type gamg
--level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
-
+# -level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
+# -level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
+# -level-${i}fieldsplit_0_pc_hmg_use_matmaij false
+# -level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
+# -level-${i}fieldsplit_0_hmg_inner_pc_type gamg
+# -level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
 
 # ------------------------------------------------------------
-# Pressure - PETSc HMG + GAMG
+# Pressure
 # ------------------------------------------------------------
 
-#-level-${i}fieldsplit_1_ksp_type preonly
-#-level-${i}fieldsplit_1_pc_type lu
+# -level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
+# -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
+# -level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
+# -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
+# -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 
-#-level-${i}fieldsplit_1_pc_type ${VELOCITY_PC_TYPE}
+-level-${i}fieldsplit_1_ksp_type preonly
+-level-${i}fieldsplit_1_pc_type asm
+-level-${i}fieldsplit_1_pc_use_amat false
+-level-${i}fieldsplit_1_pc_asm_type restrict
+-level-${i}fieldsplit_1_pc_asm_overlap 0
+-level-${i}fieldsplit_1_pc_asm_local_type multiplicative
 
--level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
--level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
--level-${i}fieldsplit_1_pc_hmg_use_matmaij false
--level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
+-level-${i}fieldsplit_1_sub_ksp_type preonly
+-level-${i}fieldsplit_1_sub_pc_type ilu
+-level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
+-level-${i}fieldsplit_1_sub_pc_factor_levels 1
+-level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
 
--level-${i}fieldsplit_1_hmg_inner_pc_type gamg
--level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
+# AMG-specific options
 
-# Pressure multigrid smoother
+# -level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
+# -level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
+# -level-${i}fieldsplit_1_pc_hmg_use_matmaij false
+# -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
+# -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
+# -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
 
-#-level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
-#-level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
-#-level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 
-#-level-${i}fieldsplit_1_mg_levels_pc_type jacobi
+
+
+
+
+
+
+
 
 
 EOF_OPTIONS
@@ -296,7 +314,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       echo "Number of steps  : ${nsteps}"
       echo "Dimension        : ${DIM}"
       echo "Simulation       : ${SIMULATION}"
-      echo "Velocity MG      : ${VELOCITY_PC_TYPE}"
+      echo "Velocity MG      : ${MULTIGRID_TYPE}"
       echo "Options file     : ${OPTIONS_FILE}"
       echo "============================================================"
       echo
@@ -305,6 +323,9 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
         -ksp_knoll true \
+        -fp_trap\
+        -ksp_error_if_not_converged true\
+        -ksp_converged_reason\
         -options_file "${OPTIONS_FILE}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \

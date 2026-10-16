@@ -633,11 +633,32 @@ int main(int argc, char **argv) {
 
         //FieldSplitTree FS_V(PREONLY, MLU_PRECOND, fieldV, "Velocity");
         FieldSplitTree FS_V(PREONLY, MULTIGRID_PRECOND, fieldV, "Velocity");
+        FS_V.MgSetSolverFineGrids(CHEBYSHEV);
+        FS_V.MgSetPreconditionerFineGrids (JACOBI_PRECOND);
+        FS_V.MgSetParameters (4, 4, 0);
 
-        //FieldSplitTree FS_V(GMRES, ASM_PRECOND, fieldV, solutionTypeV, "Velocity");
-        //FS_V.SetAsmBlockSize(4);
-
-        // FS_V.SetTolerances(1.e-8, 1.e-12, 1.e+50, 20); // it makes sense only if the kspsolver is diff from preonly
+        // std::vector < unsigned > fieldP1(1);
+        // fieldP1[0] = system2.GetSolPdeIndex(pName[0].c_str());
+        //
+        // FieldSplitTree FS_P1(PREONLY, MG_PRECOND, fieldP1, "P1");
+        // FS_P1.MgSetSolverFineGrids(RICHARDSON);
+        // FS_P1.MgSetParameters (2, 2, 0);
+        //
+        // std::vector < unsigned > fieldP2(1);
+        // fieldP2[0] = system2.GetSolPdeIndex(pName[1].c_str());
+        //
+        // FieldSplitTree FS_P2(PREONLY, MG_PRECOND, fieldP2, "P2");
+        // FS_P2.MgSetSolverFineGrids(RICHARDSON);
+        // FS_P2.MgSetParameters (2, 2, 0);
+        //
+        //
+        // std::vector < FieldSplitTree *> FSP_compose;
+        // FSP_compose.reserve(2);
+        // FSP_compose.push_back(&FS_P1);
+        // FSP_compose.push_back(&FS_P2);
+        // FieldSplitTree FS_P(RICHARDSON, FIELDSPLIT_SCHUR_PRECOND, FSP_compose, "Pressure");
+        // //FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 5);
+        // //FS_P.SetRichardsonScaleFactor(0);
 
         std::vector < unsigned > fieldP(pName.size());
         for(unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
@@ -646,32 +667,20 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
-        FieldSplitTree FS_P(PREONLY, MG_PRECOND, fieldP, "Pressure");
-        FS_P.MgSetSolverFineGrids(RICHARDSON);
-        FS_P.MgSetParameters (2, 2, 0);
-
-        // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
-        // FieldSplitTree FS_P(RICHARDSON, ILU_PRECOND, fieldP, "Pressure");
-
-        //FS_P.SetFieldSplitSchurFactType{PC_FIELDSPLIT_SCHUR_FACT_LOWER};
-        // FieldSplitTree FS_P(PREONLY, ASM_PRECOND, fieldP, solutionTypeP, "Pressure");
-        // FS_P.SetAsmBlockSize(2);
-
-        // FS_P.SetTolerances(1.e-8, 1.e-12, 1.e+50, 2);
+        FieldSplitTree FS_P(PREONLY, BLOCK_JACOBI_PRECOND, fieldP, "Pressure");
+        // FieldSplitTree FS_P(GMRES, MULTIGRID_PRECOND, fieldP, "Pressure");
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);
         FS1.push_back(&FS_V);
         FS1.push_back(&FS_P);
 
-        // FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
-        FieldSplitTree FS_NS(RICHARDSON, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
+        FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
+        FS_NS.SetTolerances(1.e-8, 1.e-12, 1.e+50, 10);
 
         CoarseLevelInclude includeCoarseLevel = INCLUDE_COARSE_LEVEL_TRUE;
 
-        //system2.SetLinearEquationSolverType(FEMuS_DEFAULT);
-        system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT, includeCoarseLevel); // Additive Swartz Method
-        //system2.SetLinearEquationSolverType(FEMuS_ASM); // Additive Swartz Method
+        system2.SetLinearEquationSolverType(FEMuS_FIELDSPLIT, includeCoarseLevel);
 
         // attach the assembling function to system
         system2.SetMaxNumberOfNonLinearIterations((linearScheme) ? 1 : 3);
@@ -682,25 +691,17 @@ int main(int argc, char **argv) {
         system2.init();
 
         system2.SetOuterSolver(FGMRES);
-        //system2.SetSolverFineGrids(GMRES);
         system2.SetFieldSplitTree(&FS_NS);
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
-        system2.SetAbsoluteLinearConvergenceTolerance(1.e-5);
+        system2.SetAbsoluteLinearConvergenceTolerance(1.e-6);
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
           LinearEquationSolver* pdeSys2_base  = system2._LinSolver[l];
-          // const  std::vector<NumericVector*> *
           pdeSys2_base->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
           pdeSys2_base->MergeNullSpaceBases(true);
-
-          // LinearEquationSolverPetscFieldSplit* pdeSys2_FS = dynamic_cast<LinearEquationSolverPetscFieldSplit*>(pdeSys2_base);
-          // FS_NS.BuildIndexSet(pdeSys2_base->GetOffset(), iproc, nprocs, l, pdeSys2_FS);
-
         }
-        // PrintMemorySnapshot("presolve");
+
         system2.MGsolve();
-        // PrintMemorySnapshot("postsolve");
-        //return 0;
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);

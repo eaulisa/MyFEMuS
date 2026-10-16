@@ -204,7 +204,7 @@ namespace femus {
       }
 
       void MGSolveSetup (KSP &kspLevel, const unsigned &level) ;
-      void MGSetLevel (KSP &kspLevel, const unsigned &level, SparseMatrix* PP, SparseMatrix* RR);
+      void MGSetLevel (KSP &kspLevel, const unsigned &level, Mat P, Mat R);
     private:
       std::vector< std::vector < std::vector <PetscInt> > > _asmOverlappingIsIndex;
       std::vector< std::vector < std::vector <PetscInt> > > _asmLocalIsIndex;

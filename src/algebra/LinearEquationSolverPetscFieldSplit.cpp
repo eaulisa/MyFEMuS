@@ -82,159 +82,8 @@ namespace femus {
         else {
           PCMGGetSmoother (pcMG, level, &kspLevel);
         }
+
         _fieldSplitTree->MGSolveSetup(kspLevel, level);
-
-        // PC pcLevel;
-        // KSPGetPC (kspLevel, &pcLevel);
-        //
-        // PetscBool isFieldSplit = PETSC_FALSE;
-        //
-        // PetscObjectTypeCompare((PetscObject) pcLevel, PCFIELDSPLIT, &isFieldSplit);
-        //
-        //
-        //
-        //
-        // if (isFieldSplit) {
-        //   PetscInt nsplit = 0;
-        //   KSP* kspLevelSplit = NULL;
-        //   //PCSetUp(pcLevel);
-        //   PCFieldSplitGetSubKSP(pcLevel, &nsplit, &kspLevelSplit);// one for each split
-        //
-        //   if(nsplit > 1) {
-        //     for (unsigned i = 0; i < nsplit; ++i) {
-        //
-        //
-        //
-        //       if(_fieldSplitTree->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
-        //           _fieldSplitTree->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
-        //
-        //         PC pcMGSplit;
-        //         KSPGetPC(kspLevelSplit[i], &pcMGSplit);
-        //
-        //         PetscBool isGMG = PETSC_FALSE;
-        //         PetscBool isAMG = PETSC_FALSE;
-        //
-        //         PetscObjectTypeCompare((PetscObject)pcMGSplit, PCMG, &isGMG);
-        //         PetscObjectTypeCompare((PetscObject)pcMGSplit, PCHMG, &isAMG);
-        //
-        //         if(_fieldSplitTree->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
-        //
-        //           if(isAMG) {
-        //             continue;
-        //           }
-        //
-        //           if(!isGMG) {
-        //             throw std::runtime_error(
-        //               "MULTIGRID_PRECOND requires pc_type hmg or mg");
-        //           }
-        //         }
-        //
-        //         if(_fieldSplitTree->GetChild(i)->GetPreconditioner() == MG_PRECOND && !isGMG) {
-        //           throw std::runtime_error(
-        //             "MG_PRECOND requires PCMG");
-        //         }
-        //
-        //
-        //
-        //
-        //
-        //         PCMGSetLevels (pcMGSplit, level + 1, NULL);
-        //         PCMGSetType (pcMGSplit, PC_MG_MULTIPLICATIVE);
-        //
-        //         for(unsigned l = 0; l <= level; l++) {
-        //
-        //           KSP subksp;
-        //           int npre = 1, npost = 1;
-        //
-        //           if (l == 0) {
-        //             PCMGGetCoarseSolve(pcMGSplit, &subksp);
-        //             KSPSetType(subksp, KSPPREONLY);
-        //             KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 1);
-        //           }
-        //           else {
-        //             PCMGGetSmoother(pcMGSplit, l, &subksp);
-        //             //DEFAULT
-        //             KSPSetType(subksp, KSPPREONLY);
-        //             // KSPSetType(subksp, KSPCHEBYSHEV); // set in options file
-        //             KSPSetType(subksp, KSPRICHARDSON);
-        //             // bool selfScale = false;  // true = automatic, false = fixed
-        //             // double scale = 0.1;
-        //             //
-        //             // if (selfScale) {
-        //             //   KSPRichardsonSetSelfScale(subksp, PETSC_TRUE);
-        //             // }
-        //             // else {
-        //             //   KSPRichardsonSetSelfScale(subksp, PETSC_FALSE);
-        //             //   KSPRichardsonSetScale(subksp, scale);
-        //             // }
-        //
-        //             KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 1);
-        //             KSPSetNormType(subksp, KSP_NORM_NONE);
-        //           }
-        //
-        //           // if (i==0 || true) {
-        //           //   KSPSetOperators (subksp, _fieldSplitTree->GetChild(i)->GetKgmg()[l], _fieldSplitTree->GetChild(i)->GetKgmg()[l]);
-        //           //   PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE);
-        //           // }
-        //           // else {
-        //           //     PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_BOTH);
-        //           // }
-        //
-        //           Mat levelMatrix = _fieldSplitTree->GetChild(i)->GetKgmg()[l];
-        //           Mat explicitLevelMatrix = nullptr;
-        //           PetscBool isSchurMatrix = PETSC_FALSE;
-        //
-        //           PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)levelMatrix, MATSCHURCOMPLEMENT, &isSchurMatrix));
-        //
-        //           if (isSchurMatrix) {
-        //             PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(levelMatrix, MAT_INITIAL_MATRIX, &explicitLevelMatrix));
-        //             PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, explicitLevelMatrix, explicitLevelMatrix));
-        //             PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&explicitLevelMatrix));
-        //           }
-        //           else {
-        //             PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, levelMatrix, levelMatrix));
-        //           }
-        //
-        //           PetscCallAbort(PETSC_COMM_WORLD, PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE));
-        //
-        //           if (l > 0) {
-        //             PCMGSetInterpolation (pcMGSplit, l, _fieldSplitTree->GetChild(i)->GetPgmg()[l]);
-        //             PCMGSetRestriction (pcMGSplit, l, _fieldSplitTree->GetChild(i)->GetRgmg()[l]);
-        //           }
-        //
-        //           PC subpc;
-        //           KSPGetPC (subksp, &subpc);
-        //
-        //           int parallelOverlapping = 0;
-        //
-        //           if (l == 0) {
-        //             // PCSetType(subpc, PCBJACOBI);
-        //             PCSetType(subpc, PCLU);
-        //             PCFactorSetMatSolverType(subpc, MATSOLVERMUMPS);
-        //             // PCSetType(subpc, PCHMG);
-        //             // PCHMGSetInnerPCType(subpc, PCGAMG);
-        //             // PCHMGSetUseSubspaceCoarsening(subpc, PETSC_FALSE);
-        //             // PCHMGUseMatMAIJ(subpc, PETSC_FALSE);
-        //           }
-        //           else {
-        //             //DEFAULT
-        //             PCSetType(subpc, PCJACOBI); // set in options file
-        //           }
-        //
-        //         }
-        //
-        //         KSPSetFromOptions(kspLevelSplit[i]);
-        //         KSPSetUp(kspLevelSplit[i]);
-        //
-        //       }
-        //
-        //     }
-        //
-        //   }
-        //
-        //   PetscFree(kspLevelSplit);
-        // }
-
       }
 
       //END setup for the multigrid inside the field-split
@@ -287,7 +136,15 @@ namespace femus {
       PCMGGetSmoother (pcMG, level, &kspLevel);
     }
 
-    _fieldSplitTree->MGSetLevel (kspLevel, level, PP, RR);
+    Mat P = (level != 0) ? (static_cast<PetscMatrix*>(PP))->mat() : nullptr;
+    Mat R = (level != 0) ? ((PP == RR) ? P : (static_cast<PetscMatrix*>(RR))->mat()) : nullptr;
+    _fieldSplitTree->MGSetLevel (kspLevel, level, P, R);
+
+    // if (level == 0) {
+    //   PCMGGetCoarseSolve (pcMG, &kspLevel);
+    //   KSPSetTolerances (kspLevel, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npre);
+    //   this->SetSolver (kspLevel, _levelSolverType);
+    // }
 
   }
 

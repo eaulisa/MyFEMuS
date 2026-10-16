@@ -470,8 +470,6 @@ namespace femus {
     }
     else if (_preconditioner == MG_PRECOND) {
 
-      std::cout << "AAAAAAAAAAAAAAAAAAAAA\n";
-
       SetSolver(ksp, _solver);
       KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
       PetscPreconditioner::set_petsc_preconditioner_type(MG_PRECOND, pc);
@@ -868,20 +866,19 @@ namespace femus {
 
       if(nsplit > 1) {
         for (unsigned i = 0; i < nsplit; ++i) {
-
-          if(this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
+          if( this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
               this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
 
             PC pcMGSplit;
             KSPGetPC(kspLevelSplit[i], &pcMGSplit);
 
-            PetscBool isGMG = PETSC_FALSE;
-            PetscBool isAMG = PETSC_FALSE;
-
-            PetscObjectTypeCompare((PetscObject)pcMGSplit, PCMG, &isGMG);
-            PetscObjectTypeCompare((PetscObject)pcMGSplit, PCHMG, &isAMG);
-
             if(this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+              PetscBool isGMG = PETSC_FALSE;
+              PetscBool isAMG = PETSC_FALSE;
+
+              PetscObjectTypeCompare((PetscObject)pcMGSplit, PCMG, &isGMG);
+              PetscObjectTypeCompare((PetscObject)pcMGSplit, PCHMG, &isAMG);
 
               if(isAMG) {
                 continue;
@@ -892,11 +889,6 @@ namespace femus {
                   "MULTIGRID_PRECOND requires pc_type hmg or mg");
               }
             }
-
-            // if(this->GetChild(i)->GetPreconditioner() == MG_PRECOND && !isGMG) {
-            //   throw std::runtime_error(
-            //     "MG_PRECOND requires PCMG");
-            // }
 
             PCMGSetLevels (pcMGSplit, levelMax + 1, NULL);
             PCMGSetType (pcMGSplit, PC_MG_MULTIPLICATIVE);
@@ -953,28 +945,31 @@ namespace femus {
                 //DEFAULT JACOBI
                 PetscPreconditioner::set_petsc_preconditioner_type (this->GetChild(i)->_mgLevelPreconditioner, subpc);
               }
-
             }
-
             KSPSetFromOptions(kspLevelSplit[i]);
             KSPSetUp(kspLevelSplit[i]);
-
           }
-
+          else if( this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND) {
+            this->GetChild(i)->MGSolveSetup (kspLevelSplit[i], levelMax);
+          }
         }
-
       }
-
       PetscFree(kspLevelSplit);
     }
 
   }
 
-  void FieldSplitTree::MGSetLevel (KSP &kspLevel, const unsigned &level, SparseMatrix* PP, SparseMatrix* RR) {
+  void FieldSplitTree::MGSetLevel (KSP &kspLevel, const unsigned &level, Mat P, Mat R) {
+
+    PetscBool isFieldSplit = PETSC_FALSE;
 
     PC pcLevel;
     KSPGetPC (kspLevel, &pcLevel);
-    PetscBool isFieldSplit = PETSC_FALSE;
+
     PetscObjectTypeCompare((PetscObject) pcLevel, PCFIELDSPLIT, &isFieldSplit);
 
     if (isFieldSplit) {
@@ -985,19 +980,25 @@ namespace femus {
 
       if(nsplit > 1) {
         for (unsigned i = 0; i < nsplit; ++i) {
-          if( this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
+
+          if( this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
               this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
 
             PC pcLevelSplit;
             KSPGetPC(kspLevelSplit[i], &pcLevelSplit);
 
-            PetscBool isGMG = PETSC_FALSE;
-            PetscBool isAMG = PETSC_FALSE;
-
-            PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCMG, &isGMG);
-            PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCHMG, &isAMG);
-
             if(this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+              PetscBool isGMG = PETSC_FALSE;
+              PetscBool isAMG = PETSC_FALSE;
+
+              PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCMG, &isGMG);
+              PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCHMG, &isAMG);
 
               if(isAMG) {
                 continue;
@@ -1009,13 +1010,7 @@ namespace femus {
               }
             }
 
-            // if(this->GetChild(i)->GetPreconditioner() == MG_PRECOND && !isGMG) {
-            //   throw std::runtime_error(
-            //     "MG_PRECOND requires PCMG");
-            // }
-
             std::vector <Mat> &Kgmg = this->GetChild(i)->GetKgmg();
-
             if (level + 1 > Kgmg.size())   Kgmg.resize(level + 1, NULL);
 
             Mat Pmat;
@@ -1038,11 +1033,12 @@ namespace femus {
             if(Kgmg[level] != nullptr) PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&Kgmg[level]));
             Kgmg[level] = newKmat;
 
+            std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
+            std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();
+            if (level + 1 > Pgmg.size())   Pgmg.resize(level + 1, NULL);
+            if (level + 1 > Rgmg.size())   Rgmg.resize(level + 1, NULL);
+
             if(level > 0) {
-              std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
-              std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();
-              if (level + 1 > Pgmg.size())   Pgmg.resize(level + 1, NULL);
-              if (level + 1 > Rgmg.size())   Rgmg.resize(level + 1, NULL);
               if (Pgmg[level] != NULL) {
                 MatDestroy(&Pgmg[level]);
               }
@@ -1053,11 +1049,10 @@ namespace femus {
               Rgmg[level] = NULL;
 
               std::vector < std::vector < IS > > &isSplit = this->GetISSplit();
-              Mat P = static_cast<PetscMatrix*>(PP)->mat();
-              Mat R = static_cast<PetscMatrix*>(RR)->mat();
-              bool sameObject = (PP == RR);
+              bool sameObject = (P == R);
 
               MatCreateSubMatrix(P, isSplit[level][i], isSplit[level - 1][i], MAT_INITIAL_MATRIX, &Pgmg[level]);
+
               if(sameObject) {
                 Rgmg[level] = Pgmg[level];
                 PetscObjectReference((PetscObject)Rgmg[level]);
@@ -1065,8 +1060,21 @@ namespace femus {
               else {
                 MatCreateSubMatrix(R, isSplit[level - 1][i], isSplit[level][i], MAT_INITIAL_MATRIX, &Rgmg[level]);
               }
+
+            }
+            if (this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND) {
+
+              std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
+              std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();
+
+              this->GetChild(i)->MGSetLevel(kspLevelSplit[i], level, Pgmg[level], Rgmg[level]);
             }
           }
+
         }
       }
       PetscFree(kspLevelSplit);
