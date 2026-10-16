@@ -405,6 +405,16 @@ namespace femus {
         PCASMSetLocalSubdomains (pc, _asmLocalIsIndex[level].size(), &_asmOverlappingIs[level][0], &_asmLocalIs[level][0]);
       }
 
+      PetscPreconditioner::set_petsc_preconditioner_type(_preconditioner, pc);
+
+      PetscBool isLU = PETSC_FALSE;
+      PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)pc, PCLU, &isLU));
+
+      if (isLU) {
+        PetscCallAbort(PETSC_COMM_WORLD, KSPSetUp(ksp));
+        return;
+      }
+
       PCASMSetOverlap (pc, _asmOverlapping);
 
       if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {

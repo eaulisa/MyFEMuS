@@ -667,7 +667,8 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
-        FieldSplitTree FS_P(PREONLY, BLOCK_JACOBI_PRECOND, fieldP, "Pressure");
+        //FieldSplitTree FS_P(PREONLY, BLOCK_JACOBI_PRECOND, fieldP, "Pressure");
+        FieldSplitTree FS_P(PREONLY, ASM_MULTIPLICATIVE_PRECOND, fieldP, solutionTypeP, "Pressure");
         // FieldSplitTree FS_P(GMRES, MULTIGRID_PRECOND, fieldP, "Pressure");
 
         std::vector < FieldSplitTree *> FS1;

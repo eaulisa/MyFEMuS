@@ -194,7 +194,7 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_pc_type asm
 -level-${i}fieldsplit_1_pc_use_amat false
 -level-${i}fieldsplit_1_pc_asm_type restrict
--level-${i}fieldsplit_1_pc_asm_overlap 0
+-level-${i}fieldsplit_1_pc_asm_overlap 1
 -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
 
 -level-${i}fieldsplit_1_sub_ksp_type preonly
