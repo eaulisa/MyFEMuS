@@ -1090,7 +1090,15 @@ void ProjectSolution(MultiLevelSolution & mlSol0 /* marker receive */,
   std::vector<MyVector<double>> X1;
   GetAllSolutionPoints(mlSol1, solName[0], s1Level, X1);
 
-  unsigned dim = X1.size();
+  const unsigned dim = X1.size();
+  const double tol = 1.e-12;
+
+  for(unsigned i = X1[0].begin(); i < X1[0].end(); ++i) {
+    for(unsigned d = 0; d < dim; ++d) {
+      if(X1[d][i] <= x_min[d] + tol && X1[d][i] >= x_min[d] - tol) X1[d][i] = x_min[d];
+      else if(X1[d][i] >= x_max[d] - tol && X1[d][i] <= x_max[d] + tol) X1[d][i] = x_max[d];
+    }
+  }
 
   if(fabs(dt) > 1.0e-10) RungeKutta4(X1, mlSol0, bbox, x_min, x_max, vName, vLevel, dt);
 
@@ -1171,14 +1179,12 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
       ++i) {
 
     for(unsigned d = 0; d < dim; ++d) {
-      if(std::abs(Xold[d][i] - x_min[d]) < boundaryTol &&
-          std::abs(X[d][i]    - x_min[d]) < boundaryTol) {
+      if(std::abs(X[d][i] - x_min[d]) < boundaryTol) {
 
         X[d][i] = x_min[d];
       }
 
-      else if(std::abs(Xold[d][i] - x_max[d]) < boundaryTol &&
-              std::abs(X[d][i]    - x_max[d]) < boundaryTol) {
+      else if(std::abs(X[d][i] - x_max[d]) < boundaryTol) {
 
         X[d][i] = x_max[d];
       }
@@ -1242,14 +1248,12 @@ void rkStep(MultiLevelSolution & mlSol,
 
       for (unsigned k = 0; k < X.size(); ++k) {
 
-        if (std::abs(X[k][i] - x_min[k]) < boundaryTol &&
-            std::abs(Xk[k][i] - x_min[k]) < boundaryTol) {
+        if (std::abs(Xk[k][i] - x_min[k]) < boundaryTol) {
 
           Xk[k][i] = x_min[k];
         }
 
-        else if (std::abs(X[k][i] - x_max[k]) < boundaryTol &&
-                 std::abs(Xk[k][i] - x_max[k]) < boundaryTol) {
+        else if (std::abs(Xk[k][i] - x_max[k]) < boundaryTol) {
 
           Xk[k][i] = x_max[k];
         }
@@ -1982,7 +1986,10 @@ enum class SimulationCase {
   RB2,
   SAYE1,
   SAYE2,
-  RT
+  RT,
+  DB,
+  BB1,
+  BB2
 };
 
 std::string SimulationCaseName(const SimulationCase s) {
@@ -1999,6 +2006,12 @@ std::string SimulationCaseName(const SimulationCase s) {
       return "saye2";
     case SimulationCase::RT:
       return "rt";
+    case SimulationCase::DB:
+      return "rt";
+    case SimulationCase::BB1:
+      return "bb1";
+    case SimulationCase::BB2:
+      return "bb2";
   }
 
   throw std::runtime_error("Invalid SimulationCase");
@@ -2012,6 +2025,9 @@ SimulationCase ParseSimulationCase(const std::string& s) {
   if(s == "saye1") return SimulationCase::SAYE1;
   if(s == "saye2") return SimulationCase::SAYE2;
   if(s == "rt") return SimulationCase::RT;
+  if(s == "db") return SimulationCase::DB;
+  if(s == "bb1") return SimulationCase::BB1;
+  if(s == "bb2") return SimulationCase::BB2;
 
   throw std::runtime_error(
     "Unknown simulation '" + s +
@@ -3158,6 +3174,32 @@ void PrintConvergence(
   std::cout << '\n';
 }
 
+enum class BoundaryType : unsigned {
+  DIRICHLET_S,
+  NEUMANN_S,
+  WALL,
+  SLIP,
+  OUTFLOW
+};
+
+struct BoundaryCondition {
+
+  BoundaryType type = BoundaryType::NEUMANN_S;
+  double value = 0.;
+};
+
+struct BoundaryConfig {
+
+  std::vector<BoundaryCondition> min;
+  std::vector<BoundaryCondition> max;
+
+  void Resize(const unsigned dim) {
+
+    min.resize(dim);
+    max.resize(dim);
+  }
+};
+
 struct SimulationConfig {
 
   std::vector<double> x_min;
@@ -3166,33 +3208,69 @@ struct SimulationConfig {
 
   double period = 0.;
 
-  std::vector<double> center;
-  double radius = 0.;
-
-  double rtAmplitude = 0.;
-  double rtWaveNumber = 0.;
+  PsiConfig psi;
 
   MultiphasePhysicalProperties properties;
+
+  BoundaryConfig boundary;
 };
 
-SimulationConfig GetSimulationConfig(
-  const SimulationCase simulation,
-  const unsigned dim) {
+SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsigned dim) {
+
+  if(dim != 2 && dim != 3) {
+    throw std::runtime_error("GetSimulationConfig: dim must be either 2 or 3");
+  }
 
   SimulationConfig cfg;
 
   cfg.x_min.resize(3);
   cfg.x_max.resize(3);
   cfg.n.resize(3);
+  cfg.boundary.Resize(dim);
+
+  const double pi = std::acos(-1.0);
+
+  // ============================================================
+  // Boundary-condition presets
+  // ============================================================
+
+  auto SetAllNeumann = [&cfg, dim]() {
+    for(unsigned d = 0; d < dim; ++d) {
+      cfg.boundary.min[d] = {BoundaryType::NEUMANN_S, 0.};
+      cfg.boundary.max[d] = {BoundaryType::NEUMANN_S, 0.};
+    }
+  };
+
+  auto SetAllSlip = [&cfg, dim]() {
+    for(unsigned d = 0; d < dim; ++d) {
+      cfg.boundary.min[d] = {BoundaryType::SLIP, 0.};
+      cfg.boundary.max[d] = {BoundaryType::SLIP, 0.};
+    }
+  };
+
+  auto SetSlipSidesWallEnds = [&cfg, dim]() {
+    for(unsigned d = 0; d < dim; ++d) {
+      cfg.boundary.min[d] = {BoundaryType::SLIP, 0.};
+      cfg.boundary.max[d] = {BoundaryType::SLIP, 0.};
+    }
+
+    const unsigned verticalDir = (dim == 2) ? 1 : 2;
+    cfg.boundary.min[verticalDir] = {BoundaryType::WALL, 0.};
+    cfg.boundary.max[verticalDir] = {BoundaryType::WALL, 0.};
+  };
 
   switch(simulation) {
+
+    // ============================================================
+    // Parasitic currents
+    // ============================================================
 
     case SimulationCase::PAR: {
 
       cfg.x_min[0] = -0.5;
-      cfg.x_max[0] =  0.5;
+      cfg.x_max[0] = 0.5;
       cfg.x_min[1] = -0.5;
-      cfg.x_max[1] =  0.5;
+      cfg.x_max[1] = 0.5;
       cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
       cfg.x_max[2] = (dim == 3) ? 0.5 : 0.;
 
@@ -3202,26 +3280,34 @@ SimulationConfig GetSimulationConfig(
 
       cfg.period = 10.;
 
-      cfg.center = {0.0, 0.0, 0.0};
-      cfg.center.resize(dim);
-      cfg.radius = 0.25;
+      cfg.psi.type = PsiType::BALL;
+      cfg.psi.center = {0., 0., 0.};
+      cfg.psi.center.resize(dim);
+      cfg.psi.radius = 0.25;
 
       cfg.properties.rho1 = 1000.;
       cfg.properties.rho2 = 1.;
-      cfg.properties.mu1  = 10.;
-      cfg.properties.mu2  = 0.1;
+      cfg.properties.mu1 = 10.;
+      cfg.properties.mu2 = 0.1;
       cfg.properties.sigma = 1.;
       cfg.properties.gravity = 0.;
+
+      SetAllNeumann();
 
       break;
     }
 
-    case SimulationCase::SAYE1: {
+    // ============================================================
+    // Saye tests
+    // ============================================================
+
+    case SimulationCase::SAYE1:
+    case SimulationCase::SAYE2: {
 
       cfg.x_min[0] = -0.5;
-      cfg.x_max[0] =  0.5;
+      cfg.x_max[0] = 0.5;
       cfg.x_min[1] = -0.5;
-      cfg.x_max[1] =  0.5;
+      cfg.x_max[1] = 0.5;
       cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
       cfg.x_max[2] = (dim == 3) ? 0.5 : 0.;
 
@@ -3231,77 +3317,36 @@ SimulationConfig GetSimulationConfig(
 
       cfg.period = 0.01;
 
-      cfg.properties.mu1 = 1.;
-      cfg.properties.mu2 = 1.;
+      cfg.psi.type = PsiType::SAYE;
+      cfg.psi.amplitude = 0.025;
+      cfg.psi.waveNumber = 2.0 * pi;
+
       cfg.properties.rho1 = 1.;
       cfg.properties.rho2 = 1.;
+      cfg.properties.mu1 = 1.;
+      cfg.properties.mu2 = 1.;
       cfg.properties.sigma = 10.;
       cfg.properties.gravity = 0.;
 
-      break;
-    }
-
-    case SimulationCase::SAYE2: {
-
-      cfg.x_min[0] = -0.5;
-      cfg.x_max[0] =  0.5;
-      cfg.x_min[1] = -0.5;
-      cfg.x_max[1] =  0.5;
-      cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
-      cfg.x_max[2] = (dim == 3) ?  0.5 : 0.;
-
-      cfg.n[0] = 8;
-      cfg.n[1] = 8;
-      cfg.n[2] = (dim == 3) ? 8 : 0;
-
-      cfg.period = 0.01;
-
-      cfg.properties.mu1 = 1.;
-      cfg.properties.mu2 = 1.;
-      cfg.properties.rho1 = 1.;
-      cfg.properties.rho2 = 1.;
-      cfg.properties.sigma = 10.;
-      cfg.properties.gravity = 0.;
+      SetSlipSidesWallEnds();
 
       break;
     }
 
-    case SimulationCase::RB1: {
+    // ============================================================
+    // Rising bubble tests
+    // ============================================================
 
-      cfg.x_min[0] = 0.;
-      cfg.x_max[0] = 1.;
-      cfg.x_min[1] = 0.;
-      cfg.x_max[1] = (dim == 3) ? 1. : 2.;
-      cfg.x_min[2] = 0.0;
-      cfg.x_max[2] = (dim == 3) ? 2. : 0.;
-
-      cfg.n[0] = 8;
-      cfg.n[1] = (dim == 3) ? 8 : 16;
-      cfg.n[2] = (dim == 3) ? 16 : 0;
-
-      cfg.period = 3.;
-
-      cfg.center = {0.5, 0.5, 0.5};
-      cfg.center.resize(dim);
-      cfg.radius = 0.25;
-
-      cfg.properties.rho2 = 1000.;
-      cfg.properties.rho1 = 100.;
-      cfg.properties.mu2  = 10.;
-      cfg.properties.mu1  = 1.;
-      cfg.properties.sigma = 24.5;
-      cfg.properties.gravity = -0.98;
-
-      break;
-    }
-
+    case SimulationCase::RB1:
     case SimulationCase::RB2: {
 
+      const bool rb1 = simulation == SimulationCase::RB1;
+
       cfg.x_min[0] = 0.;
       cfg.x_max[0] = 1.;
       cfg.x_min[1] = 0.;
       cfg.x_max[1] = (dim == 3) ? 1. : 2.;
-      cfg.x_min[2] = 0.0;
+      cfg.x_min[2] = 0.;
       cfg.x_max[2] = (dim == 3) ? 2. : 0.;
 
       cfg.n[0] = (dim == 3) ? 4 : 8;
@@ -3310,248 +3355,309 @@ SimulationConfig GetSimulationConfig(
 
       cfg.period = 3.;
 
-      cfg.center = {0.5, 0.5, 0.5};
-      cfg.center.resize(dim);
-      cfg.radius = 0.25;
+      cfg.psi.type = PsiType::BALL;
+      cfg.psi.center = {0.5, 0.5, 0.5};
+      cfg.psi.center.resize(dim);
+      cfg.psi.radius = 0.25;
 
+      cfg.properties.rho1 = rb1 ? 100. : 1.;
       cfg.properties.rho2 = 1000.;
-      cfg.properties.rho1 = 1.;
-      cfg.properties.mu2  = 10.;
-      cfg.properties.mu1  = 0.1;
-      cfg.properties.sigma = 1.96;
+      cfg.properties.mu1 = rb1 ? 1. : 0.1;
+      cfg.properties.mu2 = 10.;
+      cfg.properties.sigma = rb1 ? 24.5 : 1.96;
       cfg.properties.gravity = -0.98;
+
+      SetSlipSidesWallEnds();
 
       break;
     }
 
-    case SimulationCase::RT: {
+    // ============================================================
+    // Bubble rising and bursting at free surface
+    //
+    // Ming, Sun & Zhang (2017), Sec. 3.2
+    //
+    // D = 1
+    // domain = [0,3D] x [0,9D]
+    // bubble center = (1.5D,2D)
+    // bubble radius = D/2
+    // free surface = 6D
+    //
+    // Re = 500
+    // Fr = 1
+    // We = 25
+    //
+    // rho_l / rho_g = 1000
+    // mu_l  / mu_g  = 100
+    //
+    // Normalization:
+    //
+    // D     = 1
+    // g     = 1
+    // rho_l = 1
+    //
+    // => rho_g = 1.e-3
+    // => mu_l  = 1 / Re = 2.e-3
+    // => mu_g  = mu_l / 100 = 2.e-5
+    // => sigma = 1 / We = 0.04
+    //
+    // psi > 0 is the LIGHT phase:
+    // bubble + gas above the free surface.
+    // ============================================================
+
+    case SimulationCase::BB1: {
 
       if(dim != 2) {
         throw std::runtime_error(
-          "GetSimulationConfig: RT is currently implemented only in 2D"
-        );
+          "GetSimulationConfig: BURST1 is currently "
+          "implemented only in 2D");
       }
 
-      const double pi = std::acos(-1.0);
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = 1.;
 
-      // ------------------------------------------------------------
-      // Domain from the paper:
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = 2.;
+
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = 0.;
+
+      // Square coarse cells.
       //
-      // Omega = [-L/2,L/2] x [-H/2,H/2]
-      // L = 1, H = 4
-      // ------------------------------------------------------------
+      // Four uniform refinements:
+      //
+      // 8 x 24 -> 128 x 384
+      //
+      // which is the reference resolution used in the paper.
+      cfg.n[0] = 8;
+      cfg.n[1] = 16;
+      cfg.n[2] = 0;
+
+      // Paper reports snapshots until t* = 11.25.
+      // Since D = g = 1, t* = t.
+      cfg.period = 3;
+
+      cfg.psi.type =
+        PsiType::BUBBLES_FREE_SURFACE;
+
+      cfg.psi.bubbleCenters = {
+        {.5, .5}
+      };
+
+      cfg.psi.bubbleRadii = {
+        0.25
+      };
+
+      cfg.psi.freeSurfaceHeight = 1.;
+
+      // Phase 1 = light fluid / gas
+      // Phase 2 = heavy fluid / liquid
+
+      cfg.properties.rho1 = 1000.;
+      cfg.properties.rho2 = 1.;
+
+      cfg.properties.mu1 = 10.;
+      cfg.properties.mu2 = 0.1;
+
+      cfg.properties.sigma = 1.96;
+
+      cfg.properties.gravity = 0.98;
+
+      SetSlipSidesWallEnds();
+
+      break;
+    }
+
+    // ============================================================
+    // Two buoyancy-driven bubbles:
+    // merging followed by bursting at the free surface
+    //
+    // Ming, Sun & Zhang (2017), Sec. 3.3
+    //
+    // D = 1
+    //
+    // domain:
+    //   width  = 3D
+    //   height = 6D
+    //
+    // large bubble:
+    //   D1 = D
+    //   center = (0,2D)
+    //
+    // small bubble:
+    //   D2 = 0.8D
+    //   center = (0,D)
+    //
+    // free surface = 3D
+    //
+    // Bo = 10
+    // Mo = 0.1
+    //
+    // rho_l / rho_g = 100
+    // mu_l  / mu_g  = 2
+    //
+    // Normalization:
+    //
+    // D     = 1
+    // g     = 1
+    // rho_l = 1
+    //
+    // Bo = rho_l g D^2 / sigma = 10
+    //
+    // => sigma = 0.1
+    //
+    // Mo = g mu_l^4 / (rho_l sigma^3) = 0.1
+    //
+    // => mu_l = 0.1
+    // => mu_g = 0.05
+    //
+    // psi > 0 is the LIGHT phase:
+    // both bubbles + gas above the free surface.
+    // ============================================================
+
+    case SimulationCase::BB2: {
+
+      if(dim != 2) {
+        throw std::runtime_error(
+          "GetSimulationConfig: BURST2 is currently "
+          "implemented only in 2D");
+      }
+
+      cfg.x_min[0] = -1.5;
+      cfg.x_max[0] =  1.5;
+
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = 6.;
+
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = 0.;
+
+      // Square coarse cells.
+      cfg.n[0] = 8;
+      cfg.n[1] = 16;
+      cfg.n[2] = 0;
+
+      // Fig. 12 reaches t*=5.5.
+      // Fig. 13 follows the droplets until t*=11.
+      cfg.period = 11.0;
+
+      cfg.psi.type =
+        PsiType::BUBBLES_FREE_SURFACE;
+
+      cfg.psi.bubbleCenters = {
+        {0.0, 2.0},
+        {0.0, 1.0}
+      };
+
+      cfg.psi.bubbleRadii = {
+        0.5,
+        0.4
+      };
+
+      cfg.psi.freeSurfaceHeight = 3.0;
+
+      // Phase 1 = light fluid / gas
+      // Phase 2 = heavy fluid / liquid
+
+      cfg.properties.rho1 = 0.01;
+      cfg.properties.rho2 = 1.;
+
+      cfg.properties.mu1 = 0.05;
+      cfg.properties.mu2 = 0.10;
+
+      cfg.properties.sigma = 0.10;
+
+      cfg.properties.gravity = -1.;
+
+      SetSlipSidesWallEnds();
+
+      break;
+    }
+
+    // ============================================================
+    // Rayleigh-Taylor instability
+    // ============================================================
+
+    case SimulationCase::RT: {
+
+      if(dim != 2) {
+        throw std::runtime_error("GetSimulationConfig: RT is currently implemented only in 2D");
+      }
 
       cfg.x_min[0] = -0.5;
-      cfg.x_max[0] =  0.5;
-
+      cfg.x_max[0] = 0.5;
       cfg.x_min[1] = -2.0;
-      cfg.x_max[1] =  2.0;
+      cfg.x_max[1] = 2.0;
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = 0.;
 
-      cfg.x_min[2] = 0.0;
-      cfg.x_max[2] = 0.0;
-
-      // Base mesh.
-      //
-      // 8 x 32 refined three times gives 64 x 256,
-      // i.e. the reference grid used for the low-density-ratio study.
       cfg.n[0] = 8;
       cfg.n[1] = 32;
       cfg.n[2] = 0;
 
-      // ------------------------------------------------------------
-      // Initial perturbation
-      //
-      // a0 cos(k x)
-      // ------------------------------------------------------------
+      cfg.period = 3.;
 
-      cfg.rtAmplitude = 0.005;
-      cfg.rtWaveNumber = 2.0 * pi;
-
-      // ------------------------------------------------------------
-      // Simulation final time
-      //
-      // The paper shows the nonlinear evolution up to t = 3 s.
-      // ------------------------------------------------------------
-
-      cfg.period = 3.0;
-
-      // ------------------------------------------------------------
-      // Physical parameters
-      //
-      // rho1 / rho2 = 1.5
-      //
-      // The paper specifies the ratio rather than an absolute density
-      // normalization. We choose rho2 = 1, rho1 = 1.5.
-      // ------------------------------------------------------------
+      cfg.psi.type = PsiType::RAYLEIGH_TAYLOR;
+      cfg.psi.amplitude = 0.005;
+      cfg.psi.waveNumber = 2.0 * pi;
 
       cfg.properties.rho1 = 1.5;
-      cfg.properties.rho2 = 1.0;
-
-      // Case k* = 0.1 used for Fig. 24 and grid-convergence study.
+      cfg.properties.rho2 = 1.;
       cfg.properties.mu1 = 0.009535;
       cfg.properties.mu2 = 0.006349;
+      cfg.properties.sigma = 0.;
+      cfg.properties.gravity = -10.;
 
-      cfg.properties.sigma = 0.0;
-
-      // g = (0,-10)
-      cfg.properties.gravity = -10.0;
+      SetSlipSidesWallEnds();
 
       break;
+    }
+
+    // ============================================================
+    // Dam break
+    // ============================================================
+
+    case SimulationCase::DB: {
+
+      if(dim != 2) {
+        throw std::runtime_error("GetSimulationConfig: DB is currently implemented only in 2D");
+      }
+
+      const double a = 0.05715;
+
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = 5.0 * a;
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = 3.0 * a;
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = 0.;
+
+      cfg.n[0] = 10;
+      cfg.n[1] = 6;
+      cfg.n[2] = 0;
+
+      cfg.period = 1.;
+
+      cfg.psi.type = PsiType::DAM_BREAK;
+      cfg.psi.damWidth = a;
+      cfg.psi.damHeight = 2.0 * a;
+
+      cfg.properties.rho1 = 1000.;
+      cfg.properties.rho2 = 1.2;
+      cfg.properties.mu1 = 1.e-3;
+      cfg.properties.mu2 = 1.8e-5;
+      cfg.properties.sigma = 0.;
+      cfg.properties.gravity = -9.81;
+
+      SetAllSlip();
+
+      break;
+    }
+
+    default: {
+      throw std::runtime_error("GetSimulationConfig: unknown SimulationCase");
     }
   }
 
   return cfg;
 }
-
-void PrintMemorySnapshot(const std::string& label) {
-
-  // Enable PETSc peak-memory tracking once per MPI process
-  static bool memoryTrackingInitialized = false;
-
-  if(!memoryTrackingInitialized) {
-    PetscMemorySetGetMaximumUsage();
-    memoryTrackingInitialized = true;
-  }
-
-  PetscLogDouble rss        = 0.;
-  PetscLogDouble petsc      = 0.;
-  PetscLogDouble rssPeak    = 0.;
-  PetscLogDouble petscPeak  = 0.;
-
-  PetscMemoryGetCurrentUsage(&rss);
-  PetscMallocGetCurrentUsage(&petsc);
-
-  PetscMemoryGetMaximumUsage(&rssPeak);
-  PetscMallocGetMaximumUsage(&petscPeak);
-
-  constexpr double MB = 1024.0 * 1024.0;
-
-  double local[4] = {
-    static_cast<double>(rss       / MB),
-    static_cast<double>(petsc     / MB),
-    static_cast<double>(rssPeak   / MB),
-    static_cast<double>(petscPeak / MB)
-  };
-
-  double sum[4]  = {};
-  double maxv[4] = {};
-
-  MPI_Reduce(
-    local,
-    sum,
-    4,
-    MPI_DOUBLE,
-    MPI_SUM,
-    0,
-    MPI_COMM_WORLD
-  );
-
-  MPI_Reduce(
-    local,
-    maxv,
-    4,
-    MPI_DOUBLE,
-    MPI_MAX,
-    0,
-    MPI_COMM_WORLD
-  );
-
-  int rank, nproc;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-
-  if(rank == 0) {
-
-    std::cout
-        << "\n[MEMORY] " << label << '\n'
-
-        << "  RSS current:"
-        << " total = " << sum[0] << " MB"
-        << ", avg = " << sum[0] / nproc << " MB"
-        << ", max/rank = " << maxv[0] << " MB\n"
-
-        << "  PETSc current:"
-        << " total = " << sum[1] << " MB"
-        << ", avg = " << sum[1] / nproc << " MB"
-        << ", max/rank = " << maxv[1] << " MB\n"
-
-        << "  RSS peak:"
-        << " max/rank = " << maxv[2] << " MB\n"
-
-        << "  PETSc peak:"
-        << " max/rank = " << maxv[3] << " MB\n";
-  }
-}/*
-
-
-void PrintMemorySnapshot(const std::string& label) {
-
-  PetscLogDouble rss        = 0.;
-  PetscLogDouble petsc      = 0.;
-  PetscLogDouble rssPeak    = 0.;
-  PetscLogDouble petscPeak  = 0.;
-
-  PetscMemoryGetCurrentUsage(&rss);
-  PetscMallocGetCurrentUsage(&petsc);
-
-  PetscMemoryGetMaximumUsage(&rssPeak);
-  PetscMallocGetMaximumUsage(&petscPeak);
-
-  constexpr double MB = 1024.0 * 1024.0;
-
-  double local[4] = {
-    static_cast<double>(rss       / MB),
-    static_cast<double>(petsc     / MB),
-    static_cast<double>(rssPeak   / MB),
-    static_cast<double>(petscPeak / MB)
-  };
-
-  double sum[4] = {};
-  double maxv[4] = {};
-
-  MPI_Reduce(
-    local,
-    sum,
-    4,
-    MPI_DOUBLE,
-    MPI_SUM,
-    0,
-    MPI_COMM_WORLD
-  );
-
-  MPI_Reduce(
-    local,
-    maxv,
-    4,
-    MPI_DOUBLE,
-    MPI_MAX,
-    0,
-    MPI_COMM_WORLD
-  );
-
-  int rank, nproc;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-
-  if(rank == 0) {
-
-    std::cout
-        << "\n[MEMORY] " << label << '\n'
-
-        << "  RSS current:"
-        << " total = " << sum[0] << " MB"
-        << ", avg = " << sum[0] / nproc << " MB"
-        << ", max/rank = " << maxv[0] << " MB\n"
-
-        << "  PETSc current:"
-        << " total = " << sum[1] << " MB"
-        << ", avg = " << sum[1] / nproc << " MB"
-        << ", max/rank = " << maxv[1] << " MB\n"
-
-        << "  RSS peak:"
-        << " max/rank = " << maxv[2] << " MB\n"
-
-        << "  PETSc peak:"
-        << " max/rank = " << maxv[3] << " MB\n";
-  }
-}*/

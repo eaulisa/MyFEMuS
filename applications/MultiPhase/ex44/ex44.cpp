@@ -174,8 +174,9 @@ int main(int argc, char **argv) {
 
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
-  const SimulationConfig cfg =
-    GetSimulationConfig(simulation, requestedDim);
+  // const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim);
+
+  static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim);
 
   MultiphasePhysicalProperties properties = cfg.properties;
 
@@ -197,129 +198,94 @@ int main(int argc, char **argv) {
   const unsigned nz = cfg.n[2];
 
   auto SetBoundaryCondition =
-    [](const std::vector<double>& x,
-       const char SolName[],
-       double & value,
-       const int facename,
-  const double time) -> bool {
+  [](const std::vector<double>& x, const char SolName[], double& value, const int /*facename*/, const double /*time*/) -> bool {
 
     const double tol = 1.e-10;
-    const unsigned dim = requestedDim;
+    const unsigned dim = cfg.boundary.min.size();
+
+    int component = -1;
+    if(!strcmp(SolName, "U")) component = 0;
+    else if(!strcmp(SolName, "V")) component = 1;
+    else if(!strcmp(SolName, "W")) component = 2;
+
+    const bool pressure = !strcmp(SolName, "P1") || !strcmp(SolName, "P2");
 
     value = 0.;
 
-    // Spurious current: homogeneous Neumann everywhere
-    if(simulation == SimulationCase::PAR) {
-      return false;
-    }
+    if(component < 0 && !pressure) return true;
 
-    const bool onX = x[0] < x_min[0] + tol || x[0] > x_max[0] - tol;
-    const bool onY = x[1] < x_min[1] + tol || x[1] > x_max[1] - tol;
-    const bool onZ = dim == 3 && (x[2] < x_min[2] + tol || x[2] > x_max[2] - tol);
+    bool dirichlet = false;
 
-    // -------------------------
-    // U
-    // -------------------------
-    if(!strcmp(SolName, "U")) {
+    auto ApplyBC = [&](const BoundaryCondition & bc, const unsigned normalDir) {
 
-      if(dim == 2) {
+      if(component >= 0) {
 
-        // Top/bottom no-slip wall wins at corners
-        if(onY)
-          return true;
+        switch(bc.type) {
 
-        // Vertical side wall: U normal
-        if(onX)
-          return true;
-      }
-      else if(dim == 3) {
+          case BoundaryType::DIRICHLET_S:
+            dirichlet = true;
+            value = bc.value;
+            break;
 
-        // Top/bottom no-slip wall wins at edges/corners
-        if(onZ)
-          return true;
+          case BoundaryType::NEUMANN_S:
+            break;
 
-        // x-side wall: U normal
-        if(onX)
-          return true;
+          case BoundaryType::WALL:
+            dirichlet = true;
+            value = 0.;
+            break;
 
-        // y-side wall: U tangential
-        if(onY)
-          return false;
+          case BoundaryType::SLIP:
+            if(static_cast<unsigned>(component) == normalDir) {
+              dirichlet = true;
+              value = 0.;
+            }
+            break;
+
+          case BoundaryType::OUTFLOW:
+            break;
+        }
+
+        return;
       }
 
-      return true;
-    }
+      switch(bc.type) {
 
-    // -------------------------
-    // V
-    // -------------------------
-    else if(!strcmp(SolName, "V")) {
+        case BoundaryType::DIRICHLET_S:
+          dirichlet = true;
+          value = bc.value;
+          break;
 
-      if(dim == 2) {
+        case BoundaryType::NEUMANN_S:
+          value = bc.value;
+          break;
 
-        // Top/bottom no-slip wall wins at corners
-        if(onY)
-          return true;
+        case BoundaryType::OUTFLOW:
+          dirichlet = true;
+          value = bc.value;
+          break;
 
-        // Vertical side wall: V tangential
-        if(onX)
-          return false;
+        case BoundaryType::WALL:
+        case BoundaryType::SLIP:
+          break;
       }
-      else if(dim == 3) {
+    };
 
-        // Top/bottom no-slip wall wins at edges/corners
-        if(onZ)
-          return true;
+    for(unsigned d = 0; d < dim; ++d) {
 
-        // y-side wall: V normal
-        if(onY)
-          return true;
-
-        // x-side wall: V tangential
-        if(onX)
-          return false;
-      }
-
-      return true;
+      if(x[d] <= cfg.x_min[d] + tol) ApplyBC(cfg.boundary.min[d], d);
+      if(x[d] >= cfg.x_max[d] - tol) ApplyBC(cfg.boundary.max[d], d);
     }
 
-    // -------------------------
-    // W
-    // -------------------------
-    else if(!strcmp(SolName, "W")) {
-
-      if(dim == 3) {
-
-        // Top/bottom no-slip wall wins
-        if(onZ)
-          return true;
-
-        // W tangential to all vertical side walls
-        if(onX || onY)
-          return false;
-      }
-
-      return true;
-    }
-
-    // -------------------------
-    // Pressure
-    // -------------------------
-    else if(!strcmp(SolName, "P1") ||
-            !strcmp(SolName, "P2")) {
-
-      return false;
-    }
-
-    return true;
+    return dirichlet;
   };
 
   const double period = cfg.period;
   static double dt = 0.0;
 
   // interface settings
-  const double r = cfg.radius;
-  std::vector<double> xc = cfg.center;
+  const double r = cfg.psi.radius;
+  std::vector<double> xc = cfg.psi.center;
 
   // variables name
   std::string psiName = "Psi";
@@ -352,8 +318,8 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = (nSteps > 100) ? nSteps / 100 : 1;
-      const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
+      const unsigned nPrint  = 1;//(nSteps > 100) ? nSteps / 500 : 1;
+      const unsigned nReinit = (nSteps > 100) ? nSteps / 10 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -389,11 +355,12 @@ int main(int argc, char **argv) {
       Mollifier m = Mollifier(eps, sigmoidType);
 
       //PsiSaye psi2D(m);
-      PsiBall psi2D(xc, r, m);
+      // PsiBall psi2D(xc, r, m);
+      Psi psi(cfg.psi);
 
       // Iteratively flag and create new AMR levels
       for (unsigned k = 0; k < numberOfSelectiveLevels; ++k) {
-        FlagFinestMeshLevel(mlMsh0, psi2D);
+        FlagFinestMeshLevel(mlMsh0, psi);
         mlMsh0.AddAMRMeshLevel(false);
       }
 
@@ -429,7 +396,7 @@ int main(int argc, char **argv) {
 
       Boundary zero_bd;
 
-      InitLevelSet(mlSol0, psiName, psi2D);
+      InitLevelSet(mlSol0, psiName, psi);
       // UpdateColorFunction(mlSol0, psiName, cName);
 
       // Export solution to VTK (selected levels)
