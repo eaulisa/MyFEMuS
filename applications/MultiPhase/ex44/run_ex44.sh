@@ -23,7 +23,7 @@ SIMULATION="bb1"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(10)
+ADAPTIVE_LEVELS=(6 7)
 
 LEVEL_OFFSET=2
 
@@ -31,7 +31,7 @@ LEVEL_OFFSET=2
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(1200)
+NSTEPS=(4800)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -208,6 +208,7 @@ EOF_OPTIONS
 # -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 # -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 
+<<<<<<< HEAD
 # -level-${i}fieldsplit_1_ksp_norm_type unpreconditioned
 #-level-${i}fieldsplit_1_ksp_monitor
 
@@ -240,12 +241,24 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_pc_asm_type restrict
 -level-${i}fieldsplit_1_pc_asm_overlap 1
 -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
+=======
+# -level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_pc_type asm
+# -level-${i}fieldsplit_1_pc_use_amat false
+# -level-${i}fieldsplit_1_pc_asm_type restrict
+# -level-${i}fieldsplit_1_pc_asm_overlap 0
+# -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
+>>>>>>> 6e252a82f (new simulation config)
 
--level-${i}fieldsplit_1_sub_ksp_type preonly
--level-${i}fieldsplit_1_sub_pc_type ilu
--level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
--level-${i}fieldsplit_1_sub_pc_factor_levels 1
--level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
+# -level-${i}fieldsplit_1_sub_ksp_type preonly
+# -level-${i}fieldsplit_1_sub_pc_type ilu
+# -level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
+# -level-${i}fieldsplit_1_sub_pc_factor_levels 1
+# -level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
+
+-level-${i}fieldsplit_1_ksp_type preonly
+-level-${i}fieldsplit_1_pc_type lu
+-level-${i}fieldsplit_1_pc_factor_mat_solver_type mumps
 
 
 # -level-${i}fieldsplit_1_ksp_type preonly
@@ -269,6 +282,18 @@ EOF_OPTIONS
 # -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
 # -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
 # -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
+
+
+# # Identify which fieldsplit dies
+# -level-${i}fieldsplit_0_ksp_error_if_not_converged true
+# -level-${i}fieldsplit_0_ksp_converged_reason
+
+# -level-${i}fieldsplit_1_ksp_error_if_not_converged true
+# -level-${i}fieldsplit_1_ksp_converged_reason
+
+# # MUMPS diagnostics on pressure block
+# -level-${i}fieldsplit_1_mat_mumps_icntl_4 2
+# -level-${i}fieldsplit_1_mat_mumps_icntl_24 1
 
 
 
@@ -381,7 +406,6 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
         -ksp_knoll true \
-        -fp_trap\
         -ksp_error_if_not_converged true\
         -ksp_converged_reason\
         -options_file "${OPTIONS_FILE}" \

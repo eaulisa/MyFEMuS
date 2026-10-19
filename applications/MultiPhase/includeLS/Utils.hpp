@@ -3413,7 +3413,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
           "implemented only in 2D");
       }
 
-      cfg.x_min[0] = 0.;
+      cfg.x_min[0] = .5;
       cfg.x_max[0] = 1.;
 
       cfg.x_min[1] = 0.;
@@ -3429,13 +3429,13 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       // 8 x 24 -> 128 x 384
       //
       // which is the reference resolution used in the paper.
-      cfg.n[0] = 8;
+      cfg.n[0] = 4;
       cfg.n[1] = 16;
       cfg.n[2] = 0;
 
       // Paper reports snapshots until t* = 11.25.
       // Since D = g = 1, t* = t.
-      cfg.period = 3;
+      cfg.period = 12;
 
       cfg.psi.type =
         PsiType::BUBBLES_FREE_SURFACE;
@@ -3448,20 +3448,20 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
         0.25
       };
 
-      cfg.psi.freeSurfaceHeight = 1.;
+      cfg.psi.freeSurfaceHeight = 1.00;
 
       // Phase 1 = light fluid / gas
       // Phase 2 = heavy fluid / liquid
 
-      cfg.properties.rho1 = 1000.;
-      cfg.properties.rho2 = 1.;
+      cfg.properties.rho1 = 100.;
+      cfg.properties.rho2 = 1000.;
 
-      cfg.properties.mu1 = 10.;
-      cfg.properties.mu2 = 0.1;
+      cfg.properties.mu1 = 1.;
+      cfg.properties.mu2 = 10;
 
-      cfg.properties.sigma = 1.96;
+      cfg.properties.sigma = 24.5;
 
-      cfg.properties.gravity = 0.98;
+      cfg.properties.gravity = -0.98;
 
       SetSlipSidesWallEnds();
 
