@@ -668,8 +668,11 @@ int main(int argc, char **argv) {
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
         //FieldSplitTree FS_P(PREONLY, BLOCK_JACOBI_PRECOND, fieldP, "Pressure");
-        FieldSplitTree FS_P(PREONLY, ASM_MULTIPLICATIVE_PRECOND, fieldP, solutionTypeP, "Pressure");
-        // FieldSplitTree FS_P(GMRES, MULTIGRID_PRECOND, fieldP, "Pressure");
+        //FieldSplitTree FS_P(PREONLY, ASM_MULTIPLICATIVE_PRECOND, fieldP, solutionTypeP, "Pressure");
+        FieldSplitTree FS_P(PREONLY, MULTIGRID_PRECOND, fieldP, "Pressure");
+        FS_P.MgSetSolverFineGrids(CHEBYSHEV);
+        FS_P.MgSetPreconditionerFineGrids (JACOBI_PRECOND);
+        FS_P.MgSetParameters (4, 4, 0);
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);

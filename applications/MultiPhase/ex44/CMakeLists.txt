@@ -36,3 +36,8 @@ file(CREATE_LINK
      "${PROJECT_SOURCE_DIR}/run_ex44.sh"
      "${PROJECT_BINARY_DIR}/run_ex44.sh"
      SYMBOLIC)
+
+     file(CREATE_LINK
+     "${PROJECT_SOURCE_DIR}/run_ex44_original.sh"
+     "${PROJECT_BINARY_DIR}/run_ex44_original.sh"
+     SYMBOLIC)

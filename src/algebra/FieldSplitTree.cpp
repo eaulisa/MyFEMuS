@@ -186,9 +186,9 @@ namespace femus {
       }
     }
 
-    for (unsigned level = 0; level < _Kgmg.size(); ++level) {
-      if (_Kgmg[level] != NULL) {
-        MatDestroy(&_Kgmg[level]);
+    for (unsigned level = 0; level < _Bgmg.size(); ++level) {
+      if (_Bgmg[level] != NULL) {
+        MatDestroy(&_Bgmg[level]);
       }
     }
 
@@ -920,19 +920,20 @@ namespace femus {
                 KSPSetNormType(subksp, KSP_NORM_NONE);
               }
 
-              Mat levelMatrix = this->GetChild(i)->GetKgmg()[l];
-              Mat explicitLevelMatrix = nullptr;
+              Mat AMatrix = this->GetChild(i)->GetAgmg()[l];
+              Mat BMatrix = this->GetChild(i)->GetBgmg()[l];
+              Mat explicitBMatrix = nullptr;
               PetscBool isSchurMatrix = PETSC_FALSE;
 
-              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)levelMatrix, MATSCHURCOMPLEMENT, &isSchurMatrix));
+              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)BMatrix, MATSCHURCOMPLEMENT, &isSchurMatrix));
 
               if (isSchurMatrix) {
-                PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(levelMatrix, MAT_INITIAL_MATRIX, &explicitLevelMatrix));
-                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, explicitLevelMatrix, explicitLevelMatrix));
-                PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&explicitLevelMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(BMatrix, MAT_INITIAL_MATRIX, &explicitBMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, AMatrix, explicitBMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&explicitBMatrix));
               }
               else {
-                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, levelMatrix, levelMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, AMatrix, BMatrix));
               }
 
               PetscCallAbort(PETSC_COMM_WORLD, PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE));
@@ -1020,28 +1021,38 @@ namespace femus {
               }
             }
 
-            std::vector <Mat> &Kgmg = this->GetChild(i)->GetKgmg();
-            if (level + 1 > Kgmg.size())   Kgmg.resize(level + 1, NULL);
+            std::vector <Mat> &Agmg = this->GetChild(i)->GetAgmg();
+            if (level + 1 > Agmg.size())   Agmg.resize(level + 1, NULL);
 
-            Mat Pmat;
-            Mat Kmat;
-            KSPGetOperators(kspLevelSplit[i], &Kmat, &Pmat);
+             std::vector <Mat> &Bgmg = this->GetChild(i)->GetBgmg();
+            if (level + 1 > Bgmg.size())   Bgmg.resize(level + 1, NULL);
 
-            Mat newKmat = nullptr;
+            Mat Amat;
+            Mat Bmat;
+            KSPGetOperators(kspLevelSplit[i], &Amat, &Bmat);
+
+
+
+
+            Mat newBmat = nullptr;
             PetscBool isSchurMatrix = PETSC_FALSE;
 
-            PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)Kmat, MATSCHURCOMPLEMENT, &isSchurMatrix));
+            PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)Bmat, MATSCHURCOMPLEMENT, &isSchurMatrix));
 
             if (isSchurMatrix) {
-              PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(Kmat, MAT_INITIAL_MATRIX, &newKmat));
+              PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(Bmat, MAT_INITIAL_MATRIX, &newBmat));
             }
             else {
-              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectReference((PetscObject)Kmat));
-              newKmat = Kmat;
+              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectReference((PetscObject)Bmat));
+              newBmat = Bmat;
             }
 
-            if(Kgmg[level] != nullptr) PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&Kgmg[level]));
-            Kgmg[level] = newKmat;
+            if(Bgmg[level] != nullptr) PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&Bgmg[level]));
+            Bgmg[level] = newBmat;
+
+
+            Agmg[level] = (true)? Amat : Bmat;
+
 
             std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
             std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();

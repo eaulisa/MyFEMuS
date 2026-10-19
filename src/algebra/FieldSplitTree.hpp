@@ -136,7 +136,7 @@ namespace femus {
       double _richardsonScaleFactor;
 
       //GMG objects to be use only if the PC_GMG is used
-      std::vector<Mat> _Kgmg, _Pgmg, _Rgmg;
+      std::vector<Mat> _Agmg, _Bgmg, _Pgmg, _Rgmg;
 
       SchurFactType _schurFactType;
       SchurPreType _schurPreType;
@@ -148,8 +148,11 @@ namespace femus {
       std::vector<std::vector < IS > > & GetISSplit() {
         return _isSplit;
       }
-      std::vector<Mat> & GetKgmg() {
-        return _Kgmg;
+      std::vector<Mat> & GetAgmg() {
+        return _Agmg;
+      }
+      std::vector<Mat> & GetBgmg() {
+        return _Bgmg;
       }
       std::vector<Mat> & GetPgmg() {
         return _Pgmg;

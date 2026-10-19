@@ -23,7 +23,7 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(6)
+ADAPTIVE_LEVELS=(10)
 
 LEVEL_OFFSET=2
 
@@ -149,16 +149,34 @@ EOF_OPTIONS
 # FieldSplit level solver
 # ------------------------------------------------------------
 
--level-${i}ksp_norm_type unpreconditioned
 
--level-${i}ksp_type gmres
+-level-${i}ksp_type fgmres
+#-level-${i}ksp_pc_side right
+-level-${i}ksp_norm_type unpreconditioned
+#-level-${i}ksp_monitor
+-level-${i}ksp_view_final_residual
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
 -level-${i}ksp_max_it 10
 
+-level-${i}pc_type fieldsplit
+-level-${i}pc_fieldsplit_type schur
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
+
+
+# -level-${i}ksp_norm_type unpreconditioned
+#-level-${i}ksp_monitor
+
+# -level-${i}ksp_type gmres
+# -level-${i}ksp_rtol 1.e-8
+# -level-${i}ksp_atol 1.e-12
+# -level-${i}ksp_divtol 1.e+50
+# -level-${i}ksp_max_it 10
+#
+# -level-${i}pc_fieldsplit_schur_fact_type upper
+# -level-${i}pc_fieldsplit_schur_precondition selfp
 
 # ------------------------------------------------------------
 # Velocity
@@ -190,7 +208,33 @@ EOF_OPTIONS
 # -level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 # -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 
--level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_ksp_norm_type unpreconditioned
+#-level-${i}fieldsplit_1_ksp_monitor
+
+
+# -level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_pc_type lu
+# -level-${i}fieldsplit_1_pc_factor_mat_solver_type mumps
+
+# -level-${i}fieldsplit_1_ksp_type richardson
+# -level-${i}fieldsplit_1_ksp_richardson_scale 1
+# -level-${i}fieldsplit_1_ksp_max_it 1
+
+
+
+
+-level-${i}fieldsplit_1_ksp_type gmres
+#-level-${i}fieldsplit_1_ksp_pc_side right
+-level-${i}fieldsplit_1_ksp_norm_type unpreconditioned
+#-level-${i}fieldsplit_1_ksp_monitor
+-level-${i}fieldsplit_1_ksp_initial_guess_nonzero false
+-level-${i}fieldsplit_1_ksp_knoll false
+-level-${i}fieldsplit_1_ksp_rtol 1.e-2
+-level-${i}fieldsplit_1_ksp_atol 1.e-12
+-level-${i}fieldsplit_1_ksp_divtol 1.e+50
+-level-${i}fieldsplit_1_ksp_max_it 3
+-level-${i}fieldsplit_1_ksp_gmres_restart 3
+
 -level-${i}fieldsplit_1_pc_type asm
 -level-${i}fieldsplit_1_pc_use_amat false
 -level-${i}fieldsplit_1_pc_asm_type restrict
@@ -202,6 +246,20 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
 -level-${i}fieldsplit_1_sub_pc_factor_levels 1
 -level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
+
+
+# -level-${i}fieldsplit_1_ksp_type preonly
+# -level-${i}fieldsplit_1_pc_type asm
+# -level-${i}fieldsplit_1_pc_use_amat false
+# -level-${i}fieldsplit_1_pc_asm_type restrict
+# -level-${i}fieldsplit_1_pc_asm_overlap 1
+# -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
+#
+# -level-${i}fieldsplit_1_sub_ksp_type preonly
+# -level-${i}fieldsplit_1_sub_pc_type ilu
+# -level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
+# -level-${i}fieldsplit_1_sub_pc_factor_levels 1
+# -level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
 
 # AMG-specific options
 
