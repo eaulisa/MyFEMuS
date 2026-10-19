@@ -251,11 +251,13 @@ namespace femus {
       /** Solves the system. */
       virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE);
       void MGsolveExplicit();
+      void Solve(const MgSmootherType & mgSmootherType = MULTIPLICATIVE);
     protected:
 
       vector < SparseMatrix* > _PP, _RR;
       vector < SparseMatrix* > _PPamr, _RRamr;
 
+      bool _solveOnlyOnTheFineLevel = false;
       bool _printSolverInfo;
       bool _assembleMatrix;
       void AddAMRLevel (unsigned &AMRCounter);

@@ -83,6 +83,10 @@ namespace femus {
       virtual void BuildBdcIndex (const vector <unsigned> &variable_to_be_solved);
       virtual void SetPreconditioner (KSP& subksp, PC& subpc);
 
+      virtual void Solve (const bool ksp_clean) {
+        std::cout << "This method has been implemented only in the fieldSplitSolver class \n"; //TODO
+        abort();
+      };
       virtual void MGSolve (const bool ksp_clean);
 
       inline void MGClear() {

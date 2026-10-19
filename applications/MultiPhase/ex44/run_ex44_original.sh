@@ -23,7 +23,7 @@ SIMULATION="rb2"
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(6)
+ADAPTIVE_LEVELS=(10)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
@@ -138,7 +138,7 @@ generate_options_file() {
 -level-0fieldsplit_1_sub_pc_type lu
 -level-0fieldsplit_1_sub_factor_mat_solver_type mumps
 
-
+#
 # -level-0fieldsplit_1_ksp_type preonly
 # -level-0fieldsplit_1_pc_type lu
 # -level-0fieldsplit_1_pc_factor_mat_solver_type mumps
@@ -168,7 +168,7 @@ EOF_OPTIONS
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 10
+-level-${i}ksp_max_it 50
 
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
@@ -206,7 +206,7 @@ EOF_OPTIONS
 
 # -level-${i}fieldsplit_1_ksp_type preonly
 # -level-${i}fieldsplit_1_pc_type asm
-# #-level-${i}fieldsplit_1_pc_use_amat false
+# -level-${i}fieldsplit_1_pc_use_amat false
 # -level-${i}fieldsplit_1_pc_asm_type restrict
 # -level-${i}fieldsplit_1_pc_asm_overlap 1
 # -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
@@ -335,9 +335,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
 
       mpirun -n "${NPROC}" \
         "${EXECUTABLE}" \
-        "${PETSC_OPTIONS[@]}" \
-        -ksp_knoll true \
-        -fp_trap\
+        "${PETSC_OPTIONS[@]}" \ #-ksp_knoll true \ -fp_trap\
         -ksp_error_if_not_converged true\
         -ksp_converged_reason\
         -options_file "${OPTIONS_FILE}" \

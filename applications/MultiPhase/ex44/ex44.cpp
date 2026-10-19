@@ -705,7 +705,8 @@ int main(int argc, char **argv) {
           pdeSys2_base->MergeNullSpaceBases(true);
         }
 
-        system2.MGsolve();
+        //system2.MGsolve();
+        system2.Solve();
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);

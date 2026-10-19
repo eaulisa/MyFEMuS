@@ -239,6 +239,12 @@ namespace femus {
 
   }
 
+  void LinearImplicitSystem::Solve(const MgSmootherType & mgSmootherType) {
+    _solveOnlyOnTheFineLevel = true;
+    MGsolve(mgSmootherType);
+    _solveOnlyOnTheFineLevel = false;
+  }
+
   void LinearImplicitSystem::MGsolve(const MgSmootherType & mgSmootherType) {
 
     _bitFlipCounter = 0;
@@ -432,7 +438,7 @@ namespace femus {
       //bool ksp_clean = !linearIterator * _assembleMatrix;
       //_LinSolver[level]->MGSolve(ksp_clean);
 
-      _LinSolver[level]->MGSolve(!_kspBuilt);
+      (!_solveOnlyOnTheFineLevel) ? _LinSolver[level]->MGSolve(!_kspBuilt) : _LinSolver[level]->Solve(!_kspBuilt);
       _kspBuilt = true;
 
       _solution[level]->UpdateRes(_SolSystemPdeIndex, _LinSolver[level]->_RES, _LinSolver[level]->KKoffset);

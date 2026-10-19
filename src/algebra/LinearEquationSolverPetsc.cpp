@@ -161,7 +161,7 @@ namespace femus {
       KSPSetTolerances (_ksp, _rtol, _abstol, _dtol, _maxits);
 
       if (_levelSolverType != PREONLY) {
-        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE);
+        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE); //TODO probably to change into PETSC_FALSE
         KSPSetNormType (_ksp, KSP_NORM_PRECONDITIONED);
       }
       else {
@@ -344,23 +344,21 @@ namespace femus {
       KSPSetTolerances (_ksp, _rtol, _abstol, _dtol, _maxits);
 
       if (_mgSolverType != PREONLY) {
-        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE);
+        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE); //TODO probably to change into PETSC_FALSE
       }
       else {
         KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE);
-        KSPSetNormType (_ksp, KSP_NORM_NONE);
+        //KSPSetNormType (_ksp, KSP_NORM_NONE);
       }
-      std::cout << "AA1\n";
+
       KSPSetFromOptions (_ksp);
       KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
 
-      std::cout << "AA11\n";
       KSPGMRESSetRestart (_ksp, _restart);
-      std::cout << "AA12\n";
+
       KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
-      std::cout << "AA13\n";
+
       KSPSetUp (_ksp);
-      std::cout << "AA2\n";
 
 //       PetscViewer    viewer;
 //       PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,1800,1800,&viewer);
@@ -374,10 +372,8 @@ namespace femus {
 
     }
 
-    std::cout << "BBBBB\n";
-
     ZerosBoundaryResiduals();
-    std::cout << "BB1\n";
+
     KSPSolve (_ksp, (static_cast< PetscVector* > (_RES))->vec(), (static_cast< PetscVector* > (_EPSC))->vec());
 
     _RESC->matrix_mult (*_EPSC, *_KK);
