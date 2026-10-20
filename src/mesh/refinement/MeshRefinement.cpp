@@ -131,7 +131,6 @@ namespace femus {
     //END update elem
   }
 
-
   bool MeshRefinement::FlagElementsToRefineBaseOnError(const double& treshold, NumericVector& error) {
 
     unsigned type = 2;
@@ -145,7 +144,6 @@ namespace femus {
 
     numberOfRefinedElement->zero();
     //END temporary parallel vector initialization
-
 
     //BEGIN flag element to be refined
     for(int iel = _mesh._elementOffset[_iproc]; iel < _mesh._elementOffset[_iproc + 1]; iel++) {
@@ -174,15 +172,6 @@ namespace femus {
     //END update elem
   }
 
-
-
-
-
-
-
-
-
-
 //---------------------------------------------------------------------------------------------------------------
   void MeshRefinement::RefineMesh(const unsigned& igrid, Mesh* mshc, const elem_type* otherFiniteElement[6][5]) {
 
@@ -195,8 +184,6 @@ namespace femus {
     elem* elc = mshc->el;
 
     _mesh.SetLevel(igrid);
-
-
 
     vector < double > coarseLocalizedAmrVector;
     mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
@@ -213,11 +200,10 @@ namespace femus {
 
     _mesh.SetNumberOfElements(nelem);
 
-
     _mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector);
 
     _mesh.SetCharacteristicLength( mshc->GetCharacteristicLength() );
-    
+
     unsigned jel = 0;
     //divide each coarse element in 8(3D), 4(2D) or 2(1D) fine elements and find all the vertices
 
@@ -225,8 +211,7 @@ namespace femus {
 
     bool AMR = false;
 
-    std::vector < unsigned > materialElementCounter(3,0);
-    
+    std::vector < unsigned > materialElementCounter(3, 0);
 
     std::vector < unsigned > partition;
     partition.reserve(nelem * 2);
@@ -236,6 +221,8 @@ namespace femus {
       elc->LocalizeElementDof(isdom);
       elc->LocalizeElementNearFace(isdom);
       elc->LocalizeElementQuantities(isdom);
+
+      // TODO on iproc == 0
       for(unsigned iel = mshc->_elementOffset[isdom]; iel < mshc->_elementOffset[isdom + 1]; iel++) {
         if(static_cast < unsigned short >(coarseLocalizedAmrVector[iel] + 0.25) == 1) {
           unsigned elt = elc->GetElementType(iel);
@@ -253,7 +240,7 @@ namespace femus {
             _mesh.el->SetElementLevel(jel + j, elc->GetElementLevel(iel) + 1);
             partition[jel + j] = isdom;
             if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
-              elc->SetChildElement(iel, j, jel + j);
+              elc->SetChildElement(iel, j, jel + j); // this is lost TODO
             }
           }
 
@@ -294,7 +281,7 @@ namespace femus {
           _mesh.el->SetElementLevel(jel, elc->GetElementLevel(iel));
           partition[jel] = isdom;
           if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
-            elc->SetChildElement(iel, 0, jel);
+            elc->SetChildElement(iel, 0, jel); // this is lost TODO
           }
 
           // project nodes indeces
@@ -312,21 +299,25 @@ namespace femus {
 
           // update element numbers
           jel++;
-          _mesh.el->AddToElementNumber(1, elt);
+          _mesh.el->AddToElementNumber(1, elt); // this is lost TODO
         }
       }
+
+      //end TODO
+
       elc->FreeLocalizedElementDof();
       elc->FreeLocalizedElementNearFace();
       elc->FreeLocalizedElementQuantities();
     }
-    
-    _mesh.el->SetMaterialElementCounter(materialElementCounter);
-    
-    
+
+    // From here everything is done only on iproc == 0
+
+    _mesh.el->SetMaterialElementCounter(materialElementCounter); // this is lost TODO
+
     std::vector<unsigned> MaterialElementCounter = _mesh.el->GetMaterialElementCounter();
     //std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAA\n";
     //std::cout << MaterialElementCounter[0]<<" "<< MaterialElementCounter[1]<<" "<< MaterialElementCounter[2]<<" \n";
-   
+
     coarseLocalizedAmrVector.resize(0);
     //coarseLocalizedElementType.resize(0);
 
@@ -400,13 +391,12 @@ namespace femus {
       }
     }
 
-    _mesh.SetNumberOfNodes(nnodes);
-    _mesh.el->SetNodeNumber(nnodes);
+    _mesh.SetNumberOfNodes(nnodes);   // this is lost TODO
+    _mesh.el->SetNodeNumber(nnodes);  // this probably is lost TODO
 
-    Buildkmid();
+    Buildkmid(); // check better but it seems to fill only elementDof (which is scattered after)
 
-
-
+    // probably can go only on proc 0
     MeshMetisPartitioning meshMetisPartitioning(_mesh);
 
     if(AMR == true) {
@@ -420,15 +410,40 @@ namespace femus {
       meshMetisPartitioning.DoPartition(partition, *mshc);
     }
 
+    // to check if this depends on iproc -> need to scatter mesh objects
     _mesh.FillISvector(partition);
     partition.resize(0);
 
     elc->SetChildElementDof(_mesh.el);
 
-    _mesh.el->DeleteElementNearVertex();
-    _mesh.el->BuildElementNearVertex();
+    if (_iproc == 0) {
+      _mesh.el->DeleteElementNearVertex();
+      _mesh.el->BuildElementNearVertex();
 
-    _mesh.Buildkel();
+      _mesh.Buildkel();
+      _mesh.el->DeleteElementNearVertex();
+
+    }
+
+    // here every proc reads from proc 0
+
+    _mesh.el->ScatterElementQuantities(0);
+    _mesh.el->ScatterElementDof(0);
+    _mesh.el->ScatterElementNearFace(0);
+
+    //_mesh.el->BuildElementNearElement();
+
+    _mesh.el->BuildElementNearElement(&_mesh);
+
+    // scatter of elc->children is missing
+    // elc->ScatterElementChildren(0);
+    // these functions work in parallel
+    // elc->SetChildElementDof(_mesh.el);
+    // _mesh.el->DeleteElementNearVertex();
+    // _mesh.el->BuildElementNearVertex();
+    // _mesh.Buildkel();
+    // _mesh.el->BuildElementNearElement();
+    // _mesh.el->DeleteElementNearVertex();
 
     // build Mesh coordinates by projecting the coarse coordinats
     _mesh._topology = new Solution(&_mesh);
@@ -452,16 +467,10 @@ namespace femus {
     _mesh._topology->_Sol[1]->close();
     _mesh._topology->_Sol[2]->close();
 
-    _mesh.el->BuildElementNearElement();
-    _mesh.el->DeleteElementNearVertex();
-
     _mesh._topology->AddSolution("solidMrk", LAGRANGE, SECOND, 1, 0);
     _mesh.AllocateAndMarkStructureNode();
-    
-    _mesh.el->ScatterElementQuantities();
-    _mesh.el->ScatterElementDof();
-    _mesh.el->ScatterElementNearFace();
 
+    // for here everything is parallel
     std::vector < std::map < unsigned,  std::map < unsigned, double  > > >& restriction = _mesh.GetAmrRestrictionMap();
     if(AMR) {
       _mesh.el->GetAMRRestriction(&_mesh);
@@ -471,19 +480,18 @@ namespace femus {
 //           std::cout << it1->first << "\t";
 //           for(std::map<unsigned, double> ::iterator it2 = restriction[soltype][it1->first].begin(); it2 != restriction[soltype][it1->first].end(); it2++) {
 //             std::cout << it2->first << " (" << it2->second << ")  ";
-// 
+//
 //           }
 //           std::cout << std::endl;
 //         }
 //       }
     }
-    else{
+    else {
       restriction.resize(3);
     }
 
     _mesh.PrintInfo();
   }
-
 
   /**
    * This function generates face dof (for hex and wedge elements) and element dof (for hex and quad)
@@ -599,6 +607,5 @@ namespace femus {
     //std::cout << "nnodes after buildkmid= "  << nnodes << std::endl;
 
   }
-
 
 }

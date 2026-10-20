@@ -53,10 +53,12 @@ namespace femus {
       ~elem();
 
       void ScatterElementNearFace();
+      void ScatterElementNearFace(const unsigned );
       void LocalizeElementNearFace(const unsigned& jproc);
       void FreeLocalizedElementNearFace();
 
       void ScatterElementDof();
+      void ScatterElementDof(const unsigned );
       void LocalizeElementDof(const unsigned &jproc);
       void FreeLocalizedElementDof();
 
@@ -169,6 +171,7 @@ namespace femus {
       unsigned GetElementNearVertex(const unsigned& inode, const unsigned& jnode);
 
       void BuildElementNearElement();
+      void BuildElementNearElement(Mesh *msh);
 
       const unsigned GetElementNearElementSize(const unsigned& iel, const unsigned &layers)  {
         return (layers == 0) ? 1 : _elementNearElement.end(iel);
@@ -195,6 +198,16 @@ namespace femus {
         _elementType.scatter(_elementOffset);
         _elementMaterial.scatter(_elementOffset);
         _elementGroup.scatter(_elementOffset);
+      }
+      void ScatterElementQuantities(const unsigned lproc) {
+        _elementLevel.scatter(_elementOffset, lproc);
+        _elementType.scatter(_elementOffset, lproc);
+        _elementMaterial.scatter(_elementOffset, lproc);
+        _elementGroup.scatter(_elementOffset, lproc);
+        //_elementNearElement.scatter(_elementOffset, lproc);
+      }
+      void ScatterElementChildren(const unsigned lproc) {
+        _childElem.scatter(_elementOffset, lproc);
       }
       void LocalizeElementQuantities(const unsigned &lproc) {
         _elementLevel.broadcast(lproc);

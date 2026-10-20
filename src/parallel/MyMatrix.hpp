@@ -19,7 +19,6 @@
 #ifndef __femus_mesh_MyMatrix_hpp__
 #define __femus_mesh_MyMatrix_hpp__
 
-
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
@@ -60,15 +59,15 @@ namespace femus {
 
       // ******************
       void shrinkToFit(Type remove);
-      
+
       void shrinkToFit(MyVector<unsigned> &r);
-      
+
       // ******************
       void clear();
 
       // ******************
       unsigned size();
-      
+
       unsigned size(const unsigned &i);
 
       // ******************
@@ -83,6 +82,9 @@ namespace femus {
 
       // ******************
       void scatter(const std::vector < unsigned > &offset);
+      void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
+
+      template <class mytype> friend void scatter(MyMatrix<mytype> &mat, const std::vector<unsigned> &offset, const unsigned &lproc);
 
       void scatter();
 
@@ -91,9 +93,9 @@ namespace femus {
 
       // ******************
       std::vector<unsigned> getOffset();
-      
-      MyVector < unsigned > getRowSize(){
-	return _rowSize;
+
+      MyVector < unsigned > getRowSize() {
+        return _rowSize;
       }
 
       // ******************
@@ -119,7 +121,7 @@ namespace femus {
         if(mat._matIsAllocated) {
           if(mat._serial) {
             for(unsigned i = mat.begin(); i < mat.end(); i++) {
-	      os << i <<"   ";
+              os << i << "   ";
               for(unsigned j = mat.begin(i); j < mat.end(i); j++) {
                 os << mat[i][j] << " ";
               }
@@ -130,7 +132,7 @@ namespace femus {
             for(int j = 0; j < mat._nprocs; j++) {
               mat.broadcast(j);
               for(unsigned i = mat.begin(); i < mat.end(); i++) {
-		os << i <<"   ";
+                os << i << "   ";
                 for(unsigned j = mat.begin(i); j < mat.end(i); j++) {
                   os << mat[i][j] << " ";
                 }
@@ -143,7 +145,7 @@ namespace femus {
         }
         return os;
       }
-   
+
     private:
 
       std::string _status;
@@ -169,12 +171,17 @@ namespace femus {
       unsigned _lproc;
   };
 
+  template <class mytype> void scatter(MyMatrix<mytype> &mat, const std::vector<unsigned> &offset, const unsigned &lproc) {
+    int iproc;
+    MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
 
+    if (iproc != lproc) {
+      mat = MyMatrix <mytype> ();
+    }
 
-
+    mat.scatter(offset, lproc);
+  }
 
 } //end namespace femus
-
-
 
 #endif

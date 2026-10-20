@@ -19,15 +19,12 @@
 #ifndef __femus_mesh_MyVector_hpp__
 #define __femus_mesh_MyVector_hpp__
 
-
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
 
 #include <mpi.h>
 #include <boost/mpi/datatype.hpp>
-
-
 
 namespace femus {
 
@@ -63,18 +60,25 @@ namespace femus {
 
       // ******************
       unsigned size();
-      unsigned size() const { return _size;};
+      unsigned size() const {
+        return _size;
+      };
 
       // ******************
       unsigned begin();
-      unsigned begin() const {return _begin;};
+      unsigned begin() const {
+        return _begin;
+      };
 
       // ******************
       unsigned end();
-      unsigned end() const {return _end;};
+      unsigned end() const {
+        return _end;
+      };
 
       // ******************
       void scatter(const std::vector < unsigned > &offset);
+      void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
 
       // ******************
       void scatter();
@@ -151,12 +155,6 @@ namespace femus {
       unsigned _lproc;
   };
 
-
-
-
-
 } //end namespace femus
-
-
 
 #endif

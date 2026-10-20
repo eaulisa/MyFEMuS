@@ -152,7 +152,6 @@ namespace femus {
 
     //END reordering _elementGroup and _elementMaterial
 
-
     //BEGIN reordering _elementDof (rows)
     MyVector <unsigned> rowSize(_nel, 0);
     for (unsigned i = rowSize.begin(); i < rowSize.end(); i++) {
@@ -193,7 +192,6 @@ namespace femus {
     }
     //END reordering _childElementDof
   }
-
 
   void elem::ReorderMeshNodes(const std::vector < unsigned >& nodeMapping) {
     for (unsigned i = _elementDof.begin(); i < _elementDof.end(); i++) {
@@ -280,9 +278,8 @@ namespace femus {
     return FACERANGE[ielt][1];
   }
 
-
   /**
-   * Return the global adiacent-to-face element number
+   * Return the global adiacent-to-face element number + (-1 is and AMR face) and boundary indexes -2,-3,-4,... -> 1, 2, 3,...
    **/
   int elem::GetFaceElementIndex(const unsigned& iel, const unsigned& iface) {
     return _elementNearFace[iel][iface];
@@ -388,6 +385,236 @@ namespace femus {
         _elementNearElement[iel][j] = it->first;
       }
     }
+
+  }
+
+// #include <mpi.h>
+// #include <algorithm>
+// #include <climits>
+// #include <unordered_map>
+// #include <vector>
+
+  void ExchangeNodeBuffers(const std::vector<std::vector<unsigned>>& buffers_send, std::vector<std::vector<unsigned>>& buffers_recv, const unsigned iproc, const unsigned nprocs, const int tag) {
+    std::vector<int> counts_send(nprocs, 0);
+    std::vector<int> counts_recv(nprocs, 0);
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      if (jproc == iproc) continue;
+      if (buffers_send[jproc].size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+      counts_send[jproc] = static_cast<int>(buffers_send[jproc].size());
+    }
+
+    MPI_Alltoall(counts_send.data(), 1, MPI_INT, counts_recv.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    buffers_recv.clear();
+    buffers_recv.resize(nprocs);
+    buffers_recv[iproc] = buffers_send[iproc];
+
+    std::vector<MPI_Request> requests(2 * nprocs, MPI_REQUEST_NULL);
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      if (jproc == iproc) continue;
+
+      if (counts_recv[jproc] > 0) {
+        buffers_recv[jproc].resize(counts_recv[jproc]);
+        MPI_Irecv(buffers_recv[jproc].data(), counts_recv[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[jproc]);
+      }
+
+      if (counts_send[jproc] > 0) {
+        MPI_Isend(buffers_send[jproc].data(), counts_send[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[nprocs + jproc]);
+      }
+    }
+
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  }
+
+  void elem::BuildElementNearElement(Mesh *msh) {
+    unsigned dim = msh->GetDimension();
+    unsigned nprocs = msh->n_processors();
+    const unsigned iproc = msh->processor_id();
+
+    MyVector<unsigned> rowSize(_elementOffset, 1);
+
+    std::unordered_map<unsigned, std::vector<unsigned>> nodeToElement;
+    nodeToElement.reserve(rowSize.end() - rowSize.begin()); //TODO get this infor from msh
+
+    std::vector<std::vector<unsigned>> ghostNodes_send(nprocs);
+
+    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+      for (unsigned i = 0; i < GetElementDofNumber(iel, 2); i++) {
+        unsigned inode = GetElementDofIndex(iel, i);
+        std::vector<unsigned>& elements = nodeToElement[inode];
+        if (elements.empty()) {
+          elements.reserve(2u << dim);
+          unsigned jproc = msh->IsdomBisectionSearch(inode, 2);
+
+          if (jproc != iproc) ghostNodes_send[jproc].push_back(inode);
+        }
+        elements.push_back(iel);
+      }
+    }
+
+    std::vector<std::vector<unsigned>> ghost_send(nprocs);
+    std::vector<std::vector<unsigned>> ghost_recv;
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      unsigned count_send = 0;
+
+      for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
+        unsigned inode = ghostNodes_send[jproc][i];
+        const std::vector<unsigned>& elements = nodeToElement.at(inode);
+        if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
+        count_send += 2 + static_cast<unsigned>(elements.size());
+      }
+
+      ghost_send[jproc].reserve(count_send);
+
+      for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
+        unsigned inode = ghostNodes_send[jproc][i];
+        const std::vector<unsigned>& elements = nodeToElement.at(inode);
+
+        ghost_send[jproc].push_back(inode);
+        ghost_send[jproc].push_back(static_cast<unsigned>(elements.size()));
+        ghost_send[jproc].insert(ghost_send[jproc].end(), elements.begin(), elements.end());
+      }
+    }
+
+    ExchangeNodeBuffers(ghost_send, ghost_recv, iproc, nprocs, 100);
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      unsigned pos_recv = 0;
+
+      while (pos_recv < ghost_recv[jproc].size()) {
+        unsigned inode = ghost_recv[jproc][pos_recv++];
+        unsigned count_recv = ghost_recv[jproc][pos_recv++];
+        std::vector<unsigned>& elements = nodeToElement[inode];
+
+        elements.insert(elements.end(), ghost_recv[jproc].begin() + pos_recv, ghost_recv[jproc].begin() + pos_recv + count_recv);
+        pos_recv += count_recv;
+      }
+    }
+
+    for (std::unordered_map<unsigned, std::vector<unsigned>>::iterator it = nodeToElement.begin(); it != nodeToElement.end(); ++it) {
+      std::vector<unsigned>& elements = it->second;
+      std::sort(elements.begin(), elements.end());
+      elements.erase(std::unique(elements.begin(), elements.end()), elements.end());
+    }
+
+    std::vector<std::vector<unsigned>> updated_send(nprocs);
+    std::vector<std::vector<unsigned>> updated_recv;
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      unsigned pos_recv = 0;
+      unsigned count_send = 0;
+
+      while (pos_recv < ghost_recv[jproc].size()) {
+        unsigned inode = ghost_recv[jproc][pos_recv++];
+        unsigned count_recv = ghost_recv[jproc][pos_recv++];
+        pos_recv += count_recv;
+
+        const std::vector<unsigned>& elements = nodeToElement.at(inode);
+        if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
+        count_send += 2 + static_cast<unsigned>(elements.size());
+      }
+
+      updated_send[jproc].reserve(count_send);
+      pos_recv = 0;
+
+      while (pos_recv < ghost_recv[jproc].size()) {
+        unsigned inode = ghost_recv[jproc][pos_recv++];
+        unsigned count_recv = ghost_recv[jproc][pos_recv++];
+        pos_recv += count_recv;
+
+        const std::vector<unsigned>& elements = nodeToElement.at(inode);
+
+        updated_send[jproc].push_back(inode);
+        updated_send[jproc].push_back(static_cast<unsigned>(elements.size()));
+        updated_send[jproc].insert(updated_send[jproc].end(), elements.begin(), elements.end());
+      }
+    }
+
+    ExchangeNodeBuffers(updated_send, updated_recv, iproc, nprocs, 101);
+
+    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+      unsigned pos_recv = 0;
+
+      while (pos_recv < updated_recv[jproc].size()) {
+        unsigned inode = updated_recv[jproc][pos_recv++];
+        unsigned count_recv = updated_recv[jproc][pos_recv++];
+        std::vector<unsigned>& elements = nodeToElement.at(inode);
+
+        elements.assign(updated_recv[jproc].begin() + pos_recv, updated_recv[jproc].begin() + pos_recv + count_recv);
+        pos_recv += count_recv;
+      }
+    }
+
+    std::vector<std::vector<unsigned>> elementNeighbors(rowSize.end() - rowSize.begin());
+
+    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+      std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
+      elements.push_back(iel);
+
+      for (unsigned i = 0; i < GetElementDofNumber(iel, 2); i++) {
+        unsigned inode = GetElementDofIndex(iel, i);
+        const std::vector<unsigned>& adjacentElements = nodeToElement.at(inode);
+
+        for (unsigned j = 0; j < adjacentElements.size(); j++) {
+          if (adjacentElements[j] != iel) elements.push_back(adjacentElements[j]);
+        }
+      }
+
+      std::sort(elements.begin() + 1, elements.end());
+      elements.erase(std::unique(elements.begin() + 1, elements.end()), elements.end());
+      rowSize[iel] = static_cast<unsigned>(elements.size());
+    }
+
+    _elementNearElement = MyMatrix<unsigned>(rowSize, UINT_MAX);
+
+    for (unsigned iel = _elementNearElement.begin(); iel < _elementNearElement.end(); iel++) {
+      const std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
+
+      for (unsigned j = 0; j < elements.size(); j++) {
+        _elementNearElement[iel][j] = elements[j];
+      }
+    }
+
+    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+      for (unsigned iface = 0; iface < GetElementFaceNumber(iel); iface++) {
+        if (GetFaceElementIndex(iel, iface) > 0) continue;
+
+        const std::vector<unsigned>* faceElements[3] = {nullptr, nullptr, nullptr};
+        unsigned first = 0;
+
+        for (unsigned k = 0; k < dim; k++) {
+          unsigned inode = GetFaceVertexIndex(iel, iface, k);
+          faceElements[k] = &nodeToElement.at(inode);
+          if (faceElements[k]->size() < faceElements[first]->size()) first = k;
+        }
+
+        const std::vector<unsigned>& candidates = *faceElements[first];
+
+        for (unsigned j = 0; j < candidates.size(); j++) {
+          unsigned jel = candidates[j];
+          if (jel == iel) continue;
+
+          bool shared = true;
+
+          for (unsigned k = 0; k < dim && shared; k++) {
+            if (k != first) shared = std::binary_search(faceElements[k]->begin(), faceElements[k]->end(), jel);
+          }
+
+          if (shared) {
+            SetFaceElementIndex(iel, iface, jel + 1u);
+            break;
+          }
+        }
+
+        if (_level == 0 && GetFaceElementIndex(iel, iface) == -1) {
+          SetFaceElementIndex(iel, iface, -101);
+        }
+      }
+    }
+
   }
 
   void elem::BuildElementNearVertex() {
@@ -411,14 +638,14 @@ namespace femus {
   /**
    * Return the number of elements which have a given vertex
    **/
-  unsigned elem::GetElementNearVertexNumber(const unsigned& inode) {
+  unsigned elem::GetElementNearVertexNumber(const unsigned & inode) {
     return _elementNearVertex.size(inode);
   }
 
   /**
    * Return the element index for the given i-node in the j-position with 0<=j<nve(i)
    **/
-  unsigned elem::GetElementNearVertex(const unsigned& inode, const unsigned& j) {
+  unsigned elem::GetElementNearVertex(const unsigned & inode, const unsigned & j) {
     return _elementNearVertex[inode][j];
   }
 
@@ -452,7 +679,7 @@ namespace femus {
     return index;
   }
 
-  void elem::AllocateChildrenElement(const unsigned& refindex, Mesh* msh) {
+  void elem::AllocateChildrenElement(const unsigned & refindex, Mesh * msh) {
     MyVector <unsigned> rowSize(_elementOffset, 0);
     for (unsigned i = rowSize.begin(); i < rowSize.end(); i++) {
       rowSize[i] = (msh->GetRefinedElementIndex(i) == 1) ? refindex : 1;
@@ -466,7 +693,7 @@ namespace femus {
     _childElemDof = MyMatrix <unsigned> (rowSize, 0);
   }
 
-  void elem::SetChildElementDof(elem* elf) {
+  void elem::SetChildElementDof(elem * elf) {
     for (unsigned iel = _childElemDof.begin(); iel < _childElemDof.end(); iel++) {
       unsigned nDofs = GetElementDofNumber(iel, 2);
       for (unsigned j = _childElemDof.begin(iel); j < _childElemDof.end(iel); j++) {
@@ -476,31 +703,31 @@ namespace femus {
     }
   }
 
-  unsigned elem::GetChildElementDof(const unsigned& iel, const unsigned& i0, const unsigned i1) {
+  unsigned elem::GetChildElementDof(const unsigned & iel, const unsigned & i0, const unsigned i1) {
     return _childElemDof[iel][i0 * GetElementDofNumber(iel, 2) + i1];
   }
 
-  void elem::SetChildElement(const unsigned& iel, const unsigned& json, const unsigned& value) {
+  void elem::SetChildElement(const unsigned & iel, const unsigned & json, const unsigned & value) {
     _childElem[iel][json] = value;
   }
 
-  unsigned elem::GetChildElement(const unsigned& iel, const unsigned& json) {
+  unsigned elem::GetChildElement(const unsigned & iel, const unsigned & json) {
     return _childElem[iel][json];
   }
 
-  const unsigned elem::GetNVE(const unsigned& elementType, const unsigned& doftype) const {
+  const unsigned elem::GetNVE(const unsigned & elementType, const unsigned & doftype) const {
     return NVE[elementType][doftype];
   }
 
-  const unsigned elem::GetNFACENODES(const unsigned& elementType, const unsigned& jface, const unsigned& dof) const {
+  const unsigned elem::GetNFACENODES(const unsigned & elementType, const unsigned & jface, const unsigned & dof) const {
     return NFACENODES[elementType][jface][dof];
   }
 
-  const unsigned elem::GetNFC(const unsigned& elementType, const unsigned& type) const {
+  const unsigned elem::GetNFC(const unsigned & elementType, const unsigned & type) const {
     return NFC[elementType][type];
   }
 
-  const unsigned elem::GetIG(const unsigned& elementType, const unsigned& iface, const unsigned& jnode) const {
+  const unsigned elem::GetIG(const unsigned & elementType, const unsigned & iface, const unsigned & jnode) const {
     return ig[elementType][iface][jnode];
   }
 
@@ -508,11 +735,15 @@ namespace femus {
     _elementDof.scatter(_elementOffset);
   }
 
-  void elem::LocalizeElementDof(const unsigned& jproc) {
+  void elem::ScatterElementDof(const unsigned lproc) {
+    _elementDof.scatter(_elementOffset, lproc);
+  }
+
+  void elem::LocalizeElementDof(const unsigned & jproc) {
     _elementDof.broadcast(jproc);
   }
 
-  unsigned elem::GetElementDofIndex(const unsigned& iel, const unsigned& inode) {
+  unsigned elem::GetElementDofIndex(const unsigned & iel, const unsigned & inode) {
     return _elementDof[iel][inode];
   };
 
@@ -524,7 +755,11 @@ namespace femus {
     _elementNearFace.scatter(_elementOffset);
   };
 
-  void elem::LocalizeElementNearFace(const unsigned& jproc) {
+  void elem::ScatterElementNearFace(const unsigned lproc) {
+    _elementNearFace.scatter(_elementOffset, lproc);
+  };
+
+  void elem::LocalizeElementNearFace(const unsigned & jproc) {
     _elementNearFace.broadcast(jproc);
   }
 
@@ -537,56 +772,7 @@ namespace femus {
     return FELT[ielt][jface >= NFC[ielt][0]];
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  void elem::GetAMRRestriction(Mesh *msh) {
+  void elem::GetAMRRestriction(Mesh * msh) {
 
     std::vector < std::map < unsigned,  std::map < unsigned, double  > > > &restriction = msh->GetAmrRestrictionMap();
     restriction.resize(3);
@@ -727,7 +913,6 @@ namespace femus {
       //END interface node coordinates search
     }
 
-
     __amr_t_interface_build += MPI_Wtime() - __amr_t0;
 
     const unsigned nLevels = _level + 1u;
@@ -737,7 +922,6 @@ namespace femus {
 
     std::vector<double> xMinMemory(_nprocs * nLevels * dim);
     std::vector<double> xMaxMemory(_nprocs * nLevels * dim);
-
 
     std::vector<std::vector<std::vector<unsigned>>> bbx_to_elements;
     std::vector<std::vector<unsigned>> bbxN;
@@ -988,15 +1172,6 @@ namespace femus {
       }
 
       __amr_t_restriction_scan[soltype] += MPI_Wtime() - __amr_t0;
-
-
-
-
-
-
-
-
-
 
       // __amr_t0 = MPI_Wtime();
       //
@@ -1961,7 +2136,7 @@ namespace femus {
     }*/
 
   void elem::GetAMRInterfaceBoundingBoxes(
-    Mesh* msh,
+    Mesh * msh,
     const std::vector<MyVector<unsigned>>& interfaceElement,
     std::vector<std::vector<double*>>& xMin,
     std::vector<std::vector<double*>>& xMax,
@@ -2249,7 +2424,7 @@ namespace femus {
     const std::vector<std::vector<double*>>& xMin,
     const std::vector<std::vector<double*>>& xMax,
     const std::vector<std::vector<unsigned>>& bbxN,
-    unsigned& bbxIdx
+    unsigned & bbxIdx
   ) const {
     bbxIdx = 0u;
 
@@ -2352,8 +2527,6 @@ namespace femus {
 
     abort();
   }
-
-
 
   void elem::GetAMRRestrictionCandidateDataForLevelPair(
     const unsigned ilevel,
@@ -2552,185 +2725,7 @@ namespace femus {
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  void elem::GetAMRRestrictionOld(Mesh *msh) {
+  void elem::GetAMRRestrictionOld(Mesh * msh) {
 
     std::vector < std::map < unsigned,  std::map < unsigned, double  > > > &restriction = msh->GetAmrRestrictionMap();
     restriction.resize(3);
@@ -2754,7 +2749,6 @@ namespace femus {
     }
     interfaceNodeCoordinates.resize(_level + 1);
     unsigned dim = msh->GetDimension();
-
 
     for (unsigned ilevel = 0; ilevel <= _level; ilevel++) {
       //BEGIN interface element search
@@ -2801,7 +2795,6 @@ namespace femus {
       //BEGIN interface node dof global search, one for each soltype
       MyVector <unsigned> rowSize = interfaceLocalDof[ilevel].getRowSize();
 
-
       for (unsigned soltype = 0; soltype < 3; soltype++) {
         interfaceDof[soltype][ilevel] = MyMatrix< unsigned > (rowSize, UINT_MAX);
         levelInterfaceSolidMark[soltype][ilevel] = MyMatrix< unsigned > (rowSize, UINT_MAX);
@@ -2845,10 +2838,7 @@ namespace femus {
       //END interface node coordinates search
     }
 
-
-
     const unsigned nLevels = _level + 1u;
-
 
     std::vector<double> xMinLocal(nLevels * dim, DBL_MAX);
     std::vector<double> xMaxLocal(nLevels * dim, -DBL_MAX);
@@ -2899,8 +2889,6 @@ namespace femus {
       }
     }
 
-
-
     std::vector<double> xMinMemory(_nprocs * nLevels * dim);
     std::vector<double> xMaxMemory(_nprocs * nLevels * dim);
 
@@ -2911,8 +2899,6 @@ namespace femus {
     MPI_Allgather(xMaxLocal.data(), nLevels * dim, MPI_DOUBLE,
                   xMaxMemory.data(), nLevels * dim, MPI_DOUBLE,
                   MPI_COMM_WORLD);
-
-
 
     // pointer view: global [proc][level][d]
     std::vector<std::vector<double*> > xMin(_nprocs);
@@ -2930,9 +2916,6 @@ namespace femus {
           xMaxMemory.data() + (proc * nLevels + level) * dim;
       }
     }
-
-
-
 
     for (unsigned soltype = 0; soltype < 3; soltype++) {
 
@@ -2969,7 +2952,6 @@ namespace femus {
         jCoordinate_r[lproc].resize(dim);
       }
 
-
       for (unsigned level = 0; level < nLevels; level++) {
         for (unsigned k = interfaceDof[soltype][level].begin(); k < interfaceDof[soltype][level].end(); k++) {
           for (unsigned l = interfaceDof[soltype][level].begin(k); l < interfaceDof[soltype][level].end(k); l++) {
@@ -2985,15 +2967,11 @@ namespace femus {
         }
       }
 
-
-
-
       for (int ilevel = 0; ilevel < _level; ilevel++) {
         for (int jlevel = ilevel + 1; jlevel <= _level; jlevel++) {
 
           const unsigned jMin  = jMinLevel[jlevel];
           const unsigned jSize = jSizeLevel[jlevel];
-
 
           for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
 
@@ -3056,14 +3034,9 @@ namespace femus {
             }
           }
 
-
-
           MPI_Alltoall(size_s.data(), 1, MPI_UNSIGNED,
                        size_r.data(), 1, MPI_UNSIGNED,
                        MPI_COMM_WORLD);
-
-
-
 
           // Resize receive buffers
           for(unsigned lproc = 0; lproc < _nprocs; ++lproc) {
@@ -3073,8 +3046,6 @@ namespace femus {
               jCoordinate_r[lproc][d].resize(size_r[lproc]);
             }
           }
-
-
 
           // Nonblocking communication for jDof, jSolidMark, and jCoordinate.
           // Tags:
@@ -3184,9 +3155,6 @@ namespace femus {
                         MPI_STATUSES_IGNORE);
           }
 
-
-
-
           //////////////////////////
 
           for (unsigned lproc = 0; lproc < _nprocs; lproc++) {
@@ -3195,7 +3163,6 @@ namespace femus {
             // for (unsigned d = 0; d < dim; d++) {
             //   interfaceNodeCoordinates[jlevel][d].broadcast(lproc);
             // }
-
 
             unsigned ilevelMinDof = UINT_MAX;
             unsigned ilevelMaxDof = 0;
@@ -3278,7 +3245,6 @@ namespace femus {
                   }
                   if (insideHull) {
 
-
                     if (!aPIsInitialized) {
                       aPIsInitialized = true;
                       for (unsigned jtype = 0; jtype < 3; jtype++) {
@@ -3319,7 +3285,6 @@ namespace femus {
                     //     }
                     //   }
                     // }
-
 
                     if (insideDomain) {
                       for (unsigned j = interfaceDof[soltype][ilevel].begin(i); j < interfaceDof[soltype][ilevel].end(i); j++) {
@@ -3368,8 +3333,6 @@ namespace femus {
         }
       }
 
-
-
       NumericVector* pvector;
       pvector = NumericVector::build().release();
       pvector->init(_nprocs, 1, false, AUTOMATIC);
@@ -3406,7 +3369,6 @@ namespace femus {
           cnt1++;
         }
         //END  saving the restriction object in parallel vectors and matrices
-
 
         //BEGIN filling the restriction object with infos coming form the parallel vectors and matrices
         unsigned solutionOffset = msh->_dofOffset[soltype][_iproc];
@@ -3455,13 +3417,11 @@ namespace femus {
         }
         //END filling the restriction object with infos coming form the parallel vectors and matrices
 
-
         pvector->set(_iproc, counter);
         pvector->close();
         counter = static_cast <unsigned>(floor(pvector->l1_norm() + 0.5));
       }
       delete pvector;
-
 
       //       for (std::map<unsigned, std::map<unsigned, double> >::iterator it1 = restriction[soltype].begin(); it1 != restriction[soltype].end(); it1++) {
       //         unsigned inode = it1->first;
@@ -3484,9 +3444,6 @@ namespace femus {
       //           restriction[soltype][inode][inode] = 0.;
       //         }
       //       }
-
-
-
 
       std::vector<std::vector < unsigned > > genealogy;
       std::vector<std::vector < double > > heredity;
@@ -3578,8 +3535,6 @@ namespace femus {
         }
       }
 
-
-
       MyVector <unsigned> InterfaceSolidMarkNode(interfaceSolidMark[soltype].size());
       MyVector <short unsigned> InterfaceSolidMarkValue(interfaceSolidMark[soltype].size());
 
@@ -3609,24 +3564,4 @@ namespace femus {
 
   }
 
-
 } //end namespace femus
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
