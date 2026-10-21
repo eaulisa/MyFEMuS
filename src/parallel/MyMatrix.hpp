@@ -89,6 +89,9 @@ namespace femus {
       void scatter();
 
       // ******************
+      void stack(const unsigned lproc);
+
+      // ******************
       void buildOffset();
 
       // ******************
@@ -178,7 +181,7 @@ namespace femus {
     if (iproc != lproc) {
       mat = MyMatrix <mytype> ();
     }
-
+    mat._serial = true;
     mat.scatter(offset, lproc);
   }
 

@@ -397,6 +397,96 @@ namespace femus {
   }
 
   // ******************
+  template <class Type> void MyMatrix<Type>::stack(const unsigned lproc) {
+    if (_serial || !_matIsAllocated) {
+      std::cout << "Error in MyMatrix.stack(), matrix must be PARALLEL" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    if (_size > static_cast<unsigned>(INT_MAX) || _mat.size() > static_cast<unsigned>(INT_MAX)) MPI_Abort(MPI_COMM_WORLD, 1);
+
+    int count_send = static_cast<int>(_mat.size());
+    std::vector<int> counts_recv((_iproc == lproc) ? _nprocs : 0, 0);
+    std::vector<int> offsets_recv((_iproc == lproc) ? _nprocs : 0, 0);
+
+    MPI_Gather(&count_send, 1, MPI_INT, counts_recv.data(), 1, MPI_INT, lproc, MPI_COMM_WORLD);
+
+    std::vector<unsigned> rowSizes_recv;
+    std::vector<Type> values_recv;
+    std::vector<MPI_Request> communication((_iproc == lproc) ? 2 * _nprocs : 2, MPI_REQUEST_NULL);
+    int total_recv = 0;
+
+    if (_iproc == lproc) {
+      if (_offset[_nprocs] > static_cast<unsigned>(INT_MAX)) MPI_Abort(MPI_COMM_WORLD, 1);
+
+      for (unsigned jproc = 0; jproc < _nprocs; jproc++) {
+        if (counts_recv[jproc] > INT_MAX - total_recv) MPI_Abort(MPI_COMM_WORLD, 1);
+        offsets_recv[jproc] = total_recv;
+        total_recv += counts_recv[jproc];
+      }
+
+      rowSizes_recv.resize(_offset[_nprocs]);
+      values_recv.resize(total_recv);
+
+      for (unsigned i = _begin; i < _end; i++) rowSizes_recv[i] = _rowSize[i];
+      std::copy(_mat.begin(), _mat.end(), values_recv.begin() + offsets_recv[lproc]);
+
+      for (unsigned jproc = 0; jproc < lproc; jproc++) {
+        unsigned rows_recv = _offset[jproc + 1] - _offset[jproc];
+
+        if (rows_recv > 0) MPI_Irecv(rowSizes_recv.data() + _offset[jproc], static_cast<int>(rows_recv), MPI_UNSIGNED, static_cast<int>(jproc), 230, MPI_COMM_WORLD, &communication[2 * jproc]);
+        if (counts_recv[jproc] > 0) MPI_Irecv(values_recv.data() + offsets_recv[jproc], counts_recv[jproc], _MY_MPI_DATATYPE, static_cast<int>(jproc), 231, MPI_COMM_WORLD, &communication[2 * jproc + 1]);
+      }
+      for (unsigned jproc = lproc + 1; jproc < _nprocs; jproc++) {
+        unsigned rows_recv = _offset[jproc + 1] - _offset[jproc];
+
+        if (rows_recv > 0) MPI_Irecv(rowSizes_recv.data() + _offset[jproc], static_cast<int>(rows_recv), MPI_UNSIGNED, static_cast<int>(jproc), 230, MPI_COMM_WORLD, &communication[2 * jproc]);
+        if (counts_recv[jproc] > 0) MPI_Irecv(values_recv.data() + offsets_recv[jproc], counts_recv[jproc], _MY_MPI_DATATYPE, static_cast<int>(jproc), 231, MPI_COMM_WORLD, &communication[2 * jproc + 1]);
+      }
+    }
+    else {
+      if (_size > 0) MPI_Isend(&_rowSize[_begin], static_cast<int>(_size), MPI_UNSIGNED, lproc, 230, MPI_COMM_WORLD, &communication[0]);
+      if (count_send > 0) MPI_Isend(_mat.data(), count_send, _MY_MPI_DATATYPE, lproc, 231, MPI_COMM_WORLD, &communication[1]);
+    }
+
+    MPI_Waitall(static_cast<int>(communication.size()), communication.data(), MPI_STATUSES_IGNORE);
+
+    if (_iproc == lproc) {
+      _rowSize.resize(_offset[_nprocs]);
+      _rowOffset.resize(_offset[_nprocs]);
+      unsigned offset = 0;
+
+      for (unsigned i = 0; i < _offset[_nprocs]; i++) {
+        _rowSize[i] = rowSizes_recv[i];
+        _rowOffset[i] = offset;
+        offset += rowSizes_recv[i];
+      }
+
+      _mat.swap(values_recv);
+      std::vector<Type>().swap(_mat2);
+      _matSize.clear();
+      _matSize.resize(_nprocs, 0);
+      _matSize[lproc] = static_cast<unsigned>(total_recv);
+
+      _size = _offset[_nprocs];
+
+      for(unsigned i = 0; i <= lproc; i++) _offset[i] = 0;
+      for(unsigned i = lproc + 1; i < _offset.size(); i++) _offset[i] = _size;
+
+      _begin = _offset[_iproc];
+      _end = _offset[_iproc + 1];
+      _size = _end - _begin;
+      _lproc = lproc;
+
+      if(lproc != _iproc) {
+        clear();
+      }
+      _serial = false;
+      _matIsAllocated = true;
+    }
+  }
+
+  // ******************
   template <class Type> void MyMatrix<Type>::buildOffset() {
     unsigned locsize = _size / _nprocs;
     unsigned reminder = _size % _nprocs;

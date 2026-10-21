@@ -266,6 +266,9 @@ namespace femus {
   void elem::AddToElementNumber(const unsigned& value, short unsigned ielt) {
     _nelt[ielt] += value;
   }
+  void elem::BroadcastElementNumber() {
+    MPI_Bcast(_nelt, 6, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  }
   unsigned elem::GetElementFaceNumber(const unsigned& iel, const unsigned& type) {
     return NFC[ _elementType[iel] ][type];
   }
@@ -441,7 +444,7 @@ namespace femus {
     std::vector<std::vector<unsigned>> ghostNodes_send(nprocs);
 
     for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
-      for (unsigned i = 0; i < GetElementDofNumber(iel, 2); i++) {
+      for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
         unsigned inode = GetElementDofIndex(iel, i);
         std::vector<unsigned>& elements = nodeToElement[inode];
         if (elements.empty()) {
@@ -554,7 +557,7 @@ namespace femus {
       std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
       elements.push_back(iel);
 
-      for (unsigned i = 0; i < GetElementDofNumber(iel, 2); i++) {
+      for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
         unsigned inode = GetElementDofIndex(iel, i);
         const std::vector<unsigned>& adjacentElements = nodeToElement.at(inode);
 
@@ -580,7 +583,7 @@ namespace femus {
 
     for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
       for (unsigned iface = 0; iface < GetElementFaceNumber(iel); iface++) {
-        if (GetFaceElementIndex(iel, iface) > 0) continue;
+        if ( GetFaceElementIndex(iel, iface) != -1 )continue;
 
         const std::vector<unsigned>* faceElements[3] = {nullptr, nullptr, nullptr};
         unsigned first = 0;
@@ -694,11 +697,118 @@ namespace femus {
   }
 
   void elem::SetChildElementDof(elem * elf) {
+
     for (unsigned iel = _childElemDof.begin(); iel < _childElemDof.end(); iel++) {
-      unsigned nDofs = GetElementDofNumber(iel, 2);
+      // unsigned nDofs = GetElementDofNumber(iel, 2);
+      unsigned nDofs = _childElemDof.size(iel) / _childElem.size(iel);
       for (unsigned j = _childElemDof.begin(iel); j < _childElemDof.end(iel); j++) {
         unsigned ielf = GetChildElement(iel, j / nDofs);
         _childElemDof[iel][j] = elf->GetElementDofIndex(ielf, j % nDofs);
+      }
+    }
+  }
+
+  void elem::SetChildElementDof(Mesh* meshf) {
+    const int tag_request = 200;
+    const int tag_values = 201;
+
+    std::vector<unsigned> requests_send;
+    std::vector<unsigned> values_recv;
+    unsigned count_recv = 0;
+
+    if (_iproc != 0) {
+      for (unsigned iel = _childElemDof.begin(); iel < _childElemDof.end(); iel++) {
+        unsigned nDofs = GetElementDofNumber(iel, 2);
+        unsigned rowDofs = _childElemDof.end(iel) - _childElemDof.begin(iel);
+
+        if (rowDofs > static_cast<unsigned>(INT_MAX) - count_recv) MPI_Abort(MPI_COMM_WORLD, 1);
+        count_recv += rowDofs;
+
+        for (unsigned j = _childElemDof.begin(iel); j < _childElemDof.end(iel); j += nDofs) {
+          unsigned ielf = GetChildElement(iel, j / nDofs);
+          requests_send.push_back(ielf);
+          requests_send.push_back(nDofs);
+        }
+      }
+
+      values_recv.resize(count_recv);
+    }
+
+    if (requests_send.size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+
+    int count_send = static_cast<int>(requests_send.size());
+    std::vector<int> counts_recv(_nprocs, 0);
+
+    MPI_Gather(&count_send, 1, MPI_INT, counts_recv.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (_iproc == 0) {
+      elem* elf = meshf->el;
+
+      std::vector<std::vector<unsigned>> requests_recv(_nprocs);
+      std::vector<std::vector<unsigned>> values_send(_nprocs);
+      std::vector<MPI_Request> communication_recv(_nprocs, MPI_REQUEST_NULL);
+      std::vector<MPI_Request> communication_send(_nprocs, MPI_REQUEST_NULL);
+
+      for (unsigned jproc = 1; jproc < _nprocs; jproc++) {
+        if (counts_recv[jproc] > 0) {
+          requests_recv[jproc].resize(counts_recv[jproc]);
+          MPI_Irecv(requests_recv[jproc].data(), counts_recv[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag_request, MPI_COMM_WORLD, &communication_recv[jproc]);
+        }
+      }
+
+      for (unsigned iel = _childElemDof.begin(); iel < _childElemDof.end(); iel++) {
+        unsigned nDofs = GetElementDofNumber(iel, 2);
+
+        for (unsigned j = _childElemDof.begin(iel); j < _childElemDof.end(iel); j++) {
+          unsigned ielf = GetChildElement(iel, j / nDofs);
+          _childElemDof[iel][j] = elf->GetElementDofIndex(ielf, j % nDofs);
+        }
+      }
+
+      MPI_Waitall(static_cast<int>(_nprocs), communication_recv.data(), MPI_STATUSES_IGNORE);
+
+      for (unsigned jproc = 1; jproc < _nprocs; jproc++) {
+        if (counts_recv[jproc] == 0) continue;
+
+        unsigned count_send = 0;
+
+        for (unsigned j = 0; j < requests_recv[jproc].size(); j += 2) {
+          count_send += requests_recv[jproc][j + 1];
+        }
+
+        values_send[jproc].resize(count_send);
+        unsigned pos_send = 0;
+
+        for (unsigned j = 0; j < requests_recv[jproc].size(); j += 2) {
+          unsigned ielf = requests_recv[jproc][j];
+          unsigned nDofs = requests_recv[jproc][j + 1];
+
+          for (unsigned k = 0; k < nDofs; k++) {
+            values_send[jproc][pos_send++] = elf->GetElementDofIndex(ielf, k);
+          }
+        }
+
+        MPI_Isend(values_send[jproc].data(), static_cast<int>(count_send), MPI_UNSIGNED, static_cast<int>(jproc), tag_values, MPI_COMM_WORLD, &communication_send[jproc]);
+      }
+
+      MPI_Waitall(static_cast<int>(_nprocs), communication_send.data(), MPI_STATUSES_IGNORE);
+    }
+    else {
+      if (count_send > 0) {
+        MPI_Request communication[2] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+
+        MPI_Irecv(values_recv.data(), static_cast<int>(count_recv), MPI_UNSIGNED, 0, tag_values, MPI_COMM_WORLD, &communication[0]);
+        MPI_Isend(requests_send.data(), count_send, MPI_UNSIGNED, 0, tag_request, MPI_COMM_WORLD, &communication[1]);
+
+        MPI_Waitall(2, communication, MPI_STATUSES_IGNORE);
+      }
+
+      unsigned pos_recv = 0;
+
+      for (unsigned iel = _childElemDof.begin(); iel < _childElemDof.end(); iel++) {
+        for (unsigned j = _childElemDof.begin(iel); j < _childElemDof.end(iel); j++) {
+          _childElemDof[iel][j] = values_recv[pos_recv++];
+        }
       }
     }
   }

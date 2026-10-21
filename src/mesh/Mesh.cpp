@@ -707,6 +707,345 @@ namespace femus {
 
   }
 
+  void Mesh::FillISvector0(std::vector<unsigned>& partition) {
+    if (_iproc != 0) return;
+
+    for (unsigned k = 0; k < 2; k++) _ownedGhostMap[k].clear();
+
+    std::vector < unsigned > mapping;
+    mapping.reserve(GetNumberOfNodes());
+
+    _elementOffset.assign(_nprocs + 1, 0);
+
+    for (int k = 0; k < 5; k++) {
+      _dofOffset[k].assign(_nprocs + 1, 0);
+    }
+
+    mapping.resize(GetNumberOfElements());
+
+    unsigned counter = 0;
+
+    for (int isdom = 0; isdom < _nprocs; isdom++) {
+      for (unsigned iel = 0; iel < GetNumberOfElements(); iel++) {
+        if (partition[iel] == isdom) {
+
+          mapping[ iel ] = counter;
+          counter++;
+        }
+      }
+      _elementOffset[isdom + 1] = counter;
+    }
+
+    el->ReorderMeshElements(mapping);
+
+    for (unsigned isdom = 0; isdom < _nprocs; isdom++) {
+      unsigned begin = _elementOffset[isdom];
+      unsigned end = _elementOffset[isdom + 1];
+      std::vector<std::pair<unsigned, unsigned>> sortedElements(end - begin);
+
+      for (unsigned iel = begin; iel < end; iel++) {
+        unsigned material = el->GetElementMaterial(iel);
+        unsigned group = el->GetElementGroup(iel);
+        sortedElements[iel - begin] = std::make_pair((material << 16) | group, iel);
+      }
+
+      std::sort(sortedElements.begin(), sortedElements.end());
+
+      for (unsigned i = 0; i < sortedElements.size(); i++) mapping[sortedElements[i].second] = begin + i;
+    }
+
+    el->ReorderMeshElements(mapping);
+
+    for (unsigned k = 3; k < 5; k++) {
+      _ownSize[k].assign(_nprocs, 0);
+    }
+
+    for (int isdom = 0; isdom < _nprocs; isdom++) {
+      _ownSize[3][isdom] = _elementOffset[isdom + 1] - _elementOffset[isdom];
+      _ownSize[4][isdom] = (_elementOffset[isdom + 1] - _elementOffset[isdom]) * (_dimension + 1);
+    }
+
+    for (int k = 3; k < 5; k++) {
+      _ghostDofs[k].resize(_nprocs);
+
+      for (int isdom = 0; isdom < _nprocs; isdom++) {
+        _dofOffset[k][isdom + 1] = _dofOffset[k][isdom] + _ownSize[k][isdom];
+        _ghostDofs[k][isdom].resize(0);
+      }
+    }
+
+    partition.assign(GetNumberOfNodes(), _nprocs);
+    mapping.resize(GetNumberOfNodes());
+
+    for (unsigned k = 0; k < 3; k++) {
+      _ownSize[k].assign(_nprocs, 0);
+    }
+
+    counter = 0;
+
+    for (int isdom = 0; isdom < _nprocs; isdom++) {
+      for (unsigned k = 0; k < 3; k++) {
+        for (unsigned iel = _elementOffset[isdom]; iel < _elementOffset[isdom + 1]; iel++) {
+          unsigned nodeStart = (k == 0) ? 0 : el->GetElementDofNumber(iel, k - 1);
+          unsigned nodeEnd = el->GetElementDofNumber(iel, k);
+
+          for (unsigned inode = nodeStart; inode < nodeEnd; inode++) {
+            unsigned ii = el->GetElementDofIndex(iel, inode);
+
+            if (partition[ii] > isdom) {
+              partition[ii] = isdom;
+              mapping[ii] = counter;
+              counter++;
+
+              for (int j = k; j < 3; j++) {
+                _ownSize[j][isdom]++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    partition.resize(0);
+
+    for (int i = 1 ; i <= _nprocs; i++) {
+      _dofOffset[2][i] = _dofOffset[2][i - 1] + _ownSize[2][i - 1];
+    }
+
+    el->ReorderMeshNodes(mapping);
+
+    if (GetLevel() == 0) {
+      std::vector<double> coords_temp;
+
+      for (int i = 0; i < 3; i++) {
+        coords_temp = _coords[i];
+
+        for (unsigned j = 0; j < GetNumberOfNodes(); j++) {
+          _coords[i][mapping[j]] = coords_temp[j];
+        }
+      }
+    }
+
+    mapping.resize(0);
+
+    for (int k = 0; k < 3; k++) {
+      _ghostDofs[k].resize(_nprocs);
+
+      for (int isdom = 0; isdom < _nprocs; isdom++) {
+        std::map < unsigned, bool > ghostMap;
+
+        for (unsigned iel = _elementOffset[isdom]; iel < _elementOffset[isdom + 1]; iel++) {
+          for (unsigned inode = 0; inode < el->GetElementDofNumber(iel, k); inode++) {
+            unsigned ii = el->GetElementDofIndex(iel, inode);
+
+            if (ii < _dofOffset[2][isdom]) {
+              ghostMap[ii] = true;
+            }
+          }
+        }
+
+        _ghostDofs[k][isdom].resize(ghostMap.size());
+        unsigned counter = 0;
+
+        for (std::map < unsigned, bool >::iterator it = ghostMap.begin(); it != ghostMap.end(); it++) {
+          _ghostDofs[k][isdom][counter] = it->first;
+          counter++;
+        }
+      }
+    }
+
+    for (unsigned k = 0; k < 2; k++) {
+
+      std::vector < unsigned > ownedGhostCounter(_nprocs, 0);
+      unsigned counter = 0;
+
+      _originalOwnSize[k].assign(_nprocs, 0);
+
+      for (int isdom = 0; isdom < _nprocs; isdom++) {
+
+        for (unsigned inode = _dofOffset[2][isdom]; inode < _ownSize[k][isdom] + _dofOffset[2][isdom]; inode++) {
+          counter++;
+        }
+
+        for (unsigned inode = 0; inode < _ghostDofs[k][isdom].size(); inode++) {
+          unsigned ghostNode = _ghostDofs[k][isdom][inode];
+
+          unsigned ksdom = IsdomBisectionSearch(ghostNode, 2);
+
+          unsigned upperBound = _dofOffset[2][ksdom] + _originalOwnSize[k][ksdom];
+
+          if (ghostNode < upperBound) {
+            _ghostDofs[k][isdom][inode] =  ghostNode  - _dofOffset[2][ksdom] + _dofOffset[k][ksdom];
+          }
+          else if (_ownedGhostMap[k].find(ghostNode) != _ownedGhostMap[k].end()) {
+            _ghostDofs[k][isdom][inode] =  _ownedGhostMap[k][ghostNode];
+          }
+          else {
+            _ownedGhostMap[k][ ghostNode ] = counter;
+            counter++;
+            ownedGhostCounter[isdom]++;
+
+            for (unsigned jnode = inode; jnode < _ghostDofs[k][isdom].size() - 1; jnode++) {
+              _ghostDofs[k][isdom][jnode] = _ghostDofs[k][isdom][jnode + 1];
+            }
+
+            _ghostDofs[k][isdom].resize(_ghostDofs[k][isdom].size() - 1);
+            inode--;
+          }
+        }
+
+        _originalOwnSize[k][isdom] = _ownSize[k][isdom];
+        _ownSize[k][isdom] += ownedGhostCounter[isdom];
+        _dofOffset[k][isdom + 1] = _dofOffset[k][isdom] + _ownSize[k][isdom];
+      }
+    }
+
+    SetNumberOfNodes(_dofOffset[2][_nprocs]);
+    el->SetNodeNumber(_dofOffset[2][_nprocs]);
+
+    el->SetElementOffsets(_elementOffset, _iproc, _nprocs);
+
+  }
+
+  void Mesh::DistributeISvector() {
+    std::vector<unsigned> metadata_send;
+    std::vector<unsigned> metadata_recv;
+    std::vector<int> counts_send(_nprocs, 0);
+    std::vector<std::vector<int>> ghosts_send(_nprocs);
+
+    if (_iproc == 0) {
+      metadata_send.push_back(_nnodes);
+      metadata_send.push_back(_level);
+      metadata_send.push_back(_dimension);
+      metadata_send.push_back(_ref_index);
+      metadata_send.push_back(_face_index);
+      metadata_send.insert(metadata_send.end(), _elementOffset.begin(), _elementOffset.end());
+
+      for (unsigned k = 0; k < 5; k++) {
+        metadata_send.insert(metadata_send.end(), _ownSize[k].begin(), _ownSize[k].end());
+        metadata_send.insert(metadata_send.end(), _dofOffset[k].begin(), _dofOffset[k].end());
+      }
+
+      for (unsigned k = 0; k < 2; k++) {
+        metadata_send.insert(metadata_send.end(), _originalOwnSize[k].begin(), _originalOwnSize[k].end());
+        if (_ownedGhostMap[k].size() > static_cast<unsigned>(INT_MAX / 2)) MPI_Abort(MPI_COMM_WORLD, 1);
+        metadata_send.push_back(static_cast<unsigned>(_ownedGhostMap[k].size()));
+
+        for (std::map<unsigned, unsigned>::const_iterator it = _ownedGhostMap[k].begin(); it != _ownedGhostMap[k].end(); ++it) {
+          metadata_send.push_back(it->first);
+          metadata_send.push_back(it->second);
+        }
+      }
+
+      if (_coords.size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+      metadata_send.push_back(static_cast<unsigned>(_coords.size()));
+
+      for (unsigned d = 0; d < _coords.size(); d++) {
+        if (_coords[d].size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+        metadata_send.push_back(static_cast<unsigned>(_coords[d].size()));
+      }
+
+      if (metadata_send.size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+
+      for (unsigned jproc = 0; jproc < _nprocs; jproc++) {
+        for (unsigned k = 0; k < 5; k++) {
+          if (ghosts_send[jproc].size() >= INT_MAX || _ghostDofs[k][jproc].size() > static_cast<unsigned>(INT_MAX) - 1u - ghosts_send[jproc].size()) MPI_Abort(MPI_COMM_WORLD, 1);
+          ghosts_send[jproc].push_back(static_cast<int>(_ghostDofs[k][jproc].size()));
+          ghosts_send[jproc].insert(ghosts_send[jproc].end(), _ghostDofs[k][jproc].begin(), _ghostDofs[k][jproc].end());
+        }
+
+        counts_send[jproc] = static_cast<int>(ghosts_send[jproc].size());
+      }
+    }
+
+    int count_metadata = static_cast<int>(metadata_send.size());
+    MPI_Bcast(&_nelem, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&count_metadata, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (_iproc != 0) metadata_recv.resize(count_metadata);
+
+    MPI_Bcast(_iproc == 0 ? metadata_send.data() : metadata_recv.data(), count_metadata, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+    if (_iproc != 0) {
+      unsigned pos_recv = 0;
+      _nnodes = metadata_recv[pos_recv++];
+      _level = metadata_recv[pos_recv++];
+      _dimension = metadata_recv[pos_recv++];
+      _ref_index = metadata_recv[pos_recv++];
+      _face_index = metadata_recv[pos_recv++];
+      _elementOffset.assign(metadata_recv.begin() + pos_recv, metadata_recv.begin() + pos_recv + _nprocs + 1);
+      pos_recv += _nprocs + 1;
+
+      for (unsigned k = 0; k < 5; k++) {
+        _ownSize[k].assign(metadata_recv.begin() + pos_recv, metadata_recv.begin() + pos_recv + _nprocs);
+        pos_recv += _nprocs;
+        _dofOffset[k].assign(metadata_recv.begin() + pos_recv, metadata_recv.begin() + pos_recv + _nprocs + 1);
+        pos_recv += _nprocs + 1;
+      }
+
+      for (unsigned k = 0; k < 2; k++) {
+        _originalOwnSize[k].assign(metadata_recv.begin() + pos_recv, metadata_recv.begin() + pos_recv + _nprocs);
+        pos_recv += _nprocs;
+        unsigned count_recv = metadata_recv[pos_recv++];
+        _ownedGhostMap[k].clear();
+
+        for (unsigned i = 0; i < count_recv; i++) {
+          unsigned key_recv = metadata_recv[pos_recv++];
+          unsigned value_recv = metadata_recv[pos_recv++];
+          _ownedGhostMap[k].emplace_hint(_ownedGhostMap[k].end(), key_recv, value_recv);
+        }
+      }
+
+      unsigned coordinateRows_recv = metadata_recv[pos_recv++];
+      _coords.resize(coordinateRows_recv);
+
+      for (unsigned d = 0; d < coordinateRows_recv; d++) {
+        unsigned count_recv = metadata_recv[pos_recv++];
+        _coords[d].resize(count_recv);
+      }
+    }
+
+    for (unsigned d = 0; d < _coords.size(); d++) {
+      if (!_coords[d].empty()) MPI_Bcast(_coords[d].data(), static_cast<int>(_coords[d].size()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+    int count_recv = 0;
+    MPI_Scatter(counts_send.data(), 1, MPI_INT, &count_recv, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    std::vector<int> ghosts_recv;
+    std::vector<MPI_Request> communication(_nprocs, MPI_REQUEST_NULL);
+
+    if (_iproc == 0) {
+      ghosts_recv.swap(ghosts_send[0]);
+
+      for (unsigned jproc = 1; jproc < _nprocs; jproc++) {
+        MPI_Isend(ghosts_send[jproc].data(), counts_send[jproc], MPI_INT, static_cast<int>(jproc), 220, MPI_COMM_WORLD, &communication[jproc]);
+      }
+    }
+    else {
+      ghosts_recv.resize(count_recv);
+      MPI_Irecv(ghosts_recv.data(), count_recv, MPI_INT, 0, 220, MPI_COMM_WORLD, &communication[_iproc]);
+    }
+
+    MPI_Waitall(static_cast<int>(_nprocs), communication.data(), MPI_STATUSES_IGNORE);
+
+    unsigned pos_recv = 0;
+
+    for (unsigned k = 0; k < 5; k++) {
+      unsigned size_recv = static_cast<unsigned>(ghosts_recv[pos_recv++]);
+      _ghostDofs[k].resize(_nprocs);
+      _ghostDofs[k][_iproc].assign(ghosts_recv.begin() + pos_recv, ghosts_recv.begin() + pos_recv + size_recv);
+      pos_recv += size_recv;
+
+      for (unsigned jproc = 0; jproc < _nprocs; jproc++) {
+        if (jproc != _iproc) _ghostDofs[k][jproc].clear();
+      }
+    }
+
+    el->SetNodeNumber(_nnodes);
+    el->SetElementOffsets(_elementOffset, _iproc, _nprocs);
+  }
+
 // *******************************************************
   unsigned Mesh::IsdomBisectionSearch(const unsigned& dof, const short unsigned& solType) const {
 

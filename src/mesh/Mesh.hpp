@@ -29,284 +29,288 @@
 #include "vector"
 #include "map"
 
-
-
 namespace femus {
 
+  using std::vector;
+  class Solution;
 
+  class elem;
 
-using std::vector;
-class Solution;
+  /**
+   * The mesh class
+  */
 
-class elem;
+  class Mesh : public ParallelObject {
 
-/**
- * The mesh class
-*/
+    public:
 
-class Mesh : public ParallelObject {
+      /** Constructor */
+      explicit
+      Mesh();
 
-public:
+      /** destructor */
+      ~Mesh();
 
-    /** Constructor */
-    explicit
-    Mesh();
+      /** Print the mesh info for this level */
+      void PrintInfo();
 
-    /** destructor */
-    ~Mesh();
+      /** Get the dof number for the element -type- */
+      unsigned GetTotalNumberOfDofs(const unsigned &type) const {
+        return _dofOffset[type][_nprocs];
+      }
 
-    /** Print the mesh info for this level */
-    void PrintInfo();
+      /** Set the number of nodes */
+      void SetNumberOfNodes(const unsigned &nnodes) {
+        _nnodes = nnodes;
+      };
 
-    /** Get the dof number for the element -type- */
-    unsigned GetTotalNumberOfDofs(const unsigned &type) const {
-      return _dofOffset[type][_nprocs];
-    }
+      /** Get the number of nodes */
+      unsigned GetNumberOfNodes() const {
+        return _nnodes;
+      }
 
-    /** Set the number of nodes */
-    void SetNumberOfNodes(const unsigned &nnodes) {
-      _nnodes = nnodes;
-    };
+      /** Set the number of element */
+      void SetNumberOfElements(const unsigned &nelem) {
+        _nelem = nelem;
+      };
 
-    /** Get the number of nodes */
-    unsigned GetNumberOfNodes() const {
-      return _nnodes;
-    }
+      /** Get the number of element */
+      unsigned GetNumberOfElements() const {
+        return _nelem;
+      }
 
-    /** Set the number of element */
-    void SetNumberOfElements(const unsigned &nelem) {
-      _nelem = nelem;
-    };
+      elem * GetElementArray() const {
+        return el;
+      }
 
-    /** Get the number of element */
-    unsigned GetNumberOfElements() const {
-      return _nelem;
-    }
+      /** Get if element is refined*/
+      short unsigned GetRefinedElementIndex(const unsigned &iel) const;
 
-    elem * GetElementArray() const {
-      return el;
-    }
-    
-    /** Get if element is refined*/
-    short unsigned GetRefinedElementIndex(const unsigned &iel) const;
+      /** Get element group*/
+      short unsigned GetElementGroup(const unsigned &iel) const;
+      /** Get element material*/
+      short unsigned GetElementMaterial(const unsigned &iel) const;
+      /** Get element type*/
+      short unsigned GetElementType(const unsigned &iel) const;
 
-    /** Get element group*/
-    short unsigned GetElementGroup(const unsigned &iel) const;
-    /** Get element material*/
-    short unsigned GetElementMaterial(const unsigned &iel) const;
-    /** Get element type*/
-    short unsigned GetElementType(const unsigned &iel) const;
+      /** Only for parallel */
+      bool GetSolidMark(const unsigned &inode) const;
 
-    /** Only for parallel */
-    bool GetSolidMark(const unsigned &inode) const;
+      /** Only for parallel */
+      unsigned GetElementDofNumber(const unsigned &iel, const unsigned &type) const;
 
-    /** Only for parallel */
-    unsigned GetElementDofNumber(const unsigned &iel, const unsigned &type) const;
+      /** Only for parallel */
+      const unsigned GetElementFaceType(const unsigned &kel, const unsigned &jface) const;
 
-    /** Only for parallel */
-    const unsigned GetElementFaceType(const unsigned &kel, const unsigned &jface) const;
+      /** Only for parallel */
+      unsigned GetLocalFaceVertexIndex(const unsigned &iel, const unsigned &iface, const unsigned &jnode) const;
 
-    /** Only for parallel */
-    unsigned GetLocalFaceVertexIndex(const unsigned &iel, const unsigned &iface, const unsigned &jnode) const;
+      /** Only for parallel */
+      unsigned GetElementFaceDofNumber(const unsigned &iel, const unsigned jface, const unsigned &type) const;
 
+      /** Only for parallel */
+      unsigned GetElementFaceNumber(const unsigned &iel, const unsigned &type = 1) const;
 
-    /** Only for parallel */
-    unsigned GetElementFaceDofNumber(const unsigned &iel, const unsigned jface, const unsigned &type) const;
+      void GetElementNodeCoordinates(std::vector < std::vector <double > > &xv, const unsigned &iel, const unsigned &solType = 2);
 
-    /** Only for parallel */
-    unsigned GetElementFaceNumber(const unsigned &iel, const unsigned &type=1) const;
+      /** Set the grid number */
+      void SetLevel(const unsigned &i) {
+        _level = i;
+      };
 
-    void GetElementNodeCoordinates(std::vector < std::vector <double > > &xv, const unsigned &iel, const unsigned &solType = 2);
+      /** Get the grid number */
+      unsigned GetLevel() const {
+        return _level;
+      }
 
-    /** Set the grid number */
-    void SetLevel(const unsigned &i) {
-        _level=i;
-    };
+      /** Set the dimension of the problem (1D, 2D, 3D) */
+      void SetDimension(const unsigned &dim) {
+        Mesh::_dimension = dim;
+        Mesh::_ref_index = pow(2, Mesh::_dimension); // 8*DIM[2]+4*DIM[1]+2*DIM[0];
+        Mesh::_face_index = pow(2, Mesh::_dimension - 1u);
+      }
 
-    /** Get the grid number */
-    unsigned GetLevel() const {
-      return _level;
-    }
+      /** Get the dimension of the problem (1D, 2D, 3D) */
+      const unsigned GetDimension() const {
+        return Mesh::_dimension;
+      }
 
-    /** Set the dimension of the problem (1D, 2D, 3D) */
-    void SetDimension(const unsigned &dim) {
-      Mesh::_dimension = dim;
-      Mesh::_ref_index = pow(2,Mesh::_dimension);  // 8*DIM[2]+4*DIM[1]+2*DIM[0];
-      Mesh::_face_index = pow(2,Mesh::_dimension-1u);
-    }
+      /** To be added*/
+      const unsigned GetRefIndex() const {
+        return Mesh::_ref_index;
+      }
 
+      unsigned GetSolutionDof(const unsigned &i, const unsigned &iel, const short unsigned &solType) const;
 
-    /** Get the dimension of the problem (1D, 2D, 3D) */
-    const unsigned GetDimension() const {
-      return Mesh::_dimension;
-    }
+      unsigned GetSolutionDof(const unsigned &i0, const unsigned &i1, const unsigned &ielc, const short unsigned &solType, const Mesh* mshc) const ;
 
-    /** To be added*/
-    const unsigned GetRefIndex() const {
-      return Mesh::_ref_index;
-    }
+      /** Performs a bisection search to find the processor of the given dof */
+      unsigned IsdomBisectionSearch(const unsigned &dof, const short unsigned &solType) const;
 
-    unsigned GetSolutionDof(const unsigned &i, const unsigned &iel, const short unsigned &solType) const;
+      /** To be added */
+      const unsigned GetFaceIndex() const {
+        return Mesh::_face_index;
+      }
 
-    unsigned GetSolutionDof(const unsigned &i0,const unsigned &i1, const unsigned &ielc, const short unsigned &solType, const Mesh* mshc) const ;
+      /** Allocate memory for adding fluid or solid mark */
+      void AllocateAndMarkStructureNode();
 
-    /** Performs a bisection search to find the processor of the given dof */
-    unsigned IsdomBisectionSearch(const unsigned &dof, const short unsigned &solType) const;
+      /** To be Added */
+      void SetFiniteElementPtr(const elem_type* otheFiniteElement[6][5]);
 
-    /** To be added */
-    const unsigned GetFaceIndex() const {
-      return Mesh::_face_index;
-    }
+      void Partition();
 
-    /** Allocate memory for adding fluid or solid mark */
-    void AllocateAndMarkStructureNode();
+      void InitializeTopologyStructures();
 
-    /** To be Added */
-    void SetFiniteElementPtr(const elem_type* otheFiniteElement[6][5]);
-
-    void Partition();
-    
-    void InitializeTopologyStructures();
-  
-    /** Only file reading */
-    void ReadCoarseMeshFile (const std::string& name, const double Lref, std::vector<bool>& type_elem_flag, const bool read_groups, const bool read_boundary_groups);
+      /** Only file reading */
+      void ReadCoarseMeshFile (const std::string& name, const double Lref, std::vector<bool>& type_elem_flag, const bool read_groups, const bool read_boundary_groups);
 
       /** This function generates the coarse mesh level, $l_0$, from an input mesh file */
-    void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag);
+      void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag);
 
-    /** This function generates the coarse mesh level, $l_0$, from an input mesh file, with option to not read groups */
-    void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag, const bool read_groups, const bool read_boundary_groups);
+      /** This function generates the coarse mesh level, $l_0$, from an input mesh file, with option to not read groups */
+      void ReadCoarseMesh(const std::string& name, const double Lref, std::vector<bool> &_finiteElement_flag, const bool read_groups, const bool read_boundary_groups);
 
-    /** This function generates a coarse box mesh */
-    void GenerateCoarseBoxMesh(const unsigned int nx,
-                               const unsigned int ny,
-                               const unsigned int nz,
-                               const double xmin, const double xmax,
-                               const double ymin, const double ymax,
-                               const double zmin, const double zmax,
-                               const ElemType type, std::vector<bool> &type_elem_flag);
+      /** This function generates a coarse box mesh */
+      void GenerateCoarseBoxMesh(const unsigned int nx,
+                                 const unsigned int ny,
+                                 const unsigned int nz,
+                                 const double xmin, const double xmax,
+                                 const double ymin, const double ymax,
+                                 const double zmin, const double zmax,
+                                 const ElemType type, std::vector<bool> &type_elem_flag);
 
-    /** To be added */
-    void FillISvector(vector < unsigned > &partition);
+      /** To be added */
+      void FillISvector(vector < unsigned > &partition);
+      void FillISvector0(vector < unsigned > &partition);
+      void DistributeISvector();
 
-    /** To be added */
-    void Buildkel();
-    
-    void BiquadraticNodesNotInGambit();
-    
-    std::vector < std::map < unsigned,  std::map < unsigned, double  > > >& GetAmrRestrictionMap(){
-      return _amrRestriction;
-    }
-    
-    std::vector < std::map < unsigned, bool > > & GetAmrSolidMark(){
-      return _amrSolidMark;
-    }
+      /** To be added */
+      void Buildkel();
 
-    basis *GetBasis(const short unsigned &ielType, const short unsigned &solType);
-    
-    // member data
-    Solution* _topology;
-    const elem_type *_finiteElement[6][5];
+      void BiquadraticNodesNotInGambit();
 
-    vector < unsigned > _elementOffset;
-    vector < unsigned > _ownSize[5];
-    vector < unsigned > _dofOffset[5];
-    vector< vector < int > > _ghostDofs[5];
+      std::vector < std::map < unsigned,  std::map < unsigned, double  > > >& GetAmrRestrictionMap() {
+        return _amrRestriction;
+      }
 
-    elem *el;  // topology object - list of all elements
-    static bool (* _SetRefinementFlag)(const std::vector < double >& x,
-                                       const int &ElemGroupNumber,const int &level);
-    static bool _IsUserRefinementFunctionDefined;
-    std::map<unsigned int, std::string> _boundaryinfo;
+      std::vector < std::map < unsigned, bool > > & GetAmrSolidMark() {
+        return _amrSolidMark;
+      }
 
-    /** Get the projection matrix between Lagrange FEM at the same level mesh*/
-    SparseMatrix* GetQitoQjProjection(const unsigned& itype, const unsigned& jtype);
+      basis *GetBasis(const short unsigned &ielType, const short unsigned &solType);
 
-    /** Get the coarse to the fine projection matrix and use it to restrict only on coarse nodes i.e. projection*/
-    SparseMatrix* GetCoarseToFineProjectionRestrictionOnCoarse(const unsigned& solType);
+      // member data
+      Solution* _topology;
+      const elem_type *_finiteElement[6][5];
 
-    /** Get the coarse to the fine projection matrix*/
-    SparseMatrix* GetCoarseToFineProjection(const unsigned& solType);
+      vector < unsigned > _elementOffset;
+      vector < unsigned > _ownSize[5];
+      vector < unsigned > _dofOffset[5];
+      vector< vector < int > > _ghostDofs[5];
 
-    /** Set the coarser mesh from which this mesh is generated */
-    void SetCoarseMesh( Mesh* otherCoarseMsh ){
-      _coarseMsh = otherCoarseMsh;
-    };
+      elem *el;  // topology object - list of all elements
+      static bool (* _SetRefinementFlag)(const std::vector < double >& x,
+                                         const int &ElemGroupNumber, const int &level);
+      static bool _IsUserRefinementFunctionDefined;
+      std::map<unsigned int, std::string> _boundaryinfo;
 
-    bool GetIfHomogeneous(){
-      return _meshIsHomogeneous;
-    }
+      /** Get the projection matrix between Lagrange FEM at the same level mesh*/
+      SparseMatrix* GetQitoQjProjection(const unsigned& itype, const unsigned& jtype);
 
-    void SetIfHomogeneous(const bool &value){
-      _meshIsHomogeneous = value ;
-    }
+      /** Get the coarse to the fine projection matrix and use it to restrict only on coarse nodes i.e. projection*/
+      SparseMatrix* GetCoarseToFineProjectionRestrictionOnCoarse(const unsigned& solType);
 
-    void SetCharacteristicLength(const double & cLength){
-      _cLenght = cLength;
-    }
-    
-    double GetCharacteristicLength(){
-      return _cLenght;
-    };
-    
-    const unsigned GetXIndex()          const { return _xIndex; };
-    const unsigned GetYIndex()          const { return _yIndex; };
-    const unsigned GetZIndex()          const { return _zIndex; };
-    const unsigned GetAmrIndex()        const { return _amrIndex; };
-    const unsigned GetSolidMarkIndex()  const { return _solidMarkIndex; };
+      /** Get the coarse to the fine projection matrix*/
+      SparseMatrix* GetCoarseToFineProjection(const unsigned& solType);
 
-    void EnforceOneLevelAMR(std::vector<double> &localizedAmrVector, bool vectorIsInitialized = false);
+      /** Set the coarser mesh from which this mesh is generated */
+      void SetCoarseMesh( Mesh* otherCoarseMsh ) {
+        _coarseMsh = otherCoarseMsh;
+      };
 
-private:
-    /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
-    Mesh* _coarseMsh;
+      bool GetIfHomogeneous() {
+        return _meshIsHomogeneous;
+      }
 
-    /** The projection matrix between Lagrange FEM at the same level mesh */
-    SparseMatrix* _ProjQitoQj[3][3];
+      void SetIfHomogeneous(const bool &value) {
+        _meshIsHomogeneous = value ;
+      }
 
-    /** The coarse to the fine projection matrix */
-    SparseMatrix* _ProjCoarseToFine[5];
+      void SetCharacteristicLength(const double & cLength) {
+        _cLenght = cLength;
+      }
 
-    /** Build the projection matrix between Lagrange FEM at the same level mesh*/
-    void BuildQitoQjProjection(const unsigned& itype, const unsigned& jtype);
+      double GetCharacteristicLength() {
+        return _cLenght;
+      };
 
-    /** Build the coarse to the fine projection matrix */
-    void BuildCoarseToFineProjection(const unsigned& solType, const char el_dofs[]);
+      const unsigned GetXIndex()          const {
+        return _xIndex;
+      };
+      const unsigned GetYIndex()          const {
+        return _yIndex;
+      };
+      const unsigned GetZIndex()          const {
+        return _zIndex;
+      };
+      const unsigned GetAmrIndex()        const {
+        return _amrIndex;
+      };
+      const unsigned GetSolidMarkIndex()  const {
+        return _solidMarkIndex;
+      };
 
-    /** Weights used to build the baricentric coordinate **/
-    static const double _baricentricWeight[6][5][18];
-    static const unsigned _numberOfMissedBiquadraticNodes[6];
-    
-    //member-data
-    int _nelem;                                //< number of elements
-    unsigned _nnodes;                          //< number of nodes
-    unsigned _level;                           //< level of mesh in the multilevel hierarchy
-    static unsigned _dimension;                //< dimension of the problem
-    static unsigned _ref_index;
-    static unsigned _face_index;
-    
-    std::map < unsigned, unsigned > _ownedGhostMap[2];
-    vector < unsigned > _originalOwnSize[2];
+      void EnforceOneLevelAMR(std::vector<double> &localizedAmrVector, bool vectorIsInitialized = false);
 
-    static const unsigned _END_IND[5];
-    vector < vector < double > > _coords;
+    private:
+      /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
+      Mesh* _coarseMsh;
 
-    bool _meshIsHomogeneous;
-    // indices of the topology parallel vectors
-    static const unsigned _xIndex = 0;
-    static const unsigned _yIndex = 1;
-    static const unsigned _zIndex = 2;
-    static const unsigned _amrIndex = 3;
-    static const unsigned _solidMarkIndex = 4;
-    
-    std::vector < std::map < unsigned,  std::map < unsigned, double  > > > _amrRestriction;
-    std::vector < std::map < unsigned, bool > > _amrSolidMark;
+      /** The projection matrix between Lagrange FEM at the same level mesh */
+      SparseMatrix* _ProjQitoQj[3][3];
 
-    double _cLenght;
-};
+      /** The coarse to the fine projection matrix */
+      SparseMatrix* _ProjCoarseToFine[5];
+
+      /** Build the projection matrix between Lagrange FEM at the same level mesh*/
+      void BuildQitoQjProjection(const unsigned& itype, const unsigned& jtype);
+
+      /** Build the coarse to the fine projection matrix */
+      void BuildCoarseToFineProjection(const unsigned& solType, const char el_dofs[]);
+
+      /** Weights used to build the baricentric coordinate **/
+      static const double _baricentricWeight[6][5][18];
+      static const unsigned _numberOfMissedBiquadraticNodes[6];
+
+      //member-data
+      int _nelem;                                //< number of elements
+      unsigned _nnodes;                          //< number of nodes
+      unsigned _level;                           //< level of mesh in the multilevel hierarchy
+      static unsigned _dimension;                //< dimension of the problem
+      static unsigned _ref_index;
+      static unsigned _face_index;
+
+      std::map < unsigned, unsigned > _ownedGhostMap[2];
+      vector < unsigned > _originalOwnSize[2];
+
+      static const unsigned _END_IND[5];
+      vector < vector < double > > _coords;
+
+      bool _meshIsHomogeneous;
+      // indices of the topology parallel vectors
+      static const unsigned _xIndex = 0;
+      static const unsigned _yIndex = 1;
+      static const unsigned _zIndex = 2;
+      static const unsigned _amrIndex = 3;
+      static const unsigned _solidMarkIndex = 4;
+
+      std::vector < std::map < unsigned,  std::map < unsigned, double  > > > _amrRestriction;
+      std::vector < std::map < unsigned, bool > > _amrSolidMark;
+
+      double _cLenght;
+  };
 
 } //end namespace femus
-
-
 
 #endif

@@ -135,6 +135,8 @@ namespace femus {
       /** To be Added */
       void AddToElementNumber(const unsigned& value, short unsigned ielt);
 
+      void BroadcastElementNumber();
+
       /** To be Added */
       unsigned GetRefinedElementNumber() const {
         return _nelr;
@@ -159,6 +161,7 @@ namespace femus {
 
       /** To be Added */
       void SetChildElementDof(elem* elf);
+      void SetChildElementDof(Mesh* meshf);
 
       unsigned GetChildElementDof(const unsigned& iel, const unsigned& i0, const unsigned i1);
 
@@ -322,6 +325,24 @@ namespace femus {
 
       unsigned GetChild(const unsigned iel, const unsigned j) {
         return _childElem[iel][j];
+      }
+
+      inline void StackChildElement(const unsigned lproc) {
+        _childElem.stack(lproc);
+      }
+
+      inline void StackChildElementDof(const unsigned lproc) {
+        _childElemDof.stack(lproc);
+      }
+
+      inline void ScatterChildElement(const unsigned lproc) {
+        // _childElem.scatter(_elementOffset, lproc);
+        scatter(_childElem, _elementOffset, lproc);
+      }
+
+      inline void ScatterChildElementDof(const unsigned lproc) {
+        // _childElemDof.scatter(_elementOffset, lproc);
+        scatter(_childElemDof, _elementOffset, lproc);
       }
 
     private:
