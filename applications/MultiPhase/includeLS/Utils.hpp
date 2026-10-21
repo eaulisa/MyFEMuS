@@ -2714,6 +2714,9 @@ struct SimulationArgs {
   std::vector<unsigned> adaptiveLevels = {2};
   std::vector<unsigned> nSteps = {1200};
   double period = 3.;
+
+  bool symmetric = false;
+  bool axisymmetric = false;
 };
 
 SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
@@ -2807,6 +2810,28 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
           "--dim must be 2 or 3"
         );
       }
+    }
+
+    else if(option == "--symmetric") {
+
+      if(i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --symmetric"
+        );
+      }
+
+      args.symmetric = std::stoul(argv[++i]);
+    }
+
+    else if(option == "--axisymmetric") {
+
+      if(i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --axisymmetric"
+        );
+      }
+
+      args.axisymmetric = std::stoul(argv[++i]);
     }
 
     else if (option == "--help" || option == "-h") {
@@ -3213,15 +3238,29 @@ struct SimulationConfig {
   MultiphasePhysicalProperties properties;
 
   BoundaryConfig boundary;
+
+  bool symmetric = false;
+  bool axisymmetric = false;
 };
 
-SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsigned dim) {
+SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsigned dim, const bool symmetric, const bool axisymmetric) {
 
   if(dim != 2 && dim != 3) {
     throw std::runtime_error("GetSimulationConfig: dim must be either 2 or 3");
   }
 
+  if(symmetric && axisymmetric) {
+    throw std::runtime_error("GetSimulationConfig: symmetric and axisymmetric cannot both be enabled");
+  }
+
+  if(axisymmetric && dim != 2) {
+    throw std::runtime_error("GetSimulationConfig: axisymmetric formulation is available only in 2D");
+  }
+
   SimulationConfig cfg;
+
+  cfg.symmetric = symmetric;
+  cfg.axisymmetric = axisymmetric;
 
   cfg.x_min.resize(3);
   cfg.x_max.resize(3);
@@ -3229,10 +3268,6 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
   cfg.boundary.Resize(dim);
 
   const double pi = std::acos(-1.0);
-
-  // ============================================================
-  // Boundary-condition presets
-  // ============================================================
 
   auto SetAllNeumann = [&cfg, dim]() {
     for(unsigned d = 0; d < dim; ++d) {
@@ -3255,15 +3290,26 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
     }
 
     const unsigned verticalDir = (dim == 2) ? 1 : 2;
+
     cfg.boundary.min[verticalDir] = {BoundaryType::WALL, 0.};
     cfg.boundary.max[verticalDir] = {BoundaryType::WALL, 0.};
   };
 
-  switch(simulation) {
+  auto HalveDomainDirection = [&cfg](const unsigned d) {
+    if(cfg.n[d] == 0) {
+      throw std::runtime_error("GetSimulationConfig: cannot halve a direction with zero elements");
+    }
 
-    // ============================================================
-    // Parasitic currents
-    // ============================================================
+    if(cfg.n[d] % 2 != 0) {
+      throw std::runtime_error("GetSimulationConfig: number of elements must be even in a symmetry direction");
+    }
+
+    cfg.x_min[d] = 0.5 * (cfg.x_min[d] + cfg.x_max[d]);
+    cfg.n[d] /= 2;
+    cfg.boundary.min[d] = {BoundaryType::SLIP, 0.};
+  };
+
+  switch(simulation) {
 
     case SimulationCase::PAR: {
 
@@ -3297,10 +3343,6 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       break;
     }
 
-    // ============================================================
-    // Saye tests
-    // ============================================================
-
     case SimulationCase::SAYE1:
     case SimulationCase::SAYE2: {
 
@@ -3332,10 +3374,6 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
       break;
     }
-
-    // ============================================================
-    // Rising bubble tests
-    // ============================================================
 
     case SimulationCase::RB1:
     case SimulationCase::RB2: {
@@ -3372,95 +3410,35 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       break;
     }
 
-    // ============================================================
-    // Bubble rising and bursting at free surface
-    //
-    // Ming, Sun & Zhang (2017), Sec. 3.2
-    //
-    // D = 1
-    // domain = [0,3D] x [0,9D]
-    // bubble center = (1.5D,2D)
-    // bubble radius = D/2
-    // free surface = 6D
-    //
-    // Re = 500
-    // Fr = 1
-    // We = 25
-    //
-    // rho_l / rho_g = 1000
-    // mu_l  / mu_g  = 100
-    //
-    // Normalization:
-    //
-    // D     = 1
-    // g     = 1
-    // rho_l = 1
-    //
-    // => rho_g = 1.e-3
-    // => mu_l  = 1 / Re = 2.e-3
-    // => mu_g  = mu_l / 100 = 2.e-5
-    // => sigma = 1 / We = 0.04
-    //
-    // psi > 0 is the LIGHT phase:
-    // bubble + gas above the free surface.
-    // ============================================================
-
     case SimulationCase::BB1: {
 
       if(dim != 2) {
-        throw std::runtime_error(
-          "GetSimulationConfig: BURST1 is currently "
-          "implemented only in 2D");
+        throw std::runtime_error("GetSimulationConfig: BURST1 is currently implemented only in 2D");
       }
 
-      cfg.x_min[0] = .5;
+      cfg.x_min[0] = 0.;
       cfg.x_max[0] = 1.;
-
       cfg.x_min[1] = 0.;
       cfg.x_max[1] = 2.;
-
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = 0.;
 
-      // Square coarse cells.
-      //
-      // Four uniform refinements:
-      //
-      // 8 x 24 -> 128 x 384
-      //
-      // which is the reference resolution used in the paper.
-      cfg.n[0] = 4;
+      cfg.n[0] = 8;
       cfg.n[1] = 16;
       cfg.n[2] = 0;
 
-      // Paper reports snapshots until t* = 11.25.
-      // Since D = g = 1, t* = t.
-      cfg.period = 12;
+      cfg.period = 12.;
 
-      cfg.psi.type =
-        PsiType::BUBBLES_FREE_SURFACE;
-
-      cfg.psi.bubbleCenters = {
-        {.5, .5}
-      };
-
-      cfg.psi.bubbleRadii = {
-        0.25
-      };
-
+      cfg.psi.type = PsiType::BUBBLES_FREE_SURFACE;
+      cfg.psi.bubbleCenters = {{0.5, 0.5}};
+      cfg.psi.bubbleRadii = {0.25};
       cfg.psi.freeSurfaceHeight = 1.00;
-
-      // Phase 1 = light fluid / gas
-      // Phase 2 = heavy fluid / liquid
 
       cfg.properties.rho1 = 100.;
       cfg.properties.rho2 = 1000.;
-
       cfg.properties.mu1 = 1.;
-      cfg.properties.mu2 = 10;
-
+      cfg.properties.mu2 = 10.;
       cfg.properties.sigma = 24.5;
-
       cfg.properties.gravity = -0.98;
 
       SetSlipSidesWallEnds();
@@ -3468,115 +3446,41 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       break;
     }
 
-    // ============================================================
-    // Two buoyancy-driven bubbles:
-    // merging followed by bursting at the free surface
-    //
-    // Ming, Sun & Zhang (2017), Sec. 3.3
-    //
-    // D = 1
-    //
-    // domain:
-    //   width  = 3D
-    //   height = 6D
-    //
-    // large bubble:
-    //   D1 = D
-    //   center = (0,2D)
-    //
-    // small bubble:
-    //   D2 = 0.8D
-    //   center = (0,D)
-    //
-    // free surface = 3D
-    //
-    // Bo = 10
-    // Mo = 0.1
-    //
-    // rho_l / rho_g = 100
-    // mu_l  / mu_g  = 2
-    //
-    // Normalization:
-    //
-    // D     = 1
-    // g     = 1
-    // rho_l = 1
-    //
-    // Bo = rho_l g D^2 / sigma = 10
-    //
-    // => sigma = 0.1
-    //
-    // Mo = g mu_l^4 / (rho_l sigma^3) = 0.1
-    //
-    // => mu_l = 0.1
-    // => mu_g = 0.05
-    //
-    // psi > 0 is the LIGHT phase:
-    // both bubbles + gas above the free surface.
-    // ============================================================
-
     case SimulationCase::BB2: {
 
       if(dim != 2) {
-        throw std::runtime_error(
-          "GetSimulationConfig: BURST2 is currently "
-          "implemented only in 2D");
+        throw std::runtime_error("GetSimulationConfig: BURST2 is currently implemented only in 2D");
       }
 
       cfg.x_min[0] = -1.5;
-      cfg.x_max[0] =  1.5;
-
+      cfg.x_max[0] = 1.5;
       cfg.x_min[1] = 0.;
       cfg.x_max[1] = 6.;
-
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = 0.;
 
-      // Square coarse cells.
       cfg.n[0] = 8;
       cfg.n[1] = 16;
       cfg.n[2] = 0;
 
-      // Fig. 12 reaches t*=5.5.
-      // Fig. 13 follows the droplets until t*=11.
       cfg.period = 11.0;
 
-      cfg.psi.type =
-        PsiType::BUBBLES_FREE_SURFACE;
-
-      cfg.psi.bubbleCenters = {
-        {0.0, 2.0},
-        {0.0, 1.0}
-      };
-
-      cfg.psi.bubbleRadii = {
-        0.5,
-        0.4
-      };
-
+      cfg.psi.type = PsiType::BUBBLES_FREE_SURFACE;
+      cfg.psi.bubbleCenters = {{0.0, 2.0}, {0.0, 1.0}};
+      cfg.psi.bubbleRadii = {0.5, 0.4};
       cfg.psi.freeSurfaceHeight = 3.0;
-
-      // Phase 1 = light fluid / gas
-      // Phase 2 = heavy fluid / liquid
 
       cfg.properties.rho1 = 0.01;
       cfg.properties.rho2 = 1.;
-
       cfg.properties.mu1 = 0.05;
       cfg.properties.mu2 = 0.10;
-
       cfg.properties.sigma = 0.10;
-
       cfg.properties.gravity = -1.;
 
       SetSlipSidesWallEnds();
 
       break;
     }
-
-    // ============================================================
-    // Rayleigh-Taylor instability
-    // ============================================================
 
     case SimulationCase::RT: {
 
@@ -3612,10 +3516,6 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
       break;
     }
-
-    // ============================================================
-    // Dam break
-    // ============================================================
 
     case SimulationCase::DB: {
 
@@ -3656,6 +3556,17 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
     default: {
       throw std::runtime_error("GetSimulationConfig: unknown SimulationCase");
+    }
+  }
+
+  if(axisymmetric && dim == 2) {
+    HalveDomainDirection(0);
+  }
+  else if(symmetric) {
+    HalveDomainDirection(0);
+
+    if(dim == 3) {
+      HalveDomainDirection(1);
     }
   }
 

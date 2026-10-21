@@ -69,6 +69,8 @@ namespace femus {
     MultiphasePhysicalProperties properties;
     TimeDiscretization td;
     bool linear = false;
+    bool axisymmetric;
+    double axisCoordinate;
   };
 
   class MultiLevelProblem {
@@ -334,7 +336,8 @@ namespace femus {
       void SetMultiphaseParams(void* extProblem,
                                const unsigned levelF, const unsigned levelC,
                                const unsigned level0, const double hC,
-                               MultiphasePhysicalProperties properties, TimeDiscretization td, bool linear) {
+                               MultiphasePhysicalProperties properties, TimeDiscretization td,
+                               bool linear, bool axisymmetric, double axisCoordinate) {
         _multiphaseParams.extProblem = extProblem;
         _multiphaseParams.levelF = levelF;
         _multiphaseParams.levelC = levelC;
@@ -343,6 +346,8 @@ namespace femus {
         _multiphaseParams.properties = properties;
         _multiphaseParams.td = td;
         _multiphaseParams.linear = linear;
+        _multiphaseParams.axisymmetric = axisymmetric;
+        _multiphaseParams.axisCoordinate = axisCoordinate;
 
       }
 

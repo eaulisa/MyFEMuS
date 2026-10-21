@@ -171,12 +171,12 @@ int main(int argc, char **argv) {
   //simulation setting
   static const SimulationCase simulation = args.simulation;
   static const unsigned requestedDim = args.dim;
+  const unsigned symmetric = args.symmetric;
+  const unsigned axisymmetric = args.axisymmetric;
 
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
-  // const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim);
-
-  static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim);
+  static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim, symmetric, axisymmetric);
 
   MultiphasePhysicalProperties properties = cfg.properties;
 
@@ -587,7 +587,8 @@ int main(int argc, char **argv) {
         //system2.SetMaxNumberOfNonLinearIterations(10);
 
         bool linearScheme = true;
-        mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme);
+        const double axisCoordinate = cfg.x_min[0];
+        mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme, axisymmetric, axisCoordinate);
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l);

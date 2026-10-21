@@ -17,20 +17,22 @@ NPROC=8
 
 DIM=2
 SIMULATION="bb1"
+SYMMETRIC=1
+AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4 5 6 7)
+ADAPTIVE_LEVELS=(6 7)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(4800)
+NSTEPS=(8000)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -71,6 +73,11 @@ fi
 
 if (( LEVEL_OFFSET < 0 )); then
   echo "ERROR: LEVEL_OFFSET must be >= 0."
+  exit 1
+fi
+
+if (( SYMMETRIC == 1 && AXISYMMETRIC == 1 )); then
+  echo "ERROR: SYMMETRIC and AXISYMMETRIC cannot both be 1."
   exit 1
 fi
 
@@ -228,14 +235,6 @@ EOF_OPTIONS
 
 
 
-
-
-
-
-
-
-
-
 EOF_OPTIONS
 
   done
@@ -335,16 +334,18 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
 
       mpirun -n "${NPROC}" \
         "${EXECUTABLE}" \
-        "${PETSC_OPTIONS[@]}" \ #-ksp_knoll true \ -fp_trap\
-        -ksp_error_if_not_converged true\
-        -ksp_converged_reason\
+        "${PETSC_OPTIONS[@]}" \
+        -ksp_error_if_not_converged true \
+        -ksp_converged_reason \
         -options_file "${OPTIONS_FILE}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \
         --level-offset "${LEVEL_OFFSET}" \
         --nsteps "${nsteps}" \
         --dim "${DIM}" \
-        --simulation "${SIMULATION}"
+        --simulation "${SIMULATION}" \
+        --symmetric "${SYMMETRIC}" \
+        --axisymmetric "${AXISYMMETRIC}"
 
       echo
 
