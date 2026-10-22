@@ -21,6 +21,8 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   const double dt = my_nnlin_impl_sys.GetIntervalTime();
   const bool linear = ml_prob.GetMultiphaseParams().linear;
   const TimeDiscretization td = ml_prob.GetMultiphaseParams().td;
+  const bool axisymmetric = ml_prob.GetMultiphaseParams().axisymmetric;
+  const double axisCoordinate = ml_prob.GetMultiphaseParams().axisCoordinate;
   const double cold = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 0.;
   const double cnew = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 1.;
   const double derivativeW = linear ? 0. : cnew;
@@ -126,6 +128,20 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
       std::vector<std::vector<double>> DeltaSolVg(dim, std::vector<double>(dim2, 0.));
       std::vector<std::vector<double>> DeltaSolVgOld(dim, std::vector<double>(dim2, 0.));
 
+      double x_gss = 0.;
+
+      for(unsigned i = 0; i < nDofsV; ++i) {
+        x_gss += phi[i] * vx[0][i];
+      }
+
+      const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
+      const double axisWeight = axisymmetric ? r : 1.;
+      const double volumeWeight = weight * axisWeight;
+
+      if(axisymmetric && r < -1.e-12) {
+        throw std::runtime_error("Negative axisymmetric radius in stabilization");
+      }
+
       for(unsigned i = 0; i < nDofsV; ++i) {
         for(unsigned k = 0; k < dim; ++k) {
           solVg[k] += phi[i] * solV[k][i];
@@ -195,6 +211,10 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
         divVg += gradSolVg[k][k];
       }
 
+      if(axisymmetric) {
+        divVg += solVg[0] / r;
+      }
+
       std::vector<double> rM(dim, 0.);
       for(unsigned k = 0; k < dim; ++k) {
         double advectionNew = 0.;
@@ -208,6 +228,19 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           diffusionNew -= mu * (DeltaSolVg[k][j] + DeltaSolVg[j][secondDerivativeIndex[k][j]]);
           diffusionOld -= mu * (DeltaSolVgOld[k][j] + DeltaSolVgOld[j][secondDerivativeIndex[k][j]]);
         }
+
+        if(axisymmetric) {
+          if(k == 0) {
+            diffusionNew -= mu * (2. * gradSolVg[0][0] / r - 2. * solVg[0] / (r * r));
+            diffusionOld -= mu * (2. * gradSolVgOld[0][0] / r - 2. * solVgOld[0] / (r * r));
+          }
+
+          if(k == 1) {
+            diffusionNew -= mu * (gradSolVg[1][0] + gradSolVg[0][1]) / r;
+            diffusionOld -= mu * (gradSolVgOld[1][0] + gradSolVgOld[0][1]) / r;
+          }
+        }
+
         rM[k] = rho * (solVg[k] - solVgOld[k]) / dt + cnew * advectionNew + advectionOldWeight * advectionOld + cnew * diffusionNew + cold * diffusionOld + gradSolPg[k] - rho * g[k];
       }
 
@@ -222,24 +255,46 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; ++k) {
             derivativeRM[k][column] = cnew * rho * phi[j] * (linear ? gradSolVgOld[k][l] : gradSolVg[k][l]) - cnew * mu * nablaPhi[j * dim2 + secondDerivativeIndex[k][l]];
             if(k == l) derivativeRM[k][column] += rho * phi[j] / dt + cnew * rho * advectionPhi[j] - cnew * mu * laplacianPhi[j];
+
+            if(axisymmetric && k == 0 && l == 0) {
+              derivativeRM[k][column] -= cnew * mu * (2. * gradPhi[j * dim + 0] / r - 2. * phi[j] / (r * r));
+            }
+            if(axisymmetric && k == 1 && l == 1) {
+              derivativeRM[k][column] -= cnew * mu * gradPhi[j * dim + 0] / r;
+            }
+            if(axisymmetric && k == 1 && l == 0) {
+              derivativeRM[k][column] -= cnew * mu * gradPhi[j * dim + 1] / r;
+            }
           }
         }
       }
 
       for(unsigned i = 0; i < nDofsV; ++i) {
         for(unsigned k = 0; k < dim; ++k) {
+          double divTest = gradPhi[i * dim + k];
+
+          if(axisymmetric && k == 0) {
+            divTest += phi[i] / r;
+          }
+
           const unsigned row = k * nDofsV + i;
-          rhs[row] -= (rM[k] * tauMsupgPhi[i] + tauC * divVg * gradPhi[i * dim + k]) * weight;
+          rhs[row] -= (rM[k] * tauMsupgPhi[i] + tauC * divVg * divTest) * volumeWeight;
           for(unsigned l = 0; l < dim; ++l) {
             for(unsigned j = 0; j < nDofsV; ++j) {
               const unsigned column = l * nDofsV + j;
               const double derivativeSupg = derivativeTauM[column] * supgPhi[i] + tauM * rho * derivativeW * phi[j] * gradPhi[i * dim + l];
-              Jac[row * nDofsAll + column] += (derivativeRM[k][column] * tauMsupgPhi[i] + rM[k] * derivativeSupg + (derivativeTauC[column] * divVg + tauC * gradPhi[j * dim + l]) * gradPhi[i * dim + k]) * weight;
+              double derivativeDiv = gradPhi[j * dim + l];
+
+              if(axisymmetric && l == 0) {
+                derivativeDiv += phi[j] / r;
+              }
+
+              Jac[row * nDofsAll + column] += (derivativeRM[k][column] * tauMsupgPhi[i] + rM[k] * derivativeSupg + (derivativeTauC[column] * divVg + tauC * derivativeDiv) * divTest) * volumeWeight;
             }
           }
           if(solTypeP != 3) {
             for(unsigned j = 0; j < nDofsP; ++j) {
-              Jac[row * nDofsAll + nDofsVelocity + j] += tauMsupgPhi[i] * gradPhiP[j * dim + k] * weight;
+              Jac[row * nDofsAll + nDofsVelocity + j] += tauMsupgPhi[i] * gradPhiP[j * dim + k] * volumeWeight;
             }
           }
         }
@@ -252,20 +307,20 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
           for(unsigned k = 0; k < dim; ++k) {
             pressureResidual += gradPhiP[i * dim + k] * rM[k];
           }
-          rhs[row] -= tauM * pressureResidual * weight;
+          rhs[row] -= tauM * pressureResidual * volumeWeight;
           for(unsigned column = 0; column < nDofsVelocity; ++column) {
             double pressureDerivative = 0.;
             for(unsigned k = 0; k < dim; ++k) {
               pressureDerivative += gradPhiP[i * dim + k] * derivativeRM[k][column];
             }
-            Jac[row * nDofsAll + column] += (derivativeTauM[column] * pressureResidual + tauM * pressureDerivative) * weight;
+            Jac[row * nDofsAll + column] += (derivativeTauM[column] * pressureResidual + tauM * pressureDerivative) * volumeWeight;
           }
           for(unsigned j = 0; j < nDofsP; ++j) {
             double pressureDerivative = 0.;
             for(unsigned k = 0; k < dim; ++k) {
               pressureDerivative += gradPhiP[i * dim + k] * gradPhiP[j * dim + k];
             }
-            Jac[row * nDofsAll + nDofsVelocity + j] += tauM * pressureDerivative * weight;
+            Jac[row * nDofsAll + nDofsVelocity + j] += tauM * pressureDerivative * volumeWeight;
           }
         }
       }
@@ -276,392 +331,4 @@ void AssembleStabilizationTerms(MultiLevelProblem& ml_prob) {
   }
 
   std::cout << "Stabilization Assembly time = " << static_cast<double>(std::clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
-}
-
-void AssembleStabilizationTermsOld(MultiLevelProblem& ml_prob) {
-
-  //this function works both for fluid and solid ghost penalty, the boolean fluid switches between the two
-
-  clock_t start_time;
-
-  //pointers and references
-
-  TransientNonlinearImplicitSystem& my_nnlin_impl_sys = ml_prob.get_system<TransientNonlinearImplicitSystem> ("NS");
-  // const unsigned  level = ml_prob.GetMultiphaseParams().levelF;//my_nnlin_impl_sys.GetLevelToAssemble();
-  const unsigned  level = my_nnlin_impl_sys.GetLevelToAssemble();
-  MultiLevelSolution* mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
-  Solution* mysolution = mlSol->GetSolutionLevel(level);     // pointer to the solution (level) object
-
-  LinearEquationSolver* myLinEqSolver = my_nnlin_impl_sys._LinSolver[level];  // pointer to the equation (level) object
-
-  Mesh* msh = ml_prob._ml_msh->GetLevel(level);     // pointer to the mesh (level) object
-  elem* el = msh->el;   // pointer to the elem object in msh (level)
-
-  SparseMatrix* myKK = myLinEqSolver->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
-  NumericVector* myRES =  myLinEqSolver->_RES;  // pointer to the global residual vector object in pdeSys (level)
-
-  // call the adept stack object
-  adept::Stack& s = FemusInit::_adeptStack;
-
-  const unsigned dim = msh->GetDimension();
-  const unsigned dim2 = 3 * (dim - 1);
-
-  // data
-  unsigned iproc  = msh->processor_id();
-  unsigned nprocs  = msh->n_processors();
-
-  //quantities for iel will have index1
-  //quantities for jel will have index2
-
-  vector< vector< double > > solVOld(dim);
-  vector< vector< adept::adouble > > solV(dim);
-  vector< vector< adept::adouble > > aResV(dim);     // local redidual vector
-
-  vector< adept::adouble > solP;
-  vector< adept::adouble > aResP;     // local redidual vector
-
-  vector< double > rhs; // local redidual vector
-  vector < double > Jac;
-
-  std::vector <unsigned> sysDofsAll;
-
-  double weight;
-  std::vector < double > phi;
-  std::vector < double> gradPhi;
-  std::vector < double> nablaPhi;
-
-  std::vector < double > phiP;
-  std::vector < double> gradPhiP;
-
-  vector <vector < double> > vx(dim);
-
-  double dt =  my_nnlin_impl_sys.GetIntervalTime();
-
-  std::cout.precision(10);
-
-  //variable-name handling
-  const char varname[3][5] = {"U", "V", "W"};
-
-  vector <unsigned> indexSolV(dim);
-  vector <unsigned> indexPdeV(dim);
-  for(unsigned k = 0; k < dim; k++) {
-    indexSolV[k] = mlSol->GetIndex(&varname[k][0]);
-    indexPdeV[k] = my_nnlin_impl_sys.GetSolPdeIndex(&varname[k][0]);
-  }
-  unsigned solTypeV = mlSol->GetSolutionType(&varname[0][0]);
-
-  unsigned indexSolP1 = mlSol->GetIndex("P1");
-  unsigned indexPdeP1 = my_nnlin_impl_sys.GetSolPdeIndex("P1");
-
-  unsigned indexSolP2 = mlSol->GetIndex("P2");
-  unsigned indexPdeP2 = my_nnlin_impl_sys.GetSolPdeIndex("P2");
-
-  unsigned indexSolC = mlSol->GetIndex("C");
-
-  unsigned solTypeP = mlSol->GetSolutionType("P1");
-
-  start_time = clock();
-
-  MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
-
-  const TimeDiscretization td = ml_prob.GetMultiphaseParams().td;
-  const double cold = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 0.;
-  const double cnew = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 1.;
-
-  double mu1 = properties.mu1;
-  double mu2 = properties.mu2;
-  double rho1 = properties.rho1;
-  double rho2 = properties.rho2;
-  double gravity = properties.gravity;
-  std::vector <double> g;
-  if(dim == 2) g = {0, gravity};
-  else g = {0, 0, gravity};
-
-  //flagmark
-  for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
-    double C = (*mysolution->_Sol[indexSolC])(iel);
-    if(C == 0. || C == 1.) {
-
-      short unsigned ielt = msh->GetElementType(iel);
-
-      unsigned nDofsV = msh->GetElementDofNumber(iel, solTypeV);
-      unsigned nDofsP = msh->GetElementDofNumber(iel, solTypeP);// number of solution element dofs
-      unsigned nDofsAll = dim * nDofsV + nDofsP;
-
-      unsigned indexSolP = (C == 1) ? indexSolP1 : indexSolP2;
-      unsigned indexPdeP = (C == 1) ? indexPdeP1 : indexPdeP2;
-      double rho = rho1 * C + rho2 * (1 - C);
-      double mu = mu1 * C + mu2 * (1 - C);
-
-      // resize local arrays
-      sysDofsAll.resize(nDofsAll);
-
-      for(unsigned  k = 0; k < dim; k++) {
-        solV[k].resize(nDofsV);
-        solVOld[k].resize(nDofsV);
-        vx[k].resize(nDofsV);
-        aResV[k].assign(nDofsV, 0.);
-      }
-      solP.resize(nDofsP);
-      aResP.assign(nDofsP, 0.);
-
-      for(unsigned i = 0; i < nDofsV; i++) {
-        unsigned idof = msh->GetSolutionDof(i, iel, solTypeV);
-
-        for(unsigned  k = 0; k < dim; k++) {
-          solV[k][i] = (*mysolution->_Sol[indexSolV[k]])(idof);
-          solVOld[k][i] = (*mysolution->_SolOld[indexSolV[k]])(idof);
-          sysDofsAll[k * nDofsV + i] = myLinEqSolver->GetSystemDof(indexSolV[k], indexPdeV[k], i, iel);
-        }
-      }
-
-      for(unsigned i = 0; i < nDofsP; i++) {
-        unsigned idof = msh->GetSolutionDof(i, iel, solTypeP);
-
-        solP[i] = (*mysolution->_Sol[indexSolP])(idof);
-        sysDofsAll[dim * nDofsV + i] = myLinEqSolver->GetSystemDof(indexSolP, indexPdeP, i, iel);
-
-      }
-
-      for(unsigned i = 0; i < nDofsV; i++) {
-        unsigned idofX = msh->GetSolutionDof(i, iel, 2);
-        for(unsigned  k = 0; k < dim; k++) {
-          vx[k][i] = (*msh->_topology->_Sol[k])(idofX);
-        }
-      }
-      s.new_recording();
-
-      //
-
-      double elementArea = 0.;
-
-      // *** Gauss point loop ***
-      for(unsigned ig = 0; ig < msh->_finiteElement[ielt][solTypeV]->GetGaussPointNumber(); ig++) {
-
-        msh->_finiteElement[ielt][solTypeP]->Jacobian(vx, ig, weight, phiP, gradPhiP);
-        msh->_finiteElement[ielt][solTypeV]->Jacobian(vx, ig, weight, phi, gradPhi, nablaPhi);
-
-        std::vector <std::vector <double> > Jac;
-        std::vector <std::vector <double> > JacI;
-        msh->_finiteElement[ielt][solTypeV]->GetJacobianMatrix(vx, ig, weight, Jac, JacI); //centered at theta
-
-        vector < adept::adouble > solVg(dim, 0.);
-        vector < vector < adept::adouble > > gradSolVg(dim, vector<adept::adouble>(dim, 0.));
-        vector < vector < adept::adouble > > DeltaSolVg(dim, vector<adept::adouble>(dim2, 0.));
-
-        vector < double > solVgOld(dim, 0.);
-        vector<vector<double>> gradSolVgOld(dim, vector<double>(dim, 0.));
-        vector<vector<double>> DeltaSolVgOld(dim, vector<double>(dim2, 0.));
-        for(unsigned i = 0; i < nDofsV; i++) {
-          for(unsigned j = 0; j < dim; j++) {
-            solVg[j] += phi[i] * solV[j][i]; // new velocity of background grid
-            solVgOld[j] += phi[i] * solVOld[j][i]; // velocity in the undeformed reference configuration
-            for(unsigned  k = 0; k < dim; k++) {
-              gradSolVg[k][j] += gradPhi[i * dim + j] * solV[k][i]; // gradient of the new velocity with respect to the theta domain
-              gradSolVgOld[k][j] += gradPhi[i * dim + j] * solVOld[k][i];
-            }
-          }
-          for(unsigned j = 0; j < dim2; j++) {
-            for(unsigned  k = 0; k < dim; k++) {
-              DeltaSolVg[k][j] += nablaPhi[i * dim2 + j] * solV[k][i]; // laplace of the theta velocity with respect to the theta domain
-              DeltaSolVgOld[k][j] += nablaPhi[i * dim2 + j] * solVOld[k][i];
-            }
-          }
-        }
-
-        vector<adept::adouble> solVgMid(dim);
-
-        for(unsigned j = 0; j < dim; j++)
-          solVgMid[j] = cnew * solVg[j] + cold * solVgOld[j];
-
-//         if(solTypeP == 4) { //discontinuous pressure <1,\xi,\eta> bases centered at theta
-//           for(unsigned j = 0; j < dim; j++) {
-//             gradPhiP[0 * dim + j]  = 0.;
-//           }
-//           for(unsigned i = 0; i < dim; i++) {
-//             for(unsigned j = 0; j < dim; j++) {
-//               gradPhiP[(i + 1) * dim + j] = JacI[i][j];
-//             }
-//           }
-//         }
-//
-        vector<adept::adouble> gradSolPg(dim, 0.); //centered at theta
-        if (solTypeP != 3) {
-          for(unsigned i = 0; i < nDofsP; i++) {
-            for(unsigned k = 0; k < dim; k++) {
-              gradSolPg[k] += solP[i] * gradPhiP[i * dim + k];
-            }
-          }
-        }
-
-        std::vector <std::vector <double> > G(dim); // J^(-T) . J^(-1) //centered at theta
-        for(unsigned i = 0; i < dim; i++) {
-          G[i].assign(dim, 0.);
-          for(unsigned j = 0; j < dim; j++) {
-            for(unsigned k = 0; k < dim; k++) {
-              G[i][j] += JacI[k][i] * JacI[k][j];
-            }
-          }
-        }
-
-        double CI = 36.;
-        adept::adouble denom = pow(2 * rho / dt, 2.);
-        for(unsigned i = 0; i < dim; i++) {
-          for(unsigned j = 0; j < dim; j++) {
-            // denom += rho * rho * solVg[i] * G[i][j] * solVg[j] + CI * mu * mu * G[i][j] * G[i][j];
-            denom += rho * rho * solVgMid[i] * G[i][j] * solVgMid[j] + CI * mu * mu * G[i][j] * G[i][j];
-          }
-        }
-        adept::adouble tauM = 1. / sqrt(denom);
-
-        adept::adouble tauMtrG = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          tauMtrG += G[k][k];
-        }
-        tauMtrG *= tauM;
-        adept::adouble tauC = 1. / tauMtrG;
-
-        //end SUPG parameters
-        std::vector < adept::adouble > tauMsupgPhi(nDofsV, 0.);
-        for(unsigned i = 0; i < nDofsV; i++) {
-          for(unsigned j = 0; j < dim; j++) {
-            // tauMsupgPhi[i] += tauM * rho * solVg[j] * gradPhi[i * dim + j];
-            tauMsupgPhi[i] += tauM * rho * solVgMid[j] * gradPhi[i * dim + j];
-          }
-        }
-
-        adept::adouble divVg = 0.;
-        for(unsigned k = 0; k < dim; k++) {
-          divVg += gradSolVg[k][k];
-        }
-
-        std::vector<adept::adouble> rM(dim, 0.);
-
-        for(unsigned k = 0; k < dim; k++) {
-
-          adept::adouble diffusion = 0.;
-          adept::adouble advection = 0.;
-
-          adept::adouble advectionNew = 0.;
-          double advectionOld = 0.;
-
-          adept::adouble diffusionNew = 0.;
-          double diffusionOld = 0.;
-
-          // for(unsigned j = 0; j < dim; j++) {
-
-          //   advection += rho * solVg[j] * gradSolVg[k][j];
-
-          //   unsigned kdim;
-          //   if(k == j) kdim = j;
-          //   else if(1 == k + j) kdim = dim;        // xy
-          //   else if(2 == k + j) kdim = dim + 2;    // xz
-          //   else if(3 == k + j) kdim = dim + 1;    // yz
-
-          //   diffusion += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
-          // }
-
-          for(unsigned j = 0; j < dim; j++) {
-
-            advectionNew += rho * solVg[j] * gradSolVg[k][j];
-
-            advectionOld += rho * solVgOld[j] * gradSolVgOld[k][j];
-
-            unsigned kdim;
-
-            if(k == j)          kdim = j;
-            else if(1 == k + j) kdim = dim;
-            else if(2 == k + j) kdim = dim + 2;
-            else if(3 == k + j) kdim = dim + 1;
-
-            diffusionNew += -mu * (DeltaSolVg[k][j] + DeltaSolVg[j][kdim]);
-
-            diffusionOld += -mu * (DeltaSolVgOld[k][j] + DeltaSolVgOld[j][kdim]);
-          }
-
-          // rM[k] =
-          //   rho * (solVg[k] - solVgOld[k]) / dt
-          //   + advection
-          //   + diffusion
-          //   + gradSolPg[k]
-          //   - rho * g[k];
-
-          rM[k] =
-            rho * (solVg[k] - solVgOld[k]) / dt
-            + (cnew * advectionNew + cold * advectionOld)
-            + (cnew * diffusionNew + cold * diffusionOld)
-            + gradSolPg[k]
-            - rho * g[k];
-        }
-
-        // SUPG + tauC stabilization of momentum equations
-        for(unsigned i = 0; i < nDofsV; i++) {
-
-          for(unsigned k = 0; k < dim; k++) {
-
-            adept::adouble supgDiv =
-              tauC * divVg * gradPhi[i * dim + k];
-
-            aResV[k][i] +=
-              (rM[k] * tauMsupgPhi[i] + supgDiv) * weight;
-          }
-        }
-
-        // PSPG stabilization of pressure equation
-        if (solTypeP != 3) {
-          for(unsigned i = 0; i < nDofsP; i++) {
-
-            adept::adouble pspg = 0.;
-
-            for(unsigned k = 0; k < dim; k++) {
-              pspg += tauM * gradPhiP[i * dim + k] * rM[k];
-            }
-
-            aResP[i] += pspg * weight;
-          }
-        }
-
-      }
-
-      //copy the value of the adept::adoube aRes in double Res and store them in RES
-      rhs.resize(nDofsAll);   //resize
-      for(unsigned  k = 0; k < dim; k++) {
-        for(int i = 0; i < nDofsV; i++) {
-          rhs[ k * nDofsV + i ] = -aResV[k][i].value();
-        }
-      }
-      for(int i = 0; i < nDofsP; i++) {
-        rhs[ dim * nDofsV + i ] = -aResP[i].value();
-      }
-      myRES->add_vector_blocked(rhs, sysDofsAll);
-
-      // define the dependent variables J11 and J12
-      for(unsigned  k = 0; k < dim; k++) {
-        s.dependent(&aResV[k][0], nDofsV);
-
-      }
-      s.dependent(&aResP[0], nDofsP);
-
-// define the independent variables J11
-      for(unsigned  k = 0; k < dim; k++) {
-        s.independent(&solV[k][0], nDofsV);
-      }
-
-      s.independent(&solP[0], nDofsP);
-
-      Jac.resize(nDofsAll * nDofsAll);
-// get the and store jacobian matrix (row-major)
-      s.jacobian(&Jac[0], true);
-      myKK->add_matrix_blocked(Jac, sysDofsAll, sysDofsAll);
-
-      s.clear_independents();
-
-      s.clear_dependents(); // for J21 and J22
-    }
-  }
-
-// *************************************
-  std::cout << "Stabilization Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
-
 }

@@ -25,7 +25,7 @@ AXISYMMETRIC=0
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(6 7)
+ADAPTIVE_LEVELS=(4 5 6 7)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
@@ -51,7 +51,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # PETSc configuration
 # ------------------------------------------------------------
 
-KSP_MONITOR=true
+KSP_MONITOR=false
 KSP_VIEW=false
 OPTIONS_LEFT=true
 
@@ -169,7 +169,7 @@ EOF_OPTIONS
 
 -level-${i}ksp_norm_type unpreconditioned
 #-level-${i}ksp_view_final_residual
--level-${i}ksp_monitor
+# -level-${i}ksp_monitor
 
 -level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
@@ -335,8 +335,6 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       mpirun -n "${NPROC}" \
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
-        -ksp_error_if_not_converged true \
-        -ksp_converged_reason \
         -options_file "${OPTIONS_FILE}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \

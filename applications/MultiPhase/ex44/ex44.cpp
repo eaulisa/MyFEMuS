@@ -178,6 +178,8 @@ int main(int argc, char **argv) {
 
   static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim, symmetric, axisymmetric);
 
+  const double axisCoordinate = cfg.x_min[0];
+
   MultiphasePhysicalProperties properties = cfg.properties;
 
   static std::vector<double> x_min;
@@ -441,7 +443,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
 
       const unsigned w = 24;
 
@@ -723,7 +725,7 @@ int main(int argc, char **argv) {
             uNew->close();
           }
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
 
           VTKWriter vtkIO(mlsol0);
           vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
@@ -824,7 +826,7 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)
@@ -957,6 +959,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   else g = {0, 0, gravity};
   double dt =  mlPdeSys->GetIntervalTime();
   bool linear = mParam.linear;
+  bool axisymmetric = mParam.axisymmetric;
+  double axisCoordinate = mParam.axisCoordinate;
 
   const bool firstNonlinearIt = (mlPdeSys->GetNonlinearIt() == 0);
 
@@ -1357,6 +1361,25 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for(unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
           }
 
+          double x_gss = 0.;
+
+          if (nDofsX != nDofsV) throw std::runtime_error("ADD FEMX");
+
+          for(unsigned i = 0; i < nDofsX; ++i) {
+            x_gss += coordXgf[0][i] * phiV[i];
+          }
+
+          const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
+          const double axisWeight = axisymmetric ? r : 1.;
+
+          if(axisymmetric && dim != 2) {
+            throw std::runtime_error("Axisymmetric assembly requires dim == 2");
+          }
+
+          if(axisymmetric && r < -1.e-12) {
+            throw std::runtime_error("Negative axisymmetric radius");
+          }
+
           double dsN = 0.;
           if (cut == 1) {
             femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
@@ -1425,13 +1448,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           double rhoC = rho1 * C + rho2 * (1. - C);
 
-          const double massCoefficient = rho * weight / dt;
+          const double massCoefficient = rho * weight * axisWeight / dt;
 
-          const double diffusionCoefficientNew = cnew * mu * weight;
-          const double diffusionCoefficientOld = cold * mu * weight;
+          const double diffusionCoefficientNew = cnew * mu * weight * axisWeight;
+          const double diffusionCoefficientOld = cold * mu * weight * axisWeight;
 
-          const double convectionCoefficientNew = cnew * rho * weight;
-          const double convectionCoefficientOld = cold * rho * weight;
+          const double convectionCoefficientNew = cnew * rho * weight * axisWeight;
+          const double convectionCoefficientOld = cold * rho * weight * axisWeight;
 
           // *** phiV_i loop ***
           for(unsigned i = 0; i < nDofsV; i++) {
@@ -1452,15 +1475,31 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 }
 
               }
-              NSV += - phiV_x[i * dim + I] * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]) * weight;  // pressure gradient
-              NSV += - rho * phiV[i] * g[I] * weight; // gravity term
+
+              if(axisymmetric && I == 0) {
+                NSV += 2. * cnew * mu * solV_gss[0] * phiV[i] * weight / r;
+                NSV += 2. * cold * mu * solVOld_gss[0] * phiV[i] * weight / r;
+              }
+
+              double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
+
+              if(axisymmetric && I == 0) {
+                weightedDivPhi += phiV[i];
+              }
+
+              NSV += - weightedDivPhi * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]) * weight;  // pressure gradient
+              NSV += - rho * phiV[i] * g[I] * weight * axisWeight; // gravity term
 
               Res[I * nDofsV + i] -=  NSV;
 
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
                 for (int d = 0; d < dim; d++) {
-                  Res[I * nDofsV + i] += - sigma  * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+                }
+
+                if(axisymmetric && I == 0) {
+                  Res[I * nDofsV + i] += -sigma * phiV[i] * weight * weightCF[ig] * dsN;
                 }
 
                 double stabSF = 0.0;
@@ -1478,26 +1517,41 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   }
                   stabSF += gradDeltaU_tg * gradPhi_tg;
                 }
-                Res[I * nDofsV + i] += - cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN;
+
+                if(axisymmetric && I == 0) {
+                  stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
+                }
+
+                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN * axisWeight;
               }
             }
           } // end phiV_i loop
 
           // *** phiP_i loop ***
           for(unsigned i = 0; i < nDofsP; i++) {
-            for(int I = 0; I < dim; I++) {
-              Res[dim * nDofsV + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFInt[ig]; //continuity
-              Res[dim * nDofsV + nDofsP + i] += - gradSolV_gss[I][I] * phiP[i]  * weight * weightCFExt[ig]; //continuity
-            }
-            if(C == 0)
-              Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
-            if(C == 1)
-              Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
 
-            if(C > 0.1)
-              Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
-            if(C < 0.9)
-              Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
+            double weightedDivU = 0.;
+
+            for(unsigned I = 0; I < dim; ++I) {
+              weightedDivU += axisWeight * gradSolV_gss[I][I];
+            }
+
+            if(axisymmetric) {
+              weightedDivU += solV_gss[0];
+            }
+
+            Res[dim * nDofsV + i] += - weightedDivU * phiP[i]  * weight * weightCFInt[ig]; //continuity
+            Res[dim * nDofsV + nDofsP + i] += - weightedDivU * phiP[i]  * weight * weightCFExt[ig]; //continuity
+
+            // if(C == 0)
+            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+            // if(C == 1)
+            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+
+            // if(C > 0.1)
+            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
+            // if(C < 0.9)
+            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
 
           } // end phiP_i loop
           // end gauss point loop
@@ -1520,7 +1574,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          double sufaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN;
+          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN * axisWeight;
 
           for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned j = 0; j < nDofsV; j++) {
@@ -1539,10 +1593,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                                             convectionCoefficientNew * Phi_dot_solVGradPhi ;
 
               if (cut == 1) {
-                const double tangentialGradDot =
-                  gradPhi_dot_gradPhi
-                  - normalDotGradPhi[i] * normalDotGradPhi[j];
-                diagonalContribution += sufaceTensionCoefficient * tangentialGradDot;
+                const double tangentialGradDot = gradPhi_dot_gradPhi - normalDotGradPhi[i] * normalDotGradPhi[j];
+                diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
               }
 
               for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
@@ -1550,6 +1602,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 unsigned VIcolumn = I * nDofsV + j;
 
                 Jac[ VIrow + VIcolumn] += diagonalContribution; //diagonal
+
+                if(axisymmetric && cut == 1 && I == 0) {
+                  Jac[VIrow + VIcolumn] += surfaceTensionCoefficient * phiProduct / (r * r);
+                }
+
+                if(axisymmetric && I == 0) {
+                  Jac[VIrow + VIcolumn] += 2. * cnew * mu * phiV[i] * phiV[j] * weight / r;
+                }
 
                 for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
                   unsigned VJcolumn = J * nDofsV + j;
@@ -1564,34 +1624,41 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
               unsigned VIrow = I * nDofsV + i;
+
+              double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
+
+              if(axisymmetric && I == 0) {
+                weightedDivPhi += phiV[i];
+              }
+
               for(unsigned j = 0; j < nDofsP; j++) {
                 unsigned P1column = dim * nDofsV + j;
                 unsigned P2column = dim * nDofsV + nDofsP + j;
-                Jac[VIrow * nDofsVP + P1column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
-                Jac[VIrow * nDofsVP + P2column] += - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
+                Jac[VIrow * nDofsVP + P1column] += - weightedDivPhi * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
+                Jac[VIrow * nDofsVP + P2column] += - weightedDivPhi * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
 
-                Jac[P1column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFInt[ig]; //continuity
-                Jac[P2column * nDofsVP + VIrow] -= - phiV_x[i * dim + I] * phiP[j] * weight * weightCFExt[ig]; //continuity
+                Jac[P1column * nDofsVP + VIrow] -= - weightedDivPhi * phiP[j] * weight * weightCFInt[ig]; //continuity
+                Jac[P2column * nDofsVP + VIrow] -= - weightedDivPhi * phiP[j] * weight * weightCFExt[ig]; //continuity
               }
             }
           }
-          for(unsigned i = 0; i < nDofsP; i++) {
-            unsigned P1row = dim * nDofsV + i;
-            unsigned P2row = dim * nDofsV + nDofsP + i;
-            for(unsigned j = 0; j < nDofsP; j++) {
-              unsigned P1column = dim * nDofsV + j;
-              unsigned P2column = dim * nDofsV + nDofsP + j;
-              if(C == 0)
-                Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
-              if(C == 1)
-                Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
+          // for(unsigned i = 0; i < nDofsP; i++) {
+          //   unsigned P1row = dim * nDofsV + i;
+          //   unsigned P2row = dim * nDofsV + nDofsP + i;
+          //   for(unsigned j = 0; j < nDofsP; j++) {
+          //     unsigned P1column = dim * nDofsV + j;
+          //     unsigned P2column = dim * nDofsV + nDofsP + j;
+          //     if(C == 0)
+          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          //     if(C == 1)
+          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
 
-              if(C > 0.1)
-                Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-              if(C < 0.9)
-                Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-            }
-          }
+          //     if(C > 0.1)
+          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+          //     if(C < 0.9)
+          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+          //   }
+          // }
 
         }
 
