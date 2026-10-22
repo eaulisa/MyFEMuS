@@ -13,15 +13,16 @@
  PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#pragma once
 
 #include <string>
-
-#ifndef __femus_mesh_MyMatrix_hpp__
-#define __femus_mesh_MyMatrix_hpp__
 
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
+#include <climits>
+#include <climits>
+#include <algorithm>
 
 #include <mpi.h>
 #include <boost/mpi/datatype.hpp>
@@ -175,16 +176,10 @@ namespace femus {
   };
 
   template <class mytype> void scatter(MyMatrix<mytype> &mat, const std::vector<unsigned> &offset, const unsigned &lproc) {
-    int iproc;
-    MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
-
-    if (iproc != lproc) {
-      mat = MyMatrix <mytype> ();
-    }
+    if (mat._iproc != lproc) mat.clear();
     mat._serial = true;
     mat.scatter(offset, lproc);
   }
 
 } //end namespace femus
 
-#endif

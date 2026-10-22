@@ -102,6 +102,8 @@ namespace femus {
     _begin = 0;
     _end = 0;
     _size = 0;
+
+    _lproc = _iproc;
   }
 
   // ******************
@@ -121,6 +123,7 @@ namespace femus {
 
     unsigned matsize = 0;
     for(unsigned i = _rowOffset.begin(); i < _rowOffset.end(); i++) {
+      _rowSize[i] = csize;
       _rowOffset[i] = matsize ;
       matsize += _rowSize[i];
     }
@@ -153,6 +156,7 @@ namespace femus {
 
     unsigned matsize = 0;
     for(unsigned i = _rowOffset.begin(); i < _rowOffset.end(); i++) {
+      _rowSize[i] = csize;
       _rowOffset[i] = matsize ;
       matsize += _rowSize[i];
     }
@@ -232,13 +236,20 @@ namespace femus {
   template <class Type> void MyMatrix<Type>::clear() {
     std::vector<Type>().swap(_mat);
     std::vector<Type>().swap(_mat2);
+    std::vector<unsigned>().swap(_offset);
+    _rowSize.clear();
     _rowOffset.clear();
+    _matSize.clear();
+    _begin = 0;
+    _end = 0;
+    _size = 0;
+    _lproc = _iproc;
     _matIsAllocated = false;
     _serial = true;
   }
 
   template <class Type> Type* MyMatrix<Type>::operator[](const unsigned &i) {
-    return &_mat[ _rowOffset[i]];
+    return (_rowSize[i] == 0) ? nullptr : _mat.data() + _rowOffset[i];
   }
 
   template <class Type> Type& MyMatrix<Type>::operator()(const unsigned &i, const unsigned &j) {
@@ -273,16 +284,15 @@ namespace femus {
   }
 
   // ******************
-  template <class Type> void MyMatrix<Type>::scatter(const std::vector < unsigned > &offset) {
-
+  template <class Type> void MyMatrix<Type>::scatter(const std::vector<unsigned> &offset) {
     _offset = offset;
 
-    if(!_serial) {
+    if (!_serial) {
       std::cout << "Error in MyMatrix.scatter(), matrix is in " << status() << " status" << std::endl;
       abort();
     }
 
-    if(_nprocs != _offset.size() - 1) {
+    if (_nprocs != _offset.size() - 1) {
       std::cout << "Error in MyMatrix.resize(...), offset.size() != from nprocs" << std::endl;
       abort();
     }
@@ -291,14 +301,15 @@ namespace femus {
     _end = _offset[_iproc + 1];
     _size = _end - _begin;
 
-    MyVector < unsigned > rowOffset2 = _rowOffset;
+    MyVector<unsigned> rowOffset2 = _rowOffset;
 
     _rowSize.scatter(_offset);
     _rowOffset.scatter(_offset);
-    _rowOffset[_rowOffset.begin()] = 0;
-    unsigned matsize = _rowSize[_rowOffset.begin()];
-    for(unsigned i = _rowOffset.begin() + 1; i < _rowOffset.end(); i++) {
-      _rowOffset[i] = _rowOffset[i - 1] + _rowSize[i - 1] ;
+
+    unsigned matsize = 0;
+    for (unsigned i = _begin; i < _end; i++) {
+      _rowOffset[i] = matsize;
+      if (_rowSize[i] > UINT_MAX - matsize) MPI_Abort(MPI_COMM_WORLD, 1);
       matsize += _rowSize[i];
     }
 
@@ -307,11 +318,10 @@ namespace femus {
     _matSize[_iproc] = matsize;
 
     _mat.swap(_mat2);
-
     _mat.resize(_matSize[_iproc]);
 
-    for(unsigned i = _offset[_iproc]; i < _offset[_iproc + 1]; i++) {
-      for(unsigned j = begin(i); j < end(i); j++) {
+    for (unsigned i = _offset[_iproc]; i < _offset[_iproc + 1]; i++) {
+      for (unsigned j = begin(i); j < end(i); j++) {
         _mat[_rowOffset[i] + j] = _mat2[rowOffset2[i] + j];
       }
     }
@@ -320,7 +330,6 @@ namespace femus {
 
     _serial = false;
     _matIsAllocated = true;
-
   }
 
   template <class Type> void MyMatrix<Type>::scatter(const std::vector<unsigned> &offset, const unsigned &lproc) {
@@ -365,7 +374,10 @@ namespace femus {
       }
     }
 
+    _rowSize.setSerial(true);
     _rowSize.scatter(_offset, lproc);
+
+    _rowOffset.setSerial(true);
     _rowOffset.scatter(_offset, lproc);
 
     unsigned matsize = 0;
@@ -437,6 +449,7 @@ namespace femus {
         if (rows_recv > 0) MPI_Irecv(rowSizes_recv.data() + _offset[jproc], static_cast<int>(rows_recv), MPI_UNSIGNED, static_cast<int>(jproc), 230, MPI_COMM_WORLD, &communication[2 * jproc]);
         if (counts_recv[jproc] > 0) MPI_Irecv(values_recv.data() + offsets_recv[jproc], counts_recv[jproc], _MY_MPI_DATATYPE, static_cast<int>(jproc), 231, MPI_COMM_WORLD, &communication[2 * jproc + 1]);
       }
+
       for (unsigned jproc = lproc + 1; jproc < _nprocs; jproc++) {
         unsigned rows_recv = _offset[jproc + 1] - _offset[jproc];
 
@@ -451,39 +464,35 @@ namespace femus {
 
     MPI_Waitall(static_cast<int>(communication.size()), communication.data(), MPI_STATUSES_IGNORE);
 
-    if (_iproc == lproc) {
-      _rowSize.resize(_offset[_nprocs]);
-      _rowOffset.resize(_offset[_nprocs]);
-      unsigned offset = 0;
+    _mat.swap(values_recv);
+    std::vector<Type>().swap(values_recv);
+    std::vector<Type>().swap(_mat2);
 
-      for (unsigned i = 0; i < _offset[_nprocs]; i++) {
-        _rowSize[i] = rowSizes_recv[i];
-        _rowOffset[i] = offset;
-        offset += rowSizes_recv[i];
-      }
+    unsigned globalSize = _offset[_nprocs];
 
-      _mat.swap(values_recv);
-      std::vector<Type>().swap(_mat2);
-      _matSize.clear();
-      _matSize.resize(_nprocs, 0);
-      _matSize[lproc] = static_cast<unsigned>(total_recv);
+    for (unsigned i = 0; i <= lproc; i++) _offset[i] = 0;
+    for (unsigned i = lproc + 1; i < _offset.size(); i++) _offset[i] = globalSize;
 
-      _size = _offset[_nprocs];
+    _rowSize.clear();
+    _rowOffset.clear();
+    _rowSize.resize(_offset);
+    _rowOffset.resize(_offset);
 
-      for(unsigned i = 0; i <= lproc; i++) _offset[i] = 0;
-      for(unsigned i = lproc + 1; i < _offset.size(); i++) _offset[i] = _size;
+    _begin = _offset[_iproc];
+    _end = _offset[_iproc + 1];
+    _size = _end - _begin;
 
-      _begin = _offset[_iproc];
-      _end = _offset[_iproc + 1];
-      _size = _end - _begin;
-      _lproc = lproc;
-
-      if(lproc != _iproc) {
-        clear();
-      }
-      _serial = false;
-      _matIsAllocated = true;
+    unsigned offset = 0;
+    for (unsigned i = _begin; i < _end; i++) {
+      _rowSize[i] = rowSizes_recv[i];
+      _rowOffset[i] = offset;
+      offset += rowSizes_recv[i];
     }
+
+    _matSize[_iproc] = static_cast<unsigned>(total_recv);
+    _lproc = lproc;
+    _serial = false;
+    _matIsAllocated = true;
   }
 
   // ******************
@@ -505,28 +514,29 @@ namespace femus {
   }
 
   // ******************
-  template <class Type> void MyMatrix<Type>::broadcast(const unsigned &lproc) {
 
-    if(_serial) {
+  template <class Type> void MyMatrix<Type>::broadcast(const unsigned &lproc) {
+    if (_serial) {
       std::cout << "Error in MyMatrix.broadcast(), matrix is in " << status() << " status" << std::endl;
       abort();
     }
 
     _matSize.broadcast(lproc);
+    if (_matSize[lproc] > static_cast<unsigned>(INT_MAX)) MPI_Abort(MPI_COMM_WORLD, 1);
+
     _rowSize.broadcast(lproc);
     _rowOffset.broadcast(lproc);
 
-    if(_iproc != lproc) {
+    if (_iproc != lproc) {
       _mat.swap(_mat2);
       _mat.resize(_matSize[lproc]);
     }
 
-    MPI_Bcast(&_mat[0], _matSize[lproc], _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
+    MPI_Bcast(_mat.data(), static_cast<int>(_matSize[lproc]), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
 
     _begin = _offset[lproc];
     _end = _offset[lproc + 1];
     _size = _end - _begin;
-
     _lproc = lproc;
   }
 

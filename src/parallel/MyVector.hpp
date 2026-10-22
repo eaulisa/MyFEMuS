@@ -14,11 +14,9 @@
 
 =========================================================================*/
 
+#pragma once
+
 #include <string>
-
-#ifndef __femus_mesh_MyVector_hpp__
-#define __femus_mesh_MyVector_hpp__
-
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
@@ -57,6 +55,10 @@ namespace femus {
 
       // ******************
       void clear();
+
+      void setSerial(const bool serial) {
+        _serial = serial;
+      };
 
       // ******************
       unsigned size();
@@ -156,5 +158,3 @@ namespace femus {
   };
 
 } //end namespace femus
-
-#endif
