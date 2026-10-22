@@ -480,7 +480,8 @@ enum class PsiType {
   SAYE,
   RAYLEIGH_TAYLOR,
   DAM_BREAK,
-  BUBBLES_FREE_SURFACE
+  BUBBLES_FREE_SURFACE,
+  TWO_BUBBLES
 };
 
 struct PsiConfig {
@@ -599,11 +600,13 @@ class Psi {
 
           CheckSinusoidalPoint(x);
 
-          return
-            x[1]
-            - _cfg.amplitude
-            * std::cos(
-              _cfg.waveNumber * x[0]);
+          const unsigned dim = x.size();
+
+          double psi = 0;
+          if (dim == 2) psi = x[1] + _cfg.amplitude * std::cos(_cfg.waveNumber * x[0]);
+          else psi = x[2] + _cfg.amplitude * (std::cos(_cfg.waveNumber * x[0]) + std::cos(_cfg.waveNumber * x[1]));
+
+          return psi;
         }
 
         // ========================================================
@@ -676,7 +679,41 @@ class Psi {
           return psi;
         }
 
+
+
+        case PsiType::TWO_BUBBLES: {
+
+          double psi = - 1.e12;;
+
+          for(std::size_t k = 0;
+              k < _cfg.bubbleCenters.size();
+          ++k) {
+
+            double r2 = 0.;
+
+            for(std::size_t d = 0;
+                d < x.size();
+            ++d) {
+
+              const double dx =
+              x[d] - _cfg.bubbleCenters[k][d];
+
+              r2 += dx * dx;
+            }
+
+            const double psiBubble =
+            _cfg.bubbleRadii[k]
+            - std::sqrt(r2);
+
+            psi = std::max(
+              psi,
+              psiBubble);
+          }
+
+          return psi;
+        }
       }
+
 
       throw std::runtime_error(
         "Psi::LevelSet(): invalid PsiType");

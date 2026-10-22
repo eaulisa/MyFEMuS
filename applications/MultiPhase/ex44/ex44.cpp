@@ -178,8 +178,6 @@ int main(int argc, char **argv) {
 
   static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim, symmetric, axisymmetric);
 
-  const double axisCoordinate = cfg.x_min[0];
-
   MultiphasePhysicalProperties properties = cfg.properties;
 
   static std::vector<double> x_min;
@@ -187,6 +185,9 @@ int main(int argc, char **argv) {
 
   x_min = cfg.x_min;
   x_max = cfg.x_max;
+
+  const double axisCoordinate = cfg.x_min[0];
+  const std::vector<double> symmetryCoordinates = {cfg.x_min[0], cfg.x_min[1]};
 
   const double xmin = x_min[0];
   const double xmax = x_max[0];
@@ -320,7 +321,7 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = (nSteps > 100) ? nSteps / 400 : 1;
+      const unsigned nPrint  = (nSteps > 100) ? nSteps / 100 : 1;
       const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
@@ -443,7 +444,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
 
       const unsigned w = 24;
 
@@ -457,10 +458,12 @@ int main(int argc, char **argv) {
         std::ofstream out(diagnosticsFile, std::ios::trunc);
 
         out << std::setw(w) << "time"
-            << std::setw(w) << "innerArea"
-            << std::setw(w) << "outerArea"
-            << std::setw(w) << "totalArea"
-            << std::setw(w) << "interfaceLength";
+        << std::setw(w) << "innerArea"
+        << std::setw(w) << "outerArea"
+        << std::setw(w) << "totalArea"
+        << std::setw(w) << "interfaceLength";
+
+        if(simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2){
 
         for(unsigned d = 0; d < dim; ++d)
           out << std::setw(w) << ("barycenter" + std::to_string(d));
@@ -468,8 +471,15 @@ int main(int argc, char **argv) {
         for(unsigned d = 0; d < dim; ++d)
           out << std::setw(w) << ("meanVelocity" + std::to_string(d));
 
-        out << std::setw(w) << "circularity"
-            << '\n';
+        out << std::setw(w) << "circularity";
+        }
+
+        if(simulation == SimulationCase::RT)
+          out << std::setw(w) << "pb"
+          << std::setw(w) << "ps"
+          << std::setw(w) << "psad";
+
+        out << '\n';
       }
 
       // PrintLevelSetDiagnostics(diagnostics, iproc, 0.0, diagnosticsFile);
@@ -589,7 +599,8 @@ int main(int argc, char **argv) {
         //system2.SetMaxNumberOfNonLinearIterations(10);
 
         bool linearScheme = true;
-        const double axisCoordinate = cfg.x_min[0];
+
+
         mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme, axisymmetric, axisCoordinate);
 
         for(unsigned l = 0; l < msh2.size(); l++)
@@ -725,7 +736,7 @@ int main(int argc, char **argv) {
             uNew->close();
           }
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
 
           VTKWriter vtkIO(mlsol0);
           vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
@@ -826,7 +837,7 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         // Export solution to VTK (selected levels)

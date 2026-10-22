@@ -265,9 +265,9 @@ static void AssembleGhostPenaltyVelocityFace(
       }
     }
 
-    double C1 = C0 * 0.05 * mu;
+    double C1 = C0 * 0.001 * mu;
 
-    double D1 = C0 * 0.05 * rho;
+    double D1 = C0 * 0.001 * rho;
 
     double absSolDotN = 0.;
 
@@ -594,9 +594,9 @@ void AssembleGhostPenaltyVelocity(MultiLevelProblem& ml_prob) {
 
   MultiphasePhysicalProperties properties = ml_prob.GetMultiphaseParams().properties;
   const bool axisymmetric = ml_prob.GetMultiphaseParams().axisymmetric;
-  const double axisCoordinate = ml_prob.GetMultiphaseParams().axisCoordinate
+  const double axisCoordinate = ml_prob.GetMultiphaseParams().axisCoordinate;
 
-                                double mu1 = properties.mu1;
+  double mu1 = properties.mu1;
   double mu2 = properties.mu2;
   double rho1 = properties.rho1;
   double rho2 = properties.rho2;
@@ -1558,7 +1558,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
 
                       // double C1 = C0 * 0.05;
 
-                      const double gammaP = 0.01;
+                      const double gammaP = 0.0001;
 
                       const double muP  = P1 ? mu1  : mu2;
                       const double rhoP = P1 ? rho1 : rho2;

@@ -16,7 +16,7 @@ NPROC=8
 # ------------------------------------------------------------
 
 DIM=2
-SIMULATION="bb1"
+SIMULATION="rt"
 SYMMETRIC=1
 AXISYMMETRIC=0
 
@@ -32,7 +32,7 @@ LEVEL_OFFSET=2
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(8000)
+NSTEPS=(3000)
 
 # ------------------------------------------------------------
 # Velocity multigrid

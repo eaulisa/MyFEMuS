@@ -1988,8 +1988,8 @@ enum class SimulationCase {
   SAYE2,
   RT,
   DB,
-  BB1,
-  BB2
+  BB,
+  MB
 };
 
 std::string SimulationCaseName(const SimulationCase s) {
@@ -2008,10 +2008,10 @@ std::string SimulationCaseName(const SimulationCase s) {
       return "rt";
     case SimulationCase::DB:
       return "rt";
-    case SimulationCase::BB1:
-      return "bb1";
-    case SimulationCase::BB2:
-      return "bb2";
+    case SimulationCase::BB:
+      return "bb";
+    case SimulationCase::MB:
+      return "mb";
   }
 
   throw std::runtime_error("Invalid SimulationCase");
@@ -2026,8 +2026,8 @@ SimulationCase ParseSimulationCase(const std::string& s) {
   if(s == "saye2") return SimulationCase::SAYE2;
   if(s == "rt") return SimulationCase::RT;
   if(s == "db") return SimulationCase::DB;
-  if(s == "bb1") return SimulationCase::BB1;
-  if(s == "bb2") return SimulationCase::BB2;
+  if(s == "bb") return SimulationCase::BB;
+  if(s == "mb") return SimulationCase::MB;
 
   throw std::runtime_error(
     "Unknown simulation '" + s +
@@ -2089,10 +2089,10 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   if(axisymmetric && dim != 2) {
     throw std::runtime_error("ComputeLevelSetDiagnostics: axisymmetric diagnostics require dim = 2");
   }
-
+/*
   if(symmetric && symmetryCoordinates.size() != dim - 1u) {
     throw std::runtime_error("ComputeLevelSetDiagnostics: symmetryCoordinates must contain dim - 1 coordinates");
-  }
+  }*/
 
   const double symmetryFactor = symmetric ? ((dim == 2) ? 2.0 : 4.0) : 1.0;
 
@@ -2499,7 +2499,9 @@ for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc +
     else if(dim == 3) {
       result.ps = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.0});
       result.pb = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.5});
-      result.psad = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.0});
+      double saddle1 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.0});
+      double saddle2 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.5});
+      result.psad = 0.5 * (saddle1 + saddle2);
     }
   }
 
@@ -2680,7 +2682,7 @@ struct SimulationArgs {
 
   std::vector<unsigned> adaptiveLevels = {2};
   std::vector<unsigned> nSteps = {1200};
-  double period = 3.;
+  double period = 1.288;
 
   bool symmetric = false;
   bool axisymmetric = false;
@@ -3377,7 +3379,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       break;
     }
 
-    case SimulationCase::BB1: {
+    case SimulationCase::BB: {
 
       if(dim != 2) {
         throw std::runtime_error("GetSimulationConfig: BURST1 is currently implemented only in 2D");
@@ -3413,36 +3415,35 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       break;
     }
 
-    case SimulationCase::BB2: {
+    case SimulationCase::MB: {
 
       if(dim != 2) {
         throw std::runtime_error("GetSimulationConfig: BURST2 is currently implemented only in 2D");
       }
 
-      cfg.x_min[0] = -1.5;
-      cfg.x_max[0] = 1.5;
+      cfg.x_min[0] = 0;
+      cfg.x_max[0] = 1.;
       cfg.x_min[1] = 0.;
-      cfg.x_max[1] = 6.;
+      cfg.x_max[1] = 1.5;
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = 0.;
 
       cfg.n[0] = 8;
-      cfg.n[1] = 16;
+      cfg.n[1] = 12;
       cfg.n[2] = 0;
 
-      cfg.period = 11.0;
+      cfg.period = 0.35;
 
-      cfg.psi.type = PsiType::BUBBLES_FREE_SURFACE;
-      cfg.psi.bubbleCenters = {{0.0, 2.0}, {0.0, 1.0}};
-      cfg.psi.bubbleRadii = {0.5, 0.4};
-      cfg.psi.freeSurfaceHeight = 3.0;
+      cfg.psi.type = PsiType::TWO_BUBBLES;
+      cfg.psi.bubbleCenters = {{0.5, 0.65}, {0.5, 0.35}};
+      cfg.psi.bubbleRadii = {0.15, 0.1};
 
-      cfg.properties.rho1 = 0.01;
-      cfg.properties.rho2 = 1.;
-      cfg.properties.mu1 = 0.05;
-      cfg.properties.mu2 = 0.10;
-      cfg.properties.sigma = 0.10;
-      cfg.properties.gravity = -1.;
+      cfg.properties.rho1 = 100.;
+      cfg.properties.rho2 = 1000.;
+      cfg.properties.mu1 = 0.078;
+      cfg.properties.mu2 = 0.156;
+      cfg.properties.sigma = 1.226;
+      cfg.properties.gravity = -9.81;
 
       SetSlipSidesWallEnds();
 
@@ -3451,35 +3452,31 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
     case SimulationCase::RT: {
 
-      if(dim != 2) {
-        throw std::runtime_error("GetSimulationConfig: RT is currently implemented only in 2D");
-      }
-
       cfg.x_min[0] = -0.5;
       cfg.x_max[0] = 0.5;
-      cfg.x_min[1] = -2.0;
-      cfg.x_max[1] = 2.0;
-      cfg.x_min[2] = 0.;
-      cfg.x_max[2] = 0.;
+      cfg.x_min[1] = (dim == 2) ? -2.0 : -0.5;
+      cfg.x_max[1] = (dim == 2) ? 2.0 : 0.5;
+      cfg.x_min[2] = (dim == 2) ? 0. : -2.;
+      cfg.x_max[2] = (dim == 2) ? 0. : 2.;
 
       cfg.n[0] = 8;
-      cfg.n[1] = 32;
-      cfg.n[2] = 0;
+      cfg.n[1] = (dim == 2) ? 32 : 8;
+      cfg.n[2] = (dim == 2) ? 0 : 32;
 
-      cfg.period = 3.;
+      cfg.period = (dim == 2) ? 3. : 4.5;
 
       cfg.psi.type = PsiType::RAYLEIGH_TAYLOR;
-      cfg.psi.amplitude = 0.005;
+      cfg.psi.amplitude = (dim == 2) ? 0.1 : 0.05;
       cfg.psi.waveNumber = 2.0 * pi;
 
-      cfg.properties.rho1 = 1.5;
-      cfg.properties.rho2 = 1.;
-      cfg.properties.mu1 = 0.009535;
-      cfg.properties.mu2 = 0.006349;
-      cfg.properties.sigma = 0.;
-      cfg.properties.gravity = -10.;
+      cfg.properties.rho1 = (dim == 2) ? 3. : 1.;
+      cfg.properties.rho2 = (dim == 2) ? 1. : 1. / 3.;
+      cfg.properties.mu1 = (dim == 2) ? 0.00313 : 1. / 1024.;
+      cfg.properties.mu2 = (dim == 2) ? 0.00313 : 1. / 1024.;
+      cfg.properties.sigma = (dim == 2) ? 0 : 1.e-5;
+      cfg.properties.gravity = (dim == 2) ? -9.81 : -1.;
 
-      SetSlipSidesWallEnds();
+      (dim == 2) ? SetSlipSidesWallEnds() : SetAllSlip();
 
       break;
     }
