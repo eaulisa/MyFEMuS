@@ -2089,10 +2089,10 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   if(axisymmetric && dim != 2) {
     throw std::runtime_error("ComputeLevelSetDiagnostics: axisymmetric diagnostics require dim = 2");
   }
-/*
-  if(symmetric && symmetryCoordinates.size() != dim - 1u) {
-    throw std::runtime_error("ComputeLevelSetDiagnostics: symmetryCoordinates must contain dim - 1 coordinates");
-  }*/
+  /*
+    if(symmetric && symmetryCoordinates.size() != dim - 1u) {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: symmetryCoordinates must contain dim - 1 coordinates");
+    }*/
 
   const double symmetryFactor = symmetric ? ((dim == 2) ? 2.0 : 4.0) : 1.0;
 
@@ -3280,38 +3280,6 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
   switch(simulation) {
 
-    case SimulationCase::PAR: {
-
-      cfg.x_min[0] = -0.5;
-      cfg.x_max[0] = 0.5;
-      cfg.x_min[1] = -0.5;
-      cfg.x_max[1] = 0.5;
-      cfg.x_min[2] = (dim == 3) ? -0.5 : 0.;
-      cfg.x_max[2] = (dim == 3) ? 0.5 : 0.;
-
-      cfg.n[0] = 8;
-      cfg.n[1] = 8;
-      cfg.n[2] = (dim == 3) ? 8 : 0;
-
-      cfg.period = 10.;
-
-      cfg.psi.type = PsiType::BALL;
-      cfg.psi.center = {0., 0., 0.};
-      cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.25;
-
-      cfg.properties.rho1 = 1000.;
-      cfg.properties.rho2 = 1.;
-      cfg.properties.mu1 = 10.;
-      cfg.properties.mu2 = 0.1;
-      cfg.properties.sigma = 1.;
-      cfg.properties.gravity = 0.;
-
-      SetAllNeumann();
-
-      break;
-    }
-
     case SimulationCase::SAYE1:
     case SimulationCase::SAYE2: {
 
@@ -3466,15 +3434,15 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = (dim == 2) ? 3. : 4.5;
 
       cfg.psi.type = PsiType::RAYLEIGH_TAYLOR;
-      cfg.psi.amplitude = (dim == 2) ? 0.1 : 0.05;
+      cfg.psi.amplitude = (dim == 2) ? 0.005 : 0.05;
       cfg.psi.waveNumber = 2.0 * pi;
 
-      cfg.properties.rho1 = (dim == 2) ? 3. : 1.;
+      cfg.properties.rho1 = (dim == 2) ? 1.5 : 1.;
       cfg.properties.rho2 = (dim == 2) ? 1. : 1. / 3.;
-      cfg.properties.mu1 = (dim == 2) ? 0.00313 : 1. / 1024.;
-      cfg.properties.mu2 = (dim == 2) ? 0.00313 : 1. / 1024.;
+      cfg.properties.mu1 = (dim == 2) ? 0.009535 : 1. / 1024.;
+      cfg.properties.mu2 = (dim == 2) ? 0.006349 : 1. / 1024.;
       cfg.properties.sigma = (dim == 2) ? 0 : 1.e-5;
-      cfg.properties.gravity = (dim == 2) ? -9.81 : -1.;
+      cfg.properties.gravity = (dim == 2) ? -10. : -1.;
 
       (dim == 2) ? SetSlipSidesWallEnds() : SetAllSlip();
 

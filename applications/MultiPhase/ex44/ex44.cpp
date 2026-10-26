@@ -309,8 +309,8 @@ int main(int argc, char **argv) {
 
       MultiLevelMesh mlMsh0;
       std::string meshName = "./input/unstructured_RB_tri_h8.neu";
-      //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -418,8 +418,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      //mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       if (iproc == 0) {
@@ -458,26 +458,26 @@ int main(int argc, char **argv) {
         std::ofstream out(diagnosticsFile, std::ios::trunc);
 
         out << std::setw(w) << "time"
-        << std::setw(w) << "innerArea"
-        << std::setw(w) << "outerArea"
-        << std::setw(w) << "totalArea"
-        << std::setw(w) << "interfaceLength";
+            << std::setw(w) << "innerArea"
+            << std::setw(w) << "outerArea"
+            << std::setw(w) << "totalArea"
+            << std::setw(w) << "interfaceLength";
 
-        if(simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2){
+        if(simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2) {
 
-        for(unsigned d = 0; d < dim; ++d)
-          out << std::setw(w) << ("barycenter" + std::to_string(d));
+          for(unsigned d = 0; d < dim; ++d)
+            out << std::setw(w) << ("barycenter" + std::to_string(d));
 
-        for(unsigned d = 0; d < dim; ++d)
-          out << std::setw(w) << ("meanVelocity" + std::to_string(d));
+          for(unsigned d = 0; d < dim; ++d)
+            out << std::setw(w) << ("meanVelocity" + std::to_string(d));
 
-        out << std::setw(w) << "circularity";
+          out << std::setw(w) << "circularity";
         }
 
         if(simulation == SimulationCase::RT)
           out << std::setw(w) << "pb"
-          << std::setw(w) << "ps"
-          << std::setw(w) << "psad";
+              << std::setw(w) << "ps"
+              << std::setw(w) << "psad";
 
         out << '\n';
       }
@@ -599,7 +599,6 @@ int main(int argc, char **argv) {
         //system2.SetMaxNumberOfNonLinearIterations(10);
 
         bool linearScheme = true;
-
 
         mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme, axisymmetric, axisCoordinate);
 

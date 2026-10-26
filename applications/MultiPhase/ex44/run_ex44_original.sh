@@ -16,16 +16,16 @@ NPROC=8
 # ------------------------------------------------------------
 
 DIM=2
-SIMULATION="rt"
-SYMMETRIC=1
+SIMULATION="rb2"
+SYMMETRIC=0
 AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4 5 6 7)
+UNIFORM_LEVELS=(1 2 3 4)
+ADAPTIVE_LEVELS=(5)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
