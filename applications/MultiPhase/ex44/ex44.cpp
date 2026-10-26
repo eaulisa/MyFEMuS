@@ -20,7 +20,7 @@
 #include "MyMatrix.hpp"
 #include "VTKWriter.hpp"
 
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 
 using namespace femus;
 #include "../includeLS/Shape.hpp"
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = (nSteps > 100) ? nSteps / 500 : 1;
+      const unsigned nPrint  = (nSteps > 100) ? nSteps / 1000 : 1;
       const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
@@ -1068,8 +1068,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  if (nprocs == 1)
-    ProfilerStart("profiling.prof");
+  // if (nprocs == 1)
+  //   ProfilerStart("profiling.prof");
 
   if(printdb) std::cout << "After Solution Projection\n" << std::flush;
 

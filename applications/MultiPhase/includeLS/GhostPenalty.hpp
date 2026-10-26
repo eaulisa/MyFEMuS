@@ -265,9 +265,9 @@ static void AssembleGhostPenaltyVelocityFace(
       }
     }
 
-    double C1 = C0 * 0.001 * mu;
+    double C1 = C0 * 0.05 * mu;
 
-    double D1 = C0 * 0.001 * rho;
+    double D1 = C0 * 0.05 * rho;
 
     double absSolDotN = 0.;
 
@@ -1200,7 +1200,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
                 }
 
                 // double C1 =  C0 * 0.05;
-                const double gammaP = 0.001;
+                const double gammaP = 0.01;
 
                 const double muP  = P1 ? mu1  : mu2;
                 const double rhoP = P1 ? rho1 : rho2;
@@ -1558,7 +1558,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
 
                       // double C1 = C0 * 0.05;
 
-                      const double gammaP = 0.001;
+                      const double gammaP = 0.01;
 
                       const double muP  = P1 ? mu1  : mu2;
                       const double rhoP = P1 ? rho1 : rho2;
