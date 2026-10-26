@@ -513,7 +513,7 @@ int main(int argc, char **argv) {
 
       LevelSetDiagnostics final_diagnostics;
 
-      for (unsigned t = 1; t <= 3 + 0 * nSteps; t++) {
+      for (unsigned t = 1; t <= 1 + nSteps; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -714,7 +714,7 @@ int main(int argc, char **argv) {
         VTKWriter vtkIO2(&mlSol2);
         vtkIO2.SetDebugOutput(true);
         if (t % nPrint == 0) {
-          vtkIO2.Write(levelC - level0, vel_outputdir, "biquadratic", variablesToBePrinted, t / 1);
+          vtkIO2.Write(levelC - level0, vel_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
         }
 
         for(unsigned i = 0; i < Sol0_C.size(); i++) {
@@ -758,7 +758,7 @@ int main(int argc, char **argv) {
           final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation);
 
           VTKWriter vtkIO(mlsol0);
-          vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / 1);
+          vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
 
           break;
         }

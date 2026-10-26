@@ -79,14 +79,13 @@ namespace femus {
       };
 
       // ******************
+      void scatter();
       void scatter(const std::vector < unsigned > &offset);
       void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
 
       // ******************
-      void scatter();
-
-      // ******************
       void stack();
+      void stack(const unsigned lproc);
 
       // ******************
       void buildOffset();

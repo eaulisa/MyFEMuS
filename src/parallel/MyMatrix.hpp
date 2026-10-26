@@ -82,12 +82,9 @@ namespace femus {
       unsigned end(const unsigned &i);
 
       // ******************
+      void scatter();
       void scatter(const std::vector < unsigned > &offset);
       void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
-
-      template <class mytype> friend void scatter(MyMatrix<mytype> &mat, const std::vector<unsigned> &offset, const unsigned &lproc);
-
-      void scatter();
 
       // ******************
       void stack(const unsigned lproc);
@@ -174,12 +171,6 @@ namespace femus {
       MyVector < unsigned > _matSize;
       unsigned _lproc;
   };
-
-  template <class mytype> void scatter(MyMatrix<mytype> &mat, const std::vector<unsigned> &offset, const unsigned &lproc) {
-    if (mat._iproc != lproc) mat.clear();
-    mat._serial = true;
-    mat.scatter(offset, lproc);
-  }
 
 } //end namespace femus
 

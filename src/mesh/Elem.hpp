@@ -30,9 +30,8 @@
 namespace femus {
 
   class basis;
-
+  class elem_type;
   class Mesh;
-
   class NumericVector;
   /**
    * The elem class
@@ -47,20 +46,12 @@ namespace femus {
       //elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal, const std::vector < double >& localizedElementType);
       elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal);
 
+      elem(Mesh* mshc);
+
       void ShrinkToFit();
 
       /** destructor */
       ~elem();
-
-      void ScatterElementNearFace();
-      void ScatterElementNearFace(const unsigned );
-      void LocalizeElementNearFace(const unsigned& jproc);
-      void FreeLocalizedElementNearFace();
-
-      void ScatterElementDof();
-      void ScatterElementDof(const unsigned );
-      void LocalizeElementDof(const unsigned &jproc);
-      void FreeLocalizedElementDof();
 
       // reorder the element according to the new element mapping
       void ReorderMeshElements(const std::vector < unsigned >& elementMapping);
@@ -202,16 +193,18 @@ namespace femus {
         _elementMaterial.scatter(_elementOffset);
         _elementGroup.scatter(_elementOffset);
       }
+
       void ScatterElementQuantities(const unsigned lproc) {
         _elementLevel.scatter(_elementOffset, lproc);
         _elementType.scatter(_elementOffset, lproc);
         _elementMaterial.scatter(_elementOffset, lproc);
         _elementGroup.scatter(_elementOffset, lproc);
-        //_elementNearElement.scatter(_elementOffset, lproc);
       }
+
       void ScatterElementChildren(const unsigned lproc) {
         _childElem.scatter(_elementOffset, lproc);
       }
+
       void LocalizeElementQuantities(const unsigned &lproc) {
         _elementLevel.broadcast(lproc);
         _elementType.broadcast(lproc);
@@ -223,6 +216,13 @@ namespace femus {
         _elementType.clearBroadcast();
         _elementMaterial.clearBroadcast();
         _elementGroup.clearBroadcast();
+      }
+
+      void StackElementQuantities(const unsigned &lproc) {
+        _elementLevel.stack(lproc);
+        _elementType.stack(lproc);
+        _elementMaterial.stack(lproc);
+        _elementGroup.stack(lproc);
       }
 
       bool GetIfElementCanBeRefined(const unsigned& iel) {
@@ -336,13 +336,43 @@ namespace femus {
       }
 
       inline void ScatterChildElement(const unsigned lproc) {
-        // _childElem.scatter(_elementOffset, lproc);
-        scatter(_childElem, _elementOffset, lproc);
+        _childElem.scatter(_elementOffset, lproc);
       }
 
       inline void ScatterChildElementDof(const unsigned lproc) {
-        // _childElemDof.scatter(_elementOffset, lproc);
-        scatter(_childElemDof, _elementOffset, lproc);
+        _childElemDof.scatter(_elementOffset, lproc);
+      }
+
+      inline void ScatterElementDof() {
+        _elementDof.scatter(_elementOffset);
+      }
+      inline void ScatterElementDof(const unsigned lproc) {
+        _elementDof.scatter(_elementOffset, lproc);
+      }
+      inline void StackElementDof(const unsigned lproc) {
+        _elementDof.stack(lproc);
+      }
+      inline void LocalizeElementDof(const unsigned & jproc) {
+        _elementDof.broadcast(jproc);
+      }
+      inline void FreeLocalizedElementDof() {
+        _elementDof.clearBroadcast();
+      }
+
+      inline void ScatterElementNearFace() {
+        _elementNearFace.scatter(_elementOffset);
+      };
+      inline void ScatterElementNearFace(const unsigned lproc) {
+        _elementNearFace.scatter(_elementOffset, lproc);
+      };
+      inline void StackElementNearFace(const unsigned lproc) {
+        _elementNearFace.stack(lproc);
+      };
+      inline void LocalizeElementNearFace(const unsigned & jproc) {
+        _elementNearFace.broadcast(jproc);
+      }
+      inline void FreeLocalizedElementNearFace() {
+        _elementNearFace.clearBroadcast();
       }
 
     private:

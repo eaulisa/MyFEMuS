@@ -30,6 +30,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "MeshRefinement.hpp"
+
 namespace femus {
 
   using std::cout;
@@ -113,6 +115,252 @@ namespace femus {
     rowSizeElNearFace.clear();
 
   }
+
+  elem::elem(Mesh* mshc) {
+
+    elem* elc = mshc->el;
+    const unsigned refindex = mshc->GetRefIndex();
+    auto amr = mshc->_topology->_Sol[mshc->GetAmrIndex()];
+
+    _coarseElem = elc;
+    _iproc = elc->_iproc;
+    _nprocs = elc->_nprocs;
+    _level = elc->_level + 1;
+    _ngroup = elc->_ngroup;
+    _nelr = 0;
+    _nvt = 0;
+
+    unsigned count_send = 0;
+    unsigned nelt_send[6] = {0, 0, 0, 0, 0, 0};
+    unsigned material_send[3] = {0, 0, 0};
+
+    for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+      short unsigned elType = elc->_elementType[iel];
+      short unsigned elMaterial = elc->_elementMaterial[iel];
+      unsigned increment = (static_cast<short unsigned>((*amr)(iel) + 0.25) == 1) ? refindex : 1;
+      count_send += increment;
+      nelt_send[elType] += increment;
+      if (elMaterial == 2) material_send[0] += increment;
+      else if (elMaterial == 3) material_send[1] += increment;
+      else material_send[2] += increment;
+    }
+
+    _elementOwned = count_send;
+    _elementOffset.assign(_nprocs + 1, 0);
+    _materialElementCounter.assign(3, 0);
+
+    MPI_Allgather(&count_send, 1, MPI_UNSIGNED, _elementOffset.data() + 1, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
+    MPI_Allreduce(nelt_send, _nelt, 6, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(material_send, _materialElementCounter.data(), 3, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+    for (unsigned p = 0; p < _nprocs; p++) _elementOffset[p + 1] += _elementOffset[p];
+
+    _nel = _elementOffset[_nprocs];
+
+    _elementType.resize(_elementOffset);
+    _elementGroup.resize(_elementOffset);
+    _elementMaterial.resize(_elementOffset);
+    _elementLevel.resize(_elementOffset);
+
+    MyVector<unsigned> rowSizeElDof(_elementOffset);
+    MyVector<unsigned> rowSizeElNearFace(_elementOffset);
+
+    unsigned jel = rowSizeElDof.begin();
+    for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+      bool refined = (static_cast<short unsigned>((*amr)(iel) + 0.25) == 1);
+      short unsigned elType = elc->_elementType[iel];
+      short unsigned elGroup = elc->_elementGroup[iel];
+      short unsigned elMaterial = elc->_elementMaterial[iel];
+      short unsigned elLevel = refined ? static_cast<short unsigned>(elc->_elementLevel[iel] + 1) : elc->_elementLevel[iel];
+      unsigned increment = refined ? refindex : 1;
+
+      for (unsigned j = 0; j < increment; j++) {
+        _elementType[jel + j] = elType;
+        _elementGroup[jel + j] = elGroup;
+        _elementMaterial[jel + j] = elMaterial;
+        _elementLevel[jel + j] = elLevel;
+        rowSizeElDof[jel + j] = NVE[elType][2];
+        rowSizeElNearFace[jel + j] = NFC[elType][1];
+        elc->SetChildElement(iel, j, jel + j);
+      }
+
+      jel += increment;
+    }
+
+    _elementDof = MyMatrix<unsigned>(rowSizeElDof);
+    _elementNearFace = MyMatrix<int>(rowSizeElNearFace, -1);
+
+    jel = rowSizeElDof.begin();
+    for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+      bool refined = (static_cast<short unsigned>((*amr)(iel) + 0.25) == 1);
+      short unsigned elType = elc->_elementType[iel];
+      unsigned increment = refined ? refindex : 1;
+
+      if (refined) {
+        for (unsigned j = 0; j < increment; j++) {
+          for (unsigned inode = 0; inode < NVE[elType][0]; inode++) {
+            unsigned jDof = mshc->_finiteElement[elType][0]->GetBasis()->GetFine2CoarseVertexMapping(j, inode);
+            _elementDof[jel + j][inode] = elc->_elementDof[iel][jDof];
+          }
+        }
+      }
+      else {
+        for (unsigned inode = 0; inode < NVE[elType][2]; inode++) _elementDof[jel][inode] = elc->_elementDof[iel][inode];
+      }
+
+      for (unsigned iface = 0; iface < NFC[elType][1]; iface++) {
+        int value = elc->_elementNearFace[iel][iface];
+        if (value < -1) {
+          if (refined) {
+            for (unsigned jface = 0; jface < refindex / 2; jface++) {
+              unsigned child = coarse2FineFaceMapping[elType][iface][jface][0];
+              unsigned face = coarse2FineFaceMapping[elType][iface][jface][1];
+              _elementNearFace[jel + child][face] = value;
+            }
+          }
+          else {
+            _elementNearFace[jel][iface] = value;
+          }
+        }
+      }
+
+      jel += increment;
+    }
+
+    rowSizeElDof.clear();
+    rowSizeElNearFace.clear();
+  }
+
+  // elem::elem(elem* elc, const unsigned, const MyVector<double>& coarseAmrVector) {
+  //   _coarseElem = elc;
+  //   _iproc = elc->_iproc;
+  //   _nprocs = elc->_nprocs;
+  //   _level = elc->_level + 1;
+  //   _ngroup = elc->_ngroup;
+  //   _nelr = 0;
+  //   _nvt = 0;
+  //
+  //   unsigned count_send = 0;
+  //   unsigned nelt_send[6] = {0, 0, 0, 0, 0, 0};
+  //
+  //   for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+  //     short unsigned elType = elc->_elementType[iel];
+  //     unsigned increment = (static_cast<short unsigned>(coarseAmrVector[iel] + 0.25) == 1) ? NRE[elType] : 1;
+  //     count_send += increment;
+  //     nelt_send[elType] += increment;
+  //   }
+  //
+  //   _elementOwned = count_send;
+  //   _elementOffset.assign(_nprocs + 1, 0);
+  //
+  //   MPI_Allgather(&count_send, 1, MPI_UNSIGNED, _elementOffset.data() + 1, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
+  //   MPI_Allreduce(nelt_send, _nelt, 6, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  //
+  //   for (unsigned p = 0; p < _nprocs; p++) _elementOffset[p + 1] += _elementOffset[p];
+  //
+  //   _nel = _elementOffset[_nprocs];
+  //
+  //   _elementType.resize(_elementOffset);
+  //   _elementGroup.resize(_elementOffset);
+  //   _elementMaterial.resize(_elementOffset);
+  //   _elementLevel.resize(_elementOffset);
+  //
+  //   MyVector<unsigned> rowSizeElDof(_elementOffset);
+  //   MyVector<unsigned> rowSizeElNearFace(_elementOffset);
+  //
+  //   unsigned jel = rowSizeElDof.begin();
+  //   for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+  //     bool refined = (static_cast<short unsigned>(coarseAmrVector[iel] + 0.25) == 1);
+  //     short unsigned elType = elc->_elementType[iel];
+  //     short unsigned elGroup = elc->_elementGroup[iel];
+  //     short unsigned elMaterial = elc->_elementMaterial[iel];
+  //     short unsigned elLevel = refined ? static_cast<short unsigned>(_level) : elc->_elementLevel[iel];
+  //     unsigned increment = refined ? NRE[elType] : 1;
+  //
+  //     for (unsigned j = 0; j < increment; j++) {
+  //       _elementType[jel + j] = elType;
+  //       _elementGroup[jel + j] = elGroup;
+  //       _elementMaterial[jel + j] = elMaterial;
+  //       _elementLevel[jel + j] = elLevel;
+  //       rowSizeElDof[jel + j] = NVE[elType][2];
+  //       rowSizeElNearFace[jel + j] = NFC[elType][1];
+  //     }
+  //
+  //     jel += increment;
+  //   }
+  //
+  //   _elementDof = MyMatrix<unsigned>(rowSizeElDof);
+  //   _elementNearFace = MyMatrix<int>(rowSizeElNearFace, -1);
+  //
+  //   jel = rowSizeElDof.begin();
+  //   for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+  //     bool refined = (static_cast<short unsigned>(coarseAmrVector[iel] + 0.25) == 1);
+  //     short unsigned elType = elc->_elementType[iel];
+  //
+  //     if (!refined) {
+  //       for (unsigned iface = 0; iface < NFC[elType][1]; iface++) {
+  //         int face = elc->_elementNearFace[iel][iface];
+  //         if (face < -1) _elementNearFace[jel][iface] = face;
+  //       }
+  //     }
+  //
+  //     jel += refined ? NRE[elType] : 1;
+  //   }
+  //
+  //   rowSizeElDof.clear();
+  //   rowSizeElNearFace.clear();
+  // }
+
+  /*
+   elem::elem(elem* elc, const unsigned, const MyVector<double>& coarseAmrVector) {
+     _coarseElem = elc;
+     _level = elc->_level + 1;
+
+     _nelt[0] = _nelt[1] = _nelt[2] = _nelt[3] = _nelt[4] = _nelt[5] = 0;
+
+     unsigned count_send = 0;
+     for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+       short unsigned elType = elc->_elementType[iel];
+       count_send += (static_cast<short unsigned>(coarseAmrVector[iel] + 0.25) == 1) ? NRE[elType] : 1;
+     }
+
+     _elementOwned = count_send;
+
+     _elementOffset.assign(elc->_nprocs + 1, 0);
+     MPI_Allgather(&count_send, 1, MPI_UNSIGNED, _elementOffset.data() + 1, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
+
+     for (unsigned p = 0; p < elc->_nprocs; p++) _elementOffset[p + 1] += _elementOffset[p];
+
+     _nel = _elementOffset[elc->_nprocs];
+
+     _elementType.resize(_elementOffset);
+     _elementGroup.resize(_elementOffset);
+     _elementMaterial.resize(_elementOffset);
+     _elementLevel.resize(_elementOffset, _level);
+
+     MyVector<unsigned> rowSizeElDof(_elementOffset);
+     MyVector<unsigned> rowSizeElNearFace(_elementOffset);
+
+     unsigned jel = rowSizeElDof.begin();
+     for (unsigned iel = elc->_elementType.begin(); iel < elc->_elementType.end(); iel++) {
+       short unsigned elType = elc->_elementType[iel];
+       unsigned increment = 1;
+       if (static_cast<short unsigned>(coarseAmrVector[iel] + 0.25) == 1) increment = NRE[elType];
+
+       for (unsigned j = 0; j < increment; j++) {
+         rowSizeElDof[jel + j] = NVE[elType][2];
+         rowSizeElNearFace[jel + j] = NFC[elType][1];
+       }
+
+       jel += increment;
+     }
+
+     _elementDof = MyMatrix<unsigned>(rowSizeElDof);
+     _elementNearFace = MyMatrix<int>(rowSizeElNearFace, -1);
+
+     rowSizeElDof.clear();
+     rowSizeElNearFace.clear();
+   }*/
 
   void elem::ReorderMeshElements(const std::vector < unsigned >& elementMapping) {
 
@@ -841,41 +1089,9 @@ namespace femus {
     return ig[elementType][iface][jnode];
   }
 
-  void elem::ScatterElementDof() {
-    _elementDof.scatter(_elementOffset);
-  }
-
-  void elem::ScatterElementDof(const unsigned lproc) {
-    _elementDof.scatter(_elementOffset, lproc);
-  }
-
-  void elem::LocalizeElementDof(const unsigned & jproc) {
-    _elementDof.broadcast(jproc);
-  }
-
   unsigned elem::GetElementDofIndex(const unsigned & iel, const unsigned & inode) {
     return _elementDof[iel][inode];
   };
-
-  void elem::FreeLocalizedElementDof() {
-    _elementDof.clearBroadcast();
-  }
-
-  void elem::ScatterElementNearFace() {
-    _elementNearFace.scatter(_elementOffset);
-  };
-
-  void elem::ScatterElementNearFace(const unsigned lproc) {
-    _elementNearFace.scatter(_elementOffset, lproc);
-  };
-
-  void elem::LocalizeElementNearFace(const unsigned & jproc) {
-    _elementNearFace.broadcast(jproc);
-  }
-
-  void elem::FreeLocalizedElementNearFace() {
-    _elementNearFace.clearBroadcast();
-  }
 
   const unsigned FELT[6][2] = {{3, 3}, {4, 4}, {3, 4}, {5, 5}, {5, 5}, {6, 6}};
   unsigned elem::GetFaceType(const unsigned & ielt, const unsigned & jface) {
