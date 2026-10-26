@@ -214,129 +214,12 @@ namespace femus {
     _mesh.SetIfHomogeneous(!AMR);
     coarseLocalizedAmrVector.resize(0);
 
-    std::vector < unsigned > partition;
-
-    //_mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector, otherFiniteElement, coarse2FineFaceMapping);
     _mesh.el = new elem(mshc);
     _mesh.el->StackElementQuantities(0);
     _mesh.el->StackElementDof(0);
     _mesh.el->StackElementNearFace(0);
     elc->StackChildElement(0);
     elc->StackChildElementDof(0);
-
-    // _mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector);
-    //
-    // unsigned jel = 0;
-    // //divide each coarse element in 8(3D), 4(2D) or 2(1D) fine elements and find all the vertices
-    //
-    // _mesh.el->SetElementGroupNumber(elc->GetElementGroupNumber());
-    //
-    //
-    //
-    // std::vector < unsigned > materialElementCounter(3, 0);
-    //
-    // //std::vector < unsigned > partition;
-    // partition.reserve(nelem * 2);
-    // partition.resize(nelem);
-    //
-    // // stack elc->_childElem on proc 0
-    // elc->StackChildElement(0);
-    // // stack elc->_childElemDof on proc 0
-    // elc->StackChildElementDof(0);
-    // elc->StackElementQuantities(0);
-    // elc->StackElementDof(0);
-    // elc->StackElementNearFace(0);
-    //
-    // for(unsigned isdom = 0; isdom < _nprocs; isdom++) {
-    //   if (_iproc == 0) {
-    //     for(unsigned iel = mshc->_elementOffset[isdom]; iel < mshc->_elementOffset[isdom + 1]; iel++) {
-    //       if(static_cast < unsigned short >(coarseLocalizedAmrVector[iel] + 0.25) == 1) {
-    //         unsigned elt = elc->GetElementType(iel);
-    //         // project element type
-    //         for(unsigned j = 0; j < _mesh.GetRefIndex(); j++) {
-    //           _mesh.el->SetElementType(jel + j, elc->GetElementType(iel));
-    //           _mesh.el->SetElementGroup(jel + j, elc->GetElementGroup(iel));
-    //
-    //           unsigned gr_mat = elc->GetElementMaterial(iel);
-    //           _mesh.el->SetElementMaterial(jel + j, gr_mat);
-    //           if( gr_mat == 2) materialElementCounter[0] += 1;
-    //           else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-    //           else materialElementCounter[2] += 1;
-    //
-    //           _mesh.el->SetElementLevel(jel + j, elc->GetElementLevel(iel) + 1);
-    //           partition[jel + j] = isdom;
-    //           if((iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) || _iproc == 0) {
-    //             elc->SetChildElement(iel, j, jel + j);
-    //           }
-    //         }
-    //
-    //         // project vertex indeces
-    //         for(unsigned j = 0; j < _mesh.GetRefIndex(); j++)
-    //           for(unsigned inode = 0; inode < elc->GetNVE(elt, 0); inode++) {
-    //             unsigned jDof =  otherFiniteElement[elt][0]->GetBasis()->GetFine2CoarseVertexMapping(j, inode);
-    //             _mesh.el->SetElementDofIndex(jel + j, inode,  elc->GetElementDofIndex(iel, jDof));
-    //           }
-    //
-    //         // project face indeces
-    //         for(unsigned iface = 0; iface <  elc->GetNFC(elt, 1); iface++) {
-    //           int value = elc->GetFaceElementIndex(iel, iface);
-    //
-    //           if(value < -1)
-    //             for(unsigned jface = 0; jface < _mesh.GetFaceIndex(); jface++)
-    //               _mesh.el->SetFaceElementIndex(jel + coarse2FineFaceMapping[elt][iface][jface][0], coarse2FineFaceMapping[elt][iface][jface][1], value);
-    //         }
-    //
-    //         // update element numbers
-    //         jel += _mesh.GetRefIndex();
-    //         _mesh.el->AddToElementNumber(_mesh.GetRefIndex(), elt);
-    //       }
-    //       else {
-    //         _mesh.SetIfHomogeneous(false);
-    //         AMR = true;
-    //         unsigned elt = elc->GetElementType(iel);
-    //         _mesh.el->SetElementType(jel, elc->GetElementType(iel));
-    //         _mesh.el->SetElementGroup(jel, elc->GetElementGroup(iel));
-    //         _mesh.el->SetElementMaterial(jel, elc->GetElementMaterial(iel));
-    //
-    //         unsigned gr_mat = elc->GetElementMaterial(iel);
-    //         _mesh.el->SetElementMaterial(jel, gr_mat);
-    //         if( gr_mat == 2) materialElementCounter[0] += 1;
-    //         else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-    //         else materialElementCounter[2] += 1;
-    //
-    //         _mesh.el->SetElementLevel(jel, elc->GetElementLevel(iel));
-    //         partition[jel] = isdom;
-    //         if((iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) || _iproc == 0) {
-    //           elc->SetChildElement(iel, 0, jel);
-    //         }
-    //
-    //         // project nodes indeces
-    //         for(unsigned inode = 0; inode < elc->GetNVE(elt, 2); inode++)
-    //           _mesh.el->SetElementDofIndex(jel, inode, elc->GetElementDofIndex(iel, inode));
-    //
-    //         // project face indeces
-    //         for(unsigned iface = 0; iface <  elc->GetNFC(elt, 1); iface++) {
-    //           int value = elc->GetFaceElementIndex(iel, iface);
-    //
-    //           if(value < -1) {
-    //             _mesh.el->SetFaceElementIndex(jel, iface, value);
-    //           }
-    //         }
-    //
-    //         // update element numbers
-    //         jel++;
-    //         _mesh.el->AddToElementNumber(1, elt);
-    //       }
-    //     }
-    //   }
-    // }
-    // elc->ScatterElementDof(0);
-    // elc->ScatterElementNearFace(0);
-    // elc->ScatterElementQuantities(0);
-    // MPI_Bcast(materialElementCounter.data(), 3, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    // _mesh.el->SetMaterialElementCounter(materialElementCounter);
-    //
-    // _mesh.el->BroadcastElementNumber();
 
     int nnodes = elc->GetNodeNumber();
 
@@ -419,6 +302,8 @@ namespace femus {
     if (_iproc == 0) Buildkmid(); // check better but it seems to fill only elementDof (which is scattered after)
 
     _mesh.el->DeleteElementNearVertex();
+
+    std::vector < unsigned > partition;
 
     if (_iproc == 0) {
 
