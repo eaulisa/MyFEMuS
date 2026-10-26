@@ -15,24 +15,24 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
-SIMULATION="bb"
+DIM=3
+SIMULATION="pi"
 SYMMETRIC=0
-AXISYMMETRIC=1
+AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(10)
-LEVEL_OFFSET=2
+ADAPTIVE_LEVELS=(3)
+LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(12000)
+NSTEPS=(12860)
 
 # ------------------------------------------------------------
 # Velocity multigrid

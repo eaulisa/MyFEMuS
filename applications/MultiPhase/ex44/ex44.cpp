@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = 1;//(nSteps > 100) ? nSteps / 100 : 1;
+      const unsigned nPrint  = (nSteps > 100) ? nSteps / 500 : 1;
       const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
@@ -444,7 +444,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
+      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
 
       const unsigned w = 24;
 
@@ -465,19 +465,40 @@ int main(int argc, char **argv) {
 
         if(simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2) {
 
-          for(unsigned d = 0; d < dim; ++d)
+          for(unsigned d = 0; d < dim; ++d) {
             out << std::setw(w) << ("barycenter" + std::to_string(d));
+          }
 
-          for(unsigned d = 0; d < dim; ++d)
+          for(unsigned d = 0; d < dim; ++d) {
             out << std::setw(w) << ("meanVelocity" + std::to_string(d));
+          }
 
           out << std::setw(w) << "circularity";
         }
 
-        if(simulation == SimulationCase::RT)
+        if(simulation == SimulationCase::RT) {
           out << std::setw(w) << "pb"
               << std::setw(w) << "ps"
               << std::setw(w) << "psad";
+        }
+
+        if(simulation == SimulationCase::PI) {
+          out << std::setw(w) << "fluid1UpperVolume"
+              << std::setw(w) << "fluid1UpperRatio"
+              << std::setw(w) << "fluid1VolumeRatio"
+              << std::setw(w) << "potentialEnergy1"
+              << std::setw(w) << "potentialEnergy2"
+              << std::setw(w) << "kineticEnergy1"
+              << std::setw(w) << "kineticEnergy2"
+              << std::setw(w) << "enstrophy1"
+              << std::setw(w) << "enstrophy2"
+              << std::setw(w) << "mechanicalEnergy"
+              << std::setw(w) << "potentialEnergy1Star"
+              << std::setw(w) << "potentialEnergy2Star"
+              << std::setw(w) << "kineticEnergy1Star"
+              << std::setw(w) << "kineticEnergy2Star"
+              << std::setw(w) << "interfaceAreaStar";
+        }
 
         out << '\n';
       }
@@ -758,7 +779,7 @@ int main(int argc, char **argv) {
             uNew->close();
           }
 
-          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
+          final_diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
 
           VTKWriter vtkIO(mlsol0);
           vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
@@ -859,7 +880,7 @@ int main(int argc, char **argv) {
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
-        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
+        LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
         if(simulation == SimulationCase::BB) {

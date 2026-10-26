@@ -14,7 +14,8 @@ enum class PsiType {
   DAM_BREAK,
   BUBBLES_FREE_SURFACE,
   TWO_BUBBLES,
-  BURSTING_BUBBLE
+  BURSTING_BUBBLE,
+  PHASE_INVERSION
 };
 
 struct PsiConfig {
@@ -31,6 +32,7 @@ struct PsiConfig {
   double bondNumber = 0.;
   unsigned burstingPointLess = 200u;
   double burstingOuterRadius = 10.;
+  double phaseInversionSize = 0.;
 };
 
 class Psi {
@@ -122,6 +124,28 @@ class Psi {
 
         case PsiType::BURSTING_BUBBLE: {
           return BurstingBubbleLevelSet(x, _burstingBubble);
+        }
+
+        case PsiType::PHASE_INVERSION: {
+          if(x.size() != 3u) {
+            throw std::runtime_error("Psi::LevelSet(): PHASE_INVERSION requires dimension 3");
+          }
+
+          const double L = _cfg.phaseInversionSize;
+
+          double outside2 = 0.;
+          double inside = 1.e12;
+
+          for(unsigned d = 0; d < 3u; ++d) {
+            const double q = x[d] - L;
+            const double qPlus = std::max(q, 0.);
+            outside2 += qPlus * qPlus;
+            inside = std::min(inside, -q);
+          }
+
+          if(outside2 > 0.) return -std::sqrt(outside2);
+
+          return inside;
         }
       }
 
