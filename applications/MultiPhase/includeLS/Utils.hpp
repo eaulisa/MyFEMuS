@@ -3348,69 +3348,66 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
     }
 
     case SimulationCase::BB: {
+      if(dim != 2) throw std::runtime_error("GetSimulationConfig: BB requires dim = 2");
+      const double La = 6.7e4;
+      const double Bo = 0.1172;
+      const double Oh = 1. / std::sqrt(La);
 
-      if(dim != 2) {
-        throw std::runtime_error("GetSimulationConfig: BURST1 is currently implemented only in 2D");
-      }
-
-      cfg.x_min[0] = 0.;
-      cfg.x_max[0] = 1.;
-      cfg.x_min[1] = 0.;
-      cfg.x_max[1] = 2.;
+      cfg.x_min[0] = -10.;
+      cfg.x_max[0] = 10.;
+      cfg.x_min[1] = -5.;
+      cfg.x_max[1] = 5.;
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = 0.;
 
-      cfg.n[0] = 8;
-      cfg.n[1] = 16;
+      cfg.n[0] = 16;
+      cfg.n[1] = 8;
       cfg.n[2] = 0;
 
-      cfg.period = 12.;
+      cfg.period = 1.2;
 
-      cfg.psi.type = PsiType::BUBBLES_FREE_SURFACE;
-      cfg.psi.bubbleCenters = {{0.5, 0.5}};
-      cfg.psi.bubbleRadii = {0.25};
-      cfg.psi.freeSurfaceHeight = 1.00;
+      cfg.psi.type = PsiType::BURSTING_BUBBLE;
+      cfg.psi.bondNumber = Bo;
+      cfg.psi.burstingPointLess = 400u;
+      cfg.psi.burstingOuterRadius = 10.;
+      cfg.psi.freeSurfaceHeight = 0.;
 
-      cfg.properties.rho1 = 100.;
-      cfg.properties.rho2 = 1000.;
-      cfg.properties.mu1 = 1.;
-      cfg.properties.mu2 = 10.;
-      cfg.properties.sigma = 24.5;
-      cfg.properties.gravity = -0.98;
-
-      SetSlipSidesWallEnds();
-
+      cfg.properties.rho1 = 1. / 998.;
+      cfg.properties.rho2 = 1.;
+      cfg.properties.mu1 = Oh / 55.;
+      cfg.properties.mu2 = Oh;
+      cfg.properties.sigma = 1.;
+      cfg.properties.gravity = -Bo;
+      SetAllSlip();
       break;
     }
 
     case SimulationCase::MB: {
 
-      if(dim != 2) {
-        throw std::runtime_error("GetSimulationConfig: BURST2 is currently implemented only in 2D");
-      }
-
       cfg.x_min[0] = 0;
       cfg.x_max[0] = 1.;
       cfg.x_min[1] = 0.;
-      cfg.x_max[1] = 1.5;
+      cfg.x_max[1] = (dim == 2) ? 1.5 : 1.;
       cfg.x_min[2] = 0.;
-      cfg.x_max[2] = 0.;
+      cfg.x_max[2] = (dim == 2) ? 0. : 1.;
 
       cfg.n[0] = 8;
-      cfg.n[1] = 12;
-      cfg.n[2] = 0;
+      cfg.n[1] = 8;
+      cfg.n[2] = (dim == 2) ? 0 : 8;
 
-      cfg.period = 0.35;
+      cfg.period = (dim == 2) ? 0.35 : 0.25;
 
       cfg.psi.type = PsiType::TWO_BUBBLES;
-      cfg.psi.bubbleCenters = {{0.5, 0.65}, {0.5, 0.35}};
+    cfg.psi.bubbleCenters = (dim == 2) ? {{0.5, 0.65}, {0.5, 0.35}} : {
+        {0.5, 0.5, 0.58}, {0.5, 0.5, 0.3}
+      };
       cfg.psi.bubbleRadii = {0.15, 0.1};
 
-      cfg.properties.rho1 = 100.;
-      cfg.properties.rho2 = 1000.;
-      cfg.properties.mu1 = 0.078;
-      cfg.properties.mu2 = 0.156;
-      cfg.properties.sigma = 1.226;
+      cfg.properties.rho1 = (dim == 2) ? 100. : 1.;
+      cfg.properties.rho2 = (dim == 2) ? 1000. : 10.;
+      cfg.properties.mu1 = (dim == 2) ? 0.078 : 2.5e-4;
+      cfg.properties.mu2 = (dim == 2) ? 0.156 : 5.e-4;
+      cfg.properties.sigma = (dim == 2) ? 1.226 : 0;
       cfg.properties.gravity = -9.81;
 
       SetSlipSidesWallEnds();
@@ -3503,4 +3500,1118 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
   }
 
   return cfg;
+}
+
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <limits>
+#include <numeric>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+struct BBDropletMetrics {
+  unsigned id = 0u;
+  double volume = 0.;
+  double radius = 0.;
+  double radiusOverRb = 0.;
+  double zCm = 0.;
+  double zCmOverRb = 0.;
+  double verticalVelocity = 0.;
+  double capillaryNumber = 0.;
+};
+
+struct BurstingBubbleMetrics {
+  double time = 0.;
+  double timeOverTc = 0.;
+
+  bool hasT0 = false;
+  double t0 = std::numeric_limits<double>::quiet_NaN();
+  double shiftedTimeOverTc = std::numeric_limits<double>::quiet_NaN();
+
+  bool hasJetTip = false;
+  double jetTipZ = std::numeric_limits<double>::quiet_NaN();
+  double jetTipZOverRb = std::numeric_limits<double>::quiet_NaN();
+  double jetTipVelocity = std::numeric_limits<double>::quiet_NaN();
+  double jetTipVelocityFD = std::numeric_limits<double>::quiet_NaN();
+  double jetTipCa = std::numeric_limits<double>::quiet_NaN();
+
+  double bulkLiquidVolume = 0.;
+  unsigned nLiquidComponents = 0u;
+  unsigned nDroplets = 0u;
+  std::vector<BBDropletMetrics> droplets;
+
+  bool firstDropletDetected = false;
+  double firstDropletTime = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletTimeOverTc = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletRadiusOverRb = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletVelocity = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletCa = std::numeric_limits<double>::quiet_NaN();
+};
+
+struct BurstingBubbleOptions {
+  // In BB2 psi > 0 is the gas phase and psi < 0 is the liquid phase.
+  bool liquidPositive = false;
+
+  // A detached component is considered a physical droplet only if
+  // R_eq >= minRadiusOverH * hMin.
+  double minRadiusOverH = 2.;
+  double minEquivalentRadius = 0.;
+  double minDropletVolume = 0.;
+
+  // Connectivity threshold. An element belongs to the liquid graph only if
+  // V_liquid / V_element is larger than this value. This deliberately avoids
+  // connecting components only through a numerically non-negligible liquid amount.
+  double graphLiquidFractionTolerance = 1.e-12;
+
+  unsigned persistenceSteps = 2u;
+  double freeSurfaceZ = 0.;
+  double axisTolerance = -1.;
+  double psiZeroTolerance = 1.e-12;
+  double dropletTrackingTolerance = -1.;
+};
+
+struct BurstingBubbleState {
+  struct TrackedDroplet {
+    unsigned id = 0u;
+    double zCm = 0.;
+    double verticalVelocity = 0.;
+  };
+
+  bool hasPreviousCall = false;
+  double previousCallTime = 0.;
+
+  bool hasPreviousTip = false;
+  double previousTipTime = 0.;
+  double previousJetTipZ = 0.;
+
+  bool hasT0 = false;
+  double t0 = std::numeric_limits<double>::quiet_NaN();
+
+  bool firstDropletDetected = false;
+  unsigned pendingFirstDropSteps = 0u;
+  double pendingFirstDropTime = std::numeric_limits<double>::quiet_NaN();
+  double pendingFirstDropRadius = std::numeric_limits<double>::quiet_NaN();
+  double pendingFirstDropVelocity = std::numeric_limits<double>::quiet_NaN();
+  double pendingFirstDropCa = std::numeric_limits<double>::quiet_NaN();
+
+  double firstDropletTime = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletRadius = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletVelocity = std::numeric_limits<double>::quiet_NaN();
+  double firstDropletCa = std::numeric_limits<double>::quiet_NaN();
+
+  unsigned nextDropletId = 1u;
+  std::vector<TrackedDroplet> previousDroplets;
+
+  void ResetPendingFirstDrop() {
+    pendingFirstDropSteps = 0u;
+    pendingFirstDropTime = std::numeric_limits<double>::quiet_NaN();
+    pendingFirstDropRadius = std::numeric_limits<double>::quiet_NaN();
+    pendingFirstDropVelocity = std::numeric_limits<double>::quiet_NaN();
+    pendingFirstDropCa = std::numeric_limits<double>::quiet_NaN();
+  }
+};
+
+namespace BurstingBubbleDetail {
+
+  struct UnionFind {
+    explicit UnionFind(const unsigned n) : parent(n), rank(n, 0u) {
+      std::iota(parent.begin(), parent.end(), 0u);
+    }
+
+    unsigned Find(unsigned i) {
+      if(parent[i] != i) parent[i] = Find(parent[i]);
+      return parent[i];
+    }
+
+    void Unite(unsigned a, unsigned b) {
+      a = Find(a);
+      b = Find(b);
+
+      if(a == b) return;
+
+      if(rank[a] < rank[b]) std::swap(a, b);
+
+      parent[b] = a;
+
+      if(rank[a] == rank[b]) ++rank[a];
+    }
+
+    std::vector<unsigned> parent;
+    std::vector<unsigned> rank;
+  };
+
+  template <class T>
+  std::vector<T> AllGatherVector(const std::vector<T>& local, MPI_Datatype mpiType) {
+    int nprocs = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+    const int nLocal = static_cast<int>(local.size());
+
+    std::vector<int> counts(nprocs, 0);
+    std::vector<int> displs(nprocs, 0);
+
+    MPI_Allgather(
+      &nLocal,
+      1,
+      MPI_INT,
+      counts.data(),
+      1,
+      MPI_INT,
+      MPI_COMM_WORLD);
+
+    int nGlobal = 0;
+
+    for(int p = 0; p < nprocs; ++p) {
+      displs[p] = nGlobal;
+      nGlobal += counts[p];
+    }
+
+    std::vector<T> global(nGlobal);
+
+    MPI_Allgatherv(
+      local.empty() ? nullptr : local.data(),
+      nLocal,
+      mpiType,
+      global.empty() ? nullptr : global.data(),
+      counts.data(),
+      displs.data(),
+      mpiType,
+      MPI_COMM_WORLD);
+
+    return global;
+  }
+
+  inline bool FileEmptyOrMissing(const std::string& fileName) {
+    std::ifstream in(fileName, std::ios::binary | std::ios::ate);
+    return !in || in.tellg() == std::streampos(0);
+  }
+
+  struct AxisRoot {
+    bool found = false;
+    double z = std::numeric_limits<double>::quiet_NaN();
+    double uz = std::numeric_limits<double>::quiet_NaN();
+  };
+
+  AxisRoot FindLowestAxisRoot(
+    Mesh* msh,
+    Solution* sol,
+    const unsigned psiIndex,
+    const unsigned psiType,
+    const unsigned uzIndex,
+    const unsigned velocityType,
+    const double axisCoordinate,
+    const double coordTol,
+    const double psiTol) {
+
+    const unsigned dim = msh->GetDimension();
+    const unsigned iproc = msh->processor_id();
+    const unsigned xType = 2u;
+
+    if(dim != 2u) {
+      throw std::runtime_error("FindLowestAxisRoot: requires a 2D mesh");
+    }
+
+    struct AxisNode {
+      unsigned psiDof = 0u;
+      double z = 0.;
+      double psi = 0.;
+      double uz = 0.;
+    };
+
+    std::vector<unsigned> localDof;
+    std::vector<double> localZ;
+    std::vector<double> localPsi;
+    std::vector<double> localUz;
+
+    for(unsigned iel = msh->_elementOffset[iproc];
+        iel < msh->_elementOffset[iproc + 1u];
+        ++iel) {
+
+      const unsigned nPsi = msh->GetElementDofNumber(iel, psiType);
+      const unsigned nVel = msh->GetElementDofNumber(iel, velocityType);
+      const unsigned nX = msh->GetElementDofNumber(iel, xType);
+
+      if(nPsi != nX) {
+        throw std::runtime_error(
+          "FindLowestAxisRoot: psi and coordinates must have the same nodal structure");
+      }
+
+      if(nVel != nPsi) {
+        throw std::runtime_error(
+          "FindLowestAxisRoot: velocity and psi must have the same nodal structure");
+      }
+
+      for(unsigned i = 0; i < nPsi; ++i) {
+        const unsigned xDof = msh->GetSolutionDof(i, iel, xType);
+        const double r = (*msh->_topology->_Sol[0])(xDof);
+
+        if(std::abs(r - axisCoordinate) > coordTol) continue;
+
+        const unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
+        const unsigned velDof = msh->GetSolutionDof(i, iel, velocityType);
+
+        localDof.push_back(psiDof);
+        localZ.push_back((*msh->_topology->_Sol[1])(xDof));
+        localPsi.push_back((*sol->_Sol[psiIndex])(psiDof));
+        localUz.push_back((*sol->_Sol[uzIndex])(velDof));
+      }
+    }
+
+    const std::vector<unsigned> globalDof =
+      AllGatherVector(localDof, MPI_UNSIGNED);
+
+    const std::vector<double> globalZ =
+      AllGatherVector(localZ, MPI_DOUBLE);
+
+    const std::vector<double> globalPsi =
+      AllGatherVector(localPsi, MPI_DOUBLE);
+
+    const std::vector<double> globalUz =
+      AllGatherVector(localUz, MPI_DOUBLE);
+
+    if(globalDof.size() != globalZ.size() ||
+        globalDof.size() != globalPsi.size() ||
+        globalDof.size() != globalUz.size()) {
+      throw std::runtime_error("FindLowestAxisRoot: inconsistent gathered nodal data");
+    }
+
+    std::vector<AxisNode> nodes(globalDof.size());
+
+    for(unsigned i = 0; i < nodes.size(); ++i) {
+      nodes[i].psiDof = globalDof[i];
+      nodes[i].z = globalZ[i];
+      nodes[i].psi = globalPsi[i];
+      nodes[i].uz = globalUz[i];
+    }
+
+    std::sort(
+      nodes.begin(),
+      nodes.end(),
+    [](const AxisNode & a, const AxisNode & b) {
+      return a.psiDof < b.psiDof;
+    });
+
+    nodes.erase(
+      std::unique(
+        nodes.begin(),
+        nodes.end(),
+    [](const AxisNode & a, const AxisNode & b) {
+      return a.psiDof == b.psiDof;
+    }),
+    nodes.end());
+
+    std::sort(
+      nodes.begin(),
+      nodes.end(),
+    [](const AxisNode & a, const AxisNode & b) {
+      return a.z < b.z;
+    });
+
+    AxisRoot result;
+
+    auto UpdateRoot = [&](const double z, const double uz) {
+      if(!result.found || z < result.z) {
+        result.found = true;
+        result.z = z;
+        result.uz = uz;
+      }
+    };
+
+    for(const AxisNode& node : nodes) {
+      if(std::abs(node.psi) <= psiTol) {
+        UpdateRoot(node.z, node.uz);
+      }
+    }
+
+    for(unsigned i = 0; i + 1u < nodes.size(); ++i) {
+      const double psi0 = nodes[i].psi;
+      const double psi1 = nodes[i + 1u].psi;
+
+      if(psi0 * psi1 < 0.) {
+        const double alpha = psi0 / (psi0 - psi1);
+        const double z = nodes[i].z + alpha * (nodes[i + 1u].z - nodes[i].z);
+        const double uz = nodes[i].uz + alpha * (nodes[i + 1u].uz - nodes[i].uz);
+        UpdateRoot(z, uz);
+      }
+    }
+
+    return result;
+  }
+
+} // namespace BurstingBubbleDetail
+
+BurstingBubbleMetrics ComputeBurstingBubbleMetrics(
+  MultiLevelSolution& mlSol,
+  const std::string& psiName,
+  const std::vector<std::string>& velocityName,
+  const unsigned velocityLevel,
+  const double time,
+  const double hMin,
+  const double bubbleRadius,
+  const double rhoLiquid,
+  const double muLiquid,
+  const double sigma,
+  const double axisCoordinate,
+  BurstingBubbleState& state,
+  const BurstingBubbleOptions& options = BurstingBubbleOptions()) {
+
+  using namespace BurstingBubbleDetail;
+
+  MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh* msh = mlMsh.GetLevel(level);
+  Solution* sol = mlSol.GetSolutionLevel(level);
+
+  const unsigned dim = msh->GetDimension();
+  const unsigned iproc = msh->processor_id();
+  const unsigned psiIndex = mlSol.GetIndex(psiName.c_str());
+  const unsigned psiType = mlSol.GetSolutionType(psiIndex);
+  const unsigned xType = 2u;
+  const double pi = std::acos(-1.0);
+
+  if(dim != 2u) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: requires a 2D axisymmetric mesh");
+  }
+
+  if(velocityName.size() != 2u) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: velocityName must contain two components");
+  }
+
+  if(hMin <= 0. ||
+      bubbleRadius <= 0. ||
+      rhoLiquid <= 0. ||
+      muLiquid <= 0. ||
+      sigma <= 0.) {
+
+    std::ostringstream oss;
+    oss << "ComputeBurstingBubbleMetrics: invalid parameters:"
+        << " hMin=" << hMin
+        << " Rb=" << bubbleRadius
+        << " rhoL=" << rhoLiquid
+        << " muL=" << muLiquid
+        << " sigma=" << sigma;
+
+    throw std::runtime_error(oss.str());
+  }
+
+  if(options.graphLiquidFractionTolerance <= 0. ||
+      options.graphLiquidFractionTolerance >= 1.) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: graphLiquidFractionTolerance must be in (0,1)");
+  }
+
+  if(velocityLevel > level) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: velocityLevel > diagnostics level");
+  }
+
+  const unsigned urIndex = mlSol.GetIndex(velocityName[0].c_str());
+  const unsigned uzIndex = mlSol.GetIndex(velocityName[1].c_str());
+  const unsigned velocityType = mlSol.GetSolutionType(urIndex);
+
+  if(mlSol.GetSolutionType(uzIndex) != velocityType) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: velocity FE types differ");
+  }
+
+  for(unsigned l = velocityLevel; l < level; ++l) {
+    Solution* solL = mlSol.GetSolutionLevel(l);
+    Solution* solLp1 = mlSol.GetSolutionLevel(l + 1u);
+    Mesh* mshLp1 = mlMsh.GetLevel(l + 1u);
+    SparseMatrix* Pv = mshLp1->GetCoarseToFineProjection(velocityType);
+
+    solLp1->_Sol[urIndex]->matrix_mult(*(solL->_Sol[urIndex]), *Pv);
+    solLp1->_Sol[uzIndex]->matrix_mult(*(solL->_Sol[uzIndex]), *Pv);
+  }
+
+  const double tc =
+    std::sqrt(
+      rhoLiquid *
+      bubbleRadius * bubbleRadius * bubbleRadius /
+      sigma);
+
+  const double axisTol =
+    options.axisTolerance > 0.
+    ? options.axisTolerance
+    : 1.e-10 * std::max(1., bubbleRadius);
+
+  const double minRadius =
+    std::max(
+      options.minEquivalentRadius,
+      options.minRadiusOverH * hMin);
+
+  const double minVolume =
+    std::max(
+      options.minDropletVolume,
+      4. * pi * minRadius * minRadius * minRadius / 3.);
+
+  auto LiquidPhi = [&](const double value) {
+    return options.liquidPositive ? value : -value;
+  };
+
+  // ------------------------------------------------------------
+  // Build one record for every element containing a non-negligible
+  // amount of liquid. Connectivity uses the SAME mesh-neighbour API
+  // already used by FlagFinestMeshLevel():
+  //
+  //   msh->el->GetElementNearElementSize(iel, 1)
+  //   msh->el->GetElementNearElement(iel, j)
+  //
+  // This is robust across MPI partitions and AMR transitions.
+  // ------------------------------------------------------------
+
+  std::vector<unsigned> localIds;
+  std::vector<double> localData;
+  std::vector<unsigned> localNeighbourPairs;
+
+  std::vector<std::vector<double>> coordX(dim);
+  std::vector<std::vector<double>> velocity(dim);
+  std::vector<double> psi;
+  std::vector<double> phiPsi;
+  std::vector<double> phiPsi_x;
+  std::vector<double> phiX;
+  std::vector<double> phiX_x;
+  std::vector<double> phiVelocity;
+  std::vector<double> phiVelocity_x;
+
+  for(unsigned iel = msh->_elementOffset[iproc];
+      iel < msh->_elementOffset[iproc + 1u];
+      ++iel) {
+
+    const unsigned geom = msh->GetElementType(iel);
+    const unsigned nPsi = msh->GetElementDofNumber(iel, psiType);
+    const unsigned nX = msh->GetElementDofNumber(iel, xType);
+    const unsigned nV = msh->GetElementDofNumber(iel, velocityType);
+
+    psi.resize(nPsi);
+    coordX.assign(dim, std::vector<double>(nX, 0.));
+    velocity.assign(dim, std::vector<double>(nV, 0.));
+
+    for(unsigned i = 0; i < nPsi; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, psiType);
+      psi[i] = (*sol->_Sol[psiIndex])(dof);
+    }
+
+    for(unsigned i = 0; i < nV; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, velocityType);
+      velocity[0][i] = (*sol->_Sol[urIndex])(dof);
+      velocity[1][i] = (*sol->_Sol[uzIndex])(dof);
+    }
+
+    for(unsigned i = 0; i < nX; ++i) {
+      const unsigned dof = msh->GetSolutionDof(i, iel, xType);
+
+      for(unsigned d = 0; d < dim; ++d) {
+        coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+      }
+    }
+
+    const elem_type* femPsi = fem.GetFiniteElement(geom, psiType);
+    const elem_type* femX = fem.GetFiniteElement(geom, xType);
+    const elem_type* femVelocity = fem.GetFiniteElement(geom, velocityType);
+
+    const unsigned nGauss = femPsi->GetGaussPointNumber();
+
+    if(nGauss != cfw[geom]->GetGaussQuadraturePointNumber()) {
+      throw std::runtime_error(
+        "ComputeBurstingBubbleMetrics: incompatible quadrature");
+    }
+
+    if(femVelocity->GetGaussPointNumber() != nGauss) {
+      throw std::runtime_error(
+        "ComputeBurstingBubbleMetrics: incompatible velocity quadrature");
+    }
+
+    std::vector<double> psiG(nGauss, 0.);
+
+    double psiMin = std::numeric_limits<double>::max();
+    double psiMax = -std::numeric_limits<double>::max();
+
+    for(const double value : psi) {
+      psiMin = std::min(psiMin, value);
+      psiMax = std::max(psiMax, value);
+    }
+
+    for(unsigned ig = 0; ig < nGauss; ++ig) {
+      double* phi = femPsi->GetPhi(ig);
+
+      for(unsigned i = 0; i < nPsi; ++i) {
+        psiG[ig] += psi[i] * phi[i];
+      }
+
+      psiMin = std::min(psiMin, psiG[ig]);
+      psiMax = std::max(psiMax, psiG[ig]);
+    }
+
+    const bool cut =
+      psiMin <= 0. &&
+      psiMax >= 0. &&
+      psiMax - psiMin > 1.e-14;
+
+    std::vector<TypeIO> weightPositive(nGauss, 0.);
+    std::vector<TypeIO> weightLiquid(nGauss, 0.);
+
+    if(cut) {
+      std::vector<const double*> xg(dim);
+
+      for(unsigned d = 0; d < dim; ++d) {
+        xg[d] = femPsi->GetGaussRule().GetGaussCoordinatePointer(d);
+      }
+
+      std::vector<double> a;
+      BestFitLinearInterpolation(xg, psiG, a);
+
+      double interfaceConstant = a[dim];
+      a.resize(dim);
+
+      cfw[geom]->GetWeightWithMap(
+        0,
+        a,
+        interfaceConstant,
+        weightPositive);
+
+      for(unsigned ig = 0; ig < nGauss; ++ig) {
+        weightLiquid[ig] =
+          options.liquidPositive
+          ? weightPositive[ig]
+          : static_cast<TypeIO>(1. - weightPositive[ig]);
+      }
+    }
+    else {
+      const bool liquidElement =
+        options.liquidPositive
+        ? psiMax > 0.
+        : psiMax <= 0.;
+
+      if(liquidElement) {
+        std::fill(
+          weightLiquid.begin(),
+          weightLiquid.end(),
+          static_cast<TypeIO>(1.));
+      }
+    }
+
+    double elementVolume = 0.;
+    double liquidVolume = 0.;
+    double zMoment = 0.;
+    double uzMoment = 0.;
+
+    for(unsigned ig = 0; ig < nGauss; ++ig) {
+      double weight = 0.;
+      double weightX = 0.;
+      double weightV = 0.;
+
+      femPsi->Jacobian(
+        coordX,
+        ig,
+        weight,
+        phiPsi,
+        phiPsi_x);
+
+      femX->Jacobian(
+        coordX,
+        ig,
+        weightX,
+        phiX,
+        phiX_x);
+
+      femVelocity->Jacobian(
+        coordX,
+        ig,
+        weightV,
+        phiVelocity,
+        phiVelocity_x);
+
+      std::vector<double> x(dim, 0.);
+
+      for(unsigned i = 0; i < nX; ++i) {
+        for(unsigned d = 0; d < dim; ++d) {
+          x[d] += coordX[d][i] * phiX[i];
+        }
+      }
+
+      const double r = x[0] - axisCoordinate;
+
+      if(r < -1.e-12) {
+        throw std::runtime_error(
+          "ComputeBurstingBubbleMetrics: negative axisymmetric radius");
+      }
+
+      const double dV =
+        weight *
+        2. * pi * std::max(r, 0.);
+
+      const double dVL =
+        dV * static_cast<double>(weightLiquid[ig]);
+
+      elementVolume += dV;
+
+      if(dVL <= 0.) continue;
+
+      double uz = 0.;
+
+      for(unsigned i = 0; i < nV; ++i) {
+        uz += velocity[1][i] * phiVelocity[i];
+      }
+
+      liquidVolume += dVL;
+      zMoment += x[1] * dVL;
+      uzMoment += uz * dVL;
+    }
+
+    if(elementVolume <= 0.) continue;
+
+    const double liquidFraction =
+      liquidVolume / elementVolume;
+
+    if(liquidFraction <= options.graphLiquidFractionTolerance) {
+      continue;
+    }
+
+    localIds.push_back(iel);
+    localData.push_back(liquidVolume);
+    localData.push_back(zMoment);
+    localData.push_back(uzMoment);
+    localData.push_back(liquidFraction);
+
+    const unsigned nNear =
+      msh->el->GetElementNearElementSize(iel, 1);
+
+    for(unsigned j = 0; j < nNear; ++j) {
+      const unsigned jel =
+        msh->el->GetElementNearElement(iel, j);
+
+      if(jel == iel) continue;
+
+      localNeighbourPairs.push_back(iel);
+      localNeighbourPairs.push_back(jel);
+    }
+  }
+
+  const std::vector<unsigned> ids =
+    AllGatherVector(localIds, MPI_UNSIGNED);
+
+  const std::vector<double> data =
+    AllGatherVector(localData, MPI_DOUBLE);
+
+  const std::vector<unsigned> neighbourPairs =
+    AllGatherVector(localNeighbourPairs, MPI_UNSIGNED);
+
+  if(data.size() != 4u * ids.size()) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: inconsistent gathered element data");
+  }
+
+  if(neighbourPairs.size() % 2u != 0u) {
+    throw std::runtime_error(
+      "ComputeBurstingBubbleMetrics: inconsistent gathered neighbour data");
+  }
+
+  BurstingBubbleMetrics result;
+  result.time = time;
+  result.timeOverTc = time / tc;
+
+  if(ids.empty()) {
+    state.previousDroplets.clear();
+    state.ResetPendingFirstDrop();
+    state.hasPreviousCall = true;
+    state.previousCallTime = time;
+    return result;
+  }
+
+  std::unordered_map<unsigned, unsigned> idToPos;
+  idToPos.reserve(2u * ids.size());
+
+  for(unsigned i = 0; i < ids.size(); ++i) {
+    idToPos[ids[i]] = i;
+  }
+
+  UnionFind uf(static_cast<unsigned>(ids.size()));
+
+  // A pair is connected only if BOTH elements survived the liquid-fraction
+  // threshold. Therefore a psi=0 contact or an infinitesimal liquid sliver
+  // cannot keep two macroscopic components connected.
+  for(unsigned k = 0; k < neighbourPairs.size(); k += 2u) {
+    const auto ia = idToPos.find(neighbourPairs[k]);
+    const auto ib = idToPos.find(neighbourPairs[k + 1u]);
+
+    if(ia != idToPos.end() && ib != idToPos.end()) {
+      uf.Unite(ia->second, ib->second);
+    }
+  }
+
+  struct Component {
+    double volume = 0.;
+    double zMoment = 0.;
+    double uzMoment = 0.;
+  };
+
+  std::unordered_map<unsigned, Component> components;
+
+  for(unsigned i = 0; i < ids.size(); ++i) {
+    Component& c = components[uf.Find(i)];
+    c.volume += data[4u * i];
+    c.zMoment += data[4u * i + 1u];
+    c.uzMoment += data[4u * i + 2u];
+  }
+
+  result.nLiquidComponents =
+    static_cast<unsigned>(components.size());
+
+  unsigned bulkRoot = components.begin()->first;
+  double bulkVolume = components.begin()->second.volume;
+
+  for(const auto& item : components) {
+    if(item.second.volume > bulkVolume) {
+      bulkRoot = item.first;
+      bulkVolume = item.second.volume;
+    }
+  }
+
+  result.bulkLiquidVolume = bulkVolume;
+
+  struct CurrentDrop {
+    unsigned id = 0u;
+    double volume = 0.;
+    double radius = 0.;
+    double z = 0.;
+    double vz = 0.;
+  };
+
+  std::vector<CurrentDrop> current;
+
+  for(const auto& item : components) {
+    if(item.first == bulkRoot) continue;
+    if(item.second.volume < minVolume) continue;
+
+    CurrentDrop d;
+    d.volume = item.second.volume;
+    d.radius = std::cbrt(3. * d.volume / (4. * pi));
+    d.z = item.second.zMoment / d.volume - options.freeSurfaceZ;
+    d.vz = item.second.uzMoment / d.volume;
+
+    current.push_back(d);
+  }
+
+  // ------------------------------------------------------------
+  // Persistent droplet IDs
+  // ------------------------------------------------------------
+
+  const double dtTrack =
+    state.hasPreviousCall
+    ? std::max(time - state.previousCallTime, 0.)
+    : 0.;
+
+  std::vector<bool> used(
+    state.previousDroplets.size(),
+    false);
+
+  for(CurrentDrop& d : current) {
+    double best = std::numeric_limits<double>::max();
+    int bestIndex = -1;
+
+    for(unsigned j = 0; j < state.previousDroplets.size(); ++j) {
+      if(used[j]) continue;
+
+      const auto& old = state.previousDroplets[j];
+
+      const double predicted =
+        old.zCm +
+        old.verticalVelocity * dtTrack;
+
+      const double distance =
+        std::abs(d.z - predicted);
+
+      if(distance < best) {
+        best = distance;
+        bestIndex = static_cast<int>(j);
+      }
+    }
+
+    const double trackingTolerance =
+      options.dropletTrackingTolerance > 0.
+      ? options.dropletTrackingTolerance
+      : std::max(8. * hMin, 0.05 * bubbleRadius);
+
+    if(bestIndex >= 0 && best <= trackingTolerance) {
+      d.id =
+        state.previousDroplets[
+          static_cast<unsigned>(bestIndex)].id;
+
+      used[static_cast<unsigned>(bestIndex)] = true;
+    }
+    else {
+      d.id = state.nextDropletId++;
+    }
+  }
+
+  std::sort(
+    current.begin(),
+    current.end(),
+  [](const CurrentDrop & a, const CurrentDrop & b) {
+    return a.id < b.id;
+  });
+
+  state.previousDroplets.clear();
+
+  for(const CurrentDrop& d : current) {
+    BBDropletMetrics m;
+    m.id = d.id;
+    m.volume = d.volume;
+    m.radius = d.radius;
+    m.radiusOverRb = d.radius / bubbleRadius;
+    m.zCm = d.z;
+    m.zCmOverRb = d.z / bubbleRadius;
+    m.verticalVelocity = d.vz;
+    m.capillaryNumber = muLiquid * d.vz / sigma;
+
+    result.droplets.push_back(m);
+
+    BurstingBubbleState::TrackedDroplet tracked;
+    tracked.id = d.id;
+    tracked.zCm = d.z;
+    tracked.verticalVelocity = d.vz;
+
+    state.previousDroplets.push_back(tracked);
+  }
+
+  result.nDroplets =
+    static_cast<unsigned>(result.droplets.size());
+
+  // ------------------------------------------------------------
+  // First-drop event
+  // ------------------------------------------------------------
+
+  if(!state.firstDropletDetected) {
+    if(!current.empty()) {
+      const auto first =
+        std::min_element(
+          current.begin(),
+          current.end(),
+      [](const CurrentDrop & a, const CurrentDrop & b) {
+        return a.id < b.id;
+      });
+
+      if(state.pendingFirstDropSteps == 0u) {
+        state.pendingFirstDropTime = time;
+        state.pendingFirstDropRadius = first->radius;
+        state.pendingFirstDropVelocity = first->vz;
+        state.pendingFirstDropCa = muLiquid * first->vz / sigma;
+      }
+
+      ++state.pendingFirstDropSteps;
+
+      if(state.pendingFirstDropSteps >=
+          std::max(1u, options.persistenceSteps)) {
+
+        state.firstDropletDetected = true;
+        state.firstDropletTime = state.pendingFirstDropTime;
+        state.firstDropletRadius = state.pendingFirstDropRadius;
+        state.firstDropletVelocity = state.pendingFirstDropVelocity;
+        state.firstDropletCa = state.pendingFirstDropCa;
+      }
+    }
+    else {
+      state.ResetPendingFirstDrop();
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Central cavity apex / jet tip.
+  //
+  // Do NOT use the connectivity graph here. Along the axis the physical jet
+  // tip is the LOWEST psi=0 root. Detached jet drops generate additional roots
+  // above it, so choosing the lowest root keeps tracking the bulk jet.
+  // ------------------------------------------------------------
+
+  const AxisRoot axisRoot =
+    FindLowestAxisRoot(
+      msh,
+      sol,
+      psiIndex,
+      psiType,
+      uzIndex,
+      velocityType,
+      axisCoordinate,
+      axisTol,
+      options.psiZeroTolerance);
+
+  if(axisRoot.found) {
+    result.hasJetTip = true;
+    result.jetTipZ = axisRoot.z - options.freeSurfaceZ;
+    result.jetTipZOverRb = result.jetTipZ / bubbleRadius;
+    result.jetTipVelocity = axisRoot.uz;
+    result.jetTipCa = muLiquid * result.jetTipVelocity / sigma;
+
+    if(state.hasPreviousTip && time > state.previousTipTime) {
+      result.jetTipVelocityFD =
+        (result.jetTipZ - state.previousJetTipZ) /
+        (time - state.previousTipTime);
+    }
+
+    if(!state.hasT0 &&
+        state.hasPreviousTip &&
+        state.previousJetTipZ <= 0. &&
+        result.jetTipZ > 0.) {
+
+      const double dz =
+        result.jetTipZ -
+        state.previousJetTipZ;
+
+      const double alpha =
+        std::abs(dz) > 1.e-14
+        ? -state.previousJetTipZ / dz
+        : 1.;
+
+      state.t0 =
+        state.previousTipTime +
+        alpha *
+        (time - state.previousTipTime);
+
+      state.hasT0 = true;
+    }
+
+    state.previousTipTime = time;
+    state.previousJetTipZ = result.jetTipZ;
+    state.hasPreviousTip = true;
+  }
+
+  state.hasPreviousCall = true;
+  state.previousCallTime = time;
+
+  result.hasT0 = state.hasT0;
+
+  if(state.hasT0) {
+    result.t0 = state.t0;
+    result.shiftedTimeOverTc =
+      (time - state.t0) / tc;
+  }
+
+  result.firstDropletDetected =
+    state.firstDropletDetected;
+
+  if(state.firstDropletDetected) {
+    result.firstDropletTime = state.firstDropletTime;
+    result.firstDropletTimeOverTc = state.firstDropletTime / tc;
+    result.firstDropletRadiusOverRb = state.firstDropletRadius / bubbleRadius;
+    result.firstDropletVelocity = state.firstDropletVelocity;
+    result.firstDropletCa = state.firstDropletCa;
+  }
+
+  return result;
+}
+
+void PrintBurstingBubbleMetrics(
+  const BurstingBubbleMetrics& m,
+  const unsigned iproc,
+  const std::string& prefix) {
+
+  using namespace BurstingBubbleDetail;
+
+  if(iproc != 0u) return;
+
+  const unsigned w = 24u;
+  const std::string jetFile = prefix + "_jet.dat";
+  const std::string dropFile = prefix + "_droplets.dat";
+
+  const bool jetHeader = FileEmptyOrMissing(jetFile);
+
+  std::ofstream jet(jetFile, std::ios::app);
+
+  if(!jet) {
+    throw std::runtime_error(
+      "PrintBurstingBubbleMetrics: cannot open " + jetFile);
+  }
+
+  if(jetHeader) {
+    jet
+        << "#"
+        << std::setw(w - 1) << "t"
+        << std::setw(w) << "t/tc"
+        << std::setw(w) << "(t-t0)/tc"
+        << std::setw(w) << "z_tip"
+        << std::setw(w) << "z_tip/Rb"
+        << std::setw(w) << "V_tip"
+        << std::setw(w) << "Ca_tip"
+        << std::setw(w) << "V_tip_FD"
+        << std::setw(w) << "N_components"
+        << std::setw(w) << "N_drops"
+        << std::setw(w) << "t_d1"
+        << std::setw(w) << "t_d1/tc"
+        << std::setw(w) << "R_d1/Rb"
+        << std::setw(w) << "V_d1"
+        << std::setw(w) << "Ca_d1"
+        << '\n';
+  }
+
+  jet
+      << std::scientific
+      << std::setprecision(16)
+      << std::setw(w) << m.time
+      << std::setw(w) << m.timeOverTc
+      << std::setw(w) << m.shiftedTimeOverTc
+      << std::setw(w) << m.jetTipZ
+      << std::setw(w) << m.jetTipZOverRb
+      << std::setw(w) << m.jetTipVelocity
+      << std::setw(w) << m.jetTipCa
+      << std::setw(w) << m.jetTipVelocityFD
+      << std::setw(w) << m.nLiquidComponents
+      << std::setw(w) << m.nDroplets
+      << std::setw(w) << m.firstDropletTime
+      << std::setw(w) << m.firstDropletTimeOverTc
+      << std::setw(w) << m.firstDropletRadiusOverRb
+      << std::setw(w) << m.firstDropletVelocity
+      << std::setw(w) << m.firstDropletCa
+      << '\n';
+
+  const bool dropHeader = FileEmptyOrMissing(dropFile);
+
+  std::ofstream drop(dropFile, std::ios::app);
+
+  if(!drop) {
+    throw std::runtime_error(
+      "PrintBurstingBubbleMetrics: cannot open " + dropFile);
+  }
+
+  if(dropHeader) {
+    drop
+        << "#"
+        << std::setw(w - 1) << "t"
+        << std::setw(w) << "t/tc"
+        << std::setw(w) << "drop_id"
+        << std::setw(w) << "z_cm"
+        << std::setw(w) << "z_cm/Rb"
+        << std::setw(w) << "V_z"
+        << std::setw(w) << "Ca_d"
+        << std::setw(w) << "volume"
+        << std::setw(w) << "R_eq"
+        << std::setw(w) << "R_eq/Rb"
+        << '\n';
+  }
+
+  for(const BBDropletMetrics& d : m.droplets) {
+    drop
+        << std::scientific
+        << std::setprecision(16)
+        << std::setw(w) << m.time
+        << std::setw(w) << m.timeOverTc
+        << std::setw(w) << d.id
+        << std::setw(w) << d.zCm
+        << std::setw(w) << d.zCmOverRb
+        << std::setw(w) << d.verticalVelocity
+        << std::setw(w) << d.capillaryNumber
+        << std::setw(w) << d.volume
+        << std::setw(w) << d.radius
+        << std::setw(w) << d.radiusOverRb
+        << '\n';
+  }
 }

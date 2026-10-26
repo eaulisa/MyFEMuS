@@ -309,8 +309,8 @@ int main(int argc, char **argv) {
 
       MultiLevelMesh mlMsh0;
       std::string meshName = "./input/unstructured_RB_tri_h8.neu";
-      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = (nSteps > 100) ? nSteps / 100 : 1;
+      const unsigned nPrint  = 1;//(nSteps > 100) ? nSteps / 100 : 1;
       const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
@@ -418,8 +418,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       if (iproc == 0) {
@@ -491,6 +491,29 @@ int main(int argc, char **argv) {
       vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, 0);
 
       LevelSetDiagnostics final_diagnostics;
+
+      BurstingBubbleState bbState;
+      BurstingBubbleOptions bbOptions;
+      bbOptions.liquidPositive = false;
+      bbOptions.minRadiusOverH = 2.;
+      bbOptions.minEquivalentRadius = 0.;
+      bbOptions.minDropletVolume = 0.;
+      bbOptions.graphLiquidFractionTolerance = 1.e-12;
+      bbOptions.persistenceSteps = 2u;
+      bbOptions.freeSurfaceZ = cfg.psi.freeSurfaceHeight;
+      bbOptions.axisTolerance = -1.;
+      bbOptions.psiZeroTolerance = 1.e-12;
+      bbOptions.dropletTrackingTolerance = -1.;
+      const double bbRadius = 1.;
+      const double bbRhoLiquid = properties.rho2;
+      const double bbMuLiquid = properties.mu2;
+      const double bbSigma = properties.sigma;
+      const double bbHMin = GetMaxElementH(mlmsh0->GetLevel(levelF), levelF);
+      const std::string bbOutputPrefix = "levelsetdiagnostic/bursting_bubble_LC" + std::to_string(levelC) + "_LF" + std::to_string(levelF) + "_NS" + std::to_string(nSteps);
+      if(iproc == 0) {
+        std::ofstream(bbOutputPrefix + "_jet.dat", std::ios::trunc).close();
+        std::ofstream(bbOutputPrefix + "_droplets.dat", std::ios::trunc).close();
+      }
 
       for (unsigned t = 1; t <= 1 + nSteps; t++) {
 
@@ -838,6 +861,11 @@ int main(int argc, char **argv) {
 
         LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
+
+        if(simulation == SimulationCase::BB) {
+          const BurstingBubbleMetrics bbMetrics = ComputeBurstingBubbleMetrics(*mlsol1, psiName, vName, levelC, time, bbHMin, bbRadius, bbRhoLiquid, bbMuLiquid, bbSigma, axisCoordinate, bbState, bbOptions);
+          PrintBurstingBubbleMetrics(bbMetrics, iproc, bbOutputPrefix);
+        }
 
         // Export solution to VTK (selected levels)
         VTKWriter vtkIO1(mlsol1);

@@ -1558,7 +1558,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
 
                       // double C1 = C0 * 0.05;
 
-                      const double gammaP = 0.0001;
+                      const double gammaP = 0.001;
 
                       const double muP  = P1 ? mu1  : mu2;
                       const double rhoP = P1 ? rho1 : rho2;
