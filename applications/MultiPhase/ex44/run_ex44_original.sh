@@ -16,23 +16,23 @@ NPROC=8
 # ------------------------------------------------------------
 
 DIM=2
-SIMULATION="rb2"
-SYMMETRIC=1
-AXISYMMETRIC=0
+SIMULATION="bb"
+SYMMETRIC=0
+AXISYMMETRIC=1
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1 2 3 4)
-ADAPTIVE_LEVELS=(5)
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(8)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(3000)
+NSTEPS=(12860)
 
 # ------------------------------------------------------------
 # Velocity multigrid
