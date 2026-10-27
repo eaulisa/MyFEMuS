@@ -2185,7 +2185,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   auto GetPhysicalMeasureFactor = [&](const std::vector<double>& x) -> double {
 
     if(axisymmetric) {
-    const double r = x[0] - axisCoordinate;
+      const double r = x[0] - axisCoordinate;
 
       if(r < -1.e-12) {
         throw std::runtime_error("ComputeLevelSetDiagnostics: negative axisymmetric radius");
@@ -2196,13 +2196,13 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     }
 
     if(symmetric) {
-    return symmetryFactor;
-  }
+      return symmetryFactor;
+    }
 
-  return 1.0;
-};
+    return 1.0;
+  };
 
-for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
 
     const unsigned ielGeom = msh->GetElementType(iel);
     const unsigned nDofsPsi = msh->GetElementDofNumber(iel, psiType);
@@ -3398,9 +3398,12 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = (dim == 2) ? 0.35 : 0.25;
 
       cfg.psi.type = PsiType::TWO_BUBBLES;
-    cfg.psi.bubbleCenters = (dim == 2) ? {{0.5, 0.65}, {0.5, 0.35}} : {
-        {0.5, 0.5, 0.58}, {0.5, 0.5, 0.3}
-      };
+      if(dim == 2) {
+        cfg.psi.bubbleCenters = {{0.5, 0.65}, {0.5, 0.35}};
+      }
+      else {
+        cfg.psi.bubbleCenters = {{0.5, 0.5, 0.58}, {0.5, 0.5, 0.3}};
+      }
       cfg.psi.bubbleRadii = {0.15, 0.1};
 
       cfg.properties.rho1 = (dim == 2) ? 100. : 1.;

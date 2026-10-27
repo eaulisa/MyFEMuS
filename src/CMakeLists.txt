@@ -76,6 +76,7 @@ mesh/geom_elements/GeomElemTri7.cpp
 mesh/geom_elements/GeomElemEdge2.cpp
 mesh/geom_elements/GeomElemEdge3.cpp
 mesh/Elem.cpp
+mesh/ElemGhostLayer.cpp
 mesh/Mesh.cpp
 mesh/MultiLevelMesh.cpp
 mesh/obj_io.cpp

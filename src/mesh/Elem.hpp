@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 #include "Mesh.hpp"
 #include "NumericVector.hpp"
@@ -165,7 +166,6 @@ namespace femus {
       unsigned GetElementNearVertex(const unsigned& inode, const unsigned& jnode);
 
       void BuildElementNearElement();
-      void BuildElementNearElement(Mesh *msh);
 
       const unsigned GetElementNearElementSize(const unsigned& iel, const unsigned &layers)  {
         return (layers == 0) ? 1 : _elementNearElement.end(iel);
@@ -405,6 +405,23 @@ namespace femus {
 
       MyMatrix <unsigned> _elementNearVertex;
       MyMatrix <unsigned> _elementNearElement;
+
+    public:
+      void BuildElementNearElement(Mesh *msh, const bool updateElementNearFace);
+      void BuildEdgePoints(Mesh *msh);
+      std::unordered_map<unsigned, std::vector<unsigned>>& GetGhostElementLayer(const unsigned jproc);
+      const std::unordered_map<unsigned, std::vector<unsigned>>& GetGhostElementLayer(const unsigned jproc) const;
+      unsigned GetGhostElementType(const unsigned jproc, const unsigned iel) const;
+      unsigned GetGhostElementLevel(const unsigned jproc, const unsigned iel) const;
+      bool GetIfGhostElementFatherHasBeenRefined(const unsigned jproc, const unsigned iel) const;
+      void DebugCheckConnectivity(const unsigned nnodes, const unsigned connectivityType);
+      void DebugCheckNodeLayout(Mesh *msh);
+
+    private:
+      std::vector<std::unordered_map<unsigned, std::vector<unsigned>>> _ghostElementLayer;
+      std::vector<std::unordered_map<unsigned, unsigned>> _ghostElementType;
+      std::vector<std::unordered_map<unsigned, unsigned>> _ghostElementLevel;
+      std::vector<std::vector<unsigned>> _ghostElements_send;
 
   };
 

@@ -215,93 +215,98 @@ namespace femus {
     coarseLocalizedAmrVector.resize(0);
 
     _mesh.el = new elem(mshc);
+    _mesh.el->BuildElementNearElement(mshc, false);
+    _mesh.el->BuildEdgePoints(&_mesh);
+
     _mesh.el->StackElementQuantities(0);
     _mesh.el->StackElementDof(0);
     _mesh.el->StackElementNearFace(0);
     elc->StackChildElement(0);
     elc->StackChildElementDof(0);
 
-    int nnodes = elc->GetNodeNumber();
-
-    if (_iproc == 0) {
-      _mesh.SetNumberOfNodes(nnodes);
-      _mesh.el->SetNodeNumber(nnodes);
-
-      //find all the elements near each vertex
-      _mesh.el->BuildElementNearVertex();
-
-      //initialize to UINT_MAX all the middle edge points
-      for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
-        if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
-          for(unsigned inode = _mesh.el->GetElementDofNumber(iel, 0); inode < _mesh.el->GetElementDofNumber(iel, 1); inode++) {
-            _mesh.el->SetElementDofIndex(iel, inode, UINT_MAX);
-          }
-        }
-      }
-
-      //find all the middle edge points
-      for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
-        if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
-          unsigned ielt = _mesh.el->GetElementType(iel);
-          unsigned istart = _mesh.el->GetElementDofNumber(iel, 0);
-          unsigned iend = _mesh.el->GetElementDofNumber(iel, 1);
-
-          for(unsigned inode = istart; inode < iend; inode++) {
-            if(UINT_MAX == _mesh.el->GetElementDofIndex(iel, inode)) {
-              nnodes++;
-              _mesh.el->SetElementDofIndex(iel, inode, nnodes  - 1u);
-              unsigned im = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][0]);
-              unsigned ip = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][1]);
-
-              //find all the near elements which share the same middle edge point
-              for(unsigned j = 0; j < _mesh.el->GetElementNearVertexNumber(im); j++) {
-                unsigned jel = _mesh.el->GetElementNearVertex(im, j);
-
-                if(_mesh.el->GetIfFatherHasBeenRefined(jel) && jel > iel) {     // to skip coarse elements
-                  unsigned jm = 0, jp = 0;
-                  unsigned jelt = _mesh.el->GetElementType(jel);
-
-                  for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
-                    if(_mesh.el->GetElementDofIndex(jel, jnode) == im) {
-                      jm = jnode + 1u;
-                      break;
-                    }
-                  }
-
-                  if(jm != 0) {   //TODO this can be changed and put inside (by Sara)
-                    for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
-                      if(_mesh.el->GetElementDofIndex(jel, jnode) == ip) {
-                        jp = jnode + 1u;
-                        break;
-                      }
-                    }
-
-                    if(jp != 0) {
-                      if(jp < jm) {
-                        unsigned tp = jp;
-                        jp = jm;
-                        jm = tp;
-                      }
-
-                      _mesh.el->SetElementDofIndex(jel, vertices2EdgeMapping[jelt][--jm][--jp], nnodes  - 1u);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    MPI_Bcast(&nnodes, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-    _mesh.SetNumberOfNodes(nnodes);
-    _mesh.el->SetNodeNumber(nnodes);
-
-    if (_iproc == 0) Buildkmid(); // check better but it seems to fill only elementDof (which is scattered after)
-
-    _mesh.el->DeleteElementNearVertex();
+    // int nnodes = elc->GetNodeNumber();
+    //
+    // if (_iproc == 0) {
+    //   _mesh.SetNumberOfNodes(nnodes);
+    //   _mesh.el->SetNodeNumber(nnodes);
+    //
+    //   //find all the elements near each vertex
+    //   _mesh.el->BuildElementNearVertex();
+    //
+    //   //initialize to UINT_MAX all the middle edge points
+    //   for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
+    //     if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
+    //       for(unsigned inode = _mesh.el->GetElementDofNumber(iel, 0); inode < _mesh.el->GetElementDofNumber(iel, 1); inode++) {
+    //         _mesh.el->SetElementDofIndex(iel, inode, UINT_MAX);
+    //       }
+    //     }
+    //   }
+    //
+    //   //find all the middle edge points
+    //   for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
+    //     if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
+    //       unsigned ielt = _mesh.el->GetElementType(iel);
+    //       unsigned istart = _mesh.el->GetElementDofNumber(iel, 0);
+    //       unsigned iend = _mesh.el->GetElementDofNumber(iel, 1);
+    //
+    //       for(unsigned inode = istart; inode < iend; inode++) {
+    //         if(UINT_MAX == _mesh.el->GetElementDofIndex(iel, inode)) {
+    //           nnodes++;
+    //           _mesh.el->SetElementDofIndex(iel, inode, nnodes  - 1u);
+    //           unsigned im = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][0]);
+    //           unsigned ip = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][1]);
+    //
+    //           //find all the near elements which share the same middle edge point
+    //           for(unsigned j = 0; j < _mesh.el->GetElementNearVertexNumber(im); j++) {
+    //             unsigned jel = _mesh.el->GetElementNearVertex(im, j);
+    //
+    //             if(_mesh.el->GetIfFatherHasBeenRefined(jel) && jel > iel) {     // to skip coarse elements
+    //               unsigned jm = 0, jp = 0;
+    //               unsigned jelt = _mesh.el->GetElementType(jel);
+    //
+    //               for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
+    //                 if(_mesh.el->GetElementDofIndex(jel, jnode) == im) {
+    //                   jm = jnode + 1u;
+    //                   break;
+    //                 }
+    //               }
+    //
+    //               if(jm != 0) {   //TODO this can be changed and put inside (by Sara)
+    //                 for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
+    //                   if(_mesh.el->GetElementDofIndex(jel, jnode) == ip) {
+    //                     jp = jnode + 1u;
+    //                     break;
+    //                   }
+    //                 }
+    //
+    //                 if(jp != 0) {
+    //                   if(jp < jm) {
+    //                     unsigned tp = jp;
+    //                     jp = jm;
+    //                     jm = tp;
+    //                   }
+    //
+    //                   _mesh.el->SetElementDofIndex(jel, vertices2EdgeMapping[jelt][--jm][--jp], nnodes  - 1u);
+    //                 }
+    //               }
+    //             }
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+    //
+    // MPI_Bcast(&nnodes, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    //
+    // _mesh.SetNumberOfNodes(nnodes);
+    // _mesh.el->SetNodeNumber(nnodes);
+    //
+    // if (_iproc == 0) {
+    //   _mesh.el->BuildElementNearVertex();
+    //   Buildkmid(); // check better but it seems to fill only elementDof (which is scattered after)
+    // }
+    // _mesh.el->DeleteElementNearVertex();
 
     std::vector < unsigned > partition;
 
@@ -336,7 +341,7 @@ namespace femus {
 
     // back to parallel
 
-    _mesh.el->BuildElementNearElement(&_mesh);
+    _mesh.el->BuildElementNearElement(&_mesh, true);
 
     // build Mesh coordinates by projecting the coarse coordinats
     _mesh._topology = new Solution(&_mesh);

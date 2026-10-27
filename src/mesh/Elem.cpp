@@ -187,7 +187,7 @@ namespace femus {
       jel += increment;
     }
 
-    _elementDof = MyMatrix<unsigned>(rowSizeElDof);
+    _elementDof = MyMatrix<unsigned>(rowSizeElDof, UINT_MAX);
     _elementNearFace = MyMatrix<int>(rowSizeElNearFace, -1);
 
     jel = rowSizeElDof.begin();
@@ -229,6 +229,8 @@ namespace femus {
 
     rowSizeElDof.clear();
     rowSizeElNearFace.clear();
+
+    SetNodeNumber(elc->GetNodeNumber());
   }
 
   // elem::elem(elem* elc, const unsigned, const MyVector<double>& coarseAmrVector) {
@@ -645,228 +647,228 @@ namespace femus {
 // #include <unordered_map>
 // #include <vector>
 
-  void ExchangeNodeBuffers(const std::vector<std::vector<unsigned>>& buffers_send, std::vector<std::vector<unsigned>>& buffers_recv, const unsigned iproc, const unsigned nprocs, const int tag) {
-    std::vector<int> counts_send(nprocs, 0);
-    std::vector<int> counts_recv(nprocs, 0);
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      if (jproc == iproc) continue;
-      if (buffers_send[jproc].size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
-      counts_send[jproc] = static_cast<int>(buffers_send[jproc].size());
-    }
-
-    MPI_Alltoall(counts_send.data(), 1, MPI_INT, counts_recv.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
-    buffers_recv.clear();
-    buffers_recv.resize(nprocs);
-    buffers_recv[iproc] = buffers_send[iproc];
-
-    std::vector<MPI_Request> requests(2 * nprocs, MPI_REQUEST_NULL);
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      if (jproc == iproc) continue;
-
-      if (counts_recv[jproc] > 0) {
-        buffers_recv[jproc].resize(counts_recv[jproc]);
-        MPI_Irecv(buffers_recv[jproc].data(), counts_recv[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[jproc]);
-      }
-
-      if (counts_send[jproc] > 0) {
-        MPI_Isend(buffers_send[jproc].data(), counts_send[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[nprocs + jproc]);
-      }
-    }
-
-    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
-  }
-
-  void elem::BuildElementNearElement(Mesh *msh) {
-    unsigned dim = msh->GetDimension();
-    unsigned nprocs = msh->n_processors();
-    const unsigned iproc = msh->processor_id();
-
-    MyVector<unsigned> rowSize(_elementOffset, 1);
-
-    std::unordered_map<unsigned, std::vector<unsigned>> nodeToElement;
-    nodeToElement.reserve(rowSize.end() - rowSize.begin()); //TODO get this infor from msh
-
-    std::vector<std::vector<unsigned>> ghostNodes_send(nprocs);
-
-    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
-      for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
-        unsigned inode = GetElementDofIndex(iel, i);
-        std::vector<unsigned>& elements = nodeToElement[inode];
-        if (elements.empty()) {
-          elements.reserve(2u << dim);
-          unsigned jproc = msh->IsdomBisectionSearch(inode, 2);
-
-          if (jproc != iproc) ghostNodes_send[jproc].push_back(inode);
-        }
-        elements.push_back(iel);
-      }
-    }
-
-    std::vector<std::vector<unsigned>> ghost_send(nprocs);
-    std::vector<std::vector<unsigned>> ghost_recv;
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      unsigned count_send = 0;
-
-      for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
-        unsigned inode = ghostNodes_send[jproc][i];
-        const std::vector<unsigned>& elements = nodeToElement.at(inode);
-        if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
-        count_send += 2 + static_cast<unsigned>(elements.size());
-      }
-
-      ghost_send[jproc].reserve(count_send);
-
-      for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
-        unsigned inode = ghostNodes_send[jproc][i];
-        const std::vector<unsigned>& elements = nodeToElement.at(inode);
-
-        ghost_send[jproc].push_back(inode);
-        ghost_send[jproc].push_back(static_cast<unsigned>(elements.size()));
-        ghost_send[jproc].insert(ghost_send[jproc].end(), elements.begin(), elements.end());
-      }
-    }
-
-    ExchangeNodeBuffers(ghost_send, ghost_recv, iproc, nprocs, 100);
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      unsigned pos_recv = 0;
-
-      while (pos_recv < ghost_recv[jproc].size()) {
-        unsigned inode = ghost_recv[jproc][pos_recv++];
-        unsigned count_recv = ghost_recv[jproc][pos_recv++];
-        std::vector<unsigned>& elements = nodeToElement[inode];
-
-        elements.insert(elements.end(), ghost_recv[jproc].begin() + pos_recv, ghost_recv[jproc].begin() + pos_recv + count_recv);
-        pos_recv += count_recv;
-      }
-    }
-
-    for (std::unordered_map<unsigned, std::vector<unsigned>>::iterator it = nodeToElement.begin(); it != nodeToElement.end(); ++it) {
-      std::vector<unsigned>& elements = it->second;
-      std::sort(elements.begin(), elements.end());
-      elements.erase(std::unique(elements.begin(), elements.end()), elements.end());
-    }
-
-    std::vector<std::vector<unsigned>> updated_send(nprocs);
-    std::vector<std::vector<unsigned>> updated_recv;
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      unsigned pos_recv = 0;
-      unsigned count_send = 0;
-
-      while (pos_recv < ghost_recv[jproc].size()) {
-        unsigned inode = ghost_recv[jproc][pos_recv++];
-        unsigned count_recv = ghost_recv[jproc][pos_recv++];
-        pos_recv += count_recv;
-
-        const std::vector<unsigned>& elements = nodeToElement.at(inode);
-        if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
-        count_send += 2 + static_cast<unsigned>(elements.size());
-      }
-
-      updated_send[jproc].reserve(count_send);
-      pos_recv = 0;
-
-      while (pos_recv < ghost_recv[jproc].size()) {
-        unsigned inode = ghost_recv[jproc][pos_recv++];
-        unsigned count_recv = ghost_recv[jproc][pos_recv++];
-        pos_recv += count_recv;
-
-        const std::vector<unsigned>& elements = nodeToElement.at(inode);
-
-        updated_send[jproc].push_back(inode);
-        updated_send[jproc].push_back(static_cast<unsigned>(elements.size()));
-        updated_send[jproc].insert(updated_send[jproc].end(), elements.begin(), elements.end());
-      }
-    }
-
-    ExchangeNodeBuffers(updated_send, updated_recv, iproc, nprocs, 101);
-
-    for (unsigned jproc = 0; jproc < nprocs; jproc++) {
-      unsigned pos_recv = 0;
-
-      while (pos_recv < updated_recv[jproc].size()) {
-        unsigned inode = updated_recv[jproc][pos_recv++];
-        unsigned count_recv = updated_recv[jproc][pos_recv++];
-        std::vector<unsigned>& elements = nodeToElement.at(inode);
-
-        elements.assign(updated_recv[jproc].begin() + pos_recv, updated_recv[jproc].begin() + pos_recv + count_recv);
-        pos_recv += count_recv;
-      }
-    }
-
-    std::vector<std::vector<unsigned>> elementNeighbors(rowSize.end() - rowSize.begin());
-
-    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
-      std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
-      elements.push_back(iel);
-
-      for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
-        unsigned inode = GetElementDofIndex(iel, i);
-        const std::vector<unsigned>& adjacentElements = nodeToElement.at(inode);
-
-        for (unsigned j = 0; j < adjacentElements.size(); j++) {
-          if (adjacentElements[j] != iel) elements.push_back(adjacentElements[j]);
-        }
-      }
-
-      std::sort(elements.begin() + 1, elements.end());
-      elements.erase(std::unique(elements.begin() + 1, elements.end()), elements.end());
-      rowSize[iel] = static_cast<unsigned>(elements.size());
-    }
-
-    _elementNearElement = MyMatrix<unsigned>(rowSize, UINT_MAX);
-
-    for (unsigned iel = _elementNearElement.begin(); iel < _elementNearElement.end(); iel++) {
-      const std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
-
-      for (unsigned j = 0; j < elements.size(); j++) {
-        _elementNearElement[iel][j] = elements[j];
-      }
-    }
-
-    for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
-      for (unsigned iface = 0; iface < GetElementFaceNumber(iel); iface++) {
-        if ( GetFaceElementIndex(iel, iface) != -1 )continue;
-
-        const std::vector<unsigned>* faceElements[3] = {nullptr, nullptr, nullptr};
-        unsigned first = 0;
-
-        for (unsigned k = 0; k < dim; k++) {
-          unsigned inode = GetFaceVertexIndex(iel, iface, k);
-          faceElements[k] = &nodeToElement.at(inode);
-          if (faceElements[k]->size() < faceElements[first]->size()) first = k;
-        }
-
-        const std::vector<unsigned>& candidates = *faceElements[first];
-
-        for (unsigned j = 0; j < candidates.size(); j++) {
-          unsigned jel = candidates[j];
-          if (jel == iel) continue;
-
-          bool shared = true;
-
-          for (unsigned k = 0; k < dim && shared; k++) {
-            if (k != first) shared = std::binary_search(faceElements[k]->begin(), faceElements[k]->end(), jel);
-          }
-
-          if (shared) {
-            SetFaceElementIndex(iel, iface, jel + 1u);
-            break;
-          }
-        }
-
-        if (_level == 0 && GetFaceElementIndex(iel, iface) == -1) {
-          SetFaceElementIndex(iel, iface, -101);
-        }
-      }
-    }
-
-  }
+  // void ExchangeNodeBuffers(const std::vector<std::vector<unsigned>>& buffers_send, std::vector<std::vector<unsigned>>& buffers_recv, const unsigned iproc, const unsigned nprocs, const int tag) {
+  //   std::vector<int> counts_send(nprocs, 0);
+  //   std::vector<int> counts_recv(nprocs, 0);
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     if (jproc == iproc) continue;
+  //     if (buffers_send[jproc].size() > INT_MAX) MPI_Abort(MPI_COMM_WORLD, 1);
+  //     counts_send[jproc] = static_cast<int>(buffers_send[jproc].size());
+  //   }
+  //
+  //   MPI_Alltoall(counts_send.data(), 1, MPI_INT, counts_recv.data(), 1, MPI_INT, MPI_COMM_WORLD);
+  //
+  //   buffers_recv.clear();
+  //   buffers_recv.resize(nprocs);
+  //   buffers_recv[iproc] = buffers_send[iproc];
+  //
+  //   std::vector<MPI_Request> requests(2 * nprocs, MPI_REQUEST_NULL);
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     if (jproc == iproc) continue;
+  //
+  //     if (counts_recv[jproc] > 0) {
+  //       buffers_recv[jproc].resize(counts_recv[jproc]);
+  //       MPI_Irecv(buffers_recv[jproc].data(), counts_recv[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[jproc]);
+  //     }
+  //
+  //     if (counts_send[jproc] > 0) {
+  //       MPI_Isend(buffers_send[jproc].data(), counts_send[jproc], MPI_UNSIGNED, static_cast<int>(jproc), tag, MPI_COMM_WORLD, &requests[nprocs + jproc]);
+  //     }
+  //   }
+  //
+  //   MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  // }
+  //
+  // void elem::BuildElementNearElement(Mesh *msh) {
+  //   unsigned dim = msh->GetDimension();
+  //   unsigned nprocs = msh->n_processors();
+  //   const unsigned iproc = msh->processor_id();
+  //
+  //   MyVector<unsigned> rowSize(_elementOffset, 1);
+  //
+  //   std::unordered_map<unsigned, std::vector<unsigned>> nodeToElement;
+  //   nodeToElement.reserve(rowSize.end() - rowSize.begin()); //TODO get this infor from msh
+  //
+  //   std::vector<std::vector<unsigned>> ghostNodes_send(nprocs);
+  //
+  //   for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+  //     for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
+  //       unsigned inode = GetElementDofIndex(iel, i);
+  //       std::vector<unsigned>& elements = nodeToElement[inode];
+  //       if (elements.empty()) {
+  //         elements.reserve(2u << dim);
+  //         unsigned jproc = msh->IsdomBisectionSearch(inode, 2);
+  //
+  //         if (jproc != iproc) ghostNodes_send[jproc].push_back(inode);
+  //       }
+  //       elements.push_back(iel);
+  //     }
+  //   }
+  //
+  //   std::vector<std::vector<unsigned>> ghost_send(nprocs);
+  //   std::vector<std::vector<unsigned>> ghost_recv;
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     unsigned count_send = 0;
+  //
+  //     for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
+  //       unsigned inode = ghostNodes_send[jproc][i];
+  //       const std::vector<unsigned>& elements = nodeToElement.at(inode);
+  //       if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
+  //       count_send += 2 + static_cast<unsigned>(elements.size());
+  //     }
+  //
+  //     ghost_send[jproc].reserve(count_send);
+  //
+  //     for (unsigned i = 0; i < ghostNodes_send[jproc].size(); i++) {
+  //       unsigned inode = ghostNodes_send[jproc][i];
+  //       const std::vector<unsigned>& elements = nodeToElement.at(inode);
+  //
+  //       ghost_send[jproc].push_back(inode);
+  //       ghost_send[jproc].push_back(static_cast<unsigned>(elements.size()));
+  //       ghost_send[jproc].insert(ghost_send[jproc].end(), elements.begin(), elements.end());
+  //     }
+  //   }
+  //
+  //   ExchangeNodeBuffers(ghost_send, ghost_recv, iproc, nprocs, 100);
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     unsigned pos_recv = 0;
+  //
+  //     while (pos_recv < ghost_recv[jproc].size()) {
+  //       unsigned inode = ghost_recv[jproc][pos_recv++];
+  //       unsigned count_recv = ghost_recv[jproc][pos_recv++];
+  //       std::vector<unsigned>& elements = nodeToElement[inode];
+  //
+  //       elements.insert(elements.end(), ghost_recv[jproc].begin() + pos_recv, ghost_recv[jproc].begin() + pos_recv + count_recv);
+  //       pos_recv += count_recv;
+  //     }
+  //   }
+  //
+  //   for (std::unordered_map<unsigned, std::vector<unsigned>>::iterator it = nodeToElement.begin(); it != nodeToElement.end(); ++it) {
+  //     std::vector<unsigned>& elements = it->second;
+  //     std::sort(elements.begin(), elements.end());
+  //     elements.erase(std::unique(elements.begin(), elements.end()), elements.end());
+  //   }
+  //
+  //   std::vector<std::vector<unsigned>> updated_send(nprocs);
+  //   std::vector<std::vector<unsigned>> updated_recv;
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     unsigned pos_recv = 0;
+  //     unsigned count_send = 0;
+  //
+  //     while (pos_recv < ghost_recv[jproc].size()) {
+  //       unsigned inode = ghost_recv[jproc][pos_recv++];
+  //       unsigned count_recv = ghost_recv[jproc][pos_recv++];
+  //       pos_recv += count_recv;
+  //
+  //       const std::vector<unsigned>& elements = nodeToElement.at(inode);
+  //       if (count_send > static_cast<unsigned>(INT_MAX - 2) || elements.size() > static_cast<unsigned>(INT_MAX - 2) - count_send) MPI_Abort(MPI_COMM_WORLD, 1);
+  //       count_send += 2 + static_cast<unsigned>(elements.size());
+  //     }
+  //
+  //     updated_send[jproc].reserve(count_send);
+  //     pos_recv = 0;
+  //
+  //     while (pos_recv < ghost_recv[jproc].size()) {
+  //       unsigned inode = ghost_recv[jproc][pos_recv++];
+  //       unsigned count_recv = ghost_recv[jproc][pos_recv++];
+  //       pos_recv += count_recv;
+  //
+  //       const std::vector<unsigned>& elements = nodeToElement.at(inode);
+  //
+  //       updated_send[jproc].push_back(inode);
+  //       updated_send[jproc].push_back(static_cast<unsigned>(elements.size()));
+  //       updated_send[jproc].insert(updated_send[jproc].end(), elements.begin(), elements.end());
+  //     }
+  //   }
+  //
+  //   ExchangeNodeBuffers(updated_send, updated_recv, iproc, nprocs, 101);
+  //
+  //   for (unsigned jproc = 0; jproc < nprocs; jproc++) {
+  //     unsigned pos_recv = 0;
+  //
+  //     while (pos_recv < updated_recv[jproc].size()) {
+  //       unsigned inode = updated_recv[jproc][pos_recv++];
+  //       unsigned count_recv = updated_recv[jproc][pos_recv++];
+  //       std::vector<unsigned>& elements = nodeToElement.at(inode);
+  //
+  //       elements.assign(updated_recv[jproc].begin() + pos_recv, updated_recv[jproc].begin() + pos_recv + count_recv);
+  //       pos_recv += count_recv;
+  //     }
+  //   }
+  //
+  //   std::vector<std::vector<unsigned>> elementNeighbors(rowSize.end() - rowSize.begin());
+  //
+  //   for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+  //     std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
+  //     elements.push_back(iel);
+  //
+  //     for (unsigned i = 0; i < GetElementDofNumber(iel, 0); i++) {
+  //       unsigned inode = GetElementDofIndex(iel, i);
+  //       const std::vector<unsigned>& adjacentElements = nodeToElement.at(inode);
+  //
+  //       for (unsigned j = 0; j < adjacentElements.size(); j++) {
+  //         if (adjacentElements[j] != iel) elements.push_back(adjacentElements[j]);
+  //       }
+  //     }
+  //
+  //     std::sort(elements.begin() + 1, elements.end());
+  //     elements.erase(std::unique(elements.begin() + 1, elements.end()), elements.end());
+  //     rowSize[iel] = static_cast<unsigned>(elements.size());
+  //   }
+  //
+  //   _elementNearElement = MyMatrix<unsigned>(rowSize, UINT_MAX);
+  //
+  //   for (unsigned iel = _elementNearElement.begin(); iel < _elementNearElement.end(); iel++) {
+  //     const std::vector<unsigned>& elements = elementNeighbors[iel - rowSize.begin()];
+  //
+  //     for (unsigned j = 0; j < elements.size(); j++) {
+  //       _elementNearElement[iel][j] = elements[j];
+  //     }
+  //   }
+  //
+  //   for (unsigned iel = rowSize.begin(); iel < rowSize.end(); iel++) {
+  //     for (unsigned iface = 0; iface < GetElementFaceNumber(iel); iface++) {
+  //       if ( GetFaceElementIndex(iel, iface) != -1 )continue;
+  //
+  //       const std::vector<unsigned>* faceElements[3] = {nullptr, nullptr, nullptr};
+  //       unsigned first = 0;
+  //
+  //       for (unsigned k = 0; k < dim; k++) {
+  //         unsigned inode = GetFaceVertexIndex(iel, iface, k);
+  //         faceElements[k] = &nodeToElement.at(inode);
+  //         if (faceElements[k]->size() < faceElements[first]->size()) first = k;
+  //       }
+  //
+  //       const std::vector<unsigned>& candidates = *faceElements[first];
+  //
+  //       for (unsigned j = 0; j < candidates.size(); j++) {
+  //         unsigned jel = candidates[j];
+  //         if (jel == iel) continue;
+  //
+  //         bool shared = true;
+  //
+  //         for (unsigned k = 0; k < dim && shared; k++) {
+  //           if (k != first) shared = std::binary_search(faceElements[k]->begin(), faceElements[k]->end(), jel);
+  //         }
+  //
+  //         if (shared) {
+  //           SetFaceElementIndex(iel, iface, jel + 1u);
+  //           break;
+  //         }
+  //       }
+  //
+  //       if (_level == 0 && GetFaceElementIndex(iel, iface) == -1) {
+  //         SetFaceElementIndex(iel, iface, -101);
+  //       }
+  //     }
+  //   }
+  //
+  // }
 
   void elem::BuildElementNearVertex() {
     MyVector <unsigned> rowSize(_nvt, 0);

@@ -15,24 +15,24 @@ NPROC=8
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
-SIMULATION="bb"
+DIM=3
+SIMULATION="rb2"
 SYMMETRIC=0
-AXISYMMETRIC=1
+AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(10)
+ADAPTIVE_LEVELS=(4)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(12000)
+NSTEPS=(3000)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -169,7 +169,7 @@ EOF_OPTIONS
 
 -level-${i}ksp_norm_type unpreconditioned
 #-level-${i}ksp_view_final_residual
-# -level-${i}ksp_monitor
+-level-${i}ksp_monitor
 
 -level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8

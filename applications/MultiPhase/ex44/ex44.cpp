@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
   const unsigned nz = cfg.n[2];
 
   auto SetBoundaryCondition =
-  [](const std::vector<double>& x, const char SolName[], double& value, const int /*facename*/, const double /*time*/) -> bool {
+  [](const std::vector<double>& x, const char SolName[], double & value, const int /*facename*/, const double /*time*/) -> bool {
 
     const double tol = 1.e-10;
     const unsigned dim = cfg.boundary.min.size();
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = 1;//(nSteps > 100) ? nSteps / 100 : 1;
+      const unsigned nPrint  = (nSteps > 100) ? nSteps / 100 : 1;
       const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
