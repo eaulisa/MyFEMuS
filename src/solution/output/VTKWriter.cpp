@@ -187,15 +187,39 @@ namespace femus {
     const unsigned dim_array_elvar [] = { nel * static_cast<unsigned>(sizeof( float )) };
     const unsigned dim_array_ndvar [] = { nvt * static_cast<unsigned>(sizeof( float )) };
 
-    // initialize common buffer_void memory
-    unsigned buffer_size = ( dim_array_coord[0] > dim_array_conn[0] ) ? dim_array_coord[0] : dim_array_conn[0];
-    void* buffer_void = new char [buffer_size];
-    char* buffer_char = static_cast <char*>( buffer_void );
+    // // initialize common buffer_void memory
+    // unsigned buffer_size = ( dim_array_coord[0] > dim_array_conn[0] ) ? dim_array_coord[0] : dim_array_conn[0];
+    // void* buffer_void = new char [buffer_size];
+    // char* buffer_char = static_cast <char*>( buffer_void );
+    //
+    // size_t cch;
+    // cch = b64::b64_encode( &buffer_char[0], buffer_size , NULL, 0 );
+    // vector <char> enc;
+    // enc.resize( cch );
+    // char* pt_char;
 
-    size_t cch;
-    cch = b64::b64_encode( &buffer_char[0], buffer_size , NULL, 0 );
-    vector <char> enc;
-    enc.resize( cch );
+    // initialize common buffer_void memory
+    unsigned buffer_size = (dim_array_coord[0] > dim_array_conn[0]) ? dim_array_coord[0] : dim_array_conn[0];
+
+    // A rank with zero owned points/elements gives buffer_size == 0.
+    // Keep at least one byte allocated so that buffer_char[0] is a valid
+    // address even when the encoded data length is zero.
+    const unsigned allocated_buffer_size = (buffer_size > 0u) ? buffer_size : 1u;
+
+    void* buffer_void = new char[allocated_buffer_size];
+    char* buffer_char = static_cast<char*>(buffer_void);
+
+    size_t cch = b64::b64_encode(buffer_char, buffer_size, NULL, 0);
+
+    vector<char> enc;
+
+    // The VTK binary arrays always write a size header first.
+    // Even when buffer_size == 0, this header is non-empty after Base64
+    // encoding, so enc must have enough storage for it.
+    const size_t header_cch = b64::b64_encode(&dim_array_coord[0], sizeof(dim_array_coord), NULL, 0);
+
+    enc.resize(std::max(cch, header_cch));
+
     char* pt_char;
 
     fout  << "    <Piece NumberOfPoints= \"" << nvt << "\" NumberOfCells= \"" << nel << "\" >" << std::endl;
