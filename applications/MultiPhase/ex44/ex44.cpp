@@ -308,7 +308,7 @@ int main(int argc, char **argv) {
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
-      std::string meshName = "./input/unstructured_RB_tri_h8.neu";
+      std::string meshName = "./input/cube_01_unstruct.neu";
       //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
