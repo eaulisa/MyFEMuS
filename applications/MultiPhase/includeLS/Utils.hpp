@@ -1172,7 +1172,7 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
       }
     }
   }
-  const double boundaryTol = 1.e-12;
+  const double boundaryTol = 1.e-2;
 
   for(unsigned i = X[0].begin();
       i < X[0].end();
@@ -1244,7 +1244,7 @@ void rkStep(MultiLevelSolution & mlSol,
         Xk[d][i] += a[j] * K[j][d][i] * dt;
       }
 
-      const double boundaryTol = 1.e-12;
+      const double boundaryTol = 1.e-2;
 
       for (unsigned k = 0; k < X.size(); ++k) {
 
@@ -1989,7 +1989,8 @@ enum class SimulationCase {
   RT,
   DB,
   BB,
-  MB
+  MB,
+  PI
 };
 
 std::string SimulationCaseName(const SimulationCase s) {
@@ -2012,6 +2013,8 @@ std::string SimulationCaseName(const SimulationCase s) {
       return "bb";
     case SimulationCase::MB:
       return "mb";
+    case SimulationCase::PI:
+      return "pi";
   }
 
   throw std::runtime_error("Invalid SimulationCase");
@@ -2028,12 +2031,57 @@ SimulationCase ParseSimulationCase(const std::string& s) {
   if(s == "db") return SimulationCase::DB;
   if(s == "bb") return SimulationCase::BB;
   if(s == "mb") return SimulationCase::MB;
+  if(s == "pi") return SimulationCase::PI;
 
   throw std::runtime_error(
     "Unknown simulation '" + s +
     "'. Valid values are: par, rb1, rb2, saye"
   );
 }
+
+enum class BoundaryType : unsigned {
+  DIRICHLET_S,
+  NEUMANN_S,
+  WALL,
+  SLIP,
+  OUTFLOW
+};
+
+struct BoundaryCondition {
+
+  BoundaryType type = BoundaryType::NEUMANN_S;
+  double value = 0.;
+};
+
+struct BoundaryConfig {
+
+  std::vector<BoundaryCondition> min;
+  std::vector<BoundaryCondition> max;
+
+  void Resize(const unsigned dim) {
+
+    min.resize(dim);
+    max.resize(dim);
+  }
+};
+
+struct SimulationConfig {
+
+  std::vector<double> x_min;
+  std::vector<double> x_max;
+  std::vector<unsigned> n;
+
+  double period = 0.;
+
+  PsiConfig psi;
+
+  MultiphasePhysicalProperties properties;
+
+  BoundaryConfig boundary;
+
+  bool symmetric = false;
+  bool axisymmetric = false;
+};
 
 struct LevelSetDiagnostics {
 
@@ -2060,12 +2108,41 @@ struct LevelSetDiagnostics {
   // ============================================================
 
   bool hasRayleighTaylorMetrics = false;
-  double pb = 0.0;
-  double ps = 0.0;
-  double psad = 0.0;
+  double pb = 0.;
+  double ps = 0.;
+  double psad = 0.;
+
+  // ============================================================
+  // Phase inversion
+  // ============================================================
+
+  bool hasPhaseInversionMetrics = false;
+
+  double fluid1UpperVolume = 0.;
+  double fluid1UpperRatio = 0.;
+  double fluid1VolumeRatio = 0.;
+
+  double potentialEnergy1 = 0.;
+  double potentialEnergy2 = 0.;
+
+  double kineticEnergy1 = 0.;
+  double kineticEnergy2 = 0.;
+
+  double enstrophy1 = 0.;
+  double enstrophy2 = 0.;
+
+  double mechanicalEnergy = 0.;
+
+  double potentialEnergy1Star = 0.;
+  double potentialEnergy2Star = 0.;
+
+  double kineticEnergy1Star = 0.;
+  double kineticEnergy2Star = 0.;
+
+  double interfaceAreaStar = 0.;
 };
 
-LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::vector<std::string>& velocityName, const std::vector<std::string>& pressureName, const unsigned velocityLevel, const SimulationCase simulation, const bool symmetric, const bool axisymmetric, const double axisCoordinate, const std::vector<double>& symmetryCoordinates) {
+LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const std::string& psiName, const std::vector<std::string>& velocityName, const std::vector<std::string>& pressureName, const unsigned velocityLevel, const SimulationCase simulation, const SimulationConfig& cfg, const bool symmetric, const bool axisymmetric, const double axisCoordinate, const std::vector<double>& symmetryCoordinates) {
 
   MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
@@ -2089,19 +2166,22 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   if(axisymmetric && dim != 2) {
     throw std::runtime_error("ComputeLevelSetDiagnostics: axisymmetric diagnostics require dim = 2");
   }
-  /*
-    if(symmetric && symmetryCoordinates.size() != dim - 1u) {
-      throw std::runtime_error("ComputeLevelSetDiagnostics: symmetryCoordinates must contain dim - 1 coordinates");
-    }*/
 
   const double symmetryFactor = symmetric ? ((dim == 2) ? 2.0 : 4.0) : 1.0;
-
   const bool computeRisingBubbleMetrics = simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2;
   const bool computeRayleighTaylorMetrics = simulation == SimulationCase::RT;
+  const bool computePhaseInversionMetrics = simulation == SimulationCase::PI;
+
+  if(computePhaseInversionMetrics && dim != 3) {
+    throw std::runtime_error("ComputeLevelSetDiagnostics: PI requires dim = 3");
+  }
+
+  if(computePhaseInversionMetrics && (symmetric || axisymmetric)) {
+    throw std::runtime_error("ComputeLevelSetDiagnostics: PI diagnostics do not support symmetry reduction");
+  }
 
   std::vector<unsigned> velocityIndex;
   unsigned velocityType = 0;
-
   std::vector<unsigned> pressureIndex;
   unsigned pressureType = 0;
 
@@ -2144,7 +2224,6 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   }
 
   for(unsigned l = velocityLevel; l < level; ++l) {
-
     Solution* sol_l = mlSol.GetSolutionLevel(l);
     Solution* sol_lp1 = mlSol.GetSolutionLevel(l + 1u);
     Mesh* msh_lp1 = mlMsh.GetLevel(l + 1u);
@@ -2160,30 +2239,82 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     }
   }
 
-  double innerAreaLocal = 0.0;
-  double outerAreaLocal = 0.0;
-  double totalAreaLocal = 0.0;
-  double interfaceLengthLocal = 0.0;
+  const unsigned verticalDir = (dim == 2) ? 1u : 2u;
 
-  std::vector<double> barycenterIntegralLocal(dim, 0.0);
-  std::vector<double> velocityIntegralLocal(dim, 0.0);
+  double phaseInversionH = 0.;
+  double phaseInversionTopMin = 0.;
+  double phaseInversionInitialVolume = 0.;
+  double phaseInversionInitialInterfaceArea = 0.;
+  double rho1 = 0.;
+  double rho2 = 0.;
+  double gravity = 0.;
+  double potentialEnergy1Final = 0.;
+  double potentialEnergy2Final = 0.;
+  double kineticEnergy1Scale = 0.;
+  double kineticEnergy2Scale = 0.;
+
+  if(computePhaseInversionMetrics) {
+    phaseInversionH = cfg.x_max[0] - cfg.x_min[0];
+
+    for(unsigned d = 1; d < 3; ++d) {
+      const double Hd = cfg.x_max[d] - cfg.x_min[d];
+
+      if(std::abs(Hd - phaseInversionH) > 1.e-12 * phaseInversionH) {
+        throw std::runtime_error("ComputeLevelSetDiagnostics: PI requires a cubic domain");
+      }
+    }
+
+    rho1 = cfg.properties.rho1;
+    rho2 = cfg.properties.rho2;
+    gravity = std::abs(cfg.properties.gravity);
+
+    if(rho1 <= 0. || rho2 <= 0. || gravity <= 0.) {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: invalid PI physical properties");
+    }
+
+    if(rho2 <= rho1) {
+      throw std::runtime_error("ComputeLevelSetDiagnostics: PI requires rho2 > rho1");
+    }
+
+    phaseInversionTopMin = cfg.x_max[verticalDir] - phaseInversionH / 8.;
+    phaseInversionInitialVolume = phaseInversionH * phaseInversionH * phaseInversionH / 8.;
+    phaseInversionInitialInterfaceArea = 3. * phaseInversionH * phaseInversionH / 4.;
+    const double H4 = phaseInversionH * phaseInversionH * phaseInversionH * phaseInversionH;
+    potentialEnergy1Final = 15. * rho1 * gravity * H4 / 128.;
+    potentialEnergy2Final = 49. * rho2 * gravity * H4 / 128.;
+    const double Ug = (rho2 - rho1) / rho1 * std::sqrt(phaseInversionH * gravity / 2.);
+    const double H3 = phaseInversionH * phaseInversionH * phaseInversionH;
+    kineticEnergy1Scale = rho1 * Ug * Ug * H3 / 16.;
+    kineticEnergy2Scale = rho2 * Ug * Ug * H3 / 16.;
+  }
+
+  double innerAreaLocal = 0.;
+  double outerAreaLocal = 0.;
+  double totalAreaLocal = 0.;
+  double interfaceLengthLocal = 0.;
+  std::vector<double> barycenterIntegralLocal(dim, 0.);
+  std::vector<double> velocityIntegralLocal(dim, 0.);
+  double fluid1UpperVolumeLocal = 0.;
+  double potentialEnergy1Local = 0.;
+  double potentialEnergy2Local = 0.;
+  double kineticEnergy1Local = 0.;
+  double kineticEnergy2Local = 0.;
+  double enstrophy1Local = 0.;
+  double enstrophy2Local = 0.;
 
   std::vector<std::vector<double>> coordX(dim);
   std::vector<double> psi;
   std::vector<std::vector<double>> velocity(dim);
-
   std::vector<double> phiPsi;
   std::vector<double> phiPsi_x;
   std::vector<double> phiX;
   std::vector<double> phiX_x;
   std::vector<double> phiVelocity;
   std::vector<double> phiVelocity_x;
-
   std::vector<std::vector<double>> Jacob;
   std::vector<std::vector<double>> JacI;
 
   auto GetPhysicalMeasureFactor = [&](const std::vector<double>& x) -> double {
-
     if(axisymmetric) {
       const double r = x[0] - axisCoordinate;
 
@@ -2191,8 +2322,8 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
         throw std::runtime_error("ComputeLevelSetDiagnostics: negative axisymmetric radius");
       }
 
-      const double radius = (r > 0.0) ? r : 0.0;
-      return 2.0 * pi * radius;
+      const double radius = (r > 0.) ? r : 0.;
+      return 2. * pi * radius;
     }
 
     if(symmetric) {
@@ -2213,9 +2344,6 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
     for(unsigned d = 0; d < dim; ++d) {
       coordX[d].resize(nDofsX);
-    }
-
-    for(unsigned d = 0; d < dim; ++d) {
       velocity[d].resize(nDofsVelocity);
     }
 
@@ -2243,7 +2371,6 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     const elem_type* femPsi = fem.GetFiniteElement(ielGeom, psiType);
     const elem_type* femX = fem.GetFiniteElement(ielGeom, xType);
     const elem_type* femVelocity = fem.GetFiniteElement(ielGeom, velocityType);
-
     const unsigned nGauss = femPsi->GetGaussPointNumber();
 
     if(nGauss != cfw[ielGeom]->GetGaussQuadraturePointNumber()) {
@@ -2254,8 +2381,7 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       throw std::runtime_error("ComputeLevelSetDiagnostics: incompatible velocity quadrature");
     }
 
-    std::vector<double> psiG(nGauss, 0.0);
-
+    std::vector<double> psiG(nGauss, 0.);
     double psiMin = std::numeric_limits<double>::max();
     double psiMax = -std::numeric_limits<double>::max();
 
@@ -2265,7 +2391,6 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     }
 
     for(unsigned ig = 0; ig < nGauss; ++ig) {
-
       double* phi = femPsi->GetPhi(ig);
 
       for(unsigned i = 0; i < nDofsPsi; ++i) {
@@ -2276,19 +2401,45 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       psiMax = std::max(psiMax, psiG[ig]);
     }
 
-    const bool cut = psiMin <= 0.0 && psiMax >= 0.0 && psiMax - psiMin > 1.e-14;
+    const bool cut = psiMin <= 0. && psiMax >= 0. && psiMax - psiMin > 1.e-14;
+
+    auto EvaluateVelocity = [&](const unsigned ig, std::vector<double>& u, double & omega2) {
+      double weightVelocity = 0.;
+      femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
+      u.assign(dim, 0.);
+      std::vector<std::vector<double>> gradU(dim, std::vector<double>(dim, 0.));
+
+      for(unsigned i = 0; i < nDofsVelocity; ++i) {
+        for(unsigned d = 0; d < dim; ++d) {
+          u[d] += velocity[d][i] * phiVelocity[i];
+
+          for(unsigned j = 0; j < dim; ++j) {
+            gradU[d][j] += velocity[d][i] * phiVelocity_x[i * dim + j];
+          }
+        }
+      }
+
+      omega2 = 0.;
+
+      if(dim == 2) {
+        const double omega = gradU[1][0] - gradU[0][1];
+        omega2 = omega * omega;
+      }
+      else {
+        const double omegaX = gradU[2][1] - gradU[1][2];
+        const double omegaY = gradU[0][2] - gradU[2][0];
+        const double omegaZ = gradU[1][0] - gradU[0][1];
+        omega2 = omegaX * omegaX + omegaY * omegaY + omegaZ * omegaZ;
+      }
+    };
 
     if(!cut) {
-
       for(unsigned ig = 0; ig < nGauss; ++ig) {
-
-        double weight = 0.0;
-        double weightX = 0.0;
-
+        double weight = 0.;
+        double weightX = 0.;
         femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
         femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
-
-        std::vector<double> x(dim, 0.0);
+        std::vector<double> x(dim, 0.);
 
         for(unsigned i = 0; i < nDofsX; ++i) {
           for(unsigned d = 0; d < dim; ++d) {
@@ -2298,32 +2449,53 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
         const double measureFactor = GetPhysicalMeasureFactor(x);
         const double physicalWeight = weight * measureFactor;
+        const bool inside = psiMax > 0.;
 
         totalAreaLocal += physicalWeight;
 
-        if(psiMax > 0.0) {
+        if(inside) {
           innerAreaLocal += physicalWeight;
         }
         else {
           outerAreaLocal += physicalWeight;
         }
 
-        if(psiMax > 0.0 && computeRisingBubbleMetrics) {
-
-          double weightVelocity = 0.0;
-          femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
-
-          std::vector<double> u(dim, 0.0);
-
-          for(unsigned i = 0; i < nDofsVelocity; ++i) {
-            for(unsigned d = 0; d < dim; ++d) {
-              u[d] += velocity[d][i] * phiVelocity[i];
-            }
-          }
+        if(computeRisingBubbleMetrics && inside) {
+          std::vector<double> u;
+          double omega2 = 0.;
+          EvaluateVelocity(ig, u, omega2);
 
           for(unsigned d = 0; d < dim; ++d) {
             barycenterIntegralLocal[d] += x[d] * physicalWeight;
             velocityIntegralLocal[d] += u[d] * physicalWeight;
+          }
+        }
+
+        if(computePhaseInversionMetrics) {
+          std::vector<double> u;
+          double omega2 = 0.;
+          EvaluateVelocity(ig, u, omega2);
+          double u2 = 0.;
+
+          for(unsigned d = 0; d < dim; ++d) {
+            u2 += u[d] * u[d];
+          }
+
+          const double height = x[verticalDir] - cfg.x_min[verticalDir];
+
+          if(inside) {
+            potentialEnergy1Local += rho1 * gravity * height * physicalWeight;
+            kineticEnergy1Local += 0.5 * rho1 * u2 * physicalWeight;
+            enstrophy1Local += 0.5 * omega2 * physicalWeight;
+
+            if(x[verticalDir] >= phaseInversionTopMin) {
+              fluid1UpperVolumeLocal += physicalWeight;
+            }
+          }
+          else {
+            potentialEnergy2Local += rho2 * gravity * height * physicalWeight;
+            kineticEnergy2Local += 0.5 * rho2 * u2 * physicalWeight;
+            enstrophy2Local += 0.5 * omega2 * physicalWeight;
           }
         }
       }
@@ -2338,16 +2510,13 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     }
 
     std::vector<double> a;
-
     BestFitLinearInterpolation(xg, psiG, a);
-
     double interfaceConstant = a[dim];
-
     a.resize(dim);
 
-    std::vector<TypeIO> weightInner(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
-    std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
-    std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.0);
+    std::vector<TypeIO> weightInner(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector<TypeIO> weightOuter(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+    std::vector<TypeIO> weightInterface(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
     cfw[ielGeom]->GetWeightWithMap(0, a, interfaceConstant, weightInner);
 
@@ -2358,14 +2527,11 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
     cfw[ielGeom]->GetWeightWithMap(-1, a, interfaceConstant, weightInterface);
 
     for(unsigned ig = 0; ig < nGauss; ++ig) {
-
-      double weight = 0.0;
-      double weightX = 0.0;
-
+      double weight = 0.;
+      double weightX = 0.;
       femPsi->Jacobian(coordX, ig, weight, phiPsi, phiPsi_x);
       femX->Jacobian(coordX, ig, weightX, phiX, phiX_x);
-
-      std::vector<double> x(dim, 0.0);
+      std::vector<double> x(dim, 0.);
 
       for(unsigned i = 0; i < nDofsX; ++i) {
         for(unsigned d = 0; d < dim; ++d) {
@@ -2374,29 +2540,18 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
       }
 
       const double measureFactor = GetPhysicalMeasureFactor(x);
-      const double innerWeight = weight * static_cast<double>(weightInner[ig]);
-      const double outerWeight = weight * static_cast<double>(weightOuter[ig]);
       const double physicalWeight = weight * measureFactor;
-      const double innerPhysicalWeight = innerWeight * measureFactor;
-      const double outerPhysicalWeight = outerWeight * measureFactor;
+      const double innerPhysicalWeight = weight * static_cast<double>(weightInner[ig]) * measureFactor;
+      const double outerPhysicalWeight = weight * static_cast<double>(weightOuter[ig]) * measureFactor;
 
       totalAreaLocal += physicalWeight;
       innerAreaLocal += innerPhysicalWeight;
       outerAreaLocal += outerPhysicalWeight;
 
       if(computeRisingBubbleMetrics) {
-
-        double weightVelocity = 0.0;
-
-        femVelocity->Jacobian(coordX, ig, weightVelocity, phiVelocity, phiVelocity_x);
-
-        std::vector<double> u(dim, 0.0);
-
-        for(unsigned i = 0; i < nDofsVelocity; ++i) {
-          for(unsigned d = 0; d < dim; ++d) {
-            u[d] += velocity[d][i] * phiVelocity[i];
-          }
-        }
+        std::vector<double> u;
+        double omega2 = 0.;
+        EvaluateVelocity(ig, u, omega2);
 
         for(unsigned d = 0; d < dim; ++d) {
           barycenterIntegralLocal[d] += x[d] * innerPhysicalWeight;
@@ -2404,13 +2559,35 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
         }
       }
 
-      femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+      if(computePhaseInversionMetrics) {
+        std::vector<double> u;
+        double omega2 = 0.;
+        EvaluateVelocity(ig, u, omega2);
+        double u2 = 0.;
 
-      std::vector<double> Nref(dim, 0.0);
-      double dsN2 = 0.0;
+        for(unsigned d = 0; d < dim; ++d) {
+          u2 += u[d] * u[d];
+        }
+
+        const double height = x[verticalDir] - cfg.x_min[verticalDir];
+
+        potentialEnergy1Local += rho1 * gravity * height * innerPhysicalWeight;
+        potentialEnergy2Local += rho2 * gravity * height * outerPhysicalWeight;
+        kineticEnergy1Local += 0.5 * rho1 * u2 * innerPhysicalWeight;
+        kineticEnergy2Local += 0.5 * rho2 * u2 * outerPhysicalWeight;
+        enstrophy1Local += 0.5 * omega2 * innerPhysicalWeight;
+        enstrophy2Local += 0.5 * omega2 * outerPhysicalWeight;
+
+        if(x[verticalDir] >= phaseInversionTopMin) {
+          fluid1UpperVolumeLocal += innerPhysicalWeight;
+        }
+      }
+
+      femPsi->GetJacobianMatrix(coordX, ig, weight, Jacob, JacI);
+      std::vector<double> Nref(dim, 0.);
+      double dsN2 = 0.;
 
       for(unsigned k = 0; k < dim; ++k) {
-
         for(unsigned j = 0; j < dim; ++j) {
           Nref[k] += JacI[j][k] * a[j];
         }
@@ -2420,15 +2597,14 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
 
       const double dsN = std::sqrt(dsN2);
       const double dGamma = weight * static_cast<double>(weightInterface[ig]) * dsN * measureFactor;
-
       interfaceLengthLocal += dGamma;
     }
   }
 
-  const unsigned nGlobalQuantities = 4u + 2u * dim;
-
-  std::vector<double> localSum(nGlobalQuantities, 0.0);
-  std::vector<double> globalSum(nGlobalQuantities, 0.0);
+  const unsigned basePhaseInversion = 4u + 2u * dim;
+  const unsigned nGlobalQuantities = basePhaseInversion + 7u;
+  std::vector<double> localSum(nGlobalQuantities, 0.);
+  std::vector<double> globalSum(nGlobalQuantities, 0.);
 
   localSum[0] = innerAreaLocal;
   localSum[1] = outerAreaLocal;
@@ -2436,9 +2612,17 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   localSum[3] = interfaceLengthLocal;
 
   for(unsigned d = 0; d < dim; ++d) {
-    localSum[4 + d] = barycenterIntegralLocal[d];
-    localSum[4 + dim + d] = velocityIntegralLocal[d];
+    localSum[4u + d] = barycenterIntegralLocal[d];
+    localSum[4u + dim + d] = velocityIntegralLocal[d];
   }
+
+  localSum[basePhaseInversion + 0u] = fluid1UpperVolumeLocal;
+  localSum[basePhaseInversion + 1u] = potentialEnergy1Local;
+  localSum[basePhaseInversion + 2u] = potentialEnergy2Local;
+  localSum[basePhaseInversion + 3u] = kineticEnergy1Local;
+  localSum[basePhaseInversion + 4u] = kineticEnergy2Local;
+  localSum[basePhaseInversion + 5u] = enstrophy1Local;
+  localSum[basePhaseInversion + 6u] = enstrophy2Local;
 
   MPI_Allreduce(localSum.data(), globalSum.data(), static_cast<int>(nGlobalQuantities), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
@@ -2452,37 +2636,33 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   result.hasRisingBubbleMetrics = computeRisingBubbleMetrics;
 
   if(computeRisingBubbleMetrics) {
-
-    result.barycenter.assign(dim, 0.0);
-    result.meanVelocity.assign(dim, 0.0);
+    result.barycenter.assign(dim, 0.);
+    result.meanVelocity.assign(dim, 0.);
 
     if(result.innerArea > 1.e-14) {
-
       for(unsigned d = 0; d < dim; ++d) {
-        result.barycenter[d] = globalSum[4 + d] / result.innerArea;
-        result.meanVelocity[d] = globalSum[4 + dim + d] / result.innerArea;
+        result.barycenter[d] = globalSum[4u + d] / result.innerArea;
+        result.meanVelocity[d] = globalSum[4u + dim + d] / result.innerArea;
       }
 
       if(symmetric) {
-
         for(unsigned d = 0; d < dim - 1u; ++d) {
           result.barycenter[d] = symmetryCoordinates[d];
-          result.meanVelocity[d] = 0.0;
+          result.meanVelocity[d] = 0.;
         }
       }
 
       if(axisymmetric) {
         result.barycenter[0] = axisCoordinate;
-        result.meanVelocity[0] = 0.0;
+        result.meanVelocity[0] = 0.;
       }
 
       if(result.interfaceLength > 1.e-14) {
-
         if(axisymmetric || dim == 3) {
-          result.circularity = std::cbrt(36.0 * pi * result.innerArea * result.innerArea) / result.interfaceLength;
+          result.circularity = std::cbrt(36. * pi * result.innerArea * result.innerArea) / result.interfaceLength;
         }
         else {
-          result.circularity = 2.0 * std::sqrt(pi * result.innerArea) / result.interfaceLength;
+          result.circularity = 2. * std::sqrt(pi * result.innerArea) / result.interfaceLength;
         }
       }
     }
@@ -2491,23 +2671,60 @@ LevelSetDiagnostics ComputeLevelSetDiagnostics(MultiLevelSolution& mlSol, const 
   result.hasRayleighTaylorMetrics = computeRayleighTaylorMetrics;
 
   if(computeRayleighTaylorMetrics) {
-
     if(dim == 2) {
       result.ps = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0});
       result.pb = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5});
     }
-    else if(dim == 3) {
+    else {
       result.ps = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.0});
       result.pb = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.5});
-      double saddle1 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.0});
-      double saddle2 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.5});
+      const double saddle1 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.5, 0.0});
+      const double saddle2 = FindLevelSetZeroOnNodalLine(msh, sol, psiIndex, psiType, {0.0, 0.5});
       result.psad = 0.5 * (saddle1 + saddle2);
+    }
+  }
+
+  result.hasPhaseInversionMetrics = computePhaseInversionMetrics;
+
+  if(computePhaseInversionMetrics) {
+    result.fluid1UpperVolume = globalSum[basePhaseInversion + 0u];
+    result.potentialEnergy1 = globalSum[basePhaseInversion + 1u];
+    result.potentialEnergy2 = globalSum[basePhaseInversion + 2u];
+    result.kineticEnergy1 = globalSum[basePhaseInversion + 3u];
+    result.kineticEnergy2 = globalSum[basePhaseInversion + 4u];
+    result.enstrophy1 = globalSum[basePhaseInversion + 5u];
+    result.enstrophy2 = globalSum[basePhaseInversion + 6u];
+
+    if(phaseInversionInitialVolume > 1.e-14) {
+      result.fluid1UpperRatio = result.fluid1UpperVolume / phaseInversionInitialVolume;
+      result.fluid1VolumeRatio = result.innerArea / phaseInversionInitialVolume;
+    }
+
+    result.mechanicalEnergy = result.potentialEnergy1 + result.potentialEnergy2 + result.kineticEnergy1 + result.kineticEnergy2;
+
+    if(potentialEnergy1Final > 1.e-14) {
+      result.potentialEnergy1Star = result.potentialEnergy1 / potentialEnergy1Final;
+    }
+
+    if(potentialEnergy2Final > 1.e-14) {
+      result.potentialEnergy2Star = result.potentialEnergy2 / potentialEnergy2Final;
+    }
+
+    if(kineticEnergy1Scale > 1.e-14) {
+      result.kineticEnergy1Star = result.kineticEnergy1 / kineticEnergy1Scale;
+    }
+
+    if(kineticEnergy2Scale > 1.e-14) {
+      result.kineticEnergy2Star = result.kineticEnergy2 / kineticEnergy2Scale;
+    }
+
+    if(phaseInversionInitialInterfaceArea > 1.e-14) {
+      result.interfaceAreaStar = result.interfaceLength / phaseInversionInitialInterfaceArea;
     }
   }
 
   return result;
 }
-
 void PrintLevelSetDiagnostics(
   const LevelSetDiagnostics& diagnostics,
   const unsigned iproc,
@@ -2526,25 +2743,11 @@ void PrintLevelSetDiagnostics(
 
     std::cout << std::setprecision(16);
 
-    std::cout << "Time                = "
-              << time
-              << std::endl;
-
-    std::cout << "Inner area          = "
-              << diagnostics.innerArea
-              << std::endl;
-
-    std::cout << "Outer area          = "
-              << diagnostics.outerArea
-              << std::endl;
-
-    std::cout << "Total area          = "
-              << diagnostics.totalArea
-              << std::endl;
-
-    std::cout << "Interface length    = "
-              << diagnostics.interfaceLength
-              << std::endl;
+    std::cout << "Time                = " << time << std::endl;
+    std::cout << "Inner area          = " << diagnostics.innerArea << std::endl;
+    std::cout << "Outer area          = " << diagnostics.outerArea << std::endl;
+    std::cout << "Total area          = " << diagnostics.totalArea << std::endl;
+    std::cout << "Interface length    = " << diagnostics.interfaceLength << std::endl;
 
     // ==========================================================
     // Rising bubble
@@ -2553,22 +2756,14 @@ void PrintLevelSetDiagnostics(
     if(diagnostics.hasRisingBubbleMetrics) {
 
       for(unsigned d = 0; d < diagnostics.barycenter.size(); ++d) {
-
-        std::cout << "Barycenter[" << d << "]      = "
-                  << diagnostics.barycenter[d]
-                  << std::endl;
+        std::cout << "Barycenter[" << d << "]      = " << diagnostics.barycenter[d] << std::endl;
       }
 
       for(unsigned d = 0; d < diagnostics.meanVelocity.size(); ++d) {
-
-        std::cout << "Mean velocity[" << d << "]   = "
-                  << diagnostics.meanVelocity[d]
-                  << std::endl;
+        std::cout << "Mean velocity[" << d << "]   = " << diagnostics.meanVelocity[d] << std::endl;
       }
 
-      std::cout << "Circularity         = "
-                << diagnostics.circularity
-                << std::endl;
+      std::cout << "Circularity         = " << diagnostics.circularity << std::endl;
     }
 
     // ==========================================================
@@ -2577,18 +2772,39 @@ void PrintLevelSetDiagnostics(
 
     if(diagnostics.hasRayleighTaylorMetrics) {
 
-      std::cout << "Bubble position     = "
-                << diagnostics.pb
-                << std::endl;
+      std::cout << "Bubble position     = " << diagnostics.pb << std::endl;
+      std::cout << "Spike position      = " << diagnostics.ps << std::endl;
+      std::cout << "Saddle position     = " << diagnostics.psad << std::endl;
+    }
 
-      std::cout << "Spike position      = "
-                << diagnostics.ps
-                << std::endl;
+    // ==========================================================
+    // Phase inversion
+    // ==========================================================
 
-      std::cout << "Saddle position     = "
-                << diagnostics.psad
-                << std::endl;
+    if(diagnostics.hasPhaseInversionMetrics) {
 
+      std::cout << "Fluid 1 upper volume = " << diagnostics.fluid1UpperVolume << std::endl;
+      std::cout << "Fluid 1 upper ratio  = " << diagnostics.fluid1UpperRatio << std::endl;
+      std::cout << "Fluid 1 volume ratio = " << diagnostics.fluid1VolumeRatio << std::endl;
+
+      std::cout << "Potential energy 1   = " << diagnostics.potentialEnergy1 << std::endl;
+      std::cout << "Potential energy 2   = " << diagnostics.potentialEnergy2 << std::endl;
+
+      std::cout << "Kinetic energy 1     = " << diagnostics.kineticEnergy1 << std::endl;
+      std::cout << "Kinetic energy 2     = " << diagnostics.kineticEnergy2 << std::endl;
+
+      std::cout << "Enstrophy 1          = " << diagnostics.enstrophy1 << std::endl;
+      std::cout << "Enstrophy 2          = " << diagnostics.enstrophy2 << std::endl;
+
+      std::cout << "Mechanical energy    = " << diagnostics.mechanicalEnergy << std::endl;
+
+      std::cout << "Potential energy 1*  = " << diagnostics.potentialEnergy1Star << std::endl;
+      std::cout << "Potential energy 2*  = " << diagnostics.potentialEnergy2Star << std::endl;
+
+      std::cout << "Kinetic energy 1*    = " << diagnostics.kineticEnergy1Star << std::endl;
+      std::cout << "Kinetic energy 2*    = " << diagnostics.kineticEnergy2Star << std::endl;
+
+      std::cout << "Interface area*      = " << diagnostics.interfaceAreaStar << std::endl;
     }
 
     return;
@@ -2601,9 +2817,7 @@ void PrintLevelSetDiagnostics(
   std::ofstream out(fileName, std::ios::app);
 
   if(!out) {
-
-    throw std::runtime_error(
-      "PrintLevelSetDiagnostics: cannot open file " + fileName);
+    throw std::runtime_error("PrintLevelSetDiagnostics: cannot open file " + fileName);
   }
 
   const unsigned w = 24;
@@ -2615,20 +2829,11 @@ void PrintLevelSetDiagnostics(
   // Common quantities
   // ============================================================
 
-  out << std::setw(w)
-      << time;
-
-  out << std::setw(w)
-      << diagnostics.innerArea;
-
-  out << std::setw(w)
-      << diagnostics.outerArea;
-
-  out << std::setw(w)
-      << diagnostics.totalArea;
-
-  out << std::setw(w)
-      << diagnostics.interfaceLength;
+  out << std::setw(w) << time;
+  out << std::setw(w) << diagnostics.innerArea;
+  out << std::setw(w) << diagnostics.outerArea;
+  out << std::setw(w) << diagnostics.totalArea;
+  out << std::setw(w) << diagnostics.interfaceLength;
 
   // ============================================================
   // Rising bubble
@@ -2637,19 +2842,14 @@ void PrintLevelSetDiagnostics(
   if(diagnostics.hasRisingBubbleMetrics) {
 
     for(unsigned d = 0; d < diagnostics.barycenter.size(); ++d) {
-
-      out << std::setw(w)
-          << diagnostics.barycenter[d];
+      out << std::setw(w) << diagnostics.barycenter[d];
     }
 
     for(unsigned d = 0; d < diagnostics.meanVelocity.size(); ++d) {
-
-      out << std::setw(w)
-          << diagnostics.meanVelocity[d];
+      out << std::setw(w) << diagnostics.meanVelocity[d];
     }
 
-    out << std::setw(w)
-        << diagnostics.circularity;
+    out << std::setw(w) << diagnostics.circularity;
   }
 
   // ============================================================
@@ -2658,23 +2858,49 @@ void PrintLevelSetDiagnostics(
 
   if(diagnostics.hasRayleighTaylorMetrics) {
 
-    out << std::setw(w)
-        << diagnostics.pb;
+    out << std::setw(w) << diagnostics.pb;
+    out << std::setw(w) << diagnostics.ps;
+    out << std::setw(w) << diagnostics.psad;
+  }
 
-    out << std::setw(w)
-        << diagnostics.ps;
+  // ============================================================
+  // Phase inversion
+  // ============================================================
 
-    out << std::setw(w)
-        << diagnostics.psad;
+  if(diagnostics.hasPhaseInversionMetrics) {
 
+    out << std::setw(w) << diagnostics.fluid1UpperVolume;
+    out << std::setw(w) << diagnostics.fluid1UpperRatio;
+    out << std::setw(w) << diagnostics.fluid1VolumeRatio;
+
+    out << std::setw(w) << diagnostics.potentialEnergy1;
+    out << std::setw(w) << diagnostics.potentialEnergy2;
+
+    out << std::setw(w) << diagnostics.kineticEnergy1;
+    out << std::setw(w) << diagnostics.kineticEnergy2;
+
+    out << std::setw(w) << diagnostics.enstrophy1;
+    out << std::setw(w) << diagnostics.enstrophy2;
+
+    out << std::setw(w) << diagnostics.mechanicalEnergy;
+
+    out << std::setw(w) << diagnostics.potentialEnergy1Star;
+    out << std::setw(w) << diagnostics.potentialEnergy2Star;
+
+    out << std::setw(w) << diagnostics.kineticEnergy1Star;
+    out << std::setw(w) << diagnostics.kineticEnergy2Star;
+
+    out << std::setw(w) << diagnostics.interfaceAreaStar;
   }
 
   out << '\n';
 }
-
 struct SimulationArgs {
   unsigned uniformLevels = 1u;
   unsigned levelOffset   = 1u;
+
+  unsigned nPrint = 100u;
+  unsigned nReinit = 100u;
 
   unsigned dim = 2u;
 
@@ -2739,6 +2965,28 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
           std::stoul(argv[++i])
         );
       }
+    }
+
+    else if (option == "--nprint") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --nprint"
+        );
+      }
+
+      args.nPrint = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--nreinit") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --nreinit"
+        );
+      }
+
+      args.nReinit = std::stoul(argv[++i]);
     }
 
     else if (option == "--level-offset") {
@@ -3168,50 +3416,6 @@ void PrintConvergence(
   std::cout << '\n';
 }
 
-enum class BoundaryType : unsigned {
-  DIRICHLET_S,
-  NEUMANN_S,
-  WALL,
-  SLIP,
-  OUTFLOW
-};
-
-struct BoundaryCondition {
-
-  BoundaryType type = BoundaryType::NEUMANN_S;
-  double value = 0.;
-};
-
-struct BoundaryConfig {
-
-  std::vector<BoundaryCondition> min;
-  std::vector<BoundaryCondition> max;
-
-  void Resize(const unsigned dim) {
-
-    min.resize(dim);
-    max.resize(dim);
-  }
-};
-
-struct SimulationConfig {
-
-  std::vector<double> x_min;
-  std::vector<double> x_max;
-  std::vector<unsigned> n;
-
-  double period = 0.;
-
-  PsiConfig psi;
-
-  MultiphasePhysicalProperties properties;
-
-  BoundaryConfig boundary;
-
-  bool symmetric = false;
-  bool axisymmetric = false;
-};
-
 SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsigned dim, const bool symmetric, const bool axisymmetric) {
 
   if(dim != 2 && dim != 3) {
@@ -3398,6 +3602,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = (dim == 2) ? 0.35 : 0.25;
 
       cfg.psi.type = PsiType::TWO_BUBBLES;
+
       if(dim == 2) {
         cfg.psi.bubbleCenters = {{0.5, 0.65}, {0.5, 0.35}};
       }
@@ -3479,6 +3684,46 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.properties.mu1 = 1.e-3;
       cfg.properties.mu2 = 1.8e-5;
       cfg.properties.sigma = 0.;
+      cfg.properties.gravity = -9.81;
+
+      SetAllSlip();
+
+      break;
+    }
+
+    case SimulationCase::PI: {
+
+      if(dim != 3) {
+        throw std::runtime_error("GetSimulationConfig: PI requires dim = 3");
+      }
+
+      if(symmetric || axisymmetric) {
+        throw std::runtime_error("GetSimulationConfig: PI does not support symmetric or axisymmetric reduction");
+      }
+
+      const double H = 0.1;
+
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = H;
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = H;
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = H;
+
+      cfg.n[0] = 8;
+      cfg.n[1] = 8;
+      cfg.n[2] = 8;
+
+      cfg.period = 12.86;
+
+      cfg.psi.type = PsiType::PHASE_INVERSION;
+      cfg.psi.phaseInversionSize = 0.5 * H;
+
+      cfg.properties.rho1 = 900.;
+      cfg.properties.rho2 = 1000.;
+      cfg.properties.mu1 = 0.1;
+      cfg.properties.mu2 = 0.001;
+      cfg.properties.sigma = 0.045;
       cfg.properties.gravity = -9.81;
 
       SetAllSlip();

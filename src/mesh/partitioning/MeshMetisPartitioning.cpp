@@ -30,6 +30,8 @@
 
 //C++ include
 #include <iostream>
+#include <cstdlib>
+#include <mpi.h>
 
 namespace femus {
 
@@ -1087,6 +1089,74 @@ namespace femus {
                     epart.data(),
                     npart.data()
                   );
+
+        // An AMR mesh must give every process at least one element. METIS_OK
+        // alone does not guarantee this (including with MINCONN enabled).
+        if(AMR && err == METIS_OK) {
+          const idx_t retrySeeds[] = {options[METIS_OPTION_SEED], 0, 1, 2, 3};
+          const unsigned retryCount = sizeof(retrySeeds) / sizeof(retrySeeds[0]);
+
+          for(unsigned attempt = 0; ; ++attempt) {
+            std::vector<idx_t> counts(nparts, 0);
+            for(idx_t iel = 0; iel < nelem; ++iel) {
+              if(epart[iel] < 0 || epart[iel] >= nparts) {
+                std::cerr << "Invalid METIS AMR partition ID " << epart[iel]
+                          << " for element " << iel << ", nelem=" << nelem
+                          << ", nparts=" << nparts << ", objval=" << objval
+                          << ", seed=" << options[METIS_OPTION_SEED]
+                          << ", UFACTOR=" << options[METIS_OPTION_UFACTOR]
+                          << std::endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+                std::abort();
+              }
+              ++counts[epart[iel]];
+            }
+
+            idx_t minimum = nelem, maximum = 0, empty = 0;
+            for(idx_t p = 0; p < nparts; ++p) {
+              if(counts[p] < minimum) minimum = counts[p];
+              if(counts[p] > maximum) maximum = counts[p];
+              if(counts[p] == 0) ++empty;
+            }
+            if(empty == 0 && attempt == 0) break;
+
+            std::cout << " METIS AMR attempt=" << attempt
+                      << " nelem=" << nelem << " nparts=" << nparts
+                      << " objval=" << objval
+                      << " seed=" << options[METIS_OPTION_SEED]
+                      << " UFACTOR=" << options[METIS_OPTION_UFACTOR]
+                      << " min=" << minimum << " max=" << maximum
+                      << " average=" << static_cast<double>(nelem) / nparts
+                      << " empty=" << empty << " empty_ids=";
+            for(idx_t p = 0; p < nparts; ++p) {
+              if(counts[p] == 0) std::cout << p << ",";
+            }
+            std::cout << std::endl;
+
+            if(empty == 0) break;
+            if(attempt == retryCount) {
+              std::cerr << "METIS AMR partitioning exhausted " << retryCount
+                        << " retries with empty partitions; refusing to call "
+                        << "FillISvector0." << std::endl;
+              MPI_Abort(MPI_COMM_WORLD, 1);
+              std::abort();
+            }
+
+            // First tighten balance with the original seed, then vary only
+            // the seed. Keep the first successful METIS partition unchanged.
+            options[METIS_OPTION_UFACTOR] = 50;
+            options[METIS_OPTION_SEED] = retrySeeds[attempt];
+            std::cout << " METIS AMR retry=" << attempt + 1
+                      << " seed=" << options[METIS_OPTION_SEED]
+                      << " UFACTOR=" << options[METIS_OPTION_UFACTOR]
+                      << std::endl;
+            err = METIS_PartMeshDual(
+                    &nelem, &nnodes, eptr.data(), eind.data(), NULL, NULL,
+                    &ncommon, &nparts, NULL, options, &objval,
+                    epart.data(), npart.data());
+            if(err != METIS_OK) break; // Existing METIS error handling below.
+          }
+        }
 
         if(err == METIS_OK) {
 
