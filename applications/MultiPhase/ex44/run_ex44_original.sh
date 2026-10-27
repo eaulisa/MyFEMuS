@@ -10,29 +10,31 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 NPROC=8
+NPRINT=100
+NREINIT=100
 
 # ------------------------------------------------------------
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
-SIMULATION="bb"
+DIM=3
+SIMULATION="pi"
 SYMMETRIC=0
-AXISYMMETRIC=1
+AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(8)
+UNIFORM_LEVELS=(1)
+ADAPTIVE_LEVELS=(5)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(12860)
+NSTEPS=(5144)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -343,7 +345,9 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --dim "${DIM}" \
         --simulation "${SIMULATION}" \
         --symmetric "${SYMMETRIC}" \
-        --axisymmetric "${AXISYMMETRIC}"
+        --axisymmetric "${AXISYMMETRIC}" \
+        --nprint "${NPRINT}" \
+        --nreinit "${NREINIT}"  
 
       echo
 

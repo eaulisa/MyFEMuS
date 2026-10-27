@@ -321,8 +321,16 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      const unsigned nPrint  = 1;//(nSteps > 100) ? nSteps / 1000 : 1;
-      const unsigned nReinit = (nSteps > 100) ? nSteps / 100 : 101;
+      if(args.nPrint == 0u) {
+        throw std::runtime_error("--nprint must be > 0");
+      }
+
+      if(args.nReinit == 0u) {
+        throw std::runtime_error("--nreinit must be > 0");
+      }
+
+      const unsigned nPrint = std::max(1u, nSteps / args.nPrint);
+      const unsigned nReinit = std::max(1u, nSteps / args.nReinit);
 
       mlMsh0.RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -891,7 +899,7 @@ int main(int argc, char **argv) {
         // Export solution to VTK (selected levels)
         VTKWriter vtkIO1(mlsol1);
         if (t % nPrint == 0) {
-          vtkIO1.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / 1);
+          vtkIO1.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
         }
 
         std::swap(mlsol0, mlsol1);

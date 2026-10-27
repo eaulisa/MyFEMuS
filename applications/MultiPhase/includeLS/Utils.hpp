@@ -1172,7 +1172,7 @@ void RungeKutta4(std::vector<MyVector<double>> &X,
       }
     }
   }
-  const double boundaryTol = 1.e-12;
+  const double boundaryTol = 1.e-2;
 
   for(unsigned i = X[0].begin();
       i < X[0].end();
@@ -1244,7 +1244,7 @@ void rkStep(MultiLevelSolution & mlSol,
         Xk[d][i] += a[j] * K[j][d][i] * dt;
       }
 
-      const double boundaryTol = 1.e-12;
+      const double boundaryTol = 1.e-2;
 
       for (unsigned k = 0; k < X.size(); ++k) {
 
@@ -2898,6 +2898,9 @@ struct SimulationArgs {
   unsigned uniformLevels = 1u;
   unsigned levelOffset   = 1u;
 
+  unsigned nPrint = 100u;
+  unsigned nReinit = 100u;
+
   unsigned dim = 2u;
 
   SimulationCase simulation = SimulationCase::RB2;
@@ -2961,6 +2964,28 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
           std::stoul(argv[++i])
         );
       }
+    }
+
+    else if (option == "--nprint") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --nprint"
+        );
+      }
+
+      args.nPrint = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--nreinit") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --nreinit"
+        );
+      }
+
+      args.nReinit = std::stoul(argv[++i]);
     }
 
     else if (option == "--level-offset") {
