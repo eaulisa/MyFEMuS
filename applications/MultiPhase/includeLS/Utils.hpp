@@ -13,8 +13,9 @@ CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, 5, "legend
 CutFemWeight <TypeIO, TypeA> wedge = CutFemWeight<TypeIO, TypeA >(WEDGE, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad = CutFemWeight<TypeIO, TypeA >(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> tri = CutFemWeight<TypeIO, TypeA >(TRI, 5, "legendre");
+CutFemWeight <TypeIO, TypeA> line = CutFemWeight<TypeIO, TypeA >(LINE, 5, "legendre");
 
-const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri};
+const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri, &line};
 
 // unsigned qM = 5;
 // double dx = .5;
@@ -3544,7 +3545,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.properties.mu1 = rb1 ? 1. : 0.1;
       cfg.properties.mu2 = 10.;
       cfg.properties.sigma = rb1 ? 24.5 : 1.96;
-      cfg.properties.gravity = -0.98;
+      cfg.properties.gravity = 0.;//-0.98;
 
       SetSlipSidesWallEnds();
 

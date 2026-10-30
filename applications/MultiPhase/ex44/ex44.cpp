@@ -1826,6 +1826,1707 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         RES->add_vector_blocked(Res, sysDof);
         KK->add_matrix_blocked(Jac, sysDof, sysDof);
       }
+      else {
+
+        const bool refined = (msh->GetRefinedElementIndex(iel) != 0u);
+        const unsigned nChildrenCurrent = GetNumberOfChildren(iel);
+
+        std::vector<std::vector<double>> Xichild;
+
+        if(refined) {
+
+          Xichild.resize(dim * nChildrenCurrent);
+
+          for(unsigned d = 0; d < dim; ++d) {
+            std::vector<std::vector<double>> XichildComponent;
+            ProlongateFieldToChildren(XichildComponent, PMatrix[iel_type], coordXi[d]);
+
+            for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+              Xichild[d * nChildrenCurrent + j].swap(XichildComponent[j]);
+            }
+          }
+
+        }
+
+        for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+
+          const unsigned jel = el->GetChild(iel, j);
+          const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
+
+          el_send[jproc][posEl_send[jproc]] = jel;
+          ++posEl_send[jproc];
+
+          for(unsigned i = 0; i < nDofsV; ++i) {
+
+            if(l == levelC) {
+
+              const unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);
+              dofV_send[jproc][posV_send[jproc]] = solVDof;
+
+              for(unsigned d = 0; d < dim; ++d) {
+                solV_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_Sol[solVIndex[d]])(solVDof);
+                solVOld_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_SolOld[solVIndex[d]])(solVDof);
+              }
+            }
+            else {
+
+              dofV_send[jproc][posV_send[jproc]] = dofV_recv[offsetV[k] + i];
+
+              for(unsigned d = 0; d < dim; ++d) {
+                solV_send[d * nprocs + jproc][posV_send[jproc]] = solV_recv[d][offsetV[k] + i];
+                solVOld_send[d * nprocs + jproc][posV_send[jproc]] = solVOld_recv[d][offsetV[k] + i];
+              }
+            }
+
+            ++posV_send[jproc];
+          }
+
+          for(unsigned i = 0; i < nDofsP; ++i) {
+
+            if(l == levelC) {
+              const unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
+
+              dofP_send[jproc][posP_send[jproc]] = solPDof;
+              solP1_send[jproc][posP_send[jproc]] = (*sol->_Sol[solP1Index])(solPDof);
+              solP2_send[jproc][posP_send[jproc]] = (*sol->_Sol[solP2Index])(solPDof);
+            }
+            else {
+              dofP_send[jproc][posP_send[jproc]] = dofP_recv[offsetP[k] + i];
+              solP1_send[jproc][posP_send[jproc]] = solP1_recv[offsetP[k] + i];
+              solP2_send[jproc][posP_send[jproc]] = solP2_recv[offsetP[k] + i];
+            }
+
+            ++posP_send[jproc];
+          }
+
+          for(unsigned i = 0; i < nDofsX; ++i) {
+
+            if(l == levelC) {
+
+              const unsigned XDof = msh->GetSolutionDof(i, iel, solXType);
+
+              for(unsigned d = 0; d < dim; ++d) {
+                X_send[d * nprocs + jproc][posX_send[jproc]] = (*msh->_topology->_Sol[d])(XDof);
+              }
+            }
+            else {
+
+              for(unsigned d = 0; d < dim; ++d) {
+                X_send[d * nprocs + jproc][posX_send[jproc]] = X_recv[d][offsetX[k] + i];
+              }
+            }
+
+            ++posX_send[jproc];
+          }
+
+          for(unsigned i = 0; i < nDofsXi; ++i) {
+
+            for(unsigned d = 0; d < dim; ++d) {
+              Xi_send[d * nprocs + jproc][posXi_send[jproc]] = refined ? Xichild[d * nChildrenCurrent + j][i] : coordXi[d][i];
+            }
+
+            ++posXi_send[jproc];
+          }
+        }
+      }
+    }
+
+    if(l < levelF) {
+      std::vector<unsigned> n_el_recv(nprocs, 0);
+      std::vector<std::vector<unsigned>> n_dof_recv(nprocs, std::vector<unsigned>(nSolutionTypes, 0));
+      n_el_recv[iproc] = n_el_send[iproc];
+      n_dof_recv[iproc] = n_dof_send[iproc];
+
+      for (unsigned p = 0; p < nprocs; ++p) {
+        if (p != iproc) {
+          postRecv(&n_el_recv[p], 1, MPI_UNSIGNED, p, tagElCounts, requests);
+          postRecv(n_dof_recv[p].data(), nSolutionTypes, MPI_UNSIGNED, p, tagCounts, requests);
+        }
+      }
+
+      for (unsigned p = 0; p < nprocs; ++p) {
+        if (p != iproc) {
+          postSend(&n_el_send[p], 1, MPI_UNSIGNED, p, tagElCounts, requests);
+          postSend(n_dof_send[p].data(), nSolutionTypes, MPI_UNSIGNED, p, tagCounts, requests);
+        }
+      }
+
+      waitAll(requests);
+
+      std::vector<unsigned> offsetEl_recv(nprocs + 1, 0);
+      std::vector<unsigned> offsetV_recv(nprocs + 1, 0);
+      std::vector<unsigned> offsetP_recv(nprocs + 1, 0);
+      std::vector<unsigned> offsetX_recv(nprocs + 1, 0);
+      std::vector<unsigned> offsetXi_recv(nprocs + 1, 0);
+
+      for (unsigned p = 0; p < nprocs; ++p) {
+        offsetEl_recv[p + 1] = offsetEl_recv[p] + n_el_recv[p];
+        offsetV_recv[p + 1] = offsetV_recv[p] + n_dof_recv[p][solVType];
+        offsetP_recv[p + 1] = offsetP_recv[p] + n_dof_recv[p][solPType];
+        offsetX_recv[p + 1] = offsetX_recv[p] + n_dof_recv[p][solXType];
+        offsetXi_recv[p + 1] = offsetXi_recv[p] + n_dof_recv[p][solXiType];
+      }
+
+      el_recv.resize(offsetEl_recv[nprocs]);
+      // el_gf_recv.resize(offsetEl_recv[nprocs]);
+      dofV_recv.resize(offsetV_recv[nprocs]);
+      dofP_recv.resize(offsetP_recv[nprocs]);
+      solP1_recv.resize(offsetP_recv[nprocs]);
+      solP2_recv.resize(offsetP_recv[nprocs]);
+      X_recv.resize(dim);
+      Xi_recv.resize(dim);
+      solV_recv.resize(dim);
+      solVOld_recv.resize(dim);
+
+      if (n_el_send[iproc] != 0) {
+        std::copy(el_send[iproc].begin(), el_send[iproc].end(), el_recv.data() + offsetEl_recv[iproc]);
+        // std::copy(el_gf_send[iproc].begin(), el_gf_send[iproc].end(), el_gf_recv.data() + offsetEl_recv[iproc]);
+      }
+
+      if (n_dof_send[iproc][solVType] != 0) {
+        std::copy(dofV_send[iproc].begin(), dofV_send[iproc].end(), dofV_recv.data() + offsetV_recv[iproc]);
+      }
+
+      if (n_dof_send[iproc][solPType] != 0) {
+        std::copy(dofP_send[iproc].begin(), dofP_send[iproc].end(), dofP_recv.data() + offsetP_recv[iproc]);
+        std::copy(solP1_send[iproc].begin(), solP1_send[iproc].end(), solP1_recv.data() + offsetP_recv[iproc]);
+        std::copy(solP2_send[iproc].begin(), solP2_send[iproc].end(), solP2_recv.data() + offsetP_recv[iproc]);
+      }
+
+      for (unsigned d = 0; d < dim; ++d) {
+        X_recv[d].resize(offsetX_recv[nprocs]);
+        Xi_recv[d].resize(offsetXi_recv[nprocs]);
+        solV_recv[d].resize(offsetV_recv[nprocs]);
+        solVOld_recv[d].resize(offsetV_recv[nprocs]);
+
+        if (n_dof_send[iproc][solXType] != 0) {
+          std::copy(X_send[d * nprocs + iproc].begin(), X_send[d * nprocs + iproc].end(), X_recv[d].data() + offsetX_recv[iproc]);
+        }
+        if (n_dof_send[iproc][solXiType] != 0) {
+          std::copy(Xi_send[d * nprocs + iproc].begin(), Xi_send[d * nprocs + iproc].end(), Xi_recv[d].data() + offsetXi_recv[iproc]);
+        }
+        if (n_dof_send[iproc][solVType] != 0) {
+          std::copy(solV_send[d * nprocs + iproc].begin(), solV_send[d * nprocs + iproc].end(), solV_recv[d].data() + offsetV_recv[iproc]);
+          std::copy(solVOld_send[d * nprocs + iproc].begin(), solVOld_send[d * nprocs + iproc].end(), solVOld_recv[d].data() + offsetV_recv[iproc]);
+        }
+      }
+
+      for (unsigned p = 0; p < nprocs; ++p) {
+        if (p == iproc) {
+          continue;
+        }
+
+        if (n_el_recv[p] != 0) {
+          postRecv(el_recv.data() + offsetEl_recv[p], n_el_recv[p], MPI_UNSIGNED, p, tagEl, requests);
+          // postRecv(el_gf_recv.data() + offsetEl_recv[p], n_el_recv[p], MPI_UNSIGNED, p, tagElGF, requests);
+        }
+        if (n_dof_recv[p][solVType] != 0) {
+          postRecv(dofV_recv.data() + offsetV_recv[p], n_dof_recv[p][solVType], MPI_UNSIGNED, p, tagV, requests);
+        }
+        if (n_dof_recv[p][solPType] != 0) {
+          postRecv(dofP_recv.data() + offsetP_recv[p], n_dof_recv[p][solPType], MPI_UNSIGNED, p, tagP, requests);
+          postRecv(solP1_recv.data() + offsetP_recv[p], n_dof_recv[p][solPType], MPI_DOUBLE, p, tagSolP1, requests);
+          postRecv(solP2_recv.data() + offsetP_recv[p], n_dof_recv[p][solPType], MPI_DOUBLE, p, tagSolP2, requests);
+        }
+
+        for (unsigned d = 0; d < dim; ++d) {
+          if (n_dof_recv[p][solXType] != 0) {
+            postRecv(X_recv[d].data() + offsetX_recv[p], n_dof_recv[p][solXType], MPI_DOUBLE, p, tagX + static_cast<int>(d), requests);
+          }
+          if (n_dof_recv[p][solXiType] != 0) {
+            postRecv(Xi_recv[d].data() + offsetXi_recv[p], n_dof_recv[p][solXiType], MPI_DOUBLE, p, tagXi + static_cast<int>(d), requests);
+          }
+          if (n_dof_recv[p][solVType] != 0) {
+            postRecv(solV_recv[d].data() + offsetV_recv[p], n_dof_recv[p][solVType], MPI_DOUBLE, p, tagSolV + static_cast<int>(d), requests);
+            postRecv(solVOld_recv[d].data() + offsetV_recv[p], n_dof_recv[p][solVType], MPI_DOUBLE, p, tagSolVOld + static_cast<int>(d), requests);
+          }
+        }
+      }
+
+      for (unsigned p = 0; p < nprocs; ++p) {
+        if (p == iproc) {
+          continue;
+        }
+
+        postSend(el_send[p].data(), n_el_send[p], MPI_UNSIGNED, p, tagEl, requests);
+        // postSend(el_gf_send[p].data(), n_el_send[p], MPI_UNSIGNED, p, tagElGF, requests);
+        postSend(dofV_send[p].data(), n_dof_send[p][solVType], MPI_UNSIGNED, p, tagV, requests);
+        postSend(dofP_send[p].data(), n_dof_send[p][solPType], MPI_UNSIGNED, p, tagP, requests);
+        postSend(solP1_send[p].data(), n_dof_send[p][solPType], MPI_DOUBLE, p, tagSolP1, requests);
+        postSend(solP2_send[p].data(), n_dof_send[p][solPType], MPI_DOUBLE, p, tagSolP2, requests);
+
+        for (unsigned d = 0; d < dim; ++d) {
+          postSend(X_send[d * nprocs + p].data(), n_dof_send[p][solXType], MPI_DOUBLE, p, tagX + static_cast<int>(d), requests);
+          postSend(Xi_send[d * nprocs + p].data(), n_dof_send[p][solXiType], MPI_DOUBLE, p, tagXi + static_cast<int>(d), requests);
+          postSend(solV_send[d * nprocs + p].data(), n_dof_send[p][solVType], MPI_DOUBLE, p, tagSolV + static_cast<int>(d), requests);
+          postSend(solVOld_send[d * nprocs + p].data(), n_dof_send[p][solVType], MPI_DOUBLE, p, tagSolVOld + static_cast<int>(d), requests);
+        }
+      }
+
+      waitAll(requests);
+    }
+
+    RES->close();
+    KK->flush();
+  }
+
+  //END parallel exchange between levels
+
+  RES->close();
+  KK->close();
+
+  std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
+
+}
+/*
+void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
+
+  //  extract pointers to the several objects that we are going to use
+  TransientNonlinearImplicitSystem* mlPdeSys   = &ml_prob2.get_system<TransientNonlinearImplicitSystem> ("NS");
+  const unsigned levelToAssemble = mlPdeSys->GetLevelToAssemble();
+
+  MultiLevelSolution*  mlSol    = ml_prob2._ml_sol;
+  LinearEquationSolver* pdeSys  = mlPdeSys->_LinSolver[levelToAssemble];
+  SparseMatrix*    KK           = pdeSys->_KK;
+  NumericVector*   RES          = pdeSys->_RES;
+
+  Mesh* msh = ml_prob2._ml_msh->GetLevel(levelToAssemble);    // pointer to the mesh (level) object
+  const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
+
+  // Stuff to be taken/used on level2 from system2 and mlsol
+  std::vector < unsigned > solVIndex(dim);
+  solVIndex[0] = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
+  solVIndex[1] = mlSol->GetIndex("V");    // get the position of "V" in the ml_sol object
+  if(dim == 3) solVIndex[2] = mlSol->GetIndex("W");       // get the position of "V" in the ml_sol object
+  unsigned solVType = mlSol->GetSolutionType(solVIndex[0]);    // get the finite element type for "u"
+
+  unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
+  unsigned solP2Index = mlSol->GetIndex("P2");    // get the position of "P2" in the ml_sol object
+  unsigned solPType = mlSol->GetSolutionType(solP1Index);    // get the finite element type for "u"
+
+  std::vector < unsigned > solVPdeIndex(dim);
+  solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
+  solVPdeIndex[1] = mlPdeSys->GetSolPdeIndex("V");    // get the position of "V" in the pdeSys object
+  if(dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
+
+  unsigned solP1PdeIndex = mlPdeSys->GetSolPdeIndex("P1");    // get the position of "P" in the pdeSys object
+  unsigned solP2PdeIndex = mlPdeSys->GetSolPdeIndex("P2");    // get the position of "P" in the pdeSys object
+
+  KK->zero();
+  RES->zero();
+
+  if (solPType != mlSol->GetSolutionType(solP2Index)) {
+    throw std::runtime_error("Pressure type mismatch");
+  }
+
+  AssembleGhostPenaltyVelocity(ml_prob2);
+
+  if (solPType == 3) {
+    AssembleGhostPenaltyDGP(ml_prob2, true);
+    AssembleGhostPenaltyDGP(ml_prob2, false);
+  }
+  else if (solPType == 0) {
+    AssembleGhostPenaltyLinearPressure(ml_prob2, true);
+    AssembleGhostPenaltyLinearPressure(ml_prob2, false);
+  }
+  else {
+    throw std::runtime_error("Pressure type must be 3 or 0");
+  }
+
+  AssembleStabilizationTerms(ml_prob2);
+
+  //RES->close();
+  //KK->flush();
+
+  MultiphaseParams mParam = ml_prob2.GetMultiphaseParams();
+  const unsigned levelF = mParam.levelF;
+  const unsigned levelC = mParam.levelC;
+  const unsigned level0 = mParam.level0;
+
+  const TimeDiscretization td = mParam.td;
+  const double cold = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 0.;
+  const double cnew = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 1.;
+
+  std::cout << "levelC = " << levelC << " levelF = " << levelF << std::endl;
+  std::cout << "level to assemble = " << levelToAssemble  << " mapping level to assemble to levelC = " << level0 + levelToAssemble << std::endl;
+
+  MultiphasePhysicalProperties properties = mParam.properties;
+  double mu1 = properties.mu1;
+  double mu2 = properties.mu2;
+  double rho1 = properties.rho1;
+  double rho2 = properties.rho2;
+  double sigma = properties.sigma;
+  double gravity = properties.gravity;
+  std::vector <double> g;
+  if(dim == 2) g = {0, gravity};
+  else g = {0, 0, gravity};
+  double dt =  mlPdeSys->GetIntervalTime();
+  bool linear = mParam.linear;
+  bool axisymmetric = mParam.axisymmetric;
+  double axisCoordinate = mParam.axisCoordinate;
+
+  const bool firstNonlinearIt = (mlPdeSys->GetNonlinearIt() == 0);
+
+  // Stuff to be taken/used from levelC to levelF from mlsol0
+  MultiLevelSolution*  mlSol0  = static_cast<MultiLevelSolution*>(mParam.extProblem);  // pointer to the multilevelF solution object
+  unsigned cIndex = mlSol0->GetIndex("C");
+  unsigned psiIndex = mlSol0->GetIndex("Psi");
+  unsigned psiType = mlSol0->GetSolutionType("Psi");
+
+  std::vector < std::vector < double > >  solV(dim);    // local solution
+  std::vector < std::vector < double > >  solVOld(dim);    // local solution
+  std::vector < double >  solP1; // local solution
+  std::vector < double >  solP2; // local solution
+
+  std::vector < double >  psi; // local solution
+  std::vector < double >  k;
+  std::vector < std::vector < double > >  n(dim);
+
+  std::vector < std::vector < double > > coordXi(dim);
+  std::vector < std::vector < double > > coordX(dim); // local coordinates
+  std::vector < std::vector < double > > coordXgf(dim);    // local coordinates
+  unsigned solXType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+  unsigned solXiType = 0; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
+
+  std::vector <double> phiV;  // local test function for velocity
+  std::vector <double> phiV_x; // local test function first order partial derivatives
+
+  std::vector <double> phiPsi;
+  std::vector <double> phiPsi_x;
+
+  std::vector <double> phiXi;
+  std::vector <double> phiXi_x;
+
+  unsigned dim2 = 3 * (dim - 1);
+
+  std::vector<double> phiP; // local test function for the pressure
+  double weight; // gauss point weight
+  double weightFake;
+
+  std::vector< unsigned > sysDof; // local to global pdeSys dofs
+  std::vector< double > Res; // local redidual std::vector
+  std::vector < double > Jac;
+
+  double eps = 0.;
+
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  // if (nprocs == 1)
+  //   ProfilerStart("profiling.prof");
+
+  if(printdb) std::cout << "After Solution Projection\n" << std::flush;
+
+  // AssembleStabilizationTerms(*ml_prob0);
+
+  double epsilonp = 0;
+
+  clock_t start_time = clock();
+
+  // element loop: each process loops only on the elements that owns
+
+  if(printdb) std::cout << "Before KK assembly\n" << std::flush;
+
+  double P[3][3] = {};
+  double solV_gss[3] = {};
+  double solVOld_gss[3] = {};
+  double gradSolV_gss[3][3] = {};
+  double gradSolVOld_gss[3][3] = {};
+
+  const unsigned nElementTypes = 6;
+  const unsigned nSolutionTypes = 5;
+  // const unsigned nChildren = 1u << dim; // we dont assume that if C==0.5 then the element is refined. we check in the next loop
+
+  const int tagCounts = 100;
+  const int tagV = 101;
+  const int tagP = 102;
+  const int tagX = 103;
+  const int tagXi = tagX + static_cast<int>(dim);
+  const int tagElCounts = tagXi + static_cast<int>(dim);
+  const int tagEl = tagElCounts + 1;
+  // const int tagElGF = tagEl + 1;
+  const int tagSolV = tagEl + 1;
+  const int tagSolVOld = tagSolV + static_cast<int>(dim);
+  const int tagSolP1 = tagSolVOld + static_cast<int>(dim);
+  const int tagSolP2 = tagSolP1 + 1;
+
+  std::vector<MPI_Request> requests;
+  std::vector<unsigned> el_recv;
+  // std::vector<unsigned> el_gf_recv;
+  std::vector<unsigned> dofV_recv;
+  std::vector<unsigned> dofP_recv;
+  std::vector<std::vector<double>> X_recv;
+  std::vector<std::vector<double>> Xi_recv;
+  std::vector<std::vector<double>> solV_recv;
+  std::vector<std::vector<double>> solVOld_recv;
+  std::vector<double> solP1_recv;
+  std::vector<double> solP2_recv;
+
+  std::vector<unsigned> offsetV;
+  std::vector<unsigned> offsetP;
+  std::vector<unsigned> offsetX;
+  std::vector<unsigned> offsetXi;
+
+  Solution* sol = mlSol->GetLevel(levelToAssemble);
+
+  start_time = clock();
+
+  for (unsigned l = levelC; l <= levelF; ++l) {
+    Solution* sol0 = mlSol0->GetLevel(l);
+
+    Mesh* msh = sol0->GetMesh();
+    elem* el = msh->GetElementArray();
+
+    const unsigned nChildrenRefined = msh->GetRefIndex();
+
+    auto GetNumberOfChildren = [&](const unsigned iel) -> unsigned {
+      return msh->GetRefinedElementIndex(iel) ? nChildrenRefined : 1u;
+    };
+
+    auto solC = sol0->_Sol[cIndex];
+    auto solPsi = sol0->_Sol[psiIndex];
+
+    unsigned    iproc = msh->processor_id();
+
+    const unsigned nElementsToLoop = (l == levelC) ? msh->_elementOffset[iproc + 1] - msh->_elementOffset[iproc] : static_cast<unsigned>(el_recv.size());
+
+    std::vector<unsigned> el_to_assemble(nElementsToLoop, 1);
+    offsetV.resize(nElementsToLoop + 1, 0);
+    offsetP.resize(nElementsToLoop + 1, 0);
+    offsetX.resize(nElementsToLoop + 1, 0);
+    offsetXi.resize(nElementsToLoop + 1, 0);
+
+    for (unsigned k = 0; k < nElementsToLoop; ++k) {
+      const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
+
+      if (l < levelF) {
+        const double C = (*solC)(iel);
+        el_to_assemble[k] = !(C > 0.25 && C < 0.75);
+      }
+
+      offsetV[k + 1] = offsetV[k] + msh->GetElementDofNumber(iel, solVType);
+      offsetP[k + 1] = offsetP[k] + msh->GetElementDofNumber(iel, solPType);
+      offsetX[k + 1] = offsetX[k] + msh->GetElementDofNumber(iel, solXType);
+      offsetXi[k + 1] = offsetXi[k] + msh->GetElementDofNumber(iel, solXiType);
+    }
+
+    for (unsigned k = 0; k < nElementsToLoop; ++k) {
+      if (el_to_assemble[k] == 0) {
+        continue;
+      }
+
+      const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
+      // const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
+      const unsigned iel_type = msh->GetElementType(iel);
+      const unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
+      const unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
+      const unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
+      const unsigned nDofsXi = msh->GetElementDofNumber(iel, solXiType);
+
+      // Existing element assembly goes here; use local fields at levelC and received fields above levelC.
+    }
+
+    Solution* sol0p = (l < levelF) ? mlSol0->GetLevel(l + 1) : nullptr;
+    Mesh* mshp = (l < levelF) ? sol0p->GetMesh() : nullptr;
+
+    std::vector<unsigned> n_el_send(nprocs, 0);
+    std::vector<std::vector<unsigned>> n_el_to_interpolate_send(nprocs, std::vector<unsigned>(nElementTypes, 0));
+
+    // for (unsigned k = 0; k < nElementsToLoop; ++k) {
+    //   if (el_to_assemble[k] != 0) {
+    //     continue;
+    //   }
+
+    //   const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
+    //   const unsigned iel_type = msh->GetElementType(iel);
+
+    //   for (unsigned j = 0; j < nChildren; ++j) {
+    //     const unsigned jel = el->GetChild(iel, j);
+    //     const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
+    //     ++n_el_to_interpolate_send[jproc][iel_type];
+    //     ++n_el_send[jproc];
+    //   }
+    // }
+
+    for(unsigned k = 0; k < nElementsToLoop; ++k) {
+
+      if(el_to_assemble[k] != 0) {
+        continue;
+      }
+
+      const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
+
+      const unsigned iel_type = msh->GetElementType(iel);
+      const unsigned nChildrenCurrent = GetNumberOfChildren(iel);
+
+      for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+
+        const unsigned jel = el->GetChild(iel, j);
+        const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
+
+        ++n_el_to_interpolate_send[jproc][iel_type];
+        ++n_el_send[jproc];
+      }
+
+    }
+
+    std::vector<std::vector<unsigned>> n_dof_send(nprocs, std::vector<unsigned>(nSolutionTypes, 0));
+
+    for (unsigned jproc = 0; jproc < nprocs; ++jproc) {
+      for (unsigned soltype = 0; soltype < nSolutionTypes; ++soltype) {
+        for (unsigned ieltype = 0; ieltype < nElementTypes; ++ieltype) {
+          n_dof_send[jproc][soltype] += n_el_to_interpolate_send[jproc][ieltype] * NVE[ieltype][soltype];
+        }
+      }
+    }
+
+    std::vector<std::vector<unsigned>> el_send(nprocs);
+    // std::vector<std::vector<unsigned>> el_gf_send(nprocs);
+    std::vector<std::vector<unsigned>> dofV_send(nprocs);
+    std::vector<std::vector<unsigned>> dofP_send(nprocs);
+    std::vector<std::vector<double>> X_send(dim * nprocs);
+    std::vector<std::vector<double>> Xi_send(dim * nprocs);
+    std::vector<std::vector<double>> solV_send(dim * nprocs);
+    std::vector<std::vector<double>> solVOld_send(dim * nprocs);
+    std::vector<std::vector<double>> solP1_send(nprocs);
+    std::vector<std::vector<double>> solP2_send(nprocs);
+
+    for (unsigned jproc = 0; jproc < nprocs; ++jproc) {
+      el_send[jproc].resize(n_el_send[jproc]);
+      // el_gf_send[jproc].resize(n_el_send[jproc]);
+      dofV_send[jproc].resize(n_dof_send[jproc][solVType]);
+      dofP_send[jproc].resize(n_dof_send[jproc][solPType]);
+      solP1_send[jproc].resize(n_dof_send[jproc][solPType]);
+      solP2_send[jproc].resize(n_dof_send[jproc][solPType]);
+
+      for (unsigned d = 0; d < dim; ++d) {
+        X_send[d * nprocs + jproc].resize(n_dof_send[jproc][solXType]);
+        Xi_send[d * nprocs + jproc].resize(n_dof_send[jproc][solXiType]);
+        solV_send[d * nprocs + jproc].resize(n_dof_send[jproc][solVType]);
+        solVOld_send[d * nprocs + jproc].resize(n_dof_send[jproc][solVType]);
+      }
+    }
+
+    std::vector<unsigned> posEl_send(nprocs, 0);
+    std::vector<unsigned> posV_send(nprocs, 0);
+    std::vector<unsigned> posP_send(nprocs, 0);
+    std::vector<unsigned> posX_send(nprocs, 0);
+    std::vector<unsigned> posXi_send(nprocs, 0);
+
+    for (unsigned k = 0; k < nElementsToLoop; ++k) {
+
+      const unsigned iel = (l == levelC) ? msh->_elementOffset[iproc] + k : el_recv[k];
+      // const unsigned iel_gf = (l == levelC) ? iel : el_gf_recv[k];
+      const unsigned iel_type = msh->GetElementType(iel);
+      const unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);
+      const unsigned nDofsP = msh->GetElementDofNumber(iel, solPType);
+      const unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
+      const unsigned nDofsXi = msh->GetElementDofNumber(iel, solXiType);
+
+      for(unsigned  k = 0; k < dim; k++) {
+        coordXi[k].resize(nDofsXi);
+      }
+      for (unsigned i = 0; i < nDofsXi; ++i) {
+        if (l == levelC) {
+          const double* xi_pt = msh->_finiteElement[iel_type][solXiType]->GetBasis()->GetXcoarse(i);
+          for (unsigned d = 0; d < dim; ++d) {
+            coordXi[d][i] = xi_pt[d];
+          }
+        }
+        else {
+          for (unsigned d = 0; d < dim; ++d) {
+            coordXi[d][i] = Xi_recv[d][offsetXi[k] + i];
+          }
+        }
+      }
+
+      if (el_to_assemble[k] == 1) {
+
+        //here is where the assembly happens
+        double C = (*solC)(iel);
+        short unsigned ielGeom = iel_type;
+        unsigned nDofsVP = dim * nDofsV + 2 * nDofsP;
+
+        //resize local arrays
+        sysDof.resize(nDofsVP);
+        Res.assign(nDofsVP, 0.);
+        Jac.assign(nDofsVP * nDofsVP, 0.);
+
+        for(unsigned  d = 0; d < dim; d++) {
+          solV[d].resize(nDofsV);
+          solVOld[d].resize(nDofsV);
+          coordX[d].resize(nDofsX);
+          coordXgf[d].resize(nDofsX);
+        }
+        solP1.resize(nDofsP);
+        solP2.resize(nDofsP);
+
+        //local storage of global mapping and solution
+        if (l == levelC) {
+          for(unsigned i = 0; i < nDofsV; i++) {
+            unsigned solVDof =  msh->GetSolutionDof(i, iel, solVType);
+            for(unsigned  d = 0; d < dim; d++) {
+              solV[d][i] = (*sol->_Sol[solVIndex[d]])(solVDof);
+              solVOld[d][i] = (*sol->_SolOld[solVIndex[d]])(solVDof);
+              sysDof[d * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[d], solVPdeIndex[d], i, iel);
+            }
+          }
+          for(unsigned i = 0; i < nDofsP; i++) {
+            unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
+            solP1[i] = (*sol->_Sol[solP1Index])(solPDof);
+            solP2[i] = (*sol->_Sol[solP2Index])(solPDof);
+            sysDof[dim * nDofsV + i ] = pdeSys->GetSystemDof(solP1Index, solP1PdeIndex, i, iel);
+            sysDof[dim * nDofsV + nDofsP + i ] = pdeSys->GetSystemDof(solP2Index, solP2PdeIndex, i, iel);
+          }
+        }
+        else {
+          for(unsigned i = 0; i < nDofsV; i++) {
+            unsigned solVDof = dofV_recv[offsetV[k] + i];
+            for(unsigned  d = 0; d < dim; d++) {
+              solV[d][i] = solV_recv[d][offsetV[k] + i];
+              solVOld[d][i] = solVOld_recv[d][offsetV[k] + i];
+              sysDof[d * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[d], solVPdeIndex[d], solVDof);
+            }
+          }
+          for(unsigned i = 0; i < nDofsP; i++) {
+            unsigned solPDof = dofP_recv[offsetP[k] + i];
+            solP1[i] = solP1_recv[offsetP[k] + i];
+            solP2[i] = solP2_recv[offsetP[k] + i];;
+            sysDof[dim * nDofsV + i ] = pdeSys->GetSystemDof(solP1Index, solP1PdeIndex, solPDof);
+            sysDof[dim * nDofsV + nDofsP + i ] = pdeSys->GetSystemDof(solP2Index, solP2PdeIndex, solPDof);
+          }
+        }
+
+        // local storage of coordinates
+        for(unsigned i = 0; i < nDofsX; i++) {
+          unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
+          for(unsigned d = 0; d < dim; d++) {
+            coordX[d][i] = (*msh->_topology->_Sol[d])(coordXDof);
+            coordXgf[d][i] = (l == levelC) ? coordX[d][i] : X_recv[d][offsetX[k] + i];
+          }
+        }
+
+        std::vector<double> a;
+        double d;
+
+        std::vector<std::vector<double>> Jacob, JacI;
+
+        const elem_type *femV = msh->_finiteElement[ielGeom][solVType];
+        const elem_type *femP = msh->_finiteElement[ielGeom][solPType];
+        const elem_type *femXi = msh->_finiteElement[ielGeom][solXiType];
+        const elem_type *femPsi = nullptr;
+
+        unsigned nDofsPsi;
+        unsigned nDofsN;
+        unsigned nDofsK;
+
+        unsigned cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
+
+        if(cut == 1) { // this can happen only on l == levelF
+          if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
+          femV = fem.GetFiniteElement(ielGeom, solVType);
+          femP = fem.GetFiniteElement(ielGeom, solPType);
+          femXi = fem.GetFiniteElement(ielGeom, solXiType);
+          femPsi = fem.GetFiniteElement(ielGeom, psiType);
+
+          nDofsPsi = msh->GetElementDofNumber(iel, psiType);
+          psi.resize(nDofsPsi);
+          for(unsigned i = 0; i < nDofsPsi; i++) {
+            unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
+            psi[i] = (*solPsi)(psiDof);
+          }
+
+          unsigned ng = femPsi->GetGaussPointNumber();
+          std::vector<double> psig(ng, 0.);
+          for(unsigned ig = 0; ig < ng; ig++) {
+            double *phi = femPsi->GetPhi(ig);
+            for(unsigned i = 0; i < nDofsPsi; i++) {
+              psig[ig] += psi[i] * phi[i];
+            }
+          }
+
+          std::vector<const double *> xg(dim);
+          for(unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
+
+          BestFitLinearInterpolation(xg, psig, a);
+          d = a[dim];
+          a.resize(dim);
+        }
+
+        std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+        std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+        std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+
+        if(cut == 1) {
+          cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+          for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+          cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+        }
+        else {
+          for(unsigned i = 0; i < weightCFInt.size(); i++) {
+            weightCFInt[i] = C;
+            weightCFExt[i] = 1. - C;
+          }
+        }
+
+        // *** Gauss point loop ***
+        std::vector<double> Nf(dim);
+        std::vector<double> Nls(dim);
+        std::vector<double> gradPsi(dim);
+        std::vector<double> normalDotGradPhi(nDofsV);
+        for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+          // *** get gauss point weight, test function and test function partial derivatives ***
+
+          if(l > levelC) {
+            femXi->Jacobian(coordX, ig, weight, phiXi, phiXi_x);
+            std::vector <double> xi_gf(dim, 0.);
+            for(unsigned i = 0; i < nDofsXi; i++) {
+              for(unsigned d = 0; d < dim; d++) {
+                xi_gf[d] += coordXi[d][i] * phiXi[i];
+              }
+            }
+            femV->Jacobian(coordXgf, xi_gf, weightFake, phiV, phiV_x);
+            femP->GetPhi(phiP, xi_gf);
+          }
+          else {
+            femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
+            double *phiPtemp = femP->GetPhi(ig);
+            phiP.resize(nDofsP);
+            for(unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
+          }
+
+          double x_gss = 0.;
+
+          if (nDofsX != nDofsV) throw std::runtime_error("ADD FEMX");
+
+          for(unsigned i = 0; i < nDofsX; ++i) {
+            x_gss += coordXgf[0][i] * phiV[i];
+          }
+
+          const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
+          const double axisWeight = axisymmetric ? r : 1.;
+
+          if(axisymmetric && dim != 2) {
+            throw std::runtime_error("Axisymmetric assembly requires dim == 2");
+          }
+
+          if(axisymmetric && r < -1.e-12) {
+            throw std::runtime_error("Negative axisymmetric radius");
+          }
+
+          double dsN = 0.;
+          if (cut == 1) {
+            femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
+            dsN = 0.0;
+            for (unsigned d = 0; d < dim; ++d) {
+              double nd = 0.0;
+              for (unsigned j = 0; j < dim; ++j)
+                nd += JacI[j][d] * a[j];
+              Nf[d] = nd;
+              dsN += nd * nd;
+            }
+            dsN = std::sqrt(dsN) + 1.e-20;
+            for (unsigned d = 0; d < dim; ++d) {
+              Nf[d] /= dsN;
+            }
+            for (unsigned i = 0; i < dim; ++i) {
+              const double ni = Nf[i];
+              auto& Pi = P[i];
+              for (unsigned j = 0; j < dim; ++j)
+                Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
+            }
+            for (unsigned j = 0; j < nDofsV; j++) {
+              const unsigned jOffset = j * dim;
+              normalDotGradPhi[j] = 0.;
+              for (unsigned J = 0; J < dim; J++) {
+                const double gradPhiJ = phiV_x[jOffset + J];
+                normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+              }
+            }
+            // std::vector<double> Nls(dim);
+            // std::vector<double> gradPsi(dim);
+            // std::vector<double> xiPsi(dim);
+            //
+            // for(unsigned d = 0; d < dim; ++d) {
+            //   xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
+            // }
+            //
+            // double weightPsi = 0.;
+            //
+            // femPsi->Jacobian(coordX, xiPsi, weightPsi, phiPsi, phiPsi_x);
+            //
+            // std::fill(gradPsi.begin(), gradPsi.end(), 0.);
+            //
+            // for(unsigned i = 0; i < nDofsPsi; ++i) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     gradPsi[d] += psi[i] * phiPsi_x[i * dim + d];
+            //   }
+            // }
+            //
+            // double normGradPsi = 0.;
+            //
+            // for(unsigned d = 0; d < dim; ++d) {
+            //   normGradPsi += gradPsi[d] * gradPsi[d];
+            // }
+            //
+            // normGradPsi = std::sqrt(normGradPsi);
+            //
+            // if(normGradPsi > 1.e-12) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] = gradPsi[d] / normGradPsi;
+            //   }
+            // }
+            // else {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] = Nf[d];
+            //   }
+            // }
+            //
+            // double normalAlignment = 0.;
+            //
+            // for(unsigned d = 0; d < dim; ++d) {
+            //   normalAlignment += Nls[d] * Nf[d];
+            // }
+            //
+            // if(normalAlignment < 0.) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] *= -1.;
+            //   }
+            // }
+            //
+            // for(unsigned i = 0; i < dim; ++i) {
+            //   for(unsigned j = 0; j < dim; ++j) {
+            //     P[i][j] = (i == j ? 1. : 0.) - Nls[i] * Nls[j];
+            //   }
+            // }
+            //
+            // for(unsigned j = 0; j < nDofsV; ++j) {
+            //   normalDotGradPhi[j] = 0.;
+            //   for(unsigned J = 0; J < dim; ++J) {
+            //     normalDotGradPhi[j] += Nls[J] * phiV_x[j * dim + J];
+            //   }
+            // }
+          }
+
+          for (unsigned d = 0; d < dim; ++d) {
+            solV_gss[d] = 0.0;
+            solVOld_gss[d] = 0.0;
+            for (unsigned j = 0; j < dim; ++j) {
+              gradSolV_gss[d][j] = 0.0;
+              gradSolVOld_gss[d][j] = 0.0;
+            }
+          }
+
+          for (unsigned i = 0; i < nDofsV; ++i) {
+            const double phi = phiV[i];
+            const unsigned offset = i * dim;
+            for (unsigned d = 0; d < dim; ++d) {
+              const double u = solV[d][i];
+              const double uOld = solVOld[d][i];
+              solV_gss[d] += u * phi;
+              solVOld_gss[d] += uOld * phi;
+              for (unsigned j = 0; j < dim; ++j) {
+                const double dphi = phiV_x[offset + j];
+                gradSolV_gss[d][j] += u * dphi;
+                gradSolVOld_gss[d][j] += uOld * dphi;
+              }
+            }
+          }
+
+          double solP1_gss = 0;
+          double solP2_gss = 0;
+          for(unsigned i = 0; i < nDofsP; i++) {
+            solP1_gss += phiP[i] * solP1[i];
+            solP2_gss += phiP[i] * solP2[i];
+          }
+
+          double rho = rho1 * weightCFInt[ig] + rho2 * weightCFExt[ig];
+          double mu = mu1 * weightCFInt[ig] + mu2 * weightCFExt[ig];
+
+          double rhoC = rho1 * C + rho2 * (1. - C);
+
+          const double massCoefficient = rho * weight * axisWeight / dt;
+
+          const double diffusionCoefficientNew = cnew * mu * weight * axisWeight;
+          const double diffusionCoefficientOld = cold * mu * weight * axisWeight;
+
+          const double convectionCoefficientNew = cnew * rho * weight * axisWeight;
+          const double convectionCoefficientOld = cold * rho * weight * axisWeight;
+
+          // *** phiV_i loop ***
+          for(unsigned i = 0; i < nDofsV; i++) {
+            for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
+              double NSV = 0.;
+              NSV += massCoefficient * phiV[i] * (solV_gss[I] - solVOld_gss[I]);
+              for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
+                // residual terms
+                NSV   +=  diffusionCoefficientNew * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
+                NSV   +=  diffusionCoefficientOld * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
+                if(linear) { // Picard/Hasan linear convective term
+                  NSV   +=  phiV[i] * (convectionCoefficientNew * solVOld_gss[J] * gradSolV_gss[I][J] +
+                                       convectionCoefficientOld * solV_gss[J] * gradSolVOld_gss[I][J]);
+                }
+                else { // BackEuler/CrankNicholson nonlinear convective term
+                  NSV   +=  convectionCoefficientNew * phiV[i] * (solV_gss[J] * gradSolV_gss[I][J]);
+                  NSV   +=  convectionCoefficientOld * phiV[i] * (solVOld_gss[J] * gradSolVOld_gss[I][J]);
+                }
+
+              }
+
+              if(axisymmetric && I == 0) {
+                NSV += 2. * cnew * mu * solV_gss[0] * phiV[i] * weight / r;
+                NSV += 2. * cold * mu * solVOld_gss[0] * phiV[i] * weight / r;
+              }
+
+              double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
+
+              if(axisymmetric && I == 0) {
+                weightedDivPhi += phiV[i];
+              }
+
+              NSV += - weightedDivPhi * (solP1_gss * weightCFInt[ig] + solP2_gss * weightCFExt[ig]) * weight;  // pressure gradient
+              NSV += - rho * phiV[i] * g[I] * weight * axisWeight; // gravity term
+
+              Res[I * nDofsV + i] -=  NSV;
+
+              // surface tension stabilization -- rhs contribution
+              if(cut == 1) {
+                for (int d = 0; d < dim; d++) {
+                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+                }
+
+                if(axisymmetric && I == 0) {
+                  Res[I * nDofsV + i] += -sigma * phiV[i] * weight * weightCF[ig] * dsN;
+                }
+
+                double stabSF = 0.0;
+
+                for (unsigned a = 0; a < dim; ++a) {
+
+                  double gradDeltaU_tg = 0.0;
+                  double gradPhi_tg    = 0.0;
+
+                  for (unsigned b = 0; b < dim; ++b) {
+
+                    gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
+                    gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
+
+                  }
+                  stabSF += gradDeltaU_tg * gradPhi_tg;
+                }
+
+                if(axisymmetric && I == 0) {
+                  stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
+                }
+
+                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN * axisWeight;
+              }
+            }
+          } // end phiV_i loop
+
+          // *** phiP_i loop ***
+          for(unsigned i = 0; i < nDofsP; i++) {
+
+            double weightedDivU = 0.;
+
+            for(unsigned I = 0; I < dim; ++I) {
+              weightedDivU += axisWeight * gradSolV_gss[I][I];
+            }
+
+            if(axisymmetric) {
+              weightedDivU += solV_gss[0];
+            }
+
+            Res[dim * nDofsV + i] += - weightedDivU * phiP[i]  * weight * weightCFInt[ig]; //continuity
+            Res[dim * nDofsV + nDofsP + i] += - weightedDivU * phiP[i]  * weight * weightCFExt[ig]; //continuity
+
+            // if(C == 0)
+            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
+            // if(C == 1)
+            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
+
+            // if(C > 0.1)
+            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
+            // if(C < 0.9)
+            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
+
+          } // end phiP_i loop
+          // end gauss point loop
+
+          //--------------------------------------------------------------------------------------------------------
+          // Add the local Matrix/Vector into the global Matrix/Vector
+          std::vector<double> solVdotGradphi_gss(nDofsV, 0.);
+          if(linear) {
+            for(unsigned j = 0; j < nDofsV; j++) {
+              for(unsigned J = 0; J < dim ; J++) {
+                solVdotGradphi_gss[j] += solVOld_gss[J] * phiV_x[j * dim + J];
+              }
+            }
+          }
+          else {
+            for(unsigned j = 0; j < nDofsV; j++) {
+              for(unsigned J = 0; J < dim ; J++) {
+                solVdotGradphi_gss[j] += solV_gss[J] * phiV_x[j * dim + J];
+              }
+            }
+          }
+
+          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN * axisWeight;
+
+          for(unsigned i = 0; i < nDofsV; i++) {
+            for(unsigned j = 0; j < nDofsV; j++) {
+
+              const double phiProduct = phiV[i] * phiV[j];
+
+              double gradPhi_dot_gradPhi = 0.0;
+              for(unsigned J = 0; J < dim ; J++) {
+                gradPhi_dot_gradPhi += phiV_x[i * dim + J] * phiV_x[j * dim + J]; //diagonal diffusion
+              }
+
+              double Phi_dot_solVGradPhi = solVdotGradphi_gss[j] * phiV[i];
+
+              double diagonalContribution = massCoefficient * phiProduct +
+                                            diffusionCoefficientNew * gradPhi_dot_gradPhi +
+                                            convectionCoefficientNew * Phi_dot_solVGradPhi ;
+
+              if (cut == 1) {
+                const double tangentialGradDot = gradPhi_dot_gradPhi - normalDotGradPhi[i] * normalDotGradPhi[j];
+                diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
+              }
+
+              for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+                unsigned VIrow = (I * nDofsV + i) * nDofsVP;
+                unsigned VIcolumn = I * nDofsV + j;
+
+                Jac[ VIrow + VIcolumn] += diagonalContribution; //diagonal
+
+                if(axisymmetric && cut == 1 && I == 0) {
+                  Jac[VIrow + VIcolumn] += surfaceTensionCoefficient * phiProduct / (r * r);
+                }
+
+                if(axisymmetric && I == 0) {
+                  Jac[VIrow + VIcolumn] += 2. * cnew * mu * phiV[i] * phiV[j] * weight / r;
+                }
+
+                for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+                  unsigned VJcolumn = J * nDofsV + j;
+                  Jac[ VIrow + VJcolumn ] += diffusionCoefficientNew * phiV_x[i * dim + J] * phiV_x[j * dim + I]; //off-diagonal diffusion
+                  Jac[ VIrow + VJcolumn ] += (linear) ? convectionCoefficientOld * phiProduct * gradSolVOld_gss[I][J] //off-diagonal convection
+                                             : convectionCoefficientNew * phiProduct * gradSolV_gss[I][J]; //off-diagonal convection
+                }
+              }
+            }
+          }
+
+          for(unsigned i = 0; i < nDofsV; i++) {
+            for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+              unsigned VIrow = I * nDofsV + i;
+
+              double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
+
+              if(axisymmetric && I == 0) {
+                weightedDivPhi += phiV[i];
+              }
+
+              for(unsigned j = 0; j < nDofsP; j++) {
+                unsigned P1column = dim * nDofsV + j;
+                unsigned P2column = dim * nDofsV + nDofsP + j;
+                Jac[VIrow * nDofsVP + P1column] += - weightedDivPhi * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
+                Jac[VIrow * nDofsVP + P2column] += - weightedDivPhi * phiP[j] * weight * weightCFExt[ig]; //pressure gradient
+
+                Jac[P1column * nDofsVP + VIrow] -= - weightedDivPhi * phiP[j] * weight * weightCFInt[ig]; //continuity
+                Jac[P2column * nDofsVP + VIrow] -= - weightedDivPhi * phiP[j] * weight * weightCFExt[ig]; //continuity
+              }
+            }
+          }
+          // for(unsigned i = 0; i < nDofsP; i++) {
+          //   unsigned P1row = dim * nDofsV + i;
+          //   unsigned P2row = dim * nDofsV + nDofsP + i;
+          //   for(unsigned j = 0; j < nDofsP; j++) {
+          //     unsigned P1column = dim * nDofsV + j;
+          //     unsigned P2column = dim * nDofsV + nDofsP + j;
+          //     if(C == 0)
+          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
+          //     if(C == 1)
+          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
+
+          //     if(C > 0.1)
+          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+          //     if(C < 0.9)
+          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
+          //   }
+          // }
+
+        }
+
+
+        if (cut == 1) {
+
+          std::cout<<"iel "<<iel<<"\t";
+
+          auto basis = msh->_finiteElement[ielGeom][solXType]->GetBasis();
+
+          for(unsigned jface = 0; jface < msh->GetElementFaceNumber(iel); jface++) {
+
+            std::cout<<"face "<<jface<<std::endl;
+
+            int faceIndex = el->GetBoundaryIndex(iel, jface);
+            const unsigned faceGeom = msh->GetElementFaceType(iel, jface);
+            auto face_basis = msh->_finiteElement[faceGeom][solXType]->GetBasis();
+            unsigned faceDofs = msh->GetElementFaceDofNumber(iel, jface, solXType);
+            unsigned faceDofsLin = msh->GetElementFaceDofNumber(iel, jface, 0);
+
+            std::vector<std::vector<double>> face_ref_coords(dim, std::vector<double>(faceDofs));
+            for (unsigned idof = 0; idof < faceDofs; idof++) {
+              unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, idof);
+              for (unsigned idim = 0; idim < dim; idim++) {
+                face_ref_coords[idim][idof] = basis->GetXcoarse(inode)[idim];
+              }
+            }
+
+            bool face_is_cut = false;
+
+            double value0 = d;
+            for (unsigned idim = 0; idim < dim; idim++) {
+              value0 += a[idim] * face_ref_coords[idim][0];
+            }
+
+            for (unsigned idof = 1; idof < faceDofsLin; idof++) {
+              double value = d;
+              for (unsigned idim = 0; idim < dim; idim++) {
+                value += a[idim] * face_ref_coords[idim][idof];
+              }
+
+              if (value * value0 < -1.e-12) {
+                face_is_cut = true;
+                break;
+              }
+            }
+
+        //     if (face_is_cut ) {
+        //
+        //
+        //
+        //
+        //       std::vector<std::vector<double>> intersections(0);
+        //
+        //       for (unsigned idof = 0; idof < ((dim == 3) ? faceDofsLin : 1); idof ++) {
+        //
+        //         double value_idof = a[dim];
+        //         for (unsigned idim = 0; idim < dim; idim++) {
+        //           value_idof += a[idim] * face_ref_coords[idim][idof];
+        //         }
+        //
+        //         unsigned jdof = (idof + 1) % faceDofsLin;
+        //         double value_jdof = a[dim];
+        //         for (unsigned idim = 0; idim < dim; idim++) {
+        //           value_jdof += a[idim] * face_ref_coords[idim][jdof];
+        //         }
+        //
+        //         if (value_idof * value_jdof < 0.) {
+        //           double t = value_idof / (value_idof - value_jdof);
+        //           std::vector<double> intersection(dim - 1);
+        //           for (unsigned idim = 0; idim < dim - 1; idim++) {
+        //             intersection[idim] = face_basis->GetXcoarse(idof)[idim] + t * (face_basis->GetXcoarse(jdof)[idim] - face_basis->GetXcoarse(idof)[idim]);
+        //           }
+        //           intersections.push_back(intersection);
+        //         }
+        //
+        //       }
+        //
+        //
+        //       if((intersections.size() != 2 && dim == 3) || (intersections.size() != 1 && dim == 2)) {
+        //         throw std::runtime_error("Wrong number of intersections");
+        //       }
+        //
+        //       std::vector<double> a_face(dim);
+        //
+        //       if (dim == 2) {
+        //         a_face[0] = 1.;
+        //         a_face[1] = -intersections[0][0];
+        //       }
+        //       else {
+        //         double dx = intersections[1][0] - intersections[0][0];
+        //         double dy = intersections[1][1] - intersections[0][1];
+        //         double norm = std::sqrt(dx * dx + dy * dy);
+        //         dx /= norm;
+        //         dy /= norm;
+        //         a_face[0] =  dy;
+        //         a_face[1] = -dx;
+        //         a_face[2] = -intersections[0][0] * dy + intersections[0][1] * dx;
+        //       }
+        //
+        //
+        //
+        //       double d = a_face[dim - 1];
+        //       a_face.resize(dim - 1);
+        //
+        //
+        //       std::vector <TypeIO> weightCF_face(cfw[faceGeom]->GetGaussQuadraturePointNumber(), 0.);
+        //       cfw[faceGeom]->GetWeightWithMap(-1, a_face, d, weightCF_face);
+        //
+        //
+        //       unsigned faceDofs = msh->GetElementFaceDofNumber(iel, jface, solXType);
+        //       std::vector  < std::vector  <  double> > faceCoordinates(dim);
+        //       for(int k = 0; k < dim; k++) {
+        //         faceCoordinates[k].resize(faceDofs);
+        //       }
+        //       for(unsigned i = 0; i < faceDofs; i++) {
+        //         unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+        //         for(unsigned k = 0; k < dim; k++) {
+        //           faceCoordinates[k][i] =  coordX[k][inode];
+        //         }
+        //       }
+        //
+        //
+        //       std::vector<std::vector<double>> Jacob_face, JacI_face;
+        //       std::vector<double> Nf_face(dim);
+        //
+        //
+        //       for(unsigned ig = 0; ig  <  fem.GetFiniteElement(faceGeom, solVType)->GetGaussPointNumber(); ig++) {
+        //
+        //         std::vector < double > normal;
+        //         fem.GetFiniteElement(faceGeom, solVType)->JacobianSur(faceCoordinates, ig, weight, phiV, phiV_x, normal);
+        //
+        //         std::cout<<"normal to the face "<<normal[0]<<" "<<normal[1]<<std::endl;
+        //
+        //         std::vector<double> xi_g(dim);
+        //         for (unsigned i = 0; i < phiV.size(); i++) {
+        //           for (unsigned idim = 0; idim < dim; idim++) {
+        //             xi_g[idim] += phiV[i] * face_ref_coords[idim][i];
+        //           }
+        //         }
+        //
+        //         fem.GetFiniteElement(ielGeom, solVType)->GetJacobianMatrix(coordX, xi_g, weightFake, Jacob, JacI);
+        //
+        //         double dsN = 0.0;
+        //         for (unsigned d = 0; d < dim; ++d) {
+        //           double nd = 0.0;
+        //           for (unsigned j = 0; j < dim; ++j)
+        //             nd += JacI[j][d] * a[j];
+        //           Nf[d] = nd;
+        //           dsN += nd * nd;
+        //         }
+        //         dsN = std::sqrt(dsN) + 1.e-20;
+        //         for (unsigned d = 0; d < dim; ++d) {
+        //           Nf[d] /= dsN;
+        //         }
+        //         for (unsigned i = 0; i < dim; ++i) {
+        //           const double ni = Nf[i];
+        //           auto& Pi = P[i];
+        //           for (unsigned j = 0; j < dim; ++j)
+        //             Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
+        //         }
+        //
+        //         std::cout<<"plane physical normal "<<Nf[0]<<" "<<Nf[1]<<std::endl;
+        //
+        //
+        //         fem.GetFiniteElement(faceGeom, solVType)->GetJacobianSurMatrix(faceCoordinates, ig, weightFake, Jacob_face, JacI_face);
+        //
+        //         double dsN_face = 0.0;
+        //         for (unsigned d = 0; d < dim; ++d) {
+        //           double nd = 0.0;
+        //           for (unsigned j = 0; j < dim - 1; ++j)
+        //             nd += JacI_face[j][d] * a_face[j];
+        //           Nf_face[d] = nd;
+        //           dsN_face += nd * nd;
+        //         }
+        //         dsN_face = std::sqrt(dsN_face) + 1.e-20;
+        //
+        //         std::cout<<"plane_face physical normal "<<Nf_face[0]/dsN_face<<" "<<Nf[1]/dsN_face<<std::endl;
+        //
+        //         std::cout<<"dsnface "<<dsN_face<<"\t";
+        //         std::cout<<"a_face[0] = "<<a_face[0]<<"\t faceCoordinates[0] = "<<faceCoordinates[0][0]<<"\t"<<faceCoordinates[1][0]<<"\t faceCoordinates[1] = "<<faceCoordinates[0][1]<<"\t"<<faceCoordinates[1][1]<<std::endl;
+        //
+        //         std::vector<double> mu(dim, 0.);
+        //         double muNorm = 0.;
+        //
+        //         for (unsigned I = 0; I < dim; I++) {
+        //           for (unsigned d = 0; d < dim; d++) {
+        //             mu[I] += P[I][d] * normal[d];
+        //           }
+        //           muNorm += mu[I] * mu[I];
+        //         }
+        //         muNorm = std::sqrt(muNorm);
+        //         std::cout<<"mu ";
+        //         for (unsigned I = 0; I < dim; I++) {
+        //           mu[I] /= muNorm;
+        //           std::cout<<mu[I]<<"\t";
+        //           for (unsigned i = 0; i < faceDofs; i++) {
+        //             unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+        //             Res[I * nDofsV + inode] += sigma * phiV[i] * mu[I] * weight * weightCF_face[ig] * dsN_face;
+        //           }
+        //         }
+        //         std::cout<<std::endl;
+        //
+        //       }
+        //
+        //     }
+        //
+        //   }
+        if (face_is_cut) {
+  bool diagnostic = (iel == 4133 || iel == 4298 || iel == 4309);
+  std::ostringstream diagnosticOutput;
+  diagnosticOutput << std::setprecision(17);
+
+  unsigned faceDofs = msh->GetElementFaceDofNumber(iel, jface, solXType);
+  unsigned faceDofsV = msh->GetElementFaceDofNumber(iel, jface, solVType);
+  unsigned faceGaussPoints = fem.GetFiniteElement(faceGeom, solXType)->GetGaussPointNumber();
+
+  if (diagnostic) {
+    diagnosticOutput << "\nFACE iel=" << iel << " jface=" << jface << " dim=" << dim << " solXType=" << solXType << " solVType=" << solVType << " faceDofsX=" << faceDofs << " faceDofsV=" << faceDofsV << "\n";
+    diagnosticOutput << "element_plane";
+    for (unsigned k = 0; k < dim; k++) {
+      diagnosticOutput << " " << a[k];
+    }
+    diagnosticOutput << " " << d << "\n";
+  }
+
+  std::vector<std::vector<double>> intersections;
+
+  for (unsigned idof = 0; idof < ((dim == 3) ? faceDofsLin : 1); idof++) {
+    double value_idof = d;
+    for (unsigned idim = 0; idim < dim; idim++) {
+      value_idof += a[idim] * face_ref_coords[idim][idof];
+    }
+
+    unsigned jdof = (idof + 1) % faceDofsLin;
+    double value_jdof = d;
+    for (unsigned idim = 0; idim < dim; idim++) {
+      value_jdof += a[idim] * face_ref_coords[idim][jdof];
+    }
+
+    if (diagnostic) {
+      diagnosticOutput << "edge " << idof << " " << jdof << " G0=" << value_idof << " G1=" << value_jdof << "\n";
+    }
+
+    if (value_idof * value_jdof < 0.) {
+      double t = value_idof / (value_idof - value_jdof);
+      std::vector<double> intersection(dim - 1);
+
+      for (unsigned idim = 0; idim < dim - 1; idim++) {
+        intersection[idim] = face_basis->GetXcoarse(idof)[idim] + t * (face_basis->GetXcoarse(jdof)[idim] - face_basis->GetXcoarse(idof)[idim]);
+      }
+
+      intersections.push_back(intersection);
+
+      if (diagnostic) {
+        unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, idof);
+        unsigned jnode = msh->GetLocalFaceVertexIndex(iel, jface, jdof);
+
+        diagnosticOutput << "intersection " << intersections.size() - 1 << " t=" << t << " face_ref";
+        for (unsigned k = 0; k < dim - 1; k++) {
+          diagnosticOutput << " " << intersection[k];
+        }
+
+        diagnosticOutput << " element_ref";
+        for (unsigned k = 0; k < dim; k++) {
+          diagnosticOutput << " " << face_ref_coords[k][idof] + t * (face_ref_coords[k][jdof] - face_ref_coords[k][idof]);
+        }
+
+        diagnosticOutput << " x_edge";
+        for (unsigned k = 0; k < dim; k++) {
+          diagnosticOutput << " " << coordX[k][inode] + t * (coordX[k][jnode] - coordX[k][inode]);
+        }
+        diagnosticOutput << "\n";
+      }
+    }
+  }
+
+  if ((intersections.size() != 2 && dim == 3) || (intersections.size() != 1 && dim == 2)) {
+    std::cout << diagnosticOutput.str();
+    throw std::runtime_error("Wrong number of intersections");
+  }
+
+  std::vector<double> a_face(dim);
+
+  if (dim == 2) {
+    a_face[0] = 1.;
+    a_face[1] = -intersections[0][0];
+  }
+  else {
+    double dx = intersections[1][0] - intersections[0][0];
+    double dy = intersections[1][1] - intersections[0][1];
+    double norm = std::sqrt(dx * dx + dy * dy);
+
+    if (norm == 0.) {
+      std::cout << diagnosticOutput.str();
+      throw std::runtime_error("Coincident face intersections");
+    }
+
+    dx /= norm;
+    dy /= norm;
+    a_face[0] = dy;
+    a_face[1] = -dx;
+    a_face[2] = -intersections[0][0] * dy + intersections[0][1] * dx;
+  }
+
+  double d = a_face[dim - 1];
+  a_face.resize(dim - 1);
+
+  std::vector<TypeIO> weightCF_face(cfw[faceGeom]->GetGaussQuadraturePointNumber(), 0.);
+  cfw[faceGeom]->GetWeightWithMap(-1, a_face, d, weightCF_face);
+
+  if (weightCF_face.size() != faceGaussPoints) {
+    std::cout << diagnosticOutput.str();
+    throw std::runtime_error("Face CF and finite element quadrature counts differ");
+  }
+
+  std::vector<std::vector<double>> faceCoordinates(dim, std::vector<double>(faceDofs));
+
+  for (unsigned i = 0; i < faceDofs; i++) {
+    unsigned inode = msh->GetLocalFaceVertexIndex(iel, jface, i);
+    for (unsigned k = 0; k < dim; k++) {
+      faceCoordinates[k][i] = coordX[k][inode];
+    }
+
+    if (diagnostic) {
+      diagnosticOutput << "face_node " << i << " element_node=" << inode << " x";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << faceCoordinates[k][i];
+      }
+      diagnosticOutput << "\n";
+    }
+  }
+
+  if (diagnostic) {
+    diagnosticOutput << "face_plane";
+    for (unsigned k = 0; k < dim - 1; k++) {
+      diagnosticOutput << " " << a_face[k];
+    }
+    diagnosticOutput << " offset=" << d << "\n";
+  }
+
+  std::vector<std::vector<double>> Jacob_face, JacI_face;
+  std::vector<double> phiFace;
+  std::vector<double> phiFace_x;
+  std::vector<double> Nf_face(dim);
+  std::vector<double> integratedMu(dim, 0.);
+  std::vector<double> integratedResidual(dim, 0.);
+  double integratedMeasure = 0.;
+
+  for (unsigned ig = 0; ig < faceGaussPoints; ig++) {
+    std::vector<double> normal;
+    fem.GetFiniteElement(faceGeom, solXType)->JacobianSur(faceCoordinates, ig, weight, phiFace, phiFace_x, normal);
+
+    if (phiFace.size() != faceDofs) {
+      std::cout << diagnosticOutput.str();
+      throw std::runtime_error("Face basis size differs from face DOF count");
+    }
+
+    std::vector<double> xi_g(dim, 0.);
+    std::vector<double> x_g(dim, 0.);
+
+    for (unsigned i = 0; i < phiFace.size(); i++) {
+      for (unsigned k = 0; k < dim; k++) {
+        xi_g[k] += phiFace[i] * face_ref_coords[k][i];
+        x_g[k] += phiFace[i] * faceCoordinates[k][i];
+      }
+    }
+
+    std::vector<double> xi_gf = xi_g;
+    if (l > levelC) {
+      phiXi.resize(nDofsXi);
+      femXi->GetPhi(phiXi, xi_g);
+      xi_gf.assign(dim, 0.);
+      for (unsigned i = 0; i < nDofsXi; i++) {
+        for (unsigned k = 0; k < dim; k++) {
+          xi_gf[k] += coordXi[k][i] * phiXi[i];
+        }
+      }
+    }
+
+    phiV.resize(nDofsV);
+    femV->GetPhi(phiV, xi_gf);
+    if (phiV.size() != nDofsV) {
+      std::cout << diagnosticOutput.str();
+      throw std::runtime_error("Assembly basis size differs from velocity DOF count");
+    }
+
+    double phiSum = 0.;
+    for (unsigned i = 0; i < nDofsV; i++) {
+      phiSum += phiV[i];
+    }
+
+    fem.GetFiniteElement(ielGeom, solXType)->GetJacobianMatrix(coordX, xi_g, weightFake, Jacob, JacI);
+
+    double dsN = 0.;
+    for (unsigned k = 0; k < dim; k++) {
+      double nd = 0.;
+      for (unsigned j = 0; j < dim; j++) {
+        nd += JacI[j][k] * a[j];
+      }
+      Nf[k] = nd;
+      dsN += nd * nd;
+    }
+
+    dsN = std::sqrt(dsN) + 1.e-20;
+    for (unsigned k = 0; k < dim; k++) {
+      Nf[k] /= dsN;
+    }
+
+    for (unsigned i = 0; i < dim; i++) {
+      for (unsigned j = 0; j < dim; j++) {
+        P[i][j] = (i == j ? 1. : 0.) - Nf[i] * Nf[j];
+      }
+    }
+
+    fem.GetFiniteElement(faceGeom, solXType)->GetJacobianSurMatrix(faceCoordinates, ig, weightFake, Jacob_face, JacI_face);
+    double faceMatrixWeight = weightFake;
+
+    double dsN_face = 0.;
+    for (unsigned k = 0; k < dim; k++) {
+      double nd = 0.;
+      for (unsigned j = 0; j < dim - 1; j++) {
+        nd += JacI_face[j][k] * a_face[j];
+      }
+      Nf_face[k] = nd;
+      dsN_face += nd * nd;
+    }
+    dsN_face = std::sqrt(dsN_face) + 1.e-20;
+
+    std::vector<double> mu(dim, 0.);
+    double muNorm = 0.;
+
+    for (unsigned I = 0; I < dim; I++) {
+      for (unsigned k = 0; k < dim; k++) {
+        mu[I] += P[I][k] * normal[k];
+      }
+      muNorm += mu[I] * mu[I];
+    }
+    muNorm = std::sqrt(muNorm);
+
+    if (muNorm == 0.) {
+      std::cout << diagnosticOutput.str();
+      throw std::runtime_error("Zero projected face normal");
+    }
+
+    for (unsigned I = 0; I < dim; I++) {
+      mu[I] /= muNorm;
+    }
+
+    double measureContribution = weight * weightCF_face[ig] * dsN_face;
+    integratedMeasure += measureContribution;
+
+    for (unsigned I = 0; I < dim; I++) {
+      integratedMu[I] += mu[I] * measureContribution;
+      for (unsigned i = 0; i < nDofsV; i++) {
+        double contribution = sigma * phiV[i] * mu[I] * measureContribution;
+        Res[I * nDofsV + i] += contribution;
+        integratedResidual[I] += contribution;
+      }
+    }
+
+    if (diagnostic) {
+      double faceJacobian = 0.;
+
+      if (dim == 2) {
+        faceJacobian = std::sqrt(Jacob_face[0][0] * Jacob_face[0][0] + Jacob_face[1][0] * Jacob_face[1][0]);
+      }
+      else {
+        double cx = Jacob_face[1][0] * Jacob_face[2][1] - Jacob_face[2][0] * Jacob_face[1][1];
+        double cy = Jacob_face[2][0] * Jacob_face[0][1] - Jacob_face[0][0] * Jacob_face[2][1];
+        double cz = Jacob_face[0][0] * Jacob_face[1][1] - Jacob_face[1][0] * Jacob_face[0][1];
+        faceJacobian = std::sqrt(cx * cx + cy * cy + cz * cz);
+      }
+
+      double inverseError = 0.;
+      for (unsigned i = 0; i < dim; i++) {
+        for (unsigned j = 0; j < dim; j++) {
+          double entry = 0.;
+          for (unsigned k = 0; k < dim; k++) {
+            entry += Jacob_face[i][k] * JacI_face[k][j];
+          }
+          double error = std::fabs(entry - (i == j ? 1. : 0.));
+          if (error > inverseError) {
+            inverseError = error;
+          }
+        }
+      }
+
+      double muDotN = 0.;
+      double faceGradientDotNormal = 0.;
+      for (unsigned k = 0; k < dim; k++) {
+        muDotN += mu[k] * Nf[k];
+        faceGradientDotNormal += Nf_face[k] * normal[k] / dsN_face;
+      }
+
+      diagnosticOutput << "gp=" << ig << " x";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << x_g[k];
+      }
+
+      std::vector<double> phiXgf(nDofsX);
+      fem.GetFiniteElement(ielGeom, solXType)->GetPhi(phiXgf, xi_gf);
+      double mappingError = 0.;
+      for (unsigned k = 0; k < dim; k++) {
+        double x_gf = 0.;
+        for (unsigned i = 0; i < nDofsX; i++) {
+          x_gf += coordXgf[k][i] * phiXgf[i];
+        }
+        double error = std::fabs(x_gf - x_g[k]);
+        if (error > mappingError) {
+          mappingError = error;
+        }
+      }
+
+      diagnosticOutput << " xi_fine";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << xi_g[k];
+      }
+      diagnosticOutput << " xi_assembly";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << xi_gf[k];
+      }
+      diagnosticOutput << " mappingError=" << mappingError;
+
+      diagnosticOutput << " face_normal";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << normal[k];
+      }
+
+      diagnosticOutput << " interface_normal";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << Nf[k];
+      }
+
+      diagnosticOutput << " face_gradient_unit";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << Nf_face[k] / dsN_face;
+      }
+
+      diagnosticOutput << " mu";
+      for (unsigned k = 0; k < dim; k++) {
+        diagnosticOutput << " " << mu[k];
+      }
+
+      diagnosticOutput << " jFace=" << faceJacobian << " dsNface=" << dsN_face << " jFace_dsNface=" << faceJacobian * dsN_face << " weight=" << weight << " matrixWeight=" << faceMatrixWeight << " cf=" << weightCF_face[ig] << " measureContribution=" << measureContribution << " phiSum=" << phiSum << " muNormBefore=" << muNorm << " muDotN=" << muDotN << " faceGradientDotNormal=" << faceGradientDotNormal << " inverseError=" << inverseError << "\n";
+    }
+  }
+
+  if (diagnostic) {
+    diagnosticOutput << "FACE_SUM measure=" << integratedMeasure << " integrated_mu";
+    for (unsigned k = 0; k < dim; k++) {
+      diagnosticOutput << " " << integratedMu[k];
+    }
+
+    diagnosticOutput << " residual_sum";
+    for (unsigned k = 0; k < dim; k++) {
+      diagnosticOutput << " " << integratedResidual[k];
+    }
+    diagnosticOutput << "\n";
+
+    std::cout << diagnosticOutput.str();
+  }
+}
+        //
+        }
+        }
+
+
+        RES->add_vector_blocked(Res, sysDof);
+        KK->add_matrix_blocked(Jac, sysDof, sysDof);
+      }
       // else {
 
       //   std::vector<std::vector<double>> Xichild(dim * nChildren);
@@ -2153,4 +3854,4 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
-}
+}*/
