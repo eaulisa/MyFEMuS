@@ -1823,6 +1823,460 @@ void BestFitLinearInterpolation(std::vector<const double*>& xg,
   }
 }
 
+#include "FEFieldExtraction.hpp"
+
+inline bool BestFitQuadraticCandidate(const std::vector<const double*>& xg, const std::vector<double>& normalizedPsi, const std::vector<double>& squareRootWeights, const bool& xSquared, std::vector<double>& B, double& error, double& graphQuality) {
+  const unsigned n = static_cast<unsigned>(normalizedPsi.size());
+  const unsigned m = 4;
+  const double rankTolerance = 1.e-12;
+  const double graphTolerance = 1.e-12;
+
+  B.clear();
+  error = std::numeric_limits<double>::infinity();
+  graphQuality = 0.;
+
+  std::vector<std::vector<double>> matrix(n, std::vector<double>(m, 0.));
+  std::vector<double> rhs(n, 0.);
+  std::vector<double> columnScale(m, 0.);
+  std::vector<unsigned> permutation = {0, 1, 2, 3};
+
+  for(unsigned i = 0; i < n; i++) {
+    const double independent = xSquared ? xg[0][i] : xg[1][i];
+    const double dependent = xSquared ? xg[1][i] : xg[0][i];
+    matrix[i][0] = squareRootWeights[i] * independent * independent;
+    matrix[i][1] = squareRootWeights[i] * independent;
+    matrix[i][2] = squareRootWeights[i] * dependent;
+    matrix[i][3] = squareRootWeights[i];
+    rhs[i] = squareRootWeights[i] * normalizedPsi[i];
+    for(unsigned j = 0; j < m; j++) columnScale[j] = std::hypot(columnScale[j], matrix[i][j]);
+  }
+
+  for(unsigned j = 0; j < m; j++) {
+    if(columnScale[j] == 0. || !std::isfinite(columnScale[j])) return false;
+    for(unsigned i = 0; i < n; i++) matrix[i][j] /= columnScale[j];
+  }
+
+  std::vector<double> reflector(n, 0.);
+
+  for(unsigned k = 0; k < m; k++) {
+    unsigned pivot = k;
+    double pivotNorm = 0.;
+
+    for(unsigned j = k; j < m; j++) {
+      double columnNorm = 0.;
+      for(unsigned i = k; i < n; i++) columnNorm = std::hypot(columnNorm, matrix[i][j]);
+      if(columnNorm > pivotNorm) {
+        pivotNorm = columnNorm;
+        pivot = j;
+      }
+    }
+
+    if(pivotNorm <= rankTolerance) return false;
+
+    if(pivot != k) {
+      for(unsigned i = 0; i < n; i++) std::swap(matrix[i][k], matrix[i][pivot]);
+      std::swap(permutation[k], permutation[pivot]);
+    }
+
+    const double diagonal = -std::copysign(pivotNorm, matrix[k][k]);
+    double reflectorNorm = 0.;
+
+    for(unsigned i = k; i < n; i++) {
+      reflector[i] = matrix[i][k];
+      if(i == k) reflector[i] -= diagonal;
+      reflectorNorm = std::hypot(reflectorNorm, reflector[i]);
+    }
+
+    if(reflectorNorm == 0.) return false;
+    for(unsigned i = k; i < n; i++) reflector[i] /= reflectorNorm;
+
+    for(unsigned j = k; j < m; j++) {
+      double projection = 0.;
+      for(unsigned i = k; i < n; i++) projection += reflector[i] * matrix[i][j];
+      for(unsigned i = k; i < n; i++) matrix[i][j] -= 2. * projection * reflector[i];
+    }
+
+    double projection = 0.;
+    for(unsigned i = k; i < n; i++) projection += reflector[i] * rhs[i];
+    for(unsigned i = k; i < n; i++) rhs[i] -= 2. * projection * reflector[i];
+
+    matrix[k][k] = diagonal;
+    for(unsigned i = k + 1; i < n; i++) matrix[i][k] = 0.;
+  }
+
+  std::vector<double> solution(m, 0.);
+  std::vector<double> coefficients(m, 0.);
+
+  for(int ii = static_cast<int>(m) - 1; ii >= 0; ii--) {
+    const unsigned i = static_cast<unsigned>(ii);
+    double value = rhs[i];
+    for(unsigned j = i + 1; j < m; j++) value -= matrix[i][j] * solution[j];
+    solution[i] = value / matrix[i][i];
+    if(!std::isfinite(solution[i])) return false;
+  }
+
+  for(unsigned j = 0; j < m; j++) {
+    coefficients[permutation[j]] = solution[j] / columnScale[permutation[j]];
+    if(!std::isfinite(coefficients[permutation[j]])) return false;
+  }
+
+  const double gradientScale = std::hypot(2. * std::fabs(coefficients[0]) + std::fabs(coefficients[1]), coefficients[2]);
+  if(!std::isfinite(gradientScale) || gradientScale <= graphTolerance * std::max(1., std::fabs(coefficients[3]))) return false;
+  if(std::fabs(coefficients[2]) <= graphTolerance * gradientScale) return false;
+
+  double residualNorm = 0.;
+  double weightNorm = 0.;
+
+  for(unsigned i = 0; i < n; i++) {
+    const double independent = xSquared ? xg[0][i] : xg[1][i];
+    const double dependent = xSquared ? xg[1][i] : xg[0][i];
+    const double fittedPsi = (coefficients[0] * independent + coefficients[1]) * independent + coefficients[2] * dependent + coefficients[3];
+    residualNorm = std::hypot(residualNorm, squareRootWeights[i] * (fittedPsi - normalizedPsi[i]));
+    weightNorm = std::hypot(weightNorm, squareRootWeights[i]);
+  }
+
+  error = residualNorm / weightNorm;
+  if(!std::isfinite(error)) return false;
+  graphQuality = std::fabs(coefficients[2]) / gradientScale;
+  B.swap(coefficients);
+  return true;
+}
+
+inline void BestFitQuadraticInterpolation(const std::vector<const double*>& xg, const std::vector<double>& psi, std::vector<double>& BX, std::vector<double>& BY, bool& xSquared) {
+  BX.clear();
+  BY.clear();
+  if(xg.size() != 2 || psi.size() < 4) throw std::runtime_error("BestFitQuadraticInterpolation: requires 2D coordinates and at least four samples");
+  if(xg[0] == nullptr || xg[1] == nullptr) throw std::runtime_error("BestFitQuadraticInterpolation: null coordinate pointer");
+
+  const unsigned n = static_cast<unsigned>(psi.size());
+  double psiScale = 0.;
+
+  for(unsigned i = 0; i < n; i++) {
+    if(!std::isfinite(psi[i]) || !std::isfinite(xg[0][i]) || !std::isfinite(xg[1][i])) throw std::runtime_error("BestFitQuadraticInterpolation: nonfinite input");
+    psiScale = std::max(psiScale, std::fabs(psi[i]));
+  }
+
+  if(psiScale == 0.) throw std::runtime_error("BestFitQuadraticInterpolation: zero level-set field");
+
+  std::vector<double> normalizedPsi(n, 0.);
+  std::vector<double> squareRootWeights(n, 0.);
+  double meanSquare = 0.;
+
+  for(unsigned i = 0; i < n; i++) {
+    normalizedPsi[i] = psi[i] / psiScale;
+    meanSquare += normalizedPsi[i] * normalizedPsi[i];
+  }
+
+  meanSquare /= static_cast<double>(n);
+  double minimumRatio = std::numeric_limits<double>::infinity();
+
+  for(unsigned i = 0; i < n; i++) minimumRatio = std::min(minimumRatio, normalizedPsi[i] * normalizedPsi[i] / meanSquare);
+
+  const double beta = 100.;
+  for(unsigned i = 0; i < n; i++) squareRootWeights[i] = std::exp(-0.5 * beta * (normalizedPsi[i] * normalizedPsi[i] / meanSquare - minimumRatio));
+
+  double errorX = 0.;
+  double errorY = 0.;
+  double graphQualityX = 0.;
+  double graphQualityY = 0.;
+
+  const bool validX = BestFitQuadraticCandidate(xg, normalizedPsi, squareRootWeights, true, BX, errorX, graphQualityX);
+  const bool validY = BestFitQuadraticCandidate(xg, normalizedPsi, squareRootWeights, false, BY, errorY, graphQualityY);
+
+  if(!validX && !validY) throw std::runtime_error("BestFitQuadraticInterpolation: neither parabola fit is usable");
+
+  if(!validY) xSquared = true;
+  else if(!validX) xSquared = false;
+  else {
+    const double tieTolerance = 100. * std::numeric_limits<double>::epsilon() * std::max(1., std::max(errorX, errorY));
+    if(std::fabs(errorX - errorY) > tieTolerance) xSquared = errorX < errorY;
+    else xSquared = graphQualityX >= graphQualityY;
+  }
+
+  for(unsigned i = 0; i < BX.size(); i++) {
+    BX[i] *= psiScale;
+    if(!std::isfinite(BX[i])) throw std::runtime_error("BestFitQuadraticInterpolation: coefficient overflow");
+  }
+
+  for(unsigned i = 0; i < BY.size(); i++) {
+    BY[i] *= psiScale;
+    if(!std::isfinite(BY[i])) throw std::runtime_error("BestFitQuadraticInterpolation: coefficient overflow");
+  }
+}
+
+inline double Quad9CheckValues(const std::vector<double>& psi, const double tolerance) {
+  if(psi.size() != 9) throw std::runtime_error("QUAD9 reconstruction requires nine nodal values");
+  if(!std::isfinite(tolerance) || tolerance <= 0. || tolerance >= 1.) throw std::runtime_error("Invalid QUAD9 reconstruction tolerance");
+  double scale = 0.;
+  for(unsigned i = 0; i < 9; i++) {
+    if(!std::isfinite(psi[i])) throw std::runtime_error("Nonfinite QUAD9 nodal value");
+    scale = std::max(scale, std::fabs(psi[i]));
+  }
+  if(scale == 0.) throw std::runtime_error("Identically zero QUAD9 level set");
+  return scale;
+}
+
+inline void Quad9PolynomialCoefficients(const std::vector<double>& psi, std::vector<std::vector<double>>& C) {
+  Quad9CheckValues(psi, 1.e-12);
+
+  std::vector<std::vector<std::vector<double>>> coefficients;
+  ExtractFEFieldPolynomial<double>(QUAD, 2, psi, coefficients);
+
+  C.assign(3, std::vector<double>(3, 0.));
+
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      C[i][j] = coefficients[i][j][0];
+    }
+  }
+}
+
+inline double Quad9PolynomialValue(const std::vector<std::vector<double>>& C, const double x, const double y) {
+  double value = 0.;
+  for(int i = 2; i >= 0; i--) value = value * x + (C[i][2] * y + C[i][1]) * y + C[i][0];
+  return value;
+}
+
+inline void Quad9AddIntervalRoot(const double value, std::vector<double>& roots, const double tolerance) {
+  if(!std::isfinite(value) || value < -1. - tolerance || value > 1. + tolerance) return;
+  const double root = std::max(-1., std::min(1., value));
+  for(unsigned i = 0; i < roots.size(); i++) {
+    if(std::fabs(root - roots[i]) <= tolerance) return;
+  }
+  roots.push_back(root);
+}
+
+inline bool Quad9QuadraticRoots(double a, double b, double c, std::vector<double>& roots, const double tolerance) {
+  roots.clear();
+  const double scale = std::max(std::fabs(a), std::max(std::fabs(b), std::fabs(c)));
+  if(scale == 0.) return false;
+  a /= scale;
+  b /= scale;
+  c /= scale;
+  if(a == 0.) {
+    if(b != 0.) Quad9AddIntervalRoot(-c / b, roots, tolerance);
+    return true;
+  }
+  double discriminant = std::fma(b, b, -4. * a * c);
+  const double roundoff = 32. * std::numeric_limits<double>::epsilon() * (b * b + std::fabs(4. * a * c));
+  if(discriminant < -roundoff) return true;
+  if(discriminant <= 0.) {
+    Quad9AddIntervalRoot(-0.5 * b / a, roots, tolerance);
+    return true;
+  }
+  const double q = -0.5 * (b + std::copysign(std::sqrt(discriminant), b));
+  Quad9AddIntervalRoot(q / a, roots, tolerance);
+  Quad9AddIntervalRoot(c / q, roots, tolerance);
+  std::sort(roots.begin(), roots.end());
+  return true;
+}
+
+inline bool Quad9BoundaryZeros(const std::vector<double>& psi, std::vector<std::vector<double>>& intersections, const double tolerance) {
+  const unsigned nodes[4][3] = {{0, 4, 1}, {1, 5, 2}, {3, 6, 2}, {0, 7, 3}};
+  intersections.clear();
+  for(unsigned edge = 0; edge < 4; edge++) {
+    const double scale = std::max(std::fabs(psi[nodes[edge][0]]), std::max(std::fabs(psi[nodes[edge][1]]), std::fabs(psi[nodes[edge][2]])));
+    if(scale == 0.) {
+      intersections.clear();
+      return false;
+    }
+    const double left = psi[nodes[edge][0]] / scale;
+    const double middle = psi[nodes[edge][1]] / scale;
+    const double right = psi[nodes[edge][2]] / scale;
+    std::vector<double> roots;
+    Quad9QuadraticRoots(0.5 * (left + right) - middle, 0.5 * (right - left), middle, roots, tolerance);
+    for(unsigned r = 0; r < roots.size(); r++) {
+      std::vector<double> point(2, 0.);
+      if(edge == 0 || edge == 2) {
+        point[0] = roots[r];
+        point[1] = edge == 0 ? -1. : 1.;
+      }
+      else {
+        point[0] = edge == 1 ? 1. : -1.;
+        point[1] = roots[r];
+      }
+      bool duplicate = false;
+      for(unsigned p = 0; p < intersections.size(); p++) {
+        if(std::hypot(point[0] - intersections[p][0], point[1] - intersections[p][1]) <= 4. * tolerance) duplicate = true;
+      }
+      if(!duplicate) intersections.push_back(point);
+    }
+  }
+  std::sort(intersections.begin(), intersections.end());
+  return true;
+}
+
+inline void GetQuad9ZeroIntersections(const std::vector<double>& psi, std::vector<std::vector<double>>& intersections, const double tolerance = 1.e-12) {
+  Quad9CheckValues(psi, tolerance);
+  if(!Quad9BoundaryZeros(psi, intersections, tolerance)) throw std::runtime_error("QUAD9 zero set contains an entire element edge");
+}
+
+inline void Quad9BernsteinCoefficients(const std::vector<std::vector<double>>& C, std::vector<std::vector<double>>& B) {
+  const double transform[3][3] = {{1., -1., 1.}, {1., 0., -1.}, {1., 1., 1.}};
+  B.assign(3, std::vector<double>(3, 0.));
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      for(unsigned p = 0; p < 3; p++) {
+        for(unsigned q = 0; q < 3; q++) B[i][j] += transform[i][p] * C[p][q] * transform[j][q];
+      }
+    }
+  }
+}
+
+inline void Quad9SplitBernstein(const std::vector<std::vector<double>>& B, const bool splitX, std::vector<std::vector<double>>& first, std::vector<std::vector<double>>& second) {
+  first.assign(3, std::vector<double>(3, 0.));
+  second.assign(3, std::vector<double>(3, 0.));
+  for(unsigned i = 0; i < 3; i++) {
+    const double a = splitX ? B[0][i] : B[i][0];
+    const double b = splitX ? B[1][i] : B[i][1];
+    const double c = splitX ? B[2][i] : B[i][2];
+    const double left = 0.5 * (a + b);
+    const double right = 0.5 * (b + c);
+    const double middle = 0.5 * (left + right);
+    if(splitX) {
+      first[0][i] = a;
+      first[1][i] = left;
+      first[2][i] = middle;
+      second[0][i] = middle;
+      second[1][i] = right;
+      second[2][i] = c;
+    }
+    else {
+      first[i][0] = a;
+      first[i][1] = left;
+      first[i][2] = middle;
+      second[i][0] = middle;
+      second[i][1] = right;
+      second[i][2] = c;
+    }
+  }
+}
+
+inline bool Quad9RegularGraph(const std::vector<std::vector<double>>& B, const bool xSquared, const double sign, const double widthX, const double widthY, const double tolerance, const unsigned depth, unsigned& visited) {
+  visited++;
+  if(visited > 8192) return false;
+  double minimum = B[0][0];
+  double maximum = B[0][0];
+  double scale = 1.;
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 3; j++) {
+      minimum = std::min(minimum, B[i][j]);
+      maximum = std::max(maximum, B[i][j]);
+      scale = std::max(scale, std::fabs(B[i][j]));
+    }
+  }
+  const double roundoff = 128. * std::numeric_limits<double>::epsilon() * scale;
+  if(minimum > tolerance + roundoff || maximum < -tolerance - roundoff) return true;
+  double minimumDerivative = std::numeric_limits<double>::infinity();
+  const double width = xSquared ? widthY : widthX;
+  for(unsigned i = 0; i < 3; i++) {
+    for(unsigned j = 0; j < 2; j++) {
+      const double difference = xSquared ? B[i][j + 1] - B[i][j] : B[j + 1][i] - B[j][i];
+      minimumDerivative = std::min(minimumDerivative, sign * 2. * difference / width);
+    }
+  }
+  if(minimumDerivative > tolerance + 2. * roundoff / width) return true;
+  if(depth == 24) return false;
+  const bool splitX = widthX >= widthY;
+  std::vector<std::vector<double>> first;
+  std::vector<std::vector<double>> second;
+  Quad9SplitBernstein(B, splitX, first, second);
+  const double nextWidthX = splitX ? 0.5 * widthX : widthX;
+  const double nextWidthY = splitX ? widthY : 0.5 * widthY;
+  if(!Quad9RegularGraph(first, xSquared, sign, nextWidthX, nextWidthY, tolerance, depth + 1, visited)) return false;
+  return Quad9RegularGraph(second, xSquared, sign, nextWidthX, nextWidthY, tolerance, depth + 1, visited);
+}
+
+inline bool Quad9ParabolaCandidate(const std::vector<std::vector<double>>& C, const std::vector<std::vector<double>>& bernstein, const std::vector<std::vector<double>>& intersections, const bool xSquared, std::vector<double>& B, std::vector<std::vector<double>>& points, const double tolerance) {
+  B.clear();
+  points.clear();
+  const unsigned independent = xSquared ? 0 : 1;
+  const unsigned dependent = 1 - independent;
+  const unsigned first = intersections[0][independent] <= intersections[1][independent] ? 0 : 1;
+  const unsigned last = 1 - first;
+  const double middle = 0.5 * (intersections[first][independent] + intersections[last][independent]);
+  const double halfSpan = 0.5 * (intersections[last][independent] - intersections[first][independent]);
+  if(halfSpan <= 32. * tolerance) return false;
+
+  std::vector<double> slice(3, 0.);
+  for(unsigned i = 0; i < 3; i++) slice[i] = xSquared ? (C[2][i] * middle + C[1][i]) * middle + C[0][i] : (C[i][2] * middle + C[i][1]) * middle + C[i][0];
+  std::vector<double> roots;
+  if(!Quad9QuadraticRoots(slice[2], slice[1], slice[0], roots, tolerance) || roots.size() != 1) return false;
+  if(std::fabs(roots[0]) >= 1. - tolerance) return false;
+  const double transverseDerivative = 2. * slice[2] * roots[0] + slice[1];
+  if(std::fabs(transverseDerivative) <= tolerance) return false;
+  const double sign = transverseDerivative > 0. ? 1. : -1.;
+  unsigned visited = 0;
+  if(!Quad9RegularGraph(bernstein, xSquared, sign, 2., 2., tolerance, 0, visited)) return false;
+
+  const double firstValue = intersections[first][dependent];
+  const double lastValue = intersections[last][dependent];
+  const double alpha = ((firstValue - roots[0]) + (lastValue - roots[0])) / (2. * halfSpan * halfSpan);
+  const double beta = (lastValue - firstValue) / (2. * halfSpan) - 2. * alpha * middle;
+  const double gamma = roots[0] - (alpha * middle + beta) * middle;
+  std::vector<double> candidate = {-sign * alpha, -sign * beta, sign, -sign * gamma};
+  for(unsigned i = 0; i < 4; i++) {
+    if(!std::isfinite(candidate[i])) return false;
+  }
+  std::vector<std::vector<double>> candidatePoints(3, std::vector<double>(2, 0.));
+  candidatePoints[0] = intersections[first];
+  candidatePoints[1][independent] = middle;
+  candidatePoints[1][dependent] = roots[0];
+  candidatePoints[2] = intersections[last];
+  for(unsigned i = 0; i < 3; i++) {
+    const double t = candidatePoints[i][independent];
+    const double value = (candidate[0] * t + candidate[1]) * t + candidate[2] * candidatePoints[i][dependent] + candidate[3];
+    if(std::fabs(value) > 32. * tolerance) return false;
+    if(std::fabs(Quad9PolynomialValue(C, candidatePoints[i][0], candidatePoints[i][1])) > 32. * tolerance) return false;
+  }
+
+  const double nodes[9][2] = {{-1., -1.}, {1., -1.}, {1., 1.}, {-1., 1.}, {0., -1.}, {1., 0.}, {0., 1.}, {-1., 0.}, {0., 0.}};
+  std::vector<double> fittedValues(9, 0.);
+  for(unsigned i = 0; i < 9; i++) fittedValues[i] = (candidate[0] * nodes[i][independent] + candidate[1]) * nodes[i][independent] + candidate[2] * nodes[i][dependent] + candidate[3];
+  std::vector<std::vector<double>> fittedIntersections;
+  if(!Quad9BoundaryZeros(fittedValues, fittedIntersections, tolerance) || fittedIntersections.size() != 2) return false;
+  for(unsigned i = 0; i < 2; i++) {
+    double distance = std::numeric_limits<double>::infinity();
+    for(unsigned j = 0; j < 2; j++) distance = std::min(distance, std::hypot(fittedIntersections[i][0] - intersections[j][0], fittedIntersections[i][1] - intersections[j][1]));
+    if(distance > 32. * tolerance) return false;
+  }
+  B.swap(candidate);
+  points.swap(candidatePoints);
+  return true;
+}
+
+inline void BuildQuad9Parabola(const std::vector<double>& psi, std::vector<double>& BX, std::vector<double>& BY, bool& xSquared, std::vector<std::vector<double>>& points, const double tolerance = 1.e-12) {
+  BX.clear();
+  BY.clear();
+  points.clear();
+  const double scale = Quad9CheckValues(psi, tolerance);
+  std::vector<std::vector<double>> intersections;
+  GetQuad9ZeroIntersections(psi, intersections, tolerance);
+  if(intersections.size() != 2) throw std::runtime_error("QUAD9 parabola requires exactly two distinct boundary intersections");
+
+  std::vector<double> normalizedPsi(9, 0.);
+  for(unsigned i = 0; i < 9; i++) normalizedPsi[i] = psi[i] / scale;
+  std::vector<std::vector<double>> C;
+  Quad9PolynomialCoefficients(normalizedPsi, C);
+  std::vector<std::vector<double>> bernstein;
+  Quad9BernsteinCoefficients(C, bernstein);
+  std::vector<std::vector<double>> pointsX;
+  std::vector<std::vector<double>> pointsY;
+  const bool validX = Quad9ParabolaCandidate(C, bernstein, intersections, true, BX, pointsX, tolerance);
+  const bool validY = Quad9ParabolaCandidate(C, bernstein, intersections, false, BY, pointsY, tolerance);
+  if(!validX && !validY) throw std::runtime_error("QUAD9 zero contour cannot be verified as a single admissible X or Y graph");
+
+  if(!validY) xSquared = true;
+  else if(!validX) xSquared = false;
+  else xSquared = std::fabs(intersections[1][0] - intersections[0][0]) >= std::fabs(intersections[1][1] - intersections[0][1]);
+  points = xSquared ? pointsX : pointsY;
+}
+
+inline void BuildQuad9Parabola(const std::vector<double>& psi, std::vector<double>& BX, std::vector<double>& BY, bool& xSquared) {
+  std::vector<std::vector<double>> points;
+  BuildQuad9Parabola(psi, BX, BY, xSquared, points);
+}
+
 double FindLevelSetZeroOnNodalLine(
   Mesh* msh,
   Solution* sol,
@@ -3502,7 +3956,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = 0.01;
 
       cfg.psi.type = PsiType::SAYE;
-      cfg.psi.amplitude = 0.025;
+      cfg.psi.amplitude = 0.0;//25;
       cfg.psi.waveNumber = 2.0 * pi;
 
       cfg.properties.rho1 = 1.;
@@ -3538,14 +3992,14 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.psi.type = PsiType::BALL;
       cfg.psi.center = {0.5, 0.5, 0.5};
       cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.25;
+      cfg.psi.radius = 0.249;
 
       cfg.properties.rho1 = rb1 ? 100. : 1.;
       cfg.properties.rho2 = 1000.;
       cfg.properties.mu1 = rb1 ? 1. : 0.1;
       cfg.properties.mu2 = 10.;
       cfg.properties.sigma = rb1 ? 24.5 : 1.96;
-      cfg.properties.gravity = 0.;//-0.98;
+      cfg.properties.gravity = 0;//-0.98;
 
       SetSlipSidesWallEnds();
 

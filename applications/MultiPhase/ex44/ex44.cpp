@@ -452,7 +452,7 @@ int main(int argc, char **argv) {
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
 
-      LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
+      // LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol0, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
 
       const unsigned w = 24;
 
@@ -1135,6 +1135,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   start_time = clock();
 
+  double A = 0.;
+  double Per = 0.;
+
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
 
@@ -1386,12 +1389,21 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         unsigned cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
 
+        std::vector<double> BX;
+        std::vector<double> BY;
+        bool xSquared = true;
+        std::vector<std::vector<double>> interfacePoints;
+
+
+
+
         if(cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
           femV = fem.GetFiniteElement(ielGeom, solVType);
           femP = fem.GetFiniteElement(ielGeom, solPType);
           femXi = fem.GetFiniteElement(ielGeom, solXiType);
           femPsi = fem.GetFiniteElement(ielGeom, psiType);
+
 
           nDofsPsi = msh->GetElementDofNumber(iel, psiType);
           psi.resize(nDofsPsi);
@@ -1415,6 +1427,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           BestFitLinearInterpolation(xg, psig, a);
           d = a[dim];
           a.resize(dim);
+
+          // BestFitQuadraticInterpolation(xg, psi, BX, BY, xSquared);
+          // BestFitQuadraticInterpolation(xg, psig, BX, BY, xSquared);
+          BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
         std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
@@ -1422,9 +1438,26 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
         if(cut == 1) {
-          cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
-          for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-          cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+          // cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+          // for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+          // cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+
+          std::vector<boost::multiprecision::cpp_bin_float_oct> aParabola(3);
+          for(unsigned i = 0; i < 3; i++) {
+            aParabola[i] = boost::multiprecision::cpp_bin_float_oct(xSquared ? BX[i] : BY[i]);
+          }
+
+          boost::multiprecision::cpp_bin_float_oct dParabola(xSquared ? BX[3] : BY[3]);
+
+          (*cfw[ielGeom])(0, aParabola, dParabola, xSquared, weightCFInt);
+
+          weightCFExt.resize(weightCFInt.size());
+          for(unsigned i = 0; i < weightCFInt.size(); i++) {
+            weightCFExt[i] = 1. - weightCFInt[i];
+          }
+
+          (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
+
         }
         else {
           for(unsigned i = 0; i < weightCFInt.size(); i++) {
@@ -1481,11 +1514,34 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           double dsN = 0.;
           if (cut == 1) {
             femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
+            std::vector<double> xiPsi(dim);
+            for(unsigned d = 0; d < dim; ++d) {
+              xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
+            }
+
+            // xSquared ? BX[i] : BY[i]
+            std::vector<double> grad_G(dim);
+            if(dim == 2) {
+              if(xSquared) {
+                grad_G[0] = 2. * BX[0] * xiPsi[0] + BX[1];
+                grad_G[1] = BX[2];
+              }
+              else {
+                grad_G[0] = BY[2];
+                grad_G[1] = 2. * BY[0] * xiPsi[1] + BY[1];
+              }
+            }
+            else {
+              grad_G = a;
+            }
+
             dsN = 0.0;
             for (unsigned d = 0; d < dim; ++d) {
               double nd = 0.0;
-              for (unsigned j = 0; j < dim; ++j)
-                nd += JacI[j][d] * a[j];
+              for (unsigned j = 0; j < dim; ++j) {
+                // nd += JacI[j][d] * a[j]; // we should change here the normal using normal to parabola in the gauss point
+                nd += JacI[j][d] * grad_G[j];
+              }
               Nf[d] = nd;
               dsN += nd * nd;
             }
@@ -1493,83 +1549,78 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (unsigned d = 0; d < dim; ++d) {
               Nf[d] /= dsN;
             }
-            // for (unsigned i = 0; i < dim; ++i) {
-            //   const double ni = Nf[i];
-            //   auto& Pi = P[i];
-            //   for (unsigned j = 0; j < dim; ++j)
-            //     Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
-            // }
-            // for (unsigned j = 0; j < nDofsV; j++) {
-            //   const unsigned jOffset = j * dim;
-            //   normalDotGradPhi[j] = 0.;
-            //   for (unsigned J = 0; J < dim; J++) {
-            //     const double gradPhiJ = phiV_x[jOffset + J];
-            //     normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+            for (unsigned i = 0; i < dim; ++i) {
+              const double ni = Nf[i];
+              auto& Pi = P[i];
+              for (unsigned j = 0; j < dim; ++j)
+                Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
+            }
+            for (unsigned j = 0; j < nDofsV; j++) {
+              const unsigned jOffset = j * dim;
+              normalDotGradPhi[j] = 0.;
+              for (unsigned J = 0; J < dim; J++) {
+                const double gradPhiJ = phiV_x[jOffset + J];
+                normalDotGradPhi[j] += Nf[J] * gradPhiJ;
+              }
+            }
+            // std::vector<double> Nls(dim);
+            // std::vector<double> gradPsi(dim);
+            //
+            // double weightPsi = 0.;
+            //
+            // femPsi->Jacobian(coordX, xiPsi, weightPsi, phiPsi, phiPsi_x);
+            //
+            // std::fill(gradPsi.begin(), gradPsi.end(), 0.);
+            //
+            // for(unsigned i = 0; i < nDofsPsi; ++i) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     gradPsi[d] += psi[i] * phiPsi_x[i * dim + d];
             //   }
             // }
-            std::vector<double> Nls(dim);
-            std::vector<double> gradPsi(dim);
-            std::vector<double> xiPsi(dim);
-
-            for(unsigned d = 0; d < dim; ++d) {
-              xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
-            }
-
-            double weightPsi = 0.;
-
-            femPsi->Jacobian(coordX, xiPsi, weightPsi, phiPsi, phiPsi_x);
-
-            std::fill(gradPsi.begin(), gradPsi.end(), 0.);
-
-            for(unsigned i = 0; i < nDofsPsi; ++i) {
-              for(unsigned d = 0; d < dim; ++d) {
-                gradPsi[d] += psi[i] * phiPsi_x[i * dim + d];
-              }
-            }
-
-            double normGradPsi = 0.;
-
-            for(unsigned d = 0; d < dim; ++d) {
-              normGradPsi += gradPsi[d] * gradPsi[d];
-            }
-
-            normGradPsi = std::sqrt(normGradPsi);
-
-            if(normGradPsi > 1.e-12) {
-              for(unsigned d = 0; d < dim; ++d) {
-                Nls[d] = gradPsi[d] / normGradPsi;
-              }
-            }
-            else {
-              for(unsigned d = 0; d < dim; ++d) {
-                Nls[d] = Nf[d];
-              }
-            }
-
-            double normalAlignment = 0.;
-
-            for(unsigned d = 0; d < dim; ++d) {
-              normalAlignment += Nls[d] * Nf[d];
-            }
-
-            if(normalAlignment < 0.) {
-              for(unsigned d = 0; d < dim; ++d) {
-                Nls[d] *= -1.;
-              }
-            }
-
-            for(unsigned i = 0; i < dim; ++i) {
-              for(unsigned j = 0; j < dim; ++j) {
-                P[i][j] = (i == j ? 1. : 0.) - Nls[i] * Nls[j];
-              }
-            }
-
-            for(unsigned j = 0; j < nDofsV; ++j) {
-              normalDotGradPhi[j] = 0.;
-              for(unsigned J = 0; J < dim; ++J) {
-                normalDotGradPhi[j] += Nls[J] * phiV_x[j * dim + J];
-              }
-            }
+            //
+            // double normGradPsi = 0.;
+            //
+            // for(unsigned d = 0; d < dim; ++d) {
+            //   normGradPsi += gradPsi[d] * gradPsi[d];
+            // }
+            //
+            // normGradPsi = std::sqrt(normGradPsi);
+            //
+            // if(normGradPsi > 1.e-12) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] = gradPsi[d] / normGradPsi;
+            //   }
+            // }
+            // else {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] = Nf[d];
+            //   }
+            // }
+            //
+            // double normalAlignment = 0.;
+            //
+            // for(unsigned d = 0; d < dim; ++d) {
+            //   normalAlignment += Nls[d] * Nf[d];
+            // }
+            //
+            // if(normalAlignment < 0.) {
+            //   for(unsigned d = 0; d < dim; ++d) {
+            //     Nls[d] *= -1.;
+            //   }
+            // }
+            //
+            // for(unsigned i = 0; i < dim; ++i) {
+            //   for(unsigned j = 0; j < dim; ++j) {
+            //     P[i][j] = (i == j ? 1. : 0.) - Nls[i] * Nls[j];
+            //   }
+            // }
+            //
+            // for(unsigned j = 0; j < nDofsV; ++j) {
+            //   normalDotGradPhi[j] = 0.;
+            //   for(unsigned J = 0; J < dim; ++J) {
+            //     normalDotGradPhi[j] += Nls[J] * phiV_x[j * dim + J];
+            //   }
+            // }
           }
 
           for (unsigned d = 0; d < dim; ++d) {
@@ -1616,6 +1667,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           const double convectionCoefficientNew = cnew * rho * weight * axisWeight;
           const double convectionCoefficientOld = cold * rho * weight * axisWeight;
+
+          A+=weight*weightCFInt[ig];
+          Per+=weight*weightCF[ig]*dsN;
 
           // *** phiV_i loop ***
           for(unsigned i = 0; i < nDofsV; i++) {
@@ -2076,6 +2130,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK->close();
 
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
+
+
+  double per_th = 2* M_PI * 0.249;
+  double A_th = M_PI * 0.249 * 0.249;
+  std::cout <<" Area error "<< std::abs(A - A_th) << std::endl;
+  std::cout <<" Perimetro error "<<std::abs(Per- per_th) << std::endl;
 
 }
 /*

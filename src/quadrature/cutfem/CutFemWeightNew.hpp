@@ -15,6 +15,9 @@
 
 #include "GaussPoints.hpp"
 
+
+#include "SquareParabolaMoment.hpp"
+
 #include <Eigen/Dense>
 
 #include <algorithm>
@@ -180,6 +183,10 @@ class CutFemWeight {
 
     void operator()(const int &s, const std::vector<TypeIO> &a, const TypeIO &d,
                     std::vector<TypeIO> &weightCF);
+
+
+    void operator()(const int &s, const std::vector<TypeA> &a, const TypeA &d, const bool &xSquared, std::vector<TypeIO> &weightCF);
+    void operator()(const int &s, const std::vector<TypeA> &aX, const TypeA &dX, const std::vector<TypeA> &aY, const TypeA &dY, const bool &xSquared, std::vector<TypeIO> &weightCF);
 
     void GetWeightWithMap(const int &s, const std::vector<TypeIO> &a, const TypeIO &d,
                           std::vector<TypeIO> &weightCF);
@@ -373,6 +380,62 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s,
     }
     weightCF[ig] = static_cast<TypeIO>(weight);
   }
+}
+
+
+
+template <class TypeIO, class TypeA>
+void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector<TypeA> &a, const TypeA &d, const bool &xSquared, std::vector<TypeIO> &weightCF) {
+  if(_geomElemType != QUAD) throw std::invalid_argument("Quadratic CutFemWeight requires QUAD");
+  if(a.size() != 3) throw std::invalid_argument("Quadratic CutFemWeight requires a={k,b,c}");
+  if(s < -1) throw std::invalid_argument("Quadratic CutFemWeight requires s >= -1");
+
+  _cntCall++;
+
+  unsigned count = 0;
+  for(unsigned q = 0; q <= _qM; q++) {
+    for(unsigned j = 0; j <= q; j++) {
+      unsigned i = q - j;
+      _f[count] = SquareParabolaMoment<TypeA>(s, {i, j}, a, d, xSquared);
+      count++;
+    }
+  }
+
+  _Co = _ATA * _f;
+
+  std::vector<TypeA> xPower(_qM + 1, TypeA(1));
+  std::vector<TypeA> yPower(_qM + 1, TypeA(1));
+
+  weightCF.assign(_gn, TypeIO(0));
+
+  for(unsigned ig = 0; ig < _gn; ig++) {
+    TypeA x = (TypeA(1) + TypeA(_xgp[0][ig])) / TypeA(2);
+    TypeA y = (TypeA(1) + TypeA(_xgp[1][ig])) / TypeA(2);
+
+    for(unsigned i = 1; i <= _qM; i++) {
+      xPower[i] = xPower[i - 1] * x;
+      yPower[i] = yPower[i - 1] * y;
+    }
+
+    TypeA weight = 0;
+    count = 0;
+
+    for(unsigned q = 0; q <= _qM; q++) {
+      for(unsigned j = 0; j <= q; j++) {
+        unsigned i = q - j;
+        weight += _Co[count] * xPower[i] * yPower[j];
+        count++;
+      }
+    }
+
+    weightCF[ig] = static_cast<TypeIO>(weight);
+  }
+}
+
+template <class TypeIO, class TypeA>
+void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector<TypeA> &aX, const TypeA &dX, const std::vector<TypeA> &aY, const TypeA &dY, const bool &xSquared, std::vector<TypeIO> &weightCF) {
+  if(xSquared) operator()(s, aX, dX, true, weightCF);
+  else operator()(s, aY, dY, false, weightCF);
 }
 
 template <class TypeIO, class TypeA>
