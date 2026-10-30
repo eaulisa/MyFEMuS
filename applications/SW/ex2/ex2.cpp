@@ -25,8 +25,8 @@
 
 using namespace femus;
 
-double rho[10]={1025,1027,1028}; // kg/m^3
-double mu = 1.5 * 1.0e-3; // pa s 
+double rho[10] = {1025, 1027, 1028}; // kg/m^3
+double mu = 1.5 * 1.0e-3; // pa s
 
 double aa = 6371000;  //radius of earth [m]
 double H_0 = 2400;    // max depth of ocean [m]
@@ -39,27 +39,23 @@ double phi = 0.1;     //relative width of continental shelf: 10%
 
 unsigned NumberOfLayers = 3;
 
-double InitalValueV(const std::vector < double >& x)
-{
+double InitalValueV(const std::vector < double >& x) {
   return 0;
 }
 
-
-double InitalValueH0(const std::vector < double >& x)
-{
+double InitalValueH0(const std::vector < double >& x) {
   double b = 40;
-  if(NumberOfLayers == 1){
+  if(NumberOfLayers == 1) {
     double zz = sqrt(aa * aa - x[0] * x[0]); // z coordinate of points on sphere
     double dd = aa * acos((zz * z_c) / (aa * aa)); // distance to center point on sphere [m]
     double hh = 1 - dd * dd / (bb * bb);
     b = ( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) );
   }
   return b + ( 2.* exp(-(x[0] / 100000.) * (x[0] / 100000.))) / NumberOfLayers;
-  
+
 }
 
-double InitalValueH1(const std::vector < double >& x)
-{
+double InitalValueH1(const std::vector < double >& x) {
 //   double zz = sqrt(aa * aa - x[0] * x[0]); // z coordinate of points on sphere
 //   double dd = aa * acos((zz * z_c) / (aa * aa)); // distance to center point on sphere [m]
 //   double hh = 1 - dd * dd / (bb * bb);
@@ -67,8 +63,7 @@ double InitalValueH1(const std::vector < double >& x)
   return 50 + (2.* exp(-(x[0] / 100000.) * (x[0] / 100000.))) / NumberOfLayers;
 }
 
-double InitalValueH2(const std::vector < double >& x)
-{
+double InitalValueH2(const std::vector < double >& x) {
   double zz = sqrt(aa * aa - x[0] * x[0]); // z coordinate of points on sphere
   double dd = aa * acos((zz * z_c) / (aa * aa)); // distance to center point on sphere [m]
   double hh = 1 - dd * dd / (bb * bb);
@@ -76,32 +71,25 @@ double InitalValueH2(const std::vector < double >& x)
   return b - 90 + ( 2.* exp(-(x[0] / 100000.) * (x[0] / 100000.))) / NumberOfLayers;
 }
 
-
-double InitalValueB(const std::vector < double >& x)
-{
+double InitalValueB(const std::vector < double >& x) {
   double zz = sqrt(aa * aa - x[0] * x[0]); // z coordinate of points on sphere
   double dd = aa * acos((zz * z_c) / (aa * aa)); // distance to center point on sphere [m]
   double hh = 1 - dd * dd / (bb * bb);
   return ( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) );
 }
 
-
-bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time)
-{
+bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false; //dirichlet
   if( facename == 1 || facename == 2) dirichlet = true;
   value = 0.;
   return dirichlet;
 }
 
-
 void ETD(MultiLevelProblem& ml_prob);
 
+int main(int argc, char** args) {
 
-int main(int argc, char** args)
-{
-
-  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
+  SlepcInitialize(&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -110,13 +98,11 @@ int main(int argc, char** args)
   MultiLevelMesh mlMsh;
   double scalingFactor = 1.;
 
-
-
   unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 0;
 
-  unsigned nx = static_cast<unsigned>(floor(pow(2.,11) + 0.5));
-  
+  unsigned nx = static_cast<unsigned>(floor(pow(2., 11) + 0.5));
+
   double length = 2. * 1465700.;
 
   mlMsh.GenerateCoarseBoxMesh(nx, 0, 0, -length / 2, length / 2, 0., 0., 0., 0., EDGE3, "seventh");
@@ -134,22 +120,20 @@ int main(int argc, char** args)
     sprintf(name, "v%d", i);
     mlSol.AddSolution(name, LAGRANGE, FIRST);
   }
-  
+
   mlSol.AddSolution("b", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
   mlSol.AddSolution("eta", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, false);
 
   mlSol.Initialize("All");
-  
-  mlSol.Initialize("h0",InitalValueH0);
-  if(NumberOfLayers > 1){	  
-    mlSol.Initialize("h1",InitalValueH1);
-    if (NumberOfLayers > 2){	  
-      mlSol.Initialize("h2",InitalValueH2);
+
+  mlSol.Initialize("h0", InitalValueH0);
+  if(NumberOfLayers > 1) {
+    mlSol.Initialize("h1", InitalValueH1);
+    if (NumberOfLayers > 2) {
+      mlSol.Initialize("h2", InitalValueH2);
     }
   }
-  
-  
-  
+
   for(unsigned i = 0; i < NumberOfLayers; i++) {
     char name[10];
     sprintf(name, "v%d", i);
@@ -157,7 +141,7 @@ int main(int argc, char** args)
   }
 
   mlSol.Initialize("b", InitalValueB);
-  
+
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
 
@@ -183,14 +167,12 @@ int main(int argc, char** args)
   unsigned numberOfTimeSteps = 2000;
   for(unsigned i = 0; i < numberOfTimeSteps; i++) {
     ETD(ml_prob);
-    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, (i + 1)/1);
+    mlSol.GetWriter()->Write(DEFAULT_OUTPUTDIR, "linear", print_vars, (i + 1) / 1);
   }
   return 0;
 }
 
-
-void ETD(MultiLevelProblem& ml_prob)
-{
+void ETD(MultiLevelProblem& ml_prob) {
 
   const unsigned& NLayers = NumberOfLayers;
 
@@ -217,7 +199,6 @@ void ETD(MultiLevelProblem& ml_prob)
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
 
-
   //solution variable
   std::vector < unsigned > solIndexh(NLayers);
   std::vector < unsigned > solPdeIndexh(NLayers);
@@ -240,26 +221,26 @@ void ETD(MultiLevelProblem& ml_prob)
 
   unsigned solTypeh = mlSol->GetSolutionType(solIndexh[0]);    // get the finite element type for "hi"
   unsigned solTypev = mlSol->GetSolutionType(solIndexv[0]);    // get the finite element type for "vi"
-  
+
   vector < double > x;    // local coordinates
   vector< vector < adept::adouble > > solh(NLayers);    // local coordinates
   vector< vector < adept::adouble > > solv(NLayers);    // local coordinates
-  
+
   vector< vector < bool > > bdch(NLayers);    // local coordinates
   vector< vector < bool > > bdcv(NLayers);    // local coordinates
-  
+
   unsigned xType = 2; // get the finite element type for "x", it is always 2 (LAGRANGE QUADRATIC)
 
   vector < vector< adept::adouble > > aResh(NLayers);
   vector < vector< adept::adouble > > aResv(NLayers);
-  
+
   KK->zero();
   RES->zero();
 
   double maxWaveSpeed = 0.;
-  
+
   double dx;
-    
+
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
@@ -303,12 +284,11 @@ void ETD(MultiLevelProblem& ml_prob)
     }
 
     s.new_recording();
-    
+
     for(unsigned i = 0; i < nDofx; i++) {
       unsigned xDof  = msh->GetSolutionDof(i, iel, xType);    // global to global mapping between coordinates node and coordinate dof
       x[i] = (*msh->_topology->_Sol[0])(xDof);      // global extraction and local storage for the element coordinates
     }
-    
 
     double xmid = 0.5 * (x[0] + x[1]);
     //std::cout << xmid << std::endl;
@@ -317,23 +297,23 @@ void ETD(MultiLevelProblem& ml_prob)
     double hh = 1 - dd * dd / (bb * bb);
     std::vector < adept::adouble > eta(NLayers);
     for(unsigned k = 0; k < NLayers; k++) {
-       eta[k] = - ( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) ) * rho[k]; // bottom topography
-       
-       for( unsigned j = 0; j < NLayers; j++){
-	 double rhoj = (j <= k) ? rho[j] : rho[k];
-	 eta[k] += rhoj * solh[j][0];
+      eta[k] = - ( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) ) * rho[k]; // bottom topography
+
+      for( unsigned j = 0; j < NLayers; j++) {
+        double rhoj = (j <= k) ? rho[j] : rho[k];
+        eta[k] += rhoj * solh[j][0];
       }
       eta[k] /= rho[k];
     }
-        
+
     double hTotal = 0.;
-    for(unsigned i = 0; i<NLayers; i++) hTotal += solh[i][0].value();
+    for(unsigned i = 0; i < NLayers; i++) hTotal += solh[i][0].value();
     double celerity = sqrt( 9.81 * hTotal);
-    for(unsigned i = 0; i<NLayers; i++){
+    for(unsigned i = 0; i < NLayers; i++) {
       double vmid = 0.5 * ( solv[i][0].value() + solv[i][1].value() );
-      maxWaveSpeed = ( maxWaveSpeed > fabs(vmid) + fabs(celerity) )?  maxWaveSpeed : fabs(vmid) + fabs(celerity);
+      maxWaveSpeed = ( maxWaveSpeed > fabs(vmid) + fabs(celerity) ) ?  maxWaveSpeed : fabs(vmid) + fabs(celerity);
     }
-       
+
     dx = x[1] - x[0];
 
     for(unsigned k = 0; k < NLayers; k++) {
@@ -341,8 +321,8 @@ void ETD(MultiLevelProblem& ml_prob)
         if(!bdch[k][i]) {
           for (unsigned j = 0; j < nDofv; j++) {
             double sign = ( j == 0) ? 1. : -1;
-            aResh[k][i] += sign * solh[k][i] * solv[k][j] / dx;	    
-	  }
+            aResh[k][i] += sign * solh[k][i] * solv[k][j] / dx;
+          }
         }
       }
       adept::adouble vMid = 0.5 * (solv[k][0] + solv[k][1]);
@@ -352,15 +332,13 @@ void ETD(MultiLevelProblem& ml_prob)
           for (unsigned j = 0; j < nDofh; j++) {
             double sign = ( i == j) ? -1. : 1;
             aResv[k][i] += sign * fv / dx;
-	    //aResv[k][i] -= sign * mu / rho[k] * (solv[k][1] - solv[k][0]) / (dx * dx);
+            //aResv[k][i] -= sign * mu / rho[k] * (solv[k][1] - solv[k][0]) / (dx * dx);
           }
         }
       }
     }
 
-
     vector< double > Res(NLayers * nDofs); // local redidual vector
-
 
     unsigned counter = 0;
     for(unsigned k = 0; k < NLayers; k++) {
@@ -375,7 +353,6 @@ void ETD(MultiLevelProblem& ml_prob)
     }
 
     RES->add_vector_blocked(Res, l2GMap);
-
 
     for(unsigned k = 0; k < NLayers; k++) {
       // define the dependent variables
@@ -410,16 +387,16 @@ void ETD(MultiLevelProblem& ml_prob)
 //   double a;
 //   std::cin>>a;
 //
-  
+
 //  abort();
   MFN mfn;
   Mat A = (static_cast<PetscMatrix*>(KK))->mat();
-  FN f, f1, f2, f3 , f4;
-  
-  double dt= 100; //= dx / maxWaveSpeed * 0.85;
-  
-  std::cout << "dt = " << dt << " dx = "<< dx << " maxWaveSpeed = "<<maxWaveSpeed << std::endl;
-  
+  FN f, f1, f2, f3, f4;
+
+  double dt = 100; //= dx / maxWaveSpeed * 0.85;
+
+  std::cout << "dt = " << dt << " dx = " << dx << " maxWaveSpeed = " << maxWaveSpeed << std::endl;
+
   //dt = 100.;
 
   Vec v = (static_cast< PetscVector* >(RES))->vec();
@@ -429,7 +406,6 @@ void ETD(MultiLevelProblem& ml_prob)
 
   MFNSetOperator( mfn, A );
   MFNGetFN( mfn, &f );
-
 
   FNCreate(PETSC_COMM_WORLD, &f1);
   FNCreate(PETSC_COMM_WORLD, &f2);
@@ -441,7 +417,7 @@ void ETD(MultiLevelProblem& ml_prob)
   FNSetType(f2, FNRATIONAL);
   double coeff1[1] = { -1};
   FNRationalSetNumerator(f2, 1, coeff1);
-  FNRationalSetDenominator(f2, 0, PETSC_NULL);
+  FNRationalSetDenominator(f2, 0, PETSC_NULLPTR);
 
   FNSetType( f3, FNCOMBINE );
 
@@ -450,7 +426,7 @@ void ETD(MultiLevelProblem& ml_prob)
   FNSetType(f4, FNRATIONAL);
   double coeff2[2] = {1., 0.};
   FNRationalSetNumerator(f4, 2, coeff2);
-  FNRationalSetDenominator(f4, 0, PETSC_NULL);
+  FNRationalSetDenominator(f4, 0, PETSC_NULLPTR);
 
   FNSetType( f, FNCOMBINE );
 
@@ -472,19 +448,13 @@ void ETD(MultiLevelProblem& ml_prob)
   FNDestroy(&f4);
 
   sol->UpdateSol(mlPdeSys->GetSolPdeIndex(), EPS, pdeSys->KKoffset);
-  
+
   unsigned solIndexeta = mlSol->GetIndex("eta");
   unsigned solIndexb = mlSol->GetIndex("b");
   sol->_Sol[solIndexeta]->zero();
-  for(unsigned k=0;k<NumberOfLayers;k++){
+  for(unsigned k = 0; k < NumberOfLayers; k++) {
     sol->_Sol[solIndexeta]->add(*sol->_Sol[solIndexh[k]]);
   }
-  sol->_Sol[solIndexeta]->add(-1,*sol->_Sol[solIndexb]);
-  
-  
+  sol->_Sol[solIndexeta]->add(-1, *sol->_Sol[solIndexb]);
 
 }
-
-
-
-

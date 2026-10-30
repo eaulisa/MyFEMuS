@@ -47,7 +47,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-
 int main(int argc, char** args) {
 
   if(DIM != 2 && DIM != 3) {
@@ -57,7 +56,7 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
 
-  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
+  SlepcInitialize(&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   // define multilevel mesh
@@ -97,7 +96,6 @@ int main(int argc, char** args) {
   Solid solid1(par, E1, nu1, rhos1, "Neo-Hookean");
   Solid solid2(par, E2, nu2, rhos2, "Neo-Hookean");
 
-
   //mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
   mlMsh.PrintInfo();
 
@@ -123,7 +121,6 @@ int main(int argc, char** args) {
   mlSol.AddSolution("CL1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("CL2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
-
   mlSol.Initialize("All");
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
@@ -136,7 +133,6 @@ int main(int argc, char** args) {
   ml_prob.parameters.set<Solid> ("Solid1") = solid1;
   ml_prob.parameters.set<Solid> ("Solid2") = solid2;
 
-
   // ******* Add FEM system to the MultiLevel problem *******
   LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("Nitsche");
 
@@ -147,7 +143,6 @@ int main(int argc, char** args) {
   system.AddSolutionToSystemPDE("DX2");
   system.AddSolutionToSystemPDE("DY2");
   if(DIM == 3) system.AddSolutionToSystemPDE("DZ2");
-
 
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleNitscheProblem_AD);
@@ -189,8 +184,6 @@ int main(int argc, char** args) {
     markerType[j] = VOLUME;
   }
 
-
-
   //   double xc = 1.e-04 + 0.5 * H ; //should be this one to do COMSOL benchmark
   double x0 = -0.5 * Lx; //we are using this not to have markers on edges of elements from the beginning
   double y0 = -Ly / 2.;
@@ -217,7 +210,6 @@ int main(int argc, char** args) {
   line1->GetLine(line1Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk1", line1Points, 0);
   //PrintLine("./output1", "bulk1", line1Points, 0);
-
 
   //BEGIN initialization bulk2 points
   x0 = -0.5 * Lx + Lx1; //we are using this not to have markers on edges of elements from the beginning
@@ -260,7 +252,6 @@ int main(int argc, char** args) {
     }
   }
 
-
   //BEGIN initialization
   for(unsigned i = 0; i < rowy; i++) {
     for(unsigned j = 0; j < rowz; j++) {
@@ -290,7 +281,6 @@ int main(int argc, char** args) {
   //PrintLine("./output1", "interfaceLine", lineIPoints, 0);
   //END interface markers
 
-
   // ******* Print solution *******
   mlSol.SetWriter(VTK);
   mlSol.GetWriter()->SetDebugOutput(true);
@@ -301,8 +291,7 @@ int main(int argc, char** args) {
   GetInterfaceElementEigenvalues(mlSol);
 
   system.MGsolve();
-  
-  
+
   mlSol.GetWriter()->Write("./output", "linear", print_vars, 0);
 
   std::vector<std::string> mov_vars1;
@@ -312,7 +301,6 @@ int main(int argc, char** args) {
   mlSol.GetWriter()->SetMovingMesh(mov_vars1);
   mlSol.GetWriter()->Write("./outputD1", "linear", print_vars, 0);
 
-
   std::vector<std::string> mov_vars2;
   mov_vars2.push_back("DX2");
   mov_vars2.push_back("DY2");
@@ -320,12 +308,10 @@ int main(int argc, char** args) {
   mlSol.GetWriter()->SetMovingMesh(mov_vars2);
   mlSol.GetWriter()->Write("./outputD2", "linear", print_vars, 0);
 
-
   ml_prob.clear();
 
   return 0;
 }
-
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
@@ -334,7 +320,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
   // call the adept stack object
-
 
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -399,7 +384,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   CMIndex[0] = mlSol->GetIndex("CM1");
   CMIndex[1] = mlSol->GetIndex("CM2");
-  
+
   CLIndex[0] = mlSol->GetIndex("CL1");
   CLIndex[1] = mlSol->GetIndex("CL2");
 
@@ -431,7 +416,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
   unsigned imarker1 = markerOffset1[iproc];
 
-
   std::vector<Marker*> particle2 = line2->GetParticles();
   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
   unsigned imarker2 = markerOffset2[iproc];
@@ -439,7 +423,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
   unsigned imarkerI = markerOffsetI[iproc];
-
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -461,8 +444,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     for(int k = 0; k < dim; k++) {
       x[k].resize(nDofD);
     }
-
-
 
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofD; i++) {
@@ -566,26 +547,23 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       double iL1C1 = 1. / (lambda1 * (*sol->_Sol[CLIndex[0]])(iel));
       double iL2C2 = 1. / (lambda2 * (*sol->_Sol[CLIndex[1]])(iel));
-      
+
       double denL = iL1C1 + iL2C2;
-      
+
       double gammaL1 = iL1C1 / denL;
       double gammaL2 = iL2C2 / denL;
-      
+
       double thetaL = 4. / denL;
-      
-      
+
 //       double gammaL1 = 0.5;
 //       double gammaL2 = 0.5;
-// 
+//
 //       double gammaM1 = 0.5;
 //       double gammaM2 = 0.5;
-// 
-// 
+//
+//
 //       double thetaL = lambda1;
 //       double thetaM = mu1;
-
-
 
       //bulk1
       while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
@@ -594,7 +572,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         std::vector <double> xi = particle1[imarker1]->GetMarkerLocalCoordinates();
         msh->_finiteElement[ielGeom][solDType]->Jacobian(x, xi, weight, phi, phi_x);
         double weight = particle1[imarker1]->GetMarkerMass();
-
 
         // evaluate the solution, the solution derivatives and the coordinates in the gauss point
         std::vector < std::vector < adept::adouble > > gradSolD1(dim);
@@ -745,7 +722,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
               aResD2[k][i] +=  thetaL * (u2[j] - u1[j]) * N[j] * phi[i] * N[k] * weight;
             }
 
-
           }
         } // end phi_i loop
         imarkerI++;
@@ -805,8 +781,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   //double a;
   //std::cin >> a;
-
-
 
   //***************** END ASSEMBLY *******************
 }
@@ -873,7 +847,6 @@ void BuildFlag(MultiLevelSolution& mlSol) {
 
 }
 
-
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
   unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
@@ -929,14 +902,12 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   std::vector < double > aM1;
   std::vector < double > bM1;
 
-
   std::vector < double > aL;
   std::vector < double > aL0;
   std::vector < std::vector < double > > bL(2);
 
   std::vector < double > aL1;
   std::vector < double > bL1;
-
 
 //   std::vector < double > a2;
 //   std::vector < std::vector < double > > b2(2);
@@ -1090,7 +1061,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       aL0 = aL;
 
       for(unsigned s = 0; s < 2; s++) {
-        
+
         sizeAll = sizeAll0;
 
         //BEGIN DEFLATION
@@ -1149,7 +1120,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             PetscScalar *pv;
             VecGetArray(v, &pv);
             unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++){
+            for(unsigned i = 1; i < sizeAll; i++) {
               if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
             }
 
@@ -1221,9 +1192,9 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
       }
 
       for(unsigned s = 0; s < 2; s++) {
-        
+
         sizeAll = sizeAll0;
-   
+
         //BEGIN DEFLATION
 
         unsigned sizeAll1 = dim * (nDofu - 1);
@@ -1280,7 +1251,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
             PetscScalar *pv;
             VecGetArray(v, &pv);
             unsigned ii = 0;
-            for(unsigned i = 1; i < sizeAll; i++){
+            for(unsigned i = 1; i < sizeAll; i++) {
               if(fabs(pv[i]) > fabs(pv[ii])) ii = i;
             }
 
@@ -1359,6 +1330,3 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   sol->_Sol[CLIndex[0]]->close();
   sol->_Sol[CLIndex[1]]->close();
 }
-
-
-

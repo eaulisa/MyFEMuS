@@ -38,7 +38,7 @@ namespace femus {
 // ==============================================
 
   void LinearEquationSolverPetsc::SetTolerances (const double& rtol, const double& atol, const double& divtol,
-                                                      const unsigned& maxits, const unsigned& restart) {
+      const unsigned& maxits, const unsigned& restart) {
     _rtol    = static_cast<PetscReal> (rtol);
     _abstol  = static_cast<PetscReal> (atol);
     _dtol    = static_cast<PetscReal> (divtol);
@@ -114,7 +114,6 @@ namespace femus {
 //     double a;
 //     std::cin>>a;
 
-
     //BEGIN SOLVE and UPDATE
     ZerosBoundaryResiduals();
     KSPSolve (_ksp, (static_cast< PetscVector* > (_RES))->vec(), (static_cast< PetscVector* > (_EPSC))->vec());
@@ -162,7 +161,7 @@ namespace femus {
       KSPSetTolerances (_ksp, _rtol, _abstol, _dtol, _maxits);
 
       if (_levelSolverType != PREONLY) {
-        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE);
+        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE); //TODO probably to change into PETSC_FALSE
         KSPSetNormType (_ksp, KSP_NORM_PRECONDITIONED);
       }
       else {
@@ -236,7 +235,7 @@ namespace femus {
       KSPSetTolerances (subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npre);
     }
     else {
-      PCMGGetSmoother (pcMG, level , &subksp);
+      PCMGGetSmoother (pcMG, level, &subksp);
       KSPSetTolerances (subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npre);
     }
 
@@ -244,7 +243,7 @@ namespace femus {
       _levelSolverType = RICHARDSON;
       _richardsonScaleFactor = 1.;
     }
-    
+
     this->SetSolver (subksp, _levelSolverType);
     std::ostringstream levelName;
     levelName << "level-" << level;
@@ -276,7 +275,7 @@ namespace femus {
 
       if (npre != npost) {
         KSP subkspUp;
-        PCMGGetSmootherUp (pcMG, level , &subkspUp);
+        PCMGGetSmootherUp (pcMG, level, &subkspUp);
         KSPSetTolerances (subkspUp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, npost);
         this->SetSolver (subkspUp, _levelSolverType);
         KSPSetPC (subkspUp, subpc);
@@ -287,6 +286,48 @@ namespace femus {
     }
   }
 
+  void LinearEquationSolverPetsc::MGUpdateLevel(
+    LinearEquationSolver* LinSolver,
+    const unsigned& levelMax,
+    const vector<unsigned>& variable_to_be_solved,
+    const unsigned& npre,
+    const unsigned& npost
+  ) {
+
+    const unsigned level = _msh->GetLevel();
+
+    if(_bdcIndexIsInitialized == 0) {
+      BuildBdcIndex(variable_to_be_solved);
+    }
+
+    KSP* kspMG = LinSolver->GetKSP();
+
+    PC pcMG;
+    KSPGetPC(*kspMG, &pcMG);
+
+    KSP subksp;
+
+    if(level == 0) {
+      PCMGGetCoarseSolve(pcMG, &subksp);
+    }
+    else {
+      PCMGGetSmoother(pcMG, level, &subksp);
+    }
+
+    SetPenalty();
+    RemoveNullSpace();
+
+    Mat KK = static_cast<PetscMatrix*>(_KK)->mat();
+
+    KSPSetOperators(subksp, KK, KK);
+
+    if(level > 0 && npre != npost) {
+      KSP subkspUp;
+      PCMGGetSmootherUp(pcMG, level, &subkspUp);
+      KSPSetOperators(subkspUp, KK, KK);
+    }
+  }
+
   // ================================================
 
   void LinearEquationSolverPetsc::MGSolve (const bool ksp_clean) {
@@ -294,7 +335,7 @@ namespace femus {
     PetscLogDouble t1;
     PetscLogDouble t2;
     PetscTime (&t1);
-
+    // std::cout << "AAAAAA\n";
     if (ksp_clean) {
       Mat KK = (static_cast< PetscMatrix* > (_KK))->mat();
 
@@ -303,15 +344,20 @@ namespace femus {
       KSPSetTolerances (_ksp, _rtol, _abstol, _dtol, _maxits);
 
       if (_mgSolverType != PREONLY) {
-        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE);
+        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE); //TODO probably to change into PETSC_FALSE
       }
       else {
         KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE);
-        KSPSetNormType (_ksp, KSP_NORM_NONE);
+        //KSPSetNormType (_ksp, KSP_NORM_NONE);
       }
 
       KSPSetFromOptions (_ksp);
+      KSPSetNormType(_ksp, KSP_NORM_UNPRECONDITIONED);
+
       KSPGMRESSetRestart (_ksp, _restart);
+
+      KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
+
       KSPSetUp (_ksp);
 
 //       PetscViewer    viewer;
@@ -323,9 +369,11 @@ namespace femus {
 //       VecView((static_cast< PetscVector* >(_RES))->vec(),viewer);
 //       double a;
 //       std::cin>>a;
+
     }
 
     ZerosBoundaryResiduals();
+
     KSPSolve (_ksp, (static_cast< PetscVector* > (_RES))->vec(), (static_cast< PetscVector* > (_EPSC))->vec());
 
     _RESC->matrix_mult (*_EPSC, *_KK);
@@ -358,6 +406,21 @@ namespace femus {
       std::vector < Vec > nullspBase;
       GetNullSpaceBase (nullspBase);
       if (nullspBase.size() != 0) {
+
+        if (_mergeNullSpaceBases) {
+          for(unsigned i = 1; i < nullspBase.size(); i++) {
+            VecAXPY(nullspBase[0], 1, nullspBase[i]);
+          }
+        }
+
+        // MatMult((static_cast< PetscMatrix* > (_KK))->mat(), nullspBase[0], nullspBase[1]);
+        // PetscReal max_abs_val;
+        // // Calcola la norma infinito (il max in valore assoluto)
+        // VecNorm(nullspBase[1], NORM_INFINITY, &max_abs_val);
+        //
+        // std::cout << "Test NullSpace at level = " << _msh->GetLevel() << ":\t KK * NullSpaceBase = " << max_abs_val << std::endl;
+        // nullspBase.resize(1);
+
         MatNullSpace   nullsp;
         MatNullSpaceCreate (PETSC_COMM_WORLD, PETSC_FALSE, nullspBase.size(), &nullspBase[0], &nullsp);
 
@@ -374,7 +437,6 @@ namespace femus {
         }
       }
     }
-
   }
 
   // ================================================
@@ -389,13 +451,23 @@ namespace femus {
         nullspBase.resize (nullspSize + 1);
         VecDuplicate (EPS, &nullspBase[nullspSize]);
         unsigned soltype = _SolType[indexSol];
-        unsigned owndofs = _msh->_dofOffset[soltype][processor_id() + 1] - _msh->_dofOffset[soltype][processor_id()];
+        unsigned offset0 = _msh->_dofOffset[soltype][processor_id()];
+        unsigned offset1 = _msh->_dofOffset[soltype][processor_id() + 1];
+        unsigned owndofs = offset1 - offset0;
         if (soltype == 4) owndofs /= (_msh->GetDimension() + 1);
+        //std::cout<<"AA "<<owndofs<<std::flush<<std::endl;
         for (unsigned i = 0; i < owndofs; i++) {
-          int idof_kk = KKoffset[k][processor_id()] + i;
-          unsigned inode_mts = _msh->_dofOffset[soltype][processor_id()] + i;
-          if ( (* (*_Bdc) [indexSol]) (inode_mts) > 1.9) {
-            VecSetValue (nullspBase[nullspSize], idof_kk, 1., INSERT_VALUES);
+          int idof_KK = KKoffset[k][processor_id()] + i;
+          unsigned idof_sol = offset0 + i;
+          // if (indexSol == 3) {
+          //   VecSetValue(nullspBase[nullspSize], idof_KK, /*(*(*_Sol)[6])(idof_sol)*/ 1., INSERT_VALUES);
+          //   //std::cout<<(int)(*(*_Sol)[6])(i)<<std::flush<<" ";
+          // } else if (indexSol == 4) {
+          //   VecSetValue(nullspBase[nullspSize], idof_KK, /*(*(*_Sol)[7])(idof_sol)*/ 1., INSERT_VALUES);
+          //   //std::cout<<(int)(*(*_Sol)[7])(i)<<std::flush<<" ";
+          // }
+          if ( (* (*_Bdc) [indexSol]) (idof_sol) > 1.9) {
+            VecSetValue (nullspBase[nullspSize], idof_KK, 1., INSERT_VALUES);
           }
         }
 
@@ -444,7 +516,7 @@ namespace femus {
 
   // ================================================
 
-  void LinearEquationSolverPetsc::SetPetscSolverType (KSP &ksp, const SolverType &solverType , const double *parameter) {
+  void LinearEquationSolverPetsc::SetPetscSolverType (KSP &ksp, const SolverType &solverType, const double *parameter) {
     int ierr = 0;
 
     switch (solverType) {
@@ -510,7 +582,13 @@ namespace femus {
 
       case RICHARDSON:
         KSPSetType (ksp, (char*) KSPRICHARDSON);
-        KSPRichardsonSetScale (ksp, parameter[0]);
+        if(parameter[0] == 0) {
+          KSPRichardsonSetSelfScale(ksp, PETSC_TRUE);
+        }
+        else {
+          KSPRichardsonSetSelfScale(ksp, PETSC_FALSE);
+          KSPRichardsonSetScale (ksp, parameter[0]);
+        }
         return;
 
       case CHEBYSHEV:
@@ -530,14 +608,13 @@ namespace femus {
     }
   }
 
-
   // ========================================================
 
   /** @deprecated, remove soon */
 
   std::pair<unsigned int, double> LinearEquationSolverPetsc::solve (SparseMatrix&  matrix_in,
-                                                                         SparseMatrix&  precond_in,  NumericVector& solution_in,  NumericVector& rhs_in,
-                                                                         const double tol,   const unsigned int m_its) {
+      SparseMatrix&  precond_in,  NumericVector& solution_in,  NumericVector& rhs_in,
+      const double tol,   const unsigned int m_its) {
 
 //   START_LOG("solve()", "PetscLinearSolverM");
     // Make sure the data passed in are really of Petsc types
@@ -589,7 +666,6 @@ namespace femus {
 //      PetscLogEventRegister("User event",0,&USER_EVENT);
 //      PetscLogEventBegin(USER_EVENT,0,0,0,0);
 
-
     ierr = KSPSolve (_ksp, rhs->vec(), solution->vec());
     CHKERRABORT (MPI_COMM_WORLD, ierr);
 //         PetscLogFlops(user_event_flops);
@@ -606,7 +682,6 @@ namespace femus {
     return std::make_pair (its, final_resid);
   }
 
-
 // @deprecated ========================================================
   PetscErrorCode __libmesh_petsc_preconditioner_setup (PC pc) {
     void* ctx;
@@ -616,7 +691,6 @@ namespace femus {
     preconditioner->init();
     return 0;
   }
-
 
 // @deprecated ========================================================
   PetscErrorCode __libmesh_petsc_preconditioner_apply (PC pc, Vec x, Vec y) {
@@ -629,7 +703,6 @@ namespace femus {
     preconditioner->apply (x_vec, y_vec);
     return 0;
   }
-
 
 // @deprecated ========================================================
   void LinearEquationSolverPetsc::init (SparseMatrix* matrix) {
@@ -698,7 +771,7 @@ namespace femus {
       // behavior is for PETSc to allocate (internally) an array
       // of size 1000 to hold the residual norm history.
       ierr = KSPSetResidualHistory (_ksp,
-                                    PETSC_NULL,   // pointer to the array which holds the history
+                                    PETSC_NULLPTR,   // pointer to the array which holds the history
                                     PETSC_DECIDE, // size of the array holding the history
                                     PETSC_TRUE);  // Whether or not to reset the history for each solve.
       CHKERRABORT (MPI_COMM_WORLD, ierr);
@@ -714,11 +787,6 @@ namespace femus {
     }
   }
 
-
-
 } //end namespace femus
 
-
 #endif
-
-

@@ -1,5 +1,5 @@
 // This is an experimental application which describes Nitsche coupling for a linear stress term
-// from both domains. GetParticleWeights computes and updates particle weights on the cut elements in a way that 
+// from both domains. GetParticleWeights computes and updates particle weights on the cut elements in a way that
 // the new weights are exact upto m - degree polynomials and still close to the old weights.
 // GetInterfaceElementEigenvalues computes the averaging coefficents appearing in interface terms Nitsche formulation.
 // There are two initilization here, ball and rectanglular type.
@@ -25,7 +25,6 @@
 
 #include <algorithm>    // std::minmax_element
 
-
 using namespace femus;
 
 Line* line3;
@@ -41,8 +40,6 @@ double a5;
 double a7;
 double a9;
 
-
-
 void AssembleNitscheProblem_AD(MultiLevelProblem& mlProb);
 void BuildFlag(MultiLevelSolution& mlSol);
 
@@ -53,7 +50,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-
 int main(int argc, char** args) {
 
   if(DIM != 2 && DIM != 3) {
@@ -63,7 +59,7 @@ int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
 
-  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
+  SlepcInitialize(&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   // define multilevel mesh
@@ -79,7 +75,6 @@ int main(int argc, char** args) {
 
   const double length = 1.;
   const double lengthx = 0.5;
-
 
 // TRI3-6-7 not working????
   if(DIM == 2) {
@@ -102,15 +97,12 @@ int main(int argc, char** args) {
   a7 = -pow(deps, -7.) * 0.703125; // 180./256.;
   a9 = pow(deps, -9.) * 0.13671875; // 35./256.;
 
-
-
   double Lref = 1.;
   double Uref = 1.;
   double rho1 = 1000;
   double rho2 = 10;
   double mu1 = 1.e-03;
   double mu2 = 1.e-04;
-
 
   Parameter par(Lref, Uref);
 
@@ -131,13 +123,10 @@ int main(int argc, char** args) {
   if(DIM == 3) mlSol.AddSolution("VZ1", LAGRANGE, femOrder);
   mlSol.AddSolution("P1", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
 
-
   mlSol.AddSolution("VX2", LAGRANGE, femOrder);
   mlSol.AddSolution("VY2", LAGRANGE, femOrder);
   if(DIM == 3) mlSol.AddSolution("VZ2", LAGRANGE, femOrder);
   mlSol.AddSolution("P2", DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
-
-
 
   mlSol.AddSolution("eflag", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("nflag", LAGRANGE, femOrder, 0, false);
@@ -148,19 +137,15 @@ int main(int argc, char** args) {
   mlSol.AddSolution("CL1", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
   mlSol.AddSolution("CL2", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
-
   mlSol.Initialize("All");
 
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol.GenerateBdc("All");
 
-
-
   MultiLevelProblem ml_prob(&mlSol);
 
   ml_prob.parameters.set<Fluid> ("Fluid1") = fluid1;
   ml_prob.parameters.set<Fluid> ("Fluid2") = fluid2;
-
 
   // ******* Add FEM system to the MultiLevel problem *******
   LinearImplicitSystem& system = ml_prob.add_system < LinearImplicitSystem > ("Nitsche");
@@ -176,7 +161,6 @@ int main(int argc, char** args) {
   if(DIM == 3) system.AddSolutionToSystemPDE("VZ2");
 // system.AddSolutionToSystemPDE("P2");
 
-
   // attach the assembling function to system
   system.SetAssembleFunction(AssembleNitscheProblem_AD);
 
@@ -185,19 +169,18 @@ int main(int argc, char** args) {
 
   system.init();
 
-    //BEGIN init particles
+  //BEGIN init particles
 
   std::vector < std::vector <double> > xp;
   std::vector <double> wp;
   std::vector <double> dist;
   std::vector < MarkerType > markerType;
-  
-  
+
 /// INIT Ball Marker Initilization
-  
+
 //   std::vector<double> VxL = { - 0.5 * lengthx, -0.5 * length, -0.5 * length };
 //   std::vector<double> VxR = {  0.5 * lengthx,  0.5 * length, 0.5 * length };
-// 
+//
 //   double xc = 0.;
 //   double yc = 0.;
 //   double zc = 0.;
@@ -207,35 +190,34 @@ int main(int argc, char** args) {
 //   unsigned nbl = 5;
 //   unsigned FI = 5;
 //   std::vector < double> Xc = {xc, yc, zc};
-// 
+//
 //   InitBallVolumeParticles(DIM, VxL, VxR, Xc, markerType, R, Rmax, DR, nbl, FI, xp, wp, dist);
-// 
-// 
+//
+//
 //   unsigned solType = 2;
 //   line3 = new Line(xp, wp, dist, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-// 
+//
 //   std::vector < std::vector < std::vector < double > > >  line3Points(1);
 //   line3->GetLine(line3Points[0]);
 //   PrintLine(DEFAULT_OUTPUTDIR, "bulk3", line3Points, 0);
-// 
-// 
+//
+//
 //   ///interface stuff
-// 
+//
 //   std::vector < std::vector < std::vector < double > > > T;
-// 
+//
 //   InitBallInterfaceParticles(DIM, R, DR, FI, Xc, markerType, xp, T);
-// 
+//
 //   lineI = new Line(xp, T, markerType, mlSol.GetLevel(numberOfUniformLevels - 1), solType);
-// 
+//
 //   std::vector < std::vector < std::vector < double > > > lineIPoints(1);
 //   lineI->GetLine(lineIPoints[0]);
 //   PrintLine(DEFAULT_OUTPUTDIR, "interfaceLine", lineIPoints, 0);
-//   
-  
-//// END Ball Marker Initilization
-  
+//
 
-//// INIT Rectange Particle Initilization 
+//// END Ball Marker Initilization
+
+//// INIT Rectange Particle Initilization
 
   //inner bulk solid markers + outer shell fluid markers
   double Ls = 0.2;
@@ -250,7 +232,6 @@ int main(int argc, char** args) {
   double dL = Hs / rows;
   double DB = 1.3241592 * dL;
 
-
   InitRectangleParticle(DIM, Ls, Hs, Lf, dL, DB, nbl, xc, markerType, xp, wp, dist);
 
   unsigned solType = 2;
@@ -259,7 +240,6 @@ int main(int argc, char** args) {
   std::vector < std::vector < std::vector < double > > >  line3Points(1);
   line3->GetLine(line3Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "SolidMarkers", line3Points, 0);
-
 
   ///interface markers
 
@@ -274,15 +254,11 @@ int main(int argc, char** args) {
   PrintLine(DEFAULT_OUTPUTDIR, "interfaceMarkers", lineIPoints, 0);
   //END interface markers
 
- 
-  
-//// END Rectange Particle Initilization 
-  
-  
+//// END Rectange Particle Initilization
+
   BuildFlag(mlSol);
   GetParticleWeights(mlSol, line3);
   GetInterfaceElementEigenvalues(mlSol, line3, lineI, deps);
-  
 
   system.MGsolve();
 
@@ -292,7 +268,6 @@ int main(int argc, char** args) {
 
   std::vector<std::string> print_vars;
   print_vars.push_back("All");
-
 
   mlSol.GetWriter()->Write("./output", "biquadratic", print_vars, 0);
 
@@ -311,14 +286,12 @@ int main(int argc, char** args) {
 //   mlSol.GetWriter()->SetMovingMesh(mov_vars2);
 //   mlSol.GetWriter()->Write("./outputD2", "linear", print_vars, 0);
 
-
   ml_prob.clear();
 
   delete line3;
   delete lineI;
   return 0;
 }
-
 
 void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
@@ -327,7 +300,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
   // call the adept stack object
-
 
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -352,7 +324,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   double mu1 = ml_prob.parameters.get<Solid> ("Fluid1").get_lame_shear_modulus();
 
   double mu2 = ml_prob.parameters.get<Solid> ("Fluid2").get_lame_shear_modulus();
-
 
   double g[DIM] = {0., -1., 0.};
 
@@ -419,7 +390,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   std::vector < std::vector < std::vector <double > > > aP(3);
 
-
   std::vector<Marker*> particle3 = line3->GetParticles();
   std::vector<unsigned> markerOffset3 = line3->GetMarkerOffset();
   unsigned imarker3 = markerOffset3[iproc];
@@ -427,7 +397,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
   unsigned imarkerI = markerOffsetI[iproc];
-
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -449,7 +418,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     for(int k = 0; k < dim; k++) {
       x[k].resize(nDofV);
     }
-
 
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofV; i++) {
@@ -473,10 +441,9 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       }
     }
 
-    
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
-    
+
     // elements which are NOT cut by the interface
     if(eFlag == 0 || eFlag == 2) {
       // *** Element Gauss point loop ***
@@ -567,7 +534,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       // double thetaL = 4. / denL;
 
-
 //       double gammaL1 = 0.5;
 //       double gammaL2 = 0.5;
 //
@@ -577,7 +543,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //
 //       double thetaL = lambda1;
 //       double thetaM = mu1;
-
 
       //bulk3
       while(imarker3 < markerOffset3[iproc + 1] && iel > particle3[imarker3]->GetMarkerElement()) {
@@ -724,7 +689,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
               //aResD2[k][i] +=  thetaL * (u2[j] - u1[j]) * N[j] * phi[i] * N[k] * weight;
             }
-
 
           }
         } // end phi_i loop

@@ -39,6 +39,14 @@ namespace femus {
       /**  Constructor. Initializes Petsc data structures */
       LinearEquationSolverPetscFieldSplit(const unsigned& igrid, Solution *other_solution);
 
+      void MGSetLevel (LinearEquationSolver *LinSolver, const unsigned &maxlevel,
+                       const vector <unsigned> &variable_to_be_solved,
+                       SparseMatrix* PP, SparseMatrix* RR,
+                       const unsigned &npre, const unsigned &npost) override;
+
+      void Solve (const bool ksp_clean) override;
+      void MGSolve (const bool ksp_clean) override;
+
       /** Destructor */
       ~LinearEquationSolverPetscFieldSplit() {};
 
@@ -61,11 +69,10 @@ namespace femus {
 
   inline LinearEquationSolverPetscFieldSplit::LinearEquationSolverPetscFieldSplit(const unsigned& igrid, Solution *other_solution)
     : LinearEquationSolverPetsc(igrid, other_solution),
-    _fieldSplitTree(NULL){
+      _fieldSplitTree(NULL) {
   }
 
 } //end namespace femus
-
 
 #endif
 #endif

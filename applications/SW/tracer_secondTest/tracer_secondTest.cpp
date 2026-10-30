@@ -62,8 +62,7 @@ const double hRest[4] = {2.5, 2.5, 2.5, 2.5};
 //                           0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125
 //                          };
 
-double InitalValueVi (const std::vector < double >& x , const unsigned &i)
-{
+double InitalValueVi (const std::vector < double >& x, const unsigned &i) {
   double psi1 = 1. - (x[0] - 5.) * (x[0] - 5.) * (x[0] - 5.) * (x[0] - 5.) / (5.*5.*5.*5.);
   //double psi1 = 1. - ( pow(( x[0] - 50. ), 40) / pow(50., 40) );
   //double psi1 = 1. - ( pow(( x[0] - 10. ), 16) / pow(10., 16) );
@@ -81,338 +80,252 @@ double InitalValueVi (const std::vector < double >& x , const unsigned &i)
 //   return ( psi1 * d_psi2 );
 // }
 
-
-
-double InitalValueV0 (const std::vector < double >& x)
-{
+double InitalValueV0 (const std::vector < double >& x) {
   return InitalValueVi (x, 1);
 }
-double InitalValueV1 (const std::vector < double >& x)
-{
+double InitalValueV1 (const std::vector < double >& x) {
   return InitalValueVi (x, 2);
 }
-double InitalValueV2 (const std::vector < double >& x)
-{
+double InitalValueV2 (const std::vector < double >& x) {
   return InitalValueVi (x, 3);
 }
-double InitalValueV3 (const std::vector < double >& x)
-{
+double InitalValueV3 (const std::vector < double >& x) {
   return InitalValueVi (x, 4);
 }
-double InitalValueV4 (const std::vector < double >& x)
-{
+double InitalValueV4 (const std::vector < double >& x) {
   return InitalValueVi (x, 5);
 }
-double InitalValueV5 (const std::vector < double >& x)
-{
+double InitalValueV5 (const std::vector < double >& x) {
   return InitalValueVi (x, 6);
 }
-double InitalValueV6 (const std::vector < double >& x)
-{
+double InitalValueV6 (const std::vector < double >& x) {
   return InitalValueVi (x, 7);
 }
-double InitalValueV7 (const std::vector < double >& x)
-{
+double InitalValueV7 (const std::vector < double >& x) {
   return InitalValueVi (x, 8);
 }
-double InitalValueV8 (const std::vector < double >& x)
-{
+double InitalValueV8 (const std::vector < double >& x) {
   return InitalValueVi (x, 9);
 }
-double InitalValueV9 (const std::vector < double >& x)
-{
+double InitalValueV9 (const std::vector < double >& x) {
   return InitalValueVi (x, 10);
 }
-double InitalValueV10 (const std::vector < double >& x)
-{
+double InitalValueV10 (const std::vector < double >& x) {
   return InitalValueVi (x, 11);
 }
-double InitalValueV11 (const std::vector < double >& x)
-{
+double InitalValueV11 (const std::vector < double >& x) {
   return InitalValueVi (x, 12);
 }
-double InitalValueV12 (const std::vector < double >& x)
-{
+double InitalValueV12 (const std::vector < double >& x) {
   return InitalValueVi (x, 13);
 }
-double InitalValueV13 (const std::vector < double >& x)
-{
+double InitalValueV13 (const std::vector < double >& x) {
   return InitalValueVi (x, 14);
 }
-double InitalValueV14 (const std::vector < double >& x)
-{
+double InitalValueV14 (const std::vector < double >& x) {
   return InitalValueVi (x, 15);
 }
-double InitalValueV15 (const std::vector < double >& x)
-{
+double InitalValueV15 (const std::vector < double >& x) {
   return InitalValueVi (x, 16);
 }
-double InitalValueV16 (const std::vector < double >& x)
-{
+double InitalValueV16 (const std::vector < double >& x) {
   return InitalValueVi (x, 17);
 }
-double InitalValueV17 (const std::vector < double >& x)
-{
+double InitalValueV17 (const std::vector < double >& x) {
   return InitalValueVi (x, 18);
 }
-double InitalValueV18 (const std::vector < double >& x)
-{
+double InitalValueV18 (const std::vector < double >& x) {
   return InitalValueVi (x, 19);
 }
-double InitalValueV19 (const std::vector < double >& x)
-{
+double InitalValueV19 (const std::vector < double >& x) {
   return InitalValueVi (x, 20);
 }
-double InitalValueV20 (const std::vector < double >& x)
-{
+double InitalValueV20 (const std::vector < double >& x) {
   return InitalValueVi (x, 21);
 }
-double InitalValueV21 (const std::vector < double >& x)
-{
+double InitalValueV21 (const std::vector < double >& x) {
   return InitalValueVi (x, 22);
 }
-double InitalValueV22 (const std::vector < double >& x)
-{
+double InitalValueV22 (const std::vector < double >& x) {
   return InitalValueVi (x, 23);
 }
-double InitalValueV23 (const std::vector < double >& x)
-{
+double InitalValueV23 (const std::vector < double >& x) {
   return InitalValueVi (x, 24);
 }
-double InitalValueV24 (const std::vector < double >& x)
-{
+double InitalValueV24 (const std::vector < double >& x) {
   return InitalValueVi (x, 25);
 }
-double InitalValueV25 (const std::vector < double >& x)
-{
+double InitalValueV25 (const std::vector < double >& x) {
   return InitalValueVi (x, 26);
 }
-double InitalValueV26 (const std::vector < double >& x)
-{
+double InitalValueV26 (const std::vector < double >& x) {
   return InitalValueVi (x, 27);
 }
-double InitalValueV27 (const std::vector < double >& x)
-{
+double InitalValueV27 (const std::vector < double >& x) {
   return InitalValueVi (x, 28);
 }
-double InitalValueV28 (const std::vector < double >& x)
-{
+double InitalValueV28 (const std::vector < double >& x) {
   return InitalValueVi (x, 29);
 }
-double InitalValueV29 (const std::vector < double >& x)
-{
+double InitalValueV29 (const std::vector < double >& x) {
   return InitalValueVi (x, 30);
 }
-double InitalValueV30 (const std::vector < double >& x)
-{
+double InitalValueV30 (const std::vector < double >& x) {
   return InitalValueVi (x, 31);
 }
-double InitalValueV31 (const std::vector < double >& x)
-{
+double InitalValueV31 (const std::vector < double >& x) {
   return InitalValueVi (x, 32);
 }
-double InitalValueV32 (const std::vector < double >& x)
-{
+double InitalValueV32 (const std::vector < double >& x) {
   return InitalValueVi (x, 33);
 }
-double InitalValueV33 (const std::vector < double >& x)
-{
+double InitalValueV33 (const std::vector < double >& x) {
   return InitalValueVi (x, 34);
 }
-double InitalValueV34 (const std::vector < double >& x)
-{
+double InitalValueV34 (const std::vector < double >& x) {
   return InitalValueVi (x, 35);
 }
-double InitalValueV35 (const std::vector < double >& x)
-{
+double InitalValueV35 (const std::vector < double >& x) {
   return InitalValueVi (x, 36);
 }
-double InitalValueV36 (const std::vector < double >& x)
-{
+double InitalValueV36 (const std::vector < double >& x) {
   return InitalValueVi (x, 37);
 }
-double InitalValueV37 (const std::vector < double >& x)
-{
+double InitalValueV37 (const std::vector < double >& x) {
   return InitalValueVi (x, 38);
 }
-double InitalValueV38 (const std::vector < double >& x)
-{
+double InitalValueV38 (const std::vector < double >& x) {
   return InitalValueVi (x, 39);
 }
-double InitalValueV39 (const std::vector < double >& x)
-{
+double InitalValueV39 (const std::vector < double >& x) {
   return InitalValueVi (x, 40);
 }
-double InitalValueV40 (const std::vector < double >& x)
-{
+double InitalValueV40 (const std::vector < double >& x) {
   return InitalValueVi (x, 41);
 }
-double InitalValueV41 (const std::vector < double >& x)
-{
+double InitalValueV41 (const std::vector < double >& x) {
   return InitalValueVi (x, 42);
 }
-double InitalValueV42 (const std::vector < double >& x)
-{
+double InitalValueV42 (const std::vector < double >& x) {
   return InitalValueVi (x, 43);
 }
-double InitalValueV43 (const std::vector < double >& x)
-{
+double InitalValueV43 (const std::vector < double >& x) {
   return InitalValueVi (x, 44);
 }
-double InitalValueV44 (const std::vector < double >& x)
-{
+double InitalValueV44 (const std::vector < double >& x) {
   return InitalValueVi (x, 45);
 }
-double InitalValueV45 (const std::vector < double >& x)
-{
+double InitalValueV45 (const std::vector < double >& x) {
   return InitalValueVi (x, 46);
 }
-double InitalValueV46 (const std::vector < double >& x)
-{
+double InitalValueV46 (const std::vector < double >& x) {
   return InitalValueVi (x, 47);
 }
-double InitalValueV47 (const std::vector < double >& x)
-{
+double InitalValueV47 (const std::vector < double >& x) {
   return InitalValueVi (x, 48);
 }
-double InitalValueV48 (const std::vector < double >& x)
-{
+double InitalValueV48 (const std::vector < double >& x) {
   return InitalValueVi (x, 49);
 }
-double InitalValueV49 (const std::vector < double >& x)
-{
+double InitalValueV49 (const std::vector < double >& x) {
   return InitalValueVi (x, 50);
 }
-double InitalValueV50 (const std::vector < double >& x)
-{
+double InitalValueV50 (const std::vector < double >& x) {
   return InitalValueVi (x, 51);
 }
-double InitalValueV51 (const std::vector < double >& x)
-{
+double InitalValueV51 (const std::vector < double >& x) {
   return InitalValueVi (x, 52);
 }
-double InitalValueV52 (const std::vector < double >& x)
-{
+double InitalValueV52 (const std::vector < double >& x) {
   return InitalValueVi (x, 53);
 }
-double InitalValueV53 (const std::vector < double >& x)
-{
+double InitalValueV53 (const std::vector < double >& x) {
   return InitalValueVi (x, 54);
 }
-double InitalValueV54 (const std::vector < double >& x)
-{
+double InitalValueV54 (const std::vector < double >& x) {
   return InitalValueVi (x, 55);
 }
-double InitalValueV55 (const std::vector < double >& x)
-{
+double InitalValueV55 (const std::vector < double >& x) {
   return InitalValueVi (x, 56);
 }
-double InitalValueV56 (const std::vector < double >& x)
-{
+double InitalValueV56 (const std::vector < double >& x) {
   return InitalValueVi (x, 57);
 }
-double InitalValueV57 (const std::vector < double >& x)
-{
+double InitalValueV57 (const std::vector < double >& x) {
   return InitalValueVi (x, 58);
 }
-double InitalValueV58 (const std::vector < double >& x)
-{
+double InitalValueV58 (const std::vector < double >& x) {
   return InitalValueVi (x, 59);
 }
-double InitalValueV59 (const std::vector < double >& x)
-{
+double InitalValueV59 (const std::vector < double >& x) {
   return InitalValueVi (x, 60);
 }
-double InitalValueV60 (const std::vector < double >& x)
-{
+double InitalValueV60 (const std::vector < double >& x) {
   return InitalValueVi (x, 61);
 }
-double InitalValueV61 (const std::vector < double >& x)
-{
+double InitalValueV61 (const std::vector < double >& x) {
   return InitalValueVi (x, 62);
 }
-double InitalValueV62 (const std::vector < double >& x)
-{
+double InitalValueV62 (const std::vector < double >& x) {
   return InitalValueVi (x, 63);
 }
-double InitalValueV63 (const std::vector < double >& x)
-{
+double InitalValueV63 (const std::vector < double >& x) {
   return InitalValueVi (x, 64);
 }
-double InitalValueV64 (const std::vector < double >& x)
-{
+double InitalValueV64 (const std::vector < double >& x) {
   return InitalValueVi (x, 65);
 }
-double InitalValueV65 (const std::vector < double >& x)
-{
+double InitalValueV65 (const std::vector < double >& x) {
   return InitalValueVi (x, 66);
 }
-double InitalValueV66 (const std::vector < double >& x)
-{
+double InitalValueV66 (const std::vector < double >& x) {
   return InitalValueVi (x, 67);
 }
-double InitalValueV67 (const std::vector < double >& x)
-{
+double InitalValueV67 (const std::vector < double >& x) {
   return InitalValueVi (x, 68);
 }
-double InitalValueV68 (const std::vector < double >& x)
-{
+double InitalValueV68 (const std::vector < double >& x) {
   return InitalValueVi (x, 69);
 }
-double InitalValueV69 (const std::vector < double >& x)
-{
+double InitalValueV69 (const std::vector < double >& x) {
   return InitalValueVi (x, 70);
 }
-double InitalValueV70 (const std::vector < double >& x)
-{
+double InitalValueV70 (const std::vector < double >& x) {
   return InitalValueVi (x, 71);
 }
-double InitalValueV71 (const std::vector < double >& x)
-{
+double InitalValueV71 (const std::vector < double >& x) {
   return InitalValueVi (x, 72);
 }
-double InitalValueV72 (const std::vector < double >& x)
-{
+double InitalValueV72 (const std::vector < double >& x) {
   return InitalValueVi (x, 73);
 }
-double InitalValueV73 (const std::vector < double >& x)
-{
+double InitalValueV73 (const std::vector < double >& x) {
   return InitalValueVi (x, 74);
 }
-double InitalValueV74 (const std::vector < double >& x)
-{
+double InitalValueV74 (const std::vector < double >& x) {
   return InitalValueVi (x, 75);
 }
-double InitalValueV75 (const std::vector < double >& x)
-{
+double InitalValueV75 (const std::vector < double >& x) {
   return InitalValueVi (x, 76);
 }
-double InitalValueV76 (const std::vector < double >& x)
-{
+double InitalValueV76 (const std::vector < double >& x) {
   return InitalValueVi (x, 77);
 }
-double InitalValueV77 (const std::vector < double >& x)
-{
+double InitalValueV77 (const std::vector < double >& x) {
   return InitalValueVi (x, 78);
 }
-double InitalValueV78 (const std::vector < double >& x)
-{
+double InitalValueV78 (const std::vector < double >& x) {
   return InitalValueVi (x, 79);
 }
-double InitalValueV79 (const std::vector < double >& x)
-{
+double InitalValueV79 (const std::vector < double >& x) {
   return InitalValueVi (x, 80);
 }
 
-
-
-double InitalValueH (const std::vector < double >& x)
-{
+double InitalValueH (const std::vector < double >& x) {
   return hRest[0];
 }
 
-double InitalValueT (const std::vector < double >& x)
-{
+double InitalValueT (const std::vector < double >& x) {
   double pi = acos (-1.);
 
   if (x[0] < 5) {
@@ -428,19 +341,15 @@ double InitalValueT (const std::vector < double >& x)
 //  return 10.;
 }
 
-
-double InitalValueB (const std::vector < double >& x)
-{
+double InitalValueB (const std::vector < double >& x) {
   return 10.; //( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) );
 }
 
-double InitialValueK_RK (const std::vector < double >& x)
-{
+double InitialValueK_RK (const std::vector < double >& x) {
   return 0.;
 }
 
-bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time)
-{
+bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = false;
 
   if (!strcmp (SolName, "HT")) {
@@ -460,7 +369,6 @@ bool SetBoundaryCondition (const std::vector < double >& x, const char SolName[]
   return dirichlet;
 }
 
-
 void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps);
 
 void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned & numberOfTimeSteps);
@@ -469,11 +377,10 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps);
 
 void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps);
 
-int main (int argc, char** args)
-{
+int main (int argc, char** args) {
 
-  SlepcInitialize (&argc, &args, PETSC_NULL, PETSC_NULL);
- 
+  SlepcInitialize (&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
+
   // init Petsc-MPI communicator
   FemusInit mpinit (argc, args, MPI_COMM_WORLD);
 
@@ -510,9 +417,9 @@ int main (int argc, char** args)
     mlSol.AddSolution (name, DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
     sprintf (name, "HT%d", i);
     mlSol.AddSolution (name, DISCONTINUOUS_POLYNOMIAL, ZERO, 2);
-    
-    for(unsigned j = 0; j<RK_order;j++){
-      sprintf (name, "K%d_%d",j+1, i);
+
+    for(unsigned j = 0; j < RK_order; j++) {
+      sprintf (name, "K%d_%d", j + 1, i);
       mlSol.AddSolution (name, DISCONTINUOUS_POLYNOMIAL, ZERO);
     }
   }
@@ -608,7 +515,6 @@ int main (int argc, char** args)
 //         }
 //     }
 
-
   for (unsigned i = 0; i < NumberOfLayers; i++) {
     char name[10];
     sprintf (name, "h%d", i);
@@ -660,7 +566,7 @@ int main (int argc, char** args)
     //RK4 ( ml_prob, implicitEuler, numberOfTimeSteps );
     RKe (ml_prob, numberOfTimeSteps);
     mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "linear", print_vars, (i + 1) / 1);
-    
+
     counter2++;
   }
 
@@ -669,9 +575,7 @@ int main (int argc, char** args)
   return 0;
 }
 
-
-void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
-{
+void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps) {
 
   const unsigned& NLayers = NumberOfLayers;
 
@@ -711,7 +615,6 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh (NLayers);
@@ -1014,7 +917,6 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //       }
       //END
 
-
       adept::adouble deltaZt = 0.;
       adept::adouble deltaZb = 0.;
       adept::adouble ht = 0.;
@@ -1166,7 +1068,7 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //     PetscInt nconv1,nconv2;
 //
 //     SVDCreate(PETSC_COMM_WORLD,&svd);
-//     SVDSetOperator(svd,A);
+//     SVDSetOperators(svd,A);
 //     SVDSetFromOptions(svd);
 //     SVDSetDimensions(svd,1,PETSC_DEFAULT,PETSC_DEFAULT);
 //     //First request a singular value from one end of the spectrum
@@ -1310,7 +1212,6 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         solvm[j] = (*sol->_Sol[solIndexv[j]]) (i);
         solvp[j] = (*sol->_Sol[solIndexv[j]]) (i + 1);
 
-
         if (i > start) {
           solhm[j] = (*sol->_Sol[solIndexh[j]]) (i - 1);
           solHTm[j] = (*sol->_Sol[solIndexHT[j]]) (i - 1);
@@ -1381,7 +1282,6 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
           maxW[k - 1] = w[k - 1];
         }
       }
-
 
       for (unsigned k = 0; k < NLayers; k++) {
 
@@ -1528,7 +1428,6 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 
     RES2->close();
 
-
     //BEGIN ASSEMBLY: R2 = RES2 - RES - KK * EPS = RESnew - RESold - KK * (Vnew - Vold) = (ResNew - KK * Vnew) - (ResOld - KK * Vold) = 0 - 0 ;
     RES2->scale (-1.);
     RES2->add (*RES);
@@ -1613,9 +1512,7 @@ void ETD (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
   delete RES2;
 }
 
-
-void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned & numberOfTimeSteps)
-{
+void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned & numberOfTimeSteps) {
 
   const unsigned& NLayers = NumberOfLayers;
 
@@ -1637,7 +1534,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh (NLayers);
@@ -1810,7 +1706,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
       }
     }
 
-
     std::vector < double > k1_RK (NLayers, 0.);
     std::vector < double > k2_RK (NLayers, 0.);
     std::vector < double > k3_RK (NLayers, 0.);
@@ -1920,7 +1815,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
 //           RHS += k_h * (0.5 * (solhp[k] + solh[k])) * ((solHTp[k] / solhp[k] + addition)  - (solHT[k] / solh[k] + addition))/(dx*dx); // horizontal diffusion
 //         }
 
-
         if (RK_step == 0) {
           k1_RK[k] = RHS * dt;
 
@@ -1952,7 +1846,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
       sol->_Sol[solIndexHT[k]]->set (i, valueHT);
       sol->_Sol[solIndexHT[k]]->close();
     }
-
 
     if (implicitEuler == false) {
       //BEGIN forward Euler for vertical diffusion
@@ -2102,7 +1995,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
       ierr = MatAssemblyBegin (triDiagA, MAT_FINAL_ASSEMBLY);
       ierr = MatAssemblyEnd (triDiagA, MAT_FINAL_ASSEMBLY);
 
-
 //       PetscViewer    viewer;
 //       PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,900,900,&viewer);
 //       PetscObjectSetName((PetscObject)viewer,"implicit Euler matrix");
@@ -2110,7 +2002,6 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
 //       MatView(triDiagA,viewer);
 //       double a;
 //       std::cin>>a;
-
 
       ierr = KSPCreate (PETSC_COMM_WORLD, &solver);
       ierr = KSPSetOperators (solver, triDiagA, triDiagA);
@@ -2184,9 +2075,7 @@ void RK4 (MultiLevelProblem& ml_prob, const bool & implicitEuler, const unsigned
 
 }
 
-
-void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
-{
+void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps) {
 
   const unsigned& NLayers = NumberOfLayers;
 
@@ -2209,7 +2098,6 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
 
-
   //solution variable
   std::vector < unsigned > solIndexh (NLayers);
 
@@ -2224,7 +2112,6 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
   std::vector < unsigned > solIndexK2 (NLayers);
   std::vector < unsigned > solIndexK3 (NLayers);
   std::vector < unsigned > solIndexK4 (NLayers);
-
 
   for (unsigned i = 0; i < NLayers; i++) {
 
@@ -2271,9 +2158,9 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //             //double valueT = ( *sol->_SolOld[solIndexT[k]] ) ( i );
 //             double valueT = ( *sol->_Sol[solIndexT[k]] ) ( i );
 //             double valueH = ( *sol->_Sol[solIndexh[k]] ) ( i );
-// 
+//
 //             double valueHT = valueT * valueH;
-// 
+//
 //             sol->_Sol[solIndexHT[k]]->set ( i, valueHT );
 //         }
 //         sol->_Sol[solIndexHT[k]]->close();
@@ -2406,15 +2293,15 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //           solTmm[j] = (*sol->_Sol[solIndexT[j]]) (i - 2);
 //           solhmm[j] = (*sol->_Sol[solIndexh[j]]) (i - 2);
 //           //solHTmm[j] = ( *sol->_Sol[solIndexHT[j]] ) ( i - 2 );
-// 
+//
 //           solK1mm[j] = (*sol->_Sol[solIndexK1[j]]) (i - 2);
-// 
+//
 //           if (RK_order > 1) {
 //             solK2mm[j] = (*sol->_Sol[solIndexK2[j]]) (i - 2);
-// 
+//
 //             if (RK_order > 2) {
 //               solK3mm[j] = (*sol->_Sol[solIndexK3[j]]) (i - 2);
-// 
+//
 //               if (RK_order > 3) {
 //                 solK4mm[j] = (*sol->_Sol[solIndexK4[j]]) (i - 2);
 //               }
@@ -2426,15 +2313,15 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //           solTpp[j] = (*sol->_Sol[solIndexT[j]]) (i + 2);
 //           solhpp[j] = (*sol->_Sol[solIndexh[j]]) (i + 2);
 //           //solHTpp[j] = ( *sol->_Sol[solIndexHT[j]] ) ( i + 2 );
-// 
+//
 //           solK1pp[j] = (*sol->_Sol[solIndexK1[j]]) (i + 2);
-// 
+//
 //           if (RK_order > 1) {
 //             solK2pp[j] = (*sol->_Sol[solIndexK2[j]]) (i + 2);
-// 
+//
 //             if (RK_order > 2) {
 //               solK3pp[j] = (*sol->_Sol[solIndexK3[j]]) (i + 2);
-// 
+//
 //               if (RK_order > 3) {
 //                 solK4pp[j] = (*sol->_Sol[solIndexK4[j]]) (i + 2);
 //               }
@@ -2484,7 +2371,6 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         }
       }
 
-
       for (unsigned k = 0; k < NLayers; k++) {
         double RHS = 0.;
         double addition = 0.;
@@ -2502,8 +2388,8 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
             addition_p = solK1p[k];
 //             addition_mm = solK1mm[k];
 //             addition_pp = solK1pp[k];
-            if (k > 0) addition_t = solK1[k-1]; 
-            if (k < NLayers - 1) addition_b = solK1[k+1]; 
+            if (k > 0) addition_t = solK1[k - 1];
+            if (k < NLayers - 1) addition_b = solK1[k + 1];
           }
 
           else if (RK_order == 3 || RK_order == 4) {
@@ -2512,8 +2398,8 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
             addition_p = solK1p[k] * 0.5;
 //             addition_mm = solK1mm[k] * 0.5;
 //             addition_pp = solK1pp[k] * 0.5;
-            if (k > 0) addition_t = solK1[k-1] * 0.5; 
-            if (k < NLayers - 1) addition_b = solK1[k+1] * 0.5;
+            if (k > 0) addition_t = solK1[k - 1] * 0.5;
+            if (k < NLayers - 1) addition_b = solK1[k + 1] * 0.5;
           }
 
         }
@@ -2525,18 +2411,18 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
             addition_p = solK2p[k] * 0.5;
 //             addition_mm = solK2mm[k] * 0.5;
 //             addition_pp = solK2pp[k] * 0.5;
-            if (k > 0) addition_t = solK2[k-1] * 0.5; 
-            if (k < NLayers - 1) addition_b = solK2[k+1] * 0.5;
+            if (k > 0) addition_t = solK2[k - 1] * 0.5;
+            if (k < NLayers - 1) addition_b = solK2[k + 1] * 0.5;
           }
 
           else if (RK_order == 3) {
             addition = - solK1[k] + solK2[k] * 2.;
             addition_m = - solK1m[k] + solK2m[k] * 2.;
             addition_p = - solK1p[k] + solK2p[k] * 2.;
-/*            addition_mm = - solK1mm[k] + solK2mm[k] * 2.;
-            addition_pp = - solK1pp[k] + solK2pp[k] * 2.; */           
-            if (k > 0) addition_t = solK2[k-1] * 2.; 
-            if (k < NLayers - 1) addition_b = solK2[k+1] * 2.;
+            /*            addition_mm = - solK1mm[k] + solK2mm[k] * 2.;
+                        addition_pp = - solK1pp[k] + solK2pp[k] * 2.; */
+            if (k > 0) addition_t = solK2[k - 1] * 2.;
+            if (k < NLayers - 1) addition_b = solK2[k + 1] * 2.;
           }
 
         }
@@ -2547,13 +2433,11 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
           addition_p = solK3p[k];
 //           addition_mm = solK3mm[k];
 //           addition_pp = solK3pp[k];
-          if (k > 0) addition_t = solK3[k-1]; 
-          if (k < NLayers - 1) addition_b = solK3[k+1];
+          if (k > 0) addition_t = solK3[k - 1];
+          if (k < NLayers - 1) addition_b = solK3[k + 1];
         }
 
-
         //BEGIN HORIZONTAL ADVECTION
-
 
         //BEGIN CENTRAL DIFF h and T separate
 //                 if ( i > start ) {
@@ -2564,7 +2448,6 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                 }
         //END
 
-
         //BEGIN CENTRAL DIFF hT multiplied
 //                         if ( i > start ) {
 //                             RHS += 0.5 * ( solHTm[k] + addition_m + solHT[k] + addition ) * solvm[k]  / dx;
@@ -2573,7 +2456,6 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                             RHS -= 0.5 * (solHT[k] + addition + solHTp[k] + addition_p ) * solvp[k]  / dx;
 //                         }
         //END
-
 
         //BEGIN FIRST ORDER UPWINDING h and T separate
         if (i > start) {
@@ -2595,12 +2477,11 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         }
         //END
 
-
         //BEGIN FIRST ORDER UPWINDING hT multiplied
 //                 if ( i > start ) {
 //                     if ( solvm[k] > 0 ) {
 //                         RHS += ( solHTm[k] + addition_m ) * solvm[k] / dx;
-//                     } 
+//                     }
 //                     else {
 //                         RHS += ( solHT[k] + addition ) * solvm[k] / dx;
 //                     }
@@ -2608,13 +2489,12 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                 if ( i < end - 1 ) {
 //                     if ( solvp[k] > 0 ) {
 //                         RHS -= ( solHT[k] + addition ) * solvp[k] / dx;
-//                     } 
+//                     }
 //                     else {
 //                         RHS -= ( solHTp[k] + addition_p ) * solvp[k] / dx;
 //                     }
 //                 }
         //END
-
 
         //BEGIN THIRD ORDER UPWINDING h and T separate
 
@@ -2625,10 +2505,10 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                         RHS += - 1. / 6. * ( (solT[k] + addition) * solh[k] - 2.* (solTm[k] + addition_m) * solhm[k] + (solTmm[k] + addition_mm) * solhmm[k] ) *
 //                                solvm[k]  / dx;
 //                         }
-//                     } 
+//                     }
 //                     else {
 //                       if ( i < end - 1 ) {
-//                           RHS += - 1. / 6. * ( (solTp[k] + addition_p) * solhp[k]  - 2.* (solT[k] + addition) * solh[k] + (solTm[k] + addition_m) * solhm[k] ) * 
+//                           RHS += - 1. / 6. * ( (solTp[k] + addition_p) * solhp[k]  - 2.* (solT[k] + addition) * solh[k] + (solTm[k] + addition_m) * solhm[k] ) *
 //                                  solvm[k]  / dx;
 //                       }
 //                     }
@@ -2640,10 +2520,10 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                         RHS -= - 1. / 6. * ( (solTp[k] + addition_p) * solhp[k] - 2.* (solT[k] + addition) * solh[k] + (solTm[k] + addition_m) * solhm[k] ) * solvp[k]
 //                                / dx;
 //                         }
-//                     } 
+//                     }
 //                     else {
 //                       if ( i < end - 2 ) {
-//                         RHS -= - 1. / 6. * ( (solTpp[k] + addition_pp) * solhpp[k] - 2.* (solTp[k] + addition_p) * solhp[k] + (solT[k] + addition) * solh[k] ) * 
+//                         RHS -= - 1. / 6. * ( (solTpp[k] + addition_pp) * solhpp[k] - 2.* (solTp[k] + addition_p) * solhp[k] + (solT[k] + addition) * solh[k] ) *
 //                                solvp[k]  / dx;
 //                         }
 //                     }
@@ -2651,13 +2531,9 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 
         //END
 
-
         //END HORIZONTAL ADVECTION
 
-
-
         //BEGIN VERTICAL ADVECTION
-
 
         //BEGIN CENTRAL DIFF h and T separate
 //                 if ( k < NLayers - 1 ) {
@@ -2701,7 +2577,7 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                 if ( k < NLayers - 1 ) {
 //                   if ( w[k + 1] > 0 ) {
 //                     RHS += w[k + 1] * ( ( solHT[k + 1] + addition_b ) / solh[k + 1]  );
-//                     } 
+//                     }
 //                     else {
 //                       RHS += w[k + 1] * ( ( solHT[k] + addition ) / solh[k] );
 //                     }
@@ -2709,28 +2585,25 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //                 if ( k > 0 ) {
 //                   if ( w[k] > 0 ) {
 //                     RHS -= w[k] * ( ( solHT[k] + addition ) / solh[k] );
-//                     } 
+//                     }
 //                     else {
 //                       RHS -= w[k] * ( ( solHT[k - 1] + addition_t ) / solh[k - 1] );
 //                     }
 //                 }
         //END
 
-
-
         //END VERTICAL ADVECTION
 
         // horizontal diffussion
         if (i > start) {
           RHS -= k_h * ( (0.5 * (solhm[k] + solh[k])) * ( (solT[k] + addition)  - (solTm[k] + addition_m)) / dx) / dx;
-//           RHS += k_h * (0.5 * (solhm[k] + solh[k])) * ((solHTm[k] / solhm[k] + addition_m)  - (solHT[k] / solh[k] + addition))/(dx*dx); 
+//           RHS += k_h * (0.5 * (solhm[k] + solh[k])) * ((solHTm[k] / solhm[k] + addition_m)  - (solHT[k] / solh[k] + addition))/(dx*dx);
         }
 
         if (i < end - 1) {
-          RHS += k_h * ( (0.5 * (solh[k] + solhp[k] ))  * ( (solTp[k] + addition_p)  - (solT[k] + addition)) / dx) / dx; 
+          RHS += k_h * ( (0.5 * (solh[k] + solhp[k] ))  * ( (solTp[k] + addition_p)  - (solT[k] + addition)) / dx) / dx;
 //           RHS += k_h * (0.5 * (solhp[k] + solh[k])) * ((solHTp[k] / solhp[k] + addition_p)  - (solHT[k] / solh[k] + addition))/(dx*dx);
         }
-
 
         if (RK_step == 0) {
           double valueK1 = RHS * dt;
@@ -2754,24 +2627,22 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         }
 
       }
-      
+
       //END layer loop
 
     }
 
     //END i loop
 
-
   }
 
   //END RK step loop
-
 
   //BEGIN UPDATE SOL
   for (unsigned k = 0; k < NumberOfLayers; k++) {
     for (unsigned i =  msh->_dofOffset[solTypeHT][iproc]; i <  msh->_dofOffset[solTypeHT][iproc + 1]; i++) {
 
-//       double valueHT = 0.; 
+//       double valueHT = 0.;
       double valueT = 0.;
 
       if (RK_order == 1) {
@@ -2853,11 +2724,9 @@ void RK (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 
   //END
 
-
 }
 
-void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
-{
+void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps) {
 
   const unsigned& NLayers = NumberOfLayers;
 
@@ -2880,7 +2749,6 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
 
-
   //solution variable
   std::vector < unsigned > solIndexh (NLayers);
   std::vector < unsigned > solIndexv (NLayers);
@@ -2890,10 +2758,10 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
   std::vector < unsigned > solIndexT (NLayers);
 
   std::vector < std::vector < unsigned > > solIndexK(RK_order);
-  for(unsigned i = 0; i < RK_order; i++){
-    solIndexK[i].resize(NLayers);  
+  for(unsigned i = 0; i < RK_order; i++) {
+    solIndexK[i].resize(NLayers);
   }
-  
+
   for (unsigned i = 0; i < NLayers; i++) {
 
     char name[10];
@@ -2910,8 +2778,8 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
     sprintf (name, "T%d", i);
     solIndexT[i] = mlSol->GetIndex (name);   // get the position of "Ti" in the sol object
 
-    for(unsigned j = 0; j < RK_order; j++){
-      sprintf (name, "K%d_%d",j+1 , i);
+    for(unsigned j = 0; j < RK_order; j++) {
+      sprintf (name, "K%d_%d", j + 1, i);
       solIndexK[j][i] = mlSol->GetIndex (name);   // get the position of "K1i" in the sol object
     }
 
@@ -2926,9 +2794,9 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 //             //double valueT = ( *sol->_SolOld[solIndexT[k]] ) ( i );
 //             double valueT = ( *sol->_Sol[solIndexT[k]] ) ( i );
 //             double valueH = ( *sol->_Sol[solIndexh[k]] ) ( i );
-// 
+//
 //             double valueHT = valueT * valueH;
-// 
+//
 //             sol->_Sol[solIndexHT[k]]->set ( i, valueHT );
 //         }
 //         sol->_Sol[solIndexHT[k]]->close();
@@ -2964,15 +2832,15 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
       vector < vector < double > > solKm(RK_step);   // local coordinates
       vector < vector < double > > solKpp(RK_step);   // local coordinates
       vector < vector < double > > solKmm(RK_step);   // local coordinates
-      
-      for(unsigned j = 0; j < RK_step; j++){
-        solK[j].resize(NLayers);  
-        solKm[j].resize(NLayers);  
-        solKp[j].resize(NLayers);  
-        solKpp[j].resize(NLayers);  
-        solKmm[j].resize(NLayers);  
+
+      for(unsigned j = 0; j < RK_step; j++) {
+        solK[j].resize(NLayers);
+        solKm[j].resize(NLayers);
+        solKp[j].resize(NLayers);
+        solKpp[j].resize(NLayers);
+        solKmm[j].resize(NLayers);
       }
-    
+
       unsigned bc1 = (i == start) ? 0 : 1;
       unsigned bc2 = (i == end - 1) ? 0 : 1;
       unsigned bc3 = (i > start + 1) ? 1 : 0;
@@ -2983,7 +2851,7 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         solh[k] = (*sol->_Sol[solIndexh[k]]) (i);
         solT[k] = (*sol->_Sol[solIndexT[k]]) (i);
 
-        for(unsigned j = 0; j < RK_step; j++){
+        for(unsigned j = 0; j < RK_step; j++) {
           solK[j][k] = (*sol->_Sol[solIndexK[j][k]]) (i);
         }
 
@@ -2994,7 +2862,7 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
           solhm[k] = (*sol->_Sol[solIndexh[k]]) (i - 1);
           solTm[k] = (*sol->_Sol[solIndexT[k]]) (i - 1);
 
-          for(unsigned j = 0; j < RK_step; j++){
+          for(unsigned j = 0; j < RK_step; j++) {
             solKm[j][k] = (*sol->_Sol[solIndexK[j][k]]) (i - 1);
           }
         }
@@ -3002,8 +2870,8 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         if (i < end - 1) {
           solhp[k] = (*sol->_Sol[solIndexh[k]]) (i + 1);
           solTp[k] = (*sol->_Sol[solIndexT[k]]) (i + 1);
-          
-          for(unsigned j = 0; j < RK_step; j++){
+
+          for(unsigned j = 0; j < RK_step; j++) {
             solKp[j][k] = (*sol->_Sol[solIndexK[j][k]]) (i + 1);
           }
         }
@@ -3049,7 +2917,6 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         }
       }
 
-
       for (unsigned k = 0; k < NLayers; k++) {
         double RHS = 0.;
         double addition = 0.;
@@ -3057,24 +2924,24 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         double addition_p = 0.;
         double addition_t = 0.;
         double addition_b = 0.;
-        
-        double a[4][3][3]={
-            {{}},
-            {{1.}},
-            {{0.5},{-1.,2.}},
-            {{0.5},{0.,0.5},{0.,0.,1.}}
+
+        double a[4][3][3] = {
+          {{}},
+          {{1.}},
+          {{0.5}, {-1., 2.}},
+          {{0.5}, {0., 0.5}, {0., 0., 1.}}
         };
-        
-        for(unsigned j = 0; j < RK_step; j++){
-          addition += a[RK_order - 1][RK_step - 1][j] * solK[j][k]/solh[k];
+
+        for(unsigned j = 0; j < RK_step; j++) {
+          addition += a[RK_order - 1][RK_step - 1][j] * solK[j][k] / solh[k];
           if(i > start)        addition_m += a[RK_order - 1][RK_step - 1][j] * solKm[j][k] / solhm[k];
           if(i < end - 1)      addition_p += a[RK_order - 1][RK_step - 1][j] * solKp[j][k] / solhp[k];
-          if (k > 0)           addition_t += a[RK_order - 1][RK_step - 1][j] * solK[j][k-1] / solh[k-1];
-          if (k < NLayers - 1) addition_b += a[RK_order - 1][RK_step - 1][j] * solK[j][k+1] / solh[k+1];
+          if (k > 0)           addition_t += a[RK_order - 1][RK_step - 1][j] * solK[j][k - 1] / solh[k - 1];
+          if (k < NLayers - 1) addition_b += a[RK_order - 1][RK_step - 1][j] * solK[j][k + 1] / solh[k + 1];
         }
-              
+
         //BEGIN HORIZONTAL ADVECTION
-      
+
         //BEGIN FIRST ORDER UPWINDING h and T separate
         if (i > start) {
           if (solvm[k] > 0) {
@@ -3096,10 +2963,9 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         //END
 
         //END HORIZONTAL ADVECTION
-        
 
         //BEGIN VERTICAL ADVECTION
-        
+
         //BEGIN FIRST ORDER UPWIND h and T separate
         if (k < NLayers - 1) {
           if (w[k + 1] > 0) {
@@ -3128,13 +2994,13 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
         }
 
         if (i < end - 1) {
-          RHS += k_h * ( (0.5 * (solh[k] + solhp[k] ))  * ( (solTp[k] + addition_p)  - (solT[k] + addition)) / dx) / dx; 
+          RHS += k_h * ( (0.5 * (solh[k] + solhp[k] ))  * ( (solTp[k] + addition_p)  - (solT[k] + addition)) / dx) / dx;
         }
 
         sol->_Sol[solIndexK[RK_step][k]]->set (i, RHS * dt);
       }
       //END layer loop
-    } 
+    }
     //END i loop
     for (unsigned k = 0; k < NLayers; k++) {
       sol->_Sol[solIndexK[RK_step][k]]->close();
@@ -3143,16 +3009,15 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
 
   //END RK step loop
 
-
   //BEGIN UPDATE SOL
-  
-  double b[4][4] = {{1.},{0.5, 0.5}, {1./6., 2./3., 1./6.},{1./6., 1./3., 1./3., 1./6.}};
+
+  double b[4][4] = {{1.}, {0.5, 0.5}, {1. / 6., 2. / 3., 1. / 6.}, {1. / 6., 1. / 3., 1. / 3., 1. / 6.}};
   for (unsigned k = 0; k < NumberOfLayers; k++) {
     for (unsigned i =  msh->_dofOffset[solTypeHT][iproc]; i <  msh->_dofOffset[solTypeHT][iproc + 1]; i++) {
 
       double valueT = 0.;
-      double h = (*sol->_Sol[solIndexh[k]]) (i); 
-      for(unsigned j = 0 ; j < RK_order; j++){
+      double h = (*sol->_Sol[solIndexh[k]]) (i);
+      for(unsigned j = 0 ; j < RK_order; j++) {
         valueT += b[RK_order - 1][j] * (*sol->_Sol[solIndexK[j][k]]) (i) / h;
       }
       sol->_Sol[solIndexT[k]]->add (i, valueT);
@@ -3167,13 +3032,12 @@ void RKe (MultiLevelProblem& ml_prob, const unsigned & numberOfTimeSteps)
     for (unsigned i =  msh->_dofOffset[solTypeHT][iproc]; i <  msh->_dofOffset[solTypeHT][iproc + 1]; i++) {
       if (counter == numberOfTimeSteps - 1) {
         double valueT = (*sol->_Sol[solIndexT[k]]) (i);
-        std::cout.precision (14);  
-        std::cout << valueT << std::endl<<std::flush;
+        std::cout.precision (14);
+        std::cout << valueT << std::endl << std::flush;
       }
     }
   }
 
   //END
-
 
 }

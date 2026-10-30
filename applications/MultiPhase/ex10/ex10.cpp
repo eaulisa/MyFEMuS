@@ -21,11 +21,9 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
-
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
-
 
 #include "CutFemWeight.hpp"
 #include "CDWeights.hpp"
@@ -38,8 +36,7 @@ typedef cpp_bin_float_oct oct;
 // CutFemWeight <double, double> quad = CutFemWeight<double, double>(QUAD, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 1, "legendre");
 CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 1, "legendre");
-Fem fem = Fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
-
+Fem fem = Fem(tri.GetGaussQuadratureOrder(), tri.GetDimension());
 
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
@@ -94,13 +91,12 @@ double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector 
   return value;
 }
 
-
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
 void AssembleBoussinesqAppoximation(MultiLevelProblem& ml_prob);
 void TestMarkersAndCloud(MultiLevelProblem & ml_prob);
 
 int main(int argc, char** args) {
-    
+
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
@@ -109,16 +105,16 @@ int main(int argc, char** args) {
   // read coarse level mesh and generate finers level meshes
   double scalingFactor = 1.;
   //mlMsh.ReadCoarseMesh("./input/cube_hex.neu", "seventh", scalingFactor);
-  mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
+  // mlMsh.ReadCoarseMesh("./input/square_quad.neu", "seventh", scalingFactor);
 
-  //mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
-  //mlMsh.GenerateCoarseBoxMesh(4, 4, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
+  mlMsh.GenerateCoarseBoxMesh(256, 256, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., TRI6, "seventh");
+  // mlMsh.GenerateCoarseBoxMesh(2, 2, 0, -0.5, 0.5, -0.5, 0.5, 0., 0., QUAD9, "seventh");
 
   /* "seventh" is the order of accuracy that is used in the gauss integration scheme
      probably in the furure it is not going to be an argument of this function   */
   unsigned dim = mlMsh.GetDimension();
 
-  unsigned numberOfUniformLevels = 5;
+  unsigned numberOfUniformLevels = 1;
   unsigned nMax = 4 * pow(2, 6);
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.RefineMesh(numberOfUniformLevels, numberOfUniformLevels + numberOfSelectiveLevels, NULL);
@@ -138,10 +134,11 @@ int main(int argc, char** args) {
   mlSol.AddSolution("P",  DISCONTINUOUS_POLYNOMIAL, FIRST);
 
   mlSol.AddSolution("C", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
+  mlSol.AddSolution("C0", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
   mlSol.AddSolution("Cn", LAGRANGE, SECOND, false);
 
   mlSol.AddSolution("Q", DISCONTINUOUS_POLYNOMIAL, ZERO, false);
-  
+
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol.GetIndex("U");
   solVIndex[1] = mlSol.GetIndex("V");
@@ -191,7 +188,6 @@ int main(int argc, char** args) {
 
   Solution* sol = mlSol.GetSolutionLevel(level);
 
-
 //   Cloud cld1(sol);
 //   cld1.SetQuadraticBestFitCoefficients(0,A);
 //   std::cout << "cost1  = "  << cld1.GetCost(x,w,0,21) << std::endl;
@@ -206,36 +202,35 @@ int main(int argc, char** args) {
 
 //   std::vector<std::vector<double>> x(1000, std::vector<double>(2));
 //   std::vector<std::vector<double>> N(1000, std::vector<double>(2));
-// 
+//
 //   for(unsigned i = 0; i < x.size(); i++) {
 //     x[i][0] = -0.94537 + 0.002 * i;
 //     x[i][1] = -0.74537 + 0.002 * i;
 //     N[i][0] = -sqrt(2.) / 2.;
 //     N[i][1] =  sqrt(2.) / 2.;
 //   }
-// 
-// 
+//
+//
 //   Cloud cld1(sol);
 //   cld1.AddCloudFromPoints(x, N);
 //   cld1.PrintCSV("marker", 0);
-// 
+//
 //   for(unsigned i = 0; i < x.size(); i++) {
 //     x[i][0] = -0.94537 + 0.002 * i;
 //     x[i][1] = -0.84537 + 0.002 * i;
 //     N[i][0] = -sqrt(2.) / 2.;
 //     N[i][1] =  sqrt(2.) / 2.;
 //   }
-// 
+//
 //   Cloud cldInt1(sol);
 //   cldInt1.AddInteriorCloudFromPoints(x);
-// 
+//
 //   cldInt1.RebuildInteriorMarkers(cld1, "C", "Cn");
-// 
+//
 //   cldInt1.PrintCSV("markerInternal", 0);
 
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(true);
-
 
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
@@ -247,7 +242,7 @@ int main(int argc, char** args) {
   std::vector<std::string> velocity = {"U", "V"};
   std::cout << "Testing the class Cloud \n";
 
-  double period = 4;
+  double period = 8;
   unsigned nIterations = 320;
 
   double time = 0.;
@@ -257,10 +252,11 @@ int main(int argc, char** args) {
 //   cldint.AddInteriorQuadric({1.,0.,1.,0.,+0.5,0.04});
 
 //   cld.AddQuadric({0.,0.,0.,0.,1.,0.01}, 8);
-  cld.AddEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}}, {9, 9});
+  cld.AddEllipses({{0., +0.25}}, {{0.15, 0.15}}, {9});
 //   cldint.AddInteriorQuadric({0.,0.,0.,0.,1.,0.01});
-  cldint.AddInteriorEllipses({{0., -0.25}, {0., +0.25}}, {{0.15, 0.15}, {0.15, 0.15}});
+  cldint.AddInteriorEllipses({ {0., +0.25}}, {{0.15, 0.15}});
 
+  cldint.RebuildInteriorMarkers(cld, "C0", "Cn");
   cldint.RebuildInteriorMarkers(cld, "C", "Cn");
   SetVelocity(sol, velocity, time, period);
   cld.PrintCSV("markerBefore", 0);
@@ -268,6 +264,7 @@ int main(int argc, char** args) {
   cldint.PrintCSV("markerInternalBefore", 0);
   cldint.PrintCSV("markerInternal", 0);
 
+  vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
   double dt = period / nIterations;
 
@@ -286,7 +283,8 @@ int main(int argc, char** args) {
     cld.PrintCSV("markerBefore", it);
     cld.ComputeQuadraticBestFit();
 
-    cld.RebuildMarkers(9, 12, 9);
+    // cld.RebuildMarkers(9, 12, 9);
+    cld.RebuildMarkers(8, 10, 8);
 
     cldint.RebuildInteriorMarkers(cld, "C", "Cn");
     cldint.PrintCSV("markerInternal", it);
@@ -314,7 +312,6 @@ int main(int argc, char** args) {
   //   system.init();
   //   system.SetOuterSolver(PREONLY);
   //   system.MGsolve();
-
 
   return 0;
 }
@@ -369,9 +366,6 @@ void SetVelocity(Solution *sol, const std::vector<std::string> &U, const double 
 
 }
 
-
-
-
 void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
@@ -390,7 +384,6 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
 
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -597,14 +590,12 @@ void AssembleBoussinesqAppoximation_AD(MultiLevelProblem & ml_prob) {
 
 }
 
-
 //Attempting to create J by hand
 void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
 
   //  extract pointers to the several objects that we are going to use
   NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
@@ -615,7 +606,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
 
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -667,7 +657,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
   // element loop: each process loops only on the elements that owns
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
-
     short unsigned ielGeom = msh->GetElementType(iel);
 
     unsigned nDofsV = msh->GetElementDofNumber(iel, solVType);    // number of solution element dofs
@@ -686,7 +675,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
       coordX[k].resize(nDofsV);
     }
     solP.resize(nDofsP);
-
 
     // local storage of global mapping and solution
     for(unsigned i = 0; i < nDofsV; i++) {
@@ -711,8 +699,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
         coordX[k][i] = (*msh->_topology->_Sol[k])(coordXDof);      // global extraction and local storage for the element coordinates
       }
     }
-
-
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solVType]->GetGaussPointNumber(); ig++) {
@@ -765,7 +751,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
         }
       } // end phiP_i loop
       // end gauss point loop
-
 
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
@@ -924,9 +909,7 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
-
 
   RES->close();
   KK->close();
@@ -941,7 +924,6 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
 //   MatView((static_cast<PetscMatrix*>(KK))->mat(), viewer);
 //   double a;
 //   std::cin >> a;
-
 
 }
 
@@ -1049,10 +1031,3 @@ void AssembleBoussinesqAppoximation(MultiLevelProblem & ml_prob) {
 // }
 // }
 // } //end element loop for each process
-
-
-
-
-
-
-

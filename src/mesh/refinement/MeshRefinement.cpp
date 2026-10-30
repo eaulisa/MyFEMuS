@@ -23,6 +23,8 @@
 #include "NumericVector.hpp"
 #include "GeomElTypeEnum.hpp"
 
+#include "FemusInit.hpp"
+
 namespace femus {
 
 //-------------------------------------------------------------------
@@ -131,7 +133,6 @@ namespace femus {
     //END update elem
   }
 
-
   bool MeshRefinement::FlagElementsToRefineBaseOnError(const double& treshold, NumericVector& error) {
 
     unsigned type = 2;
@@ -145,7 +146,6 @@ namespace femus {
 
     numberOfRefinedElement->zero();
     //END temporary parallel vector initialization
-
 
     //BEGIN flag element to be refined
     for(int iel = _mesh._elementOffset[_iproc]; iel < _mesh._elementOffset[_iproc + 1]; iel++) {
@@ -174,15 +174,6 @@ namespace femus {
     //END update elem
   }
 
-
-
-
-
-
-
-
-
-
 //---------------------------------------------------------------------------------------------------------------
   void MeshRefinement::RefineMesh(const unsigned& igrid, Mesh* mshc, const elem_type* otherFiniteElement[6][5]) {
 
@@ -196,6 +187,12 @@ namespace femus {
 
     _mesh.SetLevel(igrid);
 
+    vector < double > coarseLocalizedAmrVector;
+    mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
+
+    mshc->EnforceOneLevelAMR(coarseLocalizedAmrVector, true);
+    mshc->el->AllocateChildrenElement(_mesh.GetRefIndex(), mshc);
+
     // total number of elements on the fine level
     int nelem = elc->GetRefinedElementNumber() * _mesh.GetRefIndex(); // refined
     nelem += elc->GetElementNumber() - elc->GetRefinedElementNumber(); // not-refined
@@ -204,218 +201,63 @@ namespace femus {
     unsigned elementOffsetCoarseP1 = mshc->_elementOffset[_iproc + 1];
 
     _mesh.SetNumberOfElements(nelem);
-
-    vector < double > coarseLocalizedAmrVector;
-    mshc->_topology->_Sol[mshc->GetAmrIndex()]->localize_to_all(coarseLocalizedAmrVector);
-
-    mshc->el->AllocateChildrenElement(_mesh.GetRefIndex(), mshc);
-
-    _mesh.el = new elem(elc, _mesh.GetRefIndex(), coarseLocalizedAmrVector);
-
     _mesh.SetCharacteristicLength( mshc->GetCharacteristicLength() );
-    
-    unsigned jel = 0;
-    //divide each coarse element in 8(3D), 4(2D) or 2(1D) fine elements and find all the vertices
 
-    _mesh.el->SetElementGroupNumber(elc->GetElementGroupNumber());
-
-    bool AMR = false;
-
-    std::vector < unsigned > materialElementCounter(3,0);
-    
-    for(unsigned isdom = 0; isdom < _nprocs; isdom++) {
-      elc->LocalizeElementDof(isdom);
-      elc->LocalizeElementNearFace(isdom);
-      elc->LocalizeElementQuantities(isdom);
-      for(unsigned iel = mshc->_elementOffset[isdom]; iel < mshc->_elementOffset[isdom + 1]; iel++) {
-        if(static_cast < unsigned short >(coarseLocalizedAmrVector[iel] + 0.25) == 1) {
-          unsigned elt = elc->GetElementType(iel);
-          // project element type
-          for(unsigned j = 0; j < _mesh.GetRefIndex(); j++) {
-            _mesh.el->SetElementType(jel + j, elc->GetElementType(iel));
-            _mesh.el->SetElementGroup(jel + j, elc->GetElementGroup(iel));
-            
-	    unsigned gr_mat = elc->GetElementMaterial(iel);
-	    _mesh.el->SetElementMaterial(jel + j, gr_mat);
-	    if( gr_mat == 2) materialElementCounter[0] += 1;
-	    else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-	    else materialElementCounter[2] += 1;
-	        
-            _mesh.el->SetElementLevel(jel + j, elc->GetElementLevel(iel) + 1);
-            if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
-              elc->SetChildElement(iel, j, jel + j);
-            }
-          }
-
-          // project vertex indeces
-          for(unsigned j = 0; j < _mesh.GetRefIndex(); j++)
-            for(unsigned inode = 0; inode < elc->GetNVE(elt, 0); inode++) {
-              unsigned jDof =  otherFiniteElement[elt][0]->GetBasis()->GetFine2CoarseVertexMapping(j, inode);
-              _mesh.el->SetElementDofIndex(jel + j, inode,  elc->GetElementDofIndex(iel, jDof));
-            }
-
-          // project face indeces
-          for(unsigned iface = 0; iface <  elc->GetNFC(elt, 1); iface++) {
-            int value = elc->GetFaceElementIndex(iel, iface);
-
-            if(value < -1)
-              for(unsigned jface = 0; jface < _mesh.GetFaceIndex(); jface++)
-                _mesh.el->SetFaceElementIndex(jel + coarse2FineFaceMapping[elt][iface][jface][0], coarse2FineFaceMapping[elt][iface][jface][1], value);
-          }
-
-          // update element numbers
-          jel += _mesh.GetRefIndex();
-          _mesh.el->AddToElementNumber(_mesh.GetRefIndex(), elt);
-        }
-        else {
-          _mesh.SetIfHomogeneous(false);
-          AMR = true;
-          unsigned elt = elc->GetElementType(iel);
-          _mesh.el->SetElementType(jel, elc->GetElementType(iel));
-          _mesh.el->SetElementGroup(jel , elc->GetElementGroup(iel));
-          _mesh.el->SetElementMaterial(jel, elc->GetElementMaterial(iel));
-	  
-	  unsigned gr_mat = elc->GetElementMaterial(iel);
-	  _mesh.el->SetElementMaterial(jel, gr_mat);
-	  if( gr_mat == 2) materialElementCounter[0] += 1;
-	  else if(gr_mat == 3 ) materialElementCounter[1] += 1;
-	  else materialElementCounter[2] += 1;
-	  
-          _mesh.el->SetElementLevel(jel, elc->GetElementLevel(iel));
-          if(iel >= elementOffsetCoarse && iel < elementOffsetCoarseP1) {
-            elc->SetChildElement(iel, 0, jel);
-          }
-
-          // project nodes indeces
-          for(unsigned inode = 0; inode < elc->GetNVE(elt, 2); inode++)
-            _mesh.el->SetElementDofIndex(jel, inode, elc->GetElementDofIndex(iel, inode));
-
-          // project face indeces
-          for(unsigned iface = 0; iface <  elc->GetNFC(elt, 1); iface++) {
-            int value = elc->GetFaceElementIndex(iel, iface);
-
-            if(value < -1) {
-              _mesh.el->SetFaceElementIndex(jel, iface, value);
-            }
-          }
-
-          // update element numbers
-          jel++;
-          _mesh.el->AddToElementNumber(1, elt);
-        }
+    bool AMR =  !mshc->GetIfHomogeneous();
+    unsigned counter = 0;
+    if(!AMR) {
+      for(unsigned i = 0; i < coarseLocalizedAmrVector.size(); i++) {
+        if(static_cast < unsigned short >(coarseLocalizedAmrVector[i] + 0.25) == 1) counter++;
       }
-      elc->FreeLocalizedElementDof();
-      elc->FreeLocalizedElementNearFace();
-      elc->FreeLocalizedElementQuantities();
+      if(counter < coarseLocalizedAmrVector.size()) AMR = true;
     }
-    
-    _mesh.el->SetMaterialElementCounter(materialElementCounter);
-    
-    
-    std::vector<unsigned> MaterialElementCounter = _mesh.el->GetMaterialElementCounter();
-    //std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAA\n";
-    //std::cout << MaterialElementCounter[0]<<" "<< MaterialElementCounter[1]<<" "<< MaterialElementCounter[2]<<" \n";
-   
+    _mesh.SetIfHomogeneous(!AMR);
     coarseLocalizedAmrVector.resize(0);
-    //coarseLocalizedElementType.resize(0);
 
-    int nnodes = elc->GetNodeNumber();
-    _mesh.SetNumberOfNodes(nnodes);
-    _mesh.el->SetNodeNumber(nnodes);
+    _mesh.el = new elem(mshc);
+    _mesh.el->BuildElementNearElement(mshc, false);
+    _mesh.el->BuildEdgePoints(&_mesh);
 
-    //find all the elements near each vertex
-    _mesh.el->BuildElementNearVertex();
-
-    //initialize to UINT_MAX all the middle edge points
-    for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
-      if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
-        for(unsigned inode = _mesh.el->GetElementDofNumber(iel, 0); inode < _mesh.el->GetElementDofNumber(iel, 1); inode++) {
-          _mesh.el->SetElementDofIndex(iel, inode, UINT_MAX);
-        }
-      }
-    }
-
-    //find all the middle edge points
-    for(unsigned iel = 0; iel < _mesh.GetNumberOfElements(); iel++) {
-      if(_mesh.el->GetIfFatherHasBeenRefined(iel)) {
-        unsigned ielt = _mesh.el->GetElementType(iel);
-        unsigned istart = _mesh.el->GetElementDofNumber(iel, 0);
-        unsigned iend = _mesh.el->GetElementDofNumber(iel, 1);
-
-        for(unsigned inode = istart; inode < iend; inode++) {
-          if(UINT_MAX == _mesh.el->GetElementDofIndex(iel, inode)) {
-            nnodes++;
-            _mesh.el->SetElementDofIndex(iel, inode, nnodes  - 1u);
-            unsigned im = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][0]);
-            unsigned ip = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][1]);
-
-            //find all the near elements which share the same middle edge point
-            for(unsigned j = 0; j < _mesh.el->GetElementNearVertexNumber(im); j++) {
-              unsigned jel = _mesh.el->GetElementNearVertex(im, j);
-
-              if(_mesh.el->GetIfFatherHasBeenRefined(jel) && jel > iel) {     // to skip coarse elements
-                unsigned jm = 0, jp = 0;
-                unsigned jelt = _mesh.el->GetElementType(jel);
-
-                for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
-                  if(_mesh.el->GetElementDofIndex(jel, jnode) == im) {
-                    jm = jnode + 1u;
-                    break;
-                  }
-                }
-
-                if(jm != 0) {   //TODO this can be changed and put inside (by Sara)
-                  for(unsigned jnode = 0; jnode < _mesh.el->GetElementDofNumber(jel, 0); jnode++) {
-                    if(_mesh.el->GetElementDofIndex(jel, jnode) == ip) {
-                      jp = jnode + 1u;
-                      break;
-                    }
-                  }
-
-                  if(jp != 0) {
-                    if(jp < jm) {
-                      unsigned tp = jp;
-                      jp = jm;
-                      jm = tp;
-                    }
-
-                    _mesh.el->SetElementDofIndex(jel, vertices2EdgeMapping[jelt][--jm][--jp], nnodes  - 1u);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    _mesh.SetNumberOfNodes(nnodes);
-    _mesh.el->SetNodeNumber(nnodes);
-
-    Buildkmid();
+    _mesh.el->StackElementQuantities(0);
+    _mesh.el->StackElementDof(0);
+    _mesh.el->StackElementNearFace(0);
+    elc->StackChildElement(0);
+    elc->StackChildElementDof(0);
 
     std::vector < unsigned > partition;
-    partition.reserve(_mesh.GetNumberOfNodes());
-    partition.resize(_mesh.GetNumberOfElements());
 
-    MeshMetisPartitioning meshMetisPartitioning(_mesh);
+    if (_iproc == 0) {
 
-    if(AMR == true) {
-      meshMetisPartitioning.DoPartition(partition, AMR);
+      MeshMetisPartitioning meshMetisPartitioning(_mesh);
+
+      if(AMR == true) {
+        partition.reserve(_mesh.GetNumberOfNodes());
+        partition.resize(0);
+        meshMetisPartitioning.DoPartition(partition, AMR);
+      }
+      else {
+        partition.reserve(_mesh.GetNumberOfNodes());
+        partition.resize(_mesh.GetNumberOfElements());
+        meshMetisPartitioning.DoPartition(partition, *mshc);
+      }
     }
-    else {
-      meshMetisPartitioning.DoPartition(partition, *mshc);
-    }
 
-    _mesh.FillISvector(partition);
+    // _mesh.FillISvector(partition);
+    _mesh.FillISvector0(partition);
+    _mesh.DistributeISvector();
     partition.resize(0);
 
-    elc->SetChildElementDof(_mesh.el);
+    if (_iproc == 0) elc->SetChildElementDof(_mesh.el);
+    elc->ScatterChildElement(0);
+    elc->ScatterChildElementDof(0);
 
-    _mesh.el->DeleteElementNearVertex();
-    _mesh.el->BuildElementNearVertex();
+    _mesh.el->ScatterElementQuantities(0);
+    _mesh.el->ScatterElementDof(0);
+    _mesh.el->ScatterElementNearFace(0);
 
-    _mesh.Buildkel();
+    // back to parallel
+
+    _mesh.el->BuildElementNearElement(&_mesh, true);
 
     // build Mesh coordinates by projecting the coarse coordinats
     _mesh._topology = new Solution(&_mesh);
@@ -431,25 +273,17 @@ namespace femus {
     _mesh._topology->ResizeSolutionVector("AMR");
 
     unsigned solType = 2;
-
-    _mesh._topology->_Sol[0]->matrix_mult(*mshc->_topology->_Sol[0], *_mesh.GetCoarseToFineProjection(solType));
+    _mesh._topology->_Sol[0]->matrix_mult(*mshc->_topology->_Sol[0], *(_mesh.GetCoarseToFineProjection(solType)));
     _mesh._topology->_Sol[1]->matrix_mult(*mshc->_topology->_Sol[1], *_mesh.GetCoarseToFineProjection(solType));
     _mesh._topology->_Sol[2]->matrix_mult(*mshc->_topology->_Sol[2], *_mesh.GetCoarseToFineProjection(solType));
     _mesh._topology->_Sol[0]->close();
     _mesh._topology->_Sol[1]->close();
     _mesh._topology->_Sol[2]->close();
-
-    _mesh.el->BuildElementNearElement();
-    _mesh.el->DeleteElementNearVertex();
-
     _mesh._topology->AddSolution("solidMrk", LAGRANGE, SECOND, 1, 0);
     _mesh.AllocateAndMarkStructureNode();
-    
-    _mesh.el->ScatterElementQuantities();
-    _mesh.el->ScatterElementDof();
-    _mesh.el->ScatterElementNearFace();
-
+    // for here everything is parallel
     std::vector < std::map < unsigned,  std::map < unsigned, double  > > >& restriction = _mesh.GetAmrRestrictionMap();
+
     if(AMR) {
       _mesh.el->GetAMRRestriction(&_mesh);
 //       for(unsigned soltype = 0; soltype < 3; soltype++) {
@@ -458,19 +292,18 @@ namespace femus {
 //           std::cout << it1->first << "\t";
 //           for(std::map<unsigned, double> ::iterator it2 = restriction[soltype][it1->first].begin(); it2 != restriction[soltype][it1->first].end(); it2++) {
 //             std::cout << it2->first << " (" << it2->second << ")  ";
-// 
+//
 //           }
 //           std::cout << std::endl;
 //         }
 //       }
     }
-    else{
+    else {
       restriction.resize(3);
     }
-    
+
     _mesh.PrintInfo();
   }
-
 
   /**
    * This function generates face dof (for hex and wedge elements) and element dof (for hex and quad)
@@ -586,6 +419,5 @@ namespace femus {
     //std::cout << "nnodes after buildkmid= "  << nnodes << std::endl;
 
   }
-
 
 }

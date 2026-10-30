@@ -33,8 +33,6 @@ double InitalValueU(const std::vector < double >& x) {
 //   value +=  x[k] * x[k] * x[k] * x[k];//quartic
   }
 
-
-
   return value;
 }
 
@@ -71,21 +69,21 @@ int main(int argc, char** argv) {
   else if(argc == 2) {
     numberOfUniformLevels = atoi(argv[1]);
   }
-/*
-  unsigned n = 10, m = 15;
-  std::vector<double*> mat(n); //mat is initialized as an array of n double pointers
-  std::vector<double> matMemory(n * m, 0.); //matMemory is initialized as an array of n*m double
-  for(unsigned i = 0; i < n; i++) {
-    mat[i] = matMemory.data() + i * m; // mat[i] points to the memory address of matMemory[0] + i * m
-  }
+  /*
+    unsigned n = 10, m = 15;
+    std::vector<double*> mat(n); //mat is initialized as an array of n double pointers
+    std::vector<double> matMemory(n * m, 0.); //matMemory is initialized as an array of n*m double
+    for(unsigned i = 0; i < n; i++) {
+      mat[i] = matMemory.data() + i * m; // mat[i] points to the memory address of matMemory[0] + i * m
+    }
 
-  for(unsigned i = 0; i < n * m; i++) matMemory[i] = i; // mat is accessed as a vector type
+    for(unsigned i = 0; i < n * m; i++) matMemory[i] = i; // mat is accessed as a vector type
 
-  for (unsigned i = 0; i < n; i++) {
-    for (unsigned j = 0; j < m; j++) std::cout << mat[i][j] << " ";  // mat is accessed as a matrix type
-    std::cout << std::endl;
-  }
-  return 0;*/
+    for (unsigned i = 0; i < n; i++) {
+      for (unsigned j = 0; j < m; j++) std::cout << mat[i][j] << " ";  // mat is accessed as a matrix type
+      std::cout << std::endl;
+    }
+    return 0;*/
 
   std::cout << "USING VARIABLES " << numberOfUniformLevels << "  " << lmax1 << std::endl;
 
@@ -100,19 +98,13 @@ int main(int argc, char** argv) {
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
 
-
-
-
-
-
-
-  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
+//  char fileName[100] = "../input/martaTest4.neu"; // good form 2->6 in serial but in parallel use martaTest4Fine
 //   char fileName[100] = "../input/martaTest4Fine.neu"; // works till 144 nprocs +2
 //   char fileName[100] = "../input/martaTest4Finer.neu"; // works till 144 nprocs +4
 //   char fileName[100] = "../input/martaTest4Tri.neu";
- // char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
-   // char fileName[100] = "../input/salome/martaTest4QuadUnstr.med";
-  // char fileName[100] = "../input/salome/martaTest4QuadUnstr2.med";
+// char fileName[100] = "../input/martaTest4Unstr.neu"; // works till 144 nprocs
+  // char fileName[100] = "../input/salome/martaTest4QuadUnstr.med";
+  char fileName[100] = "../input/salome/martaTest4QuadUnstr2.med";
   // char fileName[100] = "../input/martaTest4-3D-tet.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3D.neu"; // works till 288 nprocs 0.2
   //char fileName[100] = "../input/martaTest4-3Dfine.neu"; // works till 576 and more nprocs +1 0.1
@@ -145,7 +137,6 @@ int main(int argc, char** argv) {
   mlSol.AddSolution("u_exact", LAGRANGE,  femType, 0, false);
 
   mlSol.AddSolution("cnt", DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
-
 
   mlSolFine.AddSolution("u", LAGRANGE,  femType, 0);
   mlSolFine.AddSolution("up", LAGRANGE, femType, 0, false);
@@ -281,7 +272,6 @@ int main(int argc, char** argv) {
 
   //systemFine.SetSparsityPatternMinimumSize(5000u);    //TODO tune
 
-
   systemFine.init();
 
   // ******* Set Smoother *******
@@ -297,7 +287,6 @@ int main(int argc, char** argv) {
   //systemFine.MGsolve(); //TODO
 
   //END assemble and solve nonlocal problem
-
 
   //BEGIN compute errors
   GetL2Norm(mlSol, mlSolFine);
@@ -323,13 +312,11 @@ int main(int argc, char** argv) {
 
 } //end main
 
-
 void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
   const unsigned level = mlSol._mlMesh->GetNumberOfLevels() - 1;
   Mesh* msh = mlSol._mlMesh->GetLevel(level);
   Solution* sol  = mlSol.GetSolutionLevel(level);
-
 
   const unsigned  dim = msh->GetDimension();
 
@@ -406,8 +393,6 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
         }
       }
 
-
-
       double soluExact_gss = 0.;
       for(unsigned k = 0; k < dim; k++) {
         // soluExact_gss += xg[k] * xg[k];//consistency
@@ -465,7 +450,6 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
   std::cout.precision(14);
   std::cout << "L2 norm of EXACT soln = " << norm << std::endl;
 
-
   //BEGIN nonlocal fine - coarse L2 norm on fine grid
 
   std::cout << "------------------------------------- " << std::endl;
@@ -493,7 +477,6 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
     double error_NonLocCoarse_NonLocFine_norm2 = 0.;
 
     double solNonlocalFine_norm2 = 0.;
-
 
     for(int iel = solFine->GetMesh()->_elementOffset[iproc]; iel < solFine->GetMesh()->_elementOffset[iproc + 1]; iel ++) {
 
@@ -541,7 +524,6 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
 
     }
 
-
     norm2 = 0.;
     MPI_Allreduce(&error_NonLocCoarse_NonLocFine_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     norm = sqrt(norm2);
@@ -557,10 +539,3 @@ void GetL2Norm(MultiLevelSolution & mlSol, MultiLevelSolution & mlSolFine) {
   //END
 
 }
-
-
-
-
-
-
-

@@ -29,9 +29,7 @@
 #include <hdf5.h>
 #include <sstream>
 
-
 namespace femus {
-
 
   using namespace std;
 
@@ -78,7 +76,7 @@ namespace femus {
 
       // Create matrix.  Revisit later to do preallocation and make more efficient
       ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
-                             n_nz, PETSC_NULL, &_mat);
+                             n_nz, PETSC_NULLPTR, &_mat);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
       ierr = MatSetFromOptions(_mat);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -96,7 +94,7 @@ namespace femus {
       ierr = MatSetType(_mat, MATMPIAIJ);  // Automatically chooses seqaij or mpiaij
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
-      ierr = MatMPIAIJSetPreallocation(_mat, nnz, PETSC_NULL, noz, PETSC_NULL);
+      ierr = MatMPIAIJSetPreallocation(_mat, nnz, PETSC_NULLPTR, noz, PETSC_NULLPTR);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
     }
@@ -126,7 +124,7 @@ namespace femus {
         std::cout << "A_" << k / nc << k % nc << " ";
       }
       else {
-        KK[k] = PETSC_NULL;
+        KK[k] = PETSC_NULLPTR;
         std::cout << "  0  ";
       }
     }
@@ -202,6 +200,7 @@ namespace femus {
       CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
     this->zero();
+    _destroy_mat_on_exit = true;
   }
 
 // =====================================0
@@ -230,7 +229,7 @@ namespace femus {
       assert((m_local == m_global) && (n_local == n_global));
       if(n_nz.empty())
         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
-                               PETSC_DEFAULT, (int*) PETSC_NULL, &_mat);
+                               PETSC_DEFAULT, (int * ) PETSC_NULLPTR, &_mat);
       else
         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global,
                                PETSC_DEFAULT, (int*) &n_nz[0], &_mat);
@@ -247,8 +246,8 @@ namespace femus {
 //       ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,
 //                              m_local, n_local,
 //                              m_global, n_global,
-//                              PETSC_NULL, (int*) PETSC_NULL,
-//                              PETSC_NULL, (int*) PETSC_NULL,
+//                              PETSC_NULLPTR, (int*) PETSC_NULLPTR,
+//                              PETSC_NULLPTR, (int*) PETSC_NULLPTR,
 //                              &_mat
 //                             );
 
@@ -272,8 +271,8 @@ namespace femus {
 //       ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,
 //                              m_local, n_local,
 //                              m_global, n_global,
-//                              PETSC_NULL, (int*) &n_nz[0],
-//                              PETSC_NULL, (int*) &n_oz[0],
+//                              PETSC_NULLPTR, (int*) &n_nz[0],
+//                              PETSC_NULLPTR, (int*) &n_oz[0],
 //                              &_mat
 //                             );
 
@@ -374,11 +373,11 @@ namespace femus {
       assert((m_l == m) && (n_l == n));
       if(n_nz.empty())
 //         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, //TODO eugenio
-//                                PETSC_NULL, (int*) PETSC_NULL, &_mat);
-        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, PETSC_DEFAULT, PETSC_NULL, &_mat);  //TODO eugenio
+//                                PETSC_NULLPTR, (int*) PETSC_NULLPTR, &_mat);
+        ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, PETSC_DEFAULT, PETSC_NULLPTR, &_mat);  //TODO eugenio
       else
 //         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, //TODO eugenio
-//                                PETSC_NULL, (int*) &n_nz[0], &_mat);
+//                                PETSC_NULLPTR, (int*) &n_nz[0], &_mat);
         ierr = MatCreateSeqAIJ(MPI_COMM_WORLD, m_global, n_global, PETSC_DEFAULT, &n_nz[0], &_mat);  //TODO eugenio
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
@@ -391,20 +390,20 @@ namespace femus {
 //         ierr = MatCreateAIJ(MPI_COMM_WORLD, //TODO eugenio
 //                             m_local, n_local,
 //                             m_global, n_global,
-//                             PETSC_NULL, (int*) PETSC_NULL,
-//                             PETSC_NULL, (int*) PETSC_NULL, &_mat);
+//                             PETSC_NULLPTR, (int*) PETSC_NULLPTR,
+//                             PETSC_NULLPTR, (int*) PETSC_NULLPTR, &_mat);
 
         ierr = MatCreateAIJ(MPI_COMM_WORLD,  //TODO eugenio
                             m_local, n_local,
                             m_global, n_global,
-                            PETSC_DEFAULT, PETSC_NULL,
-                            PETSC_DEFAULT, PETSC_NULL, &_mat);
+                            PETSC_DEFAULT, PETSC_NULLPTR,
+                            PETSC_DEFAULT, PETSC_NULLPTR, &_mat);
       else
 //         ierr = MatCreateAIJ(MPI_COMM_WORLD, //TODO eugenio
 //                             m_local, n_local,
 //                             m_global, n_global,
-//                             PETSC_NULL, (int*) &n_nz[0],
-//                             PETSC_NULL, (int*) &n_oz[0], &_mat);
+//                             PETSC_NULLPTR, (int*) &n_nz[0],
+//                             PETSC_NULLPTR, (int*) &n_oz[0], &_mat);
 
         ierr = MatCreateAIJ(MPI_COMM_WORLD,  //TODO eugenio
                             m_local, n_local,
@@ -443,7 +442,7 @@ namespace femus {
     semiparallel_only();
     int ierr = 0;
     if(!rows.empty()) ierr = MatZeroRows(_mat, rows.size(), &rows[0], diag_value, 0, 0);   // add,0,0,)    !!!!
-    else   ierr = MatZeroRows(_mat, 0, PETSC_NULL, diag_value, 0, 0);                     // add,0,0,)    !!!!
+    else   ierr = MatZeroRows(_mat, 0, PETSC_NULLPTR, diag_value, 0, 0);                     // add,0,0,)    !!!!
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
 
@@ -500,9 +499,6 @@ namespace femus {
     ierr = MatView(_mat, PETSC_VIEWER_STDOUT_WORLD);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
   }
-
-
-
 
   void PetscMatrix::print_matlab(const std::string& name, const std::string& format) const {
 
@@ -588,9 +584,6 @@ namespace femus {
 // =====================================================
   void PetscMatrix::print_hdf5(const std::string /*name*/) const {
 
-
-
-
 //   hid_t status =0;
 //
 // //   std::ostringstream name;
@@ -638,12 +631,9 @@ namespace femus {
 //   //   clean
 //    H5Fclose(fileM);
 
-
-
 // std::cout << " PetscMatrix::print_hdf5 in file   " <<  name   <<   "\n";
 // #endif-
   }
-
 
 // =====================================================
 // void PetscMatrix::read_hdf5(const std::string namefile,const int mode,const int ml_init) {
@@ -758,7 +748,7 @@ namespace femus {
     }
     else {
       this->clear();
-      ierr = MatPtAP(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(P)->mat(), MAT_INITIAL_MATRIX , 1.0, &_mat);
+      ierr = MatPtAP(const_cast<PetscMatrix*>(A)->mat(), const_cast<PetscMatrix*>(P)->mat(), MAT_INITIAL_MATRIX, 1.0, &_mat);
       this->_is_initialized = true;
       MatGetSize(_mat, &_m, &_n);
       MatGetLocalSize(_mat, &_m_l, &_n_l);
@@ -787,15 +777,14 @@ namespace femus {
     const double *vals;
 
     int nmax = 0;
-    
-    
+
     for(int i = 0; i < rowEnd - rowStart; i++) {
 
       int row = rowStart + i;
 
       int nDiag  = 0;
       int nOff = 0;
-      
+
       MatGetRow(_mat, row, &n, &cols, &vals);
 
       nCols[i].resize(n);
@@ -803,8 +792,8 @@ namespace femus {
 
       int k = 0;
       for(int j = 0; j < n; j++) {
-        if(colStart <= cols[j] && cols[j] < colEnd) {  
-          nDiag++; 
+        if(colStart <= cols[j] && cols[j] < colEnd) {
+          nDiag++;
           if(fabs(vals[j]) >= tolerance) {
             sizeDiag[i]++;
             nCols[i][k] = cols[j];
@@ -812,8 +801,8 @@ namespace femus {
             k++;
           }
         }
-        else{
-          nOff++;  
+        else {
+          nOff++;
           if(fabs(vals[j]) >= tolerance) {
             sizeOff[i]++;
             nCols[i][k] = cols[j];
@@ -822,14 +811,14 @@ namespace femus {
           }
         }
       }
-      
-      nmax = std::max(nmax, std::max(nDiag,nOff));
+
+      nmax = std::max(nmax, std::max(nDiag, nOff));
 
       MatRestoreRow(_mat, i, &n, &cols, &vals);
       nCols[i].resize(sizeDiag[i] + sizeOff[i]);
       nVals[i].resize(sizeDiag[i] + sizeOff[i]);
     }
-    
+
     std::cout << "original max number of zero entries = " << nmax << std::endl;
 
     MatDestroy(&_mat);
@@ -938,7 +927,6 @@ namespace femus {
 
   }
 
-
 // ===========================================================
 
   void PetscMatrix::matrix_get_diagonal_values(const std::vector< int > &index, std::vector<double> &value) const {
@@ -954,7 +942,6 @@ namespace femus {
   void PetscMatrix::matrix_set_diagonal_values(NumericVector& D) {
     MatDiagonalSet(_mat, (static_cast< PetscVector& >(D)).vec(), INSERT_VALUES);
   }
-
 
 // ===========================================================
 
@@ -993,7 +980,6 @@ namespace femus {
       CHKERRABORT(MPI_COMM_WORLD, ierr);
     }
   }
-
 
 // ===========================================================
 /// This function either creates or re-initializes a matrix called "submatrix".
@@ -1085,7 +1071,7 @@ namespace femus {
     int ierr;
 #if PETSC_VERSION_LESS_THAN(3,0,0)
     if(&petsc_dest == this)
-      ierr = MatTranspose(_mat, PETSC_NULL);
+      ierr = MatTranspose(_mat, PETSC_NULLPTR);
     else
       ierr = MatTranspose(_mat, &petsc_dest._mat);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -1112,17 +1098,12 @@ namespace femus {
     petsc_dest.close();
   }
 
-
   void PetscMatrix::mat_zero_rows(const std::vector <int> &index, const double &diagonal_value) const {
     MatSetOption(_mat, MAT_NO_OFF_PROC_ZERO_ROWS, PETSC_TRUE);
     MatSetOption(_mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
     MatZeroRows(_mat, index.size(), &index[0], diagonal_value, 0, 0);
   }
 
-
-
 } //end namespace femus
-
-
 
 #endif // #ifdef LIBMESH_HAVE_PETSC

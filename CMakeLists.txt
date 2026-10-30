@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.15)
 
 PROJECT(femus)
 
@@ -115,6 +115,23 @@ IF(METIS_FOUND)
   SET(HAVE_METIS 1)
 ENDIF(METIS_FOUND)
 
+
+
+find_package(ParMETIS REQUIRED)
+
+MESSAGE(STATUS "PARMETIS_FOUND = ${PARMETIS_FOUND}")
+
+SET(HAVE_PARMETIS 0)
+
+IF(PARMETIS_FOUND)
+  SET(HAVE_PARMETIS 1)
+ENDIF()
+
+
+# Link it directly to your executable or library
+
+
+
 # Find Slepc Library (optional)
 IF(APPLE)
   FIND_PACKAGE(SLEPcApple)
@@ -139,9 +156,6 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 
 SET(EIGEN_SAFE_TO_USE_STANDARD_ASSERT_MACRO FALSE)
 
-#find_package(Ceres NO_MODULE REQUIRED)
-
-#find_package(glog NO_MODULE REQUIRED)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -186,6 +200,7 @@ OPTION(BUILD_MGAMR "Build the MGAMR" OFF)
 
 OPTION(BUILD_CUTFEM "Build the cut FEM" OFF)
 
+OPTION(BUILD_LSAT "Build the Least-Squares Asymptotic Tracking (LSAT)" ON)
 # --
 OPTION(BUILD_PCFIELDSPLIT "Build the PCFIELDSPLIT apps" OFF)
 

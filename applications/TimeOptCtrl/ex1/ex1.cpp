@@ -8,7 +8,6 @@
  *  \author Eugenio Aulisa
  */
 
-
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
@@ -20,11 +19,9 @@
 #include "adept.h"
 #include <fstream>
 
-
-
 using namespace femus;
 
-const unsigned alpha = 1.0e-5;
+const double alpha = 1.0e-5;
 const double beta = 1.0e-5;
 const double Pe = 5.;
 const double t0 = 3.;
@@ -79,8 +76,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   }
   return dirichlet;
 }
-
-
 
 int main(int argc, char** args) {
 
@@ -157,7 +152,6 @@ int main(int argc, char** args) {
   systemTc->init();
   systemTc->SetOuterSolver(PREONLY);
 
-
   TransientLinearImplicitSystem *system = &(mlProb.add_system<TransientLinearImplicitSystem> ("TmOptCtr"));
 
   system->AddSolutionToSystemPDE("Ti");
@@ -175,7 +169,6 @@ int main(int argc, char** args) {
   // print solutions
   std::vector < std::string > variablesToBePrinted;
   variablesToBePrinted.push_back("All");
-
 
   //Get Initial Data
   steady = true;
@@ -199,9 +192,6 @@ int main(int argc, char** args) {
   *(sol->_Sol[mlProb._ml_sol->GetIndex("z0Older")]) = *(sol->_SolOld[mlProb._ml_sol->GetIndex("z0")]);
   steady = false;
 
-
-
-
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(false);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
@@ -221,7 +211,6 @@ int main(int argc, char** args) {
 
     for(iext = 0; iext < numberOfIterations; iext++) {
 
-     
       sprintf(zName, "z%d", iext);
 
       *(sol->_Sol[mlProb._ml_sol->GetIndex("zi")]) = *(sol->_Sol[mlProb._ml_sol->GetIndex(zName)]);
@@ -259,16 +248,11 @@ double flc4hs(double const &x, double const &eps) {
   }
 }
 
-
-
-
 void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
-
 
   char zNameM1[10];
   if(iext > 0) sprintf(zNameM1, "z%d", iext - 1);
@@ -276,7 +260,6 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
-
 
   TransientLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<TransientLinearImplicitSystem> ("TmOptCtr");   // pointer to the linear implicit
 
@@ -287,7 +270,6 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
 
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -363,8 +345,6 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
     }
     solTc.resize(nDofs);
 
-
-
     solTi.resize(nDofs);
     solli.resize(nDofs);
     solzi.resize(nDofs);
@@ -420,14 +400,12 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
       }
     }
 
-
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
 
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
       msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
-
 
       adept::adouble Tig = 0;
       adept::adouble lig = 0;
@@ -472,34 +450,40 @@ void AssembleTimeOptimalControl(MultiLevelProblem& ml_prob) {
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofs; i++) {
 
-        adept::adouble Tieq = 0.;
-        adept::adouble lieq = 0.;
-        adept::adouble zieq = 0.;
+        // T is \bar{z}
+        // l is the lagrange multiplier
+        // z is the state variable z = T on the boundary
+
+        adept::adouble dTieq = 0.; // adjoint equation. This holds also on the control boundary, since dTi != 0 on Gamma
+        adept::adouble dlieq = 0.; // state equation with atificial time derivative, in the interior, since dli = 0 on Gamma
+        adept::adouble dzieq = 0.; // state equation with real time derivative, in the interior, and on Gamma z = T
 
         for(unsigned j = 0; j < dim; j++) {  // second index j in each equation
-          Tieq   +=  gradPhi[i * dim + j] * (nu * gradlig[j] + beta * gradTig[j]); // weak laplace
-          Tieq   +=  gradPhi[i * dim + j] * v[j] * lig; // weak convection
 
-          lieq   +=  gradPhi[i * dim + j] * (nu * gradTig[j]); // weal laplace
-          lieq   +=  phi[i] * v[j] * gradTig[j]; // strong convection
+          dTieq   +=  gradPhi[i * dim + j] * (nu * gradlig[j] + beta * gradTig[j]); // laplace adjoint in labbda + H1 penalty term in T
+          dTieq   +=  gradPhi[i * dim + j] * v[j] * lig; // convection adjoint
 
-          zieq   +=  gradPhi[i * dim + j] * nu * (gradzig[j] + 0. * gradziOldg[j]);  // weak laplace
-          zieq   +=  phi[i] * v[j] * gradzig[j]; // strong convection
+          dlieq   +=  gradPhi[i * dim + j] * nu * gradTig[j]; // laplace
+          dlieq   +=  phi[i] * v[j] * gradTig[j]; // convection
+
+          dzieq   +=  gradPhi[i * dim + j] * nu * gradzig[j];  // laplace
+          dzieq   +=  phi[i] * v[j] * gradzig[j]; // convection
         }
-        Tieq += alpha * phi[i] * Tig;
-        if(group == 5) Tieq += phi[i] * (Tig - Tc);
+
+        dTieq += alpha * phi[i] * Tig; // l2 penalty term in T
+        if(group == 5) dTieq += phi[i] * (Tig - Tc); // target
 
         if(!steady) {
-          if(iext > 0) lieq += phi[i] * (ziM1g - ziM1Oldg) / dt;
-          else lieq += 0.9 * phi[i] * (ziOldg - ziOlderg) / dt;
-          zieq += phi[i] * (zig - ziOldg) / dt;
+          if(iext == 0) dlieq += 0.9 * phi[i] * (ziOldg - ziOlderg) / dt;  // artificial time derivative at the zero step
+          else dlieq += phi[i] * (ziM1g - ziM1Oldg) / dt; // artificial time derivative for all other steps
+          dzieq += phi[i] * (zig - ziOldg) / dt; // real time derivative in the state equation
         }
 
+        mResTi[i] += dTieq * weight;
+        mResli[i] += dlieq * weight;
 
-        mResTi[i] += Tieq * weight;
-        mResli[i] += lieq * weight;
-        if(!nodeIsControlBoundary[i])  mReszi[i] += zieq * weight;
-        else mReszi[i] += solzi[i] - solTi[i];
+        if(!nodeIsControlBoundary[i])  mReszi[i] += dzieq * weight; //on the interior
+        else mReszi[i] += solzi[i] - solTi[i]; // on Gamma
 
       } // end phiV_i loop
     } // end gauss point loop
@@ -551,8 +535,6 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
   //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
-
-
   // call the adept stack object
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -565,7 +547,6 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
 
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -642,7 +623,6 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
       msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
 
-
       adept::adouble Tcg = 0;
       double TcOldg = 0;
 
@@ -716,13 +696,11 @@ void AssembleManifacturedSolution(MultiLevelProblem& ml_prob) {
 
 }
 
-
 void GetError(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
 
   char zName[10];
   sprintf(zName, "z%d", iext);
@@ -740,7 +718,6 @@ void GetError(MultiLevelProblem& ml_prob) {
 
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   const unsigned  dim = msh->GetDimension(); // get the domain dimension of the problem
 
@@ -794,8 +771,6 @@ void GetError(MultiLevelProblem& ml_prob) {
         }
       }
 
-
-
       // *** Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][solType]->GetGaussPointNumber(); ig++) {
         msh->_finiteElement[ielGeom][solType]->Jacobian(x, ig, weight, phi, gradPhi);
@@ -822,7 +797,6 @@ void GetError(MultiLevelProblem& ml_prob) {
 
   MPI_Reduce(localIntegral, globalIntegral, 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-
   if(iproc == 0) {
 
     std::string filename = "SolutionIntegral" + std::to_string(iext) + ".txt";
@@ -837,14 +811,6 @@ void GetError(MultiLevelProblem& ml_prob) {
     fout.close();
   }
 
-
 // ***************** END ASSEMBLY *******************
 
 }
-
-
-
-
-
-
-

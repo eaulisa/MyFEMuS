@@ -19,7 +19,6 @@
 
 using namespace femus;
 
-
 bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
   bool dirichlet = true; //dirichlet
   value = 0.;
@@ -56,17 +55,15 @@ unsigned numberOfUniformLevels = 4;
 
 int main(int argc, char** argv) {
 
-
   //BEGIN eigenvalue problem instances
   PetscErrorCode ierr;
-  ierr = SlepcInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
+  ierr = SlepcInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
 
 //   numberOfEigPairs = 5; //number of eigenpairs desired
 
   eigenvalues.resize(numberOfEigPairs); //this is where we store the eigenvalues
 
   //END
-
 
   //BEGIN deterministic FEM instances
 
@@ -77,7 +74,7 @@ int main(int argc, char** argv) {
   double scalingFactor = 1.;
   unsigned numberOfSelectiveLevels = 0;
   mlMsh.ReadCoarseMesh("../input/square.neu", "fifth", scalingFactor);
-  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , NULL);
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, NULL);
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -147,17 +144,13 @@ int main(int argc, char** argv) {
 
   //END stochastic index set test
 
-
   GetEigenPair(ml_prob, numberOfEigPairs, eigenvalues); //solve the generalized eigenvalue problem and compute the eigenpairs
 
   for(int i = 0; i < numberOfEigPairs; i++) {
     std::cout << eigenvalues[i].first << " " << eigenvalues[i].second << std::endl;
   }
 
-
-
   std::vector <double> QoI(M, 0.);
-
 
   for(unsigned m = 0; m < M; m++) {
 
@@ -214,7 +207,6 @@ void GetEigenPair(MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   unsigned soluIndex;
@@ -526,8 +518,6 @@ void GetEigenPair(MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::
 //
   //END OLD
 
-
-
   //BEGIN GRAM SCHMIDT ORTHONORMALIZATION
 
   std::vector <unsigned> eigfIndex(numberOfEigPairs);
@@ -616,7 +606,7 @@ void GetEigenPair(MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::
     }
 
     sol->_Sol[eigfIndex[iGS]]->close();
-    
+
     double local_norm2 = 0.;
     for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -672,7 +662,6 @@ void GetEigenPair(MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::
   //BEGIN GRAM SCHMIDT CHECK
   vector < double >  eigenFunctionCheck(numberOfEigPairs); // local solution
   vector < double >  eigenFunctionOldCheck(numberOfEigPairs); // local solution
-
 
   for(unsigned i1 = 0; i1 < numberOfEigPairs; i1++) {
     for(unsigned j1 = 0; j1 < numberOfEigPairs; j1++) {
@@ -731,7 +720,6 @@ void GetEigenPair(MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::
 
   // ***************** END ASSEMBLY *******************
 }
-
 
 void GetQuantityOfInterest(MultiLevelProblem& ml_prob, std::vector < double >&  QoI, const unsigned& m, const double& domainMeasure) {
 
@@ -811,7 +799,6 @@ void GetQuantityOfInterest(MultiLevelProblem& ml_prob, std::vector < double >&  
       }
     }
 
-
     // *** Gauss point loop ***
     for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -873,7 +860,6 @@ void GetStochasticData(std::vector <double>& QoI) {
     meanQoI /= meanCounter;
     //END
 
-
     //BEGIN computation of the variance and standard deviation of QoI
     varianceQoI = 0;
     unsigned varianceCounter = 0;
@@ -902,8 +888,8 @@ void GetStochasticData(std::vector <double>& QoI) {
       //BEGIN estimation of the PDF
       bool sampleCaptured = false;
       for(unsigned i = 0; i < pdfHistogramSize; i++) {
-        double leftBound = startPoint + i*deltat;
-        double rightBound = startPoint + (i+1)*deltat;
+        double leftBound = startPoint + i * deltat;
+        double rightBound = startPoint + (i + 1) * deltat;
         if(leftBound <=  QoIStandardized[m] && QoIStandardized[m] < rightBound) {
           pdfHistogram[i]++;
 //           std::cout << "leftBound = " << leftBound << " " << "rightBound = " << rightBound << " " << " standardized QoI = " << QoIStandardized[m] << std::endl;
@@ -923,7 +909,6 @@ void GetStochasticData(std::vector <double>& QoI) {
       pdfIntegral += pdfHistogram[i] * deltat;
     }
 
-
     //BEGIN histogram check
     double checkHistogram = 0;
     for(unsigned i = 0; i < pdfHistogramSize; i++) {
@@ -936,8 +921,6 @@ void GetStochasticData(std::vector <double>& QoI) {
     }
     std::cout << "checkHistogram = " << checkHistogram << std::endl;
     //END
-
-
 
     //BEGIN computation of the raw moments
     for(unsigned p = 0; p < totMoments; p++) {
@@ -1000,7 +983,6 @@ void GetStochasticData(std::vector <double>& QoI) {
     }
   }
 }
-
 
 void PlotStochasticData() {
 
@@ -1202,8 +1184,3 @@ void PlotStochasticData() {
   //END
 
 }
-
-
-
-
-

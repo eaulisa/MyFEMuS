@@ -65,18 +65,15 @@ double InitalValueH ( const std::vector < double >& x ) {
   return hRest[0];
 }
 
-
 double InitalValueT ( const std::vector < double >& x ) {
   double pi = acos ( -1. );
   if ( x[0] < 0 ) return 5;
   else return 30;
 }
 
-
 double InitalValueB ( const std::vector < double >& x ) {
   return 20;
 }
-
 
 bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time ) {
   bool dirichlet = false; //dirichlet
@@ -85,15 +82,13 @@ bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[
   return dirichlet;
 }
 
-
 void ETDvh ( MultiLevelProblem& ml_prob );
 void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps );
 void RK4t ( MultiLevelProblem& ml_prob );
 
-
 int main ( int argc, char** args ) {
 
-  SlepcInitialize ( &argc, &args, PETSC_NULL, PETSC_NULL );
+  SlepcInitialize ( &argc, &args, PETSC_NULLPTR, PETSC_NULLPTR );
 
   // init Petsc-MPI communicator
   FemusInit mpinit ( argc, args, MPI_COMM_WORLD );
@@ -199,7 +194,6 @@ int main ( int argc, char** args ) {
   return 0;
 }
 
-
 void ETDvh ( MultiLevelProblem& ml_prob ) {
 
   const unsigned& NLayers = NumberOfLayers;
@@ -228,7 +222,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
@@ -342,7 +335,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
 //       //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
 //     }
 
-
     for ( unsigned k = NLayers; k > 1; k-- ) {
       w[k - 1] = w[k] - ( hALE[k - 1] - solh[k - 1].value() ) / dt;
       if ( bc2 ) {
@@ -360,14 +352,12 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
       //std::cout<< w[k-1] << " " << std::endl;
     }
 
-
 //     for(unsigned k = 1; k < NLayers; k++){
 //       w[k] = w[k-1] + (  0.5 * ( solh[k-1].value() + solhp[k-1].value() ) * solvp[k-1].value()
-// 		       - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
-// 		    + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
-// 		    //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
+//           - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
+//        + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
+//        //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
 //     }
-
 
     for ( unsigned k = 0; k < NLayers; k++ ) {
 
@@ -413,7 +403,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
 
   }
 
-
   start = msh->_dofOffset[solTypev][iproc] + 1;
   end = msh->_dofOffset[solTypev][iproc + 1] - 1;
   for ( unsigned i =  start; i <  end; i++ ) {
@@ -427,7 +416,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
     vector < double > solTp ( NLayers ); // local coordinates
 
     vector< adept::adouble > aResv ( NLayers );
-
 
     l2GMapRow.resize ( NLayers );
     l2GMapColumn.resize ( 5 * NLayers );
@@ -444,7 +432,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
       solvp[j] = ( *sol->_Sol[solIndexv[j]] ) ( i + 1 );
       l2GMapColumn[1 * NLayers + j] = pdeSys->GetSystemDof ( solIndexv[j], solPdeIndexv[j], 0, i - 1 );
       l2GMapColumn[2 * NLayers + j] = pdeSys->GetSystemDof ( solIndexv[j], solPdeIndexv[j], 1, i );
-
 
       solhm[j] = ( *sol->_Sol[solIndexh[j]] ) ( i - 1 );
       solTm[j] = ( *sol->_Sol[solIndexT[j]] ) ( i - 1 );
@@ -517,20 +504,20 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
         //adept::adouble rhojp = (j <= k) ? (rho1[j] - beta * (solHTp[j]/solhp[j] - TRef)) : rhokp;
         //END
         //BEGIN Modified Isopycnal Pressure
-// 	 adept::adouble rhojm;
-// 	 adept::adouble rhojp;
-// 	 if (j<k){
-// 	   rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024;
-// 	   rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024;
-// 	 }
-// 	 else if (j==k){
-// 	   rhojm = 0.5 * rhokm/1024 * (rhokm + (rhokm+rhokp)/2);
-// 	   rhojp = 0.5 * rhokp/1024 * (rhokp + (rhokm+rhokp)/2);
-// 	 }
-// 	 else{
-// 	   rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024 * (rhokm+rhokp)/2;
-// 	   rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024 * (rhokm+rhokp)/2;
-// 	 }
+//   adept::adouble rhojm;
+//   adept::adouble rhojp;
+//   if (j<k){
+//     rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024;
+//     rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024;
+//   }
+//   else if (j==k){
+//     rhojm = 0.5 * rhokm/1024 * (rhokm + (rhokm+rhokp)/2);
+//     rhojp = 0.5 * rhokp/1024 * (rhokp + (rhokm+rhokp)/2);
+//   }
+//   else{
+//     rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024 * (rhokm+rhokp)/2;
+//     rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024 * (rhokm+rhokp)/2;
+//   }
         //END
         Pm[k] += rhojm * 9.81 * solhm[j];
         Pp[k] += rhojp * 9.81 * solhp[j];
@@ -639,11 +626,8 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
 
   }
 
-
   RES->close();
   KK->close();
-
-
 
 //   PetscViewer    viewer;
 //   PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,900,900,&viewer);
@@ -657,7 +641,7 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
 //  abort();
   MFN mfn;
   Mat A = ( static_cast<PetscMatrix*> ( KK ) )->mat();
-  FN f, f1, f2, f3 , f4;
+  FN f, f1, f2, f3, f4;
 
   //std::cout << "dt = " << dt << std::endl;
 
@@ -692,9 +676,6 @@ void ETDvh ( MultiLevelProblem& ml_prob ) {
   sol->_Sol[solIndexeta]->add ( -1, *sol->_Sol[solIndexb] );
 
 }
-
-
-
 
 void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
 
@@ -733,7 +714,6 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
@@ -824,12 +804,10 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
 
       l2GMapRow[j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i );
 
-
       l2GMapColumn[j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i );
 
       solvm[j] = ( *sol->_Sol[solIndexv[j]] ) ( i );
       solvp[j] = ( *sol->_Sol[solIndexv[j]] ) ( i + 1 );
-
 
       if ( bc1 ) {
         solhm[j] = ( *sol->_Sol[solIndexh[j]] ) ( i - 1 );
@@ -909,12 +887,11 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
       }
     }
 
-
 //     for(unsigned k = 1; k < NLayers; k++){
 //       w[k] = w[k-1] + (  0.5 * ( solh[k-1].value() + solhp[k-1].value() ) * solvp[k-1].value()
-// 		       - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
-// 		    + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
-// 		    //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
+//           - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
+//        + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
+//        //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
 //     }
 
     for ( unsigned k = 0; k < NLayers; k++ ) {
@@ -1095,7 +1072,7 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
 //  abort();
   MFN mfn;
   Mat A = ( static_cast<PetscMatrix*> ( KKt ) )->mat();
-  FN f, f1, f2, f3 , f4;
+  FN f, f1, f2, f3, f4;
 
   //std::cout << "dt = " << dt << std::endl;
 
@@ -1165,7 +1142,6 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
 
         solvm[j] = ( *sol->_Sol[solIndexv[j]] ) ( i );
         solvp[j] = ( *sol->_Sol[solIndexv[j]] ) ( i + 1 );
-
 
         if ( bc1 ) {
           solhm[j] = ( *sol->_Sol[solIndexh[j]] ) ( i - 1 );
@@ -1365,7 +1341,7 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
     FNSetType ( f2, FNPHI );
     //FNView(f,PETSC_VIEWER_STDOUT_WORLD);
 
-    FNSetScale ( f2, dt, 0.5*dt );
+    FNSetScale ( f2, dt, 0.5 * dt );
     MFNSetFromOptions ( mfn );
 
     MFNSolve ( mfn, v2, y2 );
@@ -1387,18 +1363,18 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
   sol->_Sol[solIndexeta]->add ( -1, *sol->_Sol[solIndexb] );
 
   for ( unsigned k = 0; k < NumberOfLayers; k++ ) {
-    
-    if(counter == numberOfTimeSteps-2) std::cout << "T" << k << "  ----------------------------------------------------" << std::endl;
+
+    if(counter == numberOfTimeSteps - 2) std::cout << "T" << k << "  ----------------------------------------------------" << std::endl;
     for ( unsigned i =  msh->_dofOffset[solTypeHT][iproc]; i <  msh->_dofOffset[solTypeHT][iproc + 1]; i++ ) {
       double valueHT = ( *sol->_Sol[solIndexHT[k]] ) ( i );
       double valueH = ( *sol->_Sol[solIndexh[k]] ) ( i );
 
       double valueT = valueHT / valueH;
-      if(counter==numberOfTimeSteps-2) std::cout << valueT << std::endl;
+      if(counter == numberOfTimeSteps - 2) std::cout << valueT << std::endl;
 
       sol->_Sol[solIndexT[k]]->set ( i, valueT );
     }
-    
+
     sol->_Sol[solIndexT[k]]->close();
 
   }
@@ -1406,7 +1382,6 @@ void ETDt ( MultiLevelProblem& ml_prob, const double & numberOfTimeSteps ) {
   delete RES2;
 
 }
-
 
 void RK4t ( MultiLevelProblem& ml_prob ) {
 
@@ -1430,7 +1405,6 @@ void RK4t ( MultiLevelProblem& ml_prob ) {
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
@@ -1589,7 +1563,6 @@ void RK4t ( MultiLevelProblem& ml_prob ) {
       //std::cout<< w[k-1] << " ";
     }
 
-
     std::vector < double > k1_RK ( NLayers, 0. );
     std::vector < double > k2_RK ( NLayers, 0. );
     std::vector < double > k3_RK ( NLayers, 0. );
@@ -1691,7 +1664,6 @@ void RK4t ( MultiLevelProblem& ml_prob ) {
       sol->_Sol[solIndexHT[k]]->set ( i, valueHT );
       sol->_Sol[solIndexHT[k]]->close();
     }
-
 
 //     if ( implicitEuler == false ) {
 //       //BEGIN forward Euler for vertical diffusion
@@ -1878,5 +1850,3 @@ void RK4t ( MultiLevelProblem& ml_prob ) {
 //   sol->_Sol[solIndexeta]->add ( -1, *sol->_Sol[solIndexb] );
 
 }
-
-

@@ -40,7 +40,6 @@ EXTERN_C_FOR_PETSC_END
 
 #include <mpi.h>
 
-
 namespace femus {
 
 //------------------------------------------------------------------------------
@@ -82,10 +81,8 @@ namespace femus {
       /// Destructor, deallocates memory
       ~PetscVector();
 
-
       /// Creates a copy of this vector and returns it in an \p AutoPtr.
       std::unique_ptr<NumericVector > clone() const;
-
 
       /// Call the assemble functions
       void close();
@@ -93,7 +90,6 @@ namespace femus {
       void closeWithMaxValue();
       /// This function returns the \p PetscVector to a pristine state.
       void clear();
-
 
       /// Change the dimension of the vector to \p N. doublehe reserved memory for
       /// this vector remains unchanged if possible, to make things faster, but
@@ -169,7 +165,6 @@ namespace femus {
       double l2_norm() const;      ///< This function returns the \f$l_2\f$-norm of the vector
       double linfty_norm() const;  ///< This function returns the maximum absolute value of the elements of this vector
 
-
       int size() const;          ///< This function returns dimension of the vector
       int local_size() const;    ///< This function returns the local size of the vector (index_stop-index_start)
       int first_local_index() const;  ///< This function returns the index of the first vector element
@@ -183,7 +178,6 @@ namespace femus {
 
       /// Access components, returns \p U(i).
       double operator()(const int i) const;
-
 
       /// Access multiple components at once. Overloaded method that
       /// should be faster (probably much faster) than calling \p
@@ -244,7 +238,6 @@ namespace femus {
       /// and \p vec2 and stores the result in \p *this.
       void pointwise_mult(const NumericVector& vec1,
                           const NumericVector& vec2);
-
 
       // ===========================
       // PARALLEL OPERATIONS
@@ -322,7 +315,6 @@ namespace femus {
 #endif
 
   };
-
 
   /**
    * ----------------------- Inline functions ----------------------------------
@@ -424,7 +416,6 @@ namespace femus {
     this->close();
   }
 
-
   inline PetscVector::~PetscVector() {
     this->clear();
   }
@@ -470,13 +461,11 @@ namespace femus {
     if(fast == false)  this->zero();
   }
 
-
   inline void PetscVector::init(const int n,
                                 const bool fast,
                                 const ParallelType type) {
     this->init(n, n, fast, type);
   }
-
 
   inline void PetscVector::init(const int n,
                                 const int n_local,
@@ -506,7 +495,7 @@ namespace femus {
     // boundary between processors.
     //assert(n_local == 0 || n_local == n || !ghost.empty());
 
-    PetscInt* petsc_ghost = ghost.empty() ? PETSC_NULL :
+    PetscInt* petsc_ghost = ghost.empty() ? PETSC_NULLPTR :
                             const_cast<int*>(reinterpret_cast<const PetscInt*>(&ghost[0]));
 
     // Clear initialized vectors
@@ -534,7 +523,6 @@ namespace femus {
       this->zero();
   }
 
-
   inline void PetscVector::init(const NumericVector& other, const bool fast) {
     // Clear initialized vectors
     if(this->initialized())   this->clear();
@@ -556,7 +544,6 @@ namespace femus {
     }
     if(fast == false)   this->zero();
   }
-
 
   inline void PetscVector::close() {
     this->_restore_array();
@@ -595,7 +582,7 @@ namespace femus {
 //      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
       ierr = VecGhostUpdateEnd (_vec, MIN_VALUES, SCATTER_REVERSE);
-  //    ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
+      //    ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
 
       ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_FORWARD);
@@ -606,12 +593,11 @@ namespace femus {
       this->_is_closed = true;
     }
   }
-  
-  
+
   inline void PetscVector::closeWithMaxValue() {
-    
+
     this->_restore_array();
-    
+
     if(this->type() != GHOSTED) {
       if(this->type() == PARALLEL) {
         std::cout << "Warning! The function PetscVector::closeWithMaxValue() is only available for GHOSTED vector!\n";
@@ -621,23 +607,22 @@ namespace femus {
     }
     else {
       int ierr = 0;
-      
+
       ierr = VecGhostUpdateBegin (_vec, MAX_VALUES, SCATTER_REVERSE);
       //      ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
       ierr = VecGhostUpdateEnd (_vec, MAX_VALUES, SCATTER_REVERSE);
       //    ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_REVERSE);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
-      
+
       ierr = VecGhostUpdateBegin(_vec, INSERT_VALUES, SCATTER_FORWARD);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
       ierr = VecGhostUpdateEnd(_vec, INSERT_VALUES, SCATTER_FORWARD);
       CHKERRABORT(MPI_COMM_WORLD, ierr);
-      
+
       this->_is_closed = true;
     }
   }
-
 
   inline void PetscVector::clear() {
     if(this->initialized())    this->_restore_array();
@@ -650,7 +635,6 @@ namespace femus {
     this->_is_closed = this->_is_initialized = false;
     _global_to_local_map.clear();
   }
-
 
   inline void PetscVector::zero() {
     this->_restore_array();
@@ -674,14 +658,12 @@ namespace femus {
     }
   }
 
-
   inline std::unique_ptr<NumericVector > PetscVector::clone() const {
     std::unique_ptr<NumericVector> cloned_vector(new PetscVector);
     cloned_vector->init(*this, true);
     *cloned_vector = *this;
     return cloned_vector;
   }
-
 
   inline int PetscVector::size() const {
     assert(this->initialized());
@@ -692,7 +674,6 @@ namespace femus {
     return static_cast<int>(petsc_size);
   }
 
-
   inline
   int PetscVector::local_size() const {
     assert(this->initialized());
@@ -702,7 +683,6 @@ namespace femus {
     return static_cast<int>(petsc_size);
   }
 
-
   inline int PetscVector::first_local_index() const {
     assert(this->initialized());
     int ierr = 0, petsc_first = 0, petsc_last = 0;
@@ -710,7 +690,6 @@ namespace femus {
     CHKERRABORT(MPI_COMM_WORLD, ierr);
     return static_cast<int>(petsc_first);
   }
-
 
   inline int PetscVector::last_local_index() const {
     assert(this->initialized());
@@ -720,14 +699,13 @@ namespace femus {
     return static_cast<int>(petsc_last);
   }
 
-
   inline int PetscVector::map_global_to_local_index(const int i) const {
     assert(this->initialized());
 
     int ierr = 0, first = 0, last = 0;
     ierr = VecGetOwnershipRange(_vec, &first, &last);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
-    
+
     if((i >= first) && (i < last))    {
       return i - first;
     }
@@ -745,7 +723,6 @@ namespace femus {
 #endif
     return static_cast<double>(_values[local_index]);
   }
-
 
   inline void PetscVector::get(const std::vector<int>& index, std::vector<double>& values) const {
     this->_get_array();
@@ -772,7 +749,6 @@ namespace femus {
     return static_cast<double>(min);
   }
 
-
   inline double PetscVector::max() const {
     this->_restore_array();
     int index = 0, ierr = 0;
@@ -782,7 +758,6 @@ namespace femus {
     // this return value is correct: VecMax returns a PetscReal
     return static_cast<double>(max);
   }
-
 
   inline void PetscVector::swap(NumericVector &other) {
     NumericVector::swap(other);
@@ -794,7 +769,6 @@ namespace femus {
     std::swap(_local_form, v._local_form);
     std::swap(_values, v._values);
   }
-
 
   inline void PetscVector::_get_array(void) const {
     assert(this->initialized());
@@ -819,7 +793,6 @@ namespace femus {
       _array_is_present = true;
     }
   }
-
 
   inline void PetscVector::_restore_array(void) const {
     assert(this->initialized());
@@ -847,7 +820,5 @@ namespace femus {
 
 } //end namespace femus
 
-
 #endif
 #endif
-

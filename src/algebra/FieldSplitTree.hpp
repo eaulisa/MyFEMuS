@@ -32,7 +32,7 @@
 #include "SchurPreType.hpp"
 
 #include "Mesh.hpp"
-
+#include "PetscMatrix.hpp"
 namespace femus {
 
   class LinearEquationSolverPetscFieldSplit;
@@ -58,11 +58,10 @@ namespace femus {
       void BuildASMIndexSet (const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver);
 
       void SetPC (KSP& ksp, const unsigned& level) ;
+      void SetSolver (KSP &ksp, const SolverType &solver);
 
-      void SetSolver (KSP &ksp, const SolverType &solver);      
-
-      void SetTolerances (const double& rtol, const double& abstol, const double& dtol, 
-                               const unsigned& maxits, const unsigned &restart = 30);
+      void SetTolerances (const double& rtol, const double& abstol, const double& dtol,
+                          const unsigned& maxits, const unsigned &restart = 30);
       void SetSchurFactorizationType (const SchurFactType& schurFactType);
       void SetSchurPreType (const SchurPreType& schurPreType);
 
@@ -98,6 +97,20 @@ namespace femus {
 
       FieldSplitTree* GetChild (const unsigned& i);
 
+      void MgSetSolverFineGrids (const SolverType &solvertype) {
+        _mgLevelSolver = solvertype;
+      }
+
+      void MgSetPreconditionerFineGrids (const PreconditionerType &preconditionerType) {
+        _mgLevelPreconditioner = preconditionerType;
+      }
+
+      void MgSetParameters (const unsigned npre, const unsigned npost, const double richardsonScaleFactor = 0.5) {
+        _mgLevelParameter[0] = npre;
+        _mgLevelParameter[1] = npost;
+        _mgLevelParameter[2] = richardsonScaleFactor;
+      }
+
     private:
 
       //void SetPetscSolverType (KSP& ksp);
@@ -109,27 +122,44 @@ namespace femus {
       unsigned _numberOfSplits;
       FieldSplitTree* _father;
       std::vector < FieldSplitTree* > _child;
-      std::vector < std::vector < unsigned > > _fieldsSplit;
+      std::vector < std::vector < unsigned > > _fieldsSplit; //_fieldsSplit[split][field];
       std::vector < unsigned > _fieldsAll;
       std::vector < unsigned > _solutionType;
       std::string _name;
-      std::vector < PetscInt* > _isSplitIndexPt;
-      std::vector < std::vector < IS > > _isSplit;
+      //std::vector < PetscInt* > _isSplitIndexPt;
+      std::vector < std::vector < IS > > _isSplit; //_isSplit[level][split]
       double _rtol;
       double _abstol;
       double _dtol;
       unsigned _maxits;
       unsigned _restart;
       double _richardsonScaleFactor;
-      
+
+      //GMG objects to be use only if the PC_GMG is used
+      std::vector<Mat> _Agmg, _Bgmg, _Pgmg, _Rgmg;
+
       SchurFactType _schurFactType;
       SchurPreType _schurPreType;
 
       std::vector < std::vector< std::vector < unsigned > > >_MatrixOffset;
 
-
       //for ASM pourposes
     public:
+      std::vector<std::vector < IS > > & GetISSplit() {
+        return _isSplit;
+      }
+      std::vector<Mat> & GetAgmg() {
+        return _Agmg;
+      }
+      std::vector<Mat> & GetBgmg() {
+        return _Bgmg;
+      }
+      std::vector<Mat> & GetPgmg() {
+        return _Pgmg;
+      }
+      std::vector<Mat> & GetRgmg() {
+        return _Rgmg;
+      }
 
       void SetAsmStandard (const bool &standard) {
         _asmStandard = standard;
@@ -175,6 +205,9 @@ namespace femus {
       void SetAsmOverlapping (const unsigned &overlapping) {
         _asmOverlapping = overlapping;
       }
+
+      void MGSolveSetup (KSP &kspLevel, const unsigned &level) ;
+      void MGSetLevel (KSP &kspLevel, const unsigned &level, Mat P, Mat R);
     private:
       std::vector< std::vector < std::vector <PetscInt> > > _asmOverlappingIsIndex;
       std::vector< std::vector < std::vector <PetscInt> > > _asmLocalIsIndex;
@@ -188,15 +221,13 @@ namespace femus {
       //std::vector< PetscInt >  _nlocal;
       bool _asmStandard;
       unsigned _asmOverlapping;
+    private:
 
-
-
-
-
+      SolverType _mgLevelSolver = CHEBYSHEV;
+      PreconditionerType _mgLevelPreconditioner = JACOBI_PRECOND;
+      double _mgLevelParameter[10] = {3, 3, 0.5}; // npe, npost, richardsonScaleFactor (if == 0 self, npre, npost);
   };
 
-
 }
-
 
 #endif

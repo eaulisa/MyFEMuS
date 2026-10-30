@@ -32,7 +32,6 @@ namespace femus {
     FieldSplitTreeBuild (solver, preconditioner, fields, name);
   }
 
-
   void FieldSplitTree::FieldSplitTreeBuild (const SolverType& solver, const PreconditionerType& preconditioner, const std::vector < unsigned >& fields, std::string name) {
     _father = NULL;
     _name = name;
@@ -41,7 +40,6 @@ namespace femus {
     _preconditioner = preconditioner;
     _numberOfSplits = 1;
     _child.resize (0);
-
 
     _fieldsSplit.resize (1);
     _fieldsSplit[0] = fields;
@@ -163,12 +161,10 @@ namespace femus {
     _asmBlockPreconditioner[0] = ILU_PRECOND;
     _asmBlockPreconditioner[1] = ILU_PRECOND;
 
-
     _asmStandard = true;
     _asmOverlapping = 1;
     _asmSchurVariableNumber = 1;
   }
-
 
   FieldSplitTree::~FieldSplitTree() {
     if (_numberOfSplits > 1) {
@@ -179,6 +175,23 @@ namespace femus {
       }
     }
 
+    for (unsigned level = 0; level < _Pgmg.size(); ++level) {
+      if (_Pgmg[level] != NULL) {
+        MatDestroy(&_Pgmg[level]);
+      }
+    }
+    for (unsigned level = 0; level < _Rgmg.size(); ++level) {
+      if (_Rgmg[level] != NULL) {
+        MatDestroy(&_Rgmg[level]);
+      }
+    }
+
+    for (unsigned level = 0; level < _Bgmg.size(); ++level) {
+      if (_Bgmg[level] != NULL) {
+        MatDestroy(&_Bgmg[level]);
+      }
+    }
+
     for (unsigned i = 0; i < _asmLocalIs.size(); i++) {
       for (unsigned j = 0; j < _asmLocalIs[i].size(); j++) {
         ISDestroy (&_asmLocalIs[i][j]);
@@ -186,10 +199,9 @@ namespace femus {
       }
     }
 
-
-    for (unsigned i = 0; i < _isSplitIndexPt.size(); i++) {
-      delete [] _isSplitIndexPt[i];
-    }
+    // for (unsigned i = 0; i < _isSplitIndexPt.size(); i++) {
+    //   delete [] _isSplitIndexPt[i];
+    // }
   }
 
   void FieldSplitTree::PrintFieldSplitTree (const unsigned& counter) {
@@ -218,18 +230,12 @@ namespace femus {
 
   }
 
-
   void FieldSplitTree::BuildIndexSet (const std::vector< std::vector < unsigned > >& KKoffset, const unsigned& iproc,
                                       const unsigned& nprocs, const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
 
-
     if (_MatrixOffset.size() < level + 1) _MatrixOffset.resize (level + 1);
 
-
-
     _MatrixOffset[level] = KKoffset;
-
-
 
     if (GetNumberOfSplits() == 1) {
       if ( (_preconditioner == ASM_PRECOND ||
@@ -242,13 +248,11 @@ namespace femus {
       return;
     }
 
-
     if (_isSplit.size() < level + 1) _isSplit.resize (level + 1);
 
     _isSplit[level].resize (GetNumberOfSplits());
 
     for (unsigned i = 0; i < GetNumberOfSplits(); i++) {
-
       //on the actual structure
       unsigned size = 0;
 
@@ -259,11 +263,8 @@ namespace femus {
         size += offsetp1 - offset;
       }
 
-
-      PetscInt* isSplitIndex = new PetscInt [size];
-      unsigned ptSize = _isSplitIndexPt.size();
-      _isSplitIndexPt.resize (ptSize + 1);
-      _isSplitIndexPt[ptSize] = isSplitIndex;
+      PetscInt *isSplitIndex = nullptr;
+      PetscMalloc1(size, &isSplitIndex);
 
       unsigned counter = 0;
 
@@ -278,9 +279,7 @@ namespace femus {
         }
       }
 
-      ISCreateGeneral (MPI_COMM_WORLD, size, isSplitIndex, PETSC_USE_POINTER, &_isSplit[level][i]);
-
-      // on the child branches
+      ISCreateGeneral (MPI_COMM_WORLD, size, isSplitIndex, PETSC_OWN_POINTER, &_isSplit[level][i]);
 
       std::vector < std::vector < unsigned > > tempFields = _child[i]->_fieldsSplit;
 
@@ -324,7 +323,7 @@ namespace femus {
   }
 
   /*---------adjusted by Guoyi Ke-----------*/
-  void FieldSplitTree::SetTolerances(const double& rtol, const double& abstol, const double& dtol, 
+  void FieldSplitTree::SetTolerances(const double& rtol, const double& abstol, const double& dtol,
                                      const unsigned& maxits, const unsigned & restart) {
     _rtol = rtol;
     _abstol = abstol;
@@ -332,7 +331,7 @@ namespace femus {
     _maxits = maxits;
     _restart = restart;
   }
-  
+
   void FieldSplitTree::SetSchurFactorizationType (const SchurFactType& schurFactType) {
     _schurFactType = schurFactType;
   }
@@ -355,15 +354,17 @@ namespace femus {
       if (level != 0u && _father == NULL && _solver == PREONLY) {
         _solver = RICHARDSON;
         _richardsonScaleFactor = 1.;
-      }  
-        
+      }
+
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      KSPSetFromOptions (ksp);
+
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
-      KSPSetUp (ksp);
-        
+      // KSPSetUp (ksp);
+
       PetscPreconditioner::set_petsc_preconditioner_type (_preconditioner, pc);
       if (_preconditioner == FIELDSPLIT_SCHUR_PRECOND) {
         SetSchurFactorizationType (pc);
@@ -373,7 +374,10 @@ namespace femus {
       for (unsigned i = 0; i < _numberOfSplits; i++) {
         PCFieldSplitSetIS (pc, NULL, _isSplit[level][i]);
       }
-      PCSetUp (pc);
+      // PCSetUp (pc);
+
+      KSPSetFromOptions(ksp);
+      KSPSetUp(ksp);
 
       KSP* subksp;
       PetscInt nlocal = static_cast < PetscInt > (_numberOfSplits);
@@ -390,7 +394,8 @@ namespace femus {
              _preconditioner == ASM_ADDITIVE_PRECOND) {
       SetSolver (ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      KSPSetFromOptions (ksp);
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
 
@@ -400,16 +405,26 @@ namespace femus {
         PCASMSetLocalSubdomains (pc, _asmLocalIsIndex[level].size(), &_asmOverlappingIs[level][0], &_asmLocalIs[level][0]);
       }
 
+      PetscPreconditioner::set_petsc_preconditioner_type(_preconditioner, pc);
+
+      PetscBool isLU = PETSC_FALSE;
+      PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)pc, PCLU, &isLU));
+
+      if (isLU) {
+        PetscCallAbort(PETSC_COMM_WORLD, KSPSetUp(ksp));
+        return;
+      }
+
       PCASMSetOverlap (pc, _asmOverlapping);
 
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
       KSPSetUp (ksp);
 
       KSP* subksps;
       PetscInt nlocal;
-      PCASMGetSubKSP (pc, &nlocal, PETSC_NULL, &subksps);
+      PCASMGetSubKSP (pc, &nlocal, PETSC_NULLPTR, &subksps);
 
       PetscReal epsilon = 1.e-16;
 
@@ -446,6 +461,63 @@ namespace femus {
         }
       }
     }
+    else if (_preconditioner == AMG_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      PetscPreconditioner::set_petsc_preconditioner_type(AMG_PRECOND, pc);
+      KSPSetFromOptions(ksp);
+
+      PetscBool isAMG = PETSC_FALSE;
+      PetscObjectTypeCompare((PetscObject)pc, PCHMG, &isAMG);
+
+      if(!isAMG) {
+        throw std::runtime_error(
+          "AMG_PRECOND is incompatible with the selected pc_type");
+      }
+
+      KSPSetUp(ksp);
+    }
+    else if (_preconditioner == MG_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      PetscPreconditioner::set_petsc_preconditioner_type(MG_PRECOND, pc);
+      KSPSetFromOptions(ksp);
+
+      PetscBool isGMG = PETSC_FALSE;
+      PetscObjectTypeCompare((PetscObject)pc, PCMG, &isGMG);
+
+      // if(!isGMG) {
+      //   throw std::runtime_error(
+      //     "MG_PRECOND is incompatible with the selected pc_type");
+      // }
+
+    }
+    else if (_preconditioner == MULTIGRID_PRECOND) {
+
+      SetSolver(ksp, _solver);
+      KSPSetTolerances(ksp, _rtol, _abstol, _dtol, _maxits);
+      KSPSetFromOptions(ksp);
+
+      PC pc;
+      KSPGetPC(ksp, &pc);
+
+      PetscBool isAMG = PETSC_FALSE;
+      PetscBool isGMG = PETSC_FALSE;
+
+      PetscObjectTypeCompare((PetscObject)pc, PCHMG, &isAMG);
+      PetscObjectTypeCompare((PetscObject)pc, PCMG,  &isGMG);
+
+      if (!isAMG && !isGMG) {
+        throw std::runtime_error("MULTIGRID_PRECOND requires pc_type hmg or mg");
+      }
+
+      if (isAMG) {
+        KSPSetUp(ksp);
+      }
+
+    }
     else {
       if (_preconditioner == LSC_PRECOND) {
         if (_solver == PREONLY) {
@@ -454,19 +526,23 @@ namespace femus {
         }
       }
 
-      SetSolver(ksp,_solver);
+      SetSolver(ksp, _solver);
       KSPSetTolerances (ksp, _rtol, _abstol, _dtol, _maxits);
-      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES){
+      KSPSetFromOptions (ksp);
+      if(_solver == GMRES || _solver == LGMRES || _solver == FGMRES) {
         KSPGMRESSetRestart (ksp, _restart);
       }
-      KSPSetFromOptions (ksp);
-      KSPSetUp (ksp);
+      // KSPSetFromOptions (ksp);
+      // KSPSetUp (ksp);
       PC pc;
       KSPGetPC (ksp, &pc);
       PetscReal epsilon = 1.e-16;
       PetscPreconditioner::set_petsc_preconditioner_type (_preconditioner, pc);
       PCFactorSetZeroPivot (pc, epsilon);
       PCFactorSetShiftType (pc, MAT_SHIFT_NONZERO);
+
+      KSPSetFromOptions (ksp);
+      KSPSetUp (ksp);
     }
   }
 
@@ -492,9 +568,9 @@ namespace femus {
   }
 
   void FieldSplitTree::SetSolver (KSP &ksp, const SolverType &solver) {
-    LinearEquationSolverPetsc::SetPetscSolverType(ksp, solver , &_richardsonScaleFactor);
+    LinearEquationSolverPetsc::SetPetscSolverType(ksp, solver, &_richardsonScaleFactor);
   }
-  
+
   void FieldSplitTree::SetSchurFactorizationType (PC &pc) {
 
     switch (_schurFactType) {
@@ -514,7 +590,7 @@ namespace femus {
         PCFieldSplitSetSchurFactType (pc, PC_FIELDSPLIT_SCHUR_FACT_DIAG);
         return;
 
-      case SCHUR_FACT_AUTOMATIC:
+      case SCHUR_FACT_AUTOMATIC: {
         PCFieldSplitSetSchurFactType (pc, PC_FIELDSPLIT_SCHUR_FACT_UPPER);
 
         for (int i = 0; i < _numberOfSplits; i++) {
@@ -523,7 +599,20 @@ namespace femus {
           }
         }
 
+        //std::cout << "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+
+        // KSP* subksps;
+        // int nsplits = static_cast<int> (_numberOfSplits);
+        // PCFieldSplitGetSubKSP (pc, &nsplits, &subksps);
+        //
+        //
+        //
+        // for (unsigned i = 0; i < _numberOfSplits; i++) {
+        //   KSPSetFromOptions (subksps[i]);
+        // }
+
         return;
+      }
 
       default:
         std::cerr << "ERROR:  Unsupported Schur Factorization Type: "
@@ -573,12 +662,7 @@ namespace femus {
     }
   }
 
-
-
-
-
   void FieldSplitTree::BuildASMIndexSet (const unsigned& level, const LinearEquationSolverPetscFieldSplit *solver) {
-
 
     Mesh* msh = solver->_msh;
 
@@ -615,7 +699,6 @@ namespace femus {
 
     elementBlockNumber[0] = (_asmBlockSize[0] == 100) ? msh->GetNumberOfElements() : pow (base, _asmBlockSize[0]);
     elementBlockNumber[1] = (_asmBlockSize[1] == 100) ? msh->GetNumberOfElements() : pow (base, _asmBlockSize[1]);
-
 
     //elementBlockNumber[0] = 16;
     //elementBlockNumber[1] = 16;
@@ -755,12 +838,10 @@ namespace femus {
 
       std::vector < PetscInt > (_asmOverlappingIsIndex[level ][vb_index]).swap (_asmOverlappingIsIndex[level ][vb_index]);
 
-
       mymap.clear();
 
       std::sort (_asmLocalIsIndex[level][vb_index].begin(), _asmLocalIsIndex[level][vb_index].end());
       std::sort (_asmOverlappingIsIndex[level][vb_index].begin(), _asmOverlappingIsIndex[level][vb_index].end());
-
 
     }
 
@@ -780,6 +861,240 @@ namespace femus {
 
   }
 
+  void FieldSplitTree::MGSolveSetup (KSP &kspFather, const unsigned &levelMax) {
+
+    PC pcFather;
+    KSPGetPC (kspFather, &pcFather);
+
+    PetscBool isFieldSplit = PETSC_FALSE;
+    PetscObjectTypeCompare((PetscObject) pcFather, PCFIELDSPLIT, &isFieldSplit);
+
+    if (isFieldSplit) {
+      PetscInt nsplit = 0;
+      KSP* kspLevelSplit = NULL;
+      PCFieldSplitGetSubKSP(pcFather, &nsplit, &kspLevelSplit);// one for each split
+
+      if(nsplit > 1) {
+        for (unsigned i = 0; i < nsplit; ++i) {
+          if( this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+            PC pcMGSplit;
+            KSPGetPC(kspLevelSplit[i], &pcMGSplit);
+
+            if(this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+              PetscBool isGMG = PETSC_FALSE;
+              PetscBool isAMG = PETSC_FALSE;
+
+              PetscObjectTypeCompare((PetscObject)pcMGSplit, PCMG, &isGMG);
+              PetscObjectTypeCompare((PetscObject)pcMGSplit, PCHMG, &isAMG);
+
+              if(isAMG) {
+                continue;
+              }
+
+              if(!isGMG) {
+                throw std::runtime_error(
+                  "MULTIGRID_PRECOND requires pc_type hmg or mg");
+              }
+            }
+
+            PCMGSetLevels (pcMGSplit, levelMax + 1, NULL);
+            PCMGSetType (pcMGSplit, PC_MG_MULTIPLICATIVE);
+
+            for(unsigned l = 0; l <= levelMax; l++) {
+
+              KSP subksp;
+              int npre = 1, npost = 1;
+
+              if (l == 0) {
+                PCMGGetCoarseSolve(pcMGSplit, &subksp);
+                KSPSetType(subksp, KSPPREONLY);
+                KSPSetTolerances(subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 1);
+              }
+              else {
+                PCMGGetSmoother(pcMGSplit, l, &subksp);
+                LinearEquationSolverPetsc::SetPetscSolverType (subksp, this->GetChild(i)->_mgLevelSolver, &this->GetChild(i)->_mgLevelParameter[2]);
+                KSPSetTolerances (subksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, this->GetChild(i)->_mgLevelParameter[0]);
+                KSPSetNormType(subksp, KSP_NORM_NONE);
+              }
+
+              Mat AMatrix = this->GetChild(i)->GetAgmg()[l];
+              Mat BMatrix = this->GetChild(i)->GetBgmg()[l];
+              Mat explicitBMatrix = nullptr;
+              PetscBool isSchurMatrix = PETSC_FALSE;
+
+              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)BMatrix, MATSCHURCOMPLEMENT, &isSchurMatrix));
+
+              if (isSchurMatrix) {
+                PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(BMatrix, MAT_INITIAL_MATRIX, &explicitBMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, AMatrix, explicitBMatrix));
+                PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&explicitBMatrix));
+              }
+              else {
+                PetscCallAbort(PETSC_COMM_WORLD, KSPSetOperators(subksp, AMatrix, BMatrix));
+              }
+
+              PetscCallAbort(PETSC_COMM_WORLD, PCMGSetGalerkin(pcMGSplit, PC_MG_GALERKIN_NONE));
+
+              if (l > 0) {
+                PCMGSetInterpolation (pcMGSplit, l, this->GetChild(i)->GetPgmg()[l]);
+                PCMGSetRestriction (pcMGSplit, l, this->GetChild(i)->GetRgmg()[l]);
+              }
+
+              PC subpc;
+              KSPGetPC (subksp, &subpc);
+
+              int parallelOverlapping = 0;
+
+              if (l == 0) {
+                //FIXED
+                PetscPreconditioner::set_petsc_preconditioner_type (MLU_PRECOND, subpc);
+              }
+              else {
+                //DEFAULT JACOBI
+                PetscPreconditioner::set_petsc_preconditioner_type (this->GetChild(i)->_mgLevelPreconditioner, subpc);
+              }
+            }
+            KSPSetFromOptions(kspLevelSplit[i]);
+            KSPSetUp(kspLevelSplit[i]);
+          }
+          else if( this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+                   this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND) {
+            this->GetChild(i)->MGSolveSetup (kspLevelSplit[i], levelMax);
+          }
+        }
+      }
+      PetscFree(kspLevelSplit);
+    }
+
+  }
+
+  void FieldSplitTree::MGSetLevel (KSP &kspLevel, const unsigned &level, Mat P, Mat R) {
+
+    PetscBool isFieldSplit = PETSC_FALSE;
+
+    PC pcLevel;
+    KSPGetPC (kspLevel, &pcLevel);
+
+    PetscObjectTypeCompare((PetscObject) pcLevel, PCFIELDSPLIT, &isFieldSplit);
+
+    if (isFieldSplit) {
+      PetscInt nsplit = 0;
+      KSP* kspLevelSplit = NULL;
+      PCSetUp(pcLevel);
+      PCFieldSplitGetSubKSP(pcLevel, &nsplit, &kspLevelSplit);
+
+      if(nsplit > 1) {
+        for (unsigned i = 0; i < nsplit; ++i) {
+
+          if( this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == MG_PRECOND ||
+              this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+            PC pcLevelSplit;
+            KSPGetPC(kspLevelSplit[i], &pcLevelSplit);
+
+            if(this->GetChild(i)->GetPreconditioner() == MULTIGRID_PRECOND) {
+
+              PetscBool isGMG = PETSC_FALSE;
+              PetscBool isAMG = PETSC_FALSE;
+
+              PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCMG, &isGMG);
+              PetscObjectTypeCompare((PetscObject)pcLevelSplit, PCHMG, &isAMG);
+
+              if(isAMG) {
+                continue;
+              }
+
+              if(!isGMG) {
+                throw std::runtime_error(
+                  "MULTIGRID_PRECOND requires pc_type hmg or mg");
+              }
+            }
+
+            std::vector <Mat> &Agmg = this->GetChild(i)->GetAgmg();
+            if (level + 1 > Agmg.size())   Agmg.resize(level + 1, NULL);
+
+            std::vector <Mat> &Bgmg = this->GetChild(i)->GetBgmg();
+            if (level + 1 > Bgmg.size())   Bgmg.resize(level + 1, NULL);
+
+            Mat Amat;
+            Mat Bmat;
+            KSPGetOperators(kspLevelSplit[i], &Amat, &Bmat);
+
+            Mat newBmat = nullptr;
+            PetscBool isSchurMatrix = PETSC_FALSE;
+
+            PetscCallAbort(PETSC_COMM_WORLD, PetscObjectTypeCompare((PetscObject)Bmat, MATSCHURCOMPLEMENT, &isSchurMatrix));
+
+            if (isSchurMatrix) {
+              PetscCallAbort(PETSC_COMM_WORLD, MatSchurComplementGetPmat(Bmat, MAT_INITIAL_MATRIX, &newBmat));
+            }
+            else {
+              PetscCallAbort(PETSC_COMM_WORLD, PetscObjectReference((PetscObject)Bmat));
+              newBmat = Bmat;
+            }
+
+            if(Bgmg[level] != nullptr) PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&Bgmg[level]));
+            Bgmg[level] = newBmat;
+
+            Agmg[level] = (true) ? Amat : Bmat;
+
+            std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
+            std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();
+            if (level + 1 > Pgmg.size())   Pgmg.resize(level + 1, NULL);
+            if (level + 1 > Rgmg.size())   Rgmg.resize(level + 1, NULL);
+
+            if(level > 0) {
+              if (Pgmg[level] != NULL) {
+                MatDestroy(&Pgmg[level]);
+              }
+              Pgmg[level] = NULL;
+              if (Rgmg[level] != NULL) {
+                MatDestroy(&Rgmg[level]);
+              }
+              Rgmg[level] = NULL;
+
+              std::vector < std::vector < IS > > &isSplit = this->GetISSplit();
+              bool sameObject = (P == R);
+
+              MatCreateSubMatrix(P, isSplit[level][i], isSplit[level - 1][i], MAT_INITIAL_MATRIX, &Pgmg[level]);
+
+              if(sameObject) {
+                Rgmg[level] = Pgmg[level];
+                PetscObjectReference((PetscObject)Rgmg[level]);
+              }
+              else {
+                MatCreateSubMatrix(R, isSplit[level - 1][i], isSplit[level][i], MAT_INITIAL_MATRIX, &Rgmg[level]);
+              }
+
+            }
+            if (this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_ADDITIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_MULTIPLICATIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SYMMETRIC_MULTIPLICATIVE_PRECOND ||
+                this->GetChild(i)->GetPreconditioner() == FIELDSPLIT_SCHUR_PRECOND) {
+
+              std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
+              std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();
+
+              this->GetChild(i)->MGSetLevel(kspLevelSplit[i], level, Pgmg[level], Rgmg[level]);
+            }
+          }
+
+        }
+      }
+      PetscFree(kspLevelSplit);
+    }
+  }
+
 }
-
-

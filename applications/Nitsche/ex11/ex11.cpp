@@ -23,11 +23,8 @@
 #include "PetscMatrix.hpp"
 #include "slepceps.h"
 
-
-
 const double alpha1 = .5;
 const double alpha2 = 3.;
-
 
 #include "GhostPenalty.hpp"
 
@@ -41,10 +38,6 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
 void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
                                 const std::vector<double> &aIn, const double &dIn, unsigned & efla,
                                 std::vector<double> &aOut, double &dOut);
-
-
-
-
 
 unsigned DIM = 2;
 
@@ -69,12 +62,10 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-
 int main(int argc, char** args) {
 
-  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
+  SlepcInitialize(&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -136,7 +127,7 @@ int main(int argc, char** args) {
   system.SetMaxNumberOfLinearIterations(1);
 
   system.SetSparsityPatternMinimumSize(200u);
-  
+
   system.init();
 
   // ******* Print solution *******
@@ -164,7 +155,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //
   // call the adept stack object
 
-
   CutFemWeight <double, double> quad  = CutFemWeight<double, double>(QUAD, 7, "legendre");
   Fem fem(quad.GetGaussQuadratureOrder(), quad.GetDimension());
 
@@ -182,7 +172,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   elem *el = msh->el;  // pointer to the elem object in msh (level)
   unsigned iproc  = msh->processor_id();//extracting the process id
 
-
   LinearEquationSolver* pdeSys = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*            JAC = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*           RES = pdeSys->_RES; // pointer to the global residual vector object in pdeSys (level)
@@ -190,7 +179,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   JAC->zero();
   RES->zero();
 
-  
   AssembleGhostPenaltyP(ml_prob, false);
   AssembleGhostPenaltyP(ml_prob, true);
 
@@ -239,12 +227,10 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   Mat A, B;
   EPS eps;
 
-
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
     short unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDofu  = msh->GetElementDofNumber(iel, soluType);  // number of solution element dofs
-
 
     unsigned eFlag = static_cast <unsigned>(floor((*sol->_Sol[eflagIndex])(iel) + 0.5));
 
@@ -284,7 +270,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     // start a new recording of all the operations involving adept::adouble variables
     s.new_recording();
 
-
     if(eFlag == 0 || eFlag == 2) {
       // *** Element Gauss point loop ***
       for(unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
@@ -314,7 +299,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
             graduGradphi2 += gradSolu2g[k] * phi_x[i * dim + k];
           }
 
-
           if(eFlag == 0) { //we are on the left of the domain
             aResu1[i] += (- phi[i] + alpha1 * graduGradphi1) * weight;
             if(nodeFlag[i] != 1) {
@@ -334,8 +318,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
     else {
 
-
-
       std::vector<double> a;
       double d = 0;
       unsigned elemFlag;
@@ -344,7 +326,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
       //getNormalInReferenceSystem(x, N, a);
 
-     // std::cout << iel << " " << a[0] << " " << a[1] << " " << d << std::endl;
+      // std::cout << iel << " " << a[0] << " " << a[1] << " " << d << std::endl;
 
       //plane passsing through center *************
 
@@ -363,15 +345,15 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //       Av.assign(nDofu * nDofu, 0.);
 //       Bv[0].assign(nDofu * nDofu, 0.);
 //       Bv[1].assign(nDofu * nDofu, 0.);
-// 
+//
 //       for(unsigned ig = 0; ig < thisfem->GetGaussPointNumber(); ig++) {
 //         // *** get gauss point weight, test function and test function partial derivativese (inputs: coordinates and gause point) ***
-// 
+//
 //         std::vector<std::vector<double>> Jac, JacI;
 //         thisfem->GetJacobianMatrix(x, ig, weight, Jac, JacI);
-// 
+//
 //         thisfem->Jacobian(x, ig, weight, phi, phi_x);
-// 
+//
 //         double dsN = 0;
 //         for(unsigned i = 0; i < dim; i++) {
 //           double dsi = 0.;
@@ -381,8 +363,8 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //           dsN += dsi * dsi;
 //         }
 //         dsN = sqrt(dsN);
-// 
-// 
+//
+//
 //         for(int i = 0; i < nDofu; i++) {
 //           for(int j = 0; j < nDofu; j++) {
 //             for(unsigned k = 0; k < dim; k++) {
@@ -390,7 +372,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //               Bv[1][ i * nDofu + j] += phi_x[i * dim + k] * phi_x[j * dim + k] * weight * eqPoly2[ig];
 //             }
 //           }
-// 
+//
 //           double gradPhiiDotN = 0.;
 //           for(unsigned k = 0; k < dim; k++) {
 //             gradPhiiDotN += phi_x[i * dim + k] * N[k];
@@ -404,7 +386,7 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //           }
 //         }
 //       }
-// 
+//
 //       /* Careful B has one zero eigenvalue (it is singular) with nullspace x = [1,1,1,...]^T,
 //       * thus the generalized eigenvalue problem
 //       * $$A u = \lambda B u$$
@@ -419,13 +401,13 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //       * Note that Bb is now invertible, and SLEPC has no problem in solving the deflated
 //       * generalized eigenvalue problem.
 //       */
-// 
-// 
+//
+//
 //       double C[2];
 //       for(unsigned k = 0; k < 2; k++) {
 //         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &A);
 //         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &B);
-// 
+//
 //         for(int i = 0; i < nDofu - 1; i++) {
 //           for(int j = 0; j < nDofu - 1; j++) {
 //             double value;
@@ -435,38 +417,37 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 //             MatSetValues(A, 1, &i, 1, &j, &value, INSERT_VALUES);
 //           }
 //         }
-// 
+//
 //         MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 //         MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-// 
+//
 //         MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY);
 //         MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY);
-// 
+//
 //         EPSCreate(PETSC_COMM_SELF, &eps);
 //         EPSSetOperators(eps, A, B);
 //         EPSSetFromOptions(eps);
 //         EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
 //         EPSSolve(eps);
-// 
+//
 //         double imaginary;
 //         EPSGetEigenpair(eps, 0, &C[k], &imaginary, NULL, NULL);
-// 
+//
 //         EPSDestroy(&eps);
 //         MatDestroy(&A);
 //         MatDestroy(&B);
 //       }
-// 
-// 
+//
+//
 //       double ia1C1 = 1. / (alpha1 * C[0]);
 //       double ia2C2 = 1. / (alpha2 * C[1]);
-// 
+//
 //       double den = ia1C1 + ia2C2;
-// 
+//
 //       double gamma1 = ia1C1 / den;
 //       double gamma2 = ia2C2 / den;
-// 
+//
 //       double theta = 2. / den;
-
 
       double h = sqrt(dim) * sqrt((x[0][0] - x[0][1]) * (x[0][0] - x[0][1]) +
                                   (x[1][0] - x[1][1]) * (x[1][0] - x[1][1])) ;
@@ -506,7 +487,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
         adept::adouble solu2g  = 0.;
         adept::adouble alphaGradSoluDotN = 0.;
 
-
         for(unsigned i = 0; i < nDofu; i++) {
           solu1g += phi[i] * solu1[i];
           solu2g += phi[i] * solu2[i];
@@ -537,7 +517,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
           aResu1[i] += alphaGradSoluDotN * (+phi[i]) * weight * eqPolyI[ig] * dsN;
           aResu2[i] += (solu2g - solu1g) * (+phi[i] * theta - alpha2 * gamma2 * gradPhiDotN) * weight * eqPolyI[ig] * dsN;
           aResu2[i] += alphaGradSoluDotN * (-phi[i]) * weight * eqPolyI[ig] * dsN;
-
 
         } // end phi_i loop
       } // end gauss point loop
@@ -585,8 +564,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
 
   //double a;
   //std::cin >> a;
-
-
 
   //***************** END ASSEMBLY *******************
 }
@@ -655,7 +632,6 @@ void BuildFlag(MultiLevelSolution & mlSol, const std::vector<double> &a, const d
   sol->_Sol[nflagIndex]->close();
 }
 
-
 void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, const std::vector<double> &aIn, std::vector<double> &aOut) {
 //aIn is a input
   unsigned dim = 2;
@@ -688,7 +664,6 @@ void getNormalInReferenceSystem(const std::vector < std::vector<double> > &xv, c
   J[0][1] = 0.25 * ((-1. + u) * dx14 - (1. + u) * dx23);
   J[1][0] = 0.25 * ((-1. + v) * dy12 + (1. + v) * dy34);
   J[1][1] = 0.25 * ((-1. + u) * dy14 - (1. + u) * dy23);
-
 
   aOut.assign(dim, 0);
   for(unsigned k = 0; k < dim; k++) {
@@ -917,7 +892,5 @@ void GetPlaneInTheParentElement(const std::vector < std::vector<double> > &xv,
     dOut = - aOut[0] * u - aOut[1] * v;
 
   }
-
-
 
 }

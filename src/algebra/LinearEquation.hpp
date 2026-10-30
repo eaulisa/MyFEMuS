@@ -19,122 +19,154 @@
 //----------------------------------------------------------------------------
 // includes :
 //----------------------------------------------------------------------------
+#include <functional>
+
 #include "Mesh.hpp"
 #include "petscmat.h"
 #include "ParallelObject.hpp"
-
 
 namespace femus {
 
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
-class elem_type;
-class NumericVector;
-class SparseMatrix;
-class Mesh;
-class Solution;
+  class elem_type;
+  class NumericVector;
+  class SparseMatrix;
+  class Mesh;
+  class Solution;
 
-/**
- This class is a container that holds linear operators and other structure for solving a linear equation system
-*/
+  /**
+   This class is a container that holds linear operators and other structure for solving a linear equation system
+  */
 
-class LinearEquation : public ParallelObject {
+  class LinearEquation : public ParallelObject {
 
-public:
+    public:
 
-  /** costructor */
-  LinearEquation(Solution *other_solution);
+      using ExtraSparsityFunction = std::function<void(LinearEquation&,
+                                    std::vector < std::map < int, bool > >&,
+                                    std::vector < std::map < int, bool > >&,
+                                    std::map < int, std::map <int, bool > >&,
+                                    std::map < int, std::map <int, bool > >&)>;
 
-  /** destructor */
-  ~LinearEquation();
+      /** costructor */
+      LinearEquation(Solution *other_solution);
 
-  /** To be Added */
-  void InitPde(const vector <unsigned> &_SolPdeIndex,const  vector <int> &SolType,
-               const vector <char*> &SolName, vector <NumericVector*> *Bdc_other,
-               const unsigned &other_gridn, vector < bool > &SparsityPattern_other);
+      /** destructor */
+      ~LinearEquation();
 
-  void GetSparsityPatternSize();
+      /** To be Added */
+      void InitPde(const vector <unsigned> &_SolPdeIndex, const  vector <int> &SolType,
+                   const vector <char*> &SolName, vector <NumericVector*> *Bdc_other,
+                   const unsigned &other_gridn, vector < bool > &SparsityPattern_other);
 
-  /** To be Added */
-  void DeletePde();
+      void GetSparsityPatternSize();
 
-  /** To be Added */
- // unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,const unsigned &idof_gmt) const;
+      /** To be Added */
+      void DeletePde();
 
-  unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
-			const unsigned &i, const unsigned &iel) const;
+      /** To be Added */
+// unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,const unsigned &idof_gmt) const;
 
-  unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
-	                const unsigned &ielc, const unsigned &i0,const unsigned &i1,
-		        const Mesh* mshc) const;
-			
-  unsigned GetSystemDof(const unsigned &soltype, const unsigned &kkindex_sol,
-			const unsigned &i, const unsigned &iel, const vector < vector <unsigned> > &otherKKoffset) const;
-			
+      unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
+                            const unsigned &i, const unsigned &iel) const;
 
-  /** To be Added */
-  void SetResZero();
+      unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
+                            const unsigned &idof) const;
 
-  /** To be Added */
-  void SetEpsZero();
+      unsigned GetSystemDof(const unsigned &index_sol, const unsigned &kkindex_sol,
+                            const unsigned &ielc, const unsigned &i0, const unsigned &i1,
+                            const Mesh* mshc) const;
 
-  /** To be Added */
-  void SumEpsCToEps();
+      unsigned GetSystemDof(const unsigned &soltype, const unsigned &kkindex_sol,
+                            const unsigned &i, const unsigned &iel, const vector < vector <unsigned> > &otherKKoffset) const;
 
-  /** To be Added */
-  void UpdateResidual();
+      /** To be Added */
+      void SetResZero();
 
-  /** AddLevel */
-  void AddLevel();
+      /** To be Added */
+      void SetEpsZero();
 
-  void SwapMatrices(){
-    SparseMatrix *Temp = _KK;
-    _KK = _KKamr;
-    _KKamr = Temp;
-  }
-  
-  void SetNumberOfGlobalVariables(const unsigned &numberOfGlobalVariables){
-    _numberOfGlobalVariables = numberOfGlobalVariables;
-  }
-  
-  // member data
-  Mesh *_msh;
-  Solution *_solution;
-  NumericVector *_EPS, *_EPSC, *_RES, *_RESC;
-  SparseMatrix *_KK;
-  SparseMatrix *_KKamr;
-  
-  
-  vector < vector <unsigned> > KKoffset;     // size [_SolPdeIndex.size() + 1][_nprocs]
-  vector < unsigned > KKghostsize;           // size [_nprocs]
-  vector < vector < int> > KKghost_nd;       // size [_nprocs][KKghostsize[i]]
-  vector <int> KKIndex;                      // size [_SolPdeIndex.size() + 1]
-  unsigned _gridn;  
-  vector < int > d_nnz;
-  vector < int > o_nnz;
-  
-  void SetSparsityPatternMinimumSize (const std::vector < unsigned> &minimumSize, const std::vector < unsigned > &variableIndex);
+      /** To be Added */
+      void SumEpsCToEps();
 
-protected:
+      /** To be Added */
+      void UpdateResidual();
 
-  /** To be Added */
-  unsigned GetIndex(const char name[]);
+      /** AddLevel */
+      void AddLevel();
 
-  // member data
-  vector <unsigned> _SolPdeIndex;
-  vector <int> _SolType;
-  vector <char*> _SolName;
-  const vector <NumericVector*> *_Bdc;
-  vector <bool> _SparsityPattern;
-  std::vector < unsigned > _sparsityPatternMinimumSize; 
-  std::vector <unsigned> _sparsityPatternVariableIndex;
-  unsigned _numberOfGlobalVariables;
+      void SwapMatrices() {
+        SparseMatrix *Temp = _KK;
+        _KK = _KKamr;
+        _KKamr = Temp;
+      }
 
-};
+      void SetNumberOfGlobalVariables(const unsigned &numberOfGlobalVariables) {
+        _numberOfGlobalVariables = numberOfGlobalVariables;
+      }
+
+      vector < vector<unsigned>> & GetOffset() {
+        return KKoffset;
+      }
+
+      vector<int> & GetIndex() {
+        return KKIndex;
+      }
+
+      vector <bool> & GetSparsityPattern() {
+        return _SparsityPattern;
+      }
+
+      // member data
+      Mesh *_msh;
+      Solution *_solution;
+      NumericVector *_EPS, *_EPSC, *_RES, *_RESC;
+      SparseMatrix *_KK;
+      SparseMatrix *_KKamr;
+
+      vector < vector <unsigned> > KKoffset;     // size [_SolPdeIndex.size() + 1][_nprocs]
+      vector < unsigned > KKghostsize;           // size [_nprocs]
+      vector < vector < int> > KKghost_nd;       // size [_nprocs][KKghostsize[i]]
+      vector <int> KKIndex;                      // size [_SolPdeIndex.size() + 1]
+      unsigned _gridn;
+      vector < int > d_nnz;
+      vector < int > o_nnz;
+
+      void SetSparsityPatternMinimumSize (const std::vector < unsigned> &minimumSize, const std::vector < unsigned > &variableIndex);
+      inline void SetSolution(const vector <NumericVector*> * Sol) {
+        _Sol = Sol;
+      }
+      void SetExtraSparsityFunction( const ExtraSparsityFunction& function) {
+        _extraSparsityFunction = function;
+      }
+      void MergeNullSpaceBases(bool merge) {
+        _mergeNullSpaceBases = merge;
+      }
+
+    protected:
+
+      /** To be Added */
+      unsigned GetIndex(const char name[]);
+
+      bool _mergeNullSpaceBases = false;
+
+      // member data
+      vector <unsigned> _SolPdeIndex;
+      vector <int> _SolType;
+      vector <char*> _SolName;
+      const vector <NumericVector*> *_Bdc;
+      const vector <NumericVector*> *_Sol;
+      vector <bool> _SparsityPattern;
+      std::vector < unsigned > _sparsityPatternMinimumSize;
+      std::vector <unsigned> _sparsityPatternVariableIndex;
+      unsigned _numberOfGlobalVariables;
+
+      ExtraSparsityFunction _extraSparsityFunction;
+
+  };
 
 } //end namespace femus
-
-
 
 #endif

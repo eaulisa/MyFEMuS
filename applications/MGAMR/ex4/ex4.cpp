@@ -1,7 +1,4 @@
 
-
-
-
 /** \file Ex7.cpp
  *  \brief This example shows how to set and solve the weak form
  *   of the Boussinesq appoximation of the Navier-Stokes Equation
@@ -29,7 +26,6 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
-
 #include "MyVector.hpp"
 #include "MyMatrix.hpp"
 
@@ -42,7 +38,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-
 bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumber, const int& level) {
 
   bool refine = 0;
@@ -50,18 +45,15 @@ bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumb
   if(level == 0) {
     if(x[0] > 0) refine = 1;
   }
-  else if(level == 1){
-    if(x[0] > 0 && x[1] >- 0.25) refine = 1;
+  else if(level == 1) {
+    if(x[0] > 0 && x[1] > - 0.25) refine = 1;
   }
 
   return refine;
 
 }
 
-
-
 void AssembleTemperature_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
-
 
 int main(int argc, char** args) {
 
@@ -127,73 +119,69 @@ int main(int argc, char** args) {
 //
 //   std::cout << a << std::endl;
 
-/*
-  MyMatrix <double> a;
+  /*
+    MyMatrix <double> a;
 
-  std::cout << a << std::endl;
+    std::cout << a << std::endl;
 
-  a.resize(10,5);
-  for(unsigned i = a.begin(); i < a.end(); i++) {
-    for(unsigned j = a.begin(i); j < a.end(i); j++) {
-      a[i][j] = (i*5)+j;
+    a.resize(10,5);
+    for(unsigned i = a.begin(); i < a.end(); i++) {
+      for(unsigned j = a.begin(i); j < a.end(i); j++) {
+        a[i][j] = (i*5)+j;
+      }
     }
-  }
-  std::cout << a << std::endl;
-  
-  a.scatter();
-  std::cout << a << std::endl;
-  
-  std::vector <unsigned> offset;
-  offset = a.getOffset();
-  std::cout << std::endl;
-  for(int i = 0; i < offset.size(); i++) {
-    offset[i] = 2 * offset[i];
-  }
- 
-  MyMatrix <double> b(offset,10,1);
+    std::cout << a << std::endl;
 
-  std::cout << b << std::endl;
-  
+    a.scatter();
+    std::cout << a << std::endl;
 
-  MyVector < unsigned > v(10,3);
-  v.scatter();
-  MyMatrix <double> m(v,1);
-  
-  
-  MyVector < unsigned > s(10,3);
-  s[1]=5;
-  s[8]=9;
- 
-  MyMatrix <double> n(s,2);
-  std::cout<<n<<std::endl;
-  n.scatter();
-  std::cout<<n<<std::endl;*/
-  
+    std::vector <unsigned> offset;
+    offset = a.getOffset();
+    std::cout << std::endl;
+    for(int i = 0; i < offset.size(); i++) {
+      offset[i] = 2 * offset[i];
+    }
+
+    MyMatrix <double> b(offset,10,1);
+
+    std::cout << b << std::endl;
 
 
- 
-  
+    MyVector < unsigned > v(10,3);
+    v.scatter();
+    MyMatrix <double> m(v,1);
+
+
+    MyVector < unsigned > s(10,3);
+    s[1]=5;
+    s[8]=9;
+
+    MyMatrix <double> n(s,2);
+    std::cout<<n<<std::endl;
+    n.scatter();
+    std::cout<<n<<std::endl;*/
+
   //  b.resize(offset, 1);
   // return 0;
-  
+
 //   std::cout << b << std::endl;
-// 
+//
 //   std::cout << c << std::endl;
-// 
+//
 //   MyVector <unsigned> a;
 //   MyVector <unsigned> d;
-// 
+//
 //   std::cout << a << std::endl;
-// 
+//
 //   a.resize(10);
 //   for(unsigned i = a.begin(); i < a.end(); i++) {
 //     a[i] = 1.3 * i;
 //   }
 //   std::cout << a << std::endl;
-// 
+//
 //   a.scatter();
 //   std::cout << a << std::endl;
-// 
+//
 //   offset = a.getOffset();
 //   for(int i = 0; i < offset.size(); i++) {
 //     offset[i] = 2 * offset[i];
@@ -201,10 +189,8 @@ int main(int argc, char** args) {
 //   d = a;
 //   d.resize(offset, 1);
 //   std::cout << d << std::endl;
-// 
+//
 //   std::cout << a << std::endl;
-
-
 
   // define multilevel mesh
   MultiLevelMesh mlMsh;
@@ -224,11 +210,10 @@ int main(int argc, char** args) {
 
   unsigned numberOfUniformLevels = 1;
   unsigned numberOfSelectiveLevels = 2;
-  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels , SetRefinementFlag);
+  mlMsh.RefineMesh(numberOfUniformLevels + numberOfSelectiveLevels, numberOfUniformLevels, SetRefinementFlag);
 
   // erase all the coarse mesh levels
   //mlMsh.EraseCoarseLevels(numberOfUniformLevels - 3);
-
 
   MultiLevelSolution mlSol(&mlMsh);
 
@@ -261,7 +246,6 @@ int main(int argc, char** args) {
   system.SetMaxNumberOfLinearIterations(10);
   system.SetAbsoluteLinearConvergenceTolerance(1.e-15);
 
-
 //   system.SetMaxNumberOfResidualUpdatesForNonlinearIteration(2);
 //   system.SetResidualUpdateConvergenceTolerance(1.e-15);
 
@@ -284,11 +268,9 @@ int main(int argc, char** args) {
   system.SetNumberOfSchurVariables(1);
   system.SetElementBlockNumber(4);
 
-
   system.PrintSolverInfo(false);
 
-  //system.MGsolve();
-
+  system.MGsolve();
 
   // print solutions
   std::vector < std::string > variablesToBePrinted;
@@ -301,10 +283,8 @@ int main(int argc, char** args) {
 
   mlMsh.PrintInfo();
 
-
   return 0;
 }
-
 
 void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
@@ -313,7 +293,6 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
   // call the adept stack object
-
 
   //  extract pointers to the several objects that we are going to use
   NonLinearImplicitSystem* mlPdeSys   = &ml_prob.get_system<NonLinearImplicitSystem> ("NS");   // pointer to the linear implicit system named "Poisson"
@@ -324,7 +303,6 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
 
   MultiLevelSolution*   mlSol         = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*   sol         = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
-
 
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level];  // pointer to the equation (level) object
   SparseMatrix*   KK          = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
@@ -480,7 +458,7 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
       s.independent(&solT[0], nDofsT);
 
       // get the and store jacobian matrix (row-major)
-      s.jacobian(&Jac[0] , true);
+      s.jacobian(&Jac[0], true);
       KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
       s.clear_independents();
@@ -494,13 +472,3 @@ void AssembleTemperature_AD(MultiLevelProblem& ml_prob) {
 
   // ***************** END ASSEMBLY *******************
 }
-
-
-
-
-
-
-
-
-
-

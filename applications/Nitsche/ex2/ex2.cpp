@@ -54,12 +54,11 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   return dirichlet;
 }
 
-
 int main(int argc, char** args) {
 
   // init Petsc-MPI communicator
 
-  SlepcInitialize(&argc, &args, PETSC_NULL, PETSC_NULL);
+  SlepcInitialize(&argc, &args, PETSC_NULLPTR, PETSC_NULLPTR);
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 
   // define multilevel mesh
@@ -93,7 +92,7 @@ int main(int argc, char** args) {
   MultiLevelSolution mlSol(&mlMsh);
 
   FEOrder femOrder = SECOND;
-  
+
   mlSol.AddSolution("u1", LAGRANGE, femOrder);
   mlSol.AddSolution("u2", LAGRANGE, femOrder);
 
@@ -159,8 +158,6 @@ int main(int argc, char** args) {
     markerType[j] = VOLUME;
   }
 
-
-
   //   double xc = 1.e-04 + 0.5 * H ; //should be this one to do COMSOL benchmark
   double x0 = -0.5 * Lx; //we are using this not to have markers on edges of elements from the beginning
   double y0 = -length / 2.;
@@ -187,7 +184,6 @@ int main(int argc, char** args) {
   line1->GetLine(line1Points[0]);
   PrintLine(DEFAULT_OUTPUTDIR, "bulk1", line1Points, 0);
   PrintLine("./output1", "bulk1", line1Points, 0);
-
 
   //BEGIN initialization bulk2 points
   x0 = -0.5 * Lx + Lx1; //we are using this not to have markers on edges of elements from the beginning
@@ -230,7 +226,6 @@ int main(int argc, char** args) {
     }
   }
 
-
   //BEGIN initialization
   for(unsigned i = 0; i < rowy; i++) {
     for(unsigned j = 0; j < rowz; j++) {
@@ -260,7 +255,6 @@ int main(int argc, char** args) {
   PrintLine("./output1", "interfaceLine", lineIPoints, 0);
   //END interface markers
 
-
   // ******* Print solution *******
   mlSol.SetWriter(VTK);
   mlSol.GetWriter()->SetDebugOutput(true);
@@ -279,7 +273,6 @@ int main(int argc, char** args) {
   return 0;
 }
 
-
 void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
@@ -287,7 +280,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
 
   // call the adept stack object
-
 
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -316,11 +308,10 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   unsigned soluType = mlSol->GetSolutionType(solu1Index);    // get the finite element type for "u"
 
   unsigned CIndex[2];
-  
+
   CIndex[0] = mlSol->GetIndex("C1");
   CIndex[1] = mlSol->GetIndex("C2");
-    
-  
+
   unsigned solu1PdeIndex;
   solu1PdeIndex = mlPdeSys->GetSolPdeIndex("u1");    // get the position of "u" in the pdeSys object
   unsigned solu2PdeIndex;
@@ -357,7 +348,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   std::vector<unsigned> markerOffset1 = line1->GetMarkerOffset();
   unsigned imarker1 = markerOffset1[iproc];
 
-
   std::vector<Marker*> particle2 = line2->GetParticles();
   std::vector<unsigned> markerOffset2 = line2->GetMarkerOffset();
   unsigned imarker2 = markerOffset2[iproc];
@@ -365,7 +355,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   std::vector<Marker*> particleI = lineI->GetParticles();
   std::vector<unsigned> markerOffsetI = lineI->GetMarkerOffset();
   unsigned imarkerI = markerOffsetI[iproc];
-
 
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
 
@@ -405,7 +394,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
       }
     }
 
-
     double alpha1 = .5;
     double alpha2 = 3.;
 
@@ -439,7 +427,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
             graduGradphi2 += gradSolu2g[k] * phi_x[i * dim + k];
           }
 
-
           if(eFlag == 0) {
             aResu1[i] += (- phi[i] + alpha1 * graduGradphi1) * weight;
             if(nodeFlag[i] != 1) {
@@ -458,18 +445,16 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
     }
 
     else {
-      
-      double ia1C1 = 1./ ( alpha1 * (*sol->_Sol[CIndex[0]])(iel) );
-      double ia2C2 = 1./ ( alpha2 * (*sol->_Sol[CIndex[1]])(iel) );
-      
+
+      double ia1C1 = 1. / ( alpha1 * (*sol->_Sol[CIndex[0]])(iel) );
+      double ia2C2 = 1. / ( alpha2 * (*sol->_Sol[CIndex[1]])(iel) );
+
       double den = ia1C1 + ia2C2;
-      
+
       double gamma1 = ia1C1 / den;
       double gamma2 = ia2C2 / den;
-      
+
       double theta = 2000. / den;
-      
-      
 
       //bulk1
       while(imarker1 < markerOffset1[iproc + 1] && iel == particle1[imarker1]->GetMarkerElement()) {
@@ -626,8 +611,6 @@ void AssembleNitscheProblem_AD(MultiLevelProblem& ml_prob) {
   //double a;
   //std::cin >> a;
 
-
-
   //***************** END ASSEMBLY *******************
 }
 
@@ -692,7 +675,6 @@ void BuildFlag(MultiLevelSolution& mlSol) {
   sol->_Sol[nflagIndex]->close();
 
 }
-
 
 void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
 
@@ -849,22 +831,21 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         imarkerI++;
       }
 
-      
-      /* Careful B has one zero eigenvalue (it is singular) with nullspace x = [1,1,1,...]^T, 
-       * thus the generalized eigenvalue problem 
-       * $$A u = \lambda B u$$ 
-       * (or $B^{-1} A x = \lambda x$) has one indetermined eigenvalue, that makes the SLEPC solve very unstable, 
-       * even using its built-in deflation method. 
-       * Fortunately, A has at least one zero eigenvalue, with the same x = [1,1,1,...]^T being an element 
+      /* Careful B has one zero eigenvalue (it is singular) with nullspace x = [1,1,1,...]^T,
+       * thus the generalized eigenvalue problem
+       * $$A u = \lambda B u$$
+       * (or $B^{-1} A x = \lambda x$) has one indetermined eigenvalue, that makes the SLEPC solve very unstable,
+       * even using its built-in deflation method.
+       * Fortunately, A has at least one zero eigenvalue, with the same x = [1,1,1,...]^T being an element
        * of its nullspace. Then, it is possible to deflate A and B simultaneously:
        * $Ad = A - x^T. a1$ and $Bd = B - x^T.b1$, where a1 and b1 are the first rows of A and B, respectively.
-       * The generalized eigenvalue problem $Ab u = \lambda Bb u$, with matrices Ab and Bb, 
-       * obtained as block matrices from Ad and Bd, removing the first row and the first column, 
-       * has the same eigenvalues of the original one, except the indetermine one. 
-       * Note that Bb is now invertible, and SLEPC has no problem in solving the deflated 
+       * The generalized eigenvalue problem $Ab u = \lambda Bb u$, with matrices Ab and Bb,
+       * obtained as block matrices from Ad and Bd, removing the first row and the first column,
+       * has the same eigenvalues of the original one, except the indetermine one.
+       * Note that Bb is now invertible, and SLEPC has no problem in solving the deflated
        * generalized eigenvalue problem.
        */
-      
+
       for(unsigned k = 0; k < 2; k++) {
         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &A);
         MatCreateSeqDense(PETSC_COMM_SELF, nDofu - 1, nDofu - 1, NULL, &B);
@@ -899,7 +880,7 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
         EPSDestroy(&eps);
         MatDestroy(&A);
         MatDestroy(&B);
-        
+
       }
     }
   }
@@ -907,5 +888,3 @@ void GetInterfaceElementEigenvalues(MultiLevelSolution& mlSol) {
   sol->_Sol[CIndex[0]]->close();
   sol->_Sol[CIndex[1]]->close();
 }
-
-

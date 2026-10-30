@@ -17,21 +17,20 @@
 #include "petsc.h"
 #include "slepceps.h"
 
-
 using namespace femus;
 
-
-int main()
-{
+int main() {
   PetscErrorCode ierr;
   int argc = 0;
   char** argv = NULL;
-  ierr = SlepcInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
+  ierr = SlepcInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
   EPS eps;
-  ierr = EPSCreate(PETSC_COMM_SELF, &eps); CHKERRQ(ierr);
+  ierr = EPSCreate(PETSC_COMM_SELF, &eps);
+  CHKERRQ(ierr);
   //ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
-  ierr = EPSDestroy(&eps); CHKERRQ(ierr);
-  ierr = SlepcFinalize(); CHKERRQ(ierr);
+  ierr = EPSDestroy(&eps);
+  CHKERRQ(ierr);
+  ierr = SlepcFinalize();
+  CHKERRQ(ierr);
   return 0;
 }
-

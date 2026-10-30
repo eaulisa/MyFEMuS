@@ -27,12 +27,10 @@
 #include "PetscVector.hpp"
 
 #include <mpi.h>
-#include "petscpc.h" 
+#include "petscpc.h"
 #include <petscksp.h>
 
 namespace femus {
-
-
 
 // =============================================================================
   void PetscPreconditioner::apply(const NumericVector & x, NumericVector & y) {
@@ -87,22 +85,18 @@ namespace femus {
         CHKERRABORT(MPI_COMM_WORLD, ierr);
         break;
 
-
-      case ILU_PRECOND:
-      {
+      case ILU_PRECOND: {
         int nprocs;
         MPI_Comm_size(MPI_COMM_WORLD, &nprocs); //TODO
         // In serial, just set the ILU preconditioner type
-        if(nprocs == 1)
-        {
+        if(nprocs == 1) {
           ierr = PCSetType(pc, (char*) PCILU);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
         }
-        else
-        {
+        else {
 //        But PETSc has no truly parallel ILU, instead you have to set
 //        an actual parallel preconditioner (e.g. block Jacobi (parlleloverlapping 0) or ASM (parlleloverlapping >0))
-//	  and then assign ILU sub-preconditioners.
+//    and then assign ILU sub-preconditioners.
 
           set_petsc_preconditioner_type(ASM_PRECOND, pc);
           PCASMSetOverlap(pc, parallelOverlapping);
@@ -123,8 +117,8 @@ namespace femus {
         else {
           ierr = PCSetType(pc, (char*) PCLU);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
-	  
-	  ierr = PCFactorSetMatSolverType(pc, MATSOLVERMUMPS);
+
+          ierr = PCFactorSetMatSolverType(pc, MATSOLVERMUMPS);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
           ierr = PCFactorSetUpMatSolverType(pc);
           CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -186,7 +180,7 @@ namespace femus {
         PCSetType(pc, (char*) PCASM);
         PCASMSetType (pc,  PC_ASM_BASIC);
         PCASMSetLocalType (pc, PC_COMPOSITE_ADDITIVE);
-        break;  
+        break;
 
       case FIELDSPLIT_PRECOND:
       case FIELDSPLIT_ADDITIVE_PRECOND:
@@ -204,8 +198,8 @@ namespace femus {
       case FIELDSPLIT_SCHUR_PRECOND:
         PCSetType(pc, (char*) PCFIELDSPLIT);
         PCFieldSplitSetType (pc, PC_COMPOSITE_SCHUR);
-        break;  
-        
+        break;
+
       case JACOBI_PRECOND:
         ierr = PCSetType(pc, (char*) PCJACOBI);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -227,13 +221,18 @@ namespace femus {
         break;
 
       case AMG_PRECOND:
-        ierr = PCSetType(pc, (char*) PCHYPRE);
-        CHKERRABORT(MPI_COMM_WORLD, ierr);
+        // PCSetType(pc, PCHYPRE);
+        PCSetType(pc, PCHMG);
+
         break;
 
       case MG_PRECOND:
         ierr = PCSetType(pc, (char*) PCMG);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
+        break;
+
+      case MULTIGRID_PRECOND:
+        // The actual type (amg or gmg) will be selected from PETSc options
         break;
 
       case LSC_PRECOND:
@@ -242,7 +241,7 @@ namespace femus {
         break;
 
 #if !(PETSC_VERSION_LESS_THAN(2,1,2))
-        // Only available for PETSC >= 2.1.2
+      // Only available for PETSC >= 2.1.2
       case USER_PRECOND:
         ierr = PCSetType(pc, (char*) PCMAT);
         CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -261,10 +260,9 @@ namespace femus {
     }
 
     //Let the commandline override stuff
-    if(preconditioner_type != AMG_PRECOND && preconditioner_type != MG_PRECOND)   PCSetFromOptions(pc);   //!!!!!!
+    // if(preconditioner_type != AMG_PRECOND && preconditioner_type != MG_PRECOND)
+    PCSetFromOptions(pc);   //!!!!!!
   }
-
-
 
   void PetscPreconditioner::set_petsc_subpreconditioner_type(const PCType type, PC& pc)  {
 
@@ -272,7 +270,7 @@ namespace femus {
     KSP* subksps;
     int nlocal;
 
-    ierr = PCASMGetSubKSP(pc, &nlocal, PETSC_NULL, &subksps);
+    ierr = PCASMGetSubKSP(pc, &nlocal, PETSC_NULLPTR, &subksps);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
 
     PetscReal epsilon = 1.e-16;
@@ -300,18 +298,6 @@ namespace femus {
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
 //   // For catching PETSc error return codes
 //   int ierr = 0;
 //
@@ -332,11 +318,11 @@ namespace femus {
 //   int n_local;
 // //
 // //   // The global number of the first block on this processor.
-// //   // This is not used, so we just pass PETSC_NULL instead.
+// //   // This is not used, so we just pass PETSC_NULLPTR instead.
 // //   // int first_local;
 // //
 // //   // Fill array of local KSP contexts
-//   ierr = PCBJacobiGetSubKSP(pc, &n_local, PETSC_NULL, &subksps);
+//   ierr = PCBJacobiGetSubKSP(pc, &n_local, PETSC_NULLPTR, &subksps);
 //   CHKERRABORT(MPI_COMM_WORLD, ierr);
 // //
 // //   // Loop over sub-ksp objects, set ILU preconditioner
@@ -352,12 +338,8 @@ namespace femus {
 //   }
 //}
 
-
 //------------------------------------------------------------------
 
-
 } //end namespace femus
-
-
 
 #endif // #ifdef LIBMESH_HAVE_PETSC

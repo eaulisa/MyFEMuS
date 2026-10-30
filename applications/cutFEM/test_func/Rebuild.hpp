@@ -1,6 +1,19 @@
 #ifndef REBULID_HPP_INCLUDED
 #define REBULID_HPP_INCLUDED
 
+#include <boost/multiprecision/cpp_bin_float.hpp>
+namespace boost {
+  namespace multiprecision {
+    typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
+    typedef number < backends::cpp_bin_float < 53, backends::digit_base_2, void, boost::int16_t, -1022, 1023 >, et_off >       cpp_bin_float_double;
+    typedef number < backends::cpp_bin_float < 64, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >     cpp_bin_float_double_extended;
+    typedef number < backends::cpp_bin_float < 113, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >    cpp_bin_float_quad;
+    typedef number < backends::cpp_bin_float < 237, backends::digit_base_2, void, boost::int32_t, -262142, 262143 >, et_off >  cpp_bin_float_oct;
+  }
+} // namespaces
+using boost::multiprecision::cpp_bin_float_oct;
+using boost::multiprecision::cpp_bin_float_quad;
+
 bool GetPoint(const std::vector<double> &A,
               const std::vector<double> &N,
               std::vector<double> &PM);
@@ -18,7 +31,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
                             const std::vector<double> &P1,
                             const std::vector<double> &P2,
                             std::vector<std::vector<double>> &P) {
-
 
   std::vector<double> N1 = {A[3] + 2. * A[0] * P1[0] + A[1] * P1[1], A[4] + A[1] * P1[0] + 2. * A[2] * P1[1]};
 
@@ -78,7 +90,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
   P.assign(n, std::vector<double>(2));
   P[n0] = (!reverse) ? P1 : P2;
   P[nk] = (!reverse) ? P2 : P1;
-
 
 //   std::cout << "aaaaaaaaaaa " << n << " " << dt << std::endl;
 
@@ -256,14 +267,13 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
   }
 
   nInt = cnt;
-      if(cnt >= 2) nInt = 2;
+  if(cnt >= 2) nInt = 2;
 
 //   std::cout<< " cnt size() =" << cnt <<endl;
 
   if(cnt == 2) {
 
     std::vector<double> Xg(2, 0);
-
 
     for(unsigned i = 0; i < nve; i++) {
       Xg[0] += xv[0][i];
@@ -283,7 +293,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 //     }
 //     std::cout << std::endl;
 
-    BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, xe);
+    BuildMarkersOnConicArc(2 * M_PI, npt, Cf, Xg, P1, P2, xe);
 
     npt = xe.size();
 //     std::cout<< " xe size() =" << npt <<endl;
@@ -292,8 +302,6 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 //       std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
 //     }
 //     std::cout << std::endl;
-
-
 
     ds.assign(npt, 0);
     for(unsigned i = 0; i < xe.size() - 1; i++) {
@@ -304,11 +312,8 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 
     //}
 
-
-
     return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
   }
 }
-
 
 #endif

@@ -5,75 +5,77 @@
 #include "CutLine.hpp"
 #include "CutFem.hpp"
 
-
 template <class TypeIO, class TypeA>
 class TRImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
   public:
 
     TRImap(const unsigned &mMax, const unsigned &sMax = 0, const unsigned &ds = 0) : LSImap <TypeA> (mMax + 1, sMax, mMax + 1) {
 
-      _TRImap.resize(2u + sMax + ds);
-      unsigned max = 2u + mMax + sMax;
+      //_TRImap.resize(2u + sMax + ds);
+      //unsigned max = 2u + mMax + sMax;
 
-      for(unsigned s = 0; s < _TRImap.size(); s++) {
-        _TRImap[s].resize(max);
-        for(unsigned i = 0; i < _TRImap[s].size(); i++) {
-          _TRImap[s][i].resize(max - i);
-        }
-      }
-      _cnt = 0;
+      // for(unsigned s = 0; s < _TRImap.size(); s++) {
+      //   _TRImap[s].resize(max);
+      //   for(unsigned i = 0; i < _TRImap[s].size(); i++) {
+      //     _TRImap[s][i].resize(max - i);
+      //   }
+      // }
+      //_cnt = 0;
 
     };
     ~TRImap() {};
 
     void clear() {
       LSImap<TypeA>::clear();
-      for(unsigned s = 0; s < _TRImap.size(); s++) {
-        for(unsigned i = 0; i < _TRImap[s].size(); i++) {
-          for(unsigned j = 0; j < _TRImap[s][i].size(); j++) {
-            _TRImap[s][i][j].clear();
-          }
-        }
-      }
-      _cnt = 0;
+      // for(unsigned s = 0; s < _TRImap.size(); s++) {
+      //   for(unsigned i = 0; i < _TRImap[s].size(); i++) {
+      //     for(unsigned j = 0; j < _TRImap[s][i].size(); j++) {
+      //       _TRImap[s][i][j].clear();
+      //     }
+      //   }
+      // }
+      // _cnt = 0;
     };
 
     void printCounter() {
-      LSImap<TypeA>::printCounter();
-      std::cout << "TRI counter = " << _cnt << std::endl;
+      // LSImap<TypeA>::printCounter();
+      // std::cout << "TRI counter = " << _cnt << std::endl;
     }
 
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
       return static_cast<TypeIO>(this->tria(s, m, {static_cast<TypeA>(-a[0]), static_cast<TypeA>(a[1])}, static_cast<TypeA>(d + a[0])));
     }
-    
-protected:
+
+  protected:
     TypeA tria(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
-      _key = std::make_pair(a, d);
-      _it = _TRImap[s + 1][m[0]][m[1]].find(_key);
-      if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
-        _cnt++;
-        _I1 = TriangleA(s, m, a, d);
-        _TRImap[s + 1][m[0]][m[1]][_key] = _I1;
-        return _I1;
-      }
-      else {
-        return _it->second;
-      }
+
+      return TriangleA(s, m, a, d);
+
+      // _key = std::make_pair(a, d);
+      // _it = _TRImap[s + 1][m[0]][m[1]].find(_key);
+      // if(_it == _TRImap[s + 1][m[0]][m[1]].end()) {
+      //   _cnt++;
+      //   _I1 = TriangleA(s, m, a, d);
+      //   _TRImap[s + 1][m[0]][m[1]][_key] = _I1;
+      //   return _I1;
+      // }
+      // else {
+      //   return _it->second;
+      // }
     }
-   
+
   private:
     TypeA TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
     TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
     TypeA TriangleBFull(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);  
-      
-    std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
-    typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
-    std::pair<std::vector<TypeA>, TypeA> _key;
+    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
 
-    TypeA _I1;
-    unsigned _cnt;
+    // std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
+    // typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
+    //std::pair<std::vector<TypeA>, TypeA> _key;
+
+    // TypeA _I1;
+    // unsigned _cnt;
 };
 
 template <class TypeIO, class TypeA>
@@ -160,8 +162,6 @@ TypeA TRImap<TypeIO, TypeA>::TriangleBReduced(const int &s, const std::vector<un
   return TRI;
 }
 
-
-
 template <class TypeIO, class TypeA>
 TypeA TRImap<TypeIO, TypeA>::TriangleBFull(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
 
@@ -236,4 +236,3 @@ TypeA TRImap<TypeIO, TypeA>::TriangleC(const int &s, const std::vector<unsigned>
 }
 
 #endif
-

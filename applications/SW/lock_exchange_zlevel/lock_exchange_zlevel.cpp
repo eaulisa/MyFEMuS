@@ -62,7 +62,6 @@ double InitalValueB ( const std::vector < double >& x ) {
   return 20; //( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) );
 }
 
-
 bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time ) {
   bool dirichlet = false; //dirichlet
   if ( facename == 1 || facename == 2 ) dirichlet = true;
@@ -70,13 +69,11 @@ bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[
   return dirichlet;
 }
 
-
 void ETD ( MultiLevelProblem& ml_prob );
-
 
 int main ( int argc, char** args ) {
 
-  SlepcInitialize ( &argc, &args, PETSC_NULL, PETSC_NULL );
+  SlepcInitialize ( &argc, &args, PETSC_NULLPTR, PETSC_NULLPTR );
 
   // init Petsc-MPI communicator
   FemusInit mpinit ( argc, args, MPI_COMM_WORLD );
@@ -170,7 +167,6 @@ int main ( int argc, char** args ) {
   return 0;
 }
 
-
 void ETD ( MultiLevelProblem& ml_prob ) {
 
   const unsigned& NLayers = NumberOfLayers;
@@ -198,7 +194,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
 
-
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
   std::vector < unsigned > solPdeIndexh ( NLayers );
@@ -208,7 +203,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   std::vector < unsigned > solIndexHT ( NLayers );
   std::vector < unsigned > solPdeIndexHT ( NLayers );
-
 
   std::vector < unsigned > solIndexT ( NLayers );
 
@@ -277,7 +271,7 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
     unsigned bc1 = ( i == start ) ? 0 : 1;
     unsigned bc2 = ( i == end - 1 ) ? 0 : 1;
-    
+
     unsigned bc3 = ( i > start + 1) ? 1 : 0;
     unsigned bc4 = ( i < end - 2 ) ? 1 : 0;
 
@@ -320,19 +314,19 @@ void ETD ( MultiLevelProblem& ml_prob ) {
         l2GMapColumn[( 4 + 2 * bc1 ) * NLayers + j] = pdeSys->GetSystemDof ( solIndexh[j], solPdeIndexh[j], 0, i + 1 );
         l2GMapColumn[( 5 + 2 * bc1 ) * NLayers + j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i + 1 );
       }
-    
+
       if ( i > start + 1 ) {
         solHTmm[j] = ( *sol->_Sol[solIndexHT[j]] ) ( i - 2 );
         if (i == end - 1) l2GMapColumn[( 5 + bc1 ) * NLayers + j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i - 2 );
         else l2GMapColumn[( ( 5 + 2 * bc1) + bc3 ) * NLayers + j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i - 2 );
       }
-    
+
       if ( i < end - 2 ) {
         solHTpp[j] = ( *sol->_Sol[solIndexHT[j]] ) ( i + 2 );
         l2GMapColumn[( ( 5 + 2 * bc1 ) + bc3 + bc4 ) * NLayers + j] = pdeSys->GetSystemDof ( solIndexHT[j], solPdeIndexHT[j], 0, i + 2 );
       }
     }
-    
+
     s.new_recording();
 
     vector < double > x ( 2 ); // local coordinates
@@ -367,11 +361,10 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
 //     for(unsigned k = 1; k < NLayers; k++){
 //       w[k] = w[k-1] + (  0.5 * ( solh[k-1].value() + solhp[k-1].value() ) * solvp[k-1].value()
-// 		       - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
-// 		    + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
-// 		    //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
+//           - 0.5 * ( solh[k-1].value() + solhm[k-1].value() ) * solvm[k-1].value() )/dx
+//        + ( hALE[k-1] - solh[k-1].value()) / dt;//TODO
+//        //std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<w[k-1]<<std::endl;
 //     }
-
 
     for ( unsigned k = 0; k < NLayers; k++ ) {
 
@@ -403,9 +396,9 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 //         }
 //       }
       //END
-      
+
       //BEGIN THIRD ORDER
-       if ( i > start ) {
+      if ( i > start ) {
         aResHT[k] += 0.5 * ( solHTm[k] + solHT[k] ) * solvm[k] / dx;
         if ( solvm[k] > 0 ) {
           if ( i > start + 1 ) {
@@ -432,31 +425,31 @@ void ETD ( MultiLevelProblem& ml_prob ) {
         }
       }
       //END
-      
+
       //double numb = 0.5;
       //BEGIN GENERAL THIRD ORDER
 //       if ( i > start ) {
 //         aResHT[k] += 0.5 * ( solHTm[k] + solHT[k] ) * solvm[k] / dx;
-// 	if ( i > start + 1 ) {
-// 	  aResHT[k] += - 1./12. * ( solHTp[k] - 2.*solHT[k] + solHTm[k] + solHT[k] - 2.*solHTm[k] + solHTmm[k] ) * solvm[k] / dx;
-// 	  if (solvm[k] > 0){
-// 	    aResHT[k] += numb/12. * (solHTp[k] - 2.*solHT[k] + solHTm[k] - (solHT[k] - 2.*solHTm[k] + solHTmm[k])) * solvm[k] / dx;
-// 	  }
-// 	  else{
-// 	    aResHT[k] += - numb/12. * (solHTp[k] - 2.*solHT[k] + solHTm[k] - (solHT[k] - 2.*solHTm[k] + solHTmm[k])) * solvm[k] / dx;
-// 	  }
+//  if ( i > start + 1 ) {
+//    aResHT[k] += - 1./12. * ( solHTp[k] - 2.*solHT[k] + solHTm[k] + solHT[k] - 2.*solHTm[k] + solHTmm[k] ) * solvm[k] / dx;
+//    if (solvm[k] > 0){
+//      aResHT[k] += numb/12. * (solHTp[k] - 2.*solHT[k] + solHTm[k] - (solHT[k] - 2.*solHTm[k] + solHTmm[k])) * solvm[k] / dx;
+//    }
+//    else{
+//      aResHT[k] += - numb/12. * (solHTp[k] - 2.*solHT[k] + solHTm[k] - (solHT[k] - 2.*solHTm[k] + solHTmm[k])) * solvm[k] / dx;
+//    }
 //         }
 //       }
 //       if ( i < end - 1 ) {
 //         aResHT[k] -= 0.5 * ( solHTp[k] + solHT[k] ) * solvp[k] / dx;
-// 	if (i < end - 2){
-// 	  aResHT[k] -= - 1./12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] + solHTp[k] - 2.*solHT[k] + solHTm[k]) * solvp[k] / dx;
-// 	  if (solvm[k] > 0){
-// 	    aResHT[k] -= numb/12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] - (solHTp[k] - 2.*solHT[k] + solHTm[k])) * solvp[k] / dx;
-// 	  }
-// 	  else{
-// 	    aResHT[k] -= - numb/12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] - (solHTp[k] - 2.*solHT[k] + solHTm[k])) * solvp[k] / dx;
-// 	  }
+//  if (i < end - 2){
+//    aResHT[k] -= - 1./12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] + solHTp[k] - 2.*solHT[k] + solHTm[k]) * solvp[k] / dx;
+//    if (solvm[k] > 0){
+//      aResHT[k] -= numb/12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] - (solHTp[k] - 2.*solHT[k] + solHTm[k])) * solvp[k] / dx;
+//    }
+//    else{
+//      aResHT[k] -= - numb/12. * (solHTpp[k] - 2.*solHTp[k] + solHT[k] - (solHTp[k] - 2.*solHT[k] + solHTm[k])) * solvp[k] / dx;
+//    }
 //         }
 //       }
       //END
@@ -520,8 +513,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   }
 
-
-
   start = msh->_dofOffset[solTypev][iproc] + 1;
   end = msh->_dofOffset[solTypev][iproc + 1] - 1;
   for ( unsigned i =  start; i <  end; i++ ) {
@@ -538,7 +529,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
     vector< adept::adouble > aResv ( NLayers );
     vector< adept::adouble > aResHT ( NLayers );
 
-
     l2GMapRow.resize ( NLayers );
     l2GMapColumn.resize ( 7 * NLayers );
 
@@ -554,7 +544,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
       solvp[j] = ( *sol->_Sol[solIndexv[j]] ) ( i + 1 );
       l2GMapColumn[NLayers + j] = pdeSys->GetSystemDof ( solIndexv[j], solPdeIndexv[j], 0, i - 1 );
       l2GMapColumn[2 * NLayers + j] = pdeSys->GetSystemDof ( solIndexv[j], solPdeIndexv[j], 1, i );
-
 
       solhm[j] = ( *sol->_Sol[solIndexh[j]] ) ( i - 1 );
       solHTm[j] = ( *sol->_Sol[solIndexHT[j]] ) ( i - 1 );
@@ -629,20 +618,20 @@ void ETD ( MultiLevelProblem& ml_prob ) {
         //adept::adouble rhojp = (j <= k) ? (rho1[j] - beta * (solHTp[j]/solhp[j] - TRef)) : rhokp;
         //END
         //BEGIN Modified Isopycnal Pressure
-// 	 adept::adouble rhojm;
-// 	 adept::adouble rhojp;
-// 	 if (j<k){
-// 	   rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024;
-// 	   rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024;
-// 	 }
-// 	 else if (j==k){
-// 	   rhojm = 0.5 * rhokm/1024 * (rhokm + (rhokm+rhokp)/2);
-// 	   rhojp = 0.5 * rhokp/1024 * (rhokp + (rhokm+rhokp)/2);
-// 	 }
-// 	 else{
-// 	   rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024 * (rhokm+rhokp)/2;
-// 	   rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024 * (rhokm+rhokp)/2;
-// 	 }
+//   adept::adouble rhojm;
+//   adept::adouble rhojp;
+//   if (j<k){
+//     rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024;
+//     rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024;
+//   }
+//   else if (j==k){
+//     rhojm = 0.5 * rhokm/1024 * (rhokm + (rhokm+rhokp)/2);
+//     rhojp = 0.5 * rhokp/1024 * (rhokp + (rhokm+rhokp)/2);
+//   }
+//   else{
+//     rhojm = (rho1[j] - beta * solHTm[j]/solhm[j] - TRef) * rhokm/1024 * (rhokm+rhokp)/2;
+//     rhojp = (rho1[j] - beta * solHTp[j]/solhp[j] - TRef) * rhokp/1024 * (rhokm+rhokp)/2;
+//   }
         //END
         Pm[k] += rhojm * 9.81 * solhm[j];
         Pp[k] += rhojp * 9.81 * solhp[j];
@@ -753,10 +742,9 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   }
 
-
   RES->close();
   KK->close();
-  
+
   //BEGIN DISPLAY JACOBIAN MATRIX
 //   PetscViewer    viewer;
 //   PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,900,900,&viewer);
@@ -765,12 +753,12 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 //   MatView((static_cast<PetscMatrix*>(KK))->mat(),viewer);
 //   double a;
 //   std::cin>>a;
-  //END 
+  //END
 
 //  abort();
   MFN mfn;
   Mat A = ( static_cast<PetscMatrix*> ( KK ) )->mat();
-  FN f, f1, f2, f3 , f4;
+  FN f, f1, f2, f3, f4;
 
   //std::cout << "dt = " << dt << " dx = "<< dx << " maxWaveSpeed = "<<maxWaveSpeed << std::endl;
   std::cout << "dt = " << dt << std::endl;
@@ -785,7 +773,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
   MFNSetOperator ( mfn, A );
   MFNGetFN ( mfn, &f );
 
-
 //   FNCreate(PETSC_COMM_WORLD, &f1);
 //   FNCreate(PETSC_COMM_WORLD, &f2);
 //   FNCreate(PETSC_COMM_WORLD, &f3);
@@ -796,7 +783,7 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 //   FNSetType(f2, FNRATIONAL);
 //   double coeff1[1] = { -1};
 //   FNRationalSetNumerator(f2, 1, coeff1);
-//   FNRationalSetDenominator(f2, 0, PETSC_NULL);
+//   FNRationalSetDenominator(f2, 0, PETSC_NULLPTR);
 //
 //   FNSetType( f3, FNCOMBINE );
 //
@@ -805,7 +792,7 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 //   FNSetType(f4, FNRATIONAL);
 //   double coeff2[2] = {1., 0.};
 //   FNRationalSetNumerator(f4, 2, coeff2);
-//   FNRationalSetDenominator(f4, 0, PETSC_NULL);
+//   FNRationalSetDenominator(f4, 0, PETSC_NULLPTR);
 //
 //   FNSetType( f, FNCOMBINE );
 //
@@ -825,7 +812,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 //   FNDestroy(&f2);
 //   FNDestroy(&f3);
 //   FNDestroy(&f4);
-
 
   sol->UpdateSol ( mlPdeSys->GetSolPdeIndex(), EPS, pdeSys->KKoffset );
 
@@ -851,11 +837,4 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   }
 
-
 }
-
-
-
-
-
-

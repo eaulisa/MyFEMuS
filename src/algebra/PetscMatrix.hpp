@@ -55,13 +55,7 @@ EXTERN_C_FOR_PETSC_END
 #define semiparallel_only()
 #endif
 
-
-
 namespace femus {
-
-
-
-
 
 // =======================================================
 // Petsc matrix
@@ -88,7 +82,7 @@ namespace femus {
                  const std::vector< int > & n_nz, const std::vector< int > & n_oz);
 
       void init (const int nr, const int nc, const std::vector < SparseMatrix*> &P);
-            
+
       void init (const int m,  const int n) {
         _m = m;
         _n = n;
@@ -103,7 +97,6 @@ namespace femus {
       void zero_rows (std::vector<int> & rows, double diag_value = 0.0); ///< set  rows to zero
       void close() const;///< close
       void flush() const;///< close
-
 
       // Returns -------------------------------------------
       /// PETSc matrix context pointer
@@ -121,7 +114,7 @@ namespace femus {
       ///    Return the value of the entry  (i,j). Do not use
       double operator() (const int i, const int j) const;
       /// Return the row values
-      int MatGetRowM (const int i_val, int cols[] = PETSC_NULL , double vals[] = PETSC_NULL);
+      int MatGetRowM (const int i_val, int cols[] = PETSC_NULLPTR, double vals[] = PETSC_NULLPTR);
 
       // Setting -------------------------------------
       /** @deprecated */
@@ -164,7 +157,7 @@ namespace femus {
 
       void matrix_RightMatMult (const SparseMatrix &mat_A);
       void matrix_LeftMatMult (const SparseMatrix &mat_A);
-      
+
       void RemoveZeroEntries(double & tolerance);
 
       void matrix_get_diagonal_values (const std::vector< int > &index, std::vector<double> &value) const ;
@@ -183,14 +176,13 @@ namespace femus {
       /// Petsc matrix has been closed and fully assembled
       bool closed() const;
 
-
       // print -----------------------------------------------------
       void print_personal (std::ostream& os = std::cout) const; ///< print personal
       void print_personal (const std::string name = "NULL") const; ///< print
       void print_hdf5 (const std::string name = "NULL") const;  ///< print hdf5
       /** Print  to Matlab format */
       void print_matlab (const std::string& name, const std::string& format) const;
-            
+
       void draw () const;
 
       // functions ---------------------------------------------------
@@ -203,9 +195,7 @@ namespace femus {
 
       void swap (PetscMatrix &);
 
-
 // ========================================================
-
 
     protected:
       ///  get "submatrix" from sparse matrix.
@@ -213,7 +203,6 @@ namespace femus {
                                    const std::vector<int>& rows,
                                    const std::vector<int>& cols,
                                    const bool reuse_submatrix) const;
-
 
   };
 
@@ -245,7 +234,7 @@ namespace femus {
     ierr = MatAssemblyEnd (_mat, MAT_FINAL_ASSEMBLY);
     CHKERRABORT (MPI_COMM_WORLD, ierr);
   }
-  
+
   inline void PetscMatrix::flush() const {
     parallel_only();
     int ierr = 0;
@@ -402,7 +391,6 @@ namespace femus {
     return value;
   }
 
-
 // ========================================================
   inline int PetscMatrix::MatGetRowM (const int i_val, // index i
                                       int cols[],
@@ -421,14 +409,13 @@ namespace femus {
     ierr  = MatRestoreRow (_mat, i_val, &ncols, &petsc_cols, &petsc_row);
     CHKERRABORT (MPI_COMM_WORLD, ierr);
     // print row
-    if (&cols[0] != PETSC_NULL)   for (int j = 0; j < ncols; j++)  {
+    if (&cols[0] != PETSC_NULLPTR)   for (int j = 0; j < ncols; j++)  {
         cols[j] = petsc_cols[j];
         vals[j] = petsc_row[j];
       }
     // return # of columns
     return ncols;
   }
-
 
 // ================================================
   inline bool PetscMatrix::closed() const {
@@ -501,12 +488,7 @@ namespace femus {
 
   }
 
-
-
-
-
 } //end namespace femus
-
 
 #endif // #ifdef LIBMESH_HAVE_PETSC
 #endif // #ifdef __petsc_matrix_h__

@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 #include "Mesh.hpp"
 #include "NumericVector.hpp"
@@ -30,15 +31,13 @@
 namespace femus {
 
   class basis;
-  
+  class elem_type;
   class Mesh;
-  
   class NumericVector;
   /**
    * The elem class
   */
   class elem {
-
 
     public:
 
@@ -48,18 +47,12 @@ namespace femus {
       //elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal, const std::vector < double >& localizedElementType);
       elem(elem* elc, const unsigned refindex, const std::vector < double >& coarseAmrLocal);
 
+      elem(Mesh* mshc);
+
       void ShrinkToFit();
 
       /** destructor */
       ~elem();
-
-      void ScatterElementNearFace();
-      void LocalizeElementNearFace(const unsigned& jproc);
-      void FreeLocalizedElementNearFace();
-
-      void ScatterElementDof();
-      void LocalizeElementDof(const unsigned &jproc);
-      void FreeLocalizedElementDof();
 
       // reorder the element according to the new element mapping
       void ReorderMeshElements(const std::vector < unsigned >& elementMapping);
@@ -83,10 +76,14 @@ namespace femus {
       short unsigned GetElementType(const unsigned& iel);
 
       /** To be Added */
-      MyVector< short unsigned > & GetElementTypeArray() { return _elementType; }
-      
-      MyMatrix <int> &  GetElementNearFaceArray() { return _elementNearFace; } 
-    
+      MyVector< short unsigned > & GetElementTypeArray() {
+        return _elementType;
+      }
+
+      MyMatrix <int> &  GetElementNearFaceArray() {
+        return _elementNearFace;
+      }
+
       /** To be Added */
       void SetElementType(const unsigned& iel, const short unsigned& value);
 
@@ -109,7 +106,7 @@ namespace femus {
       void SetElementGroupNumber(const unsigned& value);
 
       unsigned GetFaceType(const unsigned& ielt, const unsigned& jface);
-      
+
       /** To be Added */
       int GetFaceElementIndex(const unsigned& iel, const unsigned& iface);
 
@@ -117,7 +114,7 @@ namespace femus {
 
       /** To be Added */
       void SetFaceElementIndex(const unsigned& iel, const unsigned& iface, const int& value);
-      
+
       /** To be Added */
       unsigned GetIndex(const char name[]) const;
 
@@ -129,6 +126,8 @@ namespace femus {
 
       /** To be Added */
       void AddToElementNumber(const unsigned& value, short unsigned ielt);
+
+      void BroadcastElementNumber();
 
       /** To be Added */
       unsigned GetRefinedElementNumber() const {
@@ -154,6 +153,7 @@ namespace femus {
 
       /** To be Added */
       void SetChildElementDof(elem* elf);
+      void SetChildElementDof(Mesh* meshf);
 
       unsigned GetChildElementDof(const unsigned& iel, const unsigned& i0, const unsigned i1);
 
@@ -175,7 +175,6 @@ namespace femus {
         return _elementNearElement[iel][j];
       };
 
-
       //BEGIN _ElementLevel functions
       void SetElementLevel(const unsigned& iel, const short unsigned& level) {
         _elementLevel[iel] = level;
@@ -183,12 +182,29 @@ namespace femus {
       short unsigned GetElementLevel(const unsigned &jel) {
         return _elementLevel[jel];
       }
+
+      const MyVector< short unsigned>& GetElementLevel() {
+        return _elementLevel;
+      }
+
       void ScatterElementQuantities() {
         _elementLevel.scatter(_elementOffset);
         _elementType.scatter(_elementOffset);
         _elementMaterial.scatter(_elementOffset);
         _elementGroup.scatter(_elementOffset);
       }
+
+      void ScatterElementQuantities(const unsigned lproc) {
+        _elementLevel.scatter(_elementOffset, lproc);
+        _elementType.scatter(_elementOffset, lproc);
+        _elementMaterial.scatter(_elementOffset, lproc);
+        _elementGroup.scatter(_elementOffset, lproc);
+      }
+
+      void ScatterElementChildren(const unsigned lproc) {
+        _childElem.scatter(_elementOffset, lproc);
+      }
+
       void LocalizeElementQuantities(const unsigned &lproc) {
         _elementLevel.broadcast(lproc);
         _elementType.broadcast(lproc);
@@ -202,6 +218,13 @@ namespace femus {
         _elementGroup.clearBroadcast();
       }
 
+      void StackElementQuantities(const unsigned &lproc) {
+        _elementLevel.stack(lproc);
+        _elementType.stack(lproc);
+        _elementMaterial.stack(lproc);
+        _elementGroup.stack(lproc);
+      }
+
       bool GetIfElementCanBeRefined(const unsigned& iel) {
         return (_elementLevel[iel] == _level) ? true : false;
       }
@@ -209,7 +232,6 @@ namespace femus {
         return GetIfElementCanBeRefined(iel);
       }
       //END _ElementLevel functions
-
 
       /** To be Added */
       void AllocateChildrenElement(const unsigned& ref_index, Mesh* msh);
@@ -236,25 +258,127 @@ namespace femus {
       }
 
       void GetAMRRestriction(Mesh *msh);
-      
-      void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter){
+
+      inline bool GetAMRBBoxIndex(
+        const unsigned ilevel,
+        const unsigned dim,
+        const std::vector<double>& xl,
+        const std::vector<std::vector<double*>>& xMin,
+        const std::vector<std::vector<double*>>& xMax,
+        const std::vector<std::vector<unsigned>>& bbxN,
+        unsigned& bbxIdx
+      ) const;
+
+      void GetAMRRestrictionOld(Mesh *msh);
+
+      void GetAMRInterfaceBoundingBoxes(
+        Mesh* msh,
+        const std::vector<MyVector<unsigned>>& interfaceElement,
+        std::vector<std::vector<double*>>& xMin,
+        std::vector<std::vector<double*>>& xMax,
+        std::vector<double>& xMinMemory,
+        std::vector<double>& xMaxMemory,
+        std::vector<std::vector<std::vector<unsigned>>>& bbx_to_elements,
+        std::vector<std::vector<unsigned>>& bbxN
+      );
+
+      void GetAMRRestrictionCandidateDataForLevelPair(
+        const unsigned ilevel,
+        const unsigned dim,
+        const unsigned jMin,
+        const unsigned jSize,
+        MyMatrix<unsigned>& interfaceDofJ,
+        MyMatrix<unsigned>& levelInterfaceSolidMarkJ,
+        std::vector<MyMatrix<double>>& interfaceNodeCoordinatesJ,
+        const std::vector<std::vector<double*>>& xMin,
+        const std::vector<std::vector<double*>>& xMax,
+        std::vector<std::vector<unsigned>>& jDof_r,
+        std::vector<std::vector<unsigned>>& jSolidMark_r,
+        std::vector<std::vector<std::vector<double>>>& jCoordinate_r
+      ) ;
+
+      void SetMaterialElementCounter( std::vector<unsigned> materialElementCounter) {
         _materialElementCounter = materialElementCounter;
       }
-      
-      std::vector<unsigned> GetMaterialElementCounter(){
+
+      std::vector<unsigned> GetMaterialElementCounter() {
         return _materialElementCounter;
       }
-      
-      unsigned GetFaceRangeStart(const unsigned &ielt) const;
-      
-      unsigned GetFaceRangeEnd(const unsigned &ielt) const;
-      
-      const MyVector< short unsigned> GetElementMaterial(){return _elementMaterial;}
-      
+
+      unsigned GetFaceRangeStart(const unsigned & ielt) const;
+
+      unsigned GetFaceRangeEnd(const unsigned & ielt) const;
+
+      const MyVector< short unsigned> GetElementMaterial() {
+        return _elementMaterial;
+      }
+
+      void ClearChilderElements() {
+        _childElem.clear();
+        _childElemDof.clear();
+        _nelr = 0;
+      }
+
+      unsigned GetTopLevel() {
+        return _level;
+      }
+
+      unsigned GetChild(const unsigned iel, const unsigned j) {
+        return _childElem[iel][j];
+      }
+
+      inline void StackChildElement(const unsigned lproc) {
+        _childElem.stack(lproc);
+      }
+
+      inline void StackChildElementDof(const unsigned lproc) {
+        _childElemDof.stack(lproc);
+      }
+
+      inline void ScatterChildElement(const unsigned lproc) {
+        _childElem.scatter(_elementOffset, lproc);
+      }
+
+      inline void ScatterChildElementDof(const unsigned lproc) {
+        _childElemDof.scatter(_elementOffset, lproc);
+      }
+
+      inline void ScatterElementDof() {
+        _elementDof.scatter(_elementOffset);
+      }
+      inline void ScatterElementDof(const unsigned lproc) {
+        _elementDof.scatter(_elementOffset, lproc);
+      }
+      inline void StackElementDof(const unsigned lproc) {
+        _elementDof.stack(lproc);
+      }
+      inline void LocalizeElementDof(const unsigned & jproc) {
+        _elementDof.broadcast(jproc);
+      }
+      inline void FreeLocalizedElementDof() {
+        _elementDof.clearBroadcast();
+      }
+
+      inline void ScatterElementNearFace() {
+        _elementNearFace.scatter(_elementOffset);
+      };
+      inline void ScatterElementNearFace(const unsigned lproc) {
+        _elementNearFace.scatter(_elementOffset, lproc);
+      };
+      inline void StackElementNearFace(const unsigned lproc) {
+        _elementNearFace.stack(lproc);
+      };
+      inline void LocalizeElementNearFace(const unsigned & jproc) {
+        _elementNearFace.broadcast(jproc);
+      }
+      inline void FreeLocalizedElementNearFace() {
+        _elementNearFace.clearBroadcast();
+      }
+
     private:
 
       elem* _coarseElem;
-            
+
       unsigned _iproc;
       unsigned _nprocs;
 
@@ -282,6 +406,23 @@ namespace femus {
       MyMatrix <unsigned> _elementNearVertex;
       MyMatrix <unsigned> _elementNearElement;
 
+    public:
+      void BuildElementNearElement(Mesh *msh, const bool updateElementNearFace);
+      void BuildEdgePoints(Mesh *msh);
+      std::unordered_map<unsigned, std::vector<unsigned>>& GetGhostElementLayer(const unsigned jproc);
+      const std::unordered_map<unsigned, std::vector<unsigned>>& GetGhostElementLayer(const unsigned jproc) const;
+      unsigned GetGhostElementType(const unsigned jproc, const unsigned iel) const;
+      unsigned GetGhostElementLevel(const unsigned jproc, const unsigned iel) const;
+      bool GetIfGhostElementFatherHasBeenRefined(const unsigned jproc, const unsigned iel) const;
+      void DebugCheckConnectivity(const unsigned nnodes, const unsigned connectivityType);
+      void DebugCheckNodeLayout(Mesh *msh);
+
+    private:
+      std::vector<std::unordered_map<unsigned, std::vector<unsigned>>> _ghostElementLayer;
+      std::vector<std::unordered_map<unsigned, unsigned>> _ghostElementType;
+      std::vector<std::unordered_map<unsigned, unsigned>> _ghostElementLevel;
+      std::vector<std::vector<unsigned>> _ghostElements_send;
+
   };
 
 //linear, quadratic, biquadratic, piecewise costant, piecewise linear discontinuous
@@ -293,14 +434,14 @@ namespace femus {
     {3, 6, 7, 1, 3}, //tri
     {2, 3, 3, 1, 2}  //line
   };
-  
+
   const unsigned FACERANGE[6][2] = {
-    {20,26},
-    {10,14},
-    {15,20},
-    {4,8},
-    {3,6},
-    {2,3}
+    {20, 26},
+    {10, 14},
+    {15, 20},
+    {4, 8},
+    {3, 6},
+    {2, 3}
   };
 
   /**
@@ -358,7 +499,6 @@ namespace femus {
     }
   };
 
-
   const unsigned NFACENODES[6][6][3] = {
     { {4, 8, 9}, // Hex
       {4, 8, 9},
@@ -392,9 +532,7 @@ namespace femus {
     }
   };
 
-
 } //end namespace femus
-
 
 const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rEED[elemem type][direction][0,1]
   {
@@ -420,7 +558,6 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 // const unsigned referenceElementPoint[6]={26,0,12,8,0,2};
 
 #endif
-
 
 // ********************  class solver**************************
 
@@ -449,14 +586,14 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 //           /|\
 //          / | \
 //         /  |  \
-//        9   |   8
+//        9   |12 8
 //       /    |    \
-//      /     |     \
-//     /      7      \
+//      /   14|  11 \
+//     / 13   7      \
 //    2-------|5------1
 //     \      |      /
 //      \     |     /
-//       \    |    /
+//       \    |10  /
 //        6   |   4
 //         \  |  /
 //          \ | /
@@ -467,18 +604,18 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 //          /|\
 //         / | \
 //        /  |  \
-//      11   |  10
+//      11  19   10
 //      /   14    \
 //     /     |     \
 //    /      |      \
-//   3--------9------4
-//   |  17   |  16   |
+//   3-------9-------4
+//   |  17  20  16   |
 //   |       2       |
 //   |      / \      |
 //   |     /   \     |
 //  12    / 15  \   13
 //   |   8       7   |
-//   |  /         \  |
+//   |  /   18    \  |
 //   | /           \ |
 //   |/             \|
 //   0-------6-------1
@@ -502,6 +639,6 @@ const unsigned referenceElementDirection[6][3][2] = { //Endpoint1, Endpoint2 =rE
 
 
 //
-//	0-----2-----1
+//  0-----2-----1
 //
 */

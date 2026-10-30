@@ -33,10 +33,7 @@
 #include "Casts.hpp"
 #include <numeric>
 
-
 namespace femus {
-
-
 
 // ============================================
 ///< This function returns the sum of values in a vector
@@ -126,7 +123,6 @@ namespace femus {
     CHKERRABORT(MPI_COMM_WORLD, ierr);
     this->_is_closed = false;
   }
-
 
 // ===============================================================
   void PetscVector::add_vector_blocked(const std::vector<double>& values,
@@ -330,7 +326,6 @@ namespace femus {
     }
   }
 
-
 // ========================================================
   void PetscVector::insert(const std::vector<double>& v,
                            const std::vector< int>& dof_indices) {
@@ -439,8 +434,6 @@ namespace femus {
 
     return *this;
   }
-
-
 
 // =========================================================
   NumericVector& PetscVector::operator = (const NumericVector& v_in) {
@@ -601,7 +594,7 @@ namespace femus {
 
     // Create the index set & scatter object
     if(idx.empty())  ierr = ISCreateGeneral(MPI_COMM_WORLD, n_sl + this->local_size(),
-                                              PETSC_NULL, PETSC_USE_POINTER, &is);
+                                              PETSC_NULLPTR, PETSC_USE_POINTER, &is);
     else  ierr = ISCreateGeneral(MPI_COMM_WORLD, n_sl + this->local_size(),
                                    &idx[0],  PETSC_USE_POINTER, &is);
     CHKERRABORT(MPI_COMM_WORLD, ierr);
@@ -683,8 +676,6 @@ namespace femus {
 
     return;
   }
-
-
 
 // =============================================================
   void PetscVector::localize(std::vector<double>& v_local) const {
@@ -907,7 +898,6 @@ namespace femus {
     VecView(_vec, binv);
     PetscViewerDestroy(&binv);
 
-
   }
 
   void PetscVector::BinaryLoad(const char* fileName) {
@@ -921,7 +911,4 @@ namespace femus {
 
 } //end namespace femus
 
-
-
 #endif
-

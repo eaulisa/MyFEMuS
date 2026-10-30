@@ -1,5 +1,4 @@
 
-
 bool GetPoint(const std::vector<double> &A,
               const std::vector<double> &N,
               std::vector<double> &PM);
@@ -17,7 +16,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
                             const std::vector<double> &P1,
                             const std::vector<double> &P2,
                             std::vector<std::vector<double>> &P) {
-
 
   std::vector<double> N1 = {A[3] + 2. * A[0] * P1[0] + A[1] * P1[1], A[4] + A[1] * P1[0] + 2. * A[2] * P1[1]};
 
@@ -78,8 +76,7 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
   P[n0] = (!reverse) ? P1 : P2;
   P[nk] = (!reverse) ? P2 : P1;
 
-
-  std::cout<<"aaaaaaaaaaa "<< n <<" "<<dt <<std::endl;
+  // std::cout<<"aaaaaaaaaaa "<< n <<" "<<dt <<std::endl;
 
   std::vector<double> Nt = N;
   for(unsigned k = 1, nk = n0 + signKappa; k < n - 1; k++, nk += signKappa) {
@@ -88,10 +85,10 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
     Nt = N;
   }
 
-  for(unsigned k = 0; k < n; k++) {
-    std::cout << k << " " << P[k][0] << " " << P[k][1] << std::endl;
-  }
-  std::cout << std::endl;
+  // for(unsigned k = 0; k < n; k++) {
+  //   std::cout << k << " " << P[k][0] << " " << P[k][1] << std::endl;
+  // }
+  // std::cout << std::endl;
 }
 
 bool GetPoint(const std::vector<double> &A,

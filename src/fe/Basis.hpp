@@ -17,7 +17,6 @@
  * This class contains the fe basis function and their derivatives
  */
 
-
 #ifndef __femus_fe_Basis_hpp__
 #define __femus_fe_Basis_hpp__
 
@@ -54,12 +53,13 @@ namespace femus {
         faceNumber[2] = faceNumber2;
       };
 
+      virtual ~basis() {};
+
       virtual void PrintType() const = 0 ;
 
       double eval_phi(const unsigned &j, const std::vector < double > &x) const {
         return eval_phi(this->GetIND(j), &x[0]);
       };
-
 
       double eval_dphidx(const unsigned &j, const std::vector < double > &x) const {
         return eval_dphidx(this->GetIND(j), &x[0]);
@@ -78,14 +78,14 @@ namespace femus {
 
         assert(dim < 3); //0, 1, 2
 
-        switch(dim) {
-          case(0): {
+        switch (dim) {
+          case (0): {
             return eval_dphidx(j, x);
           }
-          case(1): {
+          case (1): {
             return eval_dphidy(j, x);
           }
-          case(2): {
+          case (2): {
             return eval_dphidz(j, x);
           }
           default: {
@@ -119,8 +119,6 @@ namespace femus {
       double eval_d2phidzdx(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidzdx(this->GetIND(j), &x[0]);
       };
-
-
 
       virtual double eval_phi(const int *I, const double* x) const {
         std::cout << "Error this phi is not available for this element \n";
@@ -190,44 +188,93 @@ namespace femus {
 
     protected:
 
+      // //1D basis
+      // // linear lagrangian
+      // inline double lagLinear(const double& x, const int& i) const {
+      //   return (!i) * 0.5 * (1. - x) + !(i - 2) * 0.5 * (1. + x);
+      // }
+      // inline double dlagLinear(const double& x, const int& i) const {
+      //   return (!i) * (-0.5) + !(i - 2) * 0.5;
+      // }
+      //
+      // //quadratic lagrangian
+      // inline double lagQuadratic(const double& x, const int& i) const {
+      //   if(!i)
+      //     return (0.5) * (1. - x);
+      //   else if(!(i - 1))
+      //     return (1. - x) * (1. + x);
+      //   else
+      //     return (0.5) * (1. + x);
+      // }
+      //
+      // inline double dlagQuadratic(const double& x, const int& i) const {
+      //   return (!i) * (-0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (0.5);
+      // }
+      //
+      // inline double d2lagQuadratic(const double& x, const int& i) const {
+      //   return !(i - 1) * (-2.);
+      // }
+      //
+      // //bi-quadratic lagrangian
+      // inline double lagBiquadratic(const double& x, const int& i) const {
+      //   return !i * 0.5 * x * (x - 1.) + !(i - 1) * (1. - x) * (1. + x) + !(i - 2) * 0.5 * x * (1. + x);
+      // }
+      //
+      // inline double dlagBiquadratic(const double& x, const int& i) const {
+      //   return !i * (x - 0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (x + 0.5);
+      // }
+      //
+      // inline double d2lagBiquadratic(const double& x, const int& i) const {
+      //   return !i + !(i - 1) * (-2.) + !(i - 2);
+      // }
+
       //1D basis
-      // linear lagrangian
+// linear lagrangian
       inline double lagLinear(const double& x, const int& i) const {
-        return (!i) * 0.5 * (1. - x) + !(i - 2) * 0.5 * (1. + x);
-      }
-      inline double dlagLinear(const double& x, const int& i) const {
-        return (!i) * (-0.5) + !(i - 2) * 0.5;
+        if (!i) return 0.5 * (1. - x); // i = 0
+        else return 0.5 * (1. + x);   // i = 1
       }
 
-      //quadratic lagrangian
+      inline double dlagLinear(const double& x, const int& i) const {
+        if (!i) return -0.5; // i = 0
+        else return 0.5;    // i = 1
+      }
+
+// quadratic lagrangian
       inline double lagQuadratic(const double& x, const int& i) const {
-        if(!i)
-          return (0.5) * (1. - x);
-        else if(!(i - 1))
-          return (1. - x) * (1. + x);
-        else
-          return (0.5) * (1. + x);
+        if (!i) return 0.5 * (1. - x);    // i = 0
+        else if (i == 1) return 1. - x * x; // i = 1
+        else return 0.5 * (1. + x);       // i = 2
       }
 
       inline double dlagQuadratic(const double& x, const int& i) const {
-        return (!i) * (-0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (0.5);
+        if (!i) return -0.5;       // i = 0
+        else if (i == 1) return -2.*x; // i = 1
+        else return 0.5;           // i = 2
       }
 
       inline double d2lagQuadratic(const double& x, const int& i) const {
-        return !(i - 1) * (-2.);
+        if (i == 1) return -2.; // i = 1
+        else return 0.;        // i = 0, 2
       }
 
-      //bi-quadratic lagrangian
+// bi-quadratic lagrangian
       inline double lagBiquadratic(const double& x, const int& i) const {
-        return !i * 0.5 * x * (x - 1.) + !(i - 1) * (1. - x) * (1. + x) + !(i - 2) * 0.5 * x * (1. + x);
+        if (!i) return 0.5 * x * (x - 1.);   // i = 0
+        else if (i == 1) return 1. - x * x;  // i = 1
+        else return 0.5 * x * (1. + x);      // i = 2
       }
 
       inline double dlagBiquadratic(const double& x, const int& i) const {
-        return !i * (x - 0.5) + !(i - 1) * (-2.*x) + !(i - 2) * (x + 0.5);
+        if (!i) return x - 0.5;  // i = 0
+        else if (i == 1) return -2.*x; // i = 1
+        else return x + 0.5;     // i = 2
       }
 
       inline double d2lagBiquadratic(const double& x, const int& i) const {
-        return !i + !(i - 1) * (-2.) + !(i - 2);
+        if (!i) return 1.;   // i = 0
+        else if (i == 1) return -2.; // i = 1
+        else return 1.;      // i = 2
       }
 
       //2D basis
@@ -484,9 +531,7 @@ namespace femus {
       static const int IND[4][3];
       static const int KVERT_IND[32][2];
 
-
   };
-
 
   class hex0: public hex_const {
     public:
@@ -781,7 +826,6 @@ namespace femus {
 
   };
 
-
   //************************************************************
 
   class tet_lag : public basis {
@@ -821,10 +865,7 @@ namespace femus {
       static const unsigned fine2CoarseVertexMapping[8][4];
       static const unsigned faceDofs[4][7];
 
-
   };
-
-
 
   class TetLinear: public tet_lag {
     public:
@@ -1043,7 +1084,6 @@ namespace femus {
 
   };
 
-
   class QuadLinear: public quad_lag {
     public:
       QuadLinear(): quad_lag(4, 9) {};
@@ -1116,16 +1156,13 @@ namespace femus {
         return KVERT_IND[i];
       };
 
-
     protected:
 
       static const double X[12][2];
       static const int IND[3][2];
       static const int KVERT_IND[12][2];
 
-
   };
-
 
   class quad0: public quad_const {
     public:
@@ -1220,7 +1257,6 @@ namespace femus {
       static const unsigned fine2CoarseVertexMapping[4][3];
       static const unsigned faceDofs[3][3];
   };
-
 
   class TriLinear: public tri_lag {
     public:
@@ -1356,7 +1392,6 @@ namespace femus {
       };
   };
 
-
   //************************************************************
 
   class line_lag : public basis {
@@ -1445,7 +1480,6 @@ namespace femus {
 
   };
 
-
   class line0: public line_const {
     public:
       line0(): line_const(1, 2) { };
@@ -1465,7 +1499,6 @@ namespace femus {
 
   };
 
-
   class linepwLinear: public line_const {
     public:
       linepwLinear(): line_const(2, 4) { };
@@ -1481,9 +1514,6 @@ namespace femus {
 
   };
 
-
-
 }//end namespace femus
-
 
 #endif

@@ -26,7 +26,7 @@
 
 using namespace femus;
 
-double dt = 1.; 
+double dt = 1.;
 
 double k_v = 0.01;
 
@@ -58,11 +58,9 @@ double InitalValueT ( const std::vector < double >& x ) {
 //  return (- sin(pi*x[0]));
 }
 
-
 double InitalValueB ( const std::vector < double >& x ) {
   return 10.; //( H_shelf + H_0 / 2 * (1 + tanh(hh / phi)) );
 }
-
 
 bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time ) {
   bool dirichlet = false;
@@ -81,15 +79,13 @@ bool SetBoundaryCondition ( const std::vector < double >& x, const char SolName[
   return dirichlet;
 }
 
-
 void ETD ( MultiLevelProblem& ml_prob );
 
 void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler );
 
-
 int main ( int argc, char** args ) {
 
-  SlepcInitialize ( &argc, &args, PETSC_NULL, PETSC_NULL );
+  SlepcInitialize ( &argc, &args, PETSC_NULLPTR, PETSC_NULLPTR );
 
   // init Petsc-MPI communicator
   FemusInit mpinit ( argc, args, MPI_COMM_WORLD );
@@ -174,7 +170,7 @@ int main ( int argc, char** args ) {
   mlSol.GetWriter()->Write ( DEFAULT_OUTPUTDIR, "linear", print_vars, 0 );
 
   unsigned numberOfTimeSteps = 3209; //17h=1020 with dt=60, 17h=10200 with dt=6
-  dt = 1./10.;
+  dt = 1. / 10.;
   bool implicitEuler = true;
   for ( unsigned i = 0; i < numberOfTimeSteps; i++ ) {
     if ( wave == true ) assembly = ( i == 0 ) ? true : false;
@@ -187,7 +183,6 @@ int main ( int argc, char** args ) {
             static_cast<double> ( clock() - start_time ) / CLOCKS_PER_SEC << std::endl;
   return 0;
 }
-
 
 void ETD ( MultiLevelProblem& ml_prob ) {
 
@@ -223,7 +218,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
@@ -394,7 +388,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
         maxW[k - 1] = w[k - 1];
       }
     }
-
 
     for ( unsigned k = 0; k < NLayers; k++ ) {
 
@@ -568,9 +561,9 @@ void ETD ( MultiLevelProblem& ml_prob ) {
   MFNDestroy ( &mfn );
 
   //VecView(y,PETSC_VIEWER_STDOUT_WORLD);
-  
+
   //std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
-  
+
   sol->UpdateSol ( mlPdeSys->GetSolPdeIndex(), EPS, pdeSys->KKoffset );
 
   if ( twostage == true ) {
@@ -616,7 +609,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
         solvm[j] = ( *sol->_Sol[solIndexv[j]] ) ( i );
         solvp[j] = ( *sol->_Sol[solIndexv[j]] ) ( i + 1 );
-
 
         if ( i > start ) {
           solhm[j] = ( *sol->_Sol[solIndexh[j]] ) ( i - 1 );
@@ -693,7 +685,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
           maxW[k - 1] = w[k - 1];
         }
       }
-
 
       for ( unsigned k = 0; k < NLayers; k++ ) {
 
@@ -799,11 +790,11 @@ void ETD ( MultiLevelProblem& ml_prob ) {
     RES2->scale ( -1. );
     RES2->add ( *RES );
     RES2->add_vector ( *EPS, *KK );
-    RES2->scale ( -1. );    
+    RES2->scale ( -1. );
     //END ASSEMBLY R2
 
     EPS->zero();
-    
+
     //SLEPC
     MFN mfn;
     Mat A2 = ( static_cast<PetscMatrix*> ( KK ) )->mat();
@@ -812,9 +803,9 @@ void ETD ( MultiLevelProblem& ml_prob ) {
     //std::cout << "dt = " << dt << std::endl;
 
     Vec v2 = ( static_cast< PetscVector* > ( RES2 ) )->vec();
-    
+
     //VecView(v2,PETSC_VIEWER_STDOUT_WORLD);
-    
+
     Vec y2 = ( static_cast< PetscVector* > ( EPS ) )->vec();
 
     MFNCreate ( PETSC_COMM_WORLD, &mfn );
@@ -833,7 +824,7 @@ void ETD ( MultiLevelProblem& ml_prob ) {
     MFNDestroy ( &mfn );
 
     //VecView(y2,PETSC_VIEWER_STDOUT_WORLD);
-    
+
     sol->UpdateSol ( mlPdeSys->GetSolPdeIndex(), EPS, pdeSys->KKoffset );
 
   }
@@ -857,7 +848,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
       //if (i == 0) valueT = 0.;
       //if (i == msh->_dofOffset[solTypeHT][iproc + 1] - 1 ) valueT = 0.;
 
-
       sol->_Sol[solIndexT[k]]->set ( i, valueT );
     }
 
@@ -867,7 +857,6 @@ void ETD ( MultiLevelProblem& ml_prob ) {
 
   delete RES2;
 }
-
 
 void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
 
@@ -891,7 +880,6 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   std::vector < unsigned > solIndexh ( NLayers );
@@ -1058,7 +1046,6 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
       }
     }
 
-
     std::vector < double > k1_RK ( NLayers, 0. );
     std::vector < double > k2_RK ( NLayers, 0. );
     std::vector < double > k3_RK ( NLayers, 0. );
@@ -1159,7 +1146,6 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
       sol->_Sol[solIndexHT[k]]->close();
     }
 
-
     if ( implicitEuler == false ) {
       //BEGIN forward Euler for vertical diffusion
       std::vector < double > vert_diff ( NLayers, 0. );
@@ -1205,79 +1191,78 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
 
       std::vector <double> Trhs (NLayers, 0.);
       std::vector < std::vector < double > > sysMatrix ( NLayers );
-      
+
       for ( unsigned k = 0; k < NLayers; k++ ) {
         sysMatrix[k].assign( NLayers, 0. );
 
         double A = 0.;
-	double C = 0.;
-	double ht = 0.;
+        double C = 0.;
+        double ht = 0.;
         double hb = 0.;
 
-	if ( k > 0 ) {
+        if ( k > 0 ) {
           ht = ( solhm[k - 1] + solhm[k] + solhp[k - 1] + solhp[k] ) / 4.;
-	  A = solhm[k] * k_v / ht ;
+          A = solhm[k] * k_v / ht ;
         }
         else {
           ht = 0.5 * ( solhm[k] + solhp[k] );
         }
         if ( k < NLayers - 1 ) {
           hb = ( solhm[k] + solhm[k + 1] + solhp[k] + solhp[k + 1] ) / 4.;
-	  C = solhm[k] * k_v / hb;
-	  C /= (ht + hb) * 0.5 ;
-	  if(k > 0){
-	    A /= (ht + hb) * 0.5 ;
-	  }
+          C = solhm[k] * k_v / hb;
+          C /= (ht + hb) * 0.5 ;
+          if(k > 0) {
+            A /= (ht + hb) * 0.5 ;
+          }
         }
         else {
           hb = 0.5 * ( solhm[k] + solhp[k] );
-	  A /= (ht + hb) * 0.5 ;
+          A /= (ht + hb) * 0.5 ;
         }
-	
-	double B = 1. - A - C;
-	
-	sysMatrix[k][k] = B;
-	if(k > 0) sysMatrix[k][k-1] = A;
-	if(k < NLayers - 1) sysMatrix[k][k+1] = C;
-	
-	Trhs[k] = ( *sol->_Sol[solIndexHT[k]] ) ( i )/( *sol->_Sol[solIndexh[k]] ) ( i );
-	
+
+        double B = 1. - A - C;
+
+        sysMatrix[k][k] = B;
+        if(k > 0) sysMatrix[k][k - 1] = A;
+        if(k < NLayers - 1) sysMatrix[k][k + 1] = C;
+
+        Trhs[k] = ( *sol->_Sol[solIndexHT[k]] ) ( i ) / ( *sol->_Sol[solIndexh[k]] ) ( i );
+
       }
-           
+
       //risolvere il sistema Nlayer X Nlayer
       KSP                solver;
       Mat                triDiagA;
-      Vec                b,x;
-      PetscInt           k,j,nlayers;
+      Vec                b, x;
+      PetscInt           k, j, nlayers;
       PetscErrorCode     ierr;
-      
+
       nlayers = static_cast<PetscInt> (NLayers);
       ierr = VecCreate(PETSC_COMM_WORLD, &x);
       ierr = VecSetSizes(x, PETSC_DECIDE, nlayers);
       ierr = VecSetFromOptions(x);
-      ierr = VecDuplicate(x,&b);
-      ierr = MatCreate(PETSC_COMM_WORLD,&triDiagA);
-      ierr = MatSetSizes(triDiagA,PETSC_DECIDE,PETSC_DECIDE, nlayers, nlayers);
+      ierr = VecDuplicate(x, &b);
+      ierr = MatCreate(PETSC_COMM_WORLD, &triDiagA);
+      ierr = MatSetSizes(triDiagA, PETSC_DECIDE, PETSC_DECIDE, nlayers, nlayers);
       ierr = MatSetFromOptions(triDiagA);
       ierr = MatSetUp(triDiagA);
-      
-      for (k=0; k<nlayers; k++) {
-        MatSetValues(triDiagA,1,&k,1,&k,&sysMatrix[k][k],INSERT_VALUES);
-	VecSetValues(b, 1, &k, &Trhs[k], INSERT_VALUES );
-	if(k>0){
-	  j=k-1;
-	  MatSetValues(triDiagA,1,&k,1,&j,& sysMatrix[k-1][k],INSERT_VALUES);
-	}
-	if(k<nlayers-1){
-	  j=k+1;
-	  MatSetValues(triDiagA,1,&k,1,&j,&sysMatrix[k][k+1],INSERT_VALUES);
-	}
+
+      for (k = 0; k < nlayers; k++) {
+        MatSetValues(triDiagA, 1, &k, 1, &k, &sysMatrix[k][k], INSERT_VALUES);
+        VecSetValues(b, 1, &k, &Trhs[k], INSERT_VALUES );
+        if(k > 0) {
+          j = k - 1;
+          MatSetValues(triDiagA, 1, &k, 1, &j, & sysMatrix[k - 1][k], INSERT_VALUES);
+        }
+        if(k < nlayers - 1) {
+          j = k + 1;
+          MatSetValues(triDiagA, 1, &k, 1, &j, &sysMatrix[k][k + 1], INSERT_VALUES);
+        }
       }
-      
-      ierr = MatAssemblyBegin(triDiagA,MAT_FINAL_ASSEMBLY);
-      ierr = MatAssemblyEnd(triDiagA,MAT_FINAL_ASSEMBLY);
-      
-      
+
+      ierr = MatAssemblyBegin(triDiagA, MAT_FINAL_ASSEMBLY);
+      ierr = MatAssemblyEnd(triDiagA, MAT_FINAL_ASSEMBLY);
+
 //       PetscViewer    viewer;
 //       PetscViewerDrawOpen(PETSC_COMM_WORLD,NULL,NULL,0,0,900,900,&viewer);
 //       PetscObjectSetName((PetscObject)viewer,"implicit Euler matrix");
@@ -1285,20 +1270,19 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
 //       MatView(triDiagA,viewer);
 //       double a;
 //       std::cin>>a;
-      
-      
+
       ierr = KSPCreate(PETSC_COMM_WORLD, &solver);
-      ierr = KSPSetOperators(solver,triDiagA,triDiagA);
+      ierr = KSPSetOperators(solver, triDiagA, triDiagA);
       ierr = KSPSetType(solver, KSPRICHARDSON);
       ierr = KSPSolve(solver, b, x);
-      
-      //1. aggiornare solT con x 
+
+      //1. aggiornare solT con x
       for (k = 0; k < nlayers; k++ ) {
-	PetscScalar valueT = 0.;
-	ierr = VecGetValues(x, 1, &k, &valueT);
+        PetscScalar valueT = 0.;
+        ierr = VecGetValues(x, 1, &k, &valueT);
         sol->_Sol[solIndexT[k]]->set ( i, valueT );
         sol->_Sol[solIndexT[k]]->close();
-	
+
         //2. aggiornare solHT
         double valueH = ( *sol->_Sol[solIndexh[k]] ) ( i );
         double valueHT = valueH * valueT;
@@ -1344,9 +1328,4 @@ void RK4 ( MultiLevelProblem& ml_prob, const bool & implicitEuler ) {
 //   }
 //   sol->_Sol[solIndexeta]->add ( -1, *sol->_Sol[solIndexb] );
 
-
 }
-
-
-
-

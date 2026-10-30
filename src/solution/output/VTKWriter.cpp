@@ -32,7 +32,6 @@
 
 namespace femus {
 
-
   short unsigned int VTKWriter::femusToVtkCellType[3][6] = {{12, 10, 13, 9, 5, 3}, {25, 24, 26, 23, 22, 21}, {29, 24, 32, 28, 34, 21}};
   //http://www.vtk.org/doc/nightly/html/vtkCellType_8h.html#ab1d6fd1f3177b8a2a32bb018807151f8aff535f3b1a33b5e51d1ef1e3aed69447
 
@@ -44,50 +43,47 @@ namespace femus {
     _debugOutput = false;
   }
 
-  VTKWriter::~VTKWriter(){}
-  
+  VTKWriter::~VTKWriter() {}
 
-   void VTKWriter::Write(const std::string output_path, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
-       
+  void VTKWriter::Write(const std::string output_path, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
+
+    _gridn = _ml_mesh->GetNumberOfLevels();
+
     std::string filename_prefix;
     if( _ml_sol != NULL ) filename_prefix = "sol";
     else filename_prefix = "mesh";
-    
-      const std::string suffix_pre_extension = "";
-    
-       Write(_gridn, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
 
-   }
-   
+    const std::string suffix_pre_extension = "";
+
+    Write(_gridn, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
+
+  }
 
   void VTKWriter::Write(const unsigned my_level, const std::string output_path, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
-       
+
     std::string filename_prefix;
     if( _ml_sol != NULL ) filename_prefix = "sol";
     else filename_prefix = "mesh";
-    
-      const std::string suffix_pre_extension = "";
-    
-       Write(my_level, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
-       
-   }
-   
-   
-   
+
+    const std::string suffix_pre_extension = "";
+
+    Write(my_level + 1, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
+
+  }
+
   void VTKWriter::Write(const std::string filename_prefix, const std::string output_path, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
-       
-      const std::string suffix_pre_extension = "";
-      
-       Write(_gridn, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
-   }
-   
-  
+
+    const std::string suffix_pre_extension = "";
+
+    Write(_gridn, filename_prefix, output_path, suffix_pre_extension, order, vars, time_step );
+  }
+
   void VTKWriter::Write(const unsigned my_level, const std::string filename_prefix, const std::string output_path, const std::string suffix_pre_extension, const char order[], const std::vector < std::string >& vars, const unsigned time_step ) {
-      
-    std::ostringstream level_name_stream;    
+
+    std::ostringstream level_name_stream;
     level_name_stream << ".level" << my_level;
-    std::string level_name(level_name_stream.str());   
-       
+    std::string level_name(level_name_stream.str());
+
     // *********** open vtu files *************
     std::ofstream fout;
 
@@ -98,10 +94,9 @@ namespace femus {
 
     int icount;
     unsigned index = 0;
-    if( !strcmp( order, "linear" ) ) 	 index = 0; //linear
-    else if( !strcmp( order, "quadratic" ) ) 	 index = 1; //quadratic
+    if( !strcmp( order, "linear" ) )   index = 0; //linear
+    else if( !strcmp( order, "quadratic" ) )   index = 1; //quadratic
     else if( !strcmp( order, "biquadratic" ) ) index = 2; //biquadratic
-
 
     std::ostringstream filename;
     filename << output_path << "/" << dirnamePVTK << filename_prefix << level_name << "." << _iproc << "." << time_step << "." << order << suffix_pre_extension << ".vtu";
@@ -185,15 +180,39 @@ namespace femus {
     const unsigned dim_array_elvar [] = { nel * static_cast<unsigned>(sizeof( float )) };
     const unsigned dim_array_ndvar [] = { nvt * static_cast<unsigned>(sizeof( float )) };
 
-    // initialize common buffer_void memory
-    unsigned buffer_size = ( dim_array_coord[0] > dim_array_conn[0] ) ? dim_array_coord[0] : dim_array_conn[0];
-    void* buffer_void = new char [buffer_size];
-    char* buffer_char = static_cast <char*>( buffer_void );
+    // // initialize common buffer_void memory
+    // unsigned buffer_size = ( dim_array_coord[0] > dim_array_conn[0] ) ? dim_array_coord[0] : dim_array_conn[0];
+    // void* buffer_void = new char [buffer_size];
+    // char* buffer_char = static_cast <char*>( buffer_void );
+    //
+    // size_t cch;
+    // cch = b64::b64_encode( &buffer_char[0], buffer_size , NULL, 0 );
+    // vector <char> enc;
+    // enc.resize( cch );
+    // char* pt_char;
 
-    size_t cch;
-    cch = b64::b64_encode( &buffer_char[0], buffer_size , NULL, 0 );
-    vector <char> enc;
-    enc.resize( cch );
+    // initialize common buffer_void memory
+    unsigned buffer_size = (dim_array_coord[0] > dim_array_conn[0]) ? dim_array_coord[0] : dim_array_conn[0];
+
+    // A rank with zero owned points/elements gives buffer_size == 0.
+    // Keep at least one byte allocated so that buffer_char[0] is a valid
+    // address even when the encoded data length is zero.
+    const unsigned allocated_buffer_size = (buffer_size > 0u) ? buffer_size : 1u;
+
+    void* buffer_void = new char[allocated_buffer_size];
+    char* buffer_char = static_cast<char*>(buffer_void);
+
+    size_t cch = b64::b64_encode(buffer_char, buffer_size, NULL, 0);
+
+    vector<char> enc;
+
+    // The VTK binary arrays always write a size header first.
+    // Even when buffer_size == 0, this header is non-empty after Base64
+    // encoding, so enc must have enough storage for it.
+    const size_t header_cch = b64::b64_encode(&dim_array_coord[0], sizeof(dim_array_coord), NULL, 0);
+
+    enc.resize(std::max(cch, header_cch));
+
     char* pt_char;
 
     fout  << "    <Piece NumberOfPoints= \"" << nvt << "\" NumberOfCells= \"" << nel << "\" >" << std::endl;
@@ -240,7 +259,7 @@ namespace femus {
       for( unsigned ii = 0; ii < nvtOwned; ii++ ) {
         var_coord[ ii * 3 + i] = ( *mysol )( ii +  dofOffset );
       }
-      if( _ml_sol != NULL && _moving_mesh  && _moving_vars.size() > i){//_ml_mesh->GetLevel( 0 )->GetDimension() > i )  { // if moving mesh
+      if( _ml_sol != NULL && _moving_mesh  && _moving_vars.size() > i) { //_ml_mesh->GetLevel( 0 )->GetDimension() > i )  { // if moving mesh
         unsigned indDXDYDZ = _ml_sol->GetIndex( _moving_vars[i].c_str() );
         mysol->matrix_mult( *solution->_Sol[indDXDYDZ],
                             *mesh->GetQitoQjProjection( index, _ml_sol->GetSolutionType( indDXDYDZ ) ) );
@@ -273,7 +292,7 @@ namespace femus {
     }
 
     for( int i = 0; i < 3; i++ ) { // if moving mesh
-      if( _ml_sol != NULL && _moving_mesh  && _moving_vars.size() > i ){ //&& mesh->GetDimension() > i )  {
+      if( _ml_sol != NULL && _moving_mesh  && _moving_vars.size() > i ) { //&& mesh->GetDimension() > i )  {
         unsigned indDXDYDZ = _ml_sol->GetIndex( _moving_vars[i].c_str() );
         mysol->matrix_mult( *solution->_Sol[indDXDYDZ],
                             *mesh->GetQitoQjProjection( index, _ml_sol->GetSolutionType( indDXDYDZ ) ) );
@@ -289,7 +308,7 @@ namespace femus {
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
     //print coordinates array
-    cch = b64::b64_encode( &var_coord[0], dim_array_coord[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_coord[0], dim_array_coord[0], NULL, 0 );
     b64::b64_encode( &var_coord[0], dim_array_coord[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -314,7 +333,7 @@ namespace femus {
     icount = 0;
     for( int iel = elemetOffset; iel < elemetOffsetp1; iel++ ) {
       for( unsigned j = 0; j < mesh->GetElementDofNumber( iel, index ); j++ ) {
-        unsigned loc_vtk_conn = (mesh->GetElementType( iel ) == 0)? FemusToVTKorToXDMFConn[j] : j;
+        unsigned loc_vtk_conn = (mesh->GetElementType( iel ) == 0) ? FemusToVTKorToXDMFConn[j] : j;
         unsigned jdof = mesh->GetSolutionDof( loc_vtk_conn, iel, index );
         var_conn[icount] = ( jdof >= dofOffset ) ? jdof - dofOffset : nvtOwned + ghostMap[jdof];
         icount++;
@@ -328,7 +347,7 @@ namespace femus {
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
     //print connectivity array
-    cch = b64::b64_encode( &var_conn[0], dim_array_conn[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_conn[0], dim_array_conn[0], NULL, 0 );
     b64::b64_encode( &var_conn[0], dim_array_conn[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -359,7 +378,7 @@ namespace femus {
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
     //print offset array
-    cch = b64::b64_encode( &var_off[0], dim_array_off[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_off[0], dim_array_off[0], NULL, 0 );
     b64::b64_encode( &var_off[0], dim_array_off[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -392,7 +411,7 @@ namespace femus {
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
     //print element format array
-    cch = b64::b64_encode( &var_type[0], dim_array_type[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_type[0], dim_array_type[0], NULL, 0 );
     b64::b64_encode( &var_type[0], dim_array_type[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -431,7 +450,7 @@ namespace femus {
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
     //print regions array
-    cch = b64::b64_encode( &var_proc[0], dim_array_reg[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_proc[0], dim_array_reg[0], NULL, 0 );
     b64::b64_encode( &var_proc[0], dim_array_reg[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -439,9 +458,7 @@ namespace femus {
     fout  << std::endl;
     fout  << "        </DataArray>" << std::endl;
 
-
     //BEGIN SARA&GIACOMO
-
 
     //-------------------------------------------MATERIAL---------------------------------------------------------
 
@@ -457,26 +474,24 @@ namespace femus {
     float* var_el = static_cast< float*>( buffer_void );
     icount = 0;
     for( int iel = elemetOffset; iel < elemetOffsetp1; iel++ ) {
-      var_el[icount] = mesh->GetElementMaterial(iel); 
+      var_el[icount] = mesh->GetElementMaterial(iel);
       icount++;
     }
-    
+
     //print solution on element dimension
     cch = b64::b64_encode( &dim_array_elvar[0], sizeof( dim_array_elvar ), NULL, 0 );
     b64::b64_encode( &dim_array_elvar[0], sizeof( dim_array_elvar ), &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
-    
+
     //print solution on element array
-    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
     b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
     fout << std::endl;
     fout << "        </DataArray>" << std::endl;
-    
-    
-    
+
     //------------------------------------------------------GROUP-----------------------------------------------------------
 
     //NumericVector& group =  mesh->_topology->GetSolutionName( "Group" );
@@ -495,9 +510,9 @@ namespace femus {
     b64::b64_encode( &dim_array_elvar[0], sizeof( dim_array_elvar ), &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
-    
+
     //print solution on element array
-    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
     b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -505,7 +520,7 @@ namespace femus {
     fout << "        </DataArray>" << std::endl;
 
     //-------------------------------------------------------TYPE--------------------------------------------------
-   // NumericVector& type =  mesh->_topology->GetSolutionName( "Type" );
+    // NumericVector& type =  mesh->_topology->GetSolutionName( "Type" );
 
     fout  << "        <DataArray type=\"Float32\" Name=\"" << "TYPE" << "\" format=\"binary\">" << std::endl;
     Pfout << "      <PDataArray type=\"Float32\" Name=\"" << "TYPE" << "\" format=\"binary\"/>" << std::endl;
@@ -521,16 +536,15 @@ namespace femus {
     b64::b64_encode( &dim_array_elvar[0], sizeof( dim_array_elvar ), &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
-    
+
     //print solution on element array
-    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
     b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
     fout << std::endl;
     fout << "        </DataArray>" << std::endl;
 
-    
     //-------------------------------------------------------LEVEL--------------------------------------------------
     fout  << "      <DataArray type=\"Float32\" Name=\"" << "Level" << "\" format=\"binary\">" << std::endl;
     Pfout << "      <PDataArray type=\"Float32\" Name=\"" << "Level" << "\" format=\"binary\"/>" << std::endl;
@@ -547,14 +561,13 @@ namespace femus {
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
     //print solution on element array
-    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
     b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
     fout << std::endl;
     fout << "        </DataArray>" << std::endl;
-    
-    
+
     //END SARA&GIACOMO
 
     if( _ml_sol == NULL ) {
@@ -606,7 +619,7 @@ namespace femus {
             for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
 
             //print solution on element array
-            cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+            cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
             b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
             pt_char = &enc[0];
             for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -704,7 +717,6 @@ namespace femus {
     Pfout << "</VTKFile>" << std::endl;
     Pfout.close();
 
-
     //-----------------------------------------------------------------------------------------------------
     //free memory
     delete mysol;
@@ -712,17 +724,15 @@ namespace femus {
     //--------------------------------------------------------------------------------------------------------
     return;
   }
-  
-  
-  
+
   void VTKWriter::material(std::ofstream & fout, std::ofstream & Pfout,
-                           void* buffer_void, 
-                           const unsigned elemetOffset, const unsigned elemetOffsetp1, 
-                           const unsigned * dim_array_elvar, 
+                           void* buffer_void,
+                           const unsigned elemetOffset, const unsigned elemetOffsetp1,
+                           const unsigned * dim_array_elvar,
                            const Mesh * mesh,
                            std::vector <char> & enc) const { //TODO this function does not work, it prints infty
-                               
-      //-------------------------------------------MATERIAL---------------------------------------------------------
+
+    //-------------------------------------------MATERIAL---------------------------------------------------------
 
     //NumericVector& material =  mesh->_topology->GetSolutionName( "Material" );
 
@@ -732,7 +742,7 @@ namespace femus {
     float* var_el = static_cast< float*>( buffer_void );
     int icount = 0;
     for( int iel = elemetOffset; iel < elemetOffsetp1; iel++ ) {
-      var_el[icount] = mesh->GetElementMaterial(iel); 
+      var_el[icount] = mesh->GetElementMaterial(iel);
       //std::cout<< var_el[icount] <<" ";
       icount++;
     }
@@ -742,9 +752,9 @@ namespace femus {
     b64::b64_encode( &dim_array_elvar[0], sizeof( dim_array_elvar ), &enc[0], cch );
     char* pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
-    
+
     //print solution on element array
-    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0] , NULL, 0 );
+    cch = b64::b64_encode( &var_el[0], dim_array_elvar[0], NULL, 0 );
     b64::b64_encode( &var_el[0], dim_array_elvar[0], &enc[0], cch );
     pt_char = &enc[0];
     for( unsigned i = 0; i < cch; i++, pt_char++ ) fout << *pt_char;
@@ -754,5 +764,3 @@ namespace femus {
   }
 
 } //end namespace femus
-
-

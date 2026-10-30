@@ -85,7 +85,7 @@ unsigned numberOfUniformLevels = 4; //refinement for the PDE mesh
 int main (int argc, char** argv) {
 
   PetscErrorCode ierr;
-  ierr = SlepcInitialize (&argc, &argv, PETSC_NULL, PETSC_NULL);
+  ierr = SlepcInitialize (&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
 
   // init Petsc-MPI communicator
   FemusInit mpinit (argc, argv, MPI_COMM_WORLD);
@@ -130,7 +130,6 @@ int main (int argc, char** argv) {
   mlSol.GenerateBdc ("All");
   //END
 
-
   //BEGIN define FEM system for eig problem
   MultiLevelProblem ml_prob (&mlSol);
   // ******* Add FEM system to the MultiLevel problem *******
@@ -168,7 +167,6 @@ int main (int argc, char** argv) {
   // ******* Add FEM system to the MultiLevel problem *******
   LinearImplicitSystem& systemSG = ml_probSG.add_system < LinearImplicitSystem > ("SG");
 
-
   for (unsigned i = 0; i < Jp.size(); i++) {
     char name[10];
     sprintf (name, "uSG%d", i);
@@ -198,8 +196,6 @@ int main (int argc, char** argv) {
   systemSG.SetTolerances (1.e-10, 1.e-10, 1.e+50, 4000);
   //END
 
-
-
 //BEGIN solve eigenproblem to get the KL functions
   GetEigenPair (ml_prob, numberOfEigPairs, eigenvalues);   //solve the generalized eigenvalue problem and compute the eigenpairs
 
@@ -209,11 +205,9 @@ int main (int argc, char** argv) {
 
 //END
 
-
 //BEGIN solve SGM system
   systemSG.MGsolve();
 //END
-
 
   //BEGIN post processing
   std::vector <double> alphas;
@@ -230,8 +224,6 @@ int main (int argc, char** argv) {
   //mlSol.GetWriter()->SetDebugOutput(true);
   mlSol.GetWriter()->Write (DEFAULT_OUTPUTDIR, "biquadratic", print_vars, 0);
   //END
-
-
 
   MultiLevelMesh mlMshHisto;
   MultiLevelMesh mlMshHistoFinest;
@@ -257,7 +249,6 @@ int main (int argc, char** argv) {
   std::vector< std::vector <double > > sgmQoIStandardized;
   std::vector< std::vector <double > > sgmQoIStandardizedFinest;
   GetQoIStandardizedSamples (alphas, sgmQoIStandardized, sgmQoIStandardizedFinest, dimCoarseBox);
-
 
   MultiLevelSolution mlSolHisto (&mlMshHisto);
   MultiLevelSolution mlSolHistoFinest (&mlMshHistoFinest);
@@ -303,7 +294,6 @@ int main (int argc, char** argv) {
 
   return 0;
 
-
 } //end main
 
 void GetEigenPair (MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std::vector < std::pair<double, double> >& eigenvalues) {
@@ -329,7 +319,6 @@ void GetEigenPair (MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std:
 
   unsigned    iproc = msh->processor_id(); // get the process_id (for parallel computation)
   unsigned    nprocs = msh->n_processors(); // get the process_id (for parallel computation)
-
 
   //solution variable
   unsigned soluIndex;
@@ -746,7 +735,6 @@ void GetEigenPair (MultiLevelProblem& ml_prob, const int& numberOfEigPairs, std:
   vector < double >  eigenFunctionCheck (numberOfEigPairs);   // local solution
   vector < double >  eigenFunctionOldCheck (numberOfEigPairs);   // local solution
 
-
   for (unsigned i1 = 0; i1 < numberOfEigPairs; i1++) {
     for (unsigned j1 = 0; j1 < numberOfEigPairs; j1++) {
 
@@ -893,7 +881,6 @@ void GetCoefficientsForQuantityOfInterest (MultiLevelProblem& ml_prob, std::vect
       }
     }
 
-
     // *** Gauss point loop ***
     for (unsigned ig = 0; ig < msh->_finiteElement[ielGeom][soluType]->GetGaussPointNumber(); ig++) {
       // *** get gauss point weight, test function and test function partial derivatives ***
@@ -912,7 +899,6 @@ void GetCoefficientsForQuantityOfInterest (MultiLevelProblem& ml_prob, std::vect
     } // end gauss point loop
 
   } //end element loop for each process
-
 
   for (unsigned j = 0; j < Jp.size(); j++) {
     alphas[j] = 0.;
@@ -957,7 +943,6 @@ void GetMomentsAndCumulants (std::vector <double>& alphas) {
     const std::vector < std::vector < double > >  & multivariatePoly = myuq.GetMultivariatePolynomial (numberOfQuadraturePoints, pIndex, numberOfEigPairs);
     const std::vector < double > & multivariateQuadratureWeights = myuq.GetMultivariateWeights (numberOfQuadraturePoints, pIndex, numberOfEigPairs);
 
-
     //BEGIN computation of the raw moments
     for (unsigned p = 0; p < totMoments; p++) {
       moments[p] = 0.;
@@ -980,7 +965,6 @@ void GetMomentsAndCumulants (std::vector <double>& alphas) {
     meanQoI = moments[0];
     //END
 
-
     //BEGIN computation of the variance and standard deviation of QoI
 //     varianceQoI = moments[1] - meanQoI * meanQoI;
 
@@ -1000,7 +984,6 @@ void GetMomentsAndCumulants (std::vector <double>& alphas) {
     stdDeviationQoI = sqrt (varianceQoI);
     //END
 
-
     //BEGIN computation of the raw moments of the standardized variable
     for (unsigned p = 0; p < totMoments; p++) {
       momentsStandardized[p] = 0.;
@@ -1019,7 +1002,6 @@ void GetMomentsAndCumulants (std::vector <double>& alphas) {
     }
 
     //END
-
 
     //BEGIN computation of the CUMULANTS
     cumulants[0] = moments[0];
@@ -1070,7 +1052,6 @@ void GetMomentsAndCumulants (std::vector <double>& alphas) {
     }
 
     //END
-
 
     //BEGIN Plot moments and cumulants
 
@@ -1218,7 +1199,7 @@ void PlotGCandEDExpansion() {
         d6gaussian = (1.) * gaussian * (pow (t, 6) - 15 * pow (t, 4) + 45 * t * t - 15);
 
         generalizedGC3Terms = generalizedGC2Terms - 1. / 6 * (cumulantsStandardized[2] + 3 * (cumulantsStandardized[1] - 1.) * cumulantsStandardized[0]
-                                                              + pow (cumulantsStandardized[0], 3)) * d3gaussian;
+                              + pow (cumulantsStandardized[0], 3)) * d3gaussian;
 
         std::cout << generalizedGC3Terms << " ";
 
@@ -1229,28 +1210,28 @@ void PlotGCandEDExpansion() {
           d9gaussian = (- 1.) * gaussian * (pow (t, 9) - 36. * pow (t, 7) + 378. * pow (t, 5) - 1260. * t * t * t + 945. * t) ;
 
           generalizedGC4Terms = generalizedGC3Terms + 1. / 24 * (cumulantsStandardized[3] + 4. * cumulantsStandardized[2] * cumulantsStandardized[0]
-                                                                 + 3. * pow ( (cumulantsStandardized[1] - 1.), 2) + 6. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 2)
-                                                                 + pow (cumulantsStandardized[0], 4)) * d4gaussian;
+                                + 3. * pow ( (cumulantsStandardized[1] - 1.), 2) + 6. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 2)
+                                + pow (cumulantsStandardized[0], 4)) * d4gaussian;
 
           std::cout << generalizedGC4Terms << " ";
 
           if (totMoments > 4) {
 
             generalizedGC5Terms = generalizedGC4Terms - 1. / 120 * (cumulantsStandardized[4] + 5. * cumulantsStandardized[3] * cumulantsStandardized[0]
-                                                                    + 10. * cumulantsStandardized[2] * (cumulantsStandardized[1] - 1.) + 10. * cumulantsStandardized[2] * pow (cumulantsStandardized[0], 2)
-                                                                    + 15. * pow ( (cumulantsStandardized[1] - 1.), 2) * cumulantsStandardized[0] + 10. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 3)
-                                                                    + pow (cumulantsStandardized[0], 5)) * d5gaussian;
+                                  + 10. * cumulantsStandardized[2] * (cumulantsStandardized[1] - 1.) + 10. * cumulantsStandardized[2] * pow (cumulantsStandardized[0], 2)
+                                  + 15. * pow ( (cumulantsStandardized[1] - 1.), 2) * cumulantsStandardized[0] + 10. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 3)
+                                  + pow (cumulantsStandardized[0], 5)) * d5gaussian;
 
             std::cout << generalizedGC5Terms << " ";
 
             if (totMoments > 5) {
 
               generalizedGC6Terms = generalizedGC5Terms + 1. / 720 * (cumulantsStandardized[5] + 6. * cumulantsStandardized[4] * cumulantsStandardized[0]
-                                                                      + 15. * cumulantsStandardized[3] * (cumulantsStandardized[1] - 1.) + 15. * cumulantsStandardized[3] * pow (cumulantsStandardized[0], 2)
-                                                                      + 10. * pow (cumulantsStandardized[2], 2) + 60. * cumulantsStandardized[2] * (cumulantsStandardized[1] - 1.) * cumulantsStandardized[0]
-                                                                      + 20. * cumulantsStandardized[2] * pow (cumulantsStandardized[0], 3) + 15. * pow ( (cumulantsStandardized[1] - 1.), 3)
-                                                                      + 45. * pow ( (cumulantsStandardized[1] - 1.), 2) * pow (cumulantsStandardized[0], 2) + 15. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 4)
-                                                                      +  pow (cumulantsStandardized[0], 6)) * d6gaussian;
+                                    + 15. * cumulantsStandardized[3] * (cumulantsStandardized[1] - 1.) + 15. * cumulantsStandardized[3] * pow (cumulantsStandardized[0], 2)
+                                    + 10. * pow (cumulantsStandardized[2], 2) + 60. * cumulantsStandardized[2] * (cumulantsStandardized[1] - 1.) * cumulantsStandardized[0]
+                                    + 20. * cumulantsStandardized[2] * pow (cumulantsStandardized[0], 3) + 15. * pow ( (cumulantsStandardized[1] - 1.), 3)
+                                    + 45. * pow ( (cumulantsStandardized[1] - 1.), 2) * pow (cumulantsStandardized[0], 2) + 15. * (cumulantsStandardized[1] - 1.) * pow (cumulantsStandardized[0], 4)
+                                    +  pow (cumulantsStandardized[0], 6)) * d6gaussian;
 
               std::cout << generalizedGC6Terms << " \n ";
 
@@ -1313,9 +1294,9 @@ void PlotGCandEDExpansion() {
 
         d8gaussian = (1.) * gaussian * (1. / 16. * (1680. - 6720. * t * t + 3360. * pow (t, 4) - 448. * pow (t, 6) + 16. * pow (t, 8)));
         d10gaussian = (1.) * gaussian * (1. / 32. * (- 30240. + 151200. *  t * t - 100800. * pow (t, 4) + 20160. * pow (t, 6) - 1440. * pow (t, 8)
-                                                     + 32. * pow (t, 10)));
+                                         + 32. * pow (t, 10)));
         d12gaussian = (1.) * gaussian * (1. / 64. * (665280. - 3991680. * t * t + 3326400. * pow (t, 4) - 887040. * pow (t, 6) + 95040. * pow (t, 8)
-                                                     - 4224. * pow (t, 10) + 64. * pow (t, 12)));
+                                         - 4224. * pow (t, 10) + 64. * pow (t, 12)));
 
         lambda6 = cumulants[5] / pow (stdDeviationQoI, 6);
 
@@ -1332,9 +1313,7 @@ void PlotGCandEDExpansion() {
 
   //END
 
-
 }
-
 
 void GetQoIStandardizedSamples (std::vector< double >& alphas, std::vector< std::vector <double > > & sgmQoIStandardized, std::vector< std::vector <double > > &                               sgmQoIStandardizedFinest, const unsigned & dimCoarseBox) {
 
@@ -1357,7 +1336,6 @@ void GetQoIStandardizedSamples (std::vector< double >& alphas, std::vector< std:
   boost::random::uniform_real_distribution<> un1 (- 0.5, 0.49999999999);
   boost::variate_generator < boost::mt19937&,
         boost::random::uniform_real_distribution<> > var_unif1 (rng2, un1);
-
 
   sgmQoIStandardized.resize (numberOfSamples);
 
@@ -1429,7 +1407,6 @@ void GetQoIStandardizedSamples (std::vector< double >& alphas, std::vector< std:
 //                 sgmQoIStandardized[m][idim] = normalSample;
 //             }
 
-
     }
   }
 
@@ -1481,9 +1458,7 @@ void GetQoIStandardizedSamples (std::vector< double >& alphas, std::vector< std:
 
     myuq.ClearPolynomialHistogram ();
 
-
   }
-
 
 }
 
@@ -1613,8 +1588,6 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
     sol->_Sol[solIndexKDE]->close();
   }
 
-
-
 //     double integralLocal = 0;
 //     double integral;
 //     for(unsigned i =  msh->_dofOffset[solTypeHISTO][iproc]; i <  msh->_dofOffset[solTypeHISTO][iproc + 1]; i++) {
@@ -1631,7 +1604,6 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
 //     }
 //     sol->_Sol[solIndexHISTO]->close();
 
-
   if (histoFinest) {
 
 //BEGIN computation of histo finest
@@ -1644,16 +1616,13 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
     sprintf (name, "HISTO_F");
     double solIndexHISTOF = mlSolFinest->GetIndex (name);   // get the position of "Ti" in the sol object
 
-
     double dxF = (xMaxCoarseBox - xMinCoarseBox) / nxCoarseBoxFinest;   //mesh size assuming a coarse box is used
     double dyF = (dim > 1) ? (yMaxCoarseBox - yMinCoarseBox) / nyCoarseBoxFinest : 1. ;
     double dzF = (dim > 2) ? (zMaxCoarseBox - zMinCoarseBox) / nzCoarseBoxFinest : 1. ;
 
     double measureFinest = numberOfSamplesFinest * dxF * dyF * dzF;
 
-
     for (unsigned m = 0; m < numberOfSamplesFinest; m++) {
-
 
       if (dim == 1) {
 
@@ -1700,7 +1669,6 @@ void GetHistogramAndKDE (std::vector< std::vector <double > > & sgmQoIStandardiz
   }
 
 }
-
 
 void GetKDEIntegral (MultiLevelProblem& ml_prob) {
 
@@ -1780,10 +1748,7 @@ void GetKDEIntegral (MultiLevelProblem& ml_prob) {
   MPI_Allreduce (&local_integral, &integral, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   std::cout << "Proposed method integral = " << integral << std::endl;
 
-
 }
-
-
 
 void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, MultiLevelProblem& ml_prob, MultiLevelProblem& ml_probFinest) {
 
@@ -1872,7 +1837,6 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
 
           aL2ELocal += (solKDESample - stdGaussian) * (solKDESample - stdGaussian);
 
-
 //                     double uniform = ( fabs ( sgmQoIStandardized[m][0] ) <= 1. ) ? 0.5 : 0. ;
 //
 //                     aL2ELocal += ( solKDESample - uniform ) * ( solKDESample - uniform );
@@ -1954,17 +1918,12 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
           dotProduct += sgmQoIStandardized[m][jdim] * sgmQoIStandardized[m][jdim];
         }
 
-
         double diffPHI = 0.5 * (1. + erf (5.5 / sqrt (2))) - 0.5 * (1. + erf (-5.5 / sqrt (2)));
         double stdGaussian = (exp (- dotProduct * 0.5) / (2 * PI)) / (diffPHI * diffPHI);
 
-
         if (dim == 3) stdGaussian /= (sqrt (2 * PI) * diffPHI);
 
-
-
         aL2ELocal += (solKDESample - stdGaussian) * (solKDESample - stdGaussian);
-
 
 //                     double uniform = (dim == 2) ? 0.25 : 0.125;
 //
@@ -2011,7 +1970,6 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
   double aL2EHisto = 0.;
   double aL2EFinest = 0.;
 
-
   if (histoFinest == true) MPI_Allreduce (&aL2ELocalFinest, &aL2EFinest, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   else {
@@ -2033,8 +1991,6 @@ void GetAverageL2Error (std::vector< std::vector <double > > & sgmQoIStandardize
   }
 
 }
-
-
 
 void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, MultiLevelProblem& ml_prob, MultiLevelProblem& ml_probFinest, const bool &analytic) {
 
@@ -2113,7 +2069,6 @@ void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, Mult
       double solComparison_gss = 0.;
       std::vector<double> x_gss (dim, 0.);
 
-
       for (unsigned i = 0; i < nDofsKDE; i++) {
         solKDE_gss += phi[i] * solKDE[i];
       }
@@ -2125,12 +2080,9 @@ void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, Mult
         }
       }
 
-
       if (analytic) {
 
-
         if (dim == 1) {
-
 
           //this is Gaussian
           double diffPHI = 0.5 * (1. + erf (5.5 / sqrt (2))) - 0.5 * (1. + erf (-5.5 / sqrt (2)));
@@ -2149,7 +2101,6 @@ void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, Mult
 
           double diffPHI = 0.5 * (1. + erf (5.5 / sqrt (2))) - 0.5 * (1. + erf (-5.5 / sqrt (2)));
           solComparison_gss = (exp (- dotProduct * 0.5) / (2 * PI)) / (diffPHI * diffPHI);
-
 
           if (dim == 3) solComparison_gss /= (sqrt (2 * PI) * diffPHI);
 
@@ -2190,7 +2141,6 @@ void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, Mult
 
       }
 
-
       L2normLocal += (solKDE_gss - solComparison_gss) * (solKDE_gss - solComparison_gss) * weight;
 
     }
@@ -2203,5 +2153,3 @@ void GetL2Error (std::vector< std::vector <double > > & sgmQoIStandardized, Mult
   std::cout << "L2 norm of ERROR = " << norm << std::endl;
 
 }
-
-

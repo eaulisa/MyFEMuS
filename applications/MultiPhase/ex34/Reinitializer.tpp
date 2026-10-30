@@ -1,0 +1,914 @@
+
+namespace fem {
+
+    template<std::size_t DIM>
+    Reinitializer<DIM>::Reinitializer(OctTree<DIM>* tree_ptr, u32 fid_phi, Mollifier m, bool flag) 
+        : tree(tree_ptr), fid(fid_phi), mollifier(m), proj_flag(flag) {}
+
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::write_markers_csv(const std::string& filename) const
+    {
+        std::ofstream out(filename);
+        out.setf(std::ios::fixed, std::ios::floatfield);
+        out << "x,y,z\n";
+        for (const auto& p : markers) {
+            out << std::setprecision(16) << p[0];
+            for (unsigned int idim = 1; idim < DIM; idim++)
+                out << "," << p[idim];
+            if (DIM==2)
+                out << "," << 0.;
+            out << "\n";
+        }
+    }
+
+    template <std::size_t DIM>
+    bool Reinitializer<DIM>::leaf_is_cut(u32 leaf_pos, std::vector<Point<DIM>>* cell_intersections) 
+    {
+        // we check if the cell (leaf_id) is cut
+        // if it is we compute its intersections with the interface
+
+        // check for cut cells
+        double mn = local_values[0], mx = local_values[0];
+        for (int a = 1; a < local_values.size(); ++a) { 
+            mn = std::min(mn, local_values[a]); 
+            mx = std::max(mx, local_values[a]); 
+        }
+
+        const bool cut = (mn < 0.0) && (mx > 0.0);
+
+        // if not cut clear and return false
+        if (!cut) {
+            if (cell_intersections) cell_intersections->clear();
+            return false;
+        }
+
+        cell_intersections->clear();        
+        
+        if constexpr (DIM == 2)
+        {
+            cell_intersections->reserve(4); 
+
+            static const int E[4][3]      = { {0,4,1}, {1,5,2}, {2,6,3}, {3,7,0} };
+            static const int varDim[4]    = { 0,    1,   0,    1 };
+            static const int varVersus[4] = { 1,    1,   -1,    -1 };
+            static const double XiC[4]    = { 0.0,     +1.0,    0.0,     -1.0    };
+            static const double EtaC[4]   = { -1.0,    0.0,     +1.0,    0.0     };
+
+            std::map<int,std::vector<Point<DIM>>> edge_intersections_map;
+
+            for (int e = 0; e < 4; ++e) 
+            {
+                const double vL = local_values[E[e][0]];
+                const double vM = local_values[E[e][1]];
+                const double vR = local_values[E[e][2]];
+                auto roots = edge_roots(vL, vM, vR); 
+                for (double s : roots) 
+                {
+                    double xi  = (varDim[e] == 0) ? s*varVersus[e] : XiC[e];
+                    double eta = (varDim[e] == 1) ? s*varVersus[e] : EtaC[e];
+
+                    Point<DIM> P = {xi, eta};
+                    cell_intersections->push_back(P);
+                }
+            }
+        }
+        else 
+        {
+            static const int E[12][3] = {
+                {0,  8, 1}, {1,  9, 2}, {2, 10, 3}, {3, 11, 0}, // bottom
+                {0, 16, 4}, {1, 17, 5}, {2, 18, 6}, {3, 19, 7}, // verticals
+                {4, 12, 5}, {5, 13, 6}, {6, 14, 7}, {7, 15, 4}  // top
+            };
+
+            static const int varDim[12]  = {
+                0, 1, 0, 1,
+                2, 2, 2, 2,
+                0, 1, 0, 1
+            };
+
+            static const int varVersus[12]  = {
+                +1, +1,  -1,  -1,
+                +1, +1,  +1,  +1,
+                +1, +1,  -1,  -1
+            };
+
+            static const double XiC[12]   = {  0, +1,  0, -1,  -1, +1, +1, -1,   0, +1,  0, -1 };
+            static const double EtaC[12]  = { -1,  0, +1,  0,  -1, -1, +1, +1,  -1,  0, +1,  0 };
+            static const double ZetaC[12] = { -1, -1, -1, -1,   0,  0,  0,  0,  +1, +1, +1, +1 };
+
+            cell_intersections->reserve(5);
+            for (int e = 0; e < 12; ++e) {
+                const double vL = local_values[E[e][0]];
+                const double vM = local_values[E[e][1]];
+                const double vR = local_values[E[e][2]];
+                auto roots = edge_roots(vL, vM, vR); 
+                for (double s : roots) {
+                    double xi   = (varDim[e] == 0) ? s*varVersus[e] : XiC[e];
+                    double eta  = (varDim[e] == 1) ? s*varVersus[e] : EtaC[e];
+                    double zeta = (varDim[e] == 2) ? s*varVersus[e] : ZetaC[e];
+
+                    Point<DIM> P = {xi, eta, zeta};
+                    cell_intersections->push_back(P);
+                }
+            }
+        }
+
+
+        return true;
+    }
+
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::compute_cell_markers(std::vector<Point<DIM>> cell_intersections)
+    {
+        const int cell_density = marker_density * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
+        const int cell_min_segments = min_segments * pow(2 , tree->max_depth() - tree->_tree_nodes[leaf_id].level);
+        std::vector<Point<DIM>> cell_markers;
+        if constexpr (DIM==2)
+        {
+            if (cell_intersections.size() == 2) {
+                const auto& A = cell_intersections[0];
+                const auto& B = cell_intersections[1];
+
+                int n_segments = static_cast<int>(std::ceil(Geom_op<DIM>::norm(Geom_op<DIM>::sub(B,A)) * cell_density));
+                n_segments = std::max(cell_min_segments, n_segments);
+
+                Vector<DIM> step = Geom_op<DIM>::div( Geom_op<DIM>::sub(B,A) , static_cast<double>(n_segments));
+
+                for (int k = 0; k < n_segments; ++k) 
+                    cell_markers.push_back(Geom_op<DIM>::add( A , Geom_op<DIM>::mul( static_cast<double>(k) , step) ) );
+                cell_markers.push_back(B);
+            }
+            else if (cell_intersections.size() >= 4) {
+                for (int i = 0; i < 4; i++) {
+                    cell_markers.push_back(cell_intersections[i]);
+                }
+
+                double mx = local_values[0];
+                double mn = local_values[0];
+                for (std::size_t i = 1; i < local_values.size(); ++i) {
+                    mx = std::max(mx, local_values[i]);
+                    mn = std::min(mn, local_values[i]);
+                }
+
+                const double delta = std::abs(mx - mn);
+                const int n_samples = std::max(10,cell_density);
+                const double tol = 1.0 * delta / static_cast<double>(n_samples);
+                const double h = 2.0 / static_cast<double>(n_samples - 1); 
+
+                for (int i = 1; i < n_samples; ++i) {
+                    const double s = static_cast<double>(i) / static_cast<double>(n_samples - 1);
+                    for (int j = 1; j < n_samples; ++j) {
+                        const double t = static_cast<double>(j) / static_cast<double>(n_samples - 1);
+
+                        Point<DIM> P;
+                        P[0] = -1.0 + 2.0 * s;
+                        P[1] = -1.0 + 2.0 * t;
+
+                        const double value = evaluate_field_on_leaf(P);
+                        if (std::abs(value) <= tol) {
+                            cell_markers.push_back(P);
+                        }
+                    }
+                }
+            }      
+        }
+        else if constexpr (DIM==3)
+        {
+            if (cell_intersections.size() <= 5) {
+                // we create a polygon with the cell intersections
+                auto poly = Tri_ord::order_polygon_3d(cell_intersections);
+                if (poly.size() < 3) return;
+
+                // 1 / 2 / 3 triangles are created from the polygon 
+                auto tris = Tri_ord::triangulate_poly(poly);
+                    
+                // finally we place markers on each triangles
+                for (const auto& tr : tris)
+                    Tri_ord::sample_triangle_with_density(tr, cell_density, cell_min_segments, cell_markers);
+            }
+            else if (cell_intersections.size() > 5) {
+                for (unsigned int i = 0; i < cell_intersections.size(); i++) {
+                    cell_markers.push_back(cell_intersections[i]);
+                }
+
+                double mx = local_values[0];
+                double mn = local_values[0];
+                for (std::size_t i = 1; i < local_values.size(); ++i) {
+                    mx = std::max(mx, local_values[i]);
+                    mn = std::min(mn, local_values[i]);
+                }
+
+                const double delta = std::abs(mx - mn);
+                const int n_samples = std::max(10,cell_density);
+                const double tol = 1.0 * delta / static_cast<double>(n_samples);
+                const double h = 2.0 / static_cast<double>(n_samples - 1); 
+
+                for (int i = 1; i < n_samples-1; ++i) {
+                    const double s = static_cast<double>(i) / static_cast<double>(n_samples - 1);
+                    for (int j = 1; j < n_samples-1; ++j) {
+                        const double t = static_cast<double>(j) / static_cast<double>(n_samples - 1);
+                        for (int k = 1; k < n_samples-1; ++k) {
+                            const double r = static_cast<double>(k) / static_cast<double>(n_samples - 1);
+                            Point<DIM> P;
+                            P[0] = -1.0 + 2.0 * s;
+                            P[1] = -1.0 + 2.0 * t;
+                            P[2] = -1.0 + 2.0 * r;
+
+                            const double value = evaluate_field_on_leaf(P);
+                            if (std::abs(value) <= tol) {
+                                cell_markers.push_back(P);
+                            }
+                        }
+                    }
+                }
+            }          
+        }
+        
+        // and finally each marker is projected on the interface using leaf coordinates
+        double tol = 1e-10;
+        const int max_iters = 30;   
+
+        std::vector<size_t> unmatched(cell_markers.size());
+        std::vector<bool> converged(cell_markers.size(), false);
+        std::iota(unmatched.begin(), unmatched.end(), 0);
+
+        for (int it = 0; it < max_iters && !unmatched.empty(); ++it) 
+        {
+            std::vector<size_t> next;
+            next.reserve(unmatched.size());
+
+            for (size_t idx : unmatched) 
+            {
+                auto& p = cell_markers[idx]; 
+
+                const double value0 = evaluate_field_on_leaf(p);
+
+                if (std::abs(value0) <= tol) {
+                    converged[idx] = true;
+                    continue; 
+                }
+
+                Vector<DIM> grad = evaluate_gradient_on_leaf(p);
+                const double gnorm2 = Geom_op<DIM>::norm2(grad);
+
+                if (gnorm2 <= 1e-30) {
+                    continue; 
+                }
+            
+                Vector<DIM> step = Geom_op<DIM>::mul( (value0 / (gnorm2 + 1.e-12)), grad );
+
+                bool accepted = false;
+                Point<DIM> p_try;
+                double value_new = std::numeric_limits<double>::infinity();
+
+                double alpha = 1.0;         
+                const int    max_bt = 8;
+
+                for (int bt = 0; bt < max_bt; ++bt) 
+                {
+                    p_try = Geom_op<DIM>::sub(p, Geom_op<DIM>::mul(alpha, step));
+                    value_new = evaluate_field_on_leaf(p_try);
+
+                    if ( (std::abs(value_new) < std::abs(value0) && value0*value_new >= 0) || 
+                        std::abs(value_new) < std::abs(value0)*0.5 ) {
+                        accepted = true;
+
+                        break;
+                    }
+
+                    alpha *= 0.5;
+                }
+
+                if (accepted) {
+                    p = p_try;
+                    if (std::abs(value_new) > tol) {
+                        next.push_back(idx);  
+                    }
+                    else {
+                        converged[idx] = true;
+                    }
+                }
+            }
+
+            unmatched.swap(next);
+        }
+
+        cell_markers.erase(
+            std::remove_if(cell_markers.begin(), cell_markers.end(),
+                        [&, i = size_t(0)](const auto&) mutable {
+                            return !converged[i++];  
+                        }),
+            cell_markers.end());
+        
+        for (unsigned int i = 0; i < cell_markers.size(); i++)
+        {
+            cell_markers[i] = evaluate_coord_on_leaf(cell_markers[i]);
+        }
+
+        markers.insert(markers.end(), cell_markers.begin(), cell_markers.end());
+    }
+
+    template <std::size_t DIM>
+    Point<DIM> Reinitializer<DIM>::evaluate_coord_on_leaf(Point<DIM> P_local)
+    {
+        // we compute physical coordinates from leaf ones
+
+        Point<DIM> P_global;
+        for (unsigned int idim = 0; idim < DIM; idim++)
+            P_global[idim] = 0;
+
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+        std::array<double, Nn> N{};   
+
+        if constexpr (DIM == 2) {
+            Shapes2D::Q9(P_local, N.data());
+        } 
+        else 
+        {
+            Shapes3D::H27(P_local, N.data());
+        }
+             
+        for (unsigned int i = 0; i<local_coord.size(); i++)
+            for (int idim = 0; idim < DIM; idim++)
+            {
+                P_global[idim] += local_coord[i][idim] * N[i];
+            }
+        
+        return P_global;
+    }
+
+    template <std::size_t DIM>
+    double Reinitializer<DIM>::evaluate_field_on_leaf(const Point<DIM> P)
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+        std::array<double, Nn> N{};   
+
+        if constexpr (DIM == 2) {
+            Shapes2D::Q9(P, N.data());
+        } 
+        else 
+        {
+            Shapes3D::H27(P, N.data());
+        }
+        
+        double value = 0;
+        for (unsigned int i = 0; i<local_values.size(); i++)
+        {
+            value += local_values[i] * N[i];
+        }
+
+        return value;
+    }
+
+    template <std::size_t DIM>
+    std::array<double,DIM> Reinitializer<DIM>::evaluate_velocity_on_leaf(const Point<DIM> P)
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+        std::array<double, Nn> N{};   
+
+        if constexpr (DIM == 2) {
+            Shapes2D::Q9(P, N.data());
+        } 
+        else 
+        {
+            Shapes3D::H27(P, N.data());
+        }
+        
+        std::array<double,DIM> velocity {};
+        for (int idim = 0; idim<DIM; idim++)
+            velocity[idim] = 0;
+        for (unsigned int i = 0; i<local_values.size(); i++)
+        {   
+            for (int idim = 0; idim<DIM; idim++) {
+                velocity[idim] += local_velocity[i][idim] * N[i];
+            }
+        }
+
+        return velocity;
+    }
+
+    template <std::size_t DIM>
+    Vector<DIM> Reinitializer<DIM>::evaluate_gradient_on_leaf(const Point<DIM> P)
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+        std::array<std::array<double, Nn> , DIM> dN{};   
+
+        if constexpr (DIM == 2) {
+            Shapes2D::Q9_dN(P, dN[0].data(), dN[1].data());
+        } 
+        else 
+        {
+            Shapes3D::H27_dN(P, dN[0].data(), dN[1].data(), dN[2].data());
+        }
+        
+        Vector<DIM> grad;
+        for (int idim = 0; idim < DIM; idim++)
+            grad[idim] = 0;
+
+        for (unsigned int i = 0; i<local_values.size(); i++)
+            for (int idim = 0; idim < DIM; idim++)
+                grad[idim] += local_values[i] * dN[idim][i];
+        
+        return grad;
+    }
+
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::apply_inverse_metric(const double invJ[DIM][DIM],
+                                        const Vector<DIM>& grad_parent,
+                                        Vector<DIM>&       inv_metric_grad     /* = invJ * (invJ^T * grad_parent)          */,
+                                        double&            grad_physical_norm2 /* = g_xi^T * invJ * (invJ^T * grad_parent) */)
+    {
+        Vector<DIM> physical_grad; // = invJ^T * grad_parent
+        for (int a=0; a<DIM; ++a) {         
+            double s = 0.0;
+            for (int b=0; b<DIM; ++b) s += invJ[b][a] * grad_parent[b];
+            physical_grad[a] = s;
+        }
+        for (int a=0; a<DIM; ++a) {          
+            double s = 0.0;
+            for (int b=0; b<DIM; ++b) s += invJ[a][b] * physical_grad[b];
+            inv_metric_grad[a] = s;
+        }
+        grad_physical_norm2 = 0.0;                      
+        for (int i=0; i<DIM; ++i) grad_physical_norm2 += grad_parent[i]*inv_metric_grad[i];
+    }
+
+    template <std::size_t DIM>
+    std::vector<double> Reinitializer<DIM>::edge_roots(double v0, double v1, double v2)
+    {
+        // we look for roots in the edge's quadratic polynomial
+        // v0 v1 and v2 are consecutive in xi / eta
+
+        const double A = 0.5*v0 - v1 + 0.5*v2;
+        const double B = -0.5*v0 + 0.5*v2;
+        const double C = v1;
+        std::vector<double> r;
+        const double eps = 1e-14;
+        if (std::abs(A) < eps) 
+        {
+            if (std::abs(B) > eps) 
+            {
+                double s = -C/B;
+                if (s >= -1.0-1e-12 && s <= 1.0+1e-12) r.push_back(std::max(-1.0, std::min(1.0, s)));
+            }
+        } 
+        else 
+        {
+            double D = B*B - 4.0*A*C;
+            if (D >= 0.0) 
+            {
+                double rt = std::sqrt(D);
+                double s1 = (-B - rt) / (2.0*A);
+                double s2 = (-B + rt) / (2.0*A);
+                if (s1 >= -1.0-1e-12 && s1 <= 1.0+1e-12) r.push_back(std::max(-1.0, std::min(1.0, s1)));
+                if (s2 >= -1.0-1e-12 && s2 <= 1.0+1e-12) r.push_back(std::max(-1.0, std::min(1.0, s2)));
+                if (r.size()==2 && std::abs(r[0]-r[1])<1e-12) r.pop_back();
+            }
+        }
+        return r;
+    }
+
+    template <std::size_t DIM>
+    std::array<double,3> Reinitializer<DIM>::compute_cell_criteria()
+    {
+        constexpr int Nn = (DIM == 2 ? 9 : 27);
+
+        std::array<Point<DIM>, Nn> gauss_coord{};
+        std::array<double, Nn> gauss_weight{};
+
+        std::array<double,3> gauss_coord_1D{-0.77459667, 0, 0.77459667};
+        std::array<double,3> gauss_weight_1D{0.55555555, 0.88888889 , 0.55555555};
+
+        if constexpr (DIM == 2) {
+            for (int iq = 0; iq < 3; iq++) 
+            {
+                for (int jq = 0; jq < 3; jq ++)
+                {
+                    gauss_coord[jq + 3*iq]  = {gauss_coord_1D[jq], gauss_coord_1D[iq]};
+                    gauss_weight[jq + 3*iq] = gauss_weight_1D[jq] * gauss_weight_1D[iq];
+                }
+
+            }
+        } 
+        else 
+        {
+            for (int iq = 0; iq < 3; iq++) 
+            {
+                for (int jq = 0; jq < 3; jq++)
+                {
+                    for (int kq = 0; kq < 3; kq++)
+                    {
+                        gauss_coord[kq + 3*(jq + 3*iq)]  = {gauss_coord_1D[kq], gauss_coord_1D[jq], gauss_coord_1D[iq]};
+                        gauss_weight[kq + 3*(jq + 3*iq)] = gauss_weight_1D[kq] * gauss_weight_1D[jq] * gauss_weight_1D[iq];
+                    }
+
+                }
+
+            }
+        }
+
+        std::array<double, Nn> N{};   
+        std::array<std::array<double, Nn> , DIM> dN{};
+
+        int n_gauss = Nn;
+        int n_nodes = Nn;
+
+        double I = 0;
+        double W = 0;
+        double I_sign = 0;
+        double area = 0;
+        double grad = 0;
+
+        for (int i_g = 0; i_g < n_gauss; i_g ++)
+        {
+            Point<DIM> p_g = gauss_coord[i_g];
+            double w_g     = gauss_weight[i_g];
+
+            if constexpr (DIM == 2) {
+                Shapes2D::Q9(p_g, N.data());
+                Shapes2D::Q9_dN(p_g, dN[0].data(), dN[1].data());
+            }
+            else {
+                Shapes3D::H27(p_g, N.data());
+                Shapes3D::H27_dN(p_g, dN[0].data(), dN[1].data(), dN[2].data());
+            }
+
+            std::array<std::array<double,DIM>,DIM> J{};
+
+            for (int i_n = 0; i_n < n_nodes; i_n ++) 
+            {
+                for (int idim = 0; idim < DIM; idim++) 
+                {
+                    for (int jdim = 0; jdim < DIM; jdim++)
+                    {
+                        J[idim][jdim] += local_coord[i_n][idim] * dN[jdim][i_n];
+                    }
+                }
+            }
+
+            double detJ;
+
+            if constexpr (DIM==2) {
+                detJ = J[0][0]*J[1][1] - J[0][1]*J[1][0];
+            } else { 
+                detJ = J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
+                    - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
+                    + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+            }
+
+            std::array<double,DIM> grad_ref{}; 
+            for (int i_n = 0; i_n < n_nodes; ++i_n) {
+                for (int idim = 0; idim < DIM; ++idim) {
+                    grad_ref[idim] += dN[idim][i_n] * local_values[i_n]; 
+                }
+            }
+
+            std::array<double,DIM> grad_x{};
+            std::array<std::array<double,DIM>,DIM> C{};
+            if constexpr (DIM==2) {
+                // 2D: J^{-T} = (1/detJ) * [[ J[1][1], -J[1][0] ],
+                //                          [ -J[0][1], J[0][0] ]]
+                C[0][0] =  J[1][1];
+                C[0][1] = -J[1][0];
+                C[1][0] = -J[0][1];
+                C[1][1] =  J[0][0];
+            } else { 
+                // 3D: J^{-T} = (1/detJ) * [[ (J11*J22 - J12*J21),  -(J10*J22 - J12*J20), (J10*J21 - J11*J20)  ],
+                //                          [ -(J01*J22 - J02*J21), (J00*J22 - J02*J20),  -(J00*J21 - J01*J20) ],
+                //                          [ (J01*J12 - J02*J11),  -(J00*J12 - J02*J10), (J00*J11 - J01*J10)  ]]
+                C[0][0] =  (J[1][1]*J[2][2] - J[1][2]*J[2][1]);
+                C[0][1] = -(J[1][0]*J[2][2] - J[1][2]*J[2][0]);
+                C[0][2] =  (J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+                C[1][0] = -(J[0][1]*J[2][2] - J[0][2]*J[2][1]);
+                C[1][1] =  (J[0][0]*J[2][2] - J[0][2]*J[2][0]);
+                C[1][2] = -(J[0][0]*J[2][1] - J[0][1]*J[2][0]);
+                C[2][0] =  (J[0][1]*J[1][2] - J[0][2]*J[1][1]);
+                C[2][1] = -(J[0][0]*J[1][2] - J[0][2]*J[1][0]);
+                C[2][2] =  (J[0][0]*J[1][1] - J[0][1]*J[1][0]);
+            }
+
+            for (int idim = 0; idim < DIM; idim++)
+            {
+                for (int jdim = 0; jdim < DIM; jdim++)
+                {
+                    grad_x[idim] += C[idim][jdim] * grad_ref[jdim] / detJ;
+                }
+            }
+
+            double grad_norm = Geom_op<DIM>::norm(grad_x);
+
+            double target = 3./2. / mollifier.eps();
+            double e = std::min(std::abs(std::log(std::max(grad_norm / target , 1e-12))) , 3.); // far from 1 evaluation
+            double e_sign = std::log(std::max(grad_norm / target , 1e-12));
+                 
+            const std::array<double,DIM> vel_g = evaluate_velocity_on_leaf(p_g);
+            double norm_prod = Geom_op<DIM>::norm(vel_g) * Geom_op<DIM>::norm(grad_x);
+            double w_dot = fabs(Geom_op<DIM>::dot(vel_g, grad_x) / norm_prod);
+
+            I += w_g * std::abs(detJ) * (e * e * w_dot) ;
+            I_sign += w_g * std::abs(detJ) * (e_sign) ;
+            W += w_g * std::abs(detJ) * w_dot ;
+
+            area += w_g * std::abs(detJ);
+        }
+
+        return {I , W , I_sign} ;
+    }
+
+    template <std::size_t DIM>
+    std::vector<Point<DIM>> Reinitializer<DIM>::collect_markers(int density, int min_segments_)
+    {
+        marker_density = density;
+        min_segments = min_segments_;
+
+        const auto& L = tree->leaves();
+        const size_t numCells = L.size();
+
+        auto& Field      = tree->field(fid);
+        auto  Basis      = to_basis<DIM>(Field.basis_id);
+        const auto& nodes = tree->basis_nodes(Basis);
+        BasisRegistry<DIM> basis_registry = tree->_basisReg[(int)Basis];
+
+        markers.clear();
+        markers.reserve(L.size()*marker_density); 
+
+        cut_cells.clear();
+        cut_cells.reserve(L.size());
+        cut_cells_only.clear();
+        cut_cells_only.reserve(L.size());
+        cut_cells_map.clear();
+
+        for (int k = 0; k < static_cast<int>(numCells); k++) 
+        {
+            leaf_id = L[k];
+
+            const u32 leaf_pos = (leaf_id < tree->_tree_nodes.size()) ? tree->_tree_nodes[leaf_id].node2leafIdx : npos32;
+
+            const auto &conn = basis_registry.elem2glob[leaf_pos];
+            
+            local_coord.assign(conn.size(), Point<DIM>{}); 
+            local_values.assign(conn.size(), 0.0);
+
+            for (u32 a = 0; a < conn.size(); ++a) {
+                u32 gid          = conn[a];                  
+                local_coord[a]   = nodes[gid].physical;       
+                local_values[a]  = Field.nodal[gid];
+            }
+
+            std::vector<Point<DIM>> cell_intersections;    
+
+            if (leaf_is_cut(leaf_pos, &cell_intersections)) 
+            {
+                cut_cells.push_back(leaf_pos);
+                cut_cells_only.push_back(leaf_pos);
+                cut_cells_map[leaf_pos] = k;
+
+                compute_cell_markers(cell_intersections);
+            }
+            else if (tree->_tree_nodes[leaf_id].level == tree->max_depth()) {
+                cut_cells.push_back(leaf_pos);
+                cut_cells_map[leaf_pos] = k;
+            }
+        }
+
+        return markers;
+    }
+
+    template <std::size_t DIM>
+    bool Reinitializer<DIM>::compute_criteria(Vel<DIM> eval_velocity, double reinit_tau)
+    {
+        const auto& L = tree->leaves();
+        const size_t numCells = L.size();
+
+        auto& Field      = tree->field(fid);
+        auto  Basis      = to_basis<DIM>(Field.basis_id);
+        const auto& nodes = tree->basis_nodes(Basis);
+        BasisRegistry<DIM> basis_registry = tree->_basisReg[(int)Basis];
+
+        std::vector<double> cell_criteria_values;
+        cell_criteria_values.reserve(cut_cells.size());
+        std::vector<double> cell_criteria_signed_values;
+        cell_criteria_signed_values.reserve(cut_cells.size());
+        std::vector<double> cell_weight_values;
+        cell_weight_values.reserve(cut_cells.size());
+        std::vector<double> cell_criteria(numCells,0);
+        std::vector<double> cell_criteria_signed(numCells,0);
+        std::vector<double> cell_weight(numCells,0);
+
+        for (const int leaf_pos : cut_cells_only) 
+        {
+            const auto &conn = basis_registry.elem2glob[leaf_pos];
+            
+            local_coord.assign(conn.size(), Point<DIM>{}); 
+            local_values.assign(conn.size(), 0.0);
+            local_velocity.assign(conn.size(), std::array<double,DIM> {});
+
+            for (u32 a = 0; a < conn.size(); ++a) {
+                u32 gid          = conn[a];                  
+                local_coord[a]   = nodes[gid].physical;                     
+                local_values[a]  = Field.nodal[gid];
+                if constexpr (DIM==2) {
+                    local_velocity[a] = eval_velocity(local_coord[a][0], local_coord[a][1], 0.);
+                }
+                else {
+                    local_velocity[a] = eval_velocity(local_coord[a][0], local_coord[a][1], local_coord[a][2], 0.);
+                }
+            } 
+
+            const auto [I, W, I_sign] = compute_cell_criteria();
+            cell_criteria_values.push_back(I);
+            cell_weight_values.push_back(W);
+            cell_criteria_signed_values.push_back(I_sign);
+            cell_criteria[cut_cells_map.at(leaf_pos)] = I ;
+            cell_criteria_signed[cut_cells_map.at(leaf_pos)] = I_sign ;
+            cell_weight[cut_cells_map.at(leaf_pos)] = W ;
+        }
+
+        tree->_reinit_criteria = cell_criteria;
+        tree->_reinit_weight = cell_weight;
+        tree->_reinit_sign_criteria = cell_criteria_signed;
+
+        double sum_crit = 0;
+        double sum_weight = 0;
+        for (unsigned int i = 0; i < cell_criteria_values.size(); i++) 
+        {
+            sum_crit   += cell_criteria_values[i];
+            sum_weight += cell_weight_values[i];
+        }
+        
+        double scaled_norm = sqrt(sum_crit / sum_weight) ;   
+
+        if (scaled_norm > reinit_tau)
+            return true;
+
+        return false;
+    }
+
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::project_cut_cells_nodes()
+    {
+        // we project each cutcell node on the interface and calculate the distance 
+        // the projection is done in parent coordinates
+
+        const auto field = tree->field(fid);
+        const auto basis = to_basis<DIM>(field.basis_id);
+        
+        const double tol      = 1e-10;
+        const int    max_iter = 30;
+
+        cut_cells_nodes_dist.clear();
+        cut_cells_nodes_dist.resize(cut_cells.size());
+
+        for (size_t i_cell = 0; i_cell < cut_cells.size(); ++i_cell)
+        {
+            std::vector<Point<DIM>> parent_coords;
+            tree->extract_leaf_parent_coords(basis, cut_cells[i_cell], parent_coords);
+            Point<DIM> P0 = tree->parent_to_physical(parent_coords[0]);
+            Point<DIM> P1 = tree->parent_to_physical(parent_coords[1]);
+
+            double h = Geom_op<DIM>::norm(Geom_op<DIM>::sub(P0,P1));
+
+            cut_cells_nodes_dist[i_cell].resize(parent_coords.size());
+ 
+            const int max_bt  = 8;       
+
+            for (size_t i_node = 0; i_node < parent_coords.size(); ++i_node)
+            {
+                bool converged = false;
+
+                Point<DIM> p = parent_coords[i_node];
+                Vector<DIM> grad_parent;
+            
+                for (int it = 0; it < max_iter; ++it)
+                {
+                    double value0 = 0.0;
+                    if (!tree->evaluate_field_on_parent(fid, p, value0)) {
+                        break;
+                    }
+
+                    if (std::abs(value0) <= tol) {
+                        converged = true;
+                        break;
+                    }
+
+                    for (int d = 0; d < DIM; ++d) grad_parent[d] = 0.0;
+                    if (!tree->evaluate_gradient_on_parent(fid, p, grad_parent)) {
+                        break;
+                    }
+
+                    double J[DIM][DIM], invJ[DIM][DIM], detJ;
+                    if (!tree->evaluate_jacobian_on_parent(fid, p, J, detJ, invJ)) {
+                        break; 
+                    }
+
+                    Vector<DIM> inv_metric_grad;
+                    double grad_physical_norm2 = 0;
+                    apply_inverse_metric(invJ, grad_parent, inv_metric_grad, grad_physical_norm2); 
+
+                    Vector<DIM> step = Geom_op<DIM>::mul(value0 / (grad_physical_norm2 + 1e-12), inv_metric_grad);
+
+                    bool accepted = false;
+                    Point<DIM> p_try;
+                    double value_new = std::numeric_limits<double>::infinity();
+
+                    double alpha = 1.0;
+
+                    for (int bt = 0; bt < max_bt; ++bt) 
+                    {
+                        p_try = Geom_op<DIM>::sub(p, Geom_op<DIM>::mul(alpha, step));
+
+                        if (tree->evaluate_field_on_parent(fid, p_try, value_new)) {
+                            if ((std::abs(value_new) < std::abs(value0) && value0*value_new >= 0) ||
+                                std::abs(value_new) < std::abs(value0)*0.5) 
+                            { 
+                                accepted = true;
+                                break;
+                            } 
+                        } 
+
+                        alpha *= 0.5; 
+                    }
+
+                    if (accepted) {
+                        p = p_try;
+                        if (std::abs(value_new) <= tol) {
+                            converged = true;
+                            break;
+                        }
+                    }
+                    else {
+                        break; // TODO add something
+                    }
+                }
+
+                Point<DIM> p_physical = tree->parent_to_physical(p);
+                Point<DIM> node_physical = tree->parent_to_physical(parent_coords[i_node]);
+
+                cut_cells_nodes_dist[i_cell][i_node] = Geom_op<DIM>::norm( Geom_op<DIM>::sub( p_physical , node_physical )); 
+
+            }
+            
+        }
+
+    }
+
+    template <std::size_t DIM>
+    void Reinitializer<DIM>::compute_signed_distance()
+    {
+
+        if (proj_flag)
+            project_cut_cells_nodes();
+
+        auto& Field      = tree->field(fid);
+        auto  Basis      = to_basis<DIM>(Field.basis_id);
+        const auto& nodes = tree->basis_nodes(Basis);
+        BasisRegistry<DIM> basis_registry = tree->_basisReg[(int)Basis];
+
+        KDTree<DIM> kdtree;
+        kdtree.build_from_any(markers);
+
+        // for each node in the grid we look for the closest marker
+        for (size_t i = 0; i < nodes.size(); ++i) 
+        {
+            Point<DIM> p_physical = nodes[i].physical;
+            auto knn = kdtree.knn(p_physical, 1);
+            double dist = 0.0;
+            if (!knn.first.empty())
+                dist = std::sqrt(knn.second[0]);
+            else 
+            {
+                std::cout<<"knn search failed"<<std::endl;
+                abort();
+            }
+
+            const double sign = (Field.nodal[i] > 0) ? 1. : -1.;
+            Field.nodal[i] = sign * dist;
+        }
+
+        // for each cutcell node we substitute its projection
+        // in this way we reduce tangential errors on the interface
+        if (proj_flag)
+            for (unsigned int i_cell = 0; i_cell < cut_cells.size(); i_cell++)
+            {
+                const u32 leaf_pos = cut_cells[i_cell];
+                const auto &conn = basis_registry.elem2glob[leaf_pos];
+
+                for (unsigned int i_node = 0; i_node < cut_cells_nodes_dist[i_cell].size(); i_node++)
+                {   
+                    const double sign = (Field.nodal[conn[i_node]] > 0) ? 1. : -1.;
+                    const double new_dist = cut_cells_nodes_dist[i_cell][i_node];
+                    const double old_dist = Field.nodal[conn[i_node]];
+                    if (new_dist < fabs(old_dist))
+                    {
+                        Field.nodal[conn[i_node]] = sign * new_dist;
+                    }
+                }
+            }
+
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            Field.nodal[i] = mollifier.SigmoidC1(Field.nodal[i]);
+        }
+    }
+
+    
+}

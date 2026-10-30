@@ -30,7 +30,6 @@
 
 namespace femus {
 
-
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
@@ -60,7 +59,6 @@ namespace femus {
       /** @deprecated Multigrid step routine */
       double MGStep (int Level, double Eps1, int MaxIter, const uint Gamma, const uint Nc_pre, const uint Nc_coarse, const uint Nc_post);
 
-
       /** Add a system level */
       void AddSystemLevel();
       /**
@@ -79,6 +77,10 @@ namespace femus {
       */
       vector < LinearEquationSolver*> _LinSolver;
 
+      vector < LinearEquationSolver*> GetLinearSolver() {
+        return _LinSolver;
+      };
+
       void SetNumberOfGlobalVariables (const unsigned &numberOfGlobalVariables) {
         _numberOfGlobalVariables = numberOfGlobalVariables;
       }
@@ -94,7 +96,7 @@ namespace femus {
       };
 
       /** Flag to print fields to file after each linear iteration */
-      void SetDebugLinear(const bool my_value); 
+      void SetDebugLinear(const bool my_value);
 
       /** Get the absolute convergence tolerance for the linear problem Ax=b*/
       double GetAbsoluteConvergenceTolerance() const {
@@ -141,7 +143,6 @@ namespace femus {
 
       /** Set the preconditioner for the Ksp smoother solver on the fine grids */
       void SetPreconditionerCoarseGrid (const PreconditionerType &preconditioner_type);
-
 
       /** Set the Ksp smoother solver on the fine grids. At the coarse solver we always use the LU (Mumps) direct solver */
       void SetSolverFineGrids (const SolverType &solvertype);
@@ -192,7 +193,7 @@ namespace femus {
       void SetAMRSetOptions (const std::string& AMR, const unsigned &AMRlevels,
                              const std::string& AMRnorm, const double &AMRthreshold,
                              bool (* SetRefinementFlag) (const std::vector < double > &x,
-                                                         const int &ElemGroupNumber, const int &level) = NULL);
+                                 const int &ElemGroupNumber, const int &level) = NULL);
 
       void SetAMRghborThresholdValue (const double &neighborThresholdValue) {
         _AMReighborThresholdValue = neighborThresholdValue;
@@ -202,12 +203,11 @@ namespace femus {
       //void SetVankaSchurOptions(bool Schur, short unsigned NSchurVar);
       void SetNumberOfSchurVariables (const unsigned short &NSchurVar);
 
-
       /** Set the number of pre-smoothing step of a Multigrid cycle */
       void SetNumberPreSmoothingStep (const unsigned &npre) {
         _npre = npre;
       };
-      
+
       void SetNumberSmoothingStepCoarseGrid (const unsigned &npre0) {
         _npre0 = npre0;
       };
@@ -216,13 +216,17 @@ namespace femus {
       void SetNumberPostSmoothingStep (const unsigned &npost) {
         _npost = npost;
       };
-      
+
       void GetSystemInfo();
 
       /** enforce sparcity pattern for setting uncoupled variables and save on memory allocation **/
       void SetSparsityPattern (vector < bool > other_sparcity_pattern);
 
       void SetSparsityPatternMinimumSize (const unsigned &minimumSize, const std::string variableName = "All");
+
+      void SetExtraSparsityFunction( const LinearEquation::ExtraSparsityFunction& function) {
+        _extraSparsityFunction = function;
+      }
 
       bool GetAssembleMatrix() {
         return _assembleMatrix;
@@ -235,20 +239,30 @@ namespace femus {
       vector < SparseMatrix* > &GetRestrictionMatrix() {
         return _RR;
       }
-     
+
+      vector < SparseMatrix* > &GetAMRProjectionMatrix() {
+        return _PPamr;
+      }
+
+      vector < SparseMatrix* > &GetAMRRestrictionMatrix() {
+        return _RRamr;
+      }
+
       /** Solves the system. */
       virtual void MGsolve (const MgSmootherType& mgSmootherType = MULTIPLICATIVE);
+      void MGsolveExplicit();
+      void Solve(const MgSmootherType & mgSmootherType = MULTIPLICATIVE);
     protected:
 
       vector < SparseMatrix* > _PP, _RR;
       vector < SparseMatrix* > _PPamr, _RRamr;
 
+      bool _solveOnlyOnTheFineLevel = false;
       bool _printSolverInfo;
       bool _assembleMatrix;
       void AddAMRLevel (unsigned &AMRCounter);
 
       bool Vcycle (const unsigned & gridn, const MgSmootherType& mgSmootherType);
-
 
       /** Create the Prolongator matrix for the Multigrid solver */
       void Prolongator (const unsigned &gridf);
@@ -332,9 +346,11 @@ namespace femus {
       unsigned _bitFlipCounter;
 
       unsigned _numberOfGlobalVariables;
-      
+
       std::vector< std::string > _sparsityPatternSolName;
       std::vector < unsigned > _sparsityPatternMinimumSize;
+
+      LinearEquation::ExtraSparsityFunction _extraSparsityFunction;
 
   };
 

@@ -45,6 +45,37 @@ namespace femus {
   }
 
   // ******************
+  template <class Type>
+  void MyVector<Type>::buildFromLocal(const std::vector<Type>& v_local) {
+
+    std::vector<Type>().swap(_vec);
+    std::vector<Type>().swap(_vec2);
+    std::vector<unsigned>().swap(_offset);
+
+    _vec = v_local;
+
+    _vecIsAllocated = true;
+    _serial = false;
+
+    const unsigned my_size = static_cast<unsigned>(v_local.size());
+
+    std::vector<unsigned> locsizes(_nprocs);
+    MPI_Allgather(&my_size, 1, MPI_UNSIGNED,
+                  locsizes.data(), 1, MPI_UNSIGNED,
+                  MPI_COMM_WORLD);
+
+    _offset.resize(_nprocs + 1);
+    _offset[0] = 0;
+    for(unsigned p = 0; p < _nprocs; ++p) {
+      _offset[p + 1] = _offset[p] + locsizes[p];
+    }
+
+    _begin = _offset[_iproc];
+    _end   = _offset[_iproc + 1];
+    _size  = my_size;
+  }
+
+  // ******************
   template <class Type> MyVector<Type>::~MyVector() {
     clear();
   }
@@ -69,8 +100,9 @@ namespace femus {
     _begin = 0;
     _end = 0;
     _size = 0;
-  }
 
+    _lproc = _iproc;
+  }
 
   // ******************
   template <class Type> void MyVector<Type>::resize(const unsigned &size, const Type value) {
@@ -107,13 +139,18 @@ namespace femus {
   }
 
   // ******************
+
   template <class Type> void MyVector<Type>::clear() {
     std::vector<Type>().swap(_vec);
     std::vector<Type>().swap(_vec2);
+    std::vector<unsigned>().swap(_offset);
+    _begin = 0;
+    _end = 0;
+    _size = 0;
+    _lproc = _iproc;
     _vecIsAllocated = false;
     _serial = true;
   }
-
 
   // ******************
   template <class Type> unsigned MyVector<Type>::size() {
@@ -131,42 +168,8 @@ namespace femus {
   }
 
   // ******************
-  template <class Type> void MyVector<Type>::scatter(const std::vector < unsigned > &offset) {
-
-    _offset = offset;
-
-    if(!_serial) {
-      std::cout << "Error in MyVector.scatter(), vector is in " << status() << " status" << std::endl;
-      abort();
-    }
-
-    if(_nprocs != _offset.size() - 1) {
-      std::cout << "Error in MyVector.resize(...), offset.size() != from nprocs" << std::endl;
-      abort();
-    }
-
-    _vec.swap(_vec2);
-
-    _vec.resize(_offset[_iproc + 1] - _offset[_iproc]);
-
-    for(unsigned i = _offset[_iproc]; i < _offset[_iproc + 1]; i++) {
-      _vec[i - _offset[_iproc] ] = _vec2[i];
-    }
-
-    std::vector<Type>().swap(_vec2);
-
-    _serial = false;
-
-    _begin = _offset[_iproc];
-    _end = _offset[_iproc + 1];
-    _size = _end - _begin;
-
-  }
-
-  // ******************
   template <class Type> void MyVector<Type>::stack() {
-
-    if(!_serial) {
+    if (!_serial) {
       std::cout << "Error in MyVector.stack(), vector is in " << status() << " status" << std::endl;
       abort();
     }
@@ -174,17 +177,9 @@ namespace femus {
     _offset.resize(_nprocs + 1);
     _offset[0] = 0;
 
-    for(unsigned jproc = 0; jproc < _nprocs; jproc++) {
-      if(jproc != _iproc) {
-        MPI_Send(&_size, 1, MPI_UNSIGNED, jproc, 1, MPI_COMM_WORLD);
-        MPI_Recv(&_offset[jproc + 1], 1, MPI_UNSIGNED, jproc, 1, MPI_COMM_WORLD, NULL);
-      }
-      else {
-        _offset[_iproc + 1] = _size;
-      }
-    }
+    MPI_Allgather(&_size, 1, MPI_UNSIGNED, _offset.data() + 1, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
 
-    for(unsigned i = 0; i < _nprocs; i++) {
+    for (unsigned i = 0; i < _nprocs; i++) {
       _offset[i + 1] += _offset[i];
     }
 
@@ -193,14 +188,131 @@ namespace femus {
     _begin = _offset[_iproc];
     _end = _offset[_iproc + 1];
     _size = _end - _begin;
-
   }
 
+  template <class Type> void MyVector<Type>::stack(const unsigned lproc) {
+    if (_serial) {
+      std::cout << "Error in MyVector.stack(), vector must be PARALLEL" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
-  // ******************
+    unsigned globalSize = _offset[_nprocs];
+    std::vector<int> counts_recv((_iproc == lproc) ? _nprocs : 0);
+    std::vector<int> offsets_recv((_iproc == lproc) ? _nprocs : 0);
+    std::vector<Type> values_recv;
+
+    if (_iproc == lproc) {
+      values_recv.resize(globalSize);
+
+      for (unsigned jproc = 0; jproc < _nprocs; jproc++) {
+        counts_recv[jproc] = static_cast<int>(_offset[jproc + 1] - _offset[jproc]);
+        offsets_recv[jproc] = static_cast<int>(_offset[jproc]);
+      }
+
+      if (_size > 0) std::copy(_vec.begin(), _vec.end(), values_recv.begin() + _begin);
+    }
+
+    MPI_Gatherv((_iproc == lproc) ? MPI_IN_PLACE : _vec.data(), static_cast<int>(_size), _MY_MPI_DATATYPE, values_recv.data(), counts_recv.data(), offsets_recv.data(), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
+
+    _vec.swap(values_recv);
+    std::vector<Type>().swap(values_recv);
+    std::vector<Type>().swap(_vec2);
+
+    for (unsigned i = 0; i <= lproc; i++) _offset[i] = 0;
+    for (unsigned i = lproc + 1; i < _offset.size(); i++) _offset[i] = globalSize;
+
+    _begin = _offset[_iproc];
+    _end = _offset[_iproc + 1];
+    _size = _end - _begin;
+    _lproc = lproc;
+    _serial = false;
+    _vecIsAllocated = true;
+  }
+
+  // All scatter methods
   template <class Type> void MyVector<Type>::scatter() {
+    if (!_serial) MPI_Abort(MPI_COMM_WORLD, 1);
+
     buildOffset();
     scatter(_offset);
+  }
+
+  // ********
+  template <class Type> void MyVector<Type>::scatter(const std::vector<unsigned> &offset) {
+    if (!_serial) {
+      std::vector<unsigned> offset_new;
+      if (_iproc == 0) offset_new = offset;
+
+      stack(0);
+      scatter(offset_new, 0);
+      return;
+    }
+
+    _offset = offset;
+    if (_offset.size() != _nprocs + 1) MPI_Abort(MPI_COMM_WORLD, 1);
+
+    _vec.swap(_vec2);
+    _vec.resize(_offset[_iproc + 1] - _offset[_iproc]);
+
+    for (unsigned i = _offset[_iproc]; i < _offset[_iproc + 1]; i++) {
+      _vec[i - _offset[_iproc]] = _vec2[i];
+    }
+
+    std::vector<Type>().swap(_vec2);
+
+    _serial = false;
+    _vecIsAllocated = true;
+    _begin = _offset[_iproc];
+    _end = _offset[_iproc + 1];
+    _size = _end - _begin;
+  }
+
+  // ********
+  template <class Type> void MyVector<Type>::scatter(const std::vector<unsigned> &offset, const unsigned &lproc) {
+    std::vector<unsigned> offset_new;
+    std::vector<int> size_send((_iproc == lproc) ? _nprocs : 0);
+    std::vector<int> offset_send((_iproc == lproc) ? _nprocs : 0);
+
+    if (_iproc == lproc) {
+      offset_new = offset;
+      if (offset_new.size() != _nprocs + 1) MPI_Abort(MPI_COMM_WORLD, 1);
+
+      unsigned globalSize = _serial ? _size : _offset[_nprocs];
+      if (!_serial && (_begin != 0 || _size != globalSize)) MPI_Abort(MPI_COMM_WORLD, 1);
+      if (offset_new[0] != 0 || offset_new[_nprocs] != globalSize) MPI_Abort(MPI_COMM_WORLD, 1);
+
+      for (unsigned p = 0; p < _nprocs; p++) {
+        if (offset_new[p + 1] < offset_new[p]) MPI_Abort(MPI_COMM_WORLD, 1);
+        size_send[p] = static_cast<int>(offset_new[p + 1] - offset_new[p]);
+        offset_send[p] = static_cast<int>(offset_new[p]);
+      }
+    }
+
+    std::vector<Type> values_send;
+
+    if (_iproc == lproc) {
+      values_send.swap(_vec);
+      _offset.swap(offset_new);
+    }
+    else {
+      clear();
+      _offset.resize(_nprocs + 1);
+    }
+
+    std::vector<Type>().swap(_vec2);
+
+    MPI_Bcast(_offset.data(), static_cast<int>(_nprocs + 1), MPI_UNSIGNED, lproc, MPI_COMM_WORLD);
+
+    _begin = _offset[_iproc];
+    _end = _offset[_iproc + 1];
+    _size = _end - _begin;
+    _vec.resize(_size);
+
+    MPI_Scatterv(values_send.data(), size_send.data(), offset_send.data(), _MY_MPI_DATATYPE, _vec.data(), static_cast<int>(_size), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
+
+    _serial = false;
+    _vecIsAllocated = true;
+    _lproc = _iproc;
   }
 
   // ******************
@@ -222,22 +334,26 @@ namespace femus {
   }
 
   // ******************
-  template <class Type> void MyVector<Type>::broadcast(const unsigned &lproc) {
 
-    if(_serial) {
+  template <class Type> void MyVector<Type>::broadcast(const unsigned &lproc) {
+    if (_serial) {
       std::cout << "Error in MyVector.LocalizeToAll(), vector is in " << status() << " status" << std::endl;
       abort();
     }
 
-    if(_iproc != lproc) {
+    unsigned count = _offset[lproc + 1] - _offset[lproc];
+    if (count > static_cast<unsigned>(INT_MAX)) MPI_Abort(MPI_COMM_WORLD, 1);
+
+    if (_iproc != lproc) {
       _vec.swap(_vec2);
-      _vec.resize(_offset[lproc + 1] - _offset[lproc]);
+      _vec.resize(count);
     }
 
-    MPI_Bcast(&_vec[0], _vec.size(), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
+    MPI_Bcast(_vec.data(), static_cast<int>(count), _MY_MPI_DATATYPE, lproc, MPI_COMM_WORLD);
 
     _begin = _offset[lproc];
     _end = _offset[lproc + 1];
+    _size = _end - _begin;
     _lproc = lproc;
   }
 
@@ -255,21 +371,23 @@ namespace femus {
   }
 
   template <class Type> void MyVector<Type>::localize(std::vector<Type> &v_local) const {
-    if(_serial) {
+    if (_serial) {
       v_local = _vec;
     }
     else {
       v_local.resize(_offset[_nprocs]);
-      for(unsigned i = 0; i < _size; i++) {
+
+      for (unsigned i = 0; i < _size; i++) {
         v_local[_offset[_iproc] + i] = _vec[i];
       }
-      for(unsigned kp = 0; kp < _nprocs; kp++) {
+
+      for (unsigned kp = 0; kp < _nprocs; kp++) {
         unsigned size_kp = _offset[kp + 1] - _offset[kp];
-        MPI_Bcast(&v_local[_offset[kp]], size_kp, _MY_MPI_DATATYPE, kp, MPI_COMM_WORLD);
+        if (size_kp > static_cast<unsigned>(INT_MAX)) MPI_Abort(MPI_COMM_WORLD, 1);
+        MPI_Bcast((size_kp > 0) ? v_local.data() + _offset[kp] : nullptr, static_cast<int>(size_kp), _MY_MPI_DATATYPE, kp, MPI_COMM_WORLD);
       }
     }
   }
-
 
   // ****************
   template <class Type> const std::string & MyVector<Type>::status() {
@@ -302,10 +420,3 @@ namespace femus {
   template class MyVector<char>;
 
 } //end namespace femus
-
-
-
-
-
-
-

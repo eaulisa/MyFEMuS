@@ -14,20 +14,15 @@
 
 =========================================================================*/
 
+#pragma once
+
 #include <string>
-
-#ifndef __femus_mesh_MyVector_hpp__
-#define __femus_mesh_MyVector_hpp__
-
-
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
 
 #include <mpi.h>
 #include <boost/mpi/datatype.hpp>
-
-
 
 namespace femus {
 
@@ -44,6 +39,9 @@ namespace femus {
       MyVector(const std::vector < unsigned > &offset, const Type value = 0);
 
       // ******************
+      void buildFromLocal(const std::vector<Type>& v_local);
+
+      // ******************
       ~MyVector();
 
       // ******************
@@ -58,23 +56,36 @@ namespace femus {
       // ******************
       void clear();
 
+      void setSerial(const bool serial) {
+        _serial = serial;
+      };
+
       // ******************
       unsigned size();
+      unsigned size() const {
+        return _size;
+      };
 
       // ******************
       unsigned begin();
+      unsigned begin() const {
+        return _begin;
+      };
 
       // ******************
       unsigned end();
-
-      // ******************
-      void scatter(const std::vector < unsigned > &offset);
+      unsigned end() const {
+        return _end;
+      };
 
       // ******************
       void scatter();
-      
+      void scatter(const std::vector < unsigned > &offset);
+      void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
+
       // ******************
       void stack();
+      void stack(const unsigned lproc);
 
       // ******************
       void buildOffset();
@@ -90,11 +101,14 @@ namespace femus {
 
       // ****************
       const std::string &status();
-      
+
       void localize(std::vector<Type> &v_local) const ;
 
       // ******************
       Type& operator[](const unsigned &i);
+      Type operator[](const unsigned &i) const {
+        return _vec[i - _begin];
+      }
 
       // *****************
       friend std::ostream& operator<<(std::ostream& os, MyVector<Type>& vec) {
@@ -142,12 +156,4 @@ namespace femus {
       unsigned _lproc;
   };
 
-
-
-
-
 } //end namespace femus
-
-
-
-#endif

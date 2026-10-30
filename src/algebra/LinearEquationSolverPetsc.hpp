@@ -44,10 +44,10 @@ namespace femus {
 
       /// Destructor.
       ~LinearEquationSolverPetsc();
-      
-      /// Set PETSC solver 
+
+      /// Set PETSC solver
       static void SetPetscSolverType (KSP &ksp, const SolverType &solver_type, const double *parameter);
-      
+
     protected:
 
       /// Release all memory and clear data structures.
@@ -62,10 +62,14 @@ namespace femus {
 
       void MGInit (const MgSmootherType & mg_smoother_type, const unsigned &levelMax, const SolverType & mgSolverType);
 
-      void MGSetLevel (LinearEquationSolver *LinSolver, const unsigned &maxlevel,
-                       const vector <unsigned> &variable_to_be_solved,
-                       SparseMatrix* PP, SparseMatrix* RR,
-                       const unsigned &npre, const unsigned &npost);
+      virtual void MGSetLevel (LinearEquationSolver *LinSolver, const unsigned &maxlevel,
+                               const vector <unsigned> &variable_to_be_solved,
+                               SparseMatrix* PP, SparseMatrix* RR,
+                               const unsigned &npre, const unsigned &npost);
+
+      void MGUpdateLevel(LinearEquationSolver* LinSolver, const unsigned& levelMax,
+                         const vector<unsigned>& variable_to_be_solved,
+                         const unsigned& npre, const unsigned& npost);
 
       void RemoveNullSpace();
       void GetNullSpaceBase (std::vector < Vec > &nullspBase);
@@ -79,7 +83,11 @@ namespace femus {
       virtual void BuildBdcIndex (const vector <unsigned> &variable_to_be_solved);
       virtual void SetPreconditioner (KSP& subksp, PC& subpc);
 
-      void MGSolve (const bool ksp_clean);
+      virtual void Solve (const bool ksp_clean) {
+        std::cout << "This method has been implemented only in the fieldSplitSolver class \n"; //TODO
+        abort();
+      };
+      virtual void MGSolve (const bool ksp_clean);
 
       inline void MGClear() {
         KSPDestroy (&_ksp);
@@ -90,9 +98,8 @@ namespace femus {
       };
 
       void SetSolver (KSP &ksp, const SolverType &solver_type) {
-        SetPetscSolverType (ksp, solver_type , &_richardsonScaleFactor);
+        SetPetscSolverType (ksp, solver_type, &_richardsonScaleFactor);
       };
-      
 
       /** @deprecated, remove soon */
       std::pair<unsigned int, double> solve (SparseMatrix&  matrix_in,
@@ -165,11 +172,9 @@ namespace femus {
       KSPDestroy (&_ksp);
     }
 
-
   }
 
 } //end namespace femus
-
 
 #endif
 #endif

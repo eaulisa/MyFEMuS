@@ -13,16 +13,16 @@
  PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#pragma once
 
 #include <string>
-
-#ifndef __femus_mesh_MyMatrix_hpp__
-#define __femus_mesh_MyMatrix_hpp__
-
 
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
+#include <climits>
+#include <climits>
+#include <algorithm>
 
 #include <mpi.h>
 #include <boost/mpi/datatype.hpp>
@@ -60,15 +60,15 @@ namespace femus {
 
       // ******************
       void shrinkToFit(Type remove);
-      
+
       void shrinkToFit(MyVector<unsigned> &r);
-      
+
       // ******************
       void clear();
 
       // ******************
       unsigned size();
-      
+
       unsigned size(const unsigned &i);
 
       // ******************
@@ -82,18 +82,21 @@ namespace femus {
       unsigned end(const unsigned &i);
 
       // ******************
-      void scatter(const std::vector < unsigned > &offset);
-
       void scatter();
+      void scatter(const std::vector < unsigned > &offset);
+      void scatter(const std::vector<unsigned> &offset, const unsigned &lproc);
+
+      // ******************
+      void stack(const unsigned lproc);
 
       // ******************
       void buildOffset();
 
       // ******************
       std::vector<unsigned> getOffset();
-      
-      MyVector < unsigned > getRowSize(){
-	return _rowSize;
+
+      MyVector < unsigned > getRowSize() {
+        return _rowSize;
       }
 
       // ******************
@@ -119,7 +122,7 @@ namespace femus {
         if(mat._matIsAllocated) {
           if(mat._serial) {
             for(unsigned i = mat.begin(); i < mat.end(); i++) {
-	      os << i <<"   ";
+              os << i << "   ";
               for(unsigned j = mat.begin(i); j < mat.end(i); j++) {
                 os << mat[i][j] << " ";
               }
@@ -130,7 +133,7 @@ namespace femus {
             for(int j = 0; j < mat._nprocs; j++) {
               mat.broadcast(j);
               for(unsigned i = mat.begin(); i < mat.end(); i++) {
-		os << i <<"   ";
+                os << i << "   ";
                 for(unsigned j = mat.begin(i); j < mat.end(i); j++) {
                   os << mat[i][j] << " ";
                 }
@@ -143,7 +146,7 @@ namespace femus {
         }
         return os;
       }
-   
+
     private:
 
       std::string _status;
@@ -169,12 +172,5 @@ namespace femus {
       unsigned _lproc;
   };
 
-
-
-
-
 } //end namespace femus
 
-
-
-#endif
