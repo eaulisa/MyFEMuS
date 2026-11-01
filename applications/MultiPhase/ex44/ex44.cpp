@@ -1442,21 +1442,26 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
           // cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
 
-          std::vector<boost::multiprecision::cpp_bin_float_oct> aParabola(3);
-          for(unsigned i = 0; i < 3; i++) {
-            aParabola[i] = boost::multiprecision::cpp_bin_float_oct(xSquared ? BX[i] : BY[i]);
-          }
+          // std::vector<boost::multiprecision::cpp_bin_float_oct> aParabola(3);
+          // for(unsigned i = 0; i < 3; i++) {
+          //   aParabola[i] = boost::multiprecision::cpp_bin_float_oct(xSquared ? BX[i] : BY[i]);
+          // }
+          //
+          // boost::multiprecision::cpp_bin_float_oct dParabola(xSquared ? BX[3] : BY[3]);
+          //
+          // (*cfw[ielGeom])(0, aParabola, dParabola, xSquared, weightCFInt);
+          //
+          // weightCFExt.resize(weightCFInt.size());
+          // for(unsigned i = 0; i < weightCFInt.size(); i++) {
+          //   weightCFExt[i] = 1. - weightCFInt[i];
+          // }
+          //
+          // (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
 
-          boost::multiprecision::cpp_bin_float_oct dParabola(xSquared ? BX[3] : BY[3]);
 
-          (*cfw[ielGeom])(0, aParabola, dParabola, xSquared, weightCFInt);
-
-          weightCFExt.resize(weightCFInt.size());
-          for(unsigned i = 0; i < weightCFInt.size(); i++) {
-            weightCFExt[i] = 1. - weightCFInt[i];
-          }
-
-          (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
+          cfw[ielGeom]->GetWeightFromNodalValues(0, psi, weightCFInt);
+          for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+          cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
 
         }
         else {

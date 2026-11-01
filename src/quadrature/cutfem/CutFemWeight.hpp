@@ -10,6 +10,7 @@
 #include "CutPrism.hpp"
 
 #include "CutFem.hpp"
+#include "FELevelSetMoments.hpp"
 
 #include "GramSchmidt.hpp"
 
@@ -109,6 +110,215 @@ class CutFemWeight {
     void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
     void GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
 
+
+    void GetWeightFromMoments(const std::vector<std::vector<double>>& moments, std::vector<TypeIO>& weightCF) {
+      if (_dim != 2 || (_geomElemType != QUAD && _geomElemType != TRI) || moments.size() < _qM + 1) {
+        throw std::invalid_argument("Expected canonical QUAD or TRI moments.");
+      }
+      unsigned count = 0;
+      for (unsigned q = 0; q <= _qM; ++q) {
+        for (unsigned j = 0; j <= q; ++j) {
+          unsigned i = q - j;
+          if (moments[i].size() <= j || !std::isfinite(moments[i][j])) {
+            throw std::invalid_argument("Invalid canonical moment table.");
+          }
+          _f[count++] = static_cast<TypeA>(moments[i][j]);
+        }
+      }
+      ++_cntCall;
+      EvaluateMomentWeights(weightCF);
+    }
+
+    void GetWeightFromMoments(const std::vector<double>& moments, std::vector<TypeIO>& weightCF) {
+      if (_geomElemType != LINE || moments.size() < _qM + 1) {
+        throw std::invalid_argument("Expected canonical LINE moments.");
+      }
+      for (unsigned i = 0; i <= _qM; ++i) {
+        if (!std::isfinite(moments[i])) {
+          throw std::invalid_argument("Invalid canonical LINE moment.");
+        }
+        _f[i] = static_cast<TypeA>(moments[i]);
+      }
+      ++_cntCall;
+      EvaluateMomentWeights(weightCF);
+    }
+
+    void GetWeightFromFE(const int& s, const std::vector<std::vector<double>>& coefficient, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if (_geomElemType != QUAD || (s != 0 && s != -1)) {
+        throw std::invalid_argument("QUAD9 FE weights require QUAD and s=0 or s=-1.");
+      }
+      if (coefficient.size() != 3) {
+        throw std::invalid_argument("Expected a 3 by 3 QUAD9 coefficient matrix.");
+      }
+      bool planar = true;
+      for (unsigned i = 0; i < 3; ++i) {
+        if (coefficient[i].size() != 3) {
+          throw std::invalid_argument("Expected a 3 by 3 QUAD9 coefficient matrix.");
+        }
+        for (unsigned j = 0; j < 3; ++j) {
+          if (!std::isfinite(coefficient[i][j])) {
+            throw std::invalid_argument("A QUAD9 coefficient is not finite.");
+          }
+          if (i + j > 1 && coefficient[i][j] != 0.0) {
+            planar = false;
+          }
+        }
+      }
+      if (planar && (coefficient[1][0] != 0.0 || coefficient[0][1] != 0.0)) {
+        std::vector<TypeIO> normal = {static_cast<TypeIO>(coefficient[1][0]), static_cast<TypeIO>(coefficient[0][1])};
+        operator()(s, normal, static_cast<TypeIO>(coefficient[0][0]), weightCF);
+        return;
+      }
+      std::vector<std::vector<double>> positive;
+      std::vector<std::vector<double>> delta;
+      FELevelSetMoments::IntegrateQuad9Canonical(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, -1.0, 1.0, -1.0, 1.0, s == -1);
+      GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+    }
+
+    void GetWeightFromFE(const int& s, const std::vector<double>& coefficient, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if (s != 0 && s != -1) {
+        throw std::invalid_argument("FE weights require s=0 or s=-1.");
+      }
+      if (_geomElemType == TRI) {
+        if (coefficient.size() != 7) {
+          throw std::invalid_argument("Expected seven TRI7 coefficients.");
+        }
+        for (unsigned k = 0; k < 7; ++k) {
+          if (!std::isfinite(coefficient[k])) {
+            throw std::invalid_argument("A TRI7 coefficient is not finite.");
+          }
+        }
+        if (coefficient[3] == 0.0 && coefficient[4] == 0.0 && coefficient[5] == 0.0 && coefficient[6] == 0.0 && (coefficient[1] != 0.0 || coefficient[2] != 0.0)) {
+          std::vector<TypeIO> normal = {static_cast<TypeIO>(coefficient[1]), static_cast<TypeIO>(coefficient[2])};
+          operator()(s, normal, static_cast<TypeIO>(coefficient[0]), weightCF);
+          return;
+        }
+        std::vector<std::vector<double>> positive;
+        std::vector<std::vector<double>> delta;
+        FELevelSetMoments::IntegrateTri7Canonical(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+        GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+      }
+      else if (_geomElemType == LINE && coefficient.size() == 3) {
+        for (unsigned k = 0; k < 3; ++k) {
+          if (!std::isfinite(coefficient[k])) {
+            throw std::invalid_argument("A LINE3 coefficient is not finite.");
+          }
+        }
+        if (coefficient[0] == 0.0 && coefficient[1] != 0.0) {
+          std::vector<TypeIO> normal(1, static_cast<TypeIO>(coefficient[1]));
+          operator()(s, normal, static_cast<TypeIO>(coefficient[2]), weightCF);
+          return;
+        }
+        std::vector<double> positive;
+        std::vector<double> delta;
+        FELevelSetMoments::Integrate1DCanonical(coefficient[0], coefficient[1], coefficient[2], _qM, positive, delta, -1.0, 1.0, s == -1);
+        GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+      }
+      else {
+        throw std::invalid_argument("Expected TRI7 coefficients or LINE3 coefficients {a,b,c}.");
+      }
+    }
+
+    void GetWeightFromCanonicalFE(const int& s, const std::vector<std::vector<double>>& coefficient, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if (_geomElemType != QUAD || (s != 0 && s != -1)) {
+        throw std::invalid_argument("Canonical QUAD9 weights require QUAD and s=0 or s=-1.");
+      }
+      if (coefficient.size() != 3) {
+        throw std::invalid_argument("Expected a 3 by 3 unit-square QUAD9 coefficient matrix.");
+      }
+      bool planar = true;
+      for (unsigned i = 0; i < 3; ++i) {
+        if (coefficient[i].size() != 3) {
+          throw std::invalid_argument("Expected a 3 by 3 unit-square QUAD9 coefficient matrix.");
+        }
+        for (unsigned j = 0; j < 3; ++j) {
+          if (!std::isfinite(coefficient[i][j])) {
+            throw std::invalid_argument("A QUAD9 coefficient is not finite.");
+          }
+          if (i + j > 1 && coefficient[i][j] != 0.0) {
+            planar = false;
+          }
+        }
+      }
+      if (planar && (coefficient[1][0] != 0.0 || coefficient[0][1] != 0.0)) {
+        std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L * coefficient[1][0]), static_cast<TypeIO>(0.5L * coefficient[0][1])};
+        operator()(s, normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0][0]) + 0.5L * coefficient[1][0] + 0.5L * coefficient[0][1]), weightCF);
+        return;
+      }
+      std::vector<std::vector<double>> positive;
+      std::vector<std::vector<double>> delta;
+      FELevelSetMoments::IntegrateQuad9Unit(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+      GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+    }
+
+    void GetWeightFromCanonicalFE(const int& s, const std::vector<double>& coefficient, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if (s != 0 && s != -1) {
+        throw std::invalid_argument("Canonical FE weights require s=0 or s=-1.");
+      }
+      if (_geomElemType == TRI) {
+        if (coefficient.size() != 7) {
+          throw std::invalid_argument("Expected reflected TRI7 coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x-y).");
+        }
+        for (unsigned k = 0; k < 7; ++k) {
+          if (!std::isfinite(coefficient[k])) {
+            throw std::invalid_argument("A TRI7 coefficient is not finite.");
+          }
+        }
+        if (coefficient[3] == 0.0 && coefficient[4] == 0.0 && coefficient[5] == 0.0 && coefficient[6] == 0.0 && (coefficient[1] != 0.0 || coefficient[2] != 0.0)) {
+          std::vector<TypeIO> normal = {static_cast<TypeIO>(-coefficient[1]), static_cast<TypeIO>(coefficient[2])};
+          operator()(s, normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0]) + coefficient[1]), weightCF);
+          return;
+        }
+        std::vector<std::vector<double>> positive;
+        std::vector<std::vector<double>> delta;
+        FELevelSetMoments::IntegrateTri7Reflected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+        GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+      }
+      else if (_geomElemType == LINE && coefficient.size() == 3) {
+        for (unsigned k = 0; k < 3; ++k) {
+          if (!std::isfinite(coefficient[k])) {
+            throw std::invalid_argument("A LINE3 coefficient is not finite.");
+          }
+        }
+        if (coefficient[0] == 0.0 && coefficient[1] != 0.0) {
+          std::vector<TypeIO> normal(1, static_cast<TypeIO>(0.5L * coefficient[1]));
+          operator()(s, normal, static_cast<TypeIO>(static_cast<long double>(coefficient[2]) + 0.5L * coefficient[1]), weightCF);
+          return;
+        }
+        std::vector<double> positive;
+        std::vector<double> delta;
+        FELevelSetMoments::Integrate1D(coefficient[0], coefficient[1], coefficient[2], _qM, positive, delta, 0.0, 1.0, s == -1);
+        GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
+      }
+      else {
+        throw std::invalid_argument("Expected reflected TRI7 coefficients or unit-interval LINE3 coefficients {a,b,c}.");
+      }
+    }
+
+    void GetWeightFromNodalValues(const int& s, const std::vector<double>& nodalValues, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if (_geomElemType == QUAD) {
+        std::vector<std::vector<double>> coefficient;
+        FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalValues, coefficient);
+        GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
+      }
+      else if (_geomElemType == TRI) {
+        std::vector<double> coefficient;
+        FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(nodalValues, coefficient);
+        GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
+      }
+      else if (_geomElemType == LINE) {
+        double a = 0.0;
+        double b = 0.0;
+        double c = 0.0;
+        FELevelSetMoments::Line3CoefficientsFromNodalValues(nodalValues, a, b, c);
+        std::vector<double> coefficient = {a, b, c};
+        GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
+      }
+      else {
+        throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, and TRI7.");
+      }
+    }
+
     void UpdateQuadratureRule(const unsigned &qM) {
       clear();
       delete _gauss;
@@ -156,6 +366,33 @@ class CutFemWeight {
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
+    void EvaluateMomentWeights(std::vector<TypeIO>& weightCF) {
+      _Co = _ATA * _f;
+      std::vector<double> bo(_L);
+      std::vector<double> x(_dim);
+      weightCF.assign(_gn, 0);
+      for (unsigned ig = 0; ig < _gn; ++ig) {
+        if (_geomElemType == LINE || _geomElemType == QUAD) {
+          for (unsigned k = 0; k < _dim; ++k) {
+            x[k] = 0.5 * (1.0 + _xgp[k][ig]);
+          }
+        }
+        else if (_geomElemType == TRI) {
+          x[0] = 1.0 - _xgp[0][ig];
+          x[1] = _xgp[1][ig];
+        }
+        else {
+          throw std::invalid_argument("Canonical FE moment weights support LINE, QUAD, and TRI.");
+        }
+        PolyBasis(x, bo);
+        double value = 0.0;
+        for (unsigned k = 0; k < _L; ++k) {
+          value += static_cast<double>(_Co[k] * bo[k]);
+        }
+        weightCF[ig] = static_cast<TypeIO>(value);
+      }
+    }
+
     unsigned _dim;
     GeomElType _geomElemType;
     Gauss *_gauss;
@@ -396,6 +633,7 @@ void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::v
 }
 
 #endif
+
 
 
 
