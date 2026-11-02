@@ -1430,7 +1430,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           // BestFitQuadraticInterpolation(xg, psi, BX, BY, xSquared);
           // BestFitQuadraticInterpolation(xg, psig, BX, BY, xSquared);
-          BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
+          //BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
         std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
@@ -1458,6 +1458,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //
           // (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
 
+
+          //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
+          //std::cout<<std::endl;
 
           cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF);
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
@@ -1523,7 +1526,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           if (cut == 1) {
             std::vector<double> gradGPhysical(dim, 0.);
 
-            if (dim == 2) {
+            if (dim == 2 || dim == 3) {
               std::vector<double> xiPsi(dim);
               for (unsigned d = 0; d < dim; ++d) {
                 xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
@@ -2196,8 +2199,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
 
-  double per_th = 2 * M_PI * 0.249;
-  double A_th = M_PI * 0.249 * 0.249;
+  MPI_Allreduce(MPI_IN_PLACE, &A, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+
+  double per_th = (dim == 2) ? 2 * M_PI * 0.249: 4. * M_PI * 0.249 * 0.249;
+  double A_th = (dim == 2) ? M_PI * 0.249 * 0.249: 4./3. * M_PI * 0.249 * 0.249 * 0.249;
   std::cout << " Area error " << std::abs(A - A_th) << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th) << std::endl;
 

@@ -322,8 +322,15 @@ inline std::vector<long double> SeriesConstant(long double value, unsigned order
 
 inline std::vector<long double> SeriesProduct(const std::vector<long double>& first, const std::vector<long double>& second) {
   std::vector<long double> result(first.size(), 0.0L);
-  for (unsigned k = 0; k < result.size(); ++k) {
-    for (unsigned j = 0; j <= k; ++j) {
+  unsigned firstDegree = static_cast<unsigned>(first.size())-1U;
+  unsigned secondDegree = static_cast<unsigned>(second.size())-1U;
+  while(firstDegree != 0 && first[firstDegree] == 0.0L) --firstDegree;
+  while(secondDegree != 0 && second[secondDegree] == 0.0L) --secondDegree;
+  unsigned degree = std::min(static_cast<unsigned>(result.size())-1U,firstDegree+secondDegree);
+  for (unsigned k = 0; k <= degree; ++k) {
+    unsigned begin = k > secondDegree ? k-secondDegree : 0;
+    unsigned end = std::min(k,firstDegree);
+    for (unsigned j = begin; j <= end; ++j) {
       result[k] += first[j] * second[k - j];
     }
   }
@@ -363,7 +370,9 @@ inline std::vector<long double> SeriesSquareRoot(const std::vector<long double>&
 
 inline std::vector<long double> SeriesPolynomial(const std::vector<long double>& polynomial, const std::vector<long double>& argument) {
   std::vector<long double> result(argument.size(), 0.0L);
-  for (unsigned k = static_cast<unsigned>(polynomial.size()); k > 0; --k) {
+  if(polynomial.empty()) return result;
+  result[0] = polynomial.back();
+  for (unsigned k = static_cast<unsigned>(polynomial.size())-1U; k > 0; --k) {
     result = SeriesProduct(result, argument);
     result[0] += polynomial[k - 1U];
   }
@@ -421,6 +430,37 @@ inline void SeriesIntegral(const std::vector<long double>& coefficients, long do
   long double rounding = 64.0L * std::numeric_limits<long double>::epsilon() * norm;
   error = 8.0L * tail + rounding;
   converged = std::isfinite(value) && std::isfinite(error) && (tail <= 0.5L * preceding || tail <= rounding);
+}
+
+inline void SeriesProductIntegral(const std::vector<long double>& first, const std::vector<long double>& second, long double& value, long double& error, bool& converged) {
+  value = 0.0L;
+  long double correction = 0.0L;
+  long double norm = 0.0L;
+  long double tail = 0.0L;
+  long double preceding = 0.0L;
+  unsigned order = static_cast<unsigned>(first.size())-1U;
+  unsigned block = std::max(8U,order/6U);
+  unsigned firstDegree = order;
+  unsigned secondDegree = order;
+  while(firstDegree != 0 && first[firstDegree] == 0.0L) --firstDegree;
+  while(secondDegree != 0 && second[secondDegree] == 0.0L) --secondDegree;
+  for(unsigned k = 0; k <= order; k += 2U) {
+    long double coefficient = 0.0L;
+    unsigned begin = k > secondDegree ? k-secondDegree : 0;
+    unsigned end = std::min(k,firstDegree);
+    for(unsigned j = begin; j <= end; ++j) coefficient += first[j]*second[k-j];
+    long double term = 2.0L*coefficient/(k+1U);
+    long double corrected = term-correction;
+    long double next = value+corrected;
+    correction = (next-value)-corrected;
+    value = next;
+    norm += std::abs(term);
+    if(k+block > order) tail += std::abs(term);
+    else if(k+2U*block > order) preceding += std::abs(term);
+  }
+  long double rounding = 64.0L*std::numeric_limits<long double>::epsilon()*norm;
+  error = 8.0L*tail+rounding;
+  converged = std::isfinite(value) && std::isfinite(error) && (tail <= 0.5L*preceding || tail <= rounding);
 }
 
 inline unsigned MomentIndex(unsigned degree, unsigned i, unsigned j) {
@@ -605,7 +645,7 @@ inline void FactorEndpoint(std::vector<long double>& polynomial, long double roo
   }
 }
 
-inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors) {
+inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors, bool fullDeltaChart = false) {
   long double middle = 0.5L * (thetaLeft + thetaRight);
   long double halfWidth = 0.5L * (thetaRight - thetaLeft);
   long double width = xRight - xLeft;
@@ -640,8 +680,10 @@ inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, cons
   std::vector<long double> c = SeriesPolynomial(field[2], x);
   bool quadratic = PolynomialNorm(field[0]) != 0.0L;
   std::vector<long double> squareRoot(order + 1U, 0.0L);
+  std::vector<long double> reducedSquareRoot;
   if (quadratic) {
-    squareRoot = SeriesSquareRoot(SeriesPolynomial(reducedDiscriminant, x));
+    reducedSquareRoot = SeriesSquareRoot(SeriesPolynomial(reducedDiscriminant,x));
+    squareRoot = reducedSquareRoot;
     squareRoot = SeriesProduct(squareRoot, SeriesPower(sine, leftMultiplicity));
     squareRoot = SeriesProduct(squareRoot, SeriesPower(cosine, rightMultiplicity));
     long double factor = std::pow(width, 0.5L * static_cast<long double>(leftMultiplicity + rightMultiplicity));
@@ -651,9 +693,27 @@ inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, cons
   }
   std::vector<std::vector<long double>> roots;
   std::vector<std::vector<long double>> weights;
-  std::vector<long double> da = SeriesPolynomial(PolynomialDerivative(field[0]), x);
-  std::vector<long double> db = SeriesPolynomial(PolynomialDerivative(field[1]), x);
-  std::vector<long double> dc = SeriesPolynomial(PolynomialDerivative(field[2]), x);
+  std::vector<long double> da,db,dc,commonDeltaWeight;
+  if(computeDelta && !fullDeltaChart) {
+    da = SeriesPolynomial(PolynomialDerivative(field[0]),x);
+    db = SeriesPolynomial(PolynomialDerivative(field[1]),x);
+    dc = SeriesPolynomial(PolynomialDerivative(field[2]),x);
+  }
+  if(computeDelta && fullDeltaChart) {
+    if(quadratic && leftMultiplicity <= 1 && rightMultiplicity <= 1) {
+      commonDeltaWeight = SeriesConstant(2.0L*width*halfWidth/std::pow(width,0.5L*(leftMultiplicity+rightMultiplicity)),order);
+      if(leftMultiplicity == 0) commonDeltaWeight = SeriesProduct(commonDeltaWeight,sine);
+      if(rightMultiplicity == 0) commonDeltaWeight = SeriesProduct(commonDeltaWeight,cosine);
+      commonDeltaWeight = SeriesQuotient(commonDeltaWeight,reducedSquareRoot);
+    }
+    else {
+      std::vector<long double> derivative = quadratic ? squareRoot : b;
+      if(!quadratic && derivative[0] < 0.0L) {
+        for(unsigned k = 0; k <= order; ++k) derivative[k] = -derivative[k];
+      }
+      commonDeltaWeight = SeriesQuotient(jacobian,derivative);
+    }
+  }
   for (unsigned r = 0; r < signs.size(); ++r) {
     std::vector<long double> root(order + 1U, 0.0L);
     if (boundary[r] != 0) {
@@ -685,6 +745,14 @@ inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, cons
     }
     roots.push_back(root);
     if (computeDelta) {
+      if(fullDeltaChart) {
+        std::vector<long double> weight(commonDeltaWeight);
+        if(!fullBoundaryDelta && boundary[r] != 0) {
+          for(unsigned k = 0; k <= order; ++k) weight[k] *= 0.5L;
+        }
+        weights.push_back(weight);
+        continue;
+      }
       std::vector<long double> gy = quadratic ? squareRoot : b;
       if (!quadratic && gy[0] < 0.0L) {
         for (unsigned k = 0; k <= order; ++k) {
@@ -758,11 +826,11 @@ inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, cons
       unsigned index = MomentIndex(degree, i, j);
       bool converged = true;
       if (computePositive) {
-        SeriesIntegral(SeriesProduct(xPower, positiveSlice[j]), values[index], errors[index], converged);
+        SeriesProductIntegral(xPower,positiveSlice[j],values[index],errors[index],converged);
         allConverged = allConverged && converged;
       }
       if (computeDelta) {
-        SeriesIntegral(SeriesProduct(xPower, deltaSlice[j]), values[count + index], errors[count + index], converged);
+        SeriesProductIntegral(xPower,deltaSlice[j],values[count+index],errors[count+index],converged);
         allConverged = allConverged && converged;
       }
     }
@@ -771,10 +839,10 @@ inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, cons
   return allConverged;
 }
 
-inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals) {
+inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals, bool fullDeltaChart = false) {
   std::vector<long double> values;
   std::vector<long double> errors;
-  bool accepted = SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, values, errors);
+  bool accepted = SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order,triangle,domain,computePositive,computeDelta,fullBoundaryDelta,values,errors,fullDeltaChart);
   unsigned count = (degree + 1U) * (degree + 2U) / 2U;
   for (unsigned k = 0; k < values.size(); ++k) {
     long double tolerance = ((k < count) ? absolutePositive : absoluteDelta) + relativeTolerance * std::abs(values[k]);
@@ -792,11 +860,11 @@ inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>&
   if (depth >= maximumDepth || middle == thetaLeft || middle == thetaRight) {
     throw std::runtime_error("Taylor recurrence did not reach the requested tolerance; increase maximumDepth or relax the tolerance.");
   }
-  IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, middle, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals);
-  IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, middle, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals);
+  IntegrateTaylorInterval(field,reducedDiscriminant,leftMultiplicity,rightMultiplicity,xLeft,xRight,thetaLeft,middle,signs,boundary,positiveSegments,degree,order,triangle,domain,computePositive,computeDelta,fullBoundaryDelta,0.5L*absolutePositive,0.5L*absoluteDelta,relativeTolerance,depth+1U,maximumDepth,sum,sumError,acceptedIntervals,fullDeltaChart);
+  IntegrateTaylorInterval(field,reducedDiscriminant,leftMultiplicity,rightMultiplicity,xLeft,xRight,middle,thetaRight,signs,boundary,positiveSegments,degree,order,triangle,domain,computePositive,computeDelta,fullBoundaryDelta,0.5L*absolutePositive,0.5L*absoluteDelta,relativeTolerance,depth+1U,maximumDepth,sum,sumError,acceptedIntervals,fullDeltaChart);
 }
 
-inline void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, unsigned order, unsigned maximumDepth, std::vector<long double>& result, std::vector<long double>& resultError, unsigned& acceptedIntervals) {
+inline void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, unsigned order, unsigned maximumDepth, std::vector<long double>& result, std::vector<long double>& resultError, unsigned& acceptedIntervals, bool fullDeltaChart = false) {
   std::vector<std::vector<long double>> field(3, std::vector<long double>(3, 0.0L));
   for (unsigned i = 0; i < 3; ++i) {
     for (unsigned j = 0; j < 3; ++j) {
@@ -862,7 +930,7 @@ inline void IntegrateDirection(const std::vector<std::vector<long double>>& coef
       }
     }
     long double fraction = (right - left) / (domain[1] - domain[0]);
-    IntegrateTaylorInterval(field, reduced, leftMultiplicity, rightMultiplicity, left, right, 0.0L, 0.5L * std::acos(-1.0L), signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, absoluteTolerance * fraction, deltaTolerance * fraction, relativeTolerance, 0, maximumDepth, result, resultError, acceptedIntervals);
+    IntegrateTaylorInterval(field,reduced,leftMultiplicity,rightMultiplicity,left,right,0.0L,0.5L*std::acos(-1.0L),signs,boundary,positiveSegments,degree,order,triangle,domain,computePositive,computeDelta,fullBoundaryDelta,absoluteTolerance*fraction,deltaTolerance*fraction,relativeTolerance,0,maximumDepth,result,resultError,acceptedIntervals,fullDeltaChart);
   }
 }
 
@@ -884,6 +952,33 @@ inline bool PreferReverseOrder(const std::vector<std::vector<long double>>& coef
   return derivativeX > derivativeY;
 }
 
+inline bool RegularDeltaProjection(const std::vector<std::vector<long double>>& coefficient, const std::vector<long double>& domain, unsigned order) {
+  std::vector<std::vector<long double>> fibers(3,std::vector<long double>(3,0.0L));
+  long double left = domain[order == 1 ? 0 : 2];
+  long double right = domain[order == 1 ? 1 : 3];
+  std::vector<long double> candidates = {left,right};
+  bool selected = false;
+  long double norm = 0.0L;
+  long double radius = std::max(1.0L,std::max(std::abs(left),std::abs(right)));
+  for(unsigned j = 0; j < 3; ++j) {
+    for(unsigned i = 0; i < 3; ++i) fibers[j][i] = order == 1 ? coefficient[i][j] : coefficient[j][i];
+    Trim(fibers[j]);
+    norm += PolynomialBound(fibers[j],radius);
+    if(PolynomialNorm(fibers[j]) != 0.0L) {
+      PolynomialRoots(fibers[j],left,right,candidates);
+      selected = true;
+    }
+  }
+  if(!selected) return false;
+  long double tolerance = 32.0L*std::sqrt(std::numeric_limits<long double>::epsilon())*norm;
+  for(unsigned k = 0; k < candidates.size(); ++k) {
+    bool common = true;
+    for(unsigned j = 0; j < 3; ++j) common = common && std::abs(PolynomialValue(fibers[j],candidates[k])) <= tolerance;
+    if(common) return false;
+  }
+  return true;
+}
+
 inline void IntegrateNormalizedCell(const std::vector<std::vector<long double>>& normalized, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, std::vector<long double>& result, std::vector<long double>& errors, unsigned& acceptedIntervals) {
   if (integrationOrder > 2U) {
     throw std::invalid_argument("integrationOrder must be 0 (automatic), 1 (y first), or 2 (x first).");
@@ -892,6 +987,48 @@ inline void IntegrateNormalizedCell(const std::vector<std::vector<long double>>&
   bool reversePositive = computePositive && ((integrationOrder == 2U) || (integrationOrder == 0U && PreferReverseOrder(normalized, domain)));
   result.assign(2U * count, 0.0L);
   errors.assign(2U * count, 0.0L);
+  if(computeDelta) {
+    unsigned intervalsBefore = acceptedIntervals;
+    unsigned selected = integrationOrder == 0 ? (PreferReverseOrder(normalized,domain) ? 2U : 1U) : integrationOrder;
+    if(!RegularDeltaProjection(normalized,domain,selected)) {
+      if(integrationOrder == 0 && RegularDeltaProjection(normalized,domain,3U-selected)) selected = 3U-selected;
+      else selected = 0;
+    }
+    try {
+      if(selected == 1) {
+        IntegrateDirection(normalized,degree,triangle,domain,computePositive,true,fullBoundaryDelta,absolutePositive,absoluteDelta,relativeTolerance,seriesOrder,maximumDepth,result,errors,acceptedIntervals,true);
+        return;
+      }
+      if(selected == 2) {
+        std::vector<std::vector<long double>> transposed(3,std::vector<long double>(3));
+        for(unsigned i = 0; i < 3; ++i) {
+          for(unsigned j = 0; j < 3; ++j) transposed[i][j] = normalized[j][i];
+        }
+        std::vector<long double> swapped(domain);
+        std::swap(swapped[0],swapped[2]);
+        std::swap(swapped[1],swapped[3]);
+        unsigned shape = triangle == 2 ? 3U : (triangle == 3 ? 2U : triangle);
+        std::vector<long double> value,error;
+        IntegrateDirection(transposed,degree,shape,swapped,computePositive,true,fullBoundaryDelta,absolutePositive,absoluteDelta,relativeTolerance,seriesOrder,maximumDepth,value,error,acceptedIntervals,true);
+        for(unsigned i = 0; i <= degree; ++i) {
+          for(unsigned j = 0; j <= degree-i; ++j) {
+            unsigned target = MomentIndex(degree,i,j);
+            unsigned source = MomentIndex(degree,j,i);
+            result[target] = value[source];
+            result[count+target] = value[count+source];
+            errors[target] = error[source];
+            errors[count+target] = error[count+source];
+          }
+        }
+        return;
+      }
+    }
+    catch(const std::runtime_error&) {
+      std::fill(result.begin(),result.end(),0.0L);
+      std::fill(errors.begin(),errors.end(),0.0L);
+      acceptedIntervals = intervalsBefore;
+    }
+  }
   if ((computePositive && !reversePositive) || computeDelta) {
     IntegrateDirection(normalized, degree, triangle, domain, computePositive && !reversePositive, computeDelta, fullBoundaryDelta, absolutePositive, 0.5L * absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, result, errors, acceptedIntervals);
   }
@@ -997,7 +1134,7 @@ inline void IntegrateCell(const std::vector<std::vector<double>>& coefficient, u
   }
 }
 
-inline void IntegrateQuad9(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateQuad9(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
   std::vector<long double> domain(4, 0.0L);
   domain[0] = xLeft;
   domain[1] = xRight;
@@ -1006,7 +1143,7 @@ inline void IntegrateQuad9(const std::vector<std::vector<double>>& coefficient, 
   IntegrateCell(coefficient, degree, false, domain, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, estimatedError);
 }
 
-inline void IntegrateTri7(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateTri7(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
   if (coefficient.size() != 7) {
     throw std::invalid_argument("TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x+y).");
   }
@@ -1071,7 +1208,224 @@ inline void CanonicalBoundaryMoments(const std::vector<std::vector<long double>>
   }
 }
 
-inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, bool useBoundaryRecurrence, std::vector<double>* estimatedError) {
+inline void CanonicalBernstein(const std::vector<std::vector<long double>>& coefficient, long double bernstein[3][3]) {
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) {
+      bernstein[i][j] = 0.0L;
+      for(unsigned r = 0; r <= i; ++r) {
+        for(unsigned s = 0; s <= j; ++s) bernstein[i][j] += coefficient[r][s]*Binomial(i,r)*Binomial(j,s)/(Binomial(2,r)*Binomial(2,s));
+      }
+    }
+  }
+}
+
+inline unsigned CanonicalGraphOrder(const std::vector<std::vector<long double>>& coefficient, unsigned requestedOrder, int& phase, long double* derivativeBound = nullptr) {
+  long double b[3][3];
+  CanonicalBernstein(coefficient,b);
+  long double norm = 0.0L;
+  long double minimum = b[0][0];
+  long double maximum = minimum;
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) {
+      norm += std::abs(coefficient[i][j]);
+      minimum = std::min(minimum,b[i][j]);
+      maximum = std::max(maximum,b[i][j]);
+    }
+  }
+  long double padding = 512.0L*std::numeric_limits<long double>::epsilon()*norm;
+  long double conditioning = 32.0L*std::sqrt(std::numeric_limits<long double>::epsilon())*norm;
+  phase = minimum > padding ? 1 : (maximum < -padding ? -1 : 0);
+  unsigned selected = 0;
+  long double selectedBound = 0.0L;
+  for(unsigned order = 1; order <= 2; ++order) {
+    if(requestedOrder != 0 && requestedOrder != order) continue;
+    long double derivativeMinimum = std::numeric_limits<long double>::infinity();
+    long double derivativeMaximum = -derivativeMinimum;
+    for(unsigned i = 0; i < 3; ++i) {
+      long double low = order == 1 ? b[i][0] : b[0][i];
+      long double middle = order == 1 ? b[i][1] : b[1][i];
+      long double high = order == 1 ? b[i][2] : b[2][i];
+      const long double derivative[3] = {2.0L*(middle-low),high-low,2.0L*(high-middle)};
+      for(unsigned j = 0; j < 3; ++j) {
+        derivativeMinimum = std::min(derivativeMinimum,derivative[j]);
+        derivativeMaximum = std::max(derivativeMaximum,derivative[j]);
+      }
+    }
+    long double bound = 0.0L;
+    if(derivativeMinimum > conditioning) bound = derivativeMinimum-padding;
+    if(derivativeMaximum < -conditioning) bound = -derivativeMaximum-padding;
+    if(bound > selectedBound) {
+      selectedBound = bound;
+      selected = order;
+    }
+  }
+  if(derivativeBound != nullptr) *derivativeBound = selectedBound;
+  return selected;
+}
+
+inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false) {
+  long double polynomial[3] = {};
+  for(unsigned k = 0; k < 3; ++k) {
+    if(order == 1) polynomial[k] = std::fma(std::fma(coefficient[2][k],point,coefficient[1][k]),point,coefficient[0][k]);
+    else polynomial[k] = std::fma(std::fma(coefficient[k][2],point,coefficient[k][1]),point,coefficient[k][0]);
+  }
+  std::vector<long double> roots = QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]);
+  long double lower = triangle && order == 2 ? point : 0.0L;
+  long double upper = triangle && order == 1 ? point : 1.0L;
+  long double root = -1.0L;
+  for(unsigned k = 0; k < roots.size(); ++k) {
+    if(roots[k] > lower && roots[k] < upper) {
+      if(root >= 0.0L) throw std::runtime_error("A monotone graph has more than one interior root.");
+      root = roots[k];
+    }
+  }
+  if(root < 0.0L) throw std::runtime_error("A monotone graph root was not resolved.");
+  long double derivative = std::abs(std::fma(2.0L*polynomial[2],root,polynomial[1]));
+  if(!(derivative > 0.0L)) throw std::runtime_error("A monotone graph derivative was not resolved.");
+  std::vector<long double> positive(degree+1U),delta(degree+1U);
+  bool above = std::fma(polynomial[2],lower*lower,std::fma(polynomial[1],lower,polynomial[0])) < 0.0L;
+  long double left = above ? root : lower;
+  long double right = above ? upper : root;
+  long double power = 1.0L;
+  long double rightPower = 1.0L;
+  long double geometric = 0.0L;
+  for(unsigned j = 0; j <= degree; ++j) {
+    geometric = rightPower+left*geometric;
+    delta[j] = computeDelta ? power/derivative : 0.0L;
+    power *= root;
+    rightPower *= right;
+    positive[j] = (right-left)*geometric/(j+1U);
+  }
+  unsigned count = (degree+1U)*(degree+2U)/2U;
+  values.assign(2U*count,0.0L);
+  power = 1.0L;
+  for(unsigned i = 0; i <= degree; ++i) {
+    for(unsigned j = 0; j <= degree-i; ++j) {
+      unsigned index = order == 1 ? MomentIndex(degree,i,j) : MomentIndex(degree,j,i);
+      values[index] = power*positive[j];
+      values[count+index] = power*delta[j];
+    }
+    power *= point;
+  }
+}
+
+inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false) {
+  const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
+  const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
+  const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
+  unsigned count = (degree+1U)*(degree+2U)/2U;
+  std::vector<long double> high(2U*count,0.0L),low(2U*count,0.0L),absolute(2U*count,0.0L);
+  std::vector<std::vector<long double>> samples;
+  std::vector<long double> sampleWeights;
+  long double middle = 0.5L*(left+right);
+  long double halfWidth = 0.5L*(right-left);
+  for(unsigned node = 0; node < 8; ++node) {
+    unsigned sides = node == 7 ? 1 : 2;
+    for(unsigned side = 0; side < sides; ++side) {
+      long double point = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
+      std::vector<long double> value;
+      CanonicalGraphSample(coefficient,degree,order,point,computeDelta,value,triangle);
+      for(unsigned k = 0; k < value.size(); ++k) {
+        high[k] += kronrod[node]*value[k];
+        absolute[k] += kronrod[node]*std::abs(value[k]);
+        if((node&1U) != 0) low[k] += gauss[node/2U]*value[k];
+      }
+      samples.push_back(value);
+      sampleWeights.push_back(kronrod[node]);
+    }
+  }
+  bool converged = true;
+  std::vector<long double> error(high.size());
+  for(unsigned k = 0; k < high.size(); ++k) {
+    long double variation = 0.0L;
+    for(unsigned n = 0; n < samples.size(); ++n) variation += sampleWeights[n]*std::abs(samples[n][k]-0.5L*high[k]);
+    long double estimate = std::abs(high[k]-low[k]);
+    if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
+    estimate = std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
+    error[k] = halfWidth*estimate;
+    high[k] *= halfWidth;
+    long double tolerance = (k < count ? absoluteH : absoluteDelta)*(right-left)+relativeTolerance*std::abs(high[k]);
+    converged = converged && error[k] <= tolerance;
+  }
+  if(converged) {
+    for(unsigned k = 0; k < high.size(); ++k) {
+      total[k] += high[k];
+      totalError[k] += error[k];
+    }
+    ++accepted;
+    return;
+  }
+  if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Monotone graph integration did not reach the requested tolerance.");
+  IntegrateCanonicalGraphInterval(coefficient,degree,order,left,middle,computeDelta,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,triangle);
+  IntegrateCanonicalGraphInterval(coefficient,degree,order,middle,right,computeDelta,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,triangle);
+}
+
+inline bool IntegrateCanonicalGraph(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted) {
+  const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
+  std::vector<std::vector<long double>> field(3,std::vector<long double>(3));
+  long double norm = 0.0L;
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) {
+      field[2U-j][i] = order == 1 ? coefficient[i][j] : coefficient[j][i];
+      norm += std::abs(coefficient[i][j]);
+    }
+  }
+  unsigned shape = triangle ? (order == 1 ? 2U : 3U) : 0U;
+  std::vector<std::vector<long double>> edges = {BoundaryPolynomial(field,false,shape,domain),BoundaryPolynomial(field,true,shape,domain)};
+  std::vector<long double> events = {0.0L,1.0L};
+  long double rootError = 0.0L;
+  long double rounding = 512.0L*std::numeric_limits<long double>::epsilon();
+  for(unsigned side = 0; side < 2; ++side) {
+    Trim(edges[side]);
+    if(edges[side].size() > 3 || PolynomialNorm(edges[side]) <= rounding*norm) return false;
+    if(edges[side].size() == 3) {
+      long double a = edges[side][2], b = edges[side][1], c = edges[side][0];
+      long double discriminant = std::fma(-4.0L*a,c,b*b);
+      if(std::abs(discriminant) <= rounding*(b*b+4.0L*std::abs(a*c))) return false;
+    }
+    std::vector<long double> roots;
+    PolynomialRoots(edges[side],0.0L,1.0L,roots);
+    std::vector<long double> derivative = PolynomialDerivative(edges[side]);
+    for(unsigned k = 0; k < roots.size(); ++k) {
+      long double error = std::abs(PolynomialValue(edges[side],roots[k]))+rounding*PolynomialBound(edges[side],roots[k]);
+      long double slope = std::abs(PolynomialValue(derivative,roots[k]))-rounding*PolynomialBound(derivative,roots[k]);
+      long double quadratic = edges[side].size() == 3 ? std::abs(edges[side][2]) : 0.0L;
+      if(!(slope > 0.0L) || slope*slope <= 8.0L*quadratic*error) return false;
+      rootError += 2.0L*error/slope;
+      events.push_back(roots[k]);
+    }
+  }
+  if(rootError > 0.125L*absoluteH || (computeDelta && rootError/derivativeBound > 0.125L*absoluteDelta)) return false;
+  SortDistinct(events);
+  unsigned count = (degree+1U)*(degree+2U)/2U;
+  for(unsigned interval = 1; interval < events.size(); ++interval) {
+    long double left = events[interval-1U], right = events[interval];
+    if(!(right > left)) continue;
+    long double middle = 0.5L*(left+right);
+    long double bottom = PolynomialValue(edges[0],middle);
+    long double top = PolynomialValue(edges[1],middle);
+    if(bottom == 0.0L || top == 0.0L) return false;
+    if((bottom > 0.0L) == (top > 0.0L)) {
+      if(bottom > 0.0L) {
+        for(unsigned i = 0; i <= degree; ++i) {
+          for(unsigned j = 0; j <= degree-i; ++j) {
+            unsigned target = order == 1 ? MomentIndex(degree,i,j) : MomentIndex(degree,j,i);
+            total[target] += FullStripMoment(left,right,i,j,shape,domain);
+          }
+        }
+      }
+      ++accepted;
+    }
+    else IntegrateCanonicalGraphInterval(coefficient,degree,order,left,right,computeDelta,0.875L*absoluteH,0.875L*absoluteDelta,relativeTolerance,0,maximumDepth,total,totalError,accepted,triangle);
+  }
+  for(unsigned k = 0; k < count; ++k) {
+    totalError[k] += rootError;
+    if(computeDelta) totalError[count+k] += rootError/derivativeBound;
+  }
+  return true;
+}
+
+inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, bool useBoundaryRecurrence, std::vector<double>* estimatedError, std::vector<long double>* momentErrors = nullptr) {
   if (degree > std::numeric_limits<unsigned>::max() - 6U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || seriesOrder < 24U || seriesOrder > 256U || maximumDepth > 60U || integrationOrder > 2U) {
     throw std::invalid_argument("Invalid canonical integration input.");
   }
@@ -1102,7 +1456,31 @@ inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>&
   std::vector<long double> highError;
   unsigned acceptedIntervals = 0;
   bool usedRecurrence = false;
-  if (useBoundaryRecurrence) {
+  bool completed = false;
+  int phase = 0;
+  long double graphDerivative = 0.0L;
+  unsigned graphOrder = CanonicalGraphOrder(normalized,integrationOrder,phase,&graphDerivative);
+  if(phase != 0) {
+    if(phase > 0) {
+      for(unsigned i = 0; i <= degree; ++i) {
+        for(unsigned j = 0; j <= degree-i; ++j) values[MomentIndex(degree,i,j)] = CanonicalFullMoment(i,j,triangle);
+      }
+    }
+    completed = true;
+  }
+  else if(!useBoundaryRecurrence && graphOrder != 0) {
+    try {
+      completed = IntegrateCanonicalGraph(normalized,degree,graphOrder,triangle,computeDelta,graphDerivative,absoluteTolerance,static_cast<long double>(absoluteTolerance)*scale,relativeTolerance,maximumDepth,values,valueError,acceptedIntervals);
+    }
+    catch(const std::runtime_error&) {
+    }
+    if(!completed) {
+      std::fill(values.begin(),values.end(),0.0L);
+      std::fill(valueError.begin(),valueError.end(),0.0L);
+      acceptedIntervals = 0;
+    }
+  }
+  if (!completed && useBoundaryRecurrence) {
     try {
       long double deltaTolerance = std::min(static_cast<long double>(absoluteTolerance) * scale, absoluteTolerance / (1.0L + coefficientWeight));
       IntegrateNormalizedCell(normalized, internalDegree, shape, domain, false, true, false, absoluteTolerance, deltaTolerance, relativeTolerance / 8.0L, seriesOrder, maximumDepth, integrationOrder, high, highError, acceptedIntervals);
@@ -1117,10 +1495,10 @@ inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>&
       usedRecurrence = false;
     }
   }
-  if (!usedRecurrence) {
+  if (!completed && !usedRecurrence) {
     IntegrateNormalizedCell(normalized, degree, shape, domain, true, computeDelta, fullBoundaryDelta, absoluteTolerance, absoluteTolerance * scale, relativeTolerance, seriesOrder, maximumDepth, integrationOrder, values, valueError, acceptedIntervals);
   }
-  else {
+  else if(!completed) {
     unsigned highCount = (internalDegree + 1U) * (internalDegree + 2U) / 2U;
     std::vector<long double> right;
     std::vector<long double> top;
@@ -1199,6 +1577,12 @@ inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>&
       }
     }
   }
+  if(momentErrors != nullptr) {
+    *momentErrors = valueError;
+    for(unsigned k = count; k < 2U*count; ++k) {
+      (*momentErrors)[k] = computeDelta ? valueError[k]/scale : 0.0L;
+    }
+  }
   if (estimatedError != nullptr) {
     estimatedError->assign(3, 0.0);
     (*estimatedError)[0] = static_cast<double>(positiveError);
@@ -1261,11 +1645,11 @@ inline void Tri7CoefficientsToReflectedTriangle(const std::vector<double>& coeff
   }
 }
 
-inline void IntegrateQuad9Unit(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = true, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateQuad9Unit(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
   IntegrateCanonicalPolynomial(coefficient, degree, false, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
 }
 
-inline void IntegrateTri7Reflected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = true, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateTri7Reflected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
   if (coefficient.size() != 7) {
     throw std::invalid_argument("Reflected TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x-y).");
   }
@@ -1281,13 +1665,13 @@ inline void IntegrateTri7Reflected(const std::vector<double>& coefficient, unsig
   IntegrateCanonicalPolynomial(polynomial, degree, true, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
 }
 
-inline void IntegrateQuad9Canonical(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = true, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateQuad9Canonical(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
   std::vector<std::vector<double>> transformed;
   Quad9CoefficientsToUnitSquare(coefficient, transformed, xLeft, xRight, yBottom, yTop);
   IntegrateQuad9Unit(transformed, degree, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
 }
 
-inline void IntegrateTri7Canonical(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 64, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = true, std::vector<double>* estimatedError = nullptr) {
+inline void IntegrateTri7Canonical(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
   std::vector<double> transformed;
   Tri7CoefficientsToReflectedTriangle(coefficient, transformed);
   IntegrateTri7Reflected(transformed, degree, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
@@ -1526,5 +1910,3 @@ int main() {
 #endif
 
 #endif
-
-

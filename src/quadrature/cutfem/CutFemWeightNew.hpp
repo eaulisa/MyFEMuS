@@ -11,6 +11,8 @@
 
 #include "CutFem.hpp"
 #include "FELevelSetMoments.hpp"
+#include "Hex27LevelSetMoments.hpp"
+#include "AdaptiveLineSliceMoments.hpp"
 
 #include "GramSchmidt.hpp"
 
@@ -105,64 +107,77 @@ class CutFemWeight {
       std::vector<std::vector<cpp_bin_float_oct> > ATAoct;
       Get_GS_ATA_Matrix(_geomElemType, _qM, ATAoct, false);
 
-      _ATA.resize(ATAoct.size(), ATAoct.size());
+      Eigen::Matrix<TypeA,Eigen::Dynamic,Eigen::Dynamic> gramInverse(ATAoct.size(),ATAoct.size());
       for(unsigned i = 0; i < ATAoct.size(); i++) {
         for(unsigned j = 0; j < ATAoct[i].size(); j++) {
-          _ATA(i, j) = static_cast<TypeA>(ATAoct[i][j]);
+          gramInverse(i,j) = static_cast<TypeA>(ATAoct[i][j]);
         }
       }
 
       _f.resize(_L);
-      _Co.resize(_L);
       _fPair.resize(_L, 2);
-      _CoPair.resize(_L, 2);
 
-      // Cache the basis at Gauss points, including both tetrahedron orientations.
+      // Cache the combined moment-to-Gauss map in TypeA for each orientation.
       const unsigned numberOfB0Matrices = (_geomElemType == TET) ? 2u : 1u;
-      _B0.resize(numberOfB0Matrices);
+      _momentToWeight.resize(numberOfB0Matrices);
 
-      std::vector<double> bo(_L);
-      std::vector<double> x(_dim);
+      std::vector<TypeA> x(_dim);
+      std::vector<std::vector<TypeA>> powers(_dim,std::vector<TypeA>(_qM+1U,TypeA(1)));
 
       for(unsigned iMatrix = 0; iMatrix < numberOfB0Matrices; iMatrix++) {
         const unsigned TETtype = iMatrix + 1u;
 
-        _B0[iMatrix].resize(_gn, _L);
+        Eigen::Matrix<TypeA,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> basis(_gn,_L);
 
         for(unsigned ig = 0; ig < _gn; ig++) {
 
           if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
             for(unsigned k = 0; k < _dim; k++) {
-              x[k] = 0.5 * (1. + _xgp[k][ig]);
+              x[k] = (TypeA(1)+TypeA(_xgp[k][ig]))/TypeA(2);
             }
           }
           else if(_geomElemType == TRI) {
-            x[0] = 1. - _xgp[0][ig];
-            x[1] = _xgp[1][ig];
+            x[0] = TypeA(1)-TypeA(_xgp[0][ig]);
+            x[1] = TypeA(_xgp[1][ig]);
           }
           else if(_geomElemType == WEDGE) {
-            x[0] = 1. - _xgp[0][ig];
-            x[1] = _xgp[1][ig];
-            x[2] = 0.5 * (1. + _xgp[2][ig]);
+            x[0] = TypeA(1)-TypeA(_xgp[0][ig]);
+            x[1] = TypeA(_xgp[1][ig]);
+            x[2] = (TypeA(1)+TypeA(_xgp[2][ig]))/TypeA(2);
           }
           else { // TET
-            x[0] = _xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig];
+            x[0] = TypeA(_xgp[0][ig])+TypeA(_xgp[1][ig])+TypeA(_xgp[2][ig]);
             if(TETtype == 1) {
-              x[1] = _xgp[1][ig] + _xgp[2][ig];
-              x[2] = _xgp[2][ig];
+              x[1] = TypeA(_xgp[1][ig])+TypeA(_xgp[2][ig]);
+              x[2] = TypeA(_xgp[2][ig]);
             }
             else { // TETtype == 2
-              x[1] = _xgp[2][ig] + _xgp[0][ig];
-              x[2] = _xgp[0][ig];
+              x[1] = TypeA(_xgp[2][ig])+TypeA(_xgp[0][ig]);
+              x[2] = TypeA(_xgp[0][ig]);
             }
           }
 
-          PolyBasis(x, bo);
-
-          for(unsigned i = 0; i < _L; i++) {
-            _B0[iMatrix](ig, i) = static_cast<TypeIO>(bo[i]);
+          for(unsigned d = 0; d < _dim; ++d) {
+            for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i-1U]*x[d];
+          }
+          unsigned index = 0;
+          for(unsigned q = 0; q <= _qM; ++q) {
+            if(_dim == 1) basis(ig,index++) = powers[0][q];
+            else {
+              for(int ii = q; ii >= 0; --ii) {
+                unsigned i = static_cast<unsigned>(ii);
+                if(_dim == 2) basis(ig,index++) = powers[0][i]*powers[1][q-i];
+                else {
+                  for(int jj = q-i; jj >= 0; --jj) {
+                    unsigned j = static_cast<unsigned>(jj);
+                    basis(ig,index++) = powers[0][i]*powers[1][j]*powers[2][q-i-j];
+                  }
+                }
+              }
+            }
           }
         }
+        _momentToWeight[iMatrix].noalias() = basis*gramInverse;
       }
     }
 
@@ -185,6 +200,22 @@ class CutFemWeight {
     void operator()(const int &s, const std::vector<TypeA> &aX, const TypeA &dX, const std::vector<TypeA> &aY, const TypeA &dY, const bool &xSquared, std::vector<TypeIO> &weightCF);
 
     void GetWeightWithMap(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF);
+
+    void GetWeightFromMoments(const std::vector<std::vector<std::vector<double>>>& moments, std::vector<TypeIO>& weightCF) {
+      if(_geomElemType != HEX || moments.size() < _qM+1U) throw std::invalid_argument("Expected unit-cube HEX moments.");
+      unsigned count = 0;
+      for(unsigned q = 0; q <= _qM; ++q) {
+        for(int ii = q; ii >= 0; --ii) {
+          for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
+            unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj), k = q-i-j;
+            if(moments[i].size() <= j || moments[i][j].size() <= k || !std::isfinite(moments[i][j][k])) throw std::invalid_argument("Invalid HEX moment table.");
+            _f[count++] = static_cast<TypeA>(moments[i][j][k]);
+          }
+        }
+      }
+      ++_cntCall;
+      EvaluateMomentWeights(weightCF);
+    }
 
     void GetWeightFromMoments(const std::vector<std::vector<double>>& moments, std::vector<TypeIO>& weightCF) {
       if (_dim != 2 || (_geomElemType != QUAD && _geomElemType != TRI) || moments.size() < _qM + 1) {
@@ -370,8 +401,34 @@ class CutFemWeight {
       }
     }
 
+    void GetWeightFromCanonicalFE(const int& s, const std::vector<std::vector<std::vector<double>>>& coefficient, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      if(_geomElemType != HEX || (s != 0 && s != -1)) throw std::invalid_argument("HEX27 weights require HEX and s=0 or s=-1.");
+      std::vector<long double> checked;
+      long double scale;
+      FELevelSetMoments::Hex27Normalize(coefficient,checked,scale);
+      bool planar = true;
+      for(unsigned i = 0; i < 3; ++i) {
+        for(unsigned j = 0; j < 3; ++j) {
+          for(unsigned k = 0; k < 3; ++k) if(i+j+k > 1 && coefficient[i][j][k] != 0.) planar = false;
+        }
+      }
+      if(planar && (coefficient[1][0][0] != 0. || coefficient[0][1][0] != 0. || coefficient[0][0][1] != 0.)) {
+        std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L*coefficient[1][0][0]),static_cast<TypeIO>(0.5L*coefficient[0][1][0]),static_cast<TypeIO>(0.5L*coefficient[0][0][1])};
+        operator()(s,normal,static_cast<TypeIO>(static_cast<long double>(coefficient[0][0][0])+0.5L*coefficient[1][0][0]+0.5L*coefficient[0][1][0]+0.5L*coefficient[0][0][1]),weightCF);
+        return;
+      }
+      std::vector<std::vector<std::vector<double>>> positive, delta;
+      FELevelSetMoments::IntegrateHex27Unit(coefficient,_qM,positive,delta,absoluteTolerance,relativeTolerance,s == -1);
+      GetWeightFromMoments(s == 0 ? positive : delta,weightCF);
+    }
+
     void GetWeightFromNodalValues(const int& s, const std::vector<double>& nodalValues, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
-      if (_geomElemType == QUAD) {
+      if(_geomElemType == HEX) {
+        std::vector<std::vector<std::vector<double>>> coefficient;
+        FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
+        GetWeightFromCanonicalFE(s,coefficient,weightCF,absoluteTolerance,relativeTolerance);
+      }
+      else if (_geomElemType == QUAD) {
         std::vector<std::vector<double>> coefficient;
         FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalValues, coefficient);
         GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
@@ -390,41 +447,16 @@ class CutFemWeight {
         GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
       }
       else {
-        throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, and TRI7.");
+        throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, TRI7, and HEX27.");
       }
     }
 
     void GetWeightsFromNodalValues(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
-      if(&positiveWeight == &deltaWeight) {
-        throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
-      }
-      if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) {
-        throw std::invalid_argument("Invalid nodal integration tolerance.");
-      }
-      bool sameField = _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
-      if(sameField && _nodalWeightCacheValid) {
-        positiveWeight = _nodalPositiveWeight;
-        deltaWeight = _nodalDeltaWeight;
-        return;
-      }
-      _nodalWeightCacheValid = false;
-      if(sameField && _qM <= _nodalMomentDegree) {
-        _fPair = _nodalMomentCache.topRows(_L);
-      }
-      else {
-        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance);
-        _nodalMomentCache = _fPair;
-        _nodalValues = nodalValues;
-        _nodalMomentDegree = _qM;
-        _nodalAbsoluteTolerance = absoluteTolerance;
-        _nodalRelativeTolerance = relativeTolerance;
-        _nodalMomentCacheValid = true;
-      }
-      ++_cntCall;
-      EvaluateMomentWeightPair(positiveWeight, deltaWeight);
-      _nodalPositiveWeight = positiveWeight;
-      _nodalDeltaWeight = deltaWeight;
-      _nodalWeightCacheValid = true;
+      GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,absoluteTolerance,relativeTolerance,false);
+    }
+
+    void GetWeightsFromNodalValuesByLineSlices(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,absoluteTolerance,relativeTolerance,true);
     }
 
     void UpdateQuadratureRule(const unsigned &qM) {
@@ -484,6 +516,55 @@ class CutFemWeight {
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
+    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool useLineSlices) {
+      if(&positiveWeight == &deltaWeight) {
+        throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
+      }
+      if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) {
+        throw std::invalid_argument("Invalid nodal integration tolerance.");
+      }
+      useLineSlices = useLineSlices && (_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == TRI);
+      bool sameField = useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
+      if(sameField && _nodalWeightCacheValid) {
+        positiveWeight = _nodalPositiveWeight;
+        deltaWeight = _nodalDeltaWeight;
+        return;
+      }
+      _nodalWeightCacheValid = false;
+      if(sameField && _qM <= _nodalMomentDegree) {
+        _fPair = _nodalMomentCache.topRows(_L);
+      }
+      else {
+        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, useLineSlices);
+        _nodalMomentCache = _fPair;
+        _nodalValues = nodalValues;
+        _nodalMomentDegree = _qM;
+        _nodalAbsoluteTolerance = absoluteTolerance;
+        _nodalRelativeTolerance = relativeTolerance;
+        _nodalMomentUsesLineSlices = useLineSlices;
+        _nodalMomentCacheValid = true;
+      }
+      ++_cntCall;
+      EvaluateMomentWeightPair(positiveWeight, deltaWeight);
+      _nodalPositiveWeight = positiveWeight;
+      _nodalDeltaWeight = deltaWeight;
+      _nodalWeightCacheValid = true;
+    }
+
+    void StoreNodalMomentPair(const std::vector<std::vector<std::vector<double>>>& positive, const std::vector<std::vector<std::vector<double>>>& delta) {
+      unsigned count = 0;
+      for(unsigned q = 0; q <= _qM; ++q) {
+        for(int ii = q; ii >= 0; --ii) {
+          for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
+            unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj), k = q-i-j;
+            _fPair(count,0) = static_cast<TypeA>(positive[i][j][k]);
+            _fPair(count,1) = static_cast<TypeA>(delta[i][j][k]);
+            ++count;
+          }
+        }
+      }
+    }
+
     void StoreNodalMomentPair(const std::vector<std::vector<double>>& positive, const std::vector<std::vector<double>>& delta) {
       unsigned count = 0;
       for(unsigned q = 0; q <= _qM; ++q) {
@@ -500,7 +581,21 @@ class CutFemWeight {
       std::vector<TypeA> a(_dim);
       for(unsigned d = 0; d < _dim; ++d) a[d] = static_cast<TypeA>(normal[d]);
       TypeA constant = static_cast<TypeA>(offset);
-      if(_dim == 2) {
+      if(_dim == 3) {
+        unsigned count = 0;
+        for(unsigned q = 0; q <= _qM; ++q) {
+          for(int ii = q; ii >= 0; --ii) {
+            for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
+              unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj);
+              std::vector<unsigned> powers = {i,j,q-i-j};
+              _fPair(count,0) = (*_obj)(0,powers,a,constant);
+              _fPair(count,1) = (*_obj)(-1,powers,a,constant);
+              ++count;
+            }
+          }
+        }
+      }
+      else if(_dim == 2) {
         unsigned count = 0;
         for(unsigned q = 0; q <= _qM; ++q) {
           for(unsigned j = 0; j <= q; ++j) {
@@ -520,8 +615,26 @@ class CutFemWeight {
       }
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance) {
-      if(_geomElemType == QUAD) {
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices) {
+      if(_geomElemType == HEX) {
+        std::vector<std::vector<std::vector<double>>> coefficient;
+        FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
+        bool planar = true;
+        for(unsigned i = 0; i < 3; ++i) {
+          for(unsigned j = 0; j < 3; ++j) {
+            for(unsigned k = 0; k < 3; ++k) if(i+j+k > 1 && coefficient[i][j][k] != 0.) planar = false;
+          }
+        }
+        if(planar && (coefficient[1][0][0] != 0. || coefficient[0][1][0] != 0. || coefficient[0][0][1] != 0.)) {
+          std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L*coefficient[1][0][0]),static_cast<TypeIO>(0.5L*coefficient[0][1][0]),static_cast<TypeIO>(0.5L*coefficient[0][0][1])};
+          IntegratePlanarMomentPair(normal,static_cast<TypeIO>(static_cast<long double>(coefficient[0][0][0])+0.5L*coefficient[1][0][0]+0.5L*coefficient[0][1][0]+0.5L*coefficient[0][0][1]));
+          return;
+        }
+        std::vector<std::vector<std::vector<double>>> positive, delta;
+        FELevelSetMoments::IntegrateHex27Unit(coefficient,_qM,positive,delta,absoluteTolerance,relativeTolerance);
+        StoreNodalMomentPair(positive,delta);
+      }
+      else if(_geomElemType == QUAD) {
         std::vector<std::vector<double>> coefficient;
         FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalValues, coefficient);
         bool planar = true;
@@ -537,7 +650,8 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateQuad9Unit(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
+        if(useLineSlices) FELevelSetMoments::IntegrateQuad9NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
+        else FELevelSetMoments::IntegrateQuad9Unit(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == TRI) {
@@ -550,7 +664,8 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateTri7Reflected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
+        if(useLineSlices) FELevelSetMoments::IntegrateTri7NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
+        else FELevelSetMoments::IntegrateTri7Reflected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == LINE) {
@@ -565,28 +680,28 @@ class CutFemWeight {
         }
         std::vector<double> positive;
         std::vector<double> delta;
-        FELevelSetMoments::Integrate1D(a, b, c, _qM, positive, delta);
+        if(useLineSlices) FELevelSetMoments::IntegrateLine3NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
+        else FELevelSetMoments::Integrate1D(a, b, c, _qM, positive, delta);
         for(unsigned i = 0; i <= _qM; ++i) {
           _fPair(i, 0) = static_cast<TypeA>(positive[i]);
           _fPair(i, 1) = static_cast<TypeA>(delta[i]);
         }
       }
       else {
-        throw std::invalid_argument("Paired nodal weights support LINE3, QUAD9, and TRI7.");
+        throw std::invalid_argument("Paired nodal weights support LINE3, QUAD9, TRI7, and HEX27.");
       }
     }
 
     void EvaluateMomentWeightPair(std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight) {
-      _CoPair.noalias() = _ATA * _fPair;
       positiveWeight.resize(_gn);
       deltaWeight.resize(_gn);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        const TypeIO* basisRow = _B0[0].data() + ig * _L;
+        const TypeA* basisRow = _momentToWeight[0].data()+ig*_L;
         TypeA positive = 0.;
         TypeA delta = 0.;
         for(unsigned i = 0; i < _L; ++i) {
-          positive += basisRow[i] * _CoPair(i, 0);
-          delta += basisRow[i] * _CoPair(i, 1);
+          positive += basisRow[i]*_fPair(i,0);
+          delta += basisRow[i]*_fPair(i,1);
         }
         positiveWeight[ig] = static_cast<TypeIO>(positive);
         deltaWeight[ig] = static_cast<TypeIO>(delta);
@@ -594,13 +709,12 @@ class CutFemWeight {
     }
 
     void EvaluateMomentWeights(std::vector<TypeIO>& weightCF, unsigned basisIndex = 0) {
-      _Co.noalias() = _ATA * _f;
       weightCF.resize(_gn);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        const TypeIO* basisRow = _B0[basisIndex].data() + ig * _L;
+        const TypeA* basisRow = _momentToWeight[basisIndex].data()+ig*_L;
         TypeA value = 0.;
         for(unsigned i = 0; i < _L; ++i) {
-          value += basisRow[i] * _Co[i];
+          value += basisRow[i]*_f[i];
         }
         weightCF[ig] = static_cast<TypeIO>(value);
       }
@@ -610,13 +724,11 @@ class CutFemWeight {
     GeomElType _geomElemType;
     Gauss *_gauss;
 
-    Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic> _ATA;
-    std::vector<Eigen::Matrix<TypeIO, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> _B0;
+    std::vector<Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> _momentToWeight;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 1> _f;
-    Eigen::Matrix<TypeA, Eigen::Dynamic, 1> _Co;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
-    Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _CoPair;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _nodalMomentCache;
+    bool _nodalMomentUsesLineSlices = false;
     bool _nodalMomentCacheValid = false;
     bool _nodalWeightCacheValid = false;
     unsigned _nodalMomentDegree = 0;
@@ -652,7 +764,7 @@ class CutFemWeight {
 
 template <class TypeIO, class TypeA>
 void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF) {
-  _WeightMap.resize(s + 2);
+  if(_WeightMap.size() < static_cast<unsigned>(s+2)) _WeightMap.resize(s+2);
   std::vector<float> af(a.begin(), a.end());
   const float df = static_cast<float>(d);
   _key = std::make_pair(af, df);
@@ -753,35 +865,7 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector<Typ
     }
   }
 
-  _Co = _ATA * _f;
-
-  std::vector<TypeA> xPower(_qM + 1, TypeA(1));
-  std::vector<TypeA> yPower(_qM + 1, TypeA(1));
-
-  weightCF.assign(_gn, TypeIO(0));
-
-  for(unsigned ig = 0; ig < _gn; ig++) {
-    TypeA x = (TypeA(1) + TypeA(_xgp[0][ig])) / TypeA(2);
-    TypeA y = (TypeA(1) + TypeA(_xgp[1][ig])) / TypeA(2);
-
-    for(unsigned i = 1; i <= _qM; i++) {
-      xPower[i] = xPower[i - 1] * x;
-      yPower[i] = yPower[i - 1] * y;
-    }
-
-    TypeA weight = 0;
-    count = 0;
-
-    for(unsigned q = 0; q <= _qM; q++) {
-      for(unsigned j = 0; j <= q; j++) {
-        unsigned i = q - j;
-        weight += _Co[count] * xPower[i] * yPower[j];
-        count++;
-      }
-    }
-
-    weightCF[ig] = static_cast<TypeIO>(weight);
-  }
+  EvaluateMomentWeights(weightCF);
 }
 
 template <class TypeIO, class TypeA>
