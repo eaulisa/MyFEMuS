@@ -13,6 +13,7 @@
 #include "FELevelSetMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
 #include "AdaptiveLineSliceMoments.hpp"
+#include "FemusAlgoim.hpp"
 
 #include "GramSchmidt.hpp"
 
@@ -459,6 +460,13 @@ class CutFemWeight {
       GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,absoluteTolerance,relativeTolerance,true);
     }
 
+    void GetWeightsFromNodalValuesByAlgoim(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, unsigned quadratureOrder = 20, unsigned subdivisions = 0) {
+      if(quadratureOrder == 0 || quadratureOrder > 100 || subdivisions > 32) {
+        throw std::invalid_argument("Invalid Algoim quadrature order or subdivisions.");
+      }
+      GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,1.0e-12,1.0e-12,false,quadratureOrder,subdivisions,&FemusAlgoim::IntegrateNodalMoments);
+    }
+
     void UpdateQuadratureRule(const unsigned &qM) {
       bool retainNodalMoments = _nodalMomentCacheValid;
       clear();
@@ -516,7 +524,7 @@ class CutFemWeight {
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
-    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool useLineSlices) {
+    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool useLineSlices, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned) = nullptr) {
       if(&positiveWeight == &deltaWeight) {
         throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
       }
@@ -524,7 +532,7 @@ class CutFemWeight {
         throw std::invalid_argument("Invalid nodal integration tolerance.");
       }
       useLineSlices = useLineSlices && (_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == TRI);
-      bool sameField = useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
+      bool sameField = algoimOrder == _nodalMomentAlgoimOrder && algoimSubdivisions == _nodalMomentAlgoimSubdivisions && useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
       if(sameField && _nodalWeightCacheValid) {
         positiveWeight = _nodalPositiveWeight;
         deltaWeight = _nodalDeltaWeight;
@@ -535,13 +543,15 @@ class CutFemWeight {
         _fPair = _nodalMomentCache.topRows(_L);
       }
       else {
-        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, useLineSlices);
+        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, useLineSlices, algoimOrder, algoimSubdivisions, algoimIntegrator);
         _nodalMomentCache = _fPair;
         _nodalValues = nodalValues;
         _nodalMomentDegree = _qM;
         _nodalAbsoluteTolerance = absoluteTolerance;
         _nodalRelativeTolerance = relativeTolerance;
         _nodalMomentUsesLineSlices = useLineSlices;
+        _nodalMomentAlgoimOrder = algoimOrder;
+        _nodalMomentAlgoimSubdivisions = algoimSubdivisions;
         _nodalMomentCacheValid = true;
       }
       ++_cntCall;
@@ -549,6 +559,16 @@ class CutFemWeight {
       _nodalPositiveWeight = positiveWeight;
       _nodalDeltaWeight = deltaWeight;
       _nodalWeightCacheValid = true;
+    }
+
+    void StoreAlgoimMomentPair(const std::vector<double>& positive, const std::vector<double>& delta) {
+      if(positive.size() != _L || delta.size() != _L) {
+        throw std::runtime_error("Algoim returned an inconsistent moment table.");
+      }
+      for(unsigned i = 0; i < _L; ++i) {
+        _fPair(i,0) = static_cast<TypeA>(positive[i]);
+        _fPair(i,1) = static_cast<TypeA>(delta[i]);
+      }
     }
 
     void StoreNodalMomentPair(const std::vector<std::vector<std::vector<double>>>& positive, const std::vector<std::vector<std::vector<double>>>& delta) {
@@ -615,7 +635,7 @@ class CutFemWeight {
       }
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices) {
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned) = nullptr) {
       if(_geomElemType == HEX) {
         std::vector<std::vector<std::vector<double>>> coefficient;
         FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
@@ -628,6 +648,13 @@ class CutFemWeight {
         if(planar && (coefficient[1][0][0] != 0. || coefficient[0][1][0] != 0. || coefficient[0][0][1] != 0.)) {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L*coefficient[1][0][0]),static_cast<TypeIO>(0.5L*coefficient[0][1][0]),static_cast<TypeIO>(0.5L*coefficient[0][0][1])};
           IntegratePlanarMomentPair(normal,static_cast<TypeIO>(static_cast<long double>(coefficient[0][0][0])+0.5L*coefficient[1][0][0]+0.5L*coefficient[0][1][0]+0.5L*coefficient[0][0][1]));
+          return;
+        }
+        if(algoimOrder != 0) {
+          std::vector<double> positiveMoments;
+          std::vector<double> deltaMoments;
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions);
+          StoreAlgoimMomentPair(positiveMoments,deltaMoments);
           return;
         }
         std::vector<std::vector<std::vector<double>>> positive, delta;
@@ -648,6 +675,13 @@ class CutFemWeight {
           IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0][0]) + 0.5L * coefficient[1][0] + 0.5L * coefficient[0][1]));
           return;
         }
+        if(algoimOrder != 0) {
+          std::vector<double> positiveMoments;
+          std::vector<double> deltaMoments;
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions);
+          StoreAlgoimMomentPair(positiveMoments,deltaMoments);
+          return;
+        }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
         if(useLineSlices) FELevelSetMoments::IntegrateQuad9NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
@@ -660,6 +694,13 @@ class CutFemWeight {
         if(coefficient[3] == 0. && coefficient[4] == 0. && coefficient[5] == 0. && coefficient[6] == 0. && (coefficient[1] != 0. || coefficient[2] != 0.)) {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(-coefficient[1]), static_cast<TypeIO>(coefficient[2])};
           IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0]) + coefficient[1]));
+          return;
+        }
+        if(algoimOrder != 0) {
+          std::vector<double> positiveMoments;
+          std::vector<double> deltaMoments;
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions);
+          StoreAlgoimMomentPair(positiveMoments,deltaMoments);
           return;
         }
         std::vector<std::vector<double>> positive;
@@ -729,6 +770,8 @@ class CutFemWeight {
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _nodalMomentCache;
     bool _nodalMomentUsesLineSlices = false;
+    unsigned _nodalMomentAlgoimOrder = 0;
+    unsigned _nodalMomentAlgoimSubdivisions = 1;
     bool _nodalMomentCacheValid = false;
     bool _nodalWeightCacheValid = false;
     unsigned _nodalMomentDegree = 0;

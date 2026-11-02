@@ -10,28 +10,31 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 NPROC=8
+NPRINT=1200
+NREINIT=1
 
 # ------------------------------------------------------------
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
-SIMULATION="bb1"
+DIM=3
+SIMULATION="rb2"
+SYMMETRIC=0
+AXISYMMETRIC=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(4 5 6 7)
-
-LEVEL_OFFSET=2
+UNIFORM_LEVELS=(1)
+ADAPTIVE_LEVELS=(3)
+LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(4800)
+NSTEPS=(1200)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -50,7 +53,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # PETSc configuration
 # ------------------------------------------------------------
 
-KSP_MONITOR=true
+KSP_MONITOR=false
 KSP_VIEW=false
 OPTIONS_LEFT=true
 
@@ -72,6 +75,11 @@ fi
 
 if (( LEVEL_OFFSET < 0 )); then
   echo "ERROR: LEVEL_OFFSET must be >= 0."
+  exit 1
+fi
+
+if (( SYMMETRIC == 1 && AXISYMMETRIC == 1 )); then
+  echo "ERROR: SYMMETRIC and AXISYMMETRIC cannot both be 1."
   exit 1
 fi
 
@@ -124,10 +132,22 @@ generate_options_file() {
 -ksp_max_it 50
 
 -level-0ksp_max_it 10
+
+-level-0ksp_norm_type unpreconditioned
+-level-0ksp_monitor
+
 -level-0fieldsplit_0_pc_type ${MULTIGRID_TYPE}
+-level-0fieldsplit_0_sub_ksp_type preonly
+-level-0fieldsplit_0_sub_pc_type lu
+-level-0fieldsplit_0_sub_factor_mat_solver_type mumps
+
 
 -level-0fieldsplit_1_pc_type ${MULTIGRID_TYPE}
+-level-0fieldsplit_1_sub_ksp_type preonly
+-level-0fieldsplit_1_sub_pc_type lu
+-level-0fieldsplit_1_sub_factor_mat_solver_type mumps
 
+#
 # -level-0fieldsplit_1_ksp_type preonly
 # -level-0fieldsplit_1_pc_type lu
 # -level-0fieldsplit_1_pc_factor_mat_solver_type mumps
@@ -149,39 +169,24 @@ EOF_OPTIONS
 # FieldSplit level solver
 # ------------------------------------------------------------
 
-
--level-${i}ksp_type fgmres
-#-level-${i}ksp_pc_side right
 -level-${i}ksp_norm_type unpreconditioned
+#-level-${i}ksp_view_final_residual
 -level-${i}ksp_monitor
--level-${i}ksp_view_final_residual
+
+-level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
 -level-${i}ksp_atol 1.e-12
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 10
+-level-${i}ksp_max_it 50
 
--level-${i}pc_type fieldsplit
--level-${i}pc_fieldsplit_type schur
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
-
-
-# -level-${i}ksp_norm_type unpreconditioned
-#-level-${i}ksp_monitor
-
-# -level-${i}ksp_type gmres
-# -level-${i}ksp_rtol 1.e-8
-# -level-${i}ksp_atol 1.e-12
-# -level-${i}ksp_divtol 1.e+50
-# -level-${i}ksp_max_it 10
-#
-# -level-${i}pc_fieldsplit_schur_fact_type upper
-# -level-${i}pc_fieldsplit_schur_precondition selfp
 
 # ------------------------------------------------------------
 # Velocity
 # ------------------------------------------------------------
 
+# -level-${i}fieldsplit_0_ksp_monitor
 -level-${i}fieldsplit_0_ksp_type preonly
 -level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
@@ -205,52 +210,8 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
 -level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
--level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
+#-level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
 -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
-
-# -level-${i}fieldsplit_1_ksp_norm_type unpreconditioned
-#-level-${i}fieldsplit_1_ksp_monitor
-
-
-# -level-${i}fieldsplit_1_ksp_type preonly
-# -level-${i}fieldsplit_1_pc_type lu
-# -level-${i}fieldsplit_1_pc_factor_mat_solver_type mumps
-
-# -level-${i}fieldsplit_1_ksp_type richardson
-# -level-${i}fieldsplit_1_ksp_richardson_scale 1
-# -level-${i}fieldsplit_1_ksp_max_it 1
-
-
-
-
-# -level-${i}fieldsplit_1_ksp_type gmres
-# #-level-${i}fieldsplit_1_ksp_pc_side right
-# -level-${i}fieldsplit_1_ksp_norm_type unpreconditioned
-# #-level-${i}fieldsplit_1_ksp_monitor
-# -level-${i}fieldsplit_1_ksp_initial_guess_nonzero false
-# -level-${i}fieldsplit_1_ksp_knoll false
-# -level-${i}fieldsplit_1_ksp_rtol 1.e-2
-# -level-${i}fieldsplit_1_ksp_atol 1.e-12
-# -level-${i}fieldsplit_1_ksp_divtol 1.e+50
-# -level-${i}fieldsplit_1_ksp_max_it 3
-# -level-${i}fieldsplit_1_ksp_gmres_restart 3
-
-# -level-${i}fieldsplit_1_pc_type asm
-# -level-${i}fieldsplit_1_pc_use_amat false
-# -level-${i}fieldsplit_1_pc_asm_type restrict
-# -level-${i}fieldsplit_1_pc_asm_overlap 1
-# -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
-
-# -level-${i}fieldsplit_1_sub_ksp_type preonly
-# -level-${i}fieldsplit_1_sub_pc_type ilu
-# -level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
-# -level-${i}fieldsplit_1_sub_pc_factor_levels 1
-# -level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
-
-# -level-${i}fieldsplit_1_ksp_type preonly
-# -level-${i}fieldsplit_1_pc_type lu
-# -level-${i}fieldsplit_1_pc_factor_mat_solver_type mumps
-
 
 # -level-${i}fieldsplit_1_ksp_type preonly
 # -level-${i}fieldsplit_1_pc_type asm
@@ -273,26 +234,6 @@ EOF_OPTIONS
 # -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
 # -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
 # -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
-
-
-# # Identify which fieldsplit dies
-# -level-${i}fieldsplit_0_ksp_error_if_not_converged true
-# -level-${i}fieldsplit_0_ksp_converged_reason
-
-# -level-${i}fieldsplit_1_ksp_error_if_not_converged true
-# -level-${i}fieldsplit_1_ksp_converged_reason
-
-# # MUMPS diagnostics on pressure block
-# -level-${i}fieldsplit_1_mat_mumps_icntl_4 2
-# -level-${i}fieldsplit_1_mat_mumps_icntl_24 1
-
-
-
-
-
-
-
-
 
 
 
@@ -396,16 +337,17 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       mpirun -n "${NPROC}" \
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
-        -ksp_knoll true \
-        -ksp_error_if_not_converged true\
-        -ksp_converged_reason\
         -options_file "${OPTIONS_FILE}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \
         --level-offset "${LEVEL_OFFSET}" \
         --nsteps "${nsteps}" \
         --dim "${DIM}" \
-        --simulation "${SIMULATION}"
+        --simulation "${SIMULATION}" \
+        --symmetric "${SYMMETRIC}" \
+        --axisymmetric "${AXISYMMETRIC}" \
+        --nprint "${NPRINT}" \
+        --nreinit "${NREINIT}"  
 
       echo
 
