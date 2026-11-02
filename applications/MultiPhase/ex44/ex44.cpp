@@ -225,28 +225,28 @@ int main(int argc, char **argv) {
 
         switch (bc.type) {
 
-        case BoundaryType::DIRICHLET_S:
-          dirichlet = true;
-          value = bc.value;
-          break;
+          case BoundaryType::DIRICHLET_S:
+            dirichlet = true;
+            value = bc.value;
+            break;
 
-        case BoundaryType::NEUMANN_S:
-          break;
+          case BoundaryType::NEUMANN_S:
+            break;
 
-        case BoundaryType::WALL:
-          dirichlet = true;
-          value = 0.;
-          break;
-
-        case BoundaryType::SLIP:
-          if (static_cast<unsigned>(component) == normalDir) {
+          case BoundaryType::WALL:
             dirichlet = true;
             value = 0.;
-          }
-          break;
+            break;
 
-        case BoundaryType::OUTFLOW:
-          break;
+          case BoundaryType::SLIP:
+            if (static_cast<unsigned>(component) == normalDir) {
+              dirichlet = true;
+              value = 0.;
+            }
+            break;
+
+          case BoundaryType::OUTFLOW:
+            break;
         }
 
         return;
@@ -254,23 +254,23 @@ int main(int argc, char **argv) {
 
       switch (bc.type) {
 
-      case BoundaryType::DIRICHLET_S:
-        dirichlet = true;
-        value = bc.value;
-        break;
+        case BoundaryType::DIRICHLET_S:
+          dirichlet = true;
+          value = bc.value;
+          break;
 
-      case BoundaryType::NEUMANN_S:
-        value = bc.value;
-        break;
+        case BoundaryType::NEUMANN_S:
+          value = bc.value;
+          break;
 
-      case BoundaryType::OUTFLOW:
-        dirichlet = true;
-        value = bc.value;
-        break;
+        case BoundaryType::OUTFLOW:
+          dirichlet = true;
+          value = bc.value;
+          break;
 
-      case BoundaryType::WALL:
-      case BoundaryType::SLIP:
-        break;
+        case BoundaryType::WALL:
+        case BoundaryType::SLIP:
+          break;
       }
     };
 
@@ -309,8 +309,8 @@ int main(int argc, char **argv) {
 
       MultiLevelMesh mlMsh0;
       std::string meshName = "./input/cube_01_unstruct.neu";
-      //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       dt = period / nSteps;
 
@@ -426,8 +426,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       if (iproc == 0) {
@@ -1462,7 +1462,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
           //std::cout<<std::endl;
 
-          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, 20);
+          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20);
           //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF);
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
           //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
@@ -2204,8 +2204,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-  double per_th = (dim == 2) ? 2 * M_PI * 0.249: 4. * M_PI * 0.249 * 0.249;
-  double A_th = (dim == 2) ? M_PI * 0.249 * 0.249: 4./3. * M_PI * 0.249 * 0.249 * 0.249;
+  double radius  = 0.0249;
+  double radius2 = radius * radius;
+  double radius3 = radius2 * radius;
+  double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
+  double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
   std::cout << " Area error " << std::abs(A - A_th) << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th) << std::endl;
 

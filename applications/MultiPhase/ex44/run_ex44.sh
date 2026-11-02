@@ -27,7 +27,7 @@ AXISYMMETRIC=0
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(3)
+ADAPTIVE_LEVELS=(2)
 LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
@@ -53,7 +53,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # PETSc configuration
 # ------------------------------------------------------------
 
-KSP_MONITOR=false
+KSP_MONITOR=true
 KSP_VIEW=false
 OPTIONS_LEFT=true
 
@@ -171,7 +171,7 @@ EOF_OPTIONS
 
 -level-${i}ksp_norm_type unpreconditioned
 #-level-${i}ksp_view_final_residual
--level-${i}ksp_monitor
+#-level-${i}ksp_monitor
 
 -level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
@@ -186,7 +186,7 @@ EOF_OPTIONS
 # Velocity
 # ------------------------------------------------------------
 
-# -level-${i}fieldsplit_0_ksp_monitor
+#-level-${i}fieldsplit_0_ksp_monitor
 -level-${i}fieldsplit_0_ksp_type preonly
 -level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
@@ -206,6 +206,7 @@ EOF_OPTIONS
 # Pressure
 # ------------------------------------------------------------
 
+-level-${i}fieldsplit_1_ksp_monitor
 -level-${i}fieldsplit_1_ksp_type preonly
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev

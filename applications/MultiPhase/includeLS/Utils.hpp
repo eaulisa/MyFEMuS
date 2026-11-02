@@ -3977,11 +3977,11 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       const bool rb1 = simulation == SimulationCase::RB1;
 
       cfg.x_min[0] = 0.;
-      cfg.x_max[0] = 1.;
+      cfg.x_max[0] = 1.e-1;
       cfg.x_min[1] = 0.;
-      cfg.x_max[1] = (dim == 3) ? 1. : 2.;
+      cfg.x_max[1] = (dim == 3) ? 1.e-1 : 2.;
       cfg.x_min[2] = 0.;
-      cfg.x_max[2] = (dim == 3) ? 2. : 0.;
+      cfg.x_max[2] = (dim == 3) ? 1.e-1 : 0.;
 
       cfg.n[0] = (dim == 3) ? 8 : 8;
       cfg.n[1] = (dim == 3) ? 8 : 16;
@@ -3990,9 +3990,9 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = 3.;
 
       cfg.psi.type = PsiType::BALL;
-      cfg.psi.center = {0.5, 0.5, 0.5};
+      cfg.psi.center = {0.05, 0.05, 0.05};
       cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.249;
+      cfg.psi.radius = 0.0249;
 
       cfg.properties.rho1 = rb1 ? 100. : 1.;
       cfg.properties.rho2 = 1000.;

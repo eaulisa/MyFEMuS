@@ -14,6 +14,7 @@
 #include "Hex27LevelSetMoments.hpp"
 #include "AdaptiveLineSliceMoments.hpp"
 #include "FemusAlgoim.hpp"
+#include "Tet15LevelSet.hpp"
 
 #include "GramSchmidt.hpp"
 
@@ -636,7 +637,29 @@ class CutFemWeight {
     }
 
     void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned) = nullptr) {
-      if(_geomElemType == HEX) {
+      if(_geomElemType == TET && algoimOrder != 0) {
+        std::vector<std::vector<std::vector<double>>> coefficient;
+        FELevelSetMoments::Tet15ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
+        bool planar = true;
+        for(unsigned i = 0; i < 5; ++i) {
+          for(unsigned j = 0; j < 5; ++j) {
+            for(unsigned k = 0; k < 5; ++k) if(i+j+k > 1 && coefficient[i][j][k] != 0.0) planar = false;
+          }
+        }
+        if(planar && (coefficient[1][0][0] != 0.0 || coefficient[0][1][0] != 0.0 || coefficient[0][0][1] != 0.0)) {
+          std::vector<TypeIO> normal = {static_cast<TypeIO>(coefficient[1][0][0]),static_cast<TypeIO>(coefficient[0][1][0]),static_cast<TypeIO>(coefficient[0][0][1])};
+          _obj->SetBaseType(1);
+          IntegratePlanarMomentPair(normal,static_cast<TypeIO>(coefficient[0][0][0]));
+          _obj->SetBaseType(_tetBaseType);
+        }
+        else {
+          std::vector<double> positiveMoments;
+          std::vector<double> deltaMoments;
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions);
+          StoreAlgoimMomentPair(positiveMoments,deltaMoments);
+        }
+      }
+      else if(_geomElemType == HEX) {
         std::vector<std::vector<std::vector<double>>> coefficient;
         FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
         bool planar = true;
@@ -729,7 +752,7 @@ class CutFemWeight {
         }
       }
       else {
-        throw std::invalid_argument("Paired nodal weights support LINE3, QUAD9, TRI7, and HEX27.");
+        throw std::invalid_argument("Paired nodal weights support LINE3, QUAD9, TRI7, HEX27; TET15 requires the Algoim API.");
       }
     }
 
