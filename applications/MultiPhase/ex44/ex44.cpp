@@ -207,52 +207,23 @@ int main(int argc, char **argv) {
     const unsigned dim = cfg.boundary.min.size();
 
     int component = -1;
-    if(!strcmp(SolName, "U")) component = 0;
-    else if(!strcmp(SolName, "V")) component = 1;
-    else if(!strcmp(SolName, "W")) component = 2;
+    if (!strcmp(SolName, "U")) component = 0;
+    else if (!strcmp(SolName, "V")) component = 1;
+    else if (!strcmp(SolName, "W")) component = 2;
 
     const bool pressure = !strcmp(SolName, "P1") || !strcmp(SolName, "P2");
 
     value = 0.;
 
-    if(component < 0 && !pressure) return true;
+    if (component < 0 && !pressure) return true;
 
     bool dirichlet = false;
 
     auto ApplyBC = [&](const BoundaryCondition & bc, const unsigned normalDir) {
 
-      if(component >= 0) {
+      if (component >= 0) {
 
-        switch(bc.type) {
-
-          case BoundaryType::DIRICHLET_S:
-            dirichlet = true;
-            value = bc.value;
-            break;
-
-          case BoundaryType::NEUMANN_S:
-            break;
-
-          case BoundaryType::WALL:
-            dirichlet = true;
-            value = 0.;
-            break;
-
-          case BoundaryType::SLIP:
-            if(static_cast<unsigned>(component) == normalDir) {
-              dirichlet = true;
-              value = 0.;
-            }
-            break;
-
-          case BoundaryType::OUTFLOW:
-            break;
-        }
-
-        return;
-      }
-
-      switch(bc.type) {
+        switch (bc.type) {
 
         case BoundaryType::DIRICHLET_S:
           dirichlet = true;
@@ -260,24 +231,53 @@ int main(int argc, char **argv) {
           break;
 
         case BoundaryType::NEUMANN_S:
-          value = bc.value;
-          break;
-
-        case BoundaryType::OUTFLOW:
-          dirichlet = true;
-          value = bc.value;
           break;
 
         case BoundaryType::WALL:
-        case BoundaryType::SLIP:
+          dirichlet = true;
+          value = 0.;
           break;
+
+        case BoundaryType::SLIP:
+          if (static_cast<unsigned>(component) == normalDir) {
+            dirichlet = true;
+            value = 0.;
+          }
+          break;
+
+        case BoundaryType::OUTFLOW:
+          break;
+        }
+
+        return;
+      }
+
+      switch (bc.type) {
+
+      case BoundaryType::DIRICHLET_S:
+        dirichlet = true;
+        value = bc.value;
+        break;
+
+      case BoundaryType::NEUMANN_S:
+        value = bc.value;
+        break;
+
+      case BoundaryType::OUTFLOW:
+        dirichlet = true;
+        value = bc.value;
+        break;
+
+      case BoundaryType::WALL:
+      case BoundaryType::SLIP:
+        break;
       }
     };
 
-    for(unsigned d = 0; d < dim; ++d) {
+    for (unsigned d = 0; d < dim; ++d) {
 
-      if(x[d] <= cfg.x_min[d] + tol) ApplyBC(cfg.boundary.min[d], d);
-      if(x[d] >= cfg.x_max[d] - tol) ApplyBC(cfg.boundary.max[d], d);
+      if (x[d] <= cfg.x_min[d] + tol) ApplyBC(cfg.boundary.min[d], d);
+      if (x[d] >= cfg.x_max[d] - tol) ApplyBC(cfg.boundary.max[d], d);
     }
 
     return dirichlet;
@@ -321,11 +321,11 @@ int main(int argc, char **argv) {
         return 0.5 * dt;
       };
 
-      if(args.nPrint == 0u) {
+      if (args.nPrint == 0u) {
         throw std::runtime_error("--nprint must be > 0");
       }
 
-      if(args.nReinit == 0u) {
+      if (args.nReinit == 0u) {
         throw std::runtime_error("--nreinit must be > 0");
       }
 
@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
 
       unsigned dim = mlMsh0.GetDimension();
 
-      if(dim == 3) {
+      if (dim == 3) {
         auto refineElement = new RefineElement(1, "hex", "linear", "fifth", "fifth", "legendre");
         PMatrix[0] = refineElement->GetProlongationMatrix();
         delete refineElement;
@@ -390,8 +390,8 @@ int main(int argc, char **argv) {
 
       // system solutions
       mlSol0.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-      for(unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
-      for(unsigned d = 0; d < pName.size(); d++) mlSol0.AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
+      for (unsigned d = 0; d < dim; d++) mlSol0.AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
+      for (unsigned d = 0; d < pName.size(); d++) mlSol0.AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
       mlSol0.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
       mlSol0.Initialize("All");
@@ -447,7 +447,7 @@ int main(int argc, char **argv) {
       }
 
       UpdateColorFunction(*mlsol0, psiName, cName);
-      if(levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
+      if (levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
 
       mlsol0->AttachSetBoundaryConditionFunction(SetBoundaryCondition);
       mlsol0->GenerateBdc("All");
@@ -456,13 +456,13 @@ int main(int argc, char **argv) {
 
       const unsigned w = 24;
 
-      if(iproc == 0) mkdir("levelsetdiagnostic", 0755);
+      if (iproc == 0) mkdir("levelsetdiagnostic", 0755);
 
       const std::string diagnosticsFile =
         "levelsetdiagnostic/diagnostics_LC" + std::to_string(levelC) +
         "_LF" + std::to_string(levelF) + "_NS" + std::to_string(nSteps) + ".dat";
 
-      if(iproc == 0) {
+      if (iproc == 0) {
         std::ofstream out(diagnosticsFile, std::ios::trunc);
 
         out << std::setw(w) << "time"
@@ -471,26 +471,26 @@ int main(int argc, char **argv) {
             << std::setw(w) << "totalArea"
             << std::setw(w) << "interfaceLength";
 
-        if(simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2) {
+        if (simulation == SimulationCase::RB1 || simulation == SimulationCase::RB2) {
 
-          for(unsigned d = 0; d < dim; ++d) {
+          for (unsigned d = 0; d < dim; ++d) {
             out << std::setw(w) << ("barycenter" + std::to_string(d));
           }
 
-          for(unsigned d = 0; d < dim; ++d) {
+          for (unsigned d = 0; d < dim; ++d) {
             out << std::setw(w) << ("meanVelocity" + std::to_string(d));
           }
 
           out << std::setw(w) << "circularity";
         }
 
-        if(simulation == SimulationCase::RT) {
+        if (simulation == SimulationCase::RT) {
           out << std::setw(w) << "pb"
               << std::setw(w) << "ps"
               << std::setw(w) << "psad";
         }
 
-        if(simulation == SimulationCase::PI) {
+        if (simulation == SimulationCase::PI) {
           out << std::setw(w) << "fluid1UpperVolume"
               << std::setw(w) << "fluid1UpperRatio"
               << std::setw(w) << "fluid1VolumeRatio"
@@ -539,7 +539,7 @@ int main(int argc, char **argv) {
       const double bbSigma = properties.sigma;
       const double bbHMin = GetMaxElementH(mlmsh0->GetLevel(levelF), levelF);
       const std::string bbOutputPrefix = "levelsetdiagnostic/bursting_bubble_LC" + std::to_string(levelC) + "_LF" + std::to_string(levelF) + "_NS" + std::to_string(nSteps);
-      if(iproc == 0) {
+      if (iproc == 0) {
         std::ofstream(bbOutputPrefix + "_jet.dat", std::ios::trunc).close();
         std::ofstream(bbOutputPrefix + "_droplets.dat", std::ios::trunc).close();
       }
@@ -556,13 +556,13 @@ int main(int argc, char **argv) {
 
         MultiLevelMesh mlMsh2(*mlmsh0, level0, levelC + 1, "seventh");
         std::vector<Mesh*> msh2(levelC + 1 - level0);
-        for(unsigned l = 0; l < msh2.size(); l++)
+        for (unsigned l = 0; l < msh2.size(); l++)
           msh2[l] = mlMsh2.GetLevel(l);
 
         MultiLevelSolution mlSol2(&mlMsh2);
         mlSol2.AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-        for(unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
-        for(unsigned d = 0; d < pName.size(); d++) mlSol2.AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
+        for (unsigned d = 0; d < dim; d++) mlSol2.AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
+        for (unsigned d = 0; d < pName.size(); d++) mlSol2.AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
         mlSol2.AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
         mlSol2.Initialize("All");
@@ -577,14 +577,14 @@ int main(int argc, char **argv) {
         auto &Sol2 = (mlSol2.GetSolutionLevel(levelC - level0))->_Sol; //careful here sol2(0) corresponds to the same level of sol0(l0)
         auto &Sol2Old = (mlSol2.GetSolutionLevel(levelC - level0))->_SolOld;
 
-        for(unsigned i = 0; i < Sol0_C.size(); i++) {
+        for (unsigned i = 0; i < Sol0_C.size(); i++) {
           //copy velocity
-          for(unsigned d = 0; d < dim; d++) {
+          for (unsigned d = 0; d < dim; d++) {
             unsigned vel0index = mlsol0->GetIndex(vName[d].c_str());
             unsigned vel2index = mlSol2.GetIndex(vName[d].c_str());
 
             *(Sol2[vel2index]) = *(Sol0_C[vel0index]);
-            if((mlsol0->GetSolutionLevel(levelC))->GetSolutionTimeOrder(vel0index) == 2) {
+            if ((mlsol0->GetSolutionLevel(levelC))->GetSolutionTimeOrder(vel0index) == 2) {
               *(Sol2Old[vel2index]) = *(Sol0Old_C[vel0index]);
             }
           }
@@ -593,13 +593,13 @@ int main(int argc, char **argv) {
           unsigned c2index = mlSol2.GetIndex(cName.c_str());
           *(Sol2[c2index]) = *(Sol0_C[c0index]);
 
-          for(unsigned d = 0; d < pName.size(); d++) {
+          for (unsigned d = 0; d < pName.size(); d++) {
             unsigned Pindex = mlSol2.GetIndex(pName[d].c_str());
             Sol2[Pindex]->zero();
           }
         }
 
-        if(level0 < levelC) RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
+        if (level0 < levelC) RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
 
         std::vector<double> xtarget = {xmin, ymin, zmin};
         xtarget.resize(dim);
@@ -611,9 +611,9 @@ int main(int argc, char **argv) {
         TransientNonlinearImplicitSystem& system2 = mlProb2.add_system < TransientNonlinearImplicitSystem > ("NS");
 
         // add velocity to system
-        for(unsigned d = 0; d < dim; d++) system2.AddSolutionToSystemPDE(vName[d].c_str());
+        for (unsigned d = 0; d < dim; d++) system2.AddSolutionToSystemPDE(vName[d].c_str());
         //add pressure
-        for(unsigned d = 0; d < pName.size(); d++) system2.AddSolutionToSystemPDE(pName[d].c_str());
+        for (unsigned d = 0; d < pName.size(); d++) system2.AddSolutionToSystemPDE(pName[d].c_str());
 
         // unsigned sparsity_pattern_size = dim * std::pow(5, dim) + 2 * std::pow(3, dim) + 4 * dim * std::pow(5, dim - 1); // only Q2-Q1
         // system2.SetSparsityPatternMinimumSize(sparsity_pattern_size);
@@ -630,10 +630,10 @@ int main(int argc, char **argv) {
           }
 
           for (unsigned idim = 0; idim < dim; idim++) {
-            GetGPSparsityPattern (mlProb2, cName, vName[idim], levelC - level0, levelC, 0, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
+            GetGPSparsityPattern(mlProb2, cName, vName[idim], levelC - level0, levelC, 0, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
           }
           for (unsigned idim = 0; idim < pName.size(); idim++) {
-            GetGPSparsityPattern (mlProb2, cName, pName[idim], levelC - level0, levelC, idim + 1, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
+            GetGPSparsityPattern(mlProb2, cName, pName[idim], levelC - level0, levelC, idim + 1, BlgToMe_d, BlgToMe_o, DnBlgToMe_o, DnBlgToMe_d);
           }
 
         };
@@ -654,20 +654,20 @@ int main(int argc, char **argv) {
 
         mlProb2.SetMultiphaseParams(mlsol0, levelF, levelC, level0, hC, properties, td, linearScheme, axisymmetric, axisCoordinate);
 
-        for(unsigned l = 0; l < msh2.size(); l++)
+        for (unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l);
 
         std::vector < unsigned > fieldV(dim);
-        for(unsigned d = 0; d < dim; d++) fieldV[d] = system2.GetSolPdeIndex(vName[d].c_str());
+        for (unsigned d = 0; d < dim; d++) fieldV[d] = system2.GetSolPdeIndex(vName[d].c_str());
 
         std::vector < unsigned > solutionTypeV(dim);
-        for(unsigned d = 0; d < dim; d++) solutionTypeV[d] = mlSol2.GetSolutionType(vName[d].c_str());
+        for (unsigned d = 0; d < dim; d++) solutionTypeV[d] = mlSol2.GetSolutionType(vName[d].c_str());
 
         //FieldSplitTree FS_V(PREONLY, MLU_PRECOND, fieldV, "Velocity");
         FieldSplitTree FS_V(PREONLY, MULTIGRID_PRECOND, fieldV, "Velocity");
         FS_V.MgSetSolverFineGrids(CHEBYSHEV);
-        FS_V.MgSetPreconditionerFineGrids (JACOBI_PRECOND);
-        FS_V.MgSetParameters (4, 4, 0);
+        FS_V.MgSetPreconditionerFineGrids(JACOBI_PRECOND);
+        FS_V.MgSetParameters(4, 4, 0);
 
         // std::vector < unsigned > fieldP1(1);
         // fieldP1[0] = system2.GetSolPdeIndex(pName[0].c_str());
@@ -693,18 +693,18 @@ int main(int argc, char **argv) {
         // //FS_P.SetRichardsonScaleFactor(0);
 
         std::vector < unsigned > fieldP(pName.size());
-        for(unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
+        for (unsigned d = 0; d < pName.size(); d++) fieldP[d] = system2.GetSolPdeIndex(pName[d].c_str());
 
         std::vector < unsigned > solutionTypeP(pName.size());
-        for(unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
+        for (unsigned d = 0; d < pName.size(); d++) solutionTypeP[d] = mlSol2.GetSolutionType(pName[d].c_str());
 
         // FieldSplitTree FS_P(PREONLY, MLU_PRECOND, fieldP, "Pressure");
         //FieldSplitTree FS_P(PREONLY, BLOCK_JACOBI_PRECOND, fieldP, "Pressure");
         //FieldSplitTree FS_P(PREONLY, ASM_MULTIPLICATIVE_PRECOND, fieldP, solutionTypeP, "Pressure");
         FieldSplitTree FS_P(PREONLY, MULTIGRID_PRECOND, fieldP, "Pressure");
         FS_P.MgSetSolverFineGrids(CHEBYSHEV);
-        FS_P.MgSetPreconditionerFineGrids (JACOBI_PRECOND);
-        FS_P.MgSetParameters (4, 4, 0);
+        FS_P.MgSetPreconditionerFineGrids(JACOBI_PRECOND);
+        FS_P.MgSetParameters(4, 4, 0);
 
         std::vector < FieldSplitTree *> FS1;
         FS1.reserve(2);
@@ -740,7 +740,7 @@ int main(int argc, char **argv) {
         //system2.MGsolve();
         system2.Solve();
 
-        for(unsigned l = 0; l < msh2.size(); l++)
+        for (unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
 
         VTKWriter vtkIO2(&mlSol2);
@@ -749,29 +749,29 @@ int main(int argc, char **argv) {
           vtkIO2.Write(levelC - level0, vel_outputdir, "biquadratic", variablesToBePrinted, t / nPrint);
         }
 
-        for(unsigned i = 0; i < Sol0_C.size(); i++) {
+        for (unsigned i = 0; i < Sol0_C.size(); i++) {
           //copy velocity
-          for(unsigned d = 0; d < dim; d++) {
+          for (unsigned d = 0; d < dim; d++) {
             unsigned vel0index = mlsol0->GetIndex(vName[d].c_str());
             unsigned vel2index = mlSol2.GetIndex(vName[d].c_str());
 
             *(Sol0_C[vel0index]) = *(Sol2[vel2index]);
-            if((mlsol0->GetSolutionLevel(levelC))->GetSolutionTimeOrder(vel0index) == 2) {
+            if ((mlsol0->GetSolutionLevel(levelC))->GetSolutionTimeOrder(vel0index) == 2) {
               *(Sol0Old_C[vel0index]) = *(Sol2Old[vel2index]);
             }
           }
 
-          for(unsigned d = 0; d < pName.size(); d++) {
+          for (unsigned d = 0; d < pName.size(); d++) {
             unsigned P0index = mlsol0->GetIndex(pName[d].c_str());
             unsigned P2index = mlSol2.GetIndex(pName[d].c_str());
             *(Sol0_C[P0index]) = *(Sol2[P2index]);
           }
         }
 
-        if(t == nSteps + 1) {
+        if (t == nSteps + 1) {
           Solution* solC = mlsol0->GetSolutionLevel(levelC);
 
-          for(unsigned d = 0; d < dim; ++d) {
+          for (unsigned d = 0; d < dim; ++d) {
             const unsigned velIndex = mlsol0->GetIndex(vName[d].c_str());
 
             NumericVector* uNew = solC->_Sol[velIndex];
@@ -780,7 +780,7 @@ int main(int argc, char **argv) {
             const unsigned first = uNew->first_local_index();
             const unsigned last = uNew->last_local_index();
 
-            for(unsigned i = first; i < last; ++i) {
+            for (unsigned i = first; i < last; ++i) {
               const double value = 0.5 * ((*uNew)(i) + (*uOld)(i));
               uNew->set(i, value);
             }
@@ -872,8 +872,8 @@ int main(int argc, char **argv) {
 
         mlsol1->Build(mlmsh1);
         mlsol1->AddSolution(psiName.c_str(), LAGRANGE, SECOND, 0, false);
-        for(unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
-        for(unsigned d = 0; d < pName.size(); d++) mlsol1->AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
+        for (unsigned d = 0; d < dim; d++) mlsol1->AddSolution(vName[d].c_str(), TH.U.family, TH.U.order, 2);
+        for (unsigned d = 0; d < pName.size(); d++) mlsol1->AddSolution(pName[d].c_str(), TH.p.family, TH.p.order, 2);
         mlsol1->AddSolution(cName.c_str(), DISCONTINUOUS_POLYNOMIAL, ZERO, 0, false);
 
         mlsol1->Initialize("All");
@@ -884,14 +884,14 @@ int main(int argc, char **argv) {
         ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, vName, levelC, levelC);
 
         UpdateColorFunction(*mlsol1, psiName, cName);
-        if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
+        if (levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
 
-        for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
+        for (unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
 
         LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
 
-        if(simulation == SimulationCase::BB) {
+        if (simulation == SimulationCase::BB) {
           const BurstingBubbleMetrics bbMetrics = ComputeBurstingBubbleMetrics(*mlsol1, psiName, vName, levelC, time, bbHMin, bbRadius, bbRhoLiquid, bbMuLiquid, bbSigma, axisCoordinate, bbState, bbOptions);
           PrintBurstingBubbleMetrics(bbMetrics, iproc, bbOutputPrefix);
         }
@@ -908,7 +908,7 @@ int main(int argc, char **argv) {
         mlsol1->clear();
         mlmsh1->resize(numberOfUniformLevels);
 
-        for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->clear();
+        for (unsigned i = 0; i < cfw.size(); i++) cfw[i]->clear();
 
       }
 
@@ -961,7 +961,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::vector < unsigned > solVIndex(dim);
   solVIndex[0] = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
   solVIndex[1] = mlSol->GetIndex("V");    // get the position of "V" in the ml_sol object
-  if(dim == 3) solVIndex[2] = mlSol->GetIndex("W");       // get the position of "V" in the ml_sol object
+  if (dim == 3) solVIndex[2] = mlSol->GetIndex("W");      // get the position of "V" in the ml_sol object
   unsigned solVType = mlSol->GetSolutionType(solVIndex[0]);    // get the finite element type for "u"
 
   unsigned solP1Index = mlSol->GetIndex("P1");    // get the position of "P1" in the ml_sol object
@@ -971,7 +971,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::vector < unsigned > solVPdeIndex(dim);
   solVPdeIndex[0] = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object
   solVPdeIndex[1] = mlPdeSys->GetSolPdeIndex("V");    // get the position of "V" in the pdeSys object
-  if(dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
+  if (dim == 3) solVPdeIndex[2] = mlPdeSys->GetSolPdeIndex("W");
 
   unsigned solP1PdeIndex = mlPdeSys->GetSolPdeIndex("P1");    // get the position of "P" in the pdeSys object
   unsigned solP2PdeIndex = mlPdeSys->GetSolPdeIndex("P2");    // get the position of "P" in the pdeSys object
@@ -1022,7 +1022,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double sigma = properties.sigma;
   double gravity = properties.gravity;
   std::vector <double> g;
-  if(dim == 2) g = {0, gravity};
+  if (dim == 2) g = {0, gravity};
   else g = {0, 0, gravity};
   double dt =  mlPdeSys->GetIntervalTime();
   bool linear = mParam.linear;
@@ -1079,7 +1079,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   // if (nprocs == 1)
   //   ProfilerStart("profiling.prof");
 
-  if(printdb) std::cout << "After Solution Projection\n" << std::flush;
+  if (printdb) std::cout << "After Solution Projection\n" << std::flush;
 
   // AssembleStabilizationTerms(*ml_prob0);
 
@@ -1089,7 +1089,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   // element loop: each process loops only on the elements that owns
 
-  if(printdb) std::cout << "Before KK assembly\n" << std::flush;
+  if (printdb) std::cout << "Before KK assembly\n" << std::flush;
 
   double P[3][3] = {};
   double solV_gss[3] = {};
@@ -1215,9 +1215,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     //   }
     // }
 
-    for(unsigned k = 0; k < nElementsToLoop; ++k) {
+    for (unsigned k = 0; k < nElementsToLoop; ++k) {
 
-      if(el_to_assemble[k] != 0) {
+      if (el_to_assemble[k] != 0) {
         continue;
       }
 
@@ -1226,7 +1226,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       const unsigned iel_type = msh->GetElementType(iel);
       const unsigned nChildrenCurrent = GetNumberOfChildren(iel);
 
-      for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+      for (unsigned j = 0; j < nChildrenCurrent; ++j) {
 
         const unsigned jel = el->GetChild(iel, j);
         const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
@@ -1290,7 +1290,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       const unsigned nDofsX = msh->GetElementDofNumber(iel, solXType);
       const unsigned nDofsXi = msh->GetElementDofNumber(iel, solXiType);
 
-      for(unsigned  k = 0; k < dim; k++) {
+      for (unsigned  k = 0; k < dim; k++) {
         coordXi[k].resize(nDofsXi);
       }
       for (unsigned i = 0; i < nDofsXi; ++i) {
@@ -1319,7 +1319,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         Res.assign(nDofsVP, 0.);
         Jac.assign(nDofsVP * nDofsVP, 0.);
 
-        for(unsigned  d = 0; d < dim; d++) {
+        for (unsigned  d = 0; d < dim; d++) {
           solV[d].resize(nDofsV);
           solVOld[d].resize(nDofsV);
           coordX[d].resize(nDofsX);
@@ -1330,15 +1330,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         //local storage of global mapping and solution
         if (l == levelC) {
-          for(unsigned i = 0; i < nDofsV; i++) {
+          for (unsigned i = 0; i < nDofsV; i++) {
             unsigned solVDof =  msh->GetSolutionDof(i, iel, solVType);
-            for(unsigned  d = 0; d < dim; d++) {
+            for (unsigned  d = 0; d < dim; d++) {
               solV[d][i] = (*sol->_Sol[solVIndex[d]])(solVDof);
               solVOld[d][i] = (*sol->_SolOld[solVIndex[d]])(solVDof);
               sysDof[d * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[d], solVPdeIndex[d], i, iel);
             }
           }
-          for(unsigned i = 0; i < nDofsP; i++) {
+          for (unsigned i = 0; i < nDofsP; i++) {
             unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
             solP1[i] = (*sol->_Sol[solP1Index])(solPDof);
             solP2[i] = (*sol->_Sol[solP2Index])(solPDof);
@@ -1347,15 +1347,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
         }
         else {
-          for(unsigned i = 0; i < nDofsV; i++) {
+          for (unsigned i = 0; i < nDofsV; i++) {
             unsigned solVDof = dofV_recv[offsetV[k] + i];
-            for(unsigned  d = 0; d < dim; d++) {
+            for (unsigned  d = 0; d < dim; d++) {
               solV[d][i] = solV_recv[d][offsetV[k] + i];
               solVOld[d][i] = solVOld_recv[d][offsetV[k] + i];
               sysDof[d * nDofsV + i] = pdeSys->GetSystemDof(solVIndex[d], solVPdeIndex[d], solVDof);
             }
           }
-          for(unsigned i = 0; i < nDofsP; i++) {
+          for (unsigned i = 0; i < nDofsP; i++) {
             unsigned solPDof = dofP_recv[offsetP[k] + i];
             solP1[i] = solP1_recv[offsetP[k] + i];
             solP2[i] = solP2_recv[offsetP[k] + i];;
@@ -1365,9 +1365,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         }
 
         // local storage of coordinates
-        for(unsigned i = 0; i < nDofsX; i++) {
+        for (unsigned i = 0; i < nDofsX; i++) {
           unsigned coordXDof  = msh->GetSolutionDof(i, iel, solXType);
-          for(unsigned d = 0; d < dim; d++) {
+          for (unsigned d = 0; d < dim; d++) {
             coordX[d][i] = (*msh->_topology->_Sol[d])(coordXDof);
             coordXgf[d][i] = (l == levelC) ? coordX[d][i] : X_recv[d][offsetX[k] + i];
           }
@@ -1387,7 +1387,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         unsigned nDofsN;
         unsigned nDofsK;
 
-        unsigned cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
+        unsigned cut = (fabs(C - 0.5) < 0.1) ? 1 : 0;
 
         std::vector<double> BX;
         std::vector<double> BY;
@@ -1397,7 +1397,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
 
-        if(cut == 1) { // this can happen only on l == levelF
+        if (cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
           femV = fem.GetFiniteElement(ielGeom, solVType);
           femP = fem.GetFiniteElement(ielGeom, solPType);
@@ -1407,22 +1407,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           nDofsPsi = msh->GetElementDofNumber(iel, psiType);
           psi.resize(nDofsPsi);
-          for(unsigned i = 0; i < nDofsPsi; i++) {
+          for (unsigned i = 0; i < nDofsPsi; i++) {
             unsigned psiDof = msh->GetSolutionDof(i, iel, psiType);
             psi[i] = (*solPsi)(psiDof);
           }
 
           unsigned ng = femPsi->GetGaussPointNumber();
           std::vector<double> psig(ng, 0.);
-          for(unsigned ig = 0; ig < ng; ig++) {
+          for (unsigned ig = 0; ig < ng; ig++) {
             double *phi = femPsi->GetPhi(ig);
-            for(unsigned i = 0; i < nDofsPsi; i++) {
+            for (unsigned i = 0; i < nDofsPsi; i++) {
               psig[ig] += psi[i] * phi[i];
             }
           }
 
           std::vector<const double *> xg(dim);
-          for(unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
+          for (unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
 
           BestFitLinearInterpolation(xg, psig, a);
           d = a[dim];
@@ -1437,7 +1437,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
 
-        if(cut == 1) {
+        if (cut == 1) {
           // cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
           // for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
           // cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
@@ -1459,13 +1459,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
 
 
-          cfw[ielGeom]->GetWeightFromNodalValues(0, psi, weightCFInt);
-          for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-          cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+          cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF);
+          for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+          //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
 
         }
         else {
-          for(unsigned i = 0; i < weightCFInt.size(); i++) {
+          for (unsigned i = 0; i < weightCFInt.size(); i++) {
             weightCFInt[i] = C;
             weightCFExt[i] = 1. - C;
           }
@@ -1476,14 +1476,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector<double> Nls(dim);
         std::vector<double> gradPsi(dim);
         std::vector<double> normalDotGradPhi(nDofsV);
-        for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
+        for (unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
           // *** get gauss point weight, test function and test function partial derivatives ***
 
-          if(l > levelC) {
+          if (l > levelC) {
             femXi->Jacobian(coordX, ig, weight, phiXi, phiXi_x);
             std::vector <double> xi_gf(dim, 0.);
-            for(unsigned i = 0; i < nDofsXi; i++) {
-              for(unsigned d = 0; d < dim; d++) {
+            for (unsigned i = 0; i < nDofsXi; i++) {
+              for (unsigned d = 0; d < dim; d++) {
                 xi_gf[d] += coordXi[d][i] * phiXi[i];
               }
             }
@@ -1494,29 +1494,88 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
             double *phiPtemp = femP->GetPhi(ig);
             phiP.resize(nDofsP);
-            for(unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
+            for (unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
           }
 
           double x_gss = 0.;
 
           if (nDofsX != nDofsV) throw std::runtime_error("ADD FEMX");
 
-          for(unsigned i = 0; i < nDofsX; ++i) {
+          for (unsigned i = 0; i < nDofsX; ++i) {
             x_gss += coordXgf[0][i] * phiV[i];
           }
 
           const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
           const double axisWeight = axisymmetric ? r : 1.;
 
-          if(axisymmetric && dim != 2) {
+          if (axisymmetric && dim != 2) {
             throw std::runtime_error("Axisymmetric assembly requires dim == 2");
           }
 
-          if(axisymmetric && r < -1.e-12) {
+          if (axisymmetric && r < -1.e-12) {
             throw std::runtime_error("Negative axisymmetric radius");
           }
 
           double dsN = 0.;
+
+
+
+          if (cut == 1) {
+            std::vector<double> gradGPhysical(dim, 0.);
+
+            if (dim == 2) {
+              std::vector<double> xiPsi(dim);
+              for (unsigned d = 0; d < dim; ++d) {
+                xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
+              }
+
+              double determinantPsi = 0.;
+              std::vector<double> shapePsi;
+              std::vector<double> shapePsi_x;
+              femPsi->Jacobian(coordX, xiPsi, determinantPsi, shapePsi, shapePsi_x);
+
+              for (unsigned i = 0; i < nDofsPsi; ++i) {
+                for (unsigned d = 0; d < dim; ++d) {
+                  gradGPhysical[d] += psi[i] * shapePsi_x[i * dim + d];
+                }
+              }
+            }
+            else {
+              femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
+              for (unsigned d = 0; d < dim; ++d) {
+                for (unsigned j = 0; j < dim; ++j) {
+                  gradGPhysical[d] += JacI[j][d] * a[j];
+                }
+              }
+            }
+
+            dsN = 0.;
+            for (unsigned d = 0; d < dim; ++d) {
+              dsN += gradGPhysical[d] * gradGPhysical[d];
+            }
+            dsN = std::sqrt(dsN);
+
+            for (unsigned d = 0; d < dim; ++d) {
+              Nf[d] = dsN > 0. ? gradGPhysical[d] / dsN : 0.;
+            }
+
+            for (unsigned i = 0; i < dim; ++i) {
+              for (unsigned j = 0; j < dim; ++j) {
+                P[i][j] = (i == j ? 1. : 0.) - Nf[i] * Nf[j];
+              }
+            }
+
+            for (unsigned j = 0; j < nDofsV; ++j) {
+              normalDotGradPhi[j] = 0.;
+              for (unsigned d = 0; d < dim; ++d) {
+                normalDotGradPhi[j] += Nf[d] * phiV_x[j * dim + d];
+              }
+            }
+          }
+
+
+
+          /*
           if (cut == 1) {
             femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
             std::vector<double> xiPsi(dim);
@@ -1626,7 +1685,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             //     normalDotGradPhi[j] += Nls[J] * phiV_x[j * dim + J];
             //   }
             // }
-          }
+          }*/
 
           for (unsigned d = 0; d < dim; ++d) {
             solV_gss[d] = 0.0;
@@ -1655,7 +1714,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           double solP1_gss = 0;
           double solP2_gss = 0;
-          for(unsigned i = 0; i < nDofsP; i++) {
+          for (unsigned i = 0; i < nDofsP; i++) {
             solP1_gss += phiP[i] * solP1[i];
             solP2_gss += phiP[i] * solP2[i];
           }
@@ -1673,19 +1732,19 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           const double convectionCoefficientNew = cnew * rho * weight * axisWeight;
           const double convectionCoefficientOld = cold * rho * weight * axisWeight;
 
-          A+=weight*weightCFInt[ig];
-          Per+=weight*weightCF[ig]*dsN;
+          A += weight * weightCFInt[ig];
+          Per += weight * weightCF[ig] * dsN;
 
           // *** phiV_i loop ***
-          for(unsigned i = 0; i < nDofsV; i++) {
-            for(unsigned  I = 0; I < dim; I++) {  //momentum equation in k
+          for (unsigned i = 0; i < nDofsV; i++) {
+            for (unsigned  I = 0; I < dim; I++) { //momentum equation in k
               double NSV = 0.;
               NSV += massCoefficient * phiV[i] * (solV_gss[I] - solVOld_gss[I]);
-              for(unsigned J = 0; J < dim; J++) {  // second index j in each equation
+              for (unsigned J = 0; J < dim; J++) { // second index j in each equation
                 // residual terms
                 NSV   +=  diffusionCoefficientNew * phiV_x[i * dim + J] * (gradSolV_gss[I][J] + gradSolV_gss[J][I]); // diffusion
                 NSV   +=  diffusionCoefficientOld * phiV_x[i * dim + J] * (gradSolVOld_gss[I][J] + gradSolVOld_gss[J][I]); // diffusion
-                if(linear) { // Picard/Hasan linear convective term
+                if (linear) { // Picard/Hasan linear convective term
                   NSV   +=  phiV[i] * (convectionCoefficientNew * solVOld_gss[J] * gradSolV_gss[I][J] +
                                        convectionCoefficientOld * solV_gss[J] * gradSolVOld_gss[I][J]);
                 }
@@ -1696,14 +1755,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               }
 
-              if(axisymmetric && I == 0) {
+              if (axisymmetric && I == 0) {
                 NSV += 2. * cnew * mu * solV_gss[0] * phiV[i] * weight / r;
                 NSV += 2. * cold * mu * solVOld_gss[0] * phiV[i] * weight / r;
               }
 
               double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
 
-              if(axisymmetric && I == 0) {
+              if (axisymmetric && I == 0) {
                 weightedDivPhi += phiV[i];
               }
 
@@ -1713,12 +1772,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               Res[I * nDofsV + i] -=  NSV;
 
               // surface tension stabilization -- rhs contribution
-              if(cut == 1) {
+              if (cut == 1) {
                 for (int d = 0; d < dim; d++) {
                   Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
                 }
 
-                if(axisymmetric && I == 0) {
+                if (axisymmetric && I == 0) {
                   Res[I * nDofsV + i] += -sigma * phiV[i] * weight * weightCF[ig] * dsN;
                 }
 
@@ -1738,7 +1797,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   stabSF += gradDeltaU_tg * gradPhi_tg;
                 }
 
-                if(axisymmetric && I == 0) {
+                if (axisymmetric && I == 0) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
 
@@ -1748,15 +1807,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           } // end phiV_i loop
 
           // *** phiP_i loop ***
-          for(unsigned i = 0; i < nDofsP; i++) {
+          for (unsigned i = 0; i < nDofsP; i++) {
 
             double weightedDivU = 0.;
 
-            for(unsigned I = 0; I < dim; ++I) {
+            for (unsigned I = 0; I < dim; ++I) {
               weightedDivU += axisWeight * gradSolV_gss[I][I];
             }
 
-            if(axisymmetric) {
+            if (axisymmetric) {
               weightedDivU += solV_gss[0];
             }
 
@@ -1779,16 +1838,16 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //--------------------------------------------------------------------------------------------------------
           // Add the local Matrix/Vector into the global Matrix/Vector
           std::vector<double> solVdotGradphi_gss(nDofsV, 0.);
-          if(linear) {
-            for(unsigned j = 0; j < nDofsV; j++) {
-              for(unsigned J = 0; J < dim ; J++) {
+          if (linear) {
+            for (unsigned j = 0; j < nDofsV; j++) {
+              for (unsigned J = 0; J < dim ; J++) {
                 solVdotGradphi_gss[j] += solVOld_gss[J] * phiV_x[j * dim + J];
               }
             }
           }
           else {
-            for(unsigned j = 0; j < nDofsV; j++) {
-              for(unsigned J = 0; J < dim ; J++) {
+            for (unsigned j = 0; j < nDofsV; j++) {
+              for (unsigned J = 0; J < dim ; J++) {
                 solVdotGradphi_gss[j] += solV_gss[J] * phiV_x[j * dim + J];
               }
             }
@@ -1796,13 +1855,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           double surfaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN * axisWeight;
 
-          for(unsigned i = 0; i < nDofsV; i++) {
-            for(unsigned j = 0; j < nDofsV; j++) {
+          for (unsigned i = 0; i < nDofsV; i++) {
+            for (unsigned j = 0; j < nDofsV; j++) {
 
               const double phiProduct = phiV[i] * phiV[j];
 
               double gradPhi_dot_gradPhi = 0.0;
-              for(unsigned J = 0; J < dim ; J++) {
+              for (unsigned J = 0; J < dim ; J++) {
                 gradPhi_dot_gradPhi += phiV_x[i * dim + J] * phiV_x[j * dim + J]; //diagonal diffusion
               }
 
@@ -1817,21 +1876,21 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
               }
 
-              for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+              for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
                 unsigned VIrow = (I * nDofsV + i) * nDofsVP;
                 unsigned VIcolumn = I * nDofsV + j;
 
                 Jac[ VIrow + VIcolumn] += diagonalContribution; //diagonal
 
-                if(axisymmetric && cut == 1 && I == 0) {
+                if (axisymmetric && cut == 1 && I == 0) {
                   Jac[VIrow + VIcolumn] += surfaceTensionCoefficient * phiProduct / (r * r);
                 }
 
-                if(axisymmetric && I == 0) {
+                if (axisymmetric && I == 0) {
                   Jac[VIrow + VIcolumn] += 2. * cnew * mu * phiV[i] * phiV[j] * weight / r;
                 }
 
-                for(unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
+                for (unsigned J = 0; J < dim ; J++) { //column velocity blocks or dimension
                   unsigned VJcolumn = J * nDofsV + j;
                   Jac[ VIrow + VJcolumn ] += diffusionCoefficientNew * phiV_x[i * dim + J] * phiV_x[j * dim + I]; //off-diagonal diffusion
                   Jac[ VIrow + VJcolumn ] += (linear) ? convectionCoefficientOld * phiProduct * gradSolVOld_gss[I][J] //off-diagonal convection
@@ -1841,17 +1900,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          for(unsigned i = 0; i < nDofsV; i++) {
-            for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
+          for (unsigned i = 0; i < nDofsV; i++) {
+            for (unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
               unsigned VIrow = I * nDofsV + i;
 
               double weightedDivPhi = axisWeight * phiV_x[i * dim + I];
 
-              if(axisymmetric && I == 0) {
+              if (axisymmetric && I == 0) {
                 weightedDivPhi += phiV[i];
               }
 
-              for(unsigned j = 0; j < nDofsP; j++) {
+              for (unsigned j = 0; j < nDofsP; j++) {
                 unsigned P1column = dim * nDofsV + j;
                 unsigned P2column = dim * nDofsV + nDofsP + j;
                 Jac[VIrow * nDofsVP + P1column] += - weightedDivPhi * phiP[j] * weight * weightCFInt[ig]; //pressure gradient
@@ -1892,22 +1951,22 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         std::vector<std::vector<double>> Xichild;
 
-        if(refined) {
+        if (refined) {
 
           Xichild.resize(dim * nChildrenCurrent);
 
-          for(unsigned d = 0; d < dim; ++d) {
+          for (unsigned d = 0; d < dim; ++d) {
             std::vector<std::vector<double>> XichildComponent;
             ProlongateFieldToChildren(XichildComponent, PMatrix[iel_type], coordXi[d]);
 
-            for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+            for (unsigned j = 0; j < nChildrenCurrent; ++j) {
               Xichild[d * nChildrenCurrent + j].swap(XichildComponent[j]);
             }
           }
 
         }
 
-        for(unsigned j = 0; j < nChildrenCurrent; ++j) {
+        for (unsigned j = 0; j < nChildrenCurrent; ++j) {
 
           const unsigned jel = el->GetChild(iel, j);
           const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
@@ -1915,14 +1974,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           el_send[jproc][posEl_send[jproc]] = jel;
           ++posEl_send[jproc];
 
-          for(unsigned i = 0; i < nDofsV; ++i) {
+          for (unsigned i = 0; i < nDofsV; ++i) {
 
-            if(l == levelC) {
+            if (l == levelC) {
 
               const unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);
               dofV_send[jproc][posV_send[jproc]] = solVDof;
 
-              for(unsigned d = 0; d < dim; ++d) {
+              for (unsigned d = 0; d < dim; ++d) {
                 solV_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_Sol[solVIndex[d]])(solVDof);
                 solVOld_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_SolOld[solVIndex[d]])(solVDof);
               }
@@ -1931,7 +1990,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               dofV_send[jproc][posV_send[jproc]] = dofV_recv[offsetV[k] + i];
 
-              for(unsigned d = 0; d < dim; ++d) {
+              for (unsigned d = 0; d < dim; ++d) {
                 solV_send[d * nprocs + jproc][posV_send[jproc]] = solV_recv[d][offsetV[k] + i];
                 solVOld_send[d * nprocs + jproc][posV_send[jproc]] = solVOld_recv[d][offsetV[k] + i];
               }
@@ -1940,9 +1999,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             ++posV_send[jproc];
           }
 
-          for(unsigned i = 0; i < nDofsP; ++i) {
+          for (unsigned i = 0; i < nDofsP; ++i) {
 
-            if(l == levelC) {
+            if (l == levelC) {
               const unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
 
               dofP_send[jproc][posP_send[jproc]] = solPDof;
@@ -1958,19 +2017,19 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             ++posP_send[jproc];
           }
 
-          for(unsigned i = 0; i < nDofsX; ++i) {
+          for (unsigned i = 0; i < nDofsX; ++i) {
 
-            if(l == levelC) {
+            if (l == levelC) {
 
               const unsigned XDof = msh->GetSolutionDof(i, iel, solXType);
 
-              for(unsigned d = 0; d < dim; ++d) {
+              for (unsigned d = 0; d < dim; ++d) {
                 X_send[d * nprocs + jproc][posX_send[jproc]] = (*msh->_topology->_Sol[d])(XDof);
               }
             }
             else {
 
-              for(unsigned d = 0; d < dim; ++d) {
+              for (unsigned d = 0; d < dim; ++d) {
                 X_send[d * nprocs + jproc][posX_send[jproc]] = X_recv[d][offsetX[k] + i];
               }
             }
@@ -1978,9 +2037,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             ++posX_send[jproc];
           }
 
-          for(unsigned i = 0; i < nDofsXi; ++i) {
+          for (unsigned i = 0; i < nDofsXi; ++i) {
 
-            for(unsigned d = 0; d < dim; ++d) {
+            for (unsigned d = 0; d < dim; ++d) {
               Xi_send[d * nprocs + jproc][posXi_send[jproc]] = refined ? Xichild[d * nChildrenCurrent + j][i] : coordXi[d][i];
             }
 
@@ -1990,7 +2049,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
       }
     }
 
-    if(l < levelF) {
+    if (l < levelF) {
       std::vector<unsigned> n_el_recv(nprocs, 0);
       std::vector<std::vector<unsigned>> n_dof_recv(nprocs, std::vector<unsigned>(nSolutionTypes, 0));
       n_el_recv[iproc] = n_el_send[iproc];
@@ -2137,10 +2196,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
 
-  double per_th = 2* M_PI * 0.249;
+  double per_th = 2 * M_PI * 0.249;
   double A_th = M_PI * 0.249 * 0.249;
-  std::cout <<" Area error "<< std::abs(A - A_th) << std::endl;
-  std::cout <<" Perimetro error "<<std::abs(Per- per_th) << std::endl;
+  std::cout << " Area error " << std::abs(A - A_th) << std::endl;
+  std::cout << " Perimetro error " << std::abs(Per - per_th) << std::endl;
 
 }
 /*
@@ -3920,3 +3979,4 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
 
 }*/
+
