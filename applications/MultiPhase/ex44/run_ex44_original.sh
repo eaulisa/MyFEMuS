@@ -9,7 +9,7 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=8
+NPROC=48
 NPRINT=100
 NREINIT=100
 
@@ -17,8 +17,8 @@ NREINIT=100
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
-SIMULATION="rb2"
+DIM=3
+SIMULATION="pi"
 SYMMETRIC=0
 AXISYMMETRIC=0
 
@@ -26,15 +26,15 @@ AXISYMMETRIC=0
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(10)
+UNIFORM_LEVELS=(1)
+ADAPTIVE_LEVELS=(3)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(1200)
+NSTEPS=(5000)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -127,11 +127,11 @@ generate_options_file() {
 
 -ksp_type fgmres
 -ksp_rtol 1.e-8
--ksp_atol 1.e-12
+-ksp_atol 1.e-10
 -ksp_divtol 1.e+50
--ksp_max_it 50
+-ksp_max_it 200
 
--level-0ksp_max_it 10
+-level-0ksp_max_it 200
 
 -level-0ksp_norm_type unpreconditioned
 -level-0ksp_monitor
@@ -147,10 +147,6 @@ generate_options_file() {
 -level-0fieldsplit_1_sub_pc_type lu
 -level-0fieldsplit_1_sub_factor_mat_solver_type mumps
 
-#
-# -level-0fieldsplit_1_ksp_type preonly
-# -level-0fieldsplit_1_pc_type lu
-# -level-0fieldsplit_1_pc_factor_mat_solver_type mumps
 EOF_OPTIONS
 
 
@@ -175,9 +171,9 @@ EOF_OPTIONS
 
 -level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
--level-${i}ksp_atol 1.e-12
+-level-${i}ksp_atol 1.e-10
 -level-${i}ksp_divtol 1.e+50
--level-${i}ksp_max_it 50
+-level-${i}ksp_max_it 200
 
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
@@ -186,21 +182,11 @@ EOF_OPTIONS
 # Velocity
 # ------------------------------------------------------------
 
-# -level-${i}fieldsplit_0_ksp_monitor
 -level-${i}fieldsplit_0_ksp_type preonly
 -level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
+-level-${i}fieldsplit_0_mg_levels_ksp_max_it 2
 -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
-
-# AMG-specific options
-
-# -level-${i}fieldsplit_0_pc_hmg_reuse_interpolation true
-# -level-${i}fieldsplit_0_pc_hmg_use_subspace_coarsening false
-# -level-${i}fieldsplit_0_pc_hmg_use_matmaij false
-# -level-${i}fieldsplit_0_pc_hmg_coarsening_component 0
-# -level-${i}fieldsplit_0_hmg_inner_pc_type gamg
-# -level-${i}fieldsplit_0_hmg_inner_pc_gamg_aggressive_square_graph false
 
 # ------------------------------------------------------------
 # Pressure
@@ -209,33 +195,8 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_ksp_type preonly
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
-#-level-${i}fieldsplit_1_mg_levels_ksp_norm_type none
+-level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
 -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
-
-# -level-${i}fieldsplit_1_ksp_type preonly
-# -level-${i}fieldsplit_1_pc_type asm
-# -level-${i}fieldsplit_1_pc_use_amat false
-# -level-${i}fieldsplit_1_pc_asm_type restrict
-# -level-${i}fieldsplit_1_pc_asm_overlap 1
-# -level-${i}fieldsplit_1_pc_asm_local_type multiplicative
-#
-# -level-${i}fieldsplit_1_sub_ksp_type preonly
-# -level-${i}fieldsplit_1_sub_pc_type ilu
-# -level-${i}fieldsplit_1_sub_pc_factor_mat_solver_type petsc
-# -level-${i}fieldsplit_1_sub_pc_factor_levels 1
-# -level-${i}fieldsplit_1_sub_pc_factor_shift_type nonzero
-
-# AMG-specific options
-
-# -level-${i}fieldsplit_1_pc_hmg_reuse_interpolation true
-# -level-${i}fieldsplit_1_pc_hmg_use_subspace_coarsening false
-# -level-${i}fieldsplit_1_pc_hmg_use_matmaij false
-# -level-${i}fieldsplit_1_pc_hmg_coarsening_component 0
-# -level-${i}fieldsplit_1_hmg_inner_pc_type gamg
-# -level-${i}fieldsplit_1_hmg_inner_pc_gamg_aggressive_square_graph false
-
-
 
 EOF_OPTIONS
 

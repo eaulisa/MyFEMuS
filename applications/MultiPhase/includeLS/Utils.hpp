@@ -3707,7 +3707,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = 12.86;
 
       cfg.psi.type = PsiType::PHASE_INVERSION;
-      cfg.psi.phaseInversionSize = 0.5 * H;
+      cfg.psi.phaseInversionSize = 0.500001 * H;
 
       cfg.properties.rho1 = 900.;
       cfg.properties.rho2 = 1000.;

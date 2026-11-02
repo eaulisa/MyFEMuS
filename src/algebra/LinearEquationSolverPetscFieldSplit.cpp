@@ -160,6 +160,7 @@ namespace femus {
 
     KSP kspFine;
     PetscCallAbort(PETSC_COMM_WORLD, PCMGGetSmoother(pcMG, numberOfLevels - 1, &kspFine));
+    PetscCallAbort(PETSC_COMM_WORLD, KSPGMRESSetRestart(kspFine, 60));
 
     KSPNormType previousNormType;
     PetscBool previousInitialGuessNonzero;
@@ -179,7 +180,7 @@ namespace femus {
     PetscCallAbort(PETSC_COMM_WORLD, KSPSetNormType(kspFine, KSP_NORM_UNPRECONDITIONED));
     PetscCallAbort(PETSC_COMM_WORLD, KSPOrthogonalizationSetCGSRefinementType(kspFine, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED));
 
-    PetscCallAbort(PETSC_COMM_WORLD, KSPSetInitialGuessKnoll(kspFine, PETSC_TRUE));
+    PetscCallAbort(PETSC_COMM_WORLD, KSPSetInitialGuessKnoll(kspFine, PETSC_FALSE));
     PetscCallAbort(PETSC_COMM_WORLD, KSPSetInitialGuessNonzero(kspFine, PETSC_FALSE));
 
     ZerosBoundaryResiduals();
