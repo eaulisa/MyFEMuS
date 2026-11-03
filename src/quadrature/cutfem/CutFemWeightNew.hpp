@@ -15,6 +15,7 @@
 #include "AdaptiveLineSliceMoments.hpp"
 #include "FemusAlgoim.hpp"
 #include "Tet15LevelSet.hpp"
+#include "Tet15LevelSetMoments.hpp"
 
 #include "GramSchmidt.hpp"
 
@@ -425,7 +426,14 @@ class CutFemWeight {
     }
 
     void GetWeightFromNodalValues(const int& s, const std::vector<double>& nodalValues, std::vector<TypeIO>& weightCF, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
-      if(_geomElemType == HEX) {
+      if(_geomElemType == TET) {
+        if(s != 0 && s != -1) throw std::invalid_argument("TET15 nodal weights require s=0 or s=-1.");
+        std::vector<TypeIO> positive;
+        std::vector<TypeIO> delta;
+        GetWeightsFromNodalValues(nodalValues,positive,delta,absoluteTolerance,relativeTolerance);
+        weightCF = s == 0 ? positive : delta;
+      }
+      else if(_geomElemType == HEX) {
         std::vector<std::vector<std::vector<double>>> coefficient;
         FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
         GetWeightFromCanonicalFE(s,coefficient,weightCF,absoluteTolerance,relativeTolerance);
@@ -449,8 +457,16 @@ class CutFemWeight {
         GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
       }
       else {
-        throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, TRI7, and HEX27.");
+        throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, TRI7, HEX27, and TET15.");
       }
+    }
+
+    void SetTet15DirectionValidation(const unsigned mode) {
+      if(mode > 2) throw std::invalid_argument("TET15 direction validation must be 0, 1, or 2.");
+      if(mode == _tet15DirectionValidation) return;
+      _tet15DirectionValidation = mode;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
     }
 
     void GetWeightsFromNodalValues(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
@@ -532,7 +548,7 @@ class CutFemWeight {
       if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) {
         throw std::invalid_argument("Invalid nodal integration tolerance.");
       }
-      useLineSlices = useLineSlices && (_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == TRI);
+      useLineSlices = useLineSlices && (_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == TRI || _geomElemType == TET);
       bool sameField = algoimOrder == _nodalMomentAlgoimOrder && algoimSubdivisions == _nodalMomentAlgoimSubdivisions && useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
       if(sameField && _nodalWeightCacheValid) {
         positiveWeight = _nodalPositiveWeight;
@@ -637,7 +653,7 @@ class CutFemWeight {
     }
 
     void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned) = nullptr) {
-      if(_geomElemType == TET && algoimOrder != 0) {
+      if(_geomElemType == TET) {
         std::vector<std::vector<std::vector<double>>> coefficient;
         FELevelSetMoments::Tet15ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
         bool planar = true;
@@ -652,11 +668,17 @@ class CutFemWeight {
           IntegratePlanarMomentPair(normal,static_cast<TypeIO>(coefficient[0][0][0]));
           _obj->SetBaseType(_tetBaseType);
         }
-        else {
+        else if(algoimOrder != 0) {
           std::vector<double> positiveMoments;
           std::vector<double> deltaMoments;
           algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions);
           StoreAlgoimMomentPair(positiveMoments,deltaMoments);
+        }
+        else {
+          std::vector<std::vector<std::vector<double>>> positive;
+          std::vector<std::vector<std::vector<double>>> delta;
+          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,0,200000,nullptr,_tet15DirectionValidation);
+          StoreNodalMomentPair(positive,delta);
         }
       }
       else if(_geomElemType == HEX) {
@@ -792,6 +814,7 @@ class CutFemWeight {
     Eigen::Matrix<TypeA, Eigen::Dynamic, 1> _f;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _nodalMomentCache;
+    unsigned _tet15DirectionValidation = 1;
     bool _nodalMomentUsesLineSlices = false;
     unsigned _nodalMomentAlgoimOrder = 0;
     unsigned _nodalMomentAlgoimSubdivisions = 1;

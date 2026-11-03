@@ -652,6 +652,62 @@ inline void Tri7ReflectedCoefficientsFromNodalValues(const std::vector<double>& 
   coefficient.swap(result);
 }
 
+inline void RationalSegmentMoments(long double a, long double b, long double c, long double left, long double right, unsigned degree, long double tolerance, unsigned depth, std::vector<long double>& values, std::vector<long double>& errors) {
+  values.assign(degree+1U,0.0L);
+  errors.assign(degree+1U,0.0L);
+  if(!(right > left)) return;
+  long double middle = 0.5L*(left+right);
+  long double halfWidth = 0.5L*(right-left);
+  long double constant = std::fma(a,middle*middle,std::fma(b,middle,c));
+  if(!(constant > 0.0L) || !std::isfinite(constant)) throw std::domain_error("A rational segment has a nonregular denominator.");
+  long double quadratic = a*halfWidth*halfWidth/constant;
+  long double linear = (2.0L*a*middle+b)*halfWidth/constant;
+  long double ratio = std::abs(quadratic)+std::abs(linear);
+  if(ratio > 0.5L) {
+    if(depth >= 48) throw std::runtime_error("A rational segment did not reach its analytic convergence radius.");
+    std::vector<long double> other;
+    std::vector<long double> otherError;
+    RationalSegmentMoments(a,b,c,left,middle,degree,0.5L*tolerance,depth+1U,values,errors);
+    RationalSegmentMoments(a,b,c,middle,right,degree,0.5L*tolerance,depth+1U,other,otherError);
+    for(unsigned j = 0; j <= degree; ++j) {
+      values[j] += other[j];
+      errors[j] += otherError[j];
+    }
+    return;
+  }
+  std::vector<std::vector<long double>> monomial(degree+1U);
+  for(unsigned j = 0; j <= degree; ++j) {
+    monomial[j].resize(j+1U);
+    for(unsigned k = 0; k <= j; ++k) monomial[j][k] = Binomial(j,k)*Power(middle,j-k)*Power(halfWidth,k);
+  }
+  std::vector<long double> term(1,1.0L);
+  long double nextPower = ratio;
+  long double magnitude = 0.0L;
+  for(unsigned iteration = 0; iteration < 96; ++iteration) {
+    for(unsigned j = 0; j <= degree; ++j) {
+      long double contribution = 0.0L;
+      for(unsigned k = 0; k < term.size(); ++k) {
+        for(unsigned p = 0; p <= j; ++p) {
+          if((k+p)%2U == 0) contribution += term[k]*monomial[j][p]*2.0L/(k+p+1U);
+        }
+      }
+      contribution *= halfWidth/constant;
+      values[j] += contribution;
+      magnitude = std::max(magnitude,std::abs(values[j]));
+    }
+    long double remainder = 2.0L*halfWidth*nextPower/(constant*(1.0L-ratio));
+    long double roundoff = 128.0L*std::numeric_limits<long double>::epsilon()*magnitude*(iteration+1U);
+    if(remainder <= std::max(tolerance,roundoff)) {
+      for(unsigned j = 0; j <= degree; ++j) errors[j] = remainder+roundoff;
+      return;
+    }
+    term = PolynomialProduct(term,{0.0L,-linear,-quadratic});
+    nextPower *= ratio;
+  }
+  throw std::runtime_error("A rational segment did not resolve its analytic remainder.");
+}
+
+
 }
 
 namespace FELevelSetMoments {
@@ -777,7 +833,27 @@ inline bool LineSliceZeroFiber(const std::vector<std::vector<long double>>& fiel
   return false;
 }
 
-inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values) {
+inline std::vector<long double> LineSliceFlatFibers(const std::vector<std::vector<long double>>& field) {
+  long double norm = 0.0L;
+  for(unsigned term = 0; term < 3; ++term) norm = std::max(norm,LineSliceUtilities::PolynomialNorm(field[term]));
+  unsigned selected = 3;
+  for(unsigned term = 0; term < 3; ++term) {
+    if(LineSliceUtilities::PolynomialNorm(field[term]) != 0.0L && (selected == 3 || field[term].size() < field[selected].size())) selected = term;
+  }
+  std::vector<long double> candidates;
+  std::vector<long double> roots;
+  if(selected == 3) return roots;
+  LineSliceUtilities::PolynomialRoots(field[selected],0.0L,1.0L,candidates);
+  for(unsigned n = 0; n < candidates.size(); ++n) {
+    bool common = true;
+    for(unsigned term = 0; term < 3; ++term) common = common && std::abs(LineSliceUtilities::PolynomialValue(field[term],candidates[n])) <= 2048.0L*std::numeric_limits<long double>::epsilon()*std::max(norm,LineSliceUtilities::PolynomialBound(field[term],candidates[n]));
+    if(common) roots.push_back(candidates[n]);
+  }
+  LineSliceUtilities::SortDistinct(roots);
+  return roots;
+}
+
+inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values) {
   long double width = (right-left)+(rightOffset-leftOffset);
   long double sine = linear ? 0.0L : std::sin(parameter);
   long double cosine = linear ? 0.0L : std::cos(parameter);
@@ -797,6 +873,19 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
     b = LineSlicePolynomial(field[1],x,coordinateError);
     c = LineSlicePolynomial(field[2],x,coordinateError);
   }
+  long double factor = 1.0L;
+  for(unsigned n = 0; n < flat.size(); ++n) {
+    long double distance = x-flat[n]+coordinateError;
+    if(flat[n] == left) distance = fromLeft+leftOffset;
+    if(flat[n] == right) distance = -fromRight+rightOffset;
+    factor *= distance;
+  }
+  if(factor == 0.0L) throw std::runtime_error("A factored line sample reached its zero fiber.");
+  if(factor < 0.0L) {
+    a = -a;
+    b = -b;
+    c = -c;
+  }
   long double discriminant = std::fma(-4.0L*a,c,b*b);
   long double deltaJacobian = std::numeric_limits<long double>::quiet_NaN();
   if(a != 0.0L && !reduced.empty()) {
@@ -813,6 +902,9 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   long double upper = shape == 2 ? x : 1.0L;
   std::vector<long double> h,d;
   LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d);
+  if(computeDelta) {
+    for(unsigned j = 0; j <= degree; ++j) d[j] /= std::abs(factor);
+  }
   unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0.0L);
   long double power = 1.0L;
@@ -826,7 +918,7 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   }
 }
 
-inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError) {
+inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError) {
   const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
   const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
   const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -842,7 +934,7 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
       if(evaluations >= maximumEvaluations) throw std::runtime_error("The line-slice evaluation budget was exhausted.");
       ++evaluations;
       long double point = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
-      LineSliceSample(field,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples]);
+      LineSliceSample(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples]);
       const std::vector<long double>& value = samples[numberOfSamples];
       sampleWeights[numberOfSamples++] = kronrod[node];
       for(unsigned k = 0; k < value.size(); ++k) {
@@ -872,8 +964,8 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
     return;
   }
   if(depth >= maximumDepth || middle == parameterLeft || middle == parameterRight) throw std::runtime_error("Line-slice quadrature did not reach the requested tolerance.");
-  LineSliceAdaptiveInterval(field,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
-  LineSliceAdaptiveInterval(field,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
 }
 
 inline void LineSliceDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, unsigned order, bool computeDelta, bool fullBoundaryDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned guaranteedMonotoneOrder = 0, const std::vector<unsigned>* zeroBoundary = nullptr) {
@@ -884,11 +976,25 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
   for(unsigned k = 0; k < 3; ++k) LineSliceUtilities::Trim(field[k]);
   int phase = 0;
   bool linear = order == guaranteedMonotoneOrder || LineSliceUtilities::CanonicalGraphOrder(coefficient,order,phase) != 0;
+  std::vector<long double> flat = LineSliceFlatFibers(field);
   if(computeDelta && zeroBoundary != nullptr) {
     bool entire = triangle ? (*zeroBoundary)[order == 1 ? 1U : 0U] != 0 : ((*zeroBoundary)[order == 1 ? 0U : 2U] != 0 || (*zeroBoundary)[order == 1 ? 1U : 3U] != 0);
-    if(entire) throw std::runtime_error("A nodal zero edge requires the other slicing direction.");
+    if(entire) {
+      if(triangle) flat.push_back(order == 1 ? 1.0L : 0.0L);
+      else {
+        if((*zeroBoundary)[order == 1 ? 0U : 2U] != 0) flat.push_back(0.0L);
+        if((*zeroBoundary)[order == 1 ? 1U : 3U] != 0) flat.push_back(1.0L);
+      }
+    }
   }
-  if(computeDelta && !linear && LineSliceZeroFiber(field)) throw std::runtime_error("The requested projection contains an entire zero segment.");
+  LineSliceUtilities::SortDistinct(flat);
+  std::vector<std::vector<long double>> originalField = field;
+  for(unsigned n = 0; n < flat.size(); ++n) {
+    for(unsigned term = 0; term < 3; ++term) {
+      if(field[term].size() > 1) field[term] = LineSliceUtilities::DivideLinear(field[term],flat[n]);
+      else field[term].assign(1,0.0L);
+    }
+  }
   unsigned shape = triangle ? (order == 1 ? 2U : 3U) : 0U;
   const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
   std::vector<long double> discriminant = LineSliceUtilities::DiscriminantPolynomial(field);
@@ -907,16 +1013,47 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
   }
   LineSliceUtilities::PolynomialRoots(bottom,0.0L,1.0L,events);
   LineSliceUtilities::PolynomialRoots(top,0.0L,1.0L,events);
+  for(unsigned n = 0; n < flat.size(); ++n) events.push_back(flat[n]);
   LineSliceUtilities::SortDistinct(events);
   const std::vector<std::vector<long double>> eventPolynomials = {discriminant,field[0],field[1],field[2],bottom,top};
   std::vector<long double> eventOffsets(events.size(),0.0L);
   for(unsigned k = 0; k < events.size(); ++k) eventOffsets[k] = LineSliceEventOffset(events[k],eventPolynomials);
-  if(computeDelta && !linear) LineSliceUtilities::CheckSingularZeros(field,events,shape,domain);
+  for(unsigned n = 0; n < flat.size(); ++n) {
+    for(unsigned k = 0; k < events.size(); ++k) {
+      if(events[k] == flat[n]) eventOffsets[k] = 0.0L;
+    }
+  }
+  if(computeDelta && !linear) LineSliceUtilities::CheckSingularZeros(originalField,events,shape,domain);
   bool lowerZero = LineSliceUtilities::PolynomialNorm(bottom) == 0.0L;
   bool upperZero = LineSliceUtilities::PolynomialNorm(top) == 0.0L;
   unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0.0L);
   errors.assign(2U*count,0.0L);
+  for(unsigned n = 0; computeDelta && n < flat.size(); ++n) {
+    long double root = flat[n];
+    long double lower = LineSliceUtilities::LowerBoundary(root,shape,domain);
+    long double upper = LineSliceUtilities::UpperBoundary(root,shape,domain);
+    if(!(upper > lower)) continue;
+    long double a = LineSliceUtilities::PolynomialValue(LineSliceUtilities::PolynomialDerivative(originalField[0]),root);
+    long double b = LineSliceUtilities::PolynomialValue(LineSliceUtilities::PolynomialDerivative(originalField[1]),root);
+    long double c = LineSliceUtilities::PolynomialValue(LineSliceUtilities::PolynomialDerivative(originalField[2]),root);
+    std::vector<long double> singular = LineSliceUtilities::QuadraticRoots(a,b,c);
+    for(unsigned r = 0; r < singular.size(); ++r) {
+      if(singular[r] >= lower && singular[r] <= upper) throw std::domain_error("An entire zero segment has a critical transverse derivative.");
+    }
+    long double sign = std::fma(a,0.25L*(lower+upper)*(lower+upper),std::fma(b,0.5L*(lower+upper),c)) > 0.0L ? 1.0L : -1.0L;
+    std::vector<long double> moments;
+    std::vector<long double> momentError;
+    LineSliceUtilities::RationalSegmentMoments(sign*a,sign*b,sign*c,lower,upper,degree,0.002L*absoluteDelta,0,moments,momentError);
+    long double boundary = !fullBoundaryDelta && (root == 0.0L || root == 1.0L) ? 0.5L : 1.0L;
+    for(unsigned i = 0; i <= degree; ++i) {
+      for(unsigned j = 0; j <= degree-i; ++j) {
+        unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
+        values[count+index] += boundary*LineSliceUtilities::Power(root,i)*moments[j];
+        errors[count+index] += boundary*LineSliceUtilities::Power(root,i)*momentError[j];
+      }
+    }
+  }
   for(unsigned interval = 1; interval < events.size(); ++interval) {
     long double left = events[interval-1U], right = events[interval];
     if(!(right > left)) continue;
@@ -924,7 +1061,15 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
     std::vector<int> signs,boundary;
     std::vector<long double> segments;
     long double uniform = 0.0L;
-    LineSliceUtilities::IntervalBranches(field,middle,shape,domain,lowerZero,upperZero,computeDelta,signs,boundary,segments,uniform);
+    long double factor = 1.0L;
+    for(unsigned n = 0; n < flat.size(); ++n) factor *= middle-flat[n];
+    std::vector<std::vector<long double>> signedField = field;
+    if(factor < 0.0L) {
+      for(unsigned term = 0; term < 3; ++term) {
+        for(unsigned k = 0; k < signedField[term].size(); ++k) signedField[term][k] = -signedField[term][k];
+      }
+    }
+    LineSliceUtilities::IntervalBranches(signedField,middle,shape,domain,lowerZero,upperZero,computeDelta,signs,boundary,segments,uniform);
     if(signs.empty() && uniform != 0.5L && !(computeDelta && (lowerZero || upperZero))) {
       if(uniform > 0.0L) {
         for(unsigned i = 0; i <= degree; ++i) {
@@ -951,18 +1096,157 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
       }
     }
     bool intervalLinear = linear && leftMultiplicity == 0 && rightMultiplicity == 0;
-    LineSliceAdaptiveInterval(field,reduced,leftMultiplicity,rightMultiplicity,left,right,eventOffsets[interval-1U],eventOffsets[interval],0.0L,intervalLinear ? 1.0L : 0.5L*std::acos(-1.0L),intervalLinear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors);
+    LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,eventOffsets[interval-1U],eventOffsets[interval],0.0L,intervalLinear ? 1.0L : 0.5L*std::acos(-1.0L),intervalLinear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors);
   }
 }
 
-inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
-  if(degree > 10000U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationOrder > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid adaptive line-slice input.");
+
+inline void LineSliceTriangleChart(const std::vector<std::vector<long double>>& input, unsigned chart, std::vector<std::vector<long double>>& output) {
+  output = input;
+  if(chart == 0) return;
+  const long double c0 = input[0][0];
+  const long double c1 = input[1][0];
+  const long double c2 = input[0][1];
+  const long double c3 = input[2][0];
+  const long double c4 = input[1][1];
+  const long double c5 = input[0][2];
+  const long double c6 = input[2][1];
+  if(chart == 1) {
+    output[0][0] = c0+c1+c2+c3+c4+c5;
+    output[1][0] = -c1-c2-2.0L*(c3+c4+c5);
+    output[0][1] = c1+2.0L*c3+c4+c6;
+    output[2][0] = c3+c4+c5;
+    output[1][1] = -2.0L*c3-c4-2.0L*c6;
+    output[0][2] = c3+c6;
+  }
+  else {
+    output[0][0] = c0+c1+c3;
+    output[1][0] = c2+c4+c6;
+    output[0][1] = -c1-c2-2.0L*c3-c4-c6;
+    output[2][0] = c5-c6;
+    output[1][1] = -c4-2.0L*c5;
+    output[0][2] = c3+c4+c5+c6;
+  }
+}
+
+inline void LineSliceTriangleDerivativeBounds(const std::vector<std::vector<long double>>& coefficient, long double& lower, long double& upper) {
+  const long double c2 = coefficient[0][1];
+  const long double c4 = coefficient[1][1];
+  const long double c5 = coefficient[0][2];
+  const long double c6 = coefficient[2][1];
+  const long double bernstein[6] = {c2,c2+0.5L*c4,c2+0.5L*c4+c5,c2+c4+c6,c2+c4+c5,c2+c4+2.0L*c5-c6};
+  long double minimum = bernstein[0];
+  long double maximum = bernstein[0];
+  long double norm = 0.0L;
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) norm += std::abs(coefficient[i][j]);
+  }
+  for(unsigned k = 1; k < 6; ++k) {
+    minimum = std::min(minimum,bernstein[k]);
+    maximum = std::max(maximum,bernstein[k]);
+  }
+  const long double padding = 2048.0L*std::numeric_limits<long double>::epsilon()*norm;
+  lower = minimum > padding ? minimum-padding : (maximum < -padding ? -maximum-padding : 0.0L);
+  upper = std::max(std::abs(minimum),std::abs(maximum))+padding;
+}
+
+inline void LineSliceTriangleRestoreMoments(unsigned degree, unsigned chart, const std::vector<long double>& source, const std::vector<long double>& sourceError, std::vector<long double>& values, std::vector<long double>& errors) {
+  if(chart == 0) {
+    values = source;
+    errors = sourceError;
+    return;
+  }
+  const unsigned count = (degree+1U)*(degree+2U)/2U;
+  values.assign(2U*count,0.0L);
+  errors.assign(2U*count,0.0L);
+  for(unsigned i = 0; i <= degree; ++i) {
+    for(unsigned j = 0; j <= degree-i; ++j) {
+      const unsigned target = LineSliceUtilities::MomentIndex(degree,i,j);
+      long double absoluteSum[2] = {0.0L,0.0L};
+      long double correction[2] = {0.0L,0.0L};
+      unsigned terms = 0;
+      for(unsigned a = 0; a <= (chart == 1 ? i : j); ++a) {
+        const unsigned bound = chart == 1 ? i+j-a : i;
+        for(unsigned b = 0; b <= bound; ++b) {
+          const unsigned first = chart == 1 ? b : a;
+          const unsigned second = chart == 1 ? a : j-a+b;
+          const unsigned index = LineSliceUtilities::MomentIndex(degree,first,second);
+          long double multiplier = chart == 1 ? LineSliceUtilities::Binomial(i,a)*LineSliceUtilities::Binomial(i+j-a,b) : LineSliceUtilities::Binomial(j,a)*LineSliceUtilities::Binomial(i,b);
+          if((chart == 1 ? b : j-a+b)%2U != 0) multiplier = -multiplier;
+          for(unsigned pair = 0; pair < 2; ++pair) {
+            const unsigned destination = pair*count+target;
+            const long double term = multiplier*source[pair*count+index];
+            const long double adjusted = term-correction[pair];
+            const long double next = values[destination]+adjusted;
+            correction[pair] = (next-values[destination])-adjusted;
+            values[destination] = next;
+            errors[destination] += std::abs(multiplier)*sourceError[pair*count+index];
+            absoluteSum[pair] += std::abs(term);
+          }
+          ++terms;
+        }
+      }
+      for(unsigned pair = 0; pair < 2; ++pair) errors[pair*count+target] += (8.0L+2.0L*terms)*std::numeric_limits<long double>::epsilon()*absoluteSum[pair];
+    }
+  }
+}
+
+inline void LineSliceTriangleDirections(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned integrationOrder, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected) {
+  std::vector<std::vector<std::vector<long double>>> charts(3);
+  long double lower[3];
+  long double upper[3];
+  unsigned order[3] = {0,1,2};
+  for(unsigned chart = 0; chart < 3; ++chart) {
+    LineSliceTriangleChart(normalized,chart,charts[chart]);
+    LineSliceTriangleDerivativeBounds(charts[chart],lower[chart],upper[chart]);
+  }
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = i+1U; j < 3; ++j) {
+      const bool better = lower[order[j]] > lower[order[i]] || (lower[order[j]] == lower[order[i]] && upper[order[j]] > upper[order[i]]);
+      if(better) std::swap(order[i],order[j]);
+    }
+  }
+  if(integrationOrder != 0) {
+    for(unsigned i = 0; i < 3; ++i) {
+      if(order[i] == integrationOrder-1U) std::swap(order[0],order[i]);
+    }
+  }
+  const unsigned count = (degree+1U)*(degree+2U)/2U;
+  std::string failure = "No triangle direction converged.";
+  for(unsigned attempt = 0; attempt < 3; ++attempt) {
+    const unsigned chart = order[attempt];
+    std::vector<unsigned> boundary;
+    if(zeroBoundary != nullptr) {
+      boundary.resize(3);
+      for(unsigned side = 0; side < 3; ++side) boundary[side] = (*zeroBoundary)[(side+3U-chart)%3U];
+    }
+    const long double amplification = chart == 0 ? 1.0L : LineSliceUtilities::Power(chart == 1 ? 3.0L : 2.0L,degree);
+    std::vector<long double> trial;
+    std::vector<long double> trialError;
+    unsigned trialAccepted = 0;
+    try {
+      LineSliceDirection(charts[chart],degree,true,1,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,trial,trialError,evaluations,trialAccepted,lower[chart] > 0.0L ? 1U : 0U,zeroBoundary == nullptr ? nullptr : &boundary);
+      LineSliceTriangleRestoreMoments(degree,chart,trial,trialError,values,errors);
+      for(unsigned k = 0; k < values.size(); ++k) {
+        const long double tolerance = (k < count ? absoluteTolerance : absoluteTolerance*scale)+relativeTolerance*std::abs(values[k]);
+        if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] > tolerance) throw std::runtime_error("Triangle chart conversion exceeds the requested error budget.");
+      }
+      accepted = trialAccepted;
+      selected = chart+1U;
+      return;
+    }
+    catch(const std::runtime_error& exception) {
+      failure = exception.what();
+    }
+  }
+  throw std::runtime_error(failure);
+}
+
+inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+  if(degree > 10000U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationOrder > (triangle ? 3U : 2U) || maximumEvaluations < 15) throw std::invalid_argument("Invalid adaptive line-slice input.");
   unsigned long long size = (static_cast<unsigned long long>(degree)+1ULL)*(degree+2ULL)/2ULL;
   if(size > std::numeric_limits<unsigned>::max()/2U) throw std::length_error("The moment table is too large.");
   if(zeroBoundary != nullptr && zeroBoundary->size() != (triangle ? 3U : 4U)) throw std::invalid_argument("Invalid nodal boundary flags.");
-  std::vector<std::vector<long double>> normalized;
-  long double scale;
-  LineSliceUtilities::NormalizeCanonicalPolynomial(coefficient,normalized,scale);
   unsigned count = static_cast<unsigned>(size);
   std::vector<long double> values(2U*count,0.0L),errors(2U*count,0.0L);
   int phase = 0;
@@ -980,7 +1264,11 @@ inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>
       }
     }
   }
+  else if(triangle && normalized[2][2] == 0.0L && normalized[2][1] == -normalized[1][2]) {
+    LineSliceTriangleDirections(normalized,scale,degree,computeDelta,fullBoundaryDelta,absoluteTolerance,relativeTolerance,maximumDepth,integrationOrder,maximumEvaluations,zeroBoundary,values,errors,evaluations,accepted,selected);
+  }
   else {
+    if(integrationOrder > 2) throw std::invalid_argument("The third triangle direction requires the enriched TRI7 polynomial space.");
     bool completed = false;
     std::string failure;
     const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
@@ -1030,6 +1318,13 @@ inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(maxH),static_cast<double>(maxD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected)};
 }
 
+inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+  std::vector<std::vector<long double>> normalized;
+  long double scale;
+  LineSliceUtilities::NormalizeCanonicalPolynomial(coefficient,normalized,scale);
+  IntegrateNormalizedByLineSlices(normalized,scale,degree,triangle,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary);
+}
+
 inline void IntegrateQuad9UnitByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr) {
   IntegrateCanonicalByLineSlices(coefficient,degree,false,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError);
 }
@@ -1055,6 +1350,29 @@ inline void IntegrateTri7NodalByLineSlices(const std::vector<double>& nodalValue
   LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> zeroBoundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
   IntegrateTri7ReflectedByLineSlices(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28,0,200000,nullptr,&zeroBoundary);
+}
+
+inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+  if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires seven coefficients.");
+  long double scale = 0.0L;
+  for(unsigned term = 0; term < 7; ++term) {
+    if(!std::isfinite(coefficient[term])) throw std::invalid_argument("A TRI7 coefficient is not finite.");
+    scale = std::max(scale,std::abs(coefficient[term]));
+  }
+  if(scale == 0.0L) scale = 1.0L;
+  int exponent = 0;
+  std::frexp(scale,&exponent);
+  scale = std::ldexp(1.0L,exponent-1);
+  std::vector<std::vector<long double>> normalized(3,std::vector<long double>(3,0.0L));
+  normalized[0][0] = coefficient[0]/scale;
+  normalized[1][0] = coefficient[1]/scale;
+  normalized[0][1] = coefficient[2]/scale;
+  normalized[2][0] = coefficient[3]/scale;
+  normalized[1][1] = coefficient[4]/scale;
+  normalized[0][2] = coefficient[5]/scale;
+  normalized[2][1] = coefficient[6]/scale;
+  normalized[1][2] = -coefficient[6]/scale;
+  IntegrateNormalizedByLineSlices(normalized,scale,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary);
 }
 
 inline void IntegrateQuad9CanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false) {
