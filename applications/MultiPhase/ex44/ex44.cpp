@@ -1489,8 +1489,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //std::cout<<std::endl;
 
           //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
+
+          cfw[ielGeom]->SetHex27DirectionValidation(0);
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
+
           cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-05, 1.E-05);
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
           //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);

@@ -12,6 +12,7 @@
 #include "CutFem.hpp"
 #include "FELevelSetMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
+#include "Hex27DirectionSelection.hpp"
 #include "AdaptiveLineSliceMoments.hpp"
 #include "Quad9DirectionSelection.hpp"
 #include "Tri7DirectionSelection.hpp"
@@ -423,7 +424,7 @@ class CutFemWeight {
         return;
       }
       std::vector<std::vector<std::vector<double>>> positive, delta;
-      FELevelSetMoments::IntegrateHex27Unit(coefficient,_qM,positive,delta,absoluteTolerance,relativeTolerance,s == -1);
+      FELevelSetMoments::IntegrateHex27UnitSelected(coefficient,_qM,positive,delta,absoluteTolerance,relativeTolerance,s == -1,24,_hex27IntegrationDirection,200000,nullptr,_hex27DirectionValidation);
       GetWeightFromMoments(s == 0 ? positive : delta,weightCF);
     }
 
@@ -469,6 +470,22 @@ class CutFemWeight {
       else {
         throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, TRI7, HEX27, and TET15.");
       }
+    }
+
+    void SetHex27DirectionValidation(const unsigned mode) {
+      if(mode > 2) throw std::invalid_argument("HEX27 direction validation must be 0, 1, or 2.");
+      if(mode == _hex27DirectionValidation) return;
+      _hex27DirectionValidation = mode;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
+    }
+
+    void SetHex27IntegrationDirection(const unsigned order) {
+      if(order > 6) throw std::invalid_argument("HEX27 integration direction must be between 0 and 6.");
+      if(order == _hex27IntegrationDirection) return;
+      _hex27IntegrationDirection = order;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
     }
 
     void SetTri7DirectionValidation(const unsigned mode) {
@@ -745,7 +762,7 @@ class CutFemWeight {
           return;
         }
         std::vector<std::vector<std::vector<double>>> positive, delta;
-        FELevelSetMoments::IntegrateHex27Unit(coefficient,_qM,positive,delta,absoluteTolerance,relativeTolerance);
+        FELevelSetMoments::IntegrateHex27NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,_hex27DirectionValidation,_hex27IntegrationDirection,nullptr,!useLineSlices);
         StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == QUAD) {
@@ -854,6 +871,8 @@ class CutFemWeight {
     Eigen::Matrix<TypeA, Eigen::Dynamic, 1> _f;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _nodalMomentCache;
+    unsigned _hex27DirectionValidation = 1;
+    unsigned _hex27IntegrationDirection = 0;
     unsigned _tet15DirectionValidation = 1;
     unsigned _quad9DirectionValidation = 1;
     unsigned _quad9IntegrationDirection = 0;
