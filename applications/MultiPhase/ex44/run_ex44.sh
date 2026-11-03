@@ -27,9 +27,9 @@ ELTYPE=4
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(5)
-LEVEL_OFFSET=1
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(10)
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization

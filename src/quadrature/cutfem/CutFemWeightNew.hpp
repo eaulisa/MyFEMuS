@@ -13,6 +13,8 @@
 #include "FELevelSetMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
 #include "AdaptiveLineSliceMoments.hpp"
+#include "Quad9DirectionSelection.hpp"
+#include "Tri7DirectionSelection.hpp"
 #include "FemusAlgoim.hpp"
 #include "Tet15LevelSet.hpp"
 #include "Tet15LevelSetMoments.hpp"
@@ -280,7 +282,7 @@ class CutFemWeight {
       }
       std::vector<std::vector<double>> positive;
       std::vector<std::vector<double>> delta;
-      FELevelSetMoments::IntegrateQuad9Canonical(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, -1.0, 1.0, -1.0, 1.0, s == -1);
+      FELevelSetMoments::IntegrateQuad9CanonicalSelected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, -1.0, 1.0, -1.0, 1.0, s == -1, false, _quad9DirectionValidation, _quad9IntegrationDirection, nullptr, true);
       GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
     }
 
@@ -304,7 +306,7 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateTri7Canonical(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+        FELevelSetMoments::IntegrateTri7CanonicalSelected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1, false, _tri7DirectionValidation, _tri7IntegrationDirection, nullptr, true);
         GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
       }
       else if (_geomElemType == LINE && coefficient.size() == 3) {
@@ -356,7 +358,7 @@ class CutFemWeight {
       }
       std::vector<std::vector<double>> positive;
       std::vector<std::vector<double>> delta;
-      FELevelSetMoments::IntegrateQuad9Unit(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+      FELevelSetMoments::IntegrateQuad9UnitSelected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1, false, 24, _quad9IntegrationDirection, 200000, nullptr, _quad9DirectionValidation, nullptr, true);
       GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
     }
 
@@ -380,7 +382,7 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateTri7Reflected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1);
+        FELevelSetMoments::IntegrateTri7ReflectedSelected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1, false, 24, _tri7IntegrationDirection, 200000, nullptr, _tri7DirectionValidation, nullptr, true);
         GetWeightFromMoments((s == 0) ? positive : delta, weightCF);
       }
       else if (_geomElemType == LINE && coefficient.size() == 3) {
@@ -444,9 +446,17 @@ class CutFemWeight {
         GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
       }
       else if (_geomElemType == TRI) {
+        if(s != 0 && s != -1) throw std::invalid_argument("TRI7 nodal weights require s=0 or s=-1.");
         std::vector<double> coefficient;
         FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(nodalValues, coefficient);
-        GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
+        if(coefficient[3] == 0.0 && coefficient[4] == 0.0 && coefficient[5] == 0.0 && coefficient[6] == 0.0 && (coefficient[1] != 0.0 || coefficient[2] != 0.0)) {
+          GetWeightFromCanonicalFE(s, coefficient, weightCF, absoluteTolerance, relativeTolerance);
+          return;
+        }
+        std::vector<std::vector<double>> positive;
+        std::vector<std::vector<double>> delta;
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, s == -1, false, _tri7DirectionValidation, _tri7IntegrationDirection, nullptr, true);
+        GetWeightFromMoments(s == 0 ? positive : delta, weightCF);
       }
       else if (_geomElemType == LINE) {
         double a = 0.0;
@@ -459,6 +469,38 @@ class CutFemWeight {
       else {
         throw std::invalid_argument("FE nodal weights support LINE3, QUAD9, TRI7, HEX27, and TET15.");
       }
+    }
+
+    void SetTri7DirectionValidation(const unsigned mode) {
+      if(mode > 2) throw std::invalid_argument("TRI7 direction validation must be 0, 1, or 2.");
+      if(mode == _tri7DirectionValidation) return;
+      _tri7DirectionValidation = mode;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
+    }
+
+    void SetTri7IntegrationDirection(const unsigned direction) {
+      if(direction > 3) throw std::invalid_argument("TRI7 direction must be 0, 1, 2, or 3.");
+      if(direction == _tri7IntegrationDirection) return;
+      _tri7IntegrationDirection = direction;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
+    }
+
+    void SetQuad9DirectionValidation(const unsigned mode) {
+      if(mode > 2) throw std::invalid_argument("QUAD9 direction validation must be 0, 1, or 2.");
+      if(mode == _quad9DirectionValidation) return;
+      _quad9DirectionValidation = mode;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
+    }
+
+    void SetQuad9IntegrationDirection(const unsigned order) {
+      if(order > 2) throw std::invalid_argument("QUAD9 integration direction must be 0, 1, or 2.");
+      if(order == _quad9IntegrationDirection) return;
+      _quad9IntegrationDirection = order;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
     }
 
     void SetTet15DirectionValidation(const unsigned mode) {
@@ -729,8 +771,7 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        if(useLineSlices) FELevelSetMoments::IntegrateQuad9NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
-        else FELevelSetMoments::IntegrateQuad9Unit(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
+        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _quad9DirectionValidation, _quad9IntegrationDirection, nullptr, !useLineSlices);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == TRI) {
@@ -750,8 +791,7 @@ class CutFemWeight {
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        if(useLineSlices) FELevelSetMoments::IntegrateTri7NodalByLineSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance);
-        else FELevelSetMoments::IntegrateTri7Reflected(coefficient, _qM, positive, delta, absoluteTolerance, relativeTolerance);
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _tri7DirectionValidation, _tri7IntegrationDirection, nullptr, !useLineSlices);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == LINE) {
@@ -815,6 +855,10 @@ class CutFemWeight {
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _nodalMomentCache;
     unsigned _tet15DirectionValidation = 1;
+    unsigned _quad9DirectionValidation = 1;
+    unsigned _quad9IntegrationDirection = 0;
+    unsigned _tri7DirectionValidation = 1;
+    unsigned _tri7IntegrationDirection = 0;
     bool _nodalMomentUsesLineSlices = false;
     unsigned _nodalMomentAlgoimOrder = 0;
     unsigned _nodalMomentAlgoimSubdivisions = 1;
