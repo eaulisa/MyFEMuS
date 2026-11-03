@@ -344,7 +344,7 @@ namespace femus {
       KSPSetTolerances (_ksp, _rtol, _abstol, _dtol, _maxits);
 
       if (_mgSolverType != PREONLY) {
-        KSPSetInitialGuessKnoll (_ksp, PETSC_TRUE); //TODO probably to change into PETSC_FALSE
+        KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE); //TODO probably to change into PETSC_FALSE
       }
       else {
         KSPSetInitialGuessKnoll (_ksp, PETSC_FALSE);

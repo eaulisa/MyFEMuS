@@ -594,8 +594,9 @@ int main(int argc, char **argv) {
           *(Sol2[c2index]) = *(Sol0_C[c0index]);
 
           for(unsigned d = 0; d < pName.size(); d++) {
-            unsigned Pindex = mlSol2.GetIndex(pName[d].c_str());
-            Sol2[Pindex]->zero();
+            unsigned P0index = mlsol0->GetIndex(pName[d].c_str());
+            unsigned P2index = mlSol2.GetIndex(pName[d].c_str());
+            *(Sol2[P2index]) = *(Sol0_C[P0index]);
           }
         }
 
@@ -729,12 +730,12 @@ int main(int argc, char **argv) {
         system2.SetOuterSolver(FGMRES);
         system2.SetFieldSplitTree(&FS_NS);
         system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
-        system2.SetAbsoluteLinearConvergenceTolerance(1.e-6);
+        system2.SetAbsoluteLinearConvergenceTolerance(1.e-8);
 
         for (unsigned l = 0; l < levelC + 1 - level0; l++) {
           LinearEquationSolver* pdeSys2_base  = system2._LinSolver[l];
           pdeSys2_base->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
-          pdeSys2_base->MergeNullSpaceBases(true);
+          // pdeSys2_base->MergeNullSpaceBases(true);
         }
 
         //system2.MGsolve();
@@ -882,6 +883,7 @@ int main(int argc, char **argv) {
 
         ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, {psiName}, levelF, levelF, vName, levelC, zero_bd, -dt, time, period);
         ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, vName, levelC, levelC);
+        ProjectSolution(*mlsol0, *mlsol1, bbox, x_min, x_max, pName, levelC, levelC);
 
         UpdateColorFunction(*mlsol1, psiName, cName);
         if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
