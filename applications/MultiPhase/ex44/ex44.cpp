@@ -318,7 +318,7 @@ int main(int argc, char **argv) {
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
-      std::string meshName = (requestedDim == 3) ? "./input/cube_01_unstruct.neu" : "./input/unstructured_RB_tri_h8.neu";
+      std::string meshName = (requestedDim == 3) ? /*"./input/cube_01_unstruct.neu"*/ "./input/cube_01_struct_tet10.neu" : "./input/unstructured_RB_tri_h8.neu";
       if (elementType == TET /*|| elementType == TRI*/) {
         mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", (requestedDim == 3) ? 0.1 : 1);
       }
@@ -543,6 +543,7 @@ int main(int argc, char **argv) {
       const std::string vel_outputdir = "output_vel";
 
       VTKWriter vtkIO(&mlSol0);
+      vtkIO.SetDebugOutput(true);
       vtkIO.Write(levelF, ls_outputdir, "biquadratic", variablesToBePrinted, 0);
 
       LevelSetDiagnostics final_diagnostics;
@@ -1497,12 +1498,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetTri7IntegrationDirection(0);
 
           cfw[ielGeom]->SetHex27DirectionValidation(0);
-          //cfw[ielGeom]->SetTet15DirectionValidation(1);
+          cfw[ielGeom]->SetTet15DirectionValidation(0);
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
-          //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
-          cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-12, 1.E-12);
+          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
+          //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5);
 
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
@@ -2248,13 +2249,13 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-  double radius  = 0.249;
+  double radius  = 0.25;
   double radius2 = radius * radius;
   double radius3 = radius2 * radius;
   double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
   double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
-  std::cout << " Area error " << std::abs(A - A_th) << std::endl;
-  std::cout << " Perimetro error " << std::abs(Per - per_th) << std::endl;
+  std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
+  std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
 
    if (nprocs == 1)
     ProfilerStop();

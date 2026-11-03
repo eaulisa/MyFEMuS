@@ -4,7 +4,7 @@
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;
-//typedef cpp_bin_float_oct TypeA;
+// typedef cpp_bin_float_oct TypeA;
 typedef long double TypeA;
 typedef cpp_bin_float_oct oct;
 
@@ -4005,7 +4005,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.psi.type = PsiType::BALL;
       cfg.psi.center = {0.5, 0.5, 0.5};
       cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.249;
+      cfg.psi.radius = 0.25;
 
       cfg.properties.rho1 = rb1 ? 100. : 1.;
       cfg.properties.rho2 = 1000.;
