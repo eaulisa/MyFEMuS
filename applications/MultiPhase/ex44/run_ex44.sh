@@ -17,17 +17,18 @@ NREINIT=1
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
+DIM=2
 SIMULATION="rb2"
 SYMMETRIC=0
 AXISYMMETRIC=0
+ELTYPE=4
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(2)
+ADAPTIVE_LEVELS=(5)
 LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
@@ -53,7 +54,7 @@ OPTIONS_FILE="./input/FS_solver.options"
 # PETSc configuration
 # ------------------------------------------------------------
 
-KSP_MONITOR=true
+KSP_MONITOR=false
 KSP_VIEW=false
 OPTIONS_LEFT=true
 
@@ -206,7 +207,7 @@ EOF_OPTIONS
 # Pressure
 # ------------------------------------------------------------
 
--level-${i}fieldsplit_1_ksp_monitor
+# -level-${i}fieldsplit_1_ksp_monitor
 -level-${i}fieldsplit_1_ksp_type preonly
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
@@ -347,6 +348,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --simulation "${SIMULATION}" \
         --symmetric "${SYMMETRIC}" \
         --axisymmetric "${AXISYMMETRIC}" \
+        --eltype "${ELTYPE}" \
         --nprint "${NPRINT}" \
         --nreinit "${NREINIT}"  
 

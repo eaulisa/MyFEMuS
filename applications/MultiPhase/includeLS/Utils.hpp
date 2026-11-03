@@ -3367,6 +3367,8 @@ struct SimulationArgs {
 
   bool symmetric = false;
   bool axisymmetric = false;
+
+  unsigned elemtype = 3;
 };
 
 SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
@@ -3442,6 +3444,17 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
       }
 
       args.nReinit = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--eltype") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --eltype"
+        );
+      }
+
+      args.elemtype = std::stoul(argv[++i]);
     }
 
     else if (option == "--level-offset") {
@@ -3977,11 +3990,11 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       const bool rb1 = simulation == SimulationCase::RB1;
 
       cfg.x_min[0] = 0.;
-      cfg.x_max[0] = 1.e-1;
+      cfg.x_max[0] = 1.;
       cfg.x_min[1] = 0.;
-      cfg.x_max[1] = (dim == 3) ? 1.e-1 : 2.;
+      cfg.x_max[1] = (dim == 3) ? 1. : 2.;
       cfg.x_min[2] = 0.;
-      cfg.x_max[2] = (dim == 3) ? 1.e-1 : 0.;
+      cfg.x_max[2] = (dim == 3) ? 2. : 0.;
 
       cfg.n[0] = (dim == 3) ? 8 : 8;
       cfg.n[1] = (dim == 3) ? 8 : 16;
@@ -3990,9 +4003,9 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.period = 3.;
 
       cfg.psi.type = PsiType::BALL;
-      cfg.psi.center = {0.05, 0.05, 0.05};
+      cfg.psi.center = {0.5, 0.5, 0.5};
       cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.0249;
+      cfg.psi.radius = 0.249;
 
       cfg.properties.rho1 = rb1 ? 100. : 1.;
       cfg.properties.rho2 = 1000.;
