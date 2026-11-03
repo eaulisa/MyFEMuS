@@ -4012,7 +4012,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.properties.mu1 = rb1 ? 1. : 0.1;
       cfg.properties.mu2 = 10.;
       cfg.properties.sigma = rb1 ? 24.5 : 1.96;
-      cfg.properties.gravity = 0;//-0.98;
+      cfg.properties.gravity = 0.;// -0.98;
 
       SetSlipSidesWallEnds();
 

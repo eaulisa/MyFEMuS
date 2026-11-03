@@ -63,6 +63,8 @@ class Psi {
             r2 += dx * dx;
           }
           return _cfg.radius - std::sqrt(r2);
+          // return _cfg.radius * _cfg.radius - r2;
+
         }
 
         case PsiType::SAYE: {

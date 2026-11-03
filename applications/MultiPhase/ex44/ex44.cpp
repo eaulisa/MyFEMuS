@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
 
       MultiLevelMesh mlMsh0;
       std::string meshName = (requestedDim == 3) ? "./input/cube_01_unstruct.neu" : "./input/unstructured_RB_tri_h8.neu";
-      if (elementType == TET || elementType == TRI) {
+      if (elementType == TET /*|| elementType == TRI*/) {
         mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", (requestedDim == 3) ? 0.1 : 1);
       }
       else if (elementType != WEDGE) {
@@ -445,7 +445,7 @@ int main(int argc, char **argv) {
       // Load coarse mesh and build uniform refinement levels
       // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
       // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      if (elementType == TET || elementType == TRI) {
+      if (elementType == TET /*|| elementType == TRI*/) {
         mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", (requestedDim == 3) ? 0.1 : 1);
       }
       else if (elementType != WEDGE) {
@@ -1488,7 +1488,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
           //std::cout<<std::endl;
 
-          //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
+
 
 
           cfw[ielGeom]->SetHex27IntegrationDirection(0);
@@ -1497,11 +1497,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetTri7IntegrationDirection(0);
 
           cfw[ielGeom]->SetHex27DirectionValidation(0);
-          cfw[ielGeom]->SetTet15DirectionValidation(0);
+          //cfw[ielGeom]->SetTet15DirectionValidation(1);
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
-          cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-05, 1.E-05);
+          //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
+          cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-12, 1.E-12);
 
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];

@@ -9,7 +9,7 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=1
+NPROC=8
 NPRINT=1200
 NREINIT=1
 
@@ -17,19 +17,19 @@ NREINIT=1
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
+DIM=3
 SIMULATION="rb2"
 SYMMETRIC=0
 AXISYMMETRIC=0
-ELTYPE=3
+ELTYPE=1
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(10)
-LEVEL_OFFSET=2
+UNIFORM_LEVELS=(1)
+ADAPTIVE_LEVELS=(3)
+LEVEL_OFFSET=1
 
 # ------------------------------------------------------------
 # Time discretization
@@ -172,7 +172,7 @@ EOF_OPTIONS
 
 -level-${i}ksp_norm_type unpreconditioned
 #-level-${i}ksp_view_final_residual
-#-level-${i}ksp_monitor
+-level-${i}ksp_monitor
 
 -level-${i}ksp_type gmres
 -level-${i}ksp_rtol 1.e-8
